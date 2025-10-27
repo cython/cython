@@ -37,7 +37,7 @@ class BaseType:
     def can_coerce_to_pystring(self, env, format_spec=None):
         return False
 
-    def convert_to_pystring(self, cvalue, code, format_spec=None):
+    def convert_to_pystring(self, cvalue, code, format_spec=None, name_type=None):
         raise NotImplementedError("C types that support string formatting must override this method")
 
     def cast_code(self, expr_code):
@@ -152,12 +152,6 @@ class BaseType:
         Returns None if no check should be performed.
         """
         return None
-
-    def invalid_value(self):
-        """
-        Returns the most invalid value an object of this type can assume as a
-        C expression string. Returns None if no such value exists.
-        """
 
 
 class PyrexType(BaseType):
@@ -454,9 +448,6 @@ class CTypedefType(BaseType):
         self.typedef_is_external = is_external
         self.typedef_namespace = namespace
 
-    def invalid_value(self):
-        return self.typedef_base_type.invalid_value()
-
     def resolve(self):
         return self.typedef_base_type.resolve()
 
@@ -643,6 +634,16 @@ class CTypedefType(BaseType):
     def can_coerce_from_pyobject(self, env):
         return self.typedef_base_type.can_coerce_from_pyobject(env)
 
+    def can_coerce_to_pystring(self, env, format_spec=None):
+        return self.typedef_base_type.can_coerce_to_pystring(env, format_spec)
+
+    def convert_to_pystring(self, cvalue, code, format_spec=None, name_type=None):
+        if self.typedef_is_external and name_type is None:
+            # The declared base type of external typedefs may not be exact, so use the typedef type name.
+            name_type = self
+
+        return self.typedef_base_type.convert_to_pystring(cvalue, code, format_spec, name_type)
+
 
 class MemoryViewSliceType(PyrexType):
 
@@ -753,7 +754,7 @@ class MemoryViewSliceType(PyrexType):
         assert not dll_linkage
         from . import MemoryView
         base_code = StringEncoding.EncodedString(
-            str(self) if pyrex or for_display else MemoryView.memviewslice_cname)
+            str(self) if pyrex or for_display else Naming.memviewslice_cname)
         return self.base_declaration_code(
                 base_code,
                 entity_code)
@@ -994,10 +995,7 @@ class MemoryViewSliceType(PyrexType):
                 "ObjectToMemviewSlice", "MemoryView_C.c", context=context)
 
         env.use_utility_code(
-            MemoryView.get_memviewslice_init_code(
-                env.context.shared_utility_qualified_name
-            )
-        )
+            MemoryView.get_view_utility_code(env.context.shared_utility_qualified_name))
         env.use_utility_code(LazyUtilityCode(lazy_utility_callback))
 
         if self.is_c_contig:
@@ -1085,6 +1083,7 @@ class MemoryViewSliceType(PyrexType):
                 from_py_function=from_py_function,
                 dtype=self.dtype.empty_declaration_code(),
                 error_condition=error_condition,
+                dtype_is_const=self.dtype.is_const,
             )
 
         utility = TempitaUtilityCode.load_cached(
@@ -2182,16 +2181,19 @@ class CIntLike:
         format_type, width, padding = self._parse_format(format_spec)
         return format_type is not None and width <= 2**30
 
-    def convert_to_pystring(self, cvalue, code, format_spec=None):
-        if self.to_pyunicode_utility is not None:
+    def convert_to_pystring(self, cvalue, code, format_spec=None, name_type=None):
+        if self.to_pyunicode_utility is not None and name_type is None:
             conversion_func_cname, to_pyunicode_utility = self.to_pyunicode_utility
         else:
-            conversion_func_cname = f"__Pyx_PyUnicode_From_{self.specialization_name()}"
+            if name_type is None:
+                name_type = self
+            conversion_func_cname = f"__Pyx_PyUnicode_From_{name_type.specialization_name()}"
             to_pyunicode_utility = TempitaUtilityCode.load_cached(
                 "CIntToPyUnicode", "TypeConversion.c",
-                context={"TYPE": self.empty_declaration_code(),
+                context={"TYPE": name_type.empty_declaration_code(),
                         "TO_PY_FUNCTION": conversion_func_cname})
-            self.to_pyunicode_utility = (conversion_func_cname, to_pyunicode_utility)
+            if name_type is self:
+                self.to_pyunicode_utility = (conversion_func_cname, to_pyunicode_utility)
 
         code.globalstate.use_utility_code(to_pyunicode_utility)
         format_type, width, padding_char = self._parse_format(format_spec)
@@ -2218,15 +2220,6 @@ class CIntType(CIntLike, CNumericType):
 
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
-
-    def invalid_value(self):
-        if rank_to_type_name[int(self.rank)] == 'char':
-            return "'?'"
-        else:
-            # We do not really know the size of the type, so return
-            # a 32-bit literal and rely on casting to final type. It will
-            # be negative for signed ints, which is good.
-            return "0xbad0bad0"
 
     def overflow_check_binop(self, binop, env, const_rhs=False):
         env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
@@ -2302,7 +2295,7 @@ class CReturnCodeType(CIntType):
     def can_coerce_to_pystring(self, env, format_spec=None):
         return not format_spec
 
-    def convert_to_pystring(self, cvalue, code, format_spec=None):
+    def convert_to_pystring(self, cvalue, code, format_spec=None, name_type=None):
         return "__Pyx_NewRef(%s)" % code.get_py_string_const(StringEncoding.EncodedString("None"))
 
 
@@ -2316,11 +2309,13 @@ class CBIntType(CIntType):
     def can_coerce_to_pystring(self, env, format_spec=None):
         return not format_spec or super().can_coerce_to_pystring(env, format_spec)
 
-    def convert_to_pystring(self, cvalue, code, format_spec=None):
+    def convert_to_pystring(self, cvalue, code, format_spec=None, name_type=None):
         if format_spec:
-            return super().convert_to_pystring(cvalue, code, format_spec)
+            return super().convert_to_pystring(cvalue, code, format_spec, name_type)
+        if name_type is None:
+            name_type = self
         # NOTE: no caching here as the string constant cnames depend on the current module
-        utility_code_name = "__Pyx_PyUnicode_FromBInt_" + self.specialization_name()
+        utility_code_name = "__Pyx_PyUnicode_FromBInt_" + name_type.specialization_name()
         to_pyunicode_utility = TempitaUtilityCode.load_cached(
             "CBIntToPyUnicode", "TypeConversion.c", context={
                 "TRUE_CONST":  code.get_py_string_const(StringEncoding.EncodedString("True")),
@@ -2456,8 +2451,6 @@ class CFloatType(CNumericType):
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
 
-    def invalid_value(self):
-        return Naming.PYX_NAN
 
 class CComplexType(CNumericType):
 
@@ -3008,9 +3001,6 @@ class CPtrType(CPointerBaseType):
             return self.base_type.deduce_template_params(actual.base_type)
         else:
             return {}
-
-    def invalid_value(self):
-        return "1"
 
     def find_cpp_operation_type(self, operator, operand_type=None):
         if self.base_type.is_cpp_class:

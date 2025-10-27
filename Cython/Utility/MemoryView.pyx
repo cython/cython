@@ -1144,7 +1144,7 @@ cdef void _copy_strided_to_strided(char *src_data, Py_ssize_t *src_strides,
 
     if ndim == 1:
         if (src_stride > 0 and dst_stride > 0 and
-            <size_t> src_stride == itemsize == <size_t> dst_stride):
+                <size_t> src_stride == itemsize == <size_t> dst_stride):
             memcpy(dst_data, src_data, itemsize * dst_extent)
         else:
             for i in range(dst_extent):

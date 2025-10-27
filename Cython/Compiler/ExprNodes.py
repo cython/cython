@@ -24,6 +24,7 @@ import os.path
 import pathlib
 import re
 import sys
+from typing import Optional
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
@@ -473,6 +474,7 @@ class ExprNode(Node):
     has_temp_moved = False  # if True then attempting to do anything but free the temp is invalid
     is_target = False
     is_starred = False
+    is_annotation = False
 
     constant_result = constant_value_not_set
 
@@ -628,24 +630,28 @@ class ExprNode(Node):
         py_result = self.constant_result if self.has_constant_result() else c_result
         return PyrexTypes.CFuncType.ExceptionValue(py_result, c_result, self.type)
 
-    def may_be_unsafe_shared(self):
-        # for some function-local variables we can optimize their usage because we
+    def may_be_unsafe_shared(self) -> str:
+        # For some function-local variables we can optimize their usage because we
         # know that it's unique to this thread and can't be used from another thread.
+        # Returns the name of a C enum.
         if self.in_parallel_block:
-            return True
+            return "__Pyx_ReferenceSharing_SharedReference"
         if self.is_temp:
             # If it's a refcounted variable, we hold a reference to it. Therefore, if
             # the reference count is 1, we trust that we're the unique owner.
-            return False
+            return "__Pyx_ReferenceSharing_OwnStrongReference"
         if not hasattr(self, "entry") or self.entry is None:
-            return True  # Not sure if we can reason about it
+            return "__Pyx_ReferenceSharing_SharedReference"  # Not sure if we can reason about it
+        if self.entry.is_arg:
+            # Arguments are a little hard to reason about so need an extra level of check
+            return "__Pyx_ReferenceSharing_FunctionArgument"
         if (self.entry.scope.is_local_scope and
                 # TODO - in principle a generator closure should be "non shared" because
                 # only one thread can run the generator at once.
                 not self.entry.in_closure and not self.entry.from_closure):
-            return False
+            return "__Pyx_ReferenceSharing_OwnStrongReference"
         # Most likely a global, or a class attribute
-        return True
+        return "__Pyx_ReferenceSharing_SharedReference"
 
     # ------------- Declaration Analysis ----------------
 
@@ -2877,28 +2883,25 @@ class BackquoteNode(ExprNode):
 class ImportNode(ExprNode):
     #  Used as part of import statement implementation.
     #  Implements result =
-    #    __import__(module_name, globals(), None, name_list, level)
+    #    __import__(module_name, globals(), None, list(imported_names), level)
     #
-    #  module_name   UnicodeNode            dotted name of module. Empty module
+    #  module_name    UnicodeNode            dotted name of module. Empty module
     #                       name means importing the parent package according
     #                       to level
-    #  name_list     ListNode or None      list of names to be imported
-    #  level         int                   relative import level:
+    #  imported_names [ExprNode] or None list of names to be imported
+    #  level          int                   relative import level:
     #                       -1: attempt both relative import and absolute import;
     #                        0: absolute import;
     #                       >0: the number of parent directories to search
     #                           relative to the current module.
     #                     None: decide the level according to language level and
     #                           directives
-    #  get_top_level_module   int          true: return top-level module, false: return imported module
-    #  module_names           TupleNode    the separate names of the module and submodules, or None
+    #  is_import_as_name    boolean        is imported in an 'as' block
 
     type = py_object_type
-    module_names = None
-    get_top_level_module = False
     is_temp = True
 
-    subexprs = ['module_name', 'name_list', 'module_names']
+    subexprs = ['module_name', 'imported_names']
 
     def analyse_types(self, env):
         if self.level is None:
@@ -2909,51 +2912,70 @@ class ImportNode(ExprNode):
                 self.level = -1
             else:
                 self.level = 0
+
         module_name = self.module_name.analyse_types(env)
         self.module_name = module_name.coerce_to_pyobject(env)
         assert self.module_name.is_string_literal
-        if self.name_list:
-            name_list = self.name_list.analyse_types(env)
-            self.name_list = name_list.coerce_to_pyobject(env)
-        elif '.' in self.module_name.value:
-            self.module_names = TupleNode(self.module_name.pos, args=[
-                IdentifierStringNode(self.module_name.pos, value=part)
-                for part in map(StringEncoding.EncodedString, self.module_name.value.split('.'))
-            ]).analyse_types(env)
+
+        if self.imported_names is not None:
+            self.imported_names = [
+                name.analyse_types(env) for name in self.imported_names
+            ]
+
+        if self.level != 0:
+            level = self.level if self.level > 0 else 1
+            qualname = env.global_scope().qualified_name
+            for _ in range(level):
+                qualname, _, _ = qualname.rpartition('.')
+            self.module_qualname = StringEncoding.EncodedString(f"{qualname}.{self.module_name.value}")
+        else:
+            self.module_qualname = None
         return self
 
     gil_message = "Python import"
 
     def generate_result_code(self, code):
         assert self.module_name.is_string_literal
-        module_name = self.module_name.value
 
-        if self.level <= 0 and not self.name_list and not self.get_top_level_module:
-            if self.module_names:
-                assert self.module_names.is_literal  # make sure we create the tuple only once
-            if self.level == 0:
-                utility_code = UtilityCode.load_cached("ImportDottedModule", "ImportExport.c")
-                helper_func = "__Pyx_ImportDottedModule"
-            else:
-                utility_code = UtilityCode.load_cached("ImportDottedModuleRelFirst", "ImportExport.c")
-                helper_func = "__Pyx_ImportDottedModuleRelFirst"
-            code.globalstate.use_utility_code(utility_code)
-            import_code = "%s(%s, %s)" % (
-                helper_func,
-                self.module_name.py_result(),
-                self.module_names.py_result() if self.module_names else 'NULL',
-            )
-        else:
-            code.globalstate.use_utility_code(UtilityCode.load_cached("Import", "ImportExport.c"))
-            import_code = "__Pyx_Import(%s, %s, %d)" % (
-                self.module_name.py_result(),
-                self.name_list.py_result() if self.name_list else '0',
-                self.level)
+        module_qualname = 'NULL'
+        if self.module_qualname is not None:
+            module_qualname = code.get_py_string_const(self.module_qualname)
 
-        code.putln("%s = %s; %s" % (
-            self.result(),
-            import_code,
-            code.error_goto_if_null(self.result(), self.pos)))
+        code.globalstate.use_utility_code(UtilityCode.load_cached("Import", "ImportExport.c"))
+
+        if self.imported_names is not None:
+            code.putln("{")
+            code.putln(
+                f"PyObject* const __pyx_imported_names[] = {{{','.join(n.result() for n in self.imported_names)}}};")
+
+        import_code = "__Pyx_Import(%s, %s, %d, %s, %d)" % (
+            self.module_name.py_result(),
+            '__pyx_imported_names' if self.imported_names is not None else '0',
+            len(self.imported_names) if self.imported_names is not None else 0,
+            module_qualname,
+            self.level)
+        tmp_submodule = code.funcstate.allocate_temp(self.type, manage_ref=False)
+        code.putln(
+            f"{tmp_submodule} = {import_code}; {code.error_goto_if_null(tmp_submodule, self.pos)}"
+        )
+        if self.imported_names is not None:
+            code.putln("}")
+
+        if self.is_import_as_name and "." in self.module_name.value:
+            # We need to get the submodules in this case
+            code.globalstate.use_utility_code(UtilityCode.load_cached("ImportFrom", "ImportExport.c"))
+            submodule = code.funcstate.allocate_temp(self.type, manage_ref=False)
+            modules = self.module_name.value.split(".")
+            for module in modules[1:]:
+                module_obj = code.get_py_string_const(StringEncoding.EncodedString(module))
+                code.putln(f"{submodule} = __Pyx_ImportFrom({tmp_submodule}, {module_obj});")
+                code.putln(f"Py_DECREF({tmp_submodule});")
+                code.putln(code.error_goto_if_null(submodule, self.pos))
+                code.putln(f"{tmp_submodule} = {submodule};")
+            code.funcstate.release_temp(submodule)
+
+        code.putln(f"{self.result()} = {tmp_submodule};")
+        code.funcstate.release_temp(tmp_submodule)
         self.generate_gotref(code)
 
     def get_known_standard_library_import(self):
@@ -3225,7 +3247,7 @@ class IteratorNode(ScopedExprNode):
         if test_name == 'List':
             code.putln(
                 f"{result_name} = __Pyx_PyList_GetItemRefFast("
-                f"{self.py_result()}, {self.counter_cname}, {self.may_be_unsafe_shared():d});")
+                f"{self.py_result()}, {self.counter_cname}, {self.may_be_unsafe_shared()});")
         else:  # Tuple
             code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
             code.putln(f"{result_name} = __Pyx_NewRef(PyTuple_GET_ITEM({self.py_result()}, {self.counter_cname}));")
@@ -3346,38 +3368,45 @@ class CppIteratorNode(ExprNode):
     def generate_result_code(self, code):
         sequence_type = self.sequence.type
         begin_name, _ = self.get_iterator_func_names()
+
         # essentially 3 options:
         if self.sequence.is_simple():
             # 1) Sequence can be accessed directly, like a name;
             #    assigning to it may break the container, but that's the responsibility
-            #    of the user
+            #    of the user.
             code.putln("%s = %s%s%s();" % (
                 self.result(),
                 self.sequence.result(),
                 self.cpp_attribute_op,
-                begin_name))
-        else:
-                # (while it'd be nice to limit the scope of the loop temp, it's essentially
-                # impossible to do while supporting generators)
-                temp_type = sequence_type
-                if temp_type.is_reference:
-                    # 2) Sequence is a reference (often obtained by dereferencing a pointer);
-                    #    make the temp a pointer so we are not sensitive to users reassigning
-                    #    the pointer than it came from
-                    temp_type = PyrexTypes.CPtrType(sequence_type.ref_base_type)
-                if temp_type.is_ptr or code.globalstate.directives['cpp_locals']:
-                    self.cpp_attribute_op = "->"
-                # 3) (otherwise) sequence comes from a function call or similar, so we must
-                #    create a temp to store it in
-                self.cpp_sequence_cname = code.funcstate.allocate_temp(temp_type, manage_ref=False)
-                code.putln("%s = %s%s;" % (self.cpp_sequence_cname,
-                                           "&" if temp_type.is_ptr else "",
-                                           self.sequence.move_result_rhs()))
-                code.putln("%s = %s%s%s();" % (
-                    self.result(),
-                    self.cpp_sequence_cname,
-                    self.cpp_attribute_op,
-                    begin_name))
+                begin_name,
+            ))
+            return
+
+        # (while it'd be nice to limit the scope of the loop temp, it's essentially
+        # impossible to do while supporting generators)
+        temp_type = sequence_type
+        if temp_type.is_reference:
+            # 2) Sequence is a reference (often obtained by dereferencing a pointer);
+            #    make the temp a pointer so we are not sensitive to users reassigning
+            #    the pointer than it came from
+            temp_type = PyrexTypes.CPtrType(sequence_type.ref_base_type)
+        if temp_type.is_ptr or code.globalstate.directives['cpp_locals']:
+            self.cpp_attribute_op = "->"
+
+        # 3) (otherwise) sequence comes from a function call or similar, so we must
+        #    create a temp to store it in
+        self.cpp_sequence_cname = code.funcstate.allocate_temp(temp_type, manage_ref=False)
+        code.putln("%s = %s%s;" % (
+            self.cpp_sequence_cname,
+            "&" if temp_type.is_ptr else "",
+            self.sequence.move_result_rhs(),
+        ))
+        code.putln("%s = %s%s%s();" % (
+            self.result(),
+            self.cpp_sequence_cname,
+            self.cpp_attribute_op,
+            begin_name,
+        ))
 
     def generate_for_loop_header(self, code):
         # end call isn't cached to support containers that allow adding while iterating
@@ -3549,7 +3578,7 @@ class AsyncNextNode(AtomicExprNode):
         self.generate_gotref(code)
 
 
-class WithExitCallNode(ExprNode):
+class WithExitCallNode(ExprNode, Nodes.CopyWithUpTreeRefsMixin):
     # The __exit__() call of a 'with' statement.  Used in both the
     # except and finally clauses.
 
@@ -3558,6 +3587,7 @@ class WithExitCallNode(ExprNode):
     # await_expr  AwaitExprNode               the await expression of an 'async with' statement
 
     subexprs = ['args', 'await_expr']
+    uptree_ref_attrs = ['with_stat']
     test_if_run = True
     await_expr = None
 
@@ -3743,7 +3773,8 @@ class JoinedStrNode(ExprNode):
         for node in self.values:
             if isinstance(node, UnicodeNode):
                 max_char_value = max(max_char_value, node.estimate_max_charval())
-            elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
+            elif (isinstance(node, FormattedValueNode) and
+                    node.c_format_spec != 'c' and node.value.type.is_numeric):
                 # formatted C numbers are always ASCII
                 pass
             elif isinstance(node, CloneNode):
@@ -3844,8 +3875,9 @@ class FormattedValueNode(ExprNode):
 
     def analyse_types(self, env):
         self.value = self.value.analyse_types(env)
+        resolved_type = self.value.type.resolve()
         if not self.format_spec or self.format_spec.is_string_literal:
-            c_format_spec = self.format_spec.value if self.format_spec else self.value.type.default_format_spec
+            c_format_spec = self.format_spec.value if self.format_spec else resolved_type.default_format_spec
             if self.value.type.can_coerce_to_pystring(env, format_spec=c_format_spec):
                 self.c_format_spec = c_format_spec
 
@@ -3854,7 +3886,7 @@ class FormattedValueNode(ExprNode):
         if self.c_format_spec is None:
             self.value = self.value.coerce_to_pyobject(env)
             if not self.format_spec and (not self.conversion_char or self.conversion_char == 's'):
-                if self.value.type is unicode_type and not self.value.may_be_none():
+                if resolved_type is unicode_type and not self.value.may_be_none():
                     # value is definitely a unicode string and we don't format it any special
                     return self.value
         return self
@@ -4665,7 +4697,7 @@ class IndexNode(_IndexingBaseNode):
                     self.pos, "Indexing a bytearray with 'boundscheck' enabled and without the GIL "
                     "is not thread-safe on freethreaded Python "
                     "(disable 'boundscheck' to turn off this warning)", 1)
-            return ", %s, %d, %s, %d, %d, %d, %d, %d" % (
+            return ", %s, %d, %s, %d, %d, %d, %d, %s" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
                 self.original_index_type.to_py_function,
@@ -7586,9 +7618,9 @@ class MergedDictNode(ExprNode):
             if item.result_in_temp():
                 # For the fairly plausible special case where item is a temporary
                 # with a refcount of 1 (so created specifically for us),
-                # avoid making a copy
+                # avoid making a copy.
                 code.putln("#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API")
-                code.putln("if (Py_REFCNT(%s) == 1) {" % item.py_result())
+                code.putln(f"if (__Pyx_IS_UNIQUELY_REFERENCED({item.py_result()}, {item.may_be_unsafe_shared()})) {{")
                 code.putln("%s = %s;" % (self.result(), item.py_result()))
                 item.generate_post_assignment_code(code)
                 code.putln("} else")
@@ -8687,7 +8719,7 @@ class SequenceNode(ExprNode):
         for i, item in enumerate(self.unpacked_items):
             if sequence_types[0] == "List":
                 code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast"
-                           f"(sequence, {i}, {self.may_be_unsafe_shared():d});")
+                           f"(sequence, {i}, {self.may_be_unsafe_shared()});")
                 code.putln(code.error_goto_if_null(item.result(), self.pos))
                 code.put_xgotref(item.result(), item.ctype())
             else:  # Tuple
@@ -8697,7 +8729,7 @@ class SequenceNode(ExprNode):
             code.putln("} else {")
             for i, item in enumerate(self.unpacked_items):
                 if sequence_types[1] == "List":
-                    code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast(sequence, {i}, {self.may_be_unsafe_shared():d});")
+                    code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast(sequence, {i}, {self.may_be_unsafe_shared()});")
                     code.putln(code.error_goto_if_null(item.result(), self.pos))
                     code.put_xgotref(item.result(), item.ctype())
                 else:  # Tuple
@@ -10047,6 +10079,7 @@ class Py3ClassNode(ExprNode):
                 self.allow_py2_metaclass,
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+        code.put_make_object_deferred(self.result())
 
 
 class PyClassMetaclassNode(ExprNode):
@@ -10430,6 +10463,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 code.error_goto_if_null(self.result(), self.pos)))
 
         self.generate_gotref(code)
+        code.put_make_object_deferred(self.result())
 
         if def_node.requires_classobj:
             assert code.pyclass_stack, "pyclass_stack is empty"
@@ -12618,10 +12652,11 @@ class AddNode(NumBinopNode):
                 is_unicode_concat = False
 
             if is_unicode_concat:
+                func = '__Pyx_PyUnicode_Concat'
                 if self.inplace or self.operand1.result_in_temp():
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("UnicodeConcatInPlace", "ObjectHandling.c"))
-                func = '__Pyx_PyUnicode_Concat'
+                    func += self.may_be_unsafe_shared()
 
         if func:
             # any necessary utility code will be got by "NumberAdd" in generate_evaluation_code
@@ -14782,7 +14817,9 @@ class CoerceToBooleanNode(CoercionNode):
 
     type = PyrexTypes.c_bint_type
 
-    # Note that all of these need a check if CYTHON_ASSUME_SAFE_MACROS is false
+    # Note that all of these need a check if CYTHON_ASSUME_SAFE_SIZE is false.
+    # They should also all return something compatible with Py_ssize_t
+    # (i.e. Py_ssize_t or a smaller int type).
     _special_builtins = {
         Builtin.list_type:       '__Pyx_PyList_GET_SIZE',
         Builtin.tuple_type:      '__Pyx_PyTuple_GET_SIZE',
@@ -14818,11 +14855,18 @@ class CoerceToBooleanNode(CoercionNode):
             return
         test_func = self._special_builtins.get(self.arg.type)
         if test_func is not None:
-            checks = ["(%s != Py_None)" % self.arg.py_result()] if self.arg.may_be_none() else []
-            checks.append("(%s(%s) != 0)" % (test_func, self.arg.py_result()))
-            code.putln("%s = %s;" % (self.result(), '&&'.join(checks)))
+            if self.arg.may_be_none():
+                code.putln(f"if ({self.arg.py_result()} == Py_None) {self.result()} = 0;")
+                code.putln("else")
+            code.putln("{")
+            # Be aware that __Pyx_PyUnicode_IS_TRUE isn't strictly returning a size (but it does
+            # return an int which fits into a Py_ssize_t).
+            code.putln(f"Py_ssize_t {Naming.quick_temp_cname} = {test_func}({self.arg.py_result()});")
             code.putln(code.error_goto_if(
-                "((!CYTHON_ASSUME_SAFE_MACROS) && %s < 0)" % self.result(), self.pos))
+                f"((!CYTHON_ASSUME_SAFE_SIZE) && {Naming.quick_temp_cname} < 0)", self.pos))
+            code.putln(f"{self.result()} = ({Naming.quick_temp_cname} != 0);")
+            code.putln("}")
+            code.putln()
         else:
             code.putln(
                 "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
@@ -15162,6 +15206,7 @@ class AnnotationNode(ExprNode):
     # annotation is evaluated into a Python Object.
 
     subexprs = []
+    is_annotation = True
 
     # 'untyped' is set for fused specializations:
     # Once a fused function has been created we don't want
@@ -15282,27 +15327,29 @@ class AssignmentExpressionNode(ExprNode):
     subexprs = ["rhs"]
     child_attrs = ["rhs", "assignment"]  # This order is important for control-flow (i.e. xdecref) to be right
 
-    is_temp = False
-    assignment = None
-    clone_node = None
+    is_temp: bool = False
+    rhs: Optional[ExprNode] = None
+    assignment: SingleAssignmentNode
+    assignment_is_independent: bool = False
 
-    def __init__(self, pos, lhs, rhs, **kwds):
+    def __init__(self, pos, lhs: NameNode, rhs: ExprNode, **kwds):
         super().__init__(pos, **kwds)
-        self.rhs = ProxyNode(rhs)
-        assign_expr_rhs = CloneNode(self.rhs)
         self.assignment = SingleAssignmentNode(
-            pos, lhs=lhs, rhs=assign_expr_rhs, is_assignment_expression=True)
+            pos, lhs=lhs, rhs=rhs, is_assignment_expression=True)
 
     @property
     def type(self):
-        return self.rhs.type
+        if self.rhs is not None:
+            return self.rhs.type
+        return self.assignment.rhs.type
 
     @property
     def target_name(self):
         return self.assignment.lhs.name
 
     def infer_type(self, env):
-        return self.rhs.infer_type(env)
+        rhs = self.rhs or self.assignment.rhs
+        return rhs.infer_type(env)
 
     def analyse_declarations(self, env):
         self.assignment.analyse_declarations(env)
@@ -15314,13 +15361,10 @@ class AssignmentExpressionNode(ExprNode):
         #   __pyx_t_1
         # (plus any reference counting that's needed)
 
-        self.rhs = self.rhs.analyse_types(env)
-        if not self.rhs.arg.result_in_temp():
-            if not self.rhs.arg.is_literal:
-                # for anything but the simplest cases (where it can be used directly)
-                # we convert rhs to a temp, because CloneNode requires arg to be a temp
-                self.rhs.arg = self.rhs.arg.coerce_to_temp(env)
-            else:
+        self.assignment = self.assignment.analyse_types(env)
+        rhs = self.assignment.rhs
+        if not rhs.result_in_temp():
+            if rhs.is_literal:
                 # For literals we can optimize by just using the literal twice
                 #
                 # We aren't including `self.rhs.is_name` in this optimization
@@ -15329,14 +15373,22 @@ class AssignmentExpressionNode(ExprNode):
                 # This is a special case of https://github.com/cython/cython/issues/4146
                 # TODO - once that's fixed general revisit this code and possibly
                 # use coerce_to_simple
-                self.assignment.rhs = copy.copy(self.rhs)
+                self.rhs = copy.copy(self.assignment.rhs)
+                self.assignment_is_independent = True
+            else:
+                # for anything but the simplest cases (where it can be used directly)
+                # we convert rhs to a temp, because CloneNode requires arg to be a temp
+                rhs = rhs.coerce_to_temp(env)
+        if not self.assignment_is_independent:
+            self.rhs = ProxyNode(rhs)
+            self.assignment.rhs = CloneNode(self.rhs)
+            self.rhs.arg = self.rhs.arg.coerce_to_temp(env)
 
         # TODO - there's a missed optimization in the code generation stage
         # if self.rhs.arg is temp: an incref/decref pair can be removed
         # (but needs a general mechanism to do that)
-        self.assignment = self.assignment.analyse_types(env)
 
-        if self.type.is_memoryviewslice and isinstance(self.assignment.rhs, CloneNode):
+        if self.type.is_memoryviewslice and self.assignment_is_independent:
             # In "put_assign_to_memviewslice", memoryviews don't generate reference
             # counting on assignment from temp. That lack of reference counting
             # essentially happens twice (since we use the temp twice), which we want to
@@ -15345,7 +15397,12 @@ class AssignmentExpressionNode(ExprNode):
         return self
 
     def coerce_to(self, dst_type, env):
+        if self.assignment_is_independent:
+            # rhs and assignment don't share a node, so just behave normally
+            self.rhs = self.rhs.coerce_to(dst_type, env)
+            return self
         if dst_type == self.assignment.rhs.type:
+            assert self.rhs is not None
             # in this quite common case (for example, when both lhs, and self are being coerced to Python)
             # we can optimize the coercion out by sharing it between
             # this and the assignment
@@ -15398,3 +15455,108 @@ class FirstArgumentForCriticalSectionNode(ExprNode):
         if self.name_node:
             return self.name_node.analyse_expressions(env)
         return self  # error earlier
+
+
+class TStringInterpolationNode(ExprNode):
+    # conversion_char   str
+    subexprs = ['value', 'format_spec', 'expression_str']
+    is_temp = True
+    type = py_object_type
+
+    def __init__(self, pos, **kwds):
+        super().__init__(pos, **kwds)
+        assert (self.conversion_char is None or
+                isinstance(self.conversion_char, StringEncoding.EncodedString))
+
+    def analyse_declarations(self, env):
+        self.value.analyse_declarations(env)
+        if self.format_spec is not None:
+            self.format_spec.analyse_declarations(env)
+        self.expression_str.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        self.value = self.value.analyse_types(env).coerce_to_pyobject(env)
+        if self.conversion_char is not None and self.format_spec is None:
+            self.format_spec = UnicodeNode(
+                self.pos, value=StringEncoding.EncodedString(""))
+        if self.format_spec is not None:
+            self.format_spec = self.format_spec.analyse_types(env)
+        self.expression_str = self.expression_str.analyse_types(env)
+        return self
+
+    def generate_result_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("MakeTemplateLibInterpolation", "TString.c"))
+        value = self.value.result()
+        expression = self.expression_str.result()
+        conversion_char = (
+            code.get_py_string_const(self.conversion_char) if self.conversion_char
+            else "Py_None")
+        format_spec = (
+            self.format_spec.result() if self.format_spec is not None
+            else code.name_in_module_state(Naming.empty_unicode))
+        code.putln(f"{self.result()} = __Pyx_MakeTemplateLibInterpolation({value}, {expression}, {conversion_char}, {format_spec});")
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.put_gotref(self.result(), py_object_type)
+
+
+class TemplateStringNode(ExprNode):
+    """t-string"""
+    subexprs = ['strings', 'interpolations']
+    is_temp = True
+    type = py_object_type
+
+    def __init__(self, pos, *, values: list):
+        last_string_node = None
+        strings = []
+        interpolations = []
+        for v in values:
+            if isinstance(v, TStringInterpolationNode):
+                if last_string_node is None:
+                    strings.append(UnicodeNode(
+                        v.pos, value=StringEncoding.EncodedString("")
+                    ))
+                else:
+                    strings.append(last_string_node)
+                    last_string_node = None
+                interpolations.append(v)
+            elif isinstance(v, UnicodeNode):
+                if last_string_node is None:
+                    last_string_node = v
+                else:
+                    last_string_node = UnicodeNode(
+                        pos = last_string_node.pos,
+                        value = StringEncoding.EncodedString(
+                            last_string_node.value + v.value
+                        ))
+            else:
+                assert False, type(v)
+        if last_string_node is None:
+            last_string_node = UnicodeNode(pos, value=StringEncoding.EncodedString(""))
+        strings.append(last_string_node)
+        super().__init__(pos, strings=strings, interpolations=interpolations)
+
+    def analyse_declarations(self, env):
+        for s in self.strings:
+            s.analyse_declarations(env)
+        for i in self.interpolations:
+            i.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        # convert both strings and interpolations into a tuple
+        self.strings = TupleNode(
+            self.pos, args=self.strings
+        ).analyse_types(env)
+        self.interpolations = TupleNode(
+            self.pos, args=self.interpolations
+        ).analyse_types(env)
+        return self
+
+    def generate_result_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("MakeTemplateLibTemplate", "TString.c"))
+        strings = self.strings.result()
+        interpolations = self.interpolations.result()
+        code.putln(f"{self.result()} = __Pyx_MakeTemplateLibTemplate({strings}, {interpolations});")
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.put_gotref(self.result(), py_object_type)

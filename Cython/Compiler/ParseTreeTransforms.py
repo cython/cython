@@ -10,6 +10,7 @@ import hashlib
 import sys
 from operator import itemgetter
 
+from . import Code
 from . import PyrexTypes
 from . import Naming
 from . import ExprNodes
@@ -260,7 +261,8 @@ class PostParse(ScopeTrackingTransform):
                         first_assignment = self.scope_type != 'module'
                         stats.append(Nodes.SingleAssignmentNode(node.pos,
                             lhs=ExprNodes.NameNode(node.pos, name=declbase.name),
-                            rhs=declbase.default, first=first_assignment))
+                            rhs=declbase.default, first=first_assignment,
+                            from_pxd_cvardef=node.in_pxd))
                         declbase.default = None
                 newdecls.append(decl)
             node.declarators = newdecls
@@ -2277,70 +2279,76 @@ if VALUE is not None:
                     e.type.create_from_py_utility_code(env)
 
             all_members_names = [e.name for e in all_members]
+            assignments = '; '.join([
+                '__pyx_result.%s = __pyx_state[%s]' % (v, ix)
+                for ix, v in enumerate(all_members_names)
+            ])
             checksums = _calculate_pickle_checksums(all_members_names)
+            if len(checksums) != 3:
+                # If we don't have enough checksums to call the check function, we just repeat the last one.
+                checksums = (checksums + [checksums[-1] * 2])[:3]
 
-            unpickle_func_name = '__pyx_unpickle_%s' % node.punycode_class_name
+            unpickle_func_name = f'__pyx_unpickle_{node.punycode_class_name}'
+            num_members = len(all_members_names)
+
+            env.use_utility_code(Code.UtilityCode.load_cached("UpdateUnpickledDict", "ExtensionTypes.c"))
 
             # TODO(robertwb): Move the state into the third argument
             # so it can be pickled *after* self is memoized.
-            unpickle_func = TreeFragment("""
-                def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state):
-                    cdef object __pyx_PickleError
+            unpickle_code = f"""
+                cdef extern from *:
+                    int __Pyx_CheckUnpickleChecksum(long, long, long, long, const char*) except -1
+                    int __Pyx_UpdateUnpickledDict(object, object, Py_ssize_t) except -1
+
+                def {unpickle_func_name}(__pyx_type, long __pyx_checksum, tuple __pyx_state):
                     cdef object __pyx_result
-                    if __pyx_checksum not in %(checksums)s:
-                        from pickle import PickleError as __pyx_PickleError
-                        raise __pyx_PickleError, "Incompatible checksums (0x%%x vs %(checksums)s = (%(members)s))" %% __pyx_checksum
-                    __pyx_result = %(class_name)s.__new__(__pyx_type)
+                    __Pyx_CheckUnpickleChecksum(__pyx_checksum, {', '.join(checksums)}, {', '.join(all_members_names).encode('UTF-8')!r})
+                    __pyx_result = {node.class_name}.__new__(__pyx_type)
                     if __pyx_state is not None:
-                        %(unpickle_func_name)s__set_state(<%(class_name)s> __pyx_result, __pyx_state)
+                        {unpickle_func_name}__set_state(<{node.class_name}> __pyx_result, __pyx_state)
                     return __pyx_result
 
-                cdef %(unpickle_func_name)s__set_state(%(class_name)s __pyx_result, tuple __pyx_state):
-                    %(assignments)s
-                    if len(__pyx_state) > %(num_members)d and hasattr(__pyx_result, '__dict__'):
-                        __pyx_result.__dict__.update(__pyx_state[%(num_members)d])
-                """ % {
-                    'unpickle_func_name': unpickle_func_name,
-                    'checksums': "(%s)" % ', '.join(checksums),
-                    'members': ', '.join(all_members_names),
-                    'class_name': node.class_name,
-                    'assignments': '; '.join(
-                        '__pyx_result.%s = __pyx_state[%s]' % (v, ix)
-                        for ix, v in enumerate(all_members_names)),
-                    'num_members': len(all_members_names),
-                }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
+                cdef {unpickle_func_name}__set_state({node.class_name} __pyx_result, __pyx_state: tuple):
+                    {assignments}
+                    __Pyx_UpdateUnpickledDict(__pyx_result, __pyx_state, {num_members:d})
+            """
+
+            env.use_utility_code(Code.UtilityCode.load_cached("CheckUnpickleChecksum", "ExtensionTypes.c"))
+
+            unpickle_func = TreeFragment(unpickle_code, level='module', pipeline=[NormalizeTree(None)]).substitute({})
             unpickle_func.analyse_declarations(node.entry.scope)
+
             self.visit(unpickle_func)
             self.extra_module_declarations.append(unpickle_func)
 
-            pickle_func = TreeFragment("""
+            members = ', '.join(f'self.{v}' for v in all_members_names) + (',' if len(all_members_names) == 1 else '')
+            # Even better, we could check PyType_IS_GC.
+            any_notnone_members = ' or '.join([f'self.{e.name} is not None' for e in all_members if e.type.is_pyobject] or ['False']),
+
+            pickle_code = f"""
                 def __reduce_cython__(self):
                     cdef tuple state
                     cdef object _dict
                     cdef bint use_setstate
-                    state = (%(members)s)
+                    state = ({members})
                     _dict = getattr(self, '__dict__', None)
-                    if _dict is not None:
+                    if _dict is not None and _dict:
                         state += (_dict,)
                         use_setstate = True
                     else:
-                        use_setstate = %(any_notnone_members)s
+                        use_setstate = {any_notnone_members}
                     if use_setstate:
-                        return %(unpickle_func_name)s, (type(self), %(checksum)s, None), state
+                        return {unpickle_func_name}, (type(self), {checksums[0]}, None), state
                     else:
-                        return %(unpickle_func_name)s, (type(self), %(checksum)s, state)
+                        return {unpickle_func_name}, (type(self), {checksums[0]}, state)
 
                 def __setstate_cython__(self, __pyx_state):
-                    %(unpickle_func_name)s__set_state(self, __pyx_state)
-                """ % {
-                    'unpickle_func_name': unpickle_func_name,
-                    'checksum': checksums[0],
-                    'members': ', '.join('self.%s' % v for v in all_members_names) + (',' if len(all_members_names) == 1 else ''),
-                    # Even better, we could check PyType_IS_GC.
-                    'any_notnone_members' : ' or '.join(['self.%s is not None' % e.name for e in all_members if e.type.is_pyobject] or ['False']),
-                },
-                level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
+                    {unpickle_func_name}__set_state(self, __pyx_state)
+            """
+
+            pickle_func = TreeFragment(pickle_code, level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
             pickle_func.analyse_declarations(node.scope)
+
             self.enter_scope(node, node.scope)  # functions should be visited in the class scope
             self.visit(pickle_func)
             self.exit_scope()
@@ -2590,10 +2598,15 @@ if VALUE is not None:
         init_assignments = []
         for entry, attr in zip(var_entries, attributes):
             # TODO: branch on visibility
-            init_assignments.append(self.init_assignment.substitute({
-                    "VALUE": ExprNodes.NameNode(entry.pos, name = entry.name),
-                    "ATTR": attr,
-                }, pos = entry.pos))
+            init_assignments.append(
+                self.init_assignment.substitute(
+                    {
+                        "VALUE": ExprNodes.NameNode(entry.pos, name = entry.name),
+                        "ATTR": attr,
+                    },
+                    pos=entry.pos,
+                )
+            )
 
         # create the class
         str_format = "%s(%s)" % (node.entry.type.name, ("%s, " * len(attributes))[:-2])
@@ -2631,9 +2644,12 @@ if VALUE is not None:
                 template = self.basic_pyobject_property
             else:
                 template = self.basic_property
-            property = template.substitute({
+            property = template.substitute(
+                {
                     "ATTR": attr,
-                }, pos = entry.pos).stats[0]
+                },
+                pos=entry.pos,
+            ).stats[0]
             property.name = entry.name
             wrapper_class.body.stats.append(property)
 
@@ -2692,11 +2708,14 @@ if VALUE is not None:
                 template = self.basic_property
         elif entry.visibility == 'readonly':
             template = self.basic_property_ro
-        property = template.substitute({
+        property = template.substitute(
+            {
                 "ATTR": ExprNodes.AttributeNode(pos=entry.pos,
                                                 obj=ExprNodes.NameNode(pos=entry.pos, name="self"),
                                                 attribute=entry.name),
-            }, pos=entry.pos).stats[0]
+            },
+            pos=entry.pos,
+        ).stats[0]
         property.name = entry.name
         property.doc = entry.doc
         return property
@@ -3676,7 +3695,6 @@ class GilCheck(VisitorTransform):
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil_state = Nodes.NoGilState.HasGil
-        self.in_lock_block = None
 
         self.nogil_state_at_current_gilstatnode = Nodes.NoGilState.HasGil
         return super().__call__(root)
@@ -3696,7 +3714,6 @@ class GilCheck(VisitorTransform):
     def visit_FuncDefNode(self, node):
         self.env_stack.append(node.local_scope)
         inner_nogil = node.local_scope.nogil
-        in_lock_block, self.in_lock_block = self.in_lock_block, None
 
         nogil_state = self.nogil_state
         if inner_nogil:
@@ -3710,7 +3727,6 @@ class GilCheck(VisitorTransform):
         # FuncDefNodes can be nested, because a cpdef function contains a def function
         # inside it. Therefore restore to previous state
         self.nogil_state = nogil_state
-        self.in_lock_block = in_lock_block
 
         self.env_stack.pop()
         return node
@@ -3727,14 +3743,6 @@ class GilCheck(VisitorTransform):
 
         was_nogil = self.nogil_state
         is_nogil = (node.state == 'nogil')
-
-        if not is_nogil and self.in_lock_block:
-            type_name = self.in_lock_block.arg.type.empty_declaration_code(pyrex=True).strip()
-            warning(
-                node.pos,
-                f"Acquiring the GIL inside a {type_name} lock. "
-                "To avoid potential deadlocks acquire the GIL first.",
-                2)
 
         if was_nogil == is_nogil and not self.nogil_state == Nodes.NoGilState.NoGilScope:
             if not was_nogil:
@@ -3815,10 +3823,7 @@ class GilCheck(VisitorTransform):
 
     def visit_CythonLockStatNode(self, node):
         # skip normal "try/finally node" handling
-        in_lock_block, self.in_lock_block = self.in_lock_block, node
-        result = self.visit_Node(node)
-        self.in_lock_block = in_lock_block
-        return result
+        return self.visit_Node(node)
 
     def visit_GILExitNode(self, node):
         if self.nogil_state_at_current_gilstatnode == Nodes.NoGilState.NoGilScope:

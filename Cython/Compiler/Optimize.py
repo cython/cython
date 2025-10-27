@@ -377,15 +377,15 @@ class IterationTransform(Visitor.EnvTransform):
         # Generates code that looks approximately like:
         #
         # done = False
-        # index = 0
+        # index = -1
         # while not done:
+        #    index += 1
         #    with critical_section(iterable):
         #        if index > len(iterable):
         #            done = True
         #            continue
         #        value = iterable[index]
         #    ...
-        #    index += 1
         # else:
         #     ...
         #
@@ -414,22 +414,17 @@ class IterationTransform(Visitor.EnvTransform):
             end_node = UtilNodes.LetRefNode(length_call_node, type=PyrexTypes.c_py_ssize_t_type)
             temp_nodes.append(end_node)
 
-        start_node = ExprNodes.IntNode.for_size(node.pos, 0)
         keep_going_ref = UtilNodes.LetRefNode(ExprNodes.BoolNode(node.pos, value=True))
         temp_nodes.append(keep_going_ref)
 
         if reversed:
+            start_node = end_node
+            end_node = ExprNodes.IntNode.for_size(node.pos, 0)
             relation1, relation2 = '>', '>='
-            start_check_node, end_node = end_node, start_node
-            start_node = ExprNodes.SubNode(
-                node.pos,
-                operator='-',
-                operand1=copy.copy(start_check_node),
-                operand2=ExprNodes.IntNode.for_size(node.pos, 1),
-            )
         else:
-            start_check_node = copy.copy(start_node)
+            start_node = ExprNodes.IntNode.for_size(node.pos, -1)
             relation1, relation2 = '<=', '<'
+        start_check_node = copy.copy(start_node)
 
         counter_ref = UtilNodes.LetRefNode(start_node, type=PyrexTypes.c_py_ssize_t_type)
         temp_nodes.append(counter_ref)
@@ -507,8 +502,6 @@ class IterationTransform(Visitor.EnvTransform):
         body = Nodes.StatListNode(
             node.pos,
             stats = [
-                length_check_and_target_assign,
-                # exclude node.body for now to not reanalyse it
                 Nodes.SingleAssignmentNode(
                     node.pos,
                     lhs=counter_ref,
@@ -519,7 +512,9 @@ class IterationTransform(Visitor.EnvTransform):
                         operand1=counter_ref,
                         operand2=ExprNodes.IntNode.for_size(node.pos, 1),
                     )
-                )
+                ),
+                length_check_and_target_assign,
+                # exclude node.body for now to not reanalyse it
             ])
 
         loop_node = Nodes.WhileStatNode(
@@ -536,7 +531,7 @@ class IterationTransform(Visitor.EnvTransform):
 
         ret = ret.analyse_expressions(env)
         # Reinsert the original loop body after analysing the rest.
-        body.stats.insert(1, node.body)
+        body.stats.append(node.body)
         return ret
 
     PyBytes_AS_STRING_func_type = PyrexTypes.CFuncType(
@@ -4163,7 +4158,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _inject_null_for_none(self, args, index):
         if len(args) <= index:
             return
+
         arg = args[index]
+        if not arg.may_be_none():
+            return
+
         args[index] = ExprNodes.NullNode(arg.pos) if arg.is_none else ExprNodes.PythonCapiCallNode(
             arg.pos, "__Pyx_NoneAsNull",
             self.obj_to_obj_func_type,

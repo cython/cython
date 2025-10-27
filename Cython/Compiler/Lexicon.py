@@ -6,7 +6,8 @@
 
 raw_prefixes = "rR"
 bytes_prefixes = "bB"
-string_prefixes = "fFuU" + bytes_prefixes
+string_prefixes = "uU" + bytes_prefixes
+ft_string_prefixes = "fFtT"
 char_prefixes = "cC"
 any_string_prefix = raw_prefixes + string_prefixes + char_prefixes
 IDENT = 'IDENT'
@@ -61,17 +62,32 @@ def make_lexicon():
     beginstring = Opt(Rep(Any(string_prefixes + raw_prefixes)) |
                       Any(char_prefixes)
                       ) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
+    begin_ft_string = (
+        ((Any(ft_string_prefixes) + Opt(Any(raw_prefixes))) | (Any(raw_prefixes) + Any(ft_string_prefixes))) +
+        (Str("'") | Str('"') | Str("'''") | Str('"""')))
     two_oct = octdigit + octdigit
     three_oct = octdigit + octdigit + octdigit
     two_hex = hexdigit + hexdigit
     four_hex = two_hex + two_hex
-    escapeseq = Str("\\") + (two_oct | three_oct |
-                             Str('N{') + Rep(AnyBut('}')) + Str('}') |
+    escapeseq = Str("\\") + (octdigit | two_oct | three_oct |
+                             # Unicode character names are [A-Z \-]
+                             # https://www.unicode.org/versions/Unicode16.0.0/core-spec/chapter-4/
+                             # Although Python itself is case agnostic
+                             Str('N{') + Rep(Range('azAZ') | Any('- ')) + Str('}') |
                              Str('u') + four_hex | Str('x') + two_hex |
-                             Str('U') + four_hex + four_hex | AnyChar)
+                             Str('U') + four_hex + four_hex |
+                             # Invalid escape sequences just produce a slash
+                             Opt(Any("\n\\'\"abfnrtvNxuU")))
+    rawescapeseq = (  # Double \\ isn't actually escaped in raw strings, but
+                      # we do want to process it so that the end of '\\'
+                      # doesn't get processed.
+                    Str("\\\\") |
+                    Str("\\") + Opt(Any('"\'')))
 
-    bra = Any("([{")
-    ket = Any(")]}")
+    bra = Any("([")
+    ket = Any(")]")
+    open_brace = Str('{')
+    close_brace = Str('}')
     ellipsis = Str("...")
     punct = Any(":,;+-*/|&<>=.%`~^?!@")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
@@ -83,6 +99,62 @@ def make_lexicon():
 
     comment = Str("#") + Rep(AnyBut("\n"))
 
+    def generate_ft_string_states():
+        out = []
+
+        # In order for self-documenting strings to work, we need to
+        # pre-scan the fstring/tstring into a string, and then parse it
+        # again as an expression.  This allows us to accurately
+        # preserve whitespace (at the cost of repeatedly tokenizing
+        # for deeply nested fstrings/tstrings).
+        # To do this we need to pay attention to brackets, strings,
+        # colons, and comments, but can ignore anything else.
+        out.append(
+            State("FT_STRING_EXPR_PRESCAN", [
+                (Rep1(AnyBut('"\'{}()[]:#')), 'CHARS'),
+                (comment, IGNORE),
+                (Str(':'), Method('colon_action')),
+                (open_brace, Method('open_brace_action')),
+                (close_brace, Method('close_brace_action')),
+                (bra, Method('open_bracket_action')),
+                (ket, Method('close_bracket_action')),
+                (beginstring, Method('begin_string_action')),
+                (begin_ft_string, Method('begin_ft_string_action')),
+                (Eof, 'EOF')
+            ]))
+
+        unclosed_string_method = Method('unclosed_string_action')
+        open_ft_string_brace_method = Method('open_ft_string_brace_action')
+        close_ft_string_brace_method = Method('close_ft_string_brace_action')
+        end_ft_string_method = Method('end_ft_string_action')
+
+        for prefix in ["'", '"', "'''", '"""']:
+            quote_type = 'SQ' if "'" in prefix else 'DQ'
+            if len(prefix) > 1:
+                triple = "T"
+                newline_method = "NEWLINE"
+                allowed_string_chars = Any("'\"")
+            else:
+                triple = ""
+                newline_method = unclosed_string_method
+                allowed_string_chars = Str('"' if quote_type == 'SQ' else "'")
+
+            for raw in ["", "R"]:
+                escapeseq_sy = rawescapeseq if raw else escapeseq
+                out.append(
+                    State(f"{triple}{quote_type}_STRING_FT{raw}", [
+                        (escapeseq_sy, 'ESCAPE'),
+                        (Rep1(Str('{')), open_ft_string_brace_method),
+                        (Rep1(Str('}')), close_ft_string_brace_method),
+                        (Rep1(AnyBut("'\"\n\\{}")), 'CHARS'),
+                        (allowed_string_chars, 'CHARS'),
+                        (Str("\n"), newline_method),
+                        (Str(prefix), end_ft_string_method),
+                        (Eof, 'EOF')
+                    ])
+            )
+        return out
+
     return Lexicon([
         (name, Method('normalize_ident')),
         (intliteral, Method('strip_underscores', symbol='INT')),
@@ -92,9 +164,12 @@ def make_lexicon():
 
         (bra, Method('open_bracket_action')),
         (ket, Method('close_bracket_action')),
+        (open_brace, Method('open_brace_action')),
+        (close_brace, Method('close_brace_action')),
         (lineterm, Method('newline_action')),
 
         (beginstring, Method('begin_string_action')),
+        (begin_ft_string, Method('begin_ft_string_action')),
 
         (comment, IGNORE),
         (spaces, IGNORE),
@@ -142,6 +217,7 @@ def make_lexicon():
             (Str('"""'), Method('end_string_action')),
             (Eof, 'EOF')
         ]),
+        *generate_ft_string_states(),
 
         (Eof, Method('eof_action'))
         ],
@@ -154,7 +230,7 @@ def make_lexicon():
 
 # BEGIN GENERATED CODE
 # Generated with 'cython-generate-lexicon.py' based on Unicode 16.0.0:
-# cpython 3.15.0a0 (heads/master:652d6938ef8, May 20 2025, 09:24:50) [GCC 13.3.0]
+# cpython 3.14.0rc1 free-threading build (main, Jul 25 2025, 19:13:08) [GCC 14.2.1 20250220 [revision 9ffecde121af883b60bbe60d00425036bc873048]]
 
 unicode_start_ch_any = (
     "\u005f\u00aa\u00b5\u00ba\u02ec\u02ee\u037f\u0386\u038c\u0559\u06d5"
@@ -269,7 +345,8 @@ unicode_start_ch_range = (
     "\U0001ee32\U0001ee34\U0001ee37\U0001ee4d\U0001ee4f\U0001ee51\U0001ee52\U0001ee61\U0001ee62\U0001ee67\U0001ee6a"
     "\U0001ee6c\U0001ee72\U0001ee74\U0001ee77\U0001ee79\U0001ee7c\U0001ee80\U0001ee89\U0001ee8b\U0001ee9b\U0001eea1"
     "\U0001eea3\U0001eea5\U0001eea9\U0001eeab\U0001eebb\U00020000\U0002a6df\U0002a700\U0002b739\U0002b740\U0002b81d"
-    "\U0002b820\U0002cea1\U0002ceb0\U0002ebe0\U0002ebf0\U0002ee5d\U0002f800\U0002fa1d\U00030000\U0003134a"
+    "\U0002b820\U0002cea1\U0002ceb0\U0002ebe0\U0002ebf0\U0002ee5d\U0002f800\U0002fa1d\U00030000\U0003134a\U00031350"
+    "\U000323af"
 )
 unicode_continuation_ch_any = (
     "\u00b7\u0387\u05bf\u05c7\u0670\u0711\u07fd\u09bc\u09d7\u09fe\u0a3c"
@@ -338,7 +415,7 @@ unicode_continuation_ch_range = (
     "\U0001d242\U0001d244\U0001d7ce\U0001d7ff\U0001da00\U0001da36\U0001da3b\U0001da6c\U0001da9b\U0001da9f\U0001daa1"
     "\U0001daaf\U0001e000\U0001e006\U0001e008\U0001e018\U0001e01b\U0001e021\U0001e023\U0001e024\U0001e026\U0001e02a"
     "\U0001e130\U0001e136\U0001e140\U0001e149\U0001e2ec\U0001e2f9\U0001e4ec\U0001e4f9\U0001e5ee\U0001e5ef\U0001e5f1"
-    "\U0001e5fa\U0001e8d0\U0001e8d6\U0001e944\U0001e94a\U0001e950\U0001e959\U0001fbf0\U0001fbf9"
+    "\U0001e5fa\U0001e8d0\U0001e8d6\U0001e944\U0001e94a\U0001e950\U0001e959\U0001fbf0\U0001fbf9\U000e0100\U000e01ef"
 )
 
 # END GENERATED CODE
