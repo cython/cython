@@ -2,6 +2,31 @@
 Cython Changelog
 ================
 
+3.2.0rc1 (2025-11-??)
+====================
+
+Bugs fixed
+----------
+
+* Using ``cython.pymutex`` in an extension type declared as ``public`` or ``api``
+  generated invalid C code missing the required ``PyMutex`` declarations.
+  (Github issues :issue:`6992`, :issue:`6995`)
+
+* 3.2.0b2 generated incorrect pointer casts in the ``cimport`` importing code.
+  (Github issue :issue:`7268`)
+
+* Cython's type sharing across modules suffered from race conditions if multiple modules
+  tried to initialise and share their types concurrently.  This is due to an underlying
+  CPython issue and cannot easily be worked around completely.  In the common case that
+  module dicts are plain Python dict objects, however, Cython now uses a ``.setdefault()``
+  equivalent for thread-safe type sharing.
+  See https://github.com/python/cpython/issues/137422
+  (Github issue :issue:`7076`)
+
+* Cython incorrectly called ``PyList_GetItemRef()`` in PyPy and GraalPython before Py3.13.
+  (Github issue :issue:`7269`)
+
+
 3.2.0b2 (2025-10-27)
 ====================
 
