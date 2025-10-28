@@ -249,7 +249,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
     __Pyx_RefNannySetupContext("ValidateAndInit_memviewslice", 0);
 
     if (from_memoryview) {
-        memview = (struct __pyx_memoryview_obj *)__Pyx_GetCClassTypeData(
+        memview = __Pyx_GetCClassTypeDataAndCast(
             original_obj, __pyx_memoryview_type(), struct __pyx_memoryview_obj *);
         if (__pyx_typeinfo_cmp(dtype, memview->typeinfo)) {
             new_memview = NULL;
@@ -261,8 +261,8 @@ static int __Pyx_ValidateAndInit_memviewslice(
         new_memview = __pyx_memoryview_new(original_obj, buf_flags, 0, dtype);
         if (unlikely(!new_memview))
             goto fail;
-        memview = (struct __pyx_memoryview_obj *)__Pyx_GetCClassTypeData(
-            original_obj, __pyx_memoryview_type(), struct __pyx_memoryview_obj *);
+        memview = __Pyx_GetCClassTypeDataAndCast(
+            new_memview, __pyx_memoryview_type(), struct __pyx_memoryview_obj *);
     }
 
     buf = &memview->view;

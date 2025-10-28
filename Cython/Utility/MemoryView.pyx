@@ -12,6 +12,7 @@ cimport cython
 # from cpython cimport ...
 cdef extern from "Python.h":
     ctypedef struct PyObject
+    ctypedef struct PyTypeObject
     int PyIndex_Check(object)
     PyObject *PyExc_IndexError
     PyObject *PyExc_ValueError
@@ -665,8 +666,8 @@ cdef inline bint memoryview_check(object o) noexcept:
     return isinstance(o, memoryview)
 
 @cname('__pyx_memoryview_type')
-cdef inline type memoryview_type() noexcept:
-    return memoryview
+cdef inline PyTypeObject* memoryview_type() noexcept:
+    return <PyTypeObject*>memoryview  # returns borrowed ref
 
 cdef tuple _unellipsify(object index, int ndim):
     """

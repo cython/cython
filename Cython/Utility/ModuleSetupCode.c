@@ -904,6 +904,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     #endif
     #define __PYX_C_CLASS_DECL(T) PyObject
     #define __Pyx_GetCClassTypeData(o, cls, T, ...) ((T)PyObject_GetTypeData((o), cls))
+    #define __Pyx_GetCClassTypeDataAndCast(o, cls, T) __Pyx_GetCClassTypeData(o, cls, T)
 
     #if CYTHON_USE_FREELISTS
     // It's a bit difficult (but not impossible) to work out how much memory to zero out in this case
@@ -915,8 +916,14 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     #define __PYX_C_CLASS_SIZEOF(T) sizeof(T)
     #define __PYX_C_CLASS_RELATIVE_OFFSET
     #define __PYX_C_CLASS_DECL(T) T
-    // No cast - o should be the correct type
-    #define __Pyx_GetCClassTypeData(o, cls, T, ...) ((o)__VA_ARGS__)
+
+    #define __PYX_GET_THIRD(first, second, third, ...) third
+    #define __PYX_GET_SECOND(first, ...) __VA_ARGS__
+    #define __PYX_GET_first(first, ...) first
+    #define __PYX_DEREF_IF_VARARGS(...) __PYX_GET_THIRD(__VA_ARGS__, &,)
+    // No cast - o should be the correct type (and so the cast argume)
+    #define __Pyx_GetCClassTypeData(o, cls, ...) (__PYX_DEREF_IF_VARARGS(__VA_ARGS__)((o)__PYX_GET_SECOND(__VA_ARGS__)))
+    #define __Pyx_GetCClassTypeDataAndCast(o, cls, T) (T)__Pyx_GetCClassTypeData(o, cls, T)
     #define $cur_scope_obj_cname $cur_scope_cname 
 #endif
 

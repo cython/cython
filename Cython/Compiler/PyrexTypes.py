@@ -1726,7 +1726,7 @@ class PyExtensionType(PyObjectType):
             return super().cast_code(expr_code)
         # FIXME - we really need Code to get to this
         typeptr_cname = f"{Naming.modulestateglobal_cname}->{self.typeptr_cname}"
-        return f"__Pyx_GetCClassTypeData({expr_code}, {typeptr_cname}, {self.declaration_code("", allow_opaque_decl=False)})"
+        return f"__Pyx_GetCClassTypeDataAndCast({expr_code}, {typeptr_cname}, {self.declaration_code("", allow_opaque_decl=False)})"
 
     def __str__(self):
         return self.name
