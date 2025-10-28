@@ -1,8 +1,4 @@
-#if defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)
-#define DLL_EXPORT __declspec(dllexport)
-#else
-#define DLL_EXPORT
-#endif
+#include <exports.h>
 
-typedef void (*cheesefunc)(char *name, void *user_data);
-DLL_EXPORT void find_cheeses(cheesefunc user_func, void *user_data);
+typedef void (*cheesefunc)(char* name, void* user_data);
+Py_EXPORTED_SYMBOL void find_cheeses(cheesefunc user_func, void* user_data);
