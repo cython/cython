@@ -437,7 +437,7 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
         // The aim isn't to make the character read-writes atomic (although practically they probably are).
         // For simplicity, skip the critical section if we don't have the GIL. It's the user's problem!
         __Pyx_PyCriticalSection cs;
-        int lock = CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && has_gil && (unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(string));
+        int lock = CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && has_gil && !__Pyx_IS_UNIQUELY_REFERENCED(string, unsafe_shared);
         if (lock) { __Pyx_PyCriticalSection_Begin(&cs, string); }
         result = __Pyx_GetItemInt_ByteArray_Fast_Locked(string, i, wraparound, boundscheck, has_gil);
         if (lock) { __Pyx_PyCriticalSection_End(&cs); }
@@ -503,7 +503,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
         // The aim isn't to make the character read-writes atomic (although practically they probably are).
         // For simplicity, skip the critical section if we don't have the GIL. It's the user's problem!
         __Pyx_PyCriticalSection cs;
-        int lock = CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && has_gil && (unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(string));
+        int lock = CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && has_gil && !__Pyx_IS_UNIQUELY_REFERENCED(string, unsafe_shared);
         if (lock) { __Pyx_PyCriticalSection_Begin(&cs, string); }
         result = __Pyx_SetItemInt_ByteArray_Fast_Locked(string, i, v, wraparound, boundscheck, has_gil);
         if (lock) { __Pyx_PyCriticalSection_End(&cs); }
@@ -580,7 +580,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string(
          const char* encoding, const char* errors,
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
     return __Pyx_decode_c_bytes(
-        cppstring.data(), cppstring.size(), start, stop, encoding, errors, decode_func);
+        cppstring.data(), (Py_ssize_t) cppstring.size(), start, stop, encoding, errors, decode_func);
 }
 
 /////////////// decode_cpp_string_view.proto ///////////////
@@ -592,7 +592,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string_view(
          const char* encoding, const char* errors,
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
     return __Pyx_decode_c_bytes(
-        cppstring.data(), cppstring.size(), start, stop, encoding, errors, decode_func);
+        cppstring.data(), (Py_ssize_t) cppstring.size(), start, stop, encoding, errors, decode_func);
 }
 
 /////////////// decode_c_string.proto ///////////////
@@ -1037,7 +1037,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
 }
 
 
-/////////////// JoinPyUnicode.proto ///////////////
+/////////////// JoinPyUnicode.export ///////////////
 
 static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength,
                                       Py_UCS4 max_char);

@@ -116,7 +116,7 @@ cache_builtins = True
 gcc_branch_hints = True
 
 #: Enable this to allow one to write ``your_module.foo = ...`` to overwrite the
-#: definition if the cpdef function foo, at the cost of an extra dictionary
+#: definition of the cpdef function foo, at the cost of an extra dictionary
 #: lookup on every call.
 #: If this is false it generates only the Python wrapper and no override check.
 lookup_module_cpdef = False
@@ -131,6 +131,10 @@ lookup_module_cpdef = False
 #: this option can also be set to a non-empty string to provide a function name explicitly.
 #: Default is False.
 embed = None
+
+#: When embedding, this allows listing the names of statically linked extension modules
+#: to register with Python's inittab mechanism on startup, so that they can be imported.
+embed_modules = []
 
 # In previous iterations of Cython, globals() gave the first non-Cython module
 # globals in the call stack.  Sage relies on this behavior for variable injection.

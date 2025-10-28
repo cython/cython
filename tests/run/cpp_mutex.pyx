@@ -140,7 +140,9 @@ def test_once_flag1():
 
 def test_once_flag2():
     """
-    >>> test_once_flag2()
+    # Test disabled - this usage is correct and works but GCCs libstdc++ is broken on every
+    # non-x86 platform (and more...) https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66146
+    # >>> test_once_flag2()
     """
     cdef once_flag flag
     try:

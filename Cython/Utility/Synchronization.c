@@ -45,6 +45,7 @@
     #define __pyx_atomic_pointer_load_relaxed(value) atomic_load_explicit(value, memory_order_relaxed)
     #define __pyx_atomic_pointer_load_acquire(value) atomic_load_explicit(value, memory_order_acquire)
     #define __pyx_atomic_pointer_exchange(value, new_value) atomic_exchange(value, (__pyx_nonatomic_ptr_type)new_value)
+    #define __pyx_atomic_pointer_cmp_exchange(value, expected, desired) atomic_compare_exchange_strong(value, expected, desired)
     #if defined(__PYX_DEBUG_ATOMICS) && defined(_MSC_VER)
         #pragma message ("Using standard C atomics")
     #elif defined(__PYX_DEBUG_ATOMICS)
@@ -70,6 +71,7 @@
     #define __pyx_atomic_pointer_load_relaxed(value) std::atomic_load_explicit(value, std::memory_order_relaxed)
     #define __pyx_atomic_pointer_load_acquire(value) std::atomic_load_explicit(value, std::memory_order_acquire)
     #define __pyx_atomic_pointer_exchange(value, new_value) std::atomic_exchange(value, (__pyx_nonatomic_ptr_type)new_value)
+    #define __pyx_atomic_pointer_cmp_exchange(value, expected, desired) std::atomic_compare_exchange_strong(value, expected, desired)
 
     #if defined(__PYX_DEBUG_ATOMICS) && defined(_MSC_VER)
         #pragma message ("Using standard C++ atomics")
@@ -81,6 +83,7 @@
                     (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ >= 2))))
     /* gcc >= 4.1.2 */
     #define __pyx_atomic_ptr_type void*
+    #define __pyx_nonatomic_ptr_type void*
     #define __pyx_atomic_incr_relaxed(value) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_incr_acq_rel(value) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_decr_acq_rel(value) __sync_fetch_and_sub(value, 1)
@@ -97,6 +100,12 @@
     #define __pyx_atomic_pointer_load_relaxed(value) __sync_fetch_and_add(value, 0)
     #define __pyx_atomic_pointer_load_acquire(value) __sync_fetch_and_add(value, 0)
     #define __pyx_atomic_pointer_exchange(value, new_value) __sync_lock_test_and_set(value, (__pyx_atomic_ptr_type)new_value)
+    static CYTHON_INLINE int __pyx_atomic_pointer_cmp_exchange(__pyx_atomic_ptr_type* value, __pyx_nonatomic_ptr_type* expected, __pyx_nonatomic_ptr_type desired) {
+        __pyx_nonatomic_ptr_type old = __sync_val_compare_and_swap(value, *expected, desired);
+        int result = old == *expected;
+        *expected = old;
+        return result;
+    }
 
     #ifdef __PYX_DEBUG_ATOMICS
         #warning "Using GNU atomics"
@@ -109,6 +118,7 @@
     #define __pyx_atomic_ptr_type void*
     #undef __pyx_nonatomic_int_type
     #define __pyx_nonatomic_int_type long
+    #define __pyx_nonatomic_ptr_type void*
     #pragma intrinsic (_InterlockedExchangeAdd, _InterlockedExchange, _InterlockedCompareExchange, _InterlockedCompareExchangePointer, _InterlockedExchangePointer)
     #define __pyx_atomic_incr_relaxed(value) _InterlockedExchangeAdd(value, 1)
     #define __pyx_atomic_incr_acq_rel(value) _InterlockedExchangeAdd(value, 1)
@@ -129,6 +139,12 @@
     // compare/exchange is probably overkill nonsense, but plain "load" intrinsics are hard to get.
     #define __pyx_atomic_pointer_load_acquire(value) _InterlockedCompareExchangePointer(value, 0, 0)
     #define __pyx_atomic_pointer_exchange(value, new_value) _InterlockedExchangePointer(value, (__pyx_atomic_ptr_type)new_value)
+    static CYTHON_INLINE int __pyx_atomic_pointer_cmp_exchange(__pyx_atomic_ptr_type* value, __pyx_nonatomic_ptr_type* expected, __pyx_nonatomic_ptr_type desired) {
+        __pyx_atomic_ptr_type old = _InterlockedCompareExchangePointer(value, desired, *expected);
+        int result = old == *expected;
+        *expected = old;
+        return result;
+    }
 
     #ifdef __PYX_DEBUG_ATOMICS
         #pragma message ("Using MSVC atomics")
@@ -247,19 +263,7 @@ static void __Pyx__Locks_PyThreadTypeLock_LockGil_spin(__Pyx_Locks_PyThreadTypeL
     while (1) {
         int res;
         Py_BEGIN_ALLOW_THREADS
-#if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07031400
-        // Don't block indefinitely. This ensures we don't deadlock (forever) on
-        //
-        // with nogil:
-        //   with lock:
-        //     with gil:
-        //       ...
-        //
-        // Arguably that's user error, but it seems better to try to help them out.
-        res = PyThread_acquire_lock_timed(lock, CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME, 0);
-#else
         res = PyThread_acquire_lock(lock, WAIT_LOCK);
-#endif
         // Wait on the GIL while holding the lock. But importantly we never do the inverse
         // and wait on the lock while holding the GIL.
         Py_END_ALLOW_THREADS

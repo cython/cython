@@ -1,13 +1,28 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools"]
 
 [tool.cibuildwheel]
 build-verbosity = 2
-skip = ["pp*", "cp36*", "cp37*"]
-# test-command = "make test"
+skip = [
+    "pp*", "gp*", "cp31?t-*", "cp36*", "cp37*",
+    # The platforms below are non-core platforms that we're providing
+    # Stable ABI (>3.9) wheels to. Python 3.8 is excluded and will use
+    # pure-Python wheels. cibuildwheel will identify Stable ABI wheels and
+    # only build them for the one Python version. It will test them for all
+    # Python versions though.
+    "cp38*i686", "cp38*win32", "cp38*win_arm64", "cp38-macosx_x86_64", "cp38*armv7l", "cp38*musllinux*"
+]
+enable = ["cpython-prerelease"]
+# As a quick sanity check, run Cython on some of its own sources
+# (not a full rebuild though, because it uses the local files and not the installed wheel).
+test-command = [
+    "cython {project}/Cython/Compiler/Visitor.py",
+    "cython {project}/Cython/Compiler/Scanning.py",
+    "cython {project}/Cython/Compiler/Parsing.py",
+]
 
 [tool.cibuildwheel.linux]
-archs = ["x86_64", "aarch64", "i686"]
+archs = ["x86_64", "aarch64", "i686", "armv7l"]
 repair-wheel-command = "auditwheel repair --strip -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.linux.environment]
@@ -18,10 +33,23 @@ RANLIB = "gcc-ranlib"
 
 [[tool.cibuildwheel.overrides]]
 select = "*aarch64"
-environment = {CFLAGS = "-O3 -g0 -pipe -fPIC -march=armv8-a -mtune=cortex-a72", AR = "gcc-ar", NM = "gcc-nm", RANLIB = "gcc-ranlib" }
+environment = {CFLAGS = "-O3 -g0 -pipe -fPIC -march=armv8-a -mtune=cortex-a72", AR = "gcc-ar", NM = "gcc-nm", RANLIB = "gcc-ranlib"}
+
+[[tool.cibuildwheel.overrides]]
+select = "*armv7l"
+environment.CFLAGS = "-O3 -g0 -pipe -fPIC"
+
+[[tool.cibuildwheel.overrides]]
+select = "*i686 *musllinux* *win32 *win_arm64 *macosx_x86_64 *armv7l"
+inherit.environment = "append"
+environment.CYTHON_LIMITED_API = "true"
+inherit.test-requires = "append"
+test-requires = ["abi3audit>=0.0.22"]
+inherit.test-command = "append"
+test-command = ["abi3audit --strict --report {wheel}"]
 
 [tool.cibuildwheel.windows]
-archs = ["AMD64", "x86"]
+archs = ["AMD64", "x86", "ARM64"]
 
 [tool.cibuildwheel.macos]
 # https://cibuildwheel.readthedocs.io/en/stable/faq/#what-to-provide suggests to provide
