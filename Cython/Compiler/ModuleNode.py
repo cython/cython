@@ -161,7 +161,7 @@ class SharedUtilityExporter:
         shared_utility_qualified_name = EncodedString(self.scope.context.shared_utility_qualified_name)
         import_func = f"__Pyx_ImportFunction_{Naming.cyversion}"
         _generate_import_code(
-            code, self.pos, imports, shared_utility_qualified_name, import_func, "void (*{name})(void)")
+            code, self.pos, imports, shared_utility_qualified_name, import_func, "void (**{name})(void)")
 
     def _generate_exports(self, shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
         if self.has_shared_exports(shared_utility_functions):
