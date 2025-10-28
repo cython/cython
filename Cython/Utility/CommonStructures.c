@@ -3,6 +3,7 @@
 static PyObject *__Pyx_FetchSharedCythonABIModule(void);
 
 /////////////// FetchSharedCythonModule ////////////
+//@requires: ModuleSetupCode.c::AddModuleRef
 
 static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
     return __Pyx_PyImport_AddModuleRef(__PYX_ABI_MODULE_NAME);
