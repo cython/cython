@@ -2,6 +2,19 @@
 Cython Changelog
 ================
 
+3.1.7 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Cython incorrectly called ``PyList_GetItemRef()`` in PyPy and GraalPython before Py3.13.
+  (Github issue :issue:`7269`)
+
+* Trying to instantiate internal types used by Cython is now prohibited.
+  (Github issue :issue:`7263`)
+
+
 3.1.6 (2025-10-23)
 ==================
 
