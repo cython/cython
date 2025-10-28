@@ -2255,7 +2255,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 }
 
 /////////////// PyObjectFastCallMethod.proto ///////////////
-//@requires PyObjectFastCall
+//@requires: PyObjectFastCall
 
 #if CYTHON_VECTORCALL && PY_VERSION_HEX >= 0x03090000
 #define __Pyx_PyObject_FastCallMethod(name, args, nargsf) PyObject_VectorcallMethod(name, args, nargsf, NULL)
