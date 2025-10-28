@@ -463,7 +463,7 @@ class UtilityCodeBase(AbstractUtilityCode):
             # section title
             r'^%(C)s{5,30}  \s*  (?P<name> (?:\w|\.)+ )  \s*  %(C)s{5,30} |'
             # section tags and dependencies
-            r'^%(C)s+  @(?P<tag> \w+)  \s*  :  \s*  (?P<value> (?: \w|[.:] )+ )'
+            r'^%(C)s+  @(?P<tag> .+)'
         ) % {'C': re.escape(line_comment_char)}, re.VERBOSE).match
 
     @classmethod
@@ -496,8 +496,8 @@ class UtilityCodeBase(AbstractUtilityCode):
 
         if tags:
             all_tags = utility[2]
-            for name, values in tags.items():
-                all_tags.setdefault(name, set()).update(values)
+            for tag_name, tag_values in tags.items():
+                all_tags.setdefault(tag_name, set()).update(tag_values)
 
     @classmethod
     def load_utilities_from_file(cls, path):
@@ -528,26 +528,38 @@ class UtilityCodeBase(AbstractUtilityCode):
 
         for lineno, line in enumerate(all_lines):
             m = match_special(line)
-            if m:
-                if m.group('name'):
-                    cls._add_utility(utility, name, type, lines, begin_lineno, tags)
-
-                    begin_lineno = lineno + 1
-                    del lines[:]
-                    tags.clear()
-
-                    name = m.group('name')
-                    mtype = match_type(name)
-                    if mtype:
-                        name, type = mtype.groups()
-                    else:
-                        type = 'impl'
-                    utility = utilities[name]
-                else:
-                    tags[m.group('tag')].add(m.group('value'))
-                    lines.append('')  # keep line number correct
-            else:
+            if m is None:
                 lines.append(rstrip(strip_comments(line)))
+            elif m.group('name'):
+                cls._add_utility(utility, name, type, lines, begin_lineno, tags)
+
+                begin_lineno = lineno + 1
+                del lines[:]
+                tags.clear()
+
+                name = m.group('name')
+                mtype = match_type(name)
+                if mtype:
+                    name, type = mtype.groups()
+                else:
+                    type = 'impl'
+                utility = utilities[name]
+            else:
+                tag_value = m.group('tag')
+                if ':' not in tag_value:
+                    raise RuntimeError(f"Found invalid tag '{tag_value}' in utility section {name}.{type}")
+
+                tag_name, _, tag_value = tag_value.partition(':')
+                tag_name = tag_name.rstrip()
+                tag_value = tag_value.strip()
+
+                if tag_name not in ('requires', 'substitute', 'proto_block'):
+                    raise RuntimeError(f"Found unknown tag name '{tag_name}' in utility section {name}.{type}")
+                if not re.match(r'\S+$', tag_value):
+                    raise RuntimeError(f"Found invalid tag value '{tag_value}' in utility section {name}.{type}")
+
+                tags[tag_name].add(tag_value)
+                lines.append('')  # keep line number correct
 
         if utility is None:
             raise ValueError("Empty utility code file")

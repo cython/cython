@@ -2244,7 +2244,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 }
 
 /////////////// PyObjectFastCallMethod.proto ///////////////
-//@requires PyObjectFastCall
+//@requires: PyObjectFastCall
 
 #if CYTHON_VECTORCALL && PY_VERSION_HEX >= 0x03090000
 #define __Pyx_PyObject_FastCallMethod(name, args, nargsf) PyObject_VectorcallMethod(name, args, nargsf, NULL)
@@ -3207,7 +3207,7 @@ static int __Pyx_PyDict_NextRef(PyObject *p, PyObject **ppos, PyObject **pkey, P
 CYTHON_INLINE
 static int __Pyx_PyDict_NextRef(PyObject *p, Py_ssize_t *ppos, PyObject **pkey, PyObject **pvalue); /* proto */
 #endif
-    
+
 
 //////////////////////// OwnedDictNext //////////////////////////////////////
 //@requires: Builtins.c::py_dict_values
@@ -3251,7 +3251,7 @@ static int __Pyx_PyDict_NextRef(PyObject *p, PyObject **ppos, PyObject **pkey, P
   bad:
     Py_XDECREF(next);
     // PyDict_Next can't fail, so neither can this
-#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d0000 
+#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d0000
     PyErr_FormatUnraisable("Exception ignored in __Pyx_PyDict_NextRef");
 #else
     PyErr_WriteUnraisable(PYIDENT("__Pyx_PyDict_NextRef"));
