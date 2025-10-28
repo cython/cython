@@ -285,7 +285,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         self.body.analyse_declarations(env)
 
-        if env.find_shared_usages_of_type(lambda tp: tp is PyrexTypes.cy_pymutex_type):
+        cy_pymutex_type = PyrexTypes.get_cy_pymutex_type()
+        if env.find_shared_usages_of_type(cy_pymutex_type):
             # Be very suspicious of cython locks that are shared.
             # They have the potential to cause ABI issues.
             self.scope.use_utility_code(
@@ -362,30 +363,33 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code_start.put_h_guard(h_guard)
             h_code_start.putln("")
             h_code_start.putln('#include "Python.h"')
-            self.generate_type_header_code(h_types, h_code_start)
+            self.generate_type_header_code(h_types, h_code_main)
             if options.capi_reexport_cincludes:
-                self.generate_includes(env, [], h_code_start)
-            h_code_start.putln("")
+                self.generate_includes(env, [], h_code_main)
+            h_code_main.putln("")
             api_guard = self.api_name(Naming.api_guard_prefix, env)
-            h_code_start.putln("#ifndef %s" % api_guard)
-            h_code_start.putln("")
-            self.generate_extern_c_macro_definition(h_code_start, env.is_cpp())
-            h_code_start.putln("")
-            self.generate_dl_import_macro(h_code_start)
+            h_code_main.putln("#ifndef %s" % api_guard)
+            h_code_main.putln("")
+            self.generate_extern_c_macro_definition(h_code_main, env.is_cpp())
+            h_code_main.putln("")
+            self.generate_dl_import_macro(h_code_main)
             if h_extension_types:
                 h_code_main.putln("")
                 for entry in h_extension_types:
                     self.generate_cclass_header_code(entry.type, h_code_main)
                     if i_code:
                         self.generate_cclass_include_code(entry.type, i_code)
+                    globalstate.use_entry_utility_code(entry)
             if h_funcs:
                 h_code_main.putln("")
                 for entry in h_funcs:
                     self.generate_public_declaration(entry, h_code_main, i_code)
+                    globalstate.use_entry_utility_code(entry)
             if h_vars:
                 h_code_main.putln("")
                 for entry in h_vars:
                     self.generate_public_declaration(entry, h_code_main, i_code)
+                    globalstate.use_entry_utility_code(entry)
             h_code_main.putln("")
             h_code_main.putln("#endif /* !%s */" % api_guard)
             h_code_main.putln("")
@@ -452,7 +456,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         h_code = Code.CCodeWriter()
         c_code_config = generate_c_code_config(env, options)
-        Code.GlobalState(h_code, self, c_code_config)
+        globalstate = Code.GlobalState(h_code, self, c_code_config)
+        globalstate.initialize_main_h_code()  # in-case utility code is used in the header
         h_code.put_generated_by()
         api_guard = self.api_name(Naming.api_guard_prefix, env)
         h_code.put_h_guard(api_guard)
@@ -480,6 +485,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 h_code.putln("static PyTypeObject *%s = 0;" % type.typeptr_cname)
                 h_code.putln("#define %s (*%s)" % (
                     type.typeobj_cname, type.typeptr_cname))
+                h_code.globalstate.use_entry_utility_code(entry)
         if api_funcs:
             h_code.putln("")
             for entry in api_funcs:
@@ -487,6 +493,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 cname = env.mangle(Naming.func_prefix_api, entry.name)
                 h_code.putln("static %s = 0;" % type.declaration_code(cname))
                 h_code.putln("#define %s %s" % (entry.name, cname))
+                h_code.globalstate.use_entry_utility_code(entry)
         if api_vars:
             h_code.putln("")
             for entry in api_vars:
@@ -494,6 +501,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 cname = env.mangle(Naming.varptr_prefix_api, entry.name)
                 h_code.putln("static %s = 0;" % type.declaration_code(cname))
                 h_code.putln("#define %s (*%s)" % (entry.name, cname))
+                h_code.globalstate.use_entry_utility_code(entry)
         if api_vars:
             put_utility_code("VoidPtrImport", "ImportExport.c")
         if api_funcs:
@@ -1109,6 +1117,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_cpp_class_definition(entry, code)
                 elif type.is_extension_type:
                     self.generate_objstruct_definition(type, code)
+                if getattr(type, "scope", None):
+                    for var_entry in type.scope.var_entries:
+                        code.globalstate.use_entry_utility_code(var_entry)
 
     def generate_gcc33_hack(self, env, code):
         # Workaround for spurious warning generation in gcc 3.3
@@ -1447,7 +1458,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 decl = attr_type.cpp_optional_declaration_code(attr.cname)
             else:
                 decl = attr_type.declaration_code(attr.cname)
-            type.scope.use_entry_utility_code(attr)
+            code.globalstate.use_entry_utility_code(attr)
             code.putln("%s;" % decl)
         code.putln(footer)
         if type.objtypedef_cname is not None:
@@ -1526,7 +1537,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(";")
             if entry.cname != cname:
                 code.putln("#define %s (*%s)" % (entry.cname, cname))
-            env.use_entry_utility_code(entry)
+            code.globalstate.use_entry_utility_code(entry)
 
     def generate_cfunction_declarations(self, env, code, definition):
         for entry in env.cfunc_entries:
@@ -4204,6 +4215,7 @@ def generate_cfunction_declaration(entry, env, code, definition):
             storage_class,
             modifiers,
             header))
+        code.globalstate.use_entry_utility_code(entry)
 
 #------------------------------------------------------------------------------------
 #
