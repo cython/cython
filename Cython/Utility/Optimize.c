@@ -477,17 +477,8 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         #endif
         if (unlikely(pos >= list_size)) return 0;
         *ppos = pos + 1;
-        #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-        next_item = PyList_GetItemRef(iter_obj, pos);
+        next_item = __Pyx_PyList_GetItemRef(iter_obj, pos);
         if (unlikely(!next_item)) return -1;
-        #elif CYTHON_ASSUME_SAFE_MACROS
-        next_item = PyList_GET_ITEM(iter_obj, pos);
-        Py_INCREF(next_item);
-        #else
-        next_item = PyList_GetItem(iter_obj, pos);
-        if (unlikely(!next_item)) return -1;
-        Py_INCREF(next_item);
-        #endif
     } else
 #endif
     {
