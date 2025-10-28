@@ -36,35 +36,17 @@ select = "*aarch64"
 environment = {CFLAGS = "-O3 -g0 -pipe -fPIC -march=armv8-a -mtune=cortex-a72", AR = "gcc-ar", NM = "gcc-nm", RANLIB = "gcc-ranlib"}
 
 [[tool.cibuildwheel.overrides]]
-select = "*i686"
-inherit.environment = "append"
-environment.CYTHON_LIMITED_API = "true"
-
-[[tool.cibuildwheel.overrides]]
-select = "*musllinux*"
-inherit.environment = "append"
-environment.CYTHON_LIMITED_API = "true"
-
-[[tool.cibuildwheel.overrides]]
-select = "*win32"
-inherit.environment = "append"
-environment.CYTHON_LIMITED_API = "true"
-
-[[tool.cibuildwheel.overrides]]
-select = "*win_arm64"
-inherit.environment = "append"
-environment.CYTHON_LIMITED_API = "true"
-
-[[tool.cibuildwheel.overrides]]
-select = "*macosx_x86_64"
-inherit.environment = "append"
-environment.CYTHON_LIMITED_API = "true"
-
-[[tool.cibuildwheel.overrides]]
 select = "*armv7l"
-inherit.environment = "append"
 environment.CFLAGS = "-O3 -g0 -pipe -fPIC"
+
+[[tool.cibuildwheel.overrides]]
+select = "*i686 *musllinux* *win32 *win_arm64 *macosx_x86_64 *armv7l"
+inherit.environment = "append"
 environment.CYTHON_LIMITED_API = "true"
+inherit.test-requires = "append"
+test-requires = ["abi3audit>=0.0.22"]
+inherit.test-command = "append"
+test-command = ["abi3audit --strict --report {wheel}"]
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64", "x86", "ARM64"]
