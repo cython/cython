@@ -667,17 +667,23 @@ in ``libcpp.typeindex``.
 Specify C++ language in setup.py
 ================================
 
-Instead of specifying the language and the sources in the source files, it is
-possible to declare them in the :file:`setup.py` file::
+Instead of specifying the language in the source file (using a ``distutils``
+directive), it is possible to declare it in the :file:`setup.py` file.
+This is done by creating an :class:`~setuptools.Extension` object for your
+extension::
 
-   from setuptools import setup
+   from setuptools import Extension, setup
    from Cython.Build import cythonize
 
-   setup(ext_modules = cythonize(
-              "rect.pyx",                 # our Cython source
-              sources=["Rectangle.cpp"],  # additional source file(s)
-              language="c++",             # generate C++ code
-         ))
+   setup(
+       ext_modules=cythonize([
+           Extension(
+               "rect",
+               sources=["rect.pyx", "Rectangle.cpp"],
+               language="c++",
+           )
+       ])
+   )
 
 Cython will generate and compile the :file:`rect.cpp` file (from
 :file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
@@ -686,25 +692,6 @@ together into :file:`rect.so` on Linux, or :file:`rect.pyd` on windows,
 which you can then import in Python using
 ``import rect`` (if you forget to link the :file:`Rectangle.o`, you will
 get missing symbols while importing the library in Python).
-
-Note that the ``language`` option has no effect on user provided Extension
-objects that are passed into ``cythonize()``.  It is only used for modules
-found by file name (as in the example above).
-
-The ``cythonize()`` function in Cython versions up to 0.21 does not
-recognize the ``language`` option and it needs to be specified as an
-option to an :class:`Extension` that describes your extension and that
-is then handled by ``cythonize()`` as follows::
-
-   from setuptools import Extension, setup
-   from Cython.Build import cythonize
-
-   setup(ext_modules = cythonize(Extension(
-              "rect",                                # the extension name
-              sources=["rect.pyx", "Rectangle.cpp"], # the Cython source and
-                                                     # additional C++ source files
-              language="c++",                        # generate and compile C++ code
-         )))
 
 The options can also be passed directly from the source file, which is
 often preferable (and overrides any global option).  Starting with
