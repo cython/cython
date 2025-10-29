@@ -10,6 +10,7 @@ import hashlib
 import sys
 from operator import itemgetter
 
+from . import Code
 from . import PyrexTypes
 from . import Naming
 from . import ExprNodes
@@ -2278,80 +2279,76 @@ if VALUE is not None:
                     e.type.create_from_py_utility_code(env)
 
             all_members_names = [e.name for e in all_members]
+            assignments = '; '.join([
+                '__pyx_result.%s = __pyx_state[%s]' % (v, ix)
+                for ix, v in enumerate(all_members_names)
+            ])
             checksums = _calculate_pickle_checksums(all_members_names)
+            if len(checksums) != 3:
+                # If we don't have enough checksums to call the check function, we just repeat the last one.
+                checksums = (checksums + [checksums[-1] * 2])[:3]
 
             unpickle_func_name = f'__pyx_unpickle_{node.punycode_class_name}'
+            num_members = len(all_members_names)
+
+            env.use_utility_code(Code.UtilityCode.load_cached("UpdateUnpickledDict", "ExtensionTypes.c"))
 
             # TODO(robertwb): Move the state into the third argument
             # so it can be pickled *after* self is memoized.
-            unpickle_func = TreeFragment(
-                """
-                def {unpickle_func_name}(__pyx_type, long __pyx_checksum, __pyx_state):
-                    cdef object __pyx_PickleError
+            unpickle_code = f"""
+                cdef extern from *:
+                    int __Pyx_CheckUnpickleChecksum(long, long, long, long, const char*) except -1
+                    int __Pyx_UpdateUnpickledDict(object, object, Py_ssize_t) except -1
+
+                def {unpickle_func_name}(__pyx_type, long __pyx_checksum, tuple __pyx_state):
                     cdef object __pyx_result
-                    if __pyx_checksum not in ({checksums}):
-                        from pickle import PickleError as __pyx_PickleError
-                        raise __pyx_PickleError, "Incompatible checksums (0x%x vs ({checksums}) = ({members}))" % __pyx_checksum
-                    __pyx_result = {class_name}.__new__(__pyx_type)
+                    __Pyx_CheckUnpickleChecksum(__pyx_checksum, {', '.join(checksums)}, {', '.join(all_members_names).encode('UTF-8')!r})
+                    __pyx_result = {node.class_name}.__new__(__pyx_type)
                     if __pyx_state is not None:
-                        {unpickle_func_name}__set_state(<{class_name}> __pyx_result, __pyx_state)
+                        {unpickle_func_name}__set_state(<{node.class_name}> __pyx_result, __pyx_state)
                     return __pyx_result
 
-                cdef {unpickle_func_name}__set_state({class_name} __pyx_result, tuple __pyx_state):
+                cdef {unpickle_func_name}__set_state({node.class_name} __pyx_result, __pyx_state: tuple):
                     {assignments}
-                    if len(__pyx_state) > {num_members:d} and hasattr(__pyx_result, '__dict__'):
-                        __pyx_result.__dict__.update(__pyx_state[{num_members:d}])
-                """.format(
-                    unpickle_func_name=unpickle_func_name,
-                    checksums=', '.join(checksums),
-                    members=', '.join(all_members_names),
-                    class_name=node.class_name,
-                    assignments='; '.join([
-                        '__pyx_result.%s = __pyx_state[%s]' % (v, ix)
-                        for ix, v in enumerate(all_members_names)
-                    ]),
-                    num_members=len(all_members_names),
-                ),
-                level='module',
-                pipeline=[NormalizeTree(None)],
-            ).substitute({})
+                    __Pyx_UpdateUnpickledDict(__pyx_result, __pyx_state, {num_members:d})
+            """
 
+            env.use_utility_code(Code.UtilityCode.load_cached("CheckUnpickleChecksum", "ExtensionTypes.c"))
+
+            unpickle_func = TreeFragment(unpickle_code, level='module', pipeline=[NormalizeTree(None)]).substitute({})
             unpickle_func.analyse_declarations(node.entry.scope)
+
             self.visit(unpickle_func)
             self.extra_module_declarations.append(unpickle_func)
 
-            pickle_func = TreeFragment(
-                """
+            members = ', '.join(f'self.{v}' for v in all_members_names) + (',' if len(all_members_names) == 1 else '')
+            # Even better, we could check PyType_IS_GC.
+            any_notnone_members = ' or '.join([f'self.{e.name} is not None' for e in all_members if e.type.is_pyobject] or ['False']),
+
+            pickle_code = f"""
                 def __reduce_cython__(self):
                     cdef tuple state
                     cdef object _dict
                     cdef bint use_setstate
                     state = ({members})
                     _dict = getattr(self, '__dict__', None)
-                    if _dict is not None:
+                    if _dict is not None and _dict:
                         state += (_dict,)
                         use_setstate = True
                     else:
                         use_setstate = {any_notnone_members}
                     if use_setstate:
-                        return {unpickle_func_name}, (type(self), {checksum}, None), state
+                        return {unpickle_func_name}, (type(self), {checksums[0]}, None), state
                     else:
-                        return {unpickle_func_name}, (type(self), {checksum}, state)
+                        return {unpickle_func_name}, (type(self), {checksums[0]}, state)
 
                 def __setstate_cython__(self, __pyx_state):
                     {unpickle_func_name}__set_state(self, __pyx_state)
-                """.format(
-                    unpickle_func_name=unpickle_func_name,
-                    checksum=checksums[0],
-                    members=', '.join('self.%s' % v for v in all_members_names) + (',' if len(all_members_names) == 1 else ''),
-                    # Even better, we could check PyType_IS_GC.
-                    any_notnone_members=' or '.join(['self.%s is not None' % e.name for e in all_members if e.type.is_pyobject] or ['False']),
-                ),
-                level='c_class',
-                pipeline=[NormalizeTree(None)],
-            ).substitute({})
+            """
 
+            pickle_func = TreeFragment(pickle_code, level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
             pickle_func.analyse_declarations(node.scope)
+
             self.enter_scope(node, node.scope)  # functions should be visited in the class scope
             self.visit(pickle_func)
             self.exit_scope()

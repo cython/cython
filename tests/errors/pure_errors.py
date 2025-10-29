@@ -89,6 +89,12 @@ def add_one(x: cython.double) -> cython.double:
     return x+1
 
 
+@cython.cfunc
+@cython.returns(stding.bar)
+def return_wrong_type():
+    return 5
+
+
 _ERRORS = """
 30:0: Directive does not change previous value (nogil=False)
 44:22: Calling gil-requiring function not allowed without gil
@@ -101,6 +107,7 @@ _ERRORS = """
 74:0: cfunc and ccall directives cannot be combined
 80:0: cfunc and ccall directives cannot be combined
 86:0: Cannot apply @cfunc to @ufunc, please reverse the decorators.
+93:22: Not a type
 
 # bugs:
 74:0: 'test_contradicting_decorators1' redeclared

@@ -741,6 +741,12 @@ static int __Pyx_init_co_variables(void); /* proto */
 #ifndef Py_TPFLAGS_MAPPING
   #define Py_TPFLAGS_MAPPING 0
 #endif
+#ifndef Py_TPFLAGS_IMMUTABLETYPE
+  #define Py_TPFLAGS_IMMUTABLETYPE (1UL << 8)
+#endif
+#ifndef Py_TPFLAGS_DISALLOW_INSTANTIATION
+  #define Py_TPFLAGS_DISALLOW_INSTANTIATION (1UL << 7)
+#endif
 
 #ifndef METH_STACKLESS
   // already defined for Stackless Python (all versions) and C-Python >= 3.7
@@ -823,7 +829,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
 #define __Pyx_IsSameCFunction(func, cfunc)   __Pyx__IsSameCFunction(func, cfunc)
 
 // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
-#if __PYX_LIMITED_VERSION_HEX < 0x03090000
+#if PY_VERSION_HEX < 0x03090000 || (CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000)
   #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
   typedef PyObject *(*__Pyx_PyCMethod)(PyObject *, PyTypeObject *, PyObject *const *, size_t, PyObject *);
 #else
@@ -1178,16 +1184,6 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   #define __Pyx_PyBytes_GET_SIZE(o) PyBytes_Size(o)
   #define __Pyx_PyByteArray_GET_SIZE(o) PyByteArray_Size(o)
   #define __Pyx_PyUnicode_GET_LENGTH(o) PyUnicode_GetLength(o)
-#endif
-
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
-  #define __Pyx_PyImport_AddModuleRef(name) PyImport_AddModuleRef(name)
-#else
-  static CYTHON_INLINE PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
-      PyObject *module = PyImport_AddModule(name);
-      Py_XINCREF(module);
-      return module;
-  }
 #endif
 
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyUnicode_InternFromString)
@@ -1545,19 +1541,6 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObj
 #endif
 #include <math.h>
 
-#ifdef NAN
-#define __PYX_NAN() ((float) NAN)
-#else
-static CYTHON_INLINE float __PYX_NAN() {
-  // Initialize NaN.  The sign is irrelevant, an exponent with all bits 1 and
-  // a nonzero mantissa means NaN.  If the first bit in the mantissa is 1, it is
-  // a quiet NaN.
-  float value;
-  memset(&value, 0xFF, sizeof(value));
-  return value;
-}
-#endif
-
 #if defined(__CYGWIN__) && defined(_LDBL_EQ_DBL)
 #define __Pyx_truncl trunc
 #else
@@ -1575,7 +1558,8 @@ static CYTHON_INLINE float __PYX_NAN() {
 /////////////// ModuleCreationPEP489 ///////////////
 //@substitute: naming
 
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000
+#if CYTHON_COMPILING_IN_LIMITED_API && (__PYX_LIMITED_VERSION_HEX < 0x03090000 \
+      || ((defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)) && __PYX_LIMITED_VERSION_HEX < 0x030A0000))
 // Probably won't work before 3.8, but we don't use restricted API to find that out.
 static PY_INT64_T __Pyx_GetCurrentInterpreterId(void) {
     {
@@ -1614,10 +1598,13 @@ static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
     PY_INT64_T current_id = GraalPyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
 #elif CYTHON_COMPILING_IN_GRAAL
     PY_INT64_T current_id = PyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
-#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x03090000
-    PY_INT64_T current_id = PyInterpreterState_GetID(PyInterpreterState_Get());
-#elif CYTHON_COMPILING_IN_LIMITED_API
+#elif CYTHON_COMPILING_IN_LIMITED_API && (__PYX_LIMITED_VERSION_HEX < 0x03090000 \
+      || ((defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)) && __PYX_LIMITED_VERSION_HEX < 0x030A0000))
+    // Although PyInterpreterState_Get is part of the Stable ABI from Python 3.9,
+    // it was somehow omitted from the Windows dll in that version.
     PY_INT64_T current_id = __Pyx_GetCurrentInterpreterId();
+#elif CYTHON_COMPILING_IN_LIMITED_API
+    PY_INT64_T current_id = PyInterpreterState_GetID(PyInterpreterState_Get());
 #else
     PY_INT64_T current_id = PyInterpreterState_GetID(PyThreadState_Get()->interp);
 #endif
@@ -2223,6 +2210,7 @@ static void __Pyx_FastGilFuncInit(void);
 #endif
 
 /////////////// FastGil ///////////////
+//@requires: AddModuleRef
 // The implementations of PyGILState_Ensure/Release calls PyThread_get_key_value
 // several times which is turns out to be quite slow (slower in fact than
 // acquiring the GIL itself).  Simply storing it in a thread local for the
@@ -3152,3 +3140,64 @@ static CYTHON_INLINE int __Pyx_UnknownThreadStateMayHaveHadGil(__Pyx_UnknownThre
   return state != NULL;
   #endif
 }
+
+///////////////////// AddModuleRef.proto ///////////////////////
+
+#if ((CYTHON_COMPILING_IN_CPYTHON_FREETHREADING /* && __PYX_LIMITED_VERSION_HEX < some future value */) || \
+     __PYX_LIMITED_VERSION_HEX < 0x030d0000) 
+  // https://github.com/python/cpython/issues/137422 - PyImport_AddModule(Ref) isn't thread safe!
+  static PyObject *__Pyx_PyImport_AddModuleRef(const char *name); /* proto */
+#else
+  #define __Pyx_PyImport_AddModuleRef(name) PyImport_AddModuleRef(name)
+#endif
+
+///////////////////// AddModuleRef ////////////////////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING /* && __PYX_LIMITED_VERSION_HEX < some future value */
+  // https://github.com/python/cpython/issues/137422 - PyImport_AddModule(Ref) isn't thread safe!
+  static PyObject *__Pyx_PyImport_AddModuleObjectRef(PyObject *name) {
+      // We're going to assume nobody is swapping the module dict out from under us
+      // (even though they're allowed to) because we really can't write code that's
+      // safe against that.
+      PyObject *module_dict = PyImport_GetModuleDict();
+      PyObject *m;
+      if (PyMapping_GetOptionalItem(module_dict, name, &m) < 0) { 
+          return NULL; 
+      } 
+      if (m != NULL && PyModule_Check(m)) { 
+          return m; 
+      }
+      Py_XDECREF(m); 
+      m = PyModule_NewObject(name);
+      if (m == NULL) 
+          return NULL; 
+      if (PyDict_CheckExact(module_dict)) {
+          PyObject *new_m;
+          (void)PyDict_SetDefaultRef(module_dict, name, m, &new_m);
+          Py_DECREF(m);
+          return new_m;
+      } else {
+            // For non-dict sys-modules I don't think it's possible to reliably make thread-safe.
+           if (PyObject_SetItem(module_dict, name, m) != 0) { 
+                Py_DECREF(m); 
+                return NULL; 
+            }         
+            return m; 
+      }
+  }
+  static PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
+      PyObject *py_name = PyUnicode_FromString(name);
+      if (!py_name) return NULL;
+      PyObject *module = __Pyx_PyImport_AddModuleObjectRef(py_name); 
+      Py_DECREF(py_name);
+      return module;
+  }
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+  #define __Pyx_PyImport_AddModuleRef(name) PyImport_AddModuleRef(name)
+#else
+  static PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
+      PyObject *module = PyImport_AddModule(name);
+      Py_XINCREF(module);
+      return module;
+  }
+#endif

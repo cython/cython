@@ -7,7 +7,7 @@
 raw_prefixes = "rR"
 bytes_prefixes = "bB"
 string_prefixes = "uU" + bytes_prefixes
-fstring_prefixes = "fF"
+ft_string_prefixes = "fFtT"
 char_prefixes = "cC"
 any_string_prefix = raw_prefixes + string_prefixes + char_prefixes
 IDENT = 'IDENT'
@@ -62,8 +62,8 @@ def make_lexicon():
     beginstring = Opt(Rep(Any(string_prefixes + raw_prefixes)) |
                       Any(char_prefixes)
                       ) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
-    begin_fstring = (
-        ((Any(fstring_prefixes) + Opt(Any(raw_prefixes))) | (Any(raw_prefixes) + Any(fstring_prefixes))) +
+    begin_ft_string = (
+        ((Any(ft_string_prefixes) + Opt(Any(raw_prefixes))) | (Any(raw_prefixes) + Any(ft_string_prefixes))) +
         (Str("'") | Str('"') | Str("'''") | Str('"""')))
     two_oct = octdigit + octdigit
     three_oct = octdigit + octdigit + octdigit
@@ -99,18 +99,18 @@ def make_lexicon():
 
     comment = Str("#") + Rep(AnyBut("\n"))
 
-    def generate_fstring_states():
+    def generate_ft_string_states():
         out = []
 
         # In order for self-documenting strings to work, we need to
-        # pre-scan the fstring into a string, and then parse it
+        # pre-scan the fstring/tstring into a string, and then parse it
         # again as an expression.  This allows us to accurately
         # preserve whitespace (at the cost of repeatedly tokenizing
-        # for deeply nested fstrings).
+        # for deeply nested fstrings/tstrings).
         # To do this we need to pay attention to brackets, strings,
         # colons, and comments, but can ignore anything else.
         out.append(
-            State("FSTRING_EXPR_PRESCAN", [
+            State("FT_STRING_EXPR_PRESCAN", [
                 (Rep1(AnyBut('"\'{}()[]:#')), 'CHARS'),
                 (comment, IGNORE),
                 (Str(':'), Method('colon_action')),
@@ -119,14 +119,14 @@ def make_lexicon():
                 (bra, Method('open_bracket_action')),
                 (ket, Method('close_bracket_action')),
                 (beginstring, Method('begin_string_action')),
-                (begin_fstring, Method('begin_fstring_action')),
+                (begin_ft_string, Method('begin_ft_string_action')),
                 (Eof, 'EOF')
             ]))
 
         unclosed_string_method = Method('unclosed_string_action')
-        open_fstring_brace_method = Method('open_fstring_brace_action')
-        close_fstring_brace_method = Method('close_fstring_brace_action')
-        end_fstring_method = Method('end_fstring_action')
+        open_ft_string_brace_method = Method('open_ft_string_brace_action')
+        close_ft_string_brace_method = Method('close_ft_string_brace_action')
+        end_ft_string_method = Method('end_ft_string_action')
 
         for prefix in ["'", '"', "'''", '"""']:
             quote_type = 'SQ' if "'" in prefix else 'DQ'
@@ -142,14 +142,14 @@ def make_lexicon():
             for raw in ["", "R"]:
                 escapeseq_sy = rawescapeseq if raw else escapeseq
                 out.append(
-                    State(f"{triple}{quote_type}_STRING_F{raw}", [
+                    State(f"{triple}{quote_type}_STRING_FT{raw}", [
                         (escapeseq_sy, 'ESCAPE'),
-                        (Rep1(Str('{')), open_fstring_brace_method),
-                        (Rep1(Str('}')), close_fstring_brace_method),
+                        (Rep1(Str('{')), open_ft_string_brace_method),
+                        (Rep1(Str('}')), close_ft_string_brace_method),
                         (Rep1(AnyBut("'\"\n\\{}")), 'CHARS'),
                         (allowed_string_chars, 'CHARS'),
                         (Str("\n"), newline_method),
-                        (Str(prefix), end_fstring_method),
+                        (Str(prefix), end_ft_string_method),
                         (Eof, 'EOF')
                     ])
             )
@@ -169,7 +169,7 @@ def make_lexicon():
         (lineterm, Method('newline_action')),
 
         (beginstring, Method('begin_string_action')),
-        (begin_fstring, Method('begin_fstring_action')),
+        (begin_ft_string, Method('begin_ft_string_action')),
 
         (comment, IGNORE),
         (spaces, IGNORE),
@@ -217,7 +217,7 @@ def make_lexicon():
             (Str('"""'), Method('end_string_action')),
             (Eof, 'EOF')
         ]),
-        *generate_fstring_states(),
+        *generate_ft_string_states(),
 
         (Eof, Method('eof_action'))
         ],

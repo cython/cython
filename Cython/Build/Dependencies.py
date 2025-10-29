@@ -773,6 +773,10 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         elif isinstance(pattern, extension_classes):
             cython_sources = [s for s in pattern.sources
                               if os.path.splitext(s)[1] in ('.py', '.pyx')]
+            template = pattern
+            name = template.name
+            base = DistutilsInfo(exn=template)
+            ext_language = None  # do not override whatever the Extension says
             if cython_sources:
                 filepattern = cython_sources[0]
                 if len(cython_sources) > 1:
@@ -781,11 +785,14 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                           "for sharing declarations among Cython files." % (pattern.name, cython_sources))
             elif shared_utility_qualified_name and pattern.name == shared_utility_qualified_name:
                 # This is the shared utility code file.
+                sources = pattern.sources or [
+                        shared_utility_qualified_name.replace('.', os.sep) + ('.cpp' if pattern.language == 'c++' else '.c')]
                 m, _ = create_extension(pattern, dict(
                     name=shared_utility_qualified_name,
-                    sources=pattern.sources or [
-                        shared_utility_qualified_name.replace('.', os.sep) + ('.cpp' if pattern.language == 'c++' else '.c')],
+                    sources=sources,
                     language=pattern.language,
+                    # shared utility code uses only parameters specified as argument of Extension() class
+                    **base.values
                 ))
                 m.np_pythran = False
                 m.shared_utility_qualified_name = None
@@ -795,10 +802,6 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 # ignore non-cython modules
                 module_list.append(pattern)
                 continue
-            template = pattern
-            name = template.name
-            base = DistutilsInfo(exn=template)
-            ext_language = None  # do not override whatever the Extension says
         else:
             msg = str("pattern is not of type str nor subclass of Extension (%s)"
                       " but of type %s and class %s" % (repr(Extension),
@@ -1129,31 +1132,22 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     if N <= 1:
         nthreads = 0
+    try:
+        from concurrent.futures import ProcessPoolExecutor
+    except ImportError:
+        nthreads = 0
+
     if nthreads:
-        import multiprocessing
-        if multiprocessing.get_start_method() == 'spawn':
-            print('Disabling parallel cythonization for "spawn" process start method.')
-            nthreads = 0
-    if nthreads:
-        import multiprocessing
-        pool = multiprocessing.Pool(
-            nthreads, initializer=_init_multiprocessing_helper)
-        # This is a bit more involved than it should be, because KeyboardInterrupts
-        # break the multiprocessing workers when using a normal pool.map().
-        # See, for example:
-        # https://noswap.com/blog/python-multiprocessing-keyboardinterrupt
-        try:
-            result = pool.map_async(cythonize_one_helper, to_compile, chunksize=1)
-            pool.close()
-            while not result.ready():
-                try:
-                    result.get(99999)  # seconds
-                except multiprocessing.TimeoutError:
-                    pass
-        except KeyboardInterrupt:
-            pool.terminate()
-            raise
-        pool.join()
+        with ProcessPoolExecutor(
+            max_workers=nthreads,
+            initializer=_init_multiprocessing_helper,
+        ) as proc_pool:
+            try:
+                list(proc_pool.map(cythonize_one_helper, to_compile, chunksize=1))
+            except KeyboardInterrupt:
+                proc_pool.terminate_workers()
+                proc_pool.shutdown(cancel_futures=True)
+                raise
     else:
         for args in to_compile:
             cythonize_one(*args)
