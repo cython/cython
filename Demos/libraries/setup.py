@@ -37,7 +37,7 @@ elif sys.platform.startswith("win"):
 # Here is how to use the library built above.
 if os.path.exists("libmymath.a") or os.path.exists("mymath.lib"):
     ext_modules = cythonize([
-        Extension("call_mymath",
+        Extension("*",
                   sources=["call_mymath.pyx"],
                   include_dirs=[os.getcwd()],  # path to .h file(s)
                   library_dirs=[os.getcwd()],  # path to .a or .so file(s)
