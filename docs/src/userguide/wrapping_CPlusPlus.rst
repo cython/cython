@@ -667,9 +667,9 @@ in ``libcpp.typeindex``.
 Specify C++ language in setup.py
 ================================
 
-Instead of specifying the language in the source file (using a ``distutils``
-directive), it is possible to declare it in the :file:`setup.py` file.
-This is done by creating an :class:`~setuptools.Extension` object for your
+The target language (C or C++) can be specified either in each source file
+(as shown below) or in the :file:`setup.py` file.
+For the latter, create an :class:`~setuptools.Extension` object for your
 extension::
 
    from setuptools import Extension, setup
@@ -678,8 +678,11 @@ extension::
    setup(
        ext_modules=cythonize([
            Extension(
+               # Declare the extension module name (including package).
                "rect",
+               # List the main extension file together with additional source files.
                sources=["rect.pyx", "Rectangle.cpp"],
+               # Let Cython generate C++ code and setuptools use the C++ compiler.
                language="c++",
            )
        ])
