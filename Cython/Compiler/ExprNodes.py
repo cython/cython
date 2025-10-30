@@ -76,6 +76,9 @@ class NotConstant:
 not_a_constant = NotConstant()
 constant_value_not_set = object()
 
+def _type_to_itself(tp):
+    return tp, tp
+
 # error messages when coercing from key[0] to key[1]
 coercion_error_dict = {
     # string related errors
@@ -94,9 +97,9 @@ coercion_error_dict = {
     (PyrexTypes.c_uchar_ptr_type, unicode_type): "Cannot convert 'char*' to unicode implicitly, decoding required",
     (PyrexTypes.c_const_uchar_ptr_type, unicode_type): (
         "Cannot convert 'char*' to unicode implicitly, decoding required"),
-    (PyrexTypes.cy_pymutex_type, PyrexTypes.cy_pymutex_type): (
+    _type_to_itself(PyrexTypes.get_cy_pymutex_type()): (
         "cython.pymutex cannot be copied"),
-    (PyrexTypes.cy_pythread_type_lock_type, PyrexTypes.cy_pythread_type_lock_type): (
+    _type_to_itself(PyrexTypes.get_cy_pythread_type_lock_type()): (
         "cython.pythread_type_lock cannot be copied"),
 }
 
@@ -2967,7 +2970,7 @@ class ImportNode(ExprNode):
                 module_obj = code.get_py_string_const(StringEncoding.EncodedString(module))
                 code.putln(f"{submodule} = __Pyx_ImportFrom({tmp_submodule}, {module_obj});")
                 code.putln(f"Py_DECREF({tmp_submodule});")
-                code.error_goto_if_null(submodule, self.pos)
+                code.putln(code.error_goto_if_null(submodule, self.pos))
                 code.putln(f"{tmp_submodule} = {submodule};")
             code.funcstate.release_temp(submodule)
 

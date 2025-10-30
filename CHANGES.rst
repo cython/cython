@@ -2,6 +2,63 @@
 Cython Changelog
 ================
 
+3.2.0b3 (2025-10-30)
+====================
+
+Bugs fixed
+----------
+
+* Using ``cython.pymutex`` in an extension type declared as ``public`` or ``api``
+  generated invalid C code missing the required ``PyMutex`` declarations.
+  (Github issues :issue:`6992`, :issue:`6995`)
+
+* 3.2.0b2 generated incorrect pointer casts in the ``cimport`` importing code.
+  (Github issue :issue:`7268`)
+
+* Cython's type sharing across modules suffered from race conditions if multiple modules
+  tried to initialise and share their types concurrently.  This is due to an underlying
+  CPython issue and cannot easily be worked around completely.  In the common case that
+  module dicts are plain Python dict objects, however, Cython now uses a ``.setdefault()``
+  equivalent for thread-safe type sharing.
+  See https://github.com/python/cpython/issues/137422
+  (Github issue :issue:`7076`)
+
+* Cython incorrectly called ``PyList_GetItemRef()`` in PyPy and GraalPython before Py3.13.
+  (Github issue :issue:`7269`)
+
+
+3.2.0b2 (2025-10-27)
+====================
+
+Features added
+--------------
+
+* The code generated for importing and exporting cimports across modules uses less space.
+  (Github issues :issue:`7255`, :issue:`7265`)
+
+Bugs fixed
+----------
+
+* Iteration over memoryviews could loop indefinitely in 3.2b1 when encountering a ``continue`` statement.
+  (Github issue :issue:`7259`)
+
+* Extension arguments defined for the shared code module were ignored in ``cythonize()``.
+  (Github issue :issue:`7251`)
+
+* Failures while following package attributes in ``import pkg.module as …`` were not handled.
+
+* Trying to instantiate internal types used by Cython is now prohibited.
+  (Github issue :issue:`7263`)
+
+* Includes all fixes as of Cython 3.1.6.
+
+Other changes
+-------------
+
+* The ``musllinux`` platform is now served with an abi3 Cython wheel instead of Python specific ones.
+  (Github issue :issue:`7250`)
+
+
 3.2.0b1 (2025-10-22)
 ====================
 
@@ -197,12 +254,29 @@ Bugs fixed
 Other changes
 -------------
 
+* Some lesser used platforms (Windows ARM/i686, macOS x86_64, Linux i686) now use Py3.9 abi3 binary wheels
+  instead of Python version specific wheels.  We also added a abi3 wheel for armv7l.
+  (Github issues :issue:`7227`, :issue:`7248`)
+
 * Usages of `Py_TPFLAGS_HAVE_FINALIZE` were removed.  The constant remains available as cimport from
   ``cpython.object`` for legacy reasons.
   (Github issue :issue:`6423`)
 
 
-3.1.6 (2025-??-??)
+3.1.7 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Cython incorrectly called ``PyList_GetItemRef()`` in PyPy and GraalPython before Py3.13.
+  (Github issue :issue:`7269`)
+
+* Trying to instantiate internal types used by Cython is now prohibited.
+  (Github issue :issue:`7263`)
+
+
+3.1.6 (2025-10-23)
 ==================
 
 Bugs fixed
@@ -211,6 +285,11 @@ Bugs fixed
 * Unicode characters formatted from C integers with ``f"{value:c}"`` could result in
   invalid Python string objects since Cython 3.1.0.
   (Github issue :issue:`7240`)
+
+* ``cythonize`` (program and function) now uses ``concurrent.futures.ProcessPoolExecutor``
+  instead of ``multiprocessing.Pool`` to fix a hang on build failures in parallel builds.
+  A possible work-around is to disable parallel builds.
+  Patch by Sviatoslav Sydorenko.  (Github issue :issue:`7183`)
 
 
 3.1.5 (2025-10-20)

@@ -2989,6 +2989,7 @@ class CFuncDefNode(FuncDefNode):
             if preprocessor_guard:
                 code.globalstate.parts['module_declarations'].putln("#endif")
         code.putln("%s%s%s {" % (storage_class, modifiers, header))
+        code.globalstate.use_entry_utility_code(self.entry)
 
     def generate_argument_declarations(self, env, code):
         scope = self.local_scope
@@ -9030,11 +9031,12 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         return super().analyse_declarations(env)
 
     def analyse_expressions(self, env):
+        cy_pymutex_type = PyrexTypes.get_cy_pymutex_type()
         mutex_count = 0
         for i, arg in enumerate(self.args):
             arg = arg.analyse_expressions(env)
-            if (arg.type is PyrexTypes.cy_pymutex_type or (
-                    arg.type.is_ptr and arg.type.base_type is PyrexTypes.cy_pymutex_type)):
+            if (arg.type == cy_pymutex_type or (
+                    arg.type.is_ptr and arg.type.base_type == cy_pymutex_type)):
                 mutex_count += 1
                 self.is_pymutex_critical_section = True
             elif arg.type.is_pyobject:
@@ -9189,7 +9191,7 @@ class CythonLockStatNode(TryFinallyStatNode):
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
-        code.globalstate.use_utility_code(self.arg.type.get_utility_code())
+        code.globalstate.use_utility_code(self.arg.type.get_usage_utility_code())
 
         code.mark_pos(self.pos)
         code.begin_block()
@@ -9505,33 +9507,45 @@ class FromImportStatNode(StatNode):
                         continue
                 direct_assignments.append((i, name, target))
 
-            code.putln(f"for ({counter_var}=0; {counter_var} < {len(imported_names)}; {counter_var}++) {{")
+            needs_specific_assignments = bool(direct_assignments or coerced_assignments)
+
+            if len(imported_names) > 1:
+                code.putln(f"for ({counter_var}=0; {counter_var} < {len(imported_names)}; {counter_var}++) {{")
+            else:
+                # Avoid the for-loop code if we have only one name to import.
+                code.putln(f"{counter_var} = 0; {{")
+
             code.putln(
                 f'{item_temp} = __Pyx_ImportFrom({self.module.py_result()}, __pyx_imported_names[{counter_var}]); '
                 f'{code.error_goto_if_null(item_temp, self.pos)}'
             )
             code.put_gotref(item_temp, py_object_type)
-            code.putln(f"switch ({counter_var}) {{")
+
+            # Put specific (C-)assignments into switch-cases (if any) and leave generic Python globals as default.
+            if needs_specific_assignments:
+                code.putln(f"switch ({counter_var}) {{")
+
+                for i, name, target in direct_assignments:
+                    code.putln(f"case {i}:")
+                    target.generate_assignment_code(self.item, code)
+                    code.putln("break;")
+
+                for i, name, target, coerced_item in coerced_assignments:
+                    code.putln(f"case {i}:")
+                    coerced_item.generate_evaluation_code(code)
+                    target.generate_assignment_code(coerced_item, code)
+                    code.putln("break;")
+
+                code.putln("default:;")
 
             if simple_pyglobals:
-                code.putln(' '.join(f"case {i}:" for i in simple_pyglobals))
+                module_dict = code.name_in_module_state(Naming.moddict_cname)
                 code.put_error_if_neg(
                     self.pos,
-                    f"PyDict_SetItem({code.name_in_module_state(Naming.moddict_cname)}, __pyx_imported_names[{counter_var}], {item_temp})")
-                code.putln("break;")
+                    f"PyDict_SetItem({module_dict}, __pyx_imported_names[{counter_var}], {item_temp})")
 
-            for i, name, target in direct_assignments:
-                code.putln(f"case {i}:")
-                target.generate_assignment_code(self.item, code)
-                code.putln("break;")
-
-            for i, name, target, coerced_item in coerced_assignments:
-                code.putln(f"case {i}:")
-                coerced_item.generate_evaluation_code(code)
-                target.generate_assignment_code(coerced_item, code)
-                code.putln("break;")
-
-            code.putln("}")  # switch
+            if needs_specific_assignments:
+                code.putln("}")  # switch
 
             code.put_decref_clear(item_temp, py_object_type)
             code.putln("}")  # for

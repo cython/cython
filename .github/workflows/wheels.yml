@@ -71,6 +71,7 @@ jobs:
           MATRIX=$(
             {
               cibuildwheel --print-build-identifiers --platform linux --archs "x86_64,aarch64" \
+              | grep -v musllinux \
               | jq -nRc '{"only": inputs, "os": "ubuntu-latest"}' \
               | sed -e '/aarch64/s|ubuntu-latest|ubuntu-24.04-arm|' \
               && cibuildwheel --print-build-identifiers --platform macos --archs arm64 \
@@ -106,11 +107,20 @@ jobs:
       - name: Checkout Cython
         uses: actions/checkout@v5
 
+      - uses: actions/setup-python@v6.0.0
+        with:
+          python-version: '3.13'
+
       - name: Build wheels
         # Nb. keep cibuildwheel version pin consistent with generate-matrix job above
         uses: pypa/cibuildwheel@v3.2.1
         with:
           only: ${{ matrix.only }}
+
+      - name: Check wheel
+        run: |
+          python -m pip install twine
+          python -m twine check ./wheelhouse/*.whl
 
       - uses: actions/upload-artifact@v4.6.2
         with:
@@ -127,29 +137,42 @@ jobs:
       (github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'Build System'))
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, windows-11-arm, macos-latest]
+        os:
+          - 'ubuntu-latest'
+          - 'ubuntu-24.04-arm'
+          - 'windows-latest'
+          - 'windows-11-arm'
+          - 'macos-latest'
 
     steps:
       - name: Checkout Cython
         uses: actions/checkout@v5
 
+      - uses: actions/setup-python@v6.0.0
+        with:
+          python-version: '3.13'
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.0
+        uses: pypa/cibuildwheel@v3.2.1
         env:
           # Smaller set of platforms that we only provide Stable ABI wheels for
           CIBW_BUILD: |
-            ${{ matrix.os == 'ubuntu-latest' && '*linux_i686' ||
+            ${{
+                matrix.os == 'ubuntu-24.04-arm' && '*armv7l *musllinux_aarch64' ||
+                matrix.os == 'ubuntu-latest' && '*linux_i686 *musllinux_x86_64' ||
                 matrix.os == 'windows-latest' && '*win32' ||
                 matrix.os == 'macos-latest' && '*macosx_x86_64' ||
-                matrix.os == 'windows-11-arm' && '*win_arm64' || '' }}
+                matrix.os == 'windows-11-arm' && '*win_arm64' ||
+            '' }}
 
       - name: Check wheel
         run: |
-          pip install twine
-          twine check ./wheelhouse/*.whl
+          python -m pip install twine
+          python -m twine check ./wheelhouse/*.whl
 
       - uses: actions/upload-artifact@v4
         with:
