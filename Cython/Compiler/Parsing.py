@@ -837,6 +837,7 @@ def p_atom_ident_constants(s: PyrexScanner):
     # s.sy == 'IDENT'
     pos = s.position()
     name = s.systring
+    result = None
     if name == "None":
         result = ExprNodes.NoneNode(pos)
     elif name == "True":
@@ -4535,8 +4536,6 @@ def p_literal_pattern(s: PyrexScanner):
         value = s.systring[:-1]
         s.next()
         res = ExprNodes.ImagNode(pos, value=sign+value)
-        if sign == "-":
-            res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
 
     if res is not None:
         return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
