@@ -5,7 +5,7 @@
 struct {{memview_struct_name}};
 
 typedef struct {
-  struct {{memview_struct_name}} *memview;
+  __PYX_C_CLASS_DECL(struct {{memview_struct_name}}) *memview;
   char *data;
   Py_ssize_t shape[{{max_dims}}];
   Py_ssize_t strides[{{max_dims}}];
@@ -39,7 +39,7 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *, int writable
 #define __Pyx_IS_F_CONTIG 2
 
 static int __Pyx_init_memviewslice(
-                struct __pyx_memoryview_obj *memview,
+                __PYX_C_CLASS_DECL(struct __pyx_memoryview_obj) *memview,
                 int ndim,
                 __Pyx_memviewslice *memviewslice,
                 int memview_is_new_reference);
@@ -54,7 +54,21 @@ static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(
 #define __PYX_XCLEAR_MEMVIEW(slice, have_gil) __Pyx_XCLEAR_MEMVIEW(slice, have_gil, __LINE__)
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
 static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *, int, int);
+#if !CYTHON_OPAQUE_OBJECTS
+#define __Pyx_SetupGetMemoryviewStructPointer(o)
+#define __Pyx_GetMemoryviewStructPointer(o) o
+#else
 
+static void __Pyx_SetupGetMemoryviewStructPointer(PyObject *o);
+// avoid using PyObject_GetItemData to keep it GIL-free
+#if CYTHON_USE_MODULE_STATE
+static __pyx_atomic_int_type __Pyx_MemoryviewTypeDataOffset = {0};
+#define __Pyx_GetMemoryviewStructPointer(o) ((struct __pyx_memoryview_obj*)(o + __pyx_atomic_load(&__Pyx_MemoryviewTypeDataOffset)))
+#else
+static int __Pyx_MemoryviewTypeDataOffset = {0};
+#define __Pyx_GetMemoryviewStructPointer(o) ((struct __pyx_memoryview_obj*)(o + __Pyx_MemoryviewTypeDataOffset))
+#endif
+#endif
 
 /////////////// MemviewSliceIndex.proto ///////////////
 
@@ -329,14 +343,14 @@ no_fail:
 ////////// MemviewSliceInit //////////
 
 static int
-__Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
+__Pyx_init_memviewslice(__PYX_C_CLASS_DECL(struct __pyx_memoryview_obj) *memview,
                         int ndim,
                         {{memviewslice_name}} *memviewslice,
                         int memview_is_new_reference)
 {
     __Pyx_RefNannyDeclarations
     int i, retval=-1;
-    Py_buffer *buf = &memview->view;
+    Py_buffer *buf = &__Pyx_GetMemoryviewStructPointer(memview)->view;
     __Pyx_RefNannySetupContext("init_memviewslice", 0);
 
     if (unlikely(memviewslice->memview || memviewslice->data)) {
@@ -432,7 +446,7 @@ static CYTHON_INLINE void
 __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 {
     __pyx_nonatomic_int_type old_acquisition_count;
-    struct {{memview_struct_name}} *memview = memslice->memview;
+    struct {{memview_struct_name}} *memview = __Pyx_GetMemoryviewStructPointer(memslice->memview);
     if (unlikely(!memview || (PyObject *) memview == Py_None)) {
         // Allow uninitialized memoryview assignment and do not ref-count None.
         return;
@@ -459,7 +473,7 @@ __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice,
                                              int have_gil, int lineno) {
     __pyx_nonatomic_int_type old_acquisition_count;
-    struct {{memview_struct_name}} *memview = memslice->memview;
+    struct {{memview_struct_name}} *memview = __Pyx_GetMemoryviewStructPointer(memslice->memview);
 
     if (unlikely(!memview || (PyObject *) memview == Py_None)) {
         // Do not ref-count None.
@@ -487,6 +501,24 @@ static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice,
     }
 }
 
+#if CYTHON_OPAQUE_OBJECTS
+static void __Pyx_SetupGetMemoryviewStructPointer(PyObject *o) {
+    #if CYTHON_USE_MODULE_STATE
+    if (unlikely(__pyx_atomic_load(&__Pyx_MemoryviewTypeDataOffset) == 0)) {
+        void *type_data = PyObject_GetTypeData(o, __pyx_memoryview_type());
+        __pyx_nonatomic_int_type offset = type_data - (void*)o;
+        __pyx_atomic_store(&__Pyx_MemoryviewTypeDataOffset, offset);
+    }
+    #else
+    if (unlikely(__Pyx_MemoryviewTypeDataOffset == 0)) {
+        void *type_data = PyObject_GetTypeData(o, __pyx_memoryview_type());
+        __pyx_nonatomic_int_type offset = type_data - (void*)o;
+        __Pyx_MemoryviewTypeDataOffset = offset;
+    }
+    #endif
+}
+#endif
+
 
 ////////// MemviewSliceCopyTemplate.proto //////////
 
@@ -508,7 +540,7 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     __Pyx_RefNannyDeclarations
     int i;
     __Pyx_memviewslice new_mvs = {{memslice_init}};
-    struct __pyx_memoryview_obj *from_memview = from_mvs->memview;
+    struct __pyx_memoryview_obj *from_memview = __Pyx_GetMemoryviewStructPointer(from_mvs->memview);
     Py_buffer *buf = &from_memview->view;
     PyObject *shape_tuple = NULL;
     PyObject *temp_int = NULL;
@@ -557,7 +589,7 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     memview_obj = (__PYX_C_CLASS_DECL(struct __pyx_memoryview_obj)*)__pyx_memoryview_new(
                                     (PyObject *) array_obj, contig_flag,
                                     dtype_is_object,
-                                    from_mvs->memview->typeinfo);
+                                    from_memview->typeinfo);
     if (unlikely(!memview_obj))
         goto fail;
 
@@ -668,7 +700,7 @@ static int
 __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs, char order, int ndim)
 {
     int i, index, step, start;
-    Py_ssize_t itemsize = mvs.memview->view.itemsize;
+    Py_ssize_t itemsize = __Pyx_GetMemoryviewStructPointer(mvs.memview)->view.itemsize;
 
     if (order == 'F') {
         step = 1;

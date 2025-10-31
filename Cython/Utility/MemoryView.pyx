@@ -47,8 +47,14 @@ cdef extern from *:
         PyObject *obj
         const __Pyx_TypeInfo *typeinfo
 
+    ctypedef struct __pyx_memoryview_o "__PYX_C_CLASS_DECL(struct __pyx_memoryview_obj)":
+        pass
+
+    cdef void __Pyx_SetupGetMemoryviewStructPointer(object o) noexcept
+    cdef __pyx_memoryview *__Pyx_GetMemoryviewStructPointer(__pyx_memoryview_o *o) noexcept nogil
+
     ctypedef struct {{memviewslice_name}}:
-        __pyx_memoryview *memview
+        __pyx_memoryview_o *memview
         char *data
         Py_ssize_t shape[{{max_dims}}]
         Py_ssize_t strides[{{max_dims}}]
@@ -342,6 +348,7 @@ cdef class memoryview:
     cdef const __Pyx_TypeInfo *typeinfo
 
     def __cinit__(memoryview self, object obj, int flags, bint dtype_is_object=False):
+        __Pyx_SetupGetMemoryviewStructPointer(self)
         self.obj = obj
         self.flags = flags
         if type(self) is memoryview or obj is not None:
@@ -928,7 +935,7 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
 #
 @cname('__pyx_memslice_transpose')
 cdef int transpose_memslice({{memviewslice_name}} *memslice) except -1 nogil:
-    cdef int ndim = memslice.memview.view.ndim
+    cdef int ndim = __Pyx_GetMemoryviewStructPointer(memslice.memview).view.ndim
 
     cdef Py_ssize_t *shape = memslice.shape
     cdef Py_ssize_t *strides = memslice.strides
@@ -1017,9 +1024,9 @@ cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
     __PYX_INC_MEMVIEW(&memviewslice, 1)
 
     result.from_object = (<memoryview> memviewslice.memview)._get_base()
-    result.typeinfo = memviewslice.memview.typeinfo
+    result.typeinfo = __Pyx_GetMemoryviewStructPointer(memviewslice.memview).typeinfo
 
-    result.view = memviewslice.memview.view
+    result.view = __Pyx_GetMemoryviewStructPointer(memviewslice.memview).view
     result.view.buf = <void *> memviewslice.data
     result.view.ndim = ndim
     (<__pyx_buffer *> &result.view).obj = Py_None
@@ -1069,7 +1076,7 @@ cdef void slice_copy(memoryview memview, {{memviewslice_name}} *dst) noexcept:
     strides = memview.view.strides
     suboffsets = memview.view.suboffsets
 
-    dst.memview = <__pyx_memoryview *> memview
+    dst.memview = <__pyx_memoryview_o *> memview
     dst.data = <char *> memview.view.buf
 
     for dim in range(memview.view.ndim):
@@ -1174,7 +1181,7 @@ cdef void copy_strided_to_strided({{memviewslice_name}} *src,
 @cname('__pyx_memoryview_slice_get_size')
 cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) noexcept nogil:
     "Return the size of the memory occupied by the slice in number of bytes"
-    cdef Py_ssize_t shape, size = src.memview.view.itemsize
+    cdef Py_ssize_t shape, size = __Pyx_GetMemoryviewStructPointer(src.memview).view.itemsize
 
     for shape in src.shape[:ndim]:
         size *= shape
@@ -1214,7 +1221,7 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
     cdef int i
     cdef void *result
 
-    cdef size_t itemsize = src.memview.view.itemsize
+    cdef size_t itemsize = __Pyx_GetMemoryviewStructPointer(src.memview).view.itemsize
     cdef size_t size = slice_get_size(src, ndim)
 
     result = malloc(size)
@@ -1272,7 +1279,7 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
     Check for overlapping memory and verify the shapes.
     """
     cdef void *tmpdata = NULL
-    cdef size_t itemsize = src.memview.view.itemsize
+    cdef size_t itemsize = __Pyx_GetMemoryviewStructPointer(src.memview).view.itemsize
     cdef int i
     cdef char order = get_best_order(&src, src_ndim)
     cdef bint broadcasting = False
