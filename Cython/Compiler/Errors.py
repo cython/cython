@@ -12,7 +12,22 @@ try:
 except ImportError:
     class _threadlocal: pass
 
-threadlocal = _threadlocal()
+class _ErrorsThreadLocals(_threadlocal):
+    # defaults
+    cython_errors_count = 0
+    cython_errors_listing_file = None
+    cython_errors_echo_file = None
+
+    def __init__(self):
+        # mutable defaults
+        self.cython_errors_warn_once_seen = set()
+        self.cython_errors_stack = []
+
+    def reset(self):
+        self.__dict__.clear()
+        self.__init__()
+
+threadlocal = _ErrorsThreadLocals()
 
 from ..Utils import open_new_file
 from . import DebugFlags
@@ -283,15 +298,13 @@ def local_errors(ignore=False):
 # Keep all global state in thread local storage to support parallel cythonisation in distutils.
 
 def init_thread():
-    threadlocal.cython_errors_count = 0
-    threadlocal.cython_errors_listing_file = None
-    threadlocal.cython_errors_echo_file = None
-    threadlocal.cython_errors_warn_once_seen = set()
-    threadlocal.cython_errors_stack = []
+    # init thread is no longer necessary
+    # (the thread locals are now arranged to have usable defaults)
+    # but is left for the benefit of any external users.
+    reset()
 
 def reset():
-    threadlocal.cython_errors_warn_once_seen.clear()
-    del threadlocal.cython_errors_stack[:]
+    threadlocal.reset()
 
 def get_errors_count():
     return threadlocal.cython_errors_count
