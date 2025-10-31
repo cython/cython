@@ -38,15 +38,18 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *, int writable
 #define __Pyx_IS_C_CONTIG 1
 #define __Pyx_IS_F_CONTIG 2
 
+#define __pyx_add_acquisition_count(memview_o) __pyx__add_acquisition_count(__Pyx_GetMemoryviewStructPointer(memview_o))
+#define __pyx_sub_acquisition_count(memview_o) __pyx__sub_acquisition_count(__Pyx_GetMemoryviewStructPointer(memview_o))
+
 #if CYTHON_ATOMICS
-    #define __pyx_add_acquisition_count(memview) \
+    #define __pyx__add_acquisition_count(memview) \
              __pyx_atomic_incr_relaxed(__pyx_get_slice_count_pointer(memview))
-    #define __pyx_sub_acquisition_count(memview) \
+    #define __pyx__sub_acquisition_count(memview) \
             __pyx_atomic_decr_acq_rel(__pyx_get_slice_count_pointer(memview))
 #else
-    #define __pyx_add_acquisition_count(memview) \
+    #define __pyx__add_acquisition_count(memview) \
             __pyx_add_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
-    #define __pyx_sub_acquisition_count(memview) \
+    #define __pyx__sub_acquisition_count(memview) \
             __pyx_sub_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
 #endif
 
@@ -78,7 +81,7 @@ static __pyx_atomic_int_type __Pyx_MemoryviewTypeDataOffset = {0};
 #define __Pyx_GetMemoryviewStructPointer(o) ((struct __pyx_memoryview_obj*)(o + __pyx_atomic_load(&__Pyx_MemoryviewTypeDataOffset)))
 #else
 static int __Pyx_MemoryviewTypeDataOffset = {0};
-#define __Pyx_GetMemoryviewStructPointer(o) ((struct __pyx_memoryview_obj*)(o + __Pyx_MemoryviewTypeDataOffset))
+#define __Pyx_GetMemoryviewStructPointer(o) ((struct __pyx_memoryview_obj*)((char*)o + __Pyx_MemoryviewTypeDataOffset))
 #endif
 #endif
 
@@ -99,7 +102,7 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj, int writa
 
     if (obj == Py_None) {
         /* We don't bother to refcount None */
-        result.memview = (struct __pyx_memoryview_obj *) Py_None;
+        result.memview = (__PYX_C_CLASS_DECL(struct __pyx_memoryview_obj)*) Py_None;
         return result;
     }
 
@@ -334,7 +337,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
     }
 
     /* Initialize */
-    if (unlikely(__Pyx_init_memviewslice(memview, ndim, memviewslice,
+    if (unlikely(__Pyx_init_memviewslice(new_memview ? new_memview : original_obj, ndim, memviewslice,
                                          new_memview != NULL) == -1)) {
         goto fail;
     }
@@ -458,7 +461,7 @@ static CYTHON_INLINE void
 __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 {
     __pyx_nonatomic_int_type old_acquisition_count;
-    struct {{memview_struct_name}} *memview = __Pyx_GetMemoryviewStructPointer(memslice->memview);
+    __PYX_C_CLASS_DECL(struct {{memview_struct_name}}) *memview = memslice->memview;
     if (unlikely(!memview || (PyObject *) memview == Py_None)) {
         // Allow uninitialized memoryview assignment and do not ref-count None.
         return;
@@ -485,7 +488,7 @@ __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice,
                                              int have_gil, int lineno) {
     __pyx_nonatomic_int_type old_acquisition_count;
-    struct {{memview_struct_name}} *memview = __Pyx_GetMemoryviewStructPointer(memslice->memview);
+    __PYX_C_CLASS_DECL({{memview_struct_name}})* memview = memslice->memview;
 
     if (unlikely(!memview || (PyObject *) memview == Py_None)) {
         // Do not ref-count None.
@@ -517,14 +520,14 @@ static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice,
 static void __Pyx_SetupGetMemoryviewStructPointer(PyObject *o) {
     #if CYTHON_USE_MODULE_STATE
     if (unlikely(__pyx_atomic_load(&__Pyx_MemoryviewTypeDataOffset) == 0)) {
-        void *type_data = PyObject_GetTypeData(o, __pyx_memoryview_type());
-        __pyx_nonatomic_int_type offset = type_data - (void*)o;
+        char *type_data = (char*)PyObject_GetTypeData(o, __pyx_memoryview_type());
+        __pyx_nonatomic_int_type offset = type_data - (char*)o;
         __pyx_atomic_store(&__Pyx_MemoryviewTypeDataOffset, offset);
     }
     #else
     if (unlikely(__Pyx_MemoryviewTypeDataOffset == 0)) {
-        void *type_data = PyObject_GetTypeData(o, __pyx_memoryview_type());
-        __pyx_nonatomic_int_type offset = type_data - (void*)o;
+        char *type_data = (char*)PyObject_GetTypeData(o, __pyx_memoryview_type());
+        __pyx_nonatomic_int_type offset = type_data - (char*)o;
         __Pyx_MemoryviewTypeDataOffset = offset;
     }
     #endif
@@ -606,9 +609,7 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
         goto fail;
 
     /* initialize new_mvs */
-    if (unlikely(__Pyx_init_memviewslice(
-            __Pyx_GetCClassTypeData(memview_obj, __pyx_memoryview_type(), struct __pyx_memoryview_obj*),
-            ndim, &new_mvs, 1) < 0))
+    if (unlikely(__Pyx_init_memviewslice(memview_obj, ndim, &new_mvs, 1) < 0))
         goto fail;
 
     if (unlikely(__pyx_memoryview_copy_contents(*from_mvs, new_mvs, ndim, ndim,
