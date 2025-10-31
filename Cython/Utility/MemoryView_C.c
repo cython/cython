@@ -27,6 +27,17 @@ typedef struct {
 #define __Pyx_IS_C_CONTIG 1
 #define __Pyx_IS_F_CONTIG 2
 
+#if CYTHON_ATOMICS
+    #define __pyx_add_acquisition_count(memview) \
+             __pyx_atomic_incr_relaxed(__pyx_get_slice_count_pointer(memview))
+    #define __pyx_sub_acquisition_count(memview) \
+            __pyx_atomic_decr_acq_rel(__pyx_get_slice_count_pointer(memview))
+#else
+    #define __pyx_add_acquisition_count(memview) \
+            __pyx_add_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
+    #define __pyx_sub_acquisition_count(memview) \
+            __pyx_sub_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
+#endif
 
 /////////////// ObjectToMemviewSlice.proto ///////////////
 //@substitute: naming
