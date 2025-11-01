@@ -51,7 +51,7 @@ jobs:
           pip install --upgrade wheel setuptools
           python setup.py bdist_wheel --no-cython-compile
 
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v5
         with:
           name: pure-wheel
           path: ./dist/*.whl
