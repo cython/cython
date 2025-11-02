@@ -1,6 +1,7 @@
 ////////// MemviewSliceStruct.proto //////////
 //@proto_block: utility_code_proto_before_types
 //@substitute: naming
+//@requires: Synchronization.c::Atomics
 
 /* memoryview slice struct */
 struct $memview_objstruct_cname;
