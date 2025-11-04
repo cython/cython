@@ -260,14 +260,14 @@ jobs:
         run: bash ./Tools/ci-run.sh
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v5
         with:
           name: htmldocs
           path: docs/build/html
           if-no-files-found: ignore
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v5
         with:
           name: wheels-${{ runner.os }}-${{ matrix.python-version }}${{ matrix.extra_hash }}
           path: dist/*.whl
@@ -301,7 +301,7 @@ jobs:
           if [ -f coverage-report.md ]; then { echo "## Python coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v5
         with:
           name: pycoverage_html
           path: coverage-report-html
@@ -335,7 +335,7 @@ jobs:
           if [ -f coverage-report.md ]; then { echo "## Compiled coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v5
         with:
           name: cycoverage_html
           path: coverage-report-html
@@ -390,7 +390,7 @@ jobs:
           { echo "## Benchmark results:"; echo; python Demos/benchmarks/report.py benchmark_results_*.csv; } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload results
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v5
         with:
           name: benchmark_results.txt
           path: benchmarks.log
