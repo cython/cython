@@ -4840,10 +4840,20 @@ class PythonTypeConstructorMixin:
             self.modifier_name == 'typing.Union' and self.contains_none
         )
 
+    # def _validate_modifiers(self, pos, template_values):
+    #     if self.python_type_constructor_name == 'list' and len(template_values) > 1:
+    #         error(pos, f"'{self.python_type_constructor_name}' takes exactly one template argument.")
+
+
     def set_python_type_constructor_name(self, name):
         self.python_type_constructor_name = name
 
     def specialize_here(self, pos, env, template_values=None):
+        if template_values:
+            self.modifier_name = template_values
+            # typ = BuiltinTypeConstructorObjectType(name=self.name, cname='mocny_cname', objstruct_cname='mocny_bojstruct_cname')
+            # typ.modifier_name = template_values
+            # return typ
         # for a lot of the typing classes it doesn't really matter what the template is
         # (i.e. typing.Dict[int] is really just a dict)
         return self
@@ -4866,6 +4876,14 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
         self.set_python_type_constructor_name(name)
+
+    # def assignable_from(self, src_type):
+    #     ret = super().assignable_from(src_type)
+    #     # if self.python_type_constructor_name == 'list' and len(template_values) > 1:
+    #     #     breakpoint()
+    #     if self.python_type_constructor_name == 'list' and self.modifier_name and src_type.python_type_constructor_name == 'list' and src_type.modifier_name:
+    #         ret = ret and self.modifier_name[0].assignable_from(src_type.modifier_name[0])
+    #     return ret
 
 
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
