@@ -14,6 +14,13 @@
   #warning Limited API usage is enabled with 'CYTHON_LIMITED_API' but 'Py_LIMITED_API' does not define a Python target version. Consider setting 'Py_LIMITED_API' instead.
   #endif
 #endif
+#if defined(Py_LIMITED_API) && (defined(GRAALVM_PYTHON) || defined(PYPY_VERSION))
+  #ifdef _MSC_VER
+  #pragma message ("'Py_LIMITED_API' enabled on GraalPy or PyPy - this combination is not currently supported.")
+  #else
+  #warning 'Py_LIMITED_API' enabled on GraalPy or PyPy - this combination is not currently supported.
+  #endif
+#endif
 
 /////////////// CModulePreamble ///////////////
 
@@ -54,7 +61,11 @@
 
 // For the limited API it often makes sense to use Py_LIMITED_API rather than PY_VERSION_HEX
 // when doing version checks.
-#define __PYX_LIMITED_VERSION_HEX PY_VERSION_HEX
+#ifdef Py_LIMITED_API
+  #define __PYX_LIMITED_VERSION_HEX Py_LIMITED_API
+#else
+  #define __PYX_LIMITED_VERSION_HEX PY_VERSION_HEX
+#endif
 
 #if defined(GRAALVM_PYTHON)
   /* For very preliminary testing purposes. Most variables are set the same as PyPy.
@@ -197,11 +208,6 @@
   #define CYTHON_IMMORTAL_CONSTANTS 0
 
 #elif defined(CYTHON_LIMITED_API)
-  // EXPERIMENTAL !!
-  #ifdef Py_LIMITED_API
-    #undef __PYX_LIMITED_VERSION_HEX
-    #define __PYX_LIMITED_VERSION_HEX Py_LIMITED_API
-  #endif
   #define CYTHON_COMPILING_IN_PYPY 0
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 1

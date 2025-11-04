@@ -802,8 +802,6 @@ class TestBuilder(object):
                 if self.cython_only:
                     # EndToEnd tests always execute arbitrary build and test code
                     continue
-                if skip_limited(tags):
-                    continue
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
                     suite.addTest(EndToEndTest(filepath, workdir,
                              self.cleanup_workdir, stats=self.stats,
@@ -870,8 +868,6 @@ class TestBuilder(object):
             languages = list(languages)
             languages.remove('cpp')
         if not languages:
-            return []
-        if skip_limited(tags):
             return []
 
         language_levels = [2, 3] if 'all_language_levels' in tags['tag'] else [None]
@@ -952,14 +948,6 @@ def skip_c(tags):
                 argument, value = split
                 if argument.strip() == 'language' and value.strip() == 'c++':
                     return True
-    return False
-
-
-def skip_limited(tags):
-    if 'limited-api' in tags['tag']:
-        # Run limited-api tests only on CPython.
-        if sys.implementation.name != 'cpython':
-            return True
     return False
 
 
