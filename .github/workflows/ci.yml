@@ -206,6 +206,10 @@ jobs:
             python-version: pypy-3.10
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
+          - os: ubuntu-22.04
+            python-version: pypy-3.11
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
           # Free-threading
           - os: ubuntu-22.04
             python-version: 3.13t
