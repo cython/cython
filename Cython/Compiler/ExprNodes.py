@@ -3187,7 +3187,7 @@ class IteratorNode(ScopedExprNode):
             self.counter_cname = code.funcstate.allocate_temp(
                 PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             if self.reversed:
-                if sequence_type is list_type:
+                if sequence_type == list_type:
                     len_func = '__Pyx_PyList_GET_SIZE'
                 else:
                     len_func = '__Pyx_PyTuple_GET_SIZE'
@@ -3270,12 +3270,12 @@ class IteratorNode(ScopedExprNode):
         sequence_type = self.sequence.type
         if self.reversed:
             code.putln(f"if ({self.counter_cname} < 0) break;")
-        if sequence_type is list_type:
+        if sequence_type == list_type:
             self.generate_next_sequence_item('List', result_name, code)
             code.putln(code.error_goto_if_null(result_name, self.pos))
             code.put_gotref(result_name, py_object_type)
             return
-        elif sequence_type is tuple_type:
+        elif sequence_type == tuple_type:
             self.generate_next_sequence_item('Tuple', result_name, code)
             code.putln(code.error_goto_if_null(result_name, self.pos))
             code.put_gotref(result_name, py_object_type)
@@ -4671,11 +4671,11 @@ class IndexNode(_IndexingBaseNode):
             # Note - These functions are missing error checks in not CYTHON_ASSUME_SAFE_MACROS.
             # Since they're only used in optimized modes without boundschecking, I think this is
             # a reasonable optimization to make.
-            if self.base.type is list_type:
+            if self.base.type == list_type:
                 index_code = "__Pyx_PyList_GET_ITEM(%s, %s)"
-            elif self.base.type is tuple_type:
+            elif self.base.type == tuple_type:
                 index_code = "__Pyx_PyTuple_GET_ITEM(%s, %s)"
-            elif self.base.type is bytearray_type:
+            elif self.base.type == bytearray_type:
                 index_code = "((unsigned char)(__Pyx_PyByteArray_AsString(%s)[%s]))"
             else:
                 assert False, "unexpected base type in indexing: %s" % self.base.type
@@ -4697,7 +4697,7 @@ class IndexNode(_IndexingBaseNode):
 
     def extra_index_params(self, code):
         if self.index.type.is_int:
-            is_list = self.base.type is list_type
+            is_list = self.base.type == list_type
             wraparound = (
                 bool(code.globalstate.directives['wraparound']) and
                 self.original_index_type.signed and
@@ -4733,7 +4733,7 @@ class IndexNode(_IndexingBaseNode):
         if self.type.is_pyobject:
             error_value = 'NULL'
             if self.index.type.is_int:
-                if base_type is list_type:
+                if base_type == list_type:
                     function = "__Pyx_GetItemInt_List"
                 elif base_type is tuple_type:
                     function = "__Pyx_GetItemInt_Tuple"
@@ -5771,7 +5771,7 @@ class SliceIndexNode(ExprNode):
 
         else:
             base_result = self.base.py_result()
-            if base_type is list_type:
+            if base_type == list_type:
                 code.globalstate.use_utility_code(
                     TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
                 cfunc = '__Pyx_PyList_GetSlice'
@@ -8552,12 +8552,12 @@ class SequenceNode(ExprNode):
                 else:
                     size_factor = ' * (%s)' % (c_mult,)
 
-        if ((self.type is tuple_type or self.type is list_type) and
+        if ((self.type is tuple_type or self.type == list_type) and
                 (self.is_literal or self.slow) and
                 not c_mult and
                 len(self.args) > 0):
             # use PyTuple_Pack() to avoid generating huge amounts of one-time code
-            if self.type is list_type:
+            if self.type == list_type:
                 pack_name = '__Pyx_PyList_Pack'
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('ListPack', 'ObjectHandling.c')
@@ -8578,7 +8578,7 @@ class SequenceNode(ExprNode):
                     target, i, arg.result()))
         else:
             # build the tuple/list step by step, potentially multiplying it as we go
-            if self.type is list_type:
+            if self.type == list_type:
                 create_func, set_item_func = 'PyList_New', '__Pyx_PyList_SET_ITEM'
             elif self.type is tuple_type:
                 create_func, set_item_func = 'PyTuple_New', '__Pyx_PyTuple_SET_ITEM'
@@ -8695,7 +8695,7 @@ class SequenceNode(ExprNode):
     def generate_special_parallel_unpacking_code(self, code, rhs, use_loop):
         sequence_type_test = '1'
         none_check = "likely(%s != Py_None)" % rhs.py_result()
-        if rhs.type is list_type:
+        if rhs.type == list_type:
             sequence_types = ['List']
             get_size_func = "__Pyx_PyList_GET_SIZE"
             if rhs.may_be_none():
@@ -9153,17 +9153,17 @@ class ListNode(SequenceNode):
         return node
 
     def coerce_to(self, dst_type, env):
-        # breakpoint()
         # if dst_type.python_type_constructor_name == 'list' and dst_type.modifier_name:
         #     assignable = all(dst_type.modifier_name[0].assignable_from(litem.type) for litem in self.original_args)
+        #     # breakpoint()
         #     if not assignable:
         #         raise ValueError
-        #     # for i in range(len(self.original_args)):
-        #     #     arg = self.args[i]
-        #     #     if isinstance(arg, CoerceToPyTypeNode):
-        #     #         arg = arg.arg
-        #     #     self.args[i] = arg.coerce_to(dst_type.modifier_name[0], env)
-        #     #     breakpoint()
+        #     for i in range(len(self.original_args)):
+        #         arg = self.args[i]
+        #         if isinstance(arg, CoerceToPyTypeNode):
+        #             arg = arg.arg
+        #         self.args[i] = arg.coerce_to(dst_type.modifier_name[0], env)
+        #    #     breakpoint()
         if dst_type.is_pyobject:
             for err in self.obj_conversion_errors:
                 report_error(err)
@@ -9361,7 +9361,7 @@ class ComprehensionAppendNode(Node):
         return self
 
     def generate_execution_code(self, code):
-        if self.target.type is list_type:
+        if self.target.type == list_type:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ListCompAppend", "Optimize.c"))
             function = "__Pyx_ListComp_Append"
@@ -9503,7 +9503,7 @@ class MergedSequenceNode(ExprNode):
         elif self.type is tuple_type:
             result = tuple(result)
         else:
-            assert self.type is list_type
+            assert self.type == list_type
         self.constant_result = result
 
     def compile_time_value(self, denv):
@@ -9526,7 +9526,7 @@ class MergedSequenceNode(ExprNode):
         elif self.type is tuple_type:
             result = tuple(result)
         else:
-            assert self.type is list_type
+            assert self.type == list_type
         return result
 
     def type_dependencies(self, env):
@@ -9565,7 +9565,7 @@ class MergedSequenceNode(ExprNode):
         item = next(args)
         item.generate_evaluation_code(code)
         if (is_set and item.is_set_literal or
-                not is_set and item.is_sequence_constructor and item.type is list_type):
+                not is_set and item.is_sequence_constructor and item.type == list_type):
             code.putln("%s = %s;" % (self.result(), item.py_result()))
             item.generate_post_assignment_code(code)
         else:

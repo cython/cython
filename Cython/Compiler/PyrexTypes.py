@@ -4846,17 +4846,8 @@ class PythonTypeConstructorMixin:
 
 
     def set_python_type_constructor_name(self, name):
-        self.python_type_constructor_name = name
-
-    def specialize_here(self, pos, env, template_values=None):
-        if template_values:
-            self.modifier_name = template_values
-            # typ = BuiltinTypeConstructorObjectType(name=self.name, cname='mocny_cname', objstruct_cname='mocny_bojstruct_cname')
-            # typ.modifier_name = template_values
-            # return typ
-        # for a lot of the typing classes it doesn't really matter what the template is
-        # (i.e. typing.Dict[int] is really just a dict)
-        return self
+        # FIXME
+        self.python_type_constructor_name = 'list' if 'list' in name else name
 
     def __repr__(self):
         if self.base_type:
@@ -4876,14 +4867,67 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
         self.set_python_type_constructor_name(name)
+        self.specializations = {}
 
-    # def assignable_from(self, src_type):
-    #     ret = super().assignable_from(src_type)
+    def specialize_here(self, pos, env, template_values=None):
+        template_values = tuple(template_values)
+        if template_values:
+            if template_values in self.specializations:
+                return self.specializations[template_values]
+            name = f'list_{template_values[0]}' # f'{self.name}[{template_values[0]}]'
+            # self.modifier_name = template_values
+
+            typ = BuiltinTypeConstructorObjectType(name=name, cname='list', objstruct_cname='mocny_bojstruct_cname')
+            typ.modifier_name = template_values
+            self.scope.declare_type(name, typ, pos, cname='list')
+            self.specializations[template_values] = typ
+            return typ
+        # for a lot of the typing classes it doesn't really matter what the template is
+        # (i.e. typing.Dict[int] is really just a dict)
+        return self
+
+    def assignable_from(self, src_type):
+        # FIXME limit when it is assignable
+        return True
+
+        # print(self, src_type)
+        # if 'list' in str(self):
+        #     breakpoint()
+
+        # if self == src_type:
+        #     # breakpoint()
+        #     if self.modifier_name and src_type.modifier_name and self.modifier_name[0].assignable_from(src_type.modifier_name[0]):
+        #         return True
+        #     if not self.modifier_name and not src_type.modifier_name:
+        #         return True
+        #     if not self.modifier_name and src_type.modifier_name:
+        #         return True
+        #     if self.modifier_name and not src_type.modifier_name:
+        #         # FIXME we should not support assigning not known subtype to known subtype
+        #         return True
+        #     return False
+        # return super().assignable_from(src_type)
+
     #     # if self.python_type_constructor_name == 'list' and len(template_values) > 1:
     #     #     breakpoint()
     #     if self.python_type_constructor_name == 'list' and self.modifier_name and src_type.python_type_constructor_name == 'list' and src_type.modifier_name:
     #         ret = ret and self.modifier_name[0].assignable_from(src_type.modifier_name[0])
     #     return ret
+
+    def __eq__(self, other):
+        name = lambda name: 'list' if 'list' in name else name # FIXME: this is workaround
+        return isinstance(other, BuiltinTypeConstructorObjectType) and name(self.name) == name(other.name)
+
+    def __ne__(self, other):
+        name = lambda name: 'list' if 'list' in name else name # FIXME: this is workaround
+        return not (isinstance(other, BuiltinTypeConstructorObjectType) and name(self.name) == name(other.name))
+
+    def __hash__(self):
+        name = lambda name: 'list' if 'list' in name else name # FIXME: this is workaround
+        # FIXME: type should be included in hash to avoid clasing with string
+        return hash(name(self.name))
+
+
 
 
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
