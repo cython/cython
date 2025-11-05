@@ -52,11 +52,8 @@ def make_command_file(path_to_debug_info, prefix_code='',
                 import os
                 virtualenv = os.getenv('VIRTUAL_ENV')
                 if virtualenv:
-                    path_to_activate_this_py = os.path.join(virtualenv, 'bin', 'activate_this.py')
-                    print("gdb command file: Activating virtualenv: %s; path_to_activate_this_py: %s" % (
-                        virtualenv, path_to_activate_this_py))
-                    with open(path_to_activate_this_py) as f:
-                        exec(f.read(), dict(__file__=path_to_activate_this_py))
+                    sys.path.insert(0, f"{virtualenv}/lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages")
+                    print(f"gdb command file: Activating virtualenv: {virtualenv}")
                 from Cython.Debugger import libcython, libpython
             except Exception as ex:
                 from traceback import print_exc
