@@ -29,3 +29,20 @@ cdef void eggs():
     c1 = Cheese.x
 
 eggs()
+
+
+# enum interdependency
+cdef enum class Color(int):
+    RED = 1
+    GREEN = 2
+
+
+cdef enum class Color2(int):
+    RED = (<int> Color.RED)
+    GREEN = (<int> Color.GREEN)
+
+
+# enum class as cdef class function parameter
+cdef class A:
+    cdef Spam f(self, Spam s):
+        return s

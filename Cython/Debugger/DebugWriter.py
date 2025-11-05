@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import os
 import sys
 import errno
@@ -9,18 +7,27 @@ try:
     have_lxml = True
 except ImportError:
     have_lxml = False
-    try:
-        from xml.etree import cElementTree as etree
-    except ImportError:
-        try:
-            from xml.etree import ElementTree as etree
-        except ImportError:
-            etree = None
+    from xml.etree import ElementTree as etree
 
 from ..Compiler import Errors
+from ..Compiler.StringEncoding import EncodedString
 
 
-class CythonDebugWriter(object):
+def is_valid_tag(name):
+    """
+    Names like '.0' are used internally for arguments
+    to functions creating generator expressions,
+    however they are not identifiers.
+
+    See https://github.com/cython/cython/issues/5552
+    """
+    if isinstance(name, EncodedString):
+        if name.startswith(".") and name[1:].isdecimal():
+            return False
+    return True
+
+
+class CythonDebugWriter:
     """
     Class to output debugging information for cygdb
 
@@ -39,14 +46,17 @@ class CythonDebugWriter(object):
         self.start('cython_debug', attrs=dict(version='1.0'))
 
     def start(self, name, attrs=None):
-        self.tb.start(name, attrs or {})
+        if is_valid_tag(name):
+            self.tb.start(name, attrs or {})
 
     def end(self, name):
-        self.tb.end(name)
+        if is_valid_tag(name):
+            self.tb.end(name)
 
     def add_entry(self, name, **attrs):
-        self.tb.start(name, attrs)
-        self.tb.end(name)
+        if is_valid_tag(name):
+            self.tb.start(name, attrs)
+            self.tb.end(name)
 
     def serialize(self):
         self.tb.end('Module')

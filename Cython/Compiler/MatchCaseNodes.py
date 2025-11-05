@@ -6,17 +6,18 @@ from .Nodes import Node, StatNode, ErrorNode
 from . import Nodes
 from .Errors import error
 from . import ExprNodes
+from . import PyrexTypes
 
 
 class MatchNode(StatNode):
     """
     subject  ExprNode    The expression to be matched
     cases    [MatchCaseBaseNode]  list of cases
+
+    subject_clonenode  CloneNode of subject
     """
 
     child_attrs = ["subject", "cases"]
-
-    subject_clonenode = None  # set to a value if we require a temp
 
     def validate_irrefutable(self):
         found_irrefutable_case = None
@@ -28,10 +29,7 @@ class MatchNode(StatNode):
             if found_irrefutable_case:
                 error(
                     found_irrefutable_case.pos,
-                    (
-                        "%s makes remaining patterns unreachable"
-                        % found_irrefutable_case.pattern.irrefutable_message()
-                    ),
+                    f"{found_irrefutable_case.pattern.irrefutable_message()} makes remaining patterns unreachable"
                 )
                 break
             if case.is_irrefutable():
@@ -48,7 +46,8 @@ class MatchNode(StatNode):
         self.subject = ProxyNode(self.subject)
         subject = self.subject_clonenode = CloneNode(self.subject)
         current_if_statement = None
-        for n, c in enumerate(self.cases + [None]):  # The None is dummy at the end
+        new_cases = []
+        for c in self.cases:
             if c is not None and c.is_simple_value_comparison():
                 body = SubstitutedIfStatListNode(
                     c.body.pos,
@@ -60,28 +59,33 @@ class MatchNode(StatNode):
                     condition=c.pattern.get_simple_comparison_node(subject),
                     body=body,
                 )
+                new_assignment_stats = []
                 for t in c.pattern.get_targets():
                     # generate an assignment at the start of the body
-                    if_clause.body.stats.insert(
-                        0,
+                    new_assignment_stats.append(
                         Nodes.SingleAssignmentNode(
                             c.pos, lhs=NameNode(c.pos, name=t), rhs=subject
-                        ),
-                    )
-                if not current_if_statement:
+                        ))
+                if_clause.body.stats = new_assignment_stats + if_clause.body.stats
+                if current_if_statement is None:
                     current_if_statement = Nodes.IfStatNode(
                         c.pos, if_clauses=[], else_clause=None
                     )
                 current_if_statement.if_clauses.append(if_clause)
-                self.cases[n] = None  # remove case
-            elif current_if_statement:
-                # this cannot be simplified, but previous case(s) were
-                self.cases[n - 1] = SubstitutedMatchCaseNode(
-                    current_if_statement.pos, body = current_if_statement
-                )
-                current_if_statement = None
-        # eliminate optimized cases
-        self.cases = [c for c in self.cases if c is not None]
+            else:
+                if current_if_statement:
+                    # this cannot be simplified, but previous case(s) were
+                    new_cases.append(SubstitutedMatchCaseNode(
+                        current_if_statement.pos, body=current_if_statement
+                    ))
+                    current_if_statement = None
+                new_cases.append(c)
+        if current_if_statement:
+            # this cannot be simplified, but previous case(s) were
+            new_cases.append(SubstitutedMatchCaseNode(
+                current_if_statement.pos, body=current_if_statement
+            ))
+        self.cases = new_cases
 
     def analyse_declarations(self, env):
         self.subject.analyse_declarations(env)
@@ -99,15 +103,13 @@ class MatchNode(StatNode):
 
     def generate_execution_code(self, code):
         end_label = self.end_label = code.new_label()
-        if self.subject_clonenode:
-            self.subject.generate_evaluation_code(code)
+        self.subject.generate_evaluation_code(code)
         for c in self.cases:
             c.generate_execution_code(code, end_label)
         if code.label_used(end_label):
             code.put_label(end_label)
-        if self.subject_clonenode:
-            self.subject.generate_disposal_code(code)
-            self.subject.free_temps(code)
+        self.subject.generate_disposal_code(code)
+        self.subject.free_temps(code)
 
 
 class MatchCaseBaseNode(Node):
@@ -206,7 +208,7 @@ class SubstitutedMatchCaseNode(MatchCaseBaseNode):
 class PatternNode(Node):
     """
     PatternNode is not an expression because
-    it does several things (evalutating a boolean expression,
+    it does several things (evaluating a boolean expression,
     assignment of targets), and they need to be done at different
     times.
 
@@ -247,12 +249,12 @@ class PatternNode(Node):
 
     def update_targets_with_targets(self, targets, other_targets):
         for name in targets.intersection(other_targets):
-            error(self.pos, "multiple assignments to name '%s' in pattern" % name)
+            error(self.pos, f"multiple assignments to name '{name}' in pattern")
         targets.update(other_targets)
 
     def add_target_to_targets(self, targets, target):
         if target in targets:
-            error(self.pos, "multiple assignments to name '%s in pattern" % target)
+            error(self.pos, f"multiple assignments to name '{target}' in pattern")
         targets.add(target)
 
     def get_main_pattern_targets(self):
@@ -320,7 +322,7 @@ class MatchValuePatternNode(PatternNode):
 
     def get_comparison_node(self, subject_node):
         op = "is" if self.is_is_check else "=="
-        return ExprNodes.PrimaryCmpNode(
+        return MatchValuePrimaryCmpNode(
             self.pos, operator=op, operand1=subject_node, operand2=self.value
         )
 
@@ -356,7 +358,7 @@ class MatchAndAssignPatternNode(PatternNode):
 
     def irrefutable_message(self):
         if self.target:
-            return "name capture '%s'" % self.target.name
+            return f"name capture '{self.target.name}'"
         else:
             return "wildcard"
 
@@ -409,10 +411,7 @@ class OrPatternNode(PatternNode):
             if found_irrefutable_case:
                 error(
                     found_irrefutable_case.pos,
-                    (
-                        "%s makes remaining patterns unreachable"
-                        % found_irrefutable_case.irrefutable_message()
-                    ),
+                    f"{found_irrefutable_case.irrefutable_message()} makes remaining patterns unreachable"
                 )
                 break
             if alternative.is_irrefutable():
@@ -527,6 +526,31 @@ class ClassPatternNode(PatternNode):
         return targets
 
 
+class MatchValuePrimaryCmpNode(ExprNodes.PrimaryCmpNode):
+    """
+    Overrides PrimaryCmpNode to be a little more restrictive
+    than normal. Specifically, Cython normally allows:
+      int(1) is True
+    Here, True should only match an exact Python object, or
+    a bint(True).
+    """
+    def __init__(self, pos, **kwds):
+        super().__init__(pos, **kwds)
+        # operand1 should be the match subject
+        assert isinstance(self.operand1, ExprNodes.CloneNode)
+        assert self.operator in ["==", "is"]
+
+    def analyse_types(self, env):
+        if (self.operator == "is" and
+                isinstance(self.operand2, ExprNodes.BoolNode)):
+            # because operand1 is a CloneNode its type should already be known
+            op1_type = self.operand1.arg.type
+            if not (op1_type.is_pyobject or op1_type is PyrexTypes.c_bint_type):
+                return ExprNodes.BoolNode(self.pos, value=False).analyse_expressions(env)
+
+        return super().analyse_types(env)
+
+
 class SubstitutedIfStatListNode(Nodes.StatListNode):
     """
     Like StatListNode but with a "goto end of match" at the
@@ -538,4 +562,3 @@ class SubstitutedIfStatListNode(Nodes.StatListNode):
         super(SubstitutedIfStatListNode, self).generate_execution_code(code)
         if not self.is_terminator:
             code.put_goto(self.match_node.end_label)
-

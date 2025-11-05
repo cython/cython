@@ -221,10 +221,6 @@ class InheritFrom(v.array):
 
 def test_char_array_in_python_api(*shape):
     """
-    >>> import sys
-    >>> if sys.version_info[0] < 3:
-    ...     def bytes(b): return memoryview(b).tobytes()  # don't call str()
-
     >>> arr1d = test_char_array_in_python_api(10)
     >>> print(bytes(arr1d).decode('ascii'))
     xxxxxxxxxx
@@ -294,11 +290,7 @@ def test_is_Sequence():
     1
     True
     """
-    import sys
-    if sys.version_info < (3, 3):
-        from collections import Sequence
-    else:
-        from collections.abc import Sequence
+    from collections.abc import Sequence
 
     arr = array(shape=(5,), itemsize=sizeof(char), format='c', mode='c')
     for i in range(arr.shape[0]):
@@ -306,6 +298,7 @@ def test_is_Sequence():
     print(arr.count(b'1'))  # test for presence of added collection method
     print(arr.index(b'1'))  # test for presence of added collection method
 
+    import sys
     if sys.version_info >= (3, 10):
         # test structural pattern match in Python
         # (because Cython hasn't implemented it yet, and because the details

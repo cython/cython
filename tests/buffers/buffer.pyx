@@ -1,11 +1,7 @@
 __doc__ = u"""
 >>> b1 = TestBuffer()
 >>> b2 = TestBufferRelease()
-"""
 
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ += u"""
 >>> ms = memoryview(s)
 >>> ms.tobytes()
 b'abcdefg'

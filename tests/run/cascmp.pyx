@@ -36,3 +36,69 @@ def const_cascade(x):
         1 <= 1 <= x <= 2 <= 3 > x <= 2 <= 2,
         1 <= 1 <= x <= 1 <= 1 <= x <= 2,
     )
+
+def eq_if_statement(a, b, c):
+    """
+    >>> eq_if_statement(1, 2, 3)
+    False
+    >>> eq_if_statement(2, 3, 4)
+    False
+    >>> eq_if_statement(1, 1, 2)
+    False
+    >>> eq_if_statement(1, "not an int", 2)
+    False
+    >>> eq_if_statement(2, 1, 1)
+    False
+    >>> eq_if_statement(1, 1, 1)
+    True
+    """
+    if 1 == a == b == c:
+        return True
+    else:
+        return False
+
+def eq_if_statement_semi_optimized(a, int b, int c):
+    """
+    Some but not all of the cascade ends up optimized
+    (probably not as much as should be). The test is mostly
+    that it keeps the types consistent throughout
+
+    >>> eq_if_statement_semi_optimized(1, 2, 3)
+    False
+    >>> eq_if_statement_semi_optimized(2, 3, 4)
+    False
+    >>> eq_if_statement_semi_optimized(1, 1, 2)
+    False
+    >>> eq_if_statement_semi_optimized("not an int", 1, 2)
+    False
+    >>> eq_if_statement_semi_optimized(2, 1, 1)
+    False
+    >>> eq_if_statement_semi_optimized(1, 1, 1)
+    True
+    """
+    if 1 == a == b == c == 1:
+        return True
+    else:
+        return False
+
+def eq_if_statement_semi_optimized2(a, b, c):
+    """
+    Here only "b==c" fails to optimize
+
+    >>> eq_if_statement_semi_optimized2(1, 2, 3)
+    False
+    >>> eq_if_statement_semi_optimized2(2, 3, 4)
+    False
+    >>> eq_if_statement_semi_optimized2(1, 1, 2)
+    False
+    >>> eq_if_statement_semi_optimized2(1, "not an int", 2)
+    False
+    >>> eq_if_statement_semi_optimized2(2, 1, 1)
+    False
+    >>> eq_if_statement_semi_optimized2(1, 1, 1)
+    True
+    """
+    if 1 == a == 1 == b == c:
+        return True
+    else:
+        return False

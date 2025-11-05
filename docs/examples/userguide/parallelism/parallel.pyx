@@ -3,7 +3,7 @@ from libc.stdlib cimport abort, malloc, free
 
 
 
-cdef void func(int *buf) nogil:
+cdef void func(int *buf) noexcept nogil:
     pass
     # ...
 

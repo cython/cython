@@ -14,9 +14,9 @@ cdef class just_getattribute:
     'bar'
     >>> a.called
     4
-    >>> a.invalid
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.invalid
+    ... except AttributeError: pass
+    ... else: print("NOT RAISED!")
     >>> a.called
     6
     """
@@ -46,9 +46,9 @@ cdef class just_getattr:
     'bar'
     >>> a.called
     1
-    >>> a.invalid
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.invalid
+    ... except AttributeError: pass
+    ... else: print("NOT RAISED!")
     >>> a.called
     2
     """
@@ -77,9 +77,9 @@ cdef class both:
     'bar'
     >>> (a.called_getattr, a.called_getattribute)
     (1, 8)
-    >>> a.invalid
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.invalid
+    ... except AttributeError: pass
+    ... else: print("NOT RAISED!")
     >>> (a.called_getattr, a.called_getattribute)
     (2, 11)
     """

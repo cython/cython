@@ -1,7 +1,7 @@
 from .object cimport PyObject
 from .pyport cimport uint64_t
 
-cdef extern from "Python.h":
+cdef extern from *:
     # On Python 2, PyDict_GetItemWithError is called _PyDict_GetItemWithError
     """
     #if PY_MAJOR_VERSION <= 2
@@ -9,6 +9,7 @@ cdef extern from "Python.h":
     #endif
     """
 
+cdef extern from "Python.h":
     ############################################################################
     # 7.4.1 Dictionary Objects
     ############################################################################

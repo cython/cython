@@ -1,16 +1,10 @@
-import sys
-if sys.version_info[0] < 3:
-    __doc__ = u"""
->>> s = test()
->>> assert s == ''.join(map(chr, range(1,49))), repr(s)
-"""
-else:
-    __doc__ = u"""
->>> s = test()
->>> assert s == bytes(range(1,49)), repr(s)
-"""
+# mode: run
 
 def test():
+    """
+    >>> s = test()
+    >>> assert s == bytes(range(1,49)), repr(s)
+    """
     cdef char[50] s
 
     s[ 0] = c'\0'
