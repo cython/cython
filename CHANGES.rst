@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+3.2.0 (2025-11-05)
+==================
+
+Bugs fixed
+----------
+
+* The ``cygdb`` program failed to work with virtualenvs on Windows.
+  Patch by Merlin.  (Github issue :issue:`7268`)
+
+
 3.2.0b3 (2025-10-30)
 ====================
 
