@@ -439,7 +439,7 @@ class Context:
         return ".".join(names)
 
     def setup_errors(self, options, result):
-        Errors.init_thread()
+        Errors.reset()
         if options.use_listing_file:
             path = result.listing_file = Utils.replace_suffix(result.main_source_file, ".lis")
         else:
