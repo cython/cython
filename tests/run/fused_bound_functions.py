@@ -186,18 +186,18 @@ class Regular(object):
     def fused_classmethod(cls, x: IntOrFloat):
         return (cls.__name__, type(x).__name__)
 
-import sys
-if sys.version_info[0] > 2:
-    # extra Py3 only tests - shows that functions added to a class can be called
-    # with an type as the first argument
-    __doc__ = """
+
+# extra Py3 only tests - shows that functions added to a class can be called
+# with an type as the first argument
+__doc__ = """
     >>> Cdef.regular_func(1.5)
     ('float', '{typeoffloat}')
     >>> Regular.regular_func(1.5)
     ('float', '{typeoffloat}')
     >>> Cdef.regular_func_0()
     >>> Regular.regular_func_0()
-    """.format(typeoffloat='Python object' if cython.compiled else 'float')
+""".format(typeoffloat='Python object' if cython.compiled else 'float')
+
 if cython.compiled:
     __doc__ += """
     >>> fused_func_0['float']()

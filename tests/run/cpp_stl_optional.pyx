@@ -1,6 +1,6 @@
 # ticket: 3293
 # mode: run
-# tag: cpp, cpp17, werror
+# tag: cpp, cpp17, no-cpp-locals, werror
 
 from cython.operator cimport dereference as deref
 from libcpp.optional cimport optional, nullopt, make_optional
@@ -13,6 +13,12 @@ def simple_test():
     """
     cdef optional[int] o
     assert(not o.has_value())
+    try:
+        o.value()
+    except Exception as err:
+        pass
+    else:
+        assert False, "value() did not raise a catchable error"
     o = 5
     assert(o.has_value())
     assert(o.value()==5)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 =====================
 Cython related magics
@@ -44,7 +43,6 @@ Parts of this code were taken from Cython.inline.
 # The full license is in the file ipython-COPYING.rst, distributed with this software.
 #-----------------------------------------------------------------------------
 
-from __future__ import absolute_import, print_function
 
 import io
 import os
@@ -56,7 +54,6 @@ import distutils.log
 import textwrap
 
 IO_ENCODING = sys.getfilesystemencoding()
-IS_PY2 = sys.version_info[0] < 3
 
 import hashlib
 from distutils.core import Distribution, Extension
@@ -93,19 +90,11 @@ PGO_CONFIG = {
 PGO_CONFIG['mingw32'] = PGO_CONFIG['gcc']
 
 
-if IS_PY2:
-    def encode_fs(name):
-        return name if isinstance(name, bytes) else name.encode(IO_ENCODING)
-else:
-    def encode_fs(name):
-        return name
-
-
 @magics_class
 class CythonMagics(Magics):
 
     def __init__(self, shell):
-        super(CythonMagics, self).__init__(shell)
+        super().__init__(shell)
         self._reloads = {}
         self._code_cache = {}
         self._pyximport_installed = False
@@ -162,7 +151,7 @@ class CythonMagics(Magics):
         if not module_name:
             raise ValueError('module name must be given')
         fname = module_name + '.pyx'
-        with io.open(fname, 'w', encoding='utf-8') as f:
+        with open(fname, 'w', encoding='utf-8') as f:
             f.write(cell)
         if 'pyximport' not in sys.modules or not self._pyximport_installed:
             import pyximport
@@ -257,11 +246,11 @@ class CythonMagics(Magics):
         """Compile and import everything from a Cython code cell.
 
         The contents of the cell are written to a `.pyx` file in the
-        directory `IPYTHONDIR/cython` using a filename with the hash of the
-        code. This file is then cythonized and compiled. The resulting module
-        is imported and all of its symbols are injected into the user's
-        namespace. The usage is similar to that of `%%cython_pyximport` but
-        you don't have to pass a module name::
+        directory returned by `get_ipython_cache_dir()/cython` using a filename
+        with the hash of the code. This file is then cythonized and compiled.
+        The resulting module is imported and all of its symbols are injected
+        into the user's namespace. The usage is similar to that of
+        `%%cython_pyximport` but you don't have to pass a module name::
 
             %%cython
             def f(x):
@@ -313,7 +302,7 @@ class CythonMagics(Magics):
         if args.name:
             module_name = str(args.name)  # no-op in Py3
         else:
-            module_name = "_cython_magic_" + hashlib.sha1(str(key).encode('utf-8')).hexdigest()
+            module_name = "_cython_magic_" + hashlib.sha256(str(key).encode('utf-8')).hexdigest()
         html_file = os.path.join(lib_dir, module_name + '.html')
         module_path = os.path.join(lib_dir, module_name + self.so_ext)
 
@@ -339,8 +328,8 @@ class CythonMagics(Magics):
 
         def print_compiler_output(stdout, stderr, where):
             # On windows, errors are printed to stdout, we redirect both to sys.stderr.
-            print_captured(stdout, where, u"Content of stdout:\n")
-            print_captured(stderr, where, u"Content of stderr:\n")
+            print_captured(stdout, where, "Content of stdout:\n")
+            print_captured(stderr, where, "Content of stderr:\n")
 
         get_stderr = get_stdout = None
         try:
@@ -361,9 +350,9 @@ class CythonMagics(Magics):
 
         if args.annotate:
             try:
-                with io.open(html_file, encoding='utf-8') as f:
+                with open(html_file, encoding='utf-8') as f:
                     annotated_html = f.read()
-            except IOError as e:
+            except OSError as e:
                 # File could not be opened. Most likely the user has a version
                 # of Cython before 0.15.1 (when `cythonize` learned the
                 # `force` keyword argument) and has already compiled this
@@ -387,29 +376,14 @@ class CythonMagics(Magics):
         module_name = extension.name
         pgo_module_name = '_pgo_' + module_name
         pgo_wrapper_c_file = os.path.join(lib_dir, pgo_module_name + '.c')
-        with io.open(pgo_wrapper_c_file, 'w', encoding='utf-8') as f:
-            f.write(textwrap.dedent(u"""
+        with open(pgo_wrapper_c_file, 'w', encoding='utf-8') as f:
+            f.write(textwrap.dedent("""
             #include "Python.h"
-            #if PY_MAJOR_VERSION < 3
-            extern PyMODINIT_FUNC init%(module_name)s(void);
-            PyMODINIT_FUNC init%(pgo_module_name)s(void); /*proto*/
-            PyMODINIT_FUNC init%(pgo_module_name)s(void) {
-                PyObject *sys_modules;
-                init%(module_name)s();  if (PyErr_Occurred()) return;
-                sys_modules = PyImport_GetModuleDict();  /* borrowed, no exception, "never" fails */
-                if (sys_modules) {
-                    PyObject *module = PyDict_GetItemString(sys_modules, "%(module_name)s");  if (!module) return;
-                    PyDict_SetItemString(sys_modules, "%(pgo_module_name)s", module);
-                    Py_DECREF(module);
-                }
-            }
-            #else
             extern PyMODINIT_FUNC PyInit_%(module_name)s(void);
             PyMODINIT_FUNC PyInit_%(pgo_module_name)s(void); /*proto*/
             PyMODINIT_FUNC PyInit_%(pgo_module_name)s(void) {
                 return PyInit_%(module_name)s();
             }
-            #endif
             """ % {'module_name': module_name, 'pgo_module_name': pgo_module_name}))
 
         extension.sources = extension.sources + [pgo_wrapper_c_file]  # do not modify in place!
@@ -423,14 +397,13 @@ class CythonMagics(Magics):
 
     def _cythonize(self, module_name, code, lib_dir, args, quiet=True):
         pyx_file = os.path.join(lib_dir, module_name + '.pyx')
-        pyx_file = encode_fs(pyx_file)
 
         c_include_dirs = args.include
         c_src_files = list(map(str, args.src))
         if 'numpy' in code:
             import numpy
             c_include_dirs.append(numpy.get_include())
-        with io.open(pyx_file, 'w', encoding='utf-8') as f:
+        with open(pyx_file, 'w', encoding='utf-8') as f:
             f.write(code)
         extension = Extension(
             name=module_name,
@@ -542,30 +515,45 @@ class CythonMagics(Magics):
         build_extension = _build_ext(dist)
         build_extension.finalize_options()
         if temp_dir:
-            temp_dir = encode_fs(temp_dir)
             build_extension.build_temp = temp_dir
         if lib_dir:
-            lib_dir = encode_fs(lib_dir)
             build_extension.build_lib = lib_dir
         if extension is not None:
             build_extension.extensions = [extension]
         return build_extension
 
     @staticmethod
-    def clean_annotated_html(html):
+    def clean_annotated_html(html, include_style=True):
         """Clean up the annotated HTML source.
 
         Strips the link to the generated C or C++ file, which we do not
         present to the user.
+
+        Returns an HTML snippet (no <html>, <head>, or <body>),
+        containing only the style tag(s) and _contents_ of the body,
+        appropriate for embedding multiple times in cell output.
         """
+        # extract CSS and body, rather than full HTML document
+        chunks = []
+        if include_style:
+            styles = re.findall("<style.*</style>", html, re.MULTILINE | re.DOTALL)
+            chunks.extend(styles)
+        # extract body
+        body = re.search(
+            r"<body[^>]*>(.+)</body>", html, re.MULTILINE | re.DOTALL
+        ).group(1)
+
+        # exclude link to generated file
         r = re.compile('<p>Raw output: <a href="(.*)">(.*)</a>')
-        html = '\n'.join(l for l in html.splitlines() if not r.match(l))
-        return html
+        for line in body.splitlines():
+            if not r.match(line):
+                chunks.append(line)
+        return "\n".join(chunks)
 
 __doc__ = __doc__.format(
     # rST doesn't see the -+ flag as part of an option list, so we
     # hide it from the module-level docstring.
-    CYTHON_DOC=dedent(CythonMagics.cython.__doc__\
+    CYTHON_DOC=dedent(CythonMagics.cython.__doc__
                                   .replace('-+, --cplus', '--cplus    ')),
     CYTHON_INLINE_DOC=dedent(CythonMagics.cython_inline.__doc__),
     CYTHON_PYXIMPORT_DOC=dedent(CythonMagics.cython_pyximport.__doc__),

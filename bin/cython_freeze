@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Create a C file for embedding one or more Cython source files.
 Requires Cython 0.11.2 (or perhaps newer).
@@ -16,7 +16,7 @@ p = optparse.OptionParser(usage=usage, description=description)
 p.add_option('-o', '--output', metavar='FILE',
         help='write output to FILE instead of standard output')
 p.add_option('-p', '--pymain', action='store_true', default=False,
-        help='do not automatically run the first module as __main__')
+        help='automatically run the first module as __main__ (default: false)')
 
 options, args = p.parse_args()
 

@@ -4,7 +4,7 @@
 # not run on each push but only weekly and for releases.
 # Wheel builds can be triggered from the Actions page
 # (if you have the perms) on a commit to master.
-# 
+#
 # Alternatively, if you would like to trigger wheel builds
 # on a pull request, the labels that trigger builds are:
 # - Build System
@@ -26,6 +26,14 @@ on:
       paths:
         #- Cython/Build/**
         - .github/workflows/wheels.yml
+        - pyproject.toml
+        - MANIFEST.in
+        - setup.*
+  push:
+      paths:
+        #- Cython/Build/**
+        - .github/workflows/wheels.yml
+        - pyproject.toml
         - MANIFEST.in
         - setup.*
   workflow_dispatch:
@@ -34,118 +42,211 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
-permissions:
-  contents: write # to create GitHub release (softprops/action-gh-release)
+permissions: {}
 
 jobs:
-  build_wheels:
-    name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }}
+  generate-wheels-matrix:
+    # Create a matrix of all architectures & versions to build.
+    # This enables the next step to run cibuildwheel in parallel.
+    # From https://iscinumpy.dev/post/cibuildwheel-2-10-0/#only-210
+    name: Generate wheels matrix
     if: >-
+      github.event_name == 'push' ||
       github.event_name == 'release' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'cython/cython') ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'Build System'))
+    runs-on: ubuntu-latest
+    outputs:
+      include: ${{ steps.set-matrix.outputs.include }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install cibuildwheel
+        # Nb. dependabot should keep cibuildwheel version pin consistent with job below
+        run: pipx install $(grep -v '^\s*#' .github/cibuildwheel-requirement.txt)
+      - id: set-matrix
+        run: |
+          MATRIX=$(
+            {
+              cibuildwheel --print-build-identifiers --platform linux --archs "x86_64,aarch64" \
+              | grep -v musllinux \
+              | jq -nRc '{"only": inputs, "os": "ubuntu-latest"}' \
+              | sed -e '/aarch64/s|ubuntu-latest|ubuntu-24.04-arm|' \
+              && cibuildwheel --print-build-identifiers --platform macos --archs arm64 \
+              | jq -nRc '{"only": inputs, "os": "macos-latest"}' \
+              && cibuildwheel --print-build-identifiers --platform windows --archs AMD64 \
+              | jq -nRc '{"only": inputs, "os": "windows-2022"}' \
+              # sed subsitution is unused but left in as a guide in case we want upgrade windows arm wheels in future
+              #| sed -e '/arm64/s|windows-2022|windows-11-arm|' \
+            } | jq -sc
+          )
+          echo "$MATRIX"
+          echo "include=$MATRIX" >> $GITHUB_OUTPUT
+
+  build_wheels:
+    name: Wheel ${{ matrix.only }}
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'release' ||
+      (github.event_name == 'schedule' && github.repository == 'cython/cython') ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'Build System'))
-    runs-on: ${{ matrix.buildplat[0] }}
+    needs: generate-wheels-matrix
+    runs-on: ${{ matrix.os }}
+
     strategy:
       # Ensure that a wheel builder finishes even if another fails
       fail-fast: false
       matrix:
-        # Github Actions doesn't support pairing matrix values together, let's improvise
-        # https://github.com/github/feedback/discussions/7835#discussioncomment-1769026
-        buildplat:
-        - [ubuntu-20.04, manylinux_x86_64]
-        - [ubuntu-20.04, manylinux_aarch64]
-        - [ubuntu-20.04, manylinux_i686]
-        - [ubuntu-20.04, musllinux_x86_64]
-        - [ubuntu-20.04, musllinux_aarch64]
-        - [macos-11, macosx_*]
-        - [windows-2019, win_amd64]
-        - [windows-2019, win32]
-        python: ["cp36", "cp37", "cp38", "cp39", "cp310", "cp311"]  # Note: Wheels not needed for PyPy
+        include: ${{ fromJson(needs.generate-wheels-matrix.outputs.include) }}
+
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v3
-        
-      - name: Set up QEMU
-        if: contains(matrix.buildplat[1], '_aarch64')
-        uses: docker/setup-qemu-action@v1
+        uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6.0.0
         with:
-          platforms: all
-      
+          python-version: '3.13'
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.11.2
+        # Nb. dependabot should keep cibuildwheel version pin consistent with generate-matrix job above
+        uses: pypa/cibuildwheel@v3.2.1
+        with:
+          only: ${{ matrix.only }}
+
+      - name: Check wheel
+        run: |
+          python -m pip install twine
+          python -m twine check ./wheelhouse/*.whl
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.only }}
+          path: ./wheelhouse/*.whl
+
+  build_limited_api_wheels:
+    name: Build Stable ABI wheels on ${{ matrix.os }}
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'release' ||
+      (github.event_name == 'schedule' && github.repository == 'cython/cython') ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'Build System'))
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - 'ubuntu-latest'
+          - 'ubuntu-24.04-arm'
+          - 'windows-latest'
+          - 'windows-11-arm'
+          - 'macos-latest'
+
+    steps:
+      - name: Checkout Cython
+        uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.2.1
         env:
-          # TODO: Build Cython with the compile-all flag?
-          CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
-          CIBW_PRERELEASE_PYTHONS: True
-          CIBW_ARCHS_LINUX: auto aarch64
-          CIBW_ENVIRONMENT: CFLAGS='-O3 -g0 -mtune=generic -pipe -fPIC' LDFLAGS='-fPIC'
-          # TODO: Cython tests take a long time to complete
-          # consider running a subset in the future?
-          #CIBW_TEST_COMMAND: python {project}/runtests.py -vv --no-refnanny
+          # Smaller set of platforms that we only provide Stable ABI wheels for
+          CIBW_BUILD: |
+            ${{
+                matrix.os == 'ubuntu-24.04-arm' && '*armv7l *musllinux_aarch64' ||
+                matrix.os == 'ubuntu-latest' && '*linux_i686 *musllinux_x86_64' ||
+                matrix.os == 'windows-latest' && '*win32' ||
+                matrix.os == 'macos-latest' && '*macosx_x86_64' ||
+                matrix.os == 'windows-11-arm' && '*win_arm64' ||
+            '' }}
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            dist/*manylinux*.whl
-            dist/*musllinux*.whl
-            dist/*macos*.whl
-            dist/*win32*.whl
-            dist/*win_amd64*.whl
-          prerelease: >-
-            ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b')
-              || contains(github.ref_name, 'rc') || contains(github.ref_name, 'dev') }}
+      - name: Check wheel
+        run: |
+          python -m pip install twine
+          python -m twine check ./wheelhouse/*.whl
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5
         with:
-          name: ${{ matrix.python }}-${{ startsWith(matrix.buildplat[1], 'macosx') && 'macosx' || matrix.buildplat[1] }}
+          name: Stable-ABI-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
 
   build_sdist_pure_wheel:
     name: Build sdist and pure wheel
     if: >-
+      github.event_name == 'push' ||
       github.event_name == 'release' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'cython/cython') ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'Build System'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       # Used to push the built wheels
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v6.0.0
         with:
           # Build sdist on lowest supported Python
           python-version: '3.8'
 
       - name: Build sdist
         run: |
-          pip install --upgrade wheel setuptools
+          pip install --upgrade wheel setuptools twine
           python setup.py sdist
-          python setup.py bdist_wheel --no-cython-compile --universal
+          python setup.py bdist_wheel --no-cython-compile
+          twine check ./dist/*.whl
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5
         with:
           name: sdist
           path: ./dist/*.tar.gz
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5
         with:
           name: pure-wheel
           path: ./dist/*.whl
-      
+
+  upload_release_assets:
+    name: Upload Release Assets
+    needs: [ build_sdist_pure_wheel, build_wheels, build_limited_api_wheels ]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # to create GitHub release (softprops/action-gh-release)
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          path: ./release_upload
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: ls -la ./release_upload
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          path: ./release_upload/*.whl
+          name: all_wheels
+
       - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
         with:
           files: |
-            dist/*.tar.gz
-            dist/*-none-any.whl
+            ./release_upload/*.whl
+            ./release_upload/*.tar.gz
           prerelease: >-
             ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b')
               || contains(github.ref_name, 'rc') || contains(github.ref_name, 'dev') }}

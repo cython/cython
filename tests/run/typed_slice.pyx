@@ -230,14 +230,14 @@ def slice_charp_repeat(py_string_arg):
 #     >>> p = lambda o: o.decode() if isinstance(o, type(b)) else str(o)
 #     >>> r = lambda i, *a: '%s[%s] -> %s' % (n[i], ':'.join(map(repr, a)), FUNCTION_NAME(o[i], *a))
 # Originally, this was planned to be a basic iteration over
-#   the various object types contained within the slicable fused
+#   the various object types contained within the sliceable fused
 #   type, but Python2 -> Python3 semantics changed the class names
 #   and string representations used for raw bytes and unicode.
 # As a result, we dynamically adjust the printed string output
 #   for each test in order to ensure consistent results when running
 #   both Python2 and Python3.
 
-ctypedef fused slicable:
+ctypedef fused sliceable:
     list
     tuple
     bytes
@@ -245,7 +245,7 @@ ctypedef fused slicable:
 
 
 @cython.test_assert_path_exists("//SliceIndexNode//CondExprNode")
-def slice_fused_type_start(slicable seq, start):
+def slice_fused_type_start(sliceable seq, start):
     """
     >>> l = [1,2,3,4,5]
     >>> t = tuple(l)
@@ -289,7 +289,7 @@ def slice_fused_type_start(slicable seq, start):
 
 
 @cython.test_assert_path_exists("//SliceIndexNode//CondExprNode")
-def slice_fused_type_stop(slicable seq, stop):
+def slice_fused_type_stop(sliceable seq, stop):
     """
     >>> l = [1,2,3,4,5]
     >>> t = tuple(l)
@@ -333,7 +333,7 @@ def slice_fused_type_stop(slicable seq, stop):
 
 
 @cython.test_assert_path_exists("//SliceIndexNode//CondExprNode")
-def slice_fused_type_start_and_stop(slicable seq, start, stop):
+def slice_fused_type_start_and_stop(sliceable seq, start, stop):
     """
     >>> l = [1,2,3,4,5]
     >>> t = tuple(l)
@@ -377,7 +377,7 @@ def slice_fused_type_start_and_stop(slicable seq, start, stop):
     return obj
 
 
-def slice_fused_type_step(slicable seq, step):
+def slice_fused_type_step(sliceable seq, step):
     """
     >>> l = [1,2,3,4,5]
     >>> t = tuple(l)
@@ -429,7 +429,7 @@ def slice_fused_type_step(slicable seq, step):
     return obj
 
 
-def slice_fused_type_start_and_step(slicable seq, start, step):
+def slice_fused_type_start_and_step(sliceable seq, start, step):
     """
     >>> l = [1,2,3,4,5]
     >>> t = tuple(l)
@@ -493,7 +493,7 @@ def slice_fused_type_start_and_step(slicable seq, start, step):
     return obj
 
 
-def slice_fused_type_stop_and_step(slicable seq, stop, step):
+def slice_fused_type_stop_and_step(sliceable seq, stop, step):
     """
     >>> l = [1,2,3,4,5]
     >>> t = tuple(l)
@@ -547,7 +547,7 @@ def slice_fused_type_stop_and_step(slicable seq, stop, step):
     return obj
 
 
-def slice_fused_type_all(slicable seq, start, stop, step):
+def slice_fused_type_all(sliceable seq, start, stop, step):
     """
     >>> l = [1,2,3,4,5]
     >>> t = tuple(l)

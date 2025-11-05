@@ -12,7 +12,7 @@ Using Parallelism
     ../two-syntax-variants-used
 
 Cython supports native parallelism through the :py:mod:`cython.parallel`
-module. To use this kind of parallelism, the GIL must be released
+module. To use this kind of parallelism, the :term:`GIL<Global Interpreter Lock or GIL>` must be released
 (see :ref:`Releasing the GIL <nogil>`).
 It currently supports OpenMP, but later on more backends might be supported.
 
@@ -20,7 +20,7 @@ It currently supports OpenMP, but later on more backends might be supported.
           or parallel regions due to OpenMP restrictions.
 
 
-.. function:: prange([start,] stop[, step][, nogil=False][, schedule=None[, chunksize=None]][, num_threads=None])
+.. function:: prange([start,] stop[, step][, nogil=False][, use_threads_if=CONDITION][, schedule=None[, chunksize=None]][, num_threads=None])
 
     This function can be used for parallel loops. OpenMP automatically
     starts a thread pool and distributes the work according to the schedule
@@ -51,6 +51,12 @@ It currently supports OpenMP, but later on more backends might be supported.
     :param nogil:
         This function can only be used with the GIL released.
         If ``nogil`` is true, the loop will be wrapped in a nogil section.
+
+    :param use_threads_if: The loop is run in multiple threads only if ``CONDITION``
+        is evaluated as true. Otherwise the code is run sequentially. Running
+        the loop sequentially can be handy in the cases when the cost of spawning
+        threads is greater than the benefit of running the loop in parallel
+        (e.g. for small data sets).
 
     :param schedule:
         The ``schedule`` is passed to OpenMP and can be one of the following:
@@ -141,13 +147,25 @@ Example with a :term:`typed memoryview<Typed memoryview>` (e.g. a NumPy array)
 
         .. literalinclude:: ../../examples/userguide/parallelism/memoryview_sum.pyx
 
-.. function:: parallel(num_threads=None)
+Example with conditional parallelism:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/parallelism/condition_sum.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/parallelism/condition_sum.pyx
+
+.. function:: parallel(num_threads=None, use_threads_if=CONDITION)
 
     This directive can be used as part of a ``with`` statement to execute code
     sequences in parallel. This is currently useful to setup thread-local
-    buffers used by a prange. A contained prange will be a worksharing loop
+    buffers used by a ``prange``. A contained ``prange`` will be a worksharing loop
     that is not parallel, so any variable assigned to in the parallel section
-    is also private to the prange. Variables that are private in the parallel
+    is also private to the ``prange``. Variables that are private in the parallel
     block are unavailable after the parallel block.
 
     Example with thread-local buffers
@@ -187,7 +205,7 @@ enable OpenMP.  For gcc this can be done as follows in a ``setup.py``:
 
         .. literalinclude:: ../../examples/userguide/parallelism/setup_pyx.py
 
-For Microsoft Visual C++ compiler, use ``'/openmp'`` instead of ``'-fopenmp'``.
+For the Microsoft Visual C++ compiler, use ``'/openmp'`` instead of ``'-fopenmp'`` for the ``'extra_compile_args'`` option. Don't add any OpenMP flags to the ``'extra_link_args'`` option.
 
 
 Breaking out of loops

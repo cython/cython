@@ -2,12 +2,6 @@
 GDB extension that adds Cython support.
 """
 
-from __future__ import print_function
-
-try:
-    input = raw_input
-except NameError:
-    pass
 
 import sys
 import textwrap
@@ -17,32 +11,12 @@ import collections
 
 import gdb
 
-try:  # python 2
-    UNICODE = unicode
-    BYTES = str
-except NameError:  # python 3
-    UNICODE = str
-    BYTES = bytes
-
 try:
     from lxml import etree
     have_lxml = True
 except ImportError:
+    from xml.etree import ElementTree as etree
     have_lxml = False
-    try:
-        # Python 2.5
-        from xml.etree import cElementTree as etree
-    except ImportError:
-        try:
-            # Python 2.5
-            from xml.etree import ElementTree as etree
-        except ImportError:
-            try:
-                # normal cElementTree install
-                import cElementTree as etree
-            except ImportError:
-                # normal ElementTree install
-                import elementtree.ElementTree as etree
 
 try:
     import pygments.lexers
@@ -143,7 +117,56 @@ def gdb_function_value_to_unicode(function):
 # Classes that represent the debug information
 # Don't rename the parameters of these classes, they come directly from the XML
 
-class CythonModule(object):
+def simple_repr(self, renamed=None, state=True):
+    """Prints out all instance variables needed to recreate an object.
+
+    Following the python convention for __repr__, this function prints all the
+    information stored in an instance as opposed to its class. The working
+    assumption is that most initialization arguments are stored as a property
+    using the same name.
+
+    The object contents are displayed as the initialization call followed by,
+    optionally, the value of each of the instance's properties in the form:
+    ```
+    ClassName(
+            init_arg_1 = "repr of some example str",
+            ...
+        )
+    self.state_based_property = ...
+    ```
+
+    Function arguments:
+    self        Instance to be represented
+
+    renamed     Dictionary of initialization arguments that are stored under a
+                different property name in the form { argument: property }
+
+    state       Boolean representing whether properties outside the
+                initialization parameters should be printed (self.prop = ...).
+                Using `False` may make the class more amenable to recursive repr
+    """
+    import inspect
+    init_arg_names = tuple(inspect.signature(self.__init__).parameters)
+    init_attrs = [renamed.get(arg, arg) for arg in init_arg_names] \
+            if renamed else init_arg_names
+    state_repr = ()
+    if state:
+        instance_attrs = sorted(vars(self).keys())
+        state_repr = [attr for attr in instance_attrs if attr not in init_attrs]
+
+    def names_and_values(prefix, attrs, args=None):
+        for attr, arg in zip(attrs, args or attrs):
+            param = repr(getattr(self, attr)).replace("\n", "\n\t\t")
+            yield f'{prefix}{arg} = {param}'
+
+    return "".join([
+            self.__class__.__qualname__, "(",
+            ",".join(names_and_values("\n\t\t", init_attrs, init_arg_names)),
+            "\n\t)", *names_and_values("\nself.", state_repr)
+    ])
+
+
+class CythonModule:
     def __init__(self, module_name, filename, c_filename):
         self.name = module_name
         self.filename = filename
@@ -155,8 +178,11 @@ class CythonModule(object):
         self.lineno_c2cy = {}
         self.functions = {}
 
+    def __repr__(self):
+        return simple_repr(self, renamed={"module_name": "name"}, state=False)
 
-class CythonVariable(object):
+
+class CythonVariable:
 
     def __init__(self, name, cname, qualified_name, type, lineno):
         self.name = name
@@ -164,6 +190,9 @@ class CythonVariable(object):
         self.qualified_name = qualified_name
         self.type = type
         self.lineno = int(lineno)
+
+    def __repr__(self):
+        return simple_repr(self)
 
 
 class CythonFunction(CythonVariable):
@@ -176,7 +205,7 @@ class CythonFunction(CythonVariable):
                  lineno,
                  type=CObject,
                  is_initmodule_function="False"):
-        super(CythonFunction, self).__init__(name,
+        super().__init__(name,
                                              cname,
                                              qualified_name,
                                              type,
@@ -191,7 +220,63 @@ class CythonFunction(CythonVariable):
 
 # General purpose classes
 
-class CythonBase(object):
+frame_repr_whitelist = {
+    "Frame.is_valid",
+    "Frame.name",
+    "Frame.architecture",
+    "Frame.type",
+    "Frame.pc",
+    "Frame.block",
+    "Frame.function",
+    "Frame.older",
+    "Frame.newer",
+    "Frame.find_sal",
+    "Frame.select",
+    "Frame.static_link",
+    "Frame.level",
+    "Frame.language",
+    "Symbol.is_valid",
+    "Symbol.value",
+    "Symtab_and_line.is_valid",
+    "Symtab.is_valid",
+    "Symtab.fullname",
+    "Symtab.global_block",
+    "Symtab.static_block",
+    "Symtab.linetable",
+}
+
+def frame_repr(frame):
+    """Returns a string representing the internal state of a provided GDB frame
+    https://sourceware.org/gdb/current/onlinedocs/gdb.html/Frames-In-Python.html
+
+    Created to serve as GDB.Frame.__repr__ for debugging purposes. GDB has many
+    layers of abstraction separating the state of the debugger from the
+    corresponding source code. This prints a tree of instance properties,
+    expanding the values for Symtab_and_line, Symbol, and Symtab.
+
+    Most of these properties require computation to determine, meaning much of
+    relevant info is behind a monad, a subset of which are evaluated.
+
+    Arguments
+    frame       The GDB.Frame instance to be represented as a string
+    """
+    res = f"{frame}\n"
+    for attribute in sorted(dir(frame)):
+        if attribute.startswith("__"):
+            continue
+        value = getattr(frame, attribute)
+        if callable(value) and value.__qualname__ in frame_repr_whitelist:
+            value = value()
+
+        if type(value) in [gdb.Symtab_and_line, gdb.Symbol, gdb.Symtab]:
+            # strip last line since it will get added on at the end of the loop
+            value = frame_repr(value).rstrip("\n").replace("\n", "\n\t")
+        res += f"{attribute}: " + (
+                f"{value:x}\n" if isinstance(value, int) and attribute != "line"
+                else f"{value}\n")
+    return res
+
+class CythonBase:
 
     @default_selected_gdb_frame(err=False)
     def is_cython_function(self, frame):
@@ -227,11 +312,11 @@ class CythonBase(object):
     @default_selected_gdb_frame()
     def get_cython_lineno(self, frame):
         """
-        Get the current Cython line number. Returns 0 if there is no
+        Get the current Cython line number. Returns ("<no filename>", 0) if there is no
         correspondence between the C and Cython code.
         """
         cyfunc = self.get_cython_function(frame)
-        return cyfunc.module.lineno_c2cy.get(self.get_c_lineno(frame), 0)
+        return cyfunc.module.lineno_c2cy.get(self.get_c_lineno(frame), ("<no filename>", 0))
 
     @default_selected_gdb_frame()
     def get_source_desc(self, frame):
@@ -350,7 +435,7 @@ class CythonBase(object):
         sys.stdout.write('\n')
 
         try:
-            sys.stdout.write('    ' + source_desc.get_source(lineno))
+            sys.stdout.write(f'    {source_desc.get_source(lineno)}\n')
         except gdb.GdbError:
             pass
 
@@ -411,7 +496,7 @@ class CythonBase(object):
         return cur_lineno > cyvar.lineno
 
 
-class SourceFileDescriptor(object):
+class SourceFileDescriptor:
     def __init__(self, filename, lexer, formatter=None):
         self.filename = filename
         self.lexer = lexer
@@ -468,7 +553,7 @@ class SourceFileDescriptor(object):
         try:
             return '\n'.join(
                 self._get_source(start, stop, lex_source, mark_line, lex_entire))
-        except IOError:
+        except OSError:
             raise exc
 
 
@@ -481,7 +566,7 @@ class CyGDBError(gdb.GdbError):
 
     def __init__(self, *args):
         args = args or (self.msg,)
-        super(CyGDBError, self).__init__(*args)
+        super().__init__(*args)
 
 
 class NoCythonFunctionInFrameError(CyGDBError):
@@ -510,7 +595,7 @@ class CythonParameter(gdb.Parameter):
 
     def __init__(self, name, command_class, parameter_class, default=None):
         self.show_doc = self.set_doc = self.__class__.__doc__
-        super(CythonParameter, self).__init__(name, command_class,
+        super().__init__(name, command_class,
                                               parameter_class)
         if default is not None:
             self.value = default
@@ -540,7 +625,7 @@ class TerminalBackground(CythonParameter):
     """
 
 
-class CythonParameters(object):
+class CythonParameters:
     """
     Simple container class that might get more functionality in the distant
     future (mostly to remind us that we're dealing with parameters).
@@ -685,7 +770,7 @@ class CyImport(CythonCommand):
 
     @libpython.dont_suppress_errors
     def invoke(self, args, from_tty):
-        if isinstance(args, BYTES):
+        if isinstance(args, bytes):
             args = args.decode(_filesystemencoding)
         for arg in string_to_argv(args):
             try:
@@ -833,7 +918,7 @@ class CyBreak(CythonCommand):
 
     @libpython.dont_suppress_errors
     def invoke(self, function_names, from_tty):
-        if isinstance(function_names, BYTES):
+        if isinstance(function_names, bytes):
             function_names = function_names.decode(_filesystemencoding)
         argv = string_to_argv(function_names)
         if function_names.startswith('-p'):
@@ -852,6 +937,8 @@ class CyBreak(CythonCommand):
 
     @libpython.dont_suppress_errors
     def complete(self, text, word):
+        # https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=gdb/python/py-cmd.c;h=7143c1c5f7fdce9316a8c41fc2246bc6a07630d4;hb=HEAD#l140
+        word = word or ""
         # Filter init-module functions (breakpoints can be set using
         # modulename:linenumber).
         names =  [n for n, L in self.cy.functions_by_name.items()
@@ -896,11 +983,11 @@ class CythonInfo(CythonBase, libpython.PythonInfo):
         # related code. The C level should be dispatched to the 'step' command.
         if self.is_cython_function(frame):
             return self.get_cython_lineno(frame)[1]
-        return super(CythonInfo, self).lineno(frame)
+        return super().lineno(frame)
 
     def get_source_line(self, frame):
         try:
-            line = super(CythonInfo, self).get_source_line(frame)
+            line = super().get_source_line(frame)
         except gdb.GdbError:
             return None
         else:
@@ -908,7 +995,7 @@ class CythonInfo(CythonBase, libpython.PythonInfo):
 
     def exc_info(self, frame):
         if self.is_python_function:
-            return super(CythonInfo, self).exc_info(frame)
+            return super().exc_info(frame)
 
     def runtime_break_functions(self):
         if self.is_cython_function():
@@ -1115,7 +1202,7 @@ class CyPrint(CythonCommand):
         if name in global_python_dict:
             value = global_python_dict[name].get_truncated_repr(libpython.MAX_OUTPUT_LEN)
             print('%s = %s' % (name, value))
-            #This also would work, but beacause the output of cy exec is not captured in gdb.execute, TestPrint would fail
+            #This also would work, but because the output of cy exec is not captured in gdb.execute, TestPrint would fail
             #self.cy.exec_.invoke("print('"+name+"','=', type(" + name + "), "+name+", flush=True )", from_tty)
         elif name in module_globals:
             cname = module_globals[name].cname
@@ -1226,7 +1313,7 @@ class CyGlobals(CyLocals):
                                              max_name_length, '    ')
 
 
-class EvaluateOrExecuteCodeMixin(object):
+class EvaluateOrExecuteCodeMixin:
     """
     Evaluate or execute Python code in a Cython or Python frame. The 'evalcode'
     method evaluations Python code, prints a traceback if an exception went
@@ -1403,7 +1490,7 @@ class CyCValue(CyCName):
         cython_function = self.get_cython_function(frame)
 
         if self.is_initialized(cython_function, cyname):
-            cname = super(CyCValue, self).invoke(cyname, frame=frame)
+            cname = super().invoke(cyname, frame=frame)
             return gdb.parse_and_eval(cname)
         elif cyname in globals_dict:
             return globals_dict[cyname]._gdbval

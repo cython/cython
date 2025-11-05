@@ -17,6 +17,13 @@ def test_callable(x):
     >>> test_callable(C())
     False
 
+    >>> class M(type): pass
+    >>> class X(metaclass=M): pass
+    >>> callable(X)
+    True
+    >>> test_callable(X)
+    True
+
     >>> test_callable(int)
     True
     >>> test_callable(test_callable)

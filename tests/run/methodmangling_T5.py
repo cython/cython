@@ -338,7 +338,7 @@ class CMultiplyNested:
 
     def f5(self, __arg):
         """
-        Default values are found in the outer scope correcly
+        Default values are found in the outer scope correctly
         >>> CMultiplyNested().f5(1)
         1
         """

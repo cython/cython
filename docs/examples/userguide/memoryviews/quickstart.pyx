@@ -6,7 +6,7 @@ narr = np.arange(27, dtype=np.dtype("i")).reshape((3, 3, 3))
 cdef int [:, :, :] narr_view = narr
 
 # Memoryview on a C array
-cdef int carr[3][3][3]
+cdef int[3][3][3] carr
 cdef int [:, :, :] carr_view = carr
 
 # Memoryview on a Cython array
@@ -14,7 +14,7 @@ cyarr = cvarray(shape=(3, 3, 3), itemsize=sizeof(int), format="i")
 cdef int [:, :, :] cyarr_view = cyarr
 
 # Show the sum of all the arrays before altering it
-print("NumPy sum of the NumPy array before assignments: %s" % narr.sum())
+print(f"NumPy sum of the NumPy array before assignments: {narr.sum()}")
 
 # We can copy the values from one memoryview into another using a single
 # statement, by either indexing with ... or (NumPy-style) with a colon.
@@ -28,7 +28,7 @@ carr_view[0, 0, 0] = 100
 cyarr_view[0, 0, 0] = 1000
 
 # Assigning into the memoryview on the NumPy array alters the latter
-print("NumPy sum of NumPy array after assignments: %s" % narr.sum())
+print(f"NumPy sum of NumPy array after assignments: {narr.sum()}")
 
 # A function using a memoryview does not usually need the GIL
 cpdef int sum3d(int[:, :, :] arr) nogil:
@@ -43,10 +43,17 @@ cpdef int sum3d(int[:, :, :] arr) nogil:
                 total += arr[i, j, k]
     return total
 
+
+
+
+
+
+
+
 # A function accepting a memoryview knows how to use a NumPy array,
 # a C array, a Cython array...
-print("Memoryview sum of NumPy array is %s" % sum3d(narr))
-print("Memoryview sum of C array is %s" % sum3d(carr))
-print("Memoryview sum of Cython array is %s" % sum3d(cyarr))
+print(f"Memoryview sum of NumPy array is {sum3d(narr)}")
+print(f"Memoryview sum of C array is {sum3d(carr)}")
+print(f"Memoryview sum of Cython array is {sum3d(cyarr)}")
 # ... and of course, a memoryview.
-print("Memoryview sum of C memoryview is %s" % sum3d(carr_view))
+print(f"Memoryview sum of C memoryview is {sum3d(carr_view)}")

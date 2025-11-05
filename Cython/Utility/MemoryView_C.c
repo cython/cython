@@ -1,140 +1,23 @@
 ////////// MemviewSliceStruct.proto //////////
 //@proto_block: utility_code_proto_before_types
+//@substitute: naming
+//@requires: Synchronization.c::Atomics
 
 /* memoryview slice struct */
-struct {{memview_struct_name}};
+struct $memview_objstruct_cname;
 
 typedef struct {
-  struct {{memview_struct_name}} *memview;
+  struct $memview_objstruct_cname *memview;
   char *data;
   Py_ssize_t shape[{{max_dims}}];
   Py_ssize_t strides[{{max_dims}}];
   Py_ssize_t suboffsets[{{max_dims}}];
-} {{memviewslice_name}};
+} $memviewslice_cname;
 
 // used for "len(memviewslice)"
 #define __Pyx_MemoryView_Len(m)  (m.shape[0])
 
-
-/////////// Atomics.proto /////////////
-//@proto_block: utility_code_proto_before_types
-
-#include <pythread.h>
-
-#ifndef CYTHON_ATOMICS
-    #define CYTHON_ATOMICS 1
-#endif
-// using CYTHON_ATOMICS as a cdef extern bint in the Cython memoryview code
-// interacts badly with "import *". Therefore, define a helper function-like macro
-#define __PYX_CYTHON_ATOMICS_ENABLED() CYTHON_ATOMICS
-
-#define __pyx_atomic_int_type int
-#define __pyx_nonatomic_int_type int
-
-// For standard C/C++ atomics, get the headers first so we have ATOMIC_INT_LOCK_FREE
-// defined when we decide to use them.
-#if CYTHON_ATOMICS && (defined(__STDC_VERSION__) && \
-                        (__STDC_VERSION__ >= 201112L) && \
-                        !defined(__STDC_NO_ATOMICS__))
-    #include <stdatomic.h>
-#elif CYTHON_ATOMICS && (defined(__cplusplus) && ( \
-                    (__cplusplus >= 201103L) || \
-                    (defined(_MSC_VER) && _MSC_VER >= 1700)))
-    #include <atomic>
-#endif
-
-#if CYTHON_ATOMICS && (defined(__STDC_VERSION__) && \
-                        (__STDC_VERSION__ >= 201112L) && \
-                        !defined(__STDC_NO_ATOMICS__) && \
-                       ATOMIC_INT_LOCK_FREE == 2)
-    // C11 atomics are available.
-    // Require ATOMIC_INT_LOCK_FREE because I'm nervous about the __pyx_atomic_int[2]
-    // alignment trick in MemoryView.pyx if it uses mutexes.
-    #undef __pyx_atomic_int_type
-    #define __pyx_atomic_int_type atomic_int
-    // TODO - it might be possible to use a less strict memory ordering here
-    #define __pyx_atomic_incr_aligned(value) atomic_fetch_add(value, 1)
-    #define __pyx_atomic_decr_aligned(value) atomic_fetch_sub(value, 1)
-    #if defined(__PYX_DEBUG_ATOMICS) && defined(_MSC_VER)
-        #pragma message ("Using standard C atomics")
-    #elif defined(__PYX_DEBUG_ATOMICS)
-        #warning "Using standard C atomics"
-    #endif
-#elif CYTHON_ATOMICS && (defined(__cplusplus) && ( \
-                    (__cplusplus >= 201103L) || \
-                    /*_MSC_VER 1700 is Visual Studio 2012 */ \
-                    (defined(_MSC_VER) && _MSC_VER >= 1700)) && \
-                    ATOMIC_INT_LOCK_FREE == 2)
-    // C++11 atomics are available.
-    // Require ATOMIC_INT_LOCK_FREE because I'm nervous about the __pyx_atomic_int[2]
-    // alignment trick in MemoryView.pyx if it uses mutexes.
-    #undef __pyx_atomic_int_type
-    #define __pyx_atomic_int_type std::atomic_int
-    // TODO - it might be possible to use a less strict memory ordering here
-    #define __pyx_atomic_incr_aligned(value) std::atomic_fetch_add(value, 1)
-    #define __pyx_atomic_decr_aligned(value) std::atomic_fetch_sub(value, 1)
-
-    #if defined(__PYX_DEBUG_ATOMICS) && defined(_MSC_VER)
-        #pragma message ("Using standard C++ atomics")
-    #elif defined(__PYX_DEBUG_ATOMICS)
-        #warning "Using standard C++ atomics"
-    #endif
-#elif CYTHON_ATOMICS && (__GNUC__ >= 5 || (__GNUC__ == 4 && \
-                    (__GNUC_MINOR__ > 1 ||  \
-                    (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ >= 2))))
-    /* gcc >= 4.1.2 */
-    #define __pyx_atomic_incr_aligned(value) __sync_fetch_and_add(value, 1)
-    #define __pyx_atomic_decr_aligned(value) __sync_fetch_and_sub(value, 1)
-
-    #ifdef __PYX_DEBUG_ATOMICS
-        #warning "Using GNU atomics"
-    #endif
-#elif CYTHON_ATOMICS && defined(_MSC_VER)
-    /* msvc */
-    #include <intrin.h>
-    #undef __pyx_atomic_int_type
-    #define __pyx_atomic_int_type long
-    #define __pyx_nonatomic_int_type long
-    #pragma intrinsic (_InterlockedExchangeAdd)
-    #define __pyx_atomic_incr_aligned(value) _InterlockedExchangeAdd(value, 1)
-    #define __pyx_atomic_decr_aligned(value) _InterlockedExchangeAdd(value, -1)
-
-    #ifdef __PYX_DEBUG_ATOMICS
-        #pragma message ("Using MSVC atomics")
-    #endif
-#else
-    #undef CYTHON_ATOMICS
-    #define CYTHON_ATOMICS 0
-
-    #ifdef __PYX_DEBUG_ATOMICS
-        #warning "Not using atomics"
-    #endif
-#endif
-
-typedef volatile __pyx_atomic_int_type __pyx_atomic_int;
-
-#if CYTHON_ATOMICS
-    #define __pyx_add_acquisition_count(memview) \
-             __pyx_atomic_incr_aligned(__pyx_get_slice_count_pointer(memview))
-    #define __pyx_sub_acquisition_count(memview) \
-            __pyx_atomic_decr_aligned(__pyx_get_slice_count_pointer(memview))
-#else
-    #define __pyx_add_acquisition_count(memview) \
-            __pyx_add_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
-    #define __pyx_sub_acquisition_count(memview) \
-            __pyx_sub_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
-#endif
-
-
-/////////////// ObjectToMemviewSlice.proto ///////////////
-
-static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *, int writable_flag);
-
-
-////////// MemviewSliceInit.proto //////////
-
-#define __Pyx_BUF_MAX_NDIMS %(BUF_MAX_NDIMS)d
-
+// Metadata flags for slice creation and validation.
 #define __Pyx_MEMVIEW_DIRECT   1
 #define __Pyx_MEMVIEW_PTR      2
 #define __Pyx_MEMVIEW_FULL     4
@@ -145,43 +28,38 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *, int writable
 #define __Pyx_IS_C_CONTIG 1
 #define __Pyx_IS_F_CONTIG 2
 
-static int __Pyx_init_memviewslice(
-                struct __pyx_memoryview_obj *memview,
-                int ndim,
-                __Pyx_memviewslice *memviewslice,
-                int memview_is_new_reference);
+#if CYTHON_ATOMICS
+    #define __pyx_add_acquisition_count(memview) \
+             __pyx_atomic_incr_relaxed(__pyx_get_slice_count_pointer(memview))
+    #define __pyx_sub_acquisition_count(memview) \
+            __pyx_atomic_decr_acq_rel(__pyx_get_slice_count_pointer(memview))
+#else
+    #define __pyx_add_acquisition_count(memview) \
+            __pyx_add_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
+    #define __pyx_sub_acquisition_count(memview) \
+            __pyx_sub_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
+#endif
 
-static CYTHON_INLINE int __pyx_add_acquisition_count_locked(
-    __pyx_atomic_int *acquisition_count, PyThread_type_lock lock);
-static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(
-    __pyx_atomic_int *acquisition_count, PyThread_type_lock lock);
+/////////////// ObjectToMemviewSlice.proto ///////////////
+//@substitute: naming
 
-#define __pyx_get_slice_count_pointer(memview) (memview->acquisition_count_aligned_p)
-#define __pyx_get_slice_count(memview) (*__pyx_get_slice_count_pointer(memview))
-#define __PYX_INC_MEMVIEW(slice, have_gil) __Pyx_INC_MEMVIEW(slice, have_gil, __LINE__)
-#define __PYX_XCLEAR_MEMVIEW(slice, have_gil) __Pyx_XCLEAR_MEMVIEW(slice, have_gil, __LINE__)
-static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
-static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *, int, int);
-
-
-/////////////// MemviewSliceIndex.proto ///////////////
-
-static CYTHON_INLINE char *__pyx_memviewslice_index_full(
-    const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset);
+static CYTHON_INLINE $memviewslice_cname {{funcname}}(PyObject *, int writable_flag);
 
 
 /////////////// ObjectToMemviewSlice ///////////////
+//@requires: Buffer.c::BufferFormatStructs
 //@requires: MemviewSliceValidateAndInit
+//@substitute: naming
 
-static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj, int writable_flag) {
-    {{memviewslice_name}} result = {{memslice_init}};
+static CYTHON_INLINE $memviewslice_cname {{funcname}}(PyObject *obj, int writable_flag) {
+    $memviewslice_cname result = {{memslice_init}};
     __Pyx_BufFmt_StackElem stack[{{struct_nesting_depth}}];
     int axes_specs[] = { {{axes_specs}} };
     int retcode;
 
     if (obj == Py_None) {
         /* We don't bother to refcount None */
-        result.memview = (struct __pyx_memoryview_obj *) Py_None;
+        result.memview = (struct $memview_objstruct_cname *) Py_None;
         return result;
     }
 
@@ -201,22 +79,27 @@ __pyx_fail:
 }
 
 
-/////////////// MemviewSliceValidateAndInit.proto ///////////////
+/////////////// MemviewSliceValidateAndInit.export ///////////////
+//@requires: Buffer.c::BufferFormatStructs
+//@substitute: naming
 
 static int __Pyx_ValidateAndInit_memviewslice(
                 int *axes_specs,
                 int c_or_f_flag,
                 int buf_flags,
                 int ndim,
-                __Pyx_TypeInfo *dtype,
+                const __Pyx_TypeInfo *dtype,
                 __Pyx_BufFmt_StackElem stack[],
-                __Pyx_memviewslice *memviewslice,
+                $memviewslice_cname *memviewslice,
                 PyObject *original_obj);
+
 
 /////////////// MemviewSliceValidateAndInit ///////////////
 //@requires: Buffer.c::TypeInfoCompare
 //@requires: Buffer.c::BufferFormatStructs
 //@requires: Buffer.c::BufferFormatCheck
+//@requires: MemviewSliceInit
+//@substitute: naming
 
 static int
 __pyx_check_strides(Py_buffer *buf, int dim, int ndim, int spec)
@@ -341,12 +224,12 @@ static int __Pyx_ValidateAndInit_memviewslice(
                 int c_or_f_flag,
                 int buf_flags,
                 int ndim,
-                __Pyx_TypeInfo *dtype,
+                const __Pyx_TypeInfo *dtype,
                 __Pyx_BufFmt_StackElem stack[],
-                __Pyx_memviewslice *memviewslice,
+                $memviewslice_cname *memviewslice,
                 PyObject *original_obj)
 {
-    struct __pyx_memoryview_obj *memview, *new_memview;
+    struct $memview_objstruct_cname *memview, *new_memview;
     __Pyx_RefNannyDeclarations
     Py_buffer *buf;
     int i, spec = 0, retval = -1;
@@ -355,13 +238,13 @@ static int __Pyx_ValidateAndInit_memviewslice(
 
     __Pyx_RefNannySetupContext("ValidateAndInit_memviewslice", 0);
 
-    if (from_memoryview && __pyx_typeinfo_cmp(dtype, ((struct __pyx_memoryview_obj *)
+    if (from_memoryview && __pyx_typeinfo_cmp(dtype, ((struct $memview_objstruct_cname *)
                                                             original_obj)->typeinfo)) {
         /* We have a matching dtype, skip format parsing */
-        memview = (struct __pyx_memoryview_obj *) original_obj;
+        memview = (struct $memview_objstruct_cname *) original_obj;
         new_memview = NULL;
     } else {
-        memview = (struct __pyx_memoryview_obj *) __pyx_memoryview_new(
+        memview = (struct $memview_objstruct_cname *) __pyx_memoryview_new(
                                             original_obj, buf_flags, 0, dtype);
         new_memview = memview;
         if (unlikely(!memview))
@@ -420,7 +303,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
     goto no_fail;
 
 fail:
-    Py_XDECREF(new_memview);
+    Py_XDECREF((PyObject*)new_memview);
     retval = -1;
 
 no_fail:
@@ -429,12 +312,23 @@ no_fail:
 }
 
 
+////////// MemviewSliceInit.proto //////////
+//@substitute: naming
+
+static int __Pyx_init_memviewslice(
+                struct $memview_objstruct_cname *memview,
+                int ndim,
+                $memviewslice_cname *memviewslice,
+                int memview_is_new_reference);
+
+
 ////////// MemviewSliceInit //////////
+//@substitute: naming
 
 static int
-__Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
+__Pyx_init_memviewslice(struct $memview_objstruct_cname *memview,
                         int ndim,
-                        {{memviewslice_name}} *memviewslice,
+                        $memviewslice_cname *memviewslice,
                         int memview_is_new_reference)
 {
     __Pyx_RefNannyDeclarations
@@ -472,7 +366,7 @@ __Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
     memviewslice->memview = memview;
     memviewslice->data = (char *)buf->buf;
     if (__pyx_add_acquisition_count(memview) == 0 && !memview_is_new_reference) {
-        Py_INCREF(memview);
+        Py_INCREF((PyObject*)memview);
     }
     retval = 0;
     goto no_fail;
@@ -488,12 +382,35 @@ no_fail:
     return retval;
 }
 
-#ifndef Py_NO_RETURN
-// available since Py3.3
-#define Py_NO_RETURN
+
+////////// MemviewRefcount.proto //////////
+//@substitute: naming
+
+static CYTHON_INLINE int __pyx_add_acquisition_count_locked(
+    __pyx_atomic_int_type *acquisition_count, PyThread_type_lock lock);
+static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(
+    __pyx_atomic_int_type *acquisition_count, PyThread_type_lock lock);
+
+#define __pyx_get_slice_count_pointer(memview) (&memview->acquisition_count)
+#define __PYX_INC_MEMVIEW(slice, have_gil) __Pyx_INC_MEMVIEW(slice, have_gil, __LINE__)
+#define __PYX_XCLEAR_MEMVIEW(slice, have_gil) __Pyx_XCLEAR_MEMVIEW(slice, have_gil, __LINE__)
+static CYTHON_INLINE void __Pyx_INC_MEMVIEW($memviewslice_cname *, int, int);
+static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW($memviewslice_cname *, int, int);
+
+
+////////// MemviewRefcount //////////
+//@substitute: naming
+
+// vsnprintf
+#include <stdio.h>
+
+#ifndef _Py_NO_RETURN
+// It's non-public and just a hint, so allow it to be missing.
+#define _Py_NO_RETURN
 #endif
 
-static void __pyx_fatalerror(const char *fmt, ...) Py_NO_RETURN {
+_Py_NO_RETURN
+static void __pyx_fatalerror(const char *fmt, ...) {
     va_list vargs;
     char msg[200];
 
@@ -509,7 +426,7 @@ static void __pyx_fatalerror(const char *fmt, ...) Py_NO_RETURN {
 }
 
 static CYTHON_INLINE int
-__pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
+__pyx_add_acquisition_count_locked(__pyx_atomic_int_type *acquisition_count,
                                    PyThread_type_lock lock)
 {
     int result;
@@ -520,7 +437,7 @@ __pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
 }
 
 static CYTHON_INLINE int
-__pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
+__pyx_sub_acquisition_count_locked(__pyx_atomic_int_type *acquisition_count,
                                    PyThread_type_lock lock)
 {
     int result;
@@ -532,10 +449,10 @@ __pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
 
 
 static CYTHON_INLINE void
-__Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
+__Pyx_INC_MEMVIEW($memviewslice_cname *memslice, int have_gil, int lineno)
 {
     __pyx_nonatomic_int_type old_acquisition_count;
-    struct {{memview_struct_name}} *memview = memslice->memview;
+    struct $memview_objstruct_cname *memview = memslice->memview;
     if (unlikely(!memview || (PyObject *) memview == Py_None)) {
         // Allow uninitialized memoryview assignment and do not ref-count None.
         return;
@@ -554,15 +471,15 @@ __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
             }
         } else {
             __pyx_fatalerror("Acquisition count is %d (line %d)",
-                             __pyx_get_slice_count(memview), lineno);
+                             old_acquisition_count+1, lineno);
         }
     }
 }
 
-static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice,
+static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW($memviewslice_cname *memslice,
                                              int have_gil, int lineno) {
     __pyx_nonatomic_int_type old_acquisition_count;
-    struct {{memview_struct_name}} *memview = memslice->memview;
+    struct $memview_objstruct_cname *memview = memslice->memview;
 
     if (unlikely(!memview || (PyObject *) memview == Py_None)) {
         // Do not ref-count None.
@@ -586,37 +503,40 @@ static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice,
         }
     } else {
         __pyx_fatalerror("Acquisition count is %d (line %d)",
-                         __pyx_get_slice_count(memview), lineno);
+                         old_acquisition_count-1, lineno);
     }
 }
 
 
 ////////// MemviewSliceCopyTemplate.proto //////////
+//@substitute: naming
 
-static {{memviewslice_name}}
-__pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
+static $memviewslice_cname
+__pyx_memoryview_copy_new_contig(const $memviewslice_cname *from_mvs,
                                  const char *mode, int ndim,
                                  size_t sizeof_dtype, int contig_flag,
                                  int dtype_is_object);
 
 
 ////////// MemviewSliceCopyTemplate //////////
+//@requires: MemviewSliceInit
+//@substitute: naming
 
-static {{memviewslice_name}}
-__pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
+static $memviewslice_cname
+__pyx_memoryview_copy_new_contig(const $memviewslice_cname *from_mvs,
                                  const char *mode, int ndim,
                                  size_t sizeof_dtype, int contig_flag,
                                  int dtype_is_object)
 {
     __Pyx_RefNannyDeclarations
     int i;
-    __Pyx_memviewslice new_mvs = {{memslice_init}};
-    struct __pyx_memoryview_obj *from_memview = from_mvs->memview;
+    $memviewslice_cname new_mvs = {{memslice_init}};
+    struct $memview_objstruct_cname *from_memview = from_mvs->memview;
     Py_buffer *buf = &from_memview->view;
     PyObject *shape_tuple = NULL;
     PyObject *temp_int = NULL;
     struct __pyx_array_obj *array_obj = NULL;
-    struct __pyx_memoryview_obj *memview_obj = NULL;
+    struct $memview_objstruct_cname *memview_obj = NULL;
 
     __Pyx_RefNannySetupContext("__pyx_memoryview_copy_new_contig", 0);
 
@@ -636,22 +556,28 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
 
 
     for(i = 0; i < ndim; i++) {
-        temp_int = PyInt_FromSsize_t(from_mvs->shape[i]);
+        temp_int = PyLong_FromSsize_t(from_mvs->shape[i]);
         if(unlikely(!temp_int)) {
             goto fail;
         } else {
+#if CYTHON_ASSUME_SAFE_MACROS
             PyTuple_SET_ITEM(shape_tuple, i, temp_int);
+#else
+            if (PyTuple_SetItem(shape_tuple, i, temp_int) < 0) {
+                goto fail;
+            }
+#endif
             temp_int = NULL;
         }
     }
 
-    array_obj = __pyx_array_new(shape_tuple, sizeof_dtype, buf->format, (char *) mode, NULL);
+    array_obj = __pyx_array_new(shape_tuple, sizeof_dtype, buf->format, mode, NULL);
     if (unlikely(!array_obj)) {
         goto fail;
     }
     __Pyx_GOTREF(array_obj);
 
-    memview_obj = (struct __pyx_memoryview_obj *) __pyx_memoryview_new(
+    memview_obj = (struct $memview_objstruct_cname *) __pyx_memoryview_new(
                                     (PyObject *) array_obj, contig_flag,
                                     dtype_is_object,
                                     from_mvs->memview->typeinfo);
@@ -669,13 +595,13 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     goto no_fail;
 
 fail:
-    __Pyx_XDECREF(new_mvs.memview);
+    __Pyx_XDECREF((PyObject *) new_mvs.memview);
     new_mvs.memview = NULL;
     new_mvs.data = NULL;
 no_fail:
     __Pyx_XDECREF(shape_tuple);
     __Pyx_XDECREF(temp_int);
-    __Pyx_XDECREF(array_obj);
+    __Pyx_XDECREF((PyObject *) array_obj);
     __Pyx_RefNannyFinishContext();
     return new_mvs;
 }
@@ -690,19 +616,21 @@ no_fail:
 
 
 ////////// OverlappingSlices.proto //////////
+//@substitute: naming
 
-static int __pyx_slices_overlap({{memviewslice_name}} *slice1,
-                                {{memviewslice_name}} *slice2,
+static int __pyx_slices_overlap($memviewslice_cname *slice1,
+                                $memviewslice_cname *slice2,
                                 int ndim, size_t itemsize);
 
 
 ////////// OverlappingSlices //////////
+//@substitute: naming
 
 /* Based on numpy's core/src/multiarray/array_assign.c */
 
 /* Gets a half-open range [start, end) which contains the array data */
 static void
-__pyx_get_array_memory_extents({{memviewslice_name}} *slice,
+__pyx_get_array_memory_extents($memviewslice_cname *slice,
                                void **out_start, void **out_end,
                                int ndim, size_t itemsize)
 {
@@ -733,8 +661,8 @@ __pyx_get_array_memory_extents({{memviewslice_name}} *slice,
 
 /* Returns 1 if the arrays have overlapping data, 0 otherwise */
 static int
-__pyx_slices_overlap({{memviewslice_name}} *slice1,
-                     {{memviewslice_name}} *slice2,
+__pyx_slices_overlap($memviewslice_cname *slice1,
+                     $memviewslice_cname *slice2,
                      int ndim, size_t itemsize)
 {
     void *start1, *end1, *start2, *end2;
@@ -753,14 +681,16 @@ __pyx_slices_overlap({{memviewslice_name}} *slice1,
 
 
 ////////// MemviewSliceIsContig.proto //////////
+//@substitute: naming
 
-static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs, char order, int ndim);/*proto*/
+static int __pyx_memviewslice_is_contig(const $memviewslice_cname mvs, char order, int ndim);/*proto*/
 
 
 ////////// MemviewSliceIsContig //////////
+//@substitute: naming
 
 static int
-__pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs, char order, int ndim)
+__pyx_memviewslice_is_contig(const $memviewslice_cname mvs, char order, int ndim)
 {
     int i, index, step, start;
     Py_ssize_t itemsize = mvs.memview->view.itemsize;
@@ -785,6 +715,12 @@ __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs, char order, int nd
 }
 
 
+/////////////// MemviewSliceIndex.proto ///////////////
+
+static CYTHON_INLINE char *
+__pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset); /*proto*/
+
+
 /////////////// MemviewSliceIndex ///////////////
 
 static CYTHON_INLINE char *
@@ -806,7 +742,7 @@ static CYTHON_INLINE PyObject *{{get_function}}(const char *itemp); /* proto */
 {{endif}}
 
 {{if from_py_function}}
-static CYTHON_INLINE int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
+static CYTHON_INLINE int {{set_function}}(char *itemp, PyObject *obj); /* proto */
 {{endif}}
 
 /////////////// MemviewDtypeToObject ///////////////
@@ -817,12 +753,12 @@ static CYTHON_INLINE int {{set_function}}(const char *itemp, PyObject *obj); /* 
 
 {{if to_py_function}}
 static CYTHON_INLINE PyObject *{{get_function}}(const char *itemp) {
-    return (PyObject *) {{to_py_function}}(*({{dtype}} *) itemp);
+    return (PyObject *) {{to_py_function}}(*({{dtype}} {{'' if dtype_is_const else 'const'}} *) itemp);
 }
 {{endif}}
 
 {{if from_py_function}}
-static CYTHON_INLINE int {{set_function}}(const char *itemp, PyObject *obj) {
+static CYTHON_INLINE int {{set_function}}(char *itemp, PyObject *obj) {
     {{dtype}} value = {{from_py_function}}(obj);
     if (unlikely({{error_condition}}))
         return 0;
@@ -913,18 +849,14 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
     {{if boundscheck}}
         if (unlikely(!__Pyx_is_valid_index(__pyx_tmp_idx, __pyx_tmp_shape))) {
             {{if not have_gil}}
-                #ifdef WITH_THREAD
                 PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure();
-                #endif
             {{endif}}
 
             PyErr_SetString(PyExc_IndexError,
                             "Index out of bounds (axis {{dim}})");
 
             {{if not have_gil}}
-                #ifdef WITH_THREAD
                 PyGILState_Release(__pyx_gilstate_save);
-                #endif
             {{endif}}
 
             {{error_goto}}

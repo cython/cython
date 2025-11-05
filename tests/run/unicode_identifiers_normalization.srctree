@@ -26,7 +26,6 @@ setup(
 ######### build_tests.py ########
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-import sys
 import unicodedata
 
 # a few pairs of unicode strings that should be equivalent after normalization
@@ -78,6 +77,4 @@ for idx, (code, strings) in enumerate(zip(example_code, string_pairs)):
     with open("test{0}.py".format(idx), "w", encoding="utf8") as f:
         code = code.format(*strings)
         f.write("# -*- coding: utf-8 -*-\n")
-        # The code isn't Py2 compatible. Only write actual code in Py3+.
-        if sys.version_info[0] > 2:
-            f.write(code)
+        f.write(code)

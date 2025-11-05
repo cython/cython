@@ -1,4 +1,5 @@
 numpy
 coverage
 pycodestyle
-setuptools<60
+setuptools
+abi3audit >= 0.0.22 ; python_version >= "3.9"
