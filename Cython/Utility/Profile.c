@@ -59,6 +59,14 @@
     #define __Pyx_MonitoringEventTypes_CyFunc_count (sizeof(__Pyx_MonitoringEventTypes) - 3)
     #define __Pyx_MonitoringEventTypes_CyGen_count (sizeof(__Pyx_MonitoringEventTypes))
 
+    #ifndef CYTHON_SYS_MONITORING_DISABLE_DEBUGGER
+        // DW - I'm not particularly happy about this (although Python debuggers are unlikely
+        // to be useful with Cython code) and it requires use of internal details of the monitoring API.
+        // However, the VSCode debugger crashes when any Cython code is run while it is active, even
+        // if the debugging would not go into the Cython code itself.
+        #define CYTHON_SYS_MONITORING_DISABLE_DEBUGGER 1
+    #endif
+
 #endif
 #endif
 
@@ -632,20 +640,45 @@ CYTHON_UNUSED static int __Pyx__TraceStartFunc(PyMonitoringState *state_array, P
     __pyx_monitoring_version_type version = 0;
     ret = PyMonitoring_EnterScope(state_array, &version, __Pyx_MonitoringEventTypes, __Pyx_MonitoringEventTypes_CyFunc_count);
     if (unlikely(ret == -1)) return -1;
+#if CYTHON_SYS_MONITORING_DISABLE_DEBUGGER
+    for (size_t i=0; i<__Pyx_MonitoringEventTypes_CyFunc_count; ++i) {
+        state_array[i].active &= (~((uint8_t)1));
+    }
+#endif
     return skip_event ? 0 : PyMonitoring_FirePyStartEvent(&state_array[__Pyx_Monitoring_PY_START], code_obj, offset);
 }
 
 CYTHON_UNUSED static int __Pyx__TraceStartGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, int offset) {
     int ret;
+#if CYTHON_SYS_MONITORING_DISABLE_DEBUGGER
+    __pyx_monitoring_version_type last_version = *version; 
+#endif
     ret = PyMonitoring_EnterScope(state_array, version, __Pyx_MonitoringEventTypes, __Pyx_MonitoringEventTypes_CyGen_count);
     if (unlikely(ret == -1)) return -1;
+#if CYTHON_SYS_MONITORING_DISABLE_DEBUGGER
+    if (last_version != *version) {
+        for (size_t i=0; i<__Pyx_MonitoringEventTypes_CyFunc_count; ++i) {
+            state_array[i].active &= (~((uint8_t)1));
+        }
+    }
+#endif
     return PyMonitoring_FirePyStartEvent(&state_array[__Pyx_Monitoring_PY_START], code_obj, offset);
 }
 
 CYTHON_UNUSED static int __Pyx__TraceResumeGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, int offset) {
     int ret;
+#if CYTHON_SYS_MONITORING_DISABLE_DEBUGGER
+    __pyx_monitoring_version_type last_version = *version; 
+#endif
     ret = PyMonitoring_EnterScope(state_array, version, __Pyx_MonitoringEventTypes, __Pyx_MonitoringEventTypes_CyGen_count);
     if (unlikely(ret == -1)) return -1;
+#if CYTHON_SYS_MONITORING_DISABLE_DEBUGGER
+    if (last_version != *version) {
+        for (size_t i=0; i<__Pyx_MonitoringEventTypes_CyFunc_count; ++i) {
+            state_array[i].active &= (~((uint8_t)1));
+        }
+    }
+#endif
     return PyMonitoring_FirePyResumeEvent(&state_array[__Pyx_Monitoring_PY_RESUME], code_obj, offset);
 }
 
