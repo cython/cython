@@ -18,25 +18,30 @@ def main3() -> None:
     for c in a:
         print(b + c)
 
+def main4() -> None:
+    # a: list[list[cython.int]] = [[1]]
+    a: list[tuple[cython.int]] = [(1,)]
+    b: list[list[cython.int]] = [[1]]
+    c: cython.int = 5
+    print(c + a[0][0])
+    print(c + b[0][0])
+
 
 # NEGATIVE SC
 
-# def main() -> None:
-    # c: list[cython.float] = [5.0]
-    # e: cython.int = c[0]
-
-# def main() -> None:
-#     a: cython.float = 5.0
-#     b: cython.int = a
-#     print(b)
+# def negative_tests() -> None:
+#     # a = [5.0]
+#     # b: cython.int = a[0]
+#     # print(b)
 # 
 #     c: list[cython.float] = [5.0]
-#     # c: list[cython.float] = [5.0]
 #     d: list[cython.int] = c # This must fail
-#     # d: list[cython.int] = [5.0] # This must fail
-#     x = c[0]
-#     print(x)
+#     d: list[cython.int] = [5.0]
+#     # x = d[0]
+#     # print(x)
+# negative_tests()
 
 main1()
 main2()
 main3()
+main4()

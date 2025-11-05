@@ -105,8 +105,7 @@ coercion_error_dict = {
 
 def find_coercion_error(type_tuple, default, env):
     err = coercion_error_dict.get(type_tuple)
-    if err is None and type_tuple[0].python_type_constructor_name == 'list' and type_tuple[0].modifier_name and type_tuple[1].python_type_constructor_name == 'list' and type_tuple[1].modifier_name:
-        # breakpoint()
+    if err is None and type_tuple[0] == list_type and type_tuple[0].modifier_name and type_tuple[1] == list_type and type_tuple[1].modifier_name:
         return find_coercion_error((type_tuple[0].modifier_name[0], type_tuple[1].modifier_name[0]), default, env)
     if err is None:
         return default
@@ -1087,9 +1086,8 @@ class ExprNode(Node):
             elif src.constant_result is None:
                 src = NoneNode(src.pos).coerce_to(dst_type, env)
 
-            # breakpoint()
-            # if not dst_type.assignable_from(src_type):
-            #     self.fail_assignment(dst_type)
+            if dst_type == list_type and src_type == list_type and not dst_type.assignable_from(src_type):
+                self.fail_assignment(dst_type)
 
             elif src.type.is_pyobject:
                 if not src.type.subtype_of(dst_type):
@@ -3148,7 +3146,7 @@ class IteratorNode(ScopedExprNode):
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
-        if sequence_type.python_type_constructor_name == 'list' and sequence_type.modifier_name:
+        if sequence_type == list_type and sequence_type.modifier_name:
             return sequence_type.modifier_name[0]
         if sequence_type.is_array or sequence_type.is_ptr:
             return sequence_type
@@ -4199,7 +4197,7 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
-        if base_type.python_type_constructor_name == 'list' and base_type.modifier_name:
+        if base_type == list_type and base_type.modifier_name:
             return base_type.modifier_name[0]
 
         index_type = self.index.infer_type(env)
@@ -4340,7 +4338,7 @@ class IndexNode(_IndexingBaseNode):
                 self.base = self.base.coerce_to_pyobject(env)
                 base_type = self.base.type
 
-        if base_type.python_type_constructor_name == 'list' and base_type.modifier_name:
+        if base_type == list_type and base_type.modifier_name:
             self.type = base_type
             self = self.coerce_to(base_type.modifier_name[0], env)
             return self
@@ -9153,17 +9151,6 @@ class ListNode(SequenceNode):
         return node
 
     def coerce_to(self, dst_type, env):
-        # if dst_type.python_type_constructor_name == 'list' and dst_type.modifier_name:
-        #     assignable = all(dst_type.modifier_name[0].assignable_from(litem.type) for litem in self.original_args)
-        #     # breakpoint()
-        #     if not assignable:
-        #         raise ValueError
-        #     for i in range(len(self.original_args)):
-        #         arg = self.args[i]
-        #         if isinstance(arg, CoerceToPyTypeNode):
-        #             arg = arg.arg
-        #         self.args[i] = arg.coerce_to(dst_type.modifier_name[0], env)
-        #    #     breakpoint()
         if dst_type.is_pyobject:
             for err in self.obj_conversion_errors:
                 report_error(err)

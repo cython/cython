@@ -4840,11 +4840,6 @@ class PythonTypeConstructorMixin:
             self.modifier_name == 'typing.Union' and self.contains_none
         )
 
-    # def _validate_modifiers(self, pos, template_values):
-    #     if self.python_type_constructor_name == 'list' and len(template_values) > 1:
-    #         error(pos, f"'{self.python_type_constructor_name}' takes exactly one template argument.")
-
-
     def set_python_type_constructor_name(self, name):
         # FIXME
         self.python_type_constructor_name = 'list' if 'list' in name else name
@@ -4874,8 +4869,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         if template_values:
             if template_values in self.specializations:
                 return self.specializations[template_values]
-            name = f'list_{template_values[0]}' # f'{self.name}[{template_values[0]}]'
-            # self.modifier_name = template_values
+            name = f'list_{template_values[0]}' # FIXME: We should thinkg of better name
 
             typ = BuiltinTypeConstructorObjectType(name=name, cname='list', objstruct_cname='mocny_bojstruct_cname')
             typ.modifier_name = template_values
@@ -4887,32 +4881,21 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         return self
 
     def assignable_from(self, src_type):
-        # FIXME limit when it is assignable
-        return True
-
-        # print(self, src_type)
-        # if 'list' in str(self):
-        #     breakpoint()
-
-        # if self == src_type:
-        #     # breakpoint()
-        #     if self.modifier_name and src_type.modifier_name and self.modifier_name[0].assignable_from(src_type.modifier_name[0]):
-        #         return True
-        #     if not self.modifier_name and not src_type.modifier_name:
-        #         return True
-        #     if not self.modifier_name and src_type.modifier_name:
-        #         return True
-        #     if self.modifier_name and not src_type.modifier_name:
-        #         # FIXME we should not support assigning not known subtype to known subtype
-        #         return True
-        #     return False
-        # return super().assignable_from(src_type)
-
-    #     # if self.python_type_constructor_name == 'list' and len(template_values) > 1:
-    #     #     breakpoint()
-    #     if self.python_type_constructor_name == 'list' and self.modifier_name and src_type.python_type_constructor_name == 'list' and src_type.modifier_name:
-    #         ret = ret and self.modifier_name[0].assignable_from(src_type.modifier_name[0])
-    #     return ret
+        if self == src_type:
+            if self.modifier_name and src_type.modifier_name and self.modifier_name[0].assignable_from(src_type.modifier_name[0]):
+                return True
+            if not self.modifier_name and not src_type.modifier_name:
+                return True
+            if not self.modifier_name and src_type.modifier_name:
+                return True
+            if self.modifier_name and not src_type.modifier_name:
+                # FIXME we should not support assigning not known subtype to known subtype
+                return True
+            if self.modifier_name and src_type.modifier_name[0] == self:
+                # Assign list[list[BAR] to list[BAR]
+                return True
+            return False
+        return super().assignable_from(src_type)
 
     def __eq__(self, other):
         name = lambda name: 'list' if 'list' in name else name # FIXME: this is workaround
