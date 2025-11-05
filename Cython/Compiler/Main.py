@@ -96,6 +96,10 @@ class Context:
                    options.cplus, options.language_level, options=options)
 
     @property
+    def shared_c_file_path(self):
+        return self.options.shared_c_file_path if self.options else None
+
+    @property
     def shared_utility_qualified_name(self):
         return self.options.shared_utility_qualified_name if self.options else None
 
@@ -435,7 +439,7 @@ class Context:
         return ".".join(names)
 
     def setup_errors(self, options, result):
-        Errors.init_thread()
+        Errors.reset()
         if options.use_listing_file:
             path = result.listing_file = Utils.replace_suffix(result.main_source_file, ".lis")
         else:

@@ -412,7 +412,7 @@ def report_revision_timings(rev_timings, csv_out=None):
                 logging.info(f"    {benchmark[:25]:<25}:  {pdiff:+8.1f} %   /  {diff_str}")
 
 
-def report_revision_sizes(rev_sizes):
+def report_revision_sizes(rev_sizes, csv_out=None):
     sizes_by_benchmark = collections.defaultdict(list)
     for revision_name, bm_size in rev_sizes.items():
         if bm_size is None:
@@ -431,6 +431,8 @@ def report_revision_sizes(rev_sizes):
                 pdiffs_by_revision[revision_name].append(pdiff)
                 diff_str = f"  ({pdiff:+8.1f} %)"
             logging.info(f"    {revision_name[:25]:25}:  {size} bytes{diff_str}")
+            if csv_out is not None:
+                csv_out.writerow([benchmark, revision_name, PYTHON_VERSION, size, diff_str])
 
     logging.info(f"### Average size changes:")
     for revision_name, pdiffs in pdiffs_by_revision.items():
@@ -487,7 +489,12 @@ def parse_args(args):
     parser.add_argument(
         "--report",
         dest="report_csv", default=None, metavar="FILE",
-        help="Write a CSV report to FILE."
+        help="Write a CSV report of the timings to FILE."
+    )
+    parser.add_argument(
+        "--report-size",
+        dest="report_sizes_csv", default=None, metavar="FILE",
+        help="Write a CSV report of the module sizes to FILE."
     )
 
     return parser.parse_known_args(args)
@@ -512,18 +519,27 @@ if __name__ == '__main__':
     revisions = list({rev: rev for rev in (options.revisions + options.with_limited_api + options.with_shared_module)})  # deduplicate in order
     if options.with_python:
         revisions.append('Python')
+
+    show_sizes = bool(options.show_size or options.report_sizes_csv)
+
     timings, sizes = benchmark_revisions(
         benchmarks, revisions, cythonize_args,
         profiler=options.profiler,
         limited_revisions=options.with_limited_api,
         shared_revisions=options.with_shared_module,
-        show_size=options.show_size
+        show_size=show_sizes,
     )
+
     if options.report_csv:
         with open(options.report_csv, "w") as f:
             import csv
             report_revision_timings(timings, csv_out=csv.writer(f))
     else:
         report_revision_timings(timings)
-    if options.show_size:
+
+    if options.report_sizes_csv:
+        with open(options.report_sizes_csv, "w") as f:
+            import csv
+            report_revision_sizes(sizes, csv_out=csv.writer(f))
+    elif show_sizes:
         report_revision_sizes(sizes)

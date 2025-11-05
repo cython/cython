@@ -552,8 +552,11 @@ class TypeFlagsSlot(SlotDescriptor):
 
     def slot_code(self, scope):
         value = "Py_TPFLAGS_DEFAULT"
-        if not scope.directives['type_version_tag']:
-            # Remove flag from 'Py_TPFLAGS_DEFAULT'.
+        if scope.directives['type_version_tag']:
+            # No longer used since Py3.11.
+            value += "|Py_TPFLAGS_HAVE_VERSION_TAG"
+        else:
+            # Used to be in 'Py_TPFLAGS_DEFAULT' up to Py3.10.
             value = f"({value}&~Py_TPFLAGS_HAVE_VERSION_TAG)"
         value += "|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
         if not scope.parent_type.is_final_type:

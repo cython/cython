@@ -261,6 +261,20 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     } else
 #endif
     {
+#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000))
+        PyObject *args[] = { obj };
+        res = PyObject_VectorcallMethod(PYIDENT("__await__"), args, 1 |  PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+        if (unlikely(!res)) {
+            // We need to distinguish between "doesn't have __await__" vs "__await__ failed"
+            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyObject *type, *value, *traceback;
+                PyErr_Fetch(&type, &value, &traceback);
+                int has_attr = PyObject_HasAttr(obj, PYIDENT("__await__"));
+                PyErr_Restore(type, value, traceback);
+                if (!has_attr) goto slot_error;
+            }
+        }
+#else
         PyObject *method = NULL;
         int is_method = __Pyx_PyObject_GetMethod(obj, PYIDENT("__await__"), &method);
         if (likely(is_method)) {
@@ -270,6 +284,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         } else
             goto slot_error;
         Py_DECREF(method);
+#endif
     }
     if (unlikely(!res)) {
         // surprisingly, CPython replaces the exception here...
@@ -1849,9 +1864,7 @@ static PyType_Spec __pyx_CoroutineAwaitType_spec = {
     __PYX_TYPE_MODULE_PREFIX "coroutine_wrapper",
     sizeof(__pyx_CoroutineAwaitObject),
     0,
-#if PY_VERSION_HEX >= 0x030A0000
-    Py_TPFLAGS_IMMUTABLETYPE |
-#endif
+    Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION |
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     __pyx_CoroutineAwaitType_slots
 };
@@ -1932,12 +1945,10 @@ static PyType_Spec __pyx_CoroutineType_spec = {
     __PYX_TYPE_MODULE_PREFIX "coroutine",
     sizeof(__pyx_CoroutineObject),
     0,
-#if PY_VERSION_HEX >= 0x030A0000
-    Py_TPFLAGS_IMMUTABLETYPE |
-#endif
 #if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_TPFLAGS_MANAGED_WEAKREF |
 #endif
+    Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION |
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     __pyx_CoroutineType_slots
 };
@@ -2033,12 +2044,10 @@ static PyType_Spec __pyx_IterableCoroutineType_spec = {
     __PYX_TYPE_MODULE_PREFIX "iterable_coroutine",
     sizeof(__pyx_CoroutineObject),
     0,
-#if PY_VERSION_HEX >= 0x030A0000
-    Py_TPFLAGS_IMMUTABLETYPE |
-#endif
 #if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_TPFLAGS_MANAGED_WEAKREF |
 #endif
+    Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION |
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     __pyx_IterableCoroutineType_slots
 };
@@ -2133,12 +2142,10 @@ static PyType_Spec __pyx_GeneratorType_spec = {
     __PYX_TYPE_MODULE_PREFIX "generator",
     sizeof(__pyx_CoroutineObject),
     0,
-#if PY_VERSION_HEX >= 0x030A0000
-    Py_TPFLAGS_IMMUTABLETYPE |
-#endif
 #if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_TPFLAGS_MANAGED_WEAKREF |
 #endif
+    Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION |
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     __pyx_GeneratorType_slots
 };
