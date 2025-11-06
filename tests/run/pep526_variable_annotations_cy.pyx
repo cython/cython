@@ -13,7 +13,7 @@ def test_subscripted_types():
     """
     >>> test_subscripted_types()
     dict object
-    list object
+    list_int object
     set object
     """
     cdef typing.Dict[int, float] a = {}

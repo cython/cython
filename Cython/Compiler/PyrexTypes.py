@@ -4865,15 +4865,20 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         self.specializations = {}
 
     def specialize_here(self, pos, env, template_values=None):
-        template_values = tuple(template_values)
-        if template_values:
+        if self.name != 'list' or len(template_values) >= 2:
+            # FIXME: For now only list[TYPE] is supported.
+            return self
+        if template_values and template_values[0] is not None:
+            template_values = tuple(template_values)
             if template_values in self.specializations:
                 return self.specializations[template_values]
             name = f'list_{template_values[0]}' # FIXME: We should thinkg of better name
 
-            typ = BuiltinTypeConstructorObjectType(name=name, cname='list', objstruct_cname='mocny_bojstruct_cname')
+            # FIXME: cname is duplicated also in Builting.py. We should adjust type so we can get it via self.cname
+            typ = BuiltinTypeConstructorObjectType(name=name, cname='&PyList_Type', objstruct_cname='mocny_bojstruct_cname')
             typ.modifier_name = template_values
             self.scope.declare_type(name, typ, pos, cname='list')
+            typ.scope = self.scope
             self.specializations[template_values] = typ
             return typ
         # for a lot of the typing classes it doesn't really matter what the template is
@@ -4896,6 +4901,21 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
                 return True
             return False
         return super().assignable_from(src_type)
+
+    def type_check_function(self, exact=True):
+        # FIXME: This function was just copyied because it generates wrong type_check due type_name. To be decided how to fix it properly
+        type_name = 'list' if 'list' in self.name else self.name
+        if type_name in _special_type_check_functions:
+            type_check = _special_type_check_functions[type_name]
+        elif self.is_exception_type:
+            type_check = f"__Pyx_PyExc_{type_name}_Check"
+        else:
+            type_check = f'Py{type_name.capitalize()}_Check'
+        if exact and not self.is_exception_type and type_name not in ('bool', 'slice', 'memoryview'):
+            type_check += 'Exact'
+        return type_check
+
+
 
     def __eq__(self, other):
         name = lambda name: 'list' if 'list' in name else name # FIXME: this is workaround
