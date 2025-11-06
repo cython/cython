@@ -1,8 +1,20 @@
-/////////////// Import.export ///////////////
+/////////////// Import.proto ///////////////////
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level); /*proto*/
 
-/////////////// Import ///////////////
+/////////////// Import /////////////////////////
+//@requires: ImportImpl
+
+static PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level) {
+    // Forward to the shared utility code with an extra moddict argument (because that's not possible to look up in shared utility code)
+    return __Pyx__Import(name, imported_names, len_imported_names, qualname, level, NAMED_CGLOBAL(moddict_cname));
+}
+
+/////////////// ImportImpl.export ///////////////
+
+static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level, PyObject *moddict); /*proto*/
+
+/////////////// ImportImpl ///////////////
 //@requires: StringTools.c::IncludeStringH
 //@requires: Builtins.c::HasAttr
 //@requires: ObjectHandling.c::TupleAndListFromArray
@@ -79,7 +91,7 @@ not_found:
     return 0;
 }
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level) {
+static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level, PyObject *moddict) {
     PyObject *module = 0;
     PyObject *empty_dict = 0;
     PyObject *from_list = 0;
@@ -115,7 +127,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, P
         if (package_sep != (0)) {
             /* try package relative import first */
             module = PyImport_ImportModuleLevelObject(
-                name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, 1);
+                name, moddict, empty_dict, from_list, 1);
             if (unlikely(!module)) {
                 if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
                     goto bad;
@@ -126,7 +138,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, P
     }
     if (!module) {
         module = PyImport_ImportModuleLevelObject(
-            name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, level);
+            name, moddict, empty_dict, from_list, level);
     }
 bad:
     Py_XDECREF(from_list);

@@ -823,6 +823,12 @@ class UtilityCode(UtilityCodeBase):
 
             self.specialize_list.append(s)
             return s
+        
+    def _validate_suitable_for_sharing(self):
+        code_string = getattr(self, "impl")
+        if not code_string: return
+        assert "NAMED_CGLOBAL(moddict_cname)" not in code_string, \
+            f"moddict_cname should not be shared: {self}"
 
     @cython.final
     def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str):
@@ -870,6 +876,7 @@ class UtilityCode(UtilityCodeBase):
                 output.use_utility_code(dependency)
 
         if has_shared_utility_code:
+            self._validate_suitable_for_sharing()
             self._put_shared_function_declarations(output[self.proto_block])
         output.shared_utility_functions.extend(self.shared_utility_functions)
 
