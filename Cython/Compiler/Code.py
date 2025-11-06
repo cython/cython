@@ -823,7 +823,7 @@ class UtilityCode(UtilityCodeBase):
 
             self.specialize_list.append(s)
             return s
-        
+
     def _validate_suitable_for_sharing(self):
         code_string = getattr(self, "impl")
         if not code_string: return
