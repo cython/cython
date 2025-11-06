@@ -56,7 +56,8 @@ cdef extern from *:
             return -1;
         }
         if (result) {
-            *result = __Pyx_NewRef(default_value);
+            Py_INCREF(default_value);
+            *result = default_value;
         }
         return 0;
     }
