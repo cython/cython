@@ -9,7 +9,7 @@ cdef extern from *:
     #define PyDict_GetItemWithError _PyDict_GetItemWithError
     #endif
 
-    #if PY_VERSION_HEX < 0x030D0000
+    #if PY_VERSION_HEX < 0x030d0000
     static CYTHON_INLINE int
     __Pyx_PyDict_GetItemStringRef(PyObject *mp, const char *key, PyObject **result)
     {
