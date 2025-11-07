@@ -119,7 +119,7 @@ Cython provides ``cython.pymutex`` as a more robust lock type.  Unlike
 ask it to (at the cost of losing ``critical_section``'s inbuilt protection against
 deadlocks).
 
-``cython.pymutex`` supports two operations: ``acquire`` and ``release``.
+``cython.pymutex`` supports three operations: ``acquire``, ``release``, and ``locked``.
 ``cython.pymutex`` can also be used in a ``with`` statement::
 
   cdef cython.pymutex l
@@ -130,6 +130,15 @@ deadlocks).
   l.acquire()
   ...  # perform operations with the lock
   l.release()
+  
+  # check if the lock is currently held
+  if l.locked():
+      ...  # lock is held
+
+The ``locked()`` method returns ``True`` if the lock is currently held, ``False`` otherwise.
+It can be called with or without the GIL. Note that ``locked()`` is only available for
+``cython.pymutex`` on Python 3.13+; for ``cython.pythread_type_lock`` it raises
+``NotImplementedError``.
 
 ``acquire`` will avoid deadlocks if the GIL is held (only relevant in
 non-freethreading versions of Python).  However, you are at risk of deadlock

@@ -681,6 +681,9 @@ class pymutex:
     def release(self):
         return self._l.release()
 
+    def locked(self):
+        return self._l.locked()
+
     def __enter__(self):
         return self._l.__enter__()
 

@@ -237,6 +237,7 @@
 #define __Pyx_Locks_PyThreadTypeLock_Delete(l) PyThread_free_lock(l)
 #define __Pyx_Locks_PyThreadTypeLock_LockNogil(l) (void)PyThread_acquire_lock(l, WAIT_LOCK)
 #define __Pyx_Locks_PyThreadTypeLock_Unlock(l) PyThread_release_lock(l)
+static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 static void __Pyx__Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 // CYTHON_INLINE because these may be unused
@@ -314,6 +315,16 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
     }
 }
 
+static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock) {
+    // PyThread_type_lock doesn't provide a way to check if it's locked
+    // without trying to acquire it. We raise NotImplementedError.
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    PyErr_SetString(PyExc_NotImplementedError, 
+                    "pythread_type_lock.locked() is not supported");
+    PyGILState_Release(gstate);
+    return -1;  // Indicate error
+}
+
 
 ////////////////////// PyMutexDecl.proto ////////////////////
 //@proto_block: utility_code_proto_before_types
@@ -359,6 +370,26 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 #define __Pyx_Locks_PyMutex_LockGil(l) PyMutex_Lock(&l)
 #define  __Pyx_Locks_PyMutex_LockNogil(l) PyMutex_Lock(&l)
 
+// For Python 3.13, we need to check if PyMutex_IsLocked is available
+#if PY_VERSION_HEX >= 0x030e00C1
+// Python 3.14+ has PyMutex_IsLocked  
+static CYTHON_INLINE int __Pyx_Locks_PyMutex_Locked(__Pyx_Locks_PyMutex lock) {
+    return PyMutex_IsLocked(&lock);
+}
+#else
+// Python 3.13: Use internal implementation
+// The _Py_LOCKED constant is defined in internal/pycore_lock.h
+#ifndef _Py_LOCKED
+#define _Py_LOCKED 1
+#endif
+
+static CYTHON_INLINE int __Pyx_Locks_PyMutex_Locked(__Pyx_Locks_PyMutex lock) {
+    // Direct implementation from CPython's internal API
+    // This matches _PyMutex_IsLocked from Include/cpython/pylock.h
+    return (lock._bits & _Py_LOCKED) != 0;
+}
+#endif
+
 #else
 
 #define __Pyx_Locks_PyMutex_Init(l) __Pyx_Locks_PyThreadTypeLock_Init(l)
@@ -367,6 +398,7 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 #define __Pyx_Locks_PyMutex_Unlock(l) __Pyx_Locks_PyThreadTypeLock_Unlock(l)
 #define __Pyx_Locks_PyMutex_LockGil(l) __Pyx_Locks_PyThreadTypeLock_LockGil(l)
 #define __Pyx_Locks_PyMutex_LockNogil(l) __Pyx_Locks_PyThreadTypeLock_LockNogil(l)
+#define __Pyx_Locks_PyMutex_Locked(l) __Pyx_Locks_PyThreadTypeLock_Locked(l)
 
 #endif
 
