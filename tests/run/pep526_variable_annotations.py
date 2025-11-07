@@ -200,10 +200,10 @@ if cython.compiled:
     >>> test_subscripted_types()
     dict object
     dict object
-    list_int object
-    list_int object
+    list[int] object
+    list[int] object
     list object
-    set object
+    set[Python object] object
     """
     test_subscripted_types.__doc__ = __doc__
 
@@ -303,6 +303,38 @@ def test_iteration_over_list_with_subscription():
         print(cython.typeof(c))
         print(cython.typeof(b + c))
         print(b + c)
+
+@cython.infer_types(True)
+def test_iteration_over_set_with_subscription():
+    """
+    >>> test_iteration_over_set_with_subscription()
+    int
+    int
+    3
+    """
+    b: cython.int = 1
+    a: set[cython.int] = {2}
+    for c in a:
+        print(cython.typeof(c))
+        print(cython.typeof(b + c))
+        print(b + c)
+
+@cython.infer_types(True)
+def test_iteration_over_frozenset_with_subscription():
+    """
+    >>> test_iteration_over_frozenset_with_subscription()
+    int
+    int
+    3
+    """
+    b: cython.int = 1
+    a: frozenset[cython.int] = frozenset({2})
+    for c in a:
+        print(cython.typeof(c))
+        print(cython.typeof(b + c))
+        print(b + c)
+
+
 
 try:
     import numpy.typing as npt
