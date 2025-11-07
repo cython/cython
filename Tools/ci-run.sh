@@ -176,8 +176,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     python setup.py build_ext -i $SETUP_ARGS || exit 1
 
   # COVERAGE can be either "" (empty or not set) or "1" (when we set it)
-  if [[ $COVERAGE != "1" && $BACKEND != *"cpp"* &&
-        $EXTRA_CFLAGS == "" ]]; then
+  if [[ $COVERAGE != "1" && $BACKEND != *"cpp"* && $EXTRA_CFLAGS == "" ]]; then
     python setup.py bdist_wheel || exit 1
     ls -l dist/ || true
 

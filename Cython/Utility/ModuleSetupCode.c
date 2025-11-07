@@ -740,8 +740,8 @@ static int __Pyx_init_co_variables(void); /* proto */
 #endif
 
 #ifndef METH_STACKLESS
-  // already defined for Stackless Python (all versions) and C-Python >= 3.7
-  // value if defined: Stackless Python < 3.6: 0x80 else 0x100
+  // Now unused. Already defined for Stackless Python (all versions) and C-Python >= 3.7.
+  // Value if defined: Stackless Python < 3.6: 0x80 else 0x100.
   #define METH_STACKLESS 0
 #endif
 #ifndef METH_FASTCALL
