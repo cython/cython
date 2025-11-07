@@ -4,7 +4,7 @@
 // Exact is 0 (False), 1 (True) or 2 (True and from annotation)
 // The latter gives a small amount of extra error diagnostics
 #define __Pyx_ArgTypeTest(obj, type, none_allowed, name, exact) \
-    ((likely(__Pyx_IS_TYPE(obj, type) | (none_allowed && (obj == Py_None)))) ? 1 : \
+    ((likely(Py_IS_TYPE(obj, type) | (none_allowed && (obj == Py_None)))) ? 1 : \
         __Pyx__ArgTypeTest(obj, type, name, exact))
 
 
@@ -147,7 +147,7 @@ static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
 
 //////////////////// KeywordStringCheck.proto ////////////////////
 
-static CYTHON_INLINE int __Pyx_CheckKeywordStrings(const char* function_name, PyObject *kw); /*proto*/
+static CYTHON_INLINE int __Pyx_CheckKeywordStrings(PyObject *kw); /*proto*/
 
 //////////////////// KeywordStringCheck ////////////////////
 
@@ -163,7 +163,6 @@ static int __Pyx_CheckKeywordStrings(
 {
     // PyPy appears to check keyword types at call time, not at unpacking time.
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyArg_ValidateKeywordArguments)
-    CYTHON_UNUSED_VAR(function_name);
     CYTHON_UNUSED_VAR(kw);
     return 0;
 #else
@@ -172,34 +171,6 @@ static int __Pyx_CheckKeywordStrings(
     if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kw))) {
         // On CPython >= 3.9, the FASTCALL protocol guarantees that keyword
         // names are strings (see https://github.com/python/cpython/issues/81721)
-#if PY_VERSION_HEX >= 0x03090000
-        CYTHON_UNUSED_VAR(function_name);
-#else
-
-        Py_ssize_t kwsize;
-        #if CYTHON_ASSUME_SAFE_SIZE
-        kwsize = PyTuple_GET_SIZE(kw);
-        #else
-        kwsize = PyTuple_Size(kw);
-        if (unlikely(kwsize < 0)) return -1;
-        #endif
-
-        for (Py_ssize_t pos = 0; pos < kwsize; pos++) {
-            PyObject* key = NULL;
-            #if CYTHON_ASSUME_SAFE_MACROS
-            key = PyTuple_GET_ITEM(kw, pos);
-            #else
-            key = PyTuple_GetItem(kw, pos);
-            if (unlikely(!key)) return -1;
-            #endif
-
-            if (unlikely(!PyUnicode_Check(key))) {
-                PyErr_Format(PyExc_TypeError,
-                    "%.200s() keywords must be strings", function_name);
-                return -1;
-            }
-        }
-#endif
     } else {
         // Otherwise, 'kw' is a dict: check if it's unicode-keys-only and let Python set the error otherwise.
         if (unlikely(!PyArg_ValidateKeywordArguments(kw))) return -1;
