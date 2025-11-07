@@ -610,6 +610,7 @@ no_fail:
 
 
 ////////// CopyContentsUtility.proto /////////
+//@requires: MemviewSliceCopy
 
 #define {{func_cname}}(slice) \
         __pyx_memoryview_copy_new_contig(&slice, "{{mode}}", {{ndim}},            \

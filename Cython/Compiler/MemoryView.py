@@ -518,7 +518,6 @@ def get_copy_new_utility(pos, from_memview, to_memview):
             func_cname=copy_c_or_fortran_cname(to_memview),
             dtype_is_object=int(to_memview.dtype.is_pyobject),
         ),
-        requires=[copy_contents_new_utility],
     )
 
 

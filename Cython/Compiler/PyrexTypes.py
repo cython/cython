@@ -832,8 +832,7 @@ class MemoryViewSliceType(PyrexType):
                     copy_func_type, pos=pos, defining=1,
                     cname=copy_cname)
 
-                utility = MemoryView.get_copy_new_utility(pos, self, to_memview)
-                env.use_utility_code(utility)
+                entry.utility_code_definition = MemoryView.get_copy_new_utility(pos, self, to_memview)
 
             MemoryView.use_cython_array_utility_code(env)
 
