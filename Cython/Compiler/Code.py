@@ -402,7 +402,7 @@ class AbstractUtilityCode:
 
     requires = None
 
-    def put_code(self, output):
+    def put_code(self, globalstate: "GlobalState", used_by=None) -> None:
         pass
 
     def get_tree(self, **kwargs):
@@ -833,7 +833,7 @@ class UtilityCode(UtilityCodeBase):
             f"moddict_cname should not be shared: {self}"
 
     @cython.final
-    def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str):
+    def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str, used_by=None):
         code_string = getattr(self, code_type)
         if not code_string:
             return
@@ -842,8 +842,10 @@ class UtilityCode(UtilityCodeBase):
 
         code_string, result_is_module_specific = process_utility_ccode(self, output, code_string)
 
-        code_type_name = code_type if code_type != 'impl' else ''
-        writer.putln(f"/* {self.name}{'.' if code_type_name else ''}{code_type_name} */")
+        used_by = f" (used by {used_by})" if used_by else ''
+        name = f"{self.name}.{code_type}" if code_type != 'impl' else self.name
+
+        writer.putln(f"/* {name}{used_by} */")
 
         if can_be_reused and not result_is_module_specific:
             # can be reused across modules
@@ -868,36 +870,36 @@ class UtilityCode(UtilityCodeBase):
             code.putln(f'static {shared.ret}(*{shared.name})({shared.params}); /*proto*/')
         code.putln()
 
-    def put_code(self, output: "GlobalState") -> None:
+    def put_code(self, globalstate: "GlobalState", used_by=None) -> None:
         has_shared_utility_code = bool(
-            self.shared_utility_functions and output.module_node.scope.context.shared_utility_qualified_name
+            self.shared_utility_functions and globalstate.module_node.scope.context.shared_utility_qualified_name
         )
 
         if self.requires and not has_shared_utility_code:
             for dependency in self.requires:
-                output.use_utility_code(dependency)
+                globalstate.use_utility_code(dependency, used_by=self.name)
 
         if has_shared_utility_code:
-            self._put_shared_function_declarations(output[self.proto_block])
-        output.shared_utility_functions.extend(self.shared_utility_functions)
+            self._put_shared_function_declarations(globalstate[self.proto_block])
+        globalstate.shared_utility_functions.extend(self.shared_utility_functions)
 
         if self.proto:
-            self._put_code_section(output[self.proto_block], output, 'proto')
+            self._put_code_section(globalstate[self.proto_block], globalstate, 'proto', used_by=used_by)
         if not has_shared_utility_code:
-            self._put_code_section(output[self.proto_block], output, 'export')
+            self._put_code_section(globalstate[self.proto_block], globalstate, 'export')
         if self.impl and not has_shared_utility_code:
-            self._put_code_section(output['utility_code_def'], output, 'impl')
+            self._put_code_section(globalstate['utility_code_def'], globalstate, 'impl', used_by=used_by)
         if self.cleanup and Options.generate_cleanup_code:
-            self._put_code_section(output['cleanup_globals'], output, 'cleanup')
+            self._put_code_section(globalstate['cleanup_globals'], globalstate, 'cleanup')
         if self.module_state_decls:
-            self._put_code_section(output['module_state_contents'], output, 'module_state_decls')
+            self._put_code_section(globalstate['module_state_contents'], globalstate, 'module_state_decls')
         if self.module_state_traverse:
-            self._put_code_section(output['module_state_traverse_contents'], output, 'module_state_traverse')
+            self._put_code_section(globalstate['module_state_traverse_contents'], globalstate, 'module_state_traverse')
         if self.module_state_clear:
-            self._put_code_section(output['module_state_clear_contents'], output, 'module_state_clear')
+            self._put_code_section(globalstate['module_state_clear_contents'], globalstate, 'module_state_clear')
 
         if self.init:
-            self._put_init_code_section(output)
+            self._put_init_code_section(globalstate)
 
 
 def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _last_macro_processor = [None]):
@@ -1096,9 +1098,9 @@ class LazyUtilityCode(UtilityCodeBase):
     def __init__(self, callback):
         self.callback = callback
 
-    def put_code(self, globalstate):
+    def put_code(self, globalstate: "GlobalState", used_by=None) -> None:
         utility = self.callback(globalstate.rootwriter)
-        globalstate.use_utility_code(utility)
+        globalstate.use_utility_code(utility, used_by=used_by)
 
 
 class FunctionState:
@@ -2479,7 +2481,7 @@ class GlobalState:
     # Utility code state
     #
 
-    def use_utility_code(self, utility_code):
+    def use_utility_code(self, utility_code, used_by=None):
         """
         Adds code to the C file. utility_code should
         a) implement __eq__/__hash__ for the purpose of knowing whether the same
@@ -2490,7 +2492,7 @@ class GlobalState:
         """
         if utility_code and utility_code not in self.utility_codes:
             self.utility_codes.add(utility_code)
-            utility_code.put_code(self)
+            utility_code.put_code(self, used_by=used_by)
 
     def use_entry_utility_code(self, entry):
         if entry is None:

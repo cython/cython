@@ -3821,9 +3821,9 @@ class ToPyStructUtilityCode(AbstractUtilityCode):
     def __hash__(self):
         return hash(self.header)
 
-    def put_code(self, output):
-        code = output['utility_code_def']
-        proto = output['utility_code_proto']
+    def put_code(self, globalstate, used_by=None):
+        code = globalstate['utility_code_def']
+        proto = globalstate['utility_code_proto']
 
         code.enter_cfunc_scope(self.env.global_scope())
         code.putln("%s {" % self.header)
