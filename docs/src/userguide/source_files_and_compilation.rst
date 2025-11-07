@@ -1346,9 +1346,9 @@ most important to least important:
     Turns on Cython's Limited API support, meaning that one compiled module
     can be used by many Python interpreter versions (at the cost of some performance).
     At this stage many features do not work in the Limited API.  You should set this
-    macro to be the version hex for the
-    minimum Python version you want to support (\>=3.8).  ``0x03090000`` will support
-    Python 3.9 upwards.
+    macro to be the version hex for the minimum Python version you want to support
+    (\>=3.8).  ``0x03090000`` will support Python 3.9 upwards.
+    Cython requires at least Python 3.9 from Cython 3.3 on.
     Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`,
     rather than just a Cython macro, and so it changes what parts of the Python headers
     are visible too.  See :ref:`limited_api` for more details about this feature.

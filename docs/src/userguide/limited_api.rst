@@ -75,7 +75,8 @@ Cython's usage of the Limited API is controlled by setting the ``Py_LIMITED_API`
 when running the C compiler.  This macro should be set to the version-hex for the
 minimum Python version that you want to support.  Useful version-hexes are:
 
-* ``0x03080000`` - Python 3.8 - the minimum version that Cython supports.
+* ``0x03080000`` - Python 3.8 - the minimum version that Cython 3.1 supports.
+* ``0x03090000`` - Python 3.9 - the minimum version that Cython 3.3+ supports.
 * ``0x030B0000`` - Python 3.11 - the first version to support typed memoryviews.
 * ``0x030C0000`` - Python 3.12 - the first version to support vectorcall (performance
   improvement).
