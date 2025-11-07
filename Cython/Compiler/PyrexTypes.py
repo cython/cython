@@ -5005,7 +5005,7 @@ class CythonLockType(PyrexType):
             scope.declare_cfunction(
                     "locked",
                     CFuncType(c_bint_type, [CFuncTypeArg("self", self_type, None)],
-                              nogil=True, exception_value=None),
+                              nogil=True, exception_value=-1),
                     pos=None,
                     defining=1,
                     cname=f"__Pyx_Locks_{self.cname_part}_Locked",

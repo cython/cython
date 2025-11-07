@@ -316,6 +316,7 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 }
 
 static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock) {
+    CYTHON_UNUSED_VAR(lock);
     // PyThread_type_lock doesn't provide a way to check if it's locked
     // without trying to acquire it. We raise NotImplementedError.
     PyGILState_STATE gstate = PyGILState_Ensure();
@@ -370,24 +371,15 @@ static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock
 #define __Pyx_Locks_PyMutex_LockGil(l) PyMutex_Lock(&l)
 #define  __Pyx_Locks_PyMutex_LockNogil(l) PyMutex_Lock(&l)
 
-// For Python 3.13, we need to check if PyMutex_IsLocked is available
+// For Python 3.13+, check if PyMutex_IsLocked is available
 #if PY_VERSION_HEX >= 0x030e00C1
-// Python 3.14+ has PyMutex_IsLocked  
-static CYTHON_INLINE int __Pyx_Locks_PyMutex_Locked(__Pyx_Locks_PyMutex lock) {
-    return PyMutex_IsLocked(&lock);
-}
+// Python 3.14+ has PyMutex_IsLocked API
+#define __Pyx_Locks_PyMutex_Locked(l) PyMutex_IsLocked(&(l))
 #else
-// Python 3.13: Use internal implementation
-// The _Py_LOCKED constant is defined in internal/pycore_lock.h
-#ifndef _Py_LOCKED
-#define _Py_LOCKED 1
-#endif
-
-static CYTHON_INLINE int __Pyx_Locks_PyMutex_Locked(__Pyx_Locks_PyMutex lock) {
-    // Direct implementation from CPython's internal API
-    // This matches _PyMutex_IsLocked from Include/cpython/pylock.h
-    return (lock._bits & _Py_LOCKED) != 0;
-}
+// Python 3.13: Use atomic read of lock bits as per CPython's cpython/lock.h
+// _Py_LOCKED is defined in Include/cpython/lock.h
+#define __Pyx_Locks_PyMutex_Locked(l) \
+    ((int)(_Py_atomic_load_uint8_relaxed(&(l)._bits) & _Py_LOCKED))
 #endif
 
 #else
