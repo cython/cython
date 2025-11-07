@@ -202,7 +202,7 @@
     #undef __PYX_LIMITED_VERSION_HEX
     #define __PYX_LIMITED_VERSION_HEX Py_LIMITED_API
     #if Py_LIMITED_API < 0x03090000
-      #error "Cython 3.3 requires the Python Limited API version to be 3.9 or greater.
+      #error "Cython 3.3 requires the Python Limited API version to be 3.9 or greater."
     #endif
   #endif
   #define CYTHON_COMPILING_IN_PYPY 0
