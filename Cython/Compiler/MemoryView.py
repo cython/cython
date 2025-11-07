@@ -882,7 +882,6 @@ def _get_memoryview_shared_utility_code(shared_utility_qualified_name):
                 memviewslice_declare_code,
                 refcount_utility,
                 atomic_utility,
-                copy_contents_new_utility,
                 ],
     )
 
