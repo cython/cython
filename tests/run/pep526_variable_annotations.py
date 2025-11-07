@@ -195,6 +195,18 @@ def test_subscripted_types():
     print(cython.typeof(b3) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
+if cython.compiled:
+    __doc__ = """
+    >>> test_subscripted_types()
+    dict object
+    dict object
+    list_int object
+    list_int object
+    list object
+    set object
+    """
+    test_subscripted_types.__doc__ = __doc__
+
 
 def test_use_typing_attributes_as_non_annotations():
     """
@@ -244,6 +256,53 @@ def test_use_typing_attributes_as_non_annotations():
     print(name_of(q1), str(q2) in ["typing.Union[typing.FrozenSet, NoneType]", "typing.FrozenSet | None"] or str(q2))
     print(name_of(w1), str(w2) in ["typing.Union[typing.Dict, NoneType]", "typing.Dict | None"] or str(w2))
 
+def test_list_with_str_subscription():
+    """
+    >>> test_list_with_str_subscription()
+    str object
+    str object
+    str object
+    FooBar
+    """
+    a: list[str] = ["Foo"]
+    b: List[str] = ["Bar"]
+    print(cython.typeof(a[0]) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(b[0]) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(a[0] + b[0]) + (" object" if not cython.compiled else ""))
+    print(a[0] + b[0])
+
+def test_list_with_int_subscription():
+    """
+    >>> test_list_with_int_subscription()
+    int
+    int
+    int
+    int
+    3
+    """
+    a: List[cython.int] = [1]
+    b: list[cython.int] = [2]
+    c = a[0] + b[0]
+    print(cython.typeof(a[0]))
+    print(cython.typeof(b[0]))
+    print(cython.typeof(a[0] + b[0]))
+    print(cython.typeof(c))
+    print(c)
+
+@cython.infer_types(True)
+def test_iteration_over_list_with_subscription():
+    """
+    >>> test_iteration_over_list_with_subscription()
+    int
+    int
+    3
+    """
+    b: cython.int = 1
+    a: list[cython.int] = [2]
+    for c in a:
+        print(cython.typeof(c))
+        print(cython.typeof(b + c))
+        print(b + c)
 
 try:
     import numpy.typing as npt
