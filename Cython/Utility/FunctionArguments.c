@@ -157,10 +157,7 @@ static CYTHON_INLINE int __Pyx_CheckKeywordStrings(PyObject *kw); /*proto*/
 // The "kw" argument is either a dict (for METH_VARARGS) or a tuple
 // (for METH_FASTCALL), both non-empty.
 
-static int __Pyx_CheckKeywordStrings(
-    const char* function_name,
-    PyObject *kw)
-{
+static int __Pyx_CheckKeywordStrings(PyObject *kw) {
     // PyPy appears to check keyword types at call time, not at unpacking time.
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyArg_ValidateKeywordArguments)
     CYTHON_UNUSED_VAR(kw);
