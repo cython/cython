@@ -1459,7 +1459,7 @@ class BuiltinObjectType(PyObjectType):
 
     def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
-        self.typeptr_cname = "(%s)" % cname
+        self.cname = cname
         self.objstruct_cname = objstruct_cname
         self.is_gc_simple = name in builtin_types_that_cannot_create_refcycles
         self.builtin_trashcan = name in builtin_types_with_trashcan
@@ -1470,6 +1470,10 @@ class BuiltinObjectType(PyObjectType):
         if is_exception_type_name(name):
             self.is_exception_type = True
             self.require_exact = False
+
+    @property
+    def typeptr_cname(self):
+        return f"({self.cname})"
 
     def set_scope(self, scope):
         self.scope = scope
@@ -4833,6 +4837,13 @@ class PythonTypeConstructorMixin:
     """
     modifier_name = None
     contains_none = False
+    subscribed_types = ()
+
+    def get_subscribed_type(self, index: int):
+        try:
+            return self.subscribed_types[index]
+        except IndexError:
+            return None
 
     def allows_none(self):
         return (
@@ -4840,9 +4851,19 @@ class PythonTypeConstructorMixin:
             self.modifier_name == 'typing.Union' and self.contains_none
         )
 
-    def set_python_type_constructor_name(self, name):
-        # FIXME
-        self.python_type_constructor_name = 'list' if 'list' in name else name
+    @staticmethod
+    def _get_origin(type_name: str) -> str:
+        """Equivalent to typing.get_origin()"""
+        return re.match('[^[]+', type_name).group()
+
+
+    def get_origin(self) -> str:
+        """Equivalent to typing.get_origin()"""
+        return self._get_origin(self.name)
+
+    def set_python_type_constructor_name(self, name: str) -> None:
+        """Function extracts type name. It removes subscribed part of the type."""
+        self.python_type_constructor_name = self._get_origin(name)
 
     def __repr__(self):
         if self.base_type:
@@ -4865,19 +4886,17 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         self.specializations = {}
 
     def specialize_here(self, pos, env, template_values=None):
-        if self.name != 'list' or len(template_values) >= 2:
-            # FIXME: For now only list[TYPE] is supported.
-            return self
-        if template_values and template_values[0] is not None:
+        if template_values and any(tv is not None for tv in template_values) and len(template_values) == 1:
             template_values = tuple(template_values)
             if template_values in self.specializations:
                 return self.specializations[template_values]
-            name = f'list_{template_values[0]}' # FIXME: We should thinkg of better name
+            subscribed_types = ','.join([str(tv) for tv in template_values])
+            name = f'{self.get_origin()}[{subscribed_types}]'
 
-            # FIXME: cname is duplicated also in Builting.py. We should adjust type so we can get it via self.cname
-            typ = BuiltinTypeConstructorObjectType(name=name, cname='&PyList_Type', objstruct_cname='mocny_bojstruct_cname')
-            typ.modifier_name = template_values
-            self.scope.declare_type(name, typ, pos, cname='list')
+            # FIXME: Fix objstruct_cname
+            typ = BuiltinTypeConstructorObjectType(name=name, cname=self.cname, objstruct_cname='mocny_bojstruct_cname')
+            typ.subscribed_types = tuple(template_values)
+            self.scope.declare_type(name, typ, pos, cname=typ.cname)
             typ.scope = self.scope
             self.specializations[template_values] = typ
             return typ
@@ -4887,24 +4906,23 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
 
     def assignable_from(self, src_type):
         if self == src_type:
-            if self.modifier_name and src_type.modifier_name and self.modifier_name[0].assignable_from(src_type.modifier_name[0]):
+            if (sc := self.get_subscribed_type(0)) and (src_sc := src_type.get_subscribed_type(0)) and sc.assignable_from(src_sc):
                 return True
-            if not self.modifier_name and not src_type.modifier_name:
+            if not self.subscribed_types and not src_type.subscribed_types:
                 return True
-            if not self.modifier_name and src_type.modifier_name:
+            if not self.subscribed_types and src_type.subscribed_types:
                 return True
-            if self.modifier_name and not src_type.modifier_name:
+            if self.subscribed_types and not src_type.subscribed_types:
                 # FIXME we should not support assigning not known subtype to known subtype
                 return True
-            if self.modifier_name and src_type.modifier_name[0] == self:
+            if src_type.get_subscribed_type(0) == self:
                 # Assign list[list[BAR] to list[BAR]
                 return True
             return False
         return super().assignable_from(src_type)
 
     def type_check_function(self, exact=True):
-        # FIXME: This function was just copyied because it generates wrong type_check due type_name. To be decided how to fix it properly
-        type_name = 'list' if 'list' in self.name else self.name
+        type_name = self.get_origin()
         if type_name in _special_type_check_functions:
             type_check = _special_type_check_functions[type_name]
         elif self.is_exception_type:
@@ -4915,22 +4933,14 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             type_check += 'Exact'
         return type_check
 
-
-
     def __eq__(self, other):
-        name = lambda name: 'list' if 'list' in name else name # FIXME: this is workaround
-        return isinstance(other, BuiltinTypeConstructorObjectType) and name(self.name) == name(other.name)
+        return isinstance(other, BuiltinTypeConstructorObjectType) and self.get_origin() == other.get_origin()
 
     def __ne__(self, other):
-        name = lambda name: 'list' if 'list' in name else name # FIXME: this is workaround
-        return not (isinstance(other, BuiltinTypeConstructorObjectType) and name(self.name) == name(other.name))
+        return not (isinstance(other, BuiltinTypeConstructorObjectType) and self.get_origin() == other.get_origin())
 
     def __hash__(self):
-        name = lambda name: 'list' if 'list' in name else name # FIXME: this is workaround
-        # FIXME: type should be included in hash to avoid clasing with string
-        return hash(name(self.name))
-
-
+        return hash((type(self), self.get_origin()))
 
 
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):

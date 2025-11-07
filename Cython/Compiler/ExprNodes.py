@@ -43,6 +43,7 @@ from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
     unicode_type, bytes_type, bytearray_type,
     slice_type, sequence_types as builtin_sequence_types, memoryview_type,
+    subscription_aware_types
 )
 from . import Builtin
 from . import Symtab
@@ -105,8 +106,9 @@ coercion_error_dict = {
 
 def find_coercion_error(type_tuple, default, env):
     err = coercion_error_dict.get(type_tuple)
-    if err is None and type_tuple[0] == list_type and type_tuple[0].modifier_name and type_tuple[1] == list_type and type_tuple[1].modifier_name:
-        return find_coercion_error((type_tuple[0].modifier_name[0], type_tuple[1].modifier_name[0]), default, env)
+    if err is None and type_tuple[0] in subscription_aware_types and (sub_typ0 := type_tuple[0].get_subscribed_type(0)) and \
+       type_tuple[1] in subscription_aware_types and (sub_typ1 := type_tuple[1].get_subscribed_type(0)):
+        return find_coercion_error((sub_typ0, sub_typ1), default, env)
     if err is None:
         return default
     elif (env.directives['c_string_encoding'] and
@@ -3146,8 +3148,8 @@ class IteratorNode(ScopedExprNode):
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
-        if sequence_type == list_type and sequence_type.modifier_name:
-            return sequence_type.modifier_name[0]
+        if sequence_type in subscription_aware_types and (sub_type := sequence_type.get_subscribed_type(0)):
+            return sub_type
         if sequence_type.is_array or sequence_type.is_ptr:
             return sequence_type
         elif sequence_type.is_cpp_class:
@@ -4197,8 +4199,8 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
-        if base_type == list_type and base_type.modifier_name:
-            return base_type.modifier_name[0]
+        if base_type in subscription_aware_types and (sub_type := base_type.get_subscribed_type(0)):
+            return sub_type
 
         index_type = self.index.infer_type(env)
         if index_type and index_type.is_int or isinstance(self.index, IntNode):
@@ -4338,9 +4340,9 @@ class IndexNode(_IndexingBaseNode):
                 self.base = self.base.coerce_to_pyobject(env)
                 base_type = self.base.type
 
-        if base_type == list_type and base_type.modifier_name:
+        if base_type in subscription_aware_types and (sub_type := base_type.get_subscribed_type(0)):
             self.type = base_type
-            self = self.coerce_to(base_type.modifier_name[0], env)
+            self = self.coerce_to(sub_type, env)
             return self
         if base_type.is_pyobject:
             return self.analyse_as_pyobject(env, is_slice, getting, setting)
