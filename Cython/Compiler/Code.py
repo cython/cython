@@ -738,6 +738,8 @@ class UtilityCode(UtilityCodeBase):
         self.file = file
         self.export = export
         self.shared_utility_functions = self.parse_export_functions(export) if export else []
+        if export:
+            self._validate_suitable_for_sharing()
 
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
@@ -876,7 +878,6 @@ class UtilityCode(UtilityCodeBase):
                 output.use_utility_code(dependency)
 
         if has_shared_utility_code:
-            self._validate_suitable_for_sharing()
             self._put_shared_function_declarations(output[self.proto_block])
         output.shared_utility_functions.extend(self.shared_utility_functions)
 

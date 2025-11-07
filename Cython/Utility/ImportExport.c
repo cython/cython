@@ -12,7 +12,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, P
 
 /////////////// ImportImpl.export ///////////////
 
-static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level, PyObject *moddict); /*proto*/
+static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, PyObject *moddict, int level); /*proto*/
 
 /////////////// ImportImpl ///////////////
 //@requires: StringTools.c::IncludeStringH
@@ -91,7 +91,7 @@ not_found:
     return 0;
 }
 
-static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level, PyObject *moddict) {
+static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, PyObject *moddict, int level) {
     PyObject *module = 0;
     PyObject *empty_dict = 0;
     PyObject *from_list = 0;
