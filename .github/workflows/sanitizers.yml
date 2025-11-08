@@ -5,6 +5,7 @@ on:
   schedule:
     # Run once a week
     - cron: "0 0 * * 1"
+  pull_request:  # Delete me - just to test it
 
 permissions:
   contents: read # to fetch code (actions/checkout)
