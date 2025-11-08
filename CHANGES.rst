@@ -2,6 +2,23 @@
 Cython Changelog
 ================
 
+3.2.1 (2025-11-??)
+==================
+
+Bugs fixed
+----------
+
+* Relative imports could fail in 3.2.0 if the shared utility module is used.
+  (Github issue :issue:`7290`)
+
+* Using the shared utility module left an unused C function in user modules with memoryviews.
+  To make debugging this kind of issue easier, Cython now leaves "used by …" markers in the
+  generated C files that indicate why a specific piece of utility code was included.
+  (Github issue :issue:`7293`)
+
+* Includes all fixes as of Cython 3.1.7.
+
+
 3.2.0 (2025-11-05)
 ==================
 
@@ -488,11 +505,16 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.7 (2025-??-??)
+3.1.7 (2025-11-??)
 ==================
 
 Bugs fixed
 ----------
+
+* Unicode characters formatted from C integers with padding, as in ``f"{value:XXc}"``,
+  could result in invalid Python string objects since Cython 3.1.0.
+  Also, lone surrogates failed to format in this way.
+  (Github issue :issue:`7298`)
 
 * Cython incorrectly called ``PyList_GetItemRef()`` in PyPy and GraalPython before Py3.13.
   (Github issue :issue:`7269`)
