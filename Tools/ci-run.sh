@@ -146,7 +146,7 @@ if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
   # (off by default) 5045 warns that the compiler will insert Spectre mitigations for memory load if the /Qspectre switch is specified
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
   CFLAGS="-Od /Z7 /MP /W4 /wd4711 /wd4127 /wd5045 /wd4820"
-elif [[ $OSTYPE == "darwin"* ]]; then
+elif [[ $OSTYPE == "darwin"* || CC == "clang" ]]; then
   CFLAGS="-O0 -g2 -Wall -Wextra -Wcast-qual -Wconversion -Wdeprecated -Wunused-result"
 else
   CFLAGS="-Og -g2 -Wall -Wextra -Wcast-qual -Wconversion -Wdeprecated -Wunused-result"
@@ -160,6 +160,10 @@ if [[ $BACKEND == *"cpp"* && $ODD_VERSION == "1" ]]; then
     CFLAGS="$CFLAGS -UNDEBUG"
 elif [[ $ODD_VERSION == "0" ]]; then
     CFLAGS="$CFLAGS -UNDEBUG"
+fi
+
+if [[ "$SANITIZER_CFLAGS" ]]
+    CFLAGS="$CFLAGS $SANITIZER_CFLAGS"
 fi
 
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then

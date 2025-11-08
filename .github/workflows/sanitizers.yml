@@ -1,0 +1,21 @@
+name: Sanitizers
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run once a week
+    - cron: "0 0 * * 1"
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+jobs:
+  sanitizers:
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined, memory]
+    uses: ./.github/workflows/compiled_python.yml
+    with:
+      compiler: clang
+      sanitize: ${{ matrix.sanitizer }}

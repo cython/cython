@@ -1,0 +1,70 @@
+name: Run with compiled Python
+
+on:
+  workflow_call:
+    inputs:
+      sanitize:
+        required: false
+        default:
+        type: string
+      compiler:
+        required: false
+        default:
+        type: string
+
+jobs:
+  pydebug:
+    runs-on: ubuntu-latest
+
+    env:
+      BACKEND: c,cpp
+      PYTHON_VERSION: 3.x-dev
+      CONFIGURE_ARG: --with-pydebug
+      SANITIZER_CFLAGS:
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set compiler
+        if: ${{inputs.compiler}}
+        run: |
+          echo CC=${{inputs.compiler}} >> $GITHUB_ENV
+          echo CXX=${{inputs.compiler}}  >> $GITHUB_ENV
+
+      - name: Set up sanitizer args
+        if: ${{inputs.sanitize}}
+        run: |
+          if [[ ${{inputs.sanitize}} == "address" ]]
+            echo CONFIGURE_ARG="--with-address-sanitizer --without-pymalloc" >> $GITHUB_ENV
+            echo SANITIZER_CFLAGS="-fsanitize=address" >> $GITHUB_ENV
+          elif [[ ${{inputs.sanitize}} == "memory" ]]
+            echo CONFIGURE_ARG=--with-memory-sanitizer >> $GITHUB_ENV
+            echo SANITIZER_CFLAGS="-fsanitize=memory" >> $GITHUB_ENV
+          elif [[ ${{inputs.sanitize}} == "undefined" ]]
+            echo CONFIGURE_ARG=with-undefined-behavior-sanitizer >> $GITHUB_ENV
+            echo SANITIZER_CFLAGS="-fsanitize=undefined" >> $GITHUB_ENV
+          fi  # TODO thread sanitizer
+          # Even running Python like this is slow, so only run a subset of tests
+          # (i.e. compile-only tests tell us nothing)
+          echo EXCLUDE="run[.] memoryview[.] --no-examples" >> $GITHUB_ENV
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -y -q
+          sudo apt-get install -y -q libbz2-dev lzma-dev libreadline-dev libgmp-dev
+
+      - name: Build Python
+        run: |
+          git clone https://github.com/python/cpython/ cpython_main
+          cd cpython_main
+          ./configure ${CONFIGURE_ARG} --prefix=${GITHUB_WORKSPACE}/cpython_install CFLAGS="-O2"
+          make -j8
+          make install
+          ${GITHUB_WORKSPACE}/cpython_install/bin/python3 -m venv ${GITHUB_WORKSPACE}/venv_pydebug
+
+      - name: Run CI
+        run: |
+          cd "${GITHUB_WORKSPACE}/"
+          source venv_pydebug/bin/activate
+          bash ./Tools/ci-run.sh
