@@ -20,3 +20,4 @@ jobs:
     with:
       compiler: clang
       sanitize: ${{ matrix.sanitizer }}
+      name: ${{ matrix.sanitizer }}

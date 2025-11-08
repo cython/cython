@@ -11,9 +11,13 @@ on:
         required: false
         default:
         type: string
+      name:
+        required: true
+        type: string
 
 jobs:
-  pydebug:
+  do_run:
+    name: ${{inputs.name}}
     runs-on: ubuntu-latest
 
     env:
@@ -35,13 +39,13 @@ jobs:
       - name: Set up sanitizer args
         if: ${{inputs.sanitize}}
         run: |
-          if [[ ${{inputs.sanitize}} == "address" ]]
+          if [[ ${{inputs.sanitize}} == "address" ]]; then
             echo CONFIGURE_ARG="--with-address-sanitizer --without-pymalloc" >> $GITHUB_ENV
             echo SANITIZER_CFLAGS="-fsanitize=address" >> $GITHUB_ENV
-          elif [[ ${{inputs.sanitize}} == "memory" ]]
+          elif [[ ${{inputs.sanitize}} == "memory" ]]; then
             echo CONFIGURE_ARG=--with-memory-sanitizer >> $GITHUB_ENV
             echo SANITIZER_CFLAGS="-fsanitize=memory" >> $GITHUB_ENV
-          elif [[ ${{inputs.sanitize}} == "undefined" ]]
+          elif [[ ${{inputs.sanitize}} == "undefined" ]]; then
             echo CONFIGURE_ARG=with-undefined-behavior-sanitizer >> $GITHUB_ENV
             echo SANITIZER_CFLAGS="-fsanitize=undefined" >> $GITHUB_ENV
           fi  # TODO thread sanitizer

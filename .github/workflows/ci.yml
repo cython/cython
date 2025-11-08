@@ -294,6 +294,8 @@ jobs:
 
   pydebug:
     uses: ./.github/workflows/compiled_python.yml
+    with:
+      name: pydebug
 
   pycoverage:
     runs-on: ubuntu-22.04
