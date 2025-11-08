@@ -530,15 +530,29 @@ def format_decoded_bytes(bytes value):
 )
 def format_uchar(int x):
     """
-    >>> format_uchar(0)
-    ('\\x00', '           \\x00', '       \\x00')
-    >>> format_uchar(13)
-    ('\\r', '           \\r', '       \\r')
+    >>> char, right8, right12, _ = format_uchar(0)
+    >>> (char, right8, right12)
+    ('\\x00', '       \\x00', '           \\x00')
+    >>> char, right8, right12, _ = format_uchar(13)
+    >>> (char, right8, right12)
+    ('\\r', '       \\r', '           \\r')
+
+    >>> for c in range(1114111 + 1):
+    ...     char, right8, right12, right252 = format_uchar(c)
+    ...     assert right8[:-1] == ' ' * 7, (c, right8)
+    ...     assert char == right8[-1], (char, right8)
+    ...     assert right12[:-1] == ' ' * 11, (c, right12)
+    ...     assert char == right12[-1], (char, right12)
+    ...     assert right252[:-1] == ' ' * 251, (c, right252)
+    ...     assert char == right252[-1], (char, right252)
+    ...     assert ord(char) == c, (c, char)
+
     >>> format_uchar(1114111 + 1)
     Traceback (most recent call last):
     OverflowError: %c arg not in range(0x110000)
     """
-    return f"{x:c}", f"{x:12c}", f"{x:>8c}"
+    # 252 is just outside the fast path size (padding > 250 characters).
+    return f"{x:c}", f"{x:>8c}", f"{x:12c}", f"{x:>252c}"
 
 
 @cython.test_fail_if_path_exists(
