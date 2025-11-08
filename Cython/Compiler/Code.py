@@ -738,6 +738,8 @@ class UtilityCode(UtilityCodeBase):
         self.file = file
         self.export = export
         self.shared_utility_functions = self.parse_export_functions(export) if export else []
+        if export:
+            self._validate_suitable_for_sharing()
 
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
@@ -823,6 +825,12 @@ class UtilityCode(UtilityCodeBase):
 
             self.specialize_list.append(s)
             return s
+
+    def _validate_suitable_for_sharing(self):
+        code_string = getattr(self, "impl")
+        if not code_string: return
+        assert "NAMED_CGLOBAL(moddict_cname)" not in code_string, \
+            f"moddict_cname should not be shared: {self}"
 
     @cython.final
     def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str, used_by=None):
