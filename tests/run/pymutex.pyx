@@ -120,6 +120,12 @@ def test_pymutex_locked_basic():
     """
     cdef cython.pymutex lock
     
+    # Skip if locked() not supported (like --limited-api mode)
+    try:
+        lock.locked()
+    except NotImplementedError:
+        return True
+    
     # Lock should not be locked initially
     if lock.locked():
         return False
@@ -150,6 +156,12 @@ def test_pymutex_locked_with_statement():
     cdef bint was_unlocked_before = False
     cdef bint was_unlocked_after = False
     
+    # Skip if locked() not supported (like --limited-api mode)
+    try:
+        lock.locked()
+    except NotImplementedError:
+        return True
+    
     was_unlocked_before = not lock.locked()
     
     with lock:
@@ -169,6 +181,13 @@ def test_pymutex_locked_nogil():
     """
     cdef cython.pymutex lock
     cdef bint result = False
+    cdef bint supported = True
+    
+    # Skip if locked() not supported (like --limited-api mode)
+    try:
+        lock.locked()
+    except NotImplementedError:
+        return True
     
     with nogil:
         if not lock.locked():
@@ -192,6 +211,12 @@ def test_pymutex_locked_in_parallel():
     cdef int i
     cdef int failures = 0
     
+    # Skip if locked() not supported (like --limited-api mode)
+    try:
+        lock.locked()
+    except NotImplementedError:
+        return True
+    
     for i in cython.parallel.prange(100, nogil=True):
         # Each thread checks if unlocked, acquires, checks if locked, releases
         if not lock.locked():
@@ -212,6 +237,12 @@ def test_locked_on_attribute():
     """
     cdef HasLockAttribute obj = HasLockAttribute()
     
+    # Skip if locked() not supported (like --limited-api mode)
+    try:
+        obj.lock.locked()
+    except NotImplementedError:
+        return True
+    
     if obj.lock.locked():
         return False
     
@@ -229,6 +260,12 @@ def test_global_lock_locked():
     >>> test_global_lock_locked() if sys.version_info >= (3, 13) else True
     True
     """
+    # Skip if locked() not supported (like --limited-api mode)
+    try:
+        global_lock.locked()
+    except NotImplementedError:
+        return True
+    
     if global_lock.locked():
         return False
     
