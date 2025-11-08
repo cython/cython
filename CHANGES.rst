@@ -8,6 +8,14 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Relative imports could fail in 3.2.0 if the shared utility module is used.
+  (Github issue :issue:`7290`)
+
+* Using the shared utility module left an unused C function in user modules with memoryviews.
+  To make debugging this kind of issue easier, Cython now leaves "used by …" markers in the
+  generated C files that indicate why a specific piece of utility code was included.
+  (Github issue :issue:`7293`)
+
 * Includes all fixes as of Cython 3.1.7.
 
 
