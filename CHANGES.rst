@@ -8,7 +8,7 @@ Cython Changelog
 Bugs fixed
 ----------
 
-* Includes all fixes as of Cython 3.1.6.
+* Includes all fixes as of Cython 3.1.7.
 
 
 3.2.0 (2025-11-05)
