@@ -4,13 +4,12 @@ requires = ["setuptools"]
 [tool.cibuildwheel]
 build-verbosity = 2
 skip = [
-    "pp*", "gp*", "cp31?t-*", "cp36*", "cp37*",
-    # The platforms below are non-core platforms that we're providing
-    # Stable ABI (>3.9) wheels to. Python 3.8 is excluded and will use
-    # pure-Python wheels. cibuildwheel will identify Stable ABI wheels and
-    # only build them for the one Python version. It will test them for all
-    # Python versions though.
-    "cp38*i686", "cp38*win32", "cp38*win_arm64", "cp38-macosx_x86_64", "cp38*armv7l", "cp38*musllinux*"
+    # Unsupported versions:
+    "cp36*", "cp37*", "cp38*",
+    # These platforms are served with the generic Python wheel:
+    "pp*",
+    "gp*",
+    "cp31?t-*",
 ]
 enable = ["cpython-prerelease"]
 # As a quick sanity check, run Cython on some of its own sources
