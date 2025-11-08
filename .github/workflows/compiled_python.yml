@@ -46,7 +46,7 @@ jobs:
             echo CONFIGURE_ARG=--with-memory-sanitizer >> $GITHUB_ENV
             echo SANITIZER_CFLAGS="-fsanitize=memory" >> $GITHUB_ENV
           elif [[ ${{inputs.sanitize}} == "undefined" ]]; then
-            echo CONFIGURE_ARG=with-undefined-behavior-sanitizer >> $GITHUB_ENV
+            echo CONFIGURE_ARG=--with-undefined-behavior-sanitizer >> $GITHUB_ENV
             echo SANITIZER_CFLAGS="-fsanitize=undefined" >> $GITHUB_ENV
           fi  # TODO thread sanitizer
           # Even running Python like this is slow, so only run a subset of tests
