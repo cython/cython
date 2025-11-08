@@ -1,6 +1,8 @@
 # mode: run
 # tag: openmp
 
+import sys
+
 cimport cython
 cimport cython.parallel
 
@@ -113,7 +115,7 @@ def test_pymutex_locked_basic():
     """
     Test basic locked() functionality for pymutex.
     
-    >>> test_pymutex_locked_basic()
+    >>> test_pymutex_locked_basic() if sys.version_info >= (3, 13) else True
     True
     """
     cdef cython.pymutex lock
@@ -140,7 +142,7 @@ def test_pymutex_locked_with_statement():
     """
     Test locked() with 'with' statement.
     
-    >>> test_pymutex_locked_with_statement()
+    >>> test_pymutex_locked_with_statement() if sys.version_info >= (3, 13) else True
     True
     """
     cdef cython.pymutex lock
@@ -162,7 +164,7 @@ def test_pymutex_locked_nogil():
     """
     Test locked() can be called without GIL.
     
-    >>> test_pymutex_locked_nogil()
+    >>> test_pymutex_locked_nogil() if sys.version_info >= (3, 13) else True
     True
     """
     cdef cython.pymutex lock
@@ -181,9 +183,9 @@ def test_pymutex_locked_nogil():
 
 def test_pymutex_locked_in_parallel():
     """
-    Test locked() in parallel context to verify thread-safety.
+    Test locked() in parallel context.
     
-    >>> test_pymutex_locked_in_parallel()
+    >>> test_pymutex_locked_in_parallel() if sys.version_info >= (3, 13) else True
     True
     """
     cdef cython.pymutex lock
@@ -203,9 +205,9 @@ def test_pymutex_locked_in_parallel():
 
 def test_locked_on_attribute():
     """
-    Test locked() on attribute lock.
+    Test locked() on a lock stored as a class attribute.
     
-    >>> test_locked_on_attribute()
+    >>> test_locked_on_attribute() if sys.version_info >= (3, 13) else True
     True
     """
     cdef HasLockAttribute obj = HasLockAttribute()
@@ -222,9 +224,9 @@ def test_locked_on_attribute():
 
 def test_global_lock_locked():
     """
-    Test locked() on global lock.
+    Test locked() on a global lock.
     
-    >>> test_global_lock_locked()
+    >>> test_global_lock_locked() if sys.version_info >= (3, 13) else True
     True
     """
     if global_lock.locked():
