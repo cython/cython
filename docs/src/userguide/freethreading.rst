@@ -119,7 +119,8 @@ Cython provides ``cython.pymutex`` as a more robust lock type.  Unlike
 ask it to (at the cost of losing ``critical_section``'s inbuilt protection against
 deadlocks).
 
-``cython.pymutex`` supports three operations: ``acquire``, ``release``, and ``locked``.
+``cython.pymutex`` supports three operations: ``acquire``, ``release``,
+and the predicate ``locked`` (in Python 3.13+).
 ``cython.pymutex`` can also be used in a ``with`` statement::
 
   cdef cython.pymutex l
