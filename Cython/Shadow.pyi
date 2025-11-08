@@ -270,7 +270,9 @@ NULL: pointer[Any]
 # Lock types for synchronization
 class pymutex:
     """
-    A low-cost mutex lock type available on Python 3.13+.
+    A low-cost mutex lock type.
+    In Python 3.13+, it uses the fast PyMutex implementation. In older Python versions,
+    it falls back to the heavier "PyThread_type_lock".
     Can be used in 'with' statements and supports nogil context.
     """
     def acquire(self) -> None: ...
