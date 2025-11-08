@@ -102,7 +102,7 @@ if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" ]]; then
 fi
 if [[ $PYTHON_VERSION != *"-dev" ]]; then
   python -m pip install --pre -r test-requirements.txt || exit 1
-elif [[ ! "$SANITIZER_CFLAGS" ]]
+elif [[ ! "$SANITIZER_CFLAGS" ]]; then
   # Install packages one by one, allowing failures due to missing recent wheels.
   cat test-requirements.txt | while read package; do python -m pip install --pre --only-binary ":all:" "$package" || true; done
 fi
