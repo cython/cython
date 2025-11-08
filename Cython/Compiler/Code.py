@@ -2232,6 +2232,9 @@ class GlobalState:
             max_line = max(max_line, def_node.pos[1])
 
         w.put(textwrap.dedent(f"""\
+        #ifdef __cplusplus
+        namespace {{
+        #endif
         typedef struct {{
             unsigned int argcount : {max_func_args.bit_length()};
             unsigned int num_posonly_args : {max_posonly_args.bit_length()};
@@ -2240,6 +2243,9 @@ class GlobalState:
             unsigned int flags : {max_flags.bit_length()};
             unsigned int first_line : {max_line.bit_length()};
         }} __Pyx_PyCode_New_function_description;
+        #ifdef __cplusplus
+        }} /* anonymous namespace */
+        #endif
         """))
 
         self.use_utility_code(UtilityCode.load_cached("NewCodeObj", "ModuleSetupCode.c"))
