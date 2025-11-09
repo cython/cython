@@ -2380,7 +2380,6 @@ class UnicodeTest(CommonTest,
         self.assertEqual(args[0], text)
         self.assertEqual(len(args), 1)
 
-    @unittest.skipIf(sys.version_info < (3, 8), 'resize test requires Py3.8+')
     @support.cpython_only
     def test_resize(self):
         from _testcapi import getargs_u

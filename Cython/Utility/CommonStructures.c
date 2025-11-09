@@ -14,7 +14,6 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
 static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyTypeObject *metaclass, PyObject *module, PyType_Spec *spec, PyObject *bases);
 
 /////////////// FetchCommonType ///////////////
-//@requires:ExtensionTypes.c::FixUpExtensionType
 //@requires: FetchSharedCythonModule
 //@requires:StringTools.c::IncludeStringH
 //@requires:Builtins.c::dict_setdefault
@@ -24,12 +23,8 @@ static PyObject* __Pyx_PyType_FromMetaclass(PyTypeObject *metaclass, PyObject *m
     PyObject *result = __Pyx_PyType_FromModuleAndSpec(module, spec, bases);
     if (result && metaclass) {
         PyObject *old_tp = (PyObject*)Py_TYPE(result);
-    Py_INCREF((PyObject*)metaclass);
-#if __PYX_LIMITED_VERSION_HEX >= 0x03090000
+        Py_INCREF((PyObject*)metaclass);
         Py_SET_TYPE(result, metaclass);
-#else
-        result->ob_type = metaclass;
-#endif
         Py_DECREF(old_tp);
     }
     return result;
@@ -110,7 +105,6 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyTypeObject *metaclass, PyOb
         CYTHON_USE_MODULE_STATE ? module : abi_module,
         spec, bases);
     if (unlikely(!cached_type)) goto bad;
-    if (unlikely(__Pyx_fix_up_extension_type_from_spec(spec, (PyTypeObject *) cached_type) < 0)) goto bad;
 
     new_cached_type = __Pyx_PyDict_SetDefault(abi_module_dict, py_object_name, cached_type);
     if (unlikely(new_cached_type != cached_type)) {
