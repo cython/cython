@@ -4340,12 +4340,12 @@ class IndexNode(_IndexingBaseNode):
                 self.base = self.base.coerce_to_pyobject(env)
                 base_type = self.base.type
 
-        if base_type in subscription_aware_types and (sub_type := base_type.get_subscribed_type(0)):
-            self.type = base_type
-            self = self.coerce_to(sub_type, env)
-            return self
         if base_type.is_pyobject:
-            return self.analyse_as_pyobject(env, is_slice, getting, setting)
+            self.analyse_as_pyobject(env, is_slice, getting, setting)
+            if base_type in subscription_aware_types and (sub_type := base_type.get_subscribed_type(0)):
+                self.type = base_type
+                self = self.coerce_to(sub_type, env)
+            return self
         elif base_type.is_ptr or base_type.is_array:
             return self.analyse_as_c_array(env, is_slice)
         elif base_type.is_cpp_class:
