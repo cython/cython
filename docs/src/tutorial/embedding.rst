@@ -6,7 +6,6 @@
 Embedding Cython modules in C/C++ applications
 **********************************************
 
-**This is a stub documentation page. PRs very welcome.**
 
 Quick links:
 
@@ -14,10 +13,10 @@ Quick links:
 
 * `Cython Wiki <https://github.com/cython/cython/wiki/EmbeddingCython>`_
 
-* See the ``--embed`` option to the ``cython`` and ``cythonize`` frontends
-  for generating a C main function and the
-  `cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_
-  script for merging multiple extension modules into one library.
+* See the :option:`cython --embed` option to the ``cython`` and ``cythonize`` frontends
+  for generating a C main function. For embedding multiple modules, the previously used
+  `cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_ script
+  has been superseded by the :option:`cython --embed-modules` option.
 
 * `Embedding demo program <https://github.com/cython/cython/tree/master/Demos/embed>`_
 
@@ -46,7 +45,7 @@ modules for later imports.  An example is given in the documentation of the modu
 init function that is linked above.
 
 
-Embedding example code
+Embedding a single module
 ======================
 
 The following is a simple example that shows the main steps for embedding a
@@ -69,19 +68,61 @@ The C ``main()`` function of your program could look like this:
 <https://docs.python.org/3/extending/extending.html#the-module-s-method-table-and-initialization-function>`_.)
 
 Instead of writing such a ``main()`` function yourself, you can also let
-Cython generate one into your module's C file with the ``cython --embed``
-option.  Or use the
-`cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_
-script to embed multiple modules.  See the
-`embedding demo program <https://github.com/cython/cython/tree/master/Demos/embed>`_
-for a complete example setup.
+Cython generate one into your module's C file with the :option:`cython --embed` option.
 
-Be aware that your application will not contain any external dependencies that
-you use (including Python standard library modules) and so may not be truly portable.
-If you want to generate a portable application we recommend using a specialized
-tool (e.g. `PyInstaller <https://pyinstaller.org/en/stable/>`_
-or `cx_freeze <https://cx-freeze.readthedocs.io/en/latest/index.html>`_) to find and
-bundle these dependencies.
+
+Embedding multiple modules
+==========================
+
+To statically link multiple Cython modules into a single executable, you must use the
+:option:`cython --embed-modules` option alongside the :option:`cython --embed` option.
+This option enables the necessary C-level initialisation calls (via :c:func:`PyImport_AppendInittab`)
+for all listed modules within the main program's C code.
+
+The argument is a comma-separated list of the module names you wish to embed:
+
+.. code-block:: bash
+
+    cython --embed --embed-modules=lcmath,another_module main_script.pyx
+
+The full process for static linking, assuming you have ``lcmath.pyx`` and ``combinatorics.pyx``,
+involves these steps:
+
+First, generate the main C code(which includes the ``main()`` function and module initialisers):
+
+.. code-block:: bash
+
+        cython --embed --embed-modules=lcmath combinatorics.pyx  # creates combinatorics.c
+
+Next, generate the dependency C code:
+
+.. code-block:: bash
+
+        cython lcmath.pyx  # creates lcmath.c
+
+Then, compile the object files:
+
+.. code-block:: bash
+
+        gcc -c combinatorics.c $(python3-config --cflags) -o combinatorics.o # compile combinatorics
+        gcc -c lcmath.c $(python3-config --cflags) -o lcmath.o # compile lcmath
+
+Finally, statically link the executable (linking the object files and the Python library):
+
+.. code-block:: bash
+
+        gcc lcmath.o combinatorics.o -o combinatorics $(python3-config --ldflags) #link them together statically
+
+
+.. note::
+    **Limitations on Portability**
+
+    Be aware that your application will not contain any external dependencies that
+    you use (including Python standard library modules) and so may not be truly portable.
+    If you want to generate a portable application we recommend using a specialized
+    tool (e.g. `PyInstaller <https://pyinstaller.org/en/stable/>`_
+    or `cx_freeze <https://cx-freeze.readthedocs.io/en/latest/index.html>`_) to find and
+    bundle these dependencies.
 
 Troubleshooting
 ===============
