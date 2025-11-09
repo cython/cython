@@ -6,7 +6,13 @@ import sys
 cimport cython
 cimport cython.parallel
 
+include "skip_limited_api_helper.pxi"
+
 cdef cython.pymutex global_lock
+
+def _locked_available():
+    """Check if locked() is available (Python 3.13+ and not in Limited API mode)"""
+    return sys.version_info >= (3, 13) and not CYTHON_COMPILING_IN_LIMITED_API
 
 cdef void hide_the_reduction(int *x) noexcept nogil:
     x[0] = x[0] + 1
@@ -115,16 +121,10 @@ def test_pymutex_locked_basic():
     """
     Test basic locked() functionality for pymutex.
     
-    >>> test_pymutex_locked_basic() if sys.version_info >= (3, 13) else True
+    >>> test_pymutex_locked_basic() if _locked_available() else True
     True
     """
     cdef cython.pymutex lock
-    
-    # Skip if locked() not supported (like --limited-api mode)
-    try:
-        lock.locked()
-    except NotImplementedError:
-        return True
     
     # Lock should not be locked initially
     if lock.locked():
@@ -146,21 +146,15 @@ def test_pymutex_locked_basic():
 
 def test_pymutex_locked_with_statement():
     """
-    Test locked() with 'with' statement.
+    Test locked() with context manager (with statement).
     
-    >>> test_pymutex_locked_with_statement() if sys.version_info >= (3, 13) else True
+    >>> test_pymutex_locked_with_statement() if _locked_available() else True
     True
     """
     cdef cython.pymutex lock
     cdef bint was_locked_inside = False
     cdef bint was_unlocked_before = False
     cdef bint was_unlocked_after = False
-    
-    # Skip if locked() not supported (like --limited-api mode)
-    try:
-        lock.locked()
-    except NotImplementedError:
-        return True
     
     was_unlocked_before = not lock.locked()
     
@@ -174,20 +168,13 @@ def test_pymutex_locked_with_statement():
 
 def test_pymutex_locked_nogil():
     """
-    Test locked() can be called without GIL.
+    Test locked() in nogil context.
     
-    >>> test_pymutex_locked_nogil() if sys.version_info >= (3, 13) else True
+    >>> test_pymutex_locked_nogil() if _locked_available() else True
     True
     """
     cdef cython.pymutex lock
     cdef bint result = False
-    cdef bint supported = True
-    
-    # Skip if locked() not supported (like --limited-api mode)
-    try:
-        lock.locked()
-    except NotImplementedError:
-        return True
     
     with nogil:
         if not lock.locked():
@@ -202,20 +189,14 @@ def test_pymutex_locked_nogil():
 
 def test_pymutex_locked_in_parallel():
     """
-    Test locked() in parallel context.
+    Test locked() in parallel prange context.
     
-    >>> test_pymutex_locked_in_parallel() if sys.version_info >= (3, 13) else True
+    >>> test_pymutex_locked_in_parallel() if _locked_available() else True
     True
     """
     cdef cython.pymutex lock
     cdef int i
     cdef int failures = 0
-    
-    # Skip if locked() not supported (like --limited-api mode)
-    try:
-        lock.locked()
-    except NotImplementedError:
-        return True
     
     for i in cython.parallel.prange(100, nogil=True):
         # Each thread checks if unlocked, acquires, checks if locked, releases
@@ -230,18 +211,12 @@ def test_pymutex_locked_in_parallel():
 
 def test_locked_on_attribute():
     """
-    Test locked() on a lock stored as a class attribute.
+    Test locked() on a lock stored as an attribute.
     
-    >>> test_locked_on_attribute() if sys.version_info >= (3, 13) else True
+    >>> test_locked_on_attribute() if _locked_available() else True
     True
     """
     cdef HasLockAttribute obj = HasLockAttribute()
-    
-    # Skip if locked() not supported (like --limited-api mode)
-    try:
-        obj.lock.locked()
-    except NotImplementedError:
-        return True
     
     if obj.lock.locked():
         return False
@@ -255,17 +230,11 @@ def test_locked_on_attribute():
 
 def test_global_lock_locked():
     """
-    Test locked() on a global lock.
+    Test locked() on a global lock variable.
     
-    >>> test_global_lock_locked() if sys.version_info >= (3, 13) else True
+    >>> test_global_lock_locked() if _locked_available() else True
     True
     """
-    # Skip if locked() not supported (like --limited-api mode)
-    try:
-        global_lock.locked()
-    except NotImplementedError:
-        return True
-    
     if global_lock.locked():
         return False
     
