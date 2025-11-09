@@ -318,12 +318,10 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock) {
     CYTHON_UNUSED_VAR(lock);
     // PyThread_type_lock doesn't provide a way to check if it's locked
-    // without trying to acquire it. We raise NotImplementedError.
-    PyGILState_STATE gstate = PyGILState_Ensure();
-    PyErr_SetString(PyExc_NotImplementedError, 
-                    "pythread_type_lock.locked() is not supported");
-    PyGILState_Release(gstate);
-    return -1;  // Indicate error
+    // without trying to acquire it. This is a fatal error.
+    Py_FatalError("PyMutex.locked() is not available in this Python version or build configuration. "
+                  "It requires Python 3.13+ and cannot be used with the Limited API for now.");
+    return -1;
 }
 
 
