@@ -2,6 +2,33 @@
 Cython Changelog
 ================
 
+3.3.0a1 (202?-??-??)
+====================
+
+Features added
+--------------
+
+* PEP-634 Pattern Matching is being implemented.
+  (Github issue :issue:`4029`)
+
+* Programmatic use of Cython has become easier by avoiding the need to manually set up
+  the error reporting.
+  (Github issue :issue:`7235`)
+
+Bugs fixed
+----------
+
+* Includes all fixes as of Cython 3.2.x.
+
+Other changes
+-------------
+
+* Support for Python 3.8 has been removed.
+  As a side-effekt, support for StacklessPython (last release was 3.8) was also removed.
+  Python 3.9 is planned to remain supported for several years due to its use in LTS Linux distributions.
+  (Github issue :issue:`7271`)
+
+
 3.2.1 (2025-11-??)
 ==================
 
