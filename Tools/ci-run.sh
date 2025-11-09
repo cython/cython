@@ -7,7 +7,7 @@ GCC_VERSION=${GCC_VERSION:=10}
 # Set up compilers
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   echo "Skipping compiler setup: Code style run"
-elif [[ $OSTYPE == "linux-gnu"* ]]; then
+elif [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
@@ -22,12 +22,10 @@ elif [[ $OSTYPE == "linux-gnu"* ]]; then
 
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
-  if [[ ! "$EXTERNAL_OVERRIDE_CC" ]]; then
-    export CC="gcc"
-    if [[ $BACKEND == *"cpp"* ]]; then
-      sudo update-alternatives --set g++ /usr/bin/g++-$GCC_VERSION
-      export CXX="g++"
-    fi
+  export CC="gcc"
+  if [[ $BACKEND == *"cpp"* ]]; then
+    sudo update-alternatives --set g++ /usr/bin/g++-$GCC_VERSION
+    export CXX="g++"
   fi
 elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"

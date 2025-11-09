@@ -11,6 +11,10 @@ on:
         required: false
         default:
         type: string
+      cpp_compiler:
+        required: false
+        default:
+        type: string
       name:
         required: true
         type: string
@@ -34,28 +38,31 @@ jobs:
         if: ${{inputs.compiler}}
         run: |
           echo CC=${{inputs.compiler}} >> $GITHUB_ENV
-          echo CXX=${{inputs.compiler}} >> $GITHUB_ENV
+          echo CXX=${{inputs.cpp_compiler}} >> $GITHUB_ENV
           echo EXTERNAL_OVERRIDE_CC=1 >> $GITHUB_ENV
 
       - name: Set up sanitizer args
         if: ${{inputs.sanitize}}
         run: |
           if [[ ${{inputs.sanitize}} == "address" ]]; then
-            echo CONFIGURE_ARG="--with-address-sanitizer --without-pymalloc" >> $GITHUB_ENV
-            echo SANITIZER_CFLAGS="-fsanitize=address" >> $GITHUB_ENV
+            echo "CONFIGURE_ARG=--with-address-sanitizer --without-pymalloc" >> $GITHUB_ENV
+            echo "SANITIZER_CFLAGS=-fsanitize=address" >> $GITHUB_ENV
           elif [[ ${{inputs.sanitize}} == "memory" ]]; then
             echo CONFIGURE_ARG=--with-memory-sanitizer >> $GITHUB_ENV
-            echo SANITIZER_CFLAGS="-fsanitize=memory" >> $GITHUB_ENV
+            echo "SANITIZER_CFLAGS=-fsanitize=memory" >> $GITHUB_ENV
           elif [[ ${{inputs.sanitize}} == "undefined" ]]; then
             echo CONFIGURE_ARG=--with-undefined-behavior-sanitizer >> $GITHUB_ENV
-            echo SANITIZER_CFLAGS="-fsanitize=undefined" >> $GITHUB_ENV
+            # We call functions through slightly wrong pointer types a lot so disable for now
+            echo "SANITIZER_CFLAGS=-fsanitize=undefined -fno-sanitize=function" >> $GITHUB_ENV
+            echo "UBSAN_OPTIONS=halt_on_error=1" >> $GITHUB_ENV
           elif [[ ${{inputs.sanitize}} == "thread" ]]; then
             echo CONFIGURE_ARG=--with-thread-sanitizer >> $GITHUB_ENV
-            echo SANITIZER_CFLAGS="-fsanitize=thread" >> $GITHUB_ENV
+            echo "SANITIZER_CFLAGS=-fsanitize=thread" >> $GITHUB_ENV
+            echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt
           fi
           # Even running Python like this is slow, so only run a subset of tests
           # (i.e. compile-only tests tell us nothing)
-          echo EXCLUDE="run[.] memoryview[.] --no-examples" >> $GITHUB_ENV
+          echo EXCLUDE="run[.] memoryview[.] --no-examples --no-refnanny" >> $GITHUB_ENV
 
       - name: Install build dependencies
         run: |
