@@ -1,3 +1,3 @@
-import cython
+# Declare C-typed variables in Pure Python mode
 
-cython.declare(x=cython.int, y=cython.double)  # cdef int x; cdef double y
+cython.declare(x=cython.int, y=cython.double)  

@@ -6,6 +6,7 @@ def _helper(a):
     return a + 1
 
 class A:
+    
     def __init__(self, b=0):
         self.a = 3
         self.b = b

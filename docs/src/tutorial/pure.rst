@@ -1,8 +1,10 @@
-
 .. _pure-mode:
 
 Pure Python Mode
 ================
+
+.. include::
+    ../two-syntax-variants-used
 
 In some cases, it's desirable to speed up Python code without losing the
 ability to run it with the Python interpreter.  While pure Python scripts
@@ -34,31 +36,28 @@ because it depends on features of the Cython compiler.
 Augmenting .pxd
 ---------------
 
-Using an augmenting :file:`.pxd` allows to let the original :file:`.py` file
-completely untouched.  On the other hand, one needs to maintain both the
-:file:`.pxd` and the :file:`.py` to keep them in sync.
+Using an augmenting :file:`.pxd` allows to leave the original :file:`.py` file completely untouched. On the other hand, one needs to maintain both the :file:`.pxd` and the :file:`.py` to keep them in sync.
 
-While declarations in a :file:`.pyx` file must correspond exactly with those
-of a :file:`.pxd` file with the same name (and any contradiction results in
-a compile time error, see :doc:`pxd_files`), the untyped definitions in a
-:file:`.py` file can be overridden and augmented with static types by the more
-specific ones present in a :file:`.pxd`.
+While declarations in a :file:`.pyx` file must correspond exactly with those of a :file:`.pxd` file with the same name (and any contradiction results in a compile time error, see :doc:`pxd_files`), the untyped definitions in a :file:`.py` file can be overridden and augmented with static types by the more specific ones present in a :file:`.pxd`.
 
-If a :file:`.pxd` file is found with the same name as the :file:`.py` file
-being compiled, it will be searched for :keyword:`cdef` classes and
-:keyword:`cdef`/:keyword:`cpdef` functions and methods.  The compiler will
-then convert the corresponding classes/functions/methods in the :file:`.py`
-file to be of the declared type.  Thus if one has a file :file:`A.py`:
+If a :file:`.pxd` file is found with the same name as the :file:`.py` file being compiled, the compiler will convert the corresponding definitions in the :file:`.py` file to be of the declared type. The following tabs illustrate the process, showing the original Python file and the final equivalent Cython code, which are both defined by the declarations in the supplementing :file:`.pxd` file:
 
-.. literalinclude:: ../../examples/tutorial/pure/A.py
+.. tabs::
 
-and adds :file:`A.pxd`:
+   .. group-tab:: Pure Python
+
+      .. literalinclude:: ../../examples/tutorial/pure/A.py
+         :caption: A.py
+
+   .. group-tab:: Cython
+
+      .. literalinclude:: ../../examples/tutorial/pure/A_equivalent.pyx
+         :caption: A_equivalent.pyx
+
+The required declarations are defined in the supplementing :file:`A.pxd` file:
 
 .. literalinclude:: ../../examples/tutorial/pure/A.pxd
-
-then Cython will compile the :file:`A.py` as if it had been written as follows:
-
-.. literalinclude:: ../../examples/tutorial/pure/A_equivalent.pyx
+   :caption: A.pxd
 
 Notice how in order to provide the Python wrappers to the definitions
 in the :file:`.pxd`, that is, to be accessible from Python,
@@ -130,34 +129,80 @@ Static typing
   the first as an assignment (useful as it creates a declaration in interpreted
   mode as well):
 
-  .. literalinclude:: ../../examples/tutorial/pure/cython_declare.py
+  .. tabs::
+
+    .. group-tab:: Pure Python
+
+       .. literalinclude:: ../../examples/tutorial/pure/cython_declare.py
+         :caption: cython_declare.py
+
+    .. group-tab:: Cython
+
+       .. literalinclude:: ../../examples/tutorial/pure/cython_declare.pyx
+          :caption: cython_declare.pyx
 
   and the second mode as a simple function call:
 
-  .. literalinclude:: ../../examples/tutorial/pure/cython_declare2.py
+  .. tabs::
+
+      .. group-tab:: Pure Python
+
+         .. literalinclude:: ../../examples/tutorial/pure/cython_declare2.py
+            :caption: cython_declare2.py
+
+      .. group-tab:: Cython
+
+         .. literalinclude:: ../../examples/tutorial/pure/cython_declare2.pyx
+            :caption: cython_declare2.pyx
 
   It can also be used to define extension type private, readonly and public attributes:
 
-  .. literalinclude:: ../../examples/tutorial/pure/cclass.py
+  .. tabs::
+
+    .. group-tab:: Pure Python
+
+       .. literalinclude:: ../../examples/tutorial/pure/cclass.py
+          :caption: cclass.py
+
+    .. group-tab:: Cython
+
+       .. literalinclude:: ../../examples/tutorial/pure/cclass.pyx
+          :caption: cclass.pyx 
 
 * ``@cython.locals`` is a decorator that is used to specify the types of local
   variables in the function body (including the arguments):
 
-  .. literalinclude:: ../../examples/tutorial/pure/locals.py
+  .. tabs::
+
+    .. group-tab:: Pure Python
+
+       .. literalinclude:: ../../examples/tutorial/pure/locals.py
+          :caption: locals.py
+
+    .. group-tab:: Cython
+
+       .. literalinclude:: ../../examples/tutorial/pure/locals.pyx
+          :caption: locals.pyx
 
 * ``@cython.returns(<type>)`` specifies the function's return type.
-
 * ``@cython.exceptval(value=None, *, check=False)`` specifies the function's exception
-  return value and exception check semantics as follows::
+  return value and exception check semantics as follows:
 
-    @exceptval(-1)               # cdef int func() except -1:
-    @exceptval(-1, check=False)  # cdef int func() except -1:
-    @exceptval(check=True)       # cdef int func() except *:
-    @exceptval(-1, check=True)   # cdef int func() except? -1:
-    @exceptval(check=False)      # no exception checking/propagation
+  .. tabs::
+
+    .. group-tab:: Pure Python
+
+       .. literalinclude:: ../../examples/tutorial/pure/exceptval_syntax.py
+          :caption: exceptval_syntax.py
+
+    .. group-tab:: Cython
+
+       .. literalinclude:: ../../examples/tutorial/pure/exceptval_syntax.pyx
+          :caption: exceptval_syntax.pyx
 
   If exception propagation is disabled, any Python exceptions that are raised
   inside of the function will be printed and ignored.
+
 
 C types
 ^^^^^^^
@@ -202,28 +247,38 @@ Extension types and cdef functions
   being used as a base class, or a method from being overridden in subtypes.
   This enables certain optimisations such as inlined method calls.
 
-Here is an example of a :keyword:`cdef` function::
+Here is an example of a :keyword:`cdef` function:
 
-    @cython.cfunc
-    @cython.returns(cython.bint)
-    @cython.locals(a=cython.int, b=cython.int)
-    def c_compare(a,b):
-        return a == b
+.. tabs::
 
+  .. group-tab:: Pure Python
+
+     .. literalinclude:: ../../examples/tutorial/pure/c_compare.py
+        :caption: c_compare.py
+
+  .. group-tab:: Cython
+
+     .. literalinclude:: ../../examples/tutorial/pure/c_compare.pyx
+        :caption: c_compare.pyx
 
 Managing the Global Interpreter Lock
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* ``cython.nogil`` can be used as a context manager or as a decorator to replace the :keyword:`nogil` keyword::
+* ``cython.nogil`` can be used as a context manager or as a decorator to replace the :keyword:`nogil` keyword:
 
-    with cython.nogil:
-        # code block with the GIL released
+  .. tabs::
 
-    @cython.nogil
-    @cython.cfunc
-    def func_released_gil() -> cython.int:
-        # function that can be run with the GIL released
+     .. group-tab:: Pure Python
 
+        .. literalinclude:: ../../examples/tutorial/pure/nogil_example.py
+           :caption: nogil_example.py
+
+     .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/pure/nogil_example.pyx
+           :caption: nogil_example.pyx
+
+  
   Note that the two uses differ: the context manager releases the GIL while the decorator marks that a
   function *can* be run without the GIL. See :ref:`cython_and_gil` for more details.
 
@@ -251,6 +306,7 @@ releasing or acquiring the GIL. The condition must be constant (at compile time)
   with cython.gil(True):
       # code block with the GIL acquired
 
+
 A common use case for conditionally acquiring and releasing the GIL are fused types
 that allow different GIL handling depending on the specific type (see :ref:`gil_conditional`).
 
@@ -266,7 +322,17 @@ libraries become available to Python code.  It only means that you can
 tell Cython what cimports you want to use, without requiring special
 syntax.  Running such code in plain Python will fail.
 
-.. literalinclude:: ../../examples/tutorial/pure/py_cimport.py
+.. tabs::
+
+  .. group-tab:: Pure Python
+
+     .. literalinclude:: ../../examples/tutorial/pure/py_cimport.py
+        :caption: py_cimport.py
+
+  .. group-tab:: Cython
+
+     .. literalinclude:: ../../examples/tutorial/pure/py_cimport.pyx
+        :caption: py_cimport.pyx
 
 Since such code must necessarily refer to the non-existing
 ``cython.cimports`` 'package', the plain cimport form
@@ -277,62 +343,111 @@ You must use the form ``from cython.cimports...``.
 Further Cython functions and declarations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* ``address`` is used in place of the ``&`` operator::
+* ``address`` is used in place of the ``&`` operator:
 
-    cython.declare(x=cython.int, x_ptr=cython.p_int)
-    x_ptr = cython.address(x)
+  .. tabs::
+
+     .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/pure/address.py
+           :caption: address.py
+
+     .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/pure/address.pyx
+           :caption: address.pyx
 
 * ``sizeof`` emulates the `sizeof` operator.  It can take both types and
   expressions.
 
-  ::
+  .. tabs::
 
-    cython.declare(n=cython.longlong)
-    print(cython.sizeof(cython.longlong))
-    print(cython.sizeof(n))
+     .. group-tab:: Pure Python
 
-* ``typeof`` returns a string representation of the argument's type for debugging purposes.  It can take expressions.
+        .. literalinclude:: ../../examples/tutorial/pure/sizeof.py
+           :caption: sizeof.py
 
-  ::
+     .. group-tab:: Cython
 
-    cython.declare(n=cython.longlong)
-    print(cython.typeof(n))
+        .. literalinclude:: ../../examples/tutorial/pure/sizeof.pyx
+           :caption: sizeof.pyx
 
-* ``struct`` can be used to create struct types.::
+* ``typeof`` returns a string representation of the argument's type for debugging purposes. It can take expressions.
 
-    MyStruct = cython.struct(x=cython.int, y=cython.int, data=cython.double)
-    a = cython.declare(MyStruct)
+  .. tabs::
 
-  is equivalent to the code::
+     .. group-tab:: Pure Python
 
-    cdef struct MyStruct:
-        int x
-        int y
-        double data
+        .. literalinclude:: ../../examples/tutorial/pure/typeof.py
+           :caption: typeof.py
 
-    cdef MyStruct a
+     .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/pure/typeof.pyx
+           :caption: typeof.pyx
+        
+* ``struct`` can be used to create struct types:
+
+  .. tabs::
+
+     .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/pure/struct.py
+           :caption: struct.py
+
+     .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/pure/struct.pyx
+           :caption: struct.pyx
 
 * ``union`` creates union types with exactly the same syntax as ``struct``.
 
-* ``typedef`` defines a type under a given name::
+* ``typedef`` defines a type under a given name:
 
-    T = cython.typedef(cython.p_int)   # ctypedef int* T
+  .. tabs::
+
+     .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/pure/typedef.py
+           :caption: typedef.py
+
+     .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/pure/typedef.pyx
+           :caption: typedef.pyx
 
 * ``cast`` will (unsafely) reinterpret an expression type. ``cython.cast(T, t)``
   is equivalent to ``<T>t``. The first attribute must be a type, the second is
   the expression to cast. Specifying the optional keyword argument
-  ``typecheck=True`` has the semantics of ``<T?>t``.
+  ``typecheck=True`` has the semantics of ``<T?>t``:
 
-  ::
+  .. tabs::
 
-    t1 = cython.cast(T, t)
-    t2 = cython.cast(T, t, typecheck=True)
+     .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/pure/cast.py
+           :caption: cast.py
+
+     .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/pure/cast.pyx
+           :caption: cast.pyx
 
 * ``fused_type`` creates a new type definition that refers to the multiple types.
   The following example declares a new type called ``my_fused_type`` which can
-  be either an ``int`` or a ``double``.::
+  be either an ``int`` or a ``double``:
 
-    my_fused_type = cython.fused_type(cython.int, cython.float)
+  .. tabs::
+
+     .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/pure/fused_type.py
+           :caption: fused_type.py
+
+     .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/pure/fused_type.pyx
+           :caption: fused_type.pyx
 
 .. _magic_attributes_pxd:
 
@@ -360,7 +475,17 @@ Python `type hints <https://www.python.org/dev/peps/pep-0484>`_
 can be used to declare argument types, as shown in the
 following example:
 
-  .. literalinclude:: ../../examples/tutorial/pure/annotations.py
+.. tabs::
+
+   .. group-tab:: Pure Python
+
+      .. literalinclude:: ../../examples/tutorial/pure/annotations.py
+         :caption: annotations.py
+
+   .. group-tab:: Cython
+
+      .. literalinclude:: ../../examples/tutorial/pure/annotations.pyx
+         :caption: annotations.pyx
 
 Note the use of ``cython.int`` rather than ``int`` - Cython does not translate
 an ``int`` annotation to a C integer by default since the behaviour can be
@@ -374,7 +499,17 @@ module dict.  To declare global variables as typed C variables, use ``@cython.de
 Annotations can be combined with the ``@cython.exceptval()`` decorator for non-Python
 return types:
 
-  .. literalinclude:: ../../examples/tutorial/pure/exceptval.py
+.. tabs::
+
+   .. group-tab:: Pure Python
+
+      .. literalinclude:: ../../examples/tutorial/pure/exceptval.py
+         :caption: exceptval.py
+
+   .. group-tab:: Cython
+
+      .. literalinclude:: ../../examples/tutorial/pure/exceptval.pyx
+         :caption: exceptval.pyx
 
 Note that the default exception handling behaviour when returning C numeric types
 is to check for ``-1``, and if that was returned, check Python's error indicator
@@ -389,7 +524,17 @@ Since version 0.27, Cython also supports the variable annotations defined
 in `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_. This allows to
 declare types of variables in a Python 3.6 compatible way as follows:
 
-.. literalinclude:: ../../examples/tutorial/pure/pep_526.py
+.. tabs::
+
+   .. group-tab:: Pure Python
+
+      .. literalinclude:: ../../examples/tutorial/pure/pep_526.py
+         :caption: pep_526.py
+
+   .. group-tab:: Cython
+
+      .. literalinclude:: ../../examples/tutorial/pure/pep_526.pyx
+         :caption: pep_526.pyx
 
 There is currently no way to express the visibility of object attributes.
 
@@ -401,9 +546,17 @@ usages, Cython's use of annotations to specify types can be disabled with the
 ``annotation_typing`` :ref:`compiler directive<compiler-directives>`. From Cython 3
 you can use this as a decorator or a with statement, as shown in the following example:
 
-.. literalinclude:: ../../examples/tutorial/pure/disabled_annotations.py
+.. tabs::
 
+   .. group-tab:: Pure Python
 
+      .. literalinclude:: ../../examples/tutorial/pure/disabled_annotations.py
+         :caption: disabled_annotations.py
+
+   .. group-tab:: Cython
+
+      .. literalinclude:: ../../examples/tutorial/pure/disabled_annotations.pyx
+         :caption: disabled_annotations.pyx
 
 ``typing`` Module
 ^^^^^^^^^^^^^^^^^
@@ -455,19 +608,9 @@ decorators.
 
 Code that does not want to require Cython or its shadow module as as runtime
 dependency at all can often get away with a simple, stripped-down replacement
-like the following::
+like the following:
 
-    try:
-        import cython
-    except ImportError:
-        class _fake_cython:
-            compiled = False
-            def cfunc(self, func): return func
-            def ccall(self, func): return func
-            def __getattr__(self, type_name): return "object"
-
-        cython = _fake_cython()
-
+.. literalinclude:: ../../examples/tutorial/pure/fake_cython.py
 
 .. _calling-c-functions:
 
@@ -485,15 +628,37 @@ by combining C function coercion with a conditional import as follows:
 
 .. literalinclude:: ../../examples/tutorial/pure/mymodule.pxd
 
-.. literalinclude:: ../../examples/tutorial/pure/mymodule.py
+.. tabs::
+
+   .. group-tab:: Pure Python
+
+      .. literalinclude:: ../../examples/tutorial/pure/mymodule.py
+         :caption: mymodule.py
+
+   .. group-tab:: Cython
+
+      .. literalinclude:: ../../examples/tutorial/pure/mymodule.pyx
+         :caption: mymodule.pyx
 
 Note that the "sin" function will show up in the module namespace of "mymodule"
 here (i.e. there will be a ``mymodule.sin()`` function).  You can mark it as an
 internal name according to Python conventions by renaming it to "_sin" in the
-``.pxd`` file as follows::
+``.pxd`` file as follows:
 
-    cdef extern from "math.h":
-        cpdef double _sin "sin" (double x)
+.. literalinclude:: ../../examples/tutorial/pure/internal_sin.pxd
+
+.. tabs::
+
+   .. group-tab:: Pure Python
+
+      .. literalinclude:: ../../examples/tutorial/pure/internal_sin.py
+         :caption: internal_sin.py
+
+   .. group-tab:: Cython
+
+      .. literalinclude:: ../../examples/tutorial/pure/internal_sin.pyx
+         :caption: internal_sin.pyx
+
 
 You would then also change the Python import to ``from math import sin as _sin``
 to make the names match again.
@@ -506,7 +671,17 @@ C arrays can automatically coerce to Python lists or tuples.
 This can be exploited to replace fixed size Python lists in Python code by C
 arrays when compiled.  An example:
 
-.. literalinclude:: ../../examples/tutorial/pure/c_arrays.py
+.. tabs::
+
+   .. group-tab:: Pure Python
+
+      .. literalinclude:: ../../examples/tutorial/pure/c_arrays.py
+         :caption: c_arrays.py
+
+   .. group-tab:: Cython
+
+      .. literalinclude:: ../../examples/tutorial/pure/c_arrays.pyx
+         :caption: c_arrays.pyx
 
 In normal Python, this will use a Python list to collect the counts, whereas
 Cython will generate C code that uses a C array of C ints.

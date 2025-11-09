@@ -1,0 +1,1869 @@
+GNU gdb (Ubuntu 12.1-0ubuntu1~22.04.2) 12.1
+Copyright (C) 2022 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Python 3.10.12 (main, Aug 15 2025, 14:32:43) [GCC 11.4.0]
+
+Running tests against Cython 3.3.0a0 e7e5c8630dc34b0548b80e853d519d396b5334c3 + uncommitted changes
+Using Cython language level 2.
+Using Cython language level 2.
+Using Cython language level 2.
+Using Cython language level 2.
+Using Cython language level 2.
+Using Cython language level 2.
+Using Cython language level 2.
+Using Cython language level 2.
+Backends: c,cpp
+
+
+Tests in shard (0/8) starting (Thread ID 0x7dc0a0ab8000)
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) resize ... 
+
+Tests in shard (1/8) starting (Thread ID 0x7dc0a0ab8000)
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) wave_function ... Tests in shard (2/8) starting (Thread ID 0x7dc0a0ab8000)
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) clone ... Tests in shard (7/8) starting (Thread ID 0x7dc0a0ab8000)
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) keyword_args ... 
+
+
+Tests in shard (3/8) starting (Thread ID 0x7dc0a0ab8000)
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/py) queue2 ... Tests in shard (5/8) starting (Thread ID 0x7dc0a0ab8000)
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) integrate ... Tests in shard (6/8) starting (Thread ID 0x7dc0a0ab8000)
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) safe_usage ... 
+Tests in shard (4/8) starting (Thread ID 0x7dc0a0ab8000)
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) math_function ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) keyword_args ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) libc_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) clone ... 
+#### 2025-11-09 18:28:29.464115 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) resize ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/py) queue2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) integrate ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) math_function ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) libc_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) wave_function ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) libc_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) resize ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) clone ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) libc_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/pyx) queue2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) integrate ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) math_function_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) py_version_hex ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) wave_function ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/pyx) queue2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) resize ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) py_version_hex ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) integrate ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) clone ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) math_function_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) py_version_hex ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) py_version_hex ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/py) primes ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) wave_function ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) overhead ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) sin_of_square ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) queue3 ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) manual_work ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/py) primes ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) math_function_2 ... 
+#### 2025-11-09 18:28:39.481108 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) manual_work ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) safe_usage ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) queue3 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) queue ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/pyx) primes ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) sin_of_square ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) manual_work ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) math_function_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/pyx) primes ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) manual_work ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) queue ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) queue3 ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/pyx) cpdef_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) profile_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) nonecheck ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) sin_of_square ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) profile_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) queue ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/pyx) cpdef_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) queue3 ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) compiled_switch ... 
+#### 2025-11-09 18:28:49.503952 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) nonecheck ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) compiled_switch ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) queue ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/py) annotations ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) overhead ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) sin_of_square ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) cython_declare ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) cython_declare ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/py) annotations ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) primes_cpp ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) test_queue ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) cython_declare ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) nonecheck ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) cython_declare ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) safe_usage ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) test_queue ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/pyx) annotations ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) py_cimport ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) fibonacci ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) primes_cpp ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) nonecheck ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) py_cimport ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/pyx) annotations ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) keyword_args_call ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) fibonacci ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) py_cimport ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/py) typeof ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) keyword_args_call ... 
+#### 2025-11-09 18:28:59.515974 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) atoi ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/py) typeof ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) primes_python ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) malloc ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) py_cimport ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) atoi ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) keyword_args_call ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/pyx) typeof ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) primes_python ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) atoi ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/pyx) typeof ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) malloc ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) keyword_args_call ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) typedef ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) atoi ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) typedef ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/py) c_func ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) setup ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) convolve2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) norm ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/py) c_func ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) typedef ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) overhead ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) malloc ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) setup ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) typedef ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/pyx) c_func ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) decode ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/pyx) c_func ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) calc_pi ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) malloc ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) decode ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) convolve2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) safe_usage ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/py) cpp_string ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) decode ... 
+#### 2025-11-09 18:29:09.531373 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) calc_pi ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) decode ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) some_memory ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) for_char ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/pyx) cpp_string ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) often_called ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) for_char ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) some_memory ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) often_called ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) normalize ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) for_char ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/py) indexing ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) often_called ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) some_memory ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) norm ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) for_char ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) often_called ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) overhead ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) some_memory ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) profile ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) return_memview ... 
+#### 2025-11-09 18:29:19.544926 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) profile ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/py) indexing ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) calc_pi_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) dostuff ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) unsafe_usage ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) calc_pi_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) dostuff ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) unsafe_usage ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) fake_cython ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) normalize ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/pyx) indexing ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) fake_cython ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) calc_pi_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) unsafe_usage ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) pep_526 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) pep_526 ... 
+#### 2025-11-09 18:29:29.560649 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) calc_pi_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) norm ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) pep_526 ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) unsafe_usage ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) pep_526 ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) embedded ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) return_memview ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/pyx) indexing ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) for_bytes ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) setup ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) cast ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) convolve_py ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) cast ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) for_bytes ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) setup ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) cast ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) cast ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) median ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) for_bytes ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) convolve_py ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) internal_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/py) struct ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) for_bytes ... 
+#### 2025-11-09 18:29:39.574487 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) internal_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) normalize ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/py) struct ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) matrix_with_buffer ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/pyx) struct ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) norm ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) internal_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) calc_pi_3 ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/pyx) struct ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) internal_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) calc_pi_3 ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) return_memview ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/py) copy ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) matrix_with_buffer ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) mymodule ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) calc_pi_3 ... 
+#### 2025-11-09 18:29:49.588161 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) mymodule ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) calc_pi_3 ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) median ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) mymodule ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) normalize ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) rectangle_cpdef ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) A ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) mymodule ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) parallel_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) rectangle_cpdef ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) A ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) auto_conversion_3 ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) return_memview ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/py) copy ... 
+#### 2025-11-09 18:29:59.604714 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) auto_conversion_3 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) rectangle_cpdef ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) c_string_to_str ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) c_arrays ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) c_string_to_str ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) c_arrays ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) c_string_to_str ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) rectangle_cpdef ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) c_string_to_str ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) calc_pi_4 ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) c_arrays ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) matrix ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) parallel_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) c_compare ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) calc_pi_4 ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) c_arrays ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) c_property ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) c_compare ... 
+#### 2025-11-09 18:30:09.616720 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) matrix ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) c_compare ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) extendable_animal ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) c_property ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) c_compare ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) cclass ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) calc_pi_4 ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) cython_declare2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/pyx) copy ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) cython_declare2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) dataclass ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) extendable_animal ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) cython_declare2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) calc_pi_4 ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) wrapper_class ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) cython_declare2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) cclass ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) fused_type ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) extendable_animal ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) fused_type ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) wrapper_class ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) nogil_example ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) fused_type ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) nogil_example ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) dataclass ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) cclass ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) fused_type ... 
+#### 2025-11-09 18:30:19.629725 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) nogil_example ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) extendable_animal ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) locals ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) nogil_example ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) sizeof ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) parallel_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) wrapper_class ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) cclass ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) locals ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) sizeof ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) shrubbery_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) sizeof ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) dataclass ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) shrubbery_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) sizeof ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) wrapper_class ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) locals ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) shrubbery_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/pyx) copy ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) exceptval ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) struct ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) shrubbery_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) locals ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) struct ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) verbatim_c_code ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) override ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) exceptval ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) struct ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) verbatim_c_code ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) dataclass ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) integrate ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) struct ... 
+#### 2025-11-09 18:30:29.645944 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) compile_time ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) api_func ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) exceptval ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) integrate ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) compile_time ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) exceptval ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) override ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) api_func ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) compute_prange ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) integrate ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) exceptval_syntax ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) integrate ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) owned_pointer ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) exceptval_syntax ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) api_func ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) parallel_sin ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) to_unicode ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) override ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) api_func ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) exceptval_syntax ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) owned_pointer ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) to_unicode ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) exceptval_syntax ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/py) cimport_openmp ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/py) cimport_openmp ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) to_unicode ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) const ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) if_char_in ... 
+#### 2025-11-09 18:30:39.658121 - waiting for [0, 1, 2, 3, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) const ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) to_unicode ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) owned_pointer ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (c/cy3/pyx) cimport_openmp ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) override ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/pyx) cimport_openmp ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) decode_cpp_string ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) if_char_in ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) penguin2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[3] compiling (cpp/cy3/pyx) templates ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) owned_pointer ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) if_char_in ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) penguin2 ... ok
+
+----------------------------------------------------------------------
+Ran 41 tests in 136.756s
+
+OK
+ALL DONE (3/8)
+ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) decode_cpp_string ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) widen_shrubbery ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) memory_layout_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) if_char_in ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) memory_layout_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) widen_shrubbery ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) penguin2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) widen_shrubbery ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) for_unicode ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) c1 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) widen_shrubbery ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) memview_to_c ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) A_equivalent ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) for_unicode ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) penguin2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) char_or_float ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) compute_prange ... 
+#### 2025-11-09 18:30:49.676936 - waiting for [0, 1, 2, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) c1 ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) for_unicode ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) struct_field_adaptation ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) A_equivalent ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) struct_field_adaptation ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) char_or_float ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) for_unicode ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) python_access ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) enum ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) enum ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) naive_decode ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) naive_decode ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) function_pointer ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) address ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) char_or_float ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) python_access ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) address ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) function_pointer ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) naive_decode ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) naive_decode ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) address ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) function_pointer_struct ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) address ... ok
+ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) char_or_float ... runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) utf_eight ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) function_pointer_struct ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) disabled_annotations ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) utf_eight ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) python_access ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) memview_to_c ... 
+#### 2025-11-09 18:30:59.690669 - waiting for [0, 1, 2, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) utf_eight ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) union ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) conditional_gil ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) utf_eight ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) python_access ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) disabled_annotations ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) union ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) rectangle_cdef ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) conditional_gil ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) compute_prange ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) union ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) platform_adaptation ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) rectangle_cdef ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) platform_adaptation ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) disabled_annotations ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) union ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) kwargs_1 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) conditional_gil ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) cython_array ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) kwargs_1 ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) rectangle_cdef ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) disabled_annotations ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) conditional_gil ... 
+#### 2025-11-09 18:31:09.703920 - waiting for [0, 1, 2, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) open_file ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) memview_to_c ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) rectangle_cdef ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) open_file ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) casting_python ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) arg_memview ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) casting_python ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) cheesy ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) open_file ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) casting_python ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) open_file ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) cheesy ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) casting_python ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) compute_prange ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) type_qualifiers ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) optional_subclassing ... 
+#### 2025-11-09 18:31:19.717401 - waiting for [0, 1, 2, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) cython_array ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) cheesy ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) type_qualifiers ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) memview_to_c ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) cheesy ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) optional_subclassing ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) arg_memview ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) type_qualifiers ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) type_qualifiers ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) shrubbery ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) optional_subclassing ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) add_one ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) shrubbery ... 
+#### 2025-11-09 18:31:29.736105 - waiting for [0, 1, 2, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) optional_subclassing ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) shrubbery ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) compute_typed ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) breaking_loop ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) shrubbery ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) cython_array ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) breaking_loop ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) custom_dtype ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) arg_memview ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) breaking_loop ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) breaking_loop ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) compute_typed ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) iterate ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) delorean ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) delorean ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) add_one ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) compute_typed ... 
+#### 2025-11-09 18:31:39.749102 - waiting for [0, 1, 2, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) memoryview_indexing ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) vector_demo ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) compute_typed ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) hello ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) hello ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) condition_sum ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) arg_memview ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/py) integrate_cy ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) custom_dtype ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) condition_sum ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) cython_array ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/py) integrate_cy ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) condition_sum ... 
+#### 2025-11-09 18:31:49.764106 - waiting for [0, 1, 2, 4, 5, 6, 7]
+ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) add_one ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) condition_sum ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (c/cy3/pyx) integrate_cy ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) parallel ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) memoryview_indexing ... ok
+runTest (__main__.CythonCompileTestCase)
+[7] compiling (cpp/cy3/pyx) integrate_cy ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) parallel ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) parallel ... ok
+
+----------------------------------------------------------------------
+Ran 70 tests in 208.091s
+
+OK
+ALL DONE (7/8)
+ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) parallel ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) spammery ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) auto_conversion_1 ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) auto_conversion_1 ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) np_flag_const ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) spammery ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) slicing_c_string ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) memory_layout ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) slicing_c_string ... 
+#### 2025-11-09 18:31:59.779642 - waiting for [0, 1, 2, 4, 5, 6]
+ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) spammery ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) add_one ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) slicing_c_string ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) spammery ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) slicing_c_string ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/py) total_ordering ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) memoryview_indexing ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) to_char ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/py) total_ordering ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) np_flag_const ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) memory_layout ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (c/cy3/pyx) total_ordering ... 
+#### 2025-11-09 18:32:09.790827 - waiting for [0, 1, 2, 4, 5, 6]
+ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) old_sum3d ... ok
+runTest (__main__.CythonCompileTestCase)
+[0] compiling (cpp/cy3/pyx) total_ordering ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) old_sum3d ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) to_char ... ok
+
+----------------------------------------------------------------------
+Ran 76 tests in 226.785s
+
+OK
+Following tests excluded because of missing dependencies on your system:
+   TestCodeFormat
+ALL DONE (0/8)
+ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) compute_memview ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) memoryview_indexing ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) quickstart ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) memory_layout ... 
+#### 2025-11-09 18:32:19.803383 - waiting for [1, 2, 4, 5, 6]
+ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) to_char ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) compute_memview ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) cdef_block ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) quickstart ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) cdef_block ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) parameter_refcount ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) memory_layout ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) parameter_refcount ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) to_char ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) parameter_refcount ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) parameter_refcount ... 
+#### 2025-11-09 18:32:29.816924 - waiting for [1, 2, 4, 5, 6]
+ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) slicing ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) compute_memview ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) quickstart ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) not_none ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) try_finally ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) try_finally ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) try_finally ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) try_finally ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) c2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) slicing ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) c2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) compute_memview ... 
+#### 2025-11-09 18:32:39.829706 - waiting for [1, 2, 4, 5, 6]
+ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) quickstart ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) not_none ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) p1 ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) p1 ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) view_count ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) slicing ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) ufunc_ctuple ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) view_count ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) ufunc_ctuple ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) not_none ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) ufunc_ctuple ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) compute_infer_types ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) ufunc_ctuple ... 
+#### 2025-11-09 18:32:49.843111 - waiting for [1, 2, 4, 5, 6]
+ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) lunch ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) rectangle ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) lunch ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/pyx) lunch ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) rectangle ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) lunch ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) slicing ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) rect_ptr ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) not_none ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) rectangle ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/pyx) rect_with_attributes ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) compute_infer_types ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) rectangle ... 
+#### 2025-11-09 18:32:59.854658 - waiting for [1, 2, 4, 5, 6]
+ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (c/cy3/py) setup ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) dict_animal ... ok
+runTest (__main__.CythonCompileTestCase)
+[1] compiling (cpp/cy3/py) setup ... ok
+
+----------------------------------------------------------------------
+Ran 94 tests in 274.548s
+
+OK
+ALL DONE (1/8)
+ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) dict_animal ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) view_string ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) setup_pyx ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) dict_animal ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) setup_pyx ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) landscaping ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) dict_animal ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) compute_infer_types ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) landscaping ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/pyx) landscaping ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) my_module ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) view_string ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) landscaping ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) my_module ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) cython_usage ... 
+#### 2025-11-09 18:33:09.866110 - waiting for [2, 4, 5, 6]
+ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) penguin ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) function_templates ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) penguin ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/pyx) python_to_cpp ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) compute_infer_types ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) penguin ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (c/cy3/py) integrate ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) penguin ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) compute_fused_types ... ok
+runTest (__main__.CythonCompileTestCase)
+[2] compiling (cpp/cy3/py) integrate ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) pets ... ok
+
+----------------------------------------------------------------------
+Ran 76 tests in 288.736s
+
+OK
+ALL DONE (2/8)
+ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) pets ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) ufunc_fused ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) pets ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) ufunc_fused ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) ufunc_fused ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) pets ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) ufunc_fused ... 
+#### 2025-11-09 18:33:19.876387 - waiting for [4, 5, 6]
+ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) compute_fused_types ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) setup_py ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) pointer ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) setup_py ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) pointer ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/py) cdef_keyword ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/py) cdef_keyword ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (c/cy3/pyx) cdef_keyword ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) pointer ... ok
+runTest (__main__.CythonCompileTestCase)
+[6] compiling (cpp/cy3/pyx) cdef_keyword ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) pointer ... ok
+
+----------------------------------------------------------------------
+Ran 76 tests in 296.001s
+
+OK
+ALL DONE (6/8)
+ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) type_checking ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) type_checking ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) type_checking ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) type_checking ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) kwargs_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) kwargs_2 ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) compute_fused_types ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) cpython_array ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) cpython_array ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) compute_fused_types ... 
+#### 2025-11-09 18:33:29.887682 - waiting for [4, 5]
+ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) cpython_array ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) compute_py ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) compute_py ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) cpython_array ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) ufunc ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) ufunc ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) ufunc ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) ufunc ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) memoryview_sum ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) transpose ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) memoryview_sum ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) transpose ... 
+#### 2025-11-09 18:33:39.897217 - waiting for [4, 5]
+ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) memoryview_sum ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) transpose ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) memoryview_sum ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) transpose ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) simple_sum ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) simple_sum ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) simple_sum ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) simple_sum ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) restaurant ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) setup_py ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) setup_py ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) setup_pyx ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) restaurant ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) setup_pyx ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) volume ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) restaurant ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) volume ... 
+#### 2025-11-09 18:33:49.908316 - waiting for [4, 5]
+ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/pyx) volume ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) restaurant ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) volume ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/pyx) rect ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/py) shrubbing ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/py) shrubbing ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (c/cy3/py) setup ... ok
+runTest (__main__.CythonCompileTestCase)
+[4] compiling (cpp/cy3/py) setup ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (c/cy3/pyx) shrubbing ... ok
+
+----------------------------------------------------------------------
+Ran 101 tests in 324.298s
+
+OK
+ALL DONE (4/8)
+ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) shrubbing ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) nested_class ... ok
+runTest (__main__.CythonCompileTestCase)
+[5] compiling (cpp/cy3/pyx) wrapper_vector ... ok
+
+----------------------------------------------------------------------
+Ran 114 tests in 327.273s
+
+OK
+ALL DONE (5/8)
+Compiler output for module typeof:
+typeof.c:1815:21: warning: ‘__pyx_v_6typeof_n’ defined but not used [-Wunused-variable]
+ 1815 | static PY_LONG_LONG __pyx_v_6typeof_n;
+      |                     ^~~~~~~~~~~~~~~~~
+
+Compiler output for module typeof:
+typeof.cpp:1827:21: warning: ‘__pyx_v_6typeof_n’ defined but not used [-Wunused-variable]
+ 1827 | static PY_LONG_LONG __pyx_v_6typeof_n;
+      |                     ^~~~~~~~~~~~~~~~~
+
+Test dependency found: 'numpy' version 2.2.6
+Test dependency found: 'pythran' version 0.18.0
+Test dependency found: 'setuptools.sandbox' version 59.6.0
+Test dependency found: 'asyncio' version 3.10.12
+Test dependency found: 'pstats' version 3.10.12
+Test dependency found: 'posix' version 3.10.12
+Test dependency found: 'array' version 3.10.12
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'IPython.testing.globalipapp'
+Test dependency not found: 'jedi_BROKEN_AND_DISABLED'
+Test dependency found: 'test.support' version 3.10.12
+WARNING: unknown test directive 'x' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'y' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'z' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+Compiler output for module shrubbery_2:
+shrubbery_2.c:1963:47: warning: ‘__pyx_f_11shrubbery_2_another_shrubbery’ defined but not used [-Wunused-function]
+ 1963 | static struct __pyx_obj_9my_module_Shrubbery *__pyx_f_11shrubbery_2_another_shrubbery(struct __pyx_obj_9my_module_Shrubbery *__pyx_v_sh1) {
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module shrubbery_2:
+shrubbery_2.cpp:1975:47: warning: ‘__pyx_obj_9my_module_Shrubbery* __pyx_f_11shrubbery_2_another_shrubbery(__pyx_obj_9my_module_Shrubbery*)’ defined but not used [-Wunused-function]
+ 1975 | static struct __pyx_obj_9my_module_Shrubbery *__pyx_f_11shrubbery_2_another_shrubbery(struct __pyx_obj_9my_module_Shrubbery *__pyx_v_sh1) {
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module verbatim_c_code:
+verbatim_c_code.c:1099:17: warning: ‘c_square’ defined but not used [-Wunused-function]
+ 1099 |     static long c_square(long x) {return x * x;}
+      |                 ^~~~~~~~
+
+Compiler output for module verbatim_c_code:
+verbatim_c_code.cpp:1111:17: warning: ‘long int c_square(long int)’ defined but not used [-Wunused-function]
+ 1111 |     static long c_square(long x) {return x * x;}
+      |                 ^~~~~~~~
+
+Compiler output for module breaking_loop:
+breaking_loop.c:1953:12: warning: ‘__pyx_f_13breaking_loop_func’ defined but not used [-Wunused-function]
+ 1953 | static int __pyx_f_13breaking_loop_func(Py_ssize_t __pyx_v_n) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module breaking_loop:
+breaking_loop.cpp:1965:12: warning: ‘int __pyx_f_13breaking_loop_func(Py_ssize_t)’ defined but not used [-Wunused-function]
+ 1965 | static int __pyx_f_13breaking_loop_func(Py_ssize_t __pyx_v_n) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module breaking_loop:
+breaking_loop.c:1951:12: warning: ‘__pyx_f_13breaking_loop_func’ defined but not used [-Wunused-function]
+ 1951 | static int __pyx_f_13breaking_loop_func(Py_ssize_t __pyx_v_n) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module breaking_loop:
+breaking_loop.cpp:1963:12: warning: ‘int __pyx_f_13breaking_loop_func(Py_ssize_t)’ defined but not used [-Wunused-function]
+ 1963 | static int __pyx_f_13breaking_loop_func(Py_ssize_t __pyx_v_n) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test dependency found: 'numpy' version 2.2.6
+Test dependency found: 'pythran' version 0.18.0
+Test dependency found: 'setuptools.sandbox' version 59.6.0
+Test dependency found: 'asyncio' version 3.10.12
+Test dependency found: 'pstats' version 3.10.12
+Test dependency found: 'posix' version 3.10.12
+Test dependency found: 'array' version 3.10.12
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'IPython.testing.globalipapp'
+Test dependency not found: 'jedi_BROKEN_AND_DISABLED'
+Test dependency found: 'test.support' version 3.10.12
+WARNING: unknown test directive 'x' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'y' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'z' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+Compiler output for module type_qualifiers:
+type_qualifiers.c:2551:13: warning: ‘__pyx_f_15type_qualifiers_const_pointer_to_const_int’ defined but not used [-Wunused-function]
+ 2551 | static void __pyx_f_15type_qualifiers_const_pointer_to_const_int(int const *const __pyx_v_value) {
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+type_qualifiers.c:2446:13: warning: ‘__pyx_f_15type_qualifiers_const_pointer_to_int’ defined but not used [-Wunused-function]
+ 2446 | static void __pyx_f_15type_qualifiers_const_pointer_to_int(int *const __pyx_v_value) {
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+type_qualifiers.c:2331:13: warning: ‘__pyx_f_15type_qualifiers_pointer_to_const_int’ defined but not used [-Wunused-function]
+ 2331 | static void __pyx_f_15type_qualifiers_pointer_to_const_int(int const *__pyx_v_value) {
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+type_qualifiers.c:2297:18: warning: ‘__pyx_f_15type_qualifiers_sum’ defined but not used [-Wunused-function]
+ 2297 | static int const __pyx_f_15type_qualifiers_sum(int const __pyx_v_a, int const __pyx_v_b) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module type_qualifiers:
+type_qualifiers.cpp:2563:13: warning: ‘void __pyx_f_15type_qualifiers_const_pointer_to_const_int(const int*)’ defined but not used [-Wunused-function]
+ 2563 | static void __pyx_f_15type_qualifiers_const_pointer_to_const_int(int const *const __pyx_v_value) {
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+type_qualifiers.cpp:2458:13: warning: ‘void __pyx_f_15type_qualifiers_const_pointer_to_int(int*)’ defined but not used [-Wunused-function]
+ 2458 | static void __pyx_f_15type_qualifiers_const_pointer_to_int(int *const __pyx_v_value) {
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+type_qualifiers.cpp:2343:13: warning: ‘void __pyx_f_15type_qualifiers_pointer_to_const_int(const int*)’ defined but not used [-Wunused-function]
+ 2343 | static void __pyx_f_15type_qualifiers_pointer_to_const_int(int const *__pyx_v_value) {
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+type_qualifiers.cpp:2309:18: warning: ‘const int __pyx_f_15type_qualifiers_sum(int, int)’ defined but not used [-Wunused-function]
+ 2309 | static int const __pyx_f_15type_qualifiers_sum(int const __pyx_v_a, int const __pyx_v_b) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test dependency found: 'numpy' version 2.2.6
+Test dependency found: 'pythran' version 0.18.0
+Test dependency found: 'setuptools.sandbox' version 59.6.0
+Test dependency found: 'asyncio' version 3.10.12
+Test dependency found: 'pstats' version 3.10.12
+Test dependency found: 'posix' version 3.10.12
+Test dependency found: 'array' version 3.10.12
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'IPython.testing.globalipapp'
+Test dependency not found: 'jedi_BROKEN_AND_DISABLED'
+Test dependency found: 'test.support' version 3.10.12
+WARNING: unknown test directive 'x' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'y' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'z' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+Compiler output for module exceptval:
+exceptval.c:1932:12: warning: ‘__pyx_f_9exceptval_func’ defined but not used [-Wunused-function]
+ 1932 | static int __pyx_f_9exceptval_func(int __pyx_v_x) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module exceptval:
+exceptval.cpp:1944:12: warning: ‘int __pyx_f_9exceptval_func(int)’ defined but not used [-Wunused-function]
+ 1944 | static int __pyx_f_9exceptval_func(int __pyx_v_x) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module exceptval_syntax:
+exceptval_syntax.c:2061:12: warning: ‘__pyx_f_16exceptval_syntax_func_e’ defined but not used [-Wunused-function]
+ 2061 | static int __pyx_f_16exceptval_syntax_func_e(void) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+exceptval_syntax.c:2028:12: warning: ‘__pyx_f_16exceptval_syntax_func_d’ defined but not used [-Wunused-function]
+ 2028 | static int __pyx_f_16exceptval_syntax_func_d(void) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+exceptval_syntax.c:1994:12: warning: ‘__pyx_f_16exceptval_syntax_func_c’ defined but not used [-Wunused-function]
+ 1994 | static int __pyx_f_16exceptval_syntax_func_c(void) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+exceptval_syntax.c:1960:12: warning: ‘__pyx_f_16exceptval_syntax_func_b’ defined but not used [-Wunused-function]
+ 1960 | static int __pyx_f_16exceptval_syntax_func_b(void) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+exceptval_syntax.c:1926:12: warning: ‘__pyx_f_16exceptval_syntax_func_a’ defined but not used [-Wunused-function]
+ 1926 | static int __pyx_f_16exceptval_syntax_func_a(void) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module exceptval_syntax:
+exceptval_syntax.cpp:2073:12: warning: ‘int __pyx_f_16exceptval_syntax_func_e()’ defined but not used [-Wunused-function]
+ 2073 | static int __pyx_f_16exceptval_syntax_func_e(void) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+exceptval_syntax.cpp:2040:12: warning: ‘int __pyx_f_16exceptval_syntax_func_d()’ defined but not used [-Wunused-function]
+ 2040 | static int __pyx_f_16exceptval_syntax_func_d(void) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+exceptval_syntax.cpp:2006:12: warning: ‘int __pyx_f_16exceptval_syntax_func_c()’ defined but not used [-Wunused-function]
+ 2006 | static int __pyx_f_16exceptval_syntax_func_c(void) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+exceptval_syntax.cpp:1972:12: warning: ‘int __pyx_f_16exceptval_syntax_func_b()’ defined but not used [-Wunused-function]
+ 1972 | static int __pyx_f_16exceptval_syntax_func_b(void) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+exceptval_syntax.cpp:1938:12: warning: ‘int __pyx_f_16exceptval_syntax_func_a()’ defined but not used [-Wunused-function]
+ 1938 | static int __pyx_f_16exceptval_syntax_func_a(void) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module cdef_keyword:
+cdef_keyword.c:1927:15: warning: ‘__pyx_f_12cdef_keyword_f’ defined but not used [-Wunused-function]
+ 1927 | static double __pyx_f_12cdef_keyword_f(double __pyx_v_x) {
+      |               ^~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module cdef_keyword:
+cdef_keyword.cpp:1939:15: warning: ‘double __pyx_f_12cdef_keyword_f(double)’ defined but not used [-Wunused-function]
+ 1939 | static double __pyx_f_12cdef_keyword_f(double __pyx_v_x) {
+      |               ^~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module cdef_keyword:
+cdef_keyword.c:1925:15: warning: ‘__pyx_f_12cdef_keyword_f’ defined but not used [-Wunused-function]
+ 1925 | static double __pyx_f_12cdef_keyword_f(double __pyx_v_x) {
+      |               ^~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module cdef_keyword:
+cdef_keyword.cpp:1937:15: warning: ‘double __pyx_f_12cdef_keyword_f(double)’ defined but not used [-Wunused-function]
+ 1937 | static double __pyx_f_12cdef_keyword_f(double __pyx_v_x) {
+      |               ^~~~~~~~~~~~~~~~~~~~~~~~
+
+Test dependency found: 'numpy' version 2.2.6
+Test dependency found: 'pythran' version 0.18.0
+Test dependency found: 'setuptools.sandbox' version 59.6.0
+Test dependency found: 'asyncio' version 3.10.12
+Test dependency found: 'pstats' version 3.10.12
+Test dependency found: 'posix' version 3.10.12
+Test dependency found: 'array' version 3.10.12
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'IPython.testing.globalipapp'
+Test dependency not found: 'jedi_BROKEN_AND_DISABLED'
+Test dependency found: 'test.support' version 3.10.12
+WARNING: unknown test directive 'x' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'y' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'z' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+Compiler output for module cast:
+cast.c: In function ‘__pyx_pymod_exec_cast’:
+cast.c:2300:49: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+ 2300 |   __pyx_t_2 = __Pyx_PyLong_FromSize_t(((size_t)((__pyx_t_4cast_T)__pyx_v_4cast_t))); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 9, __pyx_L1_error)
+      |                                                 ^
+cast.c:2312:49: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+ 2312 |   __pyx_t_2 = __Pyx_PyLong_FromSize_t(((size_t)((__pyx_t_4cast_T)__pyx_v_4cast_t))); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 11, __pyx_L1_error)
+      |                                                 ^
+
+Compiler output for module cast:
+cast.cpp: In function ‘int __pyx_pymod_exec_cast(PyObject*)’:
+cast.cpp:2312:49: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+ 2312 |   __pyx_t_2 = __Pyx_PyLong_FromSize_t(((size_t)((__pyx_t_4cast_T)__pyx_v_4cast_t))); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 9, __pyx_L1_error)
+      |                                                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+cast.cpp:2324:49: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+ 2324 |   __pyx_t_2 = __Pyx_PyLong_FromSize_t(((size_t)((__pyx_t_4cast_T)__pyx_v_4cast_t))); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 11, __pyx_L1_error)
+      |                                                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module parallel:
+parallel.c: In function ‘__pyx_pymod_exec_parallel’:
+parallel.c:2438:47: warning: comparison of integer expressions of different signedness: ‘Py_ssize_t’ {aka ‘long int’} and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+ 2438 |                 for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_4; __pyx_t_5+=1) {
+      |                                               ^
+
+Compiler output for module parallel:
+parallel.cpp: In function ‘int __pyx_pymod_exec_parallel(PyObject*)’:
+parallel.cpp:2450:47: warning: comparison of integer expressions of different signedness: ‘Py_ssize_t’ {aka ‘long int’} and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+ 2450 |                 for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_4; __pyx_t_5+=1) {
+      |                                     ~~~~~~~~~~^~~~~~~~~~~
+
+Compiler output for module parallel:
+parallel.c: In function ‘__pyx_pymod_exec_parallel’:
+parallel.c:2407:47: warning: comparison of integer expressions of different signedness: ‘Py_ssize_t’ {aka ‘long int’} and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+ 2407 |                 for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_4; __pyx_t_5+=1) {
+      |                                               ^
+
+Compiler output for module parallel:
+parallel.cpp: In function ‘int __pyx_pymod_exec_parallel(PyObject*)’:
+parallel.cpp:2419:47: warning: comparison of integer expressions of different signedness: ‘Py_ssize_t’ {aka ‘long int’} and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+ 2419 |                 for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_4; __pyx_t_5+=1) {
+      |                                     ~~~~~~~~~~^~~~~~~~~~~
+
+Test dependency found: 'numpy' version 2.2.6
+Test dependency found: 'pythran' version 0.18.0
+Test dependency found: 'setuptools.sandbox' version 59.6.0
+Test dependency found: 'asyncio' version 3.10.12
+Test dependency found: 'pstats' version 3.10.12
+Test dependency found: 'posix' version 3.10.12
+Test dependency found: 'array' version 3.10.12
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'IPython.testing.globalipapp'
+Test dependency not found: 'jedi_BROKEN_AND_DISABLED'
+Test dependency found: 'test.support' version 3.10.12
+WARNING: unknown test directive 'x' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'y' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'z' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+Compiler output for module c_compare:
+c_compare.c:1927:12: warning: ‘__pyx_f_9c_compare_c_compare’ defined but not used [-Wunused-function]
+ 1927 | static int __pyx_f_9c_compare_c_compare(int __pyx_v_a, int __pyx_v_b) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module c_compare:
+c_compare.cpp:1939:12: warning: ‘int __pyx_f_9c_compare_c_compare(int, int)’ defined but not used [-Wunused-function]
+ 1939 | static int __pyx_f_9c_compare_c_compare(int __pyx_v_a, int __pyx_v_b) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module c_compare:
+c_compare.c:1925:12: warning: ‘__pyx_f_9c_compare_c_compare’ defined but not used [-Wunused-function]
+ 1925 | static int __pyx_f_9c_compare_c_compare(int __pyx_v_a, int __pyx_v_b) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module c_compare:
+c_compare.cpp:1937:12: warning: ‘int __pyx_f_9c_compare_c_compare(int, int)’ defined but not used [-Wunused-function]
+ 1937 | static int __pyx_f_9c_compare_c_compare(int __pyx_v_a, int __pyx_v_b) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module integrate:
+integrate.c:2517:18: warning: ‘__Pyx_CFunc_5cmath_double__lParendouble__rParennoexcept_to_py_1x’ defined but not used [-Wunused-function]
+ 2517 | static PyObject *__Pyx_CFunc_5cmath_double__lParendouble__rParennoexcept_to_py_1x(double (*__pyx_v_f)(double)) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module integrate:
+integrate.cpp:2529:18: warning: ‘PyObject* __Pyx_CFunc_5cmath_double__lParendouble__rParennoexcept_to_py_1x(double (*)(double))’ defined but not used [-Wunused-function]
+ 2529 | static PyObject *__Pyx_CFunc_5cmath_double__lParendouble__rParennoexcept_to_py_1x(double (*__pyx_v_f)(double)) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module integrate:
+integrate.c:2515:18: warning: ‘__Pyx_CFunc_5cmath_double__lParendouble__rParennoexcept_to_py_1x’ defined but not used [-Wunused-function]
+ 2515 | static PyObject *__Pyx_CFunc_5cmath_double__lParendouble__rParennoexcept_to_py_1x(double (*__pyx_v_f)(double)) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module integrate:
+integrate.cpp:2527:18: warning: ‘PyObject* __Pyx_CFunc_5cmath_double__lParendouble__rParennoexcept_to_py_1x(double (*)(double))’ defined but not used [-Wunused-function]
+ 2527 | static PyObject *__Pyx_CFunc_5cmath_double__lParendouble__rParennoexcept_to_py_1x(double (*__pyx_v_f)(double)) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module function_pointer_struct:
+function_pointer_struct.c:2542:18: warning: ‘__Pyx_CFunc_9863fc__23function_pointer_struct_int__lParenint__comm__etc_to_py_1a_1b’ defined but not used [-Wunused-function]
+ 2542 | static PyObject *__Pyx_CFunc_9863fc__23function_pointer_struct_int__lParenint__comm__etc_to_py_1a_1b(int (*__pyx_v_f)(int, int)) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module function_pointer_struct:
+function_pointer_struct.cpp:2554:18: warning: ‘PyObject* __Pyx_CFunc_9863fc__23function_pointer_struct_int__lParenint__comm__etc_to_py_1a_1b(int (*)(int, int))’ defined but not used [-Wunused-function]
+ 2554 | static PyObject *__Pyx_CFunc_9863fc__23function_pointer_struct_int__lParenint__comm__etc_to_py_1a_1b(int (*__pyx_v_f)(int, int)) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test dependency found: 'numpy' version 2.2.6
+Test dependency found: 'pythran' version 0.18.0
+Test dependency found: 'setuptools.sandbox' version 59.6.0
+Test dependency found: 'asyncio' version 3.10.12
+Test dependency found: 'pstats' version 3.10.12
+Test dependency found: 'posix' version 3.10.12
+Test dependency found: 'array' version 3.10.12
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'IPython.testing.globalipapp'
+Test dependency not found: 'jedi_BROKEN_AND_DISABLED'
+Test dependency found: 'test.support' version 3.10.12
+WARNING: unknown test directive 'x' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'y' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'z' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+Compiler output for module to_char:
+to_char.c:17402:27: warning: ‘__pyx_f_7to_char__chars’ defined but not used [-Wunused-function]
+17402 | static __Pyx_memviewslice __pyx_f_7to_char__chars(PyObject *__pyx_v_s) {
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module to_char:
+to_char.cpp:17421:27: warning: ‘__Pyx_memviewslice __pyx_f_7to_char__chars(PyObject*)’ defined but not used [-Wunused-function]
+17421 | static __Pyx_memviewslice __pyx_f_7to_char__chars(PyObject *__pyx_v_s) {
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module to_char:
+to_char.c:17395:27: warning: ‘__pyx_f_7to_char__chars’ defined but not used [-Wunused-function]
+17395 | static __Pyx_memviewslice __pyx_f_7to_char__chars(PyObject *__pyx_v_s) {
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module to_char:
+to_char.cpp:17414:27: warning: ‘__Pyx_memviewslice __pyx_f_7to_char__chars(PyObject*)’ defined but not used [-Wunused-function]
+17414 | static __Pyx_memviewslice __pyx_f_7to_char__chars(PyObject *__pyx_v_s) {
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~
+
+Test dependency found: 'numpy' version 2.2.6
+Test dependency found: 'pythran' version 0.18.0
+Test dependency found: 'setuptools.sandbox' version 59.6.0
+Test dependency found: 'asyncio' version 3.10.12
+Test dependency found: 'pstats' version 3.10.12
+Test dependency found: 'posix' version 3.10.12
+Test dependency found: 'array' version 3.10.12
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'IPython.testing.globalipapp'
+Test dependency not found: 'jedi_BROKEN_AND_DISABLED'
+Test dependency found: 'test.support' version 3.10.12
+WARNING: unknown test directive 'x' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'y' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'z' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+Compiler output for module utf_eight:
+utf_eight.cpp:2109:18: warning: ‘PyObject* __pyx_f_9utf_eight_tounicode_with_length_and_free(char*, size_t)’ defined but not used [-Wunused-function]
+ 2109 | static PyObject *__pyx_f_9utf_eight_tounicode_with_length_and_free(char *__pyx_v_s, size_t __pyx_v_length) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+utf_eight.cpp:2057:18: warning: ‘PyObject* __pyx_f_9utf_eight_tounicode_with_length(char*, size_t)’ defined but not used [-Wunused-function]
+ 2057 | static PyObject *__pyx_f_9utf_eight_tounicode_with_length(char *__pyx_v_s, size_t __pyx_v_length) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+utf_eight.cpp:2001:18: warning: ‘PyObject* __pyx_f_9utf_eight_tounicode(char*)’ defined but not used [-Wunused-function]
+ 2001 | static PyObject *__pyx_f_9utf_eight_tounicode(char *__pyx_v_s) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module utf_eight:
+utf_eight.c:2095:18: warning: ‘__pyx_f_9utf_eight_tounicode_with_length_and_free’ defined but not used [-Wunused-function]
+ 2095 | static PyObject *__pyx_f_9utf_eight_tounicode_with_length_and_free(char *__pyx_v_s, size_t __pyx_v_length) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+utf_eight.c:2043:18: warning: ‘__pyx_f_9utf_eight_tounicode_with_length’ defined but not used [-Wunused-function]
+ 2043 | static PyObject *__pyx_f_9utf_eight_tounicode_with_length(char *__pyx_v_s, size_t __pyx_v_length) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+utf_eight.c:1987:18: warning: ‘__pyx_f_9utf_eight_tounicode’ defined but not used [-Wunused-function]
+ 1987 | static PyObject *__pyx_f_9utf_eight_tounicode(char *__pyx_v_s) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module utf_eight:
+utf_eight.cpp:2107:18: warning: ‘PyObject* __pyx_f_9utf_eight_tounicode_with_length_and_free(char*, size_t)’ defined but not used [-Wunused-function]
+ 2107 | static PyObject *__pyx_f_9utf_eight_tounicode_with_length_and_free(char *__pyx_v_s, size_t __pyx_v_length) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+utf_eight.cpp:2055:18: warning: ‘PyObject* __pyx_f_9utf_eight_tounicode_with_length(char*, size_t)’ defined but not used [-Wunused-function]
+ 2055 | static PyObject *__pyx_f_9utf_eight_tounicode_with_length(char *__pyx_v_s, size_t __pyx_v_length) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+utf_eight.cpp:1999:18: warning: ‘PyObject* __pyx_f_9utf_eight_tounicode(char*)’ defined but not used [-Wunused-function]
+ 1999 | static PyObject *__pyx_f_9utf_eight_tounicode(char *__pyx_v_s) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module cdef_block:
+cdef_block.c:1945:13: warning: ‘__pyx_f_10cdef_block_f’ defined but not used [-Wunused-function]
+ 1945 | static void __pyx_f_10cdef_block_f(struct __pyx_t_10cdef_block_Spam *__pyx_v_s) {
+      |             ^~~~~~~~~~~~~~~~~~~~~~
+
+Compiler output for module cdef_block:
+cdef_block.cpp:1957:13: warning: ‘void __pyx_f_10cdef_block_f(__pyx_t_10cdef_block_Spam*)’ defined but not used [-Wunused-function]
+ 1957 | static void __pyx_f_10cdef_block_f(struct __pyx_t_10cdef_block_Spam *__pyx_v_s) {
+      |             ^~~~~~~~~~~~~~~~~~~~~~
+
+Test dependency found: 'numpy' version 2.2.6
+Test dependency found: 'pythran' version 0.18.0
+Test dependency found: 'setuptools.sandbox' version 59.6.0
+Test dependency found: 'asyncio' version 3.10.12
+Test dependency found: 'pstats' version 3.10.12
+Test dependency found: 'posix' version 3.10.12
+Test dependency found: 'array' version 3.10.12
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'Cython.Coverage'
+Test dependency not found: 'IPython.testing.globalipapp'
+Test dependency not found: 'jedi_BROKEN_AND_DISABLED'
+Test dependency found: 'test.support' version 3.10.12
+WARNING: unknown test directive 'x' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'y' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+WARNING: unknown test directive 'z' found (/home/mars/Cython/cython/docs/examples/tutorial/pure/pep_526.py)
+Sharded tests run in 336 seconds (5.6 minutes)
+Most expensive pipeline stages: 'AnalyseDeclarationsTransform': 228.69 / 2853 (0.080 / run, 38.5%), 'inject_utility_code_stage': 127.11 / 655 (0.194 / run, 21.4%), 'generate_pyx_code_stage': 60.41 / 654 (0.092 / run, 10.2%), 'parse': 26.89 / 1979 (0.014 / run, 4.5%), 'AnalyseExpressionsTransform': 18.77 / 2189 (0.009 / run, 3.2%), 'ControlFlowAnalysis': 12.37 / 2189 (0.006 / run, 2.1%), 'RemoveUnreachableCode': 9.50 / 5043 (0.002 / run, 1.6%), 'MarkClosureVisitor': 7.69 / 2854 (0.003 / run, 1.3%), 'PostParse': 7.47 / 2854 (0.003 / run, 1.3%), 'InterpretCompilerDirectives': 6.44 / 2854 (0.002 / run, 1.1%)
+Times:
+compile-cpp :   966.42 sec  ( 335,  2.885 / run) - slowest: 'cpp:median' (12.29s), 'cpp:compute_prange' (11.77s), 'cpp:compute_prange' (11.59s), 'cpp:median' (11.48s), 'cpp:copy' (10.89s), 'cpp:return_memview' (10.73s), 'cpp:normalize' (10.67s), 'cpp:parallel_sin' (10.34s)
+compile-c   :   770.97 sec  ( 311,  2.479 / run) - slowest: 'c:compute_prange' (12.84s), 'c:compute_prange' (11.88s), 'c:copy' (10.22s), 'c:parallel_sin' (10.19s), 'c:return_memview' (10.17s), 'c:return_memview' (10.11s), 'c:norm' (10.07s), 'c:parallel_sin' (9.98s)
+cython      :   343.83 sec  ( 648,  0.531 / run) - slowest: 'c:safe_usage' (4.75s), 'cpp:safe_usage' (4.60s), 'c:overhead' (4.52s), 'cpp:overhead' (4.44s), 'cpp:safe_usage' (4.36s), 'cpp:median' (4.30s), 'cpp:cython_array' (4.20s), 'cpp:overhead' (4.16s)
+ALL DONE

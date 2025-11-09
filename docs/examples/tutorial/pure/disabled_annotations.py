@@ -1,8 +1,5 @@
-import cython
-
 @cython.annotation_typing(False)
 def function_without_typing(a: int, b: int) -> int:
-    """Cython is ignoring annotations in this function"""
     c: int = a + b
     return c * a
 
@@ -10,7 +7,6 @@ def function_without_typing(a: int, b: int) -> int:
 @cython.annotation_typing(False)
 @cython.cclass
 class NotAnnotatedClass:
-    """Cython is ignoring annotatons in this class except annotated_method"""
     d: dict
 
     def __init__(self, dictionary: dict):
@@ -27,6 +23,7 @@ def annotated_function(a: cython.int, b: cython.int):
     with cython.annotation_typing(False):
         # Cython is ignoring annotations within this code block
         c: list = []
+        
     c.append(a)
     c.append(b)
     c.append(s)
