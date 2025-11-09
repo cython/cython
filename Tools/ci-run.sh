@@ -162,7 +162,7 @@ elif [[ $ODD_VERSION == "0" ]]; then
     CFLAGS="$CFLAGS -UNDEBUG"
 fi
 
-if [[ "$SANITIZER_CFLAGS" ]]
+if [[ "$SANITIZER_CFLAGS" ]]; then
     CFLAGS="$CFLAGS $SANITIZER_CFLAGS"
 fi
 

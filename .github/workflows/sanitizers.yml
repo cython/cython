@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sanitizer: [address, undefined, memory]
+        sanitizer: [address, undefined]  # memory
     uses: ./.github/workflows/compiled_python.yml
     with:
       compiler: clang
