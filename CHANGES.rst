@@ -2,8 +2,42 @@
 Cython Changelog
 ================
 
+3.3.0a1 (202?-??-??)
+====================
+
+Features added
+--------------
+
+* PEP-634 Pattern Matching is being implemented.
+  (Github issue :issue:`4029`)
+
+* Programmatic use of Cython has become easier by avoiding the need to manually set up
+  the error reporting.
+  (Github issue :issue:`7235`)
+
+Bugs fixed
+----------
+
+* Includes all fixes as of Cython 3.2.x.
+
+Other changes
+-------------
+
+* Support for Python 3.8 has been removed.
+  As a side-effekt, support for StacklessPython (last release was 3.8) was also removed.
+  Python 3.9 is planned to remain supported for several years due to its use in LTS Linux distributions.
+  (Github issue :issue:`7271`)
+
+
 3.2.1 (2025-11-??)
 ==================
+
+Features added
+--------------
+
+* Cython now leaves markers about its utility code dependencies in the generated C code
+  to help debugging "unused function" C compiler warnings.
+  (Github issue :issue:`7294`)
 
 Bugs fixed
 ----------
@@ -11,10 +45,13 @@ Bugs fixed
 * Relative imports could fail in 3.2.0 if the shared utility module is used.
   (Github issue :issue:`7290`)
 
-* Using the shared utility module left an unused C function in user modules with memoryviews.
+* Using the shared utility module in 3.2.0 left an unused C function in user modules with memoryviews.
   To make debugging this kind of issue easier, Cython now leaves "used by …" markers in the
   generated C files that indicate why a specific piece of utility code was included.
   (Github issue :issue:`7293`)
+
+* Code using the pre-import scope failed with an undefined name.
+  (Github issue :issue:`7304`)
 
 * Includes all fixes as of Cython 3.1.7.
 

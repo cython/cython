@@ -181,8 +181,9 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     python setup.py bdist_wheel || exit 1
     ls -l dist/ || true
 
-    # Check for changelog entry in wheel metadata.
-    fgrep -q '=======' $( [ -d ?ython-*.dist-info/ ] && echo "?ython-*.dist-info/METADATA" || echo "?ython*.egg-info/PKG-INFO" ) || {
+    # Check for changelog entry in wheel metadata, except for "...-dev" or "...a0" dev versions.
+    grep -q '^__version__.*=.*".*\(a0\|dev[0-9]\?\)"' Cython/Shadow.py || \
+      fgrep -q '=======' $( [ -d ?ython-*.dist-info/ ] && echo "?ython-*.dist-info/METADATA" || echo "?ython*.egg-info/PKG-INFO" ) || {
         echo "ERROR: wheel METADATA lacks changelog - did you add a version entry?" ; exit 1; }
 
     if $( twine --version ); then twine check dist/*.whl; fi
