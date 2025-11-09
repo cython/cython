@@ -1,10 +1,11 @@
 name: Sanitizers
 
 on:
+  # it's a bit slow so don't run on every pull request
   workflow_dispatch:
-  schedule:
-    # Run once a week
-    - cron: "0 0 * * 1"
+  push:
+    branches:
+      - master
   pull_request:  # Delete me - just to test it
 
 permissions:

@@ -34,7 +34,8 @@ jobs:
         if: ${{inputs.compiler}}
         run: |
           echo CC=${{inputs.compiler}} >> $GITHUB_ENV
-          echo CXX=${{inputs.compiler}}  >> $GITHUB_ENV
+          echo CXX=${{inputs.compiler}} >> $GITHUB_ENV
+          echo EXTERNAL_OVERRIDE_CC=1 >> $GITHUB_ENV
 
       - name: Set up sanitizer args
         if: ${{inputs.sanitize}}
@@ -48,7 +49,10 @@ jobs:
           elif [[ ${{inputs.sanitize}} == "undefined" ]]; then
             echo CONFIGURE_ARG=--with-undefined-behavior-sanitizer >> $GITHUB_ENV
             echo SANITIZER_CFLAGS="-fsanitize=undefined" >> $GITHUB_ENV
-          fi  # TODO thread sanitizer
+          elif [[ ${{inputs.sanitize}} == "thread" ]]; then
+            echo CONFIGURE_ARG=--with-thread-sanitizer >> $GITHUB_ENV
+            echo SANITIZER_CFLAGS="-fsanitize=thread" >> $GITHUB_ENV
+          fi
           # Even running Python like this is slow, so only run a subset of tests
           # (i.e. compile-only tests tell us nothing)
           echo EXCLUDE="run[.] memoryview[.] --no-examples" >> $GITHUB_ENV
