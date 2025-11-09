@@ -5,6 +5,13 @@ Cython Changelog
 3.2.1 (2025-11-??)
 ==================
 
+Features added
+--------------
+
+* Cython now leaves markers about its utility code dependencies in the generated C code
+  to help debugging "unused function" C compiler warnings.
+  (Github issue :issue:`7294`)
+
 Bugs fixed
 ----------
 
