@@ -22,7 +22,7 @@ elif [[ $OSTYPE == "linux-gnu"* ]]; then
 
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
-  if [[ !"$EXTERNAL_OVERRIDE_CC"]]; then
+  if [[ ! "$EXTERNAL_OVERRIDE_CC" ]]; then
     export CC="gcc"
     if [[ $BACKEND == *"cpp"* ]]; then
       sudo update-alternatives --set g++ /usr/bin/g++-$GCC_VERSION
