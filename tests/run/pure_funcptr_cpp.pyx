@@ -8,10 +8,10 @@ import cython
 def takes_reference(x: cython.reference[int], y: cython.rvalue_reference[int]) -> object:
     return None
 
+
 @cython.cfunc
 def takes_const_reference(x: cython.reference[cython.const[int]], y: cython.rvalue_reference[cython.const[int]]) -> object:
     return None
-
 
 
 def test_references():
@@ -56,6 +56,7 @@ def test_fn_pointer_type():
     print(cython.typeof(f3b))
     print(cython.typeof(f4a))
     print(cython.typeof(f4b))
+
 
 def test_fn_pointer_type_exceptions():
     """
