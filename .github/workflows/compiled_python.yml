@@ -58,7 +58,7 @@ jobs:
           elif [[ ${{inputs.sanitize}} == "thread" ]]; then
             echo CONFIGURE_ARG=--with-thread-sanitizer >> $GITHUB_ENV
             echo "SANITIZER_CFLAGS=-fsanitize=thread" >> $GITHUB_ENV
-            echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt
+            echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
           fi
           # Even running Python like this is slow, so only run a subset of tests
           # (i.e. compile-only tests tell us nothing)
