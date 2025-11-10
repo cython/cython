@@ -739,7 +739,6 @@ builtin_structs_table = [
       ("shape",      PyrexTypes.c_py_ssize_t_ptr_type),
       ("strides",    PyrexTypes.c_py_ssize_t_ptr_type),
       ("suboffsets", PyrexTypes.c_py_ssize_t_ptr_type),
-      ("smalltable", PyrexTypes.CArrayType(PyrexTypes.c_py_ssize_t_type, 2)),
       ("internal",   PyrexTypes.c_void_ptr_type),
       ]),
     ('Py_complex', 'Py_complex',
@@ -824,7 +823,6 @@ def init_builtin_structs():
 
 
 def init_builtins():
-    #Errors.init_thread()  # hopefully not needed - we should not emit warnings ourselves
     init_builtin_structs()
     init_builtin_types()
     init_builtin_exceptions()

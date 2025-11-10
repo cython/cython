@@ -6,21 +6,26 @@ Getting started working on Cython
 Git
 ---
 
-Cython is current hosted in `on GitHub <https://github.com/cython/cython/>`_ and uses Git to track changes to
+Cython is currently hosted `on GitHub <https://github.com/cython/cython/>`_ and uses Git to track changes to
 the source code.  The majority of development happens on the "master" branch, but we typically maintain one or
 two stable release branches which are updated with bugfixes.  Changes that go into the main Cython repository should
 never make the branch unreleasable (even if minor breakages can happen from time to time).
 
-To get started working with Cython you'd usually clone the main Github repo (so that it appears on
-``github.com/<your_user_name>/cython``) and then clone that onto your local PC using:
+To get started working with Cython's code, you will need `git <https://git-scm.com/downloads>`_
+to create a local clone of the repository.
+
+The typical workflow on Github is to `fork the code <https://github.com/cython/cython/fork>`_,
+creating a repository in your own Github account named ``github.com/<your_user_name>/cython``.
+
+To then clone the repository to your local machine run:
 
 .. code-block:: bash
 
     git clone git@github.com:<your_user_name>/cython.git
     cd cython
 
-If you want to work on a specific feature then create a branch for that feature on your local PC and check
-it out:  
+If you want to work on a specific feature, then create a branch for that feature on your local PC and check
+it out:
 
 .. code-block:: bash
 
@@ -37,6 +42,7 @@ personal Github copy of Cython:
 You can then create a pull request using the Github web interface to merge your branch into the main Cython
 repository.
 
+
 Running Cython on your PC
 -------------------------
 
@@ -44,7 +50,7 @@ When developing Cython itself you do not need to compile or install it.  (Cython
 for speed reasons, but when working on it it is usually easier not to.)  Cython itself is designed to have
 no dependencies to run (outside the Python standard library) so no preparation or virtual environments are
 usually necessary.  However some specific features or tests do have runtime requirements. These are usually
-installable from the ``test-requirements`` file.
+installable from the ``test-requirements.txt`` file.
 
 To run Cython for development, simply check out the
 Cython repository as described above, change to that directory and run:
@@ -54,7 +60,7 @@ Cython repository as described above, change to that directory and run:
     python3 cython.py <path/to/some/file>.pyx
 
 This runs Cython on some small test file that you're interested in.  If you want to compile the
-generated C code too, then the ``cythonize`` command can do that for you: 
+generated C code too, then the ``cythonize`` command can do that for you:
 
 .. code-block:: bash
 

@@ -1,10 +1,24 @@
-/////////////// Import.proto ///////////////
+/////////////// Import.proto ///////////////////
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, PyObject *qualname, int level); /*proto*/
+static CYTHON_INLINE PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level); /*proto*/
 
-/////////////// Import ///////////////
+/////////////// Import /////////////////////////
+//@requires: ImportImpl
+
+static PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level) {
+    // Forward to the shared utility code with an extra moddict argument (because that's not possible to look up in shared utility code)
+    return __Pyx__Import(name, imported_names, len_imported_names, qualname, NAMED_CGLOBAL(moddict_cname), level);
+}
+
+/////////////// ImportImpl.export ///////////////
+
+static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, PyObject *moddict, int level); /*proto*/
+
+/////////////// ImportImpl ///////////////
 //@requires: StringTools.c::IncludeStringH
 //@requires: Builtins.c::HasAttr
+//@requires: ObjectHandling.c::TupleAndListFromArray
+//@requires: ObjectHandling.c::PyObjectCallOneArg
 
 static int __Pyx__Import_GetModule(PyObject *qualname, PyObject **module) {
     PyObject *imported_module = PyImport_GetModule(qualname);
@@ -19,11 +33,12 @@ static int __Pyx__Import_GetModule(PyObject *qualname, PyObject **module) {
     return 1;
 }
 
-static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *from_list, PyObject **module) {
+static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject **module) {
     PyObject *imported_module;
-    PyObject *name_parts, *top_level_package_name;
-    Py_ssize_t i, part_count, from_list_size;
+    PyObject *top_level_package_name;
+    Py_ssize_t i;
     int status, module_found;
+    Py_ssize_t dot_index;
 
     module_found = __Pyx__Import_GetModule(qualname, &imported_module);
     if (unlikely(!module_found || module_found == -1)) {
@@ -31,20 +46,15 @@ static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *from_list, PyObjec
         return module_found;
     }
 
-    if (from_list) {
-        from_list_size = __Pyx_PyList_GET_SIZE(from_list);
-        #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(from_list_size == -1)) {
-            goto error;
-        }
-        #endif
-        for (i = 0; i < from_list_size; i++) {
-            PyObject *imported_name = __Pyx_PyList_GetItemRef(from_list, i);
-            if (unlikely(!imported_name)) {
-                goto error;
-            }
+    if (imported_names) {
+        for (i = 0; i < len_imported_names; i++) {
+            PyObject *imported_name = imported_names[i];
+#if __PYX_LIMITED_VERSION_HEX < 0x030d0000
             int has_imported_attribute = PyObject_HasAttr(imported_module, imported_name);
-            Py_DECREF(imported_name);
+#else
+            int has_imported_attribute = PyObject_HasAttrWithError(imported_module, imported_name);
+            if (unlikely(has_imported_attribute == -1)) goto error;
+#endif
             if (!has_imported_attribute) {
                 goto not_found;
             }
@@ -54,34 +64,20 @@ static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *from_list, PyObjec
     }
 
     // Get top-level module
-    name_parts = PyUnicode_Split(qualname, PYUNICODE("."), 1);
-    if (unlikely(!name_parts)) {
-        goto error;
-    }
-
-    part_count = __Pyx_PyList_GET_SIZE(name_parts);
-    #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(part_count == -1)) {
-        goto error;
-    }
-    #endif
-    if (part_count == 1) {
+    dot_index = PyUnicode_FindChar(qualname, '.', 0, PY_SSIZE_T_MAX, 1);
+    if (dot_index == -1) {
         // No dot, so we already have the top-level module
         *module = imported_module;
         return 1;
     }
+    if (unlikely(dot_index == -2)) goto error;
+    top_level_package_name = PyUnicode_Substring(qualname, 0, dot_index);
+    if (unlikely(!top_level_package_name)) goto error;
+
     Py_DECREF(imported_module);
 
-    top_level_package_name = __Pyx_PyList_GET_ITEM(name_parts, 0);
-    #if !CYTHON_ASSUME_SAFE_MACROS
-    if (unlikely(!top_level_package_name)) {
-        *module = NULL;
-        return -1;
-    }
-    #endif
-
     status = __Pyx__Import_GetModule(top_level_package_name, module);
-    Py_DECREF(name_parts);
+    Py_DECREF(top_level_package_name);
     return status;
 
 error:
@@ -95,30 +91,43 @@ not_found:
     return 0;
 }
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, PyObject *qualname, int level) {
+static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, PyObject *moddict, int level) {
     PyObject *module = 0;
     PyObject *empty_dict = 0;
+    PyObject *from_list = 0;
     int module_found;
 
     if (!qualname) {
         qualname = name;
     }
-    module_found = __Pyx__Import_Lookup(qualname, from_list, &module);
+    module_found = __Pyx__Import_Lookup(qualname, imported_names, len_imported_names, &module);
     if (likely(module_found == 1)) {
         return module;
     } else if (unlikely(module_found == -1)) {
         return NULL;
     }
-
     empty_dict = PyDict_New();
     if (unlikely(!empty_dict))
         goto bad;
+    if (imported_names) {
+#if CYTHON_COMPILING_IN_CPYTHON
+        from_list = __Pyx_PyList_FromArray(imported_names, len_imported_names);
+        if (unlikely(!from_list))
+            goto bad;
+#else
+        from_list = PyList_New(len_imported_names);
+        if (unlikely(!from_list)) goto bad;
+        for (Py_ssize_t i=0; i<len_imported_names; ++i) {
+            if (PyList_SetItem(from_list, i, __Pyx_NewRef(imported_names[i])) < 0) goto bad;
+        }
+#endif
+    }
     if (level == -1) {
         const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');
         if (package_sep != (0)) {
             /* try package relative import first */
             module = PyImport_ImportModuleLevelObject(
-                name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, 1);
+                name, moddict, empty_dict, from_list, 1);
             if (unlikely(!module)) {
                 if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
                     goto bad;
@@ -129,9 +138,10 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, PyObject *qua
     }
     if (!module) {
         module = PyImport_ImportModuleLevelObject(
-            name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, level);
+            name, moddict, empty_dict, from_list, level);
     }
 bad:
+    Py_XDECREF(from_list);
     Py_XDECREF(empty_dict);
     return module;
 }
@@ -408,7 +418,7 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject* module, const char *m
 /////////////// TypeImport ///////////////
 //@substitute: naming
 
-// Note that this goes into headers so CYTHON_COMPILING_IN_LIMITED_API isn't available.
+// Note that this goes into headers so CYTHON_COMPILING_IN_LIMITED_API may not be available.
 
 #ifndef __PYX_HAVE_RT_ImportType_$cyversion
 #define __PYX_HAVE_RT_ImportType_$cyversion
@@ -418,7 +428,7 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     PyObject *result = 0;
     Py_ssize_t basicsize;
     Py_ssize_t itemsize;
-#ifdef Py_LIMITED_API
+#if defined(Py_LIMITED_API) || (defined(CYTHON_COMPILING_IN_LIMITED_API) && CYTHON_COMPILING_IN_LIMITED_API)
     PyObject *py_basicsize;
     PyObject *py_itemsize;
 #endif
@@ -432,7 +442,7 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
             module_name, class_name);
         goto bad;
     }
-#ifndef Py_LIMITED_API
+#if !( defined(Py_LIMITED_API) || (defined(CYTHON_COMPILING_IN_LIMITED_API) && CYTHON_COMPILING_IN_LIMITED_API) )
     basicsize = ((PyTypeObject *)result)->tp_basicsize;
     itemsize = ((PyTypeObject *)result)->tp_itemsize;
 #else
@@ -508,49 +518,20 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
 
 /////////////// FunctionImport ///////////////
 //@substitute: naming
+//@requires: PxdImportShared
 
 #ifndef __PYX_HAVE_RT_ImportFunction_$cyversion
 #define __PYX_HAVE_RT_ImportFunction_$cyversion
 static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
-    PyObject *d = 0;
-    PyObject *cobj = 0;
     union {
         void (*fp)(void);
         void *p;
     } tmp;
-
-    d = PyObject_GetAttrString(module, "$api_name");
-    if (!d)
-        goto bad;
-#if (defined(Py_LIMITED_API) && Py_LIMITED_API >= 0x030d0000) || (!defined(Py_LIMITED_API) && PY_VERSION_HEX >= 0x030d0000)
-    PyDict_GetItemStringRef(d, funcname, &cobj);
-#else
-    cobj = PyDict_GetItemString(d, funcname);
-    Py_XINCREF(cobj);
-#endif
-    if (!cobj) {
-        PyErr_Format(PyExc_ImportError,
-            "%.200s does not export expected C function %.200s",
-                PyModule_GetName(module), funcname);
-        goto bad;
+    int result = __Pyx_ImportFromPxd_$cyversion(module, funcname, &tmp.p, sig, "function");
+    if (result == 0) {
+        *f = tmp.fp;
     }
-    if (!PyCapsule_IsValid(cobj, sig)) {
-        PyErr_Format(PyExc_TypeError,
-            "C function %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
-             PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
-        goto bad;
-    }
-    tmp.p = PyCapsule_GetPointer(cobj, sig);
-    *f = tmp.fp;
-    if (!(*f))
-        goto bad;
-    Py_DECREF(d);
-    Py_DECREF(cobj);
-    return 0;
-bad:
-    Py_XDECREF(d);
-    Py_XDECREF(cobj);
-    return -1;
+    return result;
 }
 #endif
 
@@ -583,12 +564,12 @@ bad:
 
 /////////////// FunctionExport.proto ///////////////
 
-static int __Pyx_ExportFunction(PyObject *api_dict, PyObject *name, void (*f)(void), const char *sig); /*proto*/
+static int __Pyx_ExportFunction(PyObject *api_dict, const char *name, void (*f)(void), const char *sig); /*proto*/
 
 /////////////// FunctionExport ///////////////
 
-static int __Pyx_ExportFunction(PyObject *api_dict, PyObject *name, void (*f)(void), const char *sig) {
-    PyObject *cobj = 0;
+static int __Pyx_ExportFunction(PyObject *api_dict, const char *name, void (*f)(void), const char *sig) {
+    PyObject *cobj;
     union {
         void (*fp)(void);
         void *p;
@@ -598,7 +579,7 @@ static int __Pyx_ExportFunction(PyObject *api_dict, PyObject *name, void (*f)(vo
     cobj = PyCapsule_New(tmp.p, sig, 0);
     if (!cobj)
         goto bad;
-    if (PyDict_SetItem(api_dict, name, cobj) < 0)
+    if (PyDict_SetItemString(api_dict, name, cobj) < 0)
         goto bad;
     Py_DECREF(cobj);
     return 0;
@@ -607,18 +588,12 @@ bad:
     return -1;
 }
 
-
-/////////////// VoidPtrImport.proto ///////////////
+/////////////// PxdImportShared ///////////////
 //@substitute: naming
 
-static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, void **p, const char *sig); /*proto*/
-
-/////////////// VoidPtrImport ///////////////
-//@substitute: naming
-
-#ifndef __PYX_HAVE_RT_ImportVoidPtr_$cyversion
-#define __PYX_HAVE_RT_ImportVoidPtr_$cyversion
-static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, void **p, const char *sig) {
+#ifndef __PYX_HAVE_RT_ImportFromPxd_$cyversion
+#define __PYX_HAVE_RT_ImportFromPxd_$cyversion
+static int __Pyx_ImportFromPxd_$cyversion(PyObject *module, const char *name, void **p, const char *sig, const char *what) {
     PyObject *d = 0;
     PyObject *cobj = 0;
 
@@ -634,14 +609,14 @@ static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, vo
 #endif
     if (!cobj) {
         PyErr_Format(PyExc_ImportError,
-            "%.200s does not export expected C variable %.200s",
-                PyModule_GetName(module), name);
+            "%.200s does not export expected C %.8s %.200s",
+                PyModule_GetName(module), what, name);
         goto bad;
     }
     if (!PyCapsule_IsValid(cobj, sig)) {
         PyErr_Format(PyExc_TypeError,
-            "C variable %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
-             PyModule_GetName(module), name, sig, PyCapsule_GetName(cobj));
+            "C %.8s %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
+             what, PyModule_GetName(module), name, sig, PyCapsule_GetName(cobj));
         goto bad;
     }
     *p = PyCapsule_GetPointer(cobj, sig);
@@ -657,20 +632,36 @@ bad:
 }
 #endif
 
+/////////////// VoidPtrImport.proto ///////////////
+//@substitute: naming
+
+static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, void **p, const char *sig); /*proto*/
+
+/////////////// VoidPtrImport ///////////////
+//@substitute: naming
+//@requires: PxdImportShared
+
+#ifndef __PYX_HAVE_RT_ImportVoidPtr_$cyversion
+#define __PYX_HAVE_RT_ImportVoidPtr_$cyversion
+static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, void **p, const char *sig) {
+    return __Pyx_ImportFromPxd_$cyversion(module, name, p, sig, "variable");
+}
+#endif
+
 
 /////////////// VoidPtrExport.proto ///////////////
 
-static int __Pyx_ExportVoidPtr(PyObject *api_dict, PyObject *name, void *p, const char *sig); /*proto*/
+static int __Pyx_ExportVoidPtr(PyObject *api_dict, const char *name, void *p, const char *sig); /*proto*/
 
 /////////////// VoidPtrExport ///////////////
 
-static int __Pyx_ExportVoidPtr(PyObject *api_dict, PyObject *name, void *p, const char *sig) {
-    PyObject *cobj = 0;
+static int __Pyx_ExportVoidPtr(PyObject *api_dict, const char *name, void *p, const char *sig) {
+    PyObject *cobj;
 
     cobj = PyCapsule_New(p, sig, 0);
     if (!cobj)
         goto bad;
-    if (PyDict_SetItem(api_dict, name, cobj) < 0)
+    if (PyDict_SetItemString(api_dict, name, cobj) < 0)
         goto bad;
     Py_DECREF(cobj);
     return 0;
@@ -870,7 +861,7 @@ Py_CLEAR(CGLOBAL(__pyx_numpy_ndarray));
 
 static PyObject* __Pyx__ImportNumPyArray(void) {
     PyObject *numpy_module, *ndarray_object = NULL;
-    numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, NULL, 0);
+    numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, 0, NULL, 0);
     if (likely(numpy_module)) {
         ndarray_object = PyObject_GetAttrString(numpy_module, "ndarray");
         Py_DECREF(numpy_module);

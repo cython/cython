@@ -8,8 +8,8 @@ import re
 import sys
 import io
 
-if sys.version_info[:2] < (3, 8):
-    sys.stderr.write("Sorry, Cython requires Python 3.8+, found %d.%d\n" % tuple(sys.version_info[:2]))
+if sys.version_info[:2] < (3, 9):
+    sys.stderr.write("Sorry, Cython requires Python 3.9+, found %d.%d\n" % tuple(sys.version_info[:2]))
     sys.exit(1)
 
 # Do not import Parsing here, import it when needed, because Parsing imports
@@ -94,6 +94,10 @@ class Context:
     def from_options(cls, options):
         return cls(options.include_path, options.compiler_directives,
                    options.cplus, options.language_level, options=options)
+
+    @property
+    def shared_c_file_path(self):
+        return self.options.shared_c_file_path if self.options else None
 
     @property
     def shared_utility_qualified_name(self):
@@ -435,7 +439,7 @@ class Context:
         return ".".join(names)
 
     def setup_errors(self, options, result):
-        Errors.init_thread()
+        Errors.reset()
         if options.use_listing_file:
             path = result.listing_file = Utils.replace_suffix(result.main_source_file, ".lis")
         else:

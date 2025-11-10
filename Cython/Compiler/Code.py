@@ -17,6 +17,7 @@ import os
 import re
 import shutil
 import textwrap
+from dataclasses import dataclass
 from string import Template
 from functools import partial, wraps
 from contextlib import closing, contextmanager
@@ -401,7 +402,7 @@ class AbstractUtilityCode:
 
     requires = None
 
-    def put_code(self, output):
+    def put_code(self, globalstate: "GlobalState", used_by=None) -> None:
         pass
 
     def get_tree(self, **kwargs):
@@ -452,6 +453,19 @@ class UtilityCodeBase(AbstractUtilityCode):
     is_cython_utility = False
     _utility_cache = {}
 
+    match_section_title = re.compile(
+        r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear|export)$'
+    ).match
+
+    @staticmethod
+    def get_special_comment_matcher(line_comment_char):
+        return re.compile((
+            # section title
+            r'^%(C)s{5,30}  \s*  (?P<name> (?:\w|\.)+ )  \s*  %(C)s{5,30} |'
+            # section tags and dependencies
+            r'^%(C)s+  @(?P<tag> .+)'
+        ) % {'C': re.escape(line_comment_char)}, re.VERBOSE).match
+
     @classmethod
     def _add_utility(cls, utility, name, type, lines, begin_lineno, tags=None):
         if utility is None:
@@ -482,8 +496,8 @@ class UtilityCodeBase(AbstractUtilityCode):
 
         if tags:
             all_tags = utility[2]
-            for name, values in tags.items():
-                all_tags.setdefault(name, set()).update(values)
+            for tag_name, tag_values in tags.items():
+                all_tags.setdefault(tag_name, set()).update(tag_values)
 
     @classmethod
     def load_utilities_from_file(cls, path):
@@ -500,12 +514,9 @@ class UtilityCodeBase(AbstractUtilityCode):
             comment = '/'
             strip_comments = partial(re.compile(r'^\s*//.*|/\*[^*]*\*/').sub, '')
             rstrip = partial(re.compile(r'\s+(\\?)$').sub, r'\1')
-        match_special = re.compile(
-            (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
-            {'C': comment}).match
-        match_type = re.compile(
-            r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear)$').match
+
+        match_special = cls.get_special_comment_matcher(comment)
+        match_type = cls.match_section_title
 
         all_lines = read_utilities_hook(path)
 
@@ -517,26 +528,38 @@ class UtilityCodeBase(AbstractUtilityCode):
 
         for lineno, line in enumerate(all_lines):
             m = match_special(line)
-            if m:
-                if m.group('name'):
-                    cls._add_utility(utility, name, type, lines, begin_lineno, tags)
-
-                    begin_lineno = lineno + 1
-                    del lines[:]
-                    tags.clear()
-
-                    name = m.group('name')
-                    mtype = match_type(name)
-                    if mtype:
-                        name, type = mtype.groups()
-                    else:
-                        type = 'impl'
-                    utility = utilities[name]
-                else:
-                    tags[m.group('tag')].add(m.group('value'))
-                    lines.append('')  # keep line number correct
-            else:
+            if m is None:
                 lines.append(rstrip(strip_comments(line)))
+            elif m.group('name'):
+                cls._add_utility(utility, name, type, lines, begin_lineno, tags)
+
+                begin_lineno = lineno + 1
+                del lines[:]
+                tags.clear()
+
+                name = m.group('name')
+                mtype = match_type(name)
+                if mtype:
+                    name, type = mtype.groups()
+                else:
+                    type = 'impl'
+                utility = utilities[name]
+            else:
+                tag_value = m.group('tag')
+                if ':' not in tag_value:
+                    raise RuntimeError(f"Found invalid tag '{tag_value}' in utility section {name}.{type}")
+
+                tag_name, _, tag_value = tag_value.partition(':')
+                tag_name = tag_name.rstrip()
+                tag_value = tag_value.strip()
+
+                if tag_name not in ('requires', 'substitute', 'proto_block'):
+                    raise RuntimeError(f"Found unknown tag name '{tag_name}' in utility section {name}.{type}")
+                if not re.match(r'\S+$', tag_value):
+                    raise RuntimeError(f"Found invalid tag value '{tag_value}' in utility section {name}.{type}")
+
+                tags[tag_name].add(tag_value)
+                lines.append('')  # keep line number correct
 
         if utility is None:
             raise ValueError("Empty utility code file")
@@ -666,6 +689,12 @@ class UtilityCodeBase(AbstractUtilityCode):
         # No need to deep-copy utility code since it's essentially immutable.
         return self
 
+@dataclass
+class SharedFunctionDecl:
+    """Contains parsed declaration of shared utility function"""
+    name: str
+    ret: str
+    params: str
 
 class UtilityCode(UtilityCodeBase):
     """
@@ -676,6 +705,7 @@ class UtilityCode(UtilityCodeBase):
     hashes/equals by instance
 
     proto           C prototypes
+    export          C prototypes exported from the shared utility code module
     impl            implementation code
     init            code to call on module initialization
     requires        utility code dependencies
@@ -684,13 +714,14 @@ class UtilityCode(UtilityCodeBase):
     name            name of the utility code (or None)
     file            filename of the utility code file this utility was loaded
                     from (or None)
+    shared_utility_functions        List of parsed declaration line of the shared utility function
     """
-    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear"]
+    code_parts = ["proto", "export", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear"]
 
     def __init__(self, proto=None, impl=None, init=None, cleanup=None,
                  module_state_decls=None, module_state_traverse=None,
                  module_state_clear=None, requires=None,
-                 proto_block='utility_code_proto', name=None, file=None):
+                 proto_block='utility_code_proto', name=None, file=None, export=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
@@ -705,9 +736,43 @@ class UtilityCode(UtilityCodeBase):
         self.proto_block = proto_block
         self.name = name
         self.file = file
+        self.export = export
+        self.shared_utility_functions = self.parse_export_functions(export) if export else []
+        if export:
+            self._validate_suitable_for_sharing()
 
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
+
+    def parse_export_functions(self, export_proto: str) -> list:
+
+        assert '//' not in export_proto and '/*' not in export_proto and '*/' not in export_proto, \
+            f'Export block must not contain comments:\n{export_proto.strip()}\n in file {self.file}'
+
+        parsed_protos = []
+        proto_regex=r'''
+            ^static\s                                         # `static` keyword
+            (?P<ret_type>[^;()]+[\s*])                        # return type + modifier with optional * - e.g.: int *, float, const str *, ...
+            (?P<func_name>\w+)\((?P<func_params>[^)]*)\)$     # function with params - e.g. foo(int, float, *PyObject)
+        '''
+
+        for proto in export_proto.split(';\n'):
+            proto = proto.strip().replace('\n', '')
+            proto = re.sub(r'\s+', ' ', proto)
+
+            if len(proto) == 0:
+                continue
+            matched = re.match(proto_regex, proto, re.VERBOSE)
+            assert matched is not None, \
+                f"Wrong format of function definition in export block \n{proto!r}\n in {self.file}"
+
+            ret_type, func_name, func_params = matched.groups()
+            parsed_protos.append(
+                SharedFunctionDecl(name=func_name.strip(), ret=ret_type.strip(), params=func_params.strip())
+            )
+
+        return parsed_protos
+
 
     def __hash__(self):
         return hash(self._parts_tuple)
@@ -761,8 +826,14 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
 
+    def _validate_suitable_for_sharing(self):
+        code_string = getattr(self, "impl")
+        if not code_string: return
+        assert "NAMED_CGLOBAL(moddict_cname)" not in code_string, \
+            f"moddict_cname should not be shared: {self}"
+
     @cython.final
-    def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str):
+    def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str, used_by=None):
         code_string = getattr(self, code_type)
         if not code_string:
             return
@@ -771,8 +842,10 @@ class UtilityCode(UtilityCodeBase):
 
         code_string, result_is_module_specific = process_utility_ccode(self, output, code_string)
 
-        code_type_name = code_type if code_type != 'impl' else ''
-        writer.putln(f"/* {self.name}{'.' if code_type_name else ''}{code_type_name} */")
+        used_by = f" (used by {used_by})" if used_by else ''
+        name = f"{self.name}.{code_type}" if code_type != 'impl' else self.name
+
+        writer.putln(f"/* {name}{used_by} */")
 
         if can_be_reused and not result_is_module_specific:
             # can be reused across modules
@@ -790,26 +863,43 @@ class UtilityCode(UtilityCodeBase):
         writer.putln("  " + writer.error_goto_if_PyErr(output.module_pos))
         writer.putln()
 
-    def put_code(self, output):
-        if self.requires:
+    def _put_shared_function_declarations(self, code: "CCodeWriter") -> None:
+        code.putln(f'/* {self.name} */')
+        for shared in self.shared_utility_functions:
+            # Convert function declarations to static function pointers.
+            code.putln(f'static {shared.ret}(*{shared.name})({shared.params}); /*proto*/')
+        code.putln()
+
+    def put_code(self, globalstate: "GlobalState", used_by=None) -> None:
+        has_shared_utility_code = bool(
+            self.shared_utility_functions and globalstate.module_node.scope.context.shared_utility_qualified_name
+        )
+
+        if self.requires and not has_shared_utility_code:
             for dependency in self.requires:
-                output.use_utility_code(dependency)
+                globalstate.use_utility_code(dependency, used_by=self.name)
+
+        if has_shared_utility_code:
+            self._put_shared_function_declarations(globalstate[self.proto_block])
+        globalstate.shared_utility_functions.extend(self.shared_utility_functions)
 
         if self.proto:
-            self._put_code_section(output[self.proto_block], output, 'proto')
-        if self.impl:
-            self._put_code_section(output['utility_code_def'], output, 'impl')
+            self._put_code_section(globalstate[self.proto_block], globalstate, 'proto', used_by=used_by)
+        if not has_shared_utility_code:
+            self._put_code_section(globalstate[self.proto_block], globalstate, 'export')
+        if self.impl and not has_shared_utility_code:
+            self._put_code_section(globalstate['utility_code_def'], globalstate, 'impl', used_by=used_by)
         if self.cleanup and Options.generate_cleanup_code:
-            self._put_code_section(output['cleanup_globals'], output, 'cleanup')
+            self._put_code_section(globalstate['cleanup_globals'], globalstate, 'cleanup')
         if self.module_state_decls:
-            self._put_code_section(output['module_state_contents'], output, 'module_state_decls')
+            self._put_code_section(globalstate['module_state_contents'], globalstate, 'module_state_decls')
         if self.module_state_traverse:
-            self._put_code_section(output['module_state_traverse_contents'], output, 'module_state_traverse')
+            self._put_code_section(globalstate['module_state_traverse_contents'], globalstate, 'module_state_traverse')
         if self.module_state_clear:
-            self._put_code_section(output['module_state_clear_contents'], output, 'module_state_clear')
+            self._put_code_section(globalstate['module_state_clear_contents'], globalstate, 'module_state_clear')
 
         if self.init:
-            self._put_init_code_section(output)
+            self._put_init_code_section(globalstate)
 
 
 def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _last_macro_processor = [None]):
@@ -1008,9 +1098,9 @@ class LazyUtilityCode(UtilityCodeBase):
     def __init__(self, callback):
         self.callback = callback
 
-    def put_code(self, globalstate):
+    def put_code(self, globalstate: "GlobalState", used_by=None) -> None:
         utility = self.callback(globalstate.rootwriter)
-        globalstate.use_utility_code(utility)
+        globalstate.use_utility_code(utility, used_by=used_by)
 
 
 class FunctionState:
@@ -1413,7 +1503,7 @@ class GlobalState:
     #                                  supplied directly instead.
     #
     # const_cnames_used  dict          global counter for unique constant identifiers
-    #
+    # shared_utility_functions         List of parsed declaration lines of the shared utility functions
 
     # parts            {string:CCodeWriter}
 
@@ -1504,6 +1594,7 @@ class GlobalState:
         self.const_array_counters = {}  # counts of differently prefixed arrays of constants
         self.cached_cmethods = {}
         self.initialised_constants = set()
+        self.shared_utility_functions = []
 
         writer.set_global_state(self)
         self.rootwriter = writer
@@ -2102,7 +2193,11 @@ class GlobalState:
         w.putln('}')
         w.putln('}')
 
-        self.immortalize_constants("stringtab", len(index), w)
+        # Unicode strings are not trivially immortal but require certain rules.
+        # See https://github.com/python/cpython/blob/920de7ccdcfa7284b6d23a124771b17c66dd3e4f/Objects/unicodeobject.c#L713-L739
+        # But we can make bytes strings immortal.
+        if stringtab_bytes_start < len(index):
+            self.immortalize_constants(f"stringtab + {stringtab_bytes_start}", len(index) - stringtab_bytes_start, w)
 
         w.putln("}")  # close block
 
@@ -2369,18 +2464,15 @@ class GlobalState:
             return self.input_file_contents[source_desc]
         except KeyError:
             pass
-        source_file = source_desc.get_lines(encoding='ASCII',
-                                            error_handling='ignore')
-        try:
-            F = [' * ' + line.rstrip().replace(
+        source_file = source_desc.get_lines(encoding='ASCII', error_handling='ignore')
+        F = [' * ' + (
+                line.replace(
                     '*/', '*[inserted by cython to avoid comment closer]/'
-                    ).replace(
+                ).replace(
                     '/*', '/[inserted by cython to avoid comment start]*'
-                    )
-                 for line in source_file]
-        finally:
-            if hasattr(source_file, 'close'):
-                source_file.close()
+                ) if '/' in line else line)
+            for line in source_file
+        ]
         if not F: F.append('')
         self.input_file_contents[source_desc] = F
         return F
@@ -2389,7 +2481,7 @@ class GlobalState:
     # Utility code state
     #
 
-    def use_utility_code(self, utility_code):
+    def use_utility_code(self, utility_code, used_by=None):
         """
         Adds code to the C file. utility_code should
         a) implement __eq__/__hash__ for the purpose of knowing whether the same
@@ -2400,7 +2492,7 @@ class GlobalState:
         """
         if utility_code and utility_code not in self.utility_codes:
             self.utility_codes.add(utility_code)
-            utility_code.put_code(self)
+            utility_code.put_code(self, used_by=used_by)
 
     def use_entry_utility_code(self, entry):
         if entry is None:
@@ -2409,6 +2501,10 @@ class GlobalState:
             self.use_utility_code(entry.utility_code)
         if entry.utility_code_definition:
             self.use_utility_code(entry.utility_code_definition)
+        from . import PyrexTypes
+        for tp in PyrexTypes.get_all_subtypes(entry.type):
+            if hasattr(tp, "entry") and tp.entry is not entry:
+                self.use_entry_utility_code(tp.entry)
 
 
 def funccontext_property(func):
@@ -2898,9 +2994,9 @@ class CCodeWriter:
         elif entry.type.is_pyobject:
             self.put(" = NULL")
         self.putln(";")
-        self.funcstate.scope.use_entry_utility_code(entry)
+        self.globalstate.use_entry_utility_code(entry)
 
-    def put_temp_declarations(self, func_context):
+    def put_temp_declarations(self, func_context: FunctionState):
         for name, type, manage_ref, static in func_context.temps_allocated:
             if type.is_cpp_class and not type.is_fake_reference and func_context.scope.directives['cpp_locals']:
                 decl = type.cpp_optional_declaration_code(name)
@@ -3244,7 +3340,7 @@ class CCodeWriter:
     def put_error_if_neg(self, pos, value):
         # TODO this path is almost _never_ taken, yet this macro makes is slower!
         # return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))
-        return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
+        return self.putln("if (%s < (0)) %s" % (value, self.error_goto(pos)))
 
     def put_error_if_unbound(self, pos, entry, in_nogil_context=False, unbound_check_code=None):
         nogil_tag = "Nogil" if in_nogil_context else ""
