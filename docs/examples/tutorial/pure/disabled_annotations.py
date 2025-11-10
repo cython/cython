@@ -23,8 +23,9 @@ def annotated_function(a: cython.int, b: cython.int):
     with cython.annotation_typing(False):
         # Cython is ignoring annotations within this code block
         c: list = []
-        
+
     c.append(a)
     c.append(b)
     c.append(s)
     return c
+

@@ -18,3 +18,4 @@ class A:
     def __init__(self, b=0):
         self.a = 3
         self.b = b
+
