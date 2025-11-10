@@ -15,6 +15,10 @@ on:
         required: false
         default:
         type: string
+      linker:
+        required: false
+        default:
+        type: string
       name:
         required: true
         type: string
@@ -39,6 +43,7 @@ jobs:
         run: |
           echo CC=${{inputs.compiler}} >> $GITHUB_ENV
           echo CXX=${{inputs.cpp_compiler}} >> $GITHUB_ENV
+          echo LDSHARED=${{inputs.linker}} >> $GITHUB_ENV
           echo EXTERNAL_OVERRIDE_CC=1 >> $GITHUB_ENV
 
       - name: Set up sanitizer args
@@ -47,6 +52,7 @@ jobs:
           if [[ ${{inputs.sanitize}} == "address" ]]; then
             echo "CONFIGURE_ARG=--with-address-sanitizer --without-pymalloc" >> $GITHUB_ENV
             echo "SANITIZER_CFLAGS=-fsanitize=address" >> $GITHUB_ENV
+            echo "ASAN_OPTIONS=detect_leaks=false" >> $GITHUB_ENV
           elif [[ ${{inputs.sanitize}} == "memory" ]]; then
             echo CONFIGURE_ARG=--with-memory-sanitizer >> $GITHUB_ENV
             echo "SANITIZER_CFLAGS=-fsanitize=memory" >> $GITHUB_ENV

@@ -20,6 +20,7 @@ jobs:
     uses: ./.github/workflows/compiled_python.yml
     with:
       compiler: clang
-      cpp_compiler: "clang++ -stdlib=libc++"
+      cpp_compiler: clang++
+      linker: clang
       sanitize: ${{ matrix.sanitizer }}
       name: ${{ matrix.sanitizer }}
