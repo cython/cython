@@ -19,8 +19,8 @@ jobs:
         sanitizer: [address, undefined, thread]  # memory
     uses: ./.github/workflows/compiled_python.yml
     with:
-      compiler: clang
-      cpp_compiler: clang++
-      linker: clang
+      #compiler: clang
+      #cpp_compiler: clang++
+      #linker: clang
       sanitize: ${{ matrix.sanitizer }}
       name: ${{ matrix.sanitizer }}
