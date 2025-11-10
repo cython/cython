@@ -684,6 +684,10 @@ class pymutex:
     def locked(self):
         return self._l.locked()
 
+    def can_check_locked(self):
+        """Check if locked() is available. Always True in pure Python mode."""
+        return True
+
     def __enter__(self):
         return self._l.__enter__()
 

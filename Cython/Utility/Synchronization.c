@@ -315,13 +315,21 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
     }
 }
 
+static int __Pyx_Locks_PyThreadTypeLock_CanCheckLocked(__Pyx_Locks_PyThreadTypeLock lock) {
+    CYTHON_UNUSED_VAR(lock);
+    // PyThread_type_lock doesn't support checking lock status
+    return 0;
+}
+
 static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock) {
     CYTHON_UNUSED_VAR(lock);
     // PyThread_type_lock doesn't provide a way to check if it's locked
-    // without trying to acquire it. This is a fatal error.
+    // without trying to acquire it. Users should call can_check_locked()
+    // first to avoid this fatal error.
     Py_FatalError("PyMutex.locked() is not available in this Python version or build configuration. "
-                  "It requires Python 3.13+ and cannot be used with the Limited API for now.");
-    return -1;
+                  "It requires Python 3.13+ and cannot be used with the Limited API for now. "
+                  "Use can_check_locked() to query availability before calling locked().");
+    return -1;  // Never reached, but required for function signature
 }
 
 
@@ -380,6 +388,9 @@ static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock
     ((int)(_Py_atomic_load_uint8_relaxed(&(l)._bits) & _Py_LOCKED))
 #endif
 
+// locked() is available in Python 3.13+ when not using Limited API
+#define __Pyx_Locks_PyMutex_CanCheckLocked(l) (CYTHON_UNUSED_VAR(l), 1)
+
 #else
 
 #define __Pyx_Locks_PyMutex_Init(l) __Pyx_Locks_PyThreadTypeLock_Init(l)
@@ -389,6 +400,7 @@ static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock
 #define __Pyx_Locks_PyMutex_LockGil(l) __Pyx_Locks_PyThreadTypeLock_LockGil(l)
 #define __Pyx_Locks_PyMutex_LockNogil(l) __Pyx_Locks_PyThreadTypeLock_LockNogil(l)
 #define __Pyx_Locks_PyMutex_Locked(l) __Pyx_Locks_PyThreadTypeLock_Locked(l)
+#define __Pyx_Locks_PyMutex_CanCheckLocked(l) __Pyx_Locks_PyThreadTypeLock_CanCheckLocked(l)
 
 #endif
 

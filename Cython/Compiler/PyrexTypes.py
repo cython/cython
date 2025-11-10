@@ -5004,10 +5004,18 @@ class CythonLockType(PyrexType):
             scope.declare_cfunction(
                     "locked",
                     CFuncType(c_bint_type, [CFuncTypeArg("self", self_type, None)],
-                              nogil=True, exception_value=-1),
+                              nogil=True),
                     pos=None,
                     defining=1,
                     cname=f"__Pyx_Locks_{self.cname_part}_Locked",
+                    utility_code=self.get_usage_utility_code())
+            scope.declare_cfunction(
+                    "can_check_locked",
+                    CFuncType(c_bint_type, [CFuncTypeArg("self", self_type, None)],
+                              nogil=True),
+                    pos=None,
+                    defining=1,
+                    cname=f"__Pyx_Locks_{self.cname_part}_CanCheckLocked",
                     utility_code=self.get_usage_utility_code())
 
         return True

@@ -132,14 +132,15 @@ and the predicate ``locked`` (in Python 3.13+).
   ...  # perform operations with the lock
   l.release()
   
-  # check if the lock is currently held
-  if l.locked():
-      ...  # lock is held
+  # check if the lock is currently held (Python 3.13+ only)
+  if l.can_check_locked():
+      if l.locked():
+          ...  # lock is held
 
 The ``locked()`` method returns ``True`` if the lock is currently held, ``False`` otherwise.
 It can be called with or without the GIL. Note that ``locked()`` is only available for
-``cython.pymutex`` on Python 3.13+; for ``cython.pythread_type_lock`` it raises
-``NotImplementedError``.
+``cython.pymutex`` on Python 3.13+ (and not in Limited API mode). Use ``can_check_locked()``
+to query availability at runtime before calling ``locked()`` to avoid fatal errors.
 
 ``acquire`` will avoid deadlocks if the GIL is held (only relevant in
 non-freethreading versions of Python).  However, you are at risk of deadlock

@@ -14,6 +14,22 @@ def _locked_available():
     """Check if locked() is available (Python 3.13+ and not in Limited API mode)"""
     return sys.version_info >= (3, 13) and not CYTHON_COMPILING_IN_LIMITED_API
 
+def test_can_check_locked():
+    """
+    Test can_check_locked() capability query.
+    
+    >>> test_can_check_locked()
+    True
+    """
+    cdef cython.pymutex lock
+    
+    # can_check_locked() should return a boolean indicating if locked() is available
+    cdef int capability = lock.can_check_locked()
+    
+    # The capability should match our Python-level check
+    expected = _locked_available()
+    return capability == expected
+
 cdef void hide_the_reduction(int *x) noexcept nogil:
     x[0] = x[0] + 1
 
