@@ -832,8 +832,7 @@ class MemoryViewSliceType(PyrexType):
                     copy_func_type, pos=pos, defining=1,
                     cname=copy_cname)
 
-                utility = MemoryView.get_copy_new_utility(pos, self, to_memview)
-                env.use_utility_code(utility)
+                entry.utility_code_definition = MemoryView.get_copy_new_utility(pos, self, to_memview)
 
             MemoryView.use_cython_array_utility_code(env)
 
@@ -3822,9 +3821,9 @@ class ToPyStructUtilityCode(AbstractUtilityCode):
     def __hash__(self):
         return hash(self.header)
 
-    def put_code(self, output):
-        code = output['utility_code_def']
-        proto = output['utility_code_proto']
+    def put_code(self, globalstate, used_by=None):
+        code = globalstate['utility_code_def']
+        proto = globalstate['utility_code_proto']
 
         code.enter_cfunc_scope(self.env.global_scope())
         code.putln("%s {" % self.header)
