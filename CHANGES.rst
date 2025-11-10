@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.1.7 (2025-11-??)
+3.1.7 (2025-11-11)
 ==================
 
 Bugs fixed
@@ -12,6 +12,9 @@ Bugs fixed
   could result in invalid Python string objects since Cython 3.1.0.
   Also, lone surrogates failed to format in this way.
   (Github issue :issue:`7298`)
+
+* Assigning nested structs from a list of structs (item by item) could crash Cython.
+  (Github issue :issue:`7308`)
 
 * Cython incorrectly called ``PyList_GetItemRef()`` in PyPy and GraalPython before Py3.13.
   (Github issue :issue:`7269`)
