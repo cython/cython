@@ -15,10 +15,6 @@ on:
         required: false
         default:
         type: string
-      linker:
-        required: false
-        default:
-        type: string
       name:
         required: true
         type: string
@@ -43,8 +39,10 @@ jobs:
         run: |
           echo CC=${{inputs.compiler}} >> $GITHUB_ENV
           echo CXX=${{inputs.cpp_compiler}} >> $GITHUB_ENV
-          echo LDSHARED=${{inputs.linker}} >> $GITHUB_ENV
           echo EXTERNAL_OVERRIDE_CC=1 >> $GITHUB_ENV
+          if [[ "${{inputs.cpp_compiler}}" == "clang"* ]]; then
+            sudo apt install -y -q libc++-dev libc++abi1 libc++1
+          fi
 
       - name: Set up sanitizer args
         if: ${{inputs.sanitize}}
