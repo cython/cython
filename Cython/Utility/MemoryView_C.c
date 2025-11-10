@@ -28,6 +28,8 @@ typedef struct {
 #define __Pyx_IS_C_CONTIG 1
 #define __Pyx_IS_F_CONTIG 2
 
+#define __Pyx_MEMSLICE_INIT  {{memslice_init}}
+
 #if CYTHON_ATOMICS
     #define __pyx_add_acquisition_count(memview) \
              __pyx_atomic_incr_relaxed(__pyx_get_slice_count_pointer(memview))
@@ -52,7 +54,7 @@ static CYTHON_INLINE $memviewslice_cname {{funcname}}(PyObject *, int writable_f
 //@substitute: naming
 
 static CYTHON_INLINE $memviewslice_cname {{funcname}}(PyObject *obj, int writable_flag) {
-    $memviewslice_cname result = {{memslice_init}};
+    $memviewslice_cname result = __Pyx_MEMSLICE_INIT;
     __Pyx_BufFmt_StackElem stack[{{struct_nesting_depth}}];
     int axes_specs[] = { {{axes_specs}} };
     int retcode;
@@ -508,7 +510,7 @@ static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW($memviewslice_cname *memslice,
 }
 
 
-////////// MemviewSliceCopyTemplate.proto //////////
+////////// MemviewSliceCopy.proto //////////
 //@substitute: naming
 
 static $memviewslice_cname
@@ -518,7 +520,7 @@ __pyx_memoryview_copy_new_contig(const $memviewslice_cname *from_mvs,
                                  int dtype_is_object);
 
 
-////////// MemviewSliceCopyTemplate //////////
+////////// MemviewSliceCopy //////////
 //@requires: MemviewSliceInit
 //@substitute: naming
 
@@ -530,7 +532,7 @@ __pyx_memoryview_copy_new_contig(const $memviewslice_cname *from_mvs,
 {
     __Pyx_RefNannyDeclarations
     int i;
-    $memviewslice_cname new_mvs = {{memslice_init}};
+    $memviewslice_cname new_mvs = __Pyx_MEMSLICE_INIT;
     struct $memview_objstruct_cname *from_memview = from_mvs->memview;
     Py_buffer *buf = &from_memview->view;
     PyObject *shape_tuple = NULL;
@@ -608,6 +610,7 @@ no_fail:
 
 
 ////////// CopyContentsUtility.proto /////////
+//@requires: MemviewSliceCopy
 
 #define {{func_cname}}(slice) \
         __pyx_memoryview_copy_new_contig(&slice, "{{mode}}", {{ndim}},            \

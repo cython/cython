@@ -284,7 +284,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
             ((PyLongObject*)copy)->long_value.lv_tag ^= ((PyLongObject*)copy)->long_value.lv_tag & _PyLong_SIGN_MASK;
             #else
             // negate the size to swap the sign
-            __Pyx_SET_SIZE(copy, -Py_SIZE(copy));
+            Py_SET_SIZE(copy, -Py_SIZE(copy));
             #endif
         }
         return copy;
