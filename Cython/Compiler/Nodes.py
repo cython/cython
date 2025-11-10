@@ -9913,7 +9913,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                             "SharedInFreeThreading",
                             "Synchronization.c"))
                     c.put(f" __Pyx_shared_in_cpython_freethreading({Naming.parallel_freethreading_mutex})")
-                    c.put(" private(%s, %s, %s)" % self.pos_info)
+                    c.put(" firstprivate(%s, %s, %s)" % self.pos_info)
 
                 c.put(" shared(%s)" % ', '.join(shared_vars))
 
