@@ -9049,9 +9049,12 @@ class ListNode(SequenceNode):
             else:
                 if len(self.args) < len(dst_type.scope.var_entries):
                     warning(self.pos, "Too few members for '%s'" % dst_type, 1)
-                for i, (arg, member) in enumerate(zip(self.original_args, dst_type.scope.var_entries)):
+                for i, (arg, coerced_arg, member) in enumerate(zip(self.original_args, self.args, dst_type.scope.var_entries)):
                     if isinstance(arg, CoerceToPyTypeNode):
                         arg = arg.arg
+                    elif member.type.is_struct_or_union and coerced_arg.is_dict_literal:
+                        # For struct assignments, use the coerced dict directly, not a struct type call etc.
+                        arg = coerced_arg
                     self.args[i] = arg.coerce_to(member.type, env)
             self.type = dst_type
         elif dst_type.is_ctuple:
