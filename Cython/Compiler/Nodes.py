@@ -3250,7 +3250,7 @@ class DefNode(FuncDefNode):
             from .ExprNodes import ConstNode
             exception_value = ConstNode.for_type(
                 self.pos, value=str(cfunc_type.exception_value), type=cfunc_type.return_type,
-                constant_result=cfunc_type.exception_value)
+                constant_result=cfunc_type.exception_value.python_value)
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),
                                          args=self.args,
