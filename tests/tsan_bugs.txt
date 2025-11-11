@@ -1,0 +1,2 @@
+# C11 thread creation isn't handled in thread sanitizer right now
+libc_thread

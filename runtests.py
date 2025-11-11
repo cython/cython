@@ -2450,6 +2450,10 @@ def main():
         action="append",
         help="specify a file containing a list of tests to run")
     parser.add_argument(
+        "--excludefile", dest="excludefile",
+        action="append",
+        help="specify a file containing a list of tests to run")
+    parser.add_argument(
         "-j", "--shard_count", dest="shard_count", metavar="N",
         type=int, default=1,
         help="shard this run into several parallel runs")
@@ -2911,6 +2915,10 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
+
+    if options.excludefile:
+        for excludefile in options.excludefile:
+            exclude_selectors.extend(load_listfile(excludefile))
 
     if not COMPILER_HAS_INT128:
         exclude_selectors += [RegExSelector('int128')]
