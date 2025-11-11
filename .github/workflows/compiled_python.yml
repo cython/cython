@@ -51,7 +51,8 @@ jobs:
             echo "CONFIGURE_ARG=--with-address-sanitizer --without-pymalloc" >> $GITHUB_ENV
             echo "SANITIZER_CFLAGS=-fsanitize=address" >> $GITHUB_ENV
             echo "ASAN_OPTIONS=detect_leaks=false" >> $GITHUB_ENV
-            echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libasan.so)") $(realpath "$(clang -print-file-name=libc++.so)")"
+            # https://github.com/google/sanitizers/issues/934
+            echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libasan.so)") $(realpath "$(clang -print-file-name=libstdc++.so)")"
           elif [[ ${{inputs.sanitize}} == "memory" ]]; then
             echo CONFIGURE_ARG=--with-memory-sanitizer >> $GITHUB_ENV
             echo "SANITIZER_CFLAGS=-fsanitize=memory" >> $GITHUB_ENV
@@ -64,7 +65,7 @@ jobs:
             echo CONFIGURE_ARG=--with-thread-sanitizer >> $GITHUB_ENV
             echo "SANITIZER_CFLAGS=-fsanitize=thread" >> $GITHUB_ENV
             echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
-            EXCLUDE="tests/tsan_bugs.txt"
+            EXCLUDE="--excludefile tests/tsan_bugs.txt"
           fi
           # Even running Python like this is slow, so only run a subset of tests
           # (i.e. compile-only tests tell us nothing)
