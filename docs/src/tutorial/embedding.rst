@@ -83,7 +83,7 @@ The argument is a comma-separated list of the module names you wish to embed:
 
 .. code-block:: bash
 
-    cython --embed --embed-modules=lcmath,another_module main_script.pyx
+    cython --embed --embed-modules=mod1, mod2 main_script.pyx
 
 The full process for static linking, assuming you have ``lcmath.pyx`` and ``combinatorics.pyx``,
 involves these steps:
