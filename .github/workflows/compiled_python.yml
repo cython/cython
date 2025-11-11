@@ -28,7 +28,7 @@ jobs:
       BACKEND: c,cpp
       PYTHON_VERSION: 3.x-dev
       CONFIGURE_ARG: --with-pydebug
-      SANITIZER_CFLAGS:
+      SANITIZER_CFLAGS: ""
 
     steps:
       - name: Checkout repo
@@ -41,7 +41,7 @@ jobs:
           echo CXX=${{inputs.cpp_compiler}} >> $GITHUB_ENV
           echo EXTERNAL_OVERRIDE_CC=1 >> $GITHUB_ENV
           if [[ "${{inputs.cpp_compiler}}" == "clang"* ]]; then
-            sudo apt install -y -q libc++-dev libc++abi1 libc++
+            sudo apt install -y -q libc++-dev libc++abi1 libc++1
           fi
 
       - name: Set up sanitizer args
