@@ -415,10 +415,10 @@ jobs:
           for PYTHON in  python3.14  python3.13  python3.14t  python3.12  python3.10  ; do
               ${PYTHON} -m pip install setuptools
               if [[ ${PYTHON} == *t || ${PYTHON} == *"t-dev" ]]; then
-                COMMITS=("origin/3.1.x" "origin/master"  "HEAD")
+                COMMITS=("HEAD")
                 CYTHONIZE_ARGS="-Xfreethreading_compatible=True"
               else
-                COMMITS=("${LIMITED_API}" "origin/master"  "${LIMITED_API}" "HEAD")
+                COMMITS=("${LIMITED_API}" "HEAD")
                 CYTHONIZE_ARGS=
               fi
               ${PYTHON} Demos/benchmarks/run_benchmarks.py  --report-size benchmark_sizes_${PYTHON}.csv --report benchmark_results_${PYTHON}.csv --with-python  ${CYTHONIZE_ARGS} ${COMMITS[*]}
