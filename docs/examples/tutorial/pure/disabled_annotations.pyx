@@ -22,7 +22,7 @@ cpdef list annotated_function(int a, int b):
     cdef int s = a + b
     
     # In the original, 'c' was ignored, making it a Python list.
-    cdef list c = []
+    cdef object c = []
     
     c.append(a)
     c.append(b)

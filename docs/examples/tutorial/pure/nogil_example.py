@@ -6,4 +6,3 @@ with cython.nogil:
 @cython.returns(cython.int)
 def func_released_gil() -> cython.int:
     return 1
-

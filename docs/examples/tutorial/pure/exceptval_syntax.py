@@ -7,11 +7,10 @@ def func_b():
     pass
 @exceptval(check=True)
 def func_c():
-    pass   
+    pass
 @exceptval(-1, check=True)
 def func_d():
     pass
 @exceptval(check=False)
 def func_e():
     pass
-

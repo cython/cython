@@ -4,4 +4,3 @@ if not cython.compiled:
 
 
 print(_sin(0))
-

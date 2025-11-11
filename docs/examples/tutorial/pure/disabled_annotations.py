@@ -28,4 +28,3 @@ def annotated_function(a: cython.int, b: cython.int):
     c.append(b)
     c.append(s)
     return c
-

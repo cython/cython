@@ -8,4 +8,3 @@ except ImportError:
         def __getattr__(self, type_name): return "object"
 
     cython = _fake_cython()
-

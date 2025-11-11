@@ -4,4 +4,3 @@ MyStruct = cython.struct(
     data=cython.double)
 
 a: MyStruct
-

@@ -13,4 +13,3 @@ class A:
 
     def foo(self, x):
         print(x + _helper(1.0))
-

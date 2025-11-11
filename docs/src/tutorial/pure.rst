@@ -3,6 +3,8 @@
 Pure Python Mode
 ================
 
+The Cython compiler supports two main syntax styles. While we present the traditional :file:`.pyx` syntax for comparison, **this page primarily focuses on teaching the modern Pure Python syntax** (used in :file:`.py` files), as it allows for easier integration with existing Python codebases.
+
 .. include::
     ../two-syntax-variants-used
 
@@ -54,7 +56,7 @@ If a :file:`.pxd` file is found with the same name as the :file:`.py` file being
       .. literalinclude:: ../../examples/tutorial/pure/A_equivalent.pyx
          :caption: A_equivalent.pyx
 
-The required declarations are defined in the supplementing :file:`A.pxd` file:
+The declarations required to enable type conversion for the pure Python example are defined in the supplementing :file:`A.pxd` file:
 
 .. literalinclude:: ../../examples/tutorial/pure/A.pxd
    :caption: A.pxd

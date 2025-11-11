@@ -2,4 +2,3 @@
 def foo(a, b, x, y):
     n = a * b
     # ...
-

@@ -10,4 +10,3 @@ def count_digits(digits):
         counts[digit] += 1
 
     return counts
-
