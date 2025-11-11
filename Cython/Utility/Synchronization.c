@@ -237,6 +237,7 @@
 #define __Pyx_Locks_PyThreadTypeLock_Delete(l) PyThread_free_lock(l)
 #define __Pyx_Locks_PyThreadTypeLock_LockNogil(l) (void)PyThread_acquire_lock(l, WAIT_LOCK)
 #define __Pyx_Locks_PyThreadTypeLock_Unlock(l) PyThread_release_lock(l)
+static CYTHON_INLINE int __Pyx_Locks_PyThreadTypeLock_CanCheckLocked(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 static void __Pyx__Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
@@ -315,7 +316,7 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
     }
 }
 
-static int __Pyx_Locks_PyThreadTypeLock_CanCheckLocked(__Pyx_Locks_PyThreadTypeLock lock) {
+static CYTHON_INLINE int __Pyx_Locks_PyThreadTypeLock_CanCheckLocked(__Pyx_Locks_PyThreadTypeLock lock) {
     CYTHON_UNUSED_VAR(lock);
     // PyThread_type_lock doesn't support checking lock status
     return 0;
