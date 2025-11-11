@@ -52,6 +52,25 @@ def test_release_gil_in_nogil():
     release_gil_in_nogil()
     release_gil_in_nogil2()
 
+def test_release_gil_in_nogil_contended():
+    """
+    >>> test_release_gil_in_nogil_contended()  # shouldn't crash
+    """
+    from threading import Thread, Barrier
+    # barrier just increase the chances of threads being nogil at the same time
+    b = Barrier(4)
+    def inner():
+        b.wait(5.0)
+        with nogil:
+            release_gil_in_nogil()
+    threads = [
+        Thread(target=inner) for t in range(4)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
 cdef void get_gil_in_nogil() nogil:
     with gil:
         pass
@@ -224,13 +243,14 @@ _PERFORMANCE_HINTS = """
 39:0: Exception check on 'release_gil_in_nogil2' will always require the GIL to be acquired.
 49:28: Exception check after calling 'release_gil_in_nogil' will always require the GIL to be acquired.
 51:29: Exception check after calling 'release_gil_in_nogil2' will always require the GIL to be acquired.
-55:0: Exception check on 'get_gil_in_nogil' will always require the GIL to be acquired.
-59:0: Exception check on 'get_gil_in_nogil2' will always require the GIL to be acquired.
-68:24: Exception check after calling 'get_gil_in_nogil' will always require the GIL to be acquired.
-70:25: Exception check after calling 'get_gil_in_nogil2' will always require the GIL to be acquired.
-133:0: Exception check on 'copy_array_exception' will always require the GIL to be acquired.
-184:28: Exception check after calling 'copy_array_exception' will always require the GIL to be acquired.
-187:0: Exception check on 'voidexceptnogil_in_pxd' will always require the GIL to be acquired.
-195:30: Exception check after calling 'voidexceptnogil_in_pxd' will always require the GIL to be acquired.
-198:36: Exception check after calling 'voidexceptnogil_in_other_pxd' will always require the GIL to be acquired.
+65:32: Exception check after calling 'release_gil_in_nogil' will always require the GIL to be acquired.
+74:0: Exception check on 'get_gil_in_nogil' will always require the GIL to be acquired.
+78:0: Exception check on 'get_gil_in_nogil2' will always require the GIL to be acquired.
+87:24: Exception check after calling 'get_gil_in_nogil' will always require the GIL to be acquired.
+89:25: Exception check after calling 'get_gil_in_nogil2' will always require the GIL to be acquired.
+152:0: Exception check on 'copy_array_exception' will always require the GIL to be acquired.
+203:28: Exception check after calling 'copy_array_exception' will always require the GIL to be acquired.
+206:0: Exception check on 'voidexceptnogil_in_pxd' will always require the GIL to be acquired.
+214:30: Exception check after calling 'voidexceptnogil_in_pxd' will always require the GIL to be acquired.
+217:36: Exception check after calling 'voidexceptnogil_in_other_pxd' will always require the GIL to be acquired.
 """
