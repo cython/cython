@@ -52,24 +52,26 @@ def test_release_gil_in_nogil():
     release_gil_in_nogil()
     release_gil_in_nogil2()
 
-def test_release_gil_in_nogil_contended():
+
+def test_release_gil_in_nogil_contended(num_threads):
     """
-    >>> test_release_gil_in_nogil_contended()  # shouldn't crash
+    >>> test_release_gil_in_nogil_contended(num_threads=4)  # shouldn't crash
     """
     from threading import Thread, Barrier
     # barrier just increase the chances of threads being nogil at the same time
-    b = Barrier(4)
+    b = Barrier(num_threads)
+
     def inner():
         b.wait(5.0)
         with nogil:
             release_gil_in_nogil()
-    threads = [
-        Thread(target=inner) for t in range(4)
-    ]
+
+    threads = [Thread(target=inner) for t in range(num_threads)]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
+
 
 cdef void get_gil_in_nogil() nogil:
     with gil:
