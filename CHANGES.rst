@@ -29,7 +29,7 @@ Other changes
   (Github issue :issue:`7271`)
 
 
-3.2.1 (2025-11-??)
+3.2.1 (2025-11-12)
 ==================
 
 Features added
