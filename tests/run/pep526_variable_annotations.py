@@ -198,8 +198,8 @@ def test_subscripted_types():
 if cython.compiled:
     __doc__ = """
     >>> test_subscripted_types()
-    dict object
-    dict object
+    dict[int,float] object
+    dict[int,float] object
     list[int] object
     list[int] object
     list object

@@ -4342,7 +4342,7 @@ class IndexNode(_IndexingBaseNode):
 
         if base_type.is_pyobject:
             self.analyse_as_pyobject(env, is_slice, getting, setting)
-            if base_type in subscription_aware_types and (sub_type := base_type.get_subscribed_type(0)):
+            if base_type in subscription_aware_types and (sub_type := base_type.infer_indexed_type()):
                 self.type = base_type
                 self = self.coerce_to(sub_type, env)
             return self
@@ -4363,14 +4363,14 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_pyobject(self, env, is_slice, getting, setting):
         base_type = self.base.type
-        if self.index.type.is_unicode_char and base_type is not dict_type:
+        if self.index.type.is_unicode_char and base_type != dict_type:
             # TODO: eventually fold into case below and remove warning, once people have adapted their code
             warning(self.pos,
                     "Item lookup of unicode character codes now always converts to a Unicode string. "
                     "Use an explicit C integer cast to get back the previous integer lookup behaviour.", level=1)
             self.index = self.index.coerce_to_pyobject(env)
             self.is_temp = 1
-        elif self.index.type.is_int and base_type is not dict_type:
+        elif self.index.type.is_int and base_type != dict_type:
             if (getting
                     and not env.directives['boundscheck']
                     and (base_type in (list_type, tuple_type, bytearray_type))
@@ -4741,7 +4741,7 @@ class IndexNode(_IndexingBaseNode):
                     function = "__Pyx_GetItemInt"
                 utility_code = TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c")
             else:
-                if base_type is dict_type:
+                if base_type == dict_type:
                     function = "__Pyx_PyDict_GetItem"
                     utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
                 elif base_type is py_object_type and self.index.type is unicode_type:
@@ -4814,7 +4814,7 @@ class IndexNode(_IndexingBaseNode):
             index_code = self.index.result()
         else:
             index_code = self.index.py_result()
-            if self.base.type is dict_type:
+            if self.base.type == dict_type:
                 function = "PyDict_SetItem"
             # It would seem that we could specialized lists/tuples, but that
             # shouldn't happen here.
@@ -4913,7 +4913,7 @@ class IndexNode(_IndexingBaseNode):
                 UtilityCode.load_cached("DelItemInt", "ObjectHandling.c"))
         else:
             index_code = self.index.py_result()
-            if self.base.type is dict_type:
+            if self.base.type == dict_type:
                 function = "PyDict_DelItem"
             else:
                 function = "PyObject_DelItem"
@@ -7622,7 +7622,7 @@ class MergedDictNode(ExprNode):
         args = iter(self.keyword_args)
         item = next(args)
         item.generate_evaluation_code(code)
-        if item.type is not dict_type:
+        if item.type != dict_type:
             # CPython supports calling functions with non-dicts, so do we
             code.putln('if (likely(PyDict_CheckExact(%s))) {' %
                        item.py_result())
@@ -7652,7 +7652,7 @@ class MergedDictNode(ExprNode):
             if item.result_in_temp():
                 code.putln("}")
 
-        if item.type is not dict_type:
+        if item.type != dict_type:
             code.putln('} else {')
             code.globalstate.use_utility_code(UtilityCode.load_cached(
                 "PyObjectCallOneArg", "ObjectHandling.c"))
@@ -9315,11 +9315,11 @@ class ComprehensionNode(ScopedExprNode):
         self.generate_operation_code(code)
 
     def generate_operation_code(self, code):
-        if self.type is Builtin.list_type:
+        if self.type == Builtin.list_type:
             create_code = 'PyList_New(0)'
         elif self.type is Builtin.set_type:
             create_code = 'PySet_New(NULL)'
-        elif self.type is Builtin.dict_type:
+        elif self.type == Builtin.dict_type:
             create_code = 'PyDict_New()'
         else:
             raise InternalError("illegal type for comprehension: %s" % self.type)
@@ -9913,7 +9913,7 @@ class SortedDictKeysNode(ExprNode):
 
     def analyse_types(self, env):
         arg = self.arg.analyse_types(env)
-        if arg.type is Builtin.dict_type:
+        if arg.type == Builtin.dict_type:
             arg = arg.as_none_safe_node(
                 "'NoneType' object is not iterable")
         self.arg = arg
@@ -9924,7 +9924,7 @@ class SortedDictKeysNode(ExprNode):
 
     def generate_result_code(self, code):
         dict_result = self.arg.py_result()
-        if self.arg.type is Builtin.dict_type:
+        if self.arg.type == Builtin.dict_type:
             code.putln('%s = PyDict_Keys(%s); %s' % (
                 self.result(), dict_result,
                 code.error_goto_if_null(self.result(), self.pos)))
@@ -13858,7 +13858,7 @@ class CmpNode:
                          _) = result
                         return True
         elif self.operator in ('in', 'not_in'):
-            if self.operand2.type is Builtin.dict_type:
+            if self.operand2.type == Builtin.dict_type:
                 self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyDictContains", "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_PyDict_ContainsTF"
@@ -14315,7 +14315,7 @@ class CascadedCmpNode(Node, CmpNode):
 
     def coerce_operands_to_pyobjects(self, env):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
-        if self.operand2.type is dict_type and self.operator in ('in', 'not_in'):
+        if self.operand2.type == dict_type and self.operator in ('in', 'not_in'):
             self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
         if self.cascade:
             self.cascade.coerce_operands_to_pyobjects(env)

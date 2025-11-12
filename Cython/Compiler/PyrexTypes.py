@@ -4845,6 +4845,13 @@ class PythonTypeConstructorMixin:
         except IndexError:
             return None
 
+    def infer_indexed_type(self):
+        if self.get_origin() == 'dict':
+            return self.get_subscribed_type(1)
+        else:
+            return self.get_subscribed_type(0)
+
+
     def allows_none(self):
         return (
             self.modifier_name == 'typing.Optional' or
@@ -4886,7 +4893,9 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         self.specializations = {}
 
     def specialize_here(self, pos, env, template_values=None):
-        if template_values and any(tv is not None for tv in template_values) and len(template_values) == 1:
+        if self.name not in ['dict', 'list', 'set', 'frozenset']:
+            return self
+        if template_values and all(tv is not None for tv in template_values) and len(template_values) <= 2:
             template_values = tuple(template_values)
             if template_values in self.specializations:
                 return self.specializations[template_values]

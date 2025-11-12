@@ -12,7 +12,7 @@ except:
 def test_subscripted_types():
     """
     >>> test_subscripted_types()
-    dict object
+    dict[int,float] object
     list[int] object
     set[Python object] object
     """

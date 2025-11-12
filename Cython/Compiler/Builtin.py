@@ -864,6 +864,7 @@ def init_builtins():
         list_type,
         set_type,
         frozenset_type,
+        dict_type,
     )
 
     sequence_types = (

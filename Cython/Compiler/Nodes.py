@@ -4883,11 +4883,11 @@ class GeneratorBodyDefNode(DefNode):
         # ----- prepare target container for inlined comprehension
         if self.is_inlined and self.inlined_comprehension_type is not None:
             target_type = self.inlined_comprehension_type
-            if target_type is Builtin.list_type:
+            if target_type == Builtin.list_type:
                 comp_init = 'PyList_New(0)'
             elif target_type is Builtin.set_type:
                 comp_init = 'PySet_New(NULL)'
-            elif target_type is Builtin.dict_type:
+            elif target_type == Builtin.dict_type:
                 comp_init = 'PyDict_New()'
             else:
                 raise InternalError(
