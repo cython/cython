@@ -27,7 +27,8 @@ static int __Pyx_main(int argc, wchar_t **argv)
     fpsetmask(m & ~FP_X_OFL);
 #endif
 
-    {{for mname in (module_name,) + embed_modules}}
+    if (PyImport_AppendInittab("__main__", PyInit_{{module_name}}) < 0) return 1;
+    {{for mname in embed_modules}}
     if (PyImport_AppendInittab("{{mname}}", PyInit_{{mname}}) < 0) return 1;
     {{endfor}}
 
@@ -64,7 +65,7 @@ static int __Pyx_main(int argc, wchar_t **argv)
     { /* init module '{{module_name}}' as '__main__' */
       PyObject* m = NULL;
       {{module_is_main}} = 1;
-      m = PyImport_ImportModule("{{module_name}}");
+      m = PyImport_ImportModule("__main__");
 
       if (!m && PyErr_Occurred()) {
           PyErr_Print(); /* This exits with the right code if SystemExit. */
