@@ -2148,7 +2148,7 @@ class EmbedTest(unittest.TestCase):
 
 def load_listfile(filename):
     # just reuse the FileListExclude implementation
-    return list(FileListExcluder(filename))
+    return FileListExcluder(filename)
 
 class MissingDependencyExcluder(object):
     def __init__(self, deps):
@@ -2592,7 +2592,7 @@ def main():
 
     if options.listfile:
         for listfile in options.listfile:
-            cmd_args.extend(load_listfile(listfile))
+            cmd_args.extend(load_listfile(listfile).excludes.keys())
 
     if options.capture and not options.for_debugging:
         keep_alive_interval = 10
@@ -2918,7 +2918,7 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.excludefile:
         for excludefile in options.excludefile:
-            exclude_selectors.extend(load_listfile(excludefile))
+            exclude_selectors.append(load_listfile(excludefile))
 
     if not COMPILER_HAS_INT128:
         exclude_selectors += [RegExSelector('int128')]

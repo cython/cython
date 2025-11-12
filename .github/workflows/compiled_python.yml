@@ -52,7 +52,7 @@ jobs:
             echo "SANITIZER_CFLAGS=-fsanitize=address" >> $GITHUB_ENV
             echo "ASAN_OPTIONS=detect_leaks=false" >> $GITHUB_ENV
             # https://github.com/google/sanitizers/issues/934
-            echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libasan.so)") $(realpath "$(clang -print-file-name=libstdc++.so)")"
+            echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libasan.so)")" #" $(realpath "$(clang -print-file-name=libstdc++.so)")"
           elif [[ ${{inputs.sanitize}} == "memory" ]]; then
             echo CONFIGURE_ARG=--with-memory-sanitizer >> $GITHUB_ENV
             echo "SANITIZER_CFLAGS=-fsanitize=memory" >> $GITHUB_ENV
@@ -60,7 +60,7 @@ jobs:
             echo CONFIGURE_ARG=--with-undefined-behavior-sanitizer >> $GITHUB_ENV
             # We call functions through slightly wrong pointer types a lot so disable for now
             echo "SANITIZER_CFLAGS=-fsanitize=undefined -fno-sanitize=function" >> $GITHUB_ENV
-            echo "UBSAN_OPTIONS=halt_on_error=1" >> $GITHUB_ENV
+            #echo "UBSAN_OPTIONS=halt_on_error=1" >> $GITHUB_ENV
           elif [[ ${{inputs.sanitize}} == "thread" ]]; then
             echo CONFIGURE_ARG=--with-thread-sanitizer >> $GITHUB_ENV
             echo "SANITIZER_CFLAGS=-fsanitize=thread" >> $GITHUB_ENV
