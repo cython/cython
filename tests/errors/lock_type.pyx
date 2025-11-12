@@ -18,17 +18,16 @@ def no_yield():
     with l:
         yield  # banned due to very high possibility of deadlock
 
-
-cdef void misuse_the_gil() noexcept nogil:
+async def no_await(hypothetical_awaitable):
     cdef cython.pymutex l
     with l:
-        with gil:
-            pass
+        await hypothetical_awaitable()  # banned due to very high possibility of deadlock
 
 _ERRORS = """
 11:17: cython.pymutex cannot be copied
 12:9: cython.pymutex cannot be copied
 13:8: Cannot convert 'cython.pymutex' to Python object
 14:11: cython.pymutex cannot be copied
-18:9: Cannot use a 'with' statement with a 'cython.pymutex' in a generator. If you really want to do this (and you are confident that there are no deadlocks) then use try-finally.
+18:9: Cannot yield while in a 'with' block with a 'cython.pymutex'. If you really want to do this (and you are confident that there are no deadlocks) then use try-finally.
+23:9: Cannot yield while in a 'with' block with a 'cython.pymutex'. If you really want to do this (and you are confident that there are no deadlocks) then use try-finally.
 """
