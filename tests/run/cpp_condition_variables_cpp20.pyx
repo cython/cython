@@ -7,7 +7,6 @@ from libcpp.condition_variable cimport *
 from libcpp.stop_token cimport stop_source
 from libcpp.mutex cimport mutex, py_safe_construct_unique_lock
 from libcpp cimport bool
-from libcpp.utility cimport move
 
 import time
 from threading import Thread
