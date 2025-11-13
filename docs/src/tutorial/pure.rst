@@ -630,17 +630,8 @@ by combining C function coercion with a conditional import as follows:
 
 .. literalinclude:: ../../examples/tutorial/pure/mymodule.pxd
 
-.. tabs::
+.. literalinclude:: ../../examples/tutorial/pure/mymodule.py
 
-   .. group-tab:: Pure Python
-
-      .. literalinclude:: ../../examples/tutorial/pure/mymodule.py
-         :caption: mymodule.py
-
-   .. group-tab:: Cython
-
-      .. literalinclude:: ../../examples/tutorial/pure/mymodule.pyx
-         :caption: mymodule.pyx
 
 Note that the "sin" function will show up in the module namespace of "mymodule"
 here (i.e. there will be a ``mymodule.sin()`` function).  You can mark it as an

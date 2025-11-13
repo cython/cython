@@ -1,5 +1,5 @@
 def count_digits(digits):
-    cdef int counts[10]  
+    cdef int[10] counts  
     cdef int digit
 
     for i in range(10):

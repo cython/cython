@@ -7,7 +7,6 @@ def func():
     # Python types shadow Cython types for compatibility reasons
     a: float = 0.54321
     b: int = 5
-    c: int = 6
     pass
 
 @cython.cclass

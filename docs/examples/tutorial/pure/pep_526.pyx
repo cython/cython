@@ -7,7 +7,6 @@ def func():
     # Python types shadow Cython types for compatibility reasons
     cdef double a = 0.54321
     cdef object b = 5
-    cdef object c = 6
     pass
 
 # Traditional Cython syntax for extension type (cdef class)

@@ -1,3 +1,4 @@
+@cython.cfunc
 @cython.exceptval(-1)
 def func(x: cython.int) -> cython.int:
     if x < 0:

@@ -1,16 +1,26 @@
-from cython import exceptval
+from cython import exceptval, cfunc, int as cython_int
+
 @exceptval(-1)
-def func_a():
-    pass
+@cfunc
+def func_a() -> cython_int:
+    return 0
+
 @exceptval(-1, check=False)
-def func_b():
-    pass
+@cfunc
+def func_b() -> cython_int:
+    return 0
+
 @exceptval(check=True)
-def func_c():
-    pass
+@cfunc
+def func_c() -> cython_int:
+    return 0
+
 @exceptval(-1, check=True)
-def func_d():
-    pass
+@cfunc
+def func_d() -> cython_int:
+    return 0
+
 @exceptval(check=False)
-def func_e():
-    pass
+@cfunc
+def func_e() -> cython_int:
+    return 0
