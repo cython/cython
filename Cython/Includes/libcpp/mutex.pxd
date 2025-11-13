@@ -194,7 +194,7 @@ cdef extern from *:
             return 1;
         #elif PY_VERSION_HEX >= 0x030d0000
             return PyThreadState_GetUnchecked() != NULL;
-        #elif PY_VERSION_HEX >= 0x030b0000
+        #elif PY_VERSION_HEX >= 0x030C0000
             return _PyThreadState_UncheckedGet() != NULL;
         #else
             return PyGILState_Check();
