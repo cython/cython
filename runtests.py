@@ -146,6 +146,8 @@ EXT_DEP_MODULES = {
     'tag:jedi':     'jedi_BROKEN_AND_DISABLED',
     'tag:test.support': 'test.support',  # support module for CPython unit tests
 }
+if sys.version_info < (3, 14):
+    EXT_DEP_MODULES['tag:subinterpreters'] = 'interpreters_backport'
 
 def patch_inspect_isfunction():
     import inspect
