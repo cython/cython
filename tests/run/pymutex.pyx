@@ -4,6 +4,8 @@
 cimport cython
 cimport cython.parallel
 
+from threading import Thread
+
 cdef cython.pymutex global_lock
 
 cdef void hide_the_reduction(int *x) noexcept nogil:
@@ -106,4 +108,132 @@ def pass_as_pointer():
     cdef cython.pymutex lock
     for i in cython.parallel.prange(5000, nogil=True):
         acquire_and_hide(&lock, &count)
+    return count
+
+def pymutex_with_gil():
+    """
+    >>> pymutex_with_gil()
+    4000
+    """
+    cdef cython.pymutex lock
+    cdef int count = 0
+    def thread_func():
+        nonlocal count
+        for i in range(1000):
+            with lock:
+                count += 1
+    threads = [ Thread(target=thread_func) for _ in range(4) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return count
+
+def old_lock_with_gil():
+    """
+    >>> old_lock_with_gil()
+    4000
+    """
+    cdef cython.pythread_type_lock lock
+    cdef int count = 0
+    def thread_func():
+        nonlocal count
+        for i in range(1000):
+            with lock:
+                count += 1
+    threads = [ Thread(target=thread_func) for _ in range(4) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return count
+
+def pymutex_without_gil():
+    """
+    >>> pymutex_without_gil()
+    4000
+    """
+    cdef cython.pymutex lock
+    cdef int count = 0
+    def thread_func():
+        nonlocal count
+        with nogil:
+            for i in range(1000):
+                with lock:
+                    count += 1
+    threads = [ Thread(target=thread_func) for _ in range(4) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return count
+
+def old_lock_without_gil():
+    """
+    >>> old_lock_without_gil()
+    4000
+    """
+    cdef cython.pythread_type_lock lock
+    cdef int count = 0
+    def thread_func():
+        nonlocal count
+        with nogil:
+            for i in range(1000):
+                with lock:
+                    count += 1
+    threads = [ Thread(target=thread_func) for _ in range(4) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return count
+
+cdef void pymutex_unknown_gil_impl(cython.pymutex* lock, int* count) nogil noexcept:
+    with lock[0]:
+        count[0] += 1
+
+def pymutex_unknown_gil():
+    """
+    >>> pymutex_unknown_gil()
+    4000
+    """
+    cdef cython.pymutex lock
+    cdef int count = 0
+    def thread_func():
+        for i in range(1000):
+            if i % 2:
+                pymutex_unknown_gil_impl(&lock, &count)
+            else:
+                with nogil:
+                    pymutex_unknown_gil_impl(&lock, &count)
+    threads = [ Thread(target=thread_func) for _ in range(4) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return count
+
+cdef void old_lock_unknown_gil_impl(cython.pythread_type_lock* lock, int* count) nogil noexcept:
+    with lock[0]:
+        count[0] += 1
+
+def old_lock_unknown_gil():
+    """
+    >>> old_lock_unknown_gil()
+    4000
+    """
+    cdef cython.pythread_type_lock lock
+    cdef int count = 0
+    def thread_func():
+        for i in range(1000):
+            if i % 2:
+                old_lock_unknown_gil_impl(&lock, &count)
+            else:
+                with nogil:
+                    old_lock_unknown_gil_impl(&lock, &count)
+    threads = [ Thread(target=thread_func) for _ in range(4) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
     return count
