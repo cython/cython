@@ -137,7 +137,7 @@ def iter_declared_dict(d):
 
     # specialized "compiled" test in module-level __doc__
     """
-    typed_dict : Dict[cython.float, cython.float] = d
+    typed_dict : Dict[object, cython.float] = d
     s = 0.0
     for key in typed_dict:
         s += d[key]
@@ -148,7 +148,7 @@ def iter_declared_dict(d):
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode",
 )
-def iter_declared_dict_arg(d : Dict[cython.float, cython.float]):
+def iter_declared_dict_arg(d : Dict[object, cython.float]):
     """
     >>> d = {1.1: 2.5, 3.3: 4.5}
     >>> iter_declared_dict_arg(d)
@@ -289,6 +289,24 @@ def test_list_with_int_subscription():
     print(cython.typeof(c))
     print(c)
 
+def test_dict_with_subscription():
+    """
+    >>> test_list_with_int_subscription()
+    int
+    int
+    int
+    int
+    3
+    """
+    a: Dict[str, cython.int] = {"a": 1}
+    b: Dict[cython.int, cython.int] = {1: 2}
+    c = a["a"] + b[1]
+    print(cython.typeof(a["a"]))
+    print(cython.typeof(b[1]))
+    print(cython.typeof(a["a"] + b[1]))
+    print(cython.typeof(c))
+    print(c)
+
 @cython.infer_types(True)
 def test_iteration_over_list_with_subscription():
     """
@@ -329,6 +347,21 @@ def test_iteration_over_frozenset_with_subscription():
     """
     b: cython.int = 1
     a: frozenset[cython.int] = frozenset({2})
+    for c in a:
+        print(cython.typeof(c))
+        print(cython.typeof(b + c))
+        print(b + c)
+
+@cython.infer_types(True)
+def test_iteration_over_set_with_subscription():
+    """
+    >>> test_iteration_over_set_with_subscription()
+    int
+    int
+    3
+    """
+    b: cython.int = 1
+    a: dict[cython.int, cython.int] = {2: 3}
     for c in a:
         print(cython.typeof(c))
         print(cython.typeof(b + c))
