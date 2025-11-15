@@ -106,9 +106,13 @@ coercion_error_dict = {
 
 def find_coercion_error(type_tuple, default, env):
     err = coercion_error_dict.get(type_tuple)
-    if err is None and type_tuple[0] in typed_container_types and (sub_typ0 := type_tuple[0].get_subscribed_type(0)) and \
-       type_tuple[1] in typed_container_types and (sub_typ1 := type_tuple[1].get_subscribed_type(0)):
-        return find_coercion_error((sub_typ0, sub_typ1), default, env)
+    if err is None:
+        type0, type1 = type_tuple
+        if type0 in typed_container_types and type1 in typed_container_types:
+            # Typed containers. Validate the coercion of their item types.
+            type0 = type0.get_subscribed_type(0)
+            type1 = type1.get_subscribed_type(0)
+            return find_coercion_error((type0, type1), default, env)
     if err is None:
         return default
     elif (env.directives['c_string_encoding'] and
@@ -3146,8 +3150,8 @@ class IteratorNode(ScopedExprNode):
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
-        if sequence_type in typed_container_types and (sub_type := sequence_type.get_subscribed_type(0)):
-            return sub_type
+        if sequence_type in typed_container_types and (item_type := sequence_type.get_subscribed_type(0)):
+            return item_type
         if sequence_type.is_array or sequence_type.is_ptr:
             return sequence_type
         elif sequence_type.is_cpp_class:
