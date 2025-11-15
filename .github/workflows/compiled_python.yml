@@ -71,11 +71,11 @@ jobs:
           fi
           # Even running Python like this is slow, so only run a subset of tests
           # (i.e. compile-only tests tell us nothing)
-          echo EXCLUDE="$EXCLUDE run[.] memoryview[.] --no-examples --no-refnanny" >> $GITHUB_ENV
+          echo "EXCLUDE=$EXCLUDE run[.] memoryview[.] --no-examples --no-refnanny" >> $GITHUB_ENV
           # https://github.com/google/sanitizers/issues/934
           echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libstdc++.so)")"
-          echo "CONFIGURE_ARGS=$CONFIGURE_ARGS" >> $GITHUB_ENV"
-          echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS" >> $GITHUB_ENV"
+          echo "CONFIGURE_ARGS=$CONFIGURE_ARGS" >> $GITHUB_ENV
+          echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS" >> $GITHUB_ENV
 
       - name: Install build dependencies
         run: |
