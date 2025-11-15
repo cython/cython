@@ -64,8 +64,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Install cibuildwheel
-        # Nb. keep cibuildwheel version pin consistent with job below
-        run: pipx install cibuildwheel==3.2.1
+        # Nb. dependabot should keep cibuildwheel version pin consistent with job below
+        run: pipx install $(grep -v '^\s*#' .github/cibuildwheel-requirement.txt)
       - id: set-matrix
         run: |
           MATRIX=$(
@@ -112,7 +112,7 @@ jobs:
           python-version: '3.13'
 
       - name: Build wheels
-        # Nb. keep cibuildwheel version pin consistent with generate-matrix job above
+        # Nb. dependabot should keep cibuildwheel version pin consistent with generate-matrix job above
         uses: pypa/cibuildwheel@v3.2.1
         with:
           only: ${{ matrix.only }}
@@ -122,7 +122,7 @@ jobs:
           python -m pip install twine
           python -m twine check ./wheelhouse/*.whl
 
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.only }}
           path: ./wheelhouse/*.whl
@@ -174,7 +174,7 @@ jobs:
           python -m pip install twine
           python -m twine check ./wheelhouse/*.whl
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: Stable-ABI-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
@@ -197,7 +197,7 @@ jobs:
       - uses: actions/setup-python@v6.0.0
         with:
           # Build sdist on lowest supported Python
-          python-version: '3.8'
+          python-version: '3.9'
 
       - name: Build sdist
         run: |
@@ -206,12 +206,12 @@ jobs:
           python setup.py bdist_wheel --no-cython-compile
           twine check ./dist/*.whl
 
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v5
         with:
           name: sdist
           path: ./dist/*.tar.gz
 
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v5
         with:
           name: pure-wheel
           path: ./dist/*.whl
@@ -226,7 +226,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           path: ./release_upload
           merge-multiple: true
@@ -235,7 +235,7 @@ jobs:
         run: ls -la ./release_upload
 
       - name: Upload wheels
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           path: ./release_upload/*.whl
           name: all_wheels

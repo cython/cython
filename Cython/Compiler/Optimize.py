@@ -5020,6 +5020,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         # will raise an error
         return node
 
+    def visit_MatchNode(self, node):
+        # Not strictly constant-folding, but it refactor_cases needs to be done
+        # before constant folding on the node children.
+        node.refactor_cases()
+        self.visitchildren(node)
+        return node
+
     # in the future, other nodes can have their own handler method here
     # that can replace them with a constant result node
 

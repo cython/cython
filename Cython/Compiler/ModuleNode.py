@@ -892,8 +892,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#ifndef Py_PYTHON_H")
         code.putln("    #error Python headers needed to compile C extensions, "
                    "please install development version of Python.")
-        code.putln("#elif PY_VERSION_HEX < 0x03080000")
-        code.putln("    #error Cython requires Python 3.8+.")
+        code.putln("#elif PY_VERSION_HEX < 0x03090000")
+        code.putln("    #error Cython requires Python 3.9+.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
@@ -2008,9 +2008,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("PyErr_Fetch(&etype, &eval, &etb);")
         # increase the refcount while we are calling into user code
         # to prevent recursive deallocation
-        code.putln("__Pyx_SET_REFCNT(o, Py_REFCNT(o) + 1);")
+        code.putln("Py_SET_REFCNT(o, Py_REFCNT(o) + 1);")
         code.putln("%s(o);" % entry.func_cname)
-        code.putln("__Pyx_SET_REFCNT(o, Py_REFCNT(o) - 1);")
+        code.putln("Py_SET_REFCNT(o, Py_REFCNT(o) - 1);")
         code.putln("PyErr_Restore(etype, eval, etb);")
         code.putln("}")
 
@@ -2748,22 +2748,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
             code.putln("{0, 0, 0, 0, 0}")
             code.putln("};")
-
-            if weakref_entry:
-                position = format_position(weakref_entry.pos)
-                weakref_warn_mesage = (
-                    f"{position}: __weakref__ is unsupported in the Limited API when "
-                    "running on Python <3.9.")
-                # Note: Limited API rather than USE_TYPE_SPECS - we work round the issue
-                # with USE_TYPE_SPECS outside the limited API
-                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000")
-                code.putln("#if defined(__GNUC__) || defined(__clang__)")
-                code.putln(f'#warning "{weakref_warn_mesage}"')
-                code.putln("#elif defined(_MSC_VER)")
-                code.putln(f'#pragma message("{weakref_warn_mesage}")')
-                code.putln("#endif")
-                code.putln("#endif")
-
 
         code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
         for slot in TypeSlots.get_slot_table(code.globalstate.directives):

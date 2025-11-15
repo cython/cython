@@ -158,18 +158,6 @@
     #endif
 #endif
 
-#if CYTHON_ATOMICS
-    #define __pyx_add_acquisition_count(memview) \
-             __pyx_atomic_incr_relaxed(__pyx_get_slice_count_pointer(memview))
-    #define __pyx_sub_acquisition_count(memview) \
-            __pyx_atomic_decr_acq_rel(__pyx_get_slice_count_pointer(memview))
-#else
-    #define __pyx_add_acquisition_count(memview) \
-            __pyx_add_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
-    #define __pyx_sub_acquisition_count(memview) \
-            __pyx_sub_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
-#endif
-
 
 /////////////////////// CriticalSectionsDefinition.proto /////////////////////
 //@proto_block: utility_code_proto_before_types
@@ -312,7 +300,7 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
         PyGILState_Release(state);
         return;
     }
-#elif CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030B0000
+#elif CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030C0000
     has_gil = PyGILState_Check();
 #elif PY_VERSION_HEX < 0x030d0000
     has_gil = _PyThreadState_UncheckedGet() != NULL;

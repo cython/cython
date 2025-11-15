@@ -42,7 +42,6 @@ jobs:
         os: [ubuntu-22.04, windows-2022, macos-latest]
         backend: [c, cpp]
         python-version:
-          - "3.8"
           - "3.9"
           - "3.10"
           - "3.11"
@@ -124,12 +123,12 @@ jobs:
             env: {}
           # compile all modules
           - os: ubuntu-22.04
-            python-version: "3.8"
+            python-version: "3.9"
             backend: c
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
           - os: ubuntu-22.04
-            python-version: "3.8"
+            python-version: "3.9"
             backend: cpp
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
@@ -151,11 +150,6 @@ jobs:
             extra_hash: "-codestyle"
           # Limited API
           - os: ubuntu-22.04
-            python-version: "3.8"
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", NO_LIMITED_COMPILE: 1 }
-            extra_hash: "-limited_api"
-          - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api --abi3audit" }
@@ -172,6 +166,11 @@ jobs:
             extra_hash: "-limited_api"
           # Type specs
           - os: ubuntu-22.04
+            python-version: "3.14"
+            backend: c
+            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_hash: "-typespecs"
+          - os: ubuntu-22.04
             python-version: "3.12"
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
@@ -181,29 +180,17 @@ jobs:
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
-          - os: ubuntu-22.04
-            python-version: "3.8"
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          # Stackless
-          - os: ubuntu-22.04
-            python-version: "3.8"
-            backend: c
-            env: { STACKLESS: true, PY: 3 }
-            extra_hash: "-stackless"
           # Pypy
-          - os: ubuntu-22.04
-            python-version: pypy-3.8  # drop with EOL of Ubuntu 22.04
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-            allowed_failure: true
           - os: ubuntu-22.04
             python-version: pypy-3.9
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
           - os: ubuntu-22.04
             python-version: pypy-3.10
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
+          - os: ubuntu-22.04
+            python-version: pypy-3.11
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
           # Free-threading
@@ -274,14 +261,14 @@ jobs:
         run: bash ./Tools/ci-run.sh
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5
         with:
           name: htmldocs
           path: docs/build/html
           if-no-files-found: ignore
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5
         with:
           name: wheels-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}${{ matrix.extra_hash }}
           path: dist/*.whl
@@ -345,7 +332,7 @@ jobs:
           if [ -f coverage-report.md ]; then { echo "## Python coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5
         with:
           name: pycoverage_html
           path: coverage-report-html
@@ -379,7 +366,7 @@ jobs:
           if [ -f coverage-report.md ]; then { echo "## Compiled coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5
         with:
           name: cycoverage_html
           path: coverage-report-html
@@ -447,7 +434,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload results
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5
         with:
           name: benchmark_results.txt
           path: benchmarks.log
