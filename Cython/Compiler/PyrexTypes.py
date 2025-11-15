@@ -1458,7 +1458,7 @@ class BuiltinObjectType(PyObjectType):
 
     def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
-        self.typeptr_cname = "(%s)" % cname
+        self.cname = cname
         self.objstruct_cname = objstruct_cname
         self.is_gc_simple = name in builtin_types_that_cannot_create_refcycles
         self.builtin_trashcan = name in builtin_types_with_trashcan
@@ -1469,6 +1469,10 @@ class BuiltinObjectType(PyObjectType):
         if is_exception_type_name(name):
             self.is_exception_type = True
             self.require_exact = False
+
+    @property
+    def typeptr_cname(self):
+        return f"({self.cname})"
 
     def set_scope(self, scope):
         self.scope = scope
@@ -4832,6 +4836,20 @@ class PythonTypeConstructorMixin:
     """
     modifier_name = None
     contains_none = False
+    subscribed_types = ()
+
+    def get_subscribed_type(self, index: int):
+        try:
+            return self.subscribed_types[index]
+        except IndexError:
+            return None
+
+    def infer_indexed_type(self):
+        if self.get_container_type() == 'dict':
+            return self.get_subscribed_type(1)
+        else:
+            return self.get_subscribed_type(0)
+
 
     def allows_none(self):
         return (
@@ -4839,13 +4857,19 @@ class PythonTypeConstructorMixin:
             self.modifier_name == 'typing.Union' and self.contains_none
         )
 
-    def set_python_type_constructor_name(self, name):
-        self.python_type_constructor_name = name
+    @staticmethod
+    def _get_container_type(type_name: str) -> str:
+        """Equivalent to typing.get_origin()"""
+        return re.match('[^[]+', type_name).group()
 
-    def specialize_here(self, pos, env, template_values=None):
-        # for a lot of the typing classes it doesn't really matter what the template is
-        # (i.e. typing.Dict[int] is really just a dict)
-        return self
+
+    def get_container_type(self) -> str:
+        """Equivalent to typing.get_origin()"""
+        return self._get_container_type(self.name)
+
+    def set_python_type_constructor_name(self, name: str) -> None:
+        """Function extracts type name. It removes subscribed part of the type."""
+        self.python_type_constructor_name = self._get_container_type(name)
 
     def __repr__(self):
         if self.base_type:
@@ -4865,6 +4889,66 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
         self.set_python_type_constructor_name(name)
+        self.specializations = {}
+
+    def specialize_here(self, pos, env, template_values=None):
+        if self.name not in ['dict', 'list', 'set', 'frozenset']:
+            return self
+        if template_values and all(tv is not None for tv in template_values) and len(template_values) <= 2:
+            template_values = tuple(template_values)
+            if template_values in self.specializations:
+                return self.specializations[template_values]
+            subscribed_types = ','.join([str(tv) for tv in template_values])
+            name = f'{self.get_container_type()}[{subscribed_types}]'
+
+            # FIXME: Fix objstruct_cname
+            typ = BuiltinTypeConstructorObjectType(name=name, cname=self.cname, objstruct_cname='mocny_bojstruct_cname')
+            typ.subscribed_types = tuple(template_values)
+            self.scope.declare_type(name, typ, pos, cname=typ.cname)
+            typ.scope = self.scope
+            self.specializations[template_values] = typ
+            return typ
+        # for a lot of the typing classes it doesn't really matter what the template is
+        # (i.e. typing.Dict[int] is really just a dict)
+        return self
+
+    def assignable_from(self, src_type):
+        if self == src_type:
+            if (sc := self.get_subscribed_type(0)) and (src_sc := src_type.get_subscribed_type(0)) and sc.assignable_from(src_sc):
+                return True
+            if not self.subscribed_types and not src_type.subscribed_types:
+                return True
+            if not self.subscribed_types and src_type.subscribed_types:
+                return True
+            if self.subscribed_types and not src_type.subscribed_types:
+                # FIXME we should not support assigning not known subtype to known subtype
+                return True
+            if src_type.get_subscribed_type(0) == self:
+                # Assign list[list[BAR] to list[BAR]
+                return True
+            return False
+        return super().assignable_from(src_type)
+
+    def type_check_function(self, exact=True):
+        type_name = self.get_container_type()
+        if type_name in _special_type_check_functions:
+            type_check = _special_type_check_functions[type_name]
+        elif self.is_exception_type:
+            type_check = f"__Pyx_PyExc_{type_name}_Check"
+        else:
+            type_check = f'Py{type_name.capitalize()}_Check'
+        if exact and not self.is_exception_type and type_name not in ('bool', 'slice', 'memoryview'):
+            type_check += 'Exact'
+        return type_check
+
+    def __eq__(self, other):
+        return isinstance(other, BuiltinTypeConstructorObjectType) and self.get_container_type() == other.get_container_type()
+
+    def __ne__(self, other):
+        return not (isinstance(other, BuiltinTypeConstructorObjectType) and self.get_container_type() == other.get_container_type())
+
+    def __hash__(self):
+        return hash((type(self), self.get_container_type()))
 
 
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):

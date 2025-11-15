@@ -1110,7 +1110,7 @@ class IterationTransform(Visitor.EnvTransform):
             method_node = ExprNodes.NullNode(dict_obj.pos)
             dict_obj = dict_obj.as_none_safe_node("'NoneType' object is not iterable")
 
-        is_dict = ExprNodes.IntNode.for_int(node.pos, int(dict_obj.type is Builtin.dict_type))
+        is_dict = ExprNodes.IntNode.for_int(node.pos, int(dict_obj.type == Builtin.dict_type))
 
         result_code = [
             Nodes.SingleAssignmentNode(
@@ -2496,7 +2496,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if len(pos_args) != 1:
             return node
         arg = pos_args[0]
-        if arg.type is Builtin.dict_type:
+        if arg.type == Builtin.dict_type:
             arg = arg.as_none_safe_node("'NoneType' is not iterable")
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
@@ -4950,13 +4950,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self.visitchildren(node)
         if isinstance(node.loop, Nodes.StatListNode) and not node.loop.stats:
             # loop was pruned already => transform into literal
-            if node.type is Builtin.list_type:
+            if node.type == Builtin.list_type:
                 return ExprNodes.ListNode(
                     node.pos, args=[], constant_result=[])
             elif node.type is Builtin.set_type:
                 return ExprNodes.SetNode(
                     node.pos, args=[], constant_result=set())
-            elif node.type is Builtin.dict_type:
+            elif node.type == Builtin.dict_type:
                 return ExprNodes.DictNode(
                     node.pos, key_value_pairs=[], constant_result={})
         return node
