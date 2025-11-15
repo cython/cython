@@ -4845,7 +4845,7 @@ class PythonTypeConstructorMixin:
             return None
 
     def infer_indexed_type(self):
-        if self.get_origin() == 'dict':
+        if self.get_container_type() == 'dict':
             return self.get_subscribed_type(1)
         else:
             return self.get_subscribed_type(0)
@@ -4858,18 +4858,18 @@ class PythonTypeConstructorMixin:
         )
 
     @staticmethod
-    def _get_origin(type_name: str) -> str:
+    def _get_container_type(type_name: str) -> str:
         """Equivalent to typing.get_origin()"""
         return re.match('[^[]+', type_name).group()
 
 
-    def get_origin(self) -> str:
+    def get_container_type(self) -> str:
         """Equivalent to typing.get_origin()"""
-        return self._get_origin(self.name)
+        return self._get_container_type(self.name)
 
     def set_python_type_constructor_name(self, name: str) -> None:
         """Function extracts type name. It removes subscribed part of the type."""
-        self.python_type_constructor_name = self._get_origin(name)
+        self.python_type_constructor_name = self._get_container_type(name)
 
     def __repr__(self):
         if self.base_type:
@@ -4899,7 +4899,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             if template_values in self.specializations:
                 return self.specializations[template_values]
             subscribed_types = ','.join([str(tv) for tv in template_values])
-            name = f'{self.get_origin()}[{subscribed_types}]'
+            name = f'{self.get_container_type()}[{subscribed_types}]'
 
             # FIXME: Fix objstruct_cname
             typ = BuiltinTypeConstructorObjectType(name=name, cname=self.cname, objstruct_cname='mocny_bojstruct_cname')
@@ -4930,7 +4930,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         return super().assignable_from(src_type)
 
     def type_check_function(self, exact=True):
-        type_name = self.get_origin()
+        type_name = self.get_container_type()
         if type_name in _special_type_check_functions:
             type_check = _special_type_check_functions[type_name]
         elif self.is_exception_type:
@@ -4942,13 +4942,13 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         return type_check
 
     def __eq__(self, other):
-        return isinstance(other, BuiltinTypeConstructorObjectType) and self.get_origin() == other.get_origin()
+        return isinstance(other, BuiltinTypeConstructorObjectType) and self.get_container_type() == other.get_container_type()
 
     def __ne__(self, other):
-        return not (isinstance(other, BuiltinTypeConstructorObjectType) and self.get_origin() == other.get_origin())
+        return not (isinstance(other, BuiltinTypeConstructorObjectType) and self.get_container_type() == other.get_container_type())
 
     def __hash__(self):
-        return hash((type(self), self.get_origin()))
+        return hash((type(self), self.get_container_type()))
 
 
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
