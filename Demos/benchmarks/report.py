@@ -5,7 +5,7 @@ Report benchmark results from CSV files in Markdown format.
 import csv
 import itertools
 import operator
-import glob
+
 
 def unbreak(s):
     return s.replace(' ', '\N{NO-BREAK SPACE}')
@@ -113,17 +113,7 @@ def parse_options(args):
 def main(args):
     options = parse_options(args)
 
-    # Expand wildcard patterns (e.g., benchmark_results_*.csv)
-    csv_files = []
-    for pattern in options.csv_files:
-        csv_files.extend(glob.glob(pattern))
-
-    # If no CSV files are found, skip gracefully.
-    if not csv_files:
-        print("No benchmark result CSV files found — skipping benchmark report.")
-        return
-
-    rows = read_rows(concat_files(csv_files))
+    rows = read_rows(concat_files(options.csv_files))
 
     if options.type == 'timings':
         title = "Benchmark timings"
@@ -135,7 +125,6 @@ def main(args):
     header, table = build_table(rows, title, data_formatter)
     for line in generate_markdown(header, table):
         print(line, end='')
-
 
 
 if __name__ == "__main__":
