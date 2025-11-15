@@ -469,8 +469,7 @@ See the example below. If ``raise_py_error`` does not actually raise an exceptio
 Python exceptions created using the Python C API. ::
 
     # raising.pxd
-    cdef extern from "Python.h" nogil:
-        ctypedef struct PyObject
+    from cpython.object cimport PyObject
 
     cdef extern from *:
         """
@@ -549,6 +548,79 @@ logic to handle all the standard exceptions that Cython typically handles as
 listed in the table above. The code for this standard exception handler can be
 found `here
 <https://github.com/cython/cython/blob/master/Cython/Utility/CppSupport.cpp>`__.
+
+You can reuse Cython's built-in logic with something like the following.
+Notice the ``convert_current_exception_to_python()`` function. ::
+
+    from cpython.object cimport PyObject
+
+    cdef extern from *:
+        """
+        #include <Python.h>
+        #include <stdexcept>
+        #include <ios>
+
+        void rethrow_current_exception() {
+            throw;
+        }
+
+        PyObject *CustomLogicError;
+
+        void create_custom_exceptions() {
+            CustomLogicError = PyErr_NewException("raiser.CustomLogicError", NULL, NULL);
+        }
+
+        extern int convert_current_exception_to_python();
+
+        void custom_exception_handler() {
+            if (PyErr_Occurred())
+                return;
+            try {
+                throw;
+            }  catch (const std::logic_error& exn) {
+                PyErr_SetString(CustomLogicError, exn.what());
+            } catch (...) {
+                convert_current_exception_to_python();
+            }
+        }
+
+        class Raiser {
+            public:
+                Raiser () {}
+                void raise_logic_error() {
+                    throw std::logic_error("Failure");
+                }
+                void raise_overflow_error() {
+                    throw std::overflow_error("Failure");
+                }
+        };
+        """
+
+        cdef PyObject* CustomLogicError
+        cdef void create_custom_exceptions()
+        cdef void custom_exception_handler()
+
+        cdef cppclass Raiser:
+            Raiser() noexcept
+            void raise_logic_error() except +custom_exception_handler
+            void raise_overflow_error() except +custom_exception_handler
+
+        cdef void rethrow_current_exception() except+
+
+    cdef public int convert_current_exception_to_python() except -1:
+        rethrow_current_exception()  # the heavy lifting is done in the ``except+``
+
+    create_custom_exceptions()
+    PyCustomLogicError = <object> CustomLogicError
+
+    cdef class PyRaiser:
+        cdef Raiser c_obj
+
+        def raise_logic_error(self):
+            self.c_obj.raise_logic_error()
+
+        def raise_overflow_error(self):
+            self.c_obj.raise_overflow_error()
 
 If you want to use `std::exception_ptr` then you can ``cimport`` it from
 ``libcpp.exception``.  That provides a special exception handler
