@@ -27,7 +27,7 @@ jobs:
     env:
       BACKEND: c,cpp
       PYTHON_VERSION: 3.x-dev
-      CONFIGURE_ARG: --with-pydebug
+      CONFIGURE_ARGS: --with-pydebug
       SANITIZER_CFLAGS: ""
 
     steps:
@@ -46,25 +46,25 @@ jobs:
         run: |
           SANITIZER_CFLAGS=""
           CONFIGURE_ARGS=""
-          if [[ ${{inputs.sanitize}} == *"address"* ]]; then
+          if [[ "${{inputs.sanitize}}" == *"address"* ]]; then
             echo "CONFIGURE_ARGS=$CONFIGURE_ARGS --with-address-sanitizer --without-pymalloc" >> $GITHUB_ENV
             echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS -fsanitize=address" >> $GITHUB_ENV
             echo "ASAN_OPTIONS=detect_leaks=false" >> $GITHUB_ENV
           fi
           # TODO - memory sanitizer requires rebuilding almost all of CPython's dependencies
           # with memory sanitizer too, so isn't really usable for us.
-          if [[ ${{inputs.sanitize}} == *"memory"* ]]; then
+          if [[ "${{inputs.sanitize}}" == *"memory"* ]]; then
             echo "CONFIGURE_ARGS=$CONFIGURE_ARGS --with-memory-sanitizer" >> $GITHUB_ENV
             echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS -fsanitize=memory" >> $GITHUB_ENV
           fi
-          if [[ ${{inputs.sanitize}} == *"undefined"* ]]; then
-            echo CONFIGURE_ARGS=$CONFIGURE_ARGS --with-undefined-behavior-sanitizer >> $GITHUB_ENV
+          if [[ "${{inputs.sanitize}}" == *"undefined"* ]]; then
+            echo "CONFIGURE_ARGS=$CONFIGURE_ARGS --with-undefined-behavior-sanitizer" >> $GITHUB_ENV
             # We call functions through slightly wrong pointer types a lot so disable for now
             echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS -fsanitize=undefined -fno-sanitize=function" >> $GITHUB_ENV
             #echo "UBSAN_OPTIONS=halt_on_error=1" >> $GITHUB_ENV
           fi
-          if [[ ${{inputs.sanitize}} == *"thread"* ]]; then
-            echo CONFIGURE_ARGS=$CONFIGURE_ARGS --with-thread-sanitizer >> $GITHUB_ENV
+          if [[ "${{inputs.sanitize}}" == *"thread"* ]]; then
+            echo "CONFIGURE_ARGS=$CONFIGURE_ARGS --with-thread-sanitizer" >> $GITHUB_ENV
             echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS -fsanitize=thread" >> $GITHUB_ENV
             echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
             EXCLUDE="--excludefile tests/tsan_bugs.txt"
