@@ -33,6 +33,17 @@ def union_pytypes(Union[int, None] i, Union[None, float] f, Union[complex, None]
 def bitwise_or_ctypes(i: cython.int | None, f: None | cython.float , c: cython.complex | None, l: cython.long | None):
     pass
 
+def subscribed_types_assignments():
+    la: list[cython.float] = [5.0]
+    lb: list[cython.int] = la
+    sa: set[cython.float] = {5.0}
+    sb: set[cython.int] = sa
+    fa: frozenset[cython.float] = {5.0}
+    fb: frozenset[cython.int] = fa
+    sa = la
+    fa = la
+    sa = fa
+
 # OK
 
 def optional_memoryview(double[:] d, Optional[double[:]] o):
@@ -60,6 +71,13 @@ def bitwise_or_pytypes(i: int | None, f: None | float , c: complex | None):
     list[None | complex]()
     py_lc: list[complex | None] = []
 
+def allowed_subscribed_types_assignments():
+    la: list[cython.float] = [5.0]
+    lb: list[cython.float] = la
+    sa: set[cython.int] = {5}
+    sb: set[cython.int] = sa
+    fa: frozenset[str] = frozenset({"bar"})
+    fb: frozenset[str] = fa
 
 _ERRORS = """
 13:42: typing.Optional[...] cannot be applied to type int
@@ -84,4 +102,11 @@ _ERRORS = """
 33:60: '[...] | None' cannot be applied to type float
 33:78: '[...] | None' cannot be applied to type double complex
 33:104: '[...] | None' cannot be applied to type long
+38:27: Cannot assign type 'list[float] object' to 'list[int] object'
+40:26: Cannot assign type 'set[float] object' to 'set[int] object'
+41:35: Cannot assign type 'set object' to 'frozenset[float] object'
+42:32: Cannot assign type 'frozenset[float] object' to 'frozenset[int] object'
+43:9: Cannot assign type 'list[float] object' to 'set[float] object'
+44:9: Cannot assign type 'list[float] object' to 'frozenset[float] object'
+45:9: Cannot assign type 'frozenset[float] object' to 'set[float] object'
 """

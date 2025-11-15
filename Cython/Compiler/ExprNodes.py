@@ -1087,10 +1087,8 @@ class ExprNode(Node):
                 pass
             elif src.constant_result is None:
                 src = NoneNode(src.pos).coerce_to(dst_type, env)
-
-            if dst_type == list_type and src_type == list_type and not dst_type.assignable_from(src_type):
+            elif dst_type in typed_container_types and src_type in typed_container_types and not dst_type.assignable_from(src_type):
                 self.fail_assignment(dst_type)
-
             elif src.type.is_pyobject:
                 if not src.type.subtype_of(dst_type):
                     # Apply a type check on assignment.
