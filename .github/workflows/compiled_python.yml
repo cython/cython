@@ -39,6 +39,8 @@ jobs:
         run: |
           echo CC=${{inputs.compiler}} >> $GITHUB_ENV
           echo CXX=${{inputs.cpp_compiler}} >> $GITHUB_ENV
+          # Using the C++ compiler as the linker is needed to link the ubsan C++ library correctly
+          echo LDSHARED=${{inputs.cpp_compiler}} >> $GITHUB_ENV
           echo EXTERNAL_OVERRIDE_CC=1 >> $GITHUB_ENV
 
       - name: Set up sanitizer args
