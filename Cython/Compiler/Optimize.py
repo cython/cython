@@ -2814,7 +2814,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 node.pos, "__Pyx_MemoryView_Len", func_type,
                 args=[arg], is_temp=node.is_temp)
         elif arg.type.is_unicode_char:
-            return ExprNodes.IntNode.for_int(node.pos, 1, type=node.type)
+            new_node = ExprNodes.IntNode.for_int(node.pos, 1, type=node.type)
         elif arg.type.is_ctuple:
             new_node = ExprNodes.IntNode.for_int(node.pos, int(arg.type.size), type=node.type)
 
@@ -2826,8 +2826,10 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
                     if not arg2.try_is_simple():
                         new_node = UtilNodes.EvalWithTempExprNode(UtilNodes.LetRefNode(arg2), new_node)
-        elif arg.is_sequence_constructor and not arg.is_starred:
-            new_node = ExprNodes.IntNode.for_int(node.pos, len(arg.args) * (arg.mult_factor or 1), type=node.type)
+        elif arg.is_sequence_constructor and not arg.is_starred and (
+                arg.mult_factor is None or arg.mult_factor.has_constant_result()):
+            new_node = ExprNodes.IntNode.for_int(
+                node.pos, len(arg.args) * (arg.mult_factor.constant_result if arg.mult_factor else 1), type=node.type)
 
             for arg2 in arg.args:
                 if isinstance(arg2, ExprNodes.CoerceToPyTypeNode):
