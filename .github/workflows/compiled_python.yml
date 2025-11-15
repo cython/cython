@@ -39,8 +39,6 @@ jobs:
         run: |
           echo CC=${{inputs.compiler}} >> $GITHUB_ENV
           echo CXX=${{inputs.cpp_compiler}} >> $GITHUB_ENV
-          # Using the C++ compiler as the linker is needed to link the ubsan C++ library correctly
-          echo LDSHARED=${{inputs.cpp_compiler}} >> $GITHUB_ENV
           echo EXTERNAL_OVERRIDE_CC=1 >> $GITHUB_ENV
 
       - name: Set up sanitizer args
@@ -62,8 +60,9 @@ jobs:
           if [[ "${{inputs.sanitize}}" == *"undefined"* ]]; then
             CONFIGURE_ARGS="$CONFIGURE_ARGS --with-undefined-behavior-sanitizer"
             # We call functions through slightly wrong pointer types a lot so disable for now
-            SANITIZER_CFLAGS="$SANITIZER_CFLAGS -fsanitize=undefined -fno-sanitize=function"
-            #echo "UBSAN_OPTIONS=halt_on_error=1" >> $GITHUB_ENV
+            # omit vptr because it's largely C++-only and requires linking with clang++ (which breaks other things)
+            SANITIZER_CFLAGS="$SANITIZER_CFLAGS -fsanitize=undefined -fno-sanitize=function -fno-sanitize=vptr -fno-omit-frame-pointer"
+            #echo "UBSAN_OPTIONS=halt_on_error=1 print_stacktrace=1" >> $GITHUB_ENV
           fi
           if [[ "${{inputs.sanitize}}" == *"thread"* ]]; then
             CONFIGURE_ARGS="$CONFIGURE_ARGS --with-thread-sanitizer"
