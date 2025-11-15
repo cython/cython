@@ -107,3 +107,119 @@ def pass_as_pointer():
     for i in cython.parallel.prange(5000, nogil=True):
         acquire_and_hide(&lock, &count)
     return count
+
+
+# Using C is just a quick way to inject a few Python calls
+# into the generator tests.  With generators and critical sections
+# putting these calls between yields would definitely break.
+# We don't expect the same to apply to pymutex but it makes the test
+# a little more robust.
+g = {}
+exec(
+    """
+class C:
+    x = 1
+    def f(self):
+        self.x += 1
+    """, g, g)
+C = g['C']
+del g
+
+def generator_local():
+    """
+    Really simple generator - a bit pointless because
+    nothing outside it can access the lock, but it should still work.
+
+    >>> g = generator_local()
+    >>> next(g)
+    1
+    >>> C().f()  # inject Python "work"
+    >>> next(g)
+    2
+    >>> try: next(g)
+    ... except StopIteration: pass
+    ... else: print("Fail")
+    """
+    cdef cython.pymutex m
+    with m:
+        yield 1
+        yield 2
+
+def generator_global(value_in):
+    """
+    >>> g = generator_global(1)
+    >>> thread_func_result = None
+    >>> def thread_func():
+    ...    global thread_func_result
+    ...    g2 = generator_global(2)
+    ...    thread_func_result = [ x for x in g2 ]
+    >>> next(g)
+    1
+    >>> from threading import Thread; t = Thread(target=thread_func); t.start()
+    >>> assert thread_func_result is None  # blocked by lock
+    >>> try: next(g)
+    ... except StopIteration: pass
+    ... else: print("Fail")
+    >>> t.join(10.)
+    >>> thread_func_result
+    [2]
+    """
+    with global_lock:
+        yield value_in
+
+def make_captured_mutex_generator():
+    """
+    >>> gen_func = make_captured_mutex_generator()
+    >>> g = gen_func('a')
+    >>> thread_func_result = None
+    >>> def thread_func():
+    ...    global thread_func_result
+    ...    thread_func_result = [ x for x in gen_func('b') ]
+    >>> next(g)
+    'a 0'
+    >>> from threading import Thread; t = Thread(target=thread_func); t.start()
+    >>> assert thread_func_result is None  # blocked by lock
+    >>> C().f()  # dummy Python work
+    >>> next(g)
+    'a 1'
+    >>> assert thread_func_result is None  # blocked by lock
+    >>> try: next(g)
+    ... except StopIteration: pass
+    ... else: print("Fail")
+    >>> t.join(10.)
+    >>> thread_func_result
+    ['b 0', 'b 1']
+    """
+    cdef cython.pymutex m
+    def g(id):
+        with m:
+            yield f"{id} 0"
+            yield f"{id} 1"
+    return g
+
+def generator_cclass(HasLockAttribute o, id):
+    """
+    >>> l = HasLockAttribute()
+    >>> g1 = generator_cclass(l, 'a')
+    >>> thread_func_result = None
+    >>> def thread_func():
+    ...    global thread_func_result
+    ...    thread_func_result = [ x for x in generator_cclass(l, 'b') ]
+    >>> next(g1)
+    'a 0'
+    >>> from threading import Thread; t = Thread(target=thread_func); t.start()
+    >>> assert thread_func_result is None  # blocked by lock
+    >>> C().f()  # dummy Python work
+    >>> next(g1)
+    'a 1'
+    >>> assert thread_func_result is None  # blocked by lock
+    >>> try: next(g1)
+    ... except StopIteration: pass
+    ... else: print("Fail")
+    >>> t.join(10.)
+    >>> thread_func_result
+    ['b 0', 'b 1']
+    """
+    with o.lock:
+        yield f"{id} 0"
+        yield f"{id} 1"
