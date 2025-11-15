@@ -16,7 +16,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sanitizer: [address, undefined, thread]  # memory
+        # TODO memory sanitizer would be nice (but is hard)
+        sanitizer: ["address,undefined", thread]
     uses: ./.github/workflows/compiled_python.yml
     with:
       compiler: clang

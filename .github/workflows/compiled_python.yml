@@ -40,36 +40,40 @@ jobs:
           echo CC=${{inputs.compiler}} >> $GITHUB_ENV
           echo CXX=${{inputs.cpp_compiler}} >> $GITHUB_ENV
           echo EXTERNAL_OVERRIDE_CC=1 >> $GITHUB_ENV
-          if [[ "${{inputs.cpp_compiler}}" == "clang"* ]]; then
-            sudo apt install -y -q libc++-dev libc++abi1 libc++1
-          fi
 
       - name: Set up sanitizer args
         if: ${{inputs.sanitize}}
         run: |
-          if [[ ${{inputs.sanitize}} == "address" ]]; then
-            echo "CONFIGURE_ARG=--with-address-sanitizer --without-pymalloc" >> $GITHUB_ENV
-            echo "SANITIZER_CFLAGS=-fsanitize=address" >> $GITHUB_ENV
+          SANITIZER_CFLAGS=""
+          CONFIGURE_ARGS=""
+          if [[ ${{inputs.sanitize}} == *"address"* ]]; then
+            echo "CONFIGURE_ARG=$CONFIGURE_ARGS --with-address-sanitizer --without-pymalloc" >> $GITHUB_ENV
+            echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS -fsanitize=address" >> $GITHUB_ENV
             echo "ASAN_OPTIONS=detect_leaks=false" >> $GITHUB_ENV
-            # https://github.com/google/sanitizers/issues/934
-            echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libasan.so)")" #" $(realpath "$(clang -print-file-name=libstdc++.so)")"
-          elif [[ ${{inputs.sanitize}} == "memory" ]]; then
-            echo CONFIGURE_ARG=--with-memory-sanitizer >> $GITHUB_ENV
-            echo "SANITIZER_CFLAGS=-fsanitize=memory" >> $GITHUB_ENV
-          elif [[ ${{inputs.sanitize}} == "undefined" ]]; then
-            echo CONFIGURE_ARG=--with-undefined-behavior-sanitizer >> $GITHUB_ENV
+          fi
+          # TODO - memory sanitizer requires rebuilding almost all of CPython's dependencies
+          # with memory sanitizer too, so isn't really usable for us.
+          if [[ ${{inputs.sanitize}} == *"memory"* ]]; then
+            echo "CONFIGURE_ARG=$CONFIGURE_ARGS --with-memory-sanitizer" >> $GITHUB_ENV
+            echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS -fsanitize=memory" >> $GITHUB_ENV
+          fi
+          if [[ ${{inputs.sanitize}} == *"undefined"* ]]; then
+            echo CONFIGURE_ARG=$CONFIGURE_ARG --with-undefined-behavior-sanitizer >> $GITHUB_ENV
             # We call functions through slightly wrong pointer types a lot so disable for now
-            echo "SANITIZER_CFLAGS=-fsanitize=undefined -fno-sanitize=function" >> $GITHUB_ENV
+            echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS -fsanitize=undefined -fno-sanitize=function" >> $GITHUB_ENV
             #echo "UBSAN_OPTIONS=halt_on_error=1" >> $GITHUB_ENV
-          elif [[ ${{inputs.sanitize}} == "thread" ]]; then
-            echo CONFIGURE_ARG=--with-thread-sanitizer >> $GITHUB_ENV
-            echo "SANITIZER_CFLAGS=-fsanitize=thread" >> $GITHUB_ENV
+          fi
+          if [[ ${{inputs.sanitize}} == *"thread"* ]]; then
+            echo CONFIGURE_ARG=$CONFIGURE_ARG --with-thread-sanitizer >> $GITHUB_ENV
+            echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS -fsanitize=thread" >> $GITHUB_ENV
             echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
             EXCLUDE="--excludefile tests/tsan_bugs.txt"
           fi
           # Even running Python like this is slow, so only run a subset of tests
           # (i.e. compile-only tests tell us nothing)
           echo EXCLUDE="$EXCLUDE run[.] memoryview[.] --no-examples --no-refnanny" >> $GITHUB_ENV
+          # https://github.com/google/sanitizers/issues/934
+          echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libstdc++.so)")"
 
       - name: Install build dependencies
         run: |
