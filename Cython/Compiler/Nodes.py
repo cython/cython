@@ -9012,10 +9012,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         collector = YieldNodeCollector()
         collector.visitchildren(self.body)
         if collector.yields:
-            error(
-                self.pos,
-                f"Cannot yield while in a cython.critical_section."
-            )
+            error(self.pos, f"Cannot yield while in a cython.critical_section.")
 
     def analyse_declarations(self, env):
         for arg in self.args:
