@@ -1061,7 +1061,7 @@ Some things to note:
   function as ``noexcept`` if you're certain that exceptions cannot be thrown, or
   to change the return type to ``int`` and just let Cython use the return value
   as an error flag (by default, ``-1`` triggers the exception check, i.e.
-  functions returning ``int`` are ``except? -1`` by default)
+  functions returning ``int`` use ``except? -1`` by default)
 
   When the return value is a C type, and the last statement is executed
   without returning a value, the function returns ``0`` (instead of ``None``).

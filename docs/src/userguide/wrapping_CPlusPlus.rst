@@ -459,13 +459,12 @@ that most users won't need, but for those that do a full example follows::
 
 If ``something_dangerous`` raises a C++ exception then ``raise_py_error`` will be
 called during exception handling (i.e. typically, in a ``catch`` clause).
-From there, ``raise_py_error`` should access the exception object by,
-for example, rethrow the exception currently handled with ``throw;`` and
-immediately catch it, or use ``std::current_exception()``; then, it should set
-a Python exception, such as by ``PyErr_SetString``.
-This allows one to do custom C++ to Python error "translations".
-See the example below. If ``raise_py_error`` does not actually raise an exception a
-``RuntimeError`` will be raised. This approach may also be used to manage custom
+At that point, ``raise_py_error`` should retrieve the current exception object,
+either by rethrowing the current exception with ``throw;`` and immediately catching it,
+or via ``std::current_exception()``.  It can then set a Python exception via the ``PyErr_Set*()``
+functions of the Python C-API to implement a custom error translation from C++ to Python.
+See the example below. If  ``raise_py_error`` does not actually raise an exception, a
+``RuntimeError`` will be raised.  This approach may also be used to manage custom
 Python exceptions created using the Python C API. ::
 
     # raising.pxd
@@ -570,7 +569,7 @@ Notice the ``convert_current_exception_to_python()`` function. ::
             CustomLogicError = PyErr_NewException("raiser.CustomLogicError", NULL, NULL);
         }
 
-        extern int convert_current_exception_to_python();
+        int convert_current_exception_to_python();
 
         void custom_exception_handler() {
             if (PyErr_Occurred())
