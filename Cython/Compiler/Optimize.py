@@ -2827,7 +2827,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     if not arg2.try_is_simple():
                         new_node = UtilNodes.EvalWithTempExprNode(UtilNodes.LetRefNode(arg2), new_node)
         elif arg.is_sequence_constructor and not arg.is_starred:
-            new_node = ExprNodes.IntNode.for_int(node.pos, len(arg.args) * arg.mult_factor, type=node.type)
+            new_node = ExprNodes.IntNode.for_int(node.pos, len(arg.args) * (arg.mult_factor or 1), type=node.type)
 
             for arg2 in arg.args:
                 if isinstance(arg2, ExprNodes.CoerceToPyTypeNode):
