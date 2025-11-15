@@ -66,7 +66,12 @@ jobs:
           if [[ "${{inputs.sanitize}}" == *"thread"* ]]; then
             CONFIGURE_ARGS="$CONFIGURE_ARGS --with-thread-sanitizer"
             SANITIZER_CFLAGS="$SANITIZER_CFLAGS -fsanitize=thread"
-            echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
+            if [[ "${{inputs.sanitize}}" == *"ft"* ]]; then
+              CONFIGURE_ARGS="$CONFIGURE_ARGS --disable-gil"
+              echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions_free_threading.txt"
+            else
+              echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
+            endif
             EXCLUDE="--excludefile tests/tsan_bugs.txt"
           fi
           # Even running Python like this is slow, so only run a subset of tests
