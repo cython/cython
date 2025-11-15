@@ -73,7 +73,7 @@ jobs:
               echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions_free_threading.txt"
             else
               echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
-            endif
+            fi
             EXCLUDE="--excludefile tests/tsan_bugs.txt"
           fi
           # Even running Python like this is slow, so only run a subset of tests
