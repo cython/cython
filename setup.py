@@ -1,21 +1,26 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 try:
     from setuptools import setup, Extension
 except ImportError:
     from distutils.core import setup, Extension
 import os
+import re
 import stat
 import subprocess
 import sysconfig
 import textwrap
 import sys
+from collections import defaultdict
+from functools import partial
 
 import platform
 is_cpython = platform.python_implementation() == 'CPython'
 
 # this specifies which versions of python we support, pip >= 9 knows to skip
 # versions of packages which are not compatible with the running python
-PYTHON_REQUIRES = '>=3.8'
+PYTHON_REQUIRES = '>=3.9'
+
+TRACKER_URL = "https://github.com/cython/cython/issues/"
 
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
@@ -43,7 +48,9 @@ pxd_include_dirs = [
     directory for directory, dirs, files
     in os.walk(os.path.join('Cython', 'Includes'))
     if '__init__.pyx' in files or '__init__.pxd' in files
-    or directory == os.path.join('Cython', 'Includes')]
+    or directory == os.path.join('Cython', 'Includes')
+    or directory == os.path.join('Cython', 'Includes', 'numpy')
+]
 
 pxd_include_patterns = [
     p+'/*.pxd' for p in pxd_include_dirs ] + [
@@ -81,7 +88,7 @@ else:
 
 
 def compile_cython_modules(profile=False, coverage=False, compile_minimal=False, compile_more=False, cython_with_refnanny=False,
-                           cython_limited_api=False):
+                           cython_limited_api=None):
     source_root = os.path.abspath(os.path.dirname(__file__))
     compiled_modules = [
         "Cython.Plex.Actions",
@@ -143,17 +150,18 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     extra_extension_args = {}
     if cython_limited_api:
         defines += [
-            ('Py_LIMITED_API', '0x03070000'),
+            ('Py_LIMITED_API', f'0x{cython_limited_api[0]:02x}{cython_limited_api[1]:02x}0000'),
         ]
         extra_extension_args['py_limited_api'] = True
 
     if sysconfig.get_config_var('Py_GIL_DISABLED') and platform.system() == "Windows":
         defines.append(('Py_GIL_DISABLED', 1))
 
+    extra_defines = []
     if cython_with_refnanny:
-        defines.append(('CYTHON_REFNANNY', '1'))
+        extra_defines.append(('CYTHON_REFNANNY', '1'))
     if coverage:
-        defines.append(('CYTHON_TRACE', '1'))
+        extra_defines.append(('CYTHON_TRACE', '1'))
 
     extensions = []
     for module in compiled_modules:
@@ -166,13 +174,11 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
         if os.path.exists(source_file + '.pxd'):
             dep_files.append(source_file + '.pxd')
 
-        # Note that refnanny does not currently support being build in the limited API.
-        # This should eventually change when cpython is cimportable.
         extensions.append(Extension(
             module, sources=[pyx_source_file],
-            define_macros=defines if '.refnanny' not in module else [],
+            define_macros=(defines + (extra_defines if '.refnanny' not in module else [])),
             depends=dep_files,
-            **(extra_extension_args if '.refnanny' not in module else {})))
+            **extra_extension_args))
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
@@ -212,6 +218,98 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     setup_args['ext_modules'] = extensions
 
 
+def collect_changelog(version):
+    version_line_start = version + '('
+    release_version = version + ' '  # to include subsequent a/b/rc sections in final release changelog
+    add_gh_issues_link = partial(
+        re.compile(':issue:`([0-9]+)`').sub,
+        TRACKER_URL + r'\1',  # Replace ReST reference by direct tracker issue link.
+    )
+
+    # Look for lines like 'Includes all fixes from Cython 3.0.12.' and add their version sections.
+    find_version_reference = re.compile(
+        r"\s*\* [Ii]ncludes all "  # codespell:ignore ncludes
+        r"(?:bug[ -])?(?P<what>changes|fixes(?:\s+and features)?) "  # 'what' is unused (but interesting)
+        r"(?:as of|from) .*"
+        r"(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?: ?[abr]c? ?[0-9+])?)"
+    ).match
+    referenced_versions = set()
+
+    # Collected sections in output order.
+    sections = {
+        'Features added': [],
+        'Bugs fixed': [],
+        'Other changes': [],
+    }
+
+    changelog = []
+    with open("CHANGES.rst", encoding='utf8') as f:
+        lines = iter(f)
+        for line in lines:
+            if line.replace(' ', '').startswith(version_line_start):
+                break
+        else:
+            # No changelog for this version found :-?
+            return ''
+
+        changelog.append(line)
+        changelog.append(next(lines))  # underline of version
+        assert changelog[-1].startswith('=====')
+
+        current_sections = sections
+        current_section = []
+        for line in lines:
+            if line.startswith('-----'):
+                # Section start found.
+                section_name = current_section.pop().strip()
+                current_section = current_sections[section_name]
+            elif line.startswith('====='):
+                # Version start found.
+                part_version_line = current_section.pop().strip()
+                # Remove useless empty lines and version markers from section endings.
+                for section in current_sections.values():
+                    while section and (not section[-1].strip() or section[-1].endswith(':\n')):
+                        section.pop()
+                # Stop at first unrelated version, unless we're still looking for referenced versions.
+                if part_version_line.startswith(release_version):
+                    current_sections = sections
+                else:
+                    current_sections = defaultdict(list)  # throw-away dict
+                    part_version = part_version_line.split('(', 1)[0].strip()
+                    if part_version in referenced_versions:
+                        referenced_versions.remove(part_version)
+                        # Include the bug fix section of referenced versions.
+                        current_sections['Bugs fixed'] = sections['Bugs fixed']
+                    elif not referenced_versions:
+                        # All relevant version sections parsed.
+                        break
+                # Put version marker into all sections.
+                for section in current_sections.values():
+                    section.append('\n')
+                    section.append(f"{part_version_line}:\n")
+                # Ignore initial section content.
+                current_section = []
+            else:
+                # Regular content line found.
+                if ':issue:' in line:
+                    line = add_gh_issues_link(line)
+                else:
+                    included_version = find_version_reference(line)
+                    if included_version:
+                        referenced_versions.add(included_version.group('version'))
+                current_section.append(line)
+
+    for section_name, section in sections.items():
+        if not section:
+            continue
+        changelog.append('\n')
+        changelog.append(section_name + '\n')
+        changelog.append('-' * len(section_name) + '\n')
+        changelog.extend(section)
+
+    return ''.join(changelog)
+
+
 def check_option(name):
     cli_arg = "--" + name
     if cli_arg in sys.argv:
@@ -224,21 +322,59 @@ def check_option(name):
 
     return False
 
+def check_limited_api_option(name):
+    def handle_arg(arg: str):
+        arg = arg.lower()
+        if arg == "true":
+            return sys.version_info[:2]
+        if arg == "false":
+            return None
+        major, minor = arg.split('.', 1)
+        return (int(major), int(minor))
+
+    cli_arg = "--" + name
+    for arg in sys.argv:
+        if arg.startswith(cli_arg):
+            sys.argv.remove(arg)
+            if '=' in arg:
+                return handle_arg(arg.split('=', 1)[1])
+            return handle_arg("true")
+
+    env_var_name = name.replace("-", "_").upper()
+    env_var = os.environ.get(env_var_name)
+    if env_var is None:
+        return None
+    return handle_arg(env_var)
+
 
 cython_profile = check_option('cython-profile')
 cython_coverage = check_option('cython-coverage')
 cython_with_refnanny = check_option('cython-with-refnanny')
 
 compile_cython_itself = not check_option('no-cython-compile')
+
+if compile_cython_itself and sysconfig.get_config_var("Py_GIL_DISABLED"):
+    # On freethreaded builds there's good reasons not to compile Cython by default.
+    # Mainly that it doesn't currently declare as compatible with the limited API
+    # (because little effort has been spent making it thread-safe) and thus
+    # importing a compiled version of Cython will throw the interpreter back
+    # to using the GIL.
+    # This will adversely affect users of pyximport or jupyter.
+    # Therefore, we let users explicitly force Cython to be compiled on freethreaded
+    # builds but don't do it by default.
+    compile_cython_itself = (
+        check_option('cython-compile') or
+        check_option('cython-compile-all') or
+        check_option('cython-compile-minimal'))
+
 if compile_cython_itself:
     cython_compile_more = check_option('cython-compile-all')
     cython_compile_minimal = check_option('cython-compile-minimal')
-    cython_limited_api = check_option('cython-limited-api')
-    # TODO - enable this when refnanny can be compiled
-    if cython_limited_api and False:
+    cython_limited_api = check_limited_api_option('cython-limited-api')
+    if cython_limited_api:
         setup_options = setup_args.setdefault('options', {})
         bdist_wheel_options = setup_options.setdefault('bdist_wheel', {})
-        bdist_wheel_options['py_limited_api'] = 'cp37'
+        bdist_wheel_options['py_limited_api'] = f'cp{cython_limited_api[0]}{cython_limited_api[1]}'
 
 
 setup_args.update(setuptools_extra_args)
@@ -286,6 +422,7 @@ def run_build():
         author='Robert Bradshaw, Stefan Behnel, David Woods, Greg Ewing, et al.',
         author_email='cython-devel@python.org',
         description="The Cython compiler for writing C extensions in the Python language.",
+        long_description_content_type="text/x-rst",
         long_description=textwrap.dedent("""\
         The Cython language makes writing C extensions for the Python language as
         easy as Python itself.  Cython is a source code translator based on Pyrex_,
@@ -314,7 +451,8 @@ def run_build():
             NO_CYTHON_COMPILE=true pip install .
 
         .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
-        """),
+
+        """) + collect_changelog(version),
         license='Apache-2.0',
         classifiers=[
             dev_status(version),
@@ -323,16 +461,14 @@ def run_build():
             "Operating System :: OS Independent",
             "Programming Language :: Python",
             "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.7",
-            "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
             "Programming Language :: Python :: 3.11",
             "Programming Language :: Python :: 3.12",
             "Programming Language :: Python :: 3.13",
+            "Programming Language :: Python :: 3.14",
             "Programming Language :: Python :: Implementation :: CPython",
             "Programming Language :: Python :: Implementation :: PyPy",
-            "Programming Language :: Python :: Implementation :: Stackless",
             "Programming Language :: C",
             "Programming Language :: C++",
             "Programming Language :: Cython",
@@ -345,7 +481,7 @@ def run_build():
             "Documentation": "https://cython.readthedocs.io/",
             "Donate": "https://cython.readthedocs.io/en/latest/src/donating.html",
             "Source Code": "https://github.com/cython/cython",
-            "Bug Tracker": "https://github.com/cython/cython/issues",
+            "Bug Tracker": TRACKER_URL,
             "User Group": "https://groups.google.com/g/cython-users",
         },
 

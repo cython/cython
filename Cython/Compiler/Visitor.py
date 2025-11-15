@@ -546,7 +546,7 @@ class MethodDispatcherTransform(EnvTransform):
             if special_method_name == '__contains__':
                 operand1, operand2 = operand2, operand1
             elif special_method_name == '__div__':
-                if Future.division in self.current_env().global_scope().context.future_directives:
+                if Future.division in self.current_env().context.future_directives:
                     special_method_name = '__truediv__'
             obj_type = operand1.type
             if obj_type.is_builtin_type:
@@ -840,7 +840,8 @@ class PrintTree(TreeVisitor):
                     node.declared_name(), getattr(node, "type", None))
             elif isinstance(node, ExprNodes.AttributeNode):
                 result += "(type=%s, attribute=\"%s\")" % (repr(node.type), node.attribute)
-            elif isinstance(node, (ExprNodes.ConstNode, ExprNodes.PyConstNode)):
+            elif isinstance(node,
+                    (ExprNodes.ConstNode, ExprNodes.PyConstNode, ExprNodes.ImagNode)):
                 result += "(type=%s, value=%r)" % (repr(node.type), node.value)
             elif isinstance(node, ExprNodes.ExprNode):
                 t = node.type

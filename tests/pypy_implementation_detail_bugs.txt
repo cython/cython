@@ -18,10 +18,6 @@ run.generators_in_refcycles
 run.generators_py
 run.parallel
 
-# "sys.getsizeof(object, default) will always return default on PyPy, and
-# raise a TypeError if default is not provided."
-buildenv
-
 # tests for things that don't exist in cpyext
 compile.pylong
 run.datetime_pxd

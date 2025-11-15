@@ -545,6 +545,19 @@ listed in the table above. The code for this standard exception handler can be
 found `here
 <https://github.com/cython/cython/blob/master/Cython/Utility/CppSupport.cpp>`__.
 
+If you want to use `std::exception_ptr` then you can ``cimport`` it from
+``libcpp.exception``.  That provides a special exception handler
+``exception_ptr_error_handler`` allowing you to declare a function: ::
+
+    cdef extern from "some_header":
+        void some_function() except +exception_ptr_error_handler
+
+The exception raised from ``some_function`` will always be an ``Exception``
+and the underlying ``std::exception_ptr`` can be retrieved with
+``wrapped_exception_ptr_from_exception``.  This is a slightly niche use,
+but ``std::exception_ptr`` is a useful way to safely store arbitrary C++
+exceptions for later.
+
 There is also the special form::
 
     cdef int raise_py_or_cpp() except +*
@@ -654,17 +667,26 @@ in ``libcpp.typeindex``.
 Specify C++ language in setup.py
 ================================
 
-Instead of specifying the language and the sources in the source files, it is
-possible to declare them in the :file:`setup.py` file::
+The target language (C or C++) can be specified either in each source file
+(as shown below) or in the :file:`setup.py` file.
+For the latter, create an :class:`~setuptools.Extension` object for your
+extension::
 
-   from setuptools import setup
+   from setuptools import Extension, setup
    from Cython.Build import cythonize
 
-   setup(ext_modules = cythonize(
-              "rect.pyx",                 # our Cython source
-              sources=["Rectangle.cpp"],  # additional source file(s)
-              language="c++",             # generate C++ code
-         ))
+   setup(
+       ext_modules=cythonize([
+           Extension(
+               # Declare the extension module name (including package).
+               "rect",
+               # List the main extension file together with additional source files.
+               sources=["rect.pyx", "Rectangle.cpp"],
+               # Let Cython generate C++ code and setuptools use the C++ compiler.
+               language="c++",
+           )
+       ])
+   )
 
 Cython will generate and compile the :file:`rect.cpp` file (from
 :file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
@@ -673,25 +695,6 @@ together into :file:`rect.so` on Linux, or :file:`rect.pyd` on windows,
 which you can then import in Python using
 ``import rect`` (if you forget to link the :file:`Rectangle.o`, you will
 get missing symbols while importing the library in Python).
-
-Note that the ``language`` option has no effect on user provided Extension
-objects that are passed into ``cythonize()``.  It is only used for modules
-found by file name (as in the example above).
-
-The ``cythonize()`` function in Cython versions up to 0.21 does not
-recognize the ``language`` option and it needs to be specified as an
-option to an :class:`Extension` that describes your extension and that
-is then handled by ``cythonize()`` as follows::
-
-   from setuptools import Extension, setup
-   from Cython.Build import cythonize
-
-   setup(ext_modules = cythonize(Extension(
-              "rect",                                # the extension name
-              sources=["rect.pyx", "Rectangle.cpp"], # the Cython source and
-                                                     # additional C++ source files
-              language="c++",                        # generate and compile C++ code
-         )))
 
 The options can also be passed directly from the source file, which is
 often preferable (and overrides any global option).  Starting with

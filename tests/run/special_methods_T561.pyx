@@ -1068,6 +1068,11 @@ cdef class TwoArgIPow:
     >>> a**=2
     >>> print(a)
     a**2
+
+    >>> ipow(TwoArgIPow('a'), 'x', 'y')
+    Traceback (most recent call last):
+        ...
+    TypeError: special_methods_T561.TwoArgIPow.__ipow__() takes 3 arguments but 2 were given
     """
     cdef str name
 
@@ -1076,15 +1081,6 @@ cdef class TwoArgIPow:
 
     def __ipow__(self, other):
         return f"{self.name}**{other}"
-
-if sys.version_info >= (3, 8):
-    # Due to a bug this check can't usefully work in Python <3.8
-    __doc__ += """
->>> ipow(TwoArgIPow('a'), 'x', 'y')
-Traceback (most recent call last):
-    ...
-TypeError: special_methods_T561.TwoArgIPow.__ipow__() takes 3 arguments but 2 were given
-    """
 
 
 cdef class TwoOrThreeArgPow:

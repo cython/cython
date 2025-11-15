@@ -1,6 +1,12 @@
 # mode: run
 # tag: f_strings, pep498, werror
 
+# Validate that the typedefs use corresponding conversion functions.
+# cython: test_assert_c_code_has = __Pyx_PyUnicode_From_uintptr_t\(
+# cython: test_assert_c_code_has = __Pyx_PyUnicode_From_intptr_t\(
+# cython: test_assert_c_code_has = __Pyx_PyUnicode_From_int\(
+# cython: test_fail_if_c_code_has = __Pyx_PyUnicode_From_BIGINT
+
 ####
 # Cython specific PEP 498 tests in addition to test_fstring.pyx from CPython
 ####
@@ -11,6 +17,7 @@ import sys
 IS_PYPY = hasattr(sys, 'pypy_version_info')
 
 from libc.limits cimport INT_MAX, LONG_MAX, LONG_MIN
+from libc.stdint cimport uintptr_t
 
 max_int = INT_MAX
 max_long = LONG_MAX
@@ -153,6 +160,40 @@ def format_c_enum():
     True
     """
     return f"{enum_ABC}-{enum_XYZ}"
+
+
+ctypedef int BIGINT
+
+cdef extern from "stdint.h":
+    ctypedef signed char intptr_t  # typedef is intentionally too narrow
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_typedefs(BIGINT local_tdef, uintptr_t ext_tdef, intptr_t wrong_typedef):
+    """
+    >>> format_typedefs(3434, 4343, 1234)
+    4343 3434 1234
+    4343 3434 1234
+          4343       3434       1234
+    >>> format_typedefs(-3434, 4343, -1234)
+    4343 -3434 -1234
+    4343 -3434 -1234
+          4343      -3434      -1234
+
+    >>> format_typedefs(2**30, 2**30, 2**30)
+    1073741824 1073741824 1073741824
+    1073741824 1073741824 1073741824
+    1073741824 1073741824 1073741824
+    >>> format_typedefs(-(2**30), 2**30, -(2**30))
+    1073741824 -1073741824 -1073741824
+    1073741824 -1073741824 -1073741824
+    1073741824 -1073741824 -1073741824
+    """
+    print(f"{ext_tdef} {local_tdef} {wrong_typedef}")
+    print(f"{ext_tdef:d} {local_tdef:d} {wrong_typedef:d}")
+    print(f"{ext_tdef:-10d} {local_tdef:-10d} {wrong_typedef:-10d}")
 
 
 def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
@@ -530,15 +571,64 @@ def format_decoded_bytes(bytes value):
 )
 def format_uchar(int x):
     """
-    >>> format_uchar(0)
-    ('\\x00', '           \\x00', '       \\x00')
-    >>> format_uchar(13)
-    ('\\r', '           \\r', '       \\r')
+    >>> char, right8, right12, _ = format_uchar(0)
+    >>> (char, right8, right12)
+    ('\\x00', '       \\x00', '           \\x00')
+    >>> char, right8, right12, _ = format_uchar(13)
+    >>> (char, right8, right12)
+    ('\\r', '       \\r', '           \\r')
+
+    >>> for c in range(1114111 + 1):
+    ...     char, right8, right12, right252 = format_uchar(c)
+    ...     assert right8[:-1] == ' ' * 7, (c, right8)
+    ...     assert char == right8[-1], (char, right8)
+    ...     assert right12[:-1] == ' ' * 11, (c, right12)
+    ...     assert char == right12[-1], (char, right12)
+    ...     assert right252[:-1] == ' ' * 251, (c, right252)
+    ...     assert char == right252[-1], (char, right252)
+    ...     assert ord(char) == c, (c, char)
+
     >>> format_uchar(1114111 + 1)
     Traceback (most recent call last):
     OverflowError: %c arg not in range(0x110000)
     """
-    return f"{x:c}", f"{x:12c}", f"{x:>8c}"
+    # 252 is just outside the fast path size (padding > 250 characters).
+    return f"{x:c}", f"{x:>8c}", f"{x:12c}", f"{x:>252c}"
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_chars(int x, int y, int z):
+    """
+    >>> format_chars(32, 32, 32)
+    '   '
+    >>> format_chars(32, ord('ö'), 32)
+    ' ö '
+    >>> snowman = ord('\\N{SNOWMAN}')
+    >>> emoji = ord('\\N{WHITE SMILING FACE}')
+    >>> format_chars(32, snowman, 32)
+    ' \N{SNOWMAN} '
+    >>> format_chars(snowman, emoji, snowman)
+    '\N{SNOWMAN}\N{WHITE SMILING FACE}\N{SNOWMAN}'
+    >>> format_chars(emoji, snowman, snowman)
+    '\N{WHITE SMILING FACE}\N{SNOWMAN}\N{SNOWMAN}'
+    >>> format_chars(snowman, snowman, emoji)
+    '\N{SNOWMAN}\N{SNOWMAN}\N{WHITE SMILING FACE}'
+    """
+    return f"{x:c}{y:c}{z:c}"
+
+
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_cint_padding(int x):
+    """
+    >>> format_cint_padding(123)
+    ('x=123\N{SNOWMAN}\N{SNOWMAN}=x', 'x=\N{SNOWMAN}\N{SNOWMAN}123=x')
+    """
+    # not currently optimised
+    return f"x={x:\N{SNOWMAN}<5}=x", f"x={x:\N{SNOWMAN}>5}=x"
 
 
 @cython.test_fail_if_path_exists(
@@ -683,3 +773,13 @@ def test_await_inside_f_string():
         print(f"{await f()}")
 
     print("PARSED_SUCCESSFULLY")
+
+
+# Be very careful allowing this test to be reformatted by an editor.
+# It deliberately contains tabs which should not be replaced with spaces.
+def test_print_self_documenting_tabs(x):
+    r"""
+    >>> test_print_self_documenting_tabs(5)
+    '\tx\t=5'
+    """
+    print(repr(f'{	x	=}'))

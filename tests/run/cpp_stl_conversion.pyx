@@ -16,6 +16,8 @@ py_set = set
 py_xrange = xrange
 py_unicode = unicode
 
+include "skip_limited_api_helper.pxi"
+
 cdef string add_strings(string a, string b) except *:
     return a + b
 
@@ -158,6 +160,7 @@ def test_iterable_to_vector():
     i = LengthlessIterable()
     return takes_vector(i)
 
+@skip_if_limited_api("__length_hint__ isn't called in Limited API")
 def test_iterable_raises_to_vector():
     """
     >>> test_iterable_raises_to_vector()
@@ -321,7 +324,7 @@ cpdef enum Color:
 
 def test_enum_map(o):
     """
-    >>> test_enum_map({RED: GREEN})
+    >>> test_enum_map({Color.RED: Color.GREEN})
     {<Color.RED: 0>: <Color.GREEN: 1>}
     """
     cdef map[Color, Color] m = o

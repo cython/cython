@@ -6,6 +6,10 @@ second_module_level_tuple = (1,2,3)  # should be deduplicated to be the same as 
 string_module_level_tuple = ("1", "2")
 string_module_level_tuple2 = ("1", "2")
 
+cdef extern from *:
+    cdef enum:
+        CYTHON_COMPILING_IN_LIMITED_API
+
 def return_module_level_tuple():
     """
     >>> return_module_level_tuple()
@@ -38,8 +42,9 @@ def test_deduplicated_args():
     import sys
     check_identity_of_co_varnames = (
         not hasattr(sys, "pypy_version_info") and  # test doesn't work on PyPy (which is probably fair enough)
-        sys.version_info < (3, 11)  # on Python 3.11 co_varnames returns a new, dynamically-calculated tuple
+        sys.version_info < (3, 11) and  # on Python 3.11 co_varnames returns a new, dynamically-calculated tuple
                                     # each time it is run
+        not (CYTHON_COMPILING_IN_LIMITED_API and sys.version_info < (3, 9))
     )
     if check_identity_of_co_varnames:
         assert func1.__code__.co_varnames is func2.__code__.co_varnames
@@ -84,9 +89,12 @@ def return_nested_tuple():
     """
     return (1, (2, 3), (3, (4, 5), (2, 3) * 2))
 
-@cython.test_assert_path_exists("//TupleNode",
-                                "//TupleNode[@is_literal = true]")
-@cython.test_fail_if_path_exists("//TupleNode[@is_literal = false]")
+@cython.test_assert_path_exists(
+    "//TupleNode",
+    # We are not testing ctuples here, so allow either ctuple or constant Python tuple,
+    # but not a dynamically created tuple.
+    "//TupleNode[@is_literal = true or @type.is_ctuple = true]",
+)
 def constant_tuple1():
     """
     >>> constant_tuple1()
@@ -175,12 +183,13 @@ def constant_types_comparing_equal():
     >>> constant_types_comparing_equal()
     ((False, False), (0, 0), (0.0, 0.0), (0, False), (False, 0.0), (0, 0.0))
     """
-    bool_tuple= (False, False)
-    int_tuple = (0, 0)
-    float_tuple = (0.0, 0.0)
-    int_bool = (0, False)
-    bool_float = (False, 0.0)
-    int_float = (0, 0.0)
+    # Explicitly type as Python tuple object to prevent ctuple usage.
+    bool_tuple: tuple = (False, False)
+    int_tuple: tuple = (0, 0)
+    float_tuple: tuple = (0.0, 0.0)
+    int_bool: tuple = (0, False)
+    bool_float: tuple = (False, 0.0)
+    int_float: tuple = (0, 0.0)
 
     assert bool_tuple is (False, False)
     assert int_tuple is (0, 0)

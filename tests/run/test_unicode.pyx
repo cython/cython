@@ -840,10 +840,7 @@ class UnicodeTest(CommonTest,
         self.assertEqual('h\u0130'.capitalize(), 'H\u0069\u0307')
         exp = '\u0399\u0308\u0300\u0069\u0307'
         self.assertEqual('\u1fd2\u0130'.capitalize(), exp)
-        if sys.version_info < (3, 8):
-            self.assertEqual('ﬁnnish'.capitalize(), 'FInnish')
-        else:
-            self.assertEqual('ﬁnnish'.capitalize(), 'Finnish')
+        self.assertEqual('ﬁnnish'.capitalize(), 'Finnish')
         self.assertEqual('A\u0345\u03a3'.capitalize(), 'A\u0345\u03c2')
 
     def test_title(self):
@@ -2304,8 +2301,10 @@ class UnicodeTest(CommonTest,
         self.assertEqual(repr(s2()), '\\n')
 
     def test_printable_repr(self):
-        self.assertEqual(repr('\U00010000'), "'%c'" % (0x10000,)) # printable
-        self.assertEqual(repr('\U00014000'), "'\\U00014000'")     # nonprintable
+        # printable
+        self.assertEqual(repr('\U00010000'), "'%c'" % (0x10000,))
+        # nonprintable (private use area)
+        self.assertEqual(repr('\U00100001'), "'\\U00100001'")
 
     # This test only affects 32-bit platforms because expandtabs can only take
     # an int as the max value, not a 64-bit C long.  If expandtabs is changed
@@ -2381,7 +2380,6 @@ class UnicodeTest(CommonTest,
         self.assertEqual(args[0], text)
         self.assertEqual(len(args), 1)
 
-    @unittest.skipIf(sys.version_info < (3, 8), 'resize test requires Py3.8+')
     @support.cpython_only
     def test_resize(self):
         from _testcapi import getargs_u

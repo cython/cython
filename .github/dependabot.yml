@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      # Check for updates to GitHub Actions every month
+      interval: "monthly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+  # The following is designed to update only cibuildwheel, and is here so that
+  # it's kept in sync with github actions above.
+  - package-ecosystem: "pip"
+    directory: ".github"
+    schedule:
+      interval: "monthly"
+    allow:
+      dependency-name: "cibuildwheel"

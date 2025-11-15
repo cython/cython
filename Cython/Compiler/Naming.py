@@ -79,6 +79,7 @@ ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
 nargs_cname      = pyrex_prefix + "nargs"
 kwvalues_cname   = pyrex_prefix + "kwvalues"
+callargs_cname   = pyrex_prefix + "callargs"
 generator_cname  = pyrex_prefix + "generator"
 sent_value_cname = pyrex_prefix + "sent_value"
 pykwdlist_cname  = pyrex_prefix + "pyargnames"
@@ -92,6 +93,7 @@ modulename_cname = pyrex_prefix + "modulename"
 filetable_cname  = pyrex_prefix + "f"
 intern_tab_cname = pyrex_prefix + "intern_tab"
 kwds_cname       = pyrex_prefix + "kwds"
+kwds_len_cname   = pyrex_prefix + "kwds_len"
 lineno_cname     = pyrex_prefix + "lineno"
 clineno_cname    = pyrex_prefix + "clineno"
 cfilenm_cname    = pyrex_prefix + "cfilenm"
@@ -102,11 +104,14 @@ modulestatevalue_cname = pyrex_prefix + "mstate"
 modulestateglobal_cname = pyrex_prefix + "mstate_global"
 moddoc_cname     = pyrex_prefix + "mdoc"
 methtable_cname  = pyrex_prefix + "methods"
+memviewslice_cname = '__Pyx_memviewslice'
+memview_objstruct_cname = pyrex_prefix + 'memoryview_obj'
 retval_cname     = pyrex_prefix + "r"
 reqd_kwds_cname  = pyrex_prefix + "reqd_kwds"
 self_cname       = pyrex_prefix + "self"
-stringtab_cname  = pyrex_prefix + "string_tab"
 codeobjtab_cname = pyrex_prefix + "codeobj_tab"
+numbertab_cname  = pyrex_prefix + "number_tab"
+stringtab_cname  = pyrex_prefix + "string_tab"
 stringtab_encodings_cname  = pyrex_prefix + "string_tab_encodings"
 vtabslot_cname   = pyrex_prefix + "vtab"
 c_api_tab_cname  = pyrex_prefix + "c_api_tab"
@@ -142,8 +147,6 @@ tp_dict_version_temp = pyrex_prefix + "tp_dict_version"
 obj_dict_version_temp = pyrex_prefix + "obj_dict_version"
 type_dict_guard_temp = pyrex_prefix + "typedict_guard"
 cython_runtime_cname   = pyrex_prefix + "cython_runtime"
-cyfunction_type_cname = pyrex_prefix + "CyFunctionType"
-fusedfunction_type_cname = pyrex_prefix + "FusedFunctionType"
 # the name "dflt" was picked by analogy with the CPython dataclass module which stores
 # the default values in variables named f"_dflt_{field.name}" in a hidden scope that's
 # passed to the __init__ function. (The name is unimportant to the exact workings though)
@@ -190,20 +193,8 @@ h_guard_prefix   = "__PYX_HAVE_"
 api_guard_prefix = "__PYX_HAVE_API_"
 api_func_guard   = "__PYX_HAVE_API_FUNC_"
 
-PYX_NAN          = "__PYX_NAN()"
-
 def py_version_hex(major, minor=0, micro=0, release_level=0, release_serial=0):
     return (major << 24) | (minor << 16) | (micro << 8) | (release_level << 4) | (release_serial)
-
-# there's a few places where it's useful to iterate over all of these
-used_types_and_macros = [
-    (cyfunction_type_cname, '__Pyx_CyFunction_USED'),
-    (fusedfunction_type_cname, '__Pyx_FusedFunction_USED'),
-    ('__pyx_GeneratorType', '__Pyx_Generator_USED'),
-    ('__pyx_IterableCoroutineType', '__Pyx_IterableCoroutine_USED'),
-    ('__pyx_CoroutineAwaitType', '__Pyx_Coroutine_USED'),
-    ('__pyx_CoroutineType', '__Pyx_Coroutine_USED'),
-]
 
 
 iso_c23_keywords = frozenset((

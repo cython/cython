@@ -1,6 +1,10 @@
+import concurrent.futures
 import os
 import shutil
+import sys
 import tempfile
+from collections import defaultdict
+from contextlib import contextmanager
 
 from .Dependencies import cythonize, extended_iglob
 from ..Utils import is_package_dir
@@ -14,21 +18,6 @@ except ImportError:
     parallel_compiles = 0
 
 
-class _FakePool:
-    def map_async(self, func, args):
-        for _ in map(func, args):
-            pass
-
-    def close(self):
-        pass
-
-    def terminate(self):
-        pass
-
-    def join(self):
-        pass
-
-
 def find_package_base(path):
     base_dir, package_path = os.path.split(path)
     while is_package_dir(base_dir):
@@ -36,60 +25,112 @@ def find_package_base(path):
         package_path = '%s/%s' % (parent, package_path)
     return base_dir, package_path
 
+
 def cython_compile(path_pattern, options):
     all_paths = map(os.path.abspath, extended_iglob(path_pattern))
-    _cython_compile_files(all_paths, options)
+    ext_modules_by_basedir = _cython_compile_files(all_paths, options)
+    _build(list(ext_modules_by_basedir.items()), options.parallel)
 
-def _cython_compile_files(all_paths, options):
-    pool = None
+
+def _cython_compile_files(all_paths, options) -> dict:
+    ext_modules_to_build = defaultdict(list)
+
+    for path in all_paths:
+        if options.build_inplace:
+            base_dir = path
+            while not os.path.isdir(base_dir) or is_package_dir(base_dir):
+                base_dir = os.path.dirname(base_dir)
+        else:
+            base_dir = None
+
+        if os.path.isdir(path):
+            # recursively compiling a package
+            paths = [os.path.join(path, '**', '*.{py,pyx}')]
+        else:
+            # assume it's a file(-like thing)
+            paths = [path]
+
+        ext_modules = cythonize(
+            paths,
+            nthreads=options.parallel,
+            exclude_failures=options.keep_going,
+            exclude=options.excludes,
+            compiler_directives=options.directives,
+            compile_time_env=options.compile_time_env,
+            force=options.force,
+            quiet=options.quiet,
+            depfile=options.depfile,
+            language=options.language,
+            **options.options)
+
+        if ext_modules and options.build:
+            ext_modules_to_build[base_dir].extend(ext_modules)
+
+    return dict(ext_modules_to_build)
+
+
+@contextmanager
+def _interruptible_pool(pool_cm):
+    with pool_cm as proc_pool:
+        try:
+            yield proc_pool
+        except KeyboardInterrupt:
+            proc_pool.terminate_workers()
+            proc_pool.shutdown(cancel_futures=True)
+            raise
+
+
+def _build(ext_modules, parallel):
+    modcount = sum(len(modules) for _, modules in ext_modules)
+    if not modcount:
+        return
+
+    serial_execution_mode = modcount == 1 or parallel < 2
+
     try:
-        for path in all_paths:
-            if options.build_inplace:
-                base_dir = path
-                while not os.path.isdir(base_dir) or is_package_dir(base_dir):
-                    base_dir = os.path.dirname(base_dir)
+        pool_cm = (
+            None if serial_execution_mode
+            else concurrent.futures.ProcessPoolExecutor(max_workers=parallel)
+        )
+    except (OSError, ImportError):
+        # `OSError` is a historic exception in `multiprocessing`
+        # `ImportError` happens e.g. under pyodide (`ModuleNotFoundError`)
+        serial_execution_mode = True
+
+    if serial_execution_mode:
+        for ext in ext_modules:
+            run_distutils(ext)
+        return
+
+    with _interruptible_pool(pool_cm) as proc_pool:
+        compiler_tasks = [
+            proc_pool.submit(run_distutils, (base_dir, [ext]))
+            for base_dir, modules in ext_modules
+            for ext in modules
+        ]
+
+        concurrent.futures.wait(compiler_tasks, return_when=concurrent.futures.FIRST_EXCEPTION)
+
+        worker_exceptions = []
+        for task in compiler_tasks:  # discover any crashes
+            try:
+                task.result()
+            except BaseException as proc_err:  # could be SystemExit
+                worker_exceptions.append(proc_err)
+
+        if worker_exceptions:
+            exc_msg = 'Compiling Cython modules failed with these errors:\n\n'
+            exc_msg += '\n\t* '.join(('', *map(str, worker_exceptions)))
+            exc_msg += '\n\n'
+
+            non_base_exceptions = [
+                exc for exc in worker_exceptions
+                if isinstance(exc, Exception)
+            ]
+            if sys.version_info[:2] >= (3, 11) and non_base_exceptions:
+                raise ExceptionGroup(exc_msg, non_base_exceptions)
             else:
-                base_dir = None
-
-            if os.path.isdir(path):
-                # recursively compiling a package
-                paths = [os.path.join(path, '**', '*.{py,pyx}')]
-            else:
-                # assume it's a file(-like thing)
-                paths = [path]
-
-            ext_modules = cythonize(
-                paths,
-                nthreads=options.parallel,
-                exclude_failures=options.keep_going,
-                exclude=options.excludes,
-                compiler_directives=options.directives,
-                compile_time_env=options.compile_time_env,
-                force=options.force,
-                quiet=options.quiet,
-                depfile=options.depfile,
-                language=options.language,
-                **options.options)
-
-            if ext_modules and options.build:
-                if len(ext_modules) > 1 and options.parallel > 1:
-                    if pool is None:
-                        try:
-                            pool = multiprocessing.Pool(options.parallel)
-                        except OSError:
-                            pool = _FakePool()
-                    pool.map_async(run_distutils, [
-                        (base_dir, [ext]) for ext in ext_modules])
-                else:
-                    run_distutils((base_dir, ext_modules))
-    except:
-        if pool is not None:
-            pool.terminate()
-        raise
-    else:
-        if pool is not None:
-            pool.close()
-            pool.join()
+                raise RuntimeError(exc_msg) from worker_exceptions[0]
 
 
 def run_distutils(args):
@@ -120,6 +161,36 @@ def run_distutils(args):
             os.chdir(cwd)
             if temp_dir and os.path.isdir(temp_dir):
                 shutil.rmtree(temp_dir)
+
+
+def benchmark(code, setup_code=None, import_module=None, directives=None):
+    from Cython.Build.Inline import cymeit
+
+    timings, number = cymeit(code, setup_code, import_module, directives, repeat=9)
+
+    # Based on 'timeit.main()' in CPython 3.13.
+    units = {"nsec": 1e-9, "usec": 1e-6, "msec": 1e-3, "sec": 1.0}
+    scales = [(scale, unit) for unit, scale in reversed(units.items())]  # biggest first
+
+    def format_time(t):
+        for scale, unit in scales:
+            if t >= scale:
+                break
+        else:
+            raise RuntimeError("Timing is below nanoseconds: {t:f}")
+        return f"{t / scale :.3f} {unit}"
+
+    timings.sort()
+    assert len(timings) & 1 == 1  # odd number of timings, for median position
+    fastest, median, slowest = timings[0], timings[len(timings) // 2], timings[-1]
+
+    print(f"{number} loops, best of {len(timings)}: {format_time(fastest)} per loop (median: {format_time(median)})")
+
+    if slowest > fastest * 4:
+        print(
+            "The timings are likely unreliable. "
+            f"The worst time ({format_time(slowest)}) was more than four times "
+            f"slower than the best time ({format_time(fastest)}).")
 
 
 def create_args_parser():
@@ -170,10 +241,15 @@ Environment variables:
                       help='build extension modules using distutils/setuptools')
     parser.add_argument('-i', '--inplace', dest='build_inplace', action='store_true', default=None,
                       help='build extension modules in place using distutils/setuptools (implies -b)')
+
+    parser.add_argument('--timeit', dest='benchmark', metavar="CODESTRING", type=str, default=None,
+                      help="build in place, then compile+run CODESTRING as benchmark in first module's namespace (implies -i)")
+    parser.add_argument('--setup', dest='benchmark_setup', metavar="CODESTRING", type=str, default=None,
+                      help="use CODESTRING as pre-benchmark setup code for --bench")
+
     parser.add_argument('-j', '--parallel', dest='parallel', metavar='N',
                       type=int, default=parallel_compiles,
-                      help=('run builds in N parallel jobs (default: %d)' %
-                            parallel_compiles or 1))
+                      help=f'run builds in N parallel jobs (default: {parallel_compiles or 1})')
     parser.add_argument('-f', '--force', dest='force', action='store_true', default=None,
                       help='force recompilation')
     parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=None,
@@ -208,8 +284,11 @@ def parse_args(args):
     parser = create_args_parser()
     options, args = parse_args_raw(parser, args)
 
-    if not args:
+    if options.benchmark is not None:
+        options.build_inplace = True
+    elif not args:
         parser.error("no source files provided")
+
     if options.build_inplace:
         options.build = True
     if multiprocessing is None:
@@ -239,11 +318,32 @@ def main(args=None):
     for path in paths:
         expanded_path = [os.path.abspath(p) for p in extended_iglob(path)]
         if not expanded_path:
-            import sys
             print("{}: No such file or directory: '{}'".format(sys.argv[0], path), file=sys.stderr)
             sys.exit(1)
         all_paths.extend(expanded_path)
-    _cython_compile_files(all_paths, options)
+
+    ext_modules_by_basedir = _cython_compile_files(all_paths, options)
+
+    if ext_modules_by_basedir and options.build:
+        _build(list(ext_modules_by_basedir.items()), options.parallel)
+
+    if options.benchmark is not None:
+        base_dir = import_module = None
+        if ext_modules_by_basedir:
+            base_dir, first_extensions = ext_modules_by_basedir.popitem()
+            if first_extensions:
+                import_module = first_extensions[0].name
+
+        if base_dir is not None:
+            sys.path.insert(0, base_dir)
+
+        benchmark(
+            options.benchmark, options.benchmark_setup,
+            import_module=import_module,
+        )
+
+        if base_dir is not None:
+            sys.path.remove(base_dir)
 
 
 if __name__ == '__main__':
