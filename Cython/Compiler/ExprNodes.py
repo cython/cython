@@ -43,7 +43,7 @@ from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
     unicode_type, bytes_type, bytearray_type,
     slice_type, sequence_types as builtin_sequence_types, memoryview_type,
-    subscription_aware_types
+    typed_container_types
 )
 from . import Builtin
 from . import Symtab
@@ -106,8 +106,8 @@ coercion_error_dict = {
 
 def find_coercion_error(type_tuple, default, env):
     err = coercion_error_dict.get(type_tuple)
-    if err is None and type_tuple[0] in subscription_aware_types and (sub_typ0 := type_tuple[0].get_subscribed_type(0)) and \
-       type_tuple[1] in subscription_aware_types and (sub_typ1 := type_tuple[1].get_subscribed_type(0)):
+    if err is None and type_tuple[0] in typed_container_types and (sub_typ0 := type_tuple[0].get_subscribed_type(0)) and \
+       type_tuple[1] in typed_container_types and (sub_typ1 := type_tuple[1].get_subscribed_type(0)):
         return find_coercion_error((sub_typ0, sub_typ1), default, env)
     if err is None:
         return default
@@ -3148,7 +3148,7 @@ class IteratorNode(ScopedExprNode):
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
-        if sequence_type in subscription_aware_types and (sub_type := sequence_type.get_subscribed_type(0)):
+        if sequence_type in typed_container_types and (sub_type := sequence_type.get_subscribed_type(0)):
             return sub_type
         if sequence_type.is_array or sequence_type.is_ptr:
             return sequence_type
@@ -4199,7 +4199,7 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
-        if base_type in subscription_aware_types and (sub_type := base_type.get_subscribed_type(0)):
+        if base_type in typed_container_types and (sub_type := base_type.get_subscribed_type(0)):
             return sub_type
 
         index_type = self.index.infer_type(env)
@@ -4342,7 +4342,7 @@ class IndexNode(_IndexingBaseNode):
 
         if base_type.is_pyobject:
             self.analyse_as_pyobject(env, is_slice, getting, setting)
-            if base_type in subscription_aware_types and (sub_type := base_type.infer_indexed_type()):
+            if base_type in typed_container_types and (sub_type := base_type.infer_indexed_type()):
                 self.type = base_type
                 self = self.coerce_to(sub_type, env)
             return self
