@@ -196,7 +196,7 @@ def test_subscripted_types():
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
 if cython.compiled:
-    __doc__ = """
+    test_subscripted_types.__doc__ = """
     >>> test_subscripted_types()
     dict[int,float] object
     dict[int,float] object
@@ -205,7 +205,6 @@ if cython.compiled:
     list object
     set[Python object] object
     """
-    test_subscripted_types.__doc__ = __doc__
 
 
 def test_use_typing_attributes_as_non_annotations():

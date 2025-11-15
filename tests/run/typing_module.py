@@ -28,6 +28,13 @@ def test_subscripted_types():
     print(cython.typeof(b) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
+if cython.compiled:
+    test_subscripted_types.__doc__ = """
+    dict[int object,double] object
+    list[int object] object
+    set[Python object] object
+    """
+
 @cython.cclass
 class TestClassVar:
     """
