@@ -982,7 +982,8 @@ If you have a
 function returning ``void`` that needs to propagate errors, you will have to
 use this form, since there isn't any error return value to test.
 Otherwise, an explicit error return value allows the C compiler to generate
-more efficient code and is thus generally preferable.
+more efficient code and is thus generally preferable, although see the note
+below regarding default return value.
 
 An external C++ function that may raise an exception can be declared with::
 
@@ -1059,8 +1060,13 @@ Some things to note:
   function returning nothing (C ``void``).  Simple workarounds are to mark the
   function as ``noexcept`` if you're certain that exceptions cannot be thrown, or
   to change the return type to ``int`` and just let Cython use the return value
-  as an error flag (by default, ``-1`` triggers the exception check).
+  as an error flag (by default, ``-1`` triggers the exception check, i.e.
+  functions returning ``int`` are ``except? -1`` by default)
 
+  When the return value is a C type, and the last statement is executed
+  without returning a value, the function returns ``0`` (instead of ``None``).
+  However, explicit ``return`` in the function body is not allowed, you need
+  explicit ``return 0``.
 
 .. _checking_return_values_of_non_cython_functions:
 

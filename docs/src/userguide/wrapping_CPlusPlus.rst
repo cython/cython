@@ -457,11 +457,16 @@ that most users won't need, but for those that do a full example follows::
     cdef int raise_py_error()
     cdef int something_dangerous() except +raise_py_error
 
-If something_dangerous raises a C++ exception then raise_py_error will be
-called, which allows one to do custom C++ to Python error "translations." If
-raise_py_error does not actually raise an exception a RuntimeError will be
-raised. This approach may also be used to manage custom Python exceptions
-created using the Python C API. ::
+If ``something_dangerous`` raises a C++ exception then ``raise_py_error`` will be
+called during exception handling (i.e. typically, in a ``catch`` clause).
+From there, ``raise_py_error`` should access the exception object by,
+for example, rethrow the exception currently handled with ``throw;`` and
+immediately catch it, or use ``std::current_exception()``; then, it should set
+a Python exception, such as by ``PyErr_SetString``.
+This allows one to do custom C++ to Python error "translations".
+See the example below. If ``raise_py_error`` does not actually raise an exception a
+``RuntimeError`` will be raised. This approach may also be used to manage custom
+Python exceptions created using the Python C API. ::
 
     # raising.pxd
     cdef extern from "Python.h" nogil:
