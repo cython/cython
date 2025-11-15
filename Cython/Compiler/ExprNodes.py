@@ -13,7 +13,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
                bytearray_type=object, slice_type=object, memoryview_type=object,
-               builtin_sequence_types=object, build_line_table=object,
+               builtin_sequence_types=object, typed_container_types=object, build_line_table=object,
                inspect=object, copy=object, os=object, pathlib=object, re=object, sys=object,
 )
 
