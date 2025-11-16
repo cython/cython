@@ -23,6 +23,7 @@ def check_file(filename) -> int:
 failed_count = 0
 
 for arg in sys.argv[1:]:
+    print(f"Looking at file '{arg}':")
     failed_count += check_file(arg)
 
 exit(failed_count)

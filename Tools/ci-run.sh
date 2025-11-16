@@ -232,8 +232,12 @@ if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --coverage-md --cython-only"
 fi
 if [[ $TEST_CODE_STYLE != "1" ]]; then
-  RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
+  if [[ ! $TEST_PARALLELISM ]]; then
+    TEST_PARALLELISM=-j7
+  fi
+  RUNTESTS_ARGS="$RUNTESTS_ARGS $TEST_PARALLELISM"
 fi
+
 
 if [[ $PYTHON_VERSION == "graalpy"* ]]; then
   # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
