@@ -46,10 +46,11 @@ jobs:
         run: |
           SANITIZER_CFLAGS=""
           CONFIGURE_ARGS=""
+          EXCLUDE=""
           if [[ "${{inputs.sanitize}}" == *"address"* ]]; then
             CONFIGURE_ARGS="$CONFIGURE_ARGS --with-address-sanitizer --without-pymalloc"
             SANITIZER_CFLAGS="$SANITIZER_CFLAGS -fsanitize=address"
-            echo "ASAN_OPTIONS=detect_leaks=false" >> $GITHUB_ENV
+            echo "ASAN_OPTIONS=detect_leaks=false log_path=${{ github.workspace }}/san_log" >> $GITHUB_ENV
           fi
           # TODO - memory sanitizer requires rebuilding almost all of CPython's dependencies
           # with memory sanitizer too, so isn't really usable for us.
@@ -62,7 +63,9 @@ jobs:
             # We call functions through slightly wrong pointer types a lot so disable for now
             # omit vptr because it's largely C++-only and requires linking with clang++ (which breaks other things)
             SANITIZER_CFLAGS="$SANITIZER_CFLAGS -fsanitize=undefined -fno-sanitize=function -fno-sanitize=vptr -fno-omit-frame-pointer"
-            #echo "UBSAN_OPTIONS=halt_on_error=1 print_stacktrace=1" >> $GITHUB_ENV
+            echo "print_stacktrace=1" >> $GITHUB_ENV
+            EXCLUDE="$EXCLUDE --excludefile tests/ubsan_bugs.txt"
+            echo "UBSAN_OPTIONS=log_path=${{ github.workspace }}/san_log" >> $GITHUB_ENV
           fi
           if [[ "${{inputs.sanitize}}" == *"thread"* ]]; then
             CONFIGURE_ARGS="$CONFIGURE_ARGS --with-thread-sanitizer"
@@ -70,11 +73,12 @@ jobs:
             if [[ "${{inputs.sanitize}}" == *"ft"* ]]; then
               echo "PYTHON_VERSION=3.xt-dev" >> $GITHUB_ENV
               CONFIGURE_ARGS="$CONFIGURE_ARGS --disable-gil"
-              echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions_free_threading.txt" >> $GITHUB_ENV
+              TSAN_SUPPRESSIONS="${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions_free_threading.txt"
             else
-              echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt" >> $GITHUB_ENV
+              TSAN_SUPPRESSIONS="${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
             fi
-            EXCLUDE="--excludefile tests/tsan_bugs.txt"
+            EXCLUDE="$EXCLUDE --excludefile tests/tsan_bugs.txt"
+            echo "TSAN_OPTIONS=suppressions=$TSAN_SUPPRESSIONS log_path=${{ github.workspace }}/san_log" >> $GITHUB_ENV
           fi
           # Even running Python like this is slow, so only run a subset of tests
           # (i.e. compile-only tests tell us nothing)
@@ -103,3 +107,11 @@ jobs:
           cd "${GITHUB_WORKSPACE}/"
           source venv_pydebug/bin/activate
           bash ./Tools/ci-run.sh
+
+      - name: Archive logs
+        if: ${{inputs.sanitize}}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{inputs.sanitize}}-logs
+          path: san_log.*
+          if-no-files-found: ignore
