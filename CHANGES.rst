@@ -522,6 +522,17 @@ Other changes
   (Github issue :issue:`6423`)
 
 
+3.1.8 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Some internal C symbols were not declared as ``static``, preventing static linking
+  of multiple modules.
+  Patch by Yury Popov.  (Github issue :issue:`7310`)
+
+
 3.1.7 (2025-11-12)
 ==================
 

@@ -303,7 +303,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 
 //////////////////// divmod_int.proto //////////////////
 
-const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}} = {-1, -1};
+static const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}} = {-1, -1};
 
 static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {{TYPE}} b); /*proto*/
 
@@ -343,7 +343,7 @@ static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {
 
 //////////////////// divmod_float.proto //////////////////
 
-const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}} = {-1.0, -1.0};
+static const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}} = {-1.0, -1.0};
 
 static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {{TYPE}} b); /*proto*/
 
