@@ -68,10 +68,11 @@ jobs:
             CONFIGURE_ARGS="$CONFIGURE_ARGS --with-thread-sanitizer"
             SANITIZER_CFLAGS="$SANITIZER_CFLAGS -fsanitize=thread"
             if [[ "${{inputs.sanitize}}" == *"ft"* ]]; then
+              echo "PYTHON_VERSION=3.xt-dev" >> $GITHUB_ENV
               CONFIGURE_ARGS="$CONFIGURE_ARGS --disable-gil"
-              echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions_free_threading.txt"
+              echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions_free_threading.txt" >> $GITHUB_ENV
             else
-              echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
+              echo "TSAN_OPTIONS=halt_on_error=1 suppressions=${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt" >> $GITHUB_ENV
             fi
             EXCLUDE="--excludefile tests/tsan_bugs.txt"
           fi
@@ -79,7 +80,7 @@ jobs:
           # (i.e. compile-only tests tell us nothing)
           echo "EXCLUDE=$EXCLUDE run[.] memoryview[.] --no-examples --no-refnanny" >> $GITHUB_ENV
           # https://github.com/google/sanitizers/issues/934
-          echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libstdc++.so)")"
+          echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libstdc++.so)")" >> $GITHUB_ENV
           echo "CONFIGURE_ARGS=$CONFIGURE_ARGS" >> $GITHUB_ENV
           echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS" >> $GITHUB_ENV
 
