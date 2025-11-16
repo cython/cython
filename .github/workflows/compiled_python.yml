@@ -55,6 +55,7 @@ jobs:
         run: |
           SANITIZER_CFLAGS=""
           CONFIGURE_ARGS=""
+          EXTRA_CONFIGURE_CFLAGS=""
           EXCLUDE=""
           if [[ "${{inputs.sanitize}}" == *"address"* ]]; then
             CONFIGURE_ARGS="$CONFIGURE_ARGS --with-address-sanitizer --without-pymalloc"
@@ -69,7 +70,8 @@ jobs:
           fi
           if [[ "${{inputs.sanitize}}" == *"undefined"* ]]; then
             CONFIGURE_ARGS="$CONFIGURE_ARGS --with-undefined-behavior-sanitizer"
-            # We call functions through slightly wrong pointer types a lot so disable for now
+            # We call functions through slightly incorrect pointer types a lot so disable this check for now for now
+            EXTRA_CONFIGURE_CFLAGS="$EXTRA_CONFIGURE_CFLAGS -fno-sanitize=function"
             # omit vptr because it's largely C++-only and requires linking with clang++ (which breaks other things)
             SANITIZER_CFLAGS="$SANITIZER_CFLAGS -fsanitize=undefined -fno-sanitize=function -fno-sanitize=vptr -fno-omit-frame-pointer"
             echo "print_stacktrace=1" >> $GITHUB_ENV
@@ -96,6 +98,7 @@ jobs:
           echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libstdc++.so)")" >> $GITHUB_ENV
           echo "CONFIGURE_ARGS=$CONFIGURE_ARGS" >> $GITHUB_ENV
           echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS" >> $GITHUB_ENV
+          echo "EXTRA_CONFIGURE_CFLAGS=$EXTRA_CONFIGURE_CFLAGS" >> $GITHUB_ENV 
 
       - name: Install build dependencies
         run: |
@@ -106,7 +109,7 @@ jobs:
         run: |
           git clone https://github.com/python/cpython/ cpython_main
           cd cpython_main
-          ./configure ${CONFIGURE_ARGS} --prefix=${GITHUB_WORKSPACE}/cpython_install CFLAGS="-O2"
+          ./configure ${CONFIGURE_ARGS} --prefix=${GITHUB_WORKSPACE}/cpython_install CFLAGS="-O2 $EXTRA_CONFIGURE_CFLAGS"
           make -j8
           make install
           ${GITHUB_WORKSPACE}/cpython_install/bin/python3 -m venv ${GITHUB_WORKSPACE}/venv_pydebug
