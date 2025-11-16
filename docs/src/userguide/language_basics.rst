@@ -661,15 +661,20 @@ with string attributes if they are to be used after the function returns.
 C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
-C functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
-Python object return type, like Python functions, will return a ``None``
-value when execution leaves the function body without an explicit return value. This is in
-contrast to C/C++, which leaves the return value undefined.
-In the case of non-Python object return types, the equivalent of zero is returned,
-for example, 0 for ``int``, ``False`` for ``bint`` and ``NULL`` for pointer types.
-
 A more complete comparison of the pros and cons of these different method
 types can be found at :ref:`early-binding-for-speed`.
+
+
+Default return values
+---------------------
+
+C functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
+Python object return type, like Python functions, will return a ``None``
+value when execution leaves the function body without an explicit return value.
+This is in contrast to C/C++, which leaves the return value undefined.
+
+In the case of non-Python object return types, the equivalent of zero is returned,
+for example, 0 for ``int``, ``False`` for ``bint`` and ``NULL`` for pointer types.
 
 
 Python objects as parameters and return values
