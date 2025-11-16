@@ -1723,6 +1723,15 @@ class PyExtensionType(PyObjectType):
         return "__import__(%r, None, None, ['']).%s" % (self.module_name,
                                                         self.name)
 
+    def __eq__(self, other):
+        return isinstance(other, PyExtensionType) and self.py_type_name() == other.py_type_name()
+
+    def __ne__(self, other):
+        return not (isinstance(other, PyExtensionType) and self.py_type_name() == other.py_type_name())
+
+    def __hash__(self):
+        return hash(self.py_type_name())
+
 class CType(PyrexType):
     #
     #  Base class for all C types (non-reference-counted).
