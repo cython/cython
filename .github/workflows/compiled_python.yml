@@ -37,9 +37,18 @@ jobs:
       - name: Set compiler
         if: ${{inputs.compiler}}
         run: |
-          echo CC=${{inputs.compiler}} >> $GITHUB_ENV
-          echo CXX=${{inputs.cpp_compiler}} >> $GITHUB_ENV
+          CC=${{inputs.compiler}}
+          CXX=${{inputs.cpp_compiler}}
           echo EXTERNAL_OVERRIDE_CC=1 >> $GITHUB_ENV
+          clangv=$($CC -v 2> >(grep "clang version"))
+          if [[ $clangv == *"version 18"* && "${{inputs.sanitize}}" == *"thread"* ]]; then
+              # Python uses clang-17 instead of 18 because of bugs so do the same
+              echo CC=clang-17 >> $GITHUB_ENV
+              echo CXX=clang-17 >> $GITHUB_ENV
+          fi
+          echo "CC=$CC" >> $GITHUB_ENV
+          echo "CXX=$CXX" >> $GITHUB_ENV
+              
 
       - name: Set up sanitizer args
         if: ${{inputs.sanitize}}

@@ -4,3 +4,6 @@ libc_thread
 # freeze forever in test_py_safe_once_object_fail - I think this is a thread sanitizer bug
 # rather than our bug, but I'm not sure.
 cpp_mutex
+
+# trashcan crashes without a message for some reason - I think it's a tsan bug 
+#trashcan
