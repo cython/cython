@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - master
-  pull_request:  # Delete me - just to test it
 
 permissions:
   contents: read # to fetch code (actions/checkout)
