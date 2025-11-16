@@ -532,6 +532,10 @@ Bugs fixed
   of multiple modules.
   Patch by Yury Popov.  (Github issue :issue:`7310`)
 
+* Accidentally using ``except +`` in C mode did not raise a compile error but generated
+  invalid C code leading to obscure error messages.
+  Patch by user202729.  (Github issue :issue:`6560`)
+
 
 3.1.7 (2025-11-12)
 ==================
