@@ -40,9 +40,22 @@ def subscribed_types_assignments():
     sb: set[cython.int] = sa
     fa: frozenset[cython.float] = {5.0}
     fb: frozenset[cython.int] = fa
+    da: dict[cython.float, cython.float] = {5.0: 5.0}
+    db: dict[cython.int, cython.int] = da
+    dc: dict[cython.int, cython.float] = da
+    dd: dict[cython.float, cython.int] = da # FIXME: This should fail
     sa = la
-    fa = la
     sa = fa
+    sa = da
+    fa = la
+    fa = sa
+    fa = da
+    la = sa
+    la = fa
+    la = da
+    da = sa
+    da = fa
+    da = la
 
 # OK
 
@@ -78,6 +91,18 @@ def allowed_subscribed_types_assignments():
     sb: set[cython.int] = sa
     fa: frozenset[str] = frozenset({"bar"})
     fb: frozenset[str] = fa
+    da: dict[cython.int, cython.int] = {1: 2}
+    db: dict[cython.int, cython.int] = da
+
+    l1: list = la
+    s1: set = sa
+    f1: frozenset = fa
+    d1: dict = da
+
+    la = l1
+    sa = s1
+    fa = f1
+    da = d1
 
 _ERRORS = """
 13:42: typing.Optional[...] cannot be applied to type int
@@ -106,7 +131,18 @@ _ERRORS = """
 40:26: Cannot assign type 'set[float] object' to 'set[int] object'
 41:35: Cannot assign type 'set object' to 'frozenset[float] object'
 42:32: Cannot assign type 'frozenset[float] object' to 'frozenset[int] object'
-43:9: Cannot assign type 'list[float] object' to 'set[float] object'
-44:9: Cannot assign type 'list[float] object' to 'frozenset[float] object'
-45:9: Cannot assign type 'frozenset[float] object' to 'set[float] object'
+44:39: Cannot assign type 'dict[float,float] object' to 'dict[int,int] object'
+45:41: Cannot assign type 'dict[float,float] object' to 'dict[int,float] object'
+47:9: Cannot assign type 'list[float] object' to 'set[float] object'
+48:9: Cannot assign type 'frozenset[float] object' to 'set[float] object'
+49:9: Cannot assign type 'dict[float,float] object' to 'set[float] object'
+50:9: Cannot assign type 'list[float] object' to 'frozenset[float] object'
+51:9: Cannot assign type 'set[float] object' to 'frozenset[float] object'
+52:9: Cannot assign type 'dict[float,float] object' to 'frozenset[float] object'
+53:9: Cannot assign type 'set[float] object' to 'list[float] object'
+54:9: Cannot assign type 'frozenset[float] object' to 'list[float] object'
+55:9: Cannot assign type 'dict[float,float] object' to 'list[float] object'
+56:9: Cannot assign type 'set[float] object' to 'dict[float,float] object'
+57:9: Cannot assign type 'frozenset[float] object' to 'dict[float,float] object'
+58:9: Cannot assign type 'list[float] object' to 'dict[float,float] object'
 """

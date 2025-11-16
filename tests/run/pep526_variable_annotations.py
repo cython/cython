@@ -305,6 +305,65 @@ def test_dict_with_subscription():
     print(cython.typeof(c))
     print(c)
 
+def test_assignment_list_with_subscription():
+    """
+    >>> test_assignment_list_with_subscription()
+    int
+    int
+    int
+    5 5 5
+    """
+    a: list[cython.int] = [5]
+    b: list = a
+    c: list[cython.float] = b
+    print(cython.typeof(a[0]))
+    print(cython.typeof(b[0]))
+    print(cython.typeof(c[0]))
+    print(a[0], b[0], c[0])
+
+def test_assignment_dict_with_subscription():
+    """
+    >>> test_assignment_list_with_subscription()
+    int
+    int
+    int
+    5 5 5
+    """
+    a: list[cython.int] = [5]
+    b: list = a
+    c: list[cython.float] = b
+    print(cython.typeof(a[0]))
+    print(cython.typeof(b[0]))
+    print(cython.typeof(c[0]))
+    print(a[0], b[0], c[0])
+
+if cython.compiled:
+    test_assignment_list_with_subscription.__doc__ = """
+    >>> test_assignment_list_with_subscription()
+    int
+    Python object
+    float
+    5 5 5.0
+    """
+
+def test_failed_assignment_list_with_subscription():
+    """
+    >>> test_failed_assignment_list_with_subscription()
+    5 5 5
+    """
+    a: list[cython.int] = [5]
+    b: list = a
+    c: list[str] = b
+    print(a[0], b[0], c[0])
+
+if cython.compiled:
+    test_failed_assignment_list_with_subscription.__doc__ = """
+    >>> test_failed_assignment_list_with_subscription()  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+       ...
+    TypeError: Expected str, got int
+    """
+
 @cython.infer_types(True)
 def test_iteration_over_list_with_subscription():
     """
