@@ -664,6 +664,7 @@ passed in directly using a normal C function call.
 A more complete comparison of the pros and cons of these different method
 types can be found at :ref:`early-binding-for-speed`.
 
+.. _default_return_values:
 
 Default return values
 ---------------------
@@ -915,7 +916,7 @@ When you declare an exception value for a function, you should never explicitly
 or implicitly return that value.  This includes the case where the execution
 leaves the function body without returning a value, for which Cython
 inserts the default return value (e.g. ``0`` for C number types,
-see :ref:`python_functions_vs_c_functions`). In general, exception return values
+see :ref:`default_return_values`). In general, exception return values
 are best chosen from invalid or very unlikely return values of the function,
 such as a negative value for functions that return only non-negative results,
 or a very large value like ``INT_MAX`` for a function that "usually" only

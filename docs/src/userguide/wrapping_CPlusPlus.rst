@@ -541,7 +541,7 @@ found `here
 <https://github.com/cython/cython/blob/master/Cython/Utility/CppSupport.cpp>`__.
 
 You can reuse Cython's built-in logic with something like the following.
-Notice the ``convert_current_exception_to_python()`` function. ::
+Notice the ``convert_current_cpp_exception_to_python()`` function. ::
 
     from cpython.object cimport PyObject
 
@@ -565,12 +565,12 @@ Notice the ``convert_current_exception_to_python()`` function. ::
             }  catch (const std::logic_error& exn) {
                 PyErr_SetString(exc_type, exn.what());
             } catch (...) {
-                convert_current_exception_to_python();
+                convert_current_cpp_exception_to_python();
             }
         }
         """
 
-        cdef void rethrow_current_exception() except+
+        cdef void rethrow_current_cpp_exception() except+
 
         cdef void cpp_handle_exception(object)
 
