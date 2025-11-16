@@ -475,7 +475,7 @@ Python exceptions created using the Python C API. ::
         #include <stdexcept>
         #include <ios>
 
-        void cpp_handle_exception(PyObject *exc_type) {
+        static void cpp_handle_exception(PyObject *exc_type) {
             if (PyErr_Occurred())
                 return; // let the latest Python exn pass through and ignore the current one
             try {
@@ -488,11 +488,13 @@ Python exceptions created using the Python C API. ::
         }
 		"""
 
-        cdef void cpp_handle_exception(object)
+        cdef void cpp_handle_exception(object) except *
 
     class CustomLogicError(Exception): pass
 
-    cdef void translate_cpp_exception() except*:
+    cdef void translate_cpp_exception() except *:
+        # Pass our custom Python exception types into the C++ handler,
+        # in case it wants to raise them.
         cpp_handle_exception(CustomLogicError)
 
     cdef extern from *:
@@ -549,13 +551,13 @@ Notice the ``convert_current_exception_to_python()`` function. ::
         #include <stdexcept>
         #include <ios>
 
-        void rethrow_current_exception() {
+        static void rethrow_current_cpp_exception() {
             throw;
         }
 
-        int convert_current_exception_to_python();
+        int convert_current_cpp_exception_to_python();
 
-        void cpp_handle_exception(PyObject *exc_type) {
+        static void cpp_handle_exception(PyObject *exc_type) {
             if (PyErr_Occurred())
                 return;
             try {
@@ -572,13 +574,17 @@ Notice the ``convert_current_exception_to_python()`` function. ::
 
         cdef void cpp_handle_exception(object)
 
-    cdef public int convert_current_exception_to_python() except -1:
-        rethrow_current_exception()  # the heavy lifting is done in the ``except+``
+    cdef public void convert_current_cpp_exception_to_python() except *:
+        rethrow_current_cpp_exception()  # declared as ``except+``, which translates the exception
 
     class CustomLogicError(Exception): pass
 
-    cdef void translate_cpp_exception() except*:
+    cdef void translate_cpp_exception() except *:
+        # Pass our custom Python exception types into the C++ handler,
+        # in case it wants to raise them.
         cpp_handle_exception(CustomLogicError)
+
+    # Example of usage:
 
     cdef extern from *:
         """
