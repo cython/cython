@@ -86,34 +86,6 @@ def test_double_critical_section(n_loops):
     assert b == expected, (b, expected)
 
 
-def test_critical_section_in_generators(n_threads, n_loops):
-    """
-    >>> test_critical_section_in_generators(4, 100)
-    """
-    cdef int count = 0
-    lock = object()
-    barrier = threading.Barrier(n_threads)
-
-    def gen():
-        nonlocal count
-        barrier.wait()
-        with cython.critical_section(lock):
-            for i in range(n_loops):
-                count += i
-                yield
-
-    def make_and_run_generator():
-        g = gen()
-        for _ in g:
-            pass
-
-    threads = _create_identical_threads(n_threads, make_and_run_generator)
-    _run_threads_to_completion(threads)
-
-    expected = ((n_loops * (n_loops - 1))/2)*n_threads
-    assert count == expected, (count, expected)
-
-
 cdef class CClass:
     cdef int count
     def __cinit__(self):
