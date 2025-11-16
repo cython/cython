@@ -555,7 +555,7 @@ Notice the ``convert_current_cpp_exception_to_python()`` function. ::
             throw;
         }
 
-        int convert_current_cpp_exception_to_python();
+        void convert_current_cpp_exception_to_python();
 
         static void cpp_handle_exception(PyObject *exc_type) {
             if (PyErr_Occurred())
