@@ -689,6 +689,7 @@ class IterationTransform(Visitor.EnvTransform):
                 body=Nodes.StatListNode(node.pos, stats=[setup_node, loop_node])))
 
     def _transform_carray_iteration(self, node, slice_node, reversed=False):
+        env = self.current_env()
         neg_step = False
         if isinstance(slice_node, ExprNodes.SliceIndexNode):
             slice_base = slice_node.base
@@ -737,9 +738,9 @@ class IterationTransform(Visitor.EnvTransform):
             return node
 
         if start:
-            start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+            start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
         if stop:
-            stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+            stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
         if stop is None:
             if neg_step:
                 stop = ExprNodes.IntNode.for_size(slice_node.pos, -1)
@@ -756,64 +757,63 @@ class IterationTransform(Visitor.EnvTransform):
         ptr_type = slice_base.type
         if ptr_type.is_array:
             ptr_type = ptr_type.element_ptr_type()
-        carray_ptr = slice_base.coerce_to_simple(self.current_env())
 
-        if start and start.constant_result != 0:
-            start_ptr_node = ExprNodes.AddNode(
-                start.pos,
-                operand1=carray_ptr,
-                operator='+',
-                operand2=start,
-                type=ptr_type)
-        else:
-            start_ptr_node = carray_ptr
+        carray_ptr = slice_base.coerce_to_simple(env)
 
-        if stop and stop.constant_result != 0:
-            stop_ptr_node = ExprNodes.AddNode(
-                stop.pos,
-                operand1=ExprNodes.CloneNode(carray_ptr),
-                operator='+',
-                operand2=stop,
-                type=ptr_type
-                ).coerce_to_simple(self.current_env())
-        else:
-            stop_ptr_node = ExprNodes.CloneNode(carray_ptr)
+        if start is None or start.constant_result == 0:
+            start = ExprNodes.IntNode.for_int(slice_node.pos, 0)
 
-        counter = UtilNodes.TempHandle(ptr_type)
+        counter = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
         counter_temp = counter.ref(node.target.pos)
+
+        # Use the C array (or pointer) directly for the item access, not a temp.
+        # When iterating over a literal C array, this generates the array item initialisation
+        # just before the array item access inside the loop body.  This looks silly, but should
+        # actually help the C compiler to extract it from the loop and generate efficient looping code.
+        # Unless we are in a generator that yields from inside the loop, in which case it can
+        # still see what values we are iterating over and that they are only relevant for the loop,
+        # but we avoid having to store them away in the closure etc.
+        # Hopefully, seeing the values in place will help with C loop optimisations.
+
+        item = ExprNodes.AddNode(
+            carray_ptr.pos,
+            operand1=carray_ptr,
+            operator='+',
+            operand2=counter_temp,
+            type=ptr_type,
+        )
 
         if slice_base.type.is_string and node.target.type.is_pyobject:
             # special case: char* -> bytes/unicode
             if slice_node.type is Builtin.unicode_type:
                 target_value = ExprNodes.CastNode(
                     ExprNodes.DereferenceNode(
-                        node.target.pos, operand=counter_temp,
+                        node.target.pos, operand=item,
                         type=ptr_type.base_type),
                     PyrexTypes.c_py_ucs4_type).coerce_to(
-                        node.target.type, self.current_env())
+                        node.target.type, env)
             else:
                 # char* -> bytes coercion requires slicing, not indexing
                 target_value = ExprNodes.SliceIndexNode(
                     node.target.pos,
                     start=ExprNodes.IntNode.for_int(node.target.pos, 0),
                     stop=ExprNodes.IntNode.for_int(node.target.pos, 1),
-                    base=counter_temp,
+                    base=item,
                     type=Builtin.bytes_type,
                     is_temp=1)
         elif node.target.type.is_ptr and not node.target.type.assignable_from(ptr_type.base_type):
             # Allow iteration with pointer target to avoid copy.
-            target_value = counter_temp
+            target_value = item
         else:
             # TODO: can this safely be replaced with DereferenceNode() as above?
             target_value = ExprNodes.IndexNode(
                 node.target.pos,
                 index=ExprNodes.IntNode.for_int(node.target.pos, 0),
-                base=counter_temp,
+                base=item,
                 type=ptr_type.base_type)
 
         if target_value.type != node.target.type:
-            target_value = target_value.coerce_to(node.target.type,
-                                                  self.current_env())
+            target_value = target_value.coerce_to(node.target.type, env)
 
         target_assign = Nodes.SingleAssignmentNode(
             pos = node.target.pos,
@@ -828,9 +828,9 @@ class IterationTransform(Visitor.EnvTransform):
 
         for_node = Nodes.ForFromStatNode(
             node.pos,
-            bound1=start_ptr_node, relation1=relation1,
+            bound1=start, relation1=relation1,
             target=counter_temp,
-            relation2=relation2, bound2=stop_ptr_node,
+            relation2=relation2, bound2=stop,
             step=step, body=body,
             else_clause=node.else_clause,
             from_range=True)
