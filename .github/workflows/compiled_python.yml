@@ -41,10 +41,11 @@ jobs:
           CXX=${{inputs.cpp_compiler}}
           echo EXTERNAL_OVERRIDE_CC=1 >> $GITHUB_ENV
           clangv=$($CC -v 2> >(grep "clang version"))
+          echo $clangv
           if [[ $clangv == *"version 18"* && "${{inputs.sanitize}}" == *"thread"* ]]; then
               # Python uses clang-17 instead of 18 because of bugs so do the same
-              echo CC=clang-17 >> $GITHUB_ENV
-              echo CXX=clang-17 >> $GITHUB_ENV
+              CC=clang-17
+              CXX=clang-17
           fi
           echo "CC=$CC" >> $GITHUB_ENV
           echo "CXX=$CXX" >> $GITHUB_ENV
