@@ -127,3 +127,12 @@ jobs:
           name: ${{inputs.sanitize}}-logs
           path: san_log.*
           if-no-files-found: ignore
+
+      # The check of the sanitizer logs does a bit of filtering of unwanted diagnostics
+      # and finishes with an error code if anything bad is found.
+      - name: Check logs
+        if:  ${{inputs.sanitize}}
+        run: |
+          cd "${GITHUB_WORKSPACE}/"
+          source venv_pydebug/bin/activate
+          python Tools/examine_sanitizer_logs.py san_log.*
