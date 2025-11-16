@@ -744,6 +744,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     level=2)
 
         if self.exception_check == '+':
+            self.cpp_check(env)
             env.add_include_file('ios')         # for std::ios_base::failure
             env.add_include_file('new')         # for std::bad_alloc
             env.add_include_file('stdexcept')
