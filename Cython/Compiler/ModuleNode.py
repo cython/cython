@@ -2981,8 +2981,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('#else')
         module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
         module_state.putln('#endif')
-        module_state.putln("#endif") # USE_MODULE_STATE
-        module_state.putln('#endif') # PEP 793 (Py>3.15 && multi_phase_init)
+        module_state.putln("#endif")  # USE_MODULE_STATE
+        module_state.putln('#endif')  # PEP 793 (Py>3.15 && multi_phase_init)
         module_state.putln('')
         module_state.putln("#if CYTHON_USE_MODULE_STATE")
         module_state.putln('#define %s (__Pyx_PyModule_GetState(__Pyx_State_FindModule(&%s)))' % (
@@ -3669,7 +3669,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  {Py_mod_state_free, %s}," % cleanup_func)
         code.putln("#endif")
         code.putln("{Py_mod_methods, %s, }," % env.method_table_cname)
-        code.putln("#endif") # end of PEP 793 initialization
+        code.putln("#endif")  # end of PEP 793 initialization
         code.putln("{0, NULL}")
         code.putln("};")
         if not env.module_name.isascii():
