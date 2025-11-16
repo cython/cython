@@ -467,7 +467,6 @@ See the example below. If  ``raise_py_error`` does not actually raise an excepti
 ``RuntimeError`` will be raised.  This approach may also be used to manage custom
 Python exceptions created using the Python C API. ::
 
-    # raising.pxd
     from cpython.object cimport PyObject
 
     cdef extern from *:
@@ -476,27 +475,28 @@ Python exceptions created using the Python C API. ::
         #include <stdexcept>
         #include <ios>
 
-        PyObject *CustomLogicError;
-
-        void create_custom_exceptions() {
-            CustomLogicError = PyErr_NewException("raiser.CustomLogicError", NULL, NULL);
-        }
-
-        void custom_exception_handler() {
+        void cpp_handle_exception(PyObject *exc_type) {
+            if (PyErr_Occurred())
+                return; // let the latest Python exn pass through and ignore the current one
             try {
-                if (PyErr_Occurred()) {
-                    ; // let the latest Python exn pass through and ignore the current one
-                } else {
-                    throw;
-                }
+                throw;
             }  catch (const std::logic_error& exn) {
-                // Add mapping of std::logic_error -> CustomLogicError
-                PyErr_SetString(CustomLogicError, exn.what());
+                PyErr_SetString(exc_type, exn.what());
             } catch (...) {
                 PyErr_SetString(PyExc_RuntimeError, "Unknown exception");
             }
         }
+		"""
 
+        cdef void cpp_handle_exception(object)
+
+    class CustomLogicError(Exception): pass
+
+    cdef void translate_cpp_exception() except*:
+        cpp_handle_exception(CustomLogicError)
+
+    cdef extern from *:
+        """
         class Raiser {
             public:
                 Raiser () {}
@@ -505,19 +505,9 @@ Python exceptions created using the Python C API. ::
                 }
         };
         """
-        cdef PyObject* CustomLogicError
-        cdef void create_custom_exceptions()
-        cdef void custom_exception_handler()
-
         cdef cppclass Raiser:
             Raiser() noexcept
-            void raise_exception() except +custom_exception_handler
-
-
-    # raising.pyx
-    create_custom_exceptions()
-    PyCustomLogicError = <object> CustomLogicError
-
+            void raise_exception() except +translate_cpp_exception
 
     cdef class PyRaiser:
         cdef Raiser c_obj
@@ -563,26 +553,35 @@ Notice the ``convert_current_exception_to_python()`` function. ::
             throw;
         }
 
-        PyObject *CustomLogicError;
-
-        void create_custom_exceptions() {
-            CustomLogicError = PyErr_NewException("raiser.CustomLogicError", NULL, NULL);
-        }
-
         int convert_current_exception_to_python();
 
-        void custom_exception_handler() {
+        void cpp_handle_exception(PyObject *exc_type) {
             if (PyErr_Occurred())
                 return;
             try {
                 throw;
             }  catch (const std::logic_error& exn) {
-                PyErr_SetString(CustomLogicError, exn.what());
+                PyErr_SetString(exc_type, exn.what());
             } catch (...) {
                 convert_current_exception_to_python();
             }
         }
+        """
 
+        cdef void rethrow_current_exception() except+
+
+        cdef void cpp_handle_exception(object)
+
+    cdef public int convert_current_exception_to_python() except -1:
+        rethrow_current_exception()  # the heavy lifting is done in the ``except+``
+
+    class CustomLogicError(Exception): pass
+
+    cdef void translate_cpp_exception() except*:
+        cpp_handle_exception(CustomLogicError)
+
+    cdef extern from *:
+        """
         class Raiser {
             public:
                 Raiser () {}
@@ -594,23 +593,10 @@ Notice the ``convert_current_exception_to_python()`` function. ::
                 }
         };
         """
-
-        cdef PyObject* CustomLogicError
-        cdef void create_custom_exceptions()
-        cdef void custom_exception_handler()
-
         cdef cppclass Raiser:
             Raiser() noexcept
-            void raise_logic_error() except +custom_exception_handler
-            void raise_overflow_error() except +custom_exception_handler
-
-        cdef void rethrow_current_exception() except+
-
-    cdef public int convert_current_exception_to_python() except -1:
-        rethrow_current_exception()  # the heavy lifting is done in the ``except+``
-
-    create_custom_exceptions()
-    PyCustomLogicError = <object> CustomLogicError
+            void raise_logic_error() except +translate_cpp_exception
+            void raise_overflow_error() except +translate_cpp_exception
 
     cdef class PyRaiser:
         cdef Raiser c_obj

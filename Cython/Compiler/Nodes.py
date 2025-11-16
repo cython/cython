@@ -1596,7 +1596,11 @@ class CVarDefNode(StatNode):
                     self.entry.create_wrapper = True
             else:
                 if self.overridable:
-                    error(self.pos, "Variables cannot be declared with 'cpdef'. Use 'cdef' or 'cdef public' instead.")
+                    if env.is_c_class_scope:
+                        error(self.pos,
+                            "Variables cannot be declared with 'cpdef'. Use 'cdef', 'cdef public' or 'cdef readonly' instead.")
+                    else:
+                        error(self.pos, "Variables cannot be declared with 'cpdef'. Use 'cdef' instead.")
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
                 self.entry = dest_scope.declare_var(

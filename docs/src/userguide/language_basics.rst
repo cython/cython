@@ -661,11 +661,12 @@ with string attributes if they are to be used after the function returns.
 C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
-C Functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
+C functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
 Python object return type, like Python functions, will return a ``None``
 value when execution leaves the function body without an explicit return value. This is in
 contrast to C/C++, which leaves the return value undefined.
-In the case of non-Python object return types, the equivalent of zero is returned, for example, 0 for ``int``, ``False`` for ``bint`` and ``NULL`` for pointer types.
+In the case of non-Python object return types, the equivalent of zero is returned,
+for example, 0 for ``int``, ``False`` for ``bint`` and ``NULL`` for pointer types.
 
 A more complete comparison of the pros and cons of these different method
 types can be found at :ref:`early-binding-for-speed`.
@@ -906,9 +907,10 @@ occurred and can now process or propagate it. Calling ``spam()`` is roughly tran
     if (ret_val == -1) goto error_handler;
 
 When you declare an exception value for a function, you should never explicitly
-or implicitly return that value.  This includes empty :keyword:`return`
-statements, without a return value, for which Cython inserts the default return
-value (e.g. ``0`` for C number types).  In general, exception return values
+or implicitly return that value.  This includes the case where the execution
+leaves the function body without returning a value, for which Cython
+inserts the default return value (e.g. ``0`` for C number types,
+see :ref:`python_functions_vs_c_functions`). In general, exception return values
 are best chosen from invalid or very unlikely return values of the function,
 such as a negative value for functions that return only non-negative results,
 or a very large value like ``INT_MAX`` for a function that "usually" only
@@ -982,8 +984,7 @@ If you have a
 function returning ``void`` that needs to propagate errors, you will have to
 use this form, since there isn't any error return value to test.
 Otherwise, an explicit error return value allows the C compiler to generate
-more efficient code and is thus generally preferable, although see the note
-below regarding default return value.
+more efficient code and is thus generally preferable.
 
 An external C++ function that may raise an exception can be declared with::
 
@@ -1062,11 +1063,6 @@ Some things to note:
   to change the return type to ``int`` and just let Cython use the return value
   as an error flag (by default, ``-1`` triggers the exception check, i.e.
   functions returning ``int`` use ``except? -1`` by default)
-
-  When the return value is a C type, and the last statement is executed
-  without returning a value, the function returns ``0`` (instead of ``None``).
-  However, explicit ``return`` in the function body is not allowed, you need
-  explicit ``return 0``.
 
 .. _checking_return_values_of_non_cython_functions:
 
