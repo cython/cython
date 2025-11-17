@@ -10,7 +10,7 @@ Bugs fixed
 
 * ``yield`` is no longer allowed inside of a ``cython.critical_section``,
   but *is* now allowed while holding a ``cython.pymutex``.
-  (Github issue :issue:`7312`)
+  (Github issue :issue:`7317`)
 
 * Under lock congestion, acquiring the GIL could crash in Python 3.11, part 2.
   This bug was introduces in Cython 3.2.0.
