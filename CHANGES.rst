@@ -2,6 +2,82 @@
 Cython Changelog
 ================
 
+3.3.0a1 (202?-??-??)
+====================
+
+Features added
+--------------
+
+* PEP-634 Pattern Matching is being implemented.
+  (Github issue :issue:`4029`)
+
+* Programmatic use of Cython has become easier by avoiding the need to manually set up
+  the error reporting.
+  (Github issue :issue:`7235`)
+
+Bugs fixed
+----------
+
+* Includes all fixes as of Cython 3.2.x.
+
+Other changes
+-------------
+
+* Support for Python 3.8 has been removed.
+  As a side-effekt, support for StacklessPython (last release was 3.8) was also removed.
+  Python 3.9 is planned to remain supported for several years due to its use in LTS Linux distributions.
+  (Github issue :issue:`7271`)
+
+
+3.2.2 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* ``yield`` is no longer allowed inside of a ``cython.critical_section``,
+  but *is* now allowed while holding a ``cython.pymutex``.
+  (Github issue :issue:`7317`)
+
+* Under lock congestion, acquiring the GIL could crash in Python 3.11, part 2.
+  This bug was introduces in Cython 3.2.0.
+  (Github issue :issue:`7312`)
+
+
+3.2.1 (2025-11-12)
+==================
+
+Features added
+--------------
+
+* Cython now leaves markers about its utility code dependencies in the generated C code
+  to help debugging "unused function" C compiler warnings.
+  (Github issue :issue:`7294`)
+
+Bugs fixed
+----------
+
+* Relative imports could fail if the shared utility module is used.
+  This bug was introduces in Cython 3.2.0.
+  (Github issue :issue:`7290`)
+
+* Under lock congestion, acquiring the GIL could crash in Python 3.11.
+  This bug was introduces in Cython 3.2.0.
+  (Github issue :issue:`7312`)
+
+* Using the shared utility module left an unused C function in user modules with memoryviews.
+  To make debugging this kind of issue easier, Cython now leaves "used by …" markers in the
+  generated C files that indicate why a specific piece of utility code was included.
+  This bug was introduces in Cython 3.2.0.
+  (Github issue :issue:`7293`)
+
+* Code using the pre-import scope failed with an undefined name.
+  This bug was introduces in Cython 3.2.0.
+  (Github issue :issue:`7304`)
+
+* Includes all fixes as of Cython 3.1.7.
+
+
 3.2.0 (2025-11-05)
 ==================
 
@@ -488,11 +564,34 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.7 (2025-??-??)
+3.1.8 (2025-??-??)
 ==================
 
 Bugs fixed
 ----------
+
+* Some internal C symbols were not declared as ``static``, preventing static linking
+  of multiple modules.
+  Patch by Yury Popov.  (Github issue :issue:`7310`)
+
+* Accidentally using ``except +`` in C mode did not raise a compile error but generated
+  invalid C code leading to obscure error messages.
+  Patch by user202729.  (Github issue :issue:`6560`)
+
+
+3.1.7 (2025-11-12)
+==================
+
+Bugs fixed
+----------
+
+* Unicode characters formatted from C integers with padding, as in ``f"{value:XXc}"``,
+  could result in invalid Python string objects since Cython 3.1.0.
+  Also, lone surrogates failed to format in this way.
+  (Github issue :issue:`7298`)
+
+* Assigning nested structs from a list of structs (item by item) could crash Cython.
+  (Github issue :issue:`7308`)
 
 * Cython incorrectly called ``PyList_GetItemRef()`` in PyPy and GraalPython before Py3.13.
   (Github issue :issue:`7269`)

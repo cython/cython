@@ -9052,11 +9052,14 @@ class TupleNode(SequenceNode):
         return self.result_code
 
     def calculate_constant_result(self):
+        if self.mult_factor:
+            raise ValueError()  # may exceed the compile time memory
         self.constant_result = tuple([
                 arg.constant_result for arg in self.args])
 
     def compile_time_value(self, denv):
         values = self.compile_time_value_list(denv)
+        assert self.mult_factor is None, self.mult_factor  # set only after parsing
         try:
             return tuple(values)
         except Exception as e:
@@ -9170,9 +9173,12 @@ class ListNode(SequenceNode):
             else:
                 if len(self.args) < len(dst_type.scope.var_entries):
                     warning(self.pos, "Too few members for '%s'" % dst_type, 1)
-                for i, (arg, member) in enumerate(zip(self.original_args, dst_type.scope.var_entries)):
+                for i, (arg, coerced_arg, member) in enumerate(zip(self.original_args, self.args, dst_type.scope.var_entries)):
                     if isinstance(arg, CoerceToPyTypeNode):
                         arg = arg.arg
+                    elif member.type.is_struct_or_union and coerced_arg.is_dict_literal:
+                        # For struct assignments, use the coerced dict directly, not a struct type call etc.
+                        arg = coerced_arg
                     self.args[i] = arg.coerce_to(member.type, env)
             self.type = dst_type
         elif dst_type.is_ctuple:

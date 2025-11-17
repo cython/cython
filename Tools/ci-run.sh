@@ -31,11 +31,6 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
-
-  if [[ $PYTHON_VERSION == "3."[78]* ]]; then
-    # see https://trac.macports.org/ticket/62757
-    unset MACOSX_DEPLOYMENT_TARGET
-  fi
 else
   echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
@@ -58,14 +53,6 @@ else
   ln -s ccache /usr/local/bin/c++
   ln -s ccache /usr/local/bin/clang
   ln -s ccache /usr/local/bin/clang++
-fi
-
-# Set up miniconda
-if [[ $STACKLESS == "true" ]]; then
-  echo "Installing stackless python"
-  #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
-  conda config --add channels stackless
-  conda install --quiet --yes stackless || exit 1
 fi
 
 PYTHON_SYS_VERSION=$(python -c 'import sys; print(sys.version)')
@@ -93,7 +80,7 @@ echo "Installing requirements [python]"
 if [[ $PYTHON_VERSION == "3.1"[2-9]* || $PYTHON_VERSION == *"-dev" || $PYTHON_VERSION == "pypy-3.11" ]]; then
   python -m pip install -U pip wheel setuptools || exit 1
 else
-  # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.8.
+  # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.10.
   python -m pip install -U pip "setuptools<60" wheel twine "cryptography<42" "nh3<0.2.19" || exit 1
 fi
 if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" ]]; then
@@ -172,9 +159,6 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   if [[ $CYTHON_COMPILE_ALL == "1" && $OSTYPE != "msys" ]]; then
     BUILD_CFLAGS="$CFLAGS -O3 -g0 -mtune=generic"  # make wheel sizes comparable to standard wheel build
   fi
-  if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
-    BUILD_CFLAGS="$BUILD_CFLAGS -fno-strict-aliasing"
-  fi
 
   SETUP_ARGS=""
   if [[ $COVERAGE == "1" ]]; then
@@ -197,14 +181,13 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     python setup.py build_ext -i $SETUP_ARGS || exit 1
 
   # COVERAGE can be either "" (empty or not set) or "1" (when we set it)
-  # STACKLESS can be either  "" (empty or not set) or "true" (when we set it)
-  if [[ $COVERAGE != "1" && $STACKLESS != "true" && $BACKEND != *"cpp"* &&
-        $EXTRA_CFLAGS == "" ]]; then
+  if [[ $COVERAGE != "1" && $BACKEND != *"cpp"* && $EXTRA_CFLAGS == "" ]]; then
     python setup.py bdist_wheel || exit 1
     ls -l dist/ || true
 
-    # Check for changelog entry in wheel metadata.
-    fgrep -q '=======' $( [ -d ?ython-*.dist-info/ ] && echo "?ython-*.dist-info/METADATA" || echo "?ython*.egg-info/PKG-INFO" ) || {
+    # Check for changelog entry in wheel metadata, except for "...-dev" or "...a0" dev versions.
+    grep -q '^__version__.*=.*".*\(a0\|dev[0-9]\?\)"' Cython/Shadow.py || \
+      fgrep -q '=======' $( [ -d ?ython-*.dist-info/ ] && echo "?ython-*.dist-info/METADATA" || echo "?ython*.egg-info/PKG-INFO" ) || {
         echo "ERROR: wheel METADATA lacks changelog - did you add a version entry?" ; exit 1; }
 
     if $( twine --version ); then twine check dist/*.whl; fi
