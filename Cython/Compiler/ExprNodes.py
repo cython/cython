@@ -9059,8 +9059,7 @@ class TupleNode(SequenceNode):
 
     def compile_time_value(self, denv):
         values = self.compile_time_value_list(denv)
-        if self.mult_factor:
-            l *= self.mult_factor.compile_time_value(denv)
+        assert self.mult_factor is None, self.mult_factor  # set only after parsing
         try:
             return tuple(values)
         except Exception as e:
