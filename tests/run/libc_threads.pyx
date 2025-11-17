@@ -1,5 +1,5 @@
 # mode: run
-# tag: c11, no-cpp, no-macos
+# tag: c11, no-cpp, no-macos, threads
 
 # cython: language_level=3
 

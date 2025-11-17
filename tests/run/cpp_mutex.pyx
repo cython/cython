@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp17, no-cpp-locals
+# tag: cpp, cpp17, no-cpp-locals, threads
 
 # cython: language_level=3
 

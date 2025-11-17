@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp20, no-cpp-locals
+# tag: cpp, cpp20, no-cpp-locals, threads
 
 from libcpp.latch cimport latch
 from libcpp.barrier cimport barrier

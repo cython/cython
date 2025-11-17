@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp11, no-cpp-locals
+# tag: cpp, cpp11, no-cpp-locals, threads
 # Note - keep this file as cpp11 (and put cpp20 tests in a separate file)
 # to make sure that it's usable in cpp11 mode.
 
