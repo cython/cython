@@ -96,14 +96,7 @@ __doc__ = u"""
     VS __index__ 0
     >>> set_name = SetName()
     >>> assert "SetName 'SetName' 'attr'" == set_name.attr, set_name.attr
-"""
 
-cdef extern from *:
-    # type specs require a bug fix in Py3.8+ for some of these tests.
-    const int CYTHON_USE_TYPE_SPECS
-
-if not CYTHON_USE_TYPE_SPECS or sys.version_info >= (3,8):
-    __doc__ += u"""
     >>> # If you define either setattr or delattr, you get wrapper objects
     >>> # for both methods.  (This behavior is unchanged by #561.)
     >>> sa_setattr = SetAttr().__setattr__
