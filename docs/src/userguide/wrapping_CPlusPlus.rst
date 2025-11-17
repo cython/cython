@@ -540,7 +540,7 @@ listed in the table above. The code for this standard exception handler can be
 found `here
 <https://github.com/cython/cython/blob/master/Cython/Utility/CppSupport.cpp>`__.
 
-You can reuse Cython's built-in logic with something like the following.
+You can reuse Cython's own C++ exception mapping with something like the following.
 Notice the ``convert_current_cpp_exception_to_python()`` function. ::
 
     from cpython.object cimport PyObject
