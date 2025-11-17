@@ -29,7 +29,22 @@ Other changes
   (Github issue :issue:`7271`)
 
 
-3.2.1 (2025-11-??)
+3.2.2 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* ``yield`` is no longer allowed inside of a ``cython.critical_section``,
+  but *is* now allowed while holding a ``cython.pymutex``.
+  (Github issue :issue:`7317`)
+
+* Under lock congestion, acquiring the GIL could crash in Python 3.11, part 2.
+  This bug was introduces in Cython 3.2.0.
+  (Github issue :issue:`7312`)
+
+
+3.2.1 (2025-11-12)
 ==================
 
 Features added
@@ -42,15 +57,22 @@ Features added
 Bugs fixed
 ----------
 
-* Relative imports could fail in 3.2.0 if the shared utility module is used.
+* Relative imports could fail if the shared utility module is used.
+  This bug was introduces in Cython 3.2.0.
   (Github issue :issue:`7290`)
 
-* Using the shared utility module in 3.2.0 left an unused C function in user modules with memoryviews.
+* Under lock congestion, acquiring the GIL could crash in Python 3.11.
+  This bug was introduces in Cython 3.2.0.
+  (Github issue :issue:`7312`)
+
+* Using the shared utility module left an unused C function in user modules with memoryviews.
   To make debugging this kind of issue easier, Cython now leaves "used by …" markers in the
   generated C files that indicate why a specific piece of utility code was included.
+  This bug was introduces in Cython 3.2.0.
   (Github issue :issue:`7293`)
 
 * Code using the pre-import scope failed with an undefined name.
+  This bug was introduces in Cython 3.2.0.
   (Github issue :issue:`7304`)
 
 * Includes all fixes as of Cython 3.1.7.
@@ -542,7 +564,22 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.7 (2025-11-??)
+3.1.8 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Some internal C symbols were not declared as ``static``, preventing static linking
+  of multiple modules.
+  Patch by Yury Popov.  (Github issue :issue:`7310`)
+
+* Accidentally using ``except +`` in C mode did not raise a compile error but generated
+  invalid C code leading to obscure error messages.
+  Patch by user202729.  (Github issue :issue:`6560`)
+
+
+3.1.7 (2025-11-12)
 ==================
 
 Bugs fixed
@@ -552,6 +589,9 @@ Bugs fixed
   could result in invalid Python string objects since Cython 3.1.0.
   Also, lone surrogates failed to format in this way.
   (Github issue :issue:`7298`)
+
+* Assigning nested structs from a list of structs (item by item) could crash Cython.
+  (Github issue :issue:`7308`)
 
 * Cython incorrectly called ``PyList_GetItemRef()`` in PyPy and GraalPython before Py3.13.
   (Github issue :issue:`7269`)
