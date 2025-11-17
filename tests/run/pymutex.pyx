@@ -260,6 +260,8 @@ def test_global_lock_locked():
             return False
     
     return not global_lock.locked()
+
+
 # Using C is just a quick way to inject a few Python calls
 # into the generator tests.  With generators and critical sections
 # putting these calls between yields would definitely break.
