@@ -38,12 +38,12 @@ def subscribed_types_assignments():
     lb: list[cython.int] = la
     sa: set[cython.float] = {5.0}
     sb: set[cython.int] = sa
-    fa: frozenset[cython.float] = {5.0}
+    fa: frozenset[cython.float] = frozenset({5.0})
     fb: frozenset[cython.int] = fa
     da: dict[cython.float, cython.float] = {5.0: 5.0}
     db: dict[cython.int, cython.int] = da
     dc: dict[cython.int, cython.float] = da
-    dd: dict[cython.float, cython.int] = da # FIXME: This should fail
+    dd: dict[cython.float, cython.int] = da
     sa = la
     sa = fa
     sa = da
@@ -56,6 +56,17 @@ def subscribed_types_assignments():
     da = sa
     da = fa
     da = la
+
+
+def subscribed_types_assignments_to_variable():
+    la: list[cython.float] = [5.0]
+    a: cython.int = la[0]
+    i: cython.int
+    for i in la:
+        pass
+    da: dict[cython.int, cython.float] = {1: 1.0}
+    b: cython.int = da[1]
+    j: cython.p_int
 
 # OK
 
@@ -129,10 +140,10 @@ _ERRORS = """
 33:104: '[...] | None' cannot be applied to type long
 38:27: Cannot assign type 'list[float] object' to 'list[int] object'
 40:26: Cannot assign type 'set[float] object' to 'set[int] object'
-41:35: Cannot assign type 'set object' to 'frozenset[float] object'
 42:32: Cannot assign type 'frozenset[float] object' to 'frozenset[int] object'
 44:39: Cannot assign type 'dict[float,float] object' to 'dict[int,int] object'
 45:41: Cannot assign type 'dict[float,float] object' to 'dict[int,float] object'
+46:41: Cannot assign type 'dict[float,float] object' to 'dict[float,int] object'
 47:9: Cannot assign type 'list[float] object' to 'set[float] object'
 48:9: Cannot assign type 'frozenset[float] object' to 'set[float] object'
 49:9: Cannot assign type 'dict[float,float] object' to 'set[float] object'
@@ -145,4 +156,7 @@ _ERRORS = """
 56:9: Cannot assign type 'set[float] object' to 'dict[float,float] object'
 57:9: Cannot assign type 'frozenset[float] object' to 'dict[float,float] object'
 58:9: Cannot assign type 'list[float] object' to 'dict[float,float] object'
-"""
+63:22: Cannot assign type 'float' to 'int'
+65:13: Cannot assign type 'float' to 'int'
+68:22: Cannot assign type 'float' to 'int'
+""

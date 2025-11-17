@@ -4923,17 +4923,13 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
 
     def assignable_from(self, src_type):
         if self == src_type:
-            if (sc := self.get_subscribed_type(0)) and (src_sc := src_type.get_subscribed_type(0)) and sc.assignable_from(src_sc):
-                return True
             if not self.subscribed_types and not src_type.subscribed_types:
                 return True
             if not self.subscribed_types and src_type.subscribed_types:
                 return True
             if self.subscribed_types and not src_type.subscribed_types:
-                # FIXME we should not support assigning not known subtype to known subtype
                 return True
-            if src_type.get_subscribed_type(0) == self:
-                # Assign list[list[BAR] to list[BAR]
+            if all(dst_sc.assignable_from(src_sc) for dst_sc, src_sc in zip(self.subscribed_types, src_type.subscribed_types)):
                 return True
             return False
         return super().assignable_from(src_type)
