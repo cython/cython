@@ -321,25 +321,34 @@ def test_assignment_list_with_subscription():
     print(cython.typeof(c[0]))
     print(a[0], b[0], c[0])
 
+if cython.compiled:
+    test_assignment_list_with_subscription.__doc__ = """
+    >>> test_assignment_list_with_subscription()
+    int
+    Python object
+    float
+    5 5 5.0
+    """
+
 def test_assignment_dict_with_subscription():
     """
-    >>> test_assignment_list_with_subscription()
+    >>> test_assignment_dict_with_subscription()
     int
     int
     int
     5 5 5
     """
-    a: list[cython.int] = [5]
-    b: list = a
-    c: list[cython.float] = b
-    print(cython.typeof(a[0]))
-    print(cython.typeof(b[0]))
-    print(cython.typeof(c[0]))
-    print(a[0], b[0], c[0])
+    a: dict[str, cython.int] = {'a': 5}
+    b: dict = a
+    c: dict[str, cython.float] = b
+    print(cython.typeof(a['a']))
+    print(cython.typeof(b['a']))
+    print(cython.typeof(c['a']))
+    print(a['a'], b['a'], c['a'])
 
 if cython.compiled:
-    test_assignment_list_with_subscription.__doc__ = """
-    >>> test_assignment_list_with_subscription()
+    test_assignment_dict_with_subscription.__doc__ = """
+    >>> test_assignment_dict_with_subscription()
     int
     Python object
     float
