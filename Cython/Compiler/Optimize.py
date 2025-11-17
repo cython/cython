@@ -240,21 +240,23 @@ class IterationTransform(Visitor.EnvTransform):
                 return node
             return self._transform_set_iteration(node, iterable)
 
+        env = self.current_env()
+
         # C array (slice) iteration?
         if iterable.type.is_ptr or iterable.type.is_array:
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
-        if iterable.is_sequence_constructor:
+        if iterable.is_sequence_constructor and not env.is_generator_scope:
             # Convert iteration over homogeneous sequences of C types into array iteration.
-            env = self.current_env()
+            # FIXME: using ListNode in this way currently generates invalid C code inside of generator loops.
             item_type = ExprNodes.infer_sequence_item_type(
                 env, iterable, seq_type=iterable.type)
             if item_type and not item_type.is_pyobject and not any(item.is_starred for item in iterable.args):
                 iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args).analyse_types(env).coerce_to(
                     PyrexTypes.c_array_type(item_type, len(iterable.args)), env)
                 return self._transform_carray_iteration(node, iterable, reversed=reversed)
-        if iterable.is_string_literal:
+        if iterable.is_string_literal and not env.is_generator_scope:
             # Iterate over C array of single character values.
-            env = self.current_env()
+            # FIXME: using ListNode in this way currently generates invalid C code inside of generator loops.
             if iterable.type is Builtin.unicode_type:
                 item_type = PyrexTypes.c_py_ucs4_type
                 items = map(ord, iterable.value)

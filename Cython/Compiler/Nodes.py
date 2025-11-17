@@ -2020,6 +2020,8 @@ class FuncDefNode(StatNode, BlockNode):
                                 outer_scope=genv,
                                 parent_scope=env,
                                 scope_name=self.entry.cname)
+            if self.is_generator_body:
+                lenv.is_generator_scope = True
         else:
             lenv = LocalScope(name=self.entry.name,
                               outer_scope=genv,
