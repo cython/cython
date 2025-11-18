@@ -603,7 +603,8 @@ class IterationTransform(Visitor.EnvTransform):
         exception_value=-1)
 
     def _transform_unicode_iteration(self, node, slice_node, reversed=False):
-        if slice_node.is_literal:
+        env = self.current_env()
+        if slice_node.is_literal and not env.is_generator_scope:
             # try to reduce to byte iteration for plain Latin-1 strings
             try:
                 bytes_value = bytes_literal(slice_node.value.encode('latin1'), 'iso8859-1')
@@ -616,7 +617,7 @@ class IterationTransform(Visitor.EnvTransform):
                         slice_node.pos, value=bytes_value,
                         constant_result=bytes_value,
                         type=PyrexTypes.c_const_char_ptr_type).coerce_to(
-                            PyrexTypes.c_const_uchar_ptr_type, self.current_env()),
+                            PyrexTypes.c_const_uchar_ptr_type, env),
                     start=None,
                     stop=ExprNodes.IntNode.for_size(slice_node.pos, len(bytes_value)),
                     type=Builtin.unicode_type,  # hint for Python conversion
@@ -648,8 +649,7 @@ class IterationTransform(Visitor.EnvTransform):
             is_temp = False,
             )
         if target_value.type != node.target.type:
-            target_value = target_value.coerce_to(node.target.type,
-                                                  self.current_env())
+            target_value = target_value.coerce_to(node.target.type, env)
         target_assign = Nodes.SingleAssignmentNode(
             pos = node.target.pos,
             lhs = node.target,
