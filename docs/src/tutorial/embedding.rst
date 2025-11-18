@@ -13,10 +13,10 @@ Quick links:
 
 * `Cython Wiki <https://github.com/cython/cython/wiki/EmbeddingCython>`_
 
-* See the :option:`cython --embed` option to the ``cython`` and ``cythonize`` frontends
+* See the ``cython --embed`` option to the ``cython`` and ``cythonize`` frontends
   for generating a C main function. For embedding multiple modules, the previously used
   `cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_ script
-  has been superseded by the :option:`cython --embed-modules` option.
+  has been superseded by the ``cython --embed-modules`` option.
 
 * `Embedding demo program <https://github.com/cython/cython/tree/master/Demos/embed>`_
 
@@ -46,7 +46,7 @@ init function that is linked above.
 
 
 Embedding a single module
-======================
+=========================
 
 The following is a simple example that shows the main steps for embedding a
 Cython module (``embedded.pyx``) in Python 3.x.
@@ -68,14 +68,14 @@ The C ``main()`` function of your program could look like this:
 <https://docs.python.org/3/extending/extending.html#the-module-s-method-table-and-initialization-function>`_.)
 
 Instead of writing such a ``main()`` function yourself, you can also let
-Cython generate one into your module's C file with the :option:`cython --embed` option.
+Cython generate one into your module's C file with the ``cython --embed`` option.
 
 
 Embedding multiple modules
 ==========================
 
 To statically link multiple Cython modules into a single executable, you must use the
-:option:`cython --embed-modules` option alongside the :option:`cython --embed` option.
+``cython --embed-modules`` option alongside the ``cython --embed`` option.
 This option enables the necessary C-level initialisation calls (via :c:func:`PyImport_AppendInittab`)
 for all listed modules within the main program's C code.
 
