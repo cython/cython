@@ -2969,7 +2969,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         globalstate.use_utility_code(
             UtilityCode.load("MultiPhaseInitModuleState", "ModuleSetupCode.c")
         )
-        module_state.putln('#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && CYTHON_PEP489_MULTI_PHASE_INIT')
+        module_state.putln('#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 '
+                           '&& CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_COMPILING_IN_LIMITED_API')
         # Just an address to use for Py_mod_token
         module_state.putln(f'static char {Naming.pymoduledef_cname};')
         module_state.putln('#else')
@@ -3070,19 +3071,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Optimise for small code size as the module init function is only executed once.
         code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln(f"{header_modexport} CYTHON_SMALL_CODE; /*proto*/")
-        code.putln("#else")
-        code.putln(f"{header3} CYTHON_SMALL_CODE; /*proto*/")
         code.putln("#endif")
+        # Always define PyInit_ (even with PEP 793) mainly because setuptools on Windows will
+        # try to export the symbol so it needs to exist.
+        code.putln(f"{header3} CYTHON_SMALL_CODE; /*proto*/")
         if self.scope.is_package:
-            for namepart, decl, guard in [('PyInit', '__Pyx_PyMODINIT_FUNC', '__PYX_LIMITED_VERSION_HEX < 0x030F0000'),
-                                          ('PyInit', '__Pyx_PyMODEXPORT_FUNC', '__PYX_LIMITED_VERSION_HEX >= 0x030F0000')]:
-                code.putln(
-                    f"#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)) && {guard}")
-                code.putln("%s %s___init__(void) { return %s(); }" % (
-                    decl,
-                    namepart,
-                    self.mod_init_func_cname(namepart, env)))
-                code.putln("#endif")
+            code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS))")
+            code.putln("__Pyx_PyMODINIT_FUNC PyInit___init__(void) { return %s(); }" % (
+                self.mod_init_func_cname('PyInit', env)))
+            code.putln("#endif")
         # Hack for a distutils bug - https://bugs.python.org/issue39432
         # distutils attempts to make visible a slightly wrong PyInitU module name. Just create a dummy
         # function to keep it quiet.
@@ -3093,18 +3090,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("void %s(void) {} /* workaround for https://bugs.python.org/issue39432 */" % wrong_punycode_module_name)
             code.putln("#endif")
 
+        code.putln(header3)
         # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
-        code.putln("#if !CYTHON_PEP489_MULTI_PHASE_INIT")
-        code.putln(header3)
-        code.putln("#else")
-        code.putln("#if __PYX_LIMITED_VERSION_HEX < 0x030F0000")
-        code.putln(header3)
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("{")
-        code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
-        code.putln("}")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && CYTHON_COMPILING_IN_LIMITED_API")
+        # We still define the PyInit function because setuptools will try to export it, but it's unusable with
+        # an opaque PyModuleDef.
+        code.putln(f'Py_FatalError("Python should use {self.mod_init_func_cname("PyModExport", env)} instead");')
         code.putln("#else")
-        # In principle it'd be possible to define both this and the PyInit_ function.
-        # I don't currently see an advantage but it might be useful to improve compatibility at some point.
+        code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
+        code.putln("#endif")
+        code.putln("}")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000")
         code.putln(header_modexport)
         code.putln("{")
         code.putln(f"return {Naming.pymoduledef_slots_cname};")
