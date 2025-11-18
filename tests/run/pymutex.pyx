@@ -12,8 +12,9 @@ from threading import Thread
 cdef cython.pymutex global_lock
 
 def _locked_available():
-    """Check if locked() is available (Python 3.13+ and not in Limited API mode)"""
-    return sys.version_info >= (3, 13) and not CYTHON_COMPILING_IN_LIMITED_API
+    """Check if locked() is available - now available on all Python versions"""
+    # With da-woods' try-acquire implementation, locked() works everywhere
+    return True
 
 def test_can_check_locked():
     """
@@ -23,13 +24,20 @@ def test_can_check_locked():
     True
     """
     cdef cython.pymutex lock
-    
-    # can_check_locked() should return a boolean indicating if locked() is available
     cdef int capability = lock.can_check_locked()
     
-    # The capability should match our Python-level check
-    expected = _locked_available()
-    return capability == expected
+    # locked() is now available on all Python versions via try-acquire
+    # can_check_locked() should always return True (1)
+    
+    expected_available = _locked_available()
+    
+    # Verify that can_check_locked() returns the correct value
+    if expected_available:
+        assert capability == 1, f"can_check_locked() should return 1 when locked() is available, got {capability}"
+    else:
+        assert capability == 0, f"can_check_locked() should return 0 when locked() is not available, got {capability}"
+    
+    return True
 
 cdef void hide_the_reduction(int *x) noexcept nogil:
     x[0] = x[0] + 1

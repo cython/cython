@@ -318,19 +318,20 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 
 static CYTHON_INLINE int __Pyx_Locks_PyThreadTypeLock_CanCheckLocked(__Pyx_Locks_PyThreadTypeLock lock) {
     CYTHON_UNUSED_VAR(lock);
-    // PyThread_type_lock doesn't support checking lock status
-    return 0;
+    // PyThread_type_lock supports checking lock status via try-acquire
+    return 1;
 }
 
 static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock) {
-    CYTHON_UNUSED_VAR(lock);
-    // PyThread_type_lock doesn't provide a way to check if it's locked
-    // without trying to acquire it. Users should call can_check_locked()
-    // first to avoid this fatal error.
-    Py_FatalError("PyMutex.locked() is not available in this Python version or build configuration. "
-                  "It requires Python 3.13+ and cannot be used with the Limited API for now. "
-                  "Use can_check_locked() to query availability before calling locked().");
-    return -1;  // Never reached, but required for function signature
+    // Check if lock is held by attempting a non-blocking acquire.
+    // If acquire succeeds, the lock was not held, so release it and return 0.
+    // If acquire fails, the lock is held (by this or another thread), return 1.
+    // This works for both "other thread locked" and "this thread locked" cases.
+    if (PyThread_acquire_lock(lock, NOWAIT_LOCK)) {
+        PyThread_release_lock(lock);
+        return 0;  // Lock was not held
+    }
+    return 1;  // Lock is held
 }
 
 
@@ -389,7 +390,7 @@ static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock
     ((int)(_Py_atomic_load_uint8_relaxed(&(l)._bits) & _Py_LOCKED))
 #endif
 
-// locked() is available in Python 3.13+ when not using Limited API
+// locked() is available on Python 3.13+ (atomic read) and older versions (try-acquire fallback)
 #define __Pyx_Locks_PyMutex_CanCheckLocked(l) (CYTHON_UNUSED_VAR(l), 1)
 
 #else

@@ -277,11 +277,18 @@ class pymutex:
     """
     def acquire(self) -> None: ...
     def release(self) -> None: ...
+    def can_check_locked(self) -> bool:
+        """
+        Check if the locked() method is available.
+        Always returns True - locked() is available on all Python versions.
+        """
+        ...
     def locked(self) -> bool:
         """
         Check if the lock is currently held.
         Returns True if locked, False otherwise.
-        Only available on Python 3.13+.
+        On Python 3.13+: uses native PyMutex_IsLocked (fast atomic read).
+        On older Python: uses try-acquire approach (acquires and releases if successful).
         """
         ...
     def __enter__(self) -> None: ...
@@ -300,10 +307,17 @@ class pythread_type_lock:
     """
     def acquire(self) -> None: ...
     def release(self) -> None: ...
+    def can_check_locked(self) -> bool:
+        """
+        Check if the locked() method is available.
+        Always returns True - locked() is available on all Python versions.
+        """
+        ...
     def locked(self) -> bool:
         """
         Check if the lock is currently held.
-        Raises NotImplementedError as PyThread_type_lock doesn't support this operation.
+        Returns True if locked, False otherwise.
+        Uses try-acquire approach: attempts non-blocking acquire and releases if successful.
         """
         ...
     def __enter__(self) -> None: ...
