@@ -4910,8 +4910,9 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             subscribed_types = ','.join([str(tv) for tv in template_values])
             name = f'{self.get_container_type()}[{subscribed_types}]'
 
-            # FIXME: Fix objstruct_cname
-            typ = BuiltinTypeConstructorObjectType(name=name, cname=self.cname, objstruct_cname='mocny_bojstruct_cname')
+            # TODO this code is copied from Symtab.py, we need some common function for that...
+            objstruct_cname = 'PySetObject' if name == 'frozenset' else f'Py{name.capitalize()}Object'
+            typ = BuiltinTypeConstructorObjectType(name=name, cname=self.cname, objstruct_cname=objstruct_cname)
             typ.subscribed_types = tuple(template_values)
             self.scope.declare_type(name, typ, pos, cname=typ.cname)
             typ.scope = self.scope
