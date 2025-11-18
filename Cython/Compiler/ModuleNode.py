@@ -2969,7 +2969,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         globalstate.use_utility_code(
             UtilityCode.load("MultiPhaseInitModuleState", "ModuleSetupCode.c")
         )
-        module_state.putln('#if __PYX_LIMITED_VERSION_HEX >= 0x030F00A2 && CYTHON_PEP489_MULTI_PHASE_INIT')
+        module_state.putln('#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && CYTHON_PEP489_MULTI_PHASE_INIT')
         # Just an address to use for Py_mod_token
         module_state.putln(f'static char {Naming.pymoduledef_cname};')
         module_state.putln('#else')
@@ -3068,14 +3068,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # for PEP 793 upwards
         header_modexport = f"__Pyx_PyMODEXPORT_FUNC {self.mod_init_func_cname('PyModExport', env)}(void)"
         # Optimise for small code size as the module init function is only executed once.
-        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F00a2 && CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln(f"{header_modexport} CYTHON_SMALL_CODE; /*proto*/")
         code.putln("#else")
         code.putln(f"{header3} CYTHON_SMALL_CODE; /*proto*/")
         code.putln("#endif")
         if self.scope.is_package:
-            for namepart, decl, guard in [('PyInit', '__Pyx_PyMODINIT_FUNC', '__PYX_LIMITED_VERSION_HEX < 0x030F00a2'),
-                                          ('PyInit', '__Pyx_PyMODEXPORT_FUNC', '__PYX_LIMITED_VERSION_HEX >= 0x030F00a2')]:
+            for namepart, decl, guard in [('PyInit', '__Pyx_PyMODINIT_FUNC', '__PYX_LIMITED_VERSION_HEX < 0x030F0000'),
+                                          ('PyInit', '__Pyx_PyMODEXPORT_FUNC', '__PYX_LIMITED_VERSION_HEX >= 0x030F0000')]:
                 code.putln(
                     f"#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)) && {guard}")
                 code.putln("%s %s___init__(void) { return %s(); }" % (
@@ -3097,7 +3097,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if !CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln(header3)
         code.putln("#else")
-        code.putln("#if __PYX_LIMITED_VERSION_HEX < 0x030F00a2")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX < 0x030F0000")
         code.putln(header3)
         code.putln("{")
         code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
@@ -3657,7 +3657,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{Py_mod_multiple_interpreters, %s}," % subinterp_option)
         code.putln("#endif")
         # PEP 793 initialization
-        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F00a2")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000")
         code.putln("{Py_mod_name, %s}," % env.module_name.as_c_string_literal())
         if env.doc:
             code.putln("{Py_mod_doc, %s}," % doc)
@@ -3679,7 +3679,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("")
-        code.putln("#if __PYX_LIMITED_VERSION_HEX < 0x030F00a2 || !CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX < 0x030F0000 || !CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln('#ifdef __cplusplus')
         code.putln('namespace {')
         code.putln("struct PyModuleDef %s =" % Naming.pymoduledef_cname)
