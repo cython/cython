@@ -1661,10 +1661,9 @@ class UnicodeTest(CommonTest,
         for c in set_o:
             self.assertEqual(c.encode('ascii').decode('utf7'), c)
 
-        if sys.version_info >= (3, 8):
-            with self.assertRaisesRegex(UnicodeDecodeError,
-                                        'ill-formed sequence'):
-                b'+@'.decode('utf-7')
+        with self.assertRaisesRegex(UnicodeDecodeError,
+                                    'ill-formed sequence'):
+            b'+@'.decode('utf-7')
 
     def test_codecs_utf8(self):
         self.assertEqual(''.encode('utf-8'), b'')
