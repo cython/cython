@@ -70,6 +70,24 @@ The C ``main()`` function of your program could look like this:
 Instead of writing such a ``main()`` function yourself, you can also let
 Cython generate one into your module's C file with the ``cython --embed`` option.
 
+When using ``--embed``, Cython generates the C implementation file (e.g., ``embedded.c``) along with a header file (e.g., ``embedded.h``).
+
+The generated ``embedded.c`` file contains a ``__Pyx_main()`` function. This function initializes the Python interpreter and can be modified to call public functions exported by your Cython module (such as ``say_hello_from_python()``).
+
+The full process for compiling and running is as follows:
+
+.. code-block:: bash
+
+    gcc -c embedded.c $(python3-config --cflags) -o embedded.o
+    gcc embedded.o $(python3-config --ldflags --embed) -o embedded
+
+After compilation, the ``embedded`` executable is created. Running it will execute the content of ``__Pyx_main()``:
+
+.. code-block:: bash
+
+    $ ./embedded
+    Hello from Python!
+
 
 Embedding multiple modules
 ==========================
@@ -85,20 +103,54 @@ The argument is a comma-separated list of the module names you wish to embed:
 
     cython --embed --embed-modules=mod1,mod2 main_script.pyx
 
-The full process for static linking, assuming you have ``lcmath.pyx`` and ``combinatorics.pyx``,
-involves these steps:
+To illustrate how it works, let's assume we have the following files:
 
-First, generate the main C code(which includes the ``main()`` function and module initialisers):
+lcmath.pyx:
+
+.. code-block:: cython
+
+    def add(a, b):
+        return a + b
+
+    cdef int sub(int a, int b):
+        return a - b
+
+lcmath.pxd:
+
+.. code-block:: cython
+
+    cdef int sub(int a, int b)
+
+
+combinatorics.pyx:
+
+.. code-block:: cython
+
+    from lcmath import add
+    from lcmath cimport sub
+
+    cdef public void add_one(int a):
+        print(add(a, 1))
+
+    cdef public void sub_one(int a):
+        print(sub(a, 1))
+
+The full process for static linking involves these steps:
+
+First, generate the dependency C code:
+
+.. code-block:: bash
+
+        cython lcmath.pyx  # creates lcmath.c
+
+Next, generate the main C code(which includes the ``main()`` function and module initialisers):
 
 .. code-block:: bash
 
         cython --embed --embed-modules=lcmath combinatorics.pyx  # creates combinatorics.c
 
-Next, generate the dependency C code:
-
-.. code-block:: bash
-
-        cython lcmath.pyx  # creates lcmath.c
+.. note::
+    Since ``combinatorics.pyx`` is the main module, the generated ``combinatorics.c`` will contain the main function. You must manually update this C file (e.g., adding calls to ``add_one()`` and ``sub_one()``) within its ``__Pyx_main()`` function to execute your code.
 
 Then, compile the object files:
 
@@ -111,7 +163,7 @@ Finally, statically link the executable (linking the object files and the Python
 
 .. code-block:: bash
 
-        gcc lcmath.o combinatorics.o -o combinatorics $(python3-config --ldflags) #link them together statically
+        gcc lcmath.o combinatorics.o -o combinatorics $(python3-config --ldflags --embed) #link them together statically
 
 
 .. note::
