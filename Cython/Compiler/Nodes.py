@@ -2020,7 +2020,9 @@ class FuncDefNode(StatNode, BlockNode):
                                 outer_scope=genv,
                                 parent_scope=env,
                                 scope_name=self.entry.cname)
-            if self.is_generator_body:
+            # FIXME: why do GeneratorDefNode and GeneratorBodyDefNode use the same scope?
+            # This should hit the GeneratorBodyDefNode, not the GeneratorDefNode.
+            if self.is_generator_body or self.is_generator:
                 lenv.is_generator_scope = True
         else:
             lenv = LocalScope(name=self.entry.name,
