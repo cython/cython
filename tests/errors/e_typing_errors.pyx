@@ -60,13 +60,32 @@ def subscribed_types_assignments():
 
 def subscribed_types_assignments_to_variable():
     la: list[cython.float] = [5.0]
+    lb: list[cython.int] = [1]
     a: cython.int = la[0]
+    aa: cython.float = 1.0
+    lb[0] = aa
     i: cython.int
     for i in la:
         pass
-    da: dict[cython.int, cython.float] = {1: 1.0}
+
+    da: dict[cython.float, cython.float] = {1.0: 1.0}
+    db: dict[str, cython.int] = {"a": 1.0}
     b: cython.int = da[1]
-    j: cython.p_int
+    bb: cython.float = 1.0
+    db[0] = bb
+    j: cython.int
+    for j in da:
+        pass
+
+    sa: set[cython.int] = {1}
+    k: cython.p_int
+    for k in sa:
+        pass
+
+    fa: frozenset[cython.int] = {1}
+    k: cython.p_int
+    for k in sa:
+        pass
 
 # OK
 
@@ -156,7 +175,15 @@ _ERRORS = """
 56:9: Cannot assign type 'set[float] object' to 'dict[float,float] object'
 57:9: Cannot assign type 'frozenset[float] object' to 'dict[float,float] object'
 58:9: Cannot assign type 'list[float] object' to 'dict[float,float] object'
-63:22: Cannot assign type 'float' to 'int'
-65:13: Cannot assign type 'float' to 'int'
-68:22: Cannot assign type 'float' to 'int'
-""
+64:22: Cannot assign type 'float' to 'int'
+66:12: Cannot assign type 'float' to 'int'
+68:13: Cannot assign type 'list[float] object' to 'int'
+73:22: Cannot assign type 'float' to 'int'
+75:12: Cannot assign type 'float' to 'int'
+77:13: Cannot assign type 'dict[float,float] object' to 'int'
+82:8: Cannot convert Python object to 'int *'
+82:13: Cannot assign type 'set[int] object' to 'int *'
+85:33: Cannot assign type 'set object' to 'frozenset[int] object'
+87:8: Cannot convert Python object to 'int *'
+87:13: Cannot assign type 'set[int] object' to 'int *'
+"""
