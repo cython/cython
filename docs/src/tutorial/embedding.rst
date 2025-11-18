@@ -57,10 +57,13 @@ to export it as a linker symbol that can be used by other C files, which in this
 case is ``embedded_main.c``.
 
 .. literalinclude:: ../../examples/tutorial/embedding/embedded.pyx
+   :lines: 4-
+   :caption: embedded.pyx
 
 The C ``main()`` function of your program could look like this:
 
 .. literalinclude:: ../../examples/tutorial/embedding/embedded_main.c
+    :caption: embedded_main.c
     :linenos:
     :language: c
 
@@ -105,9 +108,8 @@ The argument is a comma-separated list of the module names you wish to embed:
 
 To illustrate how it works, let's assume we have the following files:
 
-lcmath.pyx:
-
 .. code-block:: cython
+   :caption: lcmath.pyx
 
     def add(a, b):
         return a + b
@@ -115,16 +117,13 @@ lcmath.pyx:
     cdef int sub(int a, int b):
         return a - b
 
-lcmath.pxd:
-
 .. code-block:: cython
+   :caption: lcmath.pxd
 
     cdef int sub(int a, int b)
 
-
-combinatorics.pyx:
-
 .. code-block:: cython
+   :caption: combinatorics.pyx
 
     from lcmath import add
     from lcmath cimport sub
