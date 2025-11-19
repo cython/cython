@@ -6335,7 +6335,11 @@ class SingleAssignmentNode(AssignmentNode):
             else:
                 rhs = self.rhs.coerce_to(self.lhs.type, env)
         else:
-            rhs = self.rhs.coerce_to(self.lhs.type, env)
+            lhs_type = self.lhs.type
+            if lhs_type.is_array:
+                # We copy C arrays by value, so prevent casting a const LHS to non-const.
+                lhs_type = lhs_type.as_const_pointer()
+            rhs = self.rhs.coerce_to(lhs_type, env)
 
         if use_temp or rhs.is_attribute or (
                 not rhs.is_name and not rhs.is_literal and
