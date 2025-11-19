@@ -3654,15 +3654,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         # PEP 793 initialization
         code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000")
-        code.putln("{Py_mod_name, %s}," % env.module_name.as_c_string_literal())
+        code.putln("{Py_mod_name, (void*)%s}," % env.module_name.as_c_string_literal())
         if env.doc:
             code.putln("{Py_mod_doc, %s}," % doc)
         code.putln("{Py_mod_token, &%s}," % Naming.pymoduledef_cname)
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln("  {Py_mod_state_size, sizeof(%s)}" % Naming.modulestatetype_cname)
+        code.putln("  {Py_mod_state_size, (void*)sizeof(%s)}," % Naming.modulestatetype_cname)
         code.putln("  {Py_mod_state_traverse, %s_traverse}," % Naming.module_cname)
         code.putln("  {Py_mod_state_clear, %s_clear}," % Naming.module_cname)
-        code.putln("  {Py_mod_state_free, %s}," % cleanup_func)
+        if Options.generate_cleanup_code:
+            code.putln("  {Py_mod_state_free, %s}," % cleanup_func)
         code.putln("#endif")
         code.putln("{Py_mod_methods, %s, }," % env.method_table_cname)
         code.putln("#endif")  # end of PEP 793 initialization
