@@ -28,7 +28,6 @@ def make_sequence_multiple_method(typeobj_cname):
         context={'typeobj': typeobj_cname})
     return BuiltinMethod("__mul__",  "Tz",   "T", f"__Pyx_{typeobj_cname}_Multiply",
                          utility_code=pysequence_multiply_utility_code)
-    
 
 
 # mapping from builtins to their C-level equivalents
