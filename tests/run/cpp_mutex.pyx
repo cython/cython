@@ -108,6 +108,35 @@ def test_py_safe_lock_nogil():
         py_safe_lock(m)
         m.unlock()
 
+def py_safe_lock_stress_test():
+    """
+    >>> py_safe_lock_stress_test()
+    2000
+    """
+    cdef mutex m
+    cdef int count = 0
+
+    def thread_func():
+        nonlocal count
+        for i in range(500):
+            if i%2:
+                with nogil:
+                    py_safe_lock(m)
+                    count += 1
+                    m.unlock()
+            else:
+                py_safe_lock(m)
+                count += 1
+                m.unlock()
+
+    threads = [ Thread(target=thread_func) for _ in range(4) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    print(count)
+
+
 
 # Note that it is only safe to acquire the GIL because we aren't actually running the
 # tests from multiple threads.

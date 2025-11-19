@@ -9052,11 +9052,14 @@ class TupleNode(SequenceNode):
         return self.result_code
 
     def calculate_constant_result(self):
+        if self.mult_factor:
+            raise ValueError()  # may exceed the compile time memory
         self.constant_result = tuple([
                 arg.constant_result for arg in self.args])
 
     def compile_time_value(self, denv):
         values = self.compile_time_value_list(denv)
+        assert self.mult_factor is None, self.mult_factor  # set only after parsing
         try:
             return tuple(values)
         except Exception as e:

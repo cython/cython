@@ -309,6 +309,10 @@ jobs:
   pycoverage:
     runs-on: ubuntu-22.04
 
+    permissions:
+      pages: write
+      id-token: write  # deploy HTML to GitHub pages
+
     env:
       BACKEND: c,cpp
       OS_NAME: ubuntu-22.04
@@ -327,15 +331,32 @@ jobs:
         env: { COVERAGE: 1, NO_CYTHON_COMPILE: 1 }
         run: bash ./Tools/ci-run.sh
 
-      - name: Write summary
+      - name: Copy coverage HTML
         run: |
-          if [ -f coverage-report.md ]; then { echo "## Python coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
+          if [ -d './coverage-report-html' ]; then
+            mkdir -p gh_pages_coverage/coverage/ \
+              && cp -r './coverage-report-html' 'gh_pages_coverage/coverage/${{ github.head_ref || github.ref_name }}';
+          fi
+
+      - name: Upload Coverage HTML to GH Pages
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: './gh_pages_coverage/'
+
+      - name: deploy to Github Pages
+        uses: actions/deploy-pages@v4
+        id: htmldeploy
 
       - name: Upload Coverage HTML Report
         uses: actions/upload-artifact@v5
         with:
           name: pycoverage_html
           path: coverage-report-html
+
+      - name: Write summary
+        run: |
+          { echo "## Python coverage results:"; echo "[Coverage HTML](${{ steps.htmldeploy.outputs.page_url }}/coverage/${{ github.head_ref || github.ref_name }})" ; } >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage-report.md ]; then { echo; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
   cycoverage:
     runs-on: ubuntu-22.04
