@@ -2731,12 +2731,11 @@ def _calculate_pickle_checksums(member_names):
     # SHA-256 should be ok for years to come, but early Cython 3.0 alpha releases used SHA-1,
     # which may not be.
     member_names_string = ' '.join(member_names).encode('utf-8')
-    hash_kwargs = {'usedforsecurity': False} if sys.version_info >= (3, 9) else {}
     checksums = []
     for algo_name in ['sha256', 'sha1', 'md5']:
         try:
             mkchecksum = getattr(hashlib, algo_name)
-            checksum = mkchecksum(member_names_string, **hash_kwargs).hexdigest()
+            checksum = mkchecksum(member_names_string, usedforsecurity=False).hexdigest()
         except (AttributeError, ValueError):
             # The algorithm (i.e. MD5) might not be there at all, or might be blocked at runtime.
             continue

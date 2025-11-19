@@ -54,6 +54,16 @@ def mixed_critical_section2():
     with cython.critical_section(&m, o):
         pass
 
+def no_yield():
+    o = object()
+    with cython.critical_section(o):
+        yield
+
+async def no_await(hypothetical_awaitable):
+    o = object()
+    with cython.critical_section(o):
+        await hypothetical_awaitable()
+
 
 _ERRORS = """
 7:9: critical_section directive accepts one or two positional arguments
@@ -70,6 +80,8 @@ _ERRORS = """
 41:0: Critical sections require the GIL
 48:9: Arguments to cython.critical_section must not mix objects and pymutexes.
 54:9: Arguments to cython.critical_section must not mix objects and pymutexes.
+59:9: Cannot yield while in a cython.critical_section.
+64:9: Cannot yield while in a cython.critical_section.
 
 # slightly extraneous, but no real harm
 18:37: Creating temporary Python reference not allowed without gil

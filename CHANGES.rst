@@ -29,6 +29,21 @@ Other changes
   (Github issue :issue:`7271`)
 
 
+3.2.2 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* ``yield`` is no longer allowed inside of a ``cython.critical_section``,
+  but *is* now allowed while holding a ``cython.pymutex``.
+  (Github issue :issue:`7317`)
+
+* Under lock congestion, acquiring the GIL could crash in Python 3.11, part 2.
+  This bug was introduces in Cython 3.2.0.
+  (Github issue :issue:`7312`)
+
+
 3.2.1 (2025-11-12)
 ==================
 
@@ -547,6 +562,21 @@ Other changes
 * Usages of `Py_TPFLAGS_HAVE_FINALIZE` were removed.  The constant remains available as cimport from
   ``cpython.object`` for legacy reasons.
   (Github issue :issue:`6423`)
+
+
+3.1.8 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Some internal C symbols were not declared as ``static``, preventing static linking
+  of multiple modules.
+  Patch by Yury Popov.  (Github issue :issue:`7310`)
+
+* Accidentally using ``except +`` in C mode did not raise a compile error but generated
+  invalid C code leading to obscure error messages.
+  Patch by user202729.  (Github issue :issue:`6560`)
 
 
 3.1.7 (2025-11-12)
