@@ -2974,7 +2974,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Just an address to use for Py_mod_token
         module_state.putln(f'static char {Naming.pymoduledef_cname};')
         module_state.putln('#else')
-        module_state.putln("#if CYTHON_USE_MODULE_STATE")
         module_state.putln('#ifdef __cplusplus')
         module_state.putln('namespace {')
         module_state.putln('extern struct PyModuleDef %s;' % Naming.pymoduledef_cname)
@@ -2982,7 +2981,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('#else')
         module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
         module_state.putln('#endif')
-        module_state.putln("#endif")  # USE_MODULE_STATE
         module_state.putln('#endif')  # PEP 793 (Py>3.15 && multi_phase_init)
         module_state.putln('')
         module_state.putln("#if CYTHON_USE_MODULE_STATE")
@@ -3677,7 +3675,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("")
-        code.putln("#if __PYX_LIMITED_VERSION_HEX < 0x030F0000 || !CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("#if !(__PYX_LIMITED_VERSION_HEX >= 0x030F0000 && CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_COMPILING_IN_LIMITED_API)")
         code.putln('#ifdef __cplusplus')
         code.putln('namespace {')
         code.putln("struct PyModuleDef %s =" % Naming.pymoduledef_cname)
