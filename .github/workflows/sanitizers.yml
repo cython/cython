@@ -1,0 +1,26 @@
+name: Sanitizers
+
+on:
+  # it's a bit slow so don't run on every pull request
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:  # Delete me - just to test it
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+jobs:
+  sanitizers:
+    strategy:
+      fail-fast: false
+      matrix:
+        # TODO memory sanitizer would be nice (but is hard)
+        sanitizer: ["address,undefined", "thread", "thread,ft"]
+    uses: ./.github/workflows/compiled_python.yml
+    with:
+      compiler: clang
+      cpp_compiler: clang++
+      sanitize: ${{ matrix.sanitizer }}
+      name: ${{ matrix.sanitizer }}

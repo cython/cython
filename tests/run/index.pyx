@@ -158,10 +158,10 @@ def test_long_long():
     cdef int i
     cdef long long ix
     cdef D = {}
-    for i from 0 <= i < <int>sizeof(long long) * 8:
+    for i from 0 <= i < <int>(sizeof(long long) * 8 - 1):
         ix = (<long long>1) << i
         D[ix] = True
-    for i from 0 <= i < <int>sizeof(long long) * 8:
+    for i from 0 <= i < <int>(sizeof(long long) * 8 - 1):
         ix = (<long long>1) << i
         assert D[ix] is True
         del D[ix]
