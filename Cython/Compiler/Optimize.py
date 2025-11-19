@@ -271,7 +271,7 @@ class IterationTransform(Visitor.EnvTransform):
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
         if iter_type is Builtin.bytes_type:
             if env.is_generator_scope:
-                return self._transform_indexable_iteration(node, iterable.arg, is_mutable=False, reversed=reversed)
+                return self._transform_indexable_iteration(node, iterable, is_mutable=False, reversed=reversed)
             else:
                 return self._transform_bytes_iteration(node, iterable, reversed=reversed)
         if iter_type is Builtin.unicode_type:
