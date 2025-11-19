@@ -9149,22 +9149,7 @@ class ListNode(SequenceNode):
             if not self.type.subtype_of(dst_type):
                 error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
         elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type is not PyrexTypes.c_void_type:
-            array_length = len(self.args)
-            if self.mult_factor:
-                if isinstance(self.mult_factor.constant_result, int):
-                    if self.mult_factor.constant_result <= 0:
-                        error(self.pos, "Cannot coerce non-positively multiplied list to '%s'" % dst_type)
-                    else:
-                        array_length *= self.mult_factor.constant_result
-                else:
-                    error(self.pos, "Cannot coerce dynamically multiplied list to '%s'" % dst_type)
-            base_type = dst_type.base_type
-            self.type = PyrexTypes.CArrayType(base_type, array_length)
-            for i in range(len(self.original_args)):
-                arg = self.args[i]
-                if isinstance(arg, CoerceToPyTypeNode):
-                    arg = arg.arg
-                self.args[i] = arg.coerce_to(base_type, env)
+            return self.as_carray(dst_type.base_type, env)
         elif dst_type.is_cpp_class:
             # TODO(robertwb): Avoid object conversion for vector/list/set.
             return TypecastNode(self.pos, operand=self, type=PyrexTypes.py_object_type).coerce_to(dst_type, env)
@@ -9200,19 +9185,39 @@ class ListNode(SequenceNode):
             t.constant_result = tuple(self.constant_result)
         return t
 
-    def allocate_temp_result(self, code):
-        if self.type.is_array:
-            if self.in_module_scope:
-                self.temp_code = code.funcstate.allocate_temp(
-                    self.type, manage_ref=False, static=True, reusable=False)
+    def as_carray(self, item_type, env):
+        array_length = len(self.args)
+
+        if self.mult_factor:
+            if isinstance(self.mult_factor.constant_result, int):
+                if self.mult_factor.constant_result <= 0:
+                    error(self.pos, f"Cannot coerce non-positively multiplied list to '{item_type}[]'")
+                else:
+                    array_length *= self.mult_factor.constant_result
             else:
-                # To be valid C++, we must allocate the memory on the stack
-                # manually and be sure not to reuse it for something else.
-                # Yes, this means that we leak a temp array variable.
-                self.temp_code = code.funcstate.allocate_temp(
-                    self.type, manage_ref=False, reusable=False)
-        else:
-            SequenceNode.allocate_temp_result(self, code)
+                error(self.pos, f"Cannot coerce dynamically multiplied list to '{item_type}[]'")
+
+        array_type = PyrexTypes.CArrayType(item_type, array_length)
+
+        args = []
+        is_literal = True
+        for i in range(len(self.original_args)):
+            arg = self.args[i]
+            if isinstance(arg, CoerceToPyTypeNode):
+                arg = arg.arg
+            arg = arg.coerce_to(item_type, env)
+            if not arg.is_literal:
+                is_literal = False
+            args.append(arg)
+
+        if is_literal:
+            array_type = PyrexTypes.c_const_type(array_type)
+
+        return CArrayNode(
+            self.pos, type=array_type, args=args,
+            mult_factor=self.mult_factor,
+            constant_result=self.constant_result,
+        )
 
     def calculate_constant_result(self):
         if self.mult_factor:
@@ -9227,19 +9232,64 @@ class ListNode(SequenceNode):
         return l
 
     def generate_operation_code(self, code):
+        assert not self.type.is_array  # should use CArrayNode instead
         if self.type.is_pyobject:
             for err in self.obj_conversion_errors:
                 report_error(err)
             self.generate_sequence_packing_code(code)
-        elif self.type.is_array:
+        elif self.type.is_struct:
+            for arg, member in zip(self.args, self.type.scope.var_entries):
+                code.putln("%s.%s = %s;" % (
+                    self.result(),
+                    member.cname,
+                    arg.result()))
+        else:
+            raise InternalError("List type never specified")
+
+
+class CArrayNode(ListNode):
+    # A homogeneous C array of C values.
+    # Created through coercion from ListNode.
+
+    @property
+    def is_temp(self):
+        return not self.type.is_const
+
+    def is_simple(self):
+        return True  # either const or temp
+
+    def allocate_temp_result(self, code):
+        assert not self.type.is_const
+        if self.in_module_scope:
+            self.temp_code = code.funcstate.allocate_temp(
+                self.type, manage_ref=False, static=True, reusable=False)
+        else:
+            # To be valid C++, we must allocate the memory on the stack
+            # manually and be sure not to reuse it for something else.
+            # Yes, this means that we leak a temp array variable.
+            self.temp_code = code.funcstate.allocate_temp(
+                self.type, manage_ref=False, reusable=False)
+
+    def generate_operation_code(self, code):
+        array_type = self.type
+        if array_type.is_const:
+            values = [item.result() for item in self.args]
+
             if self.mult_factor:
-                code.putln("{")
-                code.putln("Py_ssize_t %s;" % Naming.quick_temp_cname)
-                code.putln("for ({i} = 0; {i} < {count}; {i}++) {{".format(
-                    i=Naming.quick_temp_cname, count=self.mult_factor.result()))
-                offset = '+ (%d * %s)' % (len(self.args), Naming.quick_temp_cname)
+                assert self.mult_factor.has_constant_result(), self.mult_factor
+                values *= self.mult_factor.constant_result
+
+            self.result_cname = code.globalstate.new_const_cname('carray')
+            code.putln(f"static {array_type.declaration_code(self.result_cname)} = {{{','.join(values)}}};")
+        else:
+            if self.mult_factor:
+                counter_type = 'int' if self.mult_factor.has_constant_result() and self.mult_factor.constant_result.bit_count() < 16 else 'Py_ssize_t'
+                loop_var = Naming.quick_temp_cname
+                code.putln(f"for ({counter_type} {loop_var} = 0; {loop_var} < {self.mult_factor.result()}; {loop_var}++) {{")
+                offset = f'+ ({len(self.args):d} * {loop_var})'
             else:
                 offset = ''
+
             for i, arg in enumerate(self.args):
                 if arg.type.is_array:
                     code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
@@ -9253,17 +9303,12 @@ class ListNode(SequenceNode):
                         i,
                         offset,
                         arg.result()))
+
             if self.mult_factor:
                 code.putln("}")
-                code.putln("}")
-        elif self.type.is_struct:
-            for arg, member in zip(self.args, self.type.scope.var_entries):
-                code.putln("%s.%s = %s;" % (
-                    self.result(),
-                    member.cname,
-                    arg.result()))
-        else:
-            raise InternalError("List type never specified")
+
+    def calculate_result_code(self):
+        return self.result_cname
 
 
 class ComprehensionNode(ScopedExprNode):
