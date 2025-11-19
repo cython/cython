@@ -331,10 +331,17 @@ jobs:
         env: { COVERAGE: 1, NO_CYTHON_COMPILE: 1 }
         run: bash ./Tools/ci-run.sh
 
+      - name: Copy coverage HTML
+        run: |
+          if [ -d './coverage-report-html' ]; then
+            mkdir -p gh_pages_coverage/coverage/ \
+              && cp -r './coverage-report-html' 'gh_pages_coverage/coverage/${{ github.head_ref || github.ref_name }}';
+          fi
+
       - name: Upload Coverage HTML to GH Pages
         uses: actions/upload-pages-artifact@v4
         with:
-          path: './coverage-report-html/'
+          path: './gh_pages_coverage/'
 
       - name: deploy to Github Pages
         uses: actions/deploy-pages@v4
@@ -348,7 +355,7 @@ jobs:
 
       - name: Write summary
         run: |
-          { echo "## Python coverage results:"; echo "[Coverage HTML](${{ steps.htmldeploy.outputs.page_url }})" ; } >> $GITHUB_STEP_SUMMARY
+          { echo "## Python coverage results:"; echo "[Coverage HTML](${{ steps.htmldeploy.outputs.page_url }}/coverage/${{ github.head_ref || github.ref_name }})" ; } >> $GITHUB_STEP_SUMMARY
           if [ -f coverage-report.md ]; then { echo; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
   cycoverage:
