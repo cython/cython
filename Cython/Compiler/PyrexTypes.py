@@ -2746,15 +2746,6 @@ class CPointerBaseType(CType):
                 self.from_py_function = "__Pyx_PyUnicode_AsUnicode"
             self.exception_value = "NULL"
 
-    def as_const_pointer(self):
-        base_type = self.base_type
-        if base_type.is_const:
-            if self.is_ptr:
-                return self
-        else:
-            base_type = c_const_type(base_type)
-        return c_ptr_type(base_type)
-
     def py_type_name(self):
         if self.is_string:
             return "bytes"
