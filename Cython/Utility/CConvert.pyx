@@ -14,13 +14,23 @@ cdef {{struct_type}} {{funcname}}(obj) except *:
     if not PyMapping_Check(obj):
         __Pyx_RaiseUnexpectedTypeError(b"a mapping", obj)
 
-    {{for member in var_entries:}}
+    lookup_failed = False
+    key = ''
     try:
-        value = obj['{{member.name}}']
+        {{for member in var_entries:}}
+        key = '{{member.name}}'
+        value_{{member.name}} = obj[key]
+        {{endfor}}
     except KeyError:
-        raise ValueError("No value specified for struct attribute '{{member.name}}'")
-    result.{{member.name}} = value
+        lookup_failed = True
+
+    if lookup_failed:
+        raise ValueError(f"No value specified for struct attribute {repr(key)}")
+
+    {{for member in var_entries:}}
+    result.{{member.name}} = value_{{member.name}}
     {{endfor}}
+
     return result
 
 
@@ -48,11 +58,11 @@ cdef {{struct_type}} {{funcname}}(obj) except *:
         if '{{member.name}}' in obj:
             if last_found is not None:
                 raise ValueError("More than one union attribute passed: '%s' and '%s'" % (last_found, '{{member.name}}'))
-            last_found = '{{member.name}}'
             result.{{member.cname}} = obj['{{member.name}}']
             length -= 1
             if not length:
                 return result
+            last_found = '{{member.name}}'
         {{endfor}}
     if last_found is None:
         raise ValueError("No value specified for any of the union attributes (%s)" %
