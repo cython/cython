@@ -3643,7 +3643,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{Py_mod_token, &%s}," % Naming.pymoduledef_cname)
         code.putln("{Py_mod_methods, %s, }," % env.method_table_cname)
         if env.doc:
-            code.putln("{Py_mod_doc, %s}," % doc)
+            code.putln("{Py_mod_doc, (void*)%s}," % doc)
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("  {Py_mod_state_size, (void*)sizeof(%s)}," % Naming.modulestatetype_cname)
         code.putln("  {Py_mod_state_traverse, %s_traverse}," % Naming.module_cname)
