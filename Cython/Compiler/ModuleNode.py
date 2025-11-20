@@ -3636,6 +3636,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
 
         code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
+
+        # PEP 793 initialization - these slots come first so they can be skipped in PyInit
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000")
+        code.putln("{Py_mod_name, (void*)%s}," % env.module_name.as_c_string_literal())
+        code.putln("{Py_mod_token, &%s}," % Naming.pymoduledef_cname)
+        if env.doc:
+            code.putln("{Py_mod_doc, %s}," % doc)
+        code.putln("#if CYTHON_USE_MODULE_STATE")
+        code.putln("  {Py_mod_state_size, (void*)sizeof(%s)}," % Naming.modulestatetype_cname)
+        code.putln("  {Py_mod_state_traverse, %s_traverse}," % Naming.module_cname)
+        code.putln("  {Py_mod_state_clear, %s_clear}," % Naming.module_cname)
+        if Options.generate_cleanup_code:
+            code.putln("  {Py_mod_state_free, %s}," % cleanup_func)
+        code.putln("#endif")
+        pep793_count = 2+bool(env.doc)
+        pep793_mstate_count = 3+bool(Options.generate_cleanup_code)
+
         code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
         code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
@@ -3651,19 +3668,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             'own_gil': 'Py_MOD_PER_INTERPRETER_GIL_SUPPORTED'
         }.get(env.directives["subinterpreters_compatible"])
         code.putln("{Py_mod_multiple_interpreters, %s}," % subinterp_option)
-        code.putln("#endif")
-        # PEP 793 initialization
-        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000")
-        code.putln("{Py_mod_name, (void*)%s}," % env.module_name.as_c_string_literal())
-        if env.doc:
-            code.putln("{Py_mod_doc, %s}," % doc)
-        code.putln("{Py_mod_token, &%s}," % Naming.pymoduledef_cname)
-        code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln("  {Py_mod_state_size, (void*)sizeof(%s)}," % Naming.modulestatetype_cname)
-        code.putln("  {Py_mod_state_traverse, %s_traverse}," % Naming.module_cname)
-        code.putln("  {Py_mod_state_clear, %s_clear}," % Naming.module_cname)
-        if Options.generate_cleanup_code:
-            code.putln("  {Py_mod_state_free, %s}," % cleanup_func)
         code.putln("#endif")
         code.putln("{Py_mod_methods, %s, }," % env.method_table_cname)
         code.putln("#endif")  # end of PEP 793 initialization
@@ -3693,7 +3697,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  (CYTHON_PEP489_MULTI_PHASE_INIT) ? 0 : -1, /* m_size */")
         code.putln("#endif")
         code.putln("  %s /* m_methods */," % env.method_table_cname)
-        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT && __PYX_LIMITED_VERSION_HEX >= 0x030F0000")
+        code.putln(f"  ({Naming.pymoduledef_slots_cname}+{pep793_count} +"
+                   f"(CYTHON_USE_MODULE_STATE ? {pep793_mstate_count} : 0)), /* m_slots */")
+        code.putln("#elif CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("  %s, /* m_slots */" % Naming.pymoduledef_slots_cname)
         code.putln("#else")
         code.putln("  NULL, /* m_reload */")
