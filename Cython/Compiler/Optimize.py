@@ -240,21 +240,23 @@ class IterationTransform(Visitor.EnvTransform):
                 return node
             return self._transform_set_iteration(node, iterable)
 
+        env = self.current_env()
+
         # C array (slice) iteration?
         if iterable.type.is_ptr or iterable.type.is_array:
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
         if iterable.is_sequence_constructor:
             # Convert iteration over homogeneous sequences of C types into array iteration.
-            env = self.current_env()
             item_type = ExprNodes.infer_sequence_item_type(
                 env, iterable, seq_type=iterable.type)
             if item_type and not item_type.is_pyobject and not any(item.is_starred for item in iterable.args):
                 iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args).analyse_types(env).coerce_to(
-                    PyrexTypes.c_array_type(item_type, len(iterable.args)), env)
+                    PyrexTypes.c_const_type(PyrexTypes.c_array_type(item_type, len(iterable.args))),
+                    env,
+                )
                 return self._transform_carray_iteration(node, iterable, reversed=reversed)
         if iterable.is_string_literal:
             # Iterate over C array of single character values.
-            env = self.current_env()
             if iterable.type is Builtin.unicode_type:
                 item_type = PyrexTypes.c_py_ucs4_type
                 items = map(ord, iterable.value)
@@ -264,7 +266,10 @@ class IterationTransform(Visitor.EnvTransform):
 
             as_int_node = partial(ExprNodes.IntNode.for_int, iterable.pos, type=item_type)
             iterable = ExprNodes.ListNode(iterable.pos, args=[as_int_node(ch)for ch in items])
-            iterable = iterable.analyse_types(env).coerce_to(PyrexTypes.c_array_type(item_type, len(iterable.args)), env)
+            iterable = iterable.analyse_types(env).coerce_to(
+                PyrexTypes.c_const_type(PyrexTypes.c_array_type(item_type, len(iterable.args))),
+                env,
+            )
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.bytes_type:
             return self._transform_bytes_iteration(node, iterable, reversed=reversed)

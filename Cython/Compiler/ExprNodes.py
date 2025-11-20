@@ -9149,7 +9149,7 @@ class ListNode(SequenceNode):
             if not self.type.subtype_of(dst_type):
                 error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
         elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type is not PyrexTypes.c_void_type:
-            return self.as_carray(dst_type.base_type, env)
+            return self.as_carray(dst_type.base_type, env, is_const=dst_type.is_array)
         elif dst_type.is_cpp_class:
             # TODO(robertwb): Avoid object conversion for vector/list/set.
             return TypecastNode(self.pos, operand=self, type=PyrexTypes.py_object_type).coerce_to(dst_type, env)
@@ -9185,7 +9185,7 @@ class ListNode(SequenceNode):
             t.constant_result = tuple(self.constant_result)
         return t
 
-    def as_carray(self, item_type, env):
+    def as_carray(self, item_type, env, is_const):
         array_length = len(self.args)
 
         if self.mult_factor:
@@ -9196,8 +9196,6 @@ class ListNode(SequenceNode):
                     array_length *= self.mult_factor.constant_result
             else:
                 error(self.pos, f"Cannot coerce dynamically multiplied list to '{item_type}[]'")
-
-        array_type = PyrexTypes.CArrayType(item_type, array_length)
 
         args = []
         is_literal = True
@@ -9210,7 +9208,8 @@ class ListNode(SequenceNode):
                 is_literal = False
             args.append(arg)
 
-        if is_literal:
+        array_type = PyrexTypes.CArrayType(item_type, array_length)
+        if is_literal and is_const:
             array_type = PyrexTypes.c_const_type(array_type)
 
         return CArrayNode(
@@ -9248,39 +9247,56 @@ class ListNode(SequenceNode):
 
 
 class CArrayNode(ListNode):
-    # A homogeneous C array of C values.
-    # Created through coercion from ListNode.
+    """A homogeneous C array of C values.
 
-    @property
-    def is_temp(self):
-        return not self.type.is_const
+    Created through coercion from ListNode.
+    """
 
-    def is_simple(self):
-        return True  # either const or temp
+    is_temp = False
+    array_cname = None
+    _array_cname_temp = None
 
-    def allocate_temp_result(self, code):
-        assert not self.type.is_const
-        if self.in_module_scope:
-            self.temp_code = code.funcstate.allocate_temp(
-                self.type, manage_ref=False, static=True, reusable=False)
+    def _allocate_carray(self, code):
+        array_type = self.type
+        if array_type.is_const:
+            # Declare static const array in place.
+            self.array_cname = code.globalstate.new_const_cname('carray')
+        elif self.in_module_scope:
+            # Statically allocated in the module init function.
+            self.array_cname = code.funcstate.allocate_temp(
+                array_type, manage_ref=False, static=True, reusable=False)
+            self._array_cname_temp = self.array_cname
+        elif code.funcstate.closure_temps is not None:
+            # Allocate in the generator closure.
+            self.array_cname = code.funcstate.closure_temps.allocate_carray(array_type, self.pos)
         else:
             # To be valid C++, we must allocate the memory on the stack
             # manually and be sure not to reuse it for something else.
             # Yes, this means that we leak a temp array variable.
-            self.temp_code = code.funcstate.allocate_temp(
-                self.type, manage_ref=False, reusable=False)
+            self.array_cname = code.funcstate.allocate_temp(
+                array_type, manage_ref=False, reusable=False)
+            self._array_cname_temp = self.array_cname
+        return self.array_cname
+
+    def _release_carray(self, code):
+        # If the array is in a temp variable, it will not be reused elsewhere,
+        # so we can release the temp here and still use it as our node result.
+        if self._array_cname_temp is not None:
+            code.funcstate.release_temp(self._array_cname_temp)
+            self._array_cname_temp = None
 
     def generate_operation_code(self, code):
-        array_type = self.type
-        if array_type.is_const:
+        array_cname = self._allocate_carray(code)
+
+        if self.type.is_const:
             values = [item.result() for item in self.args]
 
             if self.mult_factor:
                 assert self.mult_factor.has_constant_result(), self.mult_factor
                 values *= self.mult_factor.constant_result
 
-            self.result_cname = code.globalstate.new_const_cname('carray')
-            code.putln(f"static {array_type.declaration_code(self.result_cname)} = {{{','.join(values)}}};")
+            code.putln(f"static {self.type.declaration_code(array_cname)} = {{{','.join(values)}}};")
+
         else:
             if self.mult_factor:
                 counter_type = 'int' if self.mult_factor.has_constant_result() and self.mult_factor.constant_result.bit_count() < 16 else 'Py_ssize_t'
@@ -9290,25 +9306,25 @@ class CArrayNode(ListNode):
             else:
                 offset = ''
 
+            needs_memcpy = False
             for i, arg in enumerate(self.args):
                 if arg.type.is_array:
-                    code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
-                    code.putln("memcpy(&(%s[%s%s]), %s, sizeof(%s[0]));" % (
-                        self.result(), i, offset,
-                        arg.result(), self.result()
-                    ))
+                    needs_memcpy = True
+                    code.putln(f"memcpy(&({array_cname}[{i}{offset}]), {arg.result()}, sizeof({array_cname}[0]));")
                 else:
-                    code.putln("%s[%s%s] = %s;" % (
-                        self.result(),
-                        i,
-                        offset,
-                        arg.result()))
+                    code.putln(f"{array_cname}[{i}{offset}] = {arg.result()};")
+
+            if needs_memcpy:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
 
             if self.mult_factor:
                 code.putln("}")
 
+        self._release_carray(code)
+
     def calculate_result_code(self):
-        return self.result_cname
+        return self.array_cname
 
 
 class ComprehensionNode(ScopedExprNode):

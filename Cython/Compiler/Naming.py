@@ -76,6 +76,7 @@ interned_prefixes = {
     'carray': pyrex_prefix + "carray_",
 }
 
+carray_literal_prefix = pyrex_prefix + "literalcarray_"
 ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
 nargs_cname      = pyrex_prefix + "nargs"
