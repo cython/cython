@@ -3641,6 +3641,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000")
         code.putln("{Py_mod_name, (void*)%s}," % env.module_name.as_c_string_literal())
         code.putln("{Py_mod_token, &%s}," % Naming.pymoduledef_cname)
+        code.putln("{Py_mod_methods, %s, }," % env.method_table_cname)
         if env.doc:
             code.putln("{Py_mod_doc, %s}," % doc)
         code.putln("#if CYTHON_USE_MODULE_STATE")
@@ -3650,7 +3651,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.generate_cleanup_code:
             code.putln("  {Py_mod_state_free, %s}," % cleanup_func)
         code.putln("#endif")
-        pep793_count = 2+bool(env.doc)
+        code.putln("#endif")  # end of PEP 793 initialization
+        pep793_count = 3+bool(env.doc)
         pep793_mstate_count = 3+bool(Options.generate_cleanup_code)
 
         code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
@@ -3669,8 +3671,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         }.get(env.directives["subinterpreters_compatible"])
         code.putln("{Py_mod_multiple_interpreters, %s}," % subinterp_option)
         code.putln("#endif")
-        code.putln("{Py_mod_methods, %s, }," % env.method_table_cname)
-        code.putln("#endif")  # end of PEP 793 initialization
         code.putln("{0, NULL}")
         code.putln("};")
         if not env.module_name.isascii():
