@@ -339,13 +339,13 @@ jobs:
           fi
 
       - name: Upload Coverage HTML to GH Pages
-        if: github.repository == 'cython/cython'
+        if: github.repository == 'cython/cython' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
         with:
           path: './gh_pages_coverage/'
 
       - name: deploy to Github Pages
-        if: github.repository == 'cython/cython'
+        if: github.repository == 'cython/cython' && github.event_name != 'pull_request'
         uses: actions/deploy-pages@v4
         id: htmldeploy
 
