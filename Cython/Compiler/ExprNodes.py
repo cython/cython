@@ -9208,9 +9208,9 @@ class ListNode(SequenceNode):
                 is_literal = False
             coerced_args.append(arg)
 
-        array_type = PyrexTypes.CArrayType(item_type, array_length)
         if is_literal and is_const:
-            array_type = PyrexTypes.c_const_type(array_type)
+            item_type = PyrexTypes.c_const_type(item_type)
+        array_type = PyrexTypes.CArrayType(item_type, array_length)
 
         return CArrayNode.from_node(
             self,
@@ -9261,7 +9261,7 @@ class CArrayNode(ListNode):
 
     def _allocate_carray(self, code):
         array_type = self.type
-        if array_type.is_const:
+        if array_type.base_type.is_const:
             # Declare static const array in place.
             self.array_cname = code.globalstate.new_const_cname('carray')
         elif self.in_module_scope:
@@ -9291,7 +9291,7 @@ class CArrayNode(ListNode):
     def generate_operation_code(self, code):
         array_cname = self._allocate_carray(code)
 
-        if self.type.is_const:
+        if self.type.base_type.is_const:
             values = [item.result() for item in self.args]
 
             if self.mult_factor:
