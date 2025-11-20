@@ -52,21 +52,26 @@ cdef {{struct_type}} {{funcname}}(obj) except *:
         __Pyx_RaiseUnexpectedTypeError(b"a mapping", obj)
 
     last_found = None
+    repeated_key = None
     length = len(obj)
+    {{for member in var_entries:}}
     if length:
-        {{for member in var_entries:}}
         if '{{member.name}}' in obj:
             if last_found is not None:
-                raise ValueError("More than one union attribute passed: '%s' and '%s'" % (last_found, '{{member.name}}'))
-            result.{{member.cname}} = obj['{{member.name}}']
-            length -= 1
-            if not length:
-                return result
-            last_found = '{{member.name}}'
-        {{endfor}}
+                repeated_key = '{{member.name}}'
+                length = 0
+            else:
+                result.{{member.cname}} = obj['{{member.name}}']
+                length -= 1
+                if not length:
+                    return result
+                last_found = '{{member.name}}'
+    {{endfor}}
     if last_found is None:
         raise ValueError("No value specified for any of the union attributes (%s)" %
                          '{{", ".join(member.name for member in var_entries)}}')
+    else:
+        raise ValueError(f"More than one union attribute passed: {repr(last_found)} and {repr(repeated_key)}")
     return result
 
 
