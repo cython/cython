@@ -642,7 +642,7 @@ class MethodDispatcherTransform(EnvTransform):
                 self_arg = function.obj
             elif node.self and function.entry:
                 entry = function.entry.as_variable
-                if not entry or not entry.is_builtin or entry.is_exception_type:
+                if not entry or not entry.is_builtin or entry.type.is_exception_type:
                     return node
                 # C implementation of a Python builtin method - see if we find further matches
                 self_arg = node.self
