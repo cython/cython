@@ -9197,7 +9197,7 @@ class ListNode(SequenceNode):
             else:
                 error(self.pos, f"Cannot coerce dynamically multiplied list to '{item_type}[]'")
 
-        args = []
+        coerced_args = []
         is_literal = True
         for i in range(len(self.original_args)):
             arg = self.args[i]
@@ -9206,16 +9206,19 @@ class ListNode(SequenceNode):
             arg = arg.coerce_to(item_type, env)
             if not arg.is_literal:
                 is_literal = False
-            args.append(arg)
+            coerced_args.append(arg)
 
         array_type = PyrexTypes.CArrayType(item_type, array_length)
         if is_literal and is_const:
             array_type = PyrexTypes.c_const_type(array_type)
 
-        return CArrayNode(
-            self.pos, type=array_type, args=args,
+        return CArrayNode.from_node(
+            self,
+            type=array_type,
+            args=coerced_args,
             mult_factor=self.mult_factor,
-            constant_result=self.constant_result,
+            original_args=self.original_args,
+            in_module_scope=self.in_module_scope,
         )
 
     def calculate_constant_result(self):
