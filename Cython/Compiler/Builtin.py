@@ -22,7 +22,7 @@ range_utility_code = UtilityCode.load("PyRange_Check", "Builtins.c")
 include_std_lib_h_utility_code = UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")
 slice_accessor_utility_code = UtilityCode.load("PySliceAccessors", "Builtins.c")
 
-def make_sequence_multiple_method(typeobj_cname):
+def make_sequence_multiply_method(typeobj_cname):
     pysequence_multiply_utility_code = TempitaUtilityCode.load(
         "BuiltinSequenceMultiply", "ObjectHandling.c",
         context={'typeobj': typeobj_cname})
@@ -385,18 +385,18 @@ builtin_types_table = [
                                     ]),
 
     ("bytearray", "&PyByteArray_Type", [
-                                    make_sequence_multiple_method("PyByteArray_Type"),
+                                    make_sequence_multiply_method("PyByteArray_Type"),
                                     ]),
     ("bytes",   "&PyBytes_Type",   [BuiltinMethod("join",  "TO",   "T", "__Pyx_PyBytes_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
-                                    make_sequence_multiple_method("PyBytes_Type"),
+                                    make_sequence_multiply_method("PyBytes_Type"),
                                     ]),
     ("str",     "&PyUnicode_Type", [BuiltinMethod("__contains__",  "TO",   "b", "PyUnicode_Contains"),
                                     BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
-                                    make_sequence_multiple_method("PyUnicode_Type"),
+                                    make_sequence_multiply_method("PyUnicode_Type"),
                                     ]),
 
-    ("tuple",  "&PyTuple_Type",    [make_sequence_multiple_method("PyTuple_Type"),
+    ("tuple",  "&PyTuple_Type",    [make_sequence_multiply_method("PyTuple_Type"),
                                     ]),
 
     ("list",   "&PyList_Type",     [BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
@@ -405,7 +405,7 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("ListAppend", "Optimize.c")),
                                     BuiltinMethod("extend",  "TO",   "r", "__Pyx_PyList_Extend",
                                                   utility_code=UtilityCode.load("ListExtend", "Optimize.c")),
-                                    make_sequence_multiple_method("PyList_Type"),
+                                    make_sequence_multiply_method("PyList_Type"),
                                     ]),
 
     ("dict",   "&PyDict_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),

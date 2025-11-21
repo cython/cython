@@ -2986,7 +2986,7 @@ static CYTHON_INLINE PyObject* __Pyx_{{typeobj}}_Multiply(PyObject *seq, Py_ssiz
 
 static CYTHON_INLINE PyObject* __Pyx_{{typeobj}}_Multiply(PyObject *seq, Py_ssize_t mul) {
     // It's important that this function always calls the exact typeobj slot, because it may
-    // be used with an subclass deliberately to access the base class slot.
+    // be used with a subclass deliberately to access the base class slot.
     ssizeargfunc slot = __Pyx_PyType_TryGetSubSlot(&{{typeobj}}, tp_as_sequence, sq_repeat, ssizeargfunc);
     #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
     if (unlikely(!slot)) {
