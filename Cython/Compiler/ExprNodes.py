@@ -9208,7 +9208,7 @@ class ListNode(SequenceNode):
                 is_literal = False
             coerced_args.append(arg)
 
-        if is_literal and is_const:
+        if is_literal and is_const and not item_type.is_const:
             item_type = PyrexTypes.c_const_type(item_type)
         array_type = PyrexTypes.CArrayType(item_type, array_length)
 

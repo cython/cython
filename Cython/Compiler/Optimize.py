@@ -250,10 +250,11 @@ class IterationTransform(Visitor.EnvTransform):
             item_type = ExprNodes.infer_sequence_item_type(
                 env, iterable, seq_type=iterable.type)
             if item_type and not item_type.is_pyobject and not any(item.is_starred for item in iterable.args):
-                iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args).analyse_types(env).coerce_to(
-                    PyrexTypes.c_const_type(PyrexTypes.c_array_type(item_type, len(iterable.args))),
-                    env,
-                )
+                if not item_type.is_const:
+                    item_type = PyrexTypes.c_const_type(item_type)
+                carray_type = PyrexTypes.c_array_type(PyrexTypes.c_const_type(item_type), len(iterable.args))
+                iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args)
+                iterable = iterable.analyse_types(env).coerce_to(carray_type, env)
                 return self._transform_carray_iteration(node, iterable, reversed=reversed)
         if iterable.is_string_literal:
             # Iterate over C array of single character values.
@@ -266,10 +267,8 @@ class IterationTransform(Visitor.EnvTransform):
 
             as_int_node = partial(ExprNodes.IntNode.for_int, iterable.pos, type=item_type)
             iterable = ExprNodes.ListNode(iterable.pos, args=[as_int_node(ch)for ch in items])
-            iterable = iterable.analyse_types(env).coerce_to(
-                PyrexTypes.c_const_type(PyrexTypes.c_array_type(item_type, len(iterable.args))),
-                env,
-            )
+            carray_type = PyrexTypes.c_array_type(PyrexTypes.c_const_type(item_type), len(iterable.args))
+            iterable = iterable.analyse_types(env).coerce_to(carray_type, env)
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.bytes_type:
             return self._transform_bytes_iteration(node, iterable, reversed=reversed)
