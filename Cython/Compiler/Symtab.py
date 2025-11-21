@@ -364,6 +364,7 @@ class Scope:
     # is_c_class_scope  boolean            Is an extension type scope
     # is_local_scope    boolean            Is a local (i.e. function/method/generator) scope
     # is_closure_scope  boolean            Is a closure scope
+    # is_generator_scope  boolean          Is a closure scope of a generator
     # is_generator_expression_scope boolean   A subset of closure scope used for generator expressions
     # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
@@ -386,6 +387,7 @@ class Scope:
     is_c_class_scope = 0
     is_closure_scope = 0
     is_local_scope = False
+    is_generator_scope = False
     is_generator_expression_scope = 0
     is_comprehension_scope = 0
     is_passthrough = 0
@@ -2254,6 +2256,7 @@ class ClosureScope(LocalScope):
 
 
 class GeneratorExpressionScope(ClosureScope):
+    is_generator_scope = True
     is_generator_expression_scope = True
 
     def declare_assignment_expression_target(self, name, type, pos):

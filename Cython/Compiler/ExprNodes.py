@@ -1900,6 +1900,9 @@ class UnicodeNode(ConstNode):
                     dst_type.is_ptr and dst_type.base_type.is_void):
                 # Allow using '-3' enforced unicode literals in a C char/char*/void* context.
                 if self.bytes_value is not None:
+                    if dst_type.is_array:
+                        # Prevent an invalid assignment from a C string array and use a pointer instead.
+                        dst_type = dst_type.element_ptr_type()
                     return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
                 if env.directives['c_string_encoding']:
                     try:
