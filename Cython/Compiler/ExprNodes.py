@@ -1901,6 +1901,26 @@ class UnicodeNode(ConstNode):
             return IntNode.for_int(self.pos, int_value, type=dst_type)
         elif dst_type.is_pyunicode_ptr:
             return UnicodeNode.from_node(self, value=self.value, type=dst_type)
+        elif dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int or (
+                dst_type.is_ptr and dst_type.base_type.is_void):
+            # Allow using '-3' enforced unicode literals in a C char/char*/void* context.
+            if self.bytes_value is not None:
+                if dst_type.is_array:
+                    # Prevent an invalid assignment from a C string array and use a pointer instead.
+                    dst_type = dst_type.element_ptr_type()
+                return BytesNode.from_node(
+                    self, value=self.bytes_value, constant_result=self.bytes_value).coerce_to(dst_type, env)
+            if env.directives['c_string_encoding']:
+                try:
+                    byte_string = self.value.encode(env.directives['c_string_encoding'])
+                except (UnicodeEncodeError, LookupError):
+                    pass
+                else:
+                    return BytesNode.from_node(self, value=byte_string).coerce_to(dst_type, env)
+            if self.value.isascii():
+                bytes_value = StringEncoding.BytesLiteral(self.value.encode('ascii'))
+                return BytesNode.from_node(
+                    self, value=bytes_value, constant_result=bytes_value).coerce_to(dst_type, env)
         elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type.is_int:
             if len(self.value) == 0:
                 error(self.pos, "Only non-empty Unicode string literals can be coerced into C arrays.")
@@ -1908,26 +1928,6 @@ class UnicodeNode(ConstNode):
             return ListNode.from_node(
                 self, args=[as_pyucs4(ord(ch)) for ch in self.value]).analyse_types(env).coerce_to(dst_type, env)
         elif not dst_type.is_pyobject:
-            if dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int or (
-                    dst_type.is_ptr and dst_type.base_type.is_void):
-                # Allow using '-3' enforced unicode literals in a C char/char*/void* context.
-                if self.bytes_value is not None:
-                    if dst_type.is_array:
-                        # Prevent an invalid assignment from a C string array and use a pointer instead.
-                        dst_type = dst_type.element_ptr_type()
-                    return BytesNode.from_node(
-                        self, value=self.bytes_value, constant_result=self.bytes_value).coerce_to(dst_type, env)
-                if env.directives['c_string_encoding']:
-                    try:
-                        byte_string = self.value.encode(env.directives['c_string_encoding'])
-                    except (UnicodeEncodeError, LookupError):
-                        pass
-                    else:
-                        return BytesNode.from_node(self, value=byte_string).coerce_to(dst_type, env)
-                if self.value.isascii():
-                    bytes_value = StringEncoding.BytesLiteral(self.value.encode('ascii'))
-                    return BytesNode.from_node(
-                        self, value=bytes_value, constant_result=bytes_value).coerce_to(dst_type, env)
             error(self.pos,
                   "Unicode literals do not support coercion to C types other "
                   "than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* "
