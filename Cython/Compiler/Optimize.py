@@ -252,7 +252,7 @@ class IterationTransform(Visitor.EnvTransform):
             if item_type and not item_type.is_pyobject and not any(item.is_starred for item in iterable.args):
                 if not item_type.is_const:
                     item_type = PyrexTypes.c_const_type(item_type)
-                carray_type = PyrexTypes.c_array_type(PyrexTypes.c_const_type(item_type), len(iterable.args))
+                carray_type = PyrexTypes.c_array_type(item_type, len(iterable.args))
                 iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args)
                 iterable = iterable.analyse_types(env).coerce_to(carray_type, env)
                 return self._transform_carray_iteration(node, iterable, reversed=reversed)
