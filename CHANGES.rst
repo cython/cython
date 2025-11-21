@@ -13,7 +13,7 @@ Bugs fixed
   (Github issue :issue:`7317`)
 
 * Under lock congestion, acquiring the GIL could crash in Python 3.11, part 2.
-  This bug was introduces in Cython 3.2.0.
+  This bug was introduced in Cython 3.2.0.
   (Github issue :issue:`7312`)
 
 
@@ -31,21 +31,21 @@ Bugs fixed
 ----------
 
 * Relative imports could fail if the shared utility module is used.
-  This bug was introduces in Cython 3.2.0.
+  This bug was introduced in Cython 3.2.0.
   (Github issue :issue:`7290`)
 
 * Under lock congestion, acquiring the GIL could crash in Python 3.11.
-  This bug was introduces in Cython 3.2.0.
+  This bug was introduced in Cython 3.2.0.
   (Github issue :issue:`7312`)
 
 * Using the shared utility module left an unused C function in user modules with memoryviews.
   To make debugging this kind of issue easier, Cython now leaves "used by …" markers in the
   generated C files that indicate why a specific piece of utility code was included.
-  This bug was introduces in Cython 3.2.0.
+  This bug was introduced in Cython 3.2.0.
   (Github issue :issue:`7293`)
 
 * Code using the pre-import scope failed with an undefined name.
-  This bug was introduces in Cython 3.2.0.
+  This bug was introduced in Cython 3.2.0.
   (Github issue :issue:`7304`)
 
 * Includes all fixes as of Cython 3.1.7.
