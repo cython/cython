@@ -24,6 +24,7 @@ import os.path
 import pathlib
 import re
 import sys
+from functools import partial
 from typing import Optional
 
 from .Errors import (
@@ -1773,7 +1774,7 @@ class BytesNode(ConstNode):
 
     def as_sliced_node(self, start, stop, step=None):
         value = StringEncoding.bytes_literal(self.value[start:stop:step], self.value.encoding)
-        return BytesNode(self.pos, value=value, constant_result=value)
+        return BytesNode.from_node(self, value=value, constant_result=value)
 
     def compile_time_value(self, denv):
         return self.value.byteencode()
@@ -1799,10 +1800,9 @@ class BytesNode(ConstNode):
             if dst_type.is_unicode_char:
                 error(self.pos, "Bytes literals cannot coerce to Py_UNICODE/Py_UCS4, use a unicode literal instead.")
                 return self
-            return CharNode(self.pos, value=self.value,
-                            constant_result=ord(self.value))
+            return CharNode.from_node(self, value=self.value, constant_result=ord(self.value))
 
-        node = BytesNode(self.pos, value=self.value, constant_result=self.constant_result)
+        node = BytesNode.from_node(self, value=self.value)
         if dst_type.is_pyobject:
             if dst_type in (py_object_type, Builtin.bytes_type):
                 node.type = Builtin.bytes_type
@@ -1816,6 +1816,12 @@ class BytesNode(ConstNode):
             node.type = (PyrexTypes.c_const_char_ptr_type if dst_type == PyrexTypes.c_const_uchar_ptr_type
                          else PyrexTypes.c_char_ptr_type)
             return CastNode(node, dst_type)
+        elif dst_type.is_array and dst_type.base_type.is_int:
+            if len(self.value) == 0:
+                error(self.pos, "Only non-empty bytes literals can be coerced into C arrays.")
+            as_uchar = partial(IntNode.for_int, self.pos, type=PyrexTypes.c_uchar_type)
+            return ListNode.from_node(
+                self, args=[as_uchar(ch) for ch in self.value]).analyse_types(env).coerce_to(dst_type, env)
         elif dst_type.assignable_from(PyrexTypes.c_char_ptr_type):
             # Exclude the case of passing a C string literal into a non-const C++ string.
             if not dst_type.is_cpp_class or dst_type.is_const:
@@ -1894,7 +1900,13 @@ class UnicodeNode(ConstNode):
             int_value = ord(self.value)
             return IntNode.for_int(self.pos, int_value, type=dst_type)
         elif dst_type.is_pyunicode_ptr:
-            return UnicodeNode(self.pos, value=self.value, type=dst_type)
+            return UnicodeNode.from_node(self, value=self.value, type=dst_type)
+        elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type.is_int:
+            if len(self.value) == 0:
+                error(self.pos, "Only non-empty Unicode string literals can be coerced into C arrays.")
+            as_pyucs4 = partial(IntNode.for_int, self.pos, type=PyrexTypes.c_py_ucs4_type)
+            return ListNode.from_node(
+                self, args=[as_pyucs4(ord(ch)) for ch in self.value]).analyse_types(env).coerce_to(dst_type, env)
         elif not dst_type.is_pyobject:
             if dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int or (
                     dst_type.is_ptr and dst_type.base_type.is_void):
@@ -1903,17 +1915,19 @@ class UnicodeNode(ConstNode):
                     if dst_type.is_array:
                         # Prevent an invalid assignment from a C string array and use a pointer instead.
                         dst_type = dst_type.element_ptr_type()
-                    return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
+                    return BytesNode.from_node(
+                        self, value=self.bytes_value, constant_result=self.bytes_value).coerce_to(dst_type, env)
                 if env.directives['c_string_encoding']:
                     try:
                         byte_string = self.value.encode(env.directives['c_string_encoding'])
                     except (UnicodeEncodeError, LookupError):
                         pass
                     else:
-                        return BytesNode(self.pos, value=byte_string).coerce_to(dst_type, env)
+                        return BytesNode.from_node(self, value=byte_string).coerce_to(dst_type, env)
                 if self.value.isascii():
-                    return BytesNode(self.pos, value=StringEncoding.BytesLiteral(self.value.encode('ascii'))
-                                     ).coerce_to(dst_type, env)
+                    bytes_value = StringEncoding.BytesLiteral(self.value.encode('ascii'))
+                    return BytesNode.from_node(
+                        self, value=bytes_value, constant_result=bytes_value).coerce_to(dst_type, env)
             error(self.pos,
                   "Unicode literals do not support coercion to C types other "
                   "than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* "

@@ -241,6 +241,7 @@ class IterationTransform(Visitor.EnvTransform):
             return self._transform_set_iteration(node, iterable)
 
         env = self.current_env()
+        iterable = unwrap_coerced_node(iterable)
 
         # C array (slice) iteration?
         if iterable.type.is_ptr or iterable.type.is_array:
