@@ -2968,10 +2968,15 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
 /////////////// PySequenceMultiply.proto ///////////////
 
 #define __Pyx_PySequence_Multiply_Left(mul, seq)  __Pyx_PySequence_Multiply(seq, mul)
+#if !CYTHON_USE_TYPE_SLOTS
+#define  __Pyx_PySequence_Multiply PySequence_Repeat
+#else
 static CYTHON_INLINE PyObject* __Pyx_PySequence_Multiply(PyObject *seq, Py_ssize_t mul);
+#endif
 
 /////////////// PySequenceMultiply ///////////////
 
+#if CYTHON_USE_TYPE_SLOTS
 static PyObject* __Pyx_PySequence_Multiply_Generic(PyObject *seq, Py_ssize_t mul) {
     PyObject *result, *pymul = PyLong_FromSsize_t(mul);
     if (unlikely(!pymul))
@@ -2982,17 +2987,32 @@ static PyObject* __Pyx_PySequence_Multiply_Generic(PyObject *seq, Py_ssize_t mul
 }
 
 static CYTHON_INLINE PyObject* __Pyx_PySequence_Multiply(PyObject *seq, Py_ssize_t mul) {
-#if CYTHON_USE_TYPE_SLOTS
     PyTypeObject *type = Py_TYPE(seq);
     if (likely(type->tp_as_sequence && type->tp_as_sequence->sq_repeat)) {
         return type->tp_as_sequence->sq_repeat(seq, mul);
-    } else
-#endif
-    {
+    } else {
         return __Pyx_PySequence_Multiply_Generic(seq, mul);
     }
 }
+#endif
 
+/////////////// BuiltinSequenceMultiply.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_{{typeobj}}_Multiply(PyObject *seq, Py_ssize_t mul);
+
+/////////////// BuiltinSequenceMultiply ////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_{{typeobj}}_Multiply(PyObject *seq, Py_ssize_t mul) {
+    // It's important that this function always calls the exact typeobj slot, because it may
+    // be used with a subclass deliberately to access the base class slot.
+    ssizeargfunc slot = __Pyx_PyType_TryGetSubSlot(&{{typeobj}}, tp_as_sequence, sq_repeat, ssizeargfunc);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    if (unlikely(!slot)) {
+        return PyObject_CallMethod((PyObject*)&{{typeobj}}, "__mul__", "On", seq, mul);
+    }
+    #endif
+    return slot(seq, mul);
+}
 
 /////////////// FormatTypeName.proto ///////////////
 
