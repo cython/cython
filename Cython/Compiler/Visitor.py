@@ -549,7 +549,7 @@ class MethodDispatcherTransform(EnvTransform):
                 if Future.division in self.current_env().context.future_directives:
                     special_method_name = '__truediv__'
             obj_type = operand1.type
-            if obj_type.is_builtin_type:
+            if obj_type.is_builtin_type and not obj_type.is_exception_type:
                 type_name = obj_type.name
             else:
                 type_name = "object"  # safety measure
@@ -564,7 +564,7 @@ class MethodDispatcherTransform(EnvTransform):
         if special_method_name:
             operand = node.operand
             obj_type = operand.type
-            if obj_type.is_builtin_type:
+            if obj_type.is_builtin_type and not obj_type.is_exception_type:
                 type_name = obj_type.name
             else:
                 type_name = "object"  # safety measure
@@ -619,7 +619,8 @@ class MethodDispatcherTransform(EnvTransform):
                     # => see if it's usable instead
                     return self._delegate_to_assigned_value(
                         node, function, arg_list, kwargs)
-                if arg_list and entry.is_cmethod and entry.scope and entry.scope.parent_type.is_builtin_type:
+                if (arg_list and entry.is_cmethod and entry.scope and
+                        entry.scope.parent_type.is_builtin_type and not entry.scope.parent_type.is_exception_type):
                     if entry.scope.parent_type is arg_list[0].type:
                         # Optimised (unbound) method of a builtin type => try to "de-optimise".
                         return self._dispatch_to_method_handler(
@@ -650,7 +651,8 @@ class MethodDispatcherTransform(EnvTransform):
                 return node
             obj_type = self_arg.type
             is_unbound_method = False
-            if obj_type.is_builtin_type:
+            # Exceptions aren't necessarily exact types so could have unknown methods
+            if obj_type.is_builtin_type and not obj_type.is_exception_type:
                 if obj_type is Builtin.type_type and self_arg.is_name and arg_list and arg_list[0].type.is_pyobject:
                     # calling an unbound method like 'list.append(L,x)'
                     # (ignoring 'type.mro()' here ...)
