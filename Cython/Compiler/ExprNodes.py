@@ -9035,10 +9035,11 @@ class TupleNode(SequenceNode):
             return SequenceNode.coerce_to(self, dst_type, env)
 
     def as_list(self):
-        t = ListNode(self.pos, args=self.args, mult_factor=self.mult_factor)
-        if isinstance(self.constant_result, tuple):
-            t.constant_result = list(self.constant_result)
-        return t
+        constant_result = self.constant_result
+        if isinstance(constant_result, tuple):
+            constant_result = list(constant_result)
+        return ListNode.from_node(
+            self, args=self.args, mult_factor=self.mult_factor, constant_result=constant_result)
 
     def is_simple(self):
         # either temp or constant => always simple
@@ -9192,10 +9193,11 @@ class ListNode(SequenceNode):
         return self
 
     def as_tuple(self):
-        t = TupleNode(self.pos, args=self.args, mult_factor=self.mult_factor)
-        if isinstance(self.constant_result, list):
-            t.constant_result = tuple(self.constant_result)
-        return t
+        constant_result = self.constant_result
+        if isinstance(constant_result, list):
+            constant_result = tuple(constant_result)
+        return TupleNode.from_node(
+            self, args=self.args, mult_factor=self.mult_factor, constant_result=constant_result)
 
     def allocate_temp_result(self, code):
         if self.type.is_array:
