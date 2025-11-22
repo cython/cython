@@ -33,6 +33,60 @@ def union_pytypes(Union[int, None] i, Union[None, float] f, Union[complex, None]
 def bitwise_or_ctypes(i: cython.int | None, f: None | cython.float , c: cython.complex | None, l: cython.long | None):
     pass
 
+def subscribed_types_assignments():
+    la: list[cython.float] = [5.0]
+    lb: list[cython.int] = la
+    sa: set[cython.float] = {5.0}
+    sb: set[cython.int] = sa
+    fa: frozenset[cython.float] = frozenset({5.0})
+    fb: frozenset[cython.int] = fa
+    da: dict[cython.float, cython.float] = {5.0: 5.0}
+    db: dict[cython.int, cython.int] = da
+    dc: dict[cython.int, cython.float] = da
+    dd: dict[cython.float, cython.int] = da
+    sa = la
+    sa = fa
+    sa = da
+    fa = la
+    fa = sa
+    fa = da
+    la = sa
+    la = fa
+    la = da
+    da = sa
+    da = fa
+    da = la
+
+
+def subscribed_types_assignments_to_variable():
+    la: list[cython.float] = [5.0]
+    lb: list[cython.int] = [1]
+    a: cython.int = la[0]
+    aa: cython.float = 1.0
+    lb[0] = aa
+    i: cython.int
+    for i in la:
+        pass
+
+    da: dict[cython.float, cython.float] = {1.0: 1.0}
+    db: dict[str, cython.int] = {"a": 1.0}
+    b: cython.int = da[1]
+    bb: cython.float = 1.0
+    db[0] = bb
+    j: cython.int
+    for j in da:
+        pass
+
+    sa: set[cython.int] = {1}
+    k: cython.p_int
+    for k in sa:
+        pass
+
+    fa: frozenset[cython.int] = {1}
+    k: cython.p_int
+    for k in sa:
+        pass
+
 # OK
 
 def optional_memoryview(double[:] d, Optional[double[:]] o):
@@ -60,6 +114,25 @@ def bitwise_or_pytypes(i: int | None, f: None | float , c: complex | None):
     list[None | complex]()
     py_lc: list[complex | None] = []
 
+def allowed_subscribed_types_assignments():
+    la: list[cython.float] = [5.0]
+    lb: list[cython.float] = la
+    sa: set[cython.int] = {5}
+    sb: set[cython.int] = sa
+    fa: frozenset[str] = frozenset({"bar"})
+    fb: frozenset[str] = fa
+    da: dict[cython.int, cython.int] = {1: 2}
+    db: dict[cython.int, cython.int] = da
+
+    l1: list = la
+    s1: set = sa
+    f1: frozenset = fa
+    d1: dict = da
+
+    la = l1
+    sa = s1
+    fa = f1
+    da = d1
 
 _ERRORS = """
 13:42: typing.Optional[...] cannot be applied to type int
@@ -84,4 +157,33 @@ _ERRORS = """
 33:60: '[...] | None' cannot be applied to type float
 33:78: '[...] | None' cannot be applied to type double complex
 33:104: '[...] | None' cannot be applied to type long
+38:27: Cannot assign type 'list[float] object' to 'list[int] object'
+40:26: Cannot assign type 'set[float] object' to 'set[int] object'
+42:32: Cannot assign type 'frozenset[float] object' to 'frozenset[int] object'
+44:39: Cannot assign type 'dict[float,float] object' to 'dict[int,int] object'
+45:41: Cannot assign type 'dict[float,float] object' to 'dict[int,float] object'
+46:41: Cannot assign type 'dict[float,float] object' to 'dict[float,int] object'
+47:9: Cannot assign type 'list[float] object' to 'set[float] object'
+48:9: Cannot assign type 'frozenset[float] object' to 'set[float] object'
+49:9: Cannot assign type 'dict[float,float] object' to 'set[float] object'
+50:9: Cannot assign type 'list[float] object' to 'frozenset[float] object'
+51:9: Cannot assign type 'set[float] object' to 'frozenset[float] object'
+52:9: Cannot assign type 'dict[float,float] object' to 'frozenset[float] object'
+53:9: Cannot assign type 'set[float] object' to 'list[float] object'
+54:9: Cannot assign type 'frozenset[float] object' to 'list[float] object'
+55:9: Cannot assign type 'dict[float,float] object' to 'list[float] object'
+56:9: Cannot assign type 'set[float] object' to 'dict[float,float] object'
+57:9: Cannot assign type 'frozenset[float] object' to 'dict[float,float] object'
+58:9: Cannot assign type 'list[float] object' to 'dict[float,float] object'
+64:22: Cannot assign type 'float' to 'int'
+66:12: Cannot assign type 'float' to 'int'
+68:13: Cannot assign type 'list[float] object' to 'int'
+73:22: Cannot assign type 'float' to 'int'
+75:12: Cannot assign type 'float' to 'int'
+77:13: Cannot assign type 'dict[float,float] object' to 'int'
+82:8: Cannot convert Python object to 'int *'
+82:13: Cannot assign type 'set[int] object' to 'int *'
+85:33: Cannot assign type 'set object' to 'frozenset[int] object'
+87:8: Cannot convert Python object to 'int *'
+87:13: Cannot assign type 'set[int] object' to 'int *'
 """
