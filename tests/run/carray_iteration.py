@@ -9,8 +9,8 @@
 import cython
 
 ###### START: generated test code ######
-#  600 tests optimised using CArrayNode
-#  420 tests not optimised
+#  560 tests optimised using CArrayNode
+#  400 tests not optimised
 
 
 def test_carray_forin_int_1(arg: cython.int):
@@ -6739,183 +6739,6 @@ def test_carray_genexpr_Py_UCS4_1_29():
 
 
 
-def test_carray_forin_Py_UCS4_2():
-    """
-    >>> test_carray_forin_Py_UCS4_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.Py_UCS4[2] = 'ℇℇ'
-
-    items = []
-    for item in carray:  # cython.Py_UCS4
-        items.append(item)
-    return items
-
-
-
-def test_carray_generator_Py_UCS4_2():
-    """
-    >>> list(test_carray_generator_Py_UCS4_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.Py_UCS4[2] = 'ℇℇ'
-
-    for item in carray:  # cython.Py_UCS4
-        yield item
-
-
-
-def test_carray_listcomp_Py_UCS4_2():
-    """
-    >>> test_carray_listcomp_Py_UCS4_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.Py_UCS4[2] = 'ℇℇ'
-
-    return [item for item in carray]  # cython.Py_UCS4
-
-
-
-def test_carray_setcomp_Py_UCS4_2():
-    """
-    >>> sorted(test_carray_setcomp_Py_UCS4_2())
-    ['ℇ']
-    """
-    carray: cython.Py_UCS4[2] = 'ℇℇ'
-
-    return {item for item in carray}  # cython.Py_UCS4
-
-
-
-def test_carray_genexpr_Py_UCS4_2():
-    """
-    >>> list(test_carray_genexpr_Py_UCS4_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.Py_UCS4[2] = 'ℇℇ'
-
-    return (item for item in carray)  # cython.Py_UCS4
-
-
-
-def test_literal_forin_Py_UCS4_2():
-    """
-    >>> test_literal_forin_Py_UCS4_2()
-    ['ℇ', 'ℇ']
-    """
-
-
-    items = []
-    for item in 'ℇℇ':  # cython.Py_UCS4
-        items.append(item)
-    return items
-
-
-
-def test_literal_generator_Py_UCS4_2():
-    """
-    >>> list(test_literal_generator_Py_UCS4_2())
-    ['ℇ', 'ℇ']
-    """
-
-
-    for item in 'ℇℇ':  # cython.Py_UCS4
-        yield item
-
-
-
-def test_literal_listcomp_Py_UCS4_2():
-    """
-    >>> test_literal_listcomp_Py_UCS4_2()
-    ['ℇ', 'ℇ']
-    """
-
-
-    return [item for item in 'ℇℇ']  # cython.Py_UCS4
-
-
-
-def test_literal_setcomp_Py_UCS4_2():
-    """
-    >>> sorted(test_literal_setcomp_Py_UCS4_2())
-    ['ℇ']
-    """
-
-
-    return {item for item in 'ℇℇ'}  # cython.Py_UCS4
-
-
-
-def test_literal_genexpr_Py_UCS4_2():
-    """
-    >>> list(test_literal_genexpr_Py_UCS4_2())
-    ['ℇ', 'ℇ']
-    """
-
-
-    return (item for item in 'ℇℇ')  # cython.Py_UCS4
-
-
-
-def test_carray_forin_Py_UCS4_2():
-    """
-    >>> test_carray_forin_Py_UCS4_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.Py_UCS4] = 'ℇℇ'
-
-    items = []
-    for item in carray[:2]:  # cython.Py_UCS4
-        items.append(item)
-    return items
-
-
-
-def test_carray_generator_Py_UCS4_2():
-    """
-    >>> list(test_carray_generator_Py_UCS4_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.Py_UCS4] = 'ℇℇ'
-
-    for item in carray[:2]:  # cython.Py_UCS4
-        yield item
-
-
-
-def test_carray_listcomp_Py_UCS4_2():
-    """
-    >>> test_carray_listcomp_Py_UCS4_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.Py_UCS4] = 'ℇℇ'
-
-    return [item for item in carray[:2]]  # cython.Py_UCS4
-
-
-
-def test_carray_setcomp_Py_UCS4_2():
-    """
-    >>> sorted(test_carray_setcomp_Py_UCS4_2())
-    ['ℇ']
-    """
-    carray: cython.pointer[cython.Py_UCS4] = 'ℇℇ'
-
-    return {item for item in carray[:2]}  # cython.Py_UCS4
-
-
-
-def test_carray_genexpr_Py_UCS4_2():
-    """
-    >>> list(test_carray_genexpr_Py_UCS4_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.Py_UCS4] = 'ℇℇ'
-
-    return (item for item in carray[:2])  # cython.Py_UCS4
-
-
-
 def test_carray_forin_Py_UCS4_11():
     """
     >>> test_carray_forin_Py_UCS4_11()
@@ -7270,9 +7093,9 @@ def test_carray_genexpr_Py_UCS4_21():
 
 
 
-def test_carray_forin_Py_UCS4_2_33():
+def test_carray_forin_Py_UCS4_2():
     """
-    >>> test_carray_forin_Py_UCS4_2_33()
+    >>> test_carray_forin_Py_UCS4_2()
     ['😇', '😌']
     """
     carray: cython.Py_UCS4[2] = '😇😌'
@@ -7284,9 +7107,9 @@ def test_carray_forin_Py_UCS4_2_33():
 
 
 
-def test_carray_generator_Py_UCS4_2_33():
+def test_carray_generator_Py_UCS4_2():
     """
-    >>> list(test_carray_generator_Py_UCS4_2_33())
+    >>> list(test_carray_generator_Py_UCS4_2())
     ['😇', '😌']
     """
     carray: cython.Py_UCS4[2] = '😇😌'
@@ -7296,9 +7119,9 @@ def test_carray_generator_Py_UCS4_2_33():
 
 
 
-def test_carray_listcomp_Py_UCS4_2_33():
+def test_carray_listcomp_Py_UCS4_2():
     """
-    >>> test_carray_listcomp_Py_UCS4_2_33()
+    >>> test_carray_listcomp_Py_UCS4_2()
     ['😇', '😌']
     """
     carray: cython.Py_UCS4[2] = '😇😌'
@@ -7307,9 +7130,9 @@ def test_carray_listcomp_Py_UCS4_2_33():
 
 
 
-def test_carray_setcomp_Py_UCS4_2_33():
+def test_carray_setcomp_Py_UCS4_2():
     """
-    >>> sorted(test_carray_setcomp_Py_UCS4_2_33())
+    >>> sorted(test_carray_setcomp_Py_UCS4_2())
     ['😇', '😌']
     """
     carray: cython.Py_UCS4[2] = '😇😌'
@@ -7318,9 +7141,9 @@ def test_carray_setcomp_Py_UCS4_2_33():
 
 
 
-def test_carray_genexpr_Py_UCS4_2_33():
+def test_carray_genexpr_Py_UCS4_2():
     """
-    >>> list(test_carray_genexpr_Py_UCS4_2_33())
+    >>> list(test_carray_genexpr_Py_UCS4_2())
     ['😇', '😌']
     """
     carray: cython.Py_UCS4[2] = '😇😌'
@@ -7329,9 +7152,9 @@ def test_carray_genexpr_Py_UCS4_2_33():
 
 
 
-def test_literal_forin_Py_UCS4_2_33():
+def test_literal_forin_Py_UCS4_2():
     """
-    >>> test_literal_forin_Py_UCS4_2_33()
+    >>> test_literal_forin_Py_UCS4_2()
     ['😇', '😌']
     """
 
@@ -7343,9 +7166,9 @@ def test_literal_forin_Py_UCS4_2_33():
 
 
 
-def test_literal_generator_Py_UCS4_2_33():
+def test_literal_generator_Py_UCS4_2():
     """
-    >>> list(test_literal_generator_Py_UCS4_2_33())
+    >>> list(test_literal_generator_Py_UCS4_2())
     ['😇', '😌']
     """
 
@@ -7355,9 +7178,9 @@ def test_literal_generator_Py_UCS4_2_33():
 
 
 
-def test_literal_listcomp_Py_UCS4_2_33():
+def test_literal_listcomp_Py_UCS4_2():
     """
-    >>> test_literal_listcomp_Py_UCS4_2_33()
+    >>> test_literal_listcomp_Py_UCS4_2()
     ['😇', '😌']
     """
 
@@ -7366,9 +7189,9 @@ def test_literal_listcomp_Py_UCS4_2_33():
 
 
 
-def test_literal_setcomp_Py_UCS4_2_33():
+def test_literal_setcomp_Py_UCS4_2():
     """
-    >>> sorted(test_literal_setcomp_Py_UCS4_2_33())
+    >>> sorted(test_literal_setcomp_Py_UCS4_2())
     ['😇', '😌']
     """
 
@@ -7377,9 +7200,9 @@ def test_literal_setcomp_Py_UCS4_2_33():
 
 
 
-def test_literal_genexpr_Py_UCS4_2_33():
+def test_literal_genexpr_Py_UCS4_2():
     """
-    >>> list(test_literal_genexpr_Py_UCS4_2_33())
+    >>> list(test_literal_genexpr_Py_UCS4_2())
     ['😇', '😌']
     """
 
@@ -7388,9 +7211,9 @@ def test_literal_genexpr_Py_UCS4_2_33():
 
 
 
-def test_carray_forin_Py_UCS4_2_33():
+def test_carray_forin_Py_UCS4_2():
     """
-    >>> test_carray_forin_Py_UCS4_2_33()
+    >>> test_carray_forin_Py_UCS4_2()
     ['😇', '😌']
     """
     carray: cython.pointer[cython.Py_UCS4] = '😇😌'
@@ -7402,9 +7225,9 @@ def test_carray_forin_Py_UCS4_2_33():
 
 
 
-def test_carray_generator_Py_UCS4_2_33():
+def test_carray_generator_Py_UCS4_2():
     """
-    >>> list(test_carray_generator_Py_UCS4_2_33())
+    >>> list(test_carray_generator_Py_UCS4_2())
     ['😇', '😌']
     """
     carray: cython.pointer[cython.Py_UCS4] = '😇😌'
@@ -7414,9 +7237,9 @@ def test_carray_generator_Py_UCS4_2_33():
 
 
 
-def test_carray_listcomp_Py_UCS4_2_33():
+def test_carray_listcomp_Py_UCS4_2():
     """
-    >>> test_carray_listcomp_Py_UCS4_2_33()
+    >>> test_carray_listcomp_Py_UCS4_2()
     ['😇', '😌']
     """
     carray: cython.pointer[cython.Py_UCS4] = '😇😌'
@@ -7425,9 +7248,9 @@ def test_carray_listcomp_Py_UCS4_2_33():
 
 
 
-def test_carray_setcomp_Py_UCS4_2_33():
+def test_carray_setcomp_Py_UCS4_2():
     """
-    >>> sorted(test_carray_setcomp_Py_UCS4_2_33())
+    >>> sorted(test_carray_setcomp_Py_UCS4_2())
     ['😇', '😌']
     """
     carray: cython.pointer[cython.Py_UCS4] = '😇😌'
@@ -7436,9 +7259,9 @@ def test_carray_setcomp_Py_UCS4_2_33():
 
 
 
-def test_carray_genexpr_Py_UCS4_2_33():
+def test_carray_genexpr_Py_UCS4_2():
     """
-    >>> list(test_carray_genexpr_Py_UCS4_2_33())
+    >>> list(test_carray_genexpr_Py_UCS4_2())
     ['😇', '😌']
     """
     carray: cython.pointer[cython.Py_UCS4] = '😇😌'
@@ -8332,9 +8155,9 @@ def test_carray_genexpr_const_Py_UCS4_133():
 
 
 
-def test_carray_forin_const_Py_UCS4_1_39():
+def test_carray_forin_const_Py_UCS4_1_38():
     """
-    >>> test_carray_forin_const_Py_UCS4_1_39()
+    >>> test_carray_forin_const_Py_UCS4_1_38()
     ['☃']
     """
     carray: cython.const[cython.Py_UCS4][1] = '☃'
@@ -8346,9 +8169,9 @@ def test_carray_forin_const_Py_UCS4_1_39():
 
 
 
-def test_carray_generator_const_Py_UCS4_1_39():
+def test_carray_generator_const_Py_UCS4_1_38():
     """
-    >>> list(test_carray_generator_const_Py_UCS4_1_39())
+    >>> list(test_carray_generator_const_Py_UCS4_1_38())
     ['☃']
     """
     carray: cython.const[cython.Py_UCS4][1] = '☃'
@@ -8358,9 +8181,9 @@ def test_carray_generator_const_Py_UCS4_1_39():
 
 
 
-def test_carray_listcomp_const_Py_UCS4_1_39():
+def test_carray_listcomp_const_Py_UCS4_1_38():
     """
-    >>> test_carray_listcomp_const_Py_UCS4_1_39()
+    >>> test_carray_listcomp_const_Py_UCS4_1_38()
     ['☃']
     """
     carray: cython.const[cython.Py_UCS4][1] = '☃'
@@ -8369,9 +8192,9 @@ def test_carray_listcomp_const_Py_UCS4_1_39():
 
 
 
-def test_carray_setcomp_const_Py_UCS4_1_39():
+def test_carray_setcomp_const_Py_UCS4_1_38():
     """
-    >>> sorted(test_carray_setcomp_const_Py_UCS4_1_39())
+    >>> sorted(test_carray_setcomp_const_Py_UCS4_1_38())
     ['☃']
     """
     carray: cython.const[cython.Py_UCS4][1] = '☃'
@@ -8380,9 +8203,9 @@ def test_carray_setcomp_const_Py_UCS4_1_39():
 
 
 
-def test_carray_genexpr_const_Py_UCS4_1_39():
+def test_carray_genexpr_const_Py_UCS4_1_38():
     """
-    >>> list(test_carray_genexpr_const_Py_UCS4_1_39())
+    >>> list(test_carray_genexpr_const_Py_UCS4_1_38())
     ['☃']
     """
     carray: cython.const[cython.Py_UCS4][1] = '☃'
@@ -8391,9 +8214,9 @@ def test_carray_genexpr_const_Py_UCS4_1_39():
 
 
 
-def test_literal_forin_const_Py_UCS4_1_39():
+def test_literal_forin_const_Py_UCS4_1_38():
     """
-    >>> test_literal_forin_const_Py_UCS4_1_39()
+    >>> test_literal_forin_const_Py_UCS4_1_38()
     ['☃']
     """
 
@@ -8405,9 +8228,9 @@ def test_literal_forin_const_Py_UCS4_1_39():
 
 
 
-def test_literal_generator_const_Py_UCS4_1_39():
+def test_literal_generator_const_Py_UCS4_1_38():
     """
-    >>> list(test_literal_generator_const_Py_UCS4_1_39())
+    >>> list(test_literal_generator_const_Py_UCS4_1_38())
     ['☃']
     """
 
@@ -8417,9 +8240,9 @@ def test_literal_generator_const_Py_UCS4_1_39():
 
 
 
-def test_literal_listcomp_const_Py_UCS4_1_39():
+def test_literal_listcomp_const_Py_UCS4_1_38():
     """
-    >>> test_literal_listcomp_const_Py_UCS4_1_39()
+    >>> test_literal_listcomp_const_Py_UCS4_1_38()
     ['☃']
     """
 
@@ -8428,9 +8251,9 @@ def test_literal_listcomp_const_Py_UCS4_1_39():
 
 
 
-def test_literal_setcomp_const_Py_UCS4_1_39():
+def test_literal_setcomp_const_Py_UCS4_1_38():
     """
-    >>> sorted(test_literal_setcomp_const_Py_UCS4_1_39())
+    >>> sorted(test_literal_setcomp_const_Py_UCS4_1_38())
     ['☃']
     """
 
@@ -8439,9 +8262,9 @@ def test_literal_setcomp_const_Py_UCS4_1_39():
 
 
 
-def test_literal_genexpr_const_Py_UCS4_1_39():
+def test_literal_genexpr_const_Py_UCS4_1_38():
     """
-    >>> list(test_literal_genexpr_const_Py_UCS4_1_39())
+    >>> list(test_literal_genexpr_const_Py_UCS4_1_38())
     ['☃']
     """
 
@@ -8450,9 +8273,9 @@ def test_literal_genexpr_const_Py_UCS4_1_39():
 
 
 
-def test_carray_forin_const_Py_UCS4_1_39():
+def test_carray_forin_const_Py_UCS4_1_38():
     """
-    >>> test_carray_forin_const_Py_UCS4_1_39()
+    >>> test_carray_forin_const_Py_UCS4_1_38()
     ['☃']
     """
     carray: cython.pointer[cython.const[cython.Py_UCS4]] = '☃'
@@ -8464,9 +8287,9 @@ def test_carray_forin_const_Py_UCS4_1_39():
 
 
 
-def test_carray_generator_const_Py_UCS4_1_39():
+def test_carray_generator_const_Py_UCS4_1_38():
     """
-    >>> list(test_carray_generator_const_Py_UCS4_1_39())
+    >>> list(test_carray_generator_const_Py_UCS4_1_38())
     ['☃']
     """
     carray: cython.pointer[cython.const[cython.Py_UCS4]] = '☃'
@@ -8476,9 +8299,9 @@ def test_carray_generator_const_Py_UCS4_1_39():
 
 
 
-def test_carray_listcomp_const_Py_UCS4_1_39():
+def test_carray_listcomp_const_Py_UCS4_1_38():
     """
-    >>> test_carray_listcomp_const_Py_UCS4_1_39()
+    >>> test_carray_listcomp_const_Py_UCS4_1_38()
     ['☃']
     """
     carray: cython.pointer[cython.const[cython.Py_UCS4]] = '☃'
@@ -8487,9 +8310,9 @@ def test_carray_listcomp_const_Py_UCS4_1_39():
 
 
 
-def test_carray_setcomp_const_Py_UCS4_1_39():
+def test_carray_setcomp_const_Py_UCS4_1_38():
     """
-    >>> sorted(test_carray_setcomp_const_Py_UCS4_1_39())
+    >>> sorted(test_carray_setcomp_const_Py_UCS4_1_38())
     ['☃']
     """
     carray: cython.pointer[cython.const[cython.Py_UCS4]] = '☃'
@@ -8498,191 +8321,14 @@ def test_carray_setcomp_const_Py_UCS4_1_39():
 
 
 
-def test_carray_genexpr_const_Py_UCS4_1_39():
+def test_carray_genexpr_const_Py_UCS4_1_38():
     """
-    >>> list(test_carray_genexpr_const_Py_UCS4_1_39())
+    >>> list(test_carray_genexpr_const_Py_UCS4_1_38())
     ['☃']
     """
     carray: cython.pointer[cython.const[cython.Py_UCS4]] = '☃'
 
     return (item for item in carray[:1])  # cython.const[cython.Py_UCS4]
-
-
-
-def test_carray_forin_const_Py_UCS4_2():
-    """
-    >>> test_carray_forin_const_Py_UCS4_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.const[cython.Py_UCS4][2] = 'ℇℇ'
-
-    items = []
-    for item in carray:  # cython.const[cython.Py_UCS4]
-        items.append(item)
-    return items
-
-
-
-def test_carray_generator_const_Py_UCS4_2():
-    """
-    >>> list(test_carray_generator_const_Py_UCS4_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.const[cython.Py_UCS4][2] = 'ℇℇ'
-
-    for item in carray:  # cython.const[cython.Py_UCS4]
-        yield item
-
-
-
-def test_carray_listcomp_const_Py_UCS4_2():
-    """
-    >>> test_carray_listcomp_const_Py_UCS4_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.const[cython.Py_UCS4][2] = 'ℇℇ'
-
-    return [item for item in carray]  # cython.const[cython.Py_UCS4]
-
-
-
-def test_carray_setcomp_const_Py_UCS4_2():
-    """
-    >>> sorted(test_carray_setcomp_const_Py_UCS4_2())
-    ['ℇ']
-    """
-    carray: cython.const[cython.Py_UCS4][2] = 'ℇℇ'
-
-    return {item for item in carray}  # cython.const[cython.Py_UCS4]
-
-
-
-def test_carray_genexpr_const_Py_UCS4_2():
-    """
-    >>> list(test_carray_genexpr_const_Py_UCS4_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.const[cython.Py_UCS4][2] = 'ℇℇ'
-
-    return (item for item in carray)  # cython.const[cython.Py_UCS4]
-
-
-
-def test_literal_forin_const_Py_UCS4_2():
-    """
-    >>> test_literal_forin_const_Py_UCS4_2()
-    ['ℇ', 'ℇ']
-    """
-
-
-    items = []
-    for item in 'ℇℇ':  # cython.const[cython.Py_UCS4]
-        items.append(item)
-    return items
-
-
-
-def test_literal_generator_const_Py_UCS4_2():
-    """
-    >>> list(test_literal_generator_const_Py_UCS4_2())
-    ['ℇ', 'ℇ']
-    """
-
-
-    for item in 'ℇℇ':  # cython.const[cython.Py_UCS4]
-        yield item
-
-
-
-def test_literal_listcomp_const_Py_UCS4_2():
-    """
-    >>> test_literal_listcomp_const_Py_UCS4_2()
-    ['ℇ', 'ℇ']
-    """
-
-
-    return [item for item in 'ℇℇ']  # cython.const[cython.Py_UCS4]
-
-
-
-def test_literal_setcomp_const_Py_UCS4_2():
-    """
-    >>> sorted(test_literal_setcomp_const_Py_UCS4_2())
-    ['ℇ']
-    """
-
-
-    return {item for item in 'ℇℇ'}  # cython.const[cython.Py_UCS4]
-
-
-
-def test_literal_genexpr_const_Py_UCS4_2():
-    """
-    >>> list(test_literal_genexpr_const_Py_UCS4_2())
-    ['ℇ', 'ℇ']
-    """
-
-
-    return (item for item in 'ℇℇ')  # cython.const[cython.Py_UCS4]
-
-
-
-def test_carray_forin_const_Py_UCS4_2():
-    """
-    >>> test_carray_forin_const_Py_UCS4_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.const[cython.Py_UCS4]] = 'ℇℇ'
-
-    items = []
-    for item in carray[:2]:  # cython.const[cython.Py_UCS4]
-        items.append(item)
-    return items
-
-
-
-def test_carray_generator_const_Py_UCS4_2():
-    """
-    >>> list(test_carray_generator_const_Py_UCS4_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.const[cython.Py_UCS4]] = 'ℇℇ'
-
-    for item in carray[:2]:  # cython.const[cython.Py_UCS4]
-        yield item
-
-
-
-def test_carray_listcomp_const_Py_UCS4_2():
-    """
-    >>> test_carray_listcomp_const_Py_UCS4_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.const[cython.Py_UCS4]] = 'ℇℇ'
-
-    return [item for item in carray[:2]]  # cython.const[cython.Py_UCS4]
-
-
-
-def test_carray_setcomp_const_Py_UCS4_2():
-    """
-    >>> sorted(test_carray_setcomp_const_Py_UCS4_2())
-    ['ℇ']
-    """
-    carray: cython.pointer[cython.const[cython.Py_UCS4]] = 'ℇℇ'
-
-    return {item for item in carray[:2]}  # cython.const[cython.Py_UCS4]
-
-
-
-def test_carray_genexpr_const_Py_UCS4_2():
-    """
-    >>> list(test_carray_genexpr_const_Py_UCS4_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.const[cython.Py_UCS4]] = 'ℇℇ'
-
-    return (item for item in carray[:2])  # cython.const[cython.Py_UCS4]
 
 
 
@@ -9040,9 +8686,9 @@ def test_carray_genexpr_const_Py_UCS4_21():
 
 
 
-def test_carray_forin_const_Py_UCS4_2_43():
+def test_carray_forin_const_Py_UCS4_2():
     """
-    >>> test_carray_forin_const_Py_UCS4_2_43()
+    >>> test_carray_forin_const_Py_UCS4_2()
     ['😇', '😌']
     """
     carray: cython.const[cython.Py_UCS4][2] = '😇😌'
@@ -9054,9 +8700,9 @@ def test_carray_forin_const_Py_UCS4_2_43():
 
 
 
-def test_carray_generator_const_Py_UCS4_2_43():
+def test_carray_generator_const_Py_UCS4_2():
     """
-    >>> list(test_carray_generator_const_Py_UCS4_2_43())
+    >>> list(test_carray_generator_const_Py_UCS4_2())
     ['😇', '😌']
     """
     carray: cython.const[cython.Py_UCS4][2] = '😇😌'
@@ -9066,9 +8712,9 @@ def test_carray_generator_const_Py_UCS4_2_43():
 
 
 
-def test_carray_listcomp_const_Py_UCS4_2_43():
+def test_carray_listcomp_const_Py_UCS4_2():
     """
-    >>> test_carray_listcomp_const_Py_UCS4_2_43()
+    >>> test_carray_listcomp_const_Py_UCS4_2()
     ['😇', '😌']
     """
     carray: cython.const[cython.Py_UCS4][2] = '😇😌'
@@ -9077,9 +8723,9 @@ def test_carray_listcomp_const_Py_UCS4_2_43():
 
 
 
-def test_carray_setcomp_const_Py_UCS4_2_43():
+def test_carray_setcomp_const_Py_UCS4_2():
     """
-    >>> sorted(test_carray_setcomp_const_Py_UCS4_2_43())
+    >>> sorted(test_carray_setcomp_const_Py_UCS4_2())
     ['😇', '😌']
     """
     carray: cython.const[cython.Py_UCS4][2] = '😇😌'
@@ -9088,9 +8734,9 @@ def test_carray_setcomp_const_Py_UCS4_2_43():
 
 
 
-def test_carray_genexpr_const_Py_UCS4_2_43():
+def test_carray_genexpr_const_Py_UCS4_2():
     """
-    >>> list(test_carray_genexpr_const_Py_UCS4_2_43())
+    >>> list(test_carray_genexpr_const_Py_UCS4_2())
     ['😇', '😌']
     """
     carray: cython.const[cython.Py_UCS4][2] = '😇😌'
@@ -9099,9 +8745,9 @@ def test_carray_genexpr_const_Py_UCS4_2_43():
 
 
 
-def test_literal_forin_const_Py_UCS4_2_43():
+def test_literal_forin_const_Py_UCS4_2():
     """
-    >>> test_literal_forin_const_Py_UCS4_2_43()
+    >>> test_literal_forin_const_Py_UCS4_2()
     ['😇', '😌']
     """
 
@@ -9113,9 +8759,9 @@ def test_literal_forin_const_Py_UCS4_2_43():
 
 
 
-def test_literal_generator_const_Py_UCS4_2_43():
+def test_literal_generator_const_Py_UCS4_2():
     """
-    >>> list(test_literal_generator_const_Py_UCS4_2_43())
+    >>> list(test_literal_generator_const_Py_UCS4_2())
     ['😇', '😌']
     """
 
@@ -9125,9 +8771,9 @@ def test_literal_generator_const_Py_UCS4_2_43():
 
 
 
-def test_literal_listcomp_const_Py_UCS4_2_43():
+def test_literal_listcomp_const_Py_UCS4_2():
     """
-    >>> test_literal_listcomp_const_Py_UCS4_2_43()
+    >>> test_literal_listcomp_const_Py_UCS4_2()
     ['😇', '😌']
     """
 
@@ -9136,9 +8782,9 @@ def test_literal_listcomp_const_Py_UCS4_2_43():
 
 
 
-def test_literal_setcomp_const_Py_UCS4_2_43():
+def test_literal_setcomp_const_Py_UCS4_2():
     """
-    >>> sorted(test_literal_setcomp_const_Py_UCS4_2_43())
+    >>> sorted(test_literal_setcomp_const_Py_UCS4_2())
     ['😇', '😌']
     """
 
@@ -9147,9 +8793,9 @@ def test_literal_setcomp_const_Py_UCS4_2_43():
 
 
 
-def test_literal_genexpr_const_Py_UCS4_2_43():
+def test_literal_genexpr_const_Py_UCS4_2():
     """
-    >>> list(test_literal_genexpr_const_Py_UCS4_2_43())
+    >>> list(test_literal_genexpr_const_Py_UCS4_2())
     ['😇', '😌']
     """
 
@@ -9158,9 +8804,9 @@ def test_literal_genexpr_const_Py_UCS4_2_43():
 
 
 
-def test_carray_forin_const_Py_UCS4_2_43():
+def test_carray_forin_const_Py_UCS4_2():
     """
-    >>> test_carray_forin_const_Py_UCS4_2_43()
+    >>> test_carray_forin_const_Py_UCS4_2()
     ['😇', '😌']
     """
     carray: cython.pointer[cython.const[cython.Py_UCS4]] = '😇😌'
@@ -9172,9 +8818,9 @@ def test_carray_forin_const_Py_UCS4_2_43():
 
 
 
-def test_carray_generator_const_Py_UCS4_2_43():
+def test_carray_generator_const_Py_UCS4_2():
     """
-    >>> list(test_carray_generator_const_Py_UCS4_2_43())
+    >>> list(test_carray_generator_const_Py_UCS4_2())
     ['😇', '😌']
     """
     carray: cython.pointer[cython.const[cython.Py_UCS4]] = '😇😌'
@@ -9184,9 +8830,9 @@ def test_carray_generator_const_Py_UCS4_2_43():
 
 
 
-def test_carray_listcomp_const_Py_UCS4_2_43():
+def test_carray_listcomp_const_Py_UCS4_2():
     """
-    >>> test_carray_listcomp_const_Py_UCS4_2_43()
+    >>> test_carray_listcomp_const_Py_UCS4_2()
     ['😇', '😌']
     """
     carray: cython.pointer[cython.const[cython.Py_UCS4]] = '😇😌'
@@ -9195,9 +8841,9 @@ def test_carray_listcomp_const_Py_UCS4_2_43():
 
 
 
-def test_carray_setcomp_const_Py_UCS4_2_43():
+def test_carray_setcomp_const_Py_UCS4_2():
     """
-    >>> sorted(test_carray_setcomp_const_Py_UCS4_2_43())
+    >>> sorted(test_carray_setcomp_const_Py_UCS4_2())
     ['😇', '😌']
     """
     carray: cython.pointer[cython.const[cython.Py_UCS4]] = '😇😌'
@@ -9206,9 +8852,9 @@ def test_carray_setcomp_const_Py_UCS4_2_43():
 
 
 
-def test_carray_genexpr_const_Py_UCS4_2_43():
+def test_carray_genexpr_const_Py_UCS4_2():
     """
-    >>> list(test_carray_genexpr_const_Py_UCS4_2_43())
+    >>> list(test_carray_genexpr_const_Py_UCS4_2())
     ['😇', '😌']
     """
     carray: cython.pointer[cython.const[cython.Py_UCS4]] = '😇😌'
@@ -10102,9 +9748,9 @@ def test_carray_genexpr_short_133():
 
 
 
-def test_carray_forin_short_1_49():
+def test_carray_forin_short_1_47():
     """
-    >>> test_carray_forin_short_1_49()
+    >>> test_carray_forin_short_1_47()
     ['☃']
     """
     carray: cython.short[1] = '☃'
@@ -10116,9 +9762,9 @@ def test_carray_forin_short_1_49():
 
 
 
-def test_carray_generator_short_1_49():
+def test_carray_generator_short_1_47():
     """
-    >>> list(test_carray_generator_short_1_49())
+    >>> list(test_carray_generator_short_1_47())
     ['☃']
     """
     carray: cython.short[1] = '☃'
@@ -10128,9 +9774,9 @@ def test_carray_generator_short_1_49():
 
 
 
-def test_carray_listcomp_short_1_49():
+def test_carray_listcomp_short_1_47():
     """
-    >>> test_carray_listcomp_short_1_49()
+    >>> test_carray_listcomp_short_1_47()
     ['☃']
     """
     carray: cython.short[1] = '☃'
@@ -10139,9 +9785,9 @@ def test_carray_listcomp_short_1_49():
 
 
 
-def test_carray_setcomp_short_1_49():
+def test_carray_setcomp_short_1_47():
     """
-    >>> sorted(test_carray_setcomp_short_1_49())
+    >>> sorted(test_carray_setcomp_short_1_47())
     ['☃']
     """
     carray: cython.short[1] = '☃'
@@ -10150,9 +9796,9 @@ def test_carray_setcomp_short_1_49():
 
 
 
-def test_carray_genexpr_short_1_49():
+def test_carray_genexpr_short_1_47():
     """
-    >>> list(test_carray_genexpr_short_1_49())
+    >>> list(test_carray_genexpr_short_1_47())
     ['☃']
     """
     carray: cython.short[1] = '☃'
@@ -10161,9 +9807,9 @@ def test_carray_genexpr_short_1_49():
 
 
 
-def test_literal_forin_short_1_49():
+def test_literal_forin_short_1_47():
     """
-    >>> test_literal_forin_short_1_49()
+    >>> test_literal_forin_short_1_47()
     ['☃']
     """
 
@@ -10175,9 +9821,9 @@ def test_literal_forin_short_1_49():
 
 
 
-def test_literal_generator_short_1_49():
+def test_literal_generator_short_1_47():
     """
-    >>> list(test_literal_generator_short_1_49())
+    >>> list(test_literal_generator_short_1_47())
     ['☃']
     """
 
@@ -10187,9 +9833,9 @@ def test_literal_generator_short_1_49():
 
 
 
-def test_literal_listcomp_short_1_49():
+def test_literal_listcomp_short_1_47():
     """
-    >>> test_literal_listcomp_short_1_49()
+    >>> test_literal_listcomp_short_1_47()
     ['☃']
     """
 
@@ -10198,9 +9844,9 @@ def test_literal_listcomp_short_1_49():
 
 
 
-def test_literal_setcomp_short_1_49():
+def test_literal_setcomp_short_1_47():
     """
-    >>> sorted(test_literal_setcomp_short_1_49())
+    >>> sorted(test_literal_setcomp_short_1_47())
     ['☃']
     """
 
@@ -10209,9 +9855,9 @@ def test_literal_setcomp_short_1_49():
 
 
 
-def test_literal_genexpr_short_1_49():
+def test_literal_genexpr_short_1_47():
     """
-    >>> list(test_literal_genexpr_short_1_49())
+    >>> list(test_literal_genexpr_short_1_47())
     ['☃']
     """
 
@@ -10220,9 +9866,9 @@ def test_literal_genexpr_short_1_49():
 
 
 
-def test_carray_forin_short_1_49():
+def test_carray_forin_short_1_47():
     """
-    >>> test_carray_forin_short_1_49()
+    >>> test_carray_forin_short_1_47()
     ['☃']
     """
     carray: cython.pointer[cython.short] = '☃'
@@ -10234,9 +9880,9 @@ def test_carray_forin_short_1_49():
 
 
 
-def test_carray_generator_short_1_49():
+def test_carray_generator_short_1_47():
     """
-    >>> list(test_carray_generator_short_1_49())
+    >>> list(test_carray_generator_short_1_47())
     ['☃']
     """
     carray: cython.pointer[cython.short] = '☃'
@@ -10246,9 +9892,9 @@ def test_carray_generator_short_1_49():
 
 
 
-def test_carray_listcomp_short_1_49():
+def test_carray_listcomp_short_1_47():
     """
-    >>> test_carray_listcomp_short_1_49()
+    >>> test_carray_listcomp_short_1_47()
     ['☃']
     """
     carray: cython.pointer[cython.short] = '☃'
@@ -10257,9 +9903,9 @@ def test_carray_listcomp_short_1_49():
 
 
 
-def test_carray_setcomp_short_1_49():
+def test_carray_setcomp_short_1_47():
     """
-    >>> sorted(test_carray_setcomp_short_1_49())
+    >>> sorted(test_carray_setcomp_short_1_47())
     ['☃']
     """
     carray: cython.pointer[cython.short] = '☃'
@@ -10268,191 +9914,14 @@ def test_carray_setcomp_short_1_49():
 
 
 
-def test_carray_genexpr_short_1_49():
+def test_carray_genexpr_short_1_47():
     """
-    >>> list(test_carray_genexpr_short_1_49())
+    >>> list(test_carray_genexpr_short_1_47())
     ['☃']
     """
     carray: cython.pointer[cython.short] = '☃'
 
     return (item for item in carray[:1])  # cython.short
-
-
-
-def test_carray_forin_short_2():
-    """
-    >>> test_carray_forin_short_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.short[2] = 'ℇℇ'
-
-    items = []
-    for item in carray:  # cython.short
-        items.append(item)
-    return items
-
-
-
-def test_carray_generator_short_2():
-    """
-    >>> list(test_carray_generator_short_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.short[2] = 'ℇℇ'
-
-    for item in carray:  # cython.short
-        yield item
-
-
-
-def test_carray_listcomp_short_2():
-    """
-    >>> test_carray_listcomp_short_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.short[2] = 'ℇℇ'
-
-    return [item for item in carray]  # cython.short
-
-
-
-def test_carray_setcomp_short_2():
-    """
-    >>> sorted(test_carray_setcomp_short_2())
-    ['ℇ']
-    """
-    carray: cython.short[2] = 'ℇℇ'
-
-    return {item for item in carray}  # cython.short
-
-
-
-def test_carray_genexpr_short_2():
-    """
-    >>> list(test_carray_genexpr_short_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.short[2] = 'ℇℇ'
-
-    return (item for item in carray)  # cython.short
-
-
-
-def test_literal_forin_short_2():
-    """
-    >>> test_literal_forin_short_2()
-    ['ℇ', 'ℇ']
-    """
-
-
-    items = []
-    for item in 'ℇℇ':  # cython.short
-        items.append(item)
-    return items
-
-
-
-def test_literal_generator_short_2():
-    """
-    >>> list(test_literal_generator_short_2())
-    ['ℇ', 'ℇ']
-    """
-
-
-    for item in 'ℇℇ':  # cython.short
-        yield item
-
-
-
-def test_literal_listcomp_short_2():
-    """
-    >>> test_literal_listcomp_short_2()
-    ['ℇ', 'ℇ']
-    """
-
-
-    return [item for item in 'ℇℇ']  # cython.short
-
-
-
-def test_literal_setcomp_short_2():
-    """
-    >>> sorted(test_literal_setcomp_short_2())
-    ['ℇ']
-    """
-
-
-    return {item for item in 'ℇℇ'}  # cython.short
-
-
-
-def test_literal_genexpr_short_2():
-    """
-    >>> list(test_literal_genexpr_short_2())
-    ['ℇ', 'ℇ']
-    """
-
-
-    return (item for item in 'ℇℇ')  # cython.short
-
-
-
-def test_carray_forin_short_2():
-    """
-    >>> test_carray_forin_short_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.short] = 'ℇℇ'
-
-    items = []
-    for item in carray[:2]:  # cython.short
-        items.append(item)
-    return items
-
-
-
-def test_carray_generator_short_2():
-    """
-    >>> list(test_carray_generator_short_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.short] = 'ℇℇ'
-
-    for item in carray[:2]:  # cython.short
-        yield item
-
-
-
-def test_carray_listcomp_short_2():
-    """
-    >>> test_carray_listcomp_short_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.short] = 'ℇℇ'
-
-    return [item for item in carray[:2]]  # cython.short
-
-
-
-def test_carray_setcomp_short_2():
-    """
-    >>> sorted(test_carray_setcomp_short_2())
-    ['ℇ']
-    """
-    carray: cython.pointer[cython.short] = 'ℇℇ'
-
-    return {item for item in carray[:2]}  # cython.short
-
-
-
-def test_carray_genexpr_short_2():
-    """
-    >>> list(test_carray_genexpr_short_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.short] = 'ℇℇ'
-
-    return (item for item in carray[:2])  # cython.short
 
 
 
@@ -11341,9 +10810,9 @@ def test_carray_genexpr_const_short_133():
 
 
 
-def test_carray_forin_const_short_1_56():
+def test_carray_forin_const_short_1_53():
     """
-    >>> test_carray_forin_const_short_1_56()
+    >>> test_carray_forin_const_short_1_53()
     ['☃']
     """
     carray: cython.const[cython.short][1] = '☃'
@@ -11355,9 +10824,9 @@ def test_carray_forin_const_short_1_56():
 
 
 
-def test_carray_generator_const_short_1_56():
+def test_carray_generator_const_short_1_53():
     """
-    >>> list(test_carray_generator_const_short_1_56())
+    >>> list(test_carray_generator_const_short_1_53())
     ['☃']
     """
     carray: cython.const[cython.short][1] = '☃'
@@ -11367,9 +10836,9 @@ def test_carray_generator_const_short_1_56():
 
 
 
-def test_carray_listcomp_const_short_1_56():
+def test_carray_listcomp_const_short_1_53():
     """
-    >>> test_carray_listcomp_const_short_1_56()
+    >>> test_carray_listcomp_const_short_1_53()
     ['☃']
     """
     carray: cython.const[cython.short][1] = '☃'
@@ -11378,9 +10847,9 @@ def test_carray_listcomp_const_short_1_56():
 
 
 
-def test_carray_setcomp_const_short_1_56():
+def test_carray_setcomp_const_short_1_53():
     """
-    >>> sorted(test_carray_setcomp_const_short_1_56())
+    >>> sorted(test_carray_setcomp_const_short_1_53())
     ['☃']
     """
     carray: cython.const[cython.short][1] = '☃'
@@ -11389,9 +10858,9 @@ def test_carray_setcomp_const_short_1_56():
 
 
 
-def test_carray_genexpr_const_short_1_56():
+def test_carray_genexpr_const_short_1_53():
     """
-    >>> list(test_carray_genexpr_const_short_1_56())
+    >>> list(test_carray_genexpr_const_short_1_53())
     ['☃']
     """
     carray: cython.const[cython.short][1] = '☃'
@@ -11400,9 +10869,9 @@ def test_carray_genexpr_const_short_1_56():
 
 
 
-def test_literal_forin_const_short_1_56():
+def test_literal_forin_const_short_1_53():
     """
-    >>> test_literal_forin_const_short_1_56()
+    >>> test_literal_forin_const_short_1_53()
     ['☃']
     """
 
@@ -11414,9 +10883,9 @@ def test_literal_forin_const_short_1_56():
 
 
 
-def test_literal_generator_const_short_1_56():
+def test_literal_generator_const_short_1_53():
     """
-    >>> list(test_literal_generator_const_short_1_56())
+    >>> list(test_literal_generator_const_short_1_53())
     ['☃']
     """
 
@@ -11426,9 +10895,9 @@ def test_literal_generator_const_short_1_56():
 
 
 
-def test_literal_listcomp_const_short_1_56():
+def test_literal_listcomp_const_short_1_53():
     """
-    >>> test_literal_listcomp_const_short_1_56()
+    >>> test_literal_listcomp_const_short_1_53()
     ['☃']
     """
 
@@ -11437,9 +10906,9 @@ def test_literal_listcomp_const_short_1_56():
 
 
 
-def test_literal_setcomp_const_short_1_56():
+def test_literal_setcomp_const_short_1_53():
     """
-    >>> sorted(test_literal_setcomp_const_short_1_56())
+    >>> sorted(test_literal_setcomp_const_short_1_53())
     ['☃']
     """
 
@@ -11448,9 +10917,9 @@ def test_literal_setcomp_const_short_1_56():
 
 
 
-def test_literal_genexpr_const_short_1_56():
+def test_literal_genexpr_const_short_1_53():
     """
-    >>> list(test_literal_genexpr_const_short_1_56())
+    >>> list(test_literal_genexpr_const_short_1_53())
     ['☃']
     """
 
@@ -11459,9 +10928,9 @@ def test_literal_genexpr_const_short_1_56():
 
 
 
-def test_carray_forin_const_short_1_56():
+def test_carray_forin_const_short_1_53():
     """
-    >>> test_carray_forin_const_short_1_56()
+    >>> test_carray_forin_const_short_1_53()
     ['☃']
     """
     carray: cython.pointer[cython.const[cython.short]] = '☃'
@@ -11473,9 +10942,9 @@ def test_carray_forin_const_short_1_56():
 
 
 
-def test_carray_generator_const_short_1_56():
+def test_carray_generator_const_short_1_53():
     """
-    >>> list(test_carray_generator_const_short_1_56())
+    >>> list(test_carray_generator_const_short_1_53())
     ['☃']
     """
     carray: cython.pointer[cython.const[cython.short]] = '☃'
@@ -11485,9 +10954,9 @@ def test_carray_generator_const_short_1_56():
 
 
 
-def test_carray_listcomp_const_short_1_56():
+def test_carray_listcomp_const_short_1_53():
     """
-    >>> test_carray_listcomp_const_short_1_56()
+    >>> test_carray_listcomp_const_short_1_53()
     ['☃']
     """
     carray: cython.pointer[cython.const[cython.short]] = '☃'
@@ -11496,9 +10965,9 @@ def test_carray_listcomp_const_short_1_56():
 
 
 
-def test_carray_setcomp_const_short_1_56():
+def test_carray_setcomp_const_short_1_53():
     """
-    >>> sorted(test_carray_setcomp_const_short_1_56())
+    >>> sorted(test_carray_setcomp_const_short_1_53())
     ['☃']
     """
     carray: cython.pointer[cython.const[cython.short]] = '☃'
@@ -11507,191 +10976,14 @@ def test_carray_setcomp_const_short_1_56():
 
 
 
-def test_carray_genexpr_const_short_1_56():
+def test_carray_genexpr_const_short_1_53():
     """
-    >>> list(test_carray_genexpr_const_short_1_56())
+    >>> list(test_carray_genexpr_const_short_1_53())
     ['☃']
     """
     carray: cython.pointer[cython.const[cython.short]] = '☃'
 
     return (item for item in carray[:1])  # cython.const[cython.short]
-
-
-
-def test_carray_forin_const_short_2():
-    """
-    >>> test_carray_forin_const_short_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.const[cython.short][2] = 'ℇℇ'
-
-    items = []
-    for item in carray:  # cython.const[cython.short]
-        items.append(item)
-    return items
-
-
-
-def test_carray_generator_const_short_2():
-    """
-    >>> list(test_carray_generator_const_short_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.const[cython.short][2] = 'ℇℇ'
-
-    for item in carray:  # cython.const[cython.short]
-        yield item
-
-
-
-def test_carray_listcomp_const_short_2():
-    """
-    >>> test_carray_listcomp_const_short_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.const[cython.short][2] = 'ℇℇ'
-
-    return [item for item in carray]  # cython.const[cython.short]
-
-
-
-def test_carray_setcomp_const_short_2():
-    """
-    >>> sorted(test_carray_setcomp_const_short_2())
-    ['ℇ']
-    """
-    carray: cython.const[cython.short][2] = 'ℇℇ'
-
-    return {item for item in carray}  # cython.const[cython.short]
-
-
-
-def test_carray_genexpr_const_short_2():
-    """
-    >>> list(test_carray_genexpr_const_short_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.const[cython.short][2] = 'ℇℇ'
-
-    return (item for item in carray)  # cython.const[cython.short]
-
-
-
-def test_literal_forin_const_short_2():
-    """
-    >>> test_literal_forin_const_short_2()
-    ['ℇ', 'ℇ']
-    """
-
-
-    items = []
-    for item in 'ℇℇ':  # cython.const[cython.short]
-        items.append(item)
-    return items
-
-
-
-def test_literal_generator_const_short_2():
-    """
-    >>> list(test_literal_generator_const_short_2())
-    ['ℇ', 'ℇ']
-    """
-
-
-    for item in 'ℇℇ':  # cython.const[cython.short]
-        yield item
-
-
-
-def test_literal_listcomp_const_short_2():
-    """
-    >>> test_literal_listcomp_const_short_2()
-    ['ℇ', 'ℇ']
-    """
-
-
-    return [item for item in 'ℇℇ']  # cython.const[cython.short]
-
-
-
-def test_literal_setcomp_const_short_2():
-    """
-    >>> sorted(test_literal_setcomp_const_short_2())
-    ['ℇ']
-    """
-
-
-    return {item for item in 'ℇℇ'}  # cython.const[cython.short]
-
-
-
-def test_literal_genexpr_const_short_2():
-    """
-    >>> list(test_literal_genexpr_const_short_2())
-    ['ℇ', 'ℇ']
-    """
-
-
-    return (item for item in 'ℇℇ')  # cython.const[cython.short]
-
-
-
-def test_carray_forin_const_short_2():
-    """
-    >>> test_carray_forin_const_short_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.const[cython.short]] = 'ℇℇ'
-
-    items = []
-    for item in carray[:2]:  # cython.const[cython.short]
-        items.append(item)
-    return items
-
-
-
-def test_carray_generator_const_short_2():
-    """
-    >>> list(test_carray_generator_const_short_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.const[cython.short]] = 'ℇℇ'
-
-    for item in carray[:2]:  # cython.const[cython.short]
-        yield item
-
-
-
-def test_carray_listcomp_const_short_2():
-    """
-    >>> test_carray_listcomp_const_short_2()
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.const[cython.short]] = 'ℇℇ'
-
-    return [item for item in carray[:2]]  # cython.const[cython.short]
-
-
-
-def test_carray_setcomp_const_short_2():
-    """
-    >>> sorted(test_carray_setcomp_const_short_2())
-    ['ℇ']
-    """
-    carray: cython.pointer[cython.const[cython.short]] = 'ℇℇ'
-
-    return {item for item in carray[:2]}  # cython.const[cython.short]
-
-
-
-def test_carray_genexpr_const_short_2():
-    """
-    >>> list(test_carray_genexpr_const_short_2())
-    ['ℇ', 'ℇ']
-    """
-    carray: cython.pointer[cython.const[cython.short]] = 'ℇℇ'
-
-    return (item for item in carray[:2])  # cython.const[cython.short]
 
 
 
@@ -12067,7 +11359,6 @@ def _gen_test_code():
     ]
     unicode_bmp_constants = [
         '\N{SNOWMAN}',
-        '\N{EULER CONSTANT}' * 2,
         '\N{N-ARY SUMMATION}' * 11,
         '\N{N-ARY SUMMATION} \N{EULER CONSTANT}' * 7,
     ]
