@@ -32,7 +32,7 @@ Contents:
    tempita
    troubleshooting
    faq
-
+   embedding
 Indices and tables
 ------------------
 
