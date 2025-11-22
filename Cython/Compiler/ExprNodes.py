@@ -9273,9 +9273,10 @@ class CArrayNode(ListNode):
     array_cname = None
     _array_cname_temp = None
 
-    def _allocate_carray(self, code):
+    def _allocate_carray(self, code, as_const):
         array_type = self.type
-        if array_type.base_type.is_const:
+        item_type = array_type.base_type
+        if as_const:
             # Declare static const array in place.
             self.array_cname = code.globalstate.new_const_cname('carray')
         elif self.in_module_scope:
@@ -9303,9 +9304,10 @@ class CArrayNode(ListNode):
             self._array_cname_temp = None
 
     def generate_operation_code(self, code):
-        array_cname = self._allocate_carray(code)
+        all_const = self.type.base_type.is_const and all(arg.is_literal for arg in self.args)
+        array_cname = self._allocate_carray(code, all_const)
 
-        if self.type.base_type.is_const:
+        if all_const:
             values = [item.result() for item in self.args]
 
             if self.mult_factor:
