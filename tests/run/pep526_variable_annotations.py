@@ -20,7 +20,7 @@ except ImportError:
     pass  # this should allow Cython to interpret the directives even when the module doesn't exist
 
 
-var = 1  # type: annotation
+pyobj_var = 1  # type: annotation
 var: cython.int = 2
 fvar: cython.float = 1.2
 some_number: cython.int    # variable without initial value
@@ -44,7 +44,7 @@ def f():
     >>> f()
     (2, 1.5, [], (1, 2, 3))
     """
-    var = 1  # type: annotation
+    pyobj_var = 1  # type: annotation
     var: cython.int = 2
     fvar: cython.float = 1.5
     some_number: cython.int    # variable without initial value
