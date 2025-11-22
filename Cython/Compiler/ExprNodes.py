@@ -1900,7 +1900,7 @@ class UnicodeNode(ConstNode):
             int_value = ord(self.value)
             return IntNode.for_int(self.pos, int_value, type=dst_type)
         elif dst_type.is_pyunicode_ptr:
-            return UnicodeNode.from_node(self, value=self.value, type=dst_type)
+            return UnicodeNode(self.pos, value=self.value, type=dst_type)
         elif dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int or (
                 dst_type.is_ptr and dst_type.base_type.is_void):
             # Allow using '-3' enforced unicode literals in a C char/char*/void* context.
