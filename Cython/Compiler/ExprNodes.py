@@ -1890,7 +1890,7 @@ class UnicodeNode(ConstNode):
 
     def coerce_to(self, dst_type, env):
         if dst_type is self.type:
-            pass
+            return self
         elif dst_type.is_unicode_char:
             if not self.can_coerce_to_char_literal():
                 error(self.pos,
@@ -1922,12 +1922,14 @@ class UnicodeNode(ConstNode):
                 return BytesNode.from_node(
                     self, value=bytes_value, constant_result=bytes_value).coerce_to(dst_type, env)
         elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type.is_int:
+            # Coerce the sequence of characters to a bare integer C array, including Py_UCS4[].
             if len(self.value) == 0:
                 error(self.pos, "Only non-empty Unicode string literals can be coerced into C arrays.")
             as_pyucs4 = partial(IntNode.for_int, self.pos, type=PyrexTypes.c_py_ucs4_type)
             return ListNode.from_node(
                 self, args=[as_pyucs4(ord(ch)) for ch in self.value]).analyse_types(env).coerce_to(dst_type, env)
-        elif not dst_type.is_pyobject:
+
+        if not dst_type.is_pyobject:
             error(self.pos,
                   "Unicode literals do not support coercion to C types other "
                   "than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* "
