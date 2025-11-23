@@ -8157,12 +8157,13 @@ class AttributeNode(ExprNode):
                 access_type = obj.type.vtabslot_type
             elif self.entry.is_inherited:
                 access_type = self.entry.inherited_scope.parent_type
-                levels = 0
+            if access_type != obj.type:
                 tp = obj.type
+                levels = 0
                 while tp != access_type:
                     tp = tp.base_type
                     levels += 1
-                access_code = f", {''.join([f'->{Naming.obj_base_cname}']*levels)}"
+                access_code = f", ->{'.'.join([Naming.obj_base_cname]*levels)}"
             if access_type.is_external:
                 return obj.result_as(access_type)
             else:
@@ -8191,7 +8192,7 @@ class AttributeNode(ExprNode):
                     # (AnalyseExpressionsTransform)
                     self.member = self.entry.cname
 
-                return "((struct %s *)%s%s%s)->%s" % (
+                return "((struct %s *)(%s%s%s))->%s" % (
                     obj.type.vtabstruct_cname, obj_code, self.op,
                     Naming.vtabslot_cname, self.member)
             elif self.result_is_used:

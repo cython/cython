@@ -1670,16 +1670,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if type.vtabslot_type:
             vtab_base_type = type.vtabslot_type
             if vtab_base_type is not type:
+                levels = 0
+                test_tp = type
+                while vtab_base_type is not test_tp:
+                    test_tp = test_tp.base_type
+                    levels += 1
+                vtab_access_code = f"{'.'.join([Naming.obj_base_cname]*levels)}."
                 struct_type_cast = "(struct %s*)" % vtab_base_type.vtabstruct_cname
             else:
+                vtab_access_code = ""
                 struct_type_cast = ""
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
             code.putln(f"__Pyx_GetCClassTypeData(o, {code.name_in_module_state(vtab_base_type.typeptr_cname)}, "
                        f"{vtab_base_type.empty_declaration_code(opaque_decl=False)})->{Naming.vtabslot_cname}"
                        f" = {struct_type_cast}{type.vtabptr_cname};")
             code.putln("#else")
-            code.putln("p->%s = %s%s;" % (
-                Naming.vtabslot_cname,
+            code.putln("p->%s%s = %s%s;" % (
+                vtab_access_code, Naming.vtabslot_cname,
                 struct_type_cast, type.vtabptr_cname))
             code.putln("#endif")
 
