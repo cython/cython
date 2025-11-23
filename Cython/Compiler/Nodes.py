@@ -2037,11 +2037,13 @@ class FuncDefNode(StatNode, BlockNode):
 
         lenv = self.local_scope
         if lenv.is_closure_scope and not lenv.is_passthrough:
-            outer_scope_cname = "%s->%s" % (Naming.cur_scope_cname,
-                                            Naming.outer_scope_cname)
+            outer_scope_cname = f"{Naming.cur_scope_cname}->{Naming.outer_scope_cname}"
+            outer_scope_obj_cname = f"{Naming.cur_scope_cname}->{Naming.outer_scope_obj_cname}"
         else:
             outer_scope_cname = Naming.outer_scope_cname
+            outer_scope_obj_cname = Naming.outer_scope_obj_cname
         lenv.mangle_closure_cnames(outer_scope_cname)
+        # lenv.mangle_closure_cnames(outer_scope_obj_cname)  # FIXME adjust this!
         # Generate closure function definitions
         self.body.generate_function_definitions(lenv, code)
         # generate lambda function definitions
@@ -2095,17 +2097,20 @@ class FuncDefNode(StatNode, BlockNode):
         while cenv.is_py_class_scope or cenv.is_c_class_scope:
             cenv = cenv.outer_scope
         if self.needs_closure:
-            code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname, allow_opaque_decl=False))
+            code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname, opaque_decl=False))
             code.putln(";")
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
             code.putln(f"PyObject* {Naming.cur_scope_obj_cname};")
             code.putln("#endif")
         elif self.needs_outer_scope:
             if lenv.is_passthrough:
-                code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname, allow_opaque_decl=False))
+                code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname, opaque_decl=False))
                 code.putln(";")
-            code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname, allow_opaque_decl=False))
+            code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname, opaque_decl=False))
             code.putln(";")
+            code.putln("#if CYTHON_OPAQUE_OBJECTS")
+            code.putln(f"PyObject* {Naming.outer_scope_obj_cname};")
+            code.putln("#endif")
         self.generate_argument_declarations(lenv, code)
 
         for entry in lenv.var_entries:
@@ -2182,7 +2187,7 @@ class FuncDefNode(StatNode, BlockNode):
                     code.name_in_module_state(lenv.scope_class.type.typeptr_cname))
             code.putln("%s = (%s)%s(%s, %s, NULL);" % (
                 Naming.cur_scope_obj_cname,
-                lenv.scope_class.type.empty_declaration_code(allow_opaque_decl=True),
+                lenv.scope_class.type.empty_declaration_code(opaque_decl=True),
                 slot_func_cname,
                 code.name_in_module_state(lenv.scope_class.type.typeptr_cname),
                 code.name_in_module_state(Naming.empty_tuple)))
@@ -2190,7 +2195,7 @@ class FuncDefNode(StatNode, BlockNode):
             # Scope unconditionally DECREFed on return.
             code.putln("%s = (%s)Py_None;" % (
                 Naming.cur_scope_obj_cname,
-                lenv.scope_class.type.empty_declaration_code(allow_opaque_decl=True)))
+                lenv.scope_class.type.empty_declaration_code(opaque_decl=True)))
             code.put_incref("Py_None", py_object_type)
             code.putln(code.error_goto(self.pos))
             code.putln("} else {")
@@ -2200,27 +2205,32 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
             code.putln(f"{Naming.cur_scope_cname} = __Pyx_GetCClassTypeData({Naming.cur_scope_obj_cname}, "
                     f"{code.name_in_module_state(lenv.scope_class.type.typeptr_cname)}, "
-                    f"{lenv.scope_class.type.empty_declaration_code(allow_opaque_decl=False)});")
+                    f"{lenv.scope_class.type.empty_declaration_code(opaque_decl=False)});")
             code.putln("#endif")
         if self.needs_outer_scope:
             if self.is_cyfunction:
-                code.putln("%s = __Pyx_GetCClassTypeData(__Pyx_CyFunction_GetClosure(%s), %s, %s);" % (
-                    outer_scope_cname,
-                    Naming.self_cname,
-                    code.name_in_module_state(cenv.scope_class.type.typeptr_cname),
-                    cenv.scope_class.type.empty_declaration_code(allow_opaque_decl=False),))
+                code.putln("%s = (%s)__Pyx_CyFunction_GetClosure(%s);" % (
+                    outer_scope_obj_cname,
+                    cenv.scope_class.type.empty_declaration_code(opaque_decl=True),
+                    Naming.self_cname,))
             else:
-                code.putln("%s = __Pyx_GetCClassTypeData(%s, %s, %s);" % (
+                code.putln("%s = (%s) %s;" % (
+                    outer_scope_obj_cname,
+                    cenv.scope_class.type.empty_declaration_code(opaque_decl=True),
+                    Naming.self_cname,))
+            code.putln("#if CYTHON_OPAQUE_OBJECTS")
+            code.putln("%s = __Pyx_GetCClassTypeData(%s, %s, %s);" % (
                     outer_scope_cname,
-                    Naming.self_cname,
+                    outer_scope_obj_cname,
                     code.name_in_module_state(cenv.scope_class.type.typeptr_cname),
                     cenv.scope_class.type.empty_declaration_code(),))
+            code.putln("#endif")
             if lenv.is_passthrough:
                 code.putln("%s = %s;" % (Naming.cur_scope_cname, outer_scope_cname))
             elif self.needs_closure:
                 # inner closures own a reference to their outer parent
-                code.put_incref(outer_scope_cname, cenv.scope_class.type)
-                code.put_giveref(outer_scope_cname, cenv.scope_class.type)
+                code.put_incref(outer_scope_obj_cname, cenv.scope_class.type)
+                code.put_giveref(outer_scope_obj_cname, cenv.scope_class.type)
         # ----- Trace function call
         if tracing:
             # this looks a bit late, but if we don't get here due to a
@@ -4904,8 +4914,14 @@ class GeneratorBodyDefNode(DefNode):
         self.generate_function_body(env, code)
         # ----- Closure initialization
         if lenv.scope_class.type.scope.var_entries:
+            closure_init_code.putln("#if CYTHON_OPAQUE_OBJECTS")
+            closure_init_code.putln('%s = %s->closure;' % (
+                py_object_type.declaration_code(Naming.cur_scope_obj_cname),
+                Naming.generator_cname
+            ))
+            closure_init_code.putln("#endif")
             closure_init_code.putln('%s = %s;' % (
-                lenv.scope_class.type.declaration_code(Naming.cur_scope_cname, allow_opaque_decl=False),
+                lenv.scope_class.type.declaration_code(Naming.cur_scope_cname, opaque_decl=False),
                 lenv.scope_class.type.cast_code('%s->closure' %
                                                 Naming.generator_cname, type_data_cast=True)))
             # FIXME: this silences a potential "unused" warning => try to avoid unused closures in more cases

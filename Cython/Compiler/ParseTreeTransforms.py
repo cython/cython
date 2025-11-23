@@ -3560,6 +3560,7 @@ class CreateClosureClasses(CythonTransform):
             name=as_name, pos=node.pos, defining=True,
             implementing=True)
         entry.type.is_final_type = True
+        entry.type.opaque_decl_by_default = False
 
         func_scope.scope_class = entry
         class_scope = entry.type.scope
@@ -3578,6 +3579,13 @@ class CreateClosureClasses(CythonTransform):
                                     cname=Naming.outer_scope_cname,
                                     type=cscope.scope_class.type,
                                     is_cdef=True)
+            obj_entry = class_scope.declare_var(
+                pos=node.pos,
+                name=Naming.outer_scope_obj_cname,
+                cname=Naming.outer_scope_obj_cname,
+                type=PyrexTypes.py_object_type,
+                is_cdef=True)
+            obj_entry.preprocessor_guard = "CYTHON_OPAQUE_OBJECTS"
             node.needs_outer_scope = True
         for name, entry in in_closure:
             closure_entry = class_scope.declare_var(

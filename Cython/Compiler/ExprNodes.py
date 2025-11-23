@@ -8164,7 +8164,7 @@ class AttributeNode(ExprNode):
                     levels += 1
                 access_code = f", {''.join([f'->{Naming.obj_base_cname}']*levels)}"
             if access_type.is_external:
-                obj_code = obj.result_as(access_type, type_data_cast=True)
+                obj_code = obj.result_as(access_type)
             else:
                 # FIXME - we really need Code to get to this
                 typeptr_cname = f"{Naming.modulestateglobal_cname}->{access_type.typeptr_cname}"

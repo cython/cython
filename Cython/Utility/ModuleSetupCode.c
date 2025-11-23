@@ -925,6 +925,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     #define __Pyx_GetCClassTypeData(o, cls, ...) (__PYX_DEREF_IF_VARARGS(__VA_ARGS__)((o)__PYX_GET_SECOND(__VA_ARGS__)))
     #define __Pyx_GetCClassTypeDataAndCast(o, cls, T) (T)__Pyx_GetCClassTypeData(o, cls, T)
     #define $cur_scope_obj_cname $cur_scope_cname 
+    #define $outer_scope_obj_cname $outer_scope_cname
 #endif
 
 #if CYTHON_USE_MODULE_STATE

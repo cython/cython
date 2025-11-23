@@ -1622,6 +1622,8 @@ class PyExtensionType(PyObjectType):
     #  dataclass_fields  OrderedDict nor None   Used for inheriting from dataclasses
     #  multiple_bases    boolean          Does this class have multiple bases
     #  has_sequence_flag  boolean        Set Py_TPFLAGS_SEQUENCE
+    #  opaque_decl_by_default boolean    When using "CYTHON_OPAQUE_OBJECTS", declarations of this type
+    #                                       should be opaque (unless specifically requested not to be) 
 
     is_extension_type = 1
     has_attributes = 1
@@ -1631,6 +1633,7 @@ class PyExtensionType(PyObjectType):
     dataclass_fields = None
     multiple_bases = False
     has_sequence_flag = False
+    opaque_decl_by_default = True
 
     def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
@@ -1692,7 +1695,9 @@ class PyExtensionType(PyObjectType):
         return False
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0, deref = 0, allow_opaque_decl = True):
+            for_display = 0, dll_linkage = None, pyrex = 0, deref = 0, opaque_decl = None):
+        if opaque_decl is None:
+            opaque_decl = self.opaque_decl_by_default
         if pyrex or for_display:
             base_code = self.name
         else:
@@ -1700,7 +1705,7 @@ class PyExtensionType(PyObjectType):
                 objstruct = self.objstruct_cname
             else:
                 objstruct = "struct %s" % self.objstruct_cname
-            if allow_opaque_decl and not self.is_external:
+            if opaque_decl and not self.is_external:
                 objstruct = f"__PYX_C_CLASS_DECL({objstruct})"
             base_code = public_decl(objstruct, dll_linkage)
             if deref:
@@ -1726,7 +1731,7 @@ class PyExtensionType(PyObjectType):
             return super().cast_code(expr_code)
         # FIXME - we really need Code to get to this
         typeptr_cname = f"{Naming.modulestateglobal_cname}->{self.typeptr_cname}"
-        return f"__Pyx_GetCClassTypeDataAndCast({expr_code}, {typeptr_cname}, {self.declaration_code("", allow_opaque_decl=False)})"
+        return f"__Pyx_GetCClassTypeDataAndCast({expr_code}, {typeptr_cname}, {self.declaration_code("", opaque_decl=False)})"
 
     def __str__(self):
         return self.name

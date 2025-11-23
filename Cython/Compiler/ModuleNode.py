@@ -9,6 +9,7 @@ cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=objec
                EncodedString=object, re=object)
 
 from collections import defaultdict
+import contextlib
 import json
 import operator
 import os
@@ -1360,7 +1361,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 decl = attr_type.declaration_code(attr.cname)
             type.scope.use_entry_utility_code(attr)
-            code.putln("%s;" % decl)
+            with self._generate_entry_preprocessor_guard(attr, code):
+                code.putln("%s;" % decl)
         code.putln(footer)
         if type.objtypedef_cname is not None:
             # Only for exposing public typedef name.
@@ -1530,8 +1532,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         type = scope.parent_type
         code.putln(
             "%s = %s;" % (
-                type.declaration_code("p", allow_opaque_decl=False),
+                type.declaration_code("p", opaque_decl=False),
                 type.cast_code("o", type_data_cast=True)))
+        
+    @contextlib.contextmanager
+    def _generate_entry_preprocessor_guard(self, entry, code):
+        if entry.preprocessor_guard is not None:
+            code.putln(f"#if {entry.preprocessor_guard}")
+        yield
+        if entry.preprocessor_guard is not None:
+            code.putln(f"#endif")
+
 
     @staticmethod
     def generate_freelist_condition(code, size_check, type_cname, type):
@@ -1541,7 +1552,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             freelist_check = '__PYX_CHECK_FINAL_TYPE_FOR_FREELISTS'
         else:
             freelist_check = '__PYX_CHECK_TYPE_FOR_FREELISTS'
-        obj_struct = type.declaration_code("", deref=True, allow_opaque_decl=False)
+        obj_struct = type.declaration_code("", deref=True, opaque_decl=False)
         typeptr_cname = code.name_in_slot_module_state(type.typeptr_cname)
         code.putln(
             f"if (likely((int)({size_check}) & {freelist_check}({type_cname}, {typeptr_cname}, sizeof({obj_struct}))))")
@@ -1600,7 +1611,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                           (py_buffers or memoryview_slices or py_attrs) or
                           explicitly_constructable_attrs)
         if need_self_cast:
-            code.putln("%s;" % scope.parent_type.declaration_code("p", allow_opaque_decl=False))
+            code.putln("%s;" % scope.parent_type.declaration_code("p", opaque_decl=False))
         if base_type:
             tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
             base_type_typeptr_cname = base_type.typeptr_cname
@@ -1622,7 +1633,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name,
                     freecount_name))
-                obj_struct = type.declaration_code("", deref=True, allow_opaque_decl=False)
+                obj_struct = type.declaration_code("", deref=True, opaque_decl=False)
                 code.putln("#if CYTHON_USE_TYPE_SPECS")
                 # We still hold a reference to the type object held by the previous
                 # user of the freelist object - release it.
@@ -1666,7 +1677,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 struct_type_cast = ""
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
             code.putln(f"__Pyx_GetCClassTypeData(o, {code.name_in_module_state(vtab_base_type.typeptr_cname)}, "
-                       f"{vtab_base_type.empty_declaration_code(allow_opaque_decl=False)})->{vtab_base_type.vtabslot_cname}"
+                       f"{vtab_base_type.empty_declaration_code(opaque_decl=False)})->{vtab_base_type.vtabslot_cname}"
                        f" = {struct_type_cast}{type.vtabptr_cname};")
             code.putln("#else")
             code.putln("p->%s = %s%s;" % (
@@ -1814,11 +1825,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("if (p->__dict__) PyDict_Clear(p->__dict__);")
 
         for entry in explicitly_destructable_attrs:
-            entry.type.generate_explicit_destruction(code, entry, extra_access_code="p->")
+            with self._generate_entry_preprocessor_guard(entry, code):
+                entry.type.generate_explicit_destruction(code, entry, extra_access_code="p->")
 
         for entry in (py_attrs + memoryview_slices):
-            code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
-                                   clear_before_decref=True, have_gil=True)
+            with self._generate_entry_preprocessor_guard(entry, code):
+                code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
+                                       clear_before_decref=True, have_gil=True)
 
         if base_type:
             base_cname = base_type.typeptr_cname
@@ -1987,21 +2000,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 UtilityCode.load_cached("CallTypeTraverse", "ExtensionTypes.c"))
 
         for entry in py_attrs:
-            var_code = "p->%s" % entry.cname
-            var_as_pyobject = PyrexTypes.typecast(py_object_type, entry.type, var_code)
-            code.putln("if (%s) {" % var_code)
-            code.putln("e = (*v)(%s, a); if (e) return e;" % var_as_pyobject)
-            code.putln("}")
+            with self._generate_entry_preprocessor_guard(entry, code):
+                var_code = "p->%s" % entry.cname
+                var_as_pyobject = PyrexTypes.typecast(py_object_type, entry.type, var_code)
+                code.putln("if (%s) {" % var_code)
+                code.putln("e = (*v)(%s, a); if (e) return e;" % var_as_pyobject)
+                code.putln("}")
 
         # Traverse buffer exporting objects.
         # Note: not traversing memoryview attributes of memoryview slices!
         # When triggered by the GC, it would cause multiple visits (gc_refs
         # subtractions which is not matched by its reference count!)
         for entry in py_buffers:
-            cname = entry.cname + ".obj"
-            code.putln("if (p->%s) {" % cname)
-            code.putln("e = (*v)(p->%s, a); if (e) return e;" % cname)
-            code.putln("}")
+            with self._generate_entry_preprocessor_guard(entry, code):
+                cname = entry.cname + ".obj"
+                code.putln("if (p->%s) {" % cname)
+                code.putln("e = (*v)(p->%s, a); if (e) return e;" % cname)
+                code.putln("}")
 
         code.putln("return 0;")
         code.putln("}")
@@ -2063,20 +2078,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.clear_to_none:
             for entry in py_attrs:
-                name = "p->%s" % entry.cname
-                code.putln("tmp = ((PyObject*)%s);" % name)
-                if entry.is_declared_generic:
-                    code.put_init_to_py_none(name, py_object_type, nanny=False)
-                else:
-                    code.put_init_to_py_none(name, entry.type, nanny=False)
-                code.putln("Py_XDECREF(tmp);")
+                with self._generate_entry_preprocessor_guard(entry, code):
+                    name = "p->%s" % entry.cname
+                    code.putln("tmp = ((PyObject*)%s);" % name)
+                    if entry.is_declared_generic:
+                        code.put_init_to_py_none(name, py_object_type, nanny=False)
+                    else:
+                        code.put_init_to_py_none(name, entry.type, nanny=False)
+                    code.putln("Py_XDECREF(tmp);")
         else:
             for entry in py_attrs:
-                code.putln("Py_CLEAR(p->%s);" % entry.cname)
+                with self._generate_entry_preprocessor_guard(entry, code):
+                    code.putln("Py_CLEAR(p->%s);" % entry.cname)
 
         for entry in py_buffers:
-            # Note: shouldn't this call PyBuffer_Release ??
-            code.putln("Py_CLEAR(p->%s.obj);" % entry.cname)
+            with self._generate_entry_preprocessor_guard(entry, code):
+                # Note: shouldn't this call PyBuffer_Release ??
+                code.putln("Py_CLEAR(p->%s.obj);" % entry.cname)
 
         if cclass_entry.cname == '__pyx_memoryviewslice':
             code.putln("__PYX_XCLEAR_MEMVIEW(&p->from_slice, 1);")
