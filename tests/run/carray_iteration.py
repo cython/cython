@@ -16,10 +16,10 @@ else:
 
 
 ###### START: generated test code ######
-#  540 tests optimised using CArrayNode
-#  328 tests not optimised
+#  788 tests optimised using CArrayNode
+#   80 tests not optimised
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_int_1_constant_arg(arg: cython.int):
     """
     >>> test_carray_forin_constant_int_1_constant_arg(4)
@@ -33,7 +33,7 @@ def test_carray_forin_constant_int_1_constant_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_int_1_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_constant_int_1_constant_arg(4))
@@ -45,7 +45,7 @@ def test_carray_generator_constant_int_1_constant_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_int_1_constant_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_constant_int_1_constant_arg(4)
@@ -56,7 +56,7 @@ def test_carray_listcomp_constant_int_1_constant_arg(arg: cython.int):
     return [item for item in carray]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_int_1_constant_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_constant_int_1_constant_arg(4))
@@ -67,8 +67,7 @@ def test_carray_setcomp_constant_int_1_constant_arg(arg: cython.int):
     return {item for item in carray}  # cython.int
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_int_1_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_genexpr_constant_int_1_constant_arg(4))
@@ -78,7 +77,7 @@ def test_carray_genexpr_constant_int_1_constant_arg(arg: cython.int):
 
     return (item for item in carray)  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_int_1_constant():
     """
     >>> test_carray_forin_constant_int_1_constant()
@@ -92,7 +91,7 @@ def test_carray_forin_constant_int_1_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_int_1_constant():
     """
     >>> list(test_carray_generator_constant_int_1_constant())
@@ -104,7 +103,7 @@ def test_carray_generator_constant_int_1_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_int_1_constant():
     """
     >>> test_carray_listcomp_constant_int_1_constant()
@@ -115,7 +114,7 @@ def test_carray_listcomp_constant_int_1_constant():
     return [item for item in carray]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_int_1_constant():
     """
     >>> sorted(test_carray_setcomp_constant_int_1_constant())
@@ -126,8 +125,7 @@ def test_carray_setcomp_constant_int_1_constant():
     return {item for item in carray}  # cython.int
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_int_1_constant():
     """
     >>> list(test_carray_genexpr_constant_int_1_constant())
@@ -137,7 +135,7 @@ def test_carray_genexpr_constant_int_1_constant():
 
     return (item for item in carray)  # cython.int
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_int_1_literal_arg(arg: cython.int):
     """
     >>> test_literal_forin_literal_int_1_literal_arg(4)
@@ -151,7 +149,7 @@ def test_literal_forin_literal_int_1_literal_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_int_1_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_generator_literal_int_1_literal_arg(4))
@@ -163,7 +161,7 @@ def test_literal_generator_literal_int_1_literal_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_int_1_literal_arg(arg: cython.int):
     """
     >>> test_literal_listcomp_literal_int_1_literal_arg(4)
@@ -174,7 +172,7 @@ def test_literal_listcomp_literal_int_1_literal_arg(arg: cython.int):
     return [item for item in [0, arg]]  # cython.int
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_int_1_literal_arg(arg: cython.int):
     """
     >>> sorted(test_literal_setcomp_literal_int_1_literal_arg(4))
@@ -185,8 +183,7 @@ def test_literal_setcomp_literal_int_1_literal_arg(arg: cython.int):
     return {item for item in [0, arg]}  # cython.int
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_int_1_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_genexpr_literal_int_1_literal_arg(4))
@@ -196,7 +193,7 @@ def test_literal_genexpr_literal_int_1_literal_arg(arg: cython.int):
 
     return (item for item in [0, arg])  # cython.int
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_int_1_literal():
     """
     >>> test_literal_forin_literal_int_1_literal()
@@ -210,7 +207,7 @@ def test_literal_forin_literal_int_1_literal():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_int_1_literal():
     """
     >>> list(test_literal_generator_literal_int_1_literal())
@@ -222,7 +219,7 @@ def test_literal_generator_literal_int_1_literal():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_int_1_literal():
     """
     >>> test_literal_listcomp_literal_int_1_literal()
@@ -233,7 +230,7 @@ def test_literal_listcomp_literal_int_1_literal():
     return [item for item in [0]]  # cython.int
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_int_1_literal():
     """
     >>> sorted(test_literal_setcomp_literal_int_1_literal())
@@ -244,8 +241,7 @@ def test_literal_setcomp_literal_int_1_literal():
     return {item for item in [0]}  # cython.int
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_int_1_literal():
     """
     >>> list(test_literal_genexpr_literal_int_1_literal())
@@ -255,7 +251,7 @@ def test_literal_genexpr_literal_int_1_literal():
 
     return (item for item in [0])  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_int_1_pointer_arg(arg: cython.int):
     """
     >>> test_carray_forin_pointer_int_1_pointer_arg(4)
@@ -269,7 +265,7 @@ def test_carray_forin_pointer_int_1_pointer_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_int_1_pointer_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_pointer_int_1_pointer_arg(4))
@@ -281,7 +277,7 @@ def test_carray_generator_pointer_int_1_pointer_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_int_1_pointer_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_pointer_int_1_pointer_arg(4)
@@ -292,7 +288,7 @@ def test_carray_listcomp_pointer_int_1_pointer_arg(arg: cython.int):
     return [item for item in carray[:2]]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_int_1_pointer_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_pointer_int_1_pointer_arg(4))
@@ -302,7 +298,7 @@ def test_carray_setcomp_pointer_int_1_pointer_arg(arg: cython.int):
 
     return {item for item in carray[:2]}  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_int_1_pointer():
     """
     >>> test_carray_forin_pointer_int_1_pointer()
@@ -316,7 +312,7 @@ def test_carray_forin_pointer_int_1_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_int_1_pointer():
     """
     >>> list(test_carray_generator_pointer_int_1_pointer())
@@ -328,7 +324,7 @@ def test_carray_generator_pointer_int_1_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_int_1_pointer():
     """
     >>> test_carray_listcomp_pointer_int_1_pointer()
@@ -339,7 +335,7 @@ def test_carray_listcomp_pointer_int_1_pointer():
     return [item for item in carray[:1]]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_int_1_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_int_1_pointer())
@@ -349,7 +345,7 @@ def test_carray_setcomp_pointer_int_1_pointer():
 
     return {item for item in carray[:1]}  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_int_2_constant_arg(arg: cython.int):
     """
     >>> test_carray_forin_constant_int_2_constant_arg(4)
@@ -363,7 +359,7 @@ def test_carray_forin_constant_int_2_constant_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_int_2_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_constant_int_2_constant_arg(4))
@@ -375,7 +371,7 @@ def test_carray_generator_constant_int_2_constant_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_int_2_constant_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_constant_int_2_constant_arg(4)
@@ -386,7 +382,7 @@ def test_carray_listcomp_constant_int_2_constant_arg(arg: cython.int):
     return [item for item in carray]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_int_2_constant_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_constant_int_2_constant_arg(4))
@@ -397,8 +393,7 @@ def test_carray_setcomp_constant_int_2_constant_arg(arg: cython.int):
     return {item for item in carray}  # cython.int
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_int_2_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_genexpr_constant_int_2_constant_arg(4))
@@ -408,7 +403,7 @@ def test_carray_genexpr_constant_int_2_constant_arg(arg: cython.int):
 
     return (item for item in carray)  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_int_2_constant():
     """
     >>> test_carray_forin_constant_int_2_constant()
@@ -422,7 +417,7 @@ def test_carray_forin_constant_int_2_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_int_2_constant():
     """
     >>> list(test_carray_generator_constant_int_2_constant())
@@ -434,7 +429,7 @@ def test_carray_generator_constant_int_2_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_int_2_constant():
     """
     >>> test_carray_listcomp_constant_int_2_constant()
@@ -445,7 +440,7 @@ def test_carray_listcomp_constant_int_2_constant():
     return [item for item in carray]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_int_2_constant():
     """
     >>> sorted(test_carray_setcomp_constant_int_2_constant())
@@ -456,8 +451,7 @@ def test_carray_setcomp_constant_int_2_constant():
     return {item for item in carray}  # cython.int
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_int_2_constant():
     """
     >>> list(test_carray_genexpr_constant_int_2_constant())
@@ -467,7 +461,7 @@ def test_carray_genexpr_constant_int_2_constant():
 
     return (item for item in carray)  # cython.int
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_int_2_literal_arg(arg: cython.int):
     """
     >>> test_literal_forin_literal_int_2_literal_arg(4)
@@ -481,7 +475,7 @@ def test_literal_forin_literal_int_2_literal_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_int_2_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_generator_literal_int_2_literal_arg(4))
@@ -493,7 +487,7 @@ def test_literal_generator_literal_int_2_literal_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_int_2_literal_arg(arg: cython.int):
     """
     >>> test_literal_listcomp_literal_int_2_literal_arg(4)
@@ -504,7 +498,7 @@ def test_literal_listcomp_literal_int_2_literal_arg(arg: cython.int):
     return [item for item in [0, 0, arg]]  # cython.int
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_int_2_literal_arg(arg: cython.int):
     """
     >>> sorted(test_literal_setcomp_literal_int_2_literal_arg(4))
@@ -515,8 +509,7 @@ def test_literal_setcomp_literal_int_2_literal_arg(arg: cython.int):
     return {item for item in [0, 0, arg]}  # cython.int
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_int_2_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_genexpr_literal_int_2_literal_arg(4))
@@ -526,7 +519,7 @@ def test_literal_genexpr_literal_int_2_literal_arg(arg: cython.int):
 
     return (item for item in [0, 0, arg])  # cython.int
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_int_2_literal():
     """
     >>> test_literal_forin_literal_int_2_literal()
@@ -540,7 +533,7 @@ def test_literal_forin_literal_int_2_literal():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_int_2_literal():
     """
     >>> list(test_literal_generator_literal_int_2_literal())
@@ -552,7 +545,7 @@ def test_literal_generator_literal_int_2_literal():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_int_2_literal():
     """
     >>> test_literal_listcomp_literal_int_2_literal()
@@ -563,7 +556,7 @@ def test_literal_listcomp_literal_int_2_literal():
     return [item for item in [0, 0]]  # cython.int
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_int_2_literal():
     """
     >>> sorted(test_literal_setcomp_literal_int_2_literal())
@@ -574,8 +567,7 @@ def test_literal_setcomp_literal_int_2_literal():
     return {item for item in [0, 0]}  # cython.int
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_int_2_literal():
     """
     >>> list(test_literal_genexpr_literal_int_2_literal())
@@ -585,7 +577,7 @@ def test_literal_genexpr_literal_int_2_literal():
 
     return (item for item in [0, 0])  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_int_2_pointer_arg(arg: cython.int):
     """
     >>> test_carray_forin_pointer_int_2_pointer_arg(4)
@@ -599,7 +591,7 @@ def test_carray_forin_pointer_int_2_pointer_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_int_2_pointer_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_pointer_int_2_pointer_arg(4))
@@ -611,7 +603,7 @@ def test_carray_generator_pointer_int_2_pointer_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_int_2_pointer_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_pointer_int_2_pointer_arg(4)
@@ -622,7 +614,7 @@ def test_carray_listcomp_pointer_int_2_pointer_arg(arg: cython.int):
     return [item for item in carray[:3]]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_int_2_pointer_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_pointer_int_2_pointer_arg(4))
@@ -632,7 +624,7 @@ def test_carray_setcomp_pointer_int_2_pointer_arg(arg: cython.int):
 
     return {item for item in carray[:3]}  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_int_2_pointer():
     """
     >>> test_carray_forin_pointer_int_2_pointer()
@@ -646,7 +638,7 @@ def test_carray_forin_pointer_int_2_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_int_2_pointer():
     """
     >>> list(test_carray_generator_pointer_int_2_pointer())
@@ -658,7 +650,7 @@ def test_carray_generator_pointer_int_2_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_int_2_pointer():
     """
     >>> test_carray_listcomp_pointer_int_2_pointer()
@@ -669,7 +661,7 @@ def test_carray_listcomp_pointer_int_2_pointer():
     return [item for item in carray[:2]]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_int_2_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_int_2_pointer())
@@ -679,7 +671,7 @@ def test_carray_setcomp_pointer_int_2_pointer():
 
     return {item for item in carray[:2]}  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_int_4_constant_arg(arg: cython.int):
     """
     >>> test_carray_forin_constant_int_4_constant_arg(4)
@@ -693,7 +685,7 @@ def test_carray_forin_constant_int_4_constant_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_int_4_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_constant_int_4_constant_arg(4))
@@ -705,7 +697,7 @@ def test_carray_generator_constant_int_4_constant_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_int_4_constant_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_constant_int_4_constant_arg(4)
@@ -716,7 +708,7 @@ def test_carray_listcomp_constant_int_4_constant_arg(arg: cython.int):
     return [item for item in carray]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_int_4_constant_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_constant_int_4_constant_arg(4))
@@ -727,8 +719,7 @@ def test_carray_setcomp_constant_int_4_constant_arg(arg: cython.int):
     return {item for item in carray}  # cython.int
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_int_4_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_genexpr_constant_int_4_constant_arg(4))
@@ -738,7 +729,7 @@ def test_carray_genexpr_constant_int_4_constant_arg(arg: cython.int):
 
     return (item for item in carray)  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_int_4_constant():
     """
     >>> test_carray_forin_constant_int_4_constant()
@@ -752,7 +743,7 @@ def test_carray_forin_constant_int_4_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_int_4_constant():
     """
     >>> list(test_carray_generator_constant_int_4_constant())
@@ -764,7 +755,7 @@ def test_carray_generator_constant_int_4_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_int_4_constant():
     """
     >>> test_carray_listcomp_constant_int_4_constant()
@@ -775,7 +766,7 @@ def test_carray_listcomp_constant_int_4_constant():
     return [item for item in carray]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_int_4_constant():
     """
     >>> sorted(test_carray_setcomp_constant_int_4_constant())
@@ -786,8 +777,7 @@ def test_carray_setcomp_constant_int_4_constant():
     return {item for item in carray}  # cython.int
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_int_4_constant():
     """
     >>> list(test_carray_genexpr_constant_int_4_constant())
@@ -797,7 +787,7 @@ def test_carray_genexpr_constant_int_4_constant():
 
     return (item for item in carray)  # cython.int
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_int_4_literal_arg(arg: cython.int):
     """
     >>> test_literal_forin_literal_int_4_literal_arg(4)
@@ -811,7 +801,7 @@ def test_literal_forin_literal_int_4_literal_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_int_4_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_generator_literal_int_4_literal_arg(4))
@@ -823,7 +813,7 @@ def test_literal_generator_literal_int_4_literal_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_int_4_literal_arg(arg: cython.int):
     """
     >>> test_literal_listcomp_literal_int_4_literal_arg(4)
@@ -834,7 +824,7 @@ def test_literal_listcomp_literal_int_4_literal_arg(arg: cython.int):
     return [item for item in [1, 2, 3, 4, arg]]  # cython.int
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_int_4_literal_arg(arg: cython.int):
     """
     >>> sorted(test_literal_setcomp_literal_int_4_literal_arg(4))
@@ -845,8 +835,7 @@ def test_literal_setcomp_literal_int_4_literal_arg(arg: cython.int):
     return {item for item in [1, 2, 3, 4, arg]}  # cython.int
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_int_4_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_genexpr_literal_int_4_literal_arg(4))
@@ -856,7 +845,7 @@ def test_literal_genexpr_literal_int_4_literal_arg(arg: cython.int):
 
     return (item for item in [1, 2, 3, 4, arg])  # cython.int
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_int_4_literal():
     """
     >>> test_literal_forin_literal_int_4_literal()
@@ -870,7 +859,7 @@ def test_literal_forin_literal_int_4_literal():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_int_4_literal():
     """
     >>> list(test_literal_generator_literal_int_4_literal())
@@ -882,7 +871,7 @@ def test_literal_generator_literal_int_4_literal():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_int_4_literal():
     """
     >>> test_literal_listcomp_literal_int_4_literal()
@@ -893,7 +882,7 @@ def test_literal_listcomp_literal_int_4_literal():
     return [item for item in [1, 2, 3, 4]]  # cython.int
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_int_4_literal():
     """
     >>> sorted(test_literal_setcomp_literal_int_4_literal())
@@ -904,8 +893,7 @@ def test_literal_setcomp_literal_int_4_literal():
     return {item for item in [1, 2, 3, 4]}  # cython.int
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_int_4_literal():
     """
     >>> list(test_literal_genexpr_literal_int_4_literal())
@@ -915,7 +903,7 @@ def test_literal_genexpr_literal_int_4_literal():
 
     return (item for item in [1, 2, 3, 4])  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_int_4_pointer_arg(arg: cython.int):
     """
     >>> test_carray_forin_pointer_int_4_pointer_arg(4)
@@ -929,7 +917,7 @@ def test_carray_forin_pointer_int_4_pointer_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_int_4_pointer_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_pointer_int_4_pointer_arg(4))
@@ -941,7 +929,7 @@ def test_carray_generator_pointer_int_4_pointer_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_int_4_pointer_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_pointer_int_4_pointer_arg(4)
@@ -952,7 +940,7 @@ def test_carray_listcomp_pointer_int_4_pointer_arg(arg: cython.int):
     return [item for item in carray[:5]]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_int_4_pointer_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_pointer_int_4_pointer_arg(4))
@@ -962,7 +950,7 @@ def test_carray_setcomp_pointer_int_4_pointer_arg(arg: cython.int):
 
     return {item for item in carray[:5]}  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_int_4_pointer():
     """
     >>> test_carray_forin_pointer_int_4_pointer()
@@ -976,7 +964,7 @@ def test_carray_forin_pointer_int_4_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_int_4_pointer():
     """
     >>> list(test_carray_generator_pointer_int_4_pointer())
@@ -988,7 +976,7 @@ def test_carray_generator_pointer_int_4_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_int_4_pointer():
     """
     >>> test_carray_listcomp_pointer_int_4_pointer()
@@ -999,7 +987,7 @@ def test_carray_listcomp_pointer_int_4_pointer():
     return [item for item in carray[:4]]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_int_4_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_int_4_pointer())
@@ -1009,7 +997,7 @@ def test_carray_setcomp_pointer_int_4_pointer():
 
     return {item for item in carray[:4]}  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_int_266_constant_arg(arg: cython.int):
     """
     >>> test_carray_forin_constant_int_266_constant_arg(4)
@@ -1023,7 +1011,7 @@ def test_carray_forin_constant_int_266_constant_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_int_266_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_constant_int_266_constant_arg(4))
@@ -1035,7 +1023,7 @@ def test_carray_generator_constant_int_266_constant_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_int_266_constant_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_constant_int_266_constant_arg(4)
@@ -1046,7 +1034,7 @@ def test_carray_listcomp_constant_int_266_constant_arg(arg: cython.int):
     return [item for item in carray]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_int_266_constant_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_constant_int_266_constant_arg(4))
@@ -1057,8 +1045,7 @@ def test_carray_setcomp_constant_int_266_constant_arg(arg: cython.int):
     return {item for item in carray}  # cython.int
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_int_266_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_genexpr_constant_int_266_constant_arg(4))
@@ -1068,7 +1055,7 @@ def test_carray_genexpr_constant_int_266_constant_arg(arg: cython.int):
 
     return (item for item in carray)  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_int_266_constant():
     """
     >>> test_carray_forin_constant_int_266_constant()
@@ -1082,7 +1069,7 @@ def test_carray_forin_constant_int_266_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_int_266_constant():
     """
     >>> list(test_carray_generator_constant_int_266_constant())
@@ -1094,7 +1081,7 @@ def test_carray_generator_constant_int_266_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_int_266_constant():
     """
     >>> test_carray_listcomp_constant_int_266_constant()
@@ -1105,7 +1092,7 @@ def test_carray_listcomp_constant_int_266_constant():
     return [item for item in carray]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_int_266_constant():
     """
     >>> sorted(test_carray_setcomp_constant_int_266_constant())
@@ -1116,8 +1103,7 @@ def test_carray_setcomp_constant_int_266_constant():
     return {item for item in carray}  # cython.int
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_int_266_constant():
     """
     >>> list(test_carray_genexpr_constant_int_266_constant())
@@ -1127,7 +1113,7 @@ def test_carray_genexpr_constant_int_266_constant():
 
     return (item for item in carray)  # cython.int
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_int_266_literal_arg(arg: cython.int):
     """
     >>> test_literal_forin_literal_int_266_literal_arg(4)
@@ -1141,7 +1127,7 @@ def test_literal_forin_literal_int_266_literal_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_int_266_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_generator_literal_int_266_literal_arg(4))
@@ -1153,7 +1139,7 @@ def test_literal_generator_literal_int_266_literal_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_int_266_literal_arg(arg: cython.int):
     """
     >>> test_literal_listcomp_literal_int_266_literal_arg(4)
@@ -1164,7 +1150,7 @@ def test_literal_listcomp_literal_int_266_literal_arg(arg: cython.int):
     return [item for item in [-133, -132, -131, -130, -129, -128, -127, -126, -125, -124, -123, -122, -121, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -106, -105, -104, -103, -102, -101, -100, -99, -98, -97, -96, -95, -94, -93, -92, -91, -90, -89, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73, -72, -71, -70, -69, -68, -67, -66, -65, -64, -63, -62, -61, -60, -59, -58, -57, -56, -55, -54, -53, -52, -51, -50, -49, -48, -47, -46, -45, -44, -43, -42, -41, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, arg]]  # cython.int
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_int_266_literal_arg(arg: cython.int):
     """
     >>> sorted(test_literal_setcomp_literal_int_266_literal_arg(4))
@@ -1175,8 +1161,7 @@ def test_literal_setcomp_literal_int_266_literal_arg(arg: cython.int):
     return {item for item in [-133, -132, -131, -130, -129, -128, -127, -126, -125, -124, -123, -122, -121, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -106, -105, -104, -103, -102, -101, -100, -99, -98, -97, -96, -95, -94, -93, -92, -91, -90, -89, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73, -72, -71, -70, -69, -68, -67, -66, -65, -64, -63, -62, -61, -60, -59, -58, -57, -56, -55, -54, -53, -52, -51, -50, -49, -48, -47, -46, -45, -44, -43, -42, -41, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, arg]}  # cython.int
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_int_266_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_genexpr_literal_int_266_literal_arg(4))
@@ -1186,7 +1171,7 @@ def test_literal_genexpr_literal_int_266_literal_arg(arg: cython.int):
 
     return (item for item in [-133, -132, -131, -130, -129, -128, -127, -126, -125, -124, -123, -122, -121, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -106, -105, -104, -103, -102, -101, -100, -99, -98, -97, -96, -95, -94, -93, -92, -91, -90, -89, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73, -72, -71, -70, -69, -68, -67, -66, -65, -64, -63, -62, -61, -60, -59, -58, -57, -56, -55, -54, -53, -52, -51, -50, -49, -48, -47, -46, -45, -44, -43, -42, -41, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, arg])  # cython.int
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_int_266_literal():
     """
     >>> test_literal_forin_literal_int_266_literal()
@@ -1200,7 +1185,7 @@ def test_literal_forin_literal_int_266_literal():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_int_266_literal():
     """
     >>> list(test_literal_generator_literal_int_266_literal())
@@ -1212,7 +1197,7 @@ def test_literal_generator_literal_int_266_literal():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_int_266_literal():
     """
     >>> test_literal_listcomp_literal_int_266_literal()
@@ -1223,7 +1208,7 @@ def test_literal_listcomp_literal_int_266_literal():
     return [item for item in [-133, -132, -131, -130, -129, -128, -127, -126, -125, -124, -123, -122, -121, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -106, -105, -104, -103, -102, -101, -100, -99, -98, -97, -96, -95, -94, -93, -92, -91, -90, -89, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73, -72, -71, -70, -69, -68, -67, -66, -65, -64, -63, -62, -61, -60, -59, -58, -57, -56, -55, -54, -53, -52, -51, -50, -49, -48, -47, -46, -45, -44, -43, -42, -41, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132]]  # cython.int
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_int_266_literal():
     """
     >>> sorted(test_literal_setcomp_literal_int_266_literal())
@@ -1234,8 +1219,7 @@ def test_literal_setcomp_literal_int_266_literal():
     return {item for item in [-133, -132, -131, -130, -129, -128, -127, -126, -125, -124, -123, -122, -121, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -106, -105, -104, -103, -102, -101, -100, -99, -98, -97, -96, -95, -94, -93, -92, -91, -90, -89, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73, -72, -71, -70, -69, -68, -67, -66, -65, -64, -63, -62, -61, -60, -59, -58, -57, -56, -55, -54, -53, -52, -51, -50, -49, -48, -47, -46, -45, -44, -43, -42, -41, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132]}  # cython.int
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_int_266_literal():
     """
     >>> list(test_literal_genexpr_literal_int_266_literal())
@@ -1245,7 +1229,7 @@ def test_literal_genexpr_literal_int_266_literal():
 
     return (item for item in [-133, -132, -131, -130, -129, -128, -127, -126, -125, -124, -123, -122, -121, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -106, -105, -104, -103, -102, -101, -100, -99, -98, -97, -96, -95, -94, -93, -92, -91, -90, -89, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73, -72, -71, -70, -69, -68, -67, -66, -65, -64, -63, -62, -61, -60, -59, -58, -57, -56, -55, -54, -53, -52, -51, -50, -49, -48, -47, -46, -45, -44, -43, -42, -41, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132])  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_int_266_pointer_arg(arg: cython.int):
     """
     >>> test_carray_forin_pointer_int_266_pointer_arg(4)
@@ -1259,7 +1243,7 @@ def test_carray_forin_pointer_int_266_pointer_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_int_266_pointer_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_pointer_int_266_pointer_arg(4))
@@ -1271,7 +1255,7 @@ def test_carray_generator_pointer_int_266_pointer_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_int_266_pointer_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_pointer_int_266_pointer_arg(4)
@@ -1282,7 +1266,7 @@ def test_carray_listcomp_pointer_int_266_pointer_arg(arg: cython.int):
     return [item for item in carray[:267]]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_int_266_pointer_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_pointer_int_266_pointer_arg(4))
@@ -1292,7 +1276,7 @@ def test_carray_setcomp_pointer_int_266_pointer_arg(arg: cython.int):
 
     return {item for item in carray[:267]}  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_int_266_pointer():
     """
     >>> test_carray_forin_pointer_int_266_pointer()
@@ -1306,7 +1290,7 @@ def test_carray_forin_pointer_int_266_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_int_266_pointer():
     """
     >>> list(test_carray_generator_pointer_int_266_pointer())
@@ -1318,7 +1302,7 @@ def test_carray_generator_pointer_int_266_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_int_266_pointer():
     """
     >>> test_carray_listcomp_pointer_int_266_pointer()
@@ -1329,7 +1313,7 @@ def test_carray_listcomp_pointer_int_266_pointer():
     return [item for item in carray[:266]]  # cython.int
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_int_266_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_int_266_pointer())
@@ -1339,7 +1323,7 @@ def test_carray_setcomp_pointer_int_266_pointer():
 
     return {item for item in carray[:266]}  # cython.int
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_int_1_constant_arg(arg: cython.int):
     """
     >>> test_carray_forin_constant_const_int_1_constant_arg(4)
@@ -1353,7 +1337,7 @@ def test_carray_forin_constant_const_int_1_constant_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_int_1_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_constant_const_int_1_constant_arg(4))
@@ -1365,7 +1349,7 @@ def test_carray_generator_constant_const_int_1_constant_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_int_1_constant_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_constant_const_int_1_constant_arg(4)
@@ -1376,7 +1360,7 @@ def test_carray_listcomp_constant_const_int_1_constant_arg(arg: cython.int):
     return [item for item in carray]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_int_1_constant_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_constant_const_int_1_constant_arg(4))
@@ -1387,8 +1371,7 @@ def test_carray_setcomp_constant_const_int_1_constant_arg(arg: cython.int):
     return {item for item in carray}  # cython.const[cython.int]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_int_1_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_genexpr_constant_const_int_1_constant_arg(4))
@@ -1398,7 +1381,7 @@ def test_carray_genexpr_constant_const_int_1_constant_arg(arg: cython.int):
 
     return (item for item in carray)  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_int_1_constant():
     """
     >>> test_carray_forin_constant_const_int_1_constant()
@@ -1412,7 +1395,7 @@ def test_carray_forin_constant_const_int_1_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_int_1_constant():
     """
     >>> list(test_carray_generator_constant_const_int_1_constant())
@@ -1424,7 +1407,7 @@ def test_carray_generator_constant_const_int_1_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_int_1_constant():
     """
     >>> test_carray_listcomp_constant_const_int_1_constant()
@@ -1435,7 +1418,7 @@ def test_carray_listcomp_constant_const_int_1_constant():
     return [item for item in carray]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_int_1_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_int_1_constant())
@@ -1446,8 +1429,7 @@ def test_carray_setcomp_constant_const_int_1_constant():
     return {item for item in carray}  # cython.const[cython.int]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_int_1_constant():
     """
     >>> list(test_carray_genexpr_constant_const_int_1_constant())
@@ -1457,7 +1439,7 @@ def test_carray_genexpr_constant_const_int_1_constant():
 
     return (item for item in carray)  # cython.const[cython.int]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_const_int_1_literal_arg(arg: cython.int):
     """
     >>> test_literal_forin_literal_const_int_1_literal_arg(4)
@@ -1471,7 +1453,7 @@ def test_literal_forin_literal_const_int_1_literal_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_const_int_1_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_generator_literal_const_int_1_literal_arg(4))
@@ -1483,7 +1465,7 @@ def test_literal_generator_literal_const_int_1_literal_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_const_int_1_literal_arg(arg: cython.int):
     """
     >>> test_literal_listcomp_literal_const_int_1_literal_arg(4)
@@ -1494,7 +1476,7 @@ def test_literal_listcomp_literal_const_int_1_literal_arg(arg: cython.int):
     return [item for item in [0, arg]]  # cython.const[cython.int]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_const_int_1_literal_arg(arg: cython.int):
     """
     >>> sorted(test_literal_setcomp_literal_const_int_1_literal_arg(4))
@@ -1505,8 +1487,7 @@ def test_literal_setcomp_literal_const_int_1_literal_arg(arg: cython.int):
     return {item for item in [0, arg]}  # cython.const[cython.int]
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_const_int_1_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_genexpr_literal_const_int_1_literal_arg(4))
@@ -1516,7 +1497,7 @@ def test_literal_genexpr_literal_const_int_1_literal_arg(arg: cython.int):
 
     return (item for item in [0, arg])  # cython.const[cython.int]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_const_int_1_literal():
     """
     >>> test_literal_forin_literal_const_int_1_literal()
@@ -1530,7 +1511,7 @@ def test_literal_forin_literal_const_int_1_literal():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_const_int_1_literal():
     """
     >>> list(test_literal_generator_literal_const_int_1_literal())
@@ -1542,7 +1523,7 @@ def test_literal_generator_literal_const_int_1_literal():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_const_int_1_literal():
     """
     >>> test_literal_listcomp_literal_const_int_1_literal()
@@ -1553,7 +1534,7 @@ def test_literal_listcomp_literal_const_int_1_literal():
     return [item for item in [0]]  # cython.const[cython.int]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_const_int_1_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_int_1_literal())
@@ -1564,8 +1545,7 @@ def test_literal_setcomp_literal_const_int_1_literal():
     return {item for item in [0]}  # cython.const[cython.int]
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_const_int_1_literal():
     """
     >>> list(test_literal_genexpr_literal_const_int_1_literal())
@@ -1575,7 +1555,7 @@ def test_literal_genexpr_literal_const_int_1_literal():
 
     return (item for item in [0])  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_int_1_pointer_arg(arg: cython.int):
     """
     >>> test_carray_forin_pointer_const_int_1_pointer_arg(4)
@@ -1589,7 +1569,7 @@ def test_carray_forin_pointer_const_int_1_pointer_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_int_1_pointer_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_pointer_const_int_1_pointer_arg(4))
@@ -1601,7 +1581,7 @@ def test_carray_generator_pointer_const_int_1_pointer_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_int_1_pointer_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_pointer_const_int_1_pointer_arg(4)
@@ -1612,7 +1592,7 @@ def test_carray_listcomp_pointer_const_int_1_pointer_arg(arg: cython.int):
     return [item for item in carray[:2]]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_int_1_pointer_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_pointer_const_int_1_pointer_arg(4))
@@ -1622,7 +1602,7 @@ def test_carray_setcomp_pointer_const_int_1_pointer_arg(arg: cython.int):
 
     return {item for item in carray[:2]}  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_int_1_pointer():
     """
     >>> test_carray_forin_pointer_const_int_1_pointer()
@@ -1636,7 +1616,7 @@ def test_carray_forin_pointer_const_int_1_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_int_1_pointer():
     """
     >>> list(test_carray_generator_pointer_const_int_1_pointer())
@@ -1648,7 +1628,7 @@ def test_carray_generator_pointer_const_int_1_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_int_1_pointer():
     """
     >>> test_carray_listcomp_pointer_const_int_1_pointer()
@@ -1659,7 +1639,7 @@ def test_carray_listcomp_pointer_const_int_1_pointer():
     return [item for item in carray[:1]]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_int_1_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_int_1_pointer())
@@ -1669,7 +1649,7 @@ def test_carray_setcomp_pointer_const_int_1_pointer():
 
     return {item for item in carray[:1]}  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_int_2_constant_arg(arg: cython.int):
     """
     >>> test_carray_forin_constant_const_int_2_constant_arg(4)
@@ -1683,7 +1663,7 @@ def test_carray_forin_constant_const_int_2_constant_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_int_2_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_constant_const_int_2_constant_arg(4))
@@ -1695,7 +1675,7 @@ def test_carray_generator_constant_const_int_2_constant_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_int_2_constant_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_constant_const_int_2_constant_arg(4)
@@ -1706,7 +1686,7 @@ def test_carray_listcomp_constant_const_int_2_constant_arg(arg: cython.int):
     return [item for item in carray]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_int_2_constant_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_constant_const_int_2_constant_arg(4))
@@ -1717,8 +1697,7 @@ def test_carray_setcomp_constant_const_int_2_constant_arg(arg: cython.int):
     return {item for item in carray}  # cython.const[cython.int]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_int_2_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_genexpr_constant_const_int_2_constant_arg(4))
@@ -1728,7 +1707,7 @@ def test_carray_genexpr_constant_const_int_2_constant_arg(arg: cython.int):
 
     return (item for item in carray)  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_int_2_constant():
     """
     >>> test_carray_forin_constant_const_int_2_constant()
@@ -1742,7 +1721,7 @@ def test_carray_forin_constant_const_int_2_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_int_2_constant():
     """
     >>> list(test_carray_generator_constant_const_int_2_constant())
@@ -1754,7 +1733,7 @@ def test_carray_generator_constant_const_int_2_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_int_2_constant():
     """
     >>> test_carray_listcomp_constant_const_int_2_constant()
@@ -1765,7 +1744,7 @@ def test_carray_listcomp_constant_const_int_2_constant():
     return [item for item in carray]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_int_2_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_int_2_constant())
@@ -1776,8 +1755,7 @@ def test_carray_setcomp_constant_const_int_2_constant():
     return {item for item in carray}  # cython.const[cython.int]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_int_2_constant():
     """
     >>> list(test_carray_genexpr_constant_const_int_2_constant())
@@ -1787,7 +1765,7 @@ def test_carray_genexpr_constant_const_int_2_constant():
 
     return (item for item in carray)  # cython.const[cython.int]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_const_int_2_literal_arg(arg: cython.int):
     """
     >>> test_literal_forin_literal_const_int_2_literal_arg(4)
@@ -1801,7 +1779,7 @@ def test_literal_forin_literal_const_int_2_literal_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_const_int_2_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_generator_literal_const_int_2_literal_arg(4))
@@ -1813,7 +1791,7 @@ def test_literal_generator_literal_const_int_2_literal_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_const_int_2_literal_arg(arg: cython.int):
     """
     >>> test_literal_listcomp_literal_const_int_2_literal_arg(4)
@@ -1824,7 +1802,7 @@ def test_literal_listcomp_literal_const_int_2_literal_arg(arg: cython.int):
     return [item for item in [0, 0, arg]]  # cython.const[cython.int]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_const_int_2_literal_arg(arg: cython.int):
     """
     >>> sorted(test_literal_setcomp_literal_const_int_2_literal_arg(4))
@@ -1835,8 +1813,7 @@ def test_literal_setcomp_literal_const_int_2_literal_arg(arg: cython.int):
     return {item for item in [0, 0, arg]}  # cython.const[cython.int]
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_const_int_2_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_genexpr_literal_const_int_2_literal_arg(4))
@@ -1846,7 +1823,7 @@ def test_literal_genexpr_literal_const_int_2_literal_arg(arg: cython.int):
 
     return (item for item in [0, 0, arg])  # cython.const[cython.int]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_const_int_2_literal():
     """
     >>> test_literal_forin_literal_const_int_2_literal()
@@ -1860,7 +1837,7 @@ def test_literal_forin_literal_const_int_2_literal():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_const_int_2_literal():
     """
     >>> list(test_literal_generator_literal_const_int_2_literal())
@@ -1872,7 +1849,7 @@ def test_literal_generator_literal_const_int_2_literal():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_const_int_2_literal():
     """
     >>> test_literal_listcomp_literal_const_int_2_literal()
@@ -1883,7 +1860,7 @@ def test_literal_listcomp_literal_const_int_2_literal():
     return [item for item in [0, 0]]  # cython.const[cython.int]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_const_int_2_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_int_2_literal())
@@ -1894,8 +1871,7 @@ def test_literal_setcomp_literal_const_int_2_literal():
     return {item for item in [0, 0]}  # cython.const[cython.int]
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_const_int_2_literal():
     """
     >>> list(test_literal_genexpr_literal_const_int_2_literal())
@@ -1905,7 +1881,7 @@ def test_literal_genexpr_literal_const_int_2_literal():
 
     return (item for item in [0, 0])  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_int_2_pointer_arg(arg: cython.int):
     """
     >>> test_carray_forin_pointer_const_int_2_pointer_arg(4)
@@ -1919,7 +1895,7 @@ def test_carray_forin_pointer_const_int_2_pointer_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_int_2_pointer_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_pointer_const_int_2_pointer_arg(4))
@@ -1931,7 +1907,7 @@ def test_carray_generator_pointer_const_int_2_pointer_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_int_2_pointer_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_pointer_const_int_2_pointer_arg(4)
@@ -1942,7 +1918,7 @@ def test_carray_listcomp_pointer_const_int_2_pointer_arg(arg: cython.int):
     return [item for item in carray[:3]]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_int_2_pointer_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_pointer_const_int_2_pointer_arg(4))
@@ -1952,7 +1928,7 @@ def test_carray_setcomp_pointer_const_int_2_pointer_arg(arg: cython.int):
 
     return {item for item in carray[:3]}  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_int_2_pointer():
     """
     >>> test_carray_forin_pointer_const_int_2_pointer()
@@ -1966,7 +1942,7 @@ def test_carray_forin_pointer_const_int_2_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_int_2_pointer():
     """
     >>> list(test_carray_generator_pointer_const_int_2_pointer())
@@ -1978,7 +1954,7 @@ def test_carray_generator_pointer_const_int_2_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_int_2_pointer():
     """
     >>> test_carray_listcomp_pointer_const_int_2_pointer()
@@ -1989,7 +1965,7 @@ def test_carray_listcomp_pointer_const_int_2_pointer():
     return [item for item in carray[:2]]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_int_2_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_int_2_pointer())
@@ -1999,7 +1975,7 @@ def test_carray_setcomp_pointer_const_int_2_pointer():
 
     return {item for item in carray[:2]}  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_int_4_constant_arg(arg: cython.int):
     """
     >>> test_carray_forin_constant_const_int_4_constant_arg(4)
@@ -2013,7 +1989,7 @@ def test_carray_forin_constant_const_int_4_constant_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_int_4_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_constant_const_int_4_constant_arg(4))
@@ -2025,7 +2001,7 @@ def test_carray_generator_constant_const_int_4_constant_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_int_4_constant_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_constant_const_int_4_constant_arg(4)
@@ -2036,7 +2012,7 @@ def test_carray_listcomp_constant_const_int_4_constant_arg(arg: cython.int):
     return [item for item in carray]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_int_4_constant_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_constant_const_int_4_constant_arg(4))
@@ -2047,8 +2023,7 @@ def test_carray_setcomp_constant_const_int_4_constant_arg(arg: cython.int):
     return {item for item in carray}  # cython.const[cython.int]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_int_4_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_genexpr_constant_const_int_4_constant_arg(4))
@@ -2058,7 +2033,7 @@ def test_carray_genexpr_constant_const_int_4_constant_arg(arg: cython.int):
 
     return (item for item in carray)  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_int_4_constant():
     """
     >>> test_carray_forin_constant_const_int_4_constant()
@@ -2072,7 +2047,7 @@ def test_carray_forin_constant_const_int_4_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_int_4_constant():
     """
     >>> list(test_carray_generator_constant_const_int_4_constant())
@@ -2084,7 +2059,7 @@ def test_carray_generator_constant_const_int_4_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_int_4_constant():
     """
     >>> test_carray_listcomp_constant_const_int_4_constant()
@@ -2095,7 +2070,7 @@ def test_carray_listcomp_constant_const_int_4_constant():
     return [item for item in carray]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_int_4_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_int_4_constant())
@@ -2106,8 +2081,7 @@ def test_carray_setcomp_constant_const_int_4_constant():
     return {item for item in carray}  # cython.const[cython.int]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_int_4_constant():
     """
     >>> list(test_carray_genexpr_constant_const_int_4_constant())
@@ -2117,7 +2091,7 @@ def test_carray_genexpr_constant_const_int_4_constant():
 
     return (item for item in carray)  # cython.const[cython.int]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_const_int_4_literal_arg(arg: cython.int):
     """
     >>> test_literal_forin_literal_const_int_4_literal_arg(4)
@@ -2131,7 +2105,7 @@ def test_literal_forin_literal_const_int_4_literal_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_const_int_4_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_generator_literal_const_int_4_literal_arg(4))
@@ -2143,7 +2117,7 @@ def test_literal_generator_literal_const_int_4_literal_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_const_int_4_literal_arg(arg: cython.int):
     """
     >>> test_literal_listcomp_literal_const_int_4_literal_arg(4)
@@ -2154,7 +2128,7 @@ def test_literal_listcomp_literal_const_int_4_literal_arg(arg: cython.int):
     return [item for item in [1, 2, 3, 4, arg]]  # cython.const[cython.int]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_const_int_4_literal_arg(arg: cython.int):
     """
     >>> sorted(test_literal_setcomp_literal_const_int_4_literal_arg(4))
@@ -2165,8 +2139,7 @@ def test_literal_setcomp_literal_const_int_4_literal_arg(arg: cython.int):
     return {item for item in [1, 2, 3, 4, arg]}  # cython.const[cython.int]
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_const_int_4_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_genexpr_literal_const_int_4_literal_arg(4))
@@ -2176,7 +2149,7 @@ def test_literal_genexpr_literal_const_int_4_literal_arg(arg: cython.int):
 
     return (item for item in [1, 2, 3, 4, arg])  # cython.const[cython.int]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_const_int_4_literal():
     """
     >>> test_literal_forin_literal_const_int_4_literal()
@@ -2190,7 +2163,7 @@ def test_literal_forin_literal_const_int_4_literal():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_const_int_4_literal():
     """
     >>> list(test_literal_generator_literal_const_int_4_literal())
@@ -2202,7 +2175,7 @@ def test_literal_generator_literal_const_int_4_literal():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_const_int_4_literal():
     """
     >>> test_literal_listcomp_literal_const_int_4_literal()
@@ -2213,7 +2186,7 @@ def test_literal_listcomp_literal_const_int_4_literal():
     return [item for item in [1, 2, 3, 4]]  # cython.const[cython.int]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_const_int_4_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_int_4_literal())
@@ -2224,8 +2197,7 @@ def test_literal_setcomp_literal_const_int_4_literal():
     return {item for item in [1, 2, 3, 4]}  # cython.const[cython.int]
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_const_int_4_literal():
     """
     >>> list(test_literal_genexpr_literal_const_int_4_literal())
@@ -2235,7 +2207,7 @@ def test_literal_genexpr_literal_const_int_4_literal():
 
     return (item for item in [1, 2, 3, 4])  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_int_4_pointer_arg(arg: cython.int):
     """
     >>> test_carray_forin_pointer_const_int_4_pointer_arg(4)
@@ -2249,7 +2221,7 @@ def test_carray_forin_pointer_const_int_4_pointer_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_int_4_pointer_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_pointer_const_int_4_pointer_arg(4))
@@ -2261,7 +2233,7 @@ def test_carray_generator_pointer_const_int_4_pointer_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_int_4_pointer_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_pointer_const_int_4_pointer_arg(4)
@@ -2272,7 +2244,7 @@ def test_carray_listcomp_pointer_const_int_4_pointer_arg(arg: cython.int):
     return [item for item in carray[:5]]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_int_4_pointer_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_pointer_const_int_4_pointer_arg(4))
@@ -2282,7 +2254,7 @@ def test_carray_setcomp_pointer_const_int_4_pointer_arg(arg: cython.int):
 
     return {item for item in carray[:5]}  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_int_4_pointer():
     """
     >>> test_carray_forin_pointer_const_int_4_pointer()
@@ -2296,7 +2268,7 @@ def test_carray_forin_pointer_const_int_4_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_int_4_pointer():
     """
     >>> list(test_carray_generator_pointer_const_int_4_pointer())
@@ -2308,7 +2280,7 @@ def test_carray_generator_pointer_const_int_4_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_int_4_pointer():
     """
     >>> test_carray_listcomp_pointer_const_int_4_pointer()
@@ -2319,7 +2291,7 @@ def test_carray_listcomp_pointer_const_int_4_pointer():
     return [item for item in carray[:4]]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_int_4_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_int_4_pointer())
@@ -2329,7 +2301,7 @@ def test_carray_setcomp_pointer_const_int_4_pointer():
 
     return {item for item in carray[:4]}  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_int_266_constant_arg(arg: cython.int):
     """
     >>> test_carray_forin_constant_const_int_266_constant_arg(4)
@@ -2343,7 +2315,7 @@ def test_carray_forin_constant_const_int_266_constant_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_int_266_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_constant_const_int_266_constant_arg(4))
@@ -2355,7 +2327,7 @@ def test_carray_generator_constant_const_int_266_constant_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_int_266_constant_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_constant_const_int_266_constant_arg(4)
@@ -2366,7 +2338,7 @@ def test_carray_listcomp_constant_const_int_266_constant_arg(arg: cython.int):
     return [item for item in carray]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_int_266_constant_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_constant_const_int_266_constant_arg(4))
@@ -2377,8 +2349,7 @@ def test_carray_setcomp_constant_const_int_266_constant_arg(arg: cython.int):
     return {item for item in carray}  # cython.const[cython.int]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_int_266_constant_arg(arg: cython.int):
     """
     >>> list(test_carray_genexpr_constant_const_int_266_constant_arg(4))
@@ -2388,7 +2359,7 @@ def test_carray_genexpr_constant_const_int_266_constant_arg(arg: cython.int):
 
     return (item for item in carray)  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_int_266_constant():
     """
     >>> test_carray_forin_constant_const_int_266_constant()
@@ -2402,7 +2373,7 @@ def test_carray_forin_constant_const_int_266_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_int_266_constant():
     """
     >>> list(test_carray_generator_constant_const_int_266_constant())
@@ -2414,7 +2385,7 @@ def test_carray_generator_constant_const_int_266_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_int_266_constant():
     """
     >>> test_carray_listcomp_constant_const_int_266_constant()
@@ -2425,7 +2396,7 @@ def test_carray_listcomp_constant_const_int_266_constant():
     return [item for item in carray]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_int_266_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_int_266_constant())
@@ -2436,8 +2407,7 @@ def test_carray_setcomp_constant_const_int_266_constant():
     return {item for item in carray}  # cython.const[cython.int]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_int_266_constant():
     """
     >>> list(test_carray_genexpr_constant_const_int_266_constant())
@@ -2447,7 +2417,7 @@ def test_carray_genexpr_constant_const_int_266_constant():
 
     return (item for item in carray)  # cython.const[cython.int]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_const_int_266_literal_arg(arg: cython.int):
     """
     >>> test_literal_forin_literal_const_int_266_literal_arg(4)
@@ -2461,7 +2431,7 @@ def test_literal_forin_literal_const_int_266_literal_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_const_int_266_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_generator_literal_const_int_266_literal_arg(4))
@@ -2473,7 +2443,7 @@ def test_literal_generator_literal_const_int_266_literal_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_const_int_266_literal_arg(arg: cython.int):
     """
     >>> test_literal_listcomp_literal_const_int_266_literal_arg(4)
@@ -2484,7 +2454,7 @@ def test_literal_listcomp_literal_const_int_266_literal_arg(arg: cython.int):
     return [item for item in [-133, -132, -131, -130, -129, -128, -127, -126, -125, -124, -123, -122, -121, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -106, -105, -104, -103, -102, -101, -100, -99, -98, -97, -96, -95, -94, -93, -92, -91, -90, -89, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73, -72, -71, -70, -69, -68, -67, -66, -65, -64, -63, -62, -61, -60, -59, -58, -57, -56, -55, -54, -53, -52, -51, -50, -49, -48, -47, -46, -45, -44, -43, -42, -41, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, arg]]  # cython.const[cython.int]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_const_int_266_literal_arg(arg: cython.int):
     """
     >>> sorted(test_literal_setcomp_literal_const_int_266_literal_arg(4))
@@ -2495,8 +2465,7 @@ def test_literal_setcomp_literal_const_int_266_literal_arg(arg: cython.int):
     return {item for item in [-133, -132, -131, -130, -129, -128, -127, -126, -125, -124, -123, -122, -121, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -106, -105, -104, -103, -102, -101, -100, -99, -98, -97, -96, -95, -94, -93, -92, -91, -90, -89, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73, -72, -71, -70, -69, -68, -67, -66, -65, -64, -63, -62, -61, -60, -59, -58, -57, -56, -55, -54, -53, -52, -51, -50, -49, -48, -47, -46, -45, -44, -43, -42, -41, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, arg]}  # cython.const[cython.int]
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_const_int_266_literal_arg(arg: cython.int):
     """
     >>> list(test_literal_genexpr_literal_const_int_266_literal_arg(4))
@@ -2506,7 +2475,7 @@ def test_literal_genexpr_literal_const_int_266_literal_arg(arg: cython.int):
 
     return (item for item in [-133, -132, -131, -130, -129, -128, -127, -126, -125, -124, -123, -122, -121, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -106, -105, -104, -103, -102, -101, -100, -99, -98, -97, -96, -95, -94, -93, -92, -91, -90, -89, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73, -72, -71, -70, -69, -68, -67, -66, -65, -64, -63, -62, -61, -60, -59, -58, -57, -56, -55, -54, -53, -52, -51, -50, -49, -48, -47, -46, -45, -44, -43, -42, -41, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, arg])  # cython.const[cython.int]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_forin_literal_const_int_266_literal():
     """
     >>> test_literal_forin_literal_const_int_266_literal()
@@ -2520,7 +2489,7 @@ def test_literal_forin_literal_const_int_266_literal():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_generator_literal_const_int_266_literal():
     """
     >>> list(test_literal_generator_literal_const_int_266_literal())
@@ -2532,7 +2501,7 @@ def test_literal_generator_literal_const_int_266_literal():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_listcomp_literal_const_int_266_literal():
     """
     >>> test_literal_listcomp_literal_const_int_266_literal()
@@ -2543,7 +2512,7 @@ def test_literal_listcomp_literal_const_int_266_literal():
     return [item for item in [-133, -132, -131, -130, -129, -128, -127, -126, -125, -124, -123, -122, -121, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -106, -105, -104, -103, -102, -101, -100, -99, -98, -97, -96, -95, -94, -93, -92, -91, -90, -89, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73, -72, -71, -70, -69, -68, -67, -66, -65, -64, -63, -62, -61, -60, -59, -58, -57, -56, -55, -54, -53, -52, -51, -50, -49, -48, -47, -46, -45, -44, -43, -42, -41, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132]]  # cython.const[cython.int]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_setcomp_literal_const_int_266_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_int_266_literal())
@@ -2554,8 +2523,7 @@ def test_literal_setcomp_literal_const_int_266_literal():
     return {item for item in [-133, -132, -131, -130, -129, -128, -127, -126, -125, -124, -123, -122, -121, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -106, -105, -104, -103, -102, -101, -100, -99, -98, -97, -96, -95, -94, -93, -92, -91, -90, -89, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73, -72, -71, -70, -69, -68, -67, -66, -65, -64, -63, -62, -61, -60, -59, -58, -57, -56, -55, -54, -53, -52, -51, -50, -49, -48, -47, -46, -45, -44, -43, -42, -41, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132]}  # cython.const[cython.int]
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)
 def test_literal_genexpr_literal_const_int_266_literal():
     """
     >>> list(test_literal_genexpr_literal_const_int_266_literal())
@@ -2565,7 +2533,7 @@ def test_literal_genexpr_literal_const_int_266_literal():
 
     return (item for item in [-133, -132, -131, -130, -129, -128, -127, -126, -125, -124, -123, -122, -121, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -106, -105, -104, -103, -102, -101, -100, -99, -98, -97, -96, -95, -94, -93, -92, -91, -90, -89, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73, -72, -71, -70, -69, -68, -67, -66, -65, -64, -63, -62, -61, -60, -59, -58, -57, -56, -55, -54, -53, -52, -51, -50, -49, -48, -47, -46, -45, -44, -43, -42, -41, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132])  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_int_266_pointer_arg(arg: cython.int):
     """
     >>> test_carray_forin_pointer_const_int_266_pointer_arg(4)
@@ -2579,7 +2547,7 @@ def test_carray_forin_pointer_const_int_266_pointer_arg(arg: cython.int):
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_int_266_pointer_arg(arg: cython.int):
     """
     >>> list(test_carray_generator_pointer_const_int_266_pointer_arg(4))
@@ -2591,7 +2559,7 @@ def test_carray_generator_pointer_const_int_266_pointer_arg(arg: cython.int):
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_int_266_pointer_arg(arg: cython.int):
     """
     >>> test_carray_listcomp_pointer_const_int_266_pointer_arg(4)
@@ -2602,7 +2570,7 @@ def test_carray_listcomp_pointer_const_int_266_pointer_arg(arg: cython.int):
     return [item for item in carray[:267]]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_int_266_pointer_arg(arg: cython.int):
     """
     >>> sorted(test_carray_setcomp_pointer_const_int_266_pointer_arg(4))
@@ -2612,7 +2580,7 @@ def test_carray_setcomp_pointer_const_int_266_pointer_arg(arg: cython.int):
 
     return {item for item in carray[:267]}  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_int_266_pointer():
     """
     >>> test_carray_forin_pointer_const_int_266_pointer()
@@ -2626,7 +2594,7 @@ def test_carray_forin_pointer_const_int_266_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_int_266_pointer():
     """
     >>> list(test_carray_generator_pointer_const_int_266_pointer())
@@ -2638,7 +2606,7 @@ def test_carray_generator_pointer_const_int_266_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_int_266_pointer():
     """
     >>> test_carray_listcomp_pointer_const_int_266_pointer()
@@ -2649,7 +2617,7 @@ def test_carray_listcomp_pointer_const_int_266_pointer():
     return [item for item in carray[:266]]  # cython.const[cython.int]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_int_266_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_int_266_pointer())
@@ -2659,7 +2627,7 @@ def test_carray_setcomp_pointer_const_int_266_pointer():
 
     return {item for item in carray[:266]}  # cython.const[cython.int]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_char_1_constant():
     """
     >>> test_carray_forin_constant_char_1_constant()
@@ -2673,7 +2641,7 @@ def test_carray_forin_constant_char_1_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_char_1_constant():
     """
     >>> list(test_carray_generator_constant_char_1_constant())
@@ -2685,7 +2653,7 @@ def test_carray_generator_constant_char_1_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_char_1_constant():
     """
     >>> test_carray_listcomp_constant_char_1_constant()
@@ -2696,7 +2664,7 @@ def test_carray_listcomp_constant_char_1_constant():
     return [item for item in carray]  # cython.char
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_char_1_constant():
     """
     >>> sorted(test_carray_setcomp_constant_char_1_constant())
@@ -2707,8 +2675,7 @@ def test_carray_setcomp_constant_char_1_constant():
     return {item for item in carray}  # cython.char
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_char_1_constant():
     """
     >>> list(test_carray_genexpr_constant_char_1_constant())
@@ -2718,7 +2685,7 @@ def test_carray_genexpr_constant_char_1_constant():
 
     return (item for item in carray)  # cython.char
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_char_1_literal():
     """
     >>> test_literal_forin_literal_char_1_literal()
@@ -2732,7 +2699,7 @@ def test_literal_forin_literal_char_1_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_char_1_literal():
     """
     >>> list(test_literal_generator_literal_char_1_literal())
@@ -2744,7 +2711,7 @@ def test_literal_generator_literal_char_1_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_char_1_literal():
     """
     >>> test_literal_listcomp_literal_char_1_literal()
@@ -2755,7 +2722,7 @@ def test_literal_listcomp_literal_char_1_literal():
     return [item for item in b'x']  # cython.char
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_char_1_literal():
     """
     >>> sorted(test_literal_setcomp_literal_char_1_literal())
@@ -2766,8 +2733,7 @@ def test_literal_setcomp_literal_char_1_literal():
     return {item for item in b'x'}  # cython.char
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_char_1_literal():
     """
     >>> list(test_literal_genexpr_literal_char_1_literal())
@@ -2777,7 +2743,7 @@ def test_literal_genexpr_literal_char_1_literal():
 
     return (item for item in b'x')  # cython.char
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_char_1_pointer():
     """
     >>> test_carray_forin_pointer_char_1_pointer()
@@ -2791,7 +2757,7 @@ def test_carray_forin_pointer_char_1_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_char_1_pointer():
     """
     >>> list(test_carray_generator_pointer_char_1_pointer())
@@ -2803,7 +2769,7 @@ def test_carray_generator_pointer_char_1_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_char_1_pointer():
     """
     >>> test_carray_listcomp_pointer_char_1_pointer()
@@ -2814,7 +2780,7 @@ def test_carray_listcomp_pointer_char_1_pointer():
     return [item for item in carray[:1]]  # cython.char
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_char_1_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_char_1_pointer())
@@ -2824,7 +2790,7 @@ def test_carray_setcomp_pointer_char_1_pointer():
 
     return {item for item in carray[:1]}  # cython.char
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_char_7_constant():
     """
     >>> test_carray_forin_constant_char_7_constant()
@@ -2838,7 +2804,7 @@ def test_carray_forin_constant_char_7_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_char_7_constant():
     """
     >>> list(test_carray_generator_constant_char_7_constant())
@@ -2850,7 +2816,7 @@ def test_carray_generator_constant_char_7_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_char_7_constant():
     """
     >>> test_carray_listcomp_constant_char_7_constant()
@@ -2861,7 +2827,7 @@ def test_carray_listcomp_constant_char_7_constant():
     return [item for item in carray]  # cython.char
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_char_7_constant():
     """
     >>> sorted(test_carray_setcomp_constant_char_7_constant())
@@ -2872,8 +2838,7 @@ def test_carray_setcomp_constant_char_7_constant():
     return {item for item in carray}  # cython.char
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_char_7_constant():
     """
     >>> list(test_carray_genexpr_constant_char_7_constant())
@@ -2883,7 +2848,7 @@ def test_carray_genexpr_constant_char_7_constant():
 
     return (item for item in carray)  # cython.char
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_char_7_literal():
     """
     >>> test_literal_forin_literal_char_7_literal()
@@ -2897,7 +2862,7 @@ def test_literal_forin_literal_char_7_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_char_7_literal():
     """
     >>> list(test_literal_generator_literal_char_7_literal())
@@ -2909,7 +2874,7 @@ def test_literal_generator_literal_char_7_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_char_7_literal():
     """
     >>> test_literal_listcomp_literal_char_7_literal()
@@ -2920,7 +2885,7 @@ def test_literal_listcomp_literal_char_7_literal():
     return [item for item in b'abcdefg']  # cython.char
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_char_7_literal():
     """
     >>> sorted(test_literal_setcomp_literal_char_7_literal())
@@ -2931,8 +2896,7 @@ def test_literal_setcomp_literal_char_7_literal():
     return {item for item in b'abcdefg'}  # cython.char
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_char_7_literal():
     """
     >>> list(test_literal_genexpr_literal_char_7_literal())
@@ -2942,7 +2906,7 @@ def test_literal_genexpr_literal_char_7_literal():
 
     return (item for item in b'abcdefg')  # cython.char
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_char_7_pointer():
     """
     >>> test_carray_forin_pointer_char_7_pointer()
@@ -2956,7 +2920,7 @@ def test_carray_forin_pointer_char_7_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_char_7_pointer():
     """
     >>> list(test_carray_generator_pointer_char_7_pointer())
@@ -2968,7 +2932,7 @@ def test_carray_generator_pointer_char_7_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_char_7_pointer():
     """
     >>> test_carray_listcomp_pointer_char_7_pointer()
@@ -2979,7 +2943,7 @@ def test_carray_listcomp_pointer_char_7_pointer():
     return [item for item in carray[:7]]  # cython.char
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_char_7_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_char_7_pointer())
@@ -2989,7 +2953,7 @@ def test_carray_setcomp_pointer_char_7_pointer():
 
     return {item for item in carray[:7]}  # cython.char
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_char_100_constant():
     """
     >>> test_carray_forin_constant_char_100_constant()
@@ -3003,7 +2967,7 @@ def test_carray_forin_constant_char_100_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_char_100_constant():
     """
     >>> list(test_carray_generator_constant_char_100_constant())
@@ -3015,7 +2979,7 @@ def test_carray_generator_constant_char_100_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_char_100_constant():
     """
     >>> test_carray_listcomp_constant_char_100_constant()
@@ -3026,7 +2990,7 @@ def test_carray_listcomp_constant_char_100_constant():
     return [item for item in carray]  # cython.char
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_char_100_constant():
     """
     >>> sorted(test_carray_setcomp_constant_char_100_constant())
@@ -3037,8 +3001,7 @@ def test_carray_setcomp_constant_char_100_constant():
     return {item for item in carray}  # cython.char
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_char_100_constant():
     """
     >>> list(test_carray_genexpr_constant_char_100_constant())
@@ -3048,7 +3011,7 @@ def test_carray_genexpr_constant_char_100_constant():
 
     return (item for item in carray)  # cython.char
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_char_100_literal():
     """
     >>> test_literal_forin_literal_char_100_literal()
@@ -3062,7 +3025,7 @@ def test_literal_forin_literal_char_100_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_char_100_literal():
     """
     >>> list(test_literal_generator_literal_char_100_literal())
@@ -3074,7 +3037,7 @@ def test_literal_generator_literal_char_100_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_char_100_literal():
     """
     >>> test_literal_listcomp_literal_char_100_literal()
@@ -3085,7 +3048,7 @@ def test_literal_listcomp_literal_char_100_literal():
     return [item for item in b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']  # cython.char
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_char_100_literal():
     """
     >>> sorted(test_literal_setcomp_literal_char_100_literal())
@@ -3096,8 +3059,7 @@ def test_literal_setcomp_literal_char_100_literal():
     return {item for item in b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}  # cython.char
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_char_100_literal():
     """
     >>> list(test_literal_genexpr_literal_char_100_literal())
@@ -3107,7 +3069,7 @@ def test_literal_genexpr_literal_char_100_literal():
 
     return (item for item in b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')  # cython.char
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_char_100_pointer():
     """
     >>> test_carray_forin_pointer_char_100_pointer()
@@ -3121,7 +3083,7 @@ def test_carray_forin_pointer_char_100_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_char_100_pointer():
     """
     >>> list(test_carray_generator_pointer_char_100_pointer())
@@ -3133,7 +3095,7 @@ def test_carray_generator_pointer_char_100_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_char_100_pointer():
     """
     >>> test_carray_listcomp_pointer_char_100_pointer()
@@ -3144,7 +3106,7 @@ def test_carray_listcomp_pointer_char_100_pointer():
     return [item for item in carray[:100]]  # cython.char
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_char_100_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_char_100_pointer())
@@ -3154,7 +3116,7 @@ def test_carray_setcomp_pointer_char_100_pointer():
 
     return {item for item in carray[:100]}  # cython.char
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_forin_constant_char_1_11_constant():
     """
     >>> charlist(test_carray_forin_constant_char_1_11_constant())
@@ -3168,7 +3130,7 @@ def test_carray_forin_constant_char_1_11_constant():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_generator_constant_char_1_11_constant():
     """
     >>> charlist(list(test_carray_generator_constant_char_1_11_constant()))
@@ -3180,7 +3142,7 @@ def test_carray_generator_constant_char_1_11_constant():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_listcomp_constant_char_1_11_constant():
     """
     >>> charlist(test_carray_listcomp_constant_char_1_11_constant())
@@ -3191,7 +3153,7 @@ def test_carray_listcomp_constant_char_1_11_constant():
     return [item for item in carray]  # cython.char
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_setcomp_constant_char_1_11_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_char_1_11_constant()))
@@ -3202,8 +3164,7 @@ def test_carray_setcomp_constant_char_1_11_constant():
     return {item for item in carray}  # cython.char
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_genexpr_constant_char_1_11_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_char_1_11_constant()))
@@ -3213,7 +3174,7 @@ def test_carray_genexpr_constant_char_1_11_constant():
 
     return (item for item in carray)  # cython.char
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_char_1_11_literal():
     """
     >>> test_literal_forin_literal_char_1_11_literal()
@@ -3227,7 +3188,7 @@ def test_literal_forin_literal_char_1_11_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_char_1_11_literal():
     """
     >>> list(test_literal_generator_literal_char_1_11_literal())
@@ -3239,7 +3200,7 @@ def test_literal_generator_literal_char_1_11_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_char_1_11_literal():
     """
     >>> test_literal_listcomp_literal_char_1_11_literal()
@@ -3250,7 +3211,7 @@ def test_literal_listcomp_literal_char_1_11_literal():
     return [item for item in 'X']  # cython.char
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_char_1_11_literal():
     """
     >>> sorted(test_literal_setcomp_literal_char_1_11_literal())
@@ -3261,8 +3222,7 @@ def test_literal_setcomp_literal_char_1_11_literal():
     return {item for item in 'X'}  # cython.char
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_char_1_11_literal():
     """
     >>> list(test_literal_genexpr_literal_char_1_11_literal())
@@ -3272,7 +3232,7 @@ def test_literal_genexpr_literal_char_1_11_literal():
 
     return (item for item in 'X')  # cython.char
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_char_1_11_pointer():
     """
     >>> charlist(test_carray_forin_pointer_char_1_11_pointer())
@@ -3286,7 +3246,7 @@ def test_carray_forin_pointer_char_1_11_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_char_1_11_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_char_1_11_pointer()))
@@ -3298,7 +3258,7 @@ def test_carray_generator_pointer_char_1_11_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_char_1_11_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_char_1_11_pointer())
@@ -3309,7 +3269,7 @@ def test_carray_listcomp_pointer_char_1_11_pointer():
     return [item for item in carray[:1]]  # cython.char
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_char_1_11_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_char_1_11_pointer()))
@@ -3319,7 +3279,7 @@ def test_carray_setcomp_pointer_char_1_11_pointer():
 
     return {item for item in carray[:1]}  # cython.char
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_forin_constant_char_133_constant():
     """
     >>> charlist(test_carray_forin_constant_char_133_constant())
@@ -3333,7 +3293,7 @@ def test_carray_forin_constant_char_133_constant():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_generator_constant_char_133_constant():
     """
     >>> charlist(list(test_carray_generator_constant_char_133_constant()))
@@ -3345,7 +3305,7 @@ def test_carray_generator_constant_char_133_constant():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_listcomp_constant_char_133_constant():
     """
     >>> charlist(test_carray_listcomp_constant_char_133_constant())
@@ -3356,7 +3316,7 @@ def test_carray_listcomp_constant_char_133_constant():
     return [item for item in carray]  # cython.char
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_setcomp_constant_char_133_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_char_133_constant()))
@@ -3367,8 +3327,7 @@ def test_carray_setcomp_constant_char_133_constant():
     return {item for item in carray}  # cython.char
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_genexpr_constant_char_133_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_char_133_constant()))
@@ -3378,7 +3337,7 @@ def test_carray_genexpr_constant_char_133_constant():
 
     return (item for item in carray)  # cython.char
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_char_133_literal():
     """
     >>> test_literal_forin_literal_char_133_literal()
@@ -3392,7 +3351,7 @@ def test_literal_forin_literal_char_133_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_char_133_literal():
     """
     >>> list(test_literal_generator_literal_char_133_literal())
@@ -3404,7 +3363,7 @@ def test_literal_generator_literal_char_133_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_char_133_literal():
     """
     >>> test_literal_listcomp_literal_char_133_literal()
@@ -3415,7 +3374,7 @@ def test_literal_listcomp_literal_char_133_literal():
     return [item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX']  # cython.char
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_char_133_literal():
     """
     >>> sorted(test_literal_setcomp_literal_char_133_literal())
@@ -3426,8 +3385,7 @@ def test_literal_setcomp_literal_char_133_literal():
     return {item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'}  # cython.char
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_char_133_literal():
     """
     >>> list(test_literal_genexpr_literal_char_133_literal())
@@ -3437,7 +3395,7 @@ def test_literal_genexpr_literal_char_133_literal():
 
     return (item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')  # cython.char
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_char_133_pointer():
     """
     >>> charlist(test_carray_forin_pointer_char_133_pointer())
@@ -3451,7 +3409,7 @@ def test_carray_forin_pointer_char_133_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_char_133_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_char_133_pointer()))
@@ -3463,7 +3421,7 @@ def test_carray_generator_pointer_char_133_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_char_133_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_char_133_pointer())
@@ -3474,7 +3432,7 @@ def test_carray_listcomp_pointer_char_133_pointer():
     return [item for item in carray[:133]]  # cython.char
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_char_133_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_char_133_pointer()))
@@ -3484,7 +3442,7 @@ def test_carray_setcomp_pointer_char_133_pointer():
 
     return {item for item in carray[:133]}  # cython.char
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_char_1_constant():
     """
     >>> test_carray_forin_constant_const_char_1_constant()
@@ -3498,7 +3456,7 @@ def test_carray_forin_constant_const_char_1_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_char_1_constant():
     """
     >>> list(test_carray_generator_constant_const_char_1_constant())
@@ -3510,7 +3468,7 @@ def test_carray_generator_constant_const_char_1_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_char_1_constant():
     """
     >>> test_carray_listcomp_constant_const_char_1_constant()
@@ -3521,7 +3479,7 @@ def test_carray_listcomp_constant_const_char_1_constant():
     return [item for item in carray]  # cython.const[cython.char]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_char_1_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_char_1_constant())
@@ -3532,8 +3490,7 @@ def test_carray_setcomp_constant_const_char_1_constant():
     return {item for item in carray}  # cython.const[cython.char]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_char_1_constant():
     """
     >>> list(test_carray_genexpr_constant_const_char_1_constant())
@@ -3543,7 +3500,7 @@ def test_carray_genexpr_constant_const_char_1_constant():
 
     return (item for item in carray)  # cython.const[cython.char]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_char_1_literal():
     """
     >>> test_literal_forin_literal_const_char_1_literal()
@@ -3557,7 +3514,7 @@ def test_literal_forin_literal_const_char_1_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_char_1_literal():
     """
     >>> list(test_literal_generator_literal_const_char_1_literal())
@@ -3569,7 +3526,7 @@ def test_literal_generator_literal_const_char_1_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_char_1_literal():
     """
     >>> test_literal_listcomp_literal_const_char_1_literal()
@@ -3580,7 +3537,7 @@ def test_literal_listcomp_literal_const_char_1_literal():
     return [item for item in b'x']  # cython.const[cython.char]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_char_1_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_char_1_literal())
@@ -3591,8 +3548,7 @@ def test_literal_setcomp_literal_const_char_1_literal():
     return {item for item in b'x'}  # cython.const[cython.char]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_char_1_literal():
     """
     >>> list(test_literal_genexpr_literal_const_char_1_literal())
@@ -3602,7 +3558,7 @@ def test_literal_genexpr_literal_const_char_1_literal():
 
     return (item for item in b'x')  # cython.const[cython.char]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_const_char_1_pointer():
     """
     >>> test_carray_forin_pointer_const_char_1_pointer()
@@ -3616,7 +3572,7 @@ def test_carray_forin_pointer_const_char_1_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_const_char_1_pointer():
     """
     >>> list(test_carray_generator_pointer_const_char_1_pointer())
@@ -3628,7 +3584,7 @@ def test_carray_generator_pointer_const_char_1_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_const_char_1_pointer():
     """
     >>> test_carray_listcomp_pointer_const_char_1_pointer()
@@ -3639,7 +3595,7 @@ def test_carray_listcomp_pointer_const_char_1_pointer():
     return [item for item in carray[:1]]  # cython.const[cython.char]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_const_char_1_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_char_1_pointer())
@@ -3649,7 +3605,7 @@ def test_carray_setcomp_pointer_const_char_1_pointer():
 
     return {item for item in carray[:1]}  # cython.const[cython.char]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_char_7_constant():
     """
     >>> test_carray_forin_constant_const_char_7_constant()
@@ -3663,7 +3619,7 @@ def test_carray_forin_constant_const_char_7_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_char_7_constant():
     """
     >>> list(test_carray_generator_constant_const_char_7_constant())
@@ -3675,7 +3631,7 @@ def test_carray_generator_constant_const_char_7_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_char_7_constant():
     """
     >>> test_carray_listcomp_constant_const_char_7_constant()
@@ -3686,7 +3642,7 @@ def test_carray_listcomp_constant_const_char_7_constant():
     return [item for item in carray]  # cython.const[cython.char]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_char_7_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_char_7_constant())
@@ -3697,8 +3653,7 @@ def test_carray_setcomp_constant_const_char_7_constant():
     return {item for item in carray}  # cython.const[cython.char]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_char_7_constant():
     """
     >>> list(test_carray_genexpr_constant_const_char_7_constant())
@@ -3708,7 +3663,7 @@ def test_carray_genexpr_constant_const_char_7_constant():
 
     return (item for item in carray)  # cython.const[cython.char]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_char_7_literal():
     """
     >>> test_literal_forin_literal_const_char_7_literal()
@@ -3722,7 +3677,7 @@ def test_literal_forin_literal_const_char_7_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_char_7_literal():
     """
     >>> list(test_literal_generator_literal_const_char_7_literal())
@@ -3734,7 +3689,7 @@ def test_literal_generator_literal_const_char_7_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_char_7_literal():
     """
     >>> test_literal_listcomp_literal_const_char_7_literal()
@@ -3745,7 +3700,7 @@ def test_literal_listcomp_literal_const_char_7_literal():
     return [item for item in b'abcdefg']  # cython.const[cython.char]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_char_7_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_char_7_literal())
@@ -3756,8 +3711,7 @@ def test_literal_setcomp_literal_const_char_7_literal():
     return {item for item in b'abcdefg'}  # cython.const[cython.char]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_char_7_literal():
     """
     >>> list(test_literal_genexpr_literal_const_char_7_literal())
@@ -3767,7 +3721,7 @@ def test_literal_genexpr_literal_const_char_7_literal():
 
     return (item for item in b'abcdefg')  # cython.const[cython.char]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_const_char_7_pointer():
     """
     >>> test_carray_forin_pointer_const_char_7_pointer()
@@ -3781,7 +3735,7 @@ def test_carray_forin_pointer_const_char_7_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_const_char_7_pointer():
     """
     >>> list(test_carray_generator_pointer_const_char_7_pointer())
@@ -3793,7 +3747,7 @@ def test_carray_generator_pointer_const_char_7_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_const_char_7_pointer():
     """
     >>> test_carray_listcomp_pointer_const_char_7_pointer()
@@ -3804,7 +3758,7 @@ def test_carray_listcomp_pointer_const_char_7_pointer():
     return [item for item in carray[:7]]  # cython.const[cython.char]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_const_char_7_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_char_7_pointer())
@@ -3814,7 +3768,7 @@ def test_carray_setcomp_pointer_const_char_7_pointer():
 
     return {item for item in carray[:7]}  # cython.const[cython.char]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_char_100_constant():
     """
     >>> test_carray_forin_constant_const_char_100_constant()
@@ -3828,7 +3782,7 @@ def test_carray_forin_constant_const_char_100_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_char_100_constant():
     """
     >>> list(test_carray_generator_constant_const_char_100_constant())
@@ -3840,7 +3794,7 @@ def test_carray_generator_constant_const_char_100_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_char_100_constant():
     """
     >>> test_carray_listcomp_constant_const_char_100_constant()
@@ -3851,7 +3805,7 @@ def test_carray_listcomp_constant_const_char_100_constant():
     return [item for item in carray]  # cython.const[cython.char]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_char_100_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_char_100_constant())
@@ -3862,8 +3816,7 @@ def test_carray_setcomp_constant_const_char_100_constant():
     return {item for item in carray}  # cython.const[cython.char]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_char_100_constant():
     """
     >>> list(test_carray_genexpr_constant_const_char_100_constant())
@@ -3873,7 +3826,7 @@ def test_carray_genexpr_constant_const_char_100_constant():
 
     return (item for item in carray)  # cython.const[cython.char]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_char_100_literal():
     """
     >>> test_literal_forin_literal_const_char_100_literal()
@@ -3887,7 +3840,7 @@ def test_literal_forin_literal_const_char_100_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_char_100_literal():
     """
     >>> list(test_literal_generator_literal_const_char_100_literal())
@@ -3899,7 +3852,7 @@ def test_literal_generator_literal_const_char_100_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_char_100_literal():
     """
     >>> test_literal_listcomp_literal_const_char_100_literal()
@@ -3910,7 +3863,7 @@ def test_literal_listcomp_literal_const_char_100_literal():
     return [item for item in b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']  # cython.const[cython.char]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_char_100_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_char_100_literal())
@@ -3921,8 +3874,7 @@ def test_literal_setcomp_literal_const_char_100_literal():
     return {item for item in b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}  # cython.const[cython.char]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_char_100_literal():
     """
     >>> list(test_literal_genexpr_literal_const_char_100_literal())
@@ -3932,7 +3884,7 @@ def test_literal_genexpr_literal_const_char_100_literal():
 
     return (item for item in b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')  # cython.const[cython.char]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_const_char_100_pointer():
     """
     >>> test_carray_forin_pointer_const_char_100_pointer()
@@ -3946,7 +3898,7 @@ def test_carray_forin_pointer_const_char_100_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_const_char_100_pointer():
     """
     >>> list(test_carray_generator_pointer_const_char_100_pointer())
@@ -3958,7 +3910,7 @@ def test_carray_generator_pointer_const_char_100_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_const_char_100_pointer():
     """
     >>> test_carray_listcomp_pointer_const_char_100_pointer()
@@ -3969,7 +3921,7 @@ def test_carray_listcomp_pointer_const_char_100_pointer():
     return [item for item in carray[:100]]  # cython.const[cython.char]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_const_char_100_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_char_100_pointer())
@@ -3979,7 +3931,7 @@ def test_carray_setcomp_pointer_const_char_100_pointer():
 
     return {item for item in carray[:100]}  # cython.const[cython.char]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_forin_constant_const_char_1_16_constant():
     """
     >>> charlist(test_carray_forin_constant_const_char_1_16_constant())
@@ -3993,7 +3945,7 @@ def test_carray_forin_constant_const_char_1_16_constant():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_generator_constant_const_char_1_16_constant():
     """
     >>> charlist(list(test_carray_generator_constant_const_char_1_16_constant()))
@@ -4005,7 +3957,7 @@ def test_carray_generator_constant_const_char_1_16_constant():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_listcomp_constant_const_char_1_16_constant():
     """
     >>> charlist(test_carray_listcomp_constant_const_char_1_16_constant())
@@ -4016,7 +3968,7 @@ def test_carray_listcomp_constant_const_char_1_16_constant():
     return [item for item in carray]  # cython.const[cython.char]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_setcomp_constant_const_char_1_16_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_const_char_1_16_constant()))
@@ -4027,8 +3979,7 @@ def test_carray_setcomp_constant_const_char_1_16_constant():
     return {item for item in carray}  # cython.const[cython.char]
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_genexpr_constant_const_char_1_16_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_const_char_1_16_constant()))
@@ -4038,7 +3989,7 @@ def test_carray_genexpr_constant_const_char_1_16_constant():
 
     return (item for item in carray)  # cython.const[cython.char]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_char_1_16_literal():
     """
     >>> test_literal_forin_literal_const_char_1_16_literal()
@@ -4052,7 +4003,7 @@ def test_literal_forin_literal_const_char_1_16_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_char_1_16_literal():
     """
     >>> list(test_literal_generator_literal_const_char_1_16_literal())
@@ -4064,7 +4015,7 @@ def test_literal_generator_literal_const_char_1_16_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_char_1_16_literal():
     """
     >>> test_literal_listcomp_literal_const_char_1_16_literal()
@@ -4075,7 +4026,7 @@ def test_literal_listcomp_literal_const_char_1_16_literal():
     return [item for item in 'X']  # cython.const[cython.char]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_char_1_16_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_char_1_16_literal())
@@ -4086,8 +4037,7 @@ def test_literal_setcomp_literal_const_char_1_16_literal():
     return {item for item in 'X'}  # cython.const[cython.char]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_char_1_16_literal():
     """
     >>> list(test_literal_genexpr_literal_const_char_1_16_literal())
@@ -4097,7 +4047,7 @@ def test_literal_genexpr_literal_const_char_1_16_literal():
 
     return (item for item in 'X')  # cython.const[cython.char]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_const_char_1_16_pointer():
     """
     >>> charlist(test_carray_forin_pointer_const_char_1_16_pointer())
@@ -4111,7 +4061,7 @@ def test_carray_forin_pointer_const_char_1_16_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_const_char_1_16_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_const_char_1_16_pointer()))
@@ -4123,7 +4073,7 @@ def test_carray_generator_pointer_const_char_1_16_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_const_char_1_16_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_const_char_1_16_pointer())
@@ -4134,7 +4084,7 @@ def test_carray_listcomp_pointer_const_char_1_16_pointer():
     return [item for item in carray[:1]]  # cython.const[cython.char]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_const_char_1_16_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_const_char_1_16_pointer()))
@@ -4144,7 +4094,7 @@ def test_carray_setcomp_pointer_const_char_1_16_pointer():
 
     return {item for item in carray[:1]}  # cython.const[cython.char]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_forin_constant_const_char_133_constant():
     """
     >>> charlist(test_carray_forin_constant_const_char_133_constant())
@@ -4158,7 +4108,7 @@ def test_carray_forin_constant_const_char_133_constant():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_generator_constant_const_char_133_constant():
     """
     >>> charlist(list(test_carray_generator_constant_const_char_133_constant()))
@@ -4170,7 +4120,7 @@ def test_carray_generator_constant_const_char_133_constant():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_listcomp_constant_const_char_133_constant():
     """
     >>> charlist(test_carray_listcomp_constant_const_char_133_constant())
@@ -4181,7 +4131,7 @@ def test_carray_listcomp_constant_const_char_133_constant():
     return [item for item in carray]  # cython.const[cython.char]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_setcomp_constant_const_char_133_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_const_char_133_constant()))
@@ -4192,8 +4142,7 @@ def test_carray_setcomp_constant_const_char_133_constant():
     return {item for item in carray}  # cython.const[cython.char]
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_genexpr_constant_const_char_133_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_const_char_133_constant()))
@@ -4203,7 +4152,7 @@ def test_carray_genexpr_constant_const_char_133_constant():
 
     return (item for item in carray)  # cython.const[cython.char]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_char_133_literal():
     """
     >>> test_literal_forin_literal_const_char_133_literal()
@@ -4217,7 +4166,7 @@ def test_literal_forin_literal_const_char_133_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_char_133_literal():
     """
     >>> list(test_literal_generator_literal_const_char_133_literal())
@@ -4229,7 +4178,7 @@ def test_literal_generator_literal_const_char_133_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_char_133_literal():
     """
     >>> test_literal_listcomp_literal_const_char_133_literal()
@@ -4240,7 +4189,7 @@ def test_literal_listcomp_literal_const_char_133_literal():
     return [item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX']  # cython.const[cython.char]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_char_133_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_char_133_literal())
@@ -4251,8 +4200,7 @@ def test_literal_setcomp_literal_const_char_133_literal():
     return {item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'}  # cython.const[cython.char]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_char_133_literal():
     """
     >>> list(test_literal_genexpr_literal_const_char_133_literal())
@@ -4262,7 +4210,7 @@ def test_literal_genexpr_literal_const_char_133_literal():
 
     return (item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')  # cython.const[cython.char]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_const_char_133_pointer():
     """
     >>> charlist(test_carray_forin_pointer_const_char_133_pointer())
@@ -4276,7 +4224,7 @@ def test_carray_forin_pointer_const_char_133_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_const_char_133_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_const_char_133_pointer()))
@@ -4288,7 +4236,7 @@ def test_carray_generator_pointer_const_char_133_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_const_char_133_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_const_char_133_pointer())
@@ -4299,7 +4247,7 @@ def test_carray_listcomp_pointer_const_char_133_pointer():
     return [item for item in carray[:133]]  # cython.const[cython.char]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_const_char_133_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_const_char_133_pointer()))
@@ -4309,7 +4257,7 @@ def test_carray_setcomp_pointer_const_char_133_pointer():
 
     return {item for item in carray[:133]}  # cython.const[cython.char]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_uchar_1_constant():
     """
     >>> test_carray_forin_constant_uchar_1_constant()
@@ -4323,7 +4271,7 @@ def test_carray_forin_constant_uchar_1_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_uchar_1_constant():
     """
     >>> list(test_carray_generator_constant_uchar_1_constant())
@@ -4335,7 +4283,7 @@ def test_carray_generator_constant_uchar_1_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_uchar_1_constant():
     """
     >>> test_carray_listcomp_constant_uchar_1_constant()
@@ -4346,7 +4294,7 @@ def test_carray_listcomp_constant_uchar_1_constant():
     return [item for item in carray]  # cython.uchar
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_uchar_1_constant():
     """
     >>> sorted(test_carray_setcomp_constant_uchar_1_constant())
@@ -4357,8 +4305,7 @@ def test_carray_setcomp_constant_uchar_1_constant():
     return {item for item in carray}  # cython.uchar
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_uchar_1_constant():
     """
     >>> list(test_carray_genexpr_constant_uchar_1_constant())
@@ -4368,7 +4315,7 @@ def test_carray_genexpr_constant_uchar_1_constant():
 
     return (item for item in carray)  # cython.uchar
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_uchar_1_literal():
     """
     >>> test_literal_forin_literal_uchar_1_literal()
@@ -4382,7 +4329,7 @@ def test_literal_forin_literal_uchar_1_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_uchar_1_literal():
     """
     >>> list(test_literal_generator_literal_uchar_1_literal())
@@ -4394,7 +4341,7 @@ def test_literal_generator_literal_uchar_1_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_uchar_1_literal():
     """
     >>> test_literal_listcomp_literal_uchar_1_literal()
@@ -4405,7 +4352,7 @@ def test_literal_listcomp_literal_uchar_1_literal():
     return [item for item in b'x']  # cython.uchar
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_uchar_1_literal():
     """
     >>> sorted(test_literal_setcomp_literal_uchar_1_literal())
@@ -4416,8 +4363,7 @@ def test_literal_setcomp_literal_uchar_1_literal():
     return {item for item in b'x'}  # cython.uchar
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_uchar_1_literal():
     """
     >>> list(test_literal_genexpr_literal_uchar_1_literal())
@@ -4427,7 +4373,7 @@ def test_literal_genexpr_literal_uchar_1_literal():
 
     return (item for item in b'x')  # cython.uchar
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_uchar_1_pointer():
     """
     >>> test_carray_forin_pointer_uchar_1_pointer()
@@ -4441,7 +4387,7 @@ def test_carray_forin_pointer_uchar_1_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_uchar_1_pointer():
     """
     >>> list(test_carray_generator_pointer_uchar_1_pointer())
@@ -4453,7 +4399,7 @@ def test_carray_generator_pointer_uchar_1_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_uchar_1_pointer():
     """
     >>> test_carray_listcomp_pointer_uchar_1_pointer()
@@ -4464,7 +4410,7 @@ def test_carray_listcomp_pointer_uchar_1_pointer():
     return [item for item in carray[:1]]  # cython.uchar
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_uchar_1_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_uchar_1_pointer())
@@ -4474,7 +4420,7 @@ def test_carray_setcomp_pointer_uchar_1_pointer():
 
     return {item for item in carray[:1]}  # cython.uchar
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_uchar_7_constant():
     """
     >>> test_carray_forin_constant_uchar_7_constant()
@@ -4488,7 +4434,7 @@ def test_carray_forin_constant_uchar_7_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_uchar_7_constant():
     """
     >>> list(test_carray_generator_constant_uchar_7_constant())
@@ -4500,7 +4446,7 @@ def test_carray_generator_constant_uchar_7_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_uchar_7_constant():
     """
     >>> test_carray_listcomp_constant_uchar_7_constant()
@@ -4511,7 +4457,7 @@ def test_carray_listcomp_constant_uchar_7_constant():
     return [item for item in carray]  # cython.uchar
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_uchar_7_constant():
     """
     >>> sorted(test_carray_setcomp_constant_uchar_7_constant())
@@ -4522,8 +4468,7 @@ def test_carray_setcomp_constant_uchar_7_constant():
     return {item for item in carray}  # cython.uchar
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_uchar_7_constant():
     """
     >>> list(test_carray_genexpr_constant_uchar_7_constant())
@@ -4533,7 +4478,7 @@ def test_carray_genexpr_constant_uchar_7_constant():
 
     return (item for item in carray)  # cython.uchar
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_uchar_7_literal():
     """
     >>> test_literal_forin_literal_uchar_7_literal()
@@ -4547,7 +4492,7 @@ def test_literal_forin_literal_uchar_7_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_uchar_7_literal():
     """
     >>> list(test_literal_generator_literal_uchar_7_literal())
@@ -4559,7 +4504,7 @@ def test_literal_generator_literal_uchar_7_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_uchar_7_literal():
     """
     >>> test_literal_listcomp_literal_uchar_7_literal()
@@ -4570,7 +4515,7 @@ def test_literal_listcomp_literal_uchar_7_literal():
     return [item for item in b'abcdefg']  # cython.uchar
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_uchar_7_literal():
     """
     >>> sorted(test_literal_setcomp_literal_uchar_7_literal())
@@ -4581,8 +4526,7 @@ def test_literal_setcomp_literal_uchar_7_literal():
     return {item for item in b'abcdefg'}  # cython.uchar
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_uchar_7_literal():
     """
     >>> list(test_literal_genexpr_literal_uchar_7_literal())
@@ -4592,7 +4536,7 @@ def test_literal_genexpr_literal_uchar_7_literal():
 
     return (item for item in b'abcdefg')  # cython.uchar
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_uchar_7_pointer():
     """
     >>> test_carray_forin_pointer_uchar_7_pointer()
@@ -4606,7 +4550,7 @@ def test_carray_forin_pointer_uchar_7_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_uchar_7_pointer():
     """
     >>> list(test_carray_generator_pointer_uchar_7_pointer())
@@ -4618,7 +4562,7 @@ def test_carray_generator_pointer_uchar_7_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_uchar_7_pointer():
     """
     >>> test_carray_listcomp_pointer_uchar_7_pointer()
@@ -4629,7 +4573,7 @@ def test_carray_listcomp_pointer_uchar_7_pointer():
     return [item for item in carray[:7]]  # cython.uchar
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_uchar_7_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_uchar_7_pointer())
@@ -4639,7 +4583,7 @@ def test_carray_setcomp_pointer_uchar_7_pointer():
 
     return {item for item in carray[:7]}  # cython.uchar
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_uchar_100_constant():
     """
     >>> test_carray_forin_constant_uchar_100_constant()
@@ -4653,7 +4597,7 @@ def test_carray_forin_constant_uchar_100_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_uchar_100_constant():
     """
     >>> list(test_carray_generator_constant_uchar_100_constant())
@@ -4665,7 +4609,7 @@ def test_carray_generator_constant_uchar_100_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_uchar_100_constant():
     """
     >>> test_carray_listcomp_constant_uchar_100_constant()
@@ -4676,7 +4620,7 @@ def test_carray_listcomp_constant_uchar_100_constant():
     return [item for item in carray]  # cython.uchar
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_uchar_100_constant():
     """
     >>> sorted(test_carray_setcomp_constant_uchar_100_constant())
@@ -4687,8 +4631,7 @@ def test_carray_setcomp_constant_uchar_100_constant():
     return {item for item in carray}  # cython.uchar
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_uchar_100_constant():
     """
     >>> list(test_carray_genexpr_constant_uchar_100_constant())
@@ -4698,7 +4641,7 @@ def test_carray_genexpr_constant_uchar_100_constant():
 
     return (item for item in carray)  # cython.uchar
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_uchar_100_literal():
     """
     >>> test_literal_forin_literal_uchar_100_literal()
@@ -4712,7 +4655,7 @@ def test_literal_forin_literal_uchar_100_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_uchar_100_literal():
     """
     >>> list(test_literal_generator_literal_uchar_100_literal())
@@ -4724,7 +4667,7 @@ def test_literal_generator_literal_uchar_100_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_uchar_100_literal():
     """
     >>> test_literal_listcomp_literal_uchar_100_literal()
@@ -4735,7 +4678,7 @@ def test_literal_listcomp_literal_uchar_100_literal():
     return [item for item in b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']  # cython.uchar
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_uchar_100_literal():
     """
     >>> sorted(test_literal_setcomp_literal_uchar_100_literal())
@@ -4746,8 +4689,7 @@ def test_literal_setcomp_literal_uchar_100_literal():
     return {item for item in b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}  # cython.uchar
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_uchar_100_literal():
     """
     >>> list(test_literal_genexpr_literal_uchar_100_literal())
@@ -4757,7 +4699,7 @@ def test_literal_genexpr_literal_uchar_100_literal():
 
     return (item for item in b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')  # cython.uchar
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_uchar_100_pointer():
     """
     >>> test_carray_forin_pointer_uchar_100_pointer()
@@ -4771,7 +4713,7 @@ def test_carray_forin_pointer_uchar_100_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_uchar_100_pointer():
     """
     >>> list(test_carray_generator_pointer_uchar_100_pointer())
@@ -4783,7 +4725,7 @@ def test_carray_generator_pointer_uchar_100_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_uchar_100_pointer():
     """
     >>> test_carray_listcomp_pointer_uchar_100_pointer()
@@ -4794,7 +4736,7 @@ def test_carray_listcomp_pointer_uchar_100_pointer():
     return [item for item in carray[:100]]  # cython.uchar
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_uchar_100_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_uchar_100_pointer())
@@ -4804,7 +4746,7 @@ def test_carray_setcomp_pointer_uchar_100_pointer():
 
     return {item for item in carray[:100]}  # cython.uchar
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_forin_constant_uchar_1_21_constant():
     """
     >>> charlist(test_carray_forin_constant_uchar_1_21_constant())
@@ -4818,7 +4760,7 @@ def test_carray_forin_constant_uchar_1_21_constant():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_generator_constant_uchar_1_21_constant():
     """
     >>> charlist(list(test_carray_generator_constant_uchar_1_21_constant()))
@@ -4830,7 +4772,7 @@ def test_carray_generator_constant_uchar_1_21_constant():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_listcomp_constant_uchar_1_21_constant():
     """
     >>> charlist(test_carray_listcomp_constant_uchar_1_21_constant())
@@ -4841,7 +4783,7 @@ def test_carray_listcomp_constant_uchar_1_21_constant():
     return [item for item in carray]  # cython.uchar
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_setcomp_constant_uchar_1_21_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_uchar_1_21_constant()))
@@ -4852,8 +4794,7 @@ def test_carray_setcomp_constant_uchar_1_21_constant():
     return {item for item in carray}  # cython.uchar
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_genexpr_constant_uchar_1_21_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_uchar_1_21_constant()))
@@ -4863,7 +4804,7 @@ def test_carray_genexpr_constant_uchar_1_21_constant():
 
     return (item for item in carray)  # cython.uchar
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_uchar_1_21_literal():
     """
     >>> test_literal_forin_literal_uchar_1_21_literal()
@@ -4877,7 +4818,7 @@ def test_literal_forin_literal_uchar_1_21_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_uchar_1_21_literal():
     """
     >>> list(test_literal_generator_literal_uchar_1_21_literal())
@@ -4889,7 +4830,7 @@ def test_literal_generator_literal_uchar_1_21_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_uchar_1_21_literal():
     """
     >>> test_literal_listcomp_literal_uchar_1_21_literal()
@@ -4900,7 +4841,7 @@ def test_literal_listcomp_literal_uchar_1_21_literal():
     return [item for item in 'X']  # cython.uchar
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_uchar_1_21_literal():
     """
     >>> sorted(test_literal_setcomp_literal_uchar_1_21_literal())
@@ -4911,8 +4852,7 @@ def test_literal_setcomp_literal_uchar_1_21_literal():
     return {item for item in 'X'}  # cython.uchar
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_uchar_1_21_literal():
     """
     >>> list(test_literal_genexpr_literal_uchar_1_21_literal())
@@ -4922,7 +4862,7 @@ def test_literal_genexpr_literal_uchar_1_21_literal():
 
     return (item for item in 'X')  # cython.uchar
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_uchar_1_21_pointer():
     """
     >>> charlist(test_carray_forin_pointer_uchar_1_21_pointer())
@@ -4936,7 +4876,7 @@ def test_carray_forin_pointer_uchar_1_21_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_uchar_1_21_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_uchar_1_21_pointer()))
@@ -4948,7 +4888,7 @@ def test_carray_generator_pointer_uchar_1_21_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_uchar_1_21_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_uchar_1_21_pointer())
@@ -4959,7 +4899,7 @@ def test_carray_listcomp_pointer_uchar_1_21_pointer():
     return [item for item in carray[:1]]  # cython.uchar
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_uchar_1_21_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_uchar_1_21_pointer()))
@@ -4969,7 +4909,7 @@ def test_carray_setcomp_pointer_uchar_1_21_pointer():
 
     return {item for item in carray[:1]}  # cython.uchar
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_forin_constant_uchar_133_constant():
     """
     >>> charlist(test_carray_forin_constant_uchar_133_constant())
@@ -4983,7 +4923,7 @@ def test_carray_forin_constant_uchar_133_constant():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_generator_constant_uchar_133_constant():
     """
     >>> charlist(list(test_carray_generator_constant_uchar_133_constant()))
@@ -4995,7 +4935,7 @@ def test_carray_generator_constant_uchar_133_constant():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_listcomp_constant_uchar_133_constant():
     """
     >>> charlist(test_carray_listcomp_constant_uchar_133_constant())
@@ -5006,7 +4946,7 @@ def test_carray_listcomp_constant_uchar_133_constant():
     return [item for item in carray]  # cython.uchar
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_setcomp_constant_uchar_133_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_uchar_133_constant()))
@@ -5017,8 +4957,7 @@ def test_carray_setcomp_constant_uchar_133_constant():
     return {item for item in carray}  # cython.uchar
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (3)
 def test_carray_genexpr_constant_uchar_133_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_uchar_133_constant()))
@@ -5028,7 +4967,7 @@ def test_carray_genexpr_constant_uchar_133_constant():
 
     return (item for item in carray)  # cython.uchar
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_uchar_133_literal():
     """
     >>> test_literal_forin_literal_uchar_133_literal()
@@ -5042,7 +4981,7 @@ def test_literal_forin_literal_uchar_133_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_uchar_133_literal():
     """
     >>> list(test_literal_generator_literal_uchar_133_literal())
@@ -5054,7 +4993,7 @@ def test_literal_generator_literal_uchar_133_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_uchar_133_literal():
     """
     >>> test_literal_listcomp_literal_uchar_133_literal()
@@ -5065,7 +5004,7 @@ def test_literal_listcomp_literal_uchar_133_literal():
     return [item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX']  # cython.uchar
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_uchar_133_literal():
     """
     >>> sorted(test_literal_setcomp_literal_uchar_133_literal())
@@ -5076,8 +5015,7 @@ def test_literal_setcomp_literal_uchar_133_literal():
     return {item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'}  # cython.uchar
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_uchar_133_literal():
     """
     >>> list(test_literal_genexpr_literal_uchar_133_literal())
@@ -5087,7 +5025,7 @@ def test_literal_genexpr_literal_uchar_133_literal():
 
     return (item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')  # cython.uchar
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_uchar_133_pointer():
     """
     >>> charlist(test_carray_forin_pointer_uchar_133_pointer())
@@ -5101,7 +5039,7 @@ def test_carray_forin_pointer_uchar_133_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_uchar_133_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_uchar_133_pointer()))
@@ -5113,7 +5051,7 @@ def test_carray_generator_pointer_uchar_133_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_uchar_133_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_uchar_133_pointer())
@@ -5124,7 +5062,7 @@ def test_carray_listcomp_pointer_uchar_133_pointer():
     return [item for item in carray[:133]]  # cython.uchar
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_uchar_133_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_uchar_133_pointer()))
@@ -5134,7 +5072,7 @@ def test_carray_setcomp_pointer_uchar_133_pointer():
 
     return {item for item in carray[:133]}  # cython.uchar
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_uchar_1_constant():
     """
     >>> test_carray_forin_constant_const_uchar_1_constant()
@@ -5148,7 +5086,7 @@ def test_carray_forin_constant_const_uchar_1_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_uchar_1_constant():
     """
     >>> list(test_carray_generator_constant_const_uchar_1_constant())
@@ -5160,7 +5098,7 @@ def test_carray_generator_constant_const_uchar_1_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_uchar_1_constant():
     """
     >>> test_carray_listcomp_constant_const_uchar_1_constant()
@@ -5171,7 +5109,7 @@ def test_carray_listcomp_constant_const_uchar_1_constant():
     return [item for item in carray]  # cython.const[cython.uchar]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_uchar_1_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_uchar_1_constant())
@@ -5182,8 +5120,7 @@ def test_carray_setcomp_constant_const_uchar_1_constant():
     return {item for item in carray}  # cython.const[cython.uchar]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_uchar_1_constant():
     """
     >>> list(test_carray_genexpr_constant_const_uchar_1_constant())
@@ -5193,7 +5130,7 @@ def test_carray_genexpr_constant_const_uchar_1_constant():
 
     return (item for item in carray)  # cython.const[cython.uchar]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_uchar_1_literal():
     """
     >>> test_literal_forin_literal_const_uchar_1_literal()
@@ -5207,7 +5144,7 @@ def test_literal_forin_literal_const_uchar_1_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_uchar_1_literal():
     """
     >>> list(test_literal_generator_literal_const_uchar_1_literal())
@@ -5219,7 +5156,7 @@ def test_literal_generator_literal_const_uchar_1_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_uchar_1_literal():
     """
     >>> test_literal_listcomp_literal_const_uchar_1_literal()
@@ -5230,7 +5167,7 @@ def test_literal_listcomp_literal_const_uchar_1_literal():
     return [item for item in b'x']  # cython.const[cython.uchar]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_uchar_1_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_uchar_1_literal())
@@ -5241,8 +5178,7 @@ def test_literal_setcomp_literal_const_uchar_1_literal():
     return {item for item in b'x'}  # cython.const[cython.uchar]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_uchar_1_literal():
     """
     >>> list(test_literal_genexpr_literal_const_uchar_1_literal())
@@ -5252,7 +5188,7 @@ def test_literal_genexpr_literal_const_uchar_1_literal():
 
     return (item for item in b'x')  # cython.const[cython.uchar]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_const_uchar_1_pointer():
     """
     >>> test_carray_forin_pointer_const_uchar_1_pointer()
@@ -5266,7 +5202,7 @@ def test_carray_forin_pointer_const_uchar_1_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_const_uchar_1_pointer():
     """
     >>> list(test_carray_generator_pointer_const_uchar_1_pointer())
@@ -5278,7 +5214,7 @@ def test_carray_generator_pointer_const_uchar_1_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_const_uchar_1_pointer():
     """
     >>> test_carray_listcomp_pointer_const_uchar_1_pointer()
@@ -5289,7 +5225,7 @@ def test_carray_listcomp_pointer_const_uchar_1_pointer():
     return [item for item in carray[:1]]  # cython.const[cython.uchar]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_const_uchar_1_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_uchar_1_pointer())
@@ -5299,7 +5235,7 @@ def test_carray_setcomp_pointer_const_uchar_1_pointer():
 
     return {item for item in carray[:1]}  # cython.const[cython.uchar]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_uchar_7_constant():
     """
     >>> test_carray_forin_constant_const_uchar_7_constant()
@@ -5313,7 +5249,7 @@ def test_carray_forin_constant_const_uchar_7_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_uchar_7_constant():
     """
     >>> list(test_carray_generator_constant_const_uchar_7_constant())
@@ -5325,7 +5261,7 @@ def test_carray_generator_constant_const_uchar_7_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_uchar_7_constant():
     """
     >>> test_carray_listcomp_constant_const_uchar_7_constant()
@@ -5336,7 +5272,7 @@ def test_carray_listcomp_constant_const_uchar_7_constant():
     return [item for item in carray]  # cython.const[cython.uchar]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_uchar_7_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_uchar_7_constant())
@@ -5347,8 +5283,7 @@ def test_carray_setcomp_constant_const_uchar_7_constant():
     return {item for item in carray}  # cython.const[cython.uchar]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_uchar_7_constant():
     """
     >>> list(test_carray_genexpr_constant_const_uchar_7_constant())
@@ -5358,7 +5293,7 @@ def test_carray_genexpr_constant_const_uchar_7_constant():
 
     return (item for item in carray)  # cython.const[cython.uchar]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_uchar_7_literal():
     """
     >>> test_literal_forin_literal_const_uchar_7_literal()
@@ -5372,7 +5307,7 @@ def test_literal_forin_literal_const_uchar_7_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_uchar_7_literal():
     """
     >>> list(test_literal_generator_literal_const_uchar_7_literal())
@@ -5384,7 +5319,7 @@ def test_literal_generator_literal_const_uchar_7_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_uchar_7_literal():
     """
     >>> test_literal_listcomp_literal_const_uchar_7_literal()
@@ -5395,7 +5330,7 @@ def test_literal_listcomp_literal_const_uchar_7_literal():
     return [item for item in b'abcdefg']  # cython.const[cython.uchar]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_uchar_7_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_uchar_7_literal())
@@ -5406,8 +5341,7 @@ def test_literal_setcomp_literal_const_uchar_7_literal():
     return {item for item in b'abcdefg'}  # cython.const[cython.uchar]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_uchar_7_literal():
     """
     >>> list(test_literal_genexpr_literal_const_uchar_7_literal())
@@ -5417,7 +5351,7 @@ def test_literal_genexpr_literal_const_uchar_7_literal():
 
     return (item for item in b'abcdefg')  # cython.const[cython.uchar]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_const_uchar_7_pointer():
     """
     >>> test_carray_forin_pointer_const_uchar_7_pointer()
@@ -5431,7 +5365,7 @@ def test_carray_forin_pointer_const_uchar_7_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_const_uchar_7_pointer():
     """
     >>> list(test_carray_generator_pointer_const_uchar_7_pointer())
@@ -5443,7 +5377,7 @@ def test_carray_generator_pointer_const_uchar_7_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_const_uchar_7_pointer():
     """
     >>> test_carray_listcomp_pointer_const_uchar_7_pointer()
@@ -5454,7 +5388,7 @@ def test_carray_listcomp_pointer_const_uchar_7_pointer():
     return [item for item in carray[:7]]  # cython.const[cython.uchar]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_const_uchar_7_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_uchar_7_pointer())
@@ -5464,7 +5398,7 @@ def test_carray_setcomp_pointer_const_uchar_7_pointer():
 
     return {item for item in carray[:7]}  # cython.const[cython.uchar]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_uchar_100_constant():
     """
     >>> test_carray_forin_constant_const_uchar_100_constant()
@@ -5478,7 +5412,7 @@ def test_carray_forin_constant_const_uchar_100_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_uchar_100_constant():
     """
     >>> list(test_carray_generator_constant_const_uchar_100_constant())
@@ -5490,7 +5424,7 @@ def test_carray_generator_constant_const_uchar_100_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_uchar_100_constant():
     """
     >>> test_carray_listcomp_constant_const_uchar_100_constant()
@@ -5501,7 +5435,7 @@ def test_carray_listcomp_constant_const_uchar_100_constant():
     return [item for item in carray]  # cython.const[cython.uchar]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_uchar_100_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_uchar_100_constant())
@@ -5512,8 +5446,7 @@ def test_carray_setcomp_constant_const_uchar_100_constant():
     return {item for item in carray}  # cython.const[cython.uchar]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_uchar_100_constant():
     """
     >>> list(test_carray_genexpr_constant_const_uchar_100_constant())
@@ -5523,7 +5456,7 @@ def test_carray_genexpr_constant_const_uchar_100_constant():
 
     return (item for item in carray)  # cython.const[cython.uchar]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_uchar_100_literal():
     """
     >>> test_literal_forin_literal_const_uchar_100_literal()
@@ -5537,7 +5470,7 @@ def test_literal_forin_literal_const_uchar_100_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_uchar_100_literal():
     """
     >>> list(test_literal_generator_literal_const_uchar_100_literal())
@@ -5549,7 +5482,7 @@ def test_literal_generator_literal_const_uchar_100_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_uchar_100_literal():
     """
     >>> test_literal_listcomp_literal_const_uchar_100_literal()
@@ -5560,7 +5493,7 @@ def test_literal_listcomp_literal_const_uchar_100_literal():
     return [item for item in b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']  # cython.const[cython.uchar]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_uchar_100_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_uchar_100_literal())
@@ -5571,8 +5504,7 @@ def test_literal_setcomp_literal_const_uchar_100_literal():
     return {item for item in b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}  # cython.const[cython.uchar]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_uchar_100_literal():
     """
     >>> list(test_literal_genexpr_literal_const_uchar_100_literal())
@@ -5582,7 +5514,7 @@ def test_literal_genexpr_literal_const_uchar_100_literal():
 
     return (item for item in b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')  # cython.const[cython.uchar]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_const_uchar_100_pointer():
     """
     >>> test_carray_forin_pointer_const_uchar_100_pointer()
@@ -5596,7 +5528,7 @@ def test_carray_forin_pointer_const_uchar_100_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_const_uchar_100_pointer():
     """
     >>> list(test_carray_generator_pointer_const_uchar_100_pointer())
@@ -5608,7 +5540,7 @@ def test_carray_generator_pointer_const_uchar_100_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_const_uchar_100_pointer():
     """
     >>> test_carray_listcomp_pointer_const_uchar_100_pointer()
@@ -5619,7 +5551,7 @@ def test_carray_listcomp_pointer_const_uchar_100_pointer():
     return [item for item in carray[:100]]  # cython.const[cython.uchar]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_const_uchar_100_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_uchar_100_pointer())
@@ -5629,7 +5561,7 @@ def test_carray_setcomp_pointer_const_uchar_100_pointer():
 
     return {item for item in carray[:100]}  # cython.const[cython.uchar]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_forin_constant_const_uchar_1_26_constant():
     """
     >>> charlist(test_carray_forin_constant_const_uchar_1_26_constant())
@@ -5643,7 +5575,7 @@ def test_carray_forin_constant_const_uchar_1_26_constant():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_generator_constant_const_uchar_1_26_constant():
     """
     >>> charlist(list(test_carray_generator_constant_const_uchar_1_26_constant()))
@@ -5655,7 +5587,7 @@ def test_carray_generator_constant_const_uchar_1_26_constant():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_listcomp_constant_const_uchar_1_26_constant():
     """
     >>> charlist(test_carray_listcomp_constant_const_uchar_1_26_constant())
@@ -5666,7 +5598,7 @@ def test_carray_listcomp_constant_const_uchar_1_26_constant():
     return [item for item in carray]  # cython.const[cython.uchar]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_setcomp_constant_const_uchar_1_26_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_const_uchar_1_26_constant()))
@@ -5677,8 +5609,7 @@ def test_carray_setcomp_constant_const_uchar_1_26_constant():
     return {item for item in carray}  # cython.const[cython.uchar]
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_genexpr_constant_const_uchar_1_26_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_const_uchar_1_26_constant()))
@@ -5688,7 +5619,7 @@ def test_carray_genexpr_constant_const_uchar_1_26_constant():
 
     return (item for item in carray)  # cython.const[cython.uchar]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_uchar_1_26_literal():
     """
     >>> test_literal_forin_literal_const_uchar_1_26_literal()
@@ -5702,7 +5633,7 @@ def test_literal_forin_literal_const_uchar_1_26_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_uchar_1_26_literal():
     """
     >>> list(test_literal_generator_literal_const_uchar_1_26_literal())
@@ -5714,7 +5645,7 @@ def test_literal_generator_literal_const_uchar_1_26_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_uchar_1_26_literal():
     """
     >>> test_literal_listcomp_literal_const_uchar_1_26_literal()
@@ -5725,7 +5656,7 @@ def test_literal_listcomp_literal_const_uchar_1_26_literal():
     return [item for item in 'X']  # cython.const[cython.uchar]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_uchar_1_26_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_uchar_1_26_literal())
@@ -5736,8 +5667,7 @@ def test_literal_setcomp_literal_const_uchar_1_26_literal():
     return {item for item in 'X'}  # cython.const[cython.uchar]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_uchar_1_26_literal():
     """
     >>> list(test_literal_genexpr_literal_const_uchar_1_26_literal())
@@ -5747,7 +5677,7 @@ def test_literal_genexpr_literal_const_uchar_1_26_literal():
 
     return (item for item in 'X')  # cython.const[cython.uchar]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_const_uchar_1_26_pointer():
     """
     >>> charlist(test_carray_forin_pointer_const_uchar_1_26_pointer())
@@ -5761,7 +5691,7 @@ def test_carray_forin_pointer_const_uchar_1_26_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_const_uchar_1_26_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_const_uchar_1_26_pointer()))
@@ -5773,7 +5703,7 @@ def test_carray_generator_pointer_const_uchar_1_26_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_const_uchar_1_26_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_const_uchar_1_26_pointer())
@@ -5784,7 +5714,7 @@ def test_carray_listcomp_pointer_const_uchar_1_26_pointer():
     return [item for item in carray[:1]]  # cython.const[cython.uchar]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_const_uchar_1_26_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_const_uchar_1_26_pointer()))
@@ -5794,7 +5724,7 @@ def test_carray_setcomp_pointer_const_uchar_1_26_pointer():
 
     return {item for item in carray[:1]}  # cython.const[cython.uchar]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_forin_constant_const_uchar_133_constant():
     """
     >>> charlist(test_carray_forin_constant_const_uchar_133_constant())
@@ -5808,7 +5738,7 @@ def test_carray_forin_constant_const_uchar_133_constant():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_generator_constant_const_uchar_133_constant():
     """
     >>> charlist(list(test_carray_generator_constant_const_uchar_133_constant()))
@@ -5820,7 +5750,7 @@ def test_carray_generator_constant_const_uchar_133_constant():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_listcomp_constant_const_uchar_133_constant():
     """
     >>> charlist(test_carray_listcomp_constant_const_uchar_133_constant())
@@ -5831,7 +5761,7 @@ def test_carray_listcomp_constant_const_uchar_133_constant():
     return [item for item in carray]  # cython.const[cython.uchar]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_setcomp_constant_const_uchar_133_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_const_uchar_133_constant()))
@@ -5842,8 +5772,7 @@ def test_carray_setcomp_constant_const_uchar_133_constant():
     return {item for item in carray}  # cython.const[cython.uchar]
 
 
-
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (2)
 def test_carray_genexpr_constant_const_uchar_133_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_const_uchar_133_constant()))
@@ -5853,7 +5782,7 @@ def test_carray_genexpr_constant_const_uchar_133_constant():
 
     return (item for item in carray)  # cython.const[cython.uchar]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_uchar_133_literal():
     """
     >>> test_literal_forin_literal_const_uchar_133_literal()
@@ -5867,7 +5796,7 @@ def test_literal_forin_literal_const_uchar_133_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_uchar_133_literal():
     """
     >>> list(test_literal_generator_literal_const_uchar_133_literal())
@@ -5879,7 +5808,7 @@ def test_literal_generator_literal_const_uchar_133_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_uchar_133_literal():
     """
     >>> test_literal_listcomp_literal_const_uchar_133_literal()
@@ -5890,7 +5819,7 @@ def test_literal_listcomp_literal_const_uchar_133_literal():
     return [item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX']  # cython.const[cython.uchar]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_uchar_133_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_uchar_133_literal())
@@ -5901,8 +5830,7 @@ def test_literal_setcomp_literal_const_uchar_133_literal():
     return {item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'}  # cython.const[cython.uchar]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_uchar_133_literal():
     """
     >>> list(test_literal_genexpr_literal_const_uchar_133_literal())
@@ -5912,7 +5840,7 @@ def test_literal_genexpr_literal_const_uchar_133_literal():
 
     return (item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')  # cython.const[cython.uchar]
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_forin_pointer_const_uchar_133_pointer():
     """
     >>> charlist(test_carray_forin_pointer_const_uchar_133_pointer())
@@ -5926,7 +5854,7 @@ def test_carray_forin_pointer_const_uchar_133_pointer():
     return items
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_generator_pointer_const_uchar_133_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_const_uchar_133_pointer()))
@@ -5938,7 +5866,7 @@ def test_carray_generator_pointer_const_uchar_133_pointer():
         yield item
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_listcomp_pointer_const_uchar_133_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_const_uchar_133_pointer())
@@ -5949,7 +5877,7 @@ def test_carray_listcomp_pointer_const_uchar_133_pointer():
     return [item for item in carray[:133]]  # cython.const[cython.uchar]
 
 
-
+@cython.test_fail_if_path_exists("//CArrayNode")  # (1)
 def test_carray_setcomp_pointer_const_uchar_133_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_const_uchar_133_pointer()))
@@ -5959,7 +5887,7 @@ def test_carray_setcomp_pointer_const_uchar_133_pointer():
 
     return {item for item in carray[:133]}  # cython.const[cython.uchar]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_Py_UCS4_1_constant():
     """
     >>> test_carray_forin_constant_Py_UCS4_1_constant()
@@ -5973,7 +5901,7 @@ def test_carray_forin_constant_Py_UCS4_1_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_Py_UCS4_1_constant():
     """
     >>> list(test_carray_generator_constant_Py_UCS4_1_constant())
@@ -5985,7 +5913,7 @@ def test_carray_generator_constant_Py_UCS4_1_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_Py_UCS4_1_constant():
     """
     >>> test_carray_listcomp_constant_Py_UCS4_1_constant()
@@ -5996,7 +5924,7 @@ def test_carray_listcomp_constant_Py_UCS4_1_constant():
     return [item for item in carray]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_Py_UCS4_1_constant():
     """
     >>> sorted(test_carray_setcomp_constant_Py_UCS4_1_constant())
@@ -6007,8 +5935,7 @@ def test_carray_setcomp_constant_Py_UCS4_1_constant():
     return {item for item in carray}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_Py_UCS4_1_constant():
     """
     >>> list(test_carray_genexpr_constant_Py_UCS4_1_constant())
@@ -6018,7 +5945,7 @@ def test_carray_genexpr_constant_Py_UCS4_1_constant():
 
     return (item for item in carray)  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_Py_UCS4_1_literal():
     """
     >>> test_literal_forin_literal_Py_UCS4_1_literal()
@@ -6032,7 +5959,7 @@ def test_literal_forin_literal_Py_UCS4_1_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_Py_UCS4_1_literal():
     """
     >>> list(test_literal_generator_literal_Py_UCS4_1_literal())
@@ -6044,7 +5971,7 @@ def test_literal_generator_literal_Py_UCS4_1_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_Py_UCS4_1_literal():
     """
     >>> test_literal_listcomp_literal_Py_UCS4_1_literal()
@@ -6055,7 +5982,7 @@ def test_literal_listcomp_literal_Py_UCS4_1_literal():
     return [item for item in 'X']  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_Py_UCS4_1_literal():
     """
     >>> sorted(test_literal_setcomp_literal_Py_UCS4_1_literal())
@@ -6066,8 +5993,7 @@ def test_literal_setcomp_literal_Py_UCS4_1_literal():
     return {item for item in 'X'}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_Py_UCS4_1_literal():
     """
     >>> list(test_literal_genexpr_literal_Py_UCS4_1_literal())
@@ -6077,7 +6003,7 @@ def test_literal_genexpr_literal_Py_UCS4_1_literal():
 
     return (item for item in 'X')  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_Py_UCS4_1_pointer():
     """
     >>> test_carray_forin_pointer_Py_UCS4_1_pointer()
@@ -6091,7 +6017,7 @@ def test_carray_forin_pointer_Py_UCS4_1_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_Py_UCS4_1_pointer():
     """
     >>> list(test_carray_generator_pointer_Py_UCS4_1_pointer())
@@ -6103,7 +6029,7 @@ def test_carray_generator_pointer_Py_UCS4_1_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_Py_UCS4_1_pointer():
     """
     >>> test_carray_listcomp_pointer_Py_UCS4_1_pointer()
@@ -6114,7 +6040,7 @@ def test_carray_listcomp_pointer_Py_UCS4_1_pointer():
     return [item for item in carray[:1]]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_Py_UCS4_1_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_Py_UCS4_1_pointer())
@@ -6124,7 +6050,7 @@ def test_carray_setcomp_pointer_Py_UCS4_1_pointer():
 
     return {item for item in carray[:1]}  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_Py_UCS4_133_constant():
     """
     >>> test_carray_forin_constant_Py_UCS4_133_constant()
@@ -6138,7 +6064,7 @@ def test_carray_forin_constant_Py_UCS4_133_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_Py_UCS4_133_constant():
     """
     >>> list(test_carray_generator_constant_Py_UCS4_133_constant())
@@ -6150,7 +6076,7 @@ def test_carray_generator_constant_Py_UCS4_133_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_Py_UCS4_133_constant():
     """
     >>> test_carray_listcomp_constant_Py_UCS4_133_constant()
@@ -6161,7 +6087,7 @@ def test_carray_listcomp_constant_Py_UCS4_133_constant():
     return [item for item in carray]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_Py_UCS4_133_constant():
     """
     >>> sorted(test_carray_setcomp_constant_Py_UCS4_133_constant())
@@ -6172,8 +6098,7 @@ def test_carray_setcomp_constant_Py_UCS4_133_constant():
     return {item for item in carray}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_Py_UCS4_133_constant():
     """
     >>> list(test_carray_genexpr_constant_Py_UCS4_133_constant())
@@ -6183,7 +6108,7 @@ def test_carray_genexpr_constant_Py_UCS4_133_constant():
 
     return (item for item in carray)  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_Py_UCS4_133_literal():
     """
     >>> test_literal_forin_literal_Py_UCS4_133_literal()
@@ -6197,7 +6122,7 @@ def test_literal_forin_literal_Py_UCS4_133_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_Py_UCS4_133_literal():
     """
     >>> list(test_literal_generator_literal_Py_UCS4_133_literal())
@@ -6209,7 +6134,7 @@ def test_literal_generator_literal_Py_UCS4_133_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_Py_UCS4_133_literal():
     """
     >>> test_literal_listcomp_literal_Py_UCS4_133_literal()
@@ -6220,7 +6145,7 @@ def test_literal_listcomp_literal_Py_UCS4_133_literal():
     return [item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX']  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_Py_UCS4_133_literal():
     """
     >>> sorted(test_literal_setcomp_literal_Py_UCS4_133_literal())
@@ -6231,8 +6156,7 @@ def test_literal_setcomp_literal_Py_UCS4_133_literal():
     return {item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_Py_UCS4_133_literal():
     """
     >>> list(test_literal_genexpr_literal_Py_UCS4_133_literal())
@@ -6242,7 +6166,7 @@ def test_literal_genexpr_literal_Py_UCS4_133_literal():
 
     return (item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_Py_UCS4_133_pointer():
     """
     >>> test_carray_forin_pointer_Py_UCS4_133_pointer()
@@ -6256,7 +6180,7 @@ def test_carray_forin_pointer_Py_UCS4_133_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_Py_UCS4_133_pointer():
     """
     >>> list(test_carray_generator_pointer_Py_UCS4_133_pointer())
@@ -6268,7 +6192,7 @@ def test_carray_generator_pointer_Py_UCS4_133_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_Py_UCS4_133_pointer():
     """
     >>> test_carray_listcomp_pointer_Py_UCS4_133_pointer()
@@ -6279,7 +6203,7 @@ def test_carray_listcomp_pointer_Py_UCS4_133_pointer():
     return [item for item in carray[:133]]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_Py_UCS4_133_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_Py_UCS4_133_pointer())
@@ -6289,7 +6213,7 @@ def test_carray_setcomp_pointer_Py_UCS4_133_pointer():
 
     return {item for item in carray[:133]}  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_Py_UCS4_1_30_constant():
     """
     >>> test_carray_forin_constant_Py_UCS4_1_30_constant()
@@ -6303,7 +6227,7 @@ def test_carray_forin_constant_Py_UCS4_1_30_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_Py_UCS4_1_30_constant():
     """
     >>> list(test_carray_generator_constant_Py_UCS4_1_30_constant())
@@ -6315,7 +6239,7 @@ def test_carray_generator_constant_Py_UCS4_1_30_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_Py_UCS4_1_30_constant():
     """
     >>> test_carray_listcomp_constant_Py_UCS4_1_30_constant()
@@ -6326,7 +6250,7 @@ def test_carray_listcomp_constant_Py_UCS4_1_30_constant():
     return [item for item in carray]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_Py_UCS4_1_30_constant():
     """
     >>> sorted(test_carray_setcomp_constant_Py_UCS4_1_30_constant())
@@ -6337,8 +6261,7 @@ def test_carray_setcomp_constant_Py_UCS4_1_30_constant():
     return {item for item in carray}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_Py_UCS4_1_30_constant():
     """
     >>> list(test_carray_genexpr_constant_Py_UCS4_1_30_constant())
@@ -6348,7 +6271,7 @@ def test_carray_genexpr_constant_Py_UCS4_1_30_constant():
 
     return (item for item in carray)  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_Py_UCS4_1_30_literal():
     """
     >>> test_literal_forin_literal_Py_UCS4_1_30_literal()
@@ -6362,7 +6285,7 @@ def test_literal_forin_literal_Py_UCS4_1_30_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_Py_UCS4_1_30_literal():
     """
     >>> list(test_literal_generator_literal_Py_UCS4_1_30_literal())
@@ -6374,7 +6297,7 @@ def test_literal_generator_literal_Py_UCS4_1_30_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_Py_UCS4_1_30_literal():
     """
     >>> test_literal_listcomp_literal_Py_UCS4_1_30_literal()
@@ -6385,7 +6308,7 @@ def test_literal_listcomp_literal_Py_UCS4_1_30_literal():
     return [item for item in '☃']  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_Py_UCS4_1_30_literal():
     """
     >>> sorted(test_literal_setcomp_literal_Py_UCS4_1_30_literal())
@@ -6396,8 +6319,7 @@ def test_literal_setcomp_literal_Py_UCS4_1_30_literal():
     return {item for item in '☃'}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_Py_UCS4_1_30_literal():
     """
     >>> list(test_literal_genexpr_literal_Py_UCS4_1_30_literal())
@@ -6407,7 +6329,7 @@ def test_literal_genexpr_literal_Py_UCS4_1_30_literal():
 
     return (item for item in '☃')  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_Py_UCS4_1_30_pointer():
     """
     >>> test_carray_forin_pointer_Py_UCS4_1_30_pointer()
@@ -6421,7 +6343,7 @@ def test_carray_forin_pointer_Py_UCS4_1_30_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_Py_UCS4_1_30_pointer():
     """
     >>> list(test_carray_generator_pointer_Py_UCS4_1_30_pointer())
@@ -6433,7 +6355,7 @@ def test_carray_generator_pointer_Py_UCS4_1_30_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_Py_UCS4_1_30_pointer():
     """
     >>> test_carray_listcomp_pointer_Py_UCS4_1_30_pointer()
@@ -6444,7 +6366,7 @@ def test_carray_listcomp_pointer_Py_UCS4_1_30_pointer():
     return [item for item in carray[:1]]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_Py_UCS4_1_30_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_Py_UCS4_1_30_pointer())
@@ -6454,7 +6376,7 @@ def test_carray_setcomp_pointer_Py_UCS4_1_30_pointer():
 
     return {item for item in carray[:1]}  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_Py_UCS4_11_constant():
     """
     >>> test_carray_forin_constant_Py_UCS4_11_constant()
@@ -6468,7 +6390,7 @@ def test_carray_forin_constant_Py_UCS4_11_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_Py_UCS4_11_constant():
     """
     >>> list(test_carray_generator_constant_Py_UCS4_11_constant())
@@ -6480,7 +6402,7 @@ def test_carray_generator_constant_Py_UCS4_11_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_Py_UCS4_11_constant():
     """
     >>> test_carray_listcomp_constant_Py_UCS4_11_constant()
@@ -6491,7 +6413,7 @@ def test_carray_listcomp_constant_Py_UCS4_11_constant():
     return [item for item in carray]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_Py_UCS4_11_constant():
     """
     >>> sorted(test_carray_setcomp_constant_Py_UCS4_11_constant())
@@ -6502,8 +6424,7 @@ def test_carray_setcomp_constant_Py_UCS4_11_constant():
     return {item for item in carray}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_Py_UCS4_11_constant():
     """
     >>> list(test_carray_genexpr_constant_Py_UCS4_11_constant())
@@ -6513,7 +6434,7 @@ def test_carray_genexpr_constant_Py_UCS4_11_constant():
 
     return (item for item in carray)  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_Py_UCS4_11_literal():
     """
     >>> test_literal_forin_literal_Py_UCS4_11_literal()
@@ -6527,7 +6448,7 @@ def test_literal_forin_literal_Py_UCS4_11_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_Py_UCS4_11_literal():
     """
     >>> list(test_literal_generator_literal_Py_UCS4_11_literal())
@@ -6539,7 +6460,7 @@ def test_literal_generator_literal_Py_UCS4_11_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_Py_UCS4_11_literal():
     """
     >>> test_literal_listcomp_literal_Py_UCS4_11_literal()
@@ -6550,7 +6471,7 @@ def test_literal_listcomp_literal_Py_UCS4_11_literal():
     return [item for item in '∑∑∑∑∑∑∑∑∑∑∑']  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_Py_UCS4_11_literal():
     """
     >>> sorted(test_literal_setcomp_literal_Py_UCS4_11_literal())
@@ -6561,8 +6482,7 @@ def test_literal_setcomp_literal_Py_UCS4_11_literal():
     return {item for item in '∑∑∑∑∑∑∑∑∑∑∑'}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_Py_UCS4_11_literal():
     """
     >>> list(test_literal_genexpr_literal_Py_UCS4_11_literal())
@@ -6572,7 +6492,7 @@ def test_literal_genexpr_literal_Py_UCS4_11_literal():
 
     return (item for item in '∑∑∑∑∑∑∑∑∑∑∑')  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_Py_UCS4_11_pointer():
     """
     >>> test_carray_forin_pointer_Py_UCS4_11_pointer()
@@ -6586,7 +6506,7 @@ def test_carray_forin_pointer_Py_UCS4_11_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_Py_UCS4_11_pointer():
     """
     >>> list(test_carray_generator_pointer_Py_UCS4_11_pointer())
@@ -6598,7 +6518,7 @@ def test_carray_generator_pointer_Py_UCS4_11_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_Py_UCS4_11_pointer():
     """
     >>> test_carray_listcomp_pointer_Py_UCS4_11_pointer()
@@ -6609,7 +6529,7 @@ def test_carray_listcomp_pointer_Py_UCS4_11_pointer():
     return [item for item in carray[:11]]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_Py_UCS4_11_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_Py_UCS4_11_pointer())
@@ -6619,7 +6539,7 @@ def test_carray_setcomp_pointer_Py_UCS4_11_pointer():
 
     return {item for item in carray[:11]}  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_Py_UCS4_21_constant():
     """
     >>> test_carray_forin_constant_Py_UCS4_21_constant()
@@ -6633,7 +6553,7 @@ def test_carray_forin_constant_Py_UCS4_21_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_Py_UCS4_21_constant():
     """
     >>> list(test_carray_generator_constant_Py_UCS4_21_constant())
@@ -6645,7 +6565,7 @@ def test_carray_generator_constant_Py_UCS4_21_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_Py_UCS4_21_constant():
     """
     >>> test_carray_listcomp_constant_Py_UCS4_21_constant()
@@ -6656,7 +6576,7 @@ def test_carray_listcomp_constant_Py_UCS4_21_constant():
     return [item for item in carray]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_Py_UCS4_21_constant():
     """
     >>> sorted(test_carray_setcomp_constant_Py_UCS4_21_constant())
@@ -6667,8 +6587,7 @@ def test_carray_setcomp_constant_Py_UCS4_21_constant():
     return {item for item in carray}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_Py_UCS4_21_constant():
     """
     >>> list(test_carray_genexpr_constant_Py_UCS4_21_constant())
@@ -6678,7 +6597,7 @@ def test_carray_genexpr_constant_Py_UCS4_21_constant():
 
     return (item for item in carray)  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_Py_UCS4_21_literal():
     """
     >>> test_literal_forin_literal_Py_UCS4_21_literal()
@@ -6692,7 +6611,7 @@ def test_literal_forin_literal_Py_UCS4_21_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_Py_UCS4_21_literal():
     """
     >>> list(test_literal_generator_literal_Py_UCS4_21_literal())
@@ -6704,7 +6623,7 @@ def test_literal_generator_literal_Py_UCS4_21_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_Py_UCS4_21_literal():
     """
     >>> test_literal_listcomp_literal_Py_UCS4_21_literal()
@@ -6715,7 +6634,7 @@ def test_literal_listcomp_literal_Py_UCS4_21_literal():
     return [item for item in '∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ']  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_Py_UCS4_21_literal():
     """
     >>> sorted(test_literal_setcomp_literal_Py_UCS4_21_literal())
@@ -6726,8 +6645,7 @@ def test_literal_setcomp_literal_Py_UCS4_21_literal():
     return {item for item in '∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ'}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_Py_UCS4_21_literal():
     """
     >>> list(test_literal_genexpr_literal_Py_UCS4_21_literal())
@@ -6737,7 +6655,7 @@ def test_literal_genexpr_literal_Py_UCS4_21_literal():
 
     return (item for item in '∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ')  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_Py_UCS4_21_pointer():
     """
     >>> test_carray_forin_pointer_Py_UCS4_21_pointer()
@@ -6751,7 +6669,7 @@ def test_carray_forin_pointer_Py_UCS4_21_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_Py_UCS4_21_pointer():
     """
     >>> list(test_carray_generator_pointer_Py_UCS4_21_pointer())
@@ -6763,7 +6681,7 @@ def test_carray_generator_pointer_Py_UCS4_21_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_Py_UCS4_21_pointer():
     """
     >>> test_carray_listcomp_pointer_Py_UCS4_21_pointer()
@@ -6774,7 +6692,7 @@ def test_carray_listcomp_pointer_Py_UCS4_21_pointer():
     return [item for item in carray[:21]]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_Py_UCS4_21_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_Py_UCS4_21_pointer())
@@ -6784,7 +6702,7 @@ def test_carray_setcomp_pointer_Py_UCS4_21_pointer():
 
     return {item for item in carray[:21]}  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_Py_UCS4_2_constant():
     """
     >>> test_carray_forin_constant_Py_UCS4_2_constant()
@@ -6798,7 +6716,7 @@ def test_carray_forin_constant_Py_UCS4_2_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_Py_UCS4_2_constant():
     """
     >>> list(test_carray_generator_constant_Py_UCS4_2_constant())
@@ -6810,7 +6728,7 @@ def test_carray_generator_constant_Py_UCS4_2_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_Py_UCS4_2_constant():
     """
     >>> test_carray_listcomp_constant_Py_UCS4_2_constant()
@@ -6821,7 +6739,7 @@ def test_carray_listcomp_constant_Py_UCS4_2_constant():
     return [item for item in carray]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_Py_UCS4_2_constant():
     """
     >>> sorted(test_carray_setcomp_constant_Py_UCS4_2_constant())
@@ -6832,8 +6750,7 @@ def test_carray_setcomp_constant_Py_UCS4_2_constant():
     return {item for item in carray}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_Py_UCS4_2_constant():
     """
     >>> list(test_carray_genexpr_constant_Py_UCS4_2_constant())
@@ -6843,7 +6760,7 @@ def test_carray_genexpr_constant_Py_UCS4_2_constant():
 
     return (item for item in carray)  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_Py_UCS4_2_literal():
     """
     >>> test_literal_forin_literal_Py_UCS4_2_literal()
@@ -6857,7 +6774,7 @@ def test_literal_forin_literal_Py_UCS4_2_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_Py_UCS4_2_literal():
     """
     >>> list(test_literal_generator_literal_Py_UCS4_2_literal())
@@ -6869,7 +6786,7 @@ def test_literal_generator_literal_Py_UCS4_2_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_Py_UCS4_2_literal():
     """
     >>> test_literal_listcomp_literal_Py_UCS4_2_literal()
@@ -6880,7 +6797,7 @@ def test_literal_listcomp_literal_Py_UCS4_2_literal():
     return [item for item in '😇😌']  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_Py_UCS4_2_literal():
     """
     >>> sorted(test_literal_setcomp_literal_Py_UCS4_2_literal())
@@ -6891,8 +6808,7 @@ def test_literal_setcomp_literal_Py_UCS4_2_literal():
     return {item for item in '😇😌'}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_Py_UCS4_2_literal():
     """
     >>> list(test_literal_genexpr_literal_Py_UCS4_2_literal())
@@ -6902,7 +6818,7 @@ def test_literal_genexpr_literal_Py_UCS4_2_literal():
 
     return (item for item in '😇😌')  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_Py_UCS4_2_pointer():
     """
     >>> test_carray_forin_pointer_Py_UCS4_2_pointer()
@@ -6916,7 +6832,7 @@ def test_carray_forin_pointer_Py_UCS4_2_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_Py_UCS4_2_pointer():
     """
     >>> list(test_carray_generator_pointer_Py_UCS4_2_pointer())
@@ -6928,7 +6844,7 @@ def test_carray_generator_pointer_Py_UCS4_2_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_Py_UCS4_2_pointer():
     """
     >>> test_carray_listcomp_pointer_Py_UCS4_2_pointer()
@@ -6939,7 +6855,7 @@ def test_carray_listcomp_pointer_Py_UCS4_2_pointer():
     return [item for item in carray[:2]]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_Py_UCS4_2_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_Py_UCS4_2_pointer())
@@ -6949,7 +6865,7 @@ def test_carray_setcomp_pointer_Py_UCS4_2_pointer():
 
     return {item for item in carray[:2]}  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_Py_UCS4_3_constant():
     """
     >>> test_carray_forin_constant_Py_UCS4_3_constant()
@@ -6963,7 +6879,7 @@ def test_carray_forin_constant_Py_UCS4_3_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_Py_UCS4_3_constant():
     """
     >>> list(test_carray_generator_constant_Py_UCS4_3_constant())
@@ -6975,7 +6891,7 @@ def test_carray_generator_constant_Py_UCS4_3_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_Py_UCS4_3_constant():
     """
     >>> test_carray_listcomp_constant_Py_UCS4_3_constant()
@@ -6986,7 +6902,7 @@ def test_carray_listcomp_constant_Py_UCS4_3_constant():
     return [item for item in carray]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_Py_UCS4_3_constant():
     """
     >>> sorted(test_carray_setcomp_constant_Py_UCS4_3_constant())
@@ -6997,8 +6913,7 @@ def test_carray_setcomp_constant_Py_UCS4_3_constant():
     return {item for item in carray}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_Py_UCS4_3_constant():
     """
     >>> list(test_carray_genexpr_constant_Py_UCS4_3_constant())
@@ -7008,7 +6923,7 @@ def test_carray_genexpr_constant_Py_UCS4_3_constant():
 
     return (item for item in carray)  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_Py_UCS4_3_literal():
     """
     >>> test_literal_forin_literal_Py_UCS4_3_literal()
@@ -7022,7 +6937,7 @@ def test_literal_forin_literal_Py_UCS4_3_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_Py_UCS4_3_literal():
     """
     >>> list(test_literal_generator_literal_Py_UCS4_3_literal())
@@ -7034,7 +6949,7 @@ def test_literal_generator_literal_Py_UCS4_3_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_Py_UCS4_3_literal():
     """
     >>> test_literal_listcomp_literal_Py_UCS4_3_literal()
@@ -7045,7 +6960,7 @@ def test_literal_listcomp_literal_Py_UCS4_3_literal():
     return [item for item in '😇x😌']  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_Py_UCS4_3_literal():
     """
     >>> sorted(test_literal_setcomp_literal_Py_UCS4_3_literal())
@@ -7056,8 +6971,7 @@ def test_literal_setcomp_literal_Py_UCS4_3_literal():
     return {item for item in '😇x😌'}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_Py_UCS4_3_literal():
     """
     >>> list(test_literal_genexpr_literal_Py_UCS4_3_literal())
@@ -7067,7 +6981,7 @@ def test_literal_genexpr_literal_Py_UCS4_3_literal():
 
     return (item for item in '😇x😌')  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_Py_UCS4_3_pointer():
     """
     >>> test_carray_forin_pointer_Py_UCS4_3_pointer()
@@ -7081,7 +6995,7 @@ def test_carray_forin_pointer_Py_UCS4_3_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_Py_UCS4_3_pointer():
     """
     >>> list(test_carray_generator_pointer_Py_UCS4_3_pointer())
@@ -7093,7 +7007,7 @@ def test_carray_generator_pointer_Py_UCS4_3_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_Py_UCS4_3_pointer():
     """
     >>> test_carray_listcomp_pointer_Py_UCS4_3_pointer()
@@ -7104,7 +7018,7 @@ def test_carray_listcomp_pointer_Py_UCS4_3_pointer():
     return [item for item in carray[:3]]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_Py_UCS4_3_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_Py_UCS4_3_pointer())
@@ -7114,7 +7028,7 @@ def test_carray_setcomp_pointer_Py_UCS4_3_pointer():
 
     return {item for item in carray[:3]}  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_Py_UCS4_14_constant():
     """
     >>> test_carray_forin_constant_Py_UCS4_14_constant()
@@ -7128,7 +7042,7 @@ def test_carray_forin_constant_Py_UCS4_14_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_Py_UCS4_14_constant():
     """
     >>> list(test_carray_generator_constant_Py_UCS4_14_constant())
@@ -7140,7 +7054,7 @@ def test_carray_generator_constant_Py_UCS4_14_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_Py_UCS4_14_constant():
     """
     >>> test_carray_listcomp_constant_Py_UCS4_14_constant()
@@ -7151,7 +7065,7 @@ def test_carray_listcomp_constant_Py_UCS4_14_constant():
     return [item for item in carray]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_Py_UCS4_14_constant():
     """
     >>> sorted(test_carray_setcomp_constant_Py_UCS4_14_constant())
@@ -7162,8 +7076,7 @@ def test_carray_setcomp_constant_Py_UCS4_14_constant():
     return {item for item in carray}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_Py_UCS4_14_constant():
     """
     >>> list(test_carray_genexpr_constant_Py_UCS4_14_constant())
@@ -7173,7 +7086,7 @@ def test_carray_genexpr_constant_Py_UCS4_14_constant():
 
     return (item for item in carray)  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_Py_UCS4_14_literal():
     """
     >>> test_literal_forin_literal_Py_UCS4_14_literal()
@@ -7187,7 +7100,7 @@ def test_literal_forin_literal_Py_UCS4_14_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_Py_UCS4_14_literal():
     """
     >>> list(test_literal_generator_literal_Py_UCS4_14_literal())
@@ -7199,7 +7112,7 @@ def test_literal_generator_literal_Py_UCS4_14_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_Py_UCS4_14_literal():
     """
     >>> test_literal_listcomp_literal_Py_UCS4_14_literal()
@@ -7210,7 +7123,7 @@ def test_literal_listcomp_literal_Py_UCS4_14_literal():
     return [item for item in '😇😌😇😌😇😌😇😌😇😌😇😌😇😌']  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_Py_UCS4_14_literal():
     """
     >>> sorted(test_literal_setcomp_literal_Py_UCS4_14_literal())
@@ -7221,8 +7134,7 @@ def test_literal_setcomp_literal_Py_UCS4_14_literal():
     return {item for item in '😇😌😇😌😇😌😇😌😇😌😇😌😇😌'}  # cython.Py_UCS4
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_Py_UCS4_14_literal():
     """
     >>> list(test_literal_genexpr_literal_Py_UCS4_14_literal())
@@ -7232,7 +7144,7 @@ def test_literal_genexpr_literal_Py_UCS4_14_literal():
 
     return (item for item in '😇😌😇😌😇😌😇😌😇😌😇😌😇😌')  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_Py_UCS4_14_pointer():
     """
     >>> test_carray_forin_pointer_Py_UCS4_14_pointer()
@@ -7246,7 +7158,7 @@ def test_carray_forin_pointer_Py_UCS4_14_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_Py_UCS4_14_pointer():
     """
     >>> list(test_carray_generator_pointer_Py_UCS4_14_pointer())
@@ -7258,7 +7170,7 @@ def test_carray_generator_pointer_Py_UCS4_14_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_Py_UCS4_14_pointer():
     """
     >>> test_carray_listcomp_pointer_Py_UCS4_14_pointer()
@@ -7269,7 +7181,7 @@ def test_carray_listcomp_pointer_Py_UCS4_14_pointer():
     return [item for item in carray[:14]]  # cython.Py_UCS4
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_Py_UCS4_14_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_Py_UCS4_14_pointer())
@@ -7279,7 +7191,7 @@ def test_carray_setcomp_pointer_Py_UCS4_14_pointer():
 
     return {item for item in carray[:14]}  # cython.Py_UCS4
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_Py_UCS4_1_constant():
     """
     >>> test_carray_forin_constant_const_Py_UCS4_1_constant()
@@ -7293,7 +7205,7 @@ def test_carray_forin_constant_const_Py_UCS4_1_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_Py_UCS4_1_constant():
     """
     >>> list(test_carray_generator_constant_const_Py_UCS4_1_constant())
@@ -7305,7 +7217,7 @@ def test_carray_generator_constant_const_Py_UCS4_1_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_Py_UCS4_1_constant():
     """
     >>> test_carray_listcomp_constant_const_Py_UCS4_1_constant()
@@ -7316,7 +7228,7 @@ def test_carray_listcomp_constant_const_Py_UCS4_1_constant():
     return [item for item in carray]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_Py_UCS4_1_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_Py_UCS4_1_constant())
@@ -7327,8 +7239,7 @@ def test_carray_setcomp_constant_const_Py_UCS4_1_constant():
     return {item for item in carray}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_Py_UCS4_1_constant():
     """
     >>> list(test_carray_genexpr_constant_const_Py_UCS4_1_constant())
@@ -7338,7 +7249,7 @@ def test_carray_genexpr_constant_const_Py_UCS4_1_constant():
 
     return (item for item in carray)  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_Py_UCS4_1_literal():
     """
     >>> test_literal_forin_literal_const_Py_UCS4_1_literal()
@@ -7352,7 +7263,7 @@ def test_literal_forin_literal_const_Py_UCS4_1_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_Py_UCS4_1_literal():
     """
     >>> list(test_literal_generator_literal_const_Py_UCS4_1_literal())
@@ -7364,7 +7275,7 @@ def test_literal_generator_literal_const_Py_UCS4_1_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_Py_UCS4_1_literal():
     """
     >>> test_literal_listcomp_literal_const_Py_UCS4_1_literal()
@@ -7375,7 +7286,7 @@ def test_literal_listcomp_literal_const_Py_UCS4_1_literal():
     return [item for item in 'X']  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_Py_UCS4_1_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_Py_UCS4_1_literal())
@@ -7386,8 +7297,7 @@ def test_literal_setcomp_literal_const_Py_UCS4_1_literal():
     return {item for item in 'X'}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_Py_UCS4_1_literal():
     """
     >>> list(test_literal_genexpr_literal_const_Py_UCS4_1_literal())
@@ -7397,7 +7307,7 @@ def test_literal_genexpr_literal_const_Py_UCS4_1_literal():
 
     return (item for item in 'X')  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_Py_UCS4_1_pointer():
     """
     >>> test_carray_forin_pointer_const_Py_UCS4_1_pointer()
@@ -7411,7 +7321,7 @@ def test_carray_forin_pointer_const_Py_UCS4_1_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_Py_UCS4_1_pointer():
     """
     >>> list(test_carray_generator_pointer_const_Py_UCS4_1_pointer())
@@ -7423,7 +7333,7 @@ def test_carray_generator_pointer_const_Py_UCS4_1_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_Py_UCS4_1_pointer():
     """
     >>> test_carray_listcomp_pointer_const_Py_UCS4_1_pointer()
@@ -7434,7 +7344,7 @@ def test_carray_listcomp_pointer_const_Py_UCS4_1_pointer():
     return [item for item in carray[:1]]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_Py_UCS4_1_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_Py_UCS4_1_pointer())
@@ -7444,7 +7354,7 @@ def test_carray_setcomp_pointer_const_Py_UCS4_1_pointer():
 
     return {item for item in carray[:1]}  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_Py_UCS4_133_constant():
     """
     >>> test_carray_forin_constant_const_Py_UCS4_133_constant()
@@ -7458,7 +7368,7 @@ def test_carray_forin_constant_const_Py_UCS4_133_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_Py_UCS4_133_constant():
     """
     >>> list(test_carray_generator_constant_const_Py_UCS4_133_constant())
@@ -7470,7 +7380,7 @@ def test_carray_generator_constant_const_Py_UCS4_133_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_Py_UCS4_133_constant():
     """
     >>> test_carray_listcomp_constant_const_Py_UCS4_133_constant()
@@ -7481,7 +7391,7 @@ def test_carray_listcomp_constant_const_Py_UCS4_133_constant():
     return [item for item in carray]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_Py_UCS4_133_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_Py_UCS4_133_constant())
@@ -7492,8 +7402,7 @@ def test_carray_setcomp_constant_const_Py_UCS4_133_constant():
     return {item for item in carray}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_Py_UCS4_133_constant():
     """
     >>> list(test_carray_genexpr_constant_const_Py_UCS4_133_constant())
@@ -7503,7 +7412,7 @@ def test_carray_genexpr_constant_const_Py_UCS4_133_constant():
 
     return (item for item in carray)  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_Py_UCS4_133_literal():
     """
     >>> test_literal_forin_literal_const_Py_UCS4_133_literal()
@@ -7517,7 +7426,7 @@ def test_literal_forin_literal_const_Py_UCS4_133_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_Py_UCS4_133_literal():
     """
     >>> list(test_literal_generator_literal_const_Py_UCS4_133_literal())
@@ -7529,7 +7438,7 @@ def test_literal_generator_literal_const_Py_UCS4_133_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_Py_UCS4_133_literal():
     """
     >>> test_literal_listcomp_literal_const_Py_UCS4_133_literal()
@@ -7540,7 +7449,7 @@ def test_literal_listcomp_literal_const_Py_UCS4_133_literal():
     return [item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX']  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_Py_UCS4_133_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_Py_UCS4_133_literal())
@@ -7551,8 +7460,7 @@ def test_literal_setcomp_literal_const_Py_UCS4_133_literal():
     return {item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_Py_UCS4_133_literal():
     """
     >>> list(test_literal_genexpr_literal_const_Py_UCS4_133_literal())
@@ -7562,7 +7470,7 @@ def test_literal_genexpr_literal_const_Py_UCS4_133_literal():
 
     return (item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_Py_UCS4_133_pointer():
     """
     >>> test_carray_forin_pointer_const_Py_UCS4_133_pointer()
@@ -7576,7 +7484,7 @@ def test_carray_forin_pointer_const_Py_UCS4_133_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_Py_UCS4_133_pointer():
     """
     >>> list(test_carray_generator_pointer_const_Py_UCS4_133_pointer())
@@ -7588,7 +7496,7 @@ def test_carray_generator_pointer_const_Py_UCS4_133_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_Py_UCS4_133_pointer():
     """
     >>> test_carray_listcomp_pointer_const_Py_UCS4_133_pointer()
@@ -7599,7 +7507,7 @@ def test_carray_listcomp_pointer_const_Py_UCS4_133_pointer():
     return [item for item in carray[:133]]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_Py_UCS4_133_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_Py_UCS4_133_pointer())
@@ -7609,7 +7517,7 @@ def test_carray_setcomp_pointer_const_Py_UCS4_133_pointer():
 
     return {item for item in carray[:133]}  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_Py_UCS4_1_38_constant():
     """
     >>> test_carray_forin_constant_const_Py_UCS4_1_38_constant()
@@ -7623,7 +7531,7 @@ def test_carray_forin_constant_const_Py_UCS4_1_38_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_Py_UCS4_1_38_constant():
     """
     >>> list(test_carray_generator_constant_const_Py_UCS4_1_38_constant())
@@ -7635,7 +7543,7 @@ def test_carray_generator_constant_const_Py_UCS4_1_38_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_Py_UCS4_1_38_constant():
     """
     >>> test_carray_listcomp_constant_const_Py_UCS4_1_38_constant()
@@ -7646,7 +7554,7 @@ def test_carray_listcomp_constant_const_Py_UCS4_1_38_constant():
     return [item for item in carray]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_Py_UCS4_1_38_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_Py_UCS4_1_38_constant())
@@ -7657,8 +7565,7 @@ def test_carray_setcomp_constant_const_Py_UCS4_1_38_constant():
     return {item for item in carray}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_Py_UCS4_1_38_constant():
     """
     >>> list(test_carray_genexpr_constant_const_Py_UCS4_1_38_constant())
@@ -7668,7 +7575,7 @@ def test_carray_genexpr_constant_const_Py_UCS4_1_38_constant():
 
     return (item for item in carray)  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_Py_UCS4_1_38_literal():
     """
     >>> test_literal_forin_literal_const_Py_UCS4_1_38_literal()
@@ -7682,7 +7589,7 @@ def test_literal_forin_literal_const_Py_UCS4_1_38_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_Py_UCS4_1_38_literal():
     """
     >>> list(test_literal_generator_literal_const_Py_UCS4_1_38_literal())
@@ -7694,7 +7601,7 @@ def test_literal_generator_literal_const_Py_UCS4_1_38_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_Py_UCS4_1_38_literal():
     """
     >>> test_literal_listcomp_literal_const_Py_UCS4_1_38_literal()
@@ -7705,7 +7612,7 @@ def test_literal_listcomp_literal_const_Py_UCS4_1_38_literal():
     return [item for item in '☃']  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_Py_UCS4_1_38_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_Py_UCS4_1_38_literal())
@@ -7716,8 +7623,7 @@ def test_literal_setcomp_literal_const_Py_UCS4_1_38_literal():
     return {item for item in '☃'}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_Py_UCS4_1_38_literal():
     """
     >>> list(test_literal_genexpr_literal_const_Py_UCS4_1_38_literal())
@@ -7727,7 +7633,7 @@ def test_literal_genexpr_literal_const_Py_UCS4_1_38_literal():
 
     return (item for item in '☃')  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_Py_UCS4_1_38_pointer():
     """
     >>> test_carray_forin_pointer_const_Py_UCS4_1_38_pointer()
@@ -7741,7 +7647,7 @@ def test_carray_forin_pointer_const_Py_UCS4_1_38_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_Py_UCS4_1_38_pointer():
     """
     >>> list(test_carray_generator_pointer_const_Py_UCS4_1_38_pointer())
@@ -7753,7 +7659,7 @@ def test_carray_generator_pointer_const_Py_UCS4_1_38_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_Py_UCS4_1_38_pointer():
     """
     >>> test_carray_listcomp_pointer_const_Py_UCS4_1_38_pointer()
@@ -7764,7 +7670,7 @@ def test_carray_listcomp_pointer_const_Py_UCS4_1_38_pointer():
     return [item for item in carray[:1]]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_Py_UCS4_1_38_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_Py_UCS4_1_38_pointer())
@@ -7774,7 +7680,7 @@ def test_carray_setcomp_pointer_const_Py_UCS4_1_38_pointer():
 
     return {item for item in carray[:1]}  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_Py_UCS4_11_constant():
     """
     >>> test_carray_forin_constant_const_Py_UCS4_11_constant()
@@ -7788,7 +7694,7 @@ def test_carray_forin_constant_const_Py_UCS4_11_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_Py_UCS4_11_constant():
     """
     >>> list(test_carray_generator_constant_const_Py_UCS4_11_constant())
@@ -7800,7 +7706,7 @@ def test_carray_generator_constant_const_Py_UCS4_11_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_Py_UCS4_11_constant():
     """
     >>> test_carray_listcomp_constant_const_Py_UCS4_11_constant()
@@ -7811,7 +7717,7 @@ def test_carray_listcomp_constant_const_Py_UCS4_11_constant():
     return [item for item in carray]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_Py_UCS4_11_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_Py_UCS4_11_constant())
@@ -7822,8 +7728,7 @@ def test_carray_setcomp_constant_const_Py_UCS4_11_constant():
     return {item for item in carray}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_Py_UCS4_11_constant():
     """
     >>> list(test_carray_genexpr_constant_const_Py_UCS4_11_constant())
@@ -7833,7 +7738,7 @@ def test_carray_genexpr_constant_const_Py_UCS4_11_constant():
 
     return (item for item in carray)  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_Py_UCS4_11_literal():
     """
     >>> test_literal_forin_literal_const_Py_UCS4_11_literal()
@@ -7847,7 +7752,7 @@ def test_literal_forin_literal_const_Py_UCS4_11_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_Py_UCS4_11_literal():
     """
     >>> list(test_literal_generator_literal_const_Py_UCS4_11_literal())
@@ -7859,7 +7764,7 @@ def test_literal_generator_literal_const_Py_UCS4_11_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_Py_UCS4_11_literal():
     """
     >>> test_literal_listcomp_literal_const_Py_UCS4_11_literal()
@@ -7870,7 +7775,7 @@ def test_literal_listcomp_literal_const_Py_UCS4_11_literal():
     return [item for item in '∑∑∑∑∑∑∑∑∑∑∑']  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_Py_UCS4_11_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_Py_UCS4_11_literal())
@@ -7881,8 +7786,7 @@ def test_literal_setcomp_literal_const_Py_UCS4_11_literal():
     return {item for item in '∑∑∑∑∑∑∑∑∑∑∑'}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_Py_UCS4_11_literal():
     """
     >>> list(test_literal_genexpr_literal_const_Py_UCS4_11_literal())
@@ -7892,7 +7796,7 @@ def test_literal_genexpr_literal_const_Py_UCS4_11_literal():
 
     return (item for item in '∑∑∑∑∑∑∑∑∑∑∑')  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_Py_UCS4_11_pointer():
     """
     >>> test_carray_forin_pointer_const_Py_UCS4_11_pointer()
@@ -7906,7 +7810,7 @@ def test_carray_forin_pointer_const_Py_UCS4_11_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_Py_UCS4_11_pointer():
     """
     >>> list(test_carray_generator_pointer_const_Py_UCS4_11_pointer())
@@ -7918,7 +7822,7 @@ def test_carray_generator_pointer_const_Py_UCS4_11_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_Py_UCS4_11_pointer():
     """
     >>> test_carray_listcomp_pointer_const_Py_UCS4_11_pointer()
@@ -7929,7 +7833,7 @@ def test_carray_listcomp_pointer_const_Py_UCS4_11_pointer():
     return [item for item in carray[:11]]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_Py_UCS4_11_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_Py_UCS4_11_pointer())
@@ -7939,7 +7843,7 @@ def test_carray_setcomp_pointer_const_Py_UCS4_11_pointer():
 
     return {item for item in carray[:11]}  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_Py_UCS4_21_constant():
     """
     >>> test_carray_forin_constant_const_Py_UCS4_21_constant()
@@ -7953,7 +7857,7 @@ def test_carray_forin_constant_const_Py_UCS4_21_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_Py_UCS4_21_constant():
     """
     >>> list(test_carray_generator_constant_const_Py_UCS4_21_constant())
@@ -7965,7 +7869,7 @@ def test_carray_generator_constant_const_Py_UCS4_21_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_Py_UCS4_21_constant():
     """
     >>> test_carray_listcomp_constant_const_Py_UCS4_21_constant()
@@ -7976,7 +7880,7 @@ def test_carray_listcomp_constant_const_Py_UCS4_21_constant():
     return [item for item in carray]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_Py_UCS4_21_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_Py_UCS4_21_constant())
@@ -7987,8 +7891,7 @@ def test_carray_setcomp_constant_const_Py_UCS4_21_constant():
     return {item for item in carray}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_Py_UCS4_21_constant():
     """
     >>> list(test_carray_genexpr_constant_const_Py_UCS4_21_constant())
@@ -7998,7 +7901,7 @@ def test_carray_genexpr_constant_const_Py_UCS4_21_constant():
 
     return (item for item in carray)  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_Py_UCS4_21_literal():
     """
     >>> test_literal_forin_literal_const_Py_UCS4_21_literal()
@@ -8012,7 +7915,7 @@ def test_literal_forin_literal_const_Py_UCS4_21_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_Py_UCS4_21_literal():
     """
     >>> list(test_literal_generator_literal_const_Py_UCS4_21_literal())
@@ -8024,7 +7927,7 @@ def test_literal_generator_literal_const_Py_UCS4_21_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_Py_UCS4_21_literal():
     """
     >>> test_literal_listcomp_literal_const_Py_UCS4_21_literal()
@@ -8035,7 +7938,7 @@ def test_literal_listcomp_literal_const_Py_UCS4_21_literal():
     return [item for item in '∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ']  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_Py_UCS4_21_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_Py_UCS4_21_literal())
@@ -8046,8 +7949,7 @@ def test_literal_setcomp_literal_const_Py_UCS4_21_literal():
     return {item for item in '∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ'}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_Py_UCS4_21_literal():
     """
     >>> list(test_literal_genexpr_literal_const_Py_UCS4_21_literal())
@@ -8057,7 +7959,7 @@ def test_literal_genexpr_literal_const_Py_UCS4_21_literal():
 
     return (item for item in '∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ')  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_Py_UCS4_21_pointer():
     """
     >>> test_carray_forin_pointer_const_Py_UCS4_21_pointer()
@@ -8071,7 +7973,7 @@ def test_carray_forin_pointer_const_Py_UCS4_21_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_Py_UCS4_21_pointer():
     """
     >>> list(test_carray_generator_pointer_const_Py_UCS4_21_pointer())
@@ -8083,7 +7985,7 @@ def test_carray_generator_pointer_const_Py_UCS4_21_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_Py_UCS4_21_pointer():
     """
     >>> test_carray_listcomp_pointer_const_Py_UCS4_21_pointer()
@@ -8094,7 +7996,7 @@ def test_carray_listcomp_pointer_const_Py_UCS4_21_pointer():
     return [item for item in carray[:21]]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_Py_UCS4_21_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_Py_UCS4_21_pointer())
@@ -8104,7 +8006,7 @@ def test_carray_setcomp_pointer_const_Py_UCS4_21_pointer():
 
     return {item for item in carray[:21]}  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_Py_UCS4_2_constant():
     """
     >>> test_carray_forin_constant_const_Py_UCS4_2_constant()
@@ -8118,7 +8020,7 @@ def test_carray_forin_constant_const_Py_UCS4_2_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_Py_UCS4_2_constant():
     """
     >>> list(test_carray_generator_constant_const_Py_UCS4_2_constant())
@@ -8130,7 +8032,7 @@ def test_carray_generator_constant_const_Py_UCS4_2_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_Py_UCS4_2_constant():
     """
     >>> test_carray_listcomp_constant_const_Py_UCS4_2_constant()
@@ -8141,7 +8043,7 @@ def test_carray_listcomp_constant_const_Py_UCS4_2_constant():
     return [item for item in carray]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_Py_UCS4_2_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_Py_UCS4_2_constant())
@@ -8152,8 +8054,7 @@ def test_carray_setcomp_constant_const_Py_UCS4_2_constant():
     return {item for item in carray}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_Py_UCS4_2_constant():
     """
     >>> list(test_carray_genexpr_constant_const_Py_UCS4_2_constant())
@@ -8163,7 +8064,7 @@ def test_carray_genexpr_constant_const_Py_UCS4_2_constant():
 
     return (item for item in carray)  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_Py_UCS4_2_literal():
     """
     >>> test_literal_forin_literal_const_Py_UCS4_2_literal()
@@ -8177,7 +8078,7 @@ def test_literal_forin_literal_const_Py_UCS4_2_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_Py_UCS4_2_literal():
     """
     >>> list(test_literal_generator_literal_const_Py_UCS4_2_literal())
@@ -8189,7 +8090,7 @@ def test_literal_generator_literal_const_Py_UCS4_2_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_Py_UCS4_2_literal():
     """
     >>> test_literal_listcomp_literal_const_Py_UCS4_2_literal()
@@ -8200,7 +8101,7 @@ def test_literal_listcomp_literal_const_Py_UCS4_2_literal():
     return [item for item in '😇😌']  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_Py_UCS4_2_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_Py_UCS4_2_literal())
@@ -8211,8 +8112,7 @@ def test_literal_setcomp_literal_const_Py_UCS4_2_literal():
     return {item for item in '😇😌'}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_Py_UCS4_2_literal():
     """
     >>> list(test_literal_genexpr_literal_const_Py_UCS4_2_literal())
@@ -8222,7 +8122,7 @@ def test_literal_genexpr_literal_const_Py_UCS4_2_literal():
 
     return (item for item in '😇😌')  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_Py_UCS4_2_pointer():
     """
     >>> test_carray_forin_pointer_const_Py_UCS4_2_pointer()
@@ -8236,7 +8136,7 @@ def test_carray_forin_pointer_const_Py_UCS4_2_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_Py_UCS4_2_pointer():
     """
     >>> list(test_carray_generator_pointer_const_Py_UCS4_2_pointer())
@@ -8248,7 +8148,7 @@ def test_carray_generator_pointer_const_Py_UCS4_2_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_Py_UCS4_2_pointer():
     """
     >>> test_carray_listcomp_pointer_const_Py_UCS4_2_pointer()
@@ -8259,7 +8159,7 @@ def test_carray_listcomp_pointer_const_Py_UCS4_2_pointer():
     return [item for item in carray[:2]]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_Py_UCS4_2_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_Py_UCS4_2_pointer())
@@ -8269,7 +8169,7 @@ def test_carray_setcomp_pointer_const_Py_UCS4_2_pointer():
 
     return {item for item in carray[:2]}  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_Py_UCS4_3_constant():
     """
     >>> test_carray_forin_constant_const_Py_UCS4_3_constant()
@@ -8283,7 +8183,7 @@ def test_carray_forin_constant_const_Py_UCS4_3_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_Py_UCS4_3_constant():
     """
     >>> list(test_carray_generator_constant_const_Py_UCS4_3_constant())
@@ -8295,7 +8195,7 @@ def test_carray_generator_constant_const_Py_UCS4_3_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_Py_UCS4_3_constant():
     """
     >>> test_carray_listcomp_constant_const_Py_UCS4_3_constant()
@@ -8306,7 +8206,7 @@ def test_carray_listcomp_constant_const_Py_UCS4_3_constant():
     return [item for item in carray]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_Py_UCS4_3_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_Py_UCS4_3_constant())
@@ -8317,8 +8217,7 @@ def test_carray_setcomp_constant_const_Py_UCS4_3_constant():
     return {item for item in carray}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_Py_UCS4_3_constant():
     """
     >>> list(test_carray_genexpr_constant_const_Py_UCS4_3_constant())
@@ -8328,7 +8227,7 @@ def test_carray_genexpr_constant_const_Py_UCS4_3_constant():
 
     return (item for item in carray)  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_Py_UCS4_3_literal():
     """
     >>> test_literal_forin_literal_const_Py_UCS4_3_literal()
@@ -8342,7 +8241,7 @@ def test_literal_forin_literal_const_Py_UCS4_3_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_Py_UCS4_3_literal():
     """
     >>> list(test_literal_generator_literal_const_Py_UCS4_3_literal())
@@ -8354,7 +8253,7 @@ def test_literal_generator_literal_const_Py_UCS4_3_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_Py_UCS4_3_literal():
     """
     >>> test_literal_listcomp_literal_const_Py_UCS4_3_literal()
@@ -8365,7 +8264,7 @@ def test_literal_listcomp_literal_const_Py_UCS4_3_literal():
     return [item for item in '😇x😌']  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_Py_UCS4_3_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_Py_UCS4_3_literal())
@@ -8376,8 +8275,7 @@ def test_literal_setcomp_literal_const_Py_UCS4_3_literal():
     return {item for item in '😇x😌'}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_Py_UCS4_3_literal():
     """
     >>> list(test_literal_genexpr_literal_const_Py_UCS4_3_literal())
@@ -8387,7 +8285,7 @@ def test_literal_genexpr_literal_const_Py_UCS4_3_literal():
 
     return (item for item in '😇x😌')  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_Py_UCS4_3_pointer():
     """
     >>> test_carray_forin_pointer_const_Py_UCS4_3_pointer()
@@ -8401,7 +8299,7 @@ def test_carray_forin_pointer_const_Py_UCS4_3_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_Py_UCS4_3_pointer():
     """
     >>> list(test_carray_generator_pointer_const_Py_UCS4_3_pointer())
@@ -8413,7 +8311,7 @@ def test_carray_generator_pointer_const_Py_UCS4_3_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_Py_UCS4_3_pointer():
     """
     >>> test_carray_listcomp_pointer_const_Py_UCS4_3_pointer()
@@ -8424,7 +8322,7 @@ def test_carray_listcomp_pointer_const_Py_UCS4_3_pointer():
     return [item for item in carray[:3]]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_Py_UCS4_3_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_Py_UCS4_3_pointer())
@@ -8434,7 +8332,7 @@ def test_carray_setcomp_pointer_const_Py_UCS4_3_pointer():
 
     return {item for item in carray[:3]}  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_Py_UCS4_14_constant():
     """
     >>> test_carray_forin_constant_const_Py_UCS4_14_constant()
@@ -8448,7 +8346,7 @@ def test_carray_forin_constant_const_Py_UCS4_14_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_Py_UCS4_14_constant():
     """
     >>> list(test_carray_generator_constant_const_Py_UCS4_14_constant())
@@ -8460,7 +8358,7 @@ def test_carray_generator_constant_const_Py_UCS4_14_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_Py_UCS4_14_constant():
     """
     >>> test_carray_listcomp_constant_const_Py_UCS4_14_constant()
@@ -8471,7 +8369,7 @@ def test_carray_listcomp_constant_const_Py_UCS4_14_constant():
     return [item for item in carray]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_Py_UCS4_14_constant():
     """
     >>> sorted(test_carray_setcomp_constant_const_Py_UCS4_14_constant())
@@ -8482,8 +8380,7 @@ def test_carray_setcomp_constant_const_Py_UCS4_14_constant():
     return {item for item in carray}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_Py_UCS4_14_constant():
     """
     >>> list(test_carray_genexpr_constant_const_Py_UCS4_14_constant())
@@ -8493,7 +8390,7 @@ def test_carray_genexpr_constant_const_Py_UCS4_14_constant():
 
     return (item for item in carray)  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_Py_UCS4_14_literal():
     """
     >>> test_literal_forin_literal_const_Py_UCS4_14_literal()
@@ -8507,7 +8404,7 @@ def test_literal_forin_literal_const_Py_UCS4_14_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_Py_UCS4_14_literal():
     """
     >>> list(test_literal_generator_literal_const_Py_UCS4_14_literal())
@@ -8519,7 +8416,7 @@ def test_literal_generator_literal_const_Py_UCS4_14_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_Py_UCS4_14_literal():
     """
     >>> test_literal_listcomp_literal_const_Py_UCS4_14_literal()
@@ -8530,7 +8427,7 @@ def test_literal_listcomp_literal_const_Py_UCS4_14_literal():
     return [item for item in '😇😌😇😌😇😌😇😌😇😌😇😌😇😌']  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_Py_UCS4_14_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_Py_UCS4_14_literal())
@@ -8541,8 +8438,7 @@ def test_literal_setcomp_literal_const_Py_UCS4_14_literal():
     return {item for item in '😇😌😇😌😇😌😇😌😇😌😇😌😇😌'}  # cython.const[cython.Py_UCS4]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_Py_UCS4_14_literal():
     """
     >>> list(test_literal_genexpr_literal_const_Py_UCS4_14_literal())
@@ -8552,7 +8448,7 @@ def test_literal_genexpr_literal_const_Py_UCS4_14_literal():
 
     return (item for item in '😇😌😇😌😇😌😇😌😇😌😇😌😇😌')  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_Py_UCS4_14_pointer():
     """
     >>> test_carray_forin_pointer_const_Py_UCS4_14_pointer()
@@ -8566,7 +8462,7 @@ def test_carray_forin_pointer_const_Py_UCS4_14_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_Py_UCS4_14_pointer():
     """
     >>> list(test_carray_generator_pointer_const_Py_UCS4_14_pointer())
@@ -8578,7 +8474,7 @@ def test_carray_generator_pointer_const_Py_UCS4_14_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_Py_UCS4_14_pointer():
     """
     >>> test_carray_listcomp_pointer_const_Py_UCS4_14_pointer()
@@ -8589,7 +8485,7 @@ def test_carray_listcomp_pointer_const_Py_UCS4_14_pointer():
     return [item for item in carray[:14]]  # cython.const[cython.Py_UCS4]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_Py_UCS4_14_pointer():
     """
     >>> sorted(test_carray_setcomp_pointer_const_Py_UCS4_14_pointer())
@@ -8599,7 +8495,7 @@ def test_carray_setcomp_pointer_const_Py_UCS4_14_pointer():
 
     return {item for item in carray[:14]}  # cython.const[cython.Py_UCS4]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_short_1_constant():
     """
     >>> charlist(test_carray_forin_constant_short_1_constant())
@@ -8613,7 +8509,7 @@ def test_carray_forin_constant_short_1_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_short_1_constant():
     """
     >>> charlist(list(test_carray_generator_constant_short_1_constant()))
@@ -8625,7 +8521,7 @@ def test_carray_generator_constant_short_1_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_short_1_constant():
     """
     >>> charlist(test_carray_listcomp_constant_short_1_constant())
@@ -8636,7 +8532,7 @@ def test_carray_listcomp_constant_short_1_constant():
     return [item for item in carray]  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_short_1_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_short_1_constant()))
@@ -8647,8 +8543,7 @@ def test_carray_setcomp_constant_short_1_constant():
     return {item for item in carray}  # cython.short
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_short_1_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_short_1_constant()))
@@ -8658,7 +8553,7 @@ def test_carray_genexpr_constant_short_1_constant():
 
     return (item for item in carray)  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_short_1_literal():
     """
     >>> test_literal_forin_literal_short_1_literal()
@@ -8672,7 +8567,7 @@ def test_literal_forin_literal_short_1_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_short_1_literal():
     """
     >>> list(test_literal_generator_literal_short_1_literal())
@@ -8684,7 +8579,7 @@ def test_literal_generator_literal_short_1_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_short_1_literal():
     """
     >>> test_literal_listcomp_literal_short_1_literal()
@@ -8695,7 +8590,7 @@ def test_literal_listcomp_literal_short_1_literal():
     return [item for item in 'X']  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_short_1_literal():
     """
     >>> sorted(test_literal_setcomp_literal_short_1_literal())
@@ -8706,8 +8601,7 @@ def test_literal_setcomp_literal_short_1_literal():
     return {item for item in 'X'}  # cython.short
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_short_1_literal():
     """
     >>> list(test_literal_genexpr_literal_short_1_literal())
@@ -8717,7 +8611,7 @@ def test_literal_genexpr_literal_short_1_literal():
 
     return (item for item in 'X')  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_short_1_pointer():
     """
     >>> charlist(test_carray_forin_pointer_short_1_pointer())
@@ -8731,7 +8625,7 @@ def test_carray_forin_pointer_short_1_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_short_1_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_short_1_pointer()))
@@ -8743,7 +8637,7 @@ def test_carray_generator_pointer_short_1_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_short_1_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_short_1_pointer())
@@ -8754,7 +8648,7 @@ def test_carray_listcomp_pointer_short_1_pointer():
     return [item for item in carray[:1]]  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_short_1_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_short_1_pointer()))
@@ -8764,7 +8658,7 @@ def test_carray_setcomp_pointer_short_1_pointer():
 
     return {item for item in carray[:1]}  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_short_133_constant():
     """
     >>> charlist(test_carray_forin_constant_short_133_constant())
@@ -8778,7 +8672,7 @@ def test_carray_forin_constant_short_133_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_short_133_constant():
     """
     >>> charlist(list(test_carray_generator_constant_short_133_constant()))
@@ -8790,7 +8684,7 @@ def test_carray_generator_constant_short_133_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_short_133_constant():
     """
     >>> charlist(test_carray_listcomp_constant_short_133_constant())
@@ -8801,7 +8695,7 @@ def test_carray_listcomp_constant_short_133_constant():
     return [item for item in carray]  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_short_133_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_short_133_constant()))
@@ -8812,8 +8706,7 @@ def test_carray_setcomp_constant_short_133_constant():
     return {item for item in carray}  # cython.short
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_short_133_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_short_133_constant()))
@@ -8823,7 +8716,7 @@ def test_carray_genexpr_constant_short_133_constant():
 
     return (item for item in carray)  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_short_133_literal():
     """
     >>> test_literal_forin_literal_short_133_literal()
@@ -8837,7 +8730,7 @@ def test_literal_forin_literal_short_133_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_short_133_literal():
     """
     >>> list(test_literal_generator_literal_short_133_literal())
@@ -8849,7 +8742,7 @@ def test_literal_generator_literal_short_133_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_short_133_literal():
     """
     >>> test_literal_listcomp_literal_short_133_literal()
@@ -8860,7 +8753,7 @@ def test_literal_listcomp_literal_short_133_literal():
     return [item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX']  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_short_133_literal():
     """
     >>> sorted(test_literal_setcomp_literal_short_133_literal())
@@ -8871,8 +8764,7 @@ def test_literal_setcomp_literal_short_133_literal():
     return {item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'}  # cython.short
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_short_133_literal():
     """
     >>> list(test_literal_genexpr_literal_short_133_literal())
@@ -8882,7 +8774,7 @@ def test_literal_genexpr_literal_short_133_literal():
 
     return (item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_short_133_pointer():
     """
     >>> charlist(test_carray_forin_pointer_short_133_pointer())
@@ -8896,7 +8788,7 @@ def test_carray_forin_pointer_short_133_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_short_133_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_short_133_pointer()))
@@ -8908,7 +8800,7 @@ def test_carray_generator_pointer_short_133_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_short_133_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_short_133_pointer())
@@ -8919,7 +8811,7 @@ def test_carray_listcomp_pointer_short_133_pointer():
     return [item for item in carray[:133]]  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_short_133_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_short_133_pointer()))
@@ -8929,7 +8821,7 @@ def test_carray_setcomp_pointer_short_133_pointer():
 
     return {item for item in carray[:133]}  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_short_1_46_constant():
     """
     >>> charlist(test_carray_forin_constant_short_1_46_constant())
@@ -8943,7 +8835,7 @@ def test_carray_forin_constant_short_1_46_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_short_1_46_constant():
     """
     >>> charlist(list(test_carray_generator_constant_short_1_46_constant()))
@@ -8955,7 +8847,7 @@ def test_carray_generator_constant_short_1_46_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_short_1_46_constant():
     """
     >>> charlist(test_carray_listcomp_constant_short_1_46_constant())
@@ -8966,7 +8858,7 @@ def test_carray_listcomp_constant_short_1_46_constant():
     return [item for item in carray]  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_short_1_46_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_short_1_46_constant()))
@@ -8977,8 +8869,7 @@ def test_carray_setcomp_constant_short_1_46_constant():
     return {item for item in carray}  # cython.short
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_short_1_46_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_short_1_46_constant()))
@@ -8988,7 +8879,7 @@ def test_carray_genexpr_constant_short_1_46_constant():
 
     return (item for item in carray)  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_short_1_46_literal():
     """
     >>> test_literal_forin_literal_short_1_46_literal()
@@ -9002,7 +8893,7 @@ def test_literal_forin_literal_short_1_46_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_short_1_46_literal():
     """
     >>> list(test_literal_generator_literal_short_1_46_literal())
@@ -9014,7 +8905,7 @@ def test_literal_generator_literal_short_1_46_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_short_1_46_literal():
     """
     >>> test_literal_listcomp_literal_short_1_46_literal()
@@ -9025,7 +8916,7 @@ def test_literal_listcomp_literal_short_1_46_literal():
     return [item for item in '☃']  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_short_1_46_literal():
     """
     >>> sorted(test_literal_setcomp_literal_short_1_46_literal())
@@ -9036,8 +8927,7 @@ def test_literal_setcomp_literal_short_1_46_literal():
     return {item for item in '☃'}  # cython.short
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_short_1_46_literal():
     """
     >>> list(test_literal_genexpr_literal_short_1_46_literal())
@@ -9047,7 +8937,7 @@ def test_literal_genexpr_literal_short_1_46_literal():
 
     return (item for item in '☃')  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_short_1_46_pointer():
     """
     >>> charlist(test_carray_forin_pointer_short_1_46_pointer())
@@ -9061,7 +8951,7 @@ def test_carray_forin_pointer_short_1_46_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_short_1_46_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_short_1_46_pointer()))
@@ -9073,7 +8963,7 @@ def test_carray_generator_pointer_short_1_46_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_short_1_46_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_short_1_46_pointer())
@@ -9084,7 +8974,7 @@ def test_carray_listcomp_pointer_short_1_46_pointer():
     return [item for item in carray[:1]]  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_short_1_46_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_short_1_46_pointer()))
@@ -9094,7 +8984,7 @@ def test_carray_setcomp_pointer_short_1_46_pointer():
 
     return {item for item in carray[:1]}  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_short_11_constant():
     """
     >>> charlist(test_carray_forin_constant_short_11_constant())
@@ -9108,7 +8998,7 @@ def test_carray_forin_constant_short_11_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_short_11_constant():
     """
     >>> charlist(list(test_carray_generator_constant_short_11_constant()))
@@ -9120,7 +9010,7 @@ def test_carray_generator_constant_short_11_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_short_11_constant():
     """
     >>> charlist(test_carray_listcomp_constant_short_11_constant())
@@ -9131,7 +9021,7 @@ def test_carray_listcomp_constant_short_11_constant():
     return [item for item in carray]  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_short_11_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_short_11_constant()))
@@ -9142,8 +9032,7 @@ def test_carray_setcomp_constant_short_11_constant():
     return {item for item in carray}  # cython.short
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_short_11_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_short_11_constant()))
@@ -9153,7 +9042,7 @@ def test_carray_genexpr_constant_short_11_constant():
 
     return (item for item in carray)  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_short_11_literal():
     """
     >>> test_literal_forin_literal_short_11_literal()
@@ -9167,7 +9056,7 @@ def test_literal_forin_literal_short_11_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_short_11_literal():
     """
     >>> list(test_literal_generator_literal_short_11_literal())
@@ -9179,7 +9068,7 @@ def test_literal_generator_literal_short_11_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_short_11_literal():
     """
     >>> test_literal_listcomp_literal_short_11_literal()
@@ -9190,7 +9079,7 @@ def test_literal_listcomp_literal_short_11_literal():
     return [item for item in '∑∑∑∑∑∑∑∑∑∑∑']  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_short_11_literal():
     """
     >>> sorted(test_literal_setcomp_literal_short_11_literal())
@@ -9201,8 +9090,7 @@ def test_literal_setcomp_literal_short_11_literal():
     return {item for item in '∑∑∑∑∑∑∑∑∑∑∑'}  # cython.short
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_short_11_literal():
     """
     >>> list(test_literal_genexpr_literal_short_11_literal())
@@ -9212,7 +9100,7 @@ def test_literal_genexpr_literal_short_11_literal():
 
     return (item for item in '∑∑∑∑∑∑∑∑∑∑∑')  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_short_11_pointer():
     """
     >>> charlist(test_carray_forin_pointer_short_11_pointer())
@@ -9226,7 +9114,7 @@ def test_carray_forin_pointer_short_11_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_short_11_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_short_11_pointer()))
@@ -9238,7 +9126,7 @@ def test_carray_generator_pointer_short_11_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_short_11_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_short_11_pointer())
@@ -9249,7 +9137,7 @@ def test_carray_listcomp_pointer_short_11_pointer():
     return [item for item in carray[:11]]  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_short_11_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_short_11_pointer()))
@@ -9259,7 +9147,7 @@ def test_carray_setcomp_pointer_short_11_pointer():
 
     return {item for item in carray[:11]}  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_short_21_constant():
     """
     >>> charlist(test_carray_forin_constant_short_21_constant())
@@ -9273,7 +9161,7 @@ def test_carray_forin_constant_short_21_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_short_21_constant():
     """
     >>> charlist(list(test_carray_generator_constant_short_21_constant()))
@@ -9285,7 +9173,7 @@ def test_carray_generator_constant_short_21_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_short_21_constant():
     """
     >>> charlist(test_carray_listcomp_constant_short_21_constant())
@@ -9296,7 +9184,7 @@ def test_carray_listcomp_constant_short_21_constant():
     return [item for item in carray]  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_short_21_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_short_21_constant()))
@@ -9307,8 +9195,7 @@ def test_carray_setcomp_constant_short_21_constant():
     return {item for item in carray}  # cython.short
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_short_21_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_short_21_constant()))
@@ -9318,7 +9205,7 @@ def test_carray_genexpr_constant_short_21_constant():
 
     return (item for item in carray)  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_short_21_literal():
     """
     >>> test_literal_forin_literal_short_21_literal()
@@ -9332,7 +9219,7 @@ def test_literal_forin_literal_short_21_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_short_21_literal():
     """
     >>> list(test_literal_generator_literal_short_21_literal())
@@ -9344,7 +9231,7 @@ def test_literal_generator_literal_short_21_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_short_21_literal():
     """
     >>> test_literal_listcomp_literal_short_21_literal()
@@ -9355,7 +9242,7 @@ def test_literal_listcomp_literal_short_21_literal():
     return [item for item in '∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ']  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_short_21_literal():
     """
     >>> sorted(test_literal_setcomp_literal_short_21_literal())
@@ -9366,8 +9253,7 @@ def test_literal_setcomp_literal_short_21_literal():
     return {item for item in '∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ'}  # cython.short
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_short_21_literal():
     """
     >>> list(test_literal_genexpr_literal_short_21_literal())
@@ -9377,7 +9263,7 @@ def test_literal_genexpr_literal_short_21_literal():
 
     return (item for item in '∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ')  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_short_21_pointer():
     """
     >>> charlist(test_carray_forin_pointer_short_21_pointer())
@@ -9391,7 +9277,7 @@ def test_carray_forin_pointer_short_21_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_short_21_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_short_21_pointer()))
@@ -9403,7 +9289,7 @@ def test_carray_generator_pointer_short_21_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_short_21_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_short_21_pointer())
@@ -9414,7 +9300,7 @@ def test_carray_listcomp_pointer_short_21_pointer():
     return [item for item in carray[:21]]  # cython.short
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_short_21_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_short_21_pointer()))
@@ -9424,7 +9310,7 @@ def test_carray_setcomp_pointer_short_21_pointer():
 
     return {item for item in carray[:21]}  # cython.short
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_short_1_constant():
     """
     >>> charlist(test_carray_forin_constant_const_short_1_constant())
@@ -9438,7 +9324,7 @@ def test_carray_forin_constant_const_short_1_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_short_1_constant():
     """
     >>> charlist(list(test_carray_generator_constant_const_short_1_constant()))
@@ -9450,7 +9336,7 @@ def test_carray_generator_constant_const_short_1_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_short_1_constant():
     """
     >>> charlist(test_carray_listcomp_constant_const_short_1_constant())
@@ -9461,7 +9347,7 @@ def test_carray_listcomp_constant_const_short_1_constant():
     return [item for item in carray]  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_short_1_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_const_short_1_constant()))
@@ -9472,8 +9358,7 @@ def test_carray_setcomp_constant_const_short_1_constant():
     return {item for item in carray}  # cython.const[cython.short]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_short_1_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_const_short_1_constant()))
@@ -9483,7 +9368,7 @@ def test_carray_genexpr_constant_const_short_1_constant():
 
     return (item for item in carray)  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_short_1_literal():
     """
     >>> test_literal_forin_literal_const_short_1_literal()
@@ -9497,7 +9382,7 @@ def test_literal_forin_literal_const_short_1_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_short_1_literal():
     """
     >>> list(test_literal_generator_literal_const_short_1_literal())
@@ -9509,7 +9394,7 @@ def test_literal_generator_literal_const_short_1_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_short_1_literal():
     """
     >>> test_literal_listcomp_literal_const_short_1_literal()
@@ -9520,7 +9405,7 @@ def test_literal_listcomp_literal_const_short_1_literal():
     return [item for item in 'X']  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_short_1_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_short_1_literal())
@@ -9531,8 +9416,7 @@ def test_literal_setcomp_literal_const_short_1_literal():
     return {item for item in 'X'}  # cython.const[cython.short]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_short_1_literal():
     """
     >>> list(test_literal_genexpr_literal_const_short_1_literal())
@@ -9542,7 +9426,7 @@ def test_literal_genexpr_literal_const_short_1_literal():
 
     return (item for item in 'X')  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_short_1_pointer():
     """
     >>> charlist(test_carray_forin_pointer_const_short_1_pointer())
@@ -9556,7 +9440,7 @@ def test_carray_forin_pointer_const_short_1_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_short_1_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_const_short_1_pointer()))
@@ -9568,7 +9452,7 @@ def test_carray_generator_pointer_const_short_1_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_short_1_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_const_short_1_pointer())
@@ -9579,7 +9463,7 @@ def test_carray_listcomp_pointer_const_short_1_pointer():
     return [item for item in carray[:1]]  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_short_1_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_const_short_1_pointer()))
@@ -9589,7 +9473,7 @@ def test_carray_setcomp_pointer_const_short_1_pointer():
 
     return {item for item in carray[:1]}  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_short_133_constant():
     """
     >>> charlist(test_carray_forin_constant_const_short_133_constant())
@@ -9603,7 +9487,7 @@ def test_carray_forin_constant_const_short_133_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_short_133_constant():
     """
     >>> charlist(list(test_carray_generator_constant_const_short_133_constant()))
@@ -9615,7 +9499,7 @@ def test_carray_generator_constant_const_short_133_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_short_133_constant():
     """
     >>> charlist(test_carray_listcomp_constant_const_short_133_constant())
@@ -9626,7 +9510,7 @@ def test_carray_listcomp_constant_const_short_133_constant():
     return [item for item in carray]  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_short_133_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_const_short_133_constant()))
@@ -9637,8 +9521,7 @@ def test_carray_setcomp_constant_const_short_133_constant():
     return {item for item in carray}  # cython.const[cython.short]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_short_133_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_const_short_133_constant()))
@@ -9648,7 +9531,7 @@ def test_carray_genexpr_constant_const_short_133_constant():
 
     return (item for item in carray)  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_short_133_literal():
     """
     >>> test_literal_forin_literal_const_short_133_literal()
@@ -9662,7 +9545,7 @@ def test_literal_forin_literal_const_short_133_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_short_133_literal():
     """
     >>> list(test_literal_generator_literal_const_short_133_literal())
@@ -9674,7 +9557,7 @@ def test_literal_generator_literal_const_short_133_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_short_133_literal():
     """
     >>> test_literal_listcomp_literal_const_short_133_literal()
@@ -9685,7 +9568,7 @@ def test_literal_listcomp_literal_const_short_133_literal():
     return [item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX']  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_short_133_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_short_133_literal())
@@ -9696,8 +9579,7 @@ def test_literal_setcomp_literal_const_short_133_literal():
     return {item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'}  # cython.const[cython.short]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_short_133_literal():
     """
     >>> list(test_literal_genexpr_literal_const_short_133_literal())
@@ -9707,7 +9589,7 @@ def test_literal_genexpr_literal_const_short_133_literal():
 
     return (item for item in 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_short_133_pointer():
     """
     >>> charlist(test_carray_forin_pointer_const_short_133_pointer())
@@ -9721,7 +9603,7 @@ def test_carray_forin_pointer_const_short_133_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_short_133_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_const_short_133_pointer()))
@@ -9733,7 +9615,7 @@ def test_carray_generator_pointer_const_short_133_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_short_133_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_const_short_133_pointer())
@@ -9744,7 +9626,7 @@ def test_carray_listcomp_pointer_const_short_133_pointer():
     return [item for item in carray[:133]]  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_short_133_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_const_short_133_pointer()))
@@ -9754,7 +9636,7 @@ def test_carray_setcomp_pointer_const_short_133_pointer():
 
     return {item for item in carray[:133]}  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_short_1_51_constant():
     """
     >>> charlist(test_carray_forin_constant_const_short_1_51_constant())
@@ -9768,7 +9650,7 @@ def test_carray_forin_constant_const_short_1_51_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_short_1_51_constant():
     """
     >>> charlist(list(test_carray_generator_constant_const_short_1_51_constant()))
@@ -9780,7 +9662,7 @@ def test_carray_generator_constant_const_short_1_51_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_short_1_51_constant():
     """
     >>> charlist(test_carray_listcomp_constant_const_short_1_51_constant())
@@ -9791,7 +9673,7 @@ def test_carray_listcomp_constant_const_short_1_51_constant():
     return [item for item in carray]  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_short_1_51_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_const_short_1_51_constant()))
@@ -9802,8 +9684,7 @@ def test_carray_setcomp_constant_const_short_1_51_constant():
     return {item for item in carray}  # cython.const[cython.short]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_short_1_51_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_const_short_1_51_constant()))
@@ -9813,7 +9694,7 @@ def test_carray_genexpr_constant_const_short_1_51_constant():
 
     return (item for item in carray)  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_short_1_51_literal():
     """
     >>> test_literal_forin_literal_const_short_1_51_literal()
@@ -9827,7 +9708,7 @@ def test_literal_forin_literal_const_short_1_51_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_short_1_51_literal():
     """
     >>> list(test_literal_generator_literal_const_short_1_51_literal())
@@ -9839,7 +9720,7 @@ def test_literal_generator_literal_const_short_1_51_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_short_1_51_literal():
     """
     >>> test_literal_listcomp_literal_const_short_1_51_literal()
@@ -9850,7 +9731,7 @@ def test_literal_listcomp_literal_const_short_1_51_literal():
     return [item for item in '☃']  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_short_1_51_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_short_1_51_literal())
@@ -9861,8 +9742,7 @@ def test_literal_setcomp_literal_const_short_1_51_literal():
     return {item for item in '☃'}  # cython.const[cython.short]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_short_1_51_literal():
     """
     >>> list(test_literal_genexpr_literal_const_short_1_51_literal())
@@ -9872,7 +9752,7 @@ def test_literal_genexpr_literal_const_short_1_51_literal():
 
     return (item for item in '☃')  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_short_1_51_pointer():
     """
     >>> charlist(test_carray_forin_pointer_const_short_1_51_pointer())
@@ -9886,7 +9766,7 @@ def test_carray_forin_pointer_const_short_1_51_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_short_1_51_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_const_short_1_51_pointer()))
@@ -9898,7 +9778,7 @@ def test_carray_generator_pointer_const_short_1_51_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_short_1_51_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_const_short_1_51_pointer())
@@ -9909,7 +9789,7 @@ def test_carray_listcomp_pointer_const_short_1_51_pointer():
     return [item for item in carray[:1]]  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_short_1_51_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_const_short_1_51_pointer()))
@@ -9919,7 +9799,7 @@ def test_carray_setcomp_pointer_const_short_1_51_pointer():
 
     return {item for item in carray[:1]}  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_short_11_constant():
     """
     >>> charlist(test_carray_forin_constant_const_short_11_constant())
@@ -9933,7 +9813,7 @@ def test_carray_forin_constant_const_short_11_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_short_11_constant():
     """
     >>> charlist(list(test_carray_generator_constant_const_short_11_constant()))
@@ -9945,7 +9825,7 @@ def test_carray_generator_constant_const_short_11_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_short_11_constant():
     """
     >>> charlist(test_carray_listcomp_constant_const_short_11_constant())
@@ -9956,7 +9836,7 @@ def test_carray_listcomp_constant_const_short_11_constant():
     return [item for item in carray]  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_short_11_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_const_short_11_constant()))
@@ -9967,8 +9847,7 @@ def test_carray_setcomp_constant_const_short_11_constant():
     return {item for item in carray}  # cython.const[cython.short]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_short_11_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_const_short_11_constant()))
@@ -9978,7 +9857,7 @@ def test_carray_genexpr_constant_const_short_11_constant():
 
     return (item for item in carray)  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_short_11_literal():
     """
     >>> test_literal_forin_literal_const_short_11_literal()
@@ -9992,7 +9871,7 @@ def test_literal_forin_literal_const_short_11_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_short_11_literal():
     """
     >>> list(test_literal_generator_literal_const_short_11_literal())
@@ -10004,7 +9883,7 @@ def test_literal_generator_literal_const_short_11_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_short_11_literal():
     """
     >>> test_literal_listcomp_literal_const_short_11_literal()
@@ -10015,7 +9894,7 @@ def test_literal_listcomp_literal_const_short_11_literal():
     return [item for item in '∑∑∑∑∑∑∑∑∑∑∑']  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_short_11_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_short_11_literal())
@@ -10026,8 +9905,7 @@ def test_literal_setcomp_literal_const_short_11_literal():
     return {item for item in '∑∑∑∑∑∑∑∑∑∑∑'}  # cython.const[cython.short]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_short_11_literal():
     """
     >>> list(test_literal_genexpr_literal_const_short_11_literal())
@@ -10037,7 +9915,7 @@ def test_literal_genexpr_literal_const_short_11_literal():
 
     return (item for item in '∑∑∑∑∑∑∑∑∑∑∑')  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_short_11_pointer():
     """
     >>> charlist(test_carray_forin_pointer_const_short_11_pointer())
@@ -10051,7 +9929,7 @@ def test_carray_forin_pointer_const_short_11_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_short_11_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_const_short_11_pointer()))
@@ -10063,7 +9941,7 @@ def test_carray_generator_pointer_const_short_11_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_short_11_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_const_short_11_pointer())
@@ -10074,7 +9952,7 @@ def test_carray_listcomp_pointer_const_short_11_pointer():
     return [item for item in carray[:11]]  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_short_11_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_const_short_11_pointer()))
@@ -10084,7 +9962,7 @@ def test_carray_setcomp_pointer_const_short_11_pointer():
 
     return {item for item in carray[:11]}  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_constant_const_short_21_constant():
     """
     >>> charlist(test_carray_forin_constant_const_short_21_constant())
@@ -10098,7 +9976,7 @@ def test_carray_forin_constant_const_short_21_constant():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_constant_const_short_21_constant():
     """
     >>> charlist(list(test_carray_generator_constant_const_short_21_constant()))
@@ -10110,7 +9988,7 @@ def test_carray_generator_constant_const_short_21_constant():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_constant_const_short_21_constant():
     """
     >>> charlist(test_carray_listcomp_constant_const_short_21_constant())
@@ -10121,7 +9999,7 @@ def test_carray_listcomp_constant_const_short_21_constant():
     return [item for item in carray]  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_constant_const_short_21_constant():
     """
     >>> charlist(sorted(test_carray_setcomp_constant_const_short_21_constant()))
@@ -10132,8 +10010,7 @@ def test_carray_setcomp_constant_const_short_21_constant():
     return {item for item in carray}  # cython.const[cython.short]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_genexpr_constant_const_short_21_constant():
     """
     >>> charlist(list(test_carray_genexpr_constant_const_short_21_constant()))
@@ -10143,7 +10020,7 @@ def test_carray_genexpr_constant_const_short_21_constant():
 
     return (item for item in carray)  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_forin_literal_const_short_21_literal():
     """
     >>> test_literal_forin_literal_const_short_21_literal()
@@ -10157,7 +10034,7 @@ def test_literal_forin_literal_const_short_21_literal():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_generator_literal_const_short_21_literal():
     """
     >>> list(test_literal_generator_literal_const_short_21_literal())
@@ -10169,7 +10046,7 @@ def test_literal_generator_literal_const_short_21_literal():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_listcomp_literal_const_short_21_literal():
     """
     >>> test_literal_listcomp_literal_const_short_21_literal()
@@ -10180,7 +10057,7 @@ def test_literal_listcomp_literal_const_short_21_literal():
     return [item for item in '∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ']  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_setcomp_literal_const_short_21_literal():
     """
     >>> sorted(test_literal_setcomp_literal_const_short_21_literal())
@@ -10191,8 +10068,7 @@ def test_literal_setcomp_literal_const_short_21_literal():
     return {item for item in '∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ'}  # cython.const[cython.short]
 
 
-
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_literal_genexpr_literal_const_short_21_literal():
     """
     >>> list(test_literal_genexpr_literal_const_short_21_literal())
@@ -10202,7 +10078,7 @@ def test_literal_genexpr_literal_const_short_21_literal():
 
     return (item for item in '∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ∑ ℇ')  # cython.const[cython.short]
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_forin_pointer_const_short_21_pointer():
     """
     >>> charlist(test_carray_forin_pointer_const_short_21_pointer())
@@ -10216,7 +10092,7 @@ def test_carray_forin_pointer_const_short_21_pointer():
     return items
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_generator_pointer_const_short_21_pointer():
     """
     >>> charlist(list(test_carray_generator_pointer_const_short_21_pointer()))
@@ -10228,7 +10104,7 @@ def test_carray_generator_pointer_const_short_21_pointer():
         yield item
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_listcomp_pointer_const_short_21_pointer():
     """
     >>> charlist(test_carray_listcomp_pointer_const_short_21_pointer())
@@ -10239,7 +10115,7 @@ def test_carray_listcomp_pointer_const_short_21_pointer():
     return [item for item in carray[:21]]  # cython.const[cython.short]
 
 
-
+@cython.test_assert_path_exists("//CArrayNode")
 def test_carray_setcomp_pointer_const_short_21_pointer():
     """
     >>> charlist(sorted(test_carray_setcomp_pointer_const_short_21_pointer()))
@@ -10310,27 +10186,33 @@ def _gen_test_code():
         assert function_name not in unique_function_names, function_name
         unique_function_names.add(function_name)
 
+        # Add decorators to notify us when we start supporting something previously unsupported by carray iteration.
         optimised = True
         test_decorator = '@cython.test_assert_path_exists("//CArrayNode")'
         if carray_decl:
-            if 'cython.pointer[' in carray_decl:
-                test_decorator = '@cython.test_fail_if_path_exists("//IteratorNode//CArrayNode")'
-                optimised = False
+            if 'cython.pointer[' in carray_decl and 'char' in carray_decl:
+                # Uses a plain char* instead of a C array.
+                test_decorator = '@cython.test_fail_if_path_exists("//CArrayNode")  # (1)'
+            elif 'cython.const[' in carray_decl and 'char' in carray_decl:
+                if " = b'" not in carray_decl:
+                    # Uses a plain char* instead of a C array.
+                    test_decorator = '@cython.test_fail_if_path_exists("//CArrayNode")  # (2)'
+            elif carray_decl.startswith('carray: cython.char[') or carray_decl.startswith('carray: cython.uchar['):
+                if " = b'" not in carray_decl:
+                    # Uses a plain char[] variable instead of a CArrayNode. Seems optimised.
+                    test_decorator = '@cython.test_fail_if_path_exists("//CArrayNode")  # (3)'
         elif not isinstance(array_values, (str, bytes)):
-            test_decorator = '@cython.test_fail_if_path_exists("//CArrayNode")'
+            # Iteration over literal integer lists does not currently use CArrayNode (but could, in many cases).
+            test_decorator = '@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)'
             optimised = False
-        else:
-            test_decorator = '@cython.test_assert_path_exists("//CArrayNode")'
 
         if optimised:
             stats['optimised'] += 1
         else:
-            # Notify us when we start supporting something previously unsupported by carray iteration.
-            test_decorator = '@cython.test_fail_if_path_exists("//CArrayNode")'
             stats['not_optimised'] += 1
 
-        # FIXME: disabled until it's clear what we can support.
-        test_decorator = ''
+        # Uncomment to get around the test assertions.
+        # test_decorator = ''
 
         needs_py_conversion = False
         if carray_decl and isinstance(array_values, str):
@@ -10424,7 +10306,7 @@ def _gen_test_code():
                     return {{item for item in {carray}}}  # {item_type}
             ''' + (
                 # Passing a temporary pointer into a generator expression is invalid.
-                '' if array_kind == 'pointer' else f'''
+                '' if array_kind == 'pointer' else f'''\
 
                 {function_header(f"genexpr_{array_kind}", matrix_function_name, test_result, carray_decl=carray_decl, arg=dynamic_arg)}
                     return (item for item in {carray})  # {item_type}
