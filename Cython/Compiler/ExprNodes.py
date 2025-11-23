@@ -9273,9 +9273,15 @@ class CArrayNode(ListNode):
     array_cname = None
     _array_cname_temp = None
 
+    def _non_const_array_type(self):
+        array_type = self.type
+        if array_type.base_type.is_const:
+            array_type = PyrexTypes.c_array_type(
+                PyrexTypes.remove_cv_ref(array_type.base_type), array_type.size)
+        return array_type
+
     def _allocate_carray(self, code, as_const):
         array_type = self.type
-        item_type = array_type.base_type
         if as_const:
             # Declare static const array in place.
             self.array_cname = code.globalstate.new_const_cname('carray')
@@ -9285,12 +9291,14 @@ class CArrayNode(ListNode):
                 array_type, manage_ref=False, static=True, reusable=False)
             self._array_cname_temp = self.array_cname
         elif code.funcstate.closure_temps is not None:
-            # Allocate in the generator closure.
+            # Allocate in the generator closure, cannot be const.
+            array_type = self._non_const_array_type()
             self.array_cname = code.funcstate.closure_temps.allocate_carray(array_type, self.pos)
         else:
             # To be valid C++, we must allocate the memory on the stack
             # manually and be sure not to reuse it for something else.
             # Yes, this means that we leak a temp array variable.
+            array_type = self._non_const_array_type()
             self.array_cname = code.funcstate.allocate_temp(
                 array_type, manage_ref=False, reusable=False)
             self._array_cname_temp = self.array_cname
