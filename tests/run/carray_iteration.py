@@ -1,5 +1,5 @@
 # mode: run
-# tag: forin, carray, bytes, unicode
+# tag: carray, forin, genexpr, generators, comprehension, bytes, unicode
 
 # GENERATED TEST CODE
 # Run me as a Python script to regenerate my test code.
