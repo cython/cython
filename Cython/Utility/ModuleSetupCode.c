@@ -914,7 +914,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     #endif
 #else
     #define __PYX_C_CLASS_SIZEOF(T) sizeof(T)
-    #define __PYX_C_CLASS_RELATIVE_OFFSET
+    #define __PYX_C_CLASS_RELATIVE_OFFSET 0
     #define __PYX_C_CLASS_DECL(T) T
 
     #define __PYX_GET_THIRD(first, second, third, ...) third

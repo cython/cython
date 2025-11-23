@@ -13,9 +13,8 @@ class PyBase(object):
 
 @cython.binding(True)
 cdef class BothBound(CBase, PyBase):
-    cdef dict __dict__
     """
-    >>> b = Both()
+    >>> b = BothUnbound()
     >>> b.py_method()
     'PyBase'
     >>> b.cp_method()
@@ -28,6 +27,7 @@ cdef class BothBound(CBase, PyBase):
     >>> isinstance(b, PyBase)
     True
     """
+    cdef dict __dict__
     cdef c_method(self):
         return "Both"
     cpdef cp_method(self):
@@ -49,9 +49,8 @@ cdef class BothSub(BothBound):
 
 @cython.binding(False)
 cdef class BothUnbound(CBase, PyBase):
-    cdef dict __dict__
     """
-    >>> b = Both()
+    >>> b = BothUnbound()
     >>> b.py_method()
     'PyBase'
     >>> b.cp_method()
@@ -64,6 +63,7 @@ cdef class BothUnbound(CBase, PyBase):
     >>> isinstance(b, PyBase)
     True
     """
+    cdef dict __dict__
     cdef c_method(self):
         return "Both"
     cpdef cp_method(self):
