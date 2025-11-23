@@ -241,48 +241,55 @@ class IterationTransform(Visitor.EnvTransform):
             return self._transform_set_iteration(node, iterable)
 
         env = self.current_env()
-        iterable = unwrap_coerced_node(iterable)
 
         # C array (slice) iteration?
-        if iterable.type.is_ptr or iterable.type.is_array:
-            return self._transform_carray_iteration(node, iterable, reversed=reversed)
-        if iterable.is_sequence_constructor:
-            # Convert iteration over homogeneous sequences of C types into array iteration.
-            item_type = ExprNodes.infer_sequence_item_type(
-                env, iterable, seq_type=iterable.type)
-            if item_type and not item_type.is_pyobject and not any(item.is_starred for item in iterable.args):
-                if not item_type.is_const:
-                    item_type = PyrexTypes.c_const_type(item_type)
-                carray_type = PyrexTypes.c_array_type(item_type, len(iterable.args))
-                iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args)
+
+        unpacked_iterable = unwrap_coerced_node(iterable)
+        for iterable_obj in ((unpacked_iterable, iterable) if unpacked_iterable is not iterable else (iterable,)):
+
+            if (iterable.type.is_ptr and not iterable.type.is_string) or iterable.type.is_array:
+                return self._transform_carray_iteration(node, iterable, reversed=reversed)
+
+            if iterable.is_sequence_constructor:
+                # Convert iteration over homogeneous sequences of C types into array iteration.
+                item_type = ExprNodes.infer_sequence_item_type(
+                    env, iterable, seq_type=iterable.type)
+                if item_type and not item_type.is_pyobject and not any(item.is_starred for item in iterable.args):
+                    if not item_type.is_const:
+                        item_type = PyrexTypes.c_const_type(item_type)
+                    carray_type = PyrexTypes.c_array_type(item_type, len(iterable.args))
+                    iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args)
+                    iterable = iterable.analyse_types(env).coerce_to(carray_type, env)
+                    return self._transform_carray_iteration(node, iterable, reversed=reversed)
+
+            if iterable.is_string_literal:
+                # Iterate over C array of single character values.
+                if iterable.type is Builtin.unicode_type:
+                    item_type = PyrexTypes.c_py_ucs4_type
+                    items = map(ord, iterable.value)
+                else:
+                    item_type = PyrexTypes.c_uchar_type
+                    items = iterable.value
+
+                as_int_node = partial(ExprNodes.IntNode.for_int, iterable.pos, type=item_type)
+                iterable = ExprNodes.ListNode(iterable.pos, args=[as_int_node(ch)for ch in items])
+                carray_type = PyrexTypes.c_array_type(PyrexTypes.c_const_type(item_type), len(iterable.args))
                 iterable = iterable.analyse_types(env).coerce_to(carray_type, env)
                 return self._transform_carray_iteration(node, iterable, reversed=reversed)
-        if iterable.is_string_literal:
-            # Iterate over C array of single character values.
-            if iterable.type is Builtin.unicode_type:
-                item_type = PyrexTypes.c_py_ucs4_type
-                items = map(ord, iterable.value)
-            else:
-                item_type = PyrexTypes.c_uchar_type
-                items = iterable.value
 
-            as_int_node = partial(ExprNodes.IntNode.for_int, iterable.pos, type=item_type)
-            iterable = ExprNodes.ListNode(iterable.pos, args=[as_int_node(ch)for ch in items])
-            carray_type = PyrexTypes.c_array_type(PyrexTypes.c_const_type(item_type), len(iterable.args))
-            iterable = iterable.analyse_types(env).coerce_to(carray_type, env)
-            return self._transform_carray_iteration(node, iterable, reversed=reversed)
-        if iterable.type is Builtin.bytes_type:
-            return self._transform_bytes_iteration(node, iterable, reversed=reversed)
-        if iterable.type is Builtin.unicode_type:
-            return self._transform_unicode_iteration(node, iterable, reversed=reversed)
-        # in principle _transform_indexable_iteration would work on most of the above, and
-        # also tuple and list. However, it probably isn't quite as optimized
-        if iterable.type is Builtin.bytearray_type:
-            return self._transform_indexable_iteration(node, iterable, is_mutable=True, reversed=reversed)
-        if isinstance(iterable, ExprNodes.CoerceToPyTypeNode) and iterable.arg.type.is_memoryviewslice:
-            return self._transform_indexable_iteration(node, iterable.arg, is_mutable=False, reversed=reversed)
+            if iterable_obj.type is Builtin.bytes_type:
+                return self._transform_bytes_iteration(node, iterable_obj, reversed=reversed)
+            if iterable_obj.type is Builtin.unicode_type:
+                return self._transform_unicode_iteration(node, iterable_obj, reversed=reversed)
+            # in principle _transform_indexable_iteration would work on most of the above, and
+            # also tuple and list. However, it probably isn't quite as optimized
+            if iterable_obj.type is Builtin.bytearray_type:
+                return self._transform_indexable_iteration(node, iterable_obj, is_mutable=True, reversed=reversed)
+            if iterable_obj.type.is_memoryviewslice:
+                return self._transform_indexable_iteration(node, iterable_obj, is_mutable=False, reversed=reversed)
 
         # the rest is based on function calls
+
         if not isinstance(iterable, ExprNodes.SimpleCallNode):
             return node
 
