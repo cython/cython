@@ -1,5 +1,5 @@
 # mode: error
-# tag: warnings
+# tag: cpp, warnings
 
 cdef inline void handle_exception():
     pass

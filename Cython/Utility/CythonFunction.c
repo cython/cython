@@ -27,7 +27,7 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 #define __Pyx_CyFunction_GetClosure(f) \
     (((__pyx_CyFunctionObject *) (f))->func_closure)
 
-#if PY_VERSION_HEX < 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
   #define __Pyx_CyFunction_GetClassObj(f) \
       (((__pyx_CyFunctionObject *) (f))->func_classobj)
 #else
@@ -48,8 +48,6 @@ typedef struct {
     PyObject_HEAD
     // We can't "inherit" from func, but we can use it as a data store
     PyObject *func;
-#elif PY_VERSION_HEX < 0x030900B1
-    PyCFunctionObject func;
 #else
     // PEP-573: PyCFunctionObject + mm_class
     PyCMethodObject func;
@@ -69,7 +67,7 @@ typedef struct {
     PyObject *func_globals;
     PyObject *func_code;
     PyObject *func_closure;
-#if PY_VERSION_HEX < 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
     // No-args super() class cell
     PyObject *func_classobj;
 #endif
@@ -90,7 +88,7 @@ typedef struct {
 #undef __Pyx_CyOrPyCFunction_Check
 #define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, CGLOBAL(__pyx_CyFunctionType))
 #define __Pyx_CyOrPyCFunction_Check(obj)  __Pyx_TypeCheck2(obj, CGLOBAL(__pyx_CyFunctionType), &PyCFunction_Type)
-#define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_CyFunctionType))
+#define __Pyx_CyFunction_CheckExact(obj)  Py_IS_TYPE(obj, CGLOBAL(__pyx_CyFunctionType))
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void (*cfunc)(void));/*proto*/
 #undef __Pyx_IsSameCFunction
 #define __Pyx_IsSameCFunction(func, cfunc)   __Pyx__IsSameCyOrCFunction(func, cfunc)
@@ -172,7 +170,7 @@ static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void (*cfunc
 #endif
 
 static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* f, PyObject* classobj) {
-#if PY_VERSION_HEX < 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
     __Pyx_Py_XDECREF_SET(
         __Pyx_CyFunction_GetClassObj(f),
             ((classobj) ? __Pyx_NewRef(classobj) : NULL));
@@ -736,7 +734,7 @@ static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject *op, PyMethodDef *
     Py_INCREF(qualname);
     op->func_qualname = qualname;
     op->func_doc = NULL;
-#if PY_VERSION_HEX < 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
     op->func_classobj = NULL;
 #else
     ((PyCMethodObject*)op)->mm_class = NULL;
@@ -802,15 +800,11 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->func_globals);
     Py_CLEAR(m->func_code);
 #if !CYTHON_COMPILING_IN_LIMITED_API
-#if PY_VERSION_HEX < 0x030900B1
-    Py_CLEAR(__Pyx_CyFunction_GetClassObj(m));
-#else
     {
         PyObject *cls = (PyObject*) ((PyCMethodObject *) (m))->mm_class;
         ((PyCMethodObject *) (m))->mm_class = NULL;
         Py_XDECREF(cls);
     }
-#endif
 #endif
     Py_CLEAR(m->defaults_tuple);
     Py_CLEAR(m->defaults_kwdict);
@@ -1238,12 +1232,10 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
     _Py_TPFLAGS_HAVE_VECTORCALL |
 #endif
 #endif // CYTHON_METH_FASTCALL
-#if PY_VERSION_HEX >= 0x030A0000
-    Py_TPFLAGS_IMMUTABLETYPE |
-#endif
 #if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_TPFLAGS_MANAGED_DICT |
 #endif
+    Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION |
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
     __pyx_CyFunctionType_slots
 };
@@ -1557,7 +1549,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
             Py_DECREF(item);
 #endif
             if (unlikely(!string)) goto __pyx_err;
-	    if (__Pyx_PyList_SET_ITEM(list, i, string) < 0) goto __pyx_err;
+	    if (__Pyx_PyList_SET_ITEM(list, i, string) < (0)) goto __pyx_err;
         }
 
         signature = PyUnicode_Join(PYUNICODE("|"), list);
@@ -1637,7 +1629,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         self = binding_func->self;
 
         Py_INCREF(self);
-        if (__Pyx_PyTuple_SET_ITEM(new_args, 0, self)) goto bad;
+        if (__Pyx_PyTuple_SET_ITEM(new_args, 0, self) < (0)) goto bad;
         self = NULL;
 
         for (i = 0; i < argc; i++) {
@@ -1647,7 +1639,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 #else
             PyObject *item = __Pyx_PySequence_ITEM(args, i);  if (unlikely(!item)) goto bad;
 #endif
-        if (__Pyx_PyTuple_SET_ITEM(new_args, i + 1, item)) goto bad;
+        if (__Pyx_PyTuple_SET_ITEM(new_args, i + 1, item) < (0)) goto bad;
         }
 
         args = new_args;
@@ -1729,10 +1721,8 @@ static PyType_Spec __pyx_FusedFunctionType_spec = {
     __PYX_TYPE_MODULE_PREFIX "fused_cython_function",
     sizeof(__pyx_FusedFunctionObject),
     0,
-#if PY_VERSION_HEX >= 0x030A0000
-    Py_TPFLAGS_IMMUTABLETYPE |
-#endif
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+    Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION |
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC , /*tp_flags*/
     __pyx_FusedFunctionType_slots
 };
 

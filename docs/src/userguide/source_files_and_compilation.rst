@@ -1326,6 +1326,8 @@ From Cython 3.1, this is still possible, but should be migrated to using the C m
 Before Cython 3.1, the ``CYTHON_CLINE_IN_TRACEBACK`` macro already works as described
 but the Cython option is needed to remove the compile-time cost.
 
+.. _C_macro_defines:
+
 C macro defines
 ===============
 
@@ -1344,9 +1346,9 @@ most important to least important:
     Turns on Cython's Limited API support, meaning that one compiled module
     can be used by many Python interpreter versions (at the cost of some performance).
     At this stage many features do not work in the Limited API.  You should set this
-    macro to be the version hex for the
-    minimum Python version you want to support (\>=3.7).  ``0x03070000`` will support
-    Python 3.7 upwards.
+    macro to be the version hex for the minimum Python version you want to support
+    (\>=3.8).  ``0x03090000`` will support Python 3.9 upwards.
+    Cython requires at least Python 3.9 from Cython 3.3 on.
     Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`,
     rather than just a Cython macro, and so it changes what parts of the Python headers
     are visible too.  See :ref:`limited_api` for more details about this feature.

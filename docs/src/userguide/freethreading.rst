@@ -413,14 +413,28 @@ This list of non-exhaustive. And you can also use third-party libraries outside
 the language standard libraries for more options.
 
 In addition to the plain standard library features, Cython (3.2) also produces "py_safe" versions
-of some of these features (e.g. ``call_once``, mutex ``lock``).  
-These ensure that the Python thread-state is released (if held) while blocking and then restored
-to its initial state after the call.  The "py_safe" functions are only effective if you use
+of some of these features (e.g. ``call_once``, mutex, ``lock``, ``condition_variable``).
+These ensure
+
+* The Python thread-state is released (if held) while blocking and then restored
+  to its initial state after the call.
+
+* Acquiring and releasing the Python thread-state does not deadlock with any C/C++ locks
+  used in the operation.
+
+* Any callbacks (e.g. the functions passed to ``call_once`` or the predicates passed to
+  ``condition_variable``) are called with the Python thread-state held).
+
+* Python exceptions from callbacks are handled.
+
+* For the C++ versions, you can use a callable Python object as a callback (where
+  applicable).  
+
+The "py_safe" functions are only effective if you use
 them consistently every time you try to acquire the lock while you might be holding the Python
 thread-state.  This means you should use the "py_safe" versions even in a function labelled
 as ``nogil`` - remember that this says that a function *may* be called without an attached
 Python thread-state rather than ensuring that it definitely is.
-The C++ version of ``py_safe_call_once`` also allows you to pass a Python callable.
 
 ``cython.critical_section`` vs GIL
 ----------------------------------

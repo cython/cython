@@ -15,6 +15,7 @@ import os
 import pathlib
 import re
 import sys
+from typing import Sequence
 
 from .PyrexTypes import CPtrType
 from . import Future
@@ -31,7 +32,7 @@ from .Errors import error, warning, CompileError, format_position
 from .PyrexTypes import py_object_type, get_all_subtypes
 from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version, is_cython_generated_file
 from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
-from .StringEncoding import EncodedString, encoded_string_or_bytes_literal
+from .StringEncoding import EncodedString, bytes_literal, encoded_string_or_bytes_literal
 from .Pythran import has_np_pythran
 
 
@@ -106,6 +107,84 @@ TOTAL_ORDERING = {
     # a < b from (not a >= b)
     ('__ge__', '__lt__'): (True, '', None),
 }
+
+class SharedUtilityExporter:
+    """
+    Class responsible for generating code that imports and exports shared utility functions.
+
+    Mark the positions where the functions should be called with `call_import_code()`/`call_export_code()`.
+    The function calls and import/export functions are generated when `generate_exporting_functions()`
+    is called. This approach is needed because the list of the shared functions is only known in the later
+    stages of compilation.
+    """
+    def __init__(self, pos, mod_init_subfunction, scope):
+        self.in_shared_utility_module = bool(scope.context.shared_c_file_path)
+        self.using_shared_utility_module = bool(scope.context.shared_utility_qualified_name)
+        self.pos = pos
+        self.scope = scope
+        self.import_code = mod_init_subfunction("Shared function import code")
+        self.export_code = mod_init_subfunction("Shared function export code")
+
+    def has_shared_exports(self, shared_func_definitions: Sequence[Code.SharedFunctionDecl]) -> bool:
+        return bool(self.in_shared_utility_module and shared_func_definitions)
+
+    def has_shared_imports(self, shared_func_definitions: Sequence[Code.SharedFunctionDecl]) -> bool:
+        return bool(self.using_shared_utility_module and shared_func_definitions)
+
+    def call_import_code(self, code):
+        self.import_code.set_call_code(code)
+
+    def call_export_code(self, code):
+        self.export_code.set_call_code(code)
+
+    def _generate_c_shared_function_export_code(self, code, shared_function_definitions: Sequence[Code.SharedFunctionDecl]):
+        # We use the function cname also as exported name.
+        exports = [
+            (f"{shared_func_def.ret}({shared_func_def.params})", shared_func_def.name, shared_func_def.name)
+            for shared_func_def in shared_function_definitions
+        ]
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
+
+        _generate_export_code(code, self.pos, exports, "__Pyx_ExportFunction", "void (*{name})(void)")
+
+    def _generate_c_shared_function_import_code_for_module(self, code, function_definitions: Sequence[Code.SharedFunctionDecl]):
+        # We use the function cname also as exported name.
+
+        imports = [
+            (f"{shared_func_def.ret}({shared_func_def.params})", shared_func_def.name, shared_func_def.name)
+            for shared_func_def in function_definitions
+        ]
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
+
+        shared_utility_qualified_name = EncodedString(self.scope.context.shared_utility_qualified_name)
+        import_func = f"__Pyx_ImportFunction_{Naming.cyversion}"
+        _generate_import_code(
+            code, self.pos, imports, shared_utility_qualified_name, import_func, "void (**{name})(void)")
+
+    def _generate_exports(self, shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
+        if self.has_shared_exports(shared_utility_functions):
+            with self.export_code as inner_code:
+                self._generate_c_shared_function_export_code(
+                    inner_code,
+                    shared_utility_functions
+                )
+
+    def _generate_imports(self, shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
+        if self.has_shared_imports(shared_utility_functions):
+            with self.import_code as inner_code:
+                self._generate_c_shared_function_import_code_for_module(
+                    inner_code,
+                    shared_utility_functions
+                )
+
+    def generate_exporting_functions(self, code):
+        shared_utility_functions = code.globalstate.shared_utility_functions
+        code.enter_cfunc_scope(self.scope)
+        self._generate_exports(shared_utility_functions)
+        self._generate_imports(shared_utility_functions)
+        code.exit_cfunc_scope()
 
 
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
@@ -206,7 +285,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         self.body.analyse_declarations(env)
 
-        if env.find_shared_usages_of_type(lambda tp: tp is PyrexTypes.cy_pymutex_type):
+        cy_pymutex_type = PyrexTypes.get_cy_pymutex_type()
+        if env.find_shared_usages_of_type(cy_pymutex_type):
             # Be very suspicious of cython locks that are shared.
             # They have the potential to cause ABI issues.
             self.scope.use_utility_code(
@@ -283,30 +363,33 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code_start.put_h_guard(h_guard)
             h_code_start.putln("")
             h_code_start.putln('#include "Python.h"')
-            self.generate_type_header_code(h_types, h_code_start)
+            self.generate_type_header_code(h_types, h_code_main)
             if options.capi_reexport_cincludes:
-                self.generate_includes(env, [], h_code_start)
-            h_code_start.putln("")
+                self.generate_includes(env, [], h_code_main)
+            h_code_main.putln("")
             api_guard = self.api_name(Naming.api_guard_prefix, env)
-            h_code_start.putln("#ifndef %s" % api_guard)
-            h_code_start.putln("")
-            self.generate_extern_c_macro_definition(h_code_start, env.is_cpp())
-            h_code_start.putln("")
-            self.generate_dl_import_macro(h_code_start)
+            h_code_main.putln("#ifndef %s" % api_guard)
+            h_code_main.putln("")
+            self.generate_extern_c_macro_definition(h_code_main, env.is_cpp())
+            h_code_main.putln("")
+            self.generate_dl_import_macro(h_code_main)
             if h_extension_types:
                 h_code_main.putln("")
                 for entry in h_extension_types:
                     self.generate_cclass_header_code(entry.type, h_code_main)
                     if i_code:
                         self.generate_cclass_include_code(entry.type, i_code)
+                    globalstate.use_entry_utility_code(entry)
             if h_funcs:
                 h_code_main.putln("")
                 for entry in h_funcs:
                     self.generate_public_declaration(entry, h_code_main, i_code)
+                    globalstate.use_entry_utility_code(entry)
             if h_vars:
                 h_code_main.putln("")
                 for entry in h_vars:
                     self.generate_public_declaration(entry, h_code_main, i_code)
+                    globalstate.use_entry_utility_code(entry)
             h_code_main.putln("")
             h_code_main.putln("#endif /* !%s */" % api_guard)
             h_code_main.putln("")
@@ -373,7 +456,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         h_code = Code.CCodeWriter()
         c_code_config = generate_c_code_config(env, options)
-        Code.GlobalState(h_code, self, c_code_config)
+        globalstate = Code.GlobalState(h_code, self, c_code_config)
+        globalstate.initialize_main_h_code()  # in-case utility code is used in the header
         h_code.put_generated_by()
         api_guard = self.api_name(Naming.api_guard_prefix, env)
         h_code.put_h_guard(api_guard)
@@ -401,6 +485,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 h_code.putln("static PyTypeObject *%s = 0;" % type.typeptr_cname)
                 h_code.putln("#define %s (*%s)" % (
                     type.typeobj_cname, type.typeptr_cname))
+                h_code.globalstate.use_entry_utility_code(entry)
         if api_funcs:
             h_code.putln("")
             for entry in api_funcs:
@@ -408,6 +493,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 cname = env.mangle(Naming.func_prefix_api, entry.name)
                 h_code.putln("static %s = 0;" % type.declaration_code(cname))
                 h_code.putln("#define %s %s" % (entry.name, cname))
+                h_code.globalstate.use_entry_utility_code(entry)
         if api_vars:
             h_code.putln("")
             for entry in api_vars:
@@ -415,6 +501,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 cname = env.mangle(Naming.varptr_prefix_api, entry.name)
                 h_code.putln("static %s = 0;" % type.declaration_code(cname))
                 h_code.putln("#define %s (*%s)" % (entry.name, cname))
+                h_code.globalstate.use_entry_utility_code(entry)
         if api_vars:
             put_utility_code("VoidPtrImport", "ImportExport.c")
         if api_funcs:
@@ -541,8 +628,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_module_state_clear(env, globalstate['module_state_clear'])
         self.generate_module_state_traverse(env, globalstate['module_state_traverse'])
 
+        shared_utility_exporter = SharedUtilityExporter(
+            self.pos,
+            self.mod_init_subfunction(self.pos, self.scope, globalstate['init_module']),
+            self.scope
+        )
+
         # init_globals is inserted before this
-        self.generate_module_init_func(modules[:-1], env, globalstate['init_module'])
+        self.generate_module_init_func(
+            modules[:-1], shared_utility_exporter, env, globalstate['init_module']
+        )
         self.generate_module_cleanup_func(env, globalstate['cleanup_module'])
         if Options.embed:
             self.generate_main_method(env, globalstate['main_method'])
@@ -553,6 +648,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         for utilcode in env.utility_code_list[:]:
             globalstate.use_utility_code(utilcode)
+
+        shared_utility_exporter.generate_exporting_functions(code)
+
         globalstate.finalize_main_c_code()
 
         self.generate_module_state_end(env, modules, globalstate)
@@ -794,8 +892,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#ifndef Py_PYTHON_H")
         code.putln("    #error Python headers needed to compile C extensions, "
                    "please install development version of Python.")
-        code.putln("#elif PY_VERSION_HEX < 0x03080000")
-        code.putln("    #error Cython requires Python 3.8+.")
+        code.putln("#elif PY_VERSION_HEX < 0x03090000")
+        code.putln("    #error Cython requires Python 3.9+.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
@@ -922,6 +1020,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
         env.use_utility_code(UtilityCode.load("GetRuntimeVersion", "ModuleSetupCode.c"))
+        env.use_utility_code(UtilityCode.load_cached("AddModuleRef", "ModuleSetupCode.c"))
         if has_np_pythran(env):
             env.use_utility_code(UtilityCode.load_cached("PythranConversion", "CppSupport.cpp"))
 
@@ -1019,6 +1118,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_cpp_class_definition(entry, code)
                 elif type.is_extension_type:
                     self.generate_objstruct_definition(type, code)
+                if getattr(type, "scope", None):
+                    for var_entry in type.scope.var_entries:
+                        code.globalstate.use_entry_utility_code(var_entry)
 
     def generate_gcc33_hack(self, env, code):
         # Workaround for spurious warning generation in gcc 3.3
@@ -1357,7 +1459,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 decl = attr_type.cpp_optional_declaration_code(attr.cname)
             else:
                 decl = attr_type.declaration_code(attr.cname)
-            type.scope.use_entry_utility_code(attr)
+            code.globalstate.use_entry_utility_code(attr)
             code.putln("%s;" % decl)
         code.putln(footer)
         if type.objtypedef_cname is not None:
@@ -1436,7 +1538,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(";")
             if entry.cname != cname:
                 code.putln("#define %s (*%s)" % (entry.cname, cname))
-            env.use_entry_utility_code(entry)
+            code.globalstate.use_entry_utility_code(entry)
 
     def generate_cfunction_declarations(self, env, code, definition):
         for entry in env.cfunc_entries:
@@ -1906,9 +2008,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("PyErr_Fetch(&etype, &eval, &etb);")
         # increase the refcount while we are calling into user code
         # to prevent recursive deallocation
-        code.putln("__Pyx_SET_REFCNT(o, Py_REFCNT(o) + 1);")
+        code.putln("Py_SET_REFCNT(o, Py_REFCNT(o) + 1);")
         code.putln("%s(o);" % entry.func_cname)
-        code.putln("__Pyx_SET_REFCNT(o, Py_REFCNT(o) - 1);")
+        code.putln("Py_SET_REFCNT(o, Py_REFCNT(o) - 1);")
         code.putln("PyErr_Restore(etype, eval, etb);")
         code.putln("}")
 
@@ -2647,22 +2749,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("{0, 0, 0, 0, 0}")
             code.putln("};")
 
-            if weakref_entry:
-                position = format_position(weakref_entry.pos)
-                weakref_warn_mesage = (
-                    f"{position}: __weakref__ is unsupported in the Limited API when "
-                    "running on Python <3.9.")
-                # Note: Limited API rather than USE_TYPE_SPECS - we work round the issue
-                # with USE_TYPE_SPECS outside the limited API
-                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000")
-                code.putln("#if defined(__GNUC__) || defined(__clang__)")
-                code.putln(f'#warning "{weakref_warn_mesage}"')
-                code.putln("#elif defined(_MSC_VER)")
-                code.putln(f'#pragma message("{weakref_warn_mesage}")')
-                code.putln("#endif")
-                code.putln("#endif")
-
-
         code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
         for slot in TypeSlots.get_slot_table(code.globalstate.directives):
             slot.generate_spec(scope, code)
@@ -2966,7 +3052,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_bytes});')
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_unicode});')
 
-    def generate_module_init_func(self, imported_modules, env, code):
+    def generate_module_init_func(self, imported_modules, shared_utility_exporter, env, code):
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
 
         self.generate_pymoduledef_struct(env, code)
@@ -3125,6 +3211,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         with subfunction("Function export code") as inner_code:
             self.generate_c_function_export_code(env, inner_code)
 
+        shared_utility_exporter.call_export_code(code)
+
         with subfunction("Type init code") as inner_code:
             self.generate_type_init_code(env, inner_code)
 
@@ -3140,6 +3228,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for module in imported_modules:
                 self.specialize_fused_types(module)
                 self.generate_c_function_import_code_for_module(module, env, inner_code)
+
+        shared_utility_exporter.call_import_code(code)
 
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
@@ -3245,8 +3335,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.tempdecl_code = None
                 self.call_code = None
 
+            def set_call_code(self, code):
+                self.call_code = code.insertion_point()
+
             def __enter__(self):
-                self.call_code = orig_code.insertion_point()
+                if self.call_code is None:
+                    self.call_code = orig_code.insertion_point()
                 code = function_code
                 code.start_initcfunc(
                     f"int {self.cfunc_name}({Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})",
@@ -3467,13 +3561,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             wmain = "wmain"
         else:
             wmain = Options.embed
-        main_method = UtilityCode.load_cached("MainFunction", "Embed.c")
-        code.globalstate.use_utility_code(
-            main_method.specialize(
-                module_name=env.module_name,
-                module_is_main=module_is_main,
-                main_method=Options.embed,
-                wmain_method=wmain))
+        main_method = TempitaUtilityCode.load_cached(
+                "MainFunction", "Embed.c",
+                context={
+                    'module_name': env.module_name,
+                    'module_is_main': module_is_main,
+                    'main_method': Options.embed,
+                    'wmain_method': wmain,
+                    'embed_modules': tuple(Options.embed_modules)})
+        code.globalstate.use_utility_code(main_method)
 
     def punycode_module_name(self, prefix, name):
         # adapted from PEP483
@@ -3690,57 +3786,45 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.error_goto(entry.pos)))
                 code.putln("}")
 
-    def _generate_export_code(self, all_entries, utility_code_name, code):
-        # Generic function/pointer export implementation as generator.
-        entries = [
+    def _select_exported_entries(self, all_entries):
+        return [
             entry for entry in all_entries
             if entry.api or entry.defined_in_pxd or (Options.cimport_from_pyx and entry.visibility != 'extern')
         ]
-        if not entries:
-            return
-
-        api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
-        code.putln(
-            f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
-            f"{code.error_goto_if_null(api_dict, self.pos)}"
-        )
-        code.put_gotref(api_dict, py_object_type)
-
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
-
-        for entry in entries:
-            name = code.intern_identifier(entry.name)
-            yield (entry, name, api_dict)
-
-        code.put_decref_clear(api_dict, py_object_type)
-        code.funcstate.release_temp(api_dict)
 
     def generate_c_variable_export_code(self, env, code):
         """Generate code to create PyCFunction wrappers for exported C functions.
         """
-        for entry, name, api_dict in self._generate_export_code(env.var_entries, "VoidPtrExport", code):
-            signature = entry.type.empty_declaration_code()
+        entries = self._select_exported_entries(env.var_entries)
+        if not entries:
+            return
 
-            code.put_error_if_neg(
-                self.pos,
-                f'__Pyx_ExportVoidPtr({api_dict}, {name}, (void *)&{entry.cname}, "{signature}")'
-            )
+        exports = [
+            # (signature, name, cname)
+            (entry.type.empty_declaration_code(), entry.name, entry.cname)
+            for entry in entries
+        ]
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("VoidPtrExport", "ImportExport.c"))
+
+        _generate_export_code(code, self.pos, exports, "__Pyx_ExportVoidPtr", "void *{name}")
 
     def generate_c_function_export_code(self, env, code):
         """Generate code to create PyCFunction wrappers for exported C functions.
         """
-        for entry, name, api_dict in self._generate_export_code(env.cfunc_entries, "FunctionExport", code):
-            # Note: while this looks like it could be more cheaply stored and read from a struct array,
-            # investigation shows that the resulting binary is smaller with repeated functions calls.
-            signature = entry.type.signature_string()
+        entries = self._select_exported_entries(env.cfunc_entries)
+        if not entries:
+            return
 
-            code.put_error_if_neg(
-                self.pos,
-                f'__Pyx_ExportFunction({api_dict}, {name}, (void (*)(void)){entry.cname}, "{signature}")'
-            )
+        exports = [
+            # (signature, name, cname)
+            (entry.type.signature_string(), entry.name, entry.cname)
+            for entry in entries
+        ]
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
+
+        _generate_export_code(code, self.pos, exports, "__Pyx_ExportFunction", "void (*{name})(void)")
 
     def generate_type_import_code_for_module(self, module, env, code):
         # Generate type import code for all exported extension types in
@@ -3763,59 +3847,50 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # This call modifies the cfunc_entries in-place
                 entry.type.get_all_specialized_function_types()
 
-    def _generate_import_code(self, all_entries, qualified_module_name, utility_code_name, code, used_only=False):
-        # Generic function/pointer import implementation as generator.
-        entries = [
+    def _select_imported_entries(self, all_entries, used_only=False):
+        return [
             entry for entry in all_entries
             if entry.defined_in_pxd and (not used_only or entry.used)
         ]
-        if not entries:
-            return
-
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
-
-        module_ref = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.putln(
-            f'{module_ref} = PyImport_ImportModule({qualified_module_name.as_c_string_literal()}); '
-            f'{code.error_goto_if_null(module_ref, self.pos)}'
-        )
-        code.put_gotref(module_ref, py_object_type)
-
-        for entry in entries:
-            yield (module_ref, entry)
-
-        code.put_decref_clear(module_ref, py_object_type)
-        code.funcstate.release_temp(module_ref)
 
     def generate_c_variable_import_code_for_module(self, module, env, code):
         """Generate import code for all exported C functions in a cimported module.
         """
-        for module_ref, entry in self._generate_import_code(
-                module.var_entries, module.qualified_name, "VoidPtrImport", code, used_only=False):
-            signature = entry.type.empty_declaration_code()
-            cname = entry.cname if env is module else module.mangle(Naming.varptr_prefix, entry.name)
+        entries = self._select_imported_entries(module.var_entries, used_only=False)
+        if not entries:
+            return
 
-            code.put_error_if_neg(
-                self.pos,
-                f'__Pyx_ImportVoidPtr_{Naming.cyversion}('
-                f'{module_ref}, {entry.name.as_c_string_literal()}, (void **)&{cname}, "{signature}"'
-                f')'
-            )
+        is_module_scope = env is module
+        imports = [
+            # (signature, name, cname)
+            (entry.type.empty_declaration_code(),
+             entry.name,
+             entry.cname if is_module_scope else module.mangle(Naming.varptr_prefix, entry.name))
+            for entry in entries
+        ]
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("VoidPtrImport", "ImportExport.c"))
+
+        _generate_import_code(
+            code, self.pos, imports, module.qualified_name, f"__Pyx_ImportVoidPtr_{Naming.cyversion}", "void **{name}")
 
     def generate_c_function_import_code_for_module(self, module, env, code):
         """Generate import code for all exported C functions in a cimported module.
         """
-        for module_ref, entry in self._generate_import_code(
-                module.cfunc_entries, module.qualified_name, "FunctionImport", code, used_only=True):
-            signature = entry.type.signature_string()
+        entries = self._select_imported_entries(module.cfunc_entries, used_only=True)
+        if not entries:
+            return
 
-            code.put_error_if_neg(
-                self.pos,
-                f'__Pyx_ImportFunction_{Naming.cyversion}('
-                f'{module_ref}, {entry.name.as_c_string_literal()}, (void (**)(void))&{entry.cname}, "{signature}"'
-                f')'
-            )
+        imports = [
+            # (signature, name, cname)
+            (entry.type.signature_string(), entry.name, entry.cname)
+            for entry in entries
+        ]
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
+
+        _generate_import_code(
+            code, self.pos, imports, module.qualified_name, f"__Pyx_ImportFunction_{Naming.cyversion}", "void (**{name})(void)")
 
     def generate_type_init_code(self, env, code):
         # Generate type import code for extern extension types
@@ -3957,6 +4032,114 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             meth_entry.func_cname))
 
 
+# cimport/export code for functions and pointers.
+
+def _deduplicate_inout_signatures(item_tuples):
+    # We can save runtime space for identical signatures by reusing the same C strings.
+    # To deduplicate the signatures, we sort by them and store duplicates as empty C strings.
+    signatures, names, items = zip(*sorted(item_tuples))
+    signatures = list(signatures)  # tuple -> list, to allow reassignments again
+
+    last_sig = None
+    for i, signature in enumerate(signatures):
+        if signature == last_sig:
+            signatures[i] = ''
+        else:
+            last_sig = signature
+
+    return signatures, names, items
+
+
+def _generate_import_export_code(code: Code.CCodeWriter, pos, inout_item_tuples, per_item_func, target, pointer_decl, use_pybytes, is_import):
+    signatures, names, inout_items = _deduplicate_inout_signatures(inout_item_tuples)
+
+    pyx = f"{Naming.pyrex_prefix}{'import' if is_import else 'export'}_"
+
+    pointer_cast = pointer_decl.format(name='')
+    sig_bytes = '\0'.join(signatures).encode('utf-8')
+    names_bytes = '\0'.join(names).encode('utf-8')
+    pointers = [f"({pointer_cast})&{item_cname}" for item_cname in inout_items]
+
+    sigs_and_names_bytes = bytes_literal(sig_bytes + b'\0' + names_bytes, 'utf-8')
+    if use_pybytes:
+        code.putln(f"const char * {pyx}signature = __Pyx_PyBytes_AsString({code.get_py_string_const(sigs_and_names_bytes)});")
+        code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+        code.putln(code.error_goto_if_null(f'{pyx}signature', pos))
+        code.putln("#endif")
+    else:
+        code.putln(f"const char * {pyx}signature = {sigs_and_names_bytes.as_c_string_literal()};")
+
+    code.putln(f"const char * {pyx}name = {pyx}signature + {len(sig_bytes) + 1};")
+    code.putln(f"{pointer_decl.format(name=f'const {pyx}pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
+
+    code.globalstate.use_utility_code(
+        UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+
+    code.putln(f"{pointer_decl.format(name=f'const *{pyx}pointer')} = {pyx}pointers;")
+    code.putln(f"const char *{pyx}current_signature = {pyx}signature;")
+    code.putln(f"while (*{pyx}pointer) {{")
+
+    code.put_error_if_neg(
+        pos,
+        f"{per_item_func}({target}, {pyx}name, *{pyx}pointer, {pyx}current_signature)"
+    )
+    code.putln(f"++{pyx}pointer;")
+    code.putln(f"{pyx}name = strchr({pyx}name, '\\0') + 1;")
+    code.putln(f"{pyx}signature = strchr({pyx}signature, '\\0') + 1;")
+    # Keep reusing the current signature until we find a new non-empty one.
+    code.putln(f"if (*{pyx}signature != '\\0') {pyx}current_signature = {pyx}signature;")
+
+    code.putln("}")  # while
+
+
+def _generate_export_code(code: Code.CCodeWriter, pos, exports, export_func, pointer_decl):
+    """Generate function/pointer export code.
+
+    'exports' is a list of (signature, name, exported_cname) tuples.
+    """
+    code.putln("{")
+
+    api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+    code.globalstate.use_utility_code(
+        UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
+    code.putln(
+        f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
+        f"{code.error_goto_if_null(api_dict, pos)}"
+    )
+    code.put_gotref(api_dict, py_object_type)
+
+    _generate_import_export_code(code, pos, exports, export_func, api_dict, pointer_decl, use_pybytes=True, is_import=False)
+
+    code.put_decref_clear(api_dict, py_object_type)
+    code.funcstate.release_temp(api_dict)
+
+    code.putln("}")
+
+
+def _generate_import_code(code, pos, imports, qualified_module_name, import_func, pointer_decl):
+    """Generate function/pointer import code.
+
+    'imports' is a list of (signature, name, imported_cname) tuples.
+    """
+    code.putln("{")
+
+    module_ref = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+    code.putln(
+        f'{module_ref} = PyImport_ImportModule({qualified_module_name.as_c_string_literal()}); '
+        f'{code.error_goto_if_null(module_ref, pos)}'
+    )
+    code.put_gotref(module_ref, py_object_type)
+
+    _generate_import_export_code(code, pos, imports, import_func, module_ref, pointer_decl, use_pybytes=True, is_import=True)
+
+    code.put_decref_clear(module_ref, py_object_type)
+    code.funcstate.release_temp(module_ref)
+
+    code.putln("}")
+
+
+# Module import helper
+
 class ModuleImportGenerator:
     """
     Helper to generate module import while importing external types.
@@ -4023,6 +4206,7 @@ def generate_cfunction_declaration(entry, env, code, definition):
             storage_class,
             modifiers,
             header))
+        code.globalstate.use_entry_utility_code(entry)
 
 #------------------------------------------------------------------------------------
 #

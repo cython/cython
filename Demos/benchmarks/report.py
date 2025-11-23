@@ -18,7 +18,9 @@ def concat_files(csv_files):
 
 
 def read_rows(csv_rows):
-    # CSV Format: benchmark, revision_name, pyversion, tmin, tmed, tmax
+    # CSV Formats:
+    # - benchmark, revision_name, pyversion, tmin, tmed, tmax, diff
+    # - benchmark, revision_name, pyversion, size, diff
     reader = csv.reader(csv_rows)
 
     # Sort by benchmark name.
@@ -26,7 +28,15 @@ def read_rows(csv_rows):
     return rows
 
 
-def build_table(rows):
+def format_timings(tmin, tmed, tmax, diff):
+    return f"{unbreak(tmed)} ({unbreak(diff.strip(' ()'))})" if diff else unbreak(tmed)
+
+
+def format_sizes(size, diff):
+    return f"{size} ({unbreak(diff.strip(' ()'))})" if diff else size
+
+
+def build_table(rows, title, data_formatter):
     # Collect all revision names and Python versions, keeping their original order.
     # (The set may not be the same for all benchmarks.)
     revisions = list({row[1]: 1 for row in rows})
@@ -39,7 +49,7 @@ def build_table(rows):
         for pyversion in python_versions
         for revision in revisions
     }
-    header = ["Benchmark timings"] + [f"Py{pyversion}: {revision[:22]}" for (pyversion, revision) in column_map]
+    header = [title] + [f"Py{pyversion}: {revision[:22]}" for (pyversion, revision) in column_map]
     row_template = [''] * len(header)
 
     # For each benchmark, report all timings in separate columns.
@@ -50,10 +60,10 @@ def build_table(rows):
         table.append(row)
 
         row[0] = benchmark
-        for _, revision_name, pyversion, tmin, tmed, tmax, diff in bm_rows:
+        for _, revision_name, pyversion, *data in bm_rows:
             column_index = column_map[(pyversion, revision_name)]
             empty_column_indices.discard(column_index)
-            row[column_index] = f"{unbreak(tmed)} ({unbreak(diff.strip(' ()'))})" if diff else unbreak(tmed)
+            row[column_index] = data_formatter(*data)
 
     # Strip empty columns, highest to lowest.
     for column_index in sorted(empty_column_indices, reverse=True):
@@ -80,9 +90,39 @@ def generate_markdown(header, table):
     yield from itertools.starmap(format_row, table)
 
 
-def main(csv_files):
-    rows = read_rows(concat_files(csv_files))
-    header, table = build_table(rows)
+def parse_options(args):
+    from argparse import ArgumentParser, RawDescriptionHelpFormatter
+    parser = ArgumentParser(
+        description="Report benchmark numbers as markdown tables.",
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "-t", "--type",
+        dest="type", default='timings', choices=['timings', 'sizes'],
+        help="The type of report.",
+    )
+    parser.add_argument(
+        "csv_files",
+        nargs="*", default=[],
+        help="The CSV files to collect data from.",
+    )
+
+    return parser.parse_args(args)
+
+
+def main(args):
+    options = parse_options(args)
+
+    rows = read_rows(concat_files(options.csv_files))
+
+    if options.type == 'timings':
+        title = "Benchmark timings"
+        data_formatter = format_timings
+    else:
+        title = 'Module sizes'
+        data_formatter = format_sizes
+
+    header, table = build_table(rows, title, data_formatter)
     for line in generate_markdown(header, table):
         print(line, end='')
 

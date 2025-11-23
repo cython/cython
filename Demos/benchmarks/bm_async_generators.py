@@ -7,6 +7,7 @@ Author: Kumar Aditya
 
 from __future__ import annotations
 
+import cython
 import asyncio
 import time
 from collections.abc import AsyncIterator

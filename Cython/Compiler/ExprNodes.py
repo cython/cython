@@ -76,6 +76,9 @@ class NotConstant:
 not_a_constant = NotConstant()
 constant_value_not_set = object()
 
+def _type_to_itself(tp):
+    return tp, tp
+
 # error messages when coercing from key[0] to key[1]
 coercion_error_dict = {
     # string related errors
@@ -94,9 +97,9 @@ coercion_error_dict = {
     (PyrexTypes.c_uchar_ptr_type, unicode_type): "Cannot convert 'char*' to unicode implicitly, decoding required",
     (PyrexTypes.c_const_uchar_ptr_type, unicode_type): (
         "Cannot convert 'char*' to unicode implicitly, decoding required"),
-    (PyrexTypes.cy_pymutex_type, PyrexTypes.cy_pymutex_type): (
+    _type_to_itself(PyrexTypes.get_cy_pymutex_type()): (
         "cython.pymutex cannot be copied"),
-    (PyrexTypes.cy_pythread_type_lock_type, PyrexTypes.cy_pythread_type_lock_type): (
+    _type_to_itself(PyrexTypes.get_cy_pythread_type_lock_type()): (
         "cython.pythread_type_lock cannot be copied"),
 }
 
@@ -471,6 +474,7 @@ class ExprNode(Node):
     has_temp_moved = False  # if True then attempting to do anything but free the temp is invalid
     is_target = False
     is_starred = False
+    is_annotation = False
 
     constant_result = constant_value_not_set
 
@@ -2942,7 +2946,7 @@ class ImportNode(ExprNode):
         if self.imported_names is not None:
             code.putln("{")
             code.putln(
-                f"PyObject *__pyx_imported_names[] = {{{','.join(n.result() for n in self.imported_names)}}};")
+                f"PyObject* const __pyx_imported_names[] = {{{','.join(n.result() for n in self.imported_names)}}};")
 
         import_code = "__Pyx_Import(%s, %s, %d, %s, %d)" % (
             self.module_name.py_result(),
@@ -2966,7 +2970,7 @@ class ImportNode(ExprNode):
                 module_obj = code.get_py_string_const(StringEncoding.EncodedString(module))
                 code.putln(f"{submodule} = __Pyx_ImportFrom({tmp_submodule}, {module_obj});")
                 code.putln(f"Py_DECREF({tmp_submodule});")
-                code.error_goto_if_null(submodule, self.pos)
+                code.putln(code.error_goto_if_null(submodule, self.pos))
                 code.putln(f"{tmp_submodule} = {submodule};")
             code.funcstate.release_temp(submodule)
 
@@ -3769,7 +3773,8 @@ class JoinedStrNode(ExprNode):
         for node in self.values:
             if isinstance(node, UnicodeNode):
                 max_char_value = max(max_char_value, node.estimate_max_charval())
-            elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
+            elif (isinstance(node, FormattedValueNode) and
+                    node.c_format_spec != 'c' and node.value.type.is_numeric):
                 # formatted C numbers are always ASCII
                 pass
             elif isinstance(node, CloneNode):
@@ -3870,8 +3875,9 @@ class FormattedValueNode(ExprNode):
 
     def analyse_types(self, env):
         self.value = self.value.analyse_types(env)
+        resolved_type = self.value.type.resolve()
         if not self.format_spec or self.format_spec.is_string_literal:
-            c_format_spec = self.format_spec.value if self.format_spec else self.value.type.default_format_spec
+            c_format_spec = self.format_spec.value if self.format_spec else resolved_type.default_format_spec
             if self.value.type.can_coerce_to_pystring(env, format_spec=c_format_spec):
                 self.c_format_spec = c_format_spec
 
@@ -3880,7 +3886,7 @@ class FormattedValueNode(ExprNode):
         if self.c_format_spec is None:
             self.value = self.value.coerce_to_pyobject(env)
             if not self.format_spec and (not self.conversion_char or self.conversion_char == 's'):
-                if self.value.type is unicode_type and not self.value.may_be_none():
+                if resolved_type is unicode_type and not self.value.may_be_none():
                     # value is definitely a unicode string and we don't format it any special
                     return self.value
         return self
@@ -9029,10 +9035,11 @@ class TupleNode(SequenceNode):
             return SequenceNode.coerce_to(self, dst_type, env)
 
     def as_list(self):
-        t = ListNode(self.pos, args=self.args, mult_factor=self.mult_factor)
-        if isinstance(self.constant_result, tuple):
-            t.constant_result = list(self.constant_result)
-        return t
+        constant_result = self.constant_result
+        if isinstance(constant_result, tuple):
+            constant_result = list(constant_result)
+        return ListNode.from_node(
+            self, args=self.args, mult_factor=self.mult_factor, constant_result=constant_result)
 
     def is_simple(self):
         # either temp or constant => always simple
@@ -9046,11 +9053,14 @@ class TupleNode(SequenceNode):
         return self.result_code
 
     def calculate_constant_result(self):
+        if self.mult_factor:
+            raise ValueError()  # may exceed the compile time memory
         self.constant_result = tuple([
                 arg.constant_result for arg in self.args])
 
     def compile_time_value(self, denv):
         values = self.compile_time_value_list(denv)
+        assert self.mult_factor is None, self.mult_factor  # set only after parsing
         try:
             return tuple(values)
         except Exception as e:
@@ -9164,9 +9174,12 @@ class ListNode(SequenceNode):
             else:
                 if len(self.args) < len(dst_type.scope.var_entries):
                     warning(self.pos, "Too few members for '%s'" % dst_type, 1)
-                for i, (arg, member) in enumerate(zip(self.original_args, dst_type.scope.var_entries)):
+                for i, (arg, coerced_arg, member) in enumerate(zip(self.original_args, self.args, dst_type.scope.var_entries)):
                     if isinstance(arg, CoerceToPyTypeNode):
                         arg = arg.arg
+                    elif member.type.is_struct_or_union and coerced_arg.is_dict_literal:
+                        # For struct assignments, use the coerced dict directly, not a struct type call etc.
+                        arg = coerced_arg
                     self.args[i] = arg.coerce_to(member.type, env)
             self.type = dst_type
         elif dst_type.is_ctuple:
@@ -9180,10 +9193,11 @@ class ListNode(SequenceNode):
         return self
 
     def as_tuple(self):
-        t = TupleNode(self.pos, args=self.args, mult_factor=self.mult_factor)
-        if isinstance(self.constant_result, list):
-            t.constant_result = tuple(self.constant_result)
-        return t
+        constant_result = self.constant_result
+        if isinstance(constant_result, list):
+            constant_result = tuple(constant_result)
+        return TupleNode.from_node(
+            self, args=self.args, mult_factor=self.mult_factor, constant_result=constant_result)
 
     def allocate_temp_result(self, code):
         if self.type.is_array:
@@ -15200,6 +15214,7 @@ class AnnotationNode(ExprNode):
     # annotation is evaluated into a Python Object.
 
     subexprs = []
+    is_annotation = True
 
     # 'untyped' is set for fused specializations:
     # Once a fused function has been created we don't want
@@ -15448,3 +15463,108 @@ class FirstArgumentForCriticalSectionNode(ExprNode):
         if self.name_node:
             return self.name_node.analyse_expressions(env)
         return self  # error earlier
+
+
+class TStringInterpolationNode(ExprNode):
+    # conversion_char   str
+    subexprs = ['value', 'format_spec', 'expression_str']
+    is_temp = True
+    type = py_object_type
+
+    def __init__(self, pos, **kwds):
+        super().__init__(pos, **kwds)
+        assert (self.conversion_char is None or
+                isinstance(self.conversion_char, StringEncoding.EncodedString))
+
+    def analyse_declarations(self, env):
+        self.value.analyse_declarations(env)
+        if self.format_spec is not None:
+            self.format_spec.analyse_declarations(env)
+        self.expression_str.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        self.value = self.value.analyse_types(env).coerce_to_pyobject(env)
+        if self.conversion_char is not None and self.format_spec is None:
+            self.format_spec = UnicodeNode(
+                self.pos, value=StringEncoding.EncodedString(""))
+        if self.format_spec is not None:
+            self.format_spec = self.format_spec.analyse_types(env)
+        self.expression_str = self.expression_str.analyse_types(env)
+        return self
+
+    def generate_result_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("MakeTemplateLibInterpolation", "TString.c"))
+        value = self.value.result()
+        expression = self.expression_str.result()
+        conversion_char = (
+            code.get_py_string_const(self.conversion_char) if self.conversion_char
+            else "Py_None")
+        format_spec = (
+            self.format_spec.result() if self.format_spec is not None
+            else code.name_in_module_state(Naming.empty_unicode))
+        code.putln(f"{self.result()} = __Pyx_MakeTemplateLibInterpolation({value}, {expression}, {conversion_char}, {format_spec});")
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.put_gotref(self.result(), py_object_type)
+
+
+class TemplateStringNode(ExprNode):
+    """t-string"""
+    subexprs = ['strings', 'interpolations']
+    is_temp = True
+    type = py_object_type
+
+    def __init__(self, pos, *, values: list):
+        last_string_node = None
+        strings = []
+        interpolations = []
+        for v in values:
+            if isinstance(v, TStringInterpolationNode):
+                if last_string_node is None:
+                    strings.append(UnicodeNode(
+                        v.pos, value=StringEncoding.EncodedString("")
+                    ))
+                else:
+                    strings.append(last_string_node)
+                    last_string_node = None
+                interpolations.append(v)
+            elif isinstance(v, UnicodeNode):
+                if last_string_node is None:
+                    last_string_node = v
+                else:
+                    last_string_node = UnicodeNode(
+                        pos = last_string_node.pos,
+                        value = StringEncoding.EncodedString(
+                            last_string_node.value + v.value
+                        ))
+            else:
+                assert False, type(v)
+        if last_string_node is None:
+            last_string_node = UnicodeNode(pos, value=StringEncoding.EncodedString(""))
+        strings.append(last_string_node)
+        super().__init__(pos, strings=strings, interpolations=interpolations)
+
+    def analyse_declarations(self, env):
+        for s in self.strings:
+            s.analyse_declarations(env)
+        for i in self.interpolations:
+            i.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        # convert both strings and interpolations into a tuple
+        self.strings = TupleNode(
+            self.pos, args=self.strings
+        ).analyse_types(env)
+        self.interpolations = TupleNode(
+            self.pos, args=self.interpolations
+        ).analyse_types(env)
+        return self
+
+    def generate_result_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("MakeTemplateLibTemplate", "TString.c"))
+        strings = self.strings.result()
+        interpolations = self.interpolations.result()
+        code.putln(f"{self.result()} = __Pyx_MakeTemplateLibTemplate({strings}, {interpolations});")
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.put_gotref(self.result(), py_object_type)
