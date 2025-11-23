@@ -114,7 +114,7 @@ CYTHON_UNUSED static int __Pyx_PyType_HasMultipleInheritance(PyTypeObject *t) {
 // to deal with multiple inheritance.
 static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
-#if CYTHON_USE_TYPE_SPECS || !CYTHON_COMPILING_IN_CPYTHON || defined(PYSTON_MAJOR_VERSION)
+#if CYTHON_USE_TYPE_SPECS || !CYTHON_COMPILING_IN_CPYTHON
     // avoid C warning about unused helper function
     (void)__Pyx_PyObject_CallMethod0;
 #if CYTHON_USE_TYPE_SPECS
@@ -135,7 +135,6 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     if (bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, bases) == -1))
         return -1;
 
-#if !defined(PYSTON_MAJOR_VERSION)
     {
         // Make sure GC does not pick up our non-heap type as heap type with this hack!
         // For details, see https://github.com/cython/cython/issues/3603
@@ -193,14 +192,9 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // is immutable
         t->tp_flags |= Py_TPFLAGS_IMMUTABLETYPE;
 #endif
-#else
-        // avoid C warning about unused helper function
-        (void)__Pyx_PyObject_CallMethod0;
-#endif
 
-    r = PyType_Ready(t);
+        r = PyType_Ready(t);
 
-#if !defined(PYSTON_MAJOR_VERSION)
         t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
 
     #if PY_VERSION_HEX >= 0x030A00b1
@@ -226,7 +220,6 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         Py_DECREF(gc);
     #endif
     }
-#endif
 
     return r;
 #endif
