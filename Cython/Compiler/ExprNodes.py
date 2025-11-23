@@ -8147,15 +8147,15 @@ class AttributeNode(ExprNode):
             result = "(*%s)" % result
         return result
 
-    def calculate_access_code(self):
-        # Does the job of calculate_result_code but doesn't dereference cpp_optionals
-        # Therefore allowing access to the holder variable
+    def _calculate_obj_code(self):
         obj = self.obj
         if obj.type.is_extension_type:
             obj_code = obj.result()
             access_type = obj.type
             access_code = ""
-            if self.entry.is_inherited:
+            if self.entry and self.entry.is_cmethod and not self.entry.is_builtin_cmethod:
+                access_type = obj.type.vtabslot_type
+            elif self.entry.is_inherited:
                 access_type = self.entry.inherited_scope.parent_type
                 levels = 0
                 tp = obj.type
@@ -8164,14 +8164,20 @@ class AttributeNode(ExprNode):
                     levels += 1
                 access_code = f", {''.join([f'->{Naming.obj_base_cname}']*levels)}"
             if access_type.is_external:
-                obj_code = obj.result_as(access_type)
+                return obj.result_as(access_type)
             else:
                 # FIXME - we really need Code to get to this
                 typeptr_cname = f"{Naming.modulestateglobal_cname}->{access_type.typeptr_cname}"
                 objstruct_cname = access_type.objstruct_cname if access_type.typedef_flag else f"struct {access_type.objstruct_cname}"
-                obj_code = f"__Pyx_GetCClassTypeData({obj_code}, {typeptr_cname}, {objstruct_cname}*{access_code})"
+                return f"__Pyx_GetCClassTypeData({obj_code}, {typeptr_cname}, {objstruct_cname}*{access_code})"
         else:
-            obj_code = obj.result_as(obj.type)
+            return obj.result_as(obj.type)
+
+    def calculate_access_code(self):
+        # Does the job of calculate_result_code but doesn't dereference cpp_optionals
+        # Therefore allowing access to the holder variable
+        obj = self.obj
+        obj_code = self._calculate_obj_code()
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
             if obj.type.is_extension_type and not self.entry.is_builtin_cmethod:
@@ -8187,7 +8193,7 @@ class AttributeNode(ExprNode):
 
                 return "((struct %s *)%s%s%s)->%s" % (
                     obj.type.vtabstruct_cname, obj_code, self.op,
-                    obj.type.vtabslot_cname, self.member)
+                    Naming.vtabslot_cname, self.member)
             elif self.result_is_used:
                 return self.member
             # Generating no code at all for unused access to optimised builtin

@@ -1908,10 +1908,9 @@ class ModuleScope(Scope):
         #  If extension type has a vtable, allocate vtable struct and
         #  slot names for it.
         type = entry.type
-        if type.base_type and type.base_type.vtabslot_cname:
-            #print "...allocating vtabslot_cname because base type has one" ###
-            type.vtabslot_cname = "%s.%s" % (
-                Naming.obj_base_cname, type.base_type.vtabslot_cname)
+        if type.base_type and type.base_type.vtabslot_type:
+            #print "...allocating vtabslot_type because base type has one" ###
+            type.vtabslot_type = type.base_type.vtabslot_type
         elif type.scope and type.scope.cfunc_entries:
             # one special case here: when inheriting from builtin
             # types, the methods may also be built-in, in which
@@ -1926,9 +1925,9 @@ class ModuleScope(Scope):
                     # builtin base type defines all methods => no vtable needed
                     return
                 base_type = base_type.base_type
-            #print "...allocating vtabslot_cname because there are C methods" ###
-            type.vtabslot_cname = Naming.vtabslot_cname
-        if type.vtabslot_cname:
+            #print "...allocating vtabslot_type because there are C methods" ###
+            type.vtabslot_type = type
+        if type.vtabslot_type:
             #print "...allocating other vtable related cnames" ###
             type.vtabstruct_cname = self.mangle(Naming.vtabstruct_prefix, entry.name)
             type.vtabptr_cname = self.mangle(Naming.vtabptr_prefix, entry.name)
@@ -1968,7 +1967,7 @@ class ModuleScope(Scope):
                     error(method_entry.pos, "C method '%s' is declared but not defined" %
                         method_entry.name)
         # Allocate vtable name if necessary
-        if type.vtabslot_cname:
+        if type.vtabslot_type:
             #print "ModuleScope.check_c_classes: allocating vtable cname for", self ###
             type.vtable_cname = self.mangle(Naming.vtable_prefix, entry.name)
 

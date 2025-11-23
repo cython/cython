@@ -1346,11 +1346,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "PyObject_HEAD")
         code.putln("#endif")  # opaque objects
-        if type.vtabslot_cname and not (type.base_type and type.base_type.vtabslot_cname):
+        if type.vtabslot_type == type:
             code.putln(
                 "struct %s *%s;" % (
                     type.vtabstruct_cname,
-                    type.vtabslot_cname))
+                    Naming.vtabslot_cname))
         for attr in type.scope.var_entries:
             if attr.is_declared_generic:
                 attr_type = py_object_type
@@ -1607,7 +1607,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             scope, PyrexTypes.py_objptr_type, "tp_new",
             f"PyTypeObject *t, {unused_marker}PyObject *a, {unused_marker}PyObject *k", needs_prototype=True)
 
-        need_self_cast = (type.vtabslot_cname or
+        need_self_cast = (type.vtabslot_type or
                           (py_buffers or memoryview_slices or py_attrs) or
                           explicitly_constructable_attrs)
         if need_self_cast:
@@ -1667,21 +1667,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # from this point on, ensure DECREF(o) on failure
         needs_error_cleanup = False
 
-        if type.vtabslot_cname:
-            vtab_base_type = type
-            while vtab_base_type.base_type and vtab_base_type.base_type.vtabstruct_cname:
-                vtab_base_type = vtab_base_type.base_type
+        if type.vtabslot_type:
+            vtab_base_type = type.vtabslot_type
             if vtab_base_type is not type:
                 struct_type_cast = "(struct %s*)" % vtab_base_type.vtabstruct_cname
             else:
                 struct_type_cast = ""
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
             code.putln(f"__Pyx_GetCClassTypeData(o, {code.name_in_module_state(vtab_base_type.typeptr_cname)}, "
-                       f"{vtab_base_type.empty_declaration_code(opaque_decl=False)})->{vtab_base_type.vtabslot_cname}"
+                       f"{vtab_base_type.empty_declaration_code(opaque_decl=False)})->{Naming.vtabslot_cname}"
                        f" = {struct_type_cast}{type.vtabptr_cname};")
             code.putln("#else")
             code.putln("p->%s = %s%s;" % (
-                type.vtabslot_cname,
+                Naming.vtabslot_cname,
                 struct_type_cast, type.vtabptr_cname))
             code.putln("#endif")
 
