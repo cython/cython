@@ -10186,7 +10186,7 @@ def _gen_test_code():
         assert function_name not in unique_function_names, function_name
         unique_function_names.add(function_name)
 
-        # Add decorators to notify us when we start supporting something previously unsupported by carray iteration.
+        # Add decorators to notify us when the implementation changes.
         optimised = True
         test_decorator = '@cython.test_assert_path_exists("//CArrayNode")'
         if carray_decl:
@@ -10206,13 +10206,13 @@ def _gen_test_code():
             test_decorator = '@cython.test_fail_if_path_exists("//CArrayNode")  # (not str/bytes)'
             optimised = False
 
+        # Uncomment to get around the test assertions.
+        # test_decorator = ''
+
         if optimised:
             stats['optimised'] += 1
         else:
             stats['not_optimised'] += 1
-
-        # Uncomment to get around the test assertions.
-        # test_decorator = ''
 
         needs_py_conversion = False
         if carray_decl and isinstance(array_values, str):
