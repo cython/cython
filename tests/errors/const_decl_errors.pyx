@@ -77,6 +77,16 @@ cdef const float float_sum_constant2 = 50.2 + yy # nok
 cdef char *const string2 = "string2"             # nok
 cdef const char *const string3 = "string3"       # nok
 
+cdef const int[3] global_const_carray = [1, 2, 3]
+cdef const global_object_var = [1, 2, 3]
+cdef const int global_int_not_list_var = [1, 2, 3]
+
+cdef const_array():
+    cdef const int[3] const_carray = [1, 2, 3]
+    cdef const object_var = [1, 2, 3]
+    cdef const int int_not_list_var = [1, 2, 3]
+
+
 _ERRORS = """
 5:4: Assignment to const 'x'
 10:0: Assignment to const 'i'
@@ -105,6 +115,16 @@ _ERRORS = """
 73:16: Array dimension cannot be const variable
 75:0: Assignment to const 'int_sum_constant3'
 76:0: Assignment to const 'float_sum_constant2'
+80:0: Assignment to const array 'global_const_carray'. Assign to a pointer variable instead.
+81:0: Assignment to const 'global_object_var'
+81:5: Const/volatile base type cannot be a Python object
+82:0: Non-const assignment to const 'global_int_not_list_var'
+82:41: Cannot coerce list to type 'const int'
+85:4: Assignment to const array 'const_carray'. Assign to a pointer variable instead.
+86:4: Assignment to const 'object_var'
+86:9: Const/volatile base type cannot be a Python object
+87:4: Assignment to const 'int_not_list_var'
+87:38: Cannot coerce list to type 'const int'
 """
 
 _WARNINGS = """
