@@ -110,8 +110,8 @@ def find_coercion_error(type_tuple, default, env):
         type0, type1 = type_tuple
         if type0 in typed_container_types and type1 in typed_container_types:
             # Typed containers. Validate the coercion of their item types.
-            type0 = type0.get_subscribed_type(0)
-            type1 = type1.get_subscribed_type(0)
+            type0 = type0.get_subscripted_type(0)
+            type1 = type1.get_subscripted_type(0)
             return find_coercion_error((type0, type1), default, env)
     if err is None:
         return default
@@ -3152,7 +3152,7 @@ class IteratorNode(ScopedExprNode):
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
-        if sequence_type in typed_container_types and (item_type := sequence_type.get_subscribed_type(0)):
+        if sequence_type in typed_container_types and (item_type := sequence_type.get_subscripted_type(0)):
             return item_type
         if sequence_type.is_array or sequence_type.is_ptr:
             return sequence_type
@@ -4203,7 +4203,7 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
-        if base_type in typed_container_types and (sub_type := base_type.get_subscribed_type(0)):
+        if base_type in typed_container_types and (sub_type := base_type.get_subscripted_type(0)):
             return sub_type
 
         index_type = self.index.infer_type(env)

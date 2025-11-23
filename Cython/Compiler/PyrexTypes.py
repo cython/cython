@@ -4847,7 +4847,7 @@ class PythonTypeConstructorMixin:
     contains_none = False
     subscribed_types = ()
 
-    def get_subscribed_type(self, index: int):
+    def get_subscripted_type(self, index: int):
         try:
             return self.subscribed_types[index]
         except IndexError:
@@ -4855,9 +4855,9 @@ class PythonTypeConstructorMixin:
 
     def infer_indexed_type(self):
         if self.get_container_type() == 'dict':
-            return self.get_subscribed_type(1)
+            return self.get_subscripted_type(1)
         else:
-            return self.get_subscribed_type(0)
+            return self.get_subscripted_type(0)
 
 
     def allows_none(self):
