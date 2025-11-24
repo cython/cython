@@ -8,6 +8,15 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Calling special methods of known exception types failed with an ``AttributeError``.
+  (Github issue :issue:`7342`)
+
+* Calling the unbound ``__mul__`` special method of builtin collections with subtypes failed.
+  (Github issue :issue:`7340`)
+
+* C string literals could generate invalid "const to non-const" casts in the C code.
+  (Github issue :issue:`7346`)
+
 * ``yield`` is no longer allowed inside of a ``cython.critical_section``,
   but *is* now allowed while holding a ``cython.pymutex``.
   (Github issue :issue:`7317`)
@@ -15,6 +24,9 @@ Bugs fixed
 * Under lock congestion, acquiring the GIL could crash in Python 3.11, part 2.
   This bug was introduced in Cython 3.2.0.
   (Github issue :issue:`7312`)
+
+* The new ``py_safe_*`` functions in ``libc.threads`` triggered C compiler warnings.
+  (Github issue :issue:`7356`)
 
 
 3.2.1 (2025-11-12)
