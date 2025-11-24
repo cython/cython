@@ -11,6 +11,9 @@ Features added
 * PEP-634 Pattern Matching is being implemented.
   (Github issue :issue:`4029`)
 
+* The runtime conversion from a Python mapping to a C struct/union uses less code.
+  (Github issue :issue:`7343`)
+
 * Programmatic use of Cython has become easier by avoiding the need to manually set up
   the error reporting.
   (Github issue :issue:`7235`)
