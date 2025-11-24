@@ -74,10 +74,13 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c
     bm_count = len(bm_files)
     rev_hash = get_git_rev(rev_dir=cython_dir)
     bm_list = ', '.join(bm_file.stem for bm_file in bm_files)
-    cythonize_args = cythonize_args or []
+
+    util_files = [path for path in {bm_file.parent / "util.py" for bm_file in bm_files} if path.exists()]
+    source_files = bm_files + util_files
+
     logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
     run(
-        [sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *bm_files, *cythonize_args],
+        [sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *source_files, *(cythonize_args or [])],
         cwd=cython_dir,
         c_macros=c_macros,
         tmp_dir=tmp_dir,
@@ -175,7 +178,7 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
     while True:
         for j in 1, 2, 5, 8:
             number = i * j
-            all_timings = bench_func(python_command, 3, number)
+            all_timings = bench_func(python_command, 1, number)
             # FIXME: make autorange work per benchchmark, not per file.
             for timings in all_timings.values():
                 if min(timings) >= min_runtime:
@@ -184,8 +187,8 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
 
 
 def _make_bench_func(bm_dir, module_name, pythonpath=None):
-    def bench_func(python_command: list, repeat: int, scale: int):
-        py_code = f"import {module_name} as bm; bm.run_benchmark(4); print(bm.run_benchmark({repeat:d}, {scale:d}))"
+    def bench_func(python_command: list, repeat: bool, scale: int):
+        py_code = f"import {module_name} as bm; bm.run_benchmark(4); print(bm.run_benchmark({repeat}, {scale:d}))"
         command = python_command + ["-c", py_code]
 
         output = run(command, cwd=bm_dir, pythonpath=pythonpath)
@@ -247,11 +250,10 @@ def run_benchmark(bm_dir, module_name, pythonpath=None, profiler=None):
 
     bench_func = _make_bench_func(bm_dir, module_name, pythonpath)
 
-    repeat = 9
     scale = autorange(bench_func)
 
     logging.info(f"Running benchmark '{module_name}' with scale={scale:_d}.")
-    timings = bench_func(python_command, repeat, scale)
+    timings = bench_func(python_command, repeat=True, scale=scale)
 
     timings = {name: [t / scale for t in values] for name, values in timings.items()}
 

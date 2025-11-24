@@ -91,11 +91,31 @@ def benchmark(n, timer=time.perf_counter):
 
 POINTS = 10_000
 
-def run_benchmark(repeat: int = 9, scale=POINTS, timer=time.perf_counter):
-    timings = defaultdict(list)
-    for _ in range(repeat):
-        for name, timing in benchmark(scale, timer).items():
-            timings[name].append(timing)
 
-    for name, times in timings.items():
-        print(f"dataclasses[{name}]: {times}")
+def run_benchmark(repeat=True, scale=POINTS):
+    from util import repeat_to_accuracy
+
+    collected_timings = defaultdict(list)
+
+    def timeit(func, arg, scale, timer):
+        t0 = timer()
+        func(arg)
+        t1 = timer()
+        return t1 - t0
+
+    points = benchmark_create(scale)
+
+    collected_timings['create'] = repeat_to_accuracy(
+        timeit, benchmark_create, scale, scale=scale, repeat=repeat)[0]
+
+    collected_timings['float'] = repeat_to_accuracy(
+        timeit, benchmark_float, points, scale=scale, repeat=repeat)[0]
+
+    collected_timings['repr'] = repeat_to_accuracy(
+        timeit, benchmark_repr, points, scale=scale, repeat=repeat)[0]
+
+    collected_timings['compare'] = repeat_to_accuracy(
+        timeit, benchmark_compare, points, scale=scale, repeat=repeat)[0]
+
+    for name, timings in collected_timings.items():
+        print(f"{name}: {timings}")
