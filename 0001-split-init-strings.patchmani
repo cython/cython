@@ -1,0 +1,116 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Your Name manivardhanreddythalla2007
+Date: Mon, 24 Nov 2025 00:00:00 +0530
+Subject: [PATCH] Split init-only string constants into init_strings and free after init
+
+---
+ src/module_init.c | 62 +++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 48 insertions(+), 14 deletions(-)
+
+diff --git a/src/module_init.c b/src/module_init.c
+index e69de29..abcdef0 100644
+--- a/src/module_init.c
++++ b/src/module_init.c
+@@ -1,8 +1,26 @@
++#include <Python.h>
++
++/* Pattern: collect all module-import-time-only strings here,
++   allocate during module init, free at the end of init. */
++typedef struct {
++    PyObject *mod_name;
++    PyObject *init_msg;
++    /* add other PyObject* strings used only during init here */
++    const char *time_error_cstr; /* example C string used during init */
++} init_strings;
++
++static init_strings *global_init_strings = NULL;
++
++static int
++init_strings_alloc(void)
++{
++    init_strings *s = PyMem_RawMalloc(sizeof(init_strings));
++    if (!s) return -1;
++    s->mod_name = PyUnicode_FromString("mymodule");
++    if (!s->mod_name) { PyMem_RawFree(s); return -1; }
++    s->init_msg = PyUnicode_FromString("module init message");
++    if (!s->init_msg) { Py_DECREF(s->mod_name); PyMem_RawFree(s); return -1; }
++    s->time_error_cstr = "time() failed"; /* C-literal, not allocated */
++    global_init_strings = s;
++    return 0;
++}
++
++static void
++init_strings_free(void)
++{
++    if (!global_init_strings) return;
++    Py_XDECREF(global_init_strings->mod_name);
++    Py_XDECREF(global_init_strings->init_msg);
++    PyMem_RawFree(global_init_strings);
++    global_init_strings = NULL;
++}
++
+ /* old module init function */
+ static struct PyModuleDef moduledef = {
+     PyModuleDef_HEAD_INIT,
+     "mymodule",
+     NULL,
+     -1,
+     NULL,
+ };
+ 
+ PyMODINIT_FUNC
+ PyInit_mymodule(void)
+ {
+-    PyObject *m;
+-    /* Strings used during init */
+-    PyObject *mod_name = PyUnicode_FromString("mymodule");
+-    PyObject *init_msg = PyUnicode_FromString("module init message");
+-    const char *time_error_cstr = "time() failed";
+-
+-    if (!mod_name || !init_msg) {
+-        Py_XDECREF(mod_name);
+-        Py_XDECREF(init_msg);
+-        return NULL;
+-    }
+-
+-    m = PyModule_Create(&moduledef);
+-    if (m == NULL) {
+-        Py_DECREF(mod_name);
+-        Py_DECREF(init_msg);
+-        return NULL;
+-    }
+-
+-    /* use strings for registering attributes, printing, etc */
+-    /* ... */
+-
+-    /* keep mod_name/init_msg alive in module state or string table, so they persist */
+-    /* ... */
+-
+-    return m;
++    PyObject *m;
++    if (init_strings_alloc() < 0) {
++        return NULL;
++    }
++
++    m = PyModule_Create(&moduledef);
++    if (m == NULL) {
++        init_strings_free();
++        return NULL;
++    }
++
++    if (PyModule_AddObject(m, "__name__", Py_NewRef(global_init_strings->mod_name)) < 0) {
++        Py_DECREF(m);
++        init_strings_free();
++        return NULL;
++    }
++
++    /* other init-time uses … */
++
++    /* free strings now that init completed */
++    init_strings_free();
++
++    return m;
+ }
+ 
+-- 
+2.30.0
