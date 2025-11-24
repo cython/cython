@@ -28,17 +28,18 @@ static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset,
 #endif
     if (!has_dictoffset) {
         // maybe one of the direct first bases does
+        PyObject *b;
 #if CYTHON_AVOID_BORROWED_REFS
-        PyObject *b = PySequence_GetItem(bases, 0);
+        b = PySequence_GetItem(bases, 0);
         if (!b) return -1;
 #elif CYTHON_ASSUME_SAFE_MACROS
-        PyObject *b = PyTuple_GET_ITEM(bases, 0);
+        b = PyTuple_GET_ITEM(bases, 0);
 #else
-        PyObject *b = PyTuple_GetItem(bases, 0);
+        b = PyTuple_GetItem(bases, 0);
         if (!b) return -1;
 #endif
 #if CYTHON_USE_TYPE_SLOTS
-        has_dictoffset = ((PyTypeObject*)b)->tp_dictoffset;
+        has_dictoffset = ((PyTypeObject*)b)->tp_dictoffset != 0;
 #else
         Py_ssize_t dictoffset = __Pyx_GetTypeDictOffset(b, 0);
         has_dictoffset = dictoffset != 0;
@@ -75,7 +76,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset,
 #endif
             return -1;
         }
-        if (has_dictoffset == 0)
+        if (!has_dictoffset)
         {
             Py_ssize_t b_dictoffset = 0;
 #if CYTHON_USE_TYPE_SLOTS
