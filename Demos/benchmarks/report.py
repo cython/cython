@@ -82,20 +82,20 @@ def build_table(rows, title, data_formatter):
         table.append(row)
 
         bm_rows = [
-            (pyversion, revision_name, data)
+            (pyversion, revision_name, pyversion + revision_name.partition(' ')[0], data)
             for _, revision_name, pyversion, *data in bm_rows
         ]
         master_data_seen = {
-            pyversion: data
-            for pyversion, revision_name, data in bm_rows
+            version_key: data
+            for _, revision_name, version_key, data in bm_rows
             if 'master' in revision_name
         }
 
         row[0] = benchmark
-        for pyversion, revision_name, data in bm_rows:
+        for pyversion, revision_name, version_key, data in bm_rows:
             column_index = column_map[(pyversion, revision_name)]
             empty_column_indices.discard(column_index)
-            master_data = master_data_seen.get(pyversion) if 'HEAD' in revision_name else None
+            master_data = master_data_seen.get(version_key) if 'HEAD' in revision_name else None
             row[column_index] = data_formatter(*data, master_data=master_data)
 
     # Strip empty columns, highest to lowest.
