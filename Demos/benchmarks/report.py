@@ -46,13 +46,13 @@ def warn_difference(reference, value, max_margin):
         return ' \N{LARGE GREEN SQUARE}' if is_better else ' \N{LARGE RED SQUARE}'
 
 
-def format_timings(tmin, tmed, tmax, diff, master_data=None, warn_margin=.1/3.):
+def format_timings(tmin, tmed, tmax, diff, *, master_data=None, warn_margin=.1/3.):
     diff_str = f" ({unbreak(diff.strip(' ()'))})" if diff else ''
     warn = warn_difference(master_data[1], tmed, warn_margin) if master_data else ''
     return f"{unbreak(tmed)}{diff_str}{warn}"
 
 
-def format_sizes(size, diff, master_data=None, warn_margin=.01):
+def format_sizes(size, diff, *, master_data=None, warn_margin=.01):
     warn = warn_difference(master_data[0], size, warn_margin) if master_data else ''
     diff_str = f" ({unbreak(diff.strip(' ()'))})" if diff else ''
     return f"{size}{diff_str}{warn}"
@@ -81,18 +81,21 @@ def build_table(rows, title, data_formatter):
         row = row_template[:]
         table.append(row)
 
-        master_data_seen = {}
+        bm_rows = [
+            (pyversion, revision_name, data)
+            for _, revision_name, pyversion, *data in bm_rows
+        ]
+        master_data_seen = {
+            pyversion: data
+            for pyversion, revision_name, data in bm_rows
+            if 'master' in revision_name
+        }
 
         row[0] = benchmark
-        for _, revision_name, pyversion, *data in bm_rows:
-            master_data = None
-            if 'master' in revision_name:
-                master_data_seen[pyversion] = data
-            elif 'HEAD' in revision_name:
-                master_data = master_data_seen.get(pyversion)
-
+        for pyversion, revision_name, data in bm_rows:
             column_index = column_map[(pyversion, revision_name)]
             empty_column_indices.discard(column_index)
+            master_data = master_data_seen.get(pyversion) if 'HEAD' in revision_name else None
             row[column_index] = data_formatter(*data, master_data=master_data)
 
     # Strip empty columns, highest to lowest.
