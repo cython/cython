@@ -1813,7 +1813,7 @@ class BytesNode(ConstNode):
             node.type = dst_type
             return node
         elif dst_type in (PyrexTypes.c_uchar_ptr_type, PyrexTypes.c_const_uchar_ptr_type, PyrexTypes.c_void_ptr_type):
-            node.type = (PyrexTypes.c_const_char_ptr_type if dst_type == PyrexTypes.c_const_uchar_ptr_type
+            node.type = (PyrexTypes.c_const_char_ptr_type if dst_type.base_type.is_const
                          else PyrexTypes.c_char_ptr_type)
             return CastNode(node, dst_type)
         elif dst_type.is_array and dst_type.base_type.is_int:
@@ -1836,7 +1836,7 @@ class BytesNode(ConstNode):
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
             result = code.get_py_string_const(self.value)
-        elif self.type.is_const:
+        elif (self.type.is_ptr or self.type.is_array) and self.type.base_type.is_const:
             result = code.get_string_const(self.value)
         else:
             # not const => use plain C string literal and cast to mutable type
@@ -9054,10 +9054,11 @@ class TupleNode(SequenceNode):
             return SequenceNode.coerce_to(self, dst_type, env)
 
     def as_list(self):
-        t = ListNode(self.pos, args=self.args, mult_factor=self.mult_factor)
-        if isinstance(self.constant_result, tuple):
-            t.constant_result = list(self.constant_result)
-        return t
+        constant_result = self.constant_result
+        if isinstance(constant_result, tuple):
+            constant_result = list(constant_result)
+        return ListNode.from_node(
+            self, args=self.args, mult_factor=self.mult_factor, constant_result=constant_result)
 
     def is_simple(self):
         # either temp or constant => always simple
@@ -9196,10 +9197,11 @@ class ListNode(SequenceNode):
         return self
 
     def as_tuple(self):
-        t = TupleNode(self.pos, args=self.args, mult_factor=self.mult_factor)
-        if isinstance(self.constant_result, list):
-            t.constant_result = tuple(self.constant_result)
-        return t
+        constant_result = self.constant_result
+        if isinstance(constant_result, list):
+            constant_result = tuple(constant_result)
+        return TupleNode.from_node(
+            self, args=self.args, mult_factor=self.mult_factor, constant_result=constant_result)
 
     def as_carray(self, item_type, env, is_const):
         array_length = len(self.args)
