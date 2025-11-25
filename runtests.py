@@ -437,8 +437,9 @@ def get_openmp_compiler_flags(language):
     returns a two-tuple of (CFLAGS, LDFLAGS) to build the OpenMP extension
     """
     gcc_version = get_gcc_version(language)
+    clang_version = get_clang_version(language) if sys.platform != 'darwin' else None
 
-    if not gcc_version:
+    if not gcc_version and not clang_version:
         if sys.platform == 'win32':
             return '/openmp', ''
         else:
@@ -448,11 +449,17 @@ def get_openmp_compiler_flags(language):
     global COMPILER_HAS_INT128
     COMPILER_HAS_INT128 = getattr(sys, 'maxsize', getattr(sys, 'maxint', 0)) > 2**60
 
-    compiler_version = gcc_version.group(1)
-    if compiler_version:
-        compiler_version = [int(num) for num in compiler_version.split('.')]
-        if compiler_version >= [4, 2]:
-            return '-fopenmp', '-fopenmp'
+    def is_supported(compiler_version, min_version):
+        if compiler_version is None:
+            return False
+        compiler_version = compiler_version.group(1)
+        if compiler_version:
+            compiler_version = [int(num) for num in compiler_version.split('.')]
+            return compiler_version >= min_version
+        return False
+
+    if is_supported(gcc_version, [4, 2]) or is_supported(clang_version, [3, 7]):
+        return '-fopenmp', '-fopenmp'
 
 try:
     locale.setlocale(locale.LC_ALL, '')
