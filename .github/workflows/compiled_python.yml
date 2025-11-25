@@ -128,7 +128,7 @@ jobs:
           bash ./Tools/ci-run.sh
 
       - name: Archive logs
-        if: ${{inputs.sanitize}}
+        if: ${{ inputs.sanitize && always() }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{inputs.sanitize}}-logs
@@ -138,7 +138,7 @@ jobs:
       # The check of the sanitizer logs does a bit of filtering of unwanted diagnostics
       # and finishes with an error code if anything bad is found.
       - name: Check logs
-        if:  ${{inputs.sanitize}}
+        if:  ${{ inputs.sanitize && always() }}
         run: |
           cd "${GITHUB_WORKSPACE}/"
           source venv_pydebug/bin/activate
