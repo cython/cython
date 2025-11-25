@@ -175,13 +175,12 @@ def copy_profile(bm_dir, module_name, profiler):
 def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.20):
     python_command = [python_executable]
     i = 1
-    # Quickly scale up the factor of 10.
-    while True:
-        all_timings = bench_func(python_command, 1, i)
-        min_actual_time = min(t for timings in all_timings.values() for t in timings)
-        if min_actual_time * 15 >= min_runtime:
-            break
+    # Quickly scale up to the factor of 10.
+    all_timings = bench_func(python_command, 1, i)
+    min_actual_time = min(t for timings in all_timings.values() for t in timings)
+    while min_actual_time * 13 < min_runtime:
         i *= 10
+        min_actual_time *= 10
 
     last_min = 0.
     while True:
@@ -189,7 +188,6 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
             number = i * j
             all_timings = bench_func(python_command, 1, number)
 
-            # FIXME: make autorange work per benchmark, not per file.
             min_actual_time = min(t for timings in all_timings.values() for t in timings)
             if min_actual_time >= min_runtime:
                 if (min_actual_time - min_runtime) / (min_actual_time - last_min) > .4:

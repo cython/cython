@@ -121,14 +121,21 @@ def get_benchmarks():
 
 
 def run_benchmark(repeat=True, scale=100):
-    from util import repeat_to_accuracy
+    from util import repeat_to_accuracy, scale_subbenchmarks
 
     benchmarks = get_benchmarks()
+
+    timings = {
+        name: func(1000, time.perf_counter)
+        for name, func in benchmarks.items()
+    }
+    scales = scale_subbenchmarks(timings, scale)
+
     collected_timings = collections.defaultdict(list)
 
     for name, func in benchmarks.items():
         collected_timings[name] = repeat_to_accuracy(
-            func, scale=scale, repeat=repeat)[0]
+            func, scale=scales[name], repeat=repeat)[0]
 
     for name, timings in collected_timings.items():
         print(f"{name}: {timings}")

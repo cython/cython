@@ -71,6 +71,20 @@ def repeat_to_accuracy(func, *args,
     return times, mean, variance
 
 
+def scale_subbenchmarks(timings_by_name, scale):
+    """Calculate scaling factors for sub-benchmarks.
+
+    For the intended 'scale' count and a dict of {name:time}
+    with a run time measurement for each benchmark,
+    return a benchmark specific mapping {name:scale}.
+    """
+    reference = max(timings_by_name.values())
+    return {
+        name: int((reference / t) * scale)
+        for name, t in timings_by_name.items()
+    }
+
+
 # Original implementation:
 
 def run_benchmark(options, num_runs, bench_func, *args):

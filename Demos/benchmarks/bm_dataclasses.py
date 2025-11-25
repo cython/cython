@@ -71,7 +71,7 @@ def benchmark_compare(points: list[Point]):
     return all_results
 
 
-def benchmark(n, timer=time.perf_counter):
+def time_benchmarks(n, timer=time.perf_counter):
     t0 = timer()
     points = benchmark_create(n)
     t1 = timer()
@@ -92,30 +92,34 @@ def benchmark(n, timer=time.perf_counter):
 POINTS = 10_000
 
 
-def run_benchmark(repeat=True, scale=POINTS):
-    from util import repeat_to_accuracy
+def run_benchmark(repeat=True, scale=10):
+    from util import repeat_to_accuracy, scale_subbenchmarks
 
-    collected_timings = defaultdict(list)
+    timings = time_benchmarks(POINTS)
+    scales = scale_subbenchmarks(timings, scale)
 
     def timeit(func, arg, scale, timer):
+        i: cython.long
         t0 = timer()
-        func(arg)
+        for i in range(scale):
+            func(arg)
         t1 = timer()
         return t1 - t0
 
-    points = benchmark_create(scale)
+    collected_timings = defaultdict(list)
+
+    points = benchmark_create(POINTS)
 
     collected_timings['create'] = repeat_to_accuracy(
-        timeit, benchmark_create, scale, scale=scale, repeat=repeat)[0]
+        timeit, benchmark_create, POINTS, scale=scales['create'], repeat=repeat)[0]
 
-    collected_timings['float'] = repeat_to_accuracy(
-        timeit, benchmark_float, points, scale=scale, repeat=repeat)[0]
-
-    collected_timings['repr'] = repeat_to_accuracy(
-        timeit, benchmark_repr, points, scale=scale, repeat=repeat)[0]
-
-    collected_timings['compare'] = repeat_to_accuracy(
-        timeit, benchmark_compare, points, scale=scale, repeat=repeat)[0]
+    for name, bench_func in [
+            ('float', benchmark_float),
+            ('repr', benchmark_repr),
+            ('compare', benchmark_compare),
+            ]:
+        collected_timings[name] = repeat_to_accuracy(
+            timeit, bench_func, points, scale=scales[name], repeat=repeat)[0]
 
     for name, timings in collected_timings.items():
         print(f"{name}: {timings}")

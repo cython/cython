@@ -117,14 +117,20 @@ def test_all(iterations, timer=DEFAULT_TIMER):
 
 
 def run_benchmark(repeat=True, scale=20_000):
-    from util import repeat_to_accuracy
+    from util import repeat_to_accuracy, scale_subbenchmarks
 
     collected_timings = collections.defaultdict(list)
+
+    timings = {}
+    for name, func in globals().items():
+        if name.startswith('bm_'):
+            timings[name] = func(100)
+    scales = scale_subbenchmarks(timings, scale)
 
     for name, func in globals().items():
         if name.startswith('bm_'):
             collected_timings[name] = repeat_to_accuracy(
-                func, scale=scale, repeat=repeat)[0]
+                func, scale=scales[name], repeat=repeat)[0]
 
     for name, timings in collected_timings.items():
         print(f"{name}: {timings}")
