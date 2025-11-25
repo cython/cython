@@ -122,4 +122,4 @@ def run_benchmark(repeat=True, scale=10):
             timeit, bench_func, points, scale=scales[name], repeat=repeat)[0]
 
     for name, timings in collected_timings.items():
-        print(f"{name}: {timings}")
+        print(f"bm_dataclasses[{name}]: {timings}")
