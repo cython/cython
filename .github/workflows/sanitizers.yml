@@ -1,12 +1,21 @@
 name: Sanitizers
 
 on:
-  # it's a bit slow so don't run on every pull request
   workflow_dispatch:
   push:
     branches:
       - master
-  pull_request:  # Delete me - just to test it
+  pull_request:
+    paths:
+      # Only run these tests on PRs likely to affect code generation
+      - "Cython/Utility/**"
+      - "Cython/Compiler/Nodes.py"
+      - "Cython/Compiler/ExprNodes.py"
+  label:
+    # Accepted labels (in the 'if' condition below) are:
+    # * sanitizers
+    # * full_sanitizers - runs thread sanitizer on all tests
+    types: [created]
 
 permissions:
   contents: read # to fetch code (actions/checkout)
@@ -24,3 +33,7 @@ jobs:
       cpp_compiler: clang++
       sanitize: ${{ matrix.sanitizer }}
       name: ${{ matrix.sanitizer }}
+    if: |
+      ${{ github.event_name != 'label' }} ||
+        ${{ github.event.label.name == 'sanitizers' }} ||
+        ${{ github.event.label.name == 'full_sanitizers '}}
