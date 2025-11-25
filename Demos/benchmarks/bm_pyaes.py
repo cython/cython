@@ -25,21 +25,23 @@ there clears it up.
 """
 
 import cython
-import time
 
-def run_benchmark(repeat: cython.Py_ssize_t = 9, scale: cython.Py_ssize_t = 2000, timer=time.perf_counter):
+
+def run_benchmark(repeat=True, scale: cython.long = 1):
+    from util import repeat_to_accuracy
+    import codecs
+
     # len(cleartext) * 2000 = 92000 bytes
     cleartext = b"This is a test. What could possibly go wrong? " * scale
 
     # AES requires cleartext length to be a multiple of 16.
     cleartext += b' ' * (16 - len(cleartext) % 16)
 
-    def benchmark():
-        # 128-bit key
-        import codecs
-        key = codecs.decode(b'a1f6258c877d5fcd8964484538bfc92c', 'hex')
-        iv  = codecs.decode(b'ed62e16363638360fdd6ad62112794f0', 'hex')
+    # 128-bit key
+    key = codecs.decode(b'a1f6258c877d5fcd8964484538bfc92c', 'hex')
+    iv  = codecs.decode(b'ed62e16363638360fdd6ad62112794f0', 'hex')
 
+    def benchmark():
         aes = new(key, MODE_CBC, iv)
         ciphertext = aes.encrypt(cleartext)
 
@@ -49,14 +51,13 @@ def run_benchmark(repeat: cython.Py_ssize_t = 9, scale: cython.Py_ssize_t = 2000
 
         assert plaintext == cleartext
 
-    times = []
-    for _ in range(repeat):
+    def single_run(scale, timer):
         t0 = timer()
         benchmark()
-        tk = timer()
-        times.append(tk - t0)
+        t1 = timer() - t0
+        return t1
 
-    print(times)
+    return repeat_to_accuracy(single_run, scale=scale, repeat=repeat)[0]
 
 
 ####
