@@ -5773,9 +5773,9 @@ class CClassDefNode(ClassDefNode):
                 if check_heap_type_bases:
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached('ValidateBasesTuple', 'ExtensionTypes.c'))
-                    code.put_error_if_neg(entry.pos, "__Pyx_validate_bases_tuple(%s.name, %s, %s)" % (
+                    code.put_error_if_neg(entry.pos, "__Pyx_validate_bases_tuple(%s.name, %d, %s)" % (
                         typespec_cname,
-                        TypeSlots.get_slot_by_name("tp_dictoffset", scope.directives).slot_code(scope),
+                        TypeSlots.get_slot_by_name("tp_dictoffset", scope.directives).slot_code(scope) != "0",
                         bases_tuple_cname or tuple_temp,
                     ))
 
