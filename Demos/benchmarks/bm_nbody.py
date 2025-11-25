@@ -195,4 +195,4 @@ def run_benchmark(repeat=True, scale=1):
         return t1 - t0
 
     N: cython.long = 20_000
-    return repeat_to_accuracy(single_run, N, variance_threshold=.05, scale=scale, repeat=repeat)[0]
+    return repeat_to_accuracy(single_run, N, scale=scale, repeat=repeat)[0]
