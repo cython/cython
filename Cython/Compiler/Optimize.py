@@ -3493,10 +3493,13 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if len(args) != 2:
             return node
 
-        if node.type.is_pyobject:
-            ret_type = PyrexTypes.py_object_type
+        if node.type is Builtin.int_type or node.type is Builtin.float_type:
+            ret_type = node.type
+            generic_ret_type = PyrexTypes.py_object_type
+        elif node.type.is_pyobject:
+            ret_type = generic_ret_type = PyrexTypes.py_object_type
         elif node.type is PyrexTypes.c_bint_type and operator in ('Eq', 'Ne'):
-            ret_type = PyrexTypes.c_bint_type
+            ret_type = generic_ret_type = PyrexTypes.c_bint_type
         else:
             return node
 
@@ -3510,7 +3513,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         call_node = self._substitute_method_call(
             node, function,
             func_cname,
-            self.Pyx_BinopInt_func_types[(num_type, ret_type)],
+            self.Pyx_BinopInt_func_types[(num_type, generic_ret_type)],
             '__%s__' % operator[:3].lower(), is_unbound_method, args,
             may_return_none=True,
             with_none_check=False,

@@ -292,3 +292,35 @@ def if_unicode_literal(t):
             return True
         else:
             return False
+
+
+def int_operations(obj: int):
+    """
+    >>> int_operations(2)
+    7
+    >>> int_operations(1)
+    6
+    >>> int_operations(0)
+    4
+    >>> int_operations(-1)
+    8
+    """
+    cdef int count = 0
+    if obj:
+        count += 1
+    if obj & 1:
+        count += 1
+    if obj ^ 1:
+        count += 1
+    if obj | 1:
+        count += 1
+    if obj >> 1:
+        count += 1
+    if obj << 1:
+        count += 1
+    if obj + 10:
+        count += 1
+    if obj - 10:
+        count += 1
+
+    return count

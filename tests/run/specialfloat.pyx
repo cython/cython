@@ -167,3 +167,36 @@ def global_floats():
     nan
     """
     return (cdef_float_nan, cdef_float_infp, cdef_float_infn)
+
+
+def truthy_float(x: float):
+    # This actually replaces 'float' by C 'double', but that's probably fine as well.
+    """
+    >>> if 0.0: print(True)
+    >>> truthy_float(0.0)
+    False
+    >>> if 1.0: print(True)
+    True
+    >>> truthy_float(1.0)
+    True
+    >>> if -1.0: print(True)
+    True
+    >>> truthy_float(-1.0)
+    True
+    >>> if float_nan: print(True)
+    True
+    >>> truthy_float(float_nan)
+    True
+    >>> if float_infp: print(True)
+    True
+    >>> truthy_float(float_infp)
+    True
+    >>> if float_infn: print(True)
+    True
+    >>> truthy_float(float_infn)
+    True
+    """
+    if x:
+        return True
+    else:
+        return False
