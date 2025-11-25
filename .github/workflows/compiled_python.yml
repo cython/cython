@@ -89,7 +89,7 @@ jobs:
             else
               TSAN_SUPPRESSIONS="${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
             fi
-            if [[ "${{github.event.label.name}}" != "full_sanitizers"]]; then
+            if [[ "${{github.event.label.name}}" != "full_sanitizers" ]]; then
               # For thread sanitizer run on a much smaller list of tests
               EXCLUDE="tag:threads"
             fi
