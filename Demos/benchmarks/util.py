@@ -26,9 +26,6 @@ def repeat_to_accuracy(func, *args,
     times = []
     call_benchmark = partial(func, *args, scale, time.perf_counter)
 
-    # Initial warmup run.
-    call_benchmark()
-
     # First counted run.
     execution_time: float = call_benchmark()
     times.append(execution_time)
@@ -45,6 +42,7 @@ def repeat_to_accuracy(func, *args,
     else:
         # Special non-repeat mode for initial auto-scaling.
         max_iterations = min_iterations = 3
+        variance_threshold = .1
         min_runtime = 0.
 
     count: cython.long

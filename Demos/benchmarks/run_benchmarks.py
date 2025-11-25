@@ -175,10 +175,11 @@ def copy_profile(bm_dir, module_name, profiler):
 def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.20):
     python_command = [python_executable]
     i = 1
-    # Quickly scale up to the factor of 10.
-    all_timings = bench_func(python_command, 1, i)
+    # Quickly scale up by factors of 10.
+    # Note that this will be increasingly off for fast non-linear benchmarks, so we stop an order away.
+    all_timings = bench_func(python_command, repeat=False, scale=i)
     min_actual_time = min(t for timings in all_timings.values() for t in timings)
-    while min_actual_time * 13 < min_runtime:
+    while min_actual_time * 130 < min_runtime:
         i *= 10
         min_actual_time *= 10
 
@@ -186,7 +187,7 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
     while True:
         for j in 1, 2, 5:
             number = i * j
-            all_timings = bench_func(python_command, 1, number)
+            all_timings = bench_func(python_command, repeat=False, scale=number)
 
             min_actual_time = min(t for timings in all_timings.values() for t in timings)
             if min_actual_time >= min_runtime:
@@ -202,7 +203,7 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
 
 def _make_bench_func(bm_dir, module_name, pythonpath=None):
     def bench_func(python_command: list, repeat: bool, scale: int):
-        py_code = f"import {module_name} as bm; bm.run_benchmark(4); print(bm.run_benchmark({repeat}, {scale:d}))"
+        py_code = f"import {module_name} as bm; bm.run_benchmark({repeat}, 3); print(bm.run_benchmark({repeat}, {scale:d}))"
         command = python_command + ["-c", py_code]
 
         output = run(command, cwd=bm_dir, pythonpath=pythonpath)
