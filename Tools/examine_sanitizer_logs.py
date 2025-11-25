@@ -7,7 +7,7 @@ def check_file(filename) -> int:
     failed_count = 0
     with open(filename) as f:
         for line in f:
-            if not POS_MATCH.match(line):
+            if not POS_MATCH.match(line) or line.startswith("WARNING: ThreadSanitizer"):
                 continue
             if line.startswith("conftest.c"):
                 # this is in the Python setup - we don't care
