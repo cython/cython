@@ -1,5 +1,5 @@
 # tag: run
-# tag: openmp
+# tag: openmp, threads
 
 cimport cython.parallel
 from cython.parallel import prange, threadid
