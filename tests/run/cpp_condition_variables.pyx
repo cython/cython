@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp11, no-cpp-locals
+# tag: cpp, cpp11, no-cpp-locals, threads
 # Note - keep this file as cpp11 (and put cpp20 tests in a separate file)
 # to make sure that it's usable in cpp11 mode.
 
@@ -8,9 +8,8 @@
 from libcpp.condition_variable cimport *
 from libcpp.mutex cimport mutex, timed_mutex, unique_lock, py_safe_construct_unique_lock
 from libcpp cimport bool
-from libcpp.utility cimport move
 
-from threading import Thread, Barrier
+from threading import Thread
 import time
 
 # define some placeholder chrono stuff for the sake of testing
@@ -76,7 +75,7 @@ cdef class CVHelperClass:
             l = unique_lock[mutex](self.m)
         def thread_func():
             with nogil:
-                l2 = move(l)
+                l2 = unique_lock[mutex](self.m)
                 if pred:
                     self.cv.wait(l2, pred)
                 else:
@@ -90,7 +89,7 @@ cdef class CVHelperClass:
             l = unique_lock[mutex](self.m)
         def thread_func():
             with nogil:
-                l2 = move(l)
+                l2 = unique_lock[mutex](self.m)
                 if pred:
                     self.outcome = ("true" if self.cv.wait_for(l2, duration, pred) else "false")
                 else:
@@ -110,8 +109,13 @@ def test_cv_wait(bint use_predicate, int how_to_notify):
     global_value = 0
     helper = CVHelperClass()
     t = helper.wait_on_new_thread(global_value_predicate if use_predicate else <cfunc_predicate>NULL)
-    helper.notify(how_to_notify=how_to_notify, new_value=(5 if use_predicate else None))
-    t.join()
+    if use_predicate:
+        helper.notify(how_to_notify=how_to_notify, new_value=5)
+        t.join()
+    else:
+        while t.is_alive():
+            helper.notify(how_to_notify=how_to_notify, new_value=None)
+            t.join(0.0)
 
 def test_cv_wait_for(bint use_predicate, int how_to_notify, int ms):
     """
@@ -128,8 +132,13 @@ def test_cv_wait_for(bint use_predicate, int how_to_notify, int ms):
     global_value = 0
     helper = CVHelperClass()
     t = helper.wait_for_on_new_thread(milliseconds(ms), global_value_predicate if use_predicate else <cfunc_predicate>NULL)
-    helper.notify(how_to_notify=how_to_notify, new_value=(5 if use_predicate else None))
-    t.join()
+    if use_predicate:
+        helper.notify(how_to_notify=how_to_notify, new_value=5)
+        t.join()
+    else:
+        while t.is_alive():
+            helper.notify(how_to_notify=how_to_notify, new_value=None)
+            t.join(0.0)
     return helper.outcome
 
 
@@ -165,7 +174,7 @@ cdef class CVAnyHelperClass:
             l = unique_lock[timed_mutex](self.m)
         def thread_func():
             with nogil:
-                l2 = move(l)
+                l2 = unique_lock[timed_mutex](self.m)
                 if pred:
                     self.cv.wait(l2, pred)
                 else:
@@ -179,7 +188,7 @@ cdef class CVAnyHelperClass:
             l = unique_lock[timed_mutex](self.m)
         def thread_func():
             with nogil:
-                l2 = move(l)
+                l2 = unique_lock[timed_mutex](self.m)
                 if pred:
                     self.outcome = ("true" if self.cv.wait_for(l2, duration, pred) else "false")
                 else:
@@ -199,8 +208,13 @@ def test_cv_any_wait(bint use_predicate, int how_to_notify):
     global_value = 0
     helper = CVAnyHelperClass()
     t = helper.wait_on_new_thread(global_value_predicate if use_predicate else <cfunc_predicate>NULL)
-    helper.notify(how_to_notify=how_to_notify, new_value=(5 if use_predicate else None))
-    t.join()
+    if use_predicate:
+        helper.notify(how_to_notify=how_to_notify, new_value=5)
+        t.join()
+    else:
+        while t.is_alive():
+            helper.notify(how_to_notify=how_to_notify, new_value=None)
+            t.join(0.0)
 
 def test_cv_any_wait_for(bint use_predicate, int how_to_notify, int ms):
     """
@@ -217,8 +231,13 @@ def test_cv_any_wait_for(bint use_predicate, int how_to_notify, int ms):
     global_value = 0
     helper = CVAnyHelperClass()
     t = helper.wait_for_on_new_thread(milliseconds(ms), global_value_predicate if use_predicate else <cfunc_predicate>NULL)
-    helper.notify(how_to_notify=how_to_notify, new_value=(5 if use_predicate else None))
-    t.join()
+    if use_predicate:
+        helper.notify(how_to_notify=how_to_notify, new_value=5)
+        t.join()
+    else:
+        while t.is_alive():
+            helper.notify(how_to_notify=how_to_notify, new_value=None)
+            t.join(0.0)
     return helper.outcome
 
 def test_py_safe_wait_basic(sleep_for):

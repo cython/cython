@@ -18,6 +18,11 @@ if (likely(__Pyx_init_assertions_enabled() == 0)); else
   static int __pyx_assertions_enabled_flag;
   #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)
 
+  #if __clang__ || __GNUC__
+  // "Assertions enabled" may be written multiple times when using subinterpreters.
+  // However, it should always be written to the same value to isn't a "real" race.
+  __attribute__((no_sanitize("thread")))
+  #endif
   static int __Pyx_init_assertions_enabled(void) {
     PyObject *builtins, *debug, *debug_str;
     int flag;

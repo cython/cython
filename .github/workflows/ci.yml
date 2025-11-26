@@ -276,38 +276,16 @@ jobs:
 
 
   pydebug:
-    runs-on: ubuntu-latest
-
-    env:
-      BACKEND: c,cpp
-      PYTHON_VERSION: 3.x-dev
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update -y -q
-          sudo apt-get install -y -q libbz2-dev lzma-dev libreadline-dev libgmp-dev
-
-      - name: Build Python
-        run: |
-          git clone https://github.com/python/cpython/ cpython_main
-          cd cpython_main
-          ./configure --with-pydebug --prefix=${GITHUB_WORKSPACE}/cpython_install CFLAGS="-O2"
-          make -j8
-          make install
-          ${GITHUB_WORKSPACE}/cpython_install/bin/python3 -m venv ${GITHUB_WORKSPACE}/venv_pydebug
-
-      - name: Run CI
-        run: |
-          cd "${GITHUB_WORKSPACE}/"
-          source venv_pydebug/bin/activate
-          bash ./Tools/ci-run.sh
+    uses: ./.github/workflows/compiled_python.yml
+    with:
+      name: pydebug
 
   pycoverage:
     runs-on: ubuntu-22.04
+
+    permissions:
+      pages: write
+      id-token: write  # deploy HTML to GitHub pages
 
     env:
       BACKEND: c,cpp
@@ -327,15 +305,36 @@ jobs:
         env: { COVERAGE: 1, NO_CYTHON_COMPILE: 1 }
         run: bash ./Tools/ci-run.sh
 
-      - name: Write summary
+      - name: Copy coverage HTML
         run: |
-          if [ -f coverage-report.md ]; then { echo "## Python coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
+          if [ -d './coverage-report-html' ]; then
+            mkdir -p gh_pages_coverage/coverage/ \
+              && cp -r './coverage-report-html' 'gh_pages_coverage/coverage/${{ github.head_ref || github.ref_name }}';
+          fi
+
+      - name: Upload Coverage HTML to GH Pages
+        if: github.repository == 'cython/cython' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: './gh_pages_coverage/'
+
+      - name: deploy to Github Pages
+        if: github.repository == 'cython/cython' && github.event_name != 'pull_request'
+        uses: actions/deploy-pages@v4
+        id: htmldeploy
 
       - name: Upload Coverage HTML Report
         uses: actions/upload-artifact@v5
         with:
           name: pycoverage_html
           path: coverage-report-html
+
+      - name: Write summary
+        run: |
+          echo "## Python coverage results:" >> $GITHUB_STEP_SUMMARY
+          PAGES_URL="${{ steps.htmldeploy.outputs.page_url }}"
+          if [ -n "${PAGES_URL}" ]; then echo "[Coverage HTML](${PAGES_URL}/coverage/${{ github.head_ref || github.ref_name }})" >> $GITHUB_STEP_SUMMARY; fi
+          if [ -f coverage-report.md ]; then { echo; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
   cycoverage:
     runs-on: ubuntu-22.04

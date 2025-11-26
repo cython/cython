@@ -715,6 +715,8 @@ class DictOffsetSlot(SlotDescriptor):
     def slot_code(self, scope):
         dict_entry = scope.lookup_here("__dict__") if not scope.is_closure_class_scope else None
         if dict_entry and dict_entry.is_variable:
+            if dict_entry.is_inherited:
+                return "0"
             from . import Builtin
             if dict_entry.type != Builtin.dict_type:
                 error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
