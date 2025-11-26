@@ -8,6 +8,11 @@ Cython Changelog
 Features added
 --------------
 
+* ``cython.pymutex`` and ``cython.pythread_type_lock`` now support a ``locked()`` method
+  to check if the lock is currently held without blocking. The method works on all Python
+  versions using atomic reads on Python 3.13+ and a try-acquire approach on older versions.
+  (Github issue :issue:`7275`)
+
 * PEP-634 Pattern Matching is being implemented.
   (Github issue :issue:`4029`)
 
