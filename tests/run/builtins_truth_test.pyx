@@ -297,30 +297,78 @@ def if_unicode_literal(t):
 def int_operations(obj: int):
     """
     >>> int_operations(2)
-    7
+    11
     >>> int_operations(1)
-    6
+    11
     >>> int_operations(0)
-    4
+    10
     >>> int_operations(-1)
-    8
+    13
     """
     cdef int count = 0
     if obj:
         count += 1
     if obj & 1:
         count += 1
+    if 2 & obj:
+        count += 1
     if obj ^ 1:
+        count += 1
+    if 2 ^ obj:
         count += 1
     if obj | 1:
         count += 1
+    if 2 | obj:
+        count += 1
     if obj >> 1:
+        count += 1
+    if 1 >> (obj if obj >= 0 else 1):
         count += 1
     if obj << 1:
         count += 1
+    if 1 << (obj if obj >= 0 else 1):
+        count += 1
     if obj + 10:
         count += 1
+    if 1 + obj:
+        count += 1
     if obj - 10:
+        count += 1
+    if 2 - obj:
+        count += 1
+
+    return count
+
+
+def float_operations(obj: float | None):
+    """
+    >>> float_operations(2)
+    8
+    >>> float_operations(1)
+    9
+    >>> float_operations(0)
+    5
+    >>> float_operations(-1)
+    8
+    """
+    cdef int count = 0
+    if obj:
+        count += 1
+    if obj + 10:
+        count += 1
+    if 1 + obj:
+        count += 1
+    if obj - 10:
+        count += 1
+    if 2 - obj:
+        count += 1
+    if obj * 10:
+        count += 1
+    if 2 * obj:
+        count += 1
+    if obj / 10:
+        count += 1
+    if 1 / (obj if obj else 2.):
         count += 1
 
     return count

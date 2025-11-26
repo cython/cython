@@ -169,9 +169,11 @@ def global_floats():
     return (cdef_float_nan, cdef_float_infp, cdef_float_infn)
 
 
-def truthy_float(x: float):
-    # This actually replaces 'float' by C 'double', but that's probably fine as well.
+def truthy_float(x: float | None):  # test with a Python 'float'
     """
+    >>> if None: print(True)
+    >>> truthy_float(None)
+    False
     >>> if 0.0: print(True)
     >>> truthy_float(0.0)
     False
