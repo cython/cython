@@ -9,9 +9,9 @@ cdef extern from *:
     #define PyDict_GetItemWithError _PyDict_GetItemWithError
     #endif
 
-    #if PY_VERSION_HEX < 0x030d0000
+    #if __PYX_LIMITED_VERSION_HEX < 0x030d0000
     static CYTHON_INLINE int
-    __Pyx_PyDict_GetItemStringRef(PyObject *mp, const char *key, PyObject **result)
+    __Pyx_CAPI_PyDict_GetItemStringRef(PyObject *mp, const char *key, PyObject **result)
     {
         int res;
         PyObject *key_obj = PyUnicode_FromString(key);
@@ -25,7 +25,7 @@ cdef extern from *:
     }
 
     static CYTHON_INLINE int
-    __Pyx_PyDict_SetDefaultRef(PyObject *d, PyObject *key, PyObject *default_value,
+    __Pyx_CAPI_PyDict_SetDefaultRef(PyObject *d, PyObject *key, PyObject *default_value,
                         PyObject **result)
     {
         PyObject *value;
@@ -61,9 +61,12 @@ cdef extern from *:
         }
         return 0;
     }
+    #else
+    #define __Pyx_CAPI_PyDict_GetItemStringRef PyDict_GetItemStringRef
+    #define __Pyx_CAPI_PyDict_SetDefaultRef PyDict_SetDefaultRef
     #endif
     """
-    int PyDict_GetItemRef "__Pyx_PyDict_GetItemRef" (object p, object key, PyObject* *result)
+    int PyDict_GetItemRef "__Pyx_PyDict_GetItemRef" (object p, object key, PyObject* *result) except -1
     # Return a new strong reference to the object from dictionary p
     # which has a key key:
     # - If the key is present, set *result to a new strong reference to
@@ -71,11 +74,11 @@ cdef extern from *:
     # - If the key is missing, set *result to NULL and return 0.
     # - On error, raise an exception and return -1.
 
-    int PyDict_GetItemStringRef "__Pyx_PyDict_GetItemStringRef" (object p, const char *key, PyObject* *result)
+    int PyDict_GetItemStringRef "__Pyx_CAPI_PyDict_GetItemStringRef" (object p, const char *key, PyObject* *result) except -1
     # Similar to PyDict_GetItemRef(), but key is specified as a const char*
     # UTF-8 encoded bytes string, rather than a PyObject*.
 
-    int PyDict_SetDefaultRef "__Pyx_PyDict_SetDefaultRef" (object p, object key, object default_value, PyObject* *result)
+    int PyDict_SetDefaultRef "__Pyx_CAPI_PyDict_SetDefaultRef" (object p, object key, object default_value, PyObject* *result) except -1
     # Inserts default_value into the dictionary p with a key of key if the
     # key is not already present in the dictionary. If result is not NULL,
     # then *result is set to a strong reference to either default_value,

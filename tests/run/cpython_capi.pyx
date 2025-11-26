@@ -1,8 +1,12 @@
 # mode: run
 # tag: c-api
 
-from cpython cimport mem
+from __future__ import print_function
+
+from cpython cimport mem, PyObject
 from cpython.pystate cimport PyGILState_Ensure, PyGILState_Release, PyGILState_STATE
+from cpython.dict cimport PyDict_GetItemRef, PyDict_GetItemStringRef, PyDict_SetDefaultRef 
+from cpython.ref cimport Py_XDECREF
 
 
 def test_pymalloc():
@@ -37,3 +41,28 @@ def test_gilstate():
     # TODO assert that GIL is taken
     PyGILState_Release(gstate)
     return 'ok'
+
+def test_dict_getref(d):
+    """
+    >>> test_dict_getref({'key': ['value']})
+    ['value']
+    ['value']
+    1 ['value']
+    >>> test_dict_getref({})
+    0 Ellipsis
+    >>> test_dict_getref("I'm not a dict")  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    SystemError: ...
+    """
+    cdef PyObject* o;
+    if PyDict_GetItemRef(d, "key", &o):
+        print(<object>o)
+        Py_XDECREF(o)
+    
+    if PyDict_GetItemStringRef(d, "key", &o):
+        print(<object>o)
+        Py_XDECREF(o)
+    
+    was_in_dict = PyDict_SetDefaultRef(d, "key", Ellipsis, &o)
+    print(was_in_dict, <object>o)
+    Py_XDECREF(o)
