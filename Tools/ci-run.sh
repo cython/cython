@@ -7,7 +7,7 @@ GCC_VERSION=${GCC_VERSION:=10}
 # Set up compilers
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   echo "Skipping compiler setup: Code style run"
-elif [[ $OSTYPE == "linux-gnu"* ]]; then
+elif [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
@@ -102,7 +102,7 @@ if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" ]]; then
 fi
 if [[ $PYTHON_VERSION != *"-dev" ]]; then
   python -m pip install --pre -r test-requirements.txt || exit 1
-else
+elif [[ ! "$SANITIZER_CFLAGS" ]]; then
   # Install packages one by one, allowing failures due to missing recent wheels.
   cat test-requirements.txt | while read package; do python -m pip install --pre --only-binary ":all:" "$package" || true; done
 fi
@@ -146,7 +146,7 @@ if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
   # (off by default) 5045 warns that the compiler will insert Spectre mitigations for memory load if the /Qspectre switch is specified
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
   CFLAGS="-Od /Z7 /MP /W4 /wd4711 /wd4127 /wd5045 /wd4820"
-elif [[ $OSTYPE == "darwin"* ]]; then
+elif [[ $OSTYPE == "darwin"* || $CC == "clang" ]]; then
   CFLAGS="-O0 -g2 -Wall -Wextra -Wcast-qual -Wconversion -Wdeprecated -Wunused-result"
 else
   CFLAGS="-Og -g2 -Wall -Wextra -Wcast-qual -Wconversion -Wdeprecated -Wunused-result"
@@ -160,6 +160,10 @@ if [[ $BACKEND == *"cpp"* && $ODD_VERSION == "1" ]]; then
     CFLAGS="$CFLAGS -UNDEBUG"
 elif [[ $ODD_VERSION == "0" ]]; then
     CFLAGS="$CFLAGS -UNDEBUG"
+fi
+
+if [[ "$SANITIZER_CFLAGS" ]]; then
+    CFLAGS="$CFLAGS $SANITIZER_CFLAGS"
 fi
 
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
@@ -229,8 +233,12 @@ if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --coverage-md --cython-only"
 fi
 if [[ $TEST_CODE_STYLE != "1" ]]; then
-  RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
+  if [[ ! $TEST_PARALLELISM ]]; then
+    TEST_PARALLELISM=-j7
+  fi
+  RUNTESTS_ARGS="$RUNTESTS_ARGS $TEST_PARALLELISM"
 fi
+
 
 if [[ $PYTHON_VERSION == "graalpy"* ]]; then
   # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
