@@ -74,10 +74,13 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c
     bm_count = len(bm_files)
     rev_hash = get_git_rev(rev_dir=cython_dir)
     bm_list = ', '.join(bm_file.stem for bm_file in bm_files)
-    cythonize_args = cythonize_args or []
+
+    util_files = [path for path in {bm_file.parent / "util.py" for bm_file in bm_files} if path.exists()]
+    source_files = bm_files + util_files
+
     logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
     run(
-        [sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *bm_files, *cythonize_args],
+        [sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *source_files, *(cythonize_args or [])],
         cwd=cython_dir,
         c_macros=c_macros,
         tmp_dir=tmp_dir,
@@ -169,23 +172,38 @@ def copy_profile(bm_dir, module_name, profiler):
         shutil.move(str(ext), ext.name)
 
 
-def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.2):
+def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.20):
     python_command = [python_executable]
     i = 1
+    # Quickly scale up by factors of 10.
+    # Note that this will be increasingly off for fast non-linear benchmarks, so we stop an order away.
+    all_timings = bench_func(python_command, repeat=False, scale=i)
+    min_actual_time = min(t for timings in all_timings.values() for t in timings)
+    while min_actual_time * 130 < min_runtime:
+        i *= 10
+        min_actual_time *= 10
+
+    last_min = 0.
     while True:
-        for j in 1, 2, 5, 8:
+        for j in 1, 2, 5:
             number = i * j
-            all_timings = bench_func(python_command, 3, number)
-            # FIXME: make autorange work per benchchmark, not per file.
-            for timings in all_timings.values():
-                if min(timings) >= min_runtime:
-                    return number
+            all_timings = bench_func(python_command, repeat=False, scale=number)
+
+            min_actual_time = min(t for timings in all_timings.values() for t in timings)
+            if min_actual_time >= min_runtime:
+                if (min_actual_time - min_runtime) / (min_actual_time - last_min) > .4:
+                    # Avoid large overshoots due to large j steps.
+                    number -= i // (3 if j == 1 else 2 if j == 2 else 1)
+                return number
+
+            last_min = min_actual_time
+
         i *= 10
 
 
 def _make_bench_func(bm_dir, module_name, pythonpath=None):
-    def bench_func(python_command: list, repeat: int, scale: int):
-        py_code = f"import {module_name} as bm; bm.run_benchmark(4); print(bm.run_benchmark({repeat:d}, {scale:d}))"
+    def bench_func(python_command: list, repeat: bool, scale: int):
+        py_code = f"import {module_name} as bm; bm.run_benchmark({repeat}, 3); print(bm.run_benchmark({repeat}, {scale:d}))"
         command = python_command + ["-c", py_code]
 
         output = run(command, cwd=bm_dir, pythonpath=pythonpath)
@@ -247,11 +265,10 @@ def run_benchmark(bm_dir, module_name, pythonpath=None, profiler=None):
 
     bench_func = _make_bench_func(bm_dir, module_name, pythonpath)
 
-    repeat = 9
     scale = autorange(bench_func)
 
     logging.info(f"Running benchmark '{module_name}' with scale={scale:_d}.")
-    timings = bench_func(python_command, repeat, scale)
+    timings = bench_func(python_command, repeat=True, scale=scale)
 
     timings = {name: [t / scale for t in values] for name, values in timings.items()}
 

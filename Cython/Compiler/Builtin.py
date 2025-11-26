@@ -20,8 +20,15 @@ pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
 globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
 range_utility_code = UtilityCode.load("PyRange_Check", "Builtins.c")
 include_std_lib_h_utility_code = UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")
-pysequence_multiply_utility_code = UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")
 slice_accessor_utility_code = UtilityCode.load("PySliceAccessors", "Builtins.c")
+
+def make_sequence_multiply_method(typeobj_cname):
+    pysequence_multiply_utility_code = TempitaUtilityCode.load(
+        "BuiltinSequenceMultiply", "ObjectHandling.c",
+        context={'typeobj': typeobj_cname})
+    return BuiltinMethod("__mul__",  "Tz",   "T", f"__Pyx_{typeobj_cname}_Multiply",
+                         utility_code=pysequence_multiply_utility_code)
+
 
 # mapping from builtins to their C-level equivalents
 
@@ -378,22 +385,18 @@ builtin_types_table = [
                                     ]),
 
     ("bytearray", "&PyByteArray_Type", [
-                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=pysequence_multiply_utility_code),
+                                    make_sequence_multiply_method("PyByteArray_Type"),
                                     ]),
     ("bytes",   "&PyBytes_Type",   [BuiltinMethod("join",  "TO",   "T", "__Pyx_PyBytes_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
-                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=pysequence_multiply_utility_code),
+                                    make_sequence_multiply_method("PyBytes_Type"),
                                     ]),
     ("str",     "&PyUnicode_Type", [BuiltinMethod("__contains__",  "TO",   "b", "PyUnicode_Contains"),
                                     BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
-                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=pysequence_multiply_utility_code),
+                                    make_sequence_multiply_method("PyUnicode_Type"),
                                     ]),
 
-    ("tuple",  "&PyTuple_Type",    [BuiltinMethod("__mul__", "Tz", "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=pysequence_multiply_utility_code),
+    ("tuple",  "&PyTuple_Type",    [make_sequence_multiply_method("PyTuple_Type"),
                                     ]),
 
     ("list",   "&PyList_Type",     [BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
@@ -402,8 +405,7 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("ListAppend", "Optimize.c")),
                                     BuiltinMethod("extend",  "TO",   "r", "__Pyx_PyList_Extend",
                                                   utility_code=UtilityCode.load("ListExtend", "Optimize.c")),
-                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=pysequence_multiply_utility_code),
+                                    make_sequence_multiply_method("PyList_Type"),
                                     ]),
 
     ("dict",   "&PyDict_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
