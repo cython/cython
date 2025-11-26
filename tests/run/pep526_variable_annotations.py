@@ -206,6 +206,49 @@ if cython.compiled:
     """
 
 
+def test_casting_subscripted_types():
+    """
+    >>> test_casting_subscripted_types()
+    list 1.0
+    list 1.0
+    dict 2
+    dict 2
+    int 3
+    int 3
+    """
+    # list
+    l: list[cython.float] = [1.0, 2.0]
+    x1 = cython.cast(list[cython.int], l)
+    y1 = cython.cast(list, l)
+    print(cython.typeof(x1), x1[0])
+    print(cython.typeof(y1), y1[0])
+    # dict
+    d: dict[str, cython.int] = {'a': 1, 'b': 2}
+    x2 = cython.cast(dict[str, cython.float], d)
+    y2 = cython.cast(dict, d)
+    print(cython.typeof(x2), x2['b'])
+    print(cython.typeof(y2), y2['b'])
+
+    d2: dict[cython.int, str] = {3: '3'}
+    for k1 in cython.cast(dict[cython.float, str], d2):
+        print(cython.typeof(k1), k1)
+
+    for k2 in cython.cast(dict, d2):
+        print(cython.typeof(k2), k2)
+
+
+if cython.compiled:
+    test_casting_subscripted_types.__doc__ = """
+    >>> test_casting_subscripted_types()
+    list[int] object 1
+    list object 1.0
+    dict[str object,float] object 2.0
+    dict object 2
+    float 3.0
+    Python object 3
+    """
+
+
 def test_use_typing_attributes_as_non_annotations():
     """
     >>> test_use_typing_attributes_as_non_annotations()

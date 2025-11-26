@@ -7708,8 +7708,8 @@ class _ForInStatNode(LoopNode, StatNode):
             # C array slice optimization.
             pass
         elif self.iterator.type in Builtin.typed_container_types and \
-             (indexed_type := self.iterator.type.infer_indexed_type()) and \
-             not self.target.type.assignable_from(indexed_type):
+             (iterator_type := self.iterator.type.infer_iterator_type()) and \
+             not self.target.type.assignable_from(iterator_type):
             # indexed type of container is not compatible with iterator variable type
             self.iterator.fail_assignment(self.target.type)
         else:

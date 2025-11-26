@@ -24,6 +24,48 @@ def test_subscripted_types():
     print(cython.typeof(b))
     print(cython.typeof(c))
 
+
+def test_casting_subscripted_types():
+    """
+    >>> test_casting_subscripted_types()
+    list[int] object
+    1
+    list object
+    1.0
+    dict[str object,float] object
+    2.0
+    dict object
+    2
+    float
+    3.0
+    Python object
+    3
+    """
+    # list
+    cdef list[float] l = [1.0, 2.0]
+    print(cython.typeof((<list[int]> l)))
+    print((<list[int]> l)[0])
+
+    print(cython.typeof((<list> l)))
+    print((<list> l)[0])
+    # dict
+    cdef dict[str, int] d = {'a': 1, 'b': 2}
+    print(
+        cython.typeof((<dict[str, float]> d)))
+    print((<dict[str, float]> d)['b'])
+    print(cython.typeof((<dict> d)))
+    print((<dict> d)['b'])
+
+    cdef dict[int, str] d2 = {3: '3'}
+    for k1 in <dict[float, str]> d2:
+        print(cython.typeof(k1))
+        print(k1)
+
+    for k2 in <dict> d2:
+        print(cython.typeof(k2))
+        print(k2)
+
+
 cdef class TestClassVar:
     """
     >>> TestClassVar.cls

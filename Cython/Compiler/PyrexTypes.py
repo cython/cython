@@ -4850,6 +4850,8 @@ class PythonTypeConstructorMixin:
         else:
             return self.get_subscripted_type(0)
 
+    def infer_iterator_type(self):
+        return self.get_subscripted_type(0)
 
     def allows_none(self):
         return (
