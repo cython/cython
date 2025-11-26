@@ -3503,7 +3503,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
 
         result = optimise_numeric_binop(operator, node, ret_type, args[0], args[1])
-        if not result:
+        if result is None:
             return node
         func_cname, utility_code, extra_args, num_type = result
         assert all([arg.type.is_pyobject for arg in args])
@@ -3514,7 +3514,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             func_cname,
             self.Pyx_BinopInt_func_types[(num_type, ret_type)],
             '__%s__' % operator[:3].lower(), is_unbound_method, args,
-            may_return_none=True,
+            may_return_none=ret_type is PyrexTypes.py_object_type,
             with_none_check=False,
             utility_code=utility_code)
 
