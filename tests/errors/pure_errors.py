@@ -95,6 +95,24 @@ def return_wrong_type():
     return 5
 
 
+def variable_redeclared(x):
+    a: int = 5
+    a: int = 6  # not ok
+
+    if x > 10:
+        b: str = 'bar'
+    b: str = 'foo'  # not ok
+
+    if x < 10:
+        c: float = 5.0
+    else:
+        c: float = 10.0  # not ok
+    with cython.annotation_typing(False):
+        a: int = 6
+        b: str = 'foo'
+        c: float = 10.0
+
+
 _ERRORS = """
 30:0: Directive does not change previous value (nogil=False)
 44:22: Calling gil-requiring function not allowed without gil
@@ -108,6 +126,9 @@ _ERRORS = """
 80:0: cfunc and ccall directives cannot be combined
 86:0: Cannot apply @cfunc to @ufunc, please reverse the decorators.
 93:22: Not a type
+100:4: 'a' redeclared
+104:4: 'b' redeclared
+109:8: 'c' redeclared
 
 # bugs:
 74:0: 'test_contradicting_decorators1' redeclared
