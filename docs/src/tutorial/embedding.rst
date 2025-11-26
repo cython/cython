@@ -57,10 +57,13 @@ to export it as a linker symbol that can be used by other C files, which in this
 case is ``embedded_main.c``.
 
 .. literalinclude:: ../../examples/tutorial/embedding/embedded.pyx
+   :lines: 4-
+   :caption: embedded.pyx
 
 The C ``main()`` function of your program could look like this:
 
 .. literalinclude:: ../../examples/tutorial/embedding/embedded_main.c
+    :caption: embedded_main.c
     :linenos:
     :language: c
 
@@ -70,9 +73,12 @@ The C ``main()`` function of your program could look like this:
 Instead of writing such a ``main()`` function yourself, you can also let
 Cython generate one into your module's C file with the ``cython --embed`` option.
 
-When using ``--embed``, Cython generates the C implementation file (e.g., ``embedded.c``) along with a header file (e.g., ``embedded.h``).
+When using ``--embed``, Cython generates the C implementation file (e.g., ``embedded.c``) 
+along with a header file (e.g., ``embedded.h``).
 
-The generated ``embedded.c`` file contains a ``__Pyx_main()`` function. This function initializes the Python interpreter and can be modified to call public functions exported by your Cython module (such as ``say_hello_from_python()``).
+The generated ``embedded.c`` file contains a ``__Pyx_main()`` function. 
+This function initializes the Python interpreter and can be modified to call public functions 
+exported by your Cython module (such as ``say_hello_from_python()``).
 
 The full process for compiling and running is as follows:
 
@@ -81,7 +87,8 @@ The full process for compiling and running is as follows:
     gcc -c embedded.c $(python3-config --cflags) -o embedded.o
     gcc embedded.o $(python3-config --ldflags --embed) -o embedded
 
-After compilation, the ``embedded`` executable is created. Running it will execute the content of ``__Pyx_main()``:
+After compilation, the ``embedded`` executable is created. 
+Running it will execute the content of ``__Pyx_main()``:
 
 .. code-block:: bash
 
@@ -101,13 +108,14 @@ The argument is a comma-separated list of the module names you wish to embed:
 
 .. code-block:: bash
 
-    cython --embed --embed-modules=mod1,mod2 main_script.pyx
+    cython  --embed  --embed-modules=mod1,mod2  main_script.pyx
 
 To illustrate how it works, let's assume we have the following files:
 
 lcmath.pyx:
 
 .. code-block:: cython
+    :caption: lcmath.pyx
 
     def add(a, b):
         return a + b
@@ -118,22 +126,27 @@ lcmath.pyx:
 lcmath.pxd:
 
 .. code-block:: cython
+    :caption: lcmath.pxd
 
     cdef int sub(int a, int b)
-
 
 combinatorics.pyx:
 
 .. code-block:: cython
+    :caption: combinatorics.pyx
 
     from lcmath import add
     from lcmath cimport sub
 
-    cdef public void add_one(int a):
+    cdef void add_one(int a):
         print(add(a, 1))
 
-    cdef public void sub_one(int a):
+    cdef void sub_one(int a):
         print(sub(a, 1))
+
+    if __name__ == "__main__":
+        add_one(5)
+        sub_one(3)
 
 The full process for static linking involves these steps:
 
@@ -149,21 +162,18 @@ Next, generate the main C code(which includes the ``main()`` function and module
 
         cython --embed --embed-modules=lcmath combinatorics.pyx  # creates combinatorics.c
 
-.. note::
-    Since ``combinatorics.pyx`` is the main module, the generated ``combinatorics.c`` will contain the main function. You must manually update this C file (e.g., adding calls to ``add_one()`` and ``sub_one()``) within its ``__Pyx_main()`` function to execute your code.
-
 Then, compile the object files:
 
 .. code-block:: bash
 
-        gcc -c combinatorics.c $(python3-config --cflags) -o combinatorics.o # compile combinatorics
-        gcc -c lcmath.c $(python3-config --cflags) -o lcmath.o # compile lcmath
+        gcc -c combinatorics.c  $(python3-config --cflags)  -o combinatorics.o  # compile combinatorics
+        gcc -c lcmath.c  $(python3-config --cflags)  -o lcmath.o  # compile lcmath
 
 Finally, statically link the executable (linking the object files and the Python library):
 
 .. code-block:: bash
 
-        gcc lcmath.o combinatorics.o -o combinatorics $(python3-config --ldflags --embed) #link them together statically
+        gcc lcmath.o combinatorics.o -o combinatorics  $(python3-config --ldflags --embed)   # link them together statically
 
 
 .. note::
@@ -175,6 +185,7 @@ Finally, statically link the executable (linking the object files and the Python
     tool (e.g. `PyInstaller <https://pyinstaller.org/en/stable/>`_
     or `cx_freeze <https://cx-freeze.readthedocs.io/en/latest/index.html>`_) to find and
     bundle these dependencies.
+
 
 Troubleshooting
 ===============
