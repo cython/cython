@@ -10,6 +10,8 @@ from cpython.ref cimport Py_XDECREF
 
 import sys
 
+__doc__ = ""
+
 def test_pymalloc():
     """
     >>> test_pymalloc()
@@ -68,7 +70,7 @@ def test_dict_getref(d):
     Py_XDECREF(o)
 
 if not hasattr(sys, 'pypy_version_info'):
-    __doc__ = """
+    __doc__ += """
         >>> test_dict_getref("I'm not a dict")  #doctest: +ELLIPSIS
         Traceback (most recent call last):
         SystemError: ...
