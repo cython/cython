@@ -3555,8 +3555,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             wmain = "wmain"
         else:
             wmain = Options.embed
-        p_embed_modules = (env.module_name,) + tuple(Options.embed_modules)
-        c_embed_modules = (env.module_name,) + tuple(mname.replace('.', '_') for mname in Options.embed_modules)
         main_method = TempitaUtilityCode.load_cached(
                 "MainFunction", "Embed.c",
                 context={
@@ -3564,10 +3562,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     'module_is_main': module_is_main,
                     'main_method': Options.embed,
                     'wmain_method': wmain,
-                    'embed_modules': tuple(Options.embed_modules),
-                    'p_embed_modules': p_embed_modules,
-                    'c_embed_modules': c_embed_modules
-                    })
+                    'embed_modules': tuple(Options.embed_modules)})
         code.globalstate.use_utility_code(main_method)
 
     def punycode_module_name(self, prefix, name):
