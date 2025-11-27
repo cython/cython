@@ -8,13 +8,16 @@ Cython Changelog
 Features added
 --------------
 
-* ``cython.pymutex`` and ``cython.pythread_type_lock`` now support a ``locked()`` method
-  to check if the lock is currently held without blocking. The method works on all Python
-  versions using atomic reads on Python 3.13+ and a try-acquire approach on older versions.
-  (Github issue :issue:`7275`)
+* Changes were made to adapt to Python 3.15.
+  (Github issues :issue:`7358`)
 
 * PEP-634 Pattern Matching is being implemented.
   (Github issue :issue:`4029`)
+
+* ``cython.pymutex`` and ``cython.pythread_type_lock`` now support a ``.locked()`` method
+  to check if the lock is currently held without blocking. The method works on all Python
+  versions using atomic reads on Python 3.13+ and a try-acquire approach on older versions.
+  (Github issue :issue:`7275`)
 
 * The runtime conversion from a Python mapping to a C struct/union uses less code.
   (Github issue :issue:`7343`)
@@ -26,13 +29,21 @@ Features added
 Bugs fixed
 ----------
 
+* Optimised Python ``int`` and ``float`` operations did not remember their result type,
+  leading to less optimised code in longer expressions.
+  (Github issue :issue:`7363`)
+
+* The global module state struct now lives in an anonymous namespace in C++ mode to
+  allow linking multiple modules together in one shared library file.
+  (Github issue :issue:`7159`)
+
 * Includes all fixes as of Cython 3.2.x.
 
 Other changes
 -------------
 
 * Support for Python 3.8 has been removed.
-  As a side-effekt, support for StacklessPython (last release was 3.8) was also removed.
+  As a side-effekt, support for StacklessPython and Pyston (last release was 3.8) was also removed.
   Python 3.9 is planned to remain supported for several years due to its use in LTS Linux distributions.
   (Github issue :issue:`7271`)
 
