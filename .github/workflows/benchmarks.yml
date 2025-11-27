@@ -3,11 +3,16 @@ name: Benchmarks
 on:
   workflow_dispatch:
   push:
-    branches:
-      - master
+    paths:
+      # Only run on changes likely to affect benchmark code generation
+      - ".github/workflows/benchmarks.yml"
+      - "Demos/benchmarks/**"
+      - "Cython/Utility/**"
+      - "Cython/Compiler/Nodes.py"
+      - "Cython/Compiler/ExprNodes.py"
   pull_request:
     paths:
-      # Only run these tests on PRs likely to affect benchmark code generation
+      # Only run on PRs likely to affect benchmark code generation
       - ".github/workflows/benchmarks.yml"
       - "Demos/benchmarks/**"
       - "Cython/Utility/**"
