@@ -14875,14 +14875,14 @@ class CoerceToBooleanNode(CoercionNode):
             code.putln(f"Py_ssize_t {Naming.quick_temp_cname} = {test_func}({self.arg.py_result()});")
 
             if self.arg.type is Builtin.int_type:
-                guard = "CYTHON_USE_PYLONG_INTERNALS"
+                is_safe_test_func = "CYTHON_USE_PYLONG_INTERNALS"
             elif self.arg.type is Builtin.float_type:
-                guard = "CYTHON_ASSUME_SAFE_MACROS"
+                is_safe_test_func = "CYTHON_ASSUME_SAFE_MACROS"
             else:
-                guard = "CYTHON_ASSUME_SAFE_SIZE"
+                is_safe_test_func = "CYTHON_ASSUME_SAFE_SIZE"
 
             code.putln(code.error_goto_if(
-                f"((!{guard}) && {Naming.quick_temp_cname} < 0)", self.pos))
+                f"((!{is_safe_test_func}) && {Naming.quick_temp_cname} < 0)", self.pos))
             code.putln(f"{self.result()} = ({Naming.quick_temp_cname} != 0);")
             code.putln("}")
             code.putln()
