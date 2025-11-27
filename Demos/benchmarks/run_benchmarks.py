@@ -1,5 +1,6 @@
 import collections
 import logging
+import math
 import os
 import pathlib
 import shutil
@@ -34,6 +35,10 @@ except ImportError:
 
 def median(sorted_list: list):
     return sorted_list[len(sorted_list) // 2]
+
+
+def mean(values: list):
+    return math.fsum(values) / len(values)
 
 
 def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None):
@@ -395,7 +400,7 @@ def report_revision_timings(rev_timings, csv_out=None):
         base_line = median(base_line_timings)
 
         for revision_name, timings in revision_timings:
-            tmin, tmed, tmax = timings[0], median(timings), timings[-1]
+            tmin, tmed, tmean, tmax = timings[0], median(timings), mean(timings), timings[-1]
             diff_str = ""
             if base_line != tmed:
                 pdiff = tmed * 100 / base_line - 100
@@ -405,7 +410,11 @@ def report_revision_timings(rev_timings, csv_out=None):
                 f"    {revision_name[:25]:25} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}{diff_str}"
             )
             if csv_out is not None:
-                csv_out.writerow([benchmark, revision_name, PYTHON_VERSION, format_time(tmin), format_time(tmed), format_time(tmax), diff_str])
+                csv_out.writerow([
+                    benchmark, revision_name, PYTHON_VERSION,
+                    format_time(tmin), format_time(tmed), format_time(tmean), format_time(tmax),
+                    diff_str,
+                ])
 
     for revision_name, diffs in differences.items():
         diffs.sort(reverse=True)

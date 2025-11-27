@@ -20,9 +20,9 @@ def _unpack_buffer_const_char_1d(provider, int number, timer=time.perf_counter):
 
 
 _bytes_data = bytes(1000)
-bm_unpack_buffer_const_char_1d_bytes = partial(_unpack_buffer_const_char_1d, _bytes_data)
-bm_unpack_buffer_const_char_1d_bytearray = partial(_unpack_buffer_const_char_1d, bytearray(_bytes_data))
-bm_unpack_buffer_const_char_1d_pyarray = partial(_unpack_buffer_const_char_1d, array.array('B', _bytes_data))
+bm_mview_const_char_bytes = partial(_unpack_buffer_const_char_1d, _bytes_data)
+bm_mview_const_char_bytearray = partial(_unpack_buffer_const_char_1d, bytearray(_bytes_data))
+bm_mview_const_char_pyarray = partial(_unpack_buffer_const_char_1d, array.array('B', _bytes_data))
 del _bytes_data
 
 
@@ -67,7 +67,7 @@ bm_with_CyCM_raise = partial(_with_contextmanager_raise, CyCM())
 
 # Create inner functions.
 
-def bm_create_inner_function_plain(scale, timer=time.perf_counter):
+def bm_create_inner_func_plain(scale, timer=time.perf_counter):
     i: cython.long
     t = timer()
     for i in range(scale):
@@ -81,7 +81,7 @@ def bm_create_inner_function_plain(scale, timer=time.perf_counter):
     return t
 
 
-def bm_create_inner_function_plain(scale, timer=time.perf_counter):
+def bm_create_inner_func_closure(scale, timer=time.perf_counter):
     i: cython.long
     t = timer()
     for i in range(scale):
