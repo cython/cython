@@ -246,18 +246,18 @@ def compile(f: _C) -> _C:
 
 # Special functions
 
-def cdiv(__a: int, __b: int) -> int:
-    if __a < 0:
-        __a = -__a
-        __b = -__b
-    if __b < 0:
-        return (__a + __b + 1) // __b
-    return __a // __b
+def cdiv(a: int, b: int) -> int:
+    if a < 0:
+        a = -a
+        b = -b
+    if b < 0:
+        return (a + b + 1) // b
+    return a // b
 
-def cmod(__a: int, __b: int) -> int:
-    r = __a % __b
-    if (__a * __b) < 0 and r:
-        r -= __b
+def cmod(a: int, b: int) -> int:
+    r = a % b
+    if (a * b) < 0 and r:
+        r -= b
     return r
 
 
@@ -267,7 +267,7 @@ def cmod(__a: int, __b: int) -> int:
 def cast(__t: Type[_T], __value: Any) -> _T: ...
 
 @overload
-def cast(__t: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T: ...  # type: ignore
+def cast(__t: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T: ...
 
 def cast(t, *args, **kwargs):
     kwargs.pop('typecheck', None)
@@ -281,15 +281,15 @@ def cast(t, *args, **kwargs):
 
     return args[0]
 
-def sizeof(__obj: object) -> int:
+def sizeof(obj: object) -> int:
     return 1
 
-def typeof(__obj: object) -> str:
-    return __obj.__class__.__name__
+def typeof(obj: object) -> str:
+    return obj.__class__.__name__
     # return type(arg)
 
-def address(__obj: object) -> PointerType:
-    return pointer(type(__obj))([__obj])
+def address(obj: object) -> PointerType:
+    return pointer(type(obj))([obj])
 
 def _is_value_type(t):
     if isinstance(t, typedef):
@@ -333,12 +333,7 @@ class _nogil:
     @overload
     def __call__(self, __func: _C) -> _C: ...
 
-    @overload
-    def __call__(self) -> '_nogil': ...
-
-    def __call__(self, x=None):
-        if x is None:
-            return self
+    def __call__(self, x):
         if callable(x):
             # Used as function decorator => return the function unchanged.
             return x
