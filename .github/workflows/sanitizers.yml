@@ -12,6 +12,7 @@ on:
       - "Cython/Utility/**"
       - "Cython/Compiler/Nodes.py"
       - "Cython/Compiler/ExprNodes.py"
+      - "Cython/Compiler/Optimize.py"
   label:
     # Accepted labels (in the 'if' condition below) are:
     # * sanitizers

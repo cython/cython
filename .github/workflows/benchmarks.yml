@@ -10,6 +10,7 @@ on:
       - "Cython/Utility/**"
       - "Cython/Compiler/Nodes.py"
       - "Cython/Compiler/ExprNodes.py"
+      - "Cython/Compiler/Optimize.py"
   pull_request:
     paths:
       # Only run on PRs likely to affect benchmark code generation
@@ -18,6 +19,7 @@ on:
       - "Cython/Utility/**"
       - "Cython/Compiler/Nodes.py"
       - "Cython/Compiler/ExprNodes.py"
+      - "Cython/Compiler/Optimize.py"
   label:
     # Accepted labels (in the 'if' condition below) are:
     # * benchmark (explicit)
