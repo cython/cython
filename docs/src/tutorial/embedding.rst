@@ -99,7 +99,7 @@ Running it will execute the content of ``__Pyx_main()``:
 Embedding multiple modules
 ==========================
 
-To statically link multiple Cython modules into a single executable, you must use the
+To statically link multiple Cython modules into a single executable, you can use the
 ``cython --embed-modules`` option alongside the ``cython --embed`` option.
 This option enables the necessary C-level initialisation calls (via :c:func:`PyImport_AppendInittab`)
 for all listed modules within the main program's C code.
