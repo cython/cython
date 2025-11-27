@@ -349,7 +349,7 @@ class _nogil:
         pass
     def __exit__(self, exc_type: Optional[Type[BaseException]],
                  exc: Optional[BaseException],
-                 tb: Optional[TracebackType]) -> None:
+                 tb: Optional[TracebackType]) -> bool:
         return exc_type is None
 
 nogil = _nogil()
@@ -525,7 +525,7 @@ class array(ArrayType):
 
     def __class_getitem__(cls, item: tuple[_T, int]) -> Type[ArrayType]:
         basetype, n = item
-        return cls(basetype, item)
+        return cls(basetype, n)
 
 
 def struct(**members: type) -> Type[Any]:
