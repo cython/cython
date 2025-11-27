@@ -1,0 +1,102 @@
+# mode: run
+# tag: embed
+
+CYTHONIZE -j2 embedded1.pyx embedded2.pyx
+CYTHON --embed --embed-modules embedded1,embedded2 main_module.pyx
+PYTHON build.py main_module main_module.c embedded1.c embedded2.c
+PYTHON run.py main_module
+
+################### build.py ########################
+
+import os
+import subprocess
+import sys
+import sysconfig
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
+
+def get_config_var(name, default=''):
+    return sysconfig.get_config_var(name) or default
+
+CC = get_config_var('CC', os.environ.get('CC', ''))
+INCDIR = sysconfig.get_path('include')
+LIBDIR1 = get_config_var('LIBDIR')
+LIBDIR2 = get_config_var('LIBPL')
+PYLIB = get_config_var('LIBRARY')
+PYLIB_DYN = get_config_var('LDLIBRARY')
+if PYLIB_DYN == PYLIB:
+    # no shared library
+    PYLIB_DYN = ''
+else:
+    PYLIB_DYN = os.path.splitext(PYLIB_DYN[3:])[0]  # 'lib(XYZ).so' -> XYZ
+
+CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
+print(CFLAGS)
+LINKCC = get_config_var('LINKCC', os.environ.get('LINKCC', CC))
+LINKFORSHARED = get_config_var('LINKFORSHARED')
+LIBS = get_config_var('LIBS')
+SYSLIBS = get_config_var('SYSLIBS')
+EXE_EXT = sysconfig.get_config_var('EXE')
+
+
+def main(args):
+    app_name, *c_files = args
+    c_base_names = [filename[:-2] for filename in c_files]
+    env = os.environ.copy()
+    env['CFLAGS'] = CFLAGS
+    run = partial(subprocess.run, env=env)
+
+    compile_commands = [
+        [CC, '-c', '-o', filename+'.o', filename+'.c', '-I' + INCDIR]
+        for filename in c_base_names
+    ]
+    #print(compile_commands)
+
+    with ThreadPoolExecutor() as pool:
+        pool.map(run, compile_commands)
+
+    linker_command = ([
+        LINKCC, '-o', app_name + EXE_EXT, *[filename + '.o' for filename in c_base_names],
+        '-L'+LIBDIR1, '-L'+LIBDIR2]
+        + [PYLIB_DYN and ('-l'+PYLIB_DYN) or os.path.join(LIBDIR1, PYLIB)]
+        + LIBS.split() + SYSLIBS.split() + LINKFORSHARED.split()
+    )
+    #print(linker_command)
+    run(linker_command)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
+
+
+################### run.py ########################
+
+import os
+import sys
+from subprocess import run
+
+result = run([os.path.abspath(sys.argv[1])], capture_output=True)
+assert b"DONE" in result.stdout
+assert b"DONE 1 2" in result.stdout
+
+
+################# main_module.pyx ####################
+
+import embedded1
+import embedded2
+
+assert __name__ == '__main__'
+
+assert embedded1.attr == '1', embedded1.attr
+assert embedded2.attr == '2', embedded2.attr
+
+print("DONE", embedded1.attr, embedded2.attr)
+
+
+################# embedded1.pyx ####################
+
+attr = '1'
+
+################# embedded2.pyx ####################
+
+attr = '2'
