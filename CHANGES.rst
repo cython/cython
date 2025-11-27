@@ -26,6 +26,8 @@ Features added
   the error reporting.
   (Github issue :issue:`7235`)
 
+* Unicode 17.0.0 is used to parse identifiers.
+
 Bugs fixed
 ----------
 
@@ -224,7 +226,6 @@ Features added
   (Github issue :issue:`7228`)
 
 * Unicode 16.0.0 is used to parse identifiers.
-  (Github issue :issue:`6836`)
 
 Bugs fixed
 ----------
@@ -676,7 +677,6 @@ Features added
 --------------
 
 * Declarations for the new ``PyUnstable_*()`` refcounting C-API functions in Py3.14 were added.
-  (Github issue :issue:`6836`)
 
 Bugs fixed
 ----------
