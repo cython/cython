@@ -91,7 +91,7 @@ def build_table(rows, title, data_formatter):
             if 'master' in revision_name
         }
 
-        row[0] = benchmark
+        row[0] = benchmark[3:] if benchmark.startswith('bm_') else benchmark
         for pyversion, revision_name, version_key, data in bm_rows:
             column_index = column_map[(pyversion, revision_name)]
             empty_column_indices.discard(column_index)
