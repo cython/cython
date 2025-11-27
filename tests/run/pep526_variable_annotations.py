@@ -206,7 +206,7 @@ if cython.compiled:
     set[Python object] object
     """
 
-if sys.version_info > (3, 10) or cython.compiled:
+if sys.version_info >= (3, 11) or cython.compiled:
     # test is failing python 3.9 and 3.10 because following exception occurs in Shadow.py:
     # isinstance() argument 2 cannot be a parameterized generic
 
