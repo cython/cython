@@ -23,7 +23,10 @@ cdef extern from *:
         Py_DECREF(key_obj);
         return res;
     }
-
+    #else
+    #define __Pyx_CAPI_PyDict_GetItemStringRef PyDict_GetItemStringRef
+    #endif
+    #if PY_VERSION_HEX < 0x030d0000 || (CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030F0000)
     static CYTHON_INLINE int
     __Pyx_CAPI_PyDict_SetDefaultRef(PyObject *d, PyObject *key, PyObject *default_value,
                         PyObject **result)
@@ -62,7 +65,6 @@ cdef extern from *:
         return 0;
     }
     #else
-    #define __Pyx_CAPI_PyDict_GetItemStringRef PyDict_GetItemStringRef
     #define __Pyx_CAPI_PyDict_SetDefaultRef PyDict_SetDefaultRef
     #endif
     """
