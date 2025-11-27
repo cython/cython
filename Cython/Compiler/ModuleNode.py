@@ -2950,6 +2950,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_start(self, env, code):
         # TODO: Refactor to move module state struct decl closer to the static decl
+        code.putln("#ifdef __cplusplus")
+        code.putln("namespace {")
+        code.putln("#endif")
         code.putln('typedef struct {')
         code.putln('PyObject *%s;' % env.module_dict_cname)
         code.putln('PyObject *%s;' % Naming.builtins_cname)
@@ -2965,6 +2968,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_clear = globalstate['module_state_clear_end']
         module_state_traverse = globalstate['module_state_traverse_end']
         module_state.putln('} %s;' % Naming.modulestatetype_cname)
+        module_state.putln("#ifdef __cplusplus")
+        module_state.putln("} /* anonymous namespace */")
+        module_state.putln("#endif")
         module_state.putln('')
         globalstate.use_utility_code(
             UtilityCode.load("MultiPhaseInitModuleState", "ModuleSetupCode.c")
