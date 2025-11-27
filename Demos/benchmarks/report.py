@@ -52,10 +52,10 @@ def warn_difference(reference, value, max_margin):
         return ' \N{LARGE GREEN SQUARE}' if is_better else ' \N{LARGE RED SQUARE}'
 
 
-def format_timings(tmin, tmed, tmax, diff, *, master_data=None, warn_margin=.1/3.):
+def format_timings(tmin, tmed, tmean, tmax, diff, *, master_data=None, warn_margin=.1/3.):
+    warn = warn_difference(master_data[0], tmin, warn_margin) if master_data else ''
     diff_str = f" ({unbreak(diff.strip(' ()'))})" if diff else ''
-    warn = warn_difference(master_data[1], tmed, warn_margin) if master_data else ''
-    return f"{unbreak(tmed)}{diff_str}{warn}"
+    return f"{unbreak(tmin)}{diff_str}{warn}"
 
 
 def format_sizes(size, diff, *, master_data=None, warn_margin=.01):
