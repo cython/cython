@@ -29,9 +29,15 @@ def read_rows(csv_rows):
     return rows
 
 
+def time_in_seconds(time_string):
+    units = {"nsec": 1e-9, "usec": 1e-6, "msec": 1e-3, "sec": 1.0}
+    number, unit = time_string.split()
+    return float(number) * units[unit]
+
+
 def warn_difference(reference, value, max_margin):
-    reference = float(reference.rstrip(string.ascii_letters))
-    value = float(value.rstrip(string.ascii_letters))
+    reference = time_in_seconds(reference)
+    value = time_in_seconds(value)
 
     difference = abs(value - reference) / reference
     is_better = value < reference
@@ -82,7 +88,7 @@ def build_table(rows, title, data_formatter):
         table.append(row)
 
         bm_rows = [
-            (pyversion, revision_name, pyversion + revision_name.partition(' ')[0], data)
+            (pyversion, revision_name, pyversion + revision_name.split()[0], data)
             for _, revision_name, pyversion, *data in bm_rows
         ]
         master_data_seen = {
