@@ -29,10 +29,13 @@ def read_rows(csv_rows):
     return rows
 
 
-def warn_difference(reference, value, max_margin):
-    reference = float(reference.rstrip(string.ascii_letters))
-    value = float(value.rstrip(string.ascii_letters))
+def time_in_seconds(time_string):
+    units = {"nsec": 1e-9, "usec": 1e-6, "msec": 1e-3, "sec": 1.0}
+    number, unit = time_string.split()
+    return float(number) * units[unit]
 
+
+def warn_difference(reference, value, max_margin):
     difference = abs(value - reference) / reference
     is_better = value < reference
 
@@ -46,14 +49,14 @@ def warn_difference(reference, value, max_margin):
         return ' \N{LARGE GREEN SQUARE}' if is_better else ' \N{LARGE RED SQUARE}'
 
 
-def format_timings(tmin, tmed, tmax, diff, *, master_data=None, warn_margin=.1/3.):
+def format_timings(tmin, tmed, tmean, tmax, diff, *, master_data=None, warn_margin=.1/3.):
+    warn = warn_difference(time_in_seconds(master_data[0]), time_in_seconds(tmin), warn_margin) if master_data else ''
     diff_str = f" ({unbreak(diff.strip(' ()'))})" if diff else ''
-    warn = warn_difference(master_data[1], tmed, warn_margin) if master_data else ''
-    return f"{unbreak(tmed)}{diff_str}{warn}"
+    return f"{unbreak(tmin)}{diff_str}{warn}"
 
 
 def format_sizes(size, diff, *, master_data=None, warn_margin=.01):
-    warn = warn_difference(master_data[0], size, warn_margin) if master_data else ''
+    warn = warn_difference(int(master_data[0]), int(size), warn_margin) if master_data else ''
     diff_str = f" ({unbreak(diff.strip(' ()'))})" if diff else ''
     return f"{size}{diff_str}{warn}"
 
@@ -82,7 +85,7 @@ def build_table(rows, title, data_formatter):
         table.append(row)
 
         bm_rows = [
-            (pyversion, revision_name, pyversion + revision_name.partition(' ')[0], data)
+            (pyversion, revision_name, pyversion + revision_name.split()[0], data)
             for _, revision_name, pyversion, *data in bm_rows
         ]
         master_data_seen = {
@@ -91,7 +94,7 @@ def build_table(rows, title, data_formatter):
             if 'master' in revision_name
         }
 
-        row[0] = benchmark
+        row[0] = benchmark[3:] if benchmark.startswith('bm_') else benchmark
         for pyversion, revision_name, version_key, data in bm_rows:
             column_index = column_map[(pyversion, revision_name)]
             empty_column_indices.discard(column_index)

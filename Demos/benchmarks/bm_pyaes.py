@@ -83,11 +83,7 @@ def run_benchmark(repeat=True, scale: cython.long = 1):
 ####
 
 
-from array import array
 import codecs
-
-def to_bytes(array):
-    return array.tobytes()
 
 # Globals mandated by PEP 272:
 # http://www.python.org/dev/peps/pep-0272/
@@ -150,7 +146,7 @@ class AES:
         # http://en.wikipedia.org/wiki/Rijndael_key_schedule
 
         # The expanded key starts with the actual key itself
-        exkey = array('B', self.key)
+        exkey = bytearray(self.key)
 
         # extra key expansion steps
         if self.key_size == 16:
@@ -159,6 +155,10 @@ class AES:
             extra_cnt = 2
         else:
             extra_cnt = 3
+
+        i: cython.int
+        j: cython.int
+        z: cython.int
 
         # 4-byte temporary variable for key expansion
         word = exkey[-4:]
@@ -204,7 +204,7 @@ class AES:
 
         self.exkey = exkey
 
-    def add_round_key(self, block, round):
+    def add_round_key(self, block: bytearray, round: cython.long):
         """AddRoundKey step in AES. This is where the key is mixed into plaintext"""
 
         offset = round * 16
@@ -215,7 +215,7 @@ class AES:
 
         #print('AddRoundKey:', block)
 
-    def sub_bytes(self, block, sbox):
+    def sub_bytes(self, block: bytearray, sbox: bytearray):
         """SubBytes step, apply S-box to all bytes
 
         Depending on whether encrypting or decrypting, a different sbox array
@@ -227,7 +227,7 @@ class AES:
 
         #print('SubBytes   :', block)
 
-    def shift_rows(self, b):
+    def shift_rows(self, b: bytearray):
         """ShiftRows step. Shifts 2nd row to left by 1, 3rd row by 2, 4th row by 3
 
         Since we're performing this on a transposed matrix, cells are numbered
@@ -245,7 +245,7 @@ class AES:
 
         #print('ShiftRows  :', b)
 
-    def shift_rows_inv(self, b):
+    def shift_rows_inv(self, b: bytearray):
         """Similar to shift_rows above, but performed in inverse for decryption."""
 
         b[ 5], b[ 9], b[13], b[ 1] = b[1], b[5], b[ 9], b[13]
@@ -254,12 +254,12 @@ class AES:
 
         #print('ShiftRows  :', b)
 
-    def mix_columns(self, block):
+    def mix_columns(self, block: bytearray):
         """MixColumns step. Mixes the values in each column"""
 
         # Cache global multiplication tables (see below)
-        mul_by_2 = gf_mul_by_2
-        mul_by_3 = gf_mul_by_3
+        mul_by_2: bytearray = gf_mul_by_2
+        mul_by_3: bytearray = gf_mul_by_3
 
         # Since we're dealing with a transposed matrix, columns are already
         # sequential
@@ -277,14 +277,14 @@ class AES:
 
         #print('MixColumns :', block)
 
-    def mix_columns_inv(self, block):
+    def mix_columns_inv(self, block: bytearray):
         """Similar to mix_columns above, but performed in inverse for decryption."""
 
         # Cache global multiplication tables (see below)
-        mul_9  = gf_mul_by_9
-        mul_11 = gf_mul_by_11
-        mul_13 = gf_mul_by_13
-        mul_14 = gf_mul_by_14
+        mul_9: bytearray  = gf_mul_by_9
+        mul_11: bytearray = gf_mul_by_11
+        mul_13: bytearray = gf_mul_by_13
+        mul_14: bytearray = gf_mul_by_14
 
         # Since we're dealing with a transposed matrix, columns are already
         # sequential
@@ -353,21 +353,21 @@ class ECBMode(object):
         self.cipher = cipher
         self.block_size = cipher.block_size
 
-    def ecb(self, data, block_func):
+    def ecb(self, data_obj, block_func):
         """Perform ECB mode with the given function"""
 
-        if len(data) % self.block_size != 0:
+        if len(data_obj) % self.block_size != 0:
             raise ValueError("Plaintext length must be multiple of 16")
 
         block_size = self.block_size
-        data = array('B', data)
+        data = bytearray(data_obj)
 
         for offset in range(0, len(data), block_size):
             block = data[offset : offset+block_size]
             block_func(block)
             data[offset : offset+block_size] = block
 
-        return to_bytes(data)
+        return bytes(data)
 
     def encrypt(self, data):
         """Encrypt data in ECB mode"""
@@ -394,17 +394,17 @@ class CBCMode(object):
     def __init__(self, cipher, IV):
         self.cipher = cipher
         self.block_size = cipher.block_size
-        self.IV = array('B', IV)
+        self.IV = bytearray(IV)
 
-    def encrypt(self, data):
+    def encrypt(self, data_obj):
         """Encrypt data in CBC mode"""
 
         block_size = self.block_size
-        if len(data) % block_size != 0:
+        if len(data_obj) % block_size != 0:
             raise ValueError("Plaintext length must be multiple of 16")
 
-        data = array('B', data)
-        IV = self.IV
+        data = bytearray(data_obj)
+        IV: bytearray = self.IV
 
         for offset in range(0, len(data), block_size):
             block = data[offset : offset+block_size]
@@ -418,17 +418,17 @@ class CBCMode(object):
             IV = block
 
         self.IV = IV
-        return to_bytes(data)
+        return bytes(data)
 
-    def decrypt(self, data):
+    def decrypt(self, data_obj):
         """Decrypt data in CBC mode"""
 
         block_size = self.block_size
-        if len(data) % block_size != 0:
+        if len(data_obj) % block_size != 0:
             raise ValueError("Ciphertext length must be multiple of 16")
 
-        data = array('B', data)
-        IV = self.IV
+        data = bytearray(data_obj)
+        IV: bytearray = self.IV
 
         for offset in range(0, len(data), block_size):
             ctext = data[offset : offset+block_size]
@@ -446,11 +446,11 @@ class CBCMode(object):
             #data[offset : offset+block_size] = block
 
         self.IV = IV
-        return to_bytes(data)
+        return bytes(data)
 
 ####
 
-def galois_multiply(a, b):
+def galois_multiply(a: int, b: int):
     """Galois Field multiplicaiton for AES"""
     p = 0
     while b:
@@ -464,13 +464,13 @@ def galois_multiply(a, b):
     return p & 0xff
 
 # Precompute the multiplication tables for encryption
-gf_mul_by_2  = array('B', [galois_multiply(x,  2) for x in range(256)])
-gf_mul_by_3  = array('B', [galois_multiply(x,  3) for x in range(256)])
+gf_mul_by_2  = bytearray([galois_multiply(x,  2) for x in range(256)])
+gf_mul_by_3  = bytearray([galois_multiply(x,  3) for x in range(256)])
 # ... for decryption
-gf_mul_by_9  = array('B', [galois_multiply(x,  9) for x in range(256)])
-gf_mul_by_11 = array('B', [galois_multiply(x, 11) for x in range(256)])
-gf_mul_by_13 = array('B', [galois_multiply(x, 13) for x in range(256)])
-gf_mul_by_14 = array('B', [galois_multiply(x, 14) for x in range(256)])
+gf_mul_by_9  = bytearray([galois_multiply(x,  9) for x in range(256)])
+gf_mul_by_11 = bytearray([galois_multiply(x, 11) for x in range(256)])
+gf_mul_by_13 = bytearray([galois_multiply(x, 13) for x in range(256)])
+gf_mul_by_14 = bytearray([galois_multiply(x, 14) for x in range(256)])
 
 ####
 
@@ -480,7 +480,7 @@ gf_mul_by_14 = array('B', [galois_multiply(x, 14) for x in range(256)])
 #
 # More information: http://en.wikipedia.org/wiki/Rijndael_S-box
 
-aes_sbox = array('B', codecs.decode(
+aes_sbox = bytearray(codecs.decode(
     b'637c777bf26b6fc53001672bfed7ab76'
     b'ca82c97dfa5947f0add4a2af9ca472c0'
     b'b7fd9326363ff7cc34a5e5f171d83115'
@@ -502,7 +502,7 @@ aes_sbox = array('B', codecs.decode(
 # This is the inverse of the above. In other words:
 # aes_inv_sbox[aes_sbox[val]] == val
 
-aes_inv_sbox = array('B', codecs.decode(
+aes_inv_sbox = bytearray(codecs.decode(
     b'52096ad53036a538bf40a39e81f3d7fb'
     b'7ce339829b2fff87348e4344c4dee9cb'
     b'547b9432a6c2233dee4c950b42fac34e'
@@ -526,7 +526,7 @@ aes_inv_sbox = array('B', codecs.decode(
 #
 # More information: http://en.wikipedia.org/wiki/Rijndael_key_schedule
 
-aes_Rcon = array('B', codecs.decode(
+aes_Rcon = bytearray(codecs.decode(
     b'8d01020408102040801b366cd8ab4d9a'
     b'2f5ebc63c697356ad4b37dfaefc59139'
     b'72e4d3bd61c29f254a943366cc831d3a'

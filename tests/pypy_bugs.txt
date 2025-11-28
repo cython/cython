@@ -10,6 +10,7 @@ memoryview.memoryview$
 #run.unicodemethods
 # multiphase import not supported
 run.unicode_imports
+run.combined_modules
 
 run.tp_new
 run.test_fstring
