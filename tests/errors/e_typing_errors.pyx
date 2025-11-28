@@ -134,6 +134,43 @@ def allowed_subscribed_types_assignments():
     fa = f1
     da = d1
 
+def forbidden_subscribed_types_assignments():
+    la: list[cython.int] = [5]
+    sa: set[cython.int] = {5}
+    fa: frozenset[cython.int] = frozenset({1})
+    da: dict[cython.int, cython.int] = {1: 2}
+
+    la = sa
+    la = fa
+    la = da
+    sa = la
+    sa = fa
+    sa = da
+    fa = la
+    fa = sa
+    fa = da
+    da = la
+    da = sa
+    da = fa
+
+    l: list = [1]
+    s: set = {1}
+    f: frozenset = frozenset({1})
+    d: dict = {1:3}
+
+    la = d
+    la = f
+    la = s
+    sa = l
+    sa = d
+    sa = f
+    fa = l
+    fa = s
+    fa = d
+    sa = l
+    sa = f
+    sa = d
+
 _ERRORS = """
 13:42: typing.Optional[...] cannot be applied to type int
 13:66: typing.Optional[...] cannot be applied to type double
@@ -186,4 +223,28 @@ _ERRORS = """
 85:33: Cannot assign type 'set object' to 'frozenset[int] object'
 87:8: Cannot convert Python object to 'int *'
 87:13: Cannot assign type 'set[int] object' to 'int *'
+143:9: Cannot assign type 'set[int] object' to 'list[int] object'
+144:9: Cannot assign type 'frozenset[int] object' to 'list[int] object'
+145:9: Cannot assign type 'dict[int,int] object' to 'list[int] object'
+146:9: Cannot assign type 'list[int] object' to 'set[int] object'
+147:9: Cannot assign type 'frozenset[int] object' to 'set[int] object'
+148:9: Cannot assign type 'dict[int,int] object' to 'set[int] object'
+149:9: Cannot assign type 'list[int] object' to 'frozenset[int] object'
+150:9: Cannot assign type 'set[int] object' to 'frozenset[int] object'
+151:9: Cannot assign type 'dict[int,int] object' to 'frozenset[int] object'
+152:9: Cannot assign type 'list[int] object' to 'dict[int,int] object'
+153:9: Cannot assign type 'set[int] object' to 'dict[int,int] object'
+154:9: Cannot assign type 'frozenset[int] object' to 'dict[int,int] object'
+161:9: Cannot assign type 'dict object' to 'list[int] object'
+162:9: Cannot assign type 'frozenset object' to 'list[int] object'
+163:9: Cannot assign type 'set object' to 'list[int] object'
+164:9: Cannot assign type 'list object' to 'set[int] object'
+165:9: Cannot assign type 'dict object' to 'set[int] object'
+166:9: Cannot assign type 'frozenset object' to 'set[int] object'
+167:9: Cannot assign type 'list object' to 'frozenset[int] object'
+168:9: Cannot assign type 'set object' to 'frozenset[int] object'
+169:9: Cannot assign type 'dict object' to 'frozenset[int] object'
+170:9: Cannot assign type 'list object' to 'set[int] object'
+171:9: Cannot assign type 'frozenset object' to 'set[int] object'
+172:9: Cannot assign type 'dict object' to 'set[int] object'
 """
