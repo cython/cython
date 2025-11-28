@@ -11,13 +11,15 @@ from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any, Iterable, Sequence, Optional, Type, TypeVar, Generic, Callable, overload,
-    TypeAlias
+    TypeAlias, ParamSpec
 )
 
 # TypeVars need to be defined at runtime for Generic types
 _T = TypeVar('_T')
+_P = ParamSpec('_P')
 _C = TypeVar('_C', bound='Callable')
 _TypeT = TypeVar('_TypeT', bound='Type')
+_Decorator = Callable[[_C], _C]
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
 __version__ = "3.3.0a0"
@@ -104,17 +106,30 @@ _Unspecified = object()
 
 # Function decorators
 
-def _empty_decorator(x: _C) -> _C:
+def _empty_func_decorator(x: _C) -> _C:
     return x
 
+def _empty_class_decorator(cls: _TypeT) -> _TypeT:
+    return cls
+
+@overload
+def _empty_func_decorator(x: _C) -> _C: ...
+@overload
+def _empty_func_decorator(cls: _TypeT) -> _TypeT: ...
+def _empty_decorator(x):
+    return x
+
+def _compiler_directive(val: bool = ...) -> _Decorator:
+    return _empty_decorator  # DW - return type doesn't make sense on classes though
+
 def locals(**arg_types: Any) -> _Decorator:
-    return _empty_decorator
+    return _empty_func_decorator
 
 def test_assert_path_exists(*paths: str) -> _Decorator:
-    return _empty_decorator
+    return _empty_func_decorator
 
 def test_fail_if_path_exists(*paths: str) -> _Decorator:
-    return _empty_decorator
+    return _empty_func_decorator
 
 class _EmptyDecoratorAndManager:
     @overload
@@ -135,17 +150,23 @@ class _EmptyDecoratorAndManager:
 class _Optimization:
     pass
 
-cclass = ccall = cfunc = _EmptyDecoratorAndManager()
+cfunc = ccall = ufunc = _empty_func_decorator
+
+cclass = internal = c_api_binop_methods = type_version_tag = no_gc_clear = \
+    no_gc = total_ordering = _empty_class_decorator
 
 annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
-    nonecheck = embedsignature = cdivision = cdivision_warnings = \
-    always_allow_keywords = profile = linetrace = infer_types = \
-    unraisable_tracebacks = freelist = auto_pickle = cpow = trashcan = \
-    auto_cpdef = c_api_binop_methods = \
+    nonecheck = cdivision = cdivision_warnings = \
+    profile = linetrace = infer_types = \
+    freelist = auto_pickle = cpow = trashcan = auto_cpdef = \
     allow_none_for_extension_args = callspec = show_performance_hints = \
-    cpp_locals = py2_import = iterable_coroutine = remove_unreachable = \
+    py2_import = iterable_coroutine = remove_unreachable = \
     overflowcheck = test_body_needs_exception_handling = \
         lambda _: _EmptyDecoratorAndManager()
+
+binding = embedsignature = always_allow_keywords = unraisable_tracebacks = \
+    cpp_locals = \
+    _compiler_directive
 
 # Note that fast_getattr is untested and undocumented!
 fast_getattr = lambda _: _EmptyDecoratorAndManager()
@@ -156,14 +177,20 @@ exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
 optimize = _Optimization()
 
+if TYPE_CHECKING:
+    # May be a bit hard to read but essentially means:
+    # > Returns a callable that takes another callable with these parameters and *some*
+    # > return value, then returns another callable with the same parameters but
+    # > the return type is the previous 'type' parameter.
+    def returns(__type: Type[_T]) -> Callable[[Callable[_P, object]], Callable[_P, _T]]: ...
+
+    def exceptval(__val: Any, *, check: bool = False) -> _Decorator: ...
+
 
 embedsignature.format = overflowcheck.fold = optimize.use_switch = \
     optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
-final = internal = type_version_tag = no_gc_clear = no_gc = total_ordering = \
-    ufunc = _empty_decorator
-
-binding = lambda _: _empty_decorator
+final = _empty_decorator
 
 class warn:
     undeclared = unreachable = maybe_uninitialized = unused = \
