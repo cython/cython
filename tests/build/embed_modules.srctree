@@ -50,10 +50,11 @@ def main(args):
         [CC, '-c', '-o', filename+'.o', filename+'.c', '-I' + INCDIR]
         for filename in c_base_names
     ]
-    #print(compile_commands)
+    print(compile_commands)
 
     with ThreadPoolExecutor() as pool:
-        pool.map(run, compile_commands)
+        for _ in pool.map(run, compile_commands):
+            pass
 
     linker_command = ([
         LINKCC, '-o', app_name + EXE_EXT, *[filename + '.o' for filename in c_base_names],
@@ -61,7 +62,7 @@ def main(args):
         + [PYLIB_DYN and ('-l'+PYLIB_DYN) or os.path.join(LIBDIR1, PYLIB)]
         + LIBS.split() + SYSLIBS.split() + LINKFORSHARED.split()
     )
-    #print(linker_command)
+    print(linker_command)
     run(linker_command)
 
 
@@ -73,9 +74,12 @@ if __name__ == '__main__':
 
 import os
 import sys
+import sysconfig
 from subprocess import run
 
-result = run([os.path.abspath(sys.argv[1])], capture_output=True)
+EXE_EXT = sysconfig.get_config_var('EXE')
+
+result = run([os.path.abspath(sys.argv[1] + EXE_EXT)], capture_output=True)
 assert b"DONE" in result.stdout
 assert b"DONE 1 2" in result.stdout
 
