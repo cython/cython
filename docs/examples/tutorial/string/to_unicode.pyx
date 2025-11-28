@@ -1,5 +1,5 @@
-
 cdef str _text(s):
+
     if type(s) is str:
         # Fast path for most common case(s).
         return <str>s
