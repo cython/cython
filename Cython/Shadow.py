@@ -1,69 +1,23 @@
 # cython.* namespace for pure mode.
 from __future__ import annotations
 
+from .ShadowWithStubs import (
+    CythonMetaType, CythonTypeObject, CythonType, PointerType, ArrayType,
+    pointer, array
+)
+
 import dataclasses as dataclasses
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any, Iterable, Sequence, Optional, Type, TypeVar, Generic, Callable, overload,
+    TypeAlias
 )
 
 # TypeVars need to be defined at runtime for Generic types
 _T = TypeVar('_T')
 _C = TypeVar('_C', bound='Callable')
 _TypeT = TypeVar('_TypeT', bound='Type')
-
-if TYPE_CHECKING:
-    from typing import TypeAlias, Annotated
-    from builtins import (int as py_int, float as py_float,
-                          bool as py_bool, str as py_str, complex as py_complex)
-
-    # Type checkers assume typing_extensions is always present
-    from typing_extensions import Literal, ParamSpec, final as final
-
-    _P = ParamSpec('_P')
-    _Decorator = Callable[[_C], _C]
-
-    # Predefined type aliases for type checking
-    # Note: At runtime, these are typedef instances, but for type checking we use simpler aliases
-    Py_UCS4 = py_int | str
-    Py_UNICODE = py_int | str
-    bint = py_bool
-    void = Type[None]
-    basestring = py_str
-    unicode = py_str
-
-    const: TypeAlias = Annotated[_T, "cython.const"]
-    volatile: TypeAlias = Annotated[_T, "cython.volatile"]
-
-    # Type stubs for classes that use CythonMetaType at runtime
-    # but need to appear as Generic for type checkers
-    class PointerType(Generic[_T]):
-        def __init__(
-            self,
-            value: Optional[ArrayType[_T] | PointerType[_T] | list[_T] | int] = ...
-        ) -> None: ...
-        def __getitem__(self, ix: int) -> _T: ...
-        def __setitem__(self, ix: int, value: _T) -> None: ...
-        def __eq__(self, value: object) -> bool: ...
-        def __repr__(self) -> str: ...
-
-    class ArrayType(PointerType[_T]):
-        def __init__(self, value: Optional[ArrayType[_T] | PointerType[_T] | list[_T] | int] = ...) -> None: ...
-
-    class pointer(PointerType[_T]):
-        def __new__(cls, basetype: _T) -> Type[PointerType[_T]]: ...
-        def __class_getitem__(cls, basetype: _T) -> Type[PointerType[_T]]: ...
-
-    class array(ArrayType[_T]):
-        def __new__(cls, basetype: _T, n: int) -> Type[ArrayType[_T]]: ...
-        def __class_getitem__(cls, item: tuple[_T, int]) -> Type[ArrayType[_T]]: ...
-
-    class typedef(Generic[_T]):
-        name: str
-        def __init__(self, type: _T, name: Optional[str] = ...) -> None: ...
-        def __call__(self, *arg: Any) -> _T: ...
-        def __repr__(self) -> str: ...
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
 __version__ = "3.3.0a0"
@@ -370,65 +324,6 @@ class critical_section:
 
 # Emulated types
 
-class CythonMetaType(type):
-
-    def __getitem__(type, ix):
-        return array(type, ix)
-
-CythonTypeObject = CythonMetaType('CythonTypeObject', (object,), {})
-
-class CythonType(CythonTypeObject):
-
-    def _pointer(self, n=1):
-        for i in range(n):
-            self = pointer(self)
-        return self
-
-class PointerType(CythonType):
-
-    def __init__(
-        self,
-        value: Optional[ArrayType[_T] | PointerType[_T] | list[_T] | int] = None
-    ) -> None:
-        if isinstance(value, (ArrayType, PointerType)):
-            self._items = [cast(self._basetype, a) for a in value._items]
-        elif isinstance(value, list):
-            self._items = [cast(self._basetype, a) for a in value]
-        elif value is None or value == 0:
-            self._items = []
-        else:
-            raise ValueError
-
-    def __getitem__(self, ix: int) -> _T:
-        if ix < 0:
-            raise IndexError("negative indexing not allowed in C")
-        return self._items[ix]
-
-    def __setitem__(self, ix: int, value: _T) -> None:
-        if ix < 0:
-            raise IndexError("negative indexing not allowed in C")
-        self._items[ix] = cast(self._basetype, value)
-
-    def __eq__(self, value: object) -> bool:
-        if value is None and not self._items:
-            return True
-        elif type(self) != type(value):
-            return False
-        else:
-            return not self._items and not value._items
-
-    def __repr__(self) -> str:
-        return f"{self._basetype} *"
-
-
-class ArrayType(PointerType):
-
-    def __init__(self, value: Optional[ArrayType[_T] | PointerType[_T] | list[_T] | int] = None) -> None:
-        if value is None:
-            self._items = [None] * self._n
-        else:
-            super().__init__(value)
-
 
 class StructType(CythonType):
 
@@ -497,30 +392,6 @@ class UnionType(CythonType):
             self.__dict__ = {key: cast(self._members[key], value)}
         else:
             raise AttributeError("Union has no member '%s'" % key)
-
-
-class pointer(PointerType):
-    # Implemented as class to support both 'pointer(int)' and 'pointer[int]'.
-    def __new__(cls, basetype: _T) -> Type[PointerType]:
-        class PointerInstance(PointerType):
-            _basetype = basetype
-        return PointerInstance
-
-    def __class_getitem__(cls, basetype: _T) -> Type[PointerType]:
-        return cls(basetype)
-
-
-class array(ArrayType):
-    # Implemented as class to support both 'array(int, 5)' and 'array[int, 5]'.
-    def __new__(cls, basetype: _T, n: int) -> Type[ArrayType]:
-        class ArrayInstance(ArrayType):
-            _basetype = basetype
-            _n = n
-        return ArrayInstance
-
-    def __class_getitem__(cls, item: tuple[_T, int]) -> Type[ArrayType]:
-        basetype, n = item
-        return cls(basetype, n)
 
 
 def struct(**members: type) -> Type[Any]:
