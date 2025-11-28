@@ -28,7 +28,10 @@ if PYLIB_DYN == PYLIB:
     # no shared library
     PYLIB_DYN = ''
 else:
-    PYLIB_DYN = os.path.splitext(PYLIB_DYN[3:])[0]  # 'lib(XYZ).so' -> XYZ
+    # 'lib(XYZ).so' -> XYZ
+    PYLIB_DYN = os.path.splitext(PYLIB_DYN)[0]
+    if PYLIB_DYN.startswith('lib'):
+        PYLIB_DYN = PYLIB_DYN[3:]
 
 CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
 print(CFLAGS)
