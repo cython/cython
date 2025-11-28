@@ -34,7 +34,7 @@ else:
         PYLIB_DYN = PYLIB_DYN[3:]
 
 CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
-print(CFLAGS)
+print("CFLAGS:", CFLAGS)
 LINKCC = get_config_var('LINKCC', os.environ.get('LINKCC', CC))
 LINKFORSHARED = get_config_var('LINKFORSHARED')
 LIBS = get_config_var('LIBS')
@@ -53,7 +53,8 @@ def main(args):
         [*CC.split(), '-c', '-o', filename+'.o', filename+'.c', '-I' + INCDIR]
         for filename in c_base_names
     ]
-    print(compile_commands)
+    for command in compile_commands:
+        print("CC:", command)
 
     with ThreadPoolExecutor() as pool:
         for _ in pool.map(run, compile_commands):
@@ -67,7 +68,7 @@ def main(args):
         ]
         + LIBS.split() + SYSLIBS.split() + LINKFORSHARED.split()
     )
-    print(linker_command)
+    print("LD:", linker_command)
     run(linker_command)
 
 
