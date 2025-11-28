@@ -1,5 +1,35 @@
 from .object cimport PyObject
 
+cdef extern from *:
+    # Backport PyList_GetItemRef, PyList_Extend and PyList_Clear
+    """
+    #if __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    static CYTHON_INLINE PyObject *
+    __Pyx_CAPI_PyList_GetItemRef(PyObject *list, Py_ssize_t index)
+    {
+        PyObject *item = PyList_GetItem(list, index);
+        Py_XINCREF(item);
+        return item;
+    }
+
+    static CYTHON_INLINE int
+    __Pyx_CAPI_PyList_Extend(PyObject *list, PyObject *iterable)
+    {
+        return PyList_SetSlice(list, PY_SSIZE_T_MAX, PY_SSIZE_T_MAX, iterable);
+    }
+
+    static CYTHON_INLINE int
+    __Pyx_CAPI_PyList_Clear(PyObject *list)
+    {
+        return PyList_SetSlice(list, 0, PY_SSIZE_T_MAX, NULL);
+    }
+    #else
+    #define __Pyx_CAPI_PyList_GetItemRef PyList_GetItemRef
+    #define __Pyx_CAPI_PyList_Extend PyList_Extend
+    #define __Pyx_CAPI_PyList_Clear PyList_Clear
+    #endif
+    """
+
 cdef extern from "Python.h":
 
     ############################################################################
@@ -29,12 +59,17 @@ cdef extern from "Python.h":
     Py_ssize_t PyList_GET_SIZE(object list)
     # Macro form of PyList_Size() without error checking.
 
+    PyObject* PyList_GetItemRef "__Pyx_CAPI_PyList_GetItemRef" (object list, Py_ssize_t index) except NULL
+    # Return value: New reference.
+    # Return the object at position index in the list pointed to by list.
+    # The position must be non-negative; indexing from the end of the
+    # list is not supported. If index is out of bounds (<0 or >=len(list)),
+    # return NULL and set an IndexError exception.
+
     PyObject* PyList_GetItem(object list, Py_ssize_t index) except NULL
     # Return value: Borrowed reference.
-    # Return the object at position pos in the list pointed to by
-    # p. The position must be positive, indexing from the end of the
-    # list is not supported. If pos is out of bounds, return NULL and
-    # set an IndexError exception.
+    # Like PyList_GetItemRef(), but returns a borrowed reference instead of
+    # a strong reference.
 
     PyObject* PyList_GET_ITEM(object list, Py_ssize_t i)
     # Return value: Borrowed reference.
@@ -77,6 +112,20 @@ cdef extern from "Python.h":
     # itemlist. Analogous to list[low:high] = itemlist. The itemlist
     # may be NULL, indicating the assignment of an empty list (slice
     # deletion). Return 0 on success, -1 on failure.
+
+    int PyList_Extend "__Pyx_CAPI_PyList_Extend" (object list, object iterable) except -1
+    # Extend list with the contents of iterable. This is the same as
+    # PyList_SetSlice(list, PY_SSIZE_T_MAX, PY_SSIZE_T_MAX, iterable)
+    # and analogous to list.extend(iterable) or list += iterable.
+    # Raise an exception and return -1 if list is not a list object.
+    # Return 0 on success.
+
+    int PyList_Clear "__Pyx_CAPI_PyList_Clear" (object list) except -1
+    # Remove all items from list. This is the same as
+    # PyList_SetSlice(list, 0, PY_SSIZE_T_MAX, NULL) and analogous
+    # to list.clear() or del list[:].
+    # Raise an exception and return -1 if list is not a list object.
+    # Return 0 on success.
 
     int PyList_Sort(object list) except -1
     # Sort the items of list in place. Return 0 on success, -1 on
