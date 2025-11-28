@@ -14857,6 +14857,8 @@ class CoerceToBooleanNode(CoercionNode):
         Builtin.bytes_type:      '__Pyx_PyBytes_GET_SIZE',
         Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
         Builtin.unicode_type:    '__Pyx_PyUnicode_IS_TRUE',
+        Builtin.int_type:        '__Pyx_PyLong_IsNonZero',
+        Builtin.float_type:      '__Pyx_PyFloat_IsNonZero',
     }
 
     def __init__(self, arg, env):
@@ -14888,11 +14890,20 @@ class CoerceToBooleanNode(CoercionNode):
                 code.putln(f"if ({self.arg.py_result()} == Py_None) {self.result()} = 0;")
                 code.putln("else")
             code.putln("{")
+
             # Be aware that __Pyx_PyUnicode_IS_TRUE isn't strictly returning a size (but it does
             # return an int which fits into a Py_ssize_t).
             code.putln(f"Py_ssize_t {Naming.quick_temp_cname} = {test_func}({self.arg.py_result()});")
+
+            if self.arg.type is Builtin.int_type:
+                is_safe_test_func = "CYTHON_USE_PYLONG_INTERNALS"
+            elif self.arg.type is Builtin.float_type:
+                is_safe_test_func = "CYTHON_ASSUME_SAFE_MACROS"
+            else:
+                is_safe_test_func = "CYTHON_ASSUME_SAFE_SIZE"
+
             code.putln(code.error_goto_if(
-                f"((!CYTHON_ASSUME_SAFE_SIZE) && {Naming.quick_temp_cname} < 0)", self.pos))
+                f"((!{is_safe_test_func}) && {Naming.quick_temp_cname} < 0)", self.pos))
             code.putln(f"{self.result()} = ({Naming.quick_temp_cname} != 0);")
             code.putln("}")
             code.putln()
