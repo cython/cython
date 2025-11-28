@@ -18,7 +18,7 @@ from functools import partial
 def get_config_var(name, default=''):
     return sysconfig.get_config_var(name) or default
 
-CC = get_config_var('CC', os.environ.get('CC', ''))
+CC = get_config_var('CC', os.environ.get('CC', 'cl' if sys.platform == 'win32' else 'cc'))
 INCDIR = sysconfig.get_path('include')
 LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
