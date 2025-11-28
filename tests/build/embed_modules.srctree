@@ -24,6 +24,7 @@ LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
 PYLIB = get_config_var('LIBRARY')
 PYLIB_DYN = get_config_var('LDLIBRARY')
+print(f"PYLIBS: {PYLIB!r} {PYLIB_DYN!r}")
 if PYLIB_DYN == PYLIB:
     # no shared library
     PYLIB_DYN = ''
@@ -35,11 +36,13 @@ else:
 
 CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
 print("CFLAGS:", CFLAGS)
+
 LINKCC = get_config_var('LINKCC', os.environ.get('LINKCC', CC))
 LINKFORSHARED = get_config_var('LINKFORSHARED')
 LIBS = get_config_var('LIBS')
 SYSLIBS = get_config_var('SYSLIBS')
 EXE_EXT = sysconfig.get_config_var('EXE')
+print(f"LIBS: {LIBS!r} {SYSLIBS!r} {LINKFORSHARED!r}")
 
 
 def main(args):
