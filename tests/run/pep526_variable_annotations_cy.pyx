@@ -98,3 +98,32 @@ def test_tuple(typing.Tuple[int, float] a,  typing.Tuple[int, ...] b,
     print(cython.typeof(x[0]))
     print(cython.typeof(y))
     print(cython.typeof(c))
+
+def test_tuple_assignment(i, list[int] la, set[int] sa, dict[int, int] da, frozenset[int] fa):
+    """
+    >>> test_tuple_assignment(0, [], set(), {}, frozenset({}))  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError:
+    >>> test_tuple_assignment(1, [], set(), {}, frozenset({}))  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError:
+    >>> test_tuple_assignment(2, [], set(), {}, frozenset({}))  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError:
+    >>> test_tuple_assignment(3, [], set(), {}, frozenset({}))  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError:
+    """
+    cdef tuple[int] ta = (1,)
+    if i == 0:
+        la = ta
+    elif i == 1:
+        sa = ta
+    elif i == 2:
+        da = ta
+    elif i == 3:
+        fa = ta
