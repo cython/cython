@@ -47,7 +47,7 @@ def main(args):
     run = partial(subprocess.run, env=env)
 
     compile_commands = [
-        [CC, '-c', '-o', filename+'.o', filename+'.c', '-I' + INCDIR]
+        [*CC.split(), '-c', '-o', filename+'.o', filename+'.c', '-I' + INCDIR]
         for filename in c_base_names
     ]
     print(compile_commands)
@@ -57,9 +57,11 @@ def main(args):
             pass
 
     linker_command = ([
-        LINKCC, '-o', app_name + EXE_EXT, *[filename + '.o' for filename in c_base_names],
-        '-L'+LIBDIR1, '-L'+LIBDIR2]
-        + [PYLIB_DYN and ('-l'+PYLIB_DYN) or os.path.join(LIBDIR1, PYLIB)]
+        *LINKCC.split(), '-o', app_name + EXE_EXT,
+        *[filename + '.o' for filename in c_base_names],
+        *['-L'+libdir for libdir in [LIBDIR1, LIBDIR2] if libdir],
+        '-l'+PYLIB_DYN if PYLIB_DYN else os.path.join(LIBDIR1, PYLIB),
+        ]
         + LIBS.split() + SYSLIBS.split() + LINKFORSHARED.split()
     )
     print(linker_command)
