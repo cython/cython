@@ -38,11 +38,11 @@ LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
 PYLIB_DIR = get_config_var("installed_platbase")
 PYLIB = get_config_var('LIBRARY')
-PYLIB_DYN = get_config_var('LDLIBRARY')
+PYLIB_DYN = get_config_var('LDLIBRARY') if sys.platform != 'darwin' else ''
 if PYLIB_DYN == PYLIB:
     # no shared library
     PYLIB_DYN = ''
-else:
+elif PYLIB_DYN:
     # 'lib(XYZ).so' -> XYZ
     PYLIB_DYN = os.path.splitext(PYLIB_DYN)[0]
     if PYLIB_DYN.startswith('lib'):
