@@ -9299,12 +9299,9 @@ class CArrayNode(ListNode):
             array_type = self._non_const_array_type()
             self.array_cname = code.funcstate.closure_temps.allocate_carray(array_type, self.pos)
         else:
-            # To be valid C++, we must allocate the memory on the stack
-            # manually and be sure not to reuse it for something else.
-            # Yes, this means that we leak a temp array variable.
+            # To be valid C++, we must allocate the memory on the stack manually, not as 'const'.
             array_type = self._non_const_array_type()
-            self.array_cname = code.funcstate.allocate_temp(
-                array_type, manage_ref=False, reusable=False)
+            self.array_cname = code.funcstate.allocate_temp(array_type, manage_ref=False)
             self._array_cname_temp = self.array_cname
         return self.array_cname
 
