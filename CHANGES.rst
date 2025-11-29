@@ -53,6 +53,12 @@ Other changes
 3.2.2 (2025-??-??)
 ==================
 
+Features added
+--------------
+
+* The C-API declarations were updated to include the new ``PyDict_*Ref()`` functions.
+  (Github issue :issue:`7291`)
+
 Bugs fixed
 ----------
 
