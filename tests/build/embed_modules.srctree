@@ -5,7 +5,6 @@ CYTHONIZE -j2 embedded1.pyx embedded2.pyx
 CYTHON --embed --embed-modules embedded1,embedded2 main_module.pyx
 PYTHON build.py main_module main_module.c embedded1.c embedded2.c
 PYTHON run.py main_module
-PYTHON -c 'assert False'
 
 ################### build.py ########################
 
