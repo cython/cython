@@ -38,7 +38,7 @@ LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
 PYLIB_DIR = get_config_var("installed_platbase")
 PYLIB = get_config_var('LIBRARY')
-PYLIB_DYN = get_config_var('LDLIBRARY') if sys.platform != 'darwin' else ''
+PYLIB_DYN = get_config_var('LDLIBRARY') if sys.platform != 'darwin' else f'python{sys.version_info[0]}.{sys.version_info[1]}'
 if PYLIB_DYN == PYLIB:
     # no shared library
     PYLIB_DYN = ''
