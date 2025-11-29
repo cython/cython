@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 3.2.x
   pull_request:
     paths:
       # Only run these tests on PRs likely to affect code generation
