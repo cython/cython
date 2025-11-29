@@ -10,11 +10,9 @@ PYTHON run.py main_module
 
 import os
 import setuptools
-import subprocess
 import sys
 import sysconfig
 from concurrent.futures import ThreadPoolExecutor
-from functools import partial
 
 IS_WINDOWS = sys.platform == 'win32'
 
@@ -30,10 +28,11 @@ else:
     compiler_exe = ccompiler.compiler
     linker_exe = ccompiler.linker_exe
 
+
 def get_config_var(name, default='', *, _get_config_var=sysconfig.get_config_vars().get):
     return _get_config_var(name, default)
 
-CC = get_config_var('CC', os.environ.get('CC', ' '.join(compiler_exe)))
+
 INCDIR = sysconfig.get_path('include')
 LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
@@ -51,49 +50,59 @@ else:
 
 CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
 
-LINKCC = get_config_var('LINKCC', os.environ.get('LINKCC', ' '.join(linker_exe)))
 OBJ_EXT = ccompiler.obj_extension
-LINKFORSHARED = get_config_var('LINKFORSHARED')
-LIBS = get_config_var('LIBS')
-SYSLIBS = get_config_var('SYSLIBS')
 EXE_EXT = get_config_var('EXE')
+
+
+def compile(source_file):
+    ccompiler.compile(
+        sources=[source_file],
+        include_dirs=[INCDIR],
+        extra_postargs=CFLAGS.split(),
+    )
+
+
+def link_exe(objects, app_name):
+    library_dirs = [
+        libdir for libdir in
+        [LIBDIR1, LIBDIR2, os.path.join(PYLIB_DIR, "libs")]
+        if libdir and os.path.isdir(libdir)
+    ]
+    libraries = []
+    if PYLIB_DYN:
+        libraries.append(PYLIB_DYN)
+    elif PYLIB:
+        libraries.append(os.path.join(LIBDIR1, PYLIB))
+
+    ccompiler.link(
+        ccompiler.EXECUTABLE,
+        objects,
+        output_filename=app_name + EXE_EXT,
+        libraries=libraries,
+        library_dirs=library_dirs,
+        runtime_library_dirs=[PYLIB_DIR],
+    )
 
 
 def main(args):
     app_name, *c_files = args
     c_base_names = [filename[:-2] for filename in c_files]
-    env = os.environ.copy()
-    env['CFLAGS'] = CFLAGS
-    run = partial(subprocess.run, env=env)
 
     print("CFLAGS:", CFLAGS)
-    print(f"LIBS: {LIBS!r} {SYSLIBS!r} {LINKFORSHARED!r}")
     print(f"PYLIBS: {PYLIB!r} {PYLIB_DYN!r}")
 
-    compile_commands = [
-        [*CC.split(), '-c', filename+'.c', '-I' + INCDIR]
-        for filename in c_base_names
-    ]
+    compile_commands = [filename+'.c' for filename in c_base_names]
     for command in compile_commands:
         print("CC:", command)
 
     with ThreadPoolExecutor() as pool:
-        for _ in pool.map(run, compile_commands):
+        for _ in pool.map(compile, compile_commands):
             pass
 
-    linker_command = [
-        *LINKCC.split(),
-        *[filename + OBJ_EXT for filename in c_base_names],
-        *['-L'+libdir for libdir in [LIBDIR1, LIBDIR2] if libdir],
-        *(['-l'+PYLIB_DYN] if PYLIB_DYN else [os.path.join(LIBDIR1, PYLIB)] if PYLIB else []),
-        *LIBS.split(),
-        *SYSLIBS.split(),
-        *LINKFORSHARED.split(),
-        *([f'/LIBPATH:{os.path.join(get_config_var("installed_platbase"), "libs")}'] if IS_WINDOWS else []),
-        *([f'/OUT:{app_name+EXE_EXT}'] if IS_WINDOWS else ['-o', app_name + EXE_EXT]),
-    ]
-    print("LD:", linker_command)
-    run(linker_command)
+    link_exe(
+        [filename + OBJ_EXT for filename in c_base_names],
+        app_name=app_name,
+    )
 
 
 if __name__ == '__main__':
@@ -111,7 +120,8 @@ EXE_EXT = get_config_var('EXE')
 PYLIB_DIR = get_config_var("installed_platbase")
 
 PATH = os.environ.get('PATH', '')
-os.environ.update(PATH=f".:{PYLIB_DIR}:{PATH}")
+sep = os.pathsep
+os.environ.update(PATH=f".{sep}{PYLIB_DIR}{sep}{PATH}")
 
 result = run([os.path.abspath(sys.argv[1] + EXE_EXT)], capture_output=True)
 assert b"DONE" in result.stdout
