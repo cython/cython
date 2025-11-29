@@ -9,14 +9,12 @@ PYTHON run.py main_module
 ################### build.py ########################
 
 import os
+import setuptools
 import subprocess
 import sys
 import sysconfig
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-
-def get_config_var(name, default=''):
-    return sysconfig.get_config_var(name) or default
 
 IS_WINDOWS = sys.platform == 'win32'
 
@@ -26,6 +24,9 @@ if IS_WINDOWS:
 else:
     import distutils.unixccompiler as setuptools_cc  # from setuptools
     ccompiler = setuptools_cc.UnixCCompiler()
+
+def get_config_var(name, default='', *, _get_config_var=sysconfig.get_config_vars().get):
+    return _get_config_var(name, default)
 
 CC = get_config_var('CC', os.environ.get('CC', ' '.join(ccompiler.compiler)))
 INCDIR = sysconfig.get_path('include')
