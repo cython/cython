@@ -21,14 +21,19 @@ IS_WINDOWS = sys.platform == 'win32'
 if IS_WINDOWS:
     import distutils.msvccompiler as setuptools_msvc  # from setuptools
     ccompiler = setuptools_msvc.MSVCCompiler()
+    ccompiler.initialize()
+    compiler_exe = ccompiler.cc
+    linker_exe = ccompiler.linker
 else:
     import distutils.unixccompiler as setuptools_cc  # from setuptools
     ccompiler = setuptools_cc.UnixCCompiler()
+    compiler_exe = ccompiler.compiler
+    linker_exe = ccompiler.linker_exe
 
 def get_config_var(name, default='', *, _get_config_var=sysconfig.get_config_vars().get):
     return _get_config_var(name, default)
 
-CC = get_config_var('CC', os.environ.get('CC', ' '.join(ccompiler.compiler)))
+CC = get_config_var('CC', os.environ.get('CC', ' '.join(compiler_exe)))
 INCDIR = sysconfig.get_path('include')
 LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
@@ -46,7 +51,7 @@ else:
 
 CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
 
-LINKCC = get_config_var('LINKCC', os.environ.get('LINKCC', ' '.join(ccompiler.linker_exe)))
+LINKCC = get_config_var('LINKCC', os.environ.get('LINKCC', ' '.join(linker_exe)))
 OBJ_EXT = ccompiler.obj_extension
 LINKFORSHARED = get_config_var('LINKFORSHARED')
 LIBS = get_config_var('LIBS')
