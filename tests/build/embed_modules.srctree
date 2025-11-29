@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 IS_WINDOWS = sys.platform == 'win32'
 
 if IS_WINDOWS:
-    import distutils.msvccompiler as setuptools_msvc  # from setuptools
+    import distutils.msvc9compiler as setuptools_msvc  # from setuptools
     ccompiler = setuptools_msvc.MSVCCompiler()
     ccompiler.initialize()
     compiler_exe = ccompiler.cc
