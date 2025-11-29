@@ -2036,7 +2036,7 @@ class EndToEndTest(unittest.TestCase):
         new_path = self.cython_syspath
         if old_path:
             new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
-        env_cflags = list(CFLAGS) + [f'"-D{macro}={definition}"' for macro, definition in CDEFS]
+        env_cflags = list(CFLAGS) + [f'-D{macro}={definition}' for macro, definition in CDEFS]
         env_cflags = " ".join(env_cflags)
         env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8',
                    CFLAGS=env_cflags)
