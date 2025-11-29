@@ -5,6 +5,7 @@ CYTHONIZE -j2 embedded1.pyx embedded2.pyx
 CYTHON --embed --embed-modules embedded1,embedded2 main_module.pyx
 PYTHON build.py main_module main_module.c embedded1.c embedded2.c
 PYTHON run.py main_module
+PYTHON -c 'assert False'
 
 ################### build.py ########################
 
@@ -90,6 +91,8 @@ def main(args):
 
     print("CFLAGS:", CFLAGS)
     print(f"PYLIBS: {PYLIB!r} {PYLIB_DYN!r}")
+    print(f"LINK: {LIBDIR1!r} {LIBDIR2!r}")
+    print("LIBDIR1:", os.listdir(LIBDIR1))
 
     compile_commands = [filename+'.c' for filename in c_base_names]
     for command in compile_commands:
