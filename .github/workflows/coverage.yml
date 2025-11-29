@@ -3,13 +3,11 @@ name: coverage
 on:
   push:
     paths:
-      - '!.github/**'
       - '.github/workflows/coverage.yml'
       - "Cython/**"
       - "tests/**"
   pull_request:
     paths:
-      - '!.github/**'
       - '.github/workflows/coverage.yml'
       - "Cython/**"
       - "tests/**"
