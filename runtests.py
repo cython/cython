@@ -2945,6 +2945,11 @@ def runtests(options, cmd_args, coverage=None):
             TagsSelector('tag', 'memoryview'),
             FileListExcluder(os.path.join(ROOTDIR, "memoryview_tests.txt")),
         ]
+    if options.limited_api:
+        # The Limited API is really useless for embedding in a specific Python runtime.
+        exclude_selectors += [
+            TagsSelector('tag', 'embed'),
+        ]
 
     if not test_bugs and re.match("arm|aarch", platform.machine(), re.IGNORECASE):
         # Pythran is only excluded on arm because it fails to link with blas on the CI.
