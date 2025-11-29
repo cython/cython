@@ -153,6 +153,10 @@ class BaseType:
         """
         return None
 
+    def get_container_type(self) -> str:
+        """Equivalent to typing.get_origin()"""
+        return None
+
 
 class PyrexType(BaseType):
     #
@@ -4844,15 +4848,6 @@ class PythonTypeConstructorMixin:
         except IndexError:
             return None
 
-    def infer_indexed_type(self):
-        if self.get_container_type() == 'dict':
-            return self.get_subscripted_type(1)
-        else:
-            return self.get_subscripted_type(0)
-
-    def infer_iterator_type(self):
-        return self.get_subscripted_type(0)
-
     def allows_none(self):
         return (
             self.modifier_name == 'typing.Optional' or
@@ -4860,18 +4855,13 @@ class PythonTypeConstructorMixin:
         )
 
     @staticmethod
-    def _get_container_type(type_name: str) -> str:
-        """Equivalent to typing.get_origin()"""
+    def _get_container_type_name(type_name: str) -> str:
+        """Extracts base name of the indexed type. E.g. for `list[int]` returns list."""
         return re.match('[^[]+', type_name).group()
-
-
-    def get_container_type(self) -> str:
-        """Equivalent to typing.get_origin()"""
-        return self._get_container_type(self.name)
 
     def set_python_type_constructor_name(self, name: str) -> None:
         """Function extracts type name. It removes subscribed part of the type."""
-        self.python_type_constructor_name = self._get_container_type(name)
+        self.python_type_constructor_name = self._get_container_type_name(name)
 
     def __repr__(self):
         if self.base_type:
@@ -4939,6 +4929,19 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         if exact and not self.is_exception_type and type_name not in ('bool', 'slice', 'memoryview'):
             type_check += 'Exact'
         return type_check
+
+    def infer_indexed_type(self):
+        if self.get_container_type() == 'dict':
+            return self.get_subscripted_type(1)
+        else:
+            return self.get_subscripted_type(0)
+
+    def infer_iterator_type(self):
+        return self.get_subscripted_type(0)
+
+    def get_container_type(self) -> str:
+        """Equivalent to typing.get_origin()"""
+        return self._get_container_type_name(self.name)
 
     def __eq__(self, other):
         return isinstance(other, BuiltinTypeConstructorObjectType) and self.get_container_type() == other.get_container_type()
