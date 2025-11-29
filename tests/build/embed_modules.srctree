@@ -67,17 +67,17 @@ def main(args):
         for _ in pool.map(run, compile_commands):
             pass
 
-    linker_command = ([
+    linker_command = [
         *LINKCC.split(),
         *[filename + OBJ_EXT for filename in c_base_names],
         *['-L'+libdir for libdir in [LIBDIR1, LIBDIR2] if libdir],
-        '-l'+PYLIB_DYN if PYLIB_DYN else os.path.join(LIBDIR1, PYLIB),
-        ]
-        + LIBS.split() + SYSLIBS.split() + LINKFORSHARED.split()
-        + ([f'/LIBPATH:{os.path.join(get_config_var("installed_platbase"), "libs")}'] if IS_WINDOWS else [])
-        + ([f'/OUT:{app_name+EXE_EXT}'] if IS_WINDOWS else ['-o', app_name + EXE_EXT])
-    )
-    linker_command = [part for part in linker_command if part]
+        *(['-l'+PYLIB_DYN] if PYLIB_DYN else [os.path.join(LIBDIR1, PYLIB)] if PYLIB else []),
+        *LIBS.split(),
+        *SYSLIBS.split(),
+        *LINKFORSHARED.split(),
+        *([f'/LIBPATH:{os.path.join(get_config_var("installed_platbase"), "libs")}'] if IS_WINDOWS else []),
+        *([f'/OUT:{app_name+EXE_EXT}'] if IS_WINDOWS else ['-o', app_name + EXE_EXT]),
+    ]
     print("LD:", linker_command)
     run(linker_command)
 
