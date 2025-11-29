@@ -20,10 +20,18 @@ def get_config_var(name, default=''):
 
 IS_WINDOWS = sys.platform == 'win32'
 
-CC = get_config_var('CC', os.environ.get('CC', 'cl' if IS_WINDOWS else 'cc'))
+if IS_WINDOWS:
+    import distutils.msvccompiler as setuptools_msvc  # from setuptools
+    ccompiler = setuptools_msvc.MSVCCompiler()
+else:
+    import distutils.unixccompiler as setuptools_cc  # from setuptools
+    ccompiler = setuptools_cc.UnixCCompiler()
+
+CC = get_config_var('CC', os.environ.get('CC', ' '.join(ccompiler.compiler)))
 INCDIR = sysconfig.get_path('include')
 LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
+PYLIB_DIR = get_config_var("installed_platbase")
 PYLIB = get_config_var('LIBRARY')
 PYLIB_DYN = get_config_var('LDLIBRARY')
 if PYLIB_DYN == PYLIB:
@@ -37,12 +45,12 @@ else:
 
 CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
 
-LINKCC = get_config_var('LINKCC', os.environ.get('LINKCC', 'link' if IS_WINDOWS else CC))
-OBJ_EXT = '.obj' if IS_WINDOWS else '.o'
+LINKCC = get_config_var('LINKCC', os.environ.get('LINKCC', ' '.join(ccompiler.linker_exe)))
+OBJ_EXT = ccompiler.obj_extension
 LINKFORSHARED = get_config_var('LINKFORSHARED')
 LIBS = get_config_var('LIBS')
 SYSLIBS = get_config_var('SYSLIBS')
-EXE_EXT = sysconfig.get_config_var('EXE')
+EXE_EXT = get_config_var('EXE')
 
 
 def main(args):
@@ -81,16 +89,6 @@ def main(args):
     print("LD:", linker_command)
     run(linker_command)
 
-    if IS_WINDOWS:
-        # Copy extension module to workdir.
-        import shutil
-        dll_filename = f'python{get_config_var("VERSION")}.dll'
-        shutil.copyfile(
-            os.path.join(
-                get_config_var("installed_platbase"),
-                dll_filename),
-            dll_filename
-        )
 
 if __name__ == '__main__':
     main(sys.argv[1:])
@@ -100,10 +98,14 @@ if __name__ == '__main__':
 
 import os
 import sys
-import sysconfig
 from subprocess import run
+from sysconfig import get_config_var
 
-EXE_EXT = sysconfig.get_config_var('EXE')
+EXE_EXT = get_config_var('EXE')
+PYLIB_DIR = get_config_var("installed_platbase")
+
+PATH = os.environ.get('PATH', '')
+os.environ.update(PATH=f".:{PYLIB_DIR}:{PATH}")
 
 result = run([os.path.abspath(sys.argv[1] + EXE_EXT)], capture_output=True)
 assert b"DONE" in result.stdout
