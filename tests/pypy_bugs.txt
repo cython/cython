@@ -37,6 +37,7 @@ run.reimport_from_subinterpreter
 run.reimport_failure
 pkg.cimportfrom
 embedded
+embed_modules
 TestCyCache
 run.ext_auto_richcmp
 run.coverage_cmd

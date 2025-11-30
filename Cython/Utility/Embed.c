@@ -1,5 +1,13 @@
 //////////////////// MainFunction ////////////////////
 
+#ifdef Py_LIMITED_API
+// The purpose of the Limited API is to allow building extension modules
+// that import on different Python versions.  It is quite useless
+// (and unnecessarily constraining) to set it up for an embedded Python build
+// against a specific Python implementation and version.
+#error Do not use the Limited API for embedding. Build for the specific Python target version instead.
+#endif
+
 #ifdef __FreeBSD__
 #include <floatingpoint.h>
 #endif
