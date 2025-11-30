@@ -219,13 +219,14 @@ class IterationTransform(Visitor.EnvTransform):
         return self._optimise_for_loop(node, node.iterator.sequence)
 
     def _optimise_for_loop(self, node, iterable, reversed=False):
+        iter_type = iterable.type
         annotation_type = None
         if (iterable.is_name or iterable.is_attribute) and iterable.entry and iterable.entry.annotation:
             annotation = iterable.entry.annotation.expr
             if annotation.is_subscript:
                 annotation = annotation.base  # container base type
 
-        if Builtin.dict_type in (iterable.type, annotation_type):
+        if Builtin.dict_type in (iter_type, annotation_type):
             # like iterating over dict.keys()
             if reversed:
                 # CPython raises an error here: not a sequence
@@ -233,29 +234,31 @@ class IterationTransform(Visitor.EnvTransform):
             return self._transform_dict_iteration(
                 node, dict_obj=iterable, method=None, keys=True, values=False)
 
-        if (Builtin.set_type in (iterable.type, annotation_type) or
-                Builtin.frozenset_type in (iterable.type, annotation_type)):
+        if (Builtin.set_type in (iter_type, annotation_type) or
+                Builtin.frozenset_type in (iter_type, annotation_type)):
             if reversed:
                 # CPython raises an error here: not a sequence
                 return node
             return self._transform_set_iteration(node, iterable)
 
+        env = self.current_env()
+
         # C array (slice) iteration?
-        if iterable.type.is_ptr or iterable.type.is_array:
+        if iter_type.is_ptr or iter_type.is_array:
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
-        if iterable.is_sequence_constructor:
+        if iterable.is_sequence_constructor and not env.is_generator_scope:
             # Convert iteration over homogeneous sequences of C types into array iteration.
-            env = self.current_env()
+            # FIXME: using ListNode in this way currently generates invalid C code inside of generator loops.
             item_type = ExprNodes.infer_sequence_item_type(
-                env, iterable, seq_type=iterable.type)
+                env, iterable, seq_type=iter_type)
             if item_type and not item_type.is_pyobject and not any(item.is_starred for item in iterable.args):
                 iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args).analyse_types(env).coerce_to(
                     PyrexTypes.c_array_type(item_type, len(iterable.args)), env)
                 return self._transform_carray_iteration(node, iterable, reversed=reversed)
-        if iterable.is_string_literal:
+        if iterable.is_string_literal and not env.is_generator_scope:
             # Iterate over C array of single character values.
-            env = self.current_env()
-            if iterable.type is Builtin.unicode_type:
+            # FIXME: using ListNode in this way currently generates invalid C code inside of generator loops.
+            if iter_type is Builtin.unicode_type:
                 item_type = PyrexTypes.c_py_ucs4_type
                 items = map(ord, iterable.value)
             else:
@@ -266,13 +269,16 @@ class IterationTransform(Visitor.EnvTransform):
             iterable = ExprNodes.ListNode(iterable.pos, args=[as_int_node(ch)for ch in items])
             iterable = iterable.analyse_types(env).coerce_to(PyrexTypes.c_array_type(item_type, len(iterable.args)), env)
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
-        if iterable.type is Builtin.bytes_type:
-            return self._transform_bytes_iteration(node, iterable, reversed=reversed)
-        if iterable.type is Builtin.unicode_type:
+        if iter_type is Builtin.bytes_type:
+            if env.is_generator_scope:
+                return self._transform_indexable_iteration(node, iterable, is_mutable=False, reversed=reversed)
+            else:
+                return self._transform_bytes_iteration(node, iterable, reversed=reversed)
+        if iter_type is Builtin.unicode_type:
             return self._transform_unicode_iteration(node, iterable, reversed=reversed)
         # in principle _transform_indexable_iteration would work on most of the above, and
         # also tuple and list. However, it probably isn't quite as optimized
-        if iterable.type is Builtin.bytearray_type:
+        if iter_type is Builtin.bytearray_type:
             return self._transform_indexable_iteration(node, iterable, is_mutable=True, reversed=reversed)
         if isinstance(iterable, ExprNodes.CoerceToPyTypeNode) and iterable.arg.type.is_memoryviewslice:
             return self._transform_indexable_iteration(node, iterable.arg, is_mutable=False, reversed=reversed)
@@ -601,7 +607,8 @@ class IterationTransform(Visitor.EnvTransform):
         exception_value=-1)
 
     def _transform_unicode_iteration(self, node, slice_node, reversed=False):
-        if slice_node.is_literal:
+        env = self.current_env()
+        if slice_node.is_literal and not env.is_generator_scope:
             # try to reduce to byte iteration for plain Latin-1 strings
             try:
                 bytes_value = bytes_literal(slice_node.value.encode('latin1'), 'iso8859-1')
@@ -614,7 +621,7 @@ class IterationTransform(Visitor.EnvTransform):
                         slice_node.pos, value=bytes_value,
                         constant_result=bytes_value,
                         type=PyrexTypes.c_const_char_ptr_type).coerce_to(
-                            PyrexTypes.c_const_uchar_ptr_type, self.current_env()),
+                            PyrexTypes.c_const_uchar_ptr_type, env),
                     start=None,
                     stop=ExprNodes.IntNode.for_size(slice_node.pos, len(bytes_value)),
                     type=Builtin.unicode_type,  # hint for Python conversion
@@ -646,8 +653,7 @@ class IterationTransform(Visitor.EnvTransform):
             is_temp = False,
             )
         if target_value.type != node.target.type:
-            target_value = target_value.coerce_to(node.target.type,
-                                                  self.current_env())
+            target_value = target_value.coerce_to(node.target.type, env)
         target_assign = Nodes.SingleAssignmentNode(
             pos = node.target.pos,
             lhs = node.target,
