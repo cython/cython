@@ -604,10 +604,7 @@ def import_ext(module_name, file_path=None):
 class build_ext(_build_ext):
     def build_extension(self, ext):
         try:
-            try: # Py2.7+ & Py3.2+
-                compiler_obj = self.compiler_obj
-            except AttributeError:
-                compiler_obj = self.compiler
+            compiler_obj = self.compiler
             if ext.language == 'c++':
                 compiler_obj.compiler_so.remove('-Wstrict-prototypes')
             if CCACHE:
@@ -2140,7 +2137,7 @@ class EmbedTest(unittest.TestCase):
 
 def load_listfile(filename):
     # just reuse the FileListExclude implementation
-    return list(FileListExcluder(filename))
+    return FileListExcluder(filename)
 
 class MissingDependencyExcluder(object):
     def __init__(self, deps):
@@ -2442,6 +2439,10 @@ def main():
         action="append",
         help="specify a file containing a list of tests to run")
     parser.add_argument(
+        "--excludefile", dest="excludefile",
+        action="append",
+        help="specify a file containing a list of tests to run")
+    parser.add_argument(
         "-j", "--shard_count", dest="shard_count", metavar="N",
         type=int, default=1,
         help="shard this run into several parallel runs")
@@ -2580,7 +2581,7 @@ def main():
 
     if options.listfile:
         for listfile in options.listfile:
-            cmd_args.extend(load_listfile(listfile))
+            cmd_args.extend(load_listfile(listfile).excludes.keys())
 
     if options.capture and not options.for_debugging:
         keep_alive_interval = 10
@@ -2903,6 +2904,10 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
+
+    if options.excludefile:
+        for excludefile in options.excludefile:
+            exclude_selectors.append(load_listfile(excludefile))
 
     if not COMPILER_HAS_INT128:
         exclude_selectors += [RegExSelector('int128')]

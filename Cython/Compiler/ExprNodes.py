@@ -1813,7 +1813,7 @@ class BytesNode(ConstNode):
             node.type = dst_type
             return node
         elif dst_type in (PyrexTypes.c_uchar_ptr_type, PyrexTypes.c_const_uchar_ptr_type, PyrexTypes.c_void_ptr_type):
-            node.type = (PyrexTypes.c_const_char_ptr_type if dst_type == PyrexTypes.c_const_uchar_ptr_type
+            node.type = (PyrexTypes.c_const_char_ptr_type if dst_type.base_type.is_const
                          else PyrexTypes.c_char_ptr_type)
             return CastNode(node, dst_type)
         elif dst_type.assignable_from(PyrexTypes.c_char_ptr_type):
@@ -1830,7 +1830,7 @@ class BytesNode(ConstNode):
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
             result = code.get_py_string_const(self.value)
-        elif self.type.is_const:
+        elif (self.type.is_ptr or self.type.is_array) and self.type.base_type.is_const:
             result = code.get_string_const(self.value)
         else:
             # not const => use plain C string literal and cast to mutable type
@@ -14836,6 +14836,8 @@ class CoerceToBooleanNode(CoercionNode):
         Builtin.bytes_type:      '__Pyx_PyBytes_GET_SIZE',
         Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
         Builtin.unicode_type:    '__Pyx_PyUnicode_IS_TRUE',
+        Builtin.int_type:        '__Pyx_PyLong_IsNonZero',
+        Builtin.float_type:      '__Pyx_PyFloat_IsNonZero',
     }
 
     def __init__(self, arg, env):
@@ -14867,11 +14869,20 @@ class CoerceToBooleanNode(CoercionNode):
                 code.putln(f"if ({self.arg.py_result()} == Py_None) {self.result()} = 0;")
                 code.putln("else")
             code.putln("{")
+
             # Be aware that __Pyx_PyUnicode_IS_TRUE isn't strictly returning a size (but it does
             # return an int which fits into a Py_ssize_t).
             code.putln(f"Py_ssize_t {Naming.quick_temp_cname} = {test_func}({self.arg.py_result()});")
+
+            if self.arg.type is Builtin.int_type:
+                is_safe_test_func = "CYTHON_USE_PYLONG_INTERNALS"
+            elif self.arg.type is Builtin.float_type:
+                is_safe_test_func = "CYTHON_ASSUME_SAFE_MACROS"
+            else:
+                is_safe_test_func = "CYTHON_ASSUME_SAFE_SIZE"
+
             code.putln(code.error_goto_if(
-                f"((!CYTHON_ASSUME_SAFE_SIZE) && {Naming.quick_temp_cname} < 0)", self.pos))
+                f"((!{is_safe_test_func}) && {Naming.quick_temp_cname} < 0)", self.pos))
             code.putln(f"{self.result()} = ({Naming.quick_temp_cname} != 0);")
             code.putln("}")
             code.putln()
