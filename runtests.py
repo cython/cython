@@ -604,10 +604,7 @@ def import_ext(module_name, file_path=None):
 class build_ext(_build_ext):
     def build_extension(self, ext):
         try:
-            try: # Py2.7+ & Py3.2+
-                compiler_obj = self.compiler_obj
-            except AttributeError:
-                compiler_obj = self.compiler
+            compiler_obj = self.compiler
             if ext.language == 'c++':
                 compiler_obj.compiler_so.remove('-Wstrict-prototypes')
             if CCACHE:

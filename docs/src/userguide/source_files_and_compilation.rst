@@ -540,25 +540,12 @@ In some scenarios, it can be useful to link multiple Cython modules
 Python in another application.  This can be done through the inittab
 import mechanism of CPython.
 
-Create a new C file to integrate the extension modules and add this
-macro to it:
-
-.. code-block:: c
-
-    #if PY_MAJOR_VERSION < 3
-    # define MODINIT(name)  init ## name
-    #else
-    # define MODINIT(name)  PyInit_ ## name
-    #endif
-
-If you are only targeting Python 3.x, just use ``PyInit_`` as prefix.
-
-Then, for each of the modules, declare its module init function
+For each of the modules, declare its module init function
 as follows, replacing ``some_module_name`` with the name of the module:
 
 .. code-block:: c
 
-    PyMODINIT_FUNC  MODINIT(some_module_name) (void);
+    PyMODINIT_FUNC  PyInit_some_module_name (void);
 
 In C++, declare them as ``extern C``.
 
@@ -573,7 +560,7 @@ the name of each of the modules:
 
 .. code-block:: c
 
-    PyImport_AppendInittab("some_module_name", MODINIT(some_module_name));
+    PyImport_AppendInittab("some_module_name", PyInit_some_module_name);
 
 This enables normal imports for the embedded extension modules.
 
