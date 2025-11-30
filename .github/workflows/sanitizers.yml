@@ -6,6 +6,11 @@ on:
     branches:
       - master
       - 3.2.x
+    paths:
+      - ".github/workflows/sanitizers.yml"
+      - ".github/workflows/compiled_python.yml"
+      - "Cython/**"
+      - "tests/**"
   pull_request:
     paths:
       # Only run these tests on PRs likely to affect code generation
