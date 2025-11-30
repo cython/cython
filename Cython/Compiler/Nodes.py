@@ -8679,8 +8679,7 @@ class TryFinallyStatNode(StatNode):
                     code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
                     for _ in range(2)])
                 exc_filename_cname = code.funcstate.allocate_temp(
-                    PyrexTypes.CPtrType(PyrexTypes.c_const_type(PyrexTypes.c_char_type)),
-                    manage_ref=False)
+                    PyrexTypes.c_const_char_ptr_type, manage_ref=False)
             else:
                 exc_lineno_cnames = exc_filename_cname = None
             exc_vars = tuple([

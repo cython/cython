@@ -3744,6 +3744,7 @@ class ClosureTempAllocator:
         self.temps_allocated = {}
         self.temps_free = {}
         self.temps_count = 0
+        self.carray_count = 0
 
     def reset(self):
         for type, cnames in self.temps_allocated.items():
@@ -3760,3 +3761,9 @@ class ClosureTempAllocator:
         self.temps_allocated[type].append(cname)
         self.temps_count += 1
         return cname
+
+    def allocate_carray(self, array_type, pos):
+        cname = f'{Naming.carray_literal_prefix}{self.carray_count:d}'
+        self.klass.declare_var(pos=pos, name=cname, cname=cname, type=array_type, is_cdef=True)
+        self.carray_count += 1
+        return f"{Naming.cur_scope_cname}->{cname}"
