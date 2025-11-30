@@ -127,3 +127,75 @@ def test_tuple_assignment(i, list[int] la, set[int] sa, dict[int, int] da, froze
         da = ta
     elif i == 3:
         fa = ta
+
+
+def test_recursive_list():
+    """
+    >>> test_recursive_list()
+    list[list[int] object] object
+    list[int] object
+    int
+    1
+    """
+    cdef list[list[int]] la = [[1]]
+    print(cython.typeof(la))
+    print(cython.typeof(la[0]))
+    print(cython.typeof(la[0][0]))
+    print(la[0][0])
+
+def test_recursive_set():
+    """
+    >>> test_recursive_set()
+    set[frozenset[int] object] object
+    frozenset[int] object
+    int
+    1
+    """
+    cdef set[frozenset[int]] sa = {frozenset({1})}
+    print(cython.typeof(sa))
+    for fs in sa:
+        print(cython.typeof(fs))
+        for s in fs:
+            print(cython.typeof(s))
+            print(s)
+
+def test_recursive_dict():
+    """
+    >>> test_recursive_dict()
+    dict[frozenset[str object] object,list[int] object] object
+    frozenset[str object] object
+    list[int] object
+    int
+    2
+    str object
+    a
+    """
+    cdef dict[frozenset[str], list[int]] da = {frozenset({"a"}): [2]}
+    print(cython.typeof(da))
+    for dk in da:
+        print(cython.typeof(dk))
+        print(cython.typeof(da[dk]))
+        for l in da[dk]:
+            print(cython.typeof(l))
+            print(l)
+        for fs in dk:
+            print(cython.typeof(fs))
+            print(fs)
+
+def test_recursive_frozenset():
+    """
+    >>> test_recursive_frozenset()
+    frozenset[frozenset[int] object] object
+    frozenset[int] object
+    int
+    1
+    """
+    fa: frozenset[frozenset[cython.int]] = frozenset({frozenset({1})})
+    print(cython.typeof(fa))
+    for f in fa:
+        print(cython.typeof(f))
+        for a in f:
+            print(cython.typeof(a))
+            print(a)
+
+

@@ -1091,8 +1091,6 @@ class ExprNode(Node):
                 pass
             elif src.constant_result is None:
                 src = NoneNode(src.pos).coerce_to(dst_type, env)
-            elif dst_type in typed_container_types and src_type in typed_container_types and not dst_type.assignable_from(src_type):
-                self.fail_assignment(dst_type)
             elif src.type.is_pyobject:
                 if not src.type.subtype_of(dst_type):
                     # Apply a type check on assignment.
@@ -3500,6 +3498,8 @@ class NextNode(AtomicExprNode):
             item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
             item_type = PyrexTypes.remove_cv_ref(item_type, remove_fakeref=True)
             return item_type
+        elif (sequence_type := self.iterator.sequence.infer_type(env)) in typed_container_types and (iterator_type := sequence_type.infer_iterator_type()):
+            return iterator_type
         else:
             # Avoid duplication of complicated logic.
             fake_index_node = IndexNode(
@@ -4203,7 +4203,7 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
-        if base_type in typed_container_types and (sub_type := base_type.get_subscripted_type(0)):
+        if base_type in typed_container_types and (sub_type := base_type.infer_indexed_type()):
             return sub_type
 
         index_type = self.index.infer_type(env)
