@@ -24,6 +24,7 @@ import os.path
 import pathlib
 import re
 import sys
+from functools import partial
 from typing import Optional
 
 from .Errors import (
@@ -1773,7 +1774,7 @@ class BytesNode(ConstNode):
 
     def as_sliced_node(self, start, stop, step=None):
         value = StringEncoding.bytes_literal(self.value[start:stop:step], self.value.encoding)
-        return BytesNode(self.pos, value=value, constant_result=value)
+        return BytesNode.from_node(self, value=value, constant_result=value)
 
     def compile_time_value(self, denv):
         return self.value.byteencode()
@@ -1799,10 +1800,9 @@ class BytesNode(ConstNode):
             if dst_type.is_unicode_char:
                 error(self.pos, "Bytes literals cannot coerce to Py_UNICODE/Py_UCS4, use a unicode literal instead.")
                 return self
-            return CharNode(self.pos, value=self.value,
-                            constant_result=ord(self.value))
+            return CharNode.from_node(self, value=self.value, constant_result=ord(self.value))
 
-        node = BytesNode(self.pos, value=self.value, constant_result=self.constant_result)
+        node = BytesNode.from_node(self, value=self.value)
         if dst_type.is_pyobject:
             if dst_type in (py_object_type, Builtin.bytes_type):
                 node.type = Builtin.bytes_type
@@ -1816,6 +1816,12 @@ class BytesNode(ConstNode):
             node.type = (PyrexTypes.c_const_char_ptr_type if dst_type.base_type.is_const
                          else PyrexTypes.c_char_ptr_type)
             return CastNode(node, dst_type)
+        elif dst_type.is_array and dst_type.base_type.is_int:
+            if len(self.value) == 0:
+                error(self.pos, "Only non-empty bytes literals can be coerced into C arrays.")
+            as_uchar = partial(IntNode.for_int, self.pos, type=PyrexTypes.c_uchar_type)
+            return ListNode.from_node(
+                self, args=[as_uchar(ch) for ch in self.value]).analyse_types(env).coerce_to(dst_type, env)
         elif dst_type.assignable_from(PyrexTypes.c_char_ptr_type):
             # Exclude the case of passing a C string literal into a non-const C++ string.
             if not dst_type.is_cpp_class or dst_type.is_const:
@@ -1884,7 +1890,7 @@ class UnicodeNode(ConstNode):
 
     def coerce_to(self, dst_type, env):
         if dst_type is self.type:
-            pass
+            return self
         elif dst_type.is_unicode_char:
             if not self.can_coerce_to_char_literal():
                 error(self.pos,
@@ -1895,22 +1901,35 @@ class UnicodeNode(ConstNode):
             return IntNode.for_int(self.pos, int_value, type=dst_type)
         elif dst_type.is_pyunicode_ptr:
             return UnicodeNode(self.pos, value=self.value, type=dst_type)
-        elif not dst_type.is_pyobject:
-            if dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int or (
-                    dst_type.is_ptr and dst_type.base_type.is_void):
-                # Allow using '-3' enforced unicode literals in a C char/char*/void* context.
-                if self.bytes_value is not None:
-                    return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
-                if env.directives['c_string_encoding']:
-                    try:
-                        byte_string = self.value.encode(env.directives['c_string_encoding'])
-                    except (UnicodeEncodeError, LookupError):
-                        pass
-                    else:
-                        return BytesNode(self.pos, value=byte_string).coerce_to(dst_type, env)
-                if self.value.isascii():
-                    return BytesNode(self.pos, value=StringEncoding.BytesLiteral(self.value.encode('ascii'))
-                                     ).coerce_to(dst_type, env)
+        elif dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int or (
+                dst_type.is_ptr and dst_type.base_type.is_void):
+            # Allow using '-3' enforced unicode literals in a C char/char*/void* context.
+            if self.bytes_value is not None:
+                if dst_type.is_array:
+                    # Prevent an invalid assignment from a C string array and use a pointer instead.
+                    dst_type = dst_type.element_ptr_type()
+                return BytesNode.from_node(
+                    self, value=self.bytes_value, constant_result=self.bytes_value).coerce_to(dst_type, env)
+            if env.directives['c_string_encoding']:
+                try:
+                    byte_string = self.value.encode(env.directives['c_string_encoding'])
+                except (UnicodeEncodeError, LookupError):
+                    pass
+                else:
+                    return BytesNode.from_node(self, value=byte_string).coerce_to(dst_type, env)
+            if self.value.isascii():
+                bytes_value = StringEncoding.BytesLiteral(self.value.encode('ascii'))
+                return BytesNode.from_node(
+                    self, value=bytes_value, constant_result=bytes_value).coerce_to(dst_type, env)
+        elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type.is_int:
+            # Coerce the sequence of characters to a bare integer C array, including Py_UCS4[].
+            if len(self.value) == 0:
+                error(self.pos, "Only non-empty Unicode string literals can be coerced into C arrays.")
+            as_pyucs4 = partial(IntNode.for_int, self.pos, type=PyrexTypes.c_py_ucs4_type)
+            return ListNode.from_node(
+                self, args=[as_pyucs4(ord(ch)) for ch in self.value]).analyse_types(env).coerce_to(dst_type, env)
+
+        if not dst_type.is_pyobject:
             error(self.pos,
                   "Unicode literals do not support coercion to C types other "
                   "than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* "
@@ -9147,22 +9166,7 @@ class ListNode(SequenceNode):
             if not self.type.subtype_of(dst_type):
                 error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
         elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type is not PyrexTypes.c_void_type:
-            array_length = len(self.args)
-            if self.mult_factor:
-                if isinstance(self.mult_factor.constant_result, int):
-                    if self.mult_factor.constant_result <= 0:
-                        error(self.pos, "Cannot coerce non-positively multiplied list to '%s'" % dst_type)
-                    else:
-                        array_length *= self.mult_factor.constant_result
-                else:
-                    error(self.pos, "Cannot coerce dynamically multiplied list to '%s'" % dst_type)
-            base_type = dst_type.base_type
-            self.type = PyrexTypes.CArrayType(base_type, array_length)
-            for i in range(len(self.original_args)):
-                arg = self.args[i]
-                if isinstance(arg, CoerceToPyTypeNode):
-                    arg = arg.arg
-                self.args[i] = arg.coerce_to(base_type, env)
+            return self.as_carray(dst_type.base_type, env, is_const=dst_type.is_array)
         elif dst_type.is_cpp_class:
             # TODO(robertwb): Avoid object conversion for vector/list/set.
             return TypecastNode(self.pos, operand=self, type=PyrexTypes.py_object_type).coerce_to(dst_type, env)
@@ -9199,19 +9203,41 @@ class ListNode(SequenceNode):
         return TupleNode.from_node(
             self, args=self.args, mult_factor=self.mult_factor, constant_result=constant_result)
 
-    def allocate_temp_result(self, code):
-        if self.type.is_array:
-            if self.in_module_scope:
-                self.temp_code = code.funcstate.allocate_temp(
-                    self.type, manage_ref=False, static=True, reusable=False)
+    def as_carray(self, item_type, env, is_const):
+        array_length = len(self.args)
+
+        if self.mult_factor:
+            if isinstance(self.mult_factor.constant_result, int):
+                if self.mult_factor.constant_result <= 0:
+                    error(self.pos, f"Cannot coerce non-positively multiplied list to '{item_type}[]'")
+                else:
+                    array_length *= self.mult_factor.constant_result
             else:
-                # To be valid C++, we must allocate the memory on the stack
-                # manually and be sure not to reuse it for something else.
-                # Yes, this means that we leak a temp array variable.
-                self.temp_code = code.funcstate.allocate_temp(
-                    self.type, manage_ref=False, reusable=False)
-        else:
-            SequenceNode.allocate_temp_result(self, code)
+                error(self.pos, f"Cannot coerce dynamically multiplied list to '{item_type}[]'")
+
+        coerced_args = []
+        is_literal = True
+        for i in range(len(self.original_args)):
+            arg = self.args[i]
+            if isinstance(arg, CoerceToPyTypeNode):
+                arg = arg.arg
+            arg = arg.coerce_to(item_type, env)
+            if not arg.is_literal:
+                is_literal = False
+            coerced_args.append(arg)
+
+        if is_literal and is_const and not item_type.is_const:
+            item_type = PyrexTypes.c_const_type(item_type)
+        array_type = PyrexTypes.CArrayType(item_type, array_length)
+
+        return CArrayNode.from_node(
+            self,
+            type=array_type,
+            args=coerced_args,
+            mult_factor=self.mult_factor,
+            original_args=self.original_args,
+            in_module_scope=self.in_module_scope,
+        )
 
     def calculate_constant_result(self):
         if self.mult_factor:
@@ -9226,35 +9252,11 @@ class ListNode(SequenceNode):
         return l
 
     def generate_operation_code(self, code):
+        assert not self.type.is_array  # should use CArrayNode instead
         if self.type.is_pyobject:
             for err in self.obj_conversion_errors:
                 report_error(err)
             self.generate_sequence_packing_code(code)
-        elif self.type.is_array:
-            if self.mult_factor:
-                code.putln("{")
-                code.putln("Py_ssize_t %s;" % Naming.quick_temp_cname)
-                code.putln("for ({i} = 0; {i} < {count}; {i}++) {{".format(
-                    i=Naming.quick_temp_cname, count=self.mult_factor.result()))
-                offset = '+ (%d * %s)' % (len(self.args), Naming.quick_temp_cname)
-            else:
-                offset = ''
-            for i, arg in enumerate(self.args):
-                if arg.type.is_array:
-                    code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
-                    code.putln("memcpy(&(%s[%s%s]), %s, sizeof(%s[0]));" % (
-                        self.result(), i, offset,
-                        arg.result(), self.result()
-                    ))
-                else:
-                    code.putln("%s[%s%s] = %s;" % (
-                        self.result(),
-                        i,
-                        offset,
-                        arg.result()))
-            if self.mult_factor:
-                code.putln("}")
-                code.putln("}")
         elif self.type.is_struct:
             for arg, member in zip(self.args, self.type.scope.var_entries):
                 code.putln("%s.%s = %s;" % (
@@ -9263,6 +9265,97 @@ class ListNode(SequenceNode):
                     arg.result()))
         else:
             raise InternalError("List type never specified")
+
+
+class CArrayNode(ListNode):
+    """A homogeneous C array of C values.
+
+    Created through coercion from ListNode.
+    """
+
+    is_temp = False
+    array_cname = None
+    _array_cname_temp = None
+
+    def _non_const_array_type(self):
+        array_type = self.type
+        if array_type.base_type.is_const:
+            array_type = PyrexTypes.c_array_type(
+                PyrexTypes.remove_cv_ref(array_type.base_type), array_type.size)
+        return array_type
+
+    def _allocate_carray(self, code, as_const):
+        array_type = self.type
+        if as_const:
+            # Declare static const array in place.
+            self.array_cname = code.globalstate.new_const_cname('carray')
+        elif self.in_module_scope:
+            # Statically allocated in the module init function.
+            self.array_cname = code.funcstate.allocate_temp(
+                array_type, manage_ref=False, static=True, reusable=False)
+            self._array_cname_temp = self.array_cname
+        elif code.funcstate.closure_temps is not None:
+            # Allocate in the generator closure, cannot be const.
+            array_type = self._non_const_array_type()
+            self.array_cname = code.funcstate.closure_temps.allocate_carray(array_type, self.pos)
+        else:
+            # To be valid C++, we must allocate the memory on the stack
+            # manually and be sure not to reuse it for something else.
+            # Yes, this means that we leak a temp array variable.
+            array_type = self._non_const_array_type()
+            self.array_cname = code.funcstate.allocate_temp(
+                array_type, manage_ref=False, reusable=False)
+            self._array_cname_temp = self.array_cname
+        return self.array_cname
+
+    def _release_carray(self, code):
+        # If the array is in a temp variable, it will not be reused elsewhere,
+        # so we can release the temp here and still use it as our node result.
+        if self._array_cname_temp is not None:
+            code.funcstate.release_temp(self._array_cname_temp)
+            self._array_cname_temp = None
+
+    def generate_operation_code(self, code):
+        all_const = self.type.base_type.is_const and all(arg.is_literal for arg in self.args)
+        array_cname = self._allocate_carray(code, all_const)
+
+        if all_const:
+            values = [item.result() for item in self.args]
+
+            if self.mult_factor:
+                assert self.mult_factor.has_constant_result(), self.mult_factor
+                values *= self.mult_factor.constant_result
+
+            code.putln(f"static {self.type.declaration_code(array_cname)} = {{{','.join(values)}}};")
+
+        else:
+            if self.mult_factor:
+                counter_type = 'int' if self.mult_factor.has_constant_result() and self.mult_factor.constant_result.bit_count() < 16 else 'Py_ssize_t'
+                loop_var = Naming.quick_temp_cname
+                code.putln(f"for ({counter_type} {loop_var} = 0; {loop_var} < {self.mult_factor.result()}; {loop_var}++) {{")
+                offset = f'+ ({len(self.args):d} * {loop_var})'
+            else:
+                offset = ''
+
+            needs_memcpy = False
+            for i, arg in enumerate(self.args):
+                if arg.type.is_array:
+                    needs_memcpy = True
+                    code.putln(f"memcpy(&({array_cname}[{i}{offset}]), {arg.result()}, sizeof({array_cname}[0]));")
+                else:
+                    code.putln(f"{array_cname}[{i}{offset}] = {arg.result()};")
+
+            if needs_memcpy:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+
+            if self.mult_factor:
+                code.putln("}")
+
+        self._release_carray(code)
+
+    def calculate_result_code(self):
+        return self.array_cname
 
 
 class ComprehensionNode(ScopedExprNode):

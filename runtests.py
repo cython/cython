@@ -604,10 +604,7 @@ def import_ext(module_name, file_path=None):
 class build_ext(_build_ext):
     def build_extension(self, ext):
         try:
-            try: # Py2.7+ & Py3.2+
-                compiler_obj = self.compiler_obj
-            except AttributeError:
-                compiler_obj = self.compiler
+            compiler_obj = self.compiler
             if ext.language == 'c++':
                 compiler_obj.compiler_so.remove('-Wstrict-prototypes')
             if CCACHE:
@@ -2036,7 +2033,7 @@ class EndToEndTest(unittest.TestCase):
         new_path = self.cython_syspath
         if old_path:
             new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
-        env_cflags = list(CFLAGS) + [f'"-D{macro}={definition}"' for macro, definition in CDEFS]
+        env_cflags = list(CFLAGS) + [f'-D{macro}={definition}' for macro, definition in CDEFS]
         env_cflags = " ".join(env_cflags)
         env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8',
                    CFLAGS=env_cflags)
@@ -2944,6 +2941,11 @@ def runtests(options, cmd_args, coverage=None):
         exclude_selectors += [
             TagsSelector('tag', 'memoryview'),
             FileListExcluder(os.path.join(ROOTDIR, "memoryview_tests.txt")),
+        ]
+    if options.limited_api:
+        # The Limited API is really useless for embedding in a specific Python runtime.
+        exclude_selectors += [
+            TagsSelector('tag', 'embed'),
         ]
 
     if not test_bugs and re.match("arm|aarch", platform.machine(), re.IGNORECASE):
