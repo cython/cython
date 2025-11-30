@@ -12,9 +12,9 @@ except:
 def test_subscripted_types():
     """
     >>> test_subscripted_types()
-    dict object
-    list object
-    set object
+    dict[int,float] object
+    list[int] object
+    set[Python object] object
     """
     cdef typing.Dict[int, float] a = {}
     cdef List[int] b = []
@@ -23,6 +23,48 @@ def test_subscripted_types():
     print(cython.typeof(a))
     print(cython.typeof(b))
     print(cython.typeof(c))
+
+
+def test_casting_subscripted_types():
+    """
+    >>> test_casting_subscripted_types()
+    list[int] object
+    1
+    list object
+    1.0
+    dict[str object,float] object
+    2.0
+    dict object
+    2
+    float
+    3.0
+    Python object
+    3
+    """
+    # list
+    cdef list[float] l = [1.0, 2.0]
+    print(cython.typeof((<list[int]> l)))
+    print((<list[int]> l)[0])
+
+    print(cython.typeof((<list> l)))
+    print((<list> l)[0])
+    # dict
+    cdef dict[str, int] d = {'a': 1, 'b': 2}
+    print(
+        cython.typeof((<dict[str, float]> d)))
+    print((<dict[str, float]> d)['b'])
+    print(cython.typeof((<dict> d)))
+    print((<dict> d)['b'])
+
+    cdef dict[int, str] d2 = {3: '3'}
+    for k1 in <dict[float, str]> d2:
+        print(cython.typeof(k1))
+        print(k1)
+
+    for k2 in <dict> d2:
+        print(cython.typeof(k2))
+        print(k2)
+
 
 cdef class TestClassVar:
     """
@@ -56,3 +98,32 @@ def test_tuple(typing.Tuple[int, float] a,  typing.Tuple[int, ...] b,
     print(cython.typeof(x[0]))
     print(cython.typeof(y))
     print(cython.typeof(c))
+
+def test_tuple_assignment(i, list[int] la, set[int] sa, dict[int, int] da, frozenset[int] fa):
+    """
+    >>> test_tuple_assignment(0, [], set(), {}, frozenset({}))  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError:
+    >>> test_tuple_assignment(1, [], set(), {}, frozenset({}))  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError:
+    >>> test_tuple_assignment(2, [], set(), {}, frozenset({}))  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError:
+    >>> test_tuple_assignment(3, [], set(), {}, frozenset({}))  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError:
+    """
+    cdef tuple[int] ta = (1,)
+    if i == 0:
+        la = ta
+    elif i == 1:
+        sa = ta
+    elif i == 2:
+        da = ta
+    elif i == 3:
+        fa = ta
