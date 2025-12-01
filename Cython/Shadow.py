@@ -5,17 +5,16 @@ from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any, Iterable, Sequence, Optional, Type, TypeVar, Generic, Callable, overload,
-    ParamSpec,
 )
 
 if TYPE_CHECKING:
     from builtins import (int as py_int, float as py_float,
                           bool as py_bool, str as py_str, complex as py_complex)
-    from typing import TypeAlias, Annotated
+    from typing import TypeAlias, Annotated, ParamSpec
+    _P = ParamSpec('_P')
 
 # TypeVars need to be defined at runtime for Generic types
 _T = TypeVar('_T')
-_P = ParamSpec('_P')
 _C = TypeVar('_C', bound='Callable')
 _TypeT = TypeVar('_TypeT', bound='Type')
 _C_Or_TypeT = TypeVar('_C_Or_TypeT', _C, _TypeT)
@@ -149,9 +148,11 @@ class _Optimization:
     def unpack_method_calls(val: bool) -> _Decorator:
         return _EmptyDecoratorAndManager()
 
-cfunc = ccall = ufunc = _empty_decorator
+cclass = cfunc = ccall = _EmptyDecoratorAndManager()
 
-cclass = internal = c_api_binop_methods = type_version_tag = no_gc_clear = \
+ufunc = _empty_func_decorator
+
+internal = c_api_binop_methods = type_version_tag = no_gc_clear = \
     no_gc = total_ordering = _empty_class_decorator
 
 annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
