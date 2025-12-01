@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import sys
+import sysconfig
 import time
 import traceback
 import unittest
@@ -75,7 +76,6 @@ except ImportError:
     pass
 
 from distutils.command.build_ext import build_ext as _build_ext
-from distutils import sysconfig
 _to_clean = []
 
 @atexit.register
@@ -2136,8 +2136,14 @@ class EmbedTest(unittest.TestCase):
 
 
 def load_listfile(filename):
-    # just reuse the FileListExclude implementation
-    return FileListExcluder(filename)
+    excludes = {}  # deduplicate but keep file order
+    with open(filename) as f:
+        for line in f:
+            line = line.strip()
+            if line and line[0] != '#':
+                excludes[line.split()[0]] = True
+    return list(excludes)
+
 
 class MissingDependencyExcluder(object):
     def __init__(self, deps):
@@ -2199,20 +2205,15 @@ class VersionDependencyExcluder(object):
 
 class FileListExcluder(object):
     def __init__(self, list_file, verbose=False):
+        self.excludes = load_listfile(list_file)
         self.verbose = verbose
-        self.excludes = {}
         self._list_file = os.path.relpath(list_file)
-        with open(list_file) as f:
-            for line in f:
-                line = line.strip()
-                if line and line[0] != '#':
-                    self.excludes[line.split()[0]] = True
+        self._excluders = [RegExSelector(exclude).regex_matches for exclude in self.excludes]
 
     def __call__(self, testname, tags=None):
-        exclude = any(string_selector(ex)(testname) for ex in self.excludes)
+        exclude = any(is_excluded(testname) for is_excluded in self._excluders)
         if exclude and self.verbose:
-            print("Excluding %s because it's listed in %s"
-                  % (testname, self._list_file))
+            print(f"Excluding {testname} because it's listed in {self._list_file}")
         return exclude
 
 
@@ -2233,7 +2234,7 @@ class RegExSelector(object):
         try:
             self.regex_matches = re.compile(pattern_string, re.I|re.U).search
         except re.error:
-            print('Invalid pattern: %r' % pattern_string)
+            print(f'Invalid pattern: {pattern_string!r}')
             raise
 
     def __call__(self, testname, tags=None):
@@ -2581,7 +2582,7 @@ def main():
 
     if options.listfile:
         for listfile in options.listfile:
-            cmd_args.extend(load_listfile(listfile).excludes.keys())
+            cmd_args.extend(load_listfile(listfile))
 
     if options.capture and not options.for_debugging:
         keep_alive_interval = 10
@@ -2907,7 +2908,7 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.excludefile:
         for excludefile in options.excludefile:
-            exclude_selectors.append(load_listfile(excludefile))
+            exclude_selectors.append(FileListExcluder(excludefile))
 
     if not COMPILER_HAS_INT128:
         exclude_selectors += [RegExSelector('int128')]
@@ -2944,6 +2945,11 @@ def runtests(options, cmd_args, coverage=None):
         ]
     if options.limited_api:
         # The Limited API is really useless for embedding in a specific Python runtime.
+        exclude_selectors += [
+            TagsSelector('tag', 'embed'),
+        ]
+    elif sysconfig.get_config_var('Py_DEBUG'):
+        # Embedding also doesn't seem to work in Py_DEBUG builds.
         exclude_selectors += [
             TagsSelector('tag', 'embed'),
         ]
