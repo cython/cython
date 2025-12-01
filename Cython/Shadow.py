@@ -465,11 +465,6 @@ def fused_type(*args):
     return _FusedType()
 
 
-def _specialized_from_args(signatures, args, kwargs):
-    "Perhaps this should be implemented in a TreeFragment in Cython code"
-    raise Exception("yet to be implemented")
-
-
 py_int = typedef(int, "int")
 py_long = typedef(int, "long")  # for legacy Py2 code only
 py_float = typedef(float, "float")

@@ -6299,8 +6299,13 @@ class SingleAssignmentNode(AssignmentNode):
         self.rhs = self.rhs.analyse_types(env)
 
         if self.lhs.is_name and self.lhs.entry.type.is_const:
-            if env.is_module_scope and self.lhs.entry.init is None and self.rhs.has_constant_result():
-                self.lhs.entry.init = self.rhs.constant_result
+            if self.lhs.entry.type.is_array:
+                error(self.pos, f"Assignment to const array '{self.lhs.name}'. Assign to a pointer variable instead.")
+            elif env.is_module_scope and self.lhs.entry.init is None and self.rhs.has_constant_result():
+                if isinstance(self.rhs.constant_result, (list, tuple, set, dict, frozenset)):
+                    error(self.pos, f"Non-const assignment to const '{self.lhs.name}'")
+                else:
+                    self.lhs.entry.init = self.rhs.constant_result
             else:
                 error(self.pos, f"Assignment to const '{self.lhs.name}'")
 
@@ -8674,8 +8679,7 @@ class TryFinallyStatNode(StatNode):
                     code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
                     for _ in range(2)])
                 exc_filename_cname = code.funcstate.allocate_temp(
-                    PyrexTypes.CPtrType(PyrexTypes.c_const_type(PyrexTypes.c_char_type)),
-                    manage_ref=False)
+                    PyrexTypes.c_const_char_ptr_type, manage_ref=False)
             else:
                 exc_lineno_cnames = exc_filename_cname = None
             exc_vars = tuple([
