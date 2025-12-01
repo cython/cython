@@ -5,12 +5,13 @@ from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any, Iterable, Sequence, Optional, Type, TypeVar, Generic, Callable, overload,
-    TypeAlias, ParamSpec, Annotated
+    ParamSpec,
 )
 
 if TYPE_CHECKING:
     from builtins import (int as py_int, float as py_float,
                           bool as py_bool, str as py_str, complex as py_complex)
+    from typing import TypeAlias, Annotated
 
 # TypeVars need to be defined at runtime for Generic types
 _T = TypeVar('_T')
