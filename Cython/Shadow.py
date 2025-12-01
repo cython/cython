@@ -819,85 +819,56 @@ if TYPE_CHECKING:
 dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
 del math, sys
 
-class pymutex:
+
+class _pymutex_base:
+    def __init__(self) -> None:
+        import threading
+        self._l = threading.Lock()
+
+    def acquire(self) -> None:
+        return self._l.acquire()
+
+    def release(self) -> None:
+        return self._l.release()
+
+    def locked(self) -> bool:
+        """
+        Check if the lock is currently held.
+        Returns True if locked, False otherwise.
+        """
+        return self._l.locked()
+
+    def can_check_locked(self) -> bool:
+        """
+        Check if the locked() method is available.
+        Always returns True - locked() is available on all Python versions.
+        """
+        return True
+
+    def __enter__(self) -> None:
+        return self._l.__enter__()
+
+    def __exit__(self, exc_type: Optional[Type[BaseException]],
+                 exc: Optional[BaseException],
+                 tb: Optional[TracebackType]) -> None:
+        return self._l.__exit__(exc_type, exc, tb)
+
+class pymutex(_pymutex_base):
     """
     A low-cost mutex lock type.
     In Python 3.13+, it uses the fast PyMutex implementation. In older Python versions,
     it falls back to the heavier "PyThread_type_lock".
     Can be used in 'with' statements and supports nogil context.
     """
-    def __init__(self) -> None:
-        import threading
-        self._l = threading.Lock()
+    pass
 
-    def acquire(self) -> None:
-        return self._l.acquire()
-
-    def release(self) -> None:
-        return self._l.release()
-
-    def locked(self) -> bool:
-        """
-        Check if the lock is currently held.
-        Returns True if locked, False otherwise.
-        On Python 3.13+: uses native PyMutex_IsLocked (fast atomic read).
-        On older Python: uses try-acquire approach (acquires and releases if successful).
-        """
-        return self._l.locked()
-
-    def can_check_locked(self) -> bool:
-        """
-        Check if the locked() method is available.
-        Always returns True - locked() is available on all Python versions.
-        """
-        return True
-
-    def __enter__(self) -> None:
-        return self._l.__enter__()
-
-    def __exit__(self, exc_type: Optional[Type[BaseException]],
-                 exc: Optional[BaseException],
-                 tb: Optional[TracebackType]) -> None:
-        return self._l.__exit__(exc_type, exc, tb)
-
-class pythread_type_lock:
+class pythread_type_lock(_pymutex_base):
     """
     A mutex lock type using PyThread_type_lock.
     Can be used in 'with' statements and supports nogil context.
     Compatible with the Limited API.
     """
-    def __init__(self) -> None:
-        import threading
-        self._l = threading.Lock()
-
-    def acquire(self) -> None:
-        return self._l.acquire()
-
-    def release(self) -> None:
-        return self._l.release()
-
-    def locked(self) -> bool:
-        """
-        Check if the lock is currently held.
-        Returns True if locked, False otherwise.
-        Uses try-acquire approach: attempts non-blocking acquire and releases if successful.
-        """
-        return self._l.locked()
-
-    def can_check_locked(self) -> bool:
-        """
-        Check if the locked() method is available.
-        Always returns True - locked() is available on all Python versions.
-        """
-        return True
-
-    def __enter__(self) -> None:
-        return self._l.__enter__()
-
-    def __exit__(self, exc_type: Optional[Type[BaseException]],
-                 exc: Optional[BaseException],
-                 tb: Optional[TracebackType]) -> None:
-        return self._l.__exit__(exc_type, exc, tb)
+    pass
 
 
 if TYPE_CHECKING:
