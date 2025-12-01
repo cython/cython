@@ -142,7 +142,11 @@ class _EmptyDecoratorAndManager:
         pass
 
 class _Optimization:
-    pass
+    def use_switch(val: bool) -> _Decorator:
+        return _EmptyDecoratorAndManager()
+
+    def unpack_method_calls(val: bool) -> _Decorator:
+        return _EmptyDecoratorAndManager()
 
 cfunc = ccall = ufunc = _empty_decorator
 
@@ -155,7 +159,7 @@ annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
     freelist = auto_pickle = cpow = trashcan = auto_cpdef = \
     allow_none_for_extension_args = callspec = show_performance_hints = \
     py2_import = iterable_coroutine = remove_unreachable = \
-    overflowcheck = test_body_needs_exception_handling = \
+    test_body_needs_exception_handling = \
         lambda _: _EmptyDecoratorAndManager()
 
 binding = embedsignature = always_allow_keywords = unraisable_tracebacks = \
@@ -170,6 +174,15 @@ c_compile_guard = lambda _:_EmptyDecoratorAndManager()
 exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
 optimize = _Optimization()
+
+class _OverflowcheckClass:
+    def __call__(self, val: bool) -> _Decorator:
+        return _EmptyDecoratorAndManager()
+
+    def fold(self, val: bool) -> _Decorator:
+        return _EmptyDecoratorAndManager()
+
+overflowcheck = _OverflowcheckClass()
 
 if TYPE_CHECKING:
     # May be a bit hard to read but essentially means:
@@ -187,9 +200,29 @@ embedsignature.format = overflowcheck.fold = optimize.use_switch = \
 final = _empty_decorator
 
 class warn:
-    undeclared = unreachable = maybe_uninitialized = unused = \
-        unused_arg = unused_result = \
-            lambda _: _EmptyDecoratorAndManager()
+    @staticmethod
+    def undeclared(val: bool) -> _Decorator:
+        return _EmptyDecoratorAndManager()
+
+    @staticmethod
+    def unreachable(val: bool) -> _Decorator:
+        return _EmptyDecoratorAndManager()
+
+    @staticmethod
+    def maybe_uninitialized(val: bool) -> _Decorator:
+        return _EmptyDecoratorAndManager()
+
+    @staticmethod
+    def unused(val: bool) -> _Decorator:
+        return _EmptyDecoratorAndManager()
+
+    @staticmethod
+    def unused_argument(val: bool) -> _Decorator:
+        return _EmptyDecoratorAndManager()
+
+    @staticmethod
+    def multiple_declarators(val: bool) -> _Decorator:
+        return _EmptyDecoratorAndManager()
 
 
 _cython_inline = None
