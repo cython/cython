@@ -29,7 +29,7 @@ def non_generated_lines(lines, start=GEN_START, end=GEN_END):
 
 
 def find_known_names(file_path):
-    match_name = re.compile(r"(?:(?:class|type)\s+)?(\w+)\s*[=:\[](?:\w|\s)").match
+    match_name = re.compile(r"\s*(?:(?:class|type)\s+)?(\w+)\s*[=:\[](?:\w|\s)").match
 
     with open(file_path) as f:
         return {
