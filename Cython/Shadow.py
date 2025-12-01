@@ -1,18 +1,16 @@
 # cython.* namespace for pure mode.
 from __future__ import annotations
 
-from .ShadowWithStubs import (
-    CythonMetaType, CythonTypeObject, CythonType, PointerType, ArrayType,
-    pointer, array
-)
-
-import dataclasses as dataclasses
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any, Iterable, Sequence, Optional, Type, TypeVar, Generic, Callable, overload,
     TypeAlias, ParamSpec, Annotated
 )
+
+if TYPE_CHECKING:
+    from builtins import (int as py_int, float as py_float,
+                          bool as py_bool, str as py_str, complex as py_complex)
 
 # TypeVars need to be defined at runtime for Generic types
 _T = TypeVar('_T')
@@ -347,6 +345,84 @@ class critical_section:
 
 # Emulated types
 
+if TYPE_CHECKING:
+    class CythonTypeObject(object):
+        ...
+    class CythonType(CythonTypeObject):
+        ...
+
+class CythonMetaType(type):
+
+    def __getitem__(type, ix):
+        return array(type, ix)
+
+CythonTypeObject = CythonMetaType('CythonTypeObject', (object,), {})
+
+class CythonType(CythonTypeObject):
+
+    def _pointer(self, n=1):
+        for i in range(n):
+            self = pointer(self)
+        return self
+
+if TYPE_CHECKING:
+    class PointerType(CythonType, Generic[_T]):
+        def __init__(
+            self,
+            value: Optional[ArrayType[_T] | PointerType[_T] | list[_T] | int] = ...
+        ) -> None: ...
+        def __getitem__(self, ix: int) -> _T: ...
+        def __setitem__(self, ix: int, value: _T) -> None: ...
+        def __eq__(self, value: object) -> bool: ...
+        def __repr__(self) -> str: ...
+
+    class ArrayType(PointerType[_T]):
+        def __init__(self) -> None: ...
+
+class PointerType(CythonType):
+
+    def __init__(self, value=None):
+        from .Shadow import cast
+        if isinstance(value, (ArrayType, PointerType)):
+            self._items = [cast(self._basetype, a) for a in value._items]
+        elif isinstance(value, list):
+            self._items = [cast(self._basetype, a) for a in value]
+        elif value is None or value == 0:
+            self._items = []
+        else:
+            raise ValueError
+
+    def __getitem__(self, ix):
+        if ix < 0:
+            raise IndexError("negative indexing not allowed in C")
+        return self._items[ix]
+
+    def __setitem__(self, ix, value):
+        if ix < 0:
+            raise IndexError("negative indexing not allowed in C")
+        from .Shadow import cast
+        self._items[ix] = cast(self._basetype, value)
+
+    def __eq__(self, value):
+        if value is None and not self._items:
+            return True
+        elif type(self) != type(value):
+            return False
+        else:
+            return not self._items and not value._items
+
+    def __repr__(self):
+        return f"{self._basetype} *"
+
+
+class ArrayType(PointerType):
+
+    def __init__(self, value=None):
+        if value is None:
+            self._items = [None] * self._n
+        else:
+            super().__init__(value)
+
 
 class StructType(CythonType):
 
@@ -417,6 +493,39 @@ class UnionType(CythonType):
             raise AttributeError("Union has no member '%s'" % key)
 
 
+if TYPE_CHECKING:
+    class pointer(PointerType[_T]):
+        def __new__(cls, basetype: _T) -> Type[PointerType[_T]]: ...
+        def __class_getitem__(cls, basetype: _T) -> Type[PointerType[_T]]: ...
+
+    class array(ArrayType[_T]):
+        def __new__(basetype: _T, n: int) -> Type[ArrayType[_T, int]]: ...
+        def __class_getitem__(cls, item: tuple[_T, int]) -> Type[ArrayType[_T, int]]: ...
+
+class pointer(PointerType):
+    # Implemented as class to support both 'pointer(int)' and 'pointer[int]'.
+    def __new__(cls, basetype):
+        class PointerInstance(PointerType):
+            _basetype = basetype
+        return PointerInstance
+
+    def __class_getitem__(cls, basetype):
+        return cls(basetype)
+
+
+class array(ArrayType):
+    # Implemented as class to support both 'array(int, 5)' and 'array[int, 5]'.
+    def __new__(cls, basetype, n):
+        class ArrayInstance(ArrayType):
+            _basetype = basetype
+            _n = n
+        return ArrayInstance
+
+    def __class_getitem__(cls, item):
+        basetype, n = item
+        return cls(basetype, item)
+
+
 def struct(**members: type) -> Type[Any]:
     class StructInstance(StructType):
         _members = members
@@ -431,6 +540,15 @@ def union(**members: type) -> Type[Any]:
         setattr(UnionInstance, key, None)
     return UnionInstance
 
+
+if TYPE_CHECKING:
+    class typedef(CythonType, Generic[_T]):
+        name: str
+
+        def __init__(self, type: _T, name: Optional[str] = ...) -> None: ...
+        def __call__(self, *arg: Any) -> _T: ...
+        def __repr__(self) -> str: ...
+        __getitem__ = index_type
 
 class typedef(CythonType):
     name: str
@@ -448,6 +566,10 @@ class typedef(CythonType):
 
     __getitem__ = index_type
 
+
+if TYPE_CHECKING:
+    const: TypeAlias = Annotated[_T, "cython.const"]
+    volatile: TypeAlias = Annotated[_T, "cython.volatile"]
 
 class const(typedef):
     def __init__(self, type, name=None):
@@ -490,11 +612,6 @@ def fused_type(*args: Any) -> Type[Any]:
     # isn't really meant to be used, as we can't keep track of the context in
     # pure-mode. Casting won't do anything in this case.
     return _FusedType()
-
-
-def _specialized_from_args(signatures, args, kwargs):
-    "Perhaps this should be implemented in a TreeFragment in Cython code"
-    raise Exception("yet to be implemented")
 
 
 py_int = typedef(int, "int")
@@ -562,6 +679,12 @@ for name in complex_types:
     gs[name] = typedef(py_complex, to_repr(name, name))
 
 del name, reprname
+
+if TYPE_CHECKING:
+    bint = py_bool
+    void = Type[None]
+    basestring = py_str
+    unicode = py_str
 
 bint = typedef(bool, "bint")
 void = typedef(None, "void")
@@ -691,6 +814,8 @@ sys.modules['cython.cimports'] = CythonCImports('cython.cimports', libc=sys.modu
 
 # In pure Python mode @cython.dataclasses.dataclass and dataclass field should just
 # shadow the standard library ones (if they are available)
+if TYPE_CHECKING:
+    import dataclasses as dataclasses
 dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
 del math, sys
 
