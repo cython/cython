@@ -54,6 +54,8 @@ elif PYLIB_DYN:
 CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
 
 OBJ_EXT = ccompiler.obj_extension
+LIBS = get_config_var('LIBS')
+SYSLIBS = get_config_var('SYSLIBS')
 EXE_EXT = get_config_var('EXE')
 
 
@@ -71,11 +73,16 @@ def link_exe(objects, app_name):
         [LIBDIR1, LIBDIR2, os.path.join(PYLIB_DIR, "libs")]
         if libdir and os.path.isdir(libdir)
     ]
-    libraries = []
     if PYLIB_DYN:
-        libraries.append(PYLIB_DYN)
+        libraries = [PYLIB_DYN]
     elif PYLIB:
-        libraries.append(os.path.join(LIBDIR1, PYLIB))
+        objects = [*objects, os.path.join(LIBDIR1, PYLIB)]
+        libraries = [
+            lib[2:] if lib.startswith('-l') else lib
+            for lib in [*LIBS.split(), *SYSLIBS.split()]
+        ]
+    else:
+        libraries = []
 
     ccompiler.link(
         ccompiler.EXECUTABLE,
@@ -129,8 +136,8 @@ sep = os.pathsep
 os.environ.update(PATH=f".{sep}{PYLIB_DIR}{sep}{PATH}")
 
 result = run([os.path.abspath(sys.argv[1] + EXE_EXT)], capture_output=True)
-assert b"DONE" in result.stdout
-assert b"DONE 1 2" in result.stdout
+assert b"DONE" in result.stdout, result.stdout
+assert b"DONE 1 2" in result.stdout, result.stdout
 
 
 ################# main_module.pyx ####################
