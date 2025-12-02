@@ -8,7 +8,7 @@ from typing import (
 )
 
 # Type checkers assume typing_extensions is always present
-from typing_extensions import Literal, ParamSpec, overload, final as final
+from typing_extensions import Literal, ParamSpec, overload, final as final, Self
 
 # Normally all imports aren't exported in stub files but we can explicitly expose
 # imports by using import ... as ... (with the same name) which was done for
@@ -221,7 +221,7 @@ class _ArrayType(Generic[_T]):
 
 
 class CythonTypeObject(object):
-    ...
+    def __class_getitem__(cls, ix: int) -> Type[ArrayType[Self, int]]: ...
 
 class CythonType(CythonTypeObject):
     ...
