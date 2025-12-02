@@ -62,7 +62,7 @@ jobs:
     outputs:
       include: ${{ steps.set-matrix.outputs.include }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install cibuildwheel
         # Nb. dependabot should keep cibuildwheel version pin consistent with job below
         run: pipx install $(grep -v '^\s*#' .github/cibuildwheel-requirement.txt)
@@ -105,15 +105,15 @@ jobs:
 
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v6.0.0
+      - uses: actions/setup-python@v6.1.0
         with:
           python-version: '3.13'
 
       - name: Build wheels
         # Nb. dependabot should keep cibuildwheel version pin consistent with generate-matrix job above
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@v3.3.0
         with:
           only: ${{ matrix.only }}
 
@@ -150,14 +150,14 @@ jobs:
 
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v6.0.0
+      - uses: actions/setup-python@v6.1.0
         with:
           python-version: '3.13'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@v3.3.0
         env:
           # Smaller set of platforms that we only provide Stable ABI wheels for
           CIBW_BUILD: |
@@ -191,10 +191,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       # Used to push the built wheels
-      - uses: actions/setup-python@v6.0.0
+      - uses: actions/setup-python@v6.1.0
         with:
           # Build sdist on lowest supported Python
           python-version: '3.9'
