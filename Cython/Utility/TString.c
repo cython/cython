@@ -325,7 +325,7 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
 #endif
     zipped_tuple = PyTuple_New(strings_len + interpolations_len);
     if (!zipped_tuple) goto end;
-    for (Py_ssize_t i=0; (i<interpolations_len && i<strings_len); ++i) {
+    for (Py_ssize_t i=0; (i<interpolations_len || i<strings_len); ++i) {
         if (i < strings_len) {
             PyObject *s = __Pyx_PyTuple_GET_ITEM(strings, i);
 #if !CYTHON_ASSUME_SAFE_MACROS
