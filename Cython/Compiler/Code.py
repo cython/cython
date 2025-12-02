@@ -2232,6 +2232,9 @@ class GlobalState:
             max_line = max(max_line, def_node.pos[1])
 
         w.put(textwrap.dedent(f"""\
+        #ifdef __cplusplus
+        namespace {{
+        #endif
         typedef struct {{
             unsigned int argcount : {max_func_args.bit_length()};
             unsigned int num_posonly_args : {max_posonly_args.bit_length()};
@@ -2240,6 +2243,9 @@ class GlobalState:
             unsigned int flags : {max_flags.bit_length()};
             unsigned int first_line : {max_line.bit_length()};
         }} __Pyx_PyCode_New_function_description;
+        #ifdef __cplusplus
+        }} /* anonymous namespace */
+        #endif
         """))
 
         self.use_utility_code(UtilityCode.load_cached("NewCodeObj", "ModuleSetupCode.c"))
@@ -3738,6 +3744,7 @@ class ClosureTempAllocator:
         self.temps_allocated = {}
         self.temps_free = {}
         self.temps_count = 0
+        self.carray_count = 0
 
     def reset(self):
         for type, cnames in self.temps_allocated.items():
@@ -3754,3 +3761,9 @@ class ClosureTempAllocator:
         self.temps_allocated[type].append(cname)
         self.temps_count += 1
         return cname
+
+    def allocate_carray(self, array_type, pos):
+        cname = f'{Naming.carray_literal_prefix}{self.carray_count:d}'
+        self.klass.declare_var(pos=pos, name=cname, cname=cname, type=array_type, is_cdef=True)
+        self.carray_count += 1
+        return f"{Naming.cur_scope_cname}->{cname}"

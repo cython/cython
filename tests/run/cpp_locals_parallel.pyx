@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp17, no-cpp-locals, openmp
+# tag: cpp, cpp17, no-cpp-locals, openmp, threads
 # no-cpp-locals because the test is already run with it explicitly set
 
 # cython: cpp_locals=True
