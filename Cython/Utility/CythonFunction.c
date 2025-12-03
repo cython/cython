@@ -1430,7 +1430,7 @@ static PyObject *__Pyx_FusedFunction_get_signatures(__pyx_FusedFunctionObject *f
     // No critical section - signatures should not be reassigned
     if (func->__signatures__) {
         // A dictproxy ensures that users can't (easily) mess with the internal data used in fused dispatch.
-        // For this rarely-used introspection function, it is unlikely to be worth the memory to cahce the proxy.
+        // For this rarely-used introspection function, it is unlikely to be worth the memory to cache the proxy.
         return PyDictProxy_New(func->__signatures__);
     } else {
         Py_RETURN_NONE;
