@@ -3,11 +3,13 @@
 The Test Suite
 ==============
 
-A very good place to start understanding Cython is the `test suite <https://github.com/cython/cython/tree/master/tests/>`_, 
-which lives in the "tests" directory of the source repository. The tests (collected and run by
+A very good place to start understanding Cython is the
+`test suite <https://github.com/cython/cython/tree/master/tests/>`_,
+which lives in the "tests" directory of the source repository.
+The tests (collected and run by
 `runtests.py <https://github.com/cython/cython/blob/master/runtests.py>`_)
 mostly use the `doctest module <https://docs.python.org/3/library/doctest.html>`_ of Python.
-They contain lots of little examples that Cython can compile, so if you want to understand a specific part of 
+They contain lots of little examples that Cython can compile, so if you want to understand a specific part of
 Cython or make a new feature work, it is a very good idea to look out for a related test case or to
 write one yourself, and then run Cython in a code coverage tool or debugger to see what happens.
 You run the test suite with this command:
@@ -29,8 +31,8 @@ Tags
 ----
 
 Tests can be tagged for easy filtering and running. A tag is simply a comment,
-which must occur before any other non-whitespace non-comment lines, of the 
-form ``#tag: value``. Some tags have special meaning, for example ``tag:cpp`` tests are only compiled in C++.
+which must occur before any other non-whitespace non-comment lines, of the
+form ``# tag: value``. Some tags have special meaning, for example ``tag:cpp`` tests are only compiled in C++.
 Multiple values for a single tag can be separated by commas or given in repeated tag lines.
 
 Tests
@@ -58,7 +60,7 @@ Error tests additionally contain an error description, as in this example:
     cdef extern from *:
         void foo(void)
 
-    _ERRORS = u"""
+    _ERRORS = """
     4:13:Use spam() rather than spam(void) to declare a function with no arguments.
     """
 
@@ -104,13 +106,13 @@ useful cross-check.
 Parse tree assertions
 ---------------------
 
-A useful feature for testing optimisations that only impact the performance and do not change the 
+A useful feature for testing optimisations that only impact the performance and do not change the
 behaviour is to add parse tree assertions.
 Otherwise, it would be impossible to tell if an optimisation strikes or not,
 thus rendering the test useless if the optimisation ever fails to apply for some reason.
 
 You can express assertions using a simple ``XPath``-like language called ``TreePath`` that traverses the parse tree.
-Nodes are referred to by their type name (inheritance is not considered). 
+Nodes are referred to by their type name (inheritance is not considered).
 For example, to make sure that a Python function call "``foo()``" gets replaced by a C-API call to "``c_foo()``",
 you can write a test as follows:
 
@@ -147,7 +149,7 @@ expression - especially if there is overlap with a fail-if path. Example:
 
 .. code-block:: cython
 
-    #mode: run
+    # mode: run
 
     cimport cython
 
@@ -166,7 +168,7 @@ to node/attribute tests and simple string comparisons for attribute values.
 Running the CPython test suite
 ------------------------------
 
-To test the compatibility with CPython (the standard Python impleentation),
+To test the compatibility with CPython (the standard Python implementation),
 you can copy the directory ``Lib/test`` in the Python source distribution over
 to the directory ``tests/pyregr`` (not into this directory, as this directory!)
 in the Cython source tree. The test runner will then compile all unit test modules with Cython and run them.
@@ -206,8 +208,9 @@ Some example steps to do this:
 Debugging failures in the Cython test suite
 -------------------------------------------
 
-If you want to see the C code generated when running the test-suite pass 
-``--no-cleanup`` to ``runtests.py``.  This leaves the generated code in
+If you want to see the C code generated when running the test-suite pass
+``--no-cleanup`` or ``--debug`` to ``runtests.py``.
+This leaves the generated code in
 the directory ``TEST_TMP`` for inspection after the test runner finishes.
 If you want to run the compiled modules yourself after the test-suite
 finishes then pass ``--no-cleanup-sharedlibs`` to leave those in ``TEMP_TMP``
@@ -226,7 +229,7 @@ with:
 
 .. code-block:: bash
 
-    CFLAGS="-O0 -Og" gdb python3
+    CFLAGS="-Og -ggdb" gdb python3
 
 and then in gdb run
 
@@ -234,6 +237,6 @@ and then in gdb run
 
     run runtests.py <arguments go here> test_you_are_interested_in
 
-If you're running Python installed as part of a Linux distribution, then 
+If you're running Python installed as part of a Linux distribution, then
 ``debuginfod`` can be useful to fetch the debug symbols for Python itself making
 it easier to investigate crashes that happen in Python C API calls.
