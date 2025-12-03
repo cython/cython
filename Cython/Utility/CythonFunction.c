@@ -1424,6 +1424,19 @@ __pyx_FusedFunction_clear(__pyx_FusedFunctionObject *self)
 }
 
 
+static PyObject *__Pyx_FusedFunction_get_signatures(__pyx_FusedFunctionObject *func, void *closure)
+{
+    CYTHON_UNUSED_VAR(closure);
+    // No critical section - signatures should not be reassigned
+    if (func->__signatures__) {
+        // A dictproxy ensures that users can't (easily) mess with the internal data used in fused dispatch.
+        // For this rarely-used introspection function, it is unlikely to be worth the memory to cahce the proxy.
+        return PyDictProxy_New(func->__signatures__);
+    } else {
+        Py_RETURN_NONE;
+    }
+}
+
 static __pyx_FusedFunctionObject *
 __pyx_FusedFunction_descr_get_locked(__pyx_FusedFunctionObject *func, PyObject *obj)
 {
@@ -1680,11 +1693,6 @@ bad:
 }
 
 static PyMemberDef __pyx_FusedFunction_members[] = {
-    {"__signatures__",
-     T_OBJECT,
-     offsetof(__pyx_FusedFunctionObject, __signatures__),
-     READONLY,
-     0},
     {"__self__", T_OBJECT_EX, offsetof(__pyx_FusedFunctionObject, self), READONLY, 0},
     // For heap-types __module__ appears not to be inherited (so redeclare)
     #if !CYTHON_COMPILING_IN_LIMITED_API
@@ -1702,6 +1710,7 @@ static PyGetSetDef __pyx_FusedFunction_getsets[] = {
     #if CYTHON_COMPILING_IN_LIMITED_API
     {"__module__", (getter)__Pyx_CyFunction_get_module, (setter)__Pyx_CyFunction_set_module, 0, 0},
     #endif
+    {"__signatures__", (getter)__Pyx_FusedFunction_get_signatures, NULL, 0, 0},
     {0, 0, 0, 0, 0}
 };
 
