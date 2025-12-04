@@ -17,8 +17,10 @@ Py_VISIT((PyObject*)traverse_module_state->__pyx_templatelib_Interpolation);
 
 //////////////////////////// InitializeTemplateLib.module_state_clear ////////////////////////////
 
-Py_CLEAR((PyObject*)traverse_module_state->__pyx_templatelib_Template);
-Py_CLEAR((PyObject*)traverse_module_state->__pyx_templatelib_Interpolation)
+Py_XDECREF((PyObject*)clear_module_state->__pyx_templatelib_Template);
+clear_module_state->__pyx_templatelib_Template = 0;
+Py_XDECREF((PyObject*)clear_module_state->__pyx_templatelib_Interpolation);
+clear_module_state->__pyx_templatelib_Interpolation = 0;
 
 //////////////////////////// InitializeTemplateLib.proto ///////////////////////////
 
