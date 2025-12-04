@@ -423,7 +423,7 @@
   #endif
   #ifndef CYTHON_OPAQUE_OBJECTS
     #define CYTHON_OPAQUE_OBJECTS 0
-  #elif !CYTHON_USE_TYPE_SPECS /* || PY_VERION_HEX < 0x030E0000 */  // TODO re-enable this check
+  #elif !CYTHON_USE_TYPE_SPECS /* || PY_VERSION_HEX < 0x030E0000 */  // TODO re-enable this check
     // opaque objects are incompatible with static types
     #undef CYTHON_OPAQUE_OBJECTS
     #define CYTHON_OPAQUE_OBJECTS 0

@@ -393,13 +393,27 @@ set_path:
 #define __PYX_GET_STRUCT_ALIGNMENT_$cyversion(s) sizeof(void*)
 #endif
 
+// The Warn_Default and Error_Default are set by default in Cython, rather than the user.
+// With PEP-697 types it isn't possible to do a really meaningful size check. However, if
+// the user has explicitly asked for it then we issue a warning.
 enum __Pyx_ImportType_CheckSize_$cyversion {
    __Pyx_ImportType_CheckSize_Error_$cyversion = 0,
    __Pyx_ImportType_CheckSize_Warn_$cyversion = 1,
    __Pyx_ImportType_CheckSize_Ignore_$cyversion = 2
 };
 
-static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject* module, const char *module_name, const char *class_name, size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size);  /*proto*/
+#if !defined(CYTHON_OPAQUE_OBJECTS)
+    #if defined(Py_LIMITED_API) && Py_LIMITED_API >= 0x030F0000
+        #define CYTHON_OPAQUE_OBJECTS_$cyversion 1
+    #else
+        // Impossible to know without the user telling us, but probably off.
+        #define CYTHON_OPAQUE_OBJECTS_$cyversion 0
+    #endif
+#else
+    #define CYTHON_OPAQUE_OBJECTS_$cyversion CYTHON_OPAQUE_OBJECTS
+#endif
+
+static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject* module, const char *module_name, const char *class_name, size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size, int is_pep697_opaque);  /*proto*/
 
 #endif
 
@@ -411,7 +425,7 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject* module, const char *m
 #ifndef __PYX_HAVE_RT_ImportType_$cyversion
 #define __PYX_HAVE_RT_ImportType_$cyversion
 static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *module_name, const char *class_name,
-    size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size)
+    size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size, int is_pep697_opaque)
 {
     PyObject *result = 0;
     Py_ssize_t basicsize;
@@ -430,21 +444,39 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
             module_name, class_name);
         goto bad;
     }
+    if (is_pep697_opaque && !PyType_HasFeature((PyTypeObject*)result, Py_TPFLAGS_HEAPTYPE)) {
+        PyErr_Format(PyExc_TypeError,
+            "%.200s.%.200s is not a heap type and Cython is configured with PyObject_HEAD opaque.",
+            module_name, class_name);
+        goto bad;
+    }
+    if (is_pep697_opaque) {
+#if (defined(Py_LIMITED_API) && Py_LIMITED_API >= 0x030C0000) || (!defined(Py_LIMITED_API) && PY_VERSION_HEX >= 0x030C0000)
+        basicsize = PyType_GetTypeDataSize(((PyTypeObject *)result));
+#else
+        PyErr_SetString(PyExc_TypeError,
+            "Cython is configured with PyObject_HEAD opaque but Python version is <3.12.");
+        goto bad;
+#endif
+    }
 #if !( defined(Py_LIMITED_API) || (defined(CYTHON_COMPILING_IN_LIMITED_API) && CYTHON_COMPILING_IN_LIMITED_API) )
-    basicsize = ((PyTypeObject *)result)->tp_basicsize;
+    if (!is_pep697_opaque)
+        basicsize = ((PyTypeObject *)result)->tp_basicsize;
     itemsize = ((PyTypeObject *)result)->tp_itemsize;
 #else
-    if (size == 0) {
+    if (size == 0 && !is_pep697_opaque) {
         return (PyTypeObject *)result;
     }
-    py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
-    if (!py_basicsize)
-        goto bad;
-    basicsize = PyLong_AsSsize_t(py_basicsize);
-    Py_DECREF(py_basicsize);
-    py_basicsize = 0;
-    if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred())
-        goto bad;
+    if (!is_pep697_opaque) {
+        py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
+        if (!py_basicsize)
+            goto bad;
+        basicsize = PyLong_AsSsize_t(py_basicsize);
+        Py_DECREF(py_basicsize);
+        py_basicsize = 0;
+        if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred())
+            goto bad;
+    }
     py_itemsize = PyObject_GetAttrString(result, "__itemsize__");
     if (!py_itemsize)
         goto bad;
@@ -466,7 +498,13 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
         if (itemsize < (Py_ssize_t)alignment)
             itemsize = (Py_ssize_t)alignment;
     }
-    if ((size_t)(basicsize + itemsize) < size) {
+    int sizeof_obj_is_too_small = (size_t)basicsize > size;
+    int sizeof_obj_is_too_big = (size_t)(basicsize + itemsize) < size;
+    if (is_pep697_opaque) {
+        sizeof_obj_is_too_small = 0; // We can't meaningfully check
+    }
+
+    if (sizeof_obj_is_too_big) {
         PyErr_Format(PyExc_ValueError,
             "%.200s.%.200s size changed, may indicate binary incompatibility. "
             "Expected %zd from C header, got %zd from PyObject",
@@ -476,14 +514,14 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     // varobjects almost have structs  between basicsize and basicsize + itemsize
     // but the struct isn't always one of the two limiting values
     if (check_size == __Pyx_ImportType_CheckSize_Error_$cyversion &&
-            ((size_t)basicsize > size || (size_t)(basicsize + itemsize) < size)) {
+            (sizeof_obj_is_too_small || sizeof_obj_is_too_big)) {
         PyErr_Format(PyExc_ValueError,
             "%.200s.%.200s size changed, may indicate binary incompatibility. "
             "Expected %zd from C header, got %zd-%zd from PyObject",
             module_name, class_name, size, basicsize, basicsize+itemsize);
         goto bad;
     }
-    else if (check_size == __Pyx_ImportType_CheckSize_Warn_$cyversion && (size_t)basicsize > size) {
+    else if (check_size == __Pyx_ImportType_CheckSize_Warn_$cyversion && sizeof_obj_is_too_small) {
         if (PyErr_WarnFormat(NULL, 0,
                 "%.200s.%.200s size changed, may indicate binary incompatibility. "
                 "Expected %zd from C header, got %zd from PyObject",
