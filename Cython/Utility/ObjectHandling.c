@@ -1794,7 +1794,7 @@ try_unpack:
 typedef struct {
     PyObject *type;
     PyObject **method_name;
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+#if (CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING)  && CYTHON_ATOMICS
     // 0 for uninitialized, 1 for initializing, 2 for initialized
     __pyx_atomic_int_type initialized;
 #endif
@@ -1805,7 +1805,7 @@ typedef struct {
     int flag;
 } __Pyx_CachedCFunction;
 
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING
 static CYTHON_INLINE int __Pyx_CachedCFunction_GetAndSetInitializing(__Pyx_CachedCFunction *cfunc) {
 #if !CYTHON_ATOMICS
     // always say "we're initializing". This'll always go an inefficient route,
@@ -1905,7 +1905,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
             result = unbound_method;
         }
     }
-#if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#if !(CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING)
     // Unlikely corner-case where another thread has initialized target->method first.
     // Can't happen in free-threading because the whole thing is locked.
     if (unlikely(target->method)) {
@@ -1960,7 +1960,7 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod0(__Pyx_CachedCFunction* 
             return __Pyx_CallCFunction(cfunc, self, EMPTY(tuple));
         return __Pyx__CallUnboundCMethod0(cfunc, self);
     }
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING
     else if (unlikely(was_initialized == 1)) {
         // If it's being simultaneously initialized, just work on a temp
         __Pyx_CachedCFunction tmp_cfunc = {
@@ -2017,7 +2017,7 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* 
             return __Pyx_CallCFunctionFastWithKeywords(cfunc, self, &arg, 1, NULL);
         }
     }
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING
     else if (unlikely(was_initialized == 1)) {
         // Race to initialize - use a temp
         __Pyx_CachedCFunction tmp_cfunc = {
@@ -2087,7 +2087,7 @@ static CYTHON_INLINE PyObject *__Pyx_CallUnboundCMethod2(__Pyx_CachedCFunction *
         if (cfunc->flag == (METH_FASTCALL | METH_KEYWORDS))
             return __Pyx_CallCFunctionFastWithKeywords(cfunc, self, args, 2, NULL);
     }
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING
     else if (unlikely(was_initialized == 1)) {
         // Race to initialize - run this on a temp function instead.
         __Pyx_CachedCFunction tmp_cfunc = {
