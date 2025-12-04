@@ -11,7 +11,11 @@ cdef extern from *:
         Py_XINCREF(item);
         return item;
     }
+    #else
+    #define __Pyx_CAPI_PyList_GetItemRef PyList_GetItemRef
+    #endif
 
+    #if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX < 0x030d0000
     static CYTHON_INLINE int
     __Pyx_CAPI_PyList_Extend(PyObject *list, PyObject *iterable)
     {
@@ -24,7 +28,6 @@ cdef extern from *:
         return PyList_SetSlice(list, 0, PY_SSIZE_T_MAX, NULL);
     }
     #else
-    #define __Pyx_CAPI_PyList_GetItemRef PyList_GetItemRef
     #define __Pyx_CAPI_PyList_Extend PyList_Extend
     #define __Pyx_CAPI_PyList_Clear PyList_Clear
     #endif
