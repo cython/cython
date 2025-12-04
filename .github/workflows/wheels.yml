@@ -25,6 +25,7 @@ on:
       types: [labeled, opened, synchronize, reopened]
       paths:
         #- Cython/Build/**
+        - .github/cibuildwheel-requirement.txt
         - .github/workflows/wheels.yml
         - pyproject.toml
         - MANIFEST.in
@@ -32,6 +33,7 @@ on:
   push:
       paths:
         #- Cython/Build/**
+        - .github/cibuildwheel-requirement.txt
         - .github/workflows/wheels.yml
         - pyproject.toml
         - MANIFEST.in
