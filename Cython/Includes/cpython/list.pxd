@@ -59,7 +59,7 @@ cdef extern from "Python.h":
     Py_ssize_t PyList_GET_SIZE(object list)
     # Macro form of PyList_Size() without error checking.
 
-    PyObject* PyList_GetItemRef "__Pyx_CAPI_PyList_GetItemRef" (object list, Py_ssize_t index) except NULL
+    object PyList_GetItemRef "__Pyx_CAPI_PyList_GetItemRef" (object list, Py_ssize_t index)
     # Return value: New reference.
     # Return the object at position index in the list pointed to by list.
     # The position must be non-negative; indexing from the end of the

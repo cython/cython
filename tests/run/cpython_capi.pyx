@@ -88,10 +88,8 @@ def test_list_getref_extend_clear(list):
     IndexError: ...
     """
 
-    cdef PyObject* first = PyList_GetItemRef(list, 0)
-    if first is not NULL:
-        print(<object>first)
-        Py_XDECREF(first)
+    cdef object first = PyList_GetItemRef(list, 0)
+    print(first)
 
     PyList_Clear(list)
     print(list)
