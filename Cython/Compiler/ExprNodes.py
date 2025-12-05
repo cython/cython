@@ -3498,7 +3498,8 @@ class NextNode(AtomicExprNode):
             item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
             item_type = PyrexTypes.remove_cv_ref(item_type, remove_fakeref=True)
             return item_type
-        elif (sequence_type := self.iterator.sequence.infer_type(env)) in typed_container_types and (iterator_type := sequence_type.infer_iterator_type()):
+        elif (sequence_type := self.iterator.sequence.infer_type(env)) in typed_container_types and \
+             (iterator_type := sequence_type.infer_iterator_type()):
             return iterator_type
         else:
             # Avoid duplication of complicated logic.
