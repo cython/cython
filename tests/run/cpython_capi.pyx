@@ -81,8 +81,8 @@ def test_list_getref_extend_clear(list):
     """
     >>> test_list_getref_extend_clear([1, 2, 3])
     1
+    [1, 2, 3, 4, 5]
     []
-    [1, 2]
     >>> test_list_getref_extend_clear([])  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     IndexError: ...
@@ -91,8 +91,8 @@ def test_list_getref_extend_clear(list):
     first = PyList_GetItemRef(list, 0)
     print(first)
 
-    PyList_Clear(list)
+    PyList_Extend(list, [4, 5])
     print(list)
-
-    PyList_Extend(list, [1, 2])
+    
+    PyList_Clear(list)
     print(list)
