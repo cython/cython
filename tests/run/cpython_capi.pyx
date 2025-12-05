@@ -6,6 +6,7 @@ from __future__ import print_function
 from cpython cimport mem, PyObject
 from cpython.pystate cimport PyGILState_Ensure, PyGILState_Release, PyGILState_STATE
 from cpython.dict cimport PyDict_GetItemRef, PyDict_GetItemStringRef, PyDict_SetDefaultRef 
+from cpython.list cimport PyList_GetItemRef, PyList_Clear, PyList_Extend
 from cpython.ref cimport Py_XDECREF
 
 import sys
@@ -75,3 +76,23 @@ if not hasattr(sys, 'pypy_version_info'):
         Traceback (most recent call last):
         SystemError: ...
     """
+
+def test_list_getref_extend_clear(list):
+    """
+    >>> test_list_getref_extend_clear([1, 2, 3])
+    1
+    [1, 2, 3, 4, 5]
+    []
+    >>> test_list_getref_extend_clear([])  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    IndexError: ...
+    """
+
+    first = PyList_GetItemRef(list, 0)
+    print(first)
+
+    PyList_Extend(list, [4, 5])
+    print(list)
+    
+    PyList_Clear(list)
+    print(list)
