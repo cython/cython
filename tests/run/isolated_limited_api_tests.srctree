@@ -115,6 +115,8 @@ def run_one(module_name):
     assert not limited.float_equals(None)
     assert limited.float_equals(decimal.Decimal("1.5"))
 
+    assert limited.get_template_string_result(1, 2) == "x=1 however y=2"
+
 module_name = sys.argv[1]
 
 for version in range(9, sys.version_info[1]+1):
@@ -214,3 +216,13 @@ def my_generator(x):
         raise RuntimeError
     yield x
     yield x
+
+def template_to_string(t):
+    parts = [
+        (part if isinstance(part, str) else format(part.value))
+        for part in t
+    ]
+    return "".join(parts)
+
+def get_template_string_result(x, y):
+    return template_to_string(t"{x=} however y={y}")
