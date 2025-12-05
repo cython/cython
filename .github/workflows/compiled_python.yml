@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set compiler
         if: ${{inputs.compiler}}
@@ -129,7 +129,7 @@ jobs:
 
       - name: Archive logs
         if: ${{ inputs.sanitize && always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{inputs.sanitize}}-logs
           path: san_log.*

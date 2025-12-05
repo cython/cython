@@ -5,10 +5,16 @@ on:
   push:
     branches:
       - master
+    paths:
+      - ".github/workflows/sanitizers.yml"
+      - ".github/workflows/compiled_python.yml"
+      - "Cython/**"
+      - "tests/**"
   pull_request:
     paths:
       # Only run these tests on PRs likely to affect code generation
       - ".github/workflows/sanitizers.yml"
+      - ".github/workflows/compiled_python.yml"
       - "Cython/Utility/**"
       - "Cython/Compiler/Nodes.py"
       - "Cython/Compiler/ExprNodes.py"

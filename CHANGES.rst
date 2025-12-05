@@ -50,11 +50,22 @@ Other changes
   (Github issue :issue:`7271`)
 
 
-3.2.2 (2025-??-??)
+3.2.2 (2025-11-30)
 ==================
+
+Features added
+--------------
+
+* The C-API declarations were updated to include the new ``PyDict_*Ref()`` functions.
+  (Github issue :issue:`7291`)
 
 Bugs fixed
 ----------
+
+* Iteration over literal sequences and strings in generators generated invalid C code since 3.2.0.
+  This was a regression due to the C array iteration optimisation in :issue:`6926`, which is now
+  disabled inside of generators.
+  (Github issue :issue:`7342`)
 
 * Calling special methods of known exception types failed with an ``AttributeError``.
   (Github issue :issue:`7342`)
