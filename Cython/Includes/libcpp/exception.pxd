@@ -18,7 +18,7 @@ cdef extern from "<stdexcept>" namespace "std" nogil:
     # So they're most useful just as class names when implementing
     # exception handlers.
     cdef cppclass logic_error(exception):
-        pass  
+        pass
     cdef cppclass invalid_argument(logic_error):
         pass
     cdef cppclass domain_error(logic_error):
@@ -45,7 +45,7 @@ cdef extern from "<stdexcept>" namespace "std" nogil:
         pass
 
     cdef cppclass bad_exception(exception):
-        pass 
+        pass
 
 
 cdef extern from *:
