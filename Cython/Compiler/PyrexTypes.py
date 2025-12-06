@@ -4840,11 +4840,11 @@ class PythonTypeConstructorMixin:
     """
     modifier_name = None
     contains_none = False
-    subscribed_types = ()
+    subscripted_types = ()
 
     def get_subscripted_type(self, index: int):
         try:
-            return self.subscribed_types[index]
+            return self.subscripted_types[index]
         except IndexError:
             return None
 
@@ -4890,13 +4890,13 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             template_values = tuple(template_values)
             if template_values in self.specializations:
                 return self.specializations[template_values]
-            subscribed_types = ','.join([str(tv) for tv in template_values])
-            name = f'{self.get_container_type()}[{subscribed_types}]'
+            subscripted_types = ','.join([str(tv) for tv in template_values])
+            name = f'{self.get_container_type()}[{subscripted_types}]'
 
             # TODO this code is copied from Symtab.py, we need some common function for that...
             objstruct_cname = 'PySetObject' if name == 'frozenset' else f'Py{name.capitalize()}Object'
             typ = BuiltinTypeConstructorObjectType(name=name, cname=self.cname, objstruct_cname=objstruct_cname)
-            typ.subscribed_types = tuple(template_values)
+            typ.subscripted_types = tuple(template_values)
             env.global_scope().declare_type(name, typ, pos, cname=typ.cname)
             typ.scope = self.scope
             self.specializations[template_values] = typ
@@ -4907,13 +4907,13 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
 
     def assignable_from(self, src_type):
         if self == src_type:
-            if not self.subscribed_types and not src_type.subscribed_types:
+            if not self.subscripted_types and not src_type.subscripted_types:
                 return True
-            if not self.subscribed_types and src_type.subscribed_types:
+            if not self.subscripted_types and src_type.subscripted_types:
                 return True
-            if self.subscribed_types and not src_type.subscribed_types:
+            if self.subscripted_types and not src_type.subscripted_types:
                 return True
-            if all(dst_sc.assignable_from(src_sc) for dst_sc, src_sc in zip(self.subscribed_types, src_type.subscribed_types)):
+            if all(dst_sc.assignable_from(src_sc) for dst_sc, src_sc in zip(self.subscripted_types, src_type.subscripted_types)):
                 return True
             return False
         return super().assignable_from(src_type)
