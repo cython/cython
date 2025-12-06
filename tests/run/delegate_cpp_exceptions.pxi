@@ -1,7 +1,7 @@
 from libcpp.exception cimport delegate_to_exception_handlers, runtime_error, logic_error
 
 # Customize the module to simplify formatting for doctest
-# because we re-use this include under a couple of different names.
+# because we reuse this include under a couple of different names.
 class MyRuntimeError(Exception):
     __module__ = "x"
 
