@@ -129,7 +129,7 @@ cdef inline void __pyx_call_rethrow_exception "__pyx_call_rethrow_exception"(exc
 cdef extern from *:
     """
     namespace {
-        #if __cplusplus >= 201703L || defined(_MSC_VER)
+        #if __cplusplus >= 201703L
         template <typename ExceptionT>
         bool __pyx_call_exception_handler(std::exception_ptr e_ptr, void (*handler)(ExceptionT&)) {
             try {
@@ -162,7 +162,11 @@ cdef extern from *:
             if (!handled)
                 std::rethrow_exception(e_ptr);
         }
-        #elif __cplusplus >= 201103L
+
+        // MSVC defaults to C++14 as of 2025. If set to use a higher standard then it copes
+        // fine with the code above. However, it doesn't like to make it easy to detect by
+        // default.
+        #elif __cplusplus >= 201103L || defined(_MSC_VER)
 
         bool __pyx_call_exception_handler_recursive(std::exception_ptr) {
             return false;
