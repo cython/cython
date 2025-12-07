@@ -4032,6 +4032,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln(f' if (!{typeptr_cname}) {error_code}')
 
+        if not is_builtin and not type.is_external:
+            code.putln('#if CYTHON_OPAQUE_OBJECTS')
+            code.putln(f'{code.name_in_module_state(type.typeoffset_cname)} = __Pyx_CalculateTypeOffset({typeptr_cname});')
+            code.putln(f'if ({code.name_in_module_state(type.typeoffset_cname)} < 0) {error_code}')
+            code.putln('#endif')
+
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)
 
