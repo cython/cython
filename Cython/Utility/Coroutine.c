@@ -1918,7 +1918,7 @@ static PyMemberDef __pyx_Coroutine_memberlist[] = {
     {"cr_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), __PYX_SHARED_RELATIVE_OFFSET | READONLY,
      PyDoc_STR("object being awaited, or None")},
     {"cr_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), __PYX_SHARED_RELATIVE_OFFSET | READONLY, NULL},
-    {"__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
+    {"__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), __PYX_SHARED_RELATIVE_OFFSET | 0, 0},
 #if PY_VERSION_HEX < 0x030C0000 || CYTHON_COMPILING_IN_LIMITED_API
     {"__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), __PYX_SHARED_RELATIVE_OFFSET | READONLY, 0},
 #endif
