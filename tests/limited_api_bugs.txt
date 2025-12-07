@@ -12,7 +12,6 @@ tss
 sys_monitoring
 special_method_docstrings
 verbatiminclude
-test_coroutines_pep492
 coverage
 line_profile_test
 cdef_multiple_inheritance_errors

@@ -75,6 +75,7 @@ def no_pypy(f):
     if platform.python_implementation() == 'PyPy':
         return unittest.skip("excluded in PyPy")
 
+include "skip_if_limited_api_helper.pxi"
 
 # compiled exec()
 def exec(code_string, l, g):
@@ -996,6 +997,7 @@ class CoroutineTest(unittest.TestCase):
 
         self.assertEqual(run_async(bar()), ([], 'spam') )
 
+    @skip_if_limited_api("relies on finalizers")
     def test_func_9(self):
         async def foo(): pass
 
