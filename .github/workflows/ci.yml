@@ -42,15 +42,16 @@ jobs:
         os: [ubuntu-22.04, windows-2022, macos-latest]
         backend: [c, cpp]
         python-version:
-          - "3.8"
           - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
           - "3.13"
           - "3.13t"
-          - "3.14-dev"
-          - "3.14t-dev"
+          - "3.14"
+          - "3.14t"
+          - "3.15-dev"
+          - "3.15t-dev"
         env: [{}]
 
         exclude:
@@ -62,16 +63,16 @@ jobs:
             python-version: 3.13t
             backend: "cpp"
           - os: windows-2022
-            python-version: 3.14t-dev
+            python-version: 3.14t
             backend: "c"
           - os: windows-2022
-            python-version: 3.14t-dev
+            python-version: 3.14t
             backend: "cpp"
 
         include:
-          #- python-version: "3.14-dev"
+          #- python-version: "3.15-dev"
           #  allowed_failure: true
-          #- python-version: "3.14t-dev"
+          #- python-version: "3.15t-dev"
           #  allowed_failure: true
 
           # Ubuntu sub-jobs:
@@ -105,29 +106,29 @@ jobs:
             extra_hash: "-gcc11"
           # Arm64
           - os: ubuntu-22.04-arm
-            python-version: "3.12"
+            python-version: "3.13"
             backend: c
             env: {}
           - os: ubuntu-22.04-arm
-            python-version: "3.12"
+            python-version: "3.13"
             backend: cpp
             env: {}
           - os:  windows-11-arm
-            python-version: "3.12"
+            python-version: "3.13"
             backend: "c"
             env: {}
           - os:  windows-11-arm
-            python-version: "3.12"
+            python-version: "3.13"
             backend: "cpp"
             env: {}
           # compile all modules
           - os: ubuntu-22.04
-            python-version: "3.8"
+            python-version: "3.9"
             backend: c
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
           - os: ubuntu-22.04
-            python-version: "3.8"
+            python-version: "3.9"
             backend: cpp
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
@@ -149,26 +150,26 @@ jobs:
             extra_hash: "-codestyle"
           # Limited API
           - os: ubuntu-22.04
-            python-version: "3.8"
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", NO_LIMITED_COMPILE: 1 }
-            extra_hash: "-limited_api"
-          - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api" }
+            env: { LIMITED_API: "--limited-api --abi3audit" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api" }
+            env: { LIMITED_API: "--limited-api --abi3audit" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.13"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api" }
+            env: { LIMITED_API: "--limited-api --abi3audit" }
             extra_hash: "-limited_api"
           # Type specs
+          - os: ubuntu-22.04
+            python-version: "3.14"
+            backend: c
+            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_hash: "-typespecs"
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: c
@@ -179,29 +180,17 @@ jobs:
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
-          - os: ubuntu-22.04
-            python-version: "3.8"
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          # Stackless
-          - os: ubuntu-22.04
-            python-version: "3.8"
-            backend: c
-            env: { STACKLESS: true, PY: 3 }
-            extra_hash: "-stackless"
           # Pypy
-          - os: ubuntu-22.04
-            python-version: pypy-3.8  # drop with EOL of Ubuntu 22.04
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-            allowed_failure: true
           - os: ubuntu-22.04
             python-version: pypy-3.9
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
           - os: ubuntu-22.04
             python-version: pypy-3.10
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
+          - os: ubuntu-22.04
+            python-version: pypy-3.11
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
           # Free-threading
@@ -247,17 +236,17 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v6.0.0
+        uses: actions/setup-python@v6.1.0
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@v1.2.19
+        uses: hendrikmuhs/ccache-action@v1.2.20
         with:
           variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
           create-symlink: ${{ startsWith(runner.os, 'Linux') && 'false' || 'true' }}  # fake ternary
@@ -272,148 +261,18 @@ jobs:
         run: bash ./Tools/ci-run.sh
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5
         with:
           name: htmldocs
           path: docs/build/html
           if-no-files-found: ignore
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5
         with:
           name: wheels-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}${{ matrix.extra_hash }}
           path: dist/*.whl
           if-no-files-found: ignore
-
-
-  pycoverage:
-    runs-on: ubuntu-22.04
-
-    env:
-      BACKEND: c,cpp
-      OS_NAME: ubuntu-22.04
-      PYTHON_VERSION: "3.11"
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
-
-      - name: Setup python
-        uses: actions/setup-python@v6.0.0
-        with:
-          python-version: "3.11"
-
-      - name: Run Coverage
-        env: { COVERAGE: 1, NO_CYTHON_COMPILE: 1 }
-        run: bash ./Tools/ci-run.sh
-
-      - name: Write summary
-        run: |
-          if [ -f coverage-report.md ]; then { echo "## Python coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
-
-      - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: pycoverage_html
-          path: coverage-report-html
-
-  cycoverage:
-    runs-on: ubuntu-22.04
-    needs: [ pycoverage ]  # order summary report output
-
-    env:
-      BACKEND: c,cpp
-      OS_NAME: ubuntu-22.04
-      PYTHON_VERSION: "3.11"
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-
-      - name: Setup python
-        uses: actions/setup-python@v6.0.0
-        with:
-          python-version: "3.11"
-
-      - name: Run Coverage
-        env: { COVERAGE: 1 }
-        run: bash ./Tools/ci-run.sh
-
-      - name: Write summary
-        run: |
-          if [ -f coverage-report.md ]; then { echo "## Compiled coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
-
-      - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: cycoverage_html
-          path: coverage-report-html
-
-  benchmarks:
-    runs-on: ubuntu-latest
-
-    env:
-      CCACHE_SLOPPINESS: "pch_defines,time_macros"
-      CCACHE_COMPRESS: 1
-      CCACHE_COMPRESSLEVEL: 5
-      CCACHE_NOHASHDIR: 1
-      CFLAGS: -O3 -g1 -fPIC -mtune=generic
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@v1.2.19
-        with:
-          create-symlink: true
-          variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
-          save: ${{ startsWith(github.ref, '/refs/pull/') && 'false' || 'true' }}  # fake ternary
-          key: ${{ runner.os }}-${{ runner.arch }}-hendrikmuhs-ccache-benchmarks
-          max-size: 250M
-
-      - name: Setup python
-        uses: actions/setup-python@v6.0.0
-        with:
-          # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
-          python-version: |
-            3.13t
-            3.10
-            3.12
-            3.13
-            3.14-dev
-
-      - name: Run Benchmarks
-        run: |
-          # Run benchmarks in all Python versions, Limited C-API only in 3.14.
-          LIMITED_API=--with-limited
-          for PYTHON in  python3.14  python3.13  python3.13t  python3.12  python3.10  ; do
-              ${PYTHON} -m pip install setuptools
-              if [[ ${PYTHON} == *t || ${PYTHON} == *"t-dev" ]]; then
-                COMMITS=("origin/master"  "HEAD")
-                CYTHONIZE_ARGS="-Xfreethreading_compatible=True"
-              else
-                COMMITS=("origin/3.0.x"  "3a7a936e099df468dcaa01829ae6567c577489c0"  "${LIMITED_API}" "origin/master"  "${LIMITED_API}" "HEAD")
-                CYTHONIZE_ARGS=
-              fi
-              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --show-size --report benchmark_results_${PYTHON}.csv --with-python  ${CYTHONIZE_ARGS} ${COMMITS[*]}
-              LIMITED_API=
-          done | tee benchmarks.log
-
-      - name: Create summary
-        run: |
-          { echo "## Benchmark results:"; echo; python Demos/benchmarks/report.py benchmark_results_*.csv; } >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload results
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: benchmark_results.txt
-          path: benchmarks.log
 
   codespell:
     name: Check for spelling errors
@@ -421,6 +280,6 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Codespell
         uses: codespell-project/actions-codespell@v2

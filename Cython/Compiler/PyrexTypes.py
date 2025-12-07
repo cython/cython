@@ -155,12 +155,6 @@ class BaseType:
         """
         return None
 
-    def invalid_value(self):
-        """
-        Returns the most invalid value an object of this type can assume as a
-        C expression string. Returns None if no such value exists.
-        """
-
 
 class PyrexType(BaseType):
     #
@@ -455,9 +449,6 @@ class CTypedefType(BaseType):
         self.typedef_base_type = base_type
         self.typedef_is_external = is_external
         self.typedef_namespace = namespace
-
-    def invalid_value(self):
-        return self.typedef_base_type.invalid_value()
 
     def resolve(self):
         return self.typedef_base_type.resolve()
@@ -765,7 +756,7 @@ class MemoryViewSliceType(PyrexType):
         assert not dll_linkage
         from . import MemoryView
         base_code = StringEncoding.EncodedString(
-            str(self) if pyrex or for_display else MemoryView.memviewslice_cname)
+            str(self) if pyrex or for_display else Naming.memviewslice_cname)
         return self.base_declaration_code(
                 base_code,
                 entity_code)
@@ -843,8 +834,7 @@ class MemoryViewSliceType(PyrexType):
                     copy_func_type, pos=pos, defining=1,
                     cname=copy_cname)
 
-                utility = MemoryView.get_copy_new_utility(pos, self, to_memview)
-                env.use_utility_code(utility)
+                entry.utility_code_definition = MemoryView.get_copy_new_utility(pos, self, to_memview)
 
             MemoryView.use_cython_array_utility_code(env)
 
@@ -1006,10 +996,7 @@ class MemoryViewSliceType(PyrexType):
                 "ObjectToMemviewSlice", "MemoryView_C.c", context=context)
 
         env.use_utility_code(
-            MemoryView.get_memviewslice_init_code(
-                env.context.shared_utility_qualified_name
-            )
-        )
+            MemoryView.get_view_utility_code(env.context.shared_utility_qualified_name))
         env.use_utility_code(LazyUtilityCode(lazy_utility_callback))
 
         if self.is_c_contig:
@@ -1097,6 +1084,7 @@ class MemoryViewSliceType(PyrexType):
                 from_py_function=from_py_function,
                 dtype=self.dtype.empty_declaration_code(),
                 error_condition=error_condition,
+                dtype_is_const=self.dtype.is_const,
             )
 
         utility = TempitaUtilityCode.load_cached(
@@ -2249,15 +2237,6 @@ class CIntType(CIntLike, CNumericType):
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
 
-    def invalid_value(self):
-        if rank_to_type_name[int(self.rank)] == 'char':
-            return "'?'"
-        else:
-            # We do not really know the size of the type, so return
-            # a 32-bit literal and rely on casting to final type. It will
-            # be negative for signed ints, which is good.
-            return "0xbad0bad0"
-
     def overflow_check_binop(self, binop, env, const_rhs=False):
         env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
         type = self.empty_declaration_code()
@@ -2488,8 +2467,6 @@ class CFloatType(CNumericType):
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
 
-    def invalid_value(self):
-        return Naming.PYX_NAN
 
 class CComplexType(CNumericType):
 
@@ -3040,9 +3017,6 @@ class CPtrType(CPointerBaseType):
             return self.base_type.deduce_template_params(actual.base_type)
         else:
             return {}
-
-    def invalid_value(self):
-        return "1"
 
     def find_cpp_operation_type(self, operator, operand_type=None):
         if self.base_type.is_cpp_class:
@@ -3864,9 +3838,9 @@ class ToPyStructUtilityCode(AbstractUtilityCode):
     def __hash__(self):
         return hash(self.header)
 
-    def put_code(self, output):
-        code = output['utility_code_def']
-        proto = output['utility_code_proto']
+    def put_code(self, globalstate, used_by=None):
+        code = globalstate['utility_code_def']
+        proto = globalstate['utility_code_proto']
 
         code.enter_cfunc_scope(self.env.global_scope())
         code.putln("%s {" % self.header)
@@ -4989,9 +4963,10 @@ class CythonLockType(PyrexType):
         # Singleton, cannot be copied.
         return src_type is self._special_assignable_reference_type
 
-    def get_utility_code(self):
-        # It doesn't seem like a good way to associate utility code with a type actually exists
-        # so we just have to do it in as many places as possible.
+    def get_decl_utility_code(self):
+        return UtilityCode.load_cached(f"{self.cname_part}Decl", "Synchronization.c")
+
+    def get_usage_utility_code(self):
         return UtilityCode.load_cached(self.cname_part, "Synchronization.c")
 
     def needs_explicit_construction(self, scope):
@@ -5006,7 +4981,7 @@ class CythonLockType(PyrexType):
 
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
         code.globalstate.use_utility_code(
-            self.get_utility_code()
+            self.get_usage_utility_code()
         )
         code.putln(f"__Pyx_Locks_{self.cname_part}_Init({extra_access_code}{entry.cname});")
 
@@ -5034,7 +5009,7 @@ class CythonLockType(PyrexType):
                     pos=None,
                     defining=1,
                     cname=f"__Pyx_Locks_{self.cname_part}_Lock",
-                    utility_code=self.get_utility_code())
+                    utility_code=self.get_usage_utility_code())
             scope.declare_cfunction(
                     "release",
                     CFuncType(c_void_type, [CFuncTypeArg("self", self_type, None)],
@@ -5042,9 +5017,23 @@ class CythonLockType(PyrexType):
                     pos=None,
                     defining=1,
                     cname=f"__Pyx_Locks_{self.cname_part}_Unlock",
-                    utility_code=self.get_utility_code())
-            # Don't define a "locked" function because we can't do this with Py_Mutex
-            # (which is the preferred implementation)
+                    utility_code=self.get_usage_utility_code())
+            scope.declare_cfunction(
+                    "locked",
+                    CFuncType(c_bint_type, [CFuncTypeArg("self", self_type, None)],
+                              nogil=True),
+                    pos=None,
+                    defining=1,
+                    cname=f"__Pyx_Locks_{self.cname_part}_Locked",
+                    utility_code=self.get_usage_utility_code())
+            scope.declare_cfunction(
+                    "can_check_locked",
+                    CFuncType(c_bint_type, [CFuncTypeArg("self", self_type, None)],
+                              nogil=True),
+                    pos=None,
+                    defining=1,
+                    cname=f"__Pyx_Locks_{self.cname_part}_CanCheckLocked",
+                    utility_code=self.get_usage_utility_code())
 
         return True
 
@@ -5053,6 +5042,14 @@ class CythonLockType(PyrexType):
 
     def create_from_py_utility_code(self, env):
         return False
+
+    def __eq__(self, other):
+        if type(other) is not type(self):
+            return NotImplemented
+        return other.cname_part == self.cname_part
+
+    def __hash__(self):
+        return hash(self.cname_part)
 
 
 rank_to_type_name = (
@@ -5185,8 +5182,12 @@ cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
 
-cy_pymutex_type = CythonLockType("PyMutex")
-cy_pythread_type_lock_type = CythonLockType("PyThreadTypeLock")
+# Don't declare these as globals - it interferes with our ability to check if it's
+# used in a particular scope.
+def get_cy_pymutex_type():
+    return CythonLockType("PyMutex")
+def get_cy_pythread_type_lock_type():
+    return CythonLockType("PyThreadTypeLock")
 
 fixed_sign_int_types = {
     "bint":       (1, c_bint_type),

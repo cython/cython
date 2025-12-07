@@ -14,7 +14,7 @@ class PyBase(object):
 @cython.binding(True)
 cdef class BothBound(CBase, PyBase):
     """
-    >>> b = BothUnbound()
+    >>> b = BothBound()
     >>> b.py_method()
     'PyBase'
     >>> b.cp_method()

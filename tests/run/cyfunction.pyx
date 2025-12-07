@@ -4,10 +4,6 @@
 
 cimport cython
 
-include "skip_limited_api_helper.pxi"
-
-import sys
-
 def inspect_isroutine():
     """
     >>> inspect_isroutine()
@@ -66,7 +62,6 @@ def inspect_signature(a, b, c=123, *, d=234):
 #     return inspect_signature.__signature__
 
 
-@skip_if_limited_api("tp_dictoffset not set", min_runtime_version=(3, 9))
 def test_dict():
     """
     >>> test_dict.foo = 123

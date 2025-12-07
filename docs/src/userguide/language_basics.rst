@@ -661,14 +661,21 @@ with string attributes if they are to be used after the function returns.
 C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
-C Functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
-Python object return type, like Python functions, will return a ``None``
-value when execution leaves the function body without an explicit return value. This is in
-contrast to C/C++, which leaves the return value undefined.
-In the case of non-Python object return types, the equivalent of zero is returned, for example, 0 for ``int``, ``False`` for ``bint`` and ``NULL`` for pointer types.
-
 A more complete comparison of the pros and cons of these different method
 types can be found at :ref:`early-binding-for-speed`.
+
+.. _default_return_values:
+
+Default return values
+---------------------
+
+C functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
+Python object return type, like Python functions, will return a ``None``
+value when execution leaves the function body without an explicit return value.
+This is in contrast to C/C++, which leaves the return value undefined.
+
+In the case of non-Python object return types, the equivalent of zero is returned,
+for example, 0 for ``int``, ``False`` for ``bint`` and ``NULL`` for pointer types.
 
 
 Python objects as parameters and return values
@@ -906,9 +913,10 @@ occurred and can now process or propagate it. Calling ``spam()`` is roughly tran
     if (ret_val == -1) goto error_handler;
 
 When you declare an exception value for a function, you should never explicitly
-or implicitly return that value.  This includes empty :keyword:`return`
-statements, without a return value, for which Cython inserts the default return
-value (e.g. ``0`` for C number types).  In general, exception return values
+or implicitly return that value.  This includes the case where the execution
+leaves the function body without returning a value, for which Cython
+inserts the default return value (e.g. ``0`` for C number types,
+see :ref:`default_return_values`). In general, exception return values
 are best chosen from invalid or very unlikely return values of the function,
 such as a negative value for functions that return only non-negative results,
 or a very large value like ``INT_MAX`` for a function that "usually" only
@@ -1059,8 +1067,8 @@ Some things to note:
   function returning nothing (C ``void``).  Simple workarounds are to mark the
   function as ``noexcept`` if you're certain that exceptions cannot be thrown, or
   to change the return type to ``int`` and just let Cython use the return value
-  as an error flag (by default, ``-1`` triggers the exception check).
-
+  as an error flag (by default, ``-1`` triggers the exception check, i.e.
+  functions returning ``int`` use ``except? -1`` by default)
 
 .. _checking_return_values_of_non_cython_functions:
 

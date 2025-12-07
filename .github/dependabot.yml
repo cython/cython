@@ -10,3 +10,11 @@ updates:
       github-actions:
         patterns:
           - "*"
+  # The following is designed to update only cibuildwheel, and is here so that
+  # it's kept in sync with github actions above.
+  - package-ecosystem: "pip"
+    directory: ".github"
+    schedule:
+      interval: "monthly"
+    allow:
+      - dependency-name: "cibuildwheel"
