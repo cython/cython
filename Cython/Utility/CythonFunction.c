@@ -146,7 +146,8 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunctionNoMethod(PyObject *func, void (*cfunc)(void)) {
     if (__Pyx_CyFunction_Check(func)) {
-        return PyCFunction_GetFunction(((__pyx_CyFunctionObject*)func)->func) == (PyCFunction) cfunc;
+        return PyCFunction_GetFunction(
+            __Pyx_GetSharedTypeData(func, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *)->func) == (PyCFunction) cfunc;
     } else if (PyCFunction_Check(func)) {
         return PyCFunction_GetFunction(func) == (PyCFunction) cfunc;
     }
@@ -1150,7 +1151,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const 
     case 0:
 #if CYTHON_COMPILING_IN_LIMITED_API
         // PyCFunction_GetSelf returns a borrowed reference
-        self = PyCFunction_GetSelf(((__pyx_CyFunctionObject*)cyfunc)->func);
+        self = PyCFunction_GetSelf(cyfunc->func);
         if (unlikely(!self) && PyErr_Occurred()) return NULL;
 #else
         self = ((PyCFunctionObject*)cyfunc)->m_self;
