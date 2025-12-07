@@ -66,6 +66,7 @@
   #define CYTHON_COMPILING_IN_GRAAL 1
 
   #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
+  #define CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING 0
 
   #undef CYTHON_USE_TYPE_SLOTS
   #define CYTHON_USE_TYPE_SLOTS 0
@@ -133,6 +134,7 @@
   #define CYTHON_COMPILING_IN_GRAAL 0
 
   #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
+  #define CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING 0
 
   #undef CYTHON_USE_TYPE_SLOTS
   #define CYTHON_USE_TYPE_SLOTS 1
@@ -212,6 +214,8 @@
   #define CYTHON_COMPILING_IN_GRAAL 0
 
   #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
+  // from 3.15+, the Limited API can also be used with freethreading
+  #define CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING (__PYX_LIMITED_VERSION_HEX >= 0x030F0000)
 
   #undef CYTHON_USE_TYPE_SLOTS
   #define CYTHON_USE_TYPE_SLOTS 0
@@ -232,7 +236,7 @@
     #define CYTHON_AVOID_BORROWED_REFS 0
   #endif
   #ifndef CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-    #define CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS 0
+    #define CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING
   #endif
   #undef CYTHON_ASSUME_SAFE_MACROS
   #define CYTHON_ASSUME_SAFE_MACROS 0
@@ -274,7 +278,7 @@
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
   #ifndef CYTHON_USE_FREELISTS
-  #define CYTHON_USE_FREELISTS 1
+  #define CYTHON_USE_FREELISTS (!CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING)
   #endif
   #undef CYTHON_IMMORTAL_CONSTANTS
   #define CYTHON_IMMORTAL_CONSTANTS 0
@@ -299,6 +303,7 @@
   #else
     #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
   #endif
+  #define CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING 0
 
   #if PY_VERSION_HEX < 0x030A0000
     // Before Py3.10, PyObject_GetSlot() rejects static (non-heap) types.
@@ -1761,7 +1766,7 @@ struct __Pyx_CodeObjectCache {
     int count;
     int max_count;
     __Pyx_CodeObjectCacheEntry* entries;
-  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING
     // 0 for none, +ve for readers, -ve for writers.
     //
     __pyx_atomic_int_type accessor_count;
@@ -1819,12 +1824,12 @@ static __Pyx_CachedCodeObjectType *__pyx__find_code_object(struct __Pyx_CodeObje
 }
 
 static __Pyx_CachedCodeObjectType *__pyx_find_code_object(int code_line) {
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
+#if (CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING) && !CYTHON_ATOMICS
     (void)__pyx__find_code_object;
     return NULL; // Most implementation should have atomics. But otherwise, don't make it thread-safe, just miss.
 #else
     struct __Pyx_CodeObjectCache *code_cache = &CGLOBAL(__pyx_code_cache);
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING
     __pyx_nonatomic_int_type old_count = __pyx_atomic_incr_acq_rel(&code_cache->accessor_count);
     if (old_count < 0) {
         // It's being written so currently unreadable.
@@ -1833,7 +1838,7 @@ static __Pyx_CachedCodeObjectType *__pyx_find_code_object(int code_line) {
     }
 #endif
     __Pyx_CachedCodeObjectType *result = __pyx__find_code_object(code_cache, code_line);
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING
     __pyx_atomic_decr_acq_rel(&code_cache->accessor_count);
 #endif
     return result;
@@ -1888,12 +1893,12 @@ static void __pyx__insert_code_object(struct __Pyx_CodeObjectCache *code_cache, 
 }
 
 static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* code_object) {
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
+#if (CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING) && !CYTHON_ATOMICS
     (void)__pyx__insert_code_object;
     return; // Most implementation should have atomics. But otherwise, don't make it thread-safe, just fail.
 #else
     struct __Pyx_CodeObjectCache *code_cache = &CGLOBAL(__pyx_code_cache);
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING
     __pyx_nonatomic_int_type expected = 0;
     if (!__pyx_atomic_int_cmp_exchange(&code_cache->accessor_count, &expected, INT_MIN)) {
         // it's being written or read, Either way we can't do anything
@@ -1901,7 +1906,7 @@ static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* 
     }
 #endif
     __pyx__insert_code_object(code_cache, code_line, code_object);
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING
     __pyx_atomic_sub(&code_cache->accessor_count, INT_MIN);
 #endif
 #endif
