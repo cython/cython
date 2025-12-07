@@ -1611,6 +1611,7 @@ class PyExtensionType(PyObjectType):
     #  objtypedef_cname string           Name of PyObject struct typedef
     #  typeobj_cname    string or None   C code fragment referring to type object
     #  typeptr_cname    string or None   Name of pointer to external type object
+    #  typeoffset_cname string           Name storing the offset of the objstruct (in pep 697 opaque objects mode)
     #  vtabslot_type = None   PyExtensionType   Type in the inheritance heirarchy that holds the vtabslot member
     #  vtabstruct_cname string           Name of C method table struct
     #  vtabptr_cname    string           Name of pointer to C method table
@@ -1730,8 +1731,8 @@ class PyExtensionType(PyObjectType):
         if not type_data_cast or self.is_external:
             return super().cast_code(expr_code)
         # FIXME - we really need Code to get to this
-        typeptr_cname = f"{Naming.modulestateglobal_cname}->{self.typeptr_cname}"
-        return f"__Pyx_GetCClassTypeDataAndCast({expr_code}, {typeptr_cname}, {self.declaration_code("", opaque_decl=False)})"
+        typeoffset_cname = f"{Naming.modulestateglobal_cname}->{self.typeoffset_cname}"
+        return f"__Pyx_GetCClassTypeDataAndCast({expr_code}, {typeoffset_cname}, {self.declaration_code("", opaque_decl=False)})"
 
     def __str__(self):
         return self.name

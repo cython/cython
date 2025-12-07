@@ -1376,6 +1376,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
                 module_state.putln("PyTypeObject *%s;" % entry.type.typeptr_cname)
+                module_state.putln("#if CYTHON_OPAQUE_OBJECTS")
+                module_state.putln(f"Py_ssize_t {entry.type.typeoffset_cname};")
+                module_state.putln("#endif")
                 module_state_clear.putln(
                     "Py_CLEAR(clear_module_state->%s);" %
                     entry.type.typeptr_cname)
@@ -1681,7 +1684,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 vtab_access_code = ""
                 struct_type_cast = ""
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
-            code.putln(f"__Pyx_GetCClassTypeData(o, {code.name_in_module_state(vtab_base_type.typeptr_cname)}, "
+            code.putln(f"__Pyx_GetCClassTypeData(o, {code.name_in_module_state(vtab_base_type.typeoffset_cname)}, "
                        f"{vtab_base_type.empty_declaration_code(opaque_decl=False)})->{Naming.vtabslot_cname}"
                        f" = {struct_type_cast}{type.vtabptr_cname};")
             code.putln("#else")

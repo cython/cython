@@ -2204,7 +2204,7 @@ class FuncDefNode(StatNode, BlockNode):
             # Note that it is unsafe to decref the scope at this point.
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
             code.putln(f"{Naming.cur_scope_cname} = __Pyx_GetCClassTypeData({Naming.cur_scope_obj_cname}, "
-                    f"{code.name_in_module_state(lenv.scope_class.type.typeptr_cname)}, "
+                    f"{code.name_in_module_state(lenv.scope_class.type.typeoffset_cname)}, "
                     f"{lenv.scope_class.type.empty_declaration_code(opaque_decl=False)});")
             code.putln("#endif")
         if self.needs_outer_scope:
@@ -2222,7 +2222,7 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("%s = __Pyx_GetCClassTypeData(%s, %s, %s);" % (
                     outer_scope_cname,
                     outer_scope_obj_cname,
-                    code.name_in_module_state(cenv.scope_class.type.typeptr_cname),
+                    code.name_in_module_state(cenv.scope_class.type.typeoffset_cname),
                     cenv.scope_class.type.empty_declaration_code(),))
             code.putln("#endif")
             if lenv.is_passthrough:
@@ -5753,6 +5753,7 @@ class CClassDefNode(ClassDefNode):
         # type defined in this module.
         type = entry.type
         typeptr_cname = f"{Naming.modulestatevalue_cname}->{type.typeptr_cname}"
+        typeoffset_cname = f"{Naming.modulestatevalue_cname}->{type.typeoffset_cname}"
         scope = type.scope
         if not scope:  # could be None if there was an error
             return
@@ -5891,6 +5892,11 @@ class CClassDefNode(ClassDefNode):
             code.put_error_if_neg(entry.pos, "__Pyx_PyType_Ready(%s)" % typeptr_cname)
             code.putln("#endif")
             code.put_make_object_deferred(f"(PyObject*){typeptr_cname}")
+
+            code.putln("#if CYTHON_OPAQUE_OBJECTS")
+            code.putln(f"{typeoffset_cname} = __Pyx_CalculateTypeOffset({typeptr_cname});")
+            code.put_error_if_neg(entry.pos, typeoffset_cname);
+            code.putln("#endif")
 
             # Use specialised attribute lookup for types with generic lookup but no instance dict.
             getattr_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_getattro')

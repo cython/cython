@@ -8168,9 +8168,9 @@ class AttributeNode(ExprNode):
                 return obj.result_as(access_type)
             else:
                 # FIXME - we really need Code to get to this
-                typeptr_cname = f"{Naming.modulestateglobal_cname}->{access_type.typeptr_cname}"
+                typeoffset_cname = f"{Naming.modulestateglobal_cname}->{access_type.typeoffset_cname}"
                 objstruct_cname = access_type.objstruct_cname if access_type.typedef_flag else f"struct {access_type.objstruct_cname}"
-                return f"__Pyx_GetCClassTypeData({obj_code}, {typeptr_cname}, {objstruct_cname}*{access_code})"
+                return f"__Pyx_GetCClassTypeData({obj_code}, {typeoffset_cname}, {objstruct_cname}*{access_code})"
         else:
             return obj.result_as(obj.type)
 

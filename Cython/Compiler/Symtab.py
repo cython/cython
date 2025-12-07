@@ -1832,6 +1832,7 @@ class ModuleScope(Scope):
                 type.typeptr_cname = typeptr_cname
             else:
                 type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
+            type.typeoffset_cname = self.mangle(Naming.typeoffset_prefix, name)
             entry = self.declare_type(name, type, pos, visibility = visibility,
                 defining = 0, shadow = shadow)
             entry.is_cclass = True

@@ -50,8 +50,8 @@ cdef extern from *:
     ctypedef struct __pyx_memoryview_o "__PYX_C_CLASS_DECL(struct __pyx_memoryview_obj)":
         pass
 
-    cdef void __Pyx_SetupGetMemoryviewStructPointer(object o) noexcept
     cdef __pyx_memoryview *__Pyx_GetMemoryviewStructPointer(__pyx_memoryview_o *o) noexcept nogil
+    cdef Py_ssize_t __Pyx_MemoryviewOffsetOfTypeInfo() noexcept nogil
 
     ctypedef struct {{memviewslice_name}}:
         __pyx_memoryview_o *memview
@@ -348,7 +348,6 @@ cdef class memoryview:
     cdef const __Pyx_TypeInfo *typeinfo
 
     def __cinit__(memoryview self, object obj, int flags, bint dtype_is_object=False):
-        __Pyx_SetupGetMemoryviewStructPointer(self)
         self.obj = obj
         self.flags = flags
         if type(self) is memoryview or obj is not None:
@@ -672,9 +671,14 @@ cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, const __Pyx_
 cdef inline bint memoryview_check(object o) noexcept:
     return isinstance(o, memoryview)
 
-@cname('__pyx_memoryview_type')
-cdef inline PyTypeObject* memoryview_type() noexcept:
-    return <PyTypeObject*>memoryview  # returns borrowed ref
+@cname('__Pyx_GetMemoryviewStructPointerImpl')
+cdef inline __pyx_memoryview* memoryview_struct_ptr_impl(__pyx_memoryview_o *o) noexcept nogil:
+    # typeinfo serves as a fairly arbitrary member that we can get a pointer to.
+    # We just need to access a member to force Cython to generate the appropriate
+    # __Pyx_GetCClassTypeData and then get back from the member to the base structure.
+    cdef char* typeinfo_ptr = <char*>&(<memoryview><object>o).typeinfo
+    return <__pyx_memoryview*>(typeinfo_ptr - __Pyx_MemoryviewOffsetOfTypeInfo())
+
 
 cdef tuple _unellipsify(object index, int ndim):
     """
