@@ -54,7 +54,7 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *, int writable
 #endif
 
 static int __Pyx_init_memviewslice(
-                __PYX_C_CLASS_DECL(struct __pyx_memoryview_obj) *memview,
+                __PYX_C_CLASS_DECL(struct {{memview_struct_name}}) *memview,
                 int ndim,
                 __Pyx_memviewslice *memviewslice,
                 int memview_is_new_reference);
@@ -70,7 +70,7 @@ static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
 static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *, int, int);
 #if !CYTHON_OPAQUE_OBJECTS
-#define __Pyx_GetMemoryviewStructPointer(o) o
+#define __Pyx_GetMemoryviewStructPointer(o) ((struct {{memview_struct_name}}*)o)
 #else
 #define __Pyx_GetMemoryviewStructPointer(o) __Pyx_GetMemoryviewStructPointerImpl(o)
 #endif
@@ -93,7 +93,7 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj, int writa
 
     if (obj == Py_None) {
         /* We don't bother to refcount None */
-        result.memview = (__PYX_C_CLASS_DECL(struct __pyx_memoryview_obj)*) Py_None;
+        result.memview = (__PYX_C_CLASS_DECL(struct {{memview_struct_name}})*) Py_None;
         return result;
     }
 
@@ -258,7 +258,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
                 __Pyx_memviewslice *memviewslice,
                 PyObject *original_obj)
 {
-    struct __pyx_memoryview_obj *memview;
+    struct {{memview_struct_name}} *memview;
     PyObject *new_memview;
     __Pyx_RefNannyDeclarations
     Py_buffer *buf;
@@ -326,7 +326,8 @@ static int __Pyx_ValidateAndInit_memviewslice(
     }
 
     /* Initialize */
-    if (unlikely(__Pyx_init_memviewslice(new_memview ? new_memview : original_obj, ndim, memviewslice,
+    if (unlikely(__Pyx_init_memviewslice((__PYX_C_CLASS_DECL(struct {{memview_struct_name}})*)(new_memview ? new_memview : original_obj),
+                                         ndim, memviewslice,
                                          new_memview != NULL) == -1)) {
         goto fail;
     }
@@ -347,7 +348,7 @@ no_fail:
 ////////// MemviewSliceInit //////////
 
 static int
-__Pyx_init_memviewslice(__PYX_C_CLASS_DECL(struct __pyx_memoryview_obj) *memview,
+__Pyx_init_memviewslice(__PYX_C_CLASS_DECL(struct {{memview_struct_name}}) *memview,
                         int ndim,
                         {{memviewslice_name}} *memviewslice,
                         int memview_is_new_reference)
@@ -477,7 +478,7 @@ __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice,
                                              int have_gil, int lineno) {
     __pyx_nonatomic_int_type old_acquisition_count;
-    __PYX_C_CLASS_DECL({{memview_struct_name}})* memview = memslice->memview;
+    __PYX_C_CLASS_DECL(struct {{memview_struct_name}})* memview = memslice->memview;
 
     if (unlikely(!memview || (PyObject *) memview == Py_None)) {
         // Do not ref-count None.
@@ -526,12 +527,12 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     __Pyx_RefNannyDeclarations
     int i;
     __Pyx_memviewslice new_mvs = {{memslice_init}};
-    struct __pyx_memoryview_obj *from_memview = __Pyx_GetMemoryviewStructPointer(from_mvs->memview);
+    struct {{memview_struct_name}} *from_memview = __Pyx_GetMemoryviewStructPointer(from_mvs->memview);
     Py_buffer *buf = &from_memview->view;
     PyObject *shape_tuple = NULL;
     PyObject *temp_int = NULL;
     __PYX_C_CLASS_DECL(struct __pyx_array_obj)* array_obj = NULL;
-    __PYX_C_CLASS_DECL(struct __pyx_memoryview_obj) *memview_obj = NULL;
+    __PYX_C_CLASS_DECL(struct {{memview_struct_name}}) *memview_obj = NULL;
 
     __Pyx_RefNannySetupContext("__pyx_memoryview_copy_new_contig", 0);
 
@@ -572,7 +573,7 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     }
     __Pyx_GOTREF(array_obj);
 
-    memview_obj = (__PYX_C_CLASS_DECL(struct __pyx_memoryview_obj)*)__pyx_memoryview_new(
+    memview_obj = (__PYX_C_CLASS_DECL(struct {{memview_struct_name}})*)__pyx_memoryview_new(
                                     (PyObject *) array_obj, contig_flag,
                                     dtype_is_object,
                                     from_memview->typeinfo);
