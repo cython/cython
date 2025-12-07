@@ -731,6 +731,9 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
 {{else}}
     if (likely(mp && mp->mp_ass_subscript))
 {{endif}}
+#else
+    // Avoid a C warning about unused error handling code below.
+    if ((1))
 #endif
     {
         {{if access == 'Get'}}PyObject*{{else}}int{{endif}} result;
@@ -781,16 +784,17 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
             Py_DECREF(py_slice);
         }
         return result;
-    }
-    obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
+    } else {
+        obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
+        PyErr_Format(PyExc_TypeError,
 {{if access == 'Get'}}
-        "'" __Pyx_FMT_TYPENAME "' object is unsliceable", obj_type_name);
+            "'" __Pyx_FMT_TYPENAME "' object is unsliceable", obj_type_name);
 {{else}}
-        "'" __Pyx_FMT_TYPENAME "' object does not support slice %.10s",
-        obj_type_name, value ? "assignment" : "deletion");
+            "'" __Pyx_FMT_TYPENAME "' object does not support slice %.10s",
+            obj_type_name, value ? "assignment" : "deletion");
 {{endif}}
-    __Pyx_DECREF_TypeName(obj_type_name);
+        __Pyx_DECREF_TypeName(obj_type_name);
+    }
 
 bad:
     return {{if access == 'Get'}}NULL{{else}}-1{{endif}};
