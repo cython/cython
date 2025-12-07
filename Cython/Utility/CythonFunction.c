@@ -39,8 +39,11 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 #define __Pyx_CyFunction_SetClassObj(f, classobj)  \
     __Pyx__CyFunction_SetClassObj(__Pyx_GetSharedTypeData(f, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *), (classobj))
 
-#define __Pyx_CyFunction_Defaults(type, f) \
-    ((type *)((__Pyx_GetSharedTypeData(f, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *))->defaults))
+#define __Pyx_CyFunction_Defaults(type, typeoffset, f) \
+    __Pyx_GetCClassTypeDataAndCast( \
+        (__Pyx_GetSharedTypeData(f, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *))->defaults, \
+        typeoffset, \
+        type*)
 #define __Pyx_CyFunction_SetDefaultsGetter(f, g) \
     (__Pyx_GetSharedTypeData(f, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *))->defaults_getter = (g)
 

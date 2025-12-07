@@ -672,11 +672,11 @@ cdef inline bint memoryview_check(object o) noexcept:
     return isinstance(o, memoryview)
 
 @cname('__Pyx_GetMemoryviewStructPointerImpl')
-cdef inline __pyx_memoryview* memoryview_struct_ptr_impl(__pyx_memoryview_o *o) noexcept nogil:
+cdef __pyx_memoryview* memoryview_struct_ptr_impl(__pyx_memoryview_o *o) noexcept nogil:
     # typeinfo serves as a fairly arbitrary member that we can get a pointer to.
     # We just need to access a member to force Cython to generate the appropriate
     # __Pyx_GetCClassTypeData and then get back from the member to the base structure.
-    cdef char* typeinfo_ptr = <char*>&(<memoryview><object>o).typeinfo
+    cdef char* typeinfo_ptr = <char*>&((<memoryview><object>o).typeinfo)
     return <__pyx_memoryview*>(typeinfo_ptr - __Pyx_MemoryviewOffsetOfTypeInfo())
 
 
