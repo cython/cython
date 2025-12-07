@@ -75,7 +75,7 @@ def no_pypy(f):
     if platform.python_implementation() == 'PyPy':
         return unittest.skip("excluded in PyPy")
 
-include "skip_if_limited_api_helper.pxi"
+include "skip_limited_api_helper.pxi"
 
 # compiled exec()
 def exec(code_string, l, g):
