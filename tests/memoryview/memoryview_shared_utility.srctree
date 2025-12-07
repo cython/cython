@@ -14,6 +14,7 @@ PYTHON setup_without_sources.py build_ext --inplace
 PYTHON -c "import test_shared_utility"
 """
 
+
 ######## delete_generated_files.py ########
 
 import os
@@ -99,13 +100,15 @@ assert not pathlib.Path("build/pkg2/CythonShared.c").exists()
 
 
 ######## test_shared_utility.py ########
-from pkg1.pkg11.add_one import add_one
+
+from pkg1.pkg11.add_one import add_one, imported_func
 from array import array
 from pkg1.pkg11.cast import call_cast, call_cast_to_array
 
 a = array('i', [1, 2, 3, 4])
 add_one(a)
 assert a.tolist() == [2, 3, 4, 5]
+assert imported_func() == 1
 
 import numpy as np
 from pkg1.pkg11.dependency import f
@@ -117,14 +120,19 @@ assert call_cast_to_array() == [1, 2, 3, 4]
 from pkg2 import CythonShared
 assert hasattr(CythonShared, '__pyx_capi__'), dir(CythonShared)
 
+
 ######## pkg1/__init__.py ########
 
+
 ######## pkg1/pkg11/__init__.py ########
+
 
 ######## pkg1/pkg11/add_one.pyx ########
 
 import sys
 from pkg2 import CythonShared
+# relative import bug https://github.com/cython/cython/issues/7290
+from .import_from_me import imported_func
 
 assert CythonShared in sys.modules.values(), list(sys.modules)
 assert sys.modules['pkg2.CythonShared'] is CythonShared, list(sys.modules)
@@ -133,7 +141,9 @@ def add_one(int[:] buf):
     for x in range(buf.shape[0]):
         buf[x] += 1
 
+
 ######## pkg1/pkg11/dependency.pyx ########
+
 cimport numpy as cnp
 cimport cython
 
@@ -146,7 +156,9 @@ assert sys.modules['pkg2.CythonShared'] is CythonShared, list(sys.modules)
 def f(cnp.ndarray[cython.floating, ndim=2] x):
     return x[0,0]
 
+
 ######## pkg1/pkg11/cast.pyx ########
+
 from cython cimport view
 
 import sys
@@ -170,5 +182,10 @@ def call_cast():
 def call_cast_to_array():
     cdef int[4] g = [1, 2, 3, 4]
     return cast_to_array(<void *> g)
+
+######## pkg1/pkg11/import_from_me.pyx ########
+
+def imported_func():
+    return 1
 
 ######## pkg2/__init__.py ########

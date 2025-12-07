@@ -24,6 +24,7 @@ import os.path
 import pathlib
 import re
 import sys
+from functools import partial
 from typing import Optional
 
 from .Errors import (
@@ -76,6 +77,9 @@ class NotConstant:
 not_a_constant = NotConstant()
 constant_value_not_set = object()
 
+def _type_to_itself(tp):
+    return tp, tp
+
 # error messages when coercing from key[0] to key[1]
 coercion_error_dict = {
     # string related errors
@@ -94,9 +98,9 @@ coercion_error_dict = {
     (PyrexTypes.c_uchar_ptr_type, unicode_type): "Cannot convert 'char*' to unicode implicitly, decoding required",
     (PyrexTypes.c_const_uchar_ptr_type, unicode_type): (
         "Cannot convert 'char*' to unicode implicitly, decoding required"),
-    (PyrexTypes.cy_pymutex_type, PyrexTypes.cy_pymutex_type): (
+    _type_to_itself(PyrexTypes.get_cy_pymutex_type()): (
         "cython.pymutex cannot be copied"),
-    (PyrexTypes.cy_pythread_type_lock_type, PyrexTypes.cy_pythread_type_lock_type): (
+    _type_to_itself(PyrexTypes.get_cy_pythread_type_lock_type()): (
         "cython.pythread_type_lock cannot be copied"),
 }
 
@@ -471,6 +475,7 @@ class ExprNode(Node):
     has_temp_moved = False  # if True then attempting to do anything but free the temp is invalid
     is_target = False
     is_starred = False
+    is_annotation = False
 
     constant_result = constant_value_not_set
 
@@ -1769,7 +1774,7 @@ class BytesNode(ConstNode):
 
     def as_sliced_node(self, start, stop, step=None):
         value = StringEncoding.bytes_literal(self.value[start:stop:step], self.value.encoding)
-        return BytesNode(self.pos, value=value, constant_result=value)
+        return BytesNode.from_node(self, value=value, constant_result=value)
 
     def compile_time_value(self, denv):
         return self.value.byteencode()
@@ -1795,10 +1800,9 @@ class BytesNode(ConstNode):
             if dst_type.is_unicode_char:
                 error(self.pos, "Bytes literals cannot coerce to Py_UNICODE/Py_UCS4, use a unicode literal instead.")
                 return self
-            return CharNode(self.pos, value=self.value,
-                            constant_result=ord(self.value))
+            return CharNode.from_node(self, value=self.value, constant_result=ord(self.value))
 
-        node = BytesNode(self.pos, value=self.value, constant_result=self.constant_result)
+        node = BytesNode.from_node(self, value=self.value)
         if dst_type.is_pyobject:
             if dst_type in (py_object_type, Builtin.bytes_type):
                 node.type = Builtin.bytes_type
@@ -1809,9 +1813,15 @@ class BytesNode(ConstNode):
             node.type = dst_type
             return node
         elif dst_type in (PyrexTypes.c_uchar_ptr_type, PyrexTypes.c_const_uchar_ptr_type, PyrexTypes.c_void_ptr_type):
-            node.type = (PyrexTypes.c_const_char_ptr_type if dst_type == PyrexTypes.c_const_uchar_ptr_type
+            node.type = (PyrexTypes.c_const_char_ptr_type if dst_type.base_type.is_const
                          else PyrexTypes.c_char_ptr_type)
             return CastNode(node, dst_type)
+        elif dst_type.is_array and dst_type.base_type.is_int:
+            if len(self.value) == 0:
+                error(self.pos, "Only non-empty bytes literals can be coerced into C arrays.")
+            as_uchar = partial(IntNode.for_int, self.pos, type=PyrexTypes.c_uchar_type)
+            return ListNode.from_node(
+                self, args=[as_uchar(ch) for ch in self.value]).analyse_types(env).coerce_to(dst_type, env)
         elif dst_type.assignable_from(PyrexTypes.c_char_ptr_type):
             # Exclude the case of passing a C string literal into a non-const C++ string.
             if not dst_type.is_cpp_class or dst_type.is_const:
@@ -1826,7 +1836,7 @@ class BytesNode(ConstNode):
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
             result = code.get_py_string_const(self.value)
-        elif self.type.is_const:
+        elif (self.type.is_ptr or self.type.is_array) and self.type.base_type.is_const:
             result = code.get_string_const(self.value)
         else:
             # not const => use plain C string literal and cast to mutable type
@@ -1880,7 +1890,7 @@ class UnicodeNode(ConstNode):
 
     def coerce_to(self, dst_type, env):
         if dst_type is self.type:
-            pass
+            return self
         elif dst_type.is_unicode_char:
             if not self.can_coerce_to_char_literal():
                 error(self.pos,
@@ -1891,22 +1901,35 @@ class UnicodeNode(ConstNode):
             return IntNode.for_int(self.pos, int_value, type=dst_type)
         elif dst_type.is_pyunicode_ptr:
             return UnicodeNode(self.pos, value=self.value, type=dst_type)
-        elif not dst_type.is_pyobject:
-            if dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int or (
-                    dst_type.is_ptr and dst_type.base_type.is_void):
-                # Allow using '-3' enforced unicode literals in a C char/char*/void* context.
-                if self.bytes_value is not None:
-                    return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
-                if env.directives['c_string_encoding']:
-                    try:
-                        byte_string = self.value.encode(env.directives['c_string_encoding'])
-                    except (UnicodeEncodeError, LookupError):
-                        pass
-                    else:
-                        return BytesNode(self.pos, value=byte_string).coerce_to(dst_type, env)
-                if self.value.isascii():
-                    return BytesNode(self.pos, value=StringEncoding.BytesLiteral(self.value.encode('ascii'))
-                                     ).coerce_to(dst_type, env)
+        elif dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int or (
+                dst_type.is_ptr and dst_type.base_type.is_void):
+            # Allow using '-3' enforced unicode literals in a C char/char*/void* context.
+            if self.bytes_value is not None:
+                if dst_type.is_array:
+                    # Prevent an invalid assignment from a C string array and use a pointer instead.
+                    dst_type = dst_type.element_ptr_type()
+                return BytesNode.from_node(
+                    self, value=self.bytes_value, constant_result=self.bytes_value).coerce_to(dst_type, env)
+            if env.directives['c_string_encoding']:
+                try:
+                    byte_string = self.value.encode(env.directives['c_string_encoding'])
+                except (UnicodeEncodeError, LookupError):
+                    pass
+                else:
+                    return BytesNode.from_node(self, value=byte_string).coerce_to(dst_type, env)
+            if self.value.isascii():
+                bytes_value = StringEncoding.BytesLiteral(self.value.encode('ascii'))
+                return BytesNode.from_node(
+                    self, value=bytes_value, constant_result=bytes_value).coerce_to(dst_type, env)
+        elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type.is_int:
+            # Coerce the sequence of characters to a bare integer C array, including Py_UCS4[].
+            if len(self.value) == 0:
+                error(self.pos, "Only non-empty Unicode string literals can be coerced into C arrays.")
+            as_pyucs4 = partial(IntNode.for_int, self.pos, type=PyrexTypes.c_py_ucs4_type)
+            return ListNode.from_node(
+                self, args=[as_pyucs4(ord(ch)) for ch in self.value]).analyse_types(env).coerce_to(dst_type, env)
+
+        if not dst_type.is_pyobject:
             error(self.pos,
                   "Unicode literals do not support coercion to C types other "
                   "than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* "
@@ -2942,7 +2965,7 @@ class ImportNode(ExprNode):
         if self.imported_names is not None:
             code.putln("{")
             code.putln(
-                f"PyObject *__pyx_imported_names[] = {{{','.join(n.result() for n in self.imported_names)}}};")
+                f"PyObject* const __pyx_imported_names[] = {{{','.join(n.result() for n in self.imported_names)}}};")
 
         import_code = "__Pyx_Import(%s, %s, %d, %s, %d)" % (
             self.module_name.py_result(),
@@ -2966,7 +2989,7 @@ class ImportNode(ExprNode):
                 module_obj = code.get_py_string_const(StringEncoding.EncodedString(module))
                 code.putln(f"{submodule} = __Pyx_ImportFrom({tmp_submodule}, {module_obj});")
                 code.putln(f"Py_DECREF({tmp_submodule});")
-                code.error_goto_if_null(submodule, self.pos)
+                code.putln(code.error_goto_if_null(submodule, self.pos))
                 code.putln(f"{tmp_submodule} = {submodule};")
             code.funcstate.release_temp(submodule)
 
@@ -3769,7 +3792,8 @@ class JoinedStrNode(ExprNode):
         for node in self.values:
             if isinstance(node, UnicodeNode):
                 max_char_value = max(max_char_value, node.estimate_max_charval())
-            elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
+            elif (isinstance(node, FormattedValueNode) and
+                    node.c_format_spec != 'c' and node.value.type.is_numeric):
                 # formatted C numbers are always ASCII
                 pass
             elif isinstance(node, CloneNode):
@@ -9030,10 +9054,11 @@ class TupleNode(SequenceNode):
             return SequenceNode.coerce_to(self, dst_type, env)
 
     def as_list(self):
-        t = ListNode(self.pos, args=self.args, mult_factor=self.mult_factor)
-        if isinstance(self.constant_result, tuple):
-            t.constant_result = list(self.constant_result)
-        return t
+        constant_result = self.constant_result
+        if isinstance(constant_result, tuple):
+            constant_result = list(constant_result)
+        return ListNode.from_node(
+            self, args=self.args, mult_factor=self.mult_factor, constant_result=constant_result)
 
     def is_simple(self):
         # either temp or constant => always simple
@@ -9047,11 +9072,14 @@ class TupleNode(SequenceNode):
         return self.result_code
 
     def calculate_constant_result(self):
+        if self.mult_factor:
+            raise ValueError()  # may exceed the compile time memory
         self.constant_result = tuple([
                 arg.constant_result for arg in self.args])
 
     def compile_time_value(self, denv):
         values = self.compile_time_value_list(denv)
+        assert self.mult_factor is None, self.mult_factor  # set only after parsing
         try:
             return tuple(values)
         except Exception as e:
@@ -9138,22 +9166,7 @@ class ListNode(SequenceNode):
             if not self.type.subtype_of(dst_type):
                 error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
         elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type is not PyrexTypes.c_void_type:
-            array_length = len(self.args)
-            if self.mult_factor:
-                if isinstance(self.mult_factor.constant_result, int):
-                    if self.mult_factor.constant_result <= 0:
-                        error(self.pos, "Cannot coerce non-positively multiplied list to '%s'" % dst_type)
-                    else:
-                        array_length *= self.mult_factor.constant_result
-                else:
-                    error(self.pos, "Cannot coerce dynamically multiplied list to '%s'" % dst_type)
-            base_type = dst_type.base_type
-            self.type = PyrexTypes.CArrayType(base_type, array_length)
-            for i in range(len(self.original_args)):
-                arg = self.args[i]
-                if isinstance(arg, CoerceToPyTypeNode):
-                    arg = arg.arg
-                self.args[i] = arg.coerce_to(base_type, env)
+            return self.as_carray(dst_type.base_type, env, is_const=dst_type.is_array)
         elif dst_type.is_cpp_class:
             # TODO(robertwb): Avoid object conversion for vector/list/set.
             return TypecastNode(self.pos, operand=self, type=PyrexTypes.py_object_type).coerce_to(dst_type, env)
@@ -9165,9 +9178,12 @@ class ListNode(SequenceNode):
             else:
                 if len(self.args) < len(dst_type.scope.var_entries):
                     warning(self.pos, "Too few members for '%s'" % dst_type, 1)
-                for i, (arg, member) in enumerate(zip(self.original_args, dst_type.scope.var_entries)):
+                for i, (arg, coerced_arg, member) in enumerate(zip(self.original_args, self.args, dst_type.scope.var_entries)):
                     if isinstance(arg, CoerceToPyTypeNode):
                         arg = arg.arg
+                    elif member.type.is_struct_or_union and coerced_arg.is_dict_literal:
+                        # For struct assignments, use the coerced dict directly, not a struct type call etc.
+                        arg = coerced_arg
                     self.args[i] = arg.coerce_to(member.type, env)
             self.type = dst_type
         elif dst_type.is_ctuple:
@@ -9181,24 +9197,47 @@ class ListNode(SequenceNode):
         return self
 
     def as_tuple(self):
-        t = TupleNode(self.pos, args=self.args, mult_factor=self.mult_factor)
-        if isinstance(self.constant_result, list):
-            t.constant_result = tuple(self.constant_result)
-        return t
+        constant_result = self.constant_result
+        if isinstance(constant_result, list):
+            constant_result = tuple(constant_result)
+        return TupleNode.from_node(
+            self, args=self.args, mult_factor=self.mult_factor, constant_result=constant_result)
 
-    def allocate_temp_result(self, code):
-        if self.type.is_array:
-            if self.in_module_scope:
-                self.temp_code = code.funcstate.allocate_temp(
-                    self.type, manage_ref=False, static=True, reusable=False)
+    def as_carray(self, item_type, env, is_const):
+        array_length = len(self.args)
+
+        if self.mult_factor:
+            if isinstance(self.mult_factor.constant_result, int):
+                if self.mult_factor.constant_result <= 0:
+                    error(self.pos, f"Cannot coerce non-positively multiplied list to '{item_type}[]'")
+                else:
+                    array_length *= self.mult_factor.constant_result
             else:
-                # To be valid C++, we must allocate the memory on the stack
-                # manually and be sure not to reuse it for something else.
-                # Yes, this means that we leak a temp array variable.
-                self.temp_code = code.funcstate.allocate_temp(
-                    self.type, manage_ref=False, reusable=False)
-        else:
-            SequenceNode.allocate_temp_result(self, code)
+                error(self.pos, f"Cannot coerce dynamically multiplied list to '{item_type}[]'")
+
+        coerced_args = []
+        is_literal = True
+        for i in range(len(self.original_args)):
+            arg = self.args[i]
+            if isinstance(arg, CoerceToPyTypeNode):
+                arg = arg.arg
+            arg = arg.coerce_to(item_type, env)
+            if not arg.is_literal:
+                is_literal = False
+            coerced_args.append(arg)
+
+        if is_literal and is_const and not item_type.is_const:
+            item_type = PyrexTypes.c_const_type(item_type)
+        array_type = PyrexTypes.CArrayType(item_type, array_length)
+
+        return CArrayNode.from_node(
+            self,
+            type=array_type,
+            args=coerced_args,
+            mult_factor=self.mult_factor,
+            original_args=self.original_args,
+            in_module_scope=self.in_module_scope,
+        )
 
     def calculate_constant_result(self):
         if self.mult_factor:
@@ -9213,35 +9252,11 @@ class ListNode(SequenceNode):
         return l
 
     def generate_operation_code(self, code):
+        assert not self.type.is_array  # should use CArrayNode instead
         if self.type.is_pyobject:
             for err in self.obj_conversion_errors:
                 report_error(err)
             self.generate_sequence_packing_code(code)
-        elif self.type.is_array:
-            if self.mult_factor:
-                code.putln("{")
-                code.putln("Py_ssize_t %s;" % Naming.quick_temp_cname)
-                code.putln("for ({i} = 0; {i} < {count}; {i}++) {{".format(
-                    i=Naming.quick_temp_cname, count=self.mult_factor.result()))
-                offset = '+ (%d * %s)' % (len(self.args), Naming.quick_temp_cname)
-            else:
-                offset = ''
-            for i, arg in enumerate(self.args):
-                if arg.type.is_array:
-                    code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
-                    code.putln("memcpy(&(%s[%s%s]), %s, sizeof(%s[0]));" % (
-                        self.result(), i, offset,
-                        arg.result(), self.result()
-                    ))
-                else:
-                    code.putln("%s[%s%s] = %s;" % (
-                        self.result(),
-                        i,
-                        offset,
-                        arg.result()))
-            if self.mult_factor:
-                code.putln("}")
-                code.putln("}")
         elif self.type.is_struct:
             for arg, member in zip(self.args, self.type.scope.var_entries):
                 code.putln("%s.%s = %s;" % (
@@ -9250,6 +9265,97 @@ class ListNode(SequenceNode):
                     arg.result()))
         else:
             raise InternalError("List type never specified")
+
+
+class CArrayNode(ListNode):
+    """A homogeneous C array of C values.
+
+    Created through coercion from ListNode.
+    """
+
+    is_temp = False
+    array_cname = None
+    _array_cname_temp = None
+
+    def _non_const_array_type(self):
+        array_type = self.type
+        if array_type.base_type.is_const:
+            array_type = PyrexTypes.c_array_type(
+                PyrexTypes.remove_cv_ref(array_type.base_type), array_type.size)
+        return array_type
+
+    def _allocate_carray(self, code, as_const):
+        array_type = self.type
+        if as_const:
+            # Declare static const array in place.
+            self.array_cname = code.globalstate.new_const_cname('carray')
+        elif self.in_module_scope:
+            # Statically allocated in the module init function.
+            self.array_cname = code.funcstate.allocate_temp(
+                array_type, manage_ref=False, static=True, reusable=False)
+            self._array_cname_temp = self.array_cname
+        elif code.funcstate.closure_temps is not None:
+            # Allocate in the generator closure, cannot be const.
+            array_type = self._non_const_array_type()
+            self.array_cname = code.funcstate.closure_temps.allocate_carray(array_type, self.pos)
+        else:
+            # To be valid C++, we must allocate the memory on the stack
+            # manually and be sure not to reuse it for something else.
+            # Yes, this means that we leak a temp array variable.
+            array_type = self._non_const_array_type()
+            self.array_cname = code.funcstate.allocate_temp(
+                array_type, manage_ref=False, reusable=False)
+            self._array_cname_temp = self.array_cname
+        return self.array_cname
+
+    def _release_carray(self, code):
+        # If the array is in a temp variable, it will not be reused elsewhere,
+        # so we can release the temp here and still use it as our node result.
+        if self._array_cname_temp is not None:
+            code.funcstate.release_temp(self._array_cname_temp)
+            self._array_cname_temp = None
+
+    def generate_operation_code(self, code):
+        all_const = self.type.base_type.is_const and all(arg.is_literal for arg in self.args)
+        array_cname = self._allocate_carray(code, all_const)
+
+        if all_const:
+            values = [item.result() for item in self.args]
+
+            if self.mult_factor:
+                assert self.mult_factor.has_constant_result(), self.mult_factor
+                values *= self.mult_factor.constant_result
+
+            code.putln(f"static {self.type.declaration_code(array_cname)} = {{{','.join(values)}}};")
+
+        else:
+            if self.mult_factor:
+                counter_type = 'int' if self.mult_factor.has_constant_result() and self.mult_factor.constant_result.bit_count() < 16 else 'Py_ssize_t'
+                loop_var = Naming.quick_temp_cname
+                code.putln(f"for ({counter_type} {loop_var} = 0; {loop_var} < {self.mult_factor.result()}; {loop_var}++) {{")
+                offset = f'+ ({len(self.args):d} * {loop_var})'
+            else:
+                offset = ''
+
+            needs_memcpy = False
+            for i, arg in enumerate(self.args):
+                if arg.type.is_array:
+                    needs_memcpy = True
+                    code.putln(f"memcpy(&({array_cname}[{i}{offset}]), {arg.result()}, sizeof({array_cname}[0]));")
+                else:
+                    code.putln(f"{array_cname}[{i}{offset}] = {arg.result()};")
+
+            if needs_memcpy:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+
+            if self.mult_factor:
+                code.putln("}")
+
+        self._release_carray(code)
+
+    def calculate_result_code(self):
+        return self.array_cname
 
 
 class ComprehensionNode(ScopedExprNode):
@@ -14823,6 +14929,8 @@ class CoerceToBooleanNode(CoercionNode):
         Builtin.bytes_type:      '__Pyx_PyBytes_GET_SIZE',
         Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
         Builtin.unicode_type:    '__Pyx_PyUnicode_IS_TRUE',
+        Builtin.int_type:        '__Pyx_PyLong_IsNonZero',
+        Builtin.float_type:      '__Pyx_PyFloat_IsNonZero',
     }
 
     def __init__(self, arg, env):
@@ -14854,11 +14962,20 @@ class CoerceToBooleanNode(CoercionNode):
                 code.putln(f"if ({self.arg.py_result()} == Py_None) {self.result()} = 0;")
                 code.putln("else")
             code.putln("{")
+
             # Be aware that __Pyx_PyUnicode_IS_TRUE isn't strictly returning a size (but it does
             # return an int which fits into a Py_ssize_t).
             code.putln(f"Py_ssize_t {Naming.quick_temp_cname} = {test_func}({self.arg.py_result()});")
+
+            if self.arg.type is Builtin.int_type:
+                is_safe_test_func = "CYTHON_USE_PYLONG_INTERNALS"
+            elif self.arg.type is Builtin.float_type:
+                is_safe_test_func = "CYTHON_ASSUME_SAFE_MACROS"
+            else:
+                is_safe_test_func = "CYTHON_ASSUME_SAFE_SIZE"
+
             code.putln(code.error_goto_if(
-                f"((!CYTHON_ASSUME_SAFE_SIZE) && {Naming.quick_temp_cname} < 0)", self.pos))
+                f"((!{is_safe_test_func}) && {Naming.quick_temp_cname} < 0)", self.pos))
             code.putln(f"{self.result()} = ({Naming.quick_temp_cname} != 0);")
             code.putln("}")
             code.putln()
@@ -15201,6 +15318,7 @@ class AnnotationNode(ExprNode):
     # annotation is evaluated into a Python Object.
 
     subexprs = []
+    is_annotation = True
 
     # 'untyped' is set for fused specializations:
     # Once a fused function has been created we don't want
@@ -15449,3 +15567,108 @@ class FirstArgumentForCriticalSectionNode(ExprNode):
         if self.name_node:
             return self.name_node.analyse_expressions(env)
         return self  # error earlier
+
+
+class TStringInterpolationNode(ExprNode):
+    # conversion_char   str
+    subexprs = ['value', 'format_spec', 'expression_str']
+    is_temp = True
+    type = py_object_type
+
+    def __init__(self, pos, **kwds):
+        super().__init__(pos, **kwds)
+        assert (self.conversion_char is None or
+                isinstance(self.conversion_char, StringEncoding.EncodedString))
+
+    def analyse_declarations(self, env):
+        self.value.analyse_declarations(env)
+        if self.format_spec is not None:
+            self.format_spec.analyse_declarations(env)
+        self.expression_str.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        self.value = self.value.analyse_types(env).coerce_to_pyobject(env)
+        if self.conversion_char is not None and self.format_spec is None:
+            self.format_spec = UnicodeNode(
+                self.pos, value=StringEncoding.EncodedString(""))
+        if self.format_spec is not None:
+            self.format_spec = self.format_spec.analyse_types(env)
+        self.expression_str = self.expression_str.analyse_types(env)
+        return self
+
+    def generate_result_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("MakeTemplateLibInterpolation", "TString.c"))
+        value = self.value.result()
+        expression = self.expression_str.result()
+        conversion_char = (
+            code.get_py_string_const(self.conversion_char) if self.conversion_char
+            else "Py_None")
+        format_spec = (
+            self.format_spec.result() if self.format_spec is not None
+            else code.name_in_module_state(Naming.empty_unicode))
+        code.putln(f"{self.result()} = __Pyx_MakeTemplateLibInterpolation({value}, {expression}, {conversion_char}, {format_spec});")
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.put_gotref(self.result(), py_object_type)
+
+
+class TemplateStringNode(ExprNode):
+    """t-string"""
+    subexprs = ['strings', 'interpolations']
+    is_temp = True
+    type = py_object_type
+
+    def __init__(self, pos, *, values: list):
+        last_string_node = None
+        strings = []
+        interpolations = []
+        for v in values:
+            if isinstance(v, TStringInterpolationNode):
+                if last_string_node is None:
+                    strings.append(UnicodeNode(
+                        v.pos, value=StringEncoding.EncodedString("")
+                    ))
+                else:
+                    strings.append(last_string_node)
+                    last_string_node = None
+                interpolations.append(v)
+            elif isinstance(v, UnicodeNode):
+                if last_string_node is None:
+                    last_string_node = v
+                else:
+                    last_string_node = UnicodeNode(
+                        pos = last_string_node.pos,
+                        value = StringEncoding.EncodedString(
+                            last_string_node.value + v.value
+                        ))
+            else:
+                assert False, type(v)
+        if last_string_node is None:
+            last_string_node = UnicodeNode(pos, value=StringEncoding.EncodedString(""))
+        strings.append(last_string_node)
+        super().__init__(pos, strings=strings, interpolations=interpolations)
+
+    def analyse_declarations(self, env):
+        for s in self.strings:
+            s.analyse_declarations(env)
+        for i in self.interpolations:
+            i.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        # convert both strings and interpolations into a tuple
+        self.strings = TupleNode(
+            self.pos, args=self.strings
+        ).analyse_types(env)
+        self.interpolations = TupleNode(
+            self.pos, args=self.interpolations
+        ).analyse_types(env)
+        return self
+
+    def generate_result_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("MakeTemplateLibTemplate", "TString.c"))
+        strings = self.strings.result()
+        interpolations = self.interpolations.result()
+        code.putln(f"{self.result()} = __Pyx_MakeTemplateLibTemplate({strings}, {interpolations});")
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.put_gotref(self.result(), py_object_type)

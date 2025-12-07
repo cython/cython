@@ -1,132 +1,14 @@
-/////////////// FixUpExtensionType.proto ///////////////
-
-static CYTHON_INLINE int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type); /*proto*/
-
-/////////////// FixUpExtensionType ///////////////
-//@requires:ModuleSetupCode.c::IncludeStructmemberH
-//@requires:StringTools.c::IncludeStringH
-//@requires:SetItemOnTypeDict
-
-static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
-#if __PYX_LIMITED_VERSION_HEX > 0x030900B1
-    CYTHON_UNUSED_VAR(spec);
-    CYTHON_UNUSED_VAR(type);
-    CYTHON_UNUSED_VAR(__Pyx__SetItemOnTypeDict);
-#else
-    // Set tp_weakreflist, tp_dictoffset, tp_vectorcalloffset
-    // Copied and adapted from https://bugs.python.org/issue38140
-    const PyType_Slot *slot = spec->slots;
-    int changed = 0;
-#if !CYTHON_COMPILING_IN_LIMITED_API
-    while (slot && slot->slot && slot->slot != Py_tp_members)
-        slot++;
-    if (slot && slot->slot == Py_tp_members) {
-#if !CYTHON_COMPILING_IN_CPYTHON
-        const
-#endif  // !CYTHON_COMPILING_IN_CPYTHON)
-            PyMemberDef *memb = (PyMemberDef*) slot->pfunc;
-        while (memb && memb->name) {
-            if (memb->name[0] == '_' && memb->name[1] == '_') {
-                if (strcmp(memb->name, "__weaklistoffset__") == 0) {
-                    // The PyMemberDef must be a Py_ssize_t and readonly.
-                    assert(memb->type == T_PYSSIZET);
-                    assert(memb->flags == READONLY);
-                    type->tp_weaklistoffset = memb->offset;
-                    // FIXME: is it even worth calling PyType_Modified() here?
-                    changed = 1;
-                }
-                else if (strcmp(memb->name, "__dictoffset__") == 0) {
-                    // The PyMemberDef must be a Py_ssize_t and readonly.
-                    assert(memb->type == T_PYSSIZET);
-                    assert(memb->flags == READONLY);
-                    type->tp_dictoffset = memb->offset;
-                    // FIXME: is it even worth calling PyType_Modified() here?
-                    changed = 1;
-                }
-#if CYTHON_METH_FASTCALL
-                else if (strcmp(memb->name, "__vectorcalloffset__") == 0) {
-                    // The PyMemberDef must be a Py_ssize_t and readonly.
-                    assert(memb->type == T_PYSSIZET);
-                    assert(memb->flags == READONLY);
-                    type->tp_vectorcall_offset = memb->offset;
-                    // FIXME: is it even worth calling PyType_Modified() here?
-                    changed = 1;
-                }
-#endif  // CYTHON_METH_FASTCALL
-#if !CYTHON_COMPILING_IN_PYPY
-                else if (strcmp(memb->name, "__module__") == 0) {
-                    // PyType_FromSpec() in CPython <= 3.9b1 overwrites this field with a constant string.
-                    // See https://bugs.python.org/issue40703
-                    PyObject *descr;
-                    // The PyMemberDef must be an object and normally readable, possibly writable.
-                    assert(memb->type == T_OBJECT);
-                    assert(memb->flags == 0 || memb->flags == READONLY);
-                    descr = PyDescr_NewMember(type, memb);
-                    if (unlikely(!descr))
-                        return -1;
-                    int set_item_result = PyDict_SetItem(type->tp_dict, PyDescr_NAME(descr), descr);
-                    Py_DECREF(descr);
-                    if (unlikely(set_item_result < 0)) {
-                        return -1;
-                    }
-                    changed = 1;
-                }
-#endif  // !CYTHON_COMPILING_IN_PYPY
-            }
-            memb++;
-        }
-    }
-#endif  // !CYTHON_COMPILING_IN_LIMITED_API
-#if !CYTHON_COMPILING_IN_PYPY
-    slot = spec->slots;
-    while (slot && slot->slot && slot->slot != Py_tp_getset)
-        slot++;
-    if (slot && slot->slot == Py_tp_getset) {
-        PyGetSetDef *getset = (PyGetSetDef*) slot->pfunc;
-        while (getset && getset->name) {
-            if (getset->name[0] == '_' && getset->name[1] == '_' && strcmp(getset->name, "__module__") == 0) {
-                PyObject *descr = PyDescr_NewGetSet(type, getset);
-                if (unlikely(!descr))
-                    return -1;
-                #if CYTHON_COMPILING_IN_LIMITED_API
-                PyObject *pyname = PyUnicode_FromString(getset->name);
-                if (unlikely(!pyname)) {
-                    Py_DECREF(descr);
-                    return -1;
-                }
-                int set_item_result = __Pyx_SetItemOnTypeDict(type, pyname, descr);
-                Py_DECREF(pyname);
-                #else
-                CYTHON_UNUSED_VAR(__Pyx__SetItemOnTypeDict);
-                int set_item_result = PyDict_SetItem(type->tp_dict, PyDescr_NAME(descr), descr);
-                #endif
-                Py_DECREF(descr);
-                if (unlikely(set_item_result < 0)) {
-                    return -1;
-                }
-                changed = 1;
-            }
-            ++getset;
-        }
-    }
-#endif  // !CYTHON_COMPILING_IN_PYPY
-    if (changed)
-        PyType_Modified(type);
-#endif  // PY_VERSION_HEX > 0x030900B1
-    return 0;
-}
-
-
 /////////////// ValidateBasesTuple.proto ///////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_USE_TYPE_SPECS
-static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffset, PyObject *bases); /*proto*/
+static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset, PyObject *bases); /*proto*/
 #endif
 
 /////////////// ValidateBasesTuple ///////////////
+//@requires: GetTypeDictOffset
 
 #if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_USE_TYPE_SPECS
-static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffset, PyObject *bases) {
+static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset, PyObject *bases) {
     // Loop over all bases (except the first) and check that those
     // really are heap types. Otherwise, it would not be safe to
     // subclass them.
@@ -144,6 +26,32 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
     n = PyTuple_Size(bases);
     if (unlikely(n < 0)) return -1;
 #endif
+    if (!has_dictoffset) {
+        // maybe one of the direct first bases does
+        PyObject *b;
+#if CYTHON_AVOID_BORROWED_REFS
+        b = PySequence_GetItem(bases, 0);
+        if (!b) return -1;
+#elif CYTHON_ASSUME_SAFE_MACROS
+        b = PyTuple_GET_ITEM(bases, 0);
+#else
+        b = PyTuple_GetItem(bases, 0);
+        if (!b) return -1;
+#endif
+#if CYTHON_USE_TYPE_SLOTS
+        has_dictoffset = ((PyTypeObject*)b)->tp_dictoffset != 0;
+#else
+        Py_ssize_t dictoffset = __Pyx_GetTypeDictOffset(b, 0);
+        has_dictoffset = dictoffset != 0;
+#endif
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_DECREF(b);
+#endif
+#if !CYTHON_USE_TYPE_SLOTS
+        if (dictoffset == -1 && PyErr_Occurred()) return -1;
+#endif
+    }
+
     for (i = 1; i < n; i++)  /* Skip first base */
     {
         PyTypeObject *b;
@@ -168,16 +76,13 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 #endif
             return -1;
         }
-        if (dictoffset == 0)
+        if (!has_dictoffset)
         {
             Py_ssize_t b_dictoffset = 0;
 #if CYTHON_USE_TYPE_SLOTS
             b_dictoffset = b->tp_dictoffset;
 #else
-            PyObject *py_b_dictoffset = PyObject_GetAttrString((PyObject*)b, "__dictoffset__");
-            if (!py_b_dictoffset) goto dictoffset_return;
-            b_dictoffset = PyLong_AsSsize_t(py_b_dictoffset);
-            Py_DECREF(py_b_dictoffset);
+            b_dictoffset = __Pyx_GetTypeDictOffset((PyObject*)b, 0);
             if (b_dictoffset == -1 && PyErr_Occurred()) goto dictoffset_return;
 #endif
             if (b_dictoffset) {
@@ -233,7 +138,7 @@ CYTHON_UNUSED static int __Pyx_PyType_HasMultipleInheritance(PyTypeObject *t) {
 // to deal with multiple inheritance.
 static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
-#if CYTHON_USE_TYPE_SPECS || !CYTHON_COMPILING_IN_CPYTHON || defined(PYSTON_MAJOR_VERSION)
+#if CYTHON_USE_TYPE_SPECS || !CYTHON_COMPILING_IN_CPYTHON
     // avoid C warning about unused helper function
     (void)__Pyx_PyObject_CallMethod0;
 #if CYTHON_USE_TYPE_SPECS
@@ -251,10 +156,9 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         return PyType_Ready(t);
     }
     PyObject *bases = __Pyx_PyType_GetSlot(t, tp_bases, PyObject*);
-    if (bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, bases) == -1))
+    if (bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset != 0, bases) == -1))
         return -1;
 
-#if !defined(PYSTON_MAJOR_VERSION)
     {
         // Make sure GC does not pick up our non-heap type as heap type with this hack!
         // For details, see https://github.com/cython/cython/issues/3603
@@ -312,14 +216,9 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // is immutable
         t->tp_flags |= Py_TPFLAGS_IMMUTABLETYPE;
 #endif
-#else
-        // avoid C warning about unused helper function
-        (void)__Pyx_PyObject_CallMethod0;
-#endif
 
-    r = PyType_Ready(t);
+        r = PyType_Ready(t);
 
-#if !defined(PYSTON_MAJOR_VERSION)
         t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
 
     #if PY_VERSION_HEX >= 0x030A00b1
@@ -345,7 +244,6 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         Py_DECREF(gc);
     #endif
     }
-#endif
 
     return r;
 #endif
@@ -592,6 +490,115 @@ __PYX_GOOD:
 }
 
 
+/////////////// CheckUnpickleChecksum.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members); /*proto*/
+
+/////////////// CheckUnpickleChecksum ///////////////
+
+static void __Pyx_RaiseUnpickleChecksumError(long checksum, long checksum1, long checksum2, long checksum3, const char *members) {
+    // This function always raises some kind of error, either the expected one or a different one.
+    PyObject *pickle_module = PyImport_ImportModule("pickle");
+    if (unlikely(!pickle_module)) return;
+
+    PyObject *pickle_error = PyObject_GetAttrString(pickle_module, "PickleError");
+    Py_DECREF(pickle_module);
+    if (unlikely(!pickle_error)) return;
+
+    if (checksum2 == checksum1) {
+        PyErr_Format(pickle_error, "Incompatible checksums (0x%x vs (0x%x) = (%s))",
+            checksum, checksum1, members);
+    } else if (checksum3 == checksum2) {
+        PyErr_Format(pickle_error, "Incompatible checksums (0x%x vs (0x%x, 0x%x) = (%s))",
+            checksum, checksum1, checksum2, members);
+    } else {
+        PyErr_Format(pickle_error, "Incompatible checksums (0x%x vs (0x%x, 0x%x, 0x%x) = (%s))",
+            checksum, checksum1, checksum2, checksum3, members);
+    }
+    Py_DECREF(pickle_error);
+}
+
+static int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members) {
+    int found = 0;
+    found |= checksum1 == checksum;
+    found |= checksum2 == checksum;
+    found |= checksum3 == checksum;
+    if (likely(found))
+        return 0;
+
+    __Pyx_RaiseUnpickleChecksumError(checksum, checksum1, checksum2, checksum3, members);
+    return -1;
+}
+
+
+/////////////// UpdateUnpickledDict.proto ///////////////
+
+static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index); /*proto*/
+
+/////////////// UpdateUnpickledDict ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
+
+static int __Pyx__UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index) {
+    PyObject *state_dict = __Pyx_PySequence_ITEM(state, index);
+    if (unlikely(!state_dict)) {
+        return -1;
+    }
+
+    int non_empty = PyObject_IsTrue(state_dict);
+    if (non_empty == 0) {
+        // Nothing to do.
+        Py_DECREF(state_dict);
+        return 0;
+    } else if (unlikely(non_empty == -1)) {
+        return -1;
+    }
+
+    // Since we received a non-empty dict from pickling,
+    // we assume that we're unpickling an object that has one, too.
+    PyObject *dict;
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    dict = PyObject_GetAttrString(obj, "__dict__");
+    #else
+    dict = PyObject_GenericGetDict(obj, NULL);
+    #endif
+    if (unlikely(!dict)) {
+        // It is debatable if it is a fatal error if we cannot reassign the state of the dict because
+        // the unpickled object does not have a '__dict__'. But the user should probably know.
+        Py_DECREF(state_dict);
+        return -1;
+    }
+
+    int result;
+    if (likely(PyDict_CheckExact(dict))) {
+        result = PyDict_Update(dict, state_dict);
+    } else {
+        PyObject *obj_result = __Pyx_PyObject_CallMethod1(dict, PYIDENT("update"), state_dict);
+        if (likely(obj_result)) {
+            Py_DECREF(obj_result);
+            result = 0;
+        } else {
+            result = -1;
+        }
+    }
+    Py_DECREF(state_dict);
+    Py_DECREF(dict);
+    return result;
+}
+
+static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index) {
+    Py_ssize_t state_size = __Pyx_PyTuple_GET_SIZE(state);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(state_size == -1)) return -1;
+    #endif
+    if (state_size <= index) {
+        // No dict from pickling.
+        return 0;
+    }
+
+    return __Pyx__UpdateUnpickledDict(obj, state, index);
+}
+
+
 /////////////// BinopSlot ///////////////
 
 static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
@@ -689,9 +696,8 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
 
 /////////////// CallTypeTraverse.proto /////////////////////
 
-#if !CYTHON_USE_TYPE_SPECS || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x03090000)
+#if !CYTHON_USE_TYPE_SPECS
 // Without type specs, we're never responsible for this.
-// If we *know* the Python version is less that 3.9 we're also not responsible
 #define __Pyx_call_type_traverse(o, always_call, visit, arg) 0
 #else
 static int __Pyx_call_type_traverse(PyObject *o, int always_call, visitproc visit, void *arg); /* proto */
@@ -699,15 +705,10 @@ static int __Pyx_call_type_traverse(PyObject *o, int always_call, visitproc visi
 
 /////////////// CallTypeTraverse ////////////////////////////
 
-#if !CYTHON_USE_TYPE_SPECS || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x03090000)
+#if !CYTHON_USE_TYPE_SPECS
 // nothing to do
 #else
 static int __Pyx_call_type_traverse(PyObject *o, int always_call, visitproc visit, void *arg) {
-    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000
-    // We have to work out whether to call traverse based on the runtime version.
-    // __Pyx_get_runtime_version is always available so no need to require it.
-    if (__Pyx_get_runtime_version() < 0x03090000) return 0;
-    #endif
     if (!always_call) {
         // Written with reference to https://docs.python.org/3/howto/isolating-extensions.html
         PyTypeObject *base = __Pyx_PyObject_GetSlot(o, tp_base, PyTypeObject*);
@@ -722,35 +723,29 @@ static int __Pyx_call_type_traverse(PyObject *o, int always_call, visitproc visi
 }
 #endif
 
+////////////////// GetTypeDictOffset.proto ////////////////
 
-////////////////// LimitedApiGetTypeDict.proto //////////////////////
-
-#if CYTHON_COMPILING_IN_LIMITED_API
-// This is a little hacky - the Limited API works quite hard to stop us getting
-// the dict of a type object. But apparently not hard enough...
-//
-// In future we should prefer to work with mutable types, and then make them immutable
-// once we're done (pending C API support for this).
-static PyObject *__Pyx_GetTypeDict(PyTypeObject *tp); /* proto */
+#if !CYTHON_USE_TYPE_SLOTS
+CYTHON_UNUSED static Py_ssize_t __Pyx_GetTypeDictOffset(PyObject *tp, int require_cython_valid_result);
 #endif
 
-////////////////// LimitedApiGetTypeDict //////////////////////
+////////////////// GetTypeDictOffset //////////////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-static Py_ssize_t __Pyx_GetTypeDictOffset(void) {
+#if !CYTHON_USE_TYPE_SLOTS
+CYTHON_UNUSED static Py_ssize_t __Pyx_GetTypeDictOffset(PyObject *tp, int require_cython_valid_result) {
     PyObject *tp_dictoffset_o;
     Py_ssize_t tp_dictoffset;
-    tp_dictoffset_o = PyObject_GetAttrString((PyObject*)(&PyType_Type), "__dictoffset__");
+    tp_dictoffset_o = PyObject_GetAttrString(tp, "__dictoffset__");
     if (unlikely(!tp_dictoffset_o)) return -1;
     tp_dictoffset = PyLong_AsSsize_t(tp_dictoffset_o);
     Py_DECREF(tp_dictoffset_o);
 
-    if (unlikely(tp_dictoffset == 0)) {
+    if (unlikely(require_cython_valid_result && tp_dictoffset == 0)) {
         PyErr_SetString(
             PyExc_TypeError,
             "'type' doesn't have a dictoffset");
         return -1;
-    } else if (unlikely(tp_dictoffset < 0)) {
+    } else if (unlikely(require_cython_valid_result && tp_dictoffset < 0)) {
         // This isn't completely future proof. dictoffset can be
         // negative, but isn't in Python <=3.13 (current at time
         // of writing).  It's awkward to calculate in the limited
@@ -765,13 +760,29 @@ static Py_ssize_t __Pyx_GetTypeDictOffset(void) {
 
     return tp_dictoffset;
 }
+#endif
 
-static PyObject *__Pyx_GetTypeDict(PyTypeObject *tp) {
+////////////////// LimitedApiGetTypeTypeDict.proto //////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+// This is a little hacky - the Limited API works quite hard to stop us getting
+// the dict of a type object. But apparently not hard enough...
+//
+// In future we should prefer to work with mutable types, and then make them immutable
+// once we're done (pending C API support for this).
+static PyObject *__Pyx_GetTypeTypeDict(PyTypeObject *tp); /* proto */
+#endif
+
+////////////////// LimitedApiGetTypeTypeDict //////////////////////
+//@requires: GetTypeDictOffset
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyObject *__Pyx_GetTypeTypeDict(PyTypeObject *tp) {
     // TODO - if we ever support custom metatypes for extension types then
     // we have to modify this caching.
     static Py_ssize_t tp_dictoffset = 0;
     if (unlikely(tp_dictoffset == 0)) {
-        tp_dictoffset = __Pyx_GetTypeDictOffset();
+        tp_dictoffset = __Pyx_GetTypeDictOffset((PyObject*)(&PyType_Type), 1);
         // Note that negative dictoffsets are definitely allowed.
         // A dictoffset of -1 seems unlikely but isn't obviously forbidden.
         if (unlikely(tp_dictoffset == -1 && PyErr_Occurred())) {
@@ -785,7 +796,7 @@ static PyObject *__Pyx_GetTypeDict(PyTypeObject *tp) {
 
 
 ////////////////// SetItemOnTypeDict.proto //////////////////////////
-//@requires: LimitedApiGetTypeDict
+//@requires: LimitedApiGetTypeTypeDict
 
 static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v); /* proto */
 
@@ -797,7 +808,7 @@ static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v) 
     int result;
     PyObject *tp_dict;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    tp_dict = __Pyx_GetTypeDict(tp);
+    tp_dict = __Pyx_GetTypeTypeDict(tp);
     if (unlikely(!tp_dict)) return -1;
 #else
     tp_dict = tp->tp_dict;
@@ -821,13 +832,13 @@ static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k); /* proto */
 #define __Pyx_DelItemOnTypeDict(tp, k) __Pyx__DelItemOnTypeDict((PyTypeObject*)tp, k)
 
 ////////////////// DelItemOnTypeDict //////////////////////////
-//@requires: LimitedApiGetTypeDict
+//@requires: LimitedApiGetTypeTypeDict
 
 static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
     int result;
     PyObject *tp_dict;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    tp_dict = __Pyx_GetTypeDict(tp);
+    tp_dict = __Pyx_GetTypeTypeDict(tp);
     if (unlikely(!tp_dict)) return -1;
 #else
     tp_dict = tp->tp_dict;
