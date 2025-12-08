@@ -6133,7 +6133,7 @@ class CallNode(ExprNode):
             if function.is_attribute:
                 method_obj_type = function.obj.infer_type(env)
                 if method_obj_type.is_builtin_type:
-                    result_type = Builtin.find_return_type_of_builtin_method(method_obj_type, function.attribute)
+                    result_type = Builtin.find_return_type_of_builtin_method(self.pos, env, method_obj_type, function.attribute)
                     if result_type is not py_object_type:
                         return result_type
             entry = getattr(function, 'entry', None)
@@ -6194,7 +6194,7 @@ class CallNode(ExprNode):
                 return False
         return ExprNode.may_be_none(self)
 
-    def set_py_result_type(self, function, func_type=None):
+    def set_py_result_type(self, function, env, func_type=None):
         # Default to 'object' and then try to find a better type.
         self.type = py_object_type
         if func_type is None:
@@ -6220,7 +6220,7 @@ class CallNode(ExprNode):
                 self.may_return_none = False
         elif function.is_attribute and function.obj.type.is_builtin_type:
             method_obj_type = function.obj.type
-            result_type = Builtin.find_return_type_of_builtin_method(method_obj_type, function.attribute)
+            result_type = Builtin.find_return_type_of_builtin_method(self.pos, env, method_obj_type, function.attribute)
             self.may_return_none = result_type is py_object_type
             if result_type.is_pyobject:
                 self.type = result_type
@@ -6392,7 +6392,7 @@ class SimpleCallNode(CallNode):
             self.arg_tuple = TupleNode(self.pos, args = self.args)
             self.arg_tuple = self.arg_tuple.analyse_types(env).coerce_to_pyobject(env)
             self.args = None
-            self.set_py_result_type(function, func_type)
+            self.set_py_result_type(function, env, func_type)
             self.is_temp = 1
         else:
             self.args = [ arg.analyse_types(env) for arg in self.args ]
@@ -7377,7 +7377,7 @@ class GeneralCallNode(CallNode):
         self.positional_args = self.positional_args.analyse_types(env)
         self.positional_args = \
             self.positional_args.coerce_to_pyobject(env)
-        self.set_py_result_type(self.function)
+        self.set_py_result_type(self.function, env)
         self.is_temp = 1
         return self
 
