@@ -76,7 +76,7 @@ unicode_formatting
 # Py_UNICODE
 builtin_ord
 for_in_string
-fstring
+run[.]fstring$
 run[.]inop
 run[.]notinop
 py_unicode_strings
