@@ -1024,6 +1024,8 @@ def _inject_cglobal(output, matchobj):
     is_named, name = matchobj.groups()
     if is_named:
         name = getattr(Naming, name)
+    else:
+        assert re.match(r'\w+', name), repr(name)  # Detect simple typos.
     return f"{Naming.modulestateglobal_cname}->{name}"
 
 
