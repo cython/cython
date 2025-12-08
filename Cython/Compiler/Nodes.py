@@ -2113,6 +2113,9 @@ class FuncDefNode(StatNode, BlockNode):
             if lenv.is_passthrough:
                 code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname, opaque_decl=False))
                 code.putln(";")
+                code.putln("#if CYTHON_OPAQUE_OBJECTS")
+                code.putln(f"PyObject* {Naming.cur_scope_obj_cname};")
+                code.putln("#endif")
             code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname, opaque_decl=False))
             code.putln(";")
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
@@ -2218,22 +2221,25 @@ class FuncDefNode(StatNode, BlockNode):
             if self.is_cyfunction:
                 code.putln("%s = (%s)__Pyx_CyFunction_GetClosure(%s);" % (
                     outer_scope_obj_cname,
-                    cenv.scope_class.type.empty_declaration_code(opaque_decl=True),
+                    cenv.scope_class.type.empty_declaration_code(),
                     Naming.self_cname,))
             else:
                 code.putln("%s = (%s) %s;" % (
                     outer_scope_obj_cname,
-                    cenv.scope_class.type.empty_declaration_code(opaque_decl=True),
+                    cenv.scope_class.type.empty_declaration_code(),
                     Naming.self_cname,))
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
             code.putln("%s = __Pyx_GetCClassTypeData(%s, %s, %s);" % (
                     outer_scope_cname,
                     outer_scope_obj_cname,
                     code.name_in_module_state(cenv.scope_class.type.typeoffset_cname),
-                    cenv.scope_class.type.empty_declaration_code(),))
+                    cenv.scope_class.type.empty_declaration_code(opaque_decl=False),))
             code.putln("#endif")
             if lenv.is_passthrough:
+                code.putln("%s = %s;" % (Naming.cur_scope_obj_cname, outer_scope_obj_cname))
+                code.putln("#if CYTHON_OPAQUE_OBJECTS")
                 code.putln("%s = %s;" % (Naming.cur_scope_cname, outer_scope_cname))
+                code.putln("#endif")
             elif self.needs_closure:
                 # inner closures own a reference to their outer parent
                 code.put_incref(outer_scope_obj_cname, cenv.scope_class.type)

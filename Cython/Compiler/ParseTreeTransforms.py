@@ -3557,7 +3557,6 @@ class CreateClosureClasses(CythonTransform):
             name=as_name, pos=node.pos, defining=True,
             implementing=True)
         entry.type.is_final_type = True
-        entry.type.opaque_decl_by_default = False
 
         func_scope.scope_class = entry
         class_scope = entry.type.scope
@@ -3572,18 +3571,25 @@ class CreateClosureClasses(CythonTransform):
         if from_closure:
             assert cscope.is_closure_scope
             class_scope.declare_var(pos=node.pos,
-                                    name=Naming.outer_scope_cname,
-                                    cname=Naming.outer_scope_cname,
+                                    name=Naming.outer_scope_obj_cname,
+                                    cname=Naming.outer_scope_obj_cname,
                                     type=cscope.scope_class.type,
                                     is_cdef=True)
-            obj_entry = class_scope.declare_var(
-                pos=node.pos,
-                name=Naming.outer_scope_obj_cname,
-                cname=Naming.outer_scope_obj_cname,
-                type=PyrexTypes.py_object_type,
-                is_cdef=True)
-            obj_entry.preprocessor_guard = "CYTHON_OPAQUE_OBJECTS"
             node.needs_outer_scope = True
+            direct_entry_type = PyrexTypes.c_ptr_type(
+                PyrexTypes.CStructOrUnionType(
+                    name=cscope.scope_class.type.objstruct_cname,
+                    kind='struct',
+                    scope=None,
+                    typedef_flag=False,
+                    cname=cscope.scope_class.type.objstruct_cname))
+            direct_entry = class_scope.declare_var(
+                pos=node.pos,
+                name=Naming.outer_scope_cname,
+                cname=Naming.outer_scope_cname,
+                type=direct_entry_type,
+                is_cdef=True)
+            direct_entry.preprocessor_guard = "CYTHON_OPAQUE_OBJECTS"
         for name, entry in in_closure:
             closure_entry = class_scope.declare_var(
                 pos=entry.pos,
