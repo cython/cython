@@ -1131,7 +1131,8 @@ class CythonCompileTestCase(unittest.TestCase):
         if not self.abi3audit:
             return
         shared_libs = [ file for file in os.listdir(self.workdir)
-                        if os.path.splitext(file)[1] in ('.so', '.dll') ]
+                        if (os.path.splitext(file)[1] in ('.so', '.dll')
+                                and not file.startswith('_cython_inline')) ]
         if not shared_libs:
             return
         shared_libs = [ os.path.join(self.workdir, file) for file in shared_libs ]
