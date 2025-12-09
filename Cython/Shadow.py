@@ -244,12 +244,9 @@ class critical_section:
 
 # Emulated types
 
-class CythonMetaType(type):
-
-    def __getitem__(type, ix):
-        return array(type, ix)
-
-CythonTypeObject = CythonMetaType('CythonTypeObject', (object,), {})
+class CythonTypeObject:
+    def __class_getitem__(cls, ix):
+        return array(cls, ix)
 
 class CythonType(CythonTypeObject):
 
@@ -391,7 +388,7 @@ class array(ArrayType):
 
     def __class_getitem__(cls, item):
         basetype, n = item
-        return cls(basetype, item)
+        return cls(basetype, n)
 
 
 def struct(**members):
