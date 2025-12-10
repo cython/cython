@@ -1888,7 +1888,7 @@ class TestCodeFormat(unittest.TestCase):
         result = style.check_files(paths)
         total_errors += result.total_errors
 
-        # chcks for non-Python docs source files
+        # checks for non-Python docs source files
         paths = []
         for codedir in ['docs']:
             paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
