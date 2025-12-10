@@ -1785,6 +1785,22 @@ class TestCodeFormat(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def runTest(self):
+        import tokenize
+        old_TextIOWrapper = getattr(tokenize, 'TextIOWrapper', None)
+        if old_TextIOWrapper is not None:
+            def new_TextIOWrapper(*args, **kwds):
+                # We specifically want to check for Windows-style newlines.
+                # Therrefore, we need to override TextIOWrapper's default behaviour
+                # of translating newlines.
+                return old_TextIOWrapper(*args, **kwds, newline='')
+            tokenize.TextIOWrapper = new_TextIOWrapper
+        try:
+            self._runTest()
+        finally:
+            if old_TextIOWrapper is not None:
+                tokenize.TextIOWrapper = old_TextIOWrapper
+
+    def _runTest(self):
         source_dirs = ['Cython', 'Demos', 'docs', 'pyximport', 'tests']
 
         import pycodestyle
@@ -1795,6 +1811,12 @@ class TestCodeFormat(unittest.TestCase):
                 return None
             idx = physical_line.find('breakpoint()')
             return idx, "Z001 Stray 'breakpoint' call"
+        @pycodestyle.register_check
+        def windows_newline_check(physical_line):
+            if '\r\n' not in physical_line:
+                return None
+            idx = physical_line.find('\r\n')
+            return idx, "Z002 Windows-style newline"
 
         config_file = os.path.join(self.cython_dir, "setup.cfg")
         if not os.path.exists(config_file):
@@ -1846,6 +1868,8 @@ class TestCodeFormat(unittest.TestCase):
             'E121',
             'E125',
             'E129',
+            # Custom windows-newline check
+            'Z002',
         ])
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
@@ -1887,10 +1911,13 @@ class TestCodeFormat(unittest.TestCase):
             #'E121',
             #'E125',
             #'E129',
+            # Custom Windows newline
+            'Z002',
             ],
             exclude=[
                 "*badindent*",
                 "*tabspace*",
+                "*msvc_strings*",  # Windows-style newlines; git history suggests it was deliberate
             ],
         )
         print("")  # Fix the first line of the report.
