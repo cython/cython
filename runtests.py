@@ -1785,7 +1785,7 @@ class TestCodeFormat(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def runTest(self):
-        source_dirs = ['Cython', 'Demos', 'docs', 'pyximport', 'tests']
+        source_dirs = ['Cython', 'Demos', 'pyximport', 'tests']
 
         import pycodestyle
 
@@ -1810,11 +1810,18 @@ class TestCodeFormat(unittest.TestCase):
         result = style.check_files(paths)
         total_errors += result.total_errors
 
-        # checks for non-Python source files
+        # Within the docs we sometimes use whitespace to make .py and .pyx files
+        # line up.  So allow these there.
+        allowed_in_docs = ('W391', 'W293', 'W2', 'W3')
         paths = []
-        for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
-            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
-        style = pycodestyle.StyleGuide(config_file=config_file, select=[
+        for codedir in ['docs']:
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, ignore=allowed_in_docs)
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+
+        non_python_list = [
             'E711',
             'E713',
             'E714',
@@ -1846,6 +1853,24 @@ class TestCodeFormat(unittest.TestCase):
             'E121',
             'E125',
             'E129',
+        ]
+
+        # checks for non-Python source files
+        paths = []
+        for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, select=non_python_list)
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+
+        # chcks for non-Python docs source files
+        paths = []
+        for codedir in ['docs']:
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, select=[
+            item for item in non_python_list
+            if item not in allowed_in_docs
         ])
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
