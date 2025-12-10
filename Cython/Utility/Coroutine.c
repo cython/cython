@@ -252,10 +252,11 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     } else
 #if CYTHON_COMPILING_IN_CPYTHON && defined(CO_ITERABLE_COROUTINE)
 #if PY_VERSION_HEX >= 0x030C00A6
-    if (PyGen_CheckExact(obj) && (PyGen_GetCode((PyGenObject*)obj)->co_flags & CO_ITERABLE_COROUTINE)) {
+    if (PyGen_CheckExact(obj) && (PyGen_GetCode((PyGenObject*)obj)->co_flags & CO_ITERABLE_COROUTINE))
 #else
-    if (PyGen_CheckExact(obj) && ((PyGenObject*)obj)->gi_code && ((PyCodeObject *)((PyGenObject*)obj)->gi_code)->co_flags & CO_ITERABLE_COROUTINE) {
+    if (PyGen_CheckExact(obj) && ((PyGenObject*)obj)->gi_code && ((PyCodeObject *)((PyGenObject*)obj)->gi_code)->co_flags & CO_ITERABLE_COROUTINE)
 #endif
+    {
         // Python generator marked with "@types.coroutine" decorator
         return __Pyx_NewRef(obj);
     } else

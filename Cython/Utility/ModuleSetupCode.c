@@ -198,6 +198,9 @@
   #ifdef Py_LIMITED_API
     #undef __PYX_LIMITED_VERSION_HEX
     #define __PYX_LIMITED_VERSION_HEX Py_LIMITED_API
+    #if Py_LIMITED_API < 0x03090000
+      #error "Cython 3.3 requires the Python Limited API version to be 3.9 or greater."
+    #endif
   #endif
   #define CYTHON_COMPILING_IN_PYPY 0
   #define CYTHON_COMPILING_IN_CPYTHON 0
@@ -3070,7 +3073,7 @@ static __Pyx_UnknownThreadState __Pyx_SaveUnknownThread(void) {
 #elif __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     return PyThreadState_Swap(NULL);
 #else
-  #if CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030B0000
+  #if CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030C0000
     if (PyGILState_Check())
   #else
     if (_PyThreadState_UncheckedGet())  // UncheckedGet is a reliable check for the GIL from 3.12 upwards
@@ -3115,7 +3118,7 @@ static CYTHON_INLINE int __Pyx_UnknownThreadStateMayHaveHadGil(__Pyx_UnknownThre
 
 ///////////////////// AddModuleRef.proto ///////////////////////
 
-#if ((CYTHON_COMPILING_IN_CPYTHON_FREETHREADING /* && __PYX_LIMITED_VERSION_HEX < some future value */) || \
+#if ((CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && PY_VERSION_HEX < 0x030F00a3) || \
      __PYX_LIMITED_VERSION_HEX < 0x030d0000)
   // https://github.com/python/cpython/issues/137422 - PyImport_AddModule(Ref) isn't thread safe!
   static PyObject *__Pyx_PyImport_AddModuleRef(const char *name); /* proto */
@@ -3125,8 +3128,10 @@ static CYTHON_INLINE int __Pyx_UnknownThreadStateMayHaveHadGil(__Pyx_UnknownThre
 
 ///////////////////// AddModuleRef ////////////////////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING /* && __PYX_LIMITED_VERSION_HEX < some future value */
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && PY_VERSION_HEX < 0x030F00a3
   // https://github.com/python/cpython/issues/137422 - PyImport_AddModule(Ref) isn't thread safe!
+  // TODO - if this gets used for anything other than implementing AddModuleRef then add a
+  // runtime version check for fixed versions.
   static PyObject *__Pyx_PyImport_AddModuleObjectRef(PyObject *name) {
       // We're going to assume nobody is swapping the module dict out from under us
       // (even though they're allowed to) because we really can't write code that's
@@ -3158,15 +3163,17 @@ static CYTHON_INLINE int __Pyx_UnknownThreadStateMayHaveHadGil(__Pyx_UnknownThre
       }
   }
   static PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
+      if ((PY_VERSION_HEX >= 0x030E0000) &&  Py_Version >= 0x030E0100) {
+          // Fixed here... their implementation is probably better
+          return PyImport_AddModuleRef(name);
+      }
       PyObject *py_name = PyUnicode_FromString(name);
       if (!py_name) return NULL;
       PyObject *module = __Pyx_PyImport_AddModuleObjectRef(py_name);
       Py_DECREF(py_name);
       return module;
   }
-#elif __PYX_LIMITED_VERSION_HEX >= 0x030d0000
-  #define __Pyx_PyImport_AddModuleRef(name) PyImport_AddModuleRef(name)
-#else
+#elif __PYX_LIMITED_VERSION_HEX < 0x030d0000
   static PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
       PyObject *module = PyImport_AddModule(name);
       Py_XINCREF(module);

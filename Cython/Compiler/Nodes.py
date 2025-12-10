@@ -766,6 +766,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     level=2)
 
         if self.exception_check == '+':
+            self.cpp_check(env)
             env.add_include_file('ios')         # for std::ios_base::failure
             env.add_include_file('new')         # for std::bad_alloc
             env.add_include_file('stdexcept')
@@ -1596,7 +1597,11 @@ class CVarDefNode(StatNode):
                     self.entry.create_wrapper = True
             else:
                 if self.overridable:
-                    error(self.pos, "Variables cannot be declared with 'cpdef'. Use 'cdef' instead.")
+                    if env.is_c_class_scope:
+                        error(self.pos,
+                            "Variables cannot be declared with 'cpdef'. Use 'cdef', 'cdef public' or 'cdef readonly' instead.")
+                    else:
+                        error(self.pos, "Variables cannot be declared with 'cpdef'. Use 'cdef' instead.")
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
                 self.entry = dest_scope.declare_var(
@@ -3250,7 +3255,7 @@ class DefNode(FuncDefNode):
             from .ExprNodes import ConstNode
             exception_value = ConstNode.for_type(
                 self.pos, value=str(cfunc_type.exception_value), type=cfunc_type.return_type,
-                constant_result=cfunc_type.exception_value)
+                constant_result=cfunc_type.exception_value.python_value)
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),
                                          args=self.args,
@@ -5768,9 +5773,9 @@ class CClassDefNode(ClassDefNode):
                 if check_heap_type_bases:
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached('ValidateBasesTuple', 'ExtensionTypes.c'))
-                    code.put_error_if_neg(entry.pos, "__Pyx_validate_bases_tuple(%s.name, %s, %s)" % (
+                    code.put_error_if_neg(entry.pos, "__Pyx_validate_bases_tuple(%s.name, %d, %s)" % (
                         typespec_cname,
-                        TypeSlots.get_slot_by_name("tp_dictoffset", scope.directives).slot_code(scope),
+                        TypeSlots.get_slot_by_name("tp_dictoffset", scope.directives).slot_code(scope) != "0",
                         bases_tuple_cname or tuple_temp,
                     ))
 
@@ -6294,8 +6299,13 @@ class SingleAssignmentNode(AssignmentNode):
         self.rhs = self.rhs.analyse_types(env)
 
         if self.lhs.is_name and self.lhs.entry.type.is_const:
-            if env.is_module_scope and self.lhs.entry.init is None and self.rhs.has_constant_result():
-                self.lhs.entry.init = self.rhs.constant_result
+            if self.lhs.entry.type.is_array:
+                error(self.pos, f"Assignment to const array '{self.lhs.name}'. Assign to a pointer variable instead.")
+            elif env.is_module_scope and self.lhs.entry.init is None and self.rhs.has_constant_result():
+                if isinstance(self.rhs.constant_result, (list, tuple, set, dict, frozenset)):
+                    error(self.pos, f"Non-const assignment to const '{self.lhs.name}'")
+                else:
+                    self.lhs.entry.init = self.rhs.constant_result
             else:
                 error(self.pos, f"Assignment to const '{self.lhs.name}'")
 
@@ -8669,8 +8679,7 @@ class TryFinallyStatNode(StatNode):
                     code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
                     for _ in range(2)])
                 exc_filename_cname = code.funcstate.allocate_temp(
-                    PyrexTypes.CPtrType(PyrexTypes.c_const_type(PyrexTypes.c_char_type)),
-                    manage_ref=False)
+                    PyrexTypes.c_const_char_ptr_type, manage_ref=False)
             else:
                 exc_lineno_cnames = exc_filename_cname = None
             exc_vars = tuple([
@@ -8987,7 +8996,6 @@ class CriticalSectionStatNode(TryFinallyStatNode):
     child_attrs = ["args"] + TryFinallyStatNode.child_attrs
 
     var_type = None
-    state_temp = None
     preserve_exception = False
     is_pymutex_critical_section = False
 
@@ -8997,8 +9005,6 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         else:
             self.var_type = PyrexTypes.c_py_critical_section_type
 
-        self.create_state_temp_if_needed(pos, body)
-
         self.length_tag = str(len(args)) if len(args) > 1 else ""
 
         super().__init__(
@@ -9006,19 +9012,16 @@ class CriticalSectionStatNode(TryFinallyStatNode):
             args=args,
             body=body,
             finally_clause=CriticalSectionExitNode(
-                pos, length_tag=self.length_tag, critical_section=self),
+                pos, length_tag=self.length_tag),
             **kwds,
         )
 
-    def create_state_temp_if_needed(self, pos, body):
+    def check_for_yields(self):
         from .ParseTreeTransforms import YieldNodeCollector
         collector = YieldNodeCollector()
-        collector.visitchildren(body)
-        if not collector.yields:
-            return
-
-        from . import ExprNodes
-        self.state_temp = ExprNodes.TempNode(pos, self.var_type)
+        collector.visitchildren(self.body)
+        if collector.yields:
+            error(self.pos, f"Cannot yield while in a cython.critical_section.")
 
     def analyse_declarations(self, env):
         for arg in self.args:
@@ -9026,6 +9029,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         return super().analyse_declarations(env)
 
     def analyse_expressions(self, env):
+        self.check_for_yields()
         cy_pymutex_type = PyrexTypes.get_cy_pymutex_type()
         mutex_count = 0
         for i, arg in enumerate(self.args):
@@ -9069,12 +9073,8 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
         code.mark_pos(self.pos)
         code.begin_block()
-        if self.state_temp:
-            self.state_temp.allocate(code)
-            variable = self.state_temp.result()
-        else:
-            variable = Naming.critical_section_variable
-            code.putln(f"{self.var_type.declaration_code(variable)};")
+        variable = Naming.critical_section_variable
+        code.putln(f"{self.var_type.declaration_code(variable)};")
 
         for arg in self.args:
             arg.generate_evaluation_code(code)
@@ -9092,16 +9092,13 @@ class CriticalSectionStatNode(TryFinallyStatNode):
             arg.generate_disposal_code(code)
             arg.free_temps(code)
 
-        if self.state_temp:
-            self.state_temp.release(code)
-
         code.end_block()
 
     def nogil_check(self, env):
         error(self.pos, "Critical sections require the GIL")
 
 
-class CriticalSectionExitNode(StatNode, CopyWithUpTreeRefsMixin):
+class CriticalSectionExitNode(StatNode):
     """
     critical_section - the CriticalSectionStatNode that owns this
     """
@@ -9112,13 +9109,8 @@ class CriticalSectionExitNode(StatNode, CopyWithUpTreeRefsMixin):
         return self
 
     def generate_execution_code(self, code):
-        if self.critical_section.state_temp:
-            variable_name = self.critical_section.state_temp.result()
-        else:
-            variable_name =  Naming.critical_section_variable
-
         code.putln(
-            f"__Pyx_PyCriticalSection{self.length_tag}_End(&{variable_name});"
+            f"__Pyx_PyCriticalSection{self.length_tag}_End(&{ Naming.critical_section_variable});"
         )
 
 class CythonLockStatNode(TryFinallyStatNode):
@@ -9157,29 +9149,12 @@ class CythonLockStatNode(TryFinallyStatNode):
         result.finally_except_clause = result.finally_clause
         return result
 
-    def check_for_yields(self):
-        from .ParseTreeTransforms import YieldNodeCollector
-        collector = YieldNodeCollector()
-        collector.visitchildren(self.body)
-        if collector.yields:
-            # DW - I've disallowed this because it seems like a deadlock disaster waiting to happen.
-            # I'm sure it's technically possible, and we can revise it if people have legitimate
-            # uses.
-            typename = self.arg.type.empty_declaration_code(pyrex=True).strip()
-            error(
-                self.pos,
-                f"Cannot use a 'with' statement with a '{typename}' in a generator. "
-                "If you really want to do this (and you are confident that there are no deadlocks) "
-                "then use try-finally."
-            )
-
     def analyse_declarations(self, env):
         self.arg.analyse_declarations(env)
         return super().analyse_declarations(env)
 
     def analyse_expressions(self, env):
         self.arg = self.arg.analyse_expressions(env)
-        self.check_for_yields()
         body = self.body
         if isinstance(body, StatListNode) and len(body.stats) >= 1:
             body = body.stats[0]

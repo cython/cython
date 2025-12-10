@@ -268,7 +268,7 @@ def __invoke(%(params)s):
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
-        if sys.platform == 'win32' and sys.version_info >= (3, 8):
+        if sys.platform == 'win32':
             with os.add_dll_directory(os.path.abspath(lib_dir)):
                 module = load_dynamic(module_name, module_path)
         else:
