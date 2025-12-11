@@ -1785,23 +1785,7 @@ class TestCodeFormat(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def runTest(self):
-        import tokenize
-        old_TextIOWrapper = getattr(tokenize, 'TextIOWrapper', None)
-        if old_TextIOWrapper is not None:
-            def new_TextIOWrapper(*args, **kwds):
-                # We specifically want to check for Windows-style newlines.
-                # Therrefore, we need to override TextIOWrapper's default behaviour
-                # of translating newlines.
-                return old_TextIOWrapper(*args, **kwds, newline='')
-            tokenize.TextIOWrapper = new_TextIOWrapper
-        try:
-            self._runTest()
-        finally:
-            if old_TextIOWrapper is not None:
-                tokenize.TextIOWrapper = old_TextIOWrapper
-
-    def _runTest(self):
-        source_dirs = ['Cython', 'Demos', 'pyximport', 'tests']
+        source_dirs = ['Cython', 'Demos', 'docs', 'pyximport', 'tests']
 
         import pycodestyle
 
@@ -1811,12 +1795,6 @@ class TestCodeFormat(unittest.TestCase):
                 return None
             idx = physical_line.find('breakpoint()')
             return idx, "Z001 Stray 'breakpoint' call"
-        @pycodestyle.register_check
-        def windows_newline_check(physical_line):
-            if '\r\n' not in physical_line:
-                return None
-            idx = physical_line.find('\r\n')
-            return idx, "Z002 Windows-style newline"
 
         config_file = os.path.join(self.cython_dir, "setup.cfg")
         if not os.path.exists(config_file):
@@ -1832,18 +1810,11 @@ class TestCodeFormat(unittest.TestCase):
         result = style.check_files(paths)
         total_errors += result.total_errors
 
-        # Within the docs we sometimes use whitespace to make .py and .pyx files
-        # line up.  So allow these there.
-        allowed_in_docs = ('W391', 'W293', 'W2', 'W3')
+        # checks for non-Python source files
         paths = []
-        for codedir in ['docs']:
-            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
-        style = pycodestyle.StyleGuide(config_file=config_file, ignore=allowed_in_docs)
-        print("")  # Fix the first line of the report.
-        result = style.check_files(paths)
-        total_errors += result.total_errors
-
-        non_python_list = [
+        for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, select=[
             'E711',
             'E713',
             'E714',
@@ -1875,27 +1846,6 @@ class TestCodeFormat(unittest.TestCase):
             'E121',
             'E125',
             'E129',
-            # Custom windows-newline check
-            'Z002',
-        ]
-
-        # checks for non-Python source files
-        paths = []
-        for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
-            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
-        style = pycodestyle.StyleGuide(config_file=config_file, select=non_python_list)
-        print("")  # Fix the first line of the report.
-        result = style.check_files(paths)
-        total_errors += result.total_errors
-
-        # checks for non-Python docs source files
-        paths = []
-        for codedir in ['docs']:
-            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
-        style = pycodestyle.StyleGuide(config_file=config_file, select=[
-            # We use white-space violations a bit to control spacing
-            item for item in non_python_list
-            if item not in allowed_in_docs
         ])
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
@@ -1937,13 +1887,10 @@ class TestCodeFormat(unittest.TestCase):
             #'E121',
             #'E125',
             #'E129',
-            # Custom Windows newline
-            'Z002',
             ],
             exclude=[
                 "*badindent*",
                 "*tabspace*",
-                "*msvc_strings*",  # Windows-style newlines; git history suggests it was deliberate
             ],
         )
         print("")  # Fix the first line of the report.

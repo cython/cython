@@ -1,0 +1,9 @@
+*.py text
+*.p[yx][xdi] text
+*.md text
+*.rst text
+*.srctree text
+
+# This has crlf line endings and the history implies it's deliberate
+tests/compile/msvc_strings.pyx -text
+
