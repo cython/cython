@@ -960,6 +960,8 @@ Cython code.  Here is the list of currently supported directives:
     the logic and consider it safe to run. Since free-threading support
     is still experimental itself, this is also an experimental directive that
     might be changed or removed in future releases.
+    This option can be overridden at C compile time by setting the
+    ``CYTHON_FREETHREADING_COMPATIBLE`` C macro to 1/0 for True/False.
 
 ``subinterpreters_compatible``  (no / shared_gil / own_gil), *default=no*
     If set to ``shared_gil`` or ``own_gil``, then Cython sets the
@@ -1415,6 +1417,12 @@ most important to least important:
     the constants are used in many different threads because it avoids most writes
     to the constants due to reference counting. Disabled by default, but enabled
     in free-threaded builds.
+
+``CYTHON_FREETHREADING_COMPATIBLE``
+    In Freethreading Python runtimes, setting this to ``0`` will force enabling
+    the GIL when importing the module, ``1`` will keep it untouched.
+    The default setting depends on the ``freethreading_compatible`` directive.
+    This C macro allows to override the directive at C compile time.
 
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the
