@@ -2,6 +2,30 @@
 Cython Changelog
 ================
 
+3.2.3 (2025-12-??)
+==================
+
+Features added
+--------------
+
+* The C-API declarations were updated to include the new ``PyList_*()`` functions.
+  (Github issue :issue:`7291`)
+
+* The ``Py_mod_gil`` module setting can now be changed with a C macro, overriding
+  the ``freethreading_compatible`` directive setting.
+  (Github issue :issue:`7404`)
+
+Bugs fixed
+----------
+
+* t-strings lost the last element when compiled for the Limited API.
+  (Github issue :issue:`7381`)
+
+* Parallel builds with the ``cythonize`` command could request more processes
+  than allows by the platform, thus failing the build.
+  (Github issue :issue:`7384`)
+
+
 3.2.2 (2025-11-30)
 ==================
 
