@@ -946,7 +946,6 @@ class FusedCFuncDefNode(StatListNode):
             fused_func = self.resulting_fused_function
             fused_func.generate_evaluation_code(code)
 
-            fused_type_name = code.name_in_module_state("__pyx_FusedFunctionType")
             code.putln(
                 f"__Pyx_as_FusedFunctionObject({fused_func.result()})->__signatures__ = {signatures.result()};")
 
