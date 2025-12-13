@@ -756,7 +756,12 @@ class IterationTransform(Visitor.EnvTransform):
                 return node
             slice_base = slice_node
             start = step = None
-            stop = ExprNodes.IntNode.for_size(slice_node.pos, slice_node.type.size)
+            if isinstance(slice_node.type.size, int):
+                stop = ExprNodes.IntNode.for_size(slice_node.pos, slice_node.type.size)
+            else:
+                # enum name or const variable
+                stop = ExprNodes.RawCNameExprNode(
+                    slice_node.pos, PyrexTypes.c_py_ssize_t_type, slice_node.type.size)
 
         else:
             if not slice_node.type.is_pyobject:
