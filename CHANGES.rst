@@ -25,6 +25,9 @@ Bugs fixed
   than allows by the platform, thus failing the build.
   (Github issue :issue:`7384`)
 
+* A minor thread sanitizer issue was resolved.
+  (Github issue :issue:`7383`)
+
 
 3.2.2 (2025-11-30)
 ==================
