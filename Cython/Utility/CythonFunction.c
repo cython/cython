@@ -745,7 +745,7 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
 #if CYTHON_COMPILING_IN_LIMITED_API
     // Note that we end up with a circular reference to op. This isn't
     // a disaster, but in an ideal world it'd be nice to avoid it.
-    op->func = PyCFunction_NewEx(ml, (PyObject*)op_in, module);
+    op->func = PyCFunction_NewEx(ml, op_in, module);
     if (unlikely(!op->func)) return NULL;
 #endif
     op->flags = flags;
@@ -808,7 +808,7 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
         return NULL;
     }
 #endif
-    return (PyObject *) op_in;
+    return op_in;
 }
 
 static int __Pyx__CyFunction_clear(__pyx_CyFunctionObject *m)
