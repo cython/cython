@@ -129,7 +129,7 @@ static CYTHON_INLINE __Pyx_PySendResult __Pyx_Coroutine_Yield_From(__pyx_Corouti
 
 static __Pyx_PySendResult __Pyx_Coroutine_Yield_From_Coroutine(__pyx_CoroutineObject *gen, PyObject *source, PyObject **retval) {
     __Pyx_PySendResult result;
-    if (unlikely(((__Pyx_GetSharedTypeData(source, CGLOBAL(__pyx_CoroutineType), __pyx_CoroutineObject*))->yieldfrom))) {
+    if (unlikely(((__Pyx_as_CoroutineObject(source))->yieldfrom))) {
         PyErr_SetString(
             PyExc_RuntimeError,
             "coroutine is being awaited already");
@@ -426,6 +426,14 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
 //////////////////// CoroutineBase.proto ////////////////////
 //@substitute: naming
 
+#if CYTHON_OPAQUE_SHARED_TYPES
+// There's a number of types which use __pyx_CoroutineObject. None of them can be subclassed,
+// and so using Py_TYPE(o) is the simplest and easiest way to get the correct type.
+#define __Pyx_as_CoroutineObject(o) ((__pyx_CoroutineObject*)PyObject_GetTypeData(o, Py_TYPE(o)))
+#else
+#define __Pyx_as_CoroutineObject(o) ((__pyx_CoroutineObject*)o)
+#endif
+
 typedef PyObject *(*__pyx_coroutine_body_t)(PyObject *, PyThreadState *, PyObject *);
 
 #if CYTHON_USE_EXC_INFO_STACK
@@ -522,6 +530,13 @@ static PyObject *__Pyx_Coroutine_fail_reduce_ex(PyObject *self, PyObject *arg); 
 //////////////////// Coroutine.proto ////////////////////
 
 #define __Pyx_Coroutine_USED
+
+#if CYTHON_OPAQUE_SHARED_TYPES
+#define __Pyx_as_CoroutineAwaitObject(o) ((__pyx_CoroutineAwaitObject*)PyObject_GetTypeData(o, CGLOBAL(__pyx_CoroutineAwaitType)))
+#else
+#define __Pyx_as_CoroutineAwaitObject(o) ((__pyx_CoroutineAwaitObject*)o)
+#endif
+
 #define __Pyx_Coroutine_CheckExact(obj) Py_IS_TYPE(obj, CGLOBAL(__pyx_CoroutineType))
 // __Pyx_Coroutine_Check(obj): see override for IterableCoroutine below
 #define __Pyx_Coroutine_Check(obj) __Pyx_Coroutine_CheckExact(obj)
@@ -790,7 +805,7 @@ __Pyx_PySendResult __Pyx_Coroutine_SendEx(PyObject *self_o, PyObject *value, PyO
     PyThreadState *tstate;
     __Pyx_ExcInfoStruct *exc_state;
     PyObject *retval;
-    __pyx_CoroutineObject *self = __Pyx_GetSharedTypeData(self_o, Py_TYPE(self_o), __pyx_CoroutineObject *);
+    __pyx_CoroutineObject *self = __Pyx_as_CoroutineObject(self_o);
 
     assert(__Pyx_Coroutine_get_is_running(self_o));  // Callers should ensure is_running
 
@@ -990,7 +1005,7 @@ static CYTHON_INLINE __Pyx_PySendResult
 __Pyx_Coroutine_FinishDelegation(PyObject *gen_o, PyObject** retval) {
     __Pyx_PySendResult result;
     PyObject *val = NULL;
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(gen_o, Py_TYPE(gen_o), __pyx_CoroutineObject *);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(gen_o);
     assert(__Pyx_Coroutine_get_is_running(gen_o));
     __Pyx_Coroutine_Undelegate(gen);
     __Pyx_PyGen__FetchStopIterationValue(__Pyx_PyThreadState_Current, &val);
@@ -1005,7 +1020,7 @@ static __Pyx_PySendResult
 __Pyx_Coroutine_SendToDelegate(PyObject *gen_o, __Pyx_pyiter_sendfunc gen_am_send, PyObject *value, PyObject **retval) {
     PyObject *ret = NULL;
     __Pyx_PySendResult delegate_result, result;
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(gen_o, Py_TYPE(gen_o), __pyx_CoroutineObject *);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(gen_o);
     assert(__Pyx_Coroutine_get_is_running(gen_o));
     // we assume that gen->yieldfrom cannot change as long as 'gen->is_running' is set => no safety INCREF()
     delegate_result = gen_am_send(gen->yieldfrom, value, &ret);
@@ -1036,7 +1051,7 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
         *retval = __Pyx_Coroutine_AlreadyRunningError(self);
         return PYGEN_ERROR;
     }
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(self, Py_TYPE(self), __pyx_CoroutineObject*);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(self);
     #if CYTHON_USE_AM_SEND
     if (gen->yieldfrom_am_send) {
         result = __Pyx_Coroutine_SendToDelegate(self, gen->yieldfrom_am_send, value, retval);
@@ -1110,7 +1125,7 @@ static int __Pyx_Coroutine_CloseIter(PyObject *gen, PyObject *yf) {
         result = __Pyx_Coroutine_Close(yf, &retval);
     } else
     if (__Pyx_CoroutineAwait_CheckExact(yf)) {
-        result = __Pyx_CoroutineAwait_Close(__Pyx_GetSharedTypeData(yf, CGLOBAL(__pyx_CoroutineAwaitType), __pyx_CoroutineAwaitObject*));
+        result = __Pyx_CoroutineAwait_Close(__Pyx_as_CoroutineAwaitObject(yf));
     } else
     #endif
     #ifdef __Pyx_AsyncGen_USED
@@ -1151,7 +1166,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
     if (unlikely(__Pyx_Coroutine_test_and_set_is_running(self))) {
         return __Pyx_Coroutine_AlreadyRunningError(self);
     }
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(self, Py_TYPE(self), __pyx_CoroutineObject*);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(self);
     #if CYTHON_USE_AM_SEND
     if (gen->yieldfrom_am_send) {
         result = __Pyx_Coroutine_SendToDelegate(self, gen->yieldfrom_am_send, Py_None, &retval);
@@ -1213,7 +1228,7 @@ __Pyx_Coroutine_Close(PyObject *self, PyObject **retval) {
         *retval = __Pyx_Coroutine_AlreadyRunningError(self);
         return PYGEN_ERROR;
     }
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(self, Py_TYPE(self), __pyx_CoroutineObject*);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(self);
     yf = gen->yieldfrom;
 
     if (yf) {
@@ -1269,7 +1284,7 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
     if (unlikely(__Pyx_Coroutine_test_and_set_is_running(self)))
         return __Pyx_Coroutine_AlreadyRunningError(self);
 
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(self, Py_TYPE(self), __pyx_CoroutineObject*);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(self);
     yf = gen->yieldfrom;
     if (yf) {
         __Pyx_PySendResult result;
@@ -1298,7 +1313,7 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
         #ifdef __Pyx_Coroutine_USED
         } else if (__Pyx_CoroutineAwait_CheckExact(yf)) {
             ret = __Pyx__Coroutine_Throw(
-                __Pyx_GetSharedTypeData(yf, CGLOBAL(__pyx_CoroutineAwaitType), __pyx_CoroutineAwaitObject*)->coroutine,
+                __Pyx_as_CoroutineAwaitObject(yf)->coroutine,
                 typ, val, tb, args, close_on_genexit);
         #endif
         } else {
@@ -1370,7 +1385,7 @@ static int __Pyx_Coroutine_traverse(PyObject *gen_o, visitproc visit, void *arg)
         int e = __Pyx_call_type_traverse(gen_o, 1, visit, arg);
         if (e) return e;
     }
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(gen_o, Py_TYPE(gen_o), __pyx_CoroutineObject *);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(gen_o);
     Py_VISIT(gen->closure);
     Py_VISIT(gen->classobj);
     Py_VISIT(gen->yieldfrom);
@@ -1378,7 +1393,7 @@ static int __Pyx_Coroutine_traverse(PyObject *gen_o, visitproc visit, void *arg)
 }
 
 static int __Pyx_Coroutine_clear(PyObject *self) {
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(self, Py_TYPE(self), __pyx_CoroutineObject*);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(self);
 
     Py_CLEAR(gen->closure);
     Py_CLEAR(gen->classobj);
@@ -1398,7 +1413,7 @@ static int __Pyx_Coroutine_clear(PyObject *self) {
 }
 
 static void __Pyx_Coroutine_dealloc(PyObject *self) {
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(self, Py_TYPE(self), __pyx_CoroutineObject*);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(self);
 
     PyObject_GC_UnTrack(self);
 
@@ -1431,7 +1446,7 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
         /* We have to handle this case for asynchronous generators
            right here, because this code has to be between UNTRACK
            and GC_Del. */
-        __pyx_PyAsyncGenObject *self_ag = __Pyx_GetSharedTypeData(self, CGLOBAL(__pyx_AsyncGenType), __pyx_PyAsyncGenObject *);
+        __pyx_PyAsyncGenObject *self_ag = __Pyx_as_PyAsyncGenObject(self);
         Py_CLEAR(self_ag->ag_finalizer);
     }
 #endif
@@ -1442,7 +1457,7 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
 #if CYTHON_USE_TP_FINALIZE
 static void __Pyx_Coroutine_del(PyObject *self) {
     PyObject *error_type, *error_value, *error_traceback;
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(self, Py_TYPE(self), __pyx_CoroutineObject*);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(self);
     __Pyx_PyThreadState_declare
 
     if (gen->resume_label < 0) {
@@ -1457,7 +1472,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 
 #ifdef __Pyx_AsyncGen_USED
     if (__Pyx_AsyncGen_CheckExact(self)) {
-        __pyx_PyAsyncGenObject *agen = __Pyx_GetSharedTypeData(self, CGLOBAL(__pyx_AsyncGenType), __pyx_PyAsyncGenObject *);
+        __pyx_PyAsyncGenObject *agen = __Pyx_as_PyAsyncGenObject(self);
         PyObject *finalizer = agen->ag_finalizer;
         if (finalizer && !agen->ag_closed) {
             PyObject *res = __Pyx_PyObject_CallOneArg(finalizer, self);
@@ -1505,7 +1520,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 static PyObject *
 __Pyx_Coroutine_get_name(PyObject *self, void *context)
 {
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(self, Py_TYPE(self), __pyx_CoroutineObject *);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(self);
     PyObject *name = gen->gi_name;
     CYTHON_UNUSED_VAR(context);
     // avoid NULL pointer dereference during garbage collection
@@ -1523,7 +1538,7 @@ __Pyx_Coroutine_set_name(PyObject *self, PyObject *value, void *context)
                         "__name__ must be set to a string object");
         return -1;
     }
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(self, Py_TYPE(self), __pyx_CoroutineObject *);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(self);
     Py_INCREF(value);
     __Pyx_Py_XDECREF_SET(gen->gi_name, value);
     return 0;
@@ -1532,7 +1547,7 @@ __Pyx_Coroutine_set_name(PyObject *self, PyObject *value, void *context)
 static PyObject *
 __Pyx_Coroutine_get_qualname(PyObject *self, void *context)
 {
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(self, Py_TYPE(self), __pyx_CoroutineObject *);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(self);
     PyObject *name = gen->gi_qualname;
     CYTHON_UNUSED_VAR(context);
     // avoid NULL pointer dereference during garbage collection
@@ -1550,7 +1565,7 @@ __Pyx_Coroutine_set_qualname(PyObject *self, PyObject *value, void *context)
                         "__qualname__ must be set to a string object");
         return -1;
     }
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(self, Py_TYPE(self), __pyx_CoroutineObject *);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(self);
     Py_INCREF(value);
     __Pyx_Py_XDECREF_SET(gen->gi_qualname, value);
     return 0;
@@ -1609,7 +1624,7 @@ __Pyx__Coroutine_get_frame(PyObject *self, __pyx_CoroutineObject *gen)
 static PyObject *
 __Pyx_Coroutine_get_frame(PyObject *self, void *context) {
     CYTHON_UNUSED_VAR(context);
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(self, Py_TYPE(self), __pyx_CoroutineObject *);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(self);
     PyObject *frame = gen->gi_frame;
     if (frame)
         return __Pyx_NewRef(frame);
@@ -1628,7 +1643,7 @@ static PyObject *__Pyx__Coroutine_New(
 static PyObject *__Pyx__Coroutine_NewInit(
             PyObject *gen_o, __pyx_coroutine_body_t body, PyObject *code, PyObject *closure,
             PyObject *name, PyObject *qualname, PyObject *module_name) {
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(gen_o, Py_TYPE(gen_o), __pyx_CoroutineObject *);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(gen_o);
     gen->body = body;
     gen->closure = closure;
     Py_XINCREF(closure);
@@ -1676,7 +1691,7 @@ static char __Pyx_Coroutine_test_and_set_is_running(PyObject *gen_o) {
     #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_BEGIN_CRITICAL_SECTION(gen_o);
     #endif
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(gen_o, Py_TYPE(gen_o), __pyx_CoroutineObject*);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(gen_o);
     result = gen->is_running;
     gen->is_running = 1;
     #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
@@ -1688,7 +1703,7 @@ static void __Pyx_Coroutine_unset_is_running(PyObject *gen_o) {
     #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_BEGIN_CRITICAL_SECTION(gen_o);
     #endif
-    __pyx_CoroutineObject *gen = __Pyx_GetSharedTypeData(gen_o, Py_TYPE(gen_o), __pyx_CoroutineObject*);
+    __pyx_CoroutineObject *gen = __Pyx_as_CoroutineObject(gen_o);
     assert(gen->is_running);
     gen->is_running = 0;
     #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
@@ -1700,7 +1715,7 @@ static char __Pyx_Coroutine_get_is_running(PyObject *gen) {
     #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_BEGIN_CRITICAL_SECTION(gen);
     #endif
-    result = __Pyx_GetSharedTypeData(gen, Py_TYPE(gen), __pyx_CoroutineObject*)->is_running;
+    result = __Pyx_as_CoroutineObject(gen)->is_running;
     #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_END_CRITICAL_SECTION();
     #endif
@@ -1777,7 +1792,7 @@ if (likely(__pyx_Coroutine_init($module_cname) == 0)); else
 
 static void __Pyx_CoroutineAwait_dealloc(PyObject *self_o) {
     PyObject_GC_UnTrack(self_o);
-    __pyx_CoroutineAwaitObject *self = __Pyx_GetSharedTypeData(self_o, CGLOBAL(__pyx_CoroutineAwaitType), __pyx_CoroutineAwaitObject*);
+    __pyx_CoroutineAwaitObject *self = __Pyx_as_CoroutineAwaitObject(self_o);
     Py_CLEAR(self->coroutine);
     __Pyx_PyHeapTypeObject_GC_Del(self_o);
 }
@@ -1787,36 +1802,36 @@ static int __Pyx_CoroutineAwait_traverse(PyObject *self_o, visitproc visit, void
         int e = __Pyx_call_type_traverse(self_o, 1, visit, arg);
         if (e) return e;
     }
-    __pyx_CoroutineAwaitObject *self = __Pyx_GetSharedTypeData(self_o, CGLOBAL(__pyx_CoroutineAwaitType), __pyx_CoroutineAwaitObject*);
+    __pyx_CoroutineAwaitObject *self = __Pyx_as_CoroutineAwaitObject(self_o);
     Py_VISIT(self->coroutine);
     return 0;
 }
 
 static int __Pyx_CoroutineAwait_clear(PyObject *self_o) {
-    __pyx_CoroutineAwaitObject *self = __Pyx_GetSharedTypeData(self_o, CGLOBAL(__pyx_CoroutineAwaitType), __pyx_CoroutineAwaitObject*);
+    __pyx_CoroutineAwaitObject *self = __Pyx_as_CoroutineAwaitObject(self_o);
     Py_CLEAR(self->coroutine);
     return 0;
 }
 
 static PyObject *__Pyx_CoroutineAwait_Next(PyObject *self_o) {
-    __pyx_CoroutineAwaitObject *self = __Pyx_GetSharedTypeData(self_o, CGLOBAL(__pyx_CoroutineAwaitType), __pyx_CoroutineAwaitObject*);
+    __pyx_CoroutineAwaitObject *self = __Pyx_as_CoroutineAwaitObject(self_o);
     return __Pyx_Generator_Next(self->coroutine);
 }
 
 static PyObject *__Pyx_CoroutineAwait_Send(PyObject *self_o, PyObject *value) {
-    __pyx_CoroutineAwaitObject *self = __Pyx_GetSharedTypeData(self_o, CGLOBAL(__pyx_CoroutineAwaitType), __pyx_CoroutineAwaitObject*);
+    __pyx_CoroutineAwaitObject *self = __Pyx_as_CoroutineAwaitObject(self_o);
     return __Pyx_Coroutine_Send(self->coroutine, value);
 }
 
 #if __PYX_HAS_PY_AM_SEND
 static __Pyx_PySendResult __Pyx_CoroutineAwait_AmSend(PyObject *self_o, PyObject *value, PyObject **retval) {
-    __pyx_CoroutineAwaitObject *self = __Pyx_GetSharedTypeData(self_o, CGLOBAL(__pyx_CoroutineAwaitType), __pyx_CoroutineAwaitObject*);
+    __pyx_CoroutineAwaitObject *self = __Pyx_as_CoroutineAwaitObject(self_o);
     return __Pyx_Coroutine_AmSend(self->coroutine, value, retval);
 }
 #endif
 
 static PyObject *__Pyx_CoroutineAwait_Throw(PyObject *self_o, PyObject *args) {
-    __pyx_CoroutineAwaitObject *self = __Pyx_GetSharedTypeData(self_o, CGLOBAL(__pyx_CoroutineAwaitType), __pyx_CoroutineAwaitObject*);
+    __pyx_CoroutineAwaitObject *self = __Pyx_as_CoroutineAwaitObject(self_o);
     return __Pyx_Coroutine_Throw(self->coroutine, args);
 }
 
@@ -1831,7 +1846,7 @@ static PyObject *__Pyx_CoroutineAwait_Close_Method(PyObject *self, PyObject *arg
     PyObject *retval = NULL;
     __Pyx_PySendResult result;
     CYTHON_UNUSED_VAR(arg);
-    result = __Pyx_Coroutine_Close(__Pyx_GetSharedTypeData(self, CGLOBAL(__pyx_CoroutineAwaitType), __pyx_CoroutineAwaitObject*)->coroutine, &retval);
+    result = __Pyx_Coroutine_Close(__Pyx_as_CoroutineAwaitObject(self)->coroutine, &retval);
     if (unlikely(result == PYGEN_ERROR))
         return NULL;
     Py_XDECREF(retval);
@@ -1900,7 +1915,7 @@ static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
     PyObject *await = PyObject_GC_New(PyObject, CGLOBAL(__pyx_CoroutineAwaitType));
     if (unlikely(!await)) return NULL;
     Py_INCREF(coroutine);
-    __Pyx_GetSharedTypeData(await, CGLOBAL(__pyx_CoroutineAwaitType), __pyx_CoroutineAwaitObject*)->coroutine = coroutine;
+    __Pyx_as_CoroutineAwaitObject(await)->coroutine = coroutine;
     PyObject_GC_Track(await);
     return await;
 }

@@ -4751,9 +4751,8 @@ class GeneratorDefNode(DefNode):
 
         code.put_decref(Naming.cur_scope_cname, py_object_type)
         if self.requires_classobj:
-            classobj_cname = '__Pyx_GetSharedTypeData(gen, __pyx_Coroutine_Type, __pyx_CoroutineObject*)->classobj'
-            code.putln('%s = __Pyx_CyFunction_GetClassObj(%s);' % (
-                classobj_cname, Naming.self_cname))
+            classobj_cname = '__Pyx_as_CoroutineObject(gen)->classobj'
+            code.putln(f'{classobj_cname} = __Pyx_CyFunction_GetClassObj({Naming.self_cname});')
             code.put_incref(classobj_cname, py_object_type)
             code.put_giveref(classobj_cname, py_object_type)
         code.put_finish_refcount_context()
@@ -4827,8 +4826,7 @@ class GeneratorBodyDefNode(DefNode):
             code.putln('%s; /* proto */' % header)
         else:
             code.putln('%s /* generator body */\n{' % header)
-            code.putln(f'__pyx_CoroutineObject *{Naming.generator_cname} = __Pyx_GetSharedTypeData('
-                       f'{Naming.generator_obj_cname}, Py_TYPE({Naming.generator_obj_cname}), __pyx_CoroutineObject *);')
+            code.putln(f'__pyx_CoroutineObject *{Naming.generator_cname} = __Pyx_as_CoroutineObject({Naming.generator_obj_cname});')
 
     def generate_function_definitions(self, env, code):
         lenv = self.local_scope
