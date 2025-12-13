@@ -280,7 +280,7 @@
   #define CYTHON_IMMORTAL_CONSTANTS 0
   // Opaque objects: generally we prefer not to use them for performance reasons.
   #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
-  // If if user's manually specify them then they aren't usable until 3.15 because
+  // If users manually request them then they aren't usable before 3.14 because
   // it isn't possible to specify relative offsets like vectorcall.
   #undef CYTHON_OPAQUE_OBJECTS
   #define CYTHON_OPAQUE_OBJECTS 0
@@ -878,7 +878,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
   #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
 #endif
 
-// For out shared types, they are only ever opaque in the Limited API.
+// For our shared types, they are only ever opaque in the Limited API.
 // While there may be a reason to let users override their own types,
 // there's no benefit to changing our internal types except in the Limited API.
 #if CYTHON_OPAQUE_OBJECTS && CYTHON_COMPILING_IN_LIMITED_API
