@@ -888,7 +888,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
 #else
     #define __PYX_SHARED_SIZEOF(T) sizeof(T)
     #define __PYX_SHARED_RELATIVE_OFFSET 0
-    #define CYTHON_OPAQUE_SHARED_TYPES 1
+    #define CYTHON_OPAQUE_SHARED_TYPES 0
 #endif
 
 #if CYTHON_USE_MODULE_STATE
