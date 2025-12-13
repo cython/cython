@@ -1,5 +1,6 @@
 *.py text
-*.p[yx][xdi] text
+*.pyx text
+*.px[di] text
 *.md text
 *.rst text
 *.srctree text
