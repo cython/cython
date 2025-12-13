@@ -452,7 +452,36 @@ This will catch any C++ error and raise a Python MemoryError in its place.
 (Any Python exception is valid here.)
 
 Cython also supports using a custom exception handler. This is an advanced feature
-that most users won't need, but for those that do a full example follows::
+that most users won't need, but for those that do a couple of full examples follow.
+
+Cython 3.3+
+^^^^^^^^^^^
+
+In Cython 3.3 we have added some utility code to simplify writing custom exception
+handlers. This is purely utility code in ``exception.pxd`` so users of earlier
+Cython versions can just copy it themselves.
+
+Simply cimport `delegate_to_exception_handlers` from `libcpp.exception`.
+This function takes a variable number of handler functions which are tried
+in order. A handler function is a ``cdef`` function that you define which
+either takes a C++ type by reference, or no arguments.
+
+* If a handler function matches the current C++ exception then it is called
+  (no argument functions match any exception).
+* The handler function can optionally raise a Python exception.
+* If the handler raises a Python exception then
+  evaluation stops, otherwise the next handler function is tried.
+* If no handler functions raise a Python exception, then the standard
+  Cython conversion is used.
+
+Example follows:
+
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/advanced_exceptions.pyx
+
+This approach needs a compiler that supports C++11 or greater.
+
+Manual approach
+^^^^^^^^^^^^^^^
 
     cdef int raise_py_error()
     cdef int something_dangerous() except +raise_py_error
