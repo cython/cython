@@ -1,10 +1,10 @@
-@cython.locals(
-    counts=cython.int[10],
-    digit=cython.int)
-
 def count_digits(digits):
-    counts = [0] * 10
+    cdef int[10] counts = [0] * 10
+
+    cdef int digit
+
     for digit in digits:
         assert 0 <= digit <= 9
         counts[digit] += 1
-    return counts
+
+    return list(counts)
