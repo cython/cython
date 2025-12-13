@@ -1491,7 +1491,7 @@ static PyObject *__Pyx_FusedFunction_get_signatures(PyObject *self, void *closur
     }
 }
 
-static __pyx_FusedFunctionObject *
+static PyObject *
 __pyx_FusedFunction_descr_get_locked(PyObject *self, PyObject *obj)
 {
     __pyx_FusedFunctionObject *func = __Pyx_as_FusedFunctionObject(self);
