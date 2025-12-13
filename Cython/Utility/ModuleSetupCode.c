@@ -278,9 +278,10 @@
   #endif
   #undef CYTHON_IMMORTAL_CONSTANTS
   #define CYTHON_IMMORTAL_CONSTANTS 0
+  // Opaque objects: generally we prefer not to use them for performance reasons.
   #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
-  // although opaque objects are introduced in earlier in Python 3.12 they aren't usable
-  // for use because we can't specify relative offsets like vectorcall until 3.14.
+  // If if user's manually specify them then they aren't usable until 3.15 because
+  // it isn't possible to specify relative offsets like vectorcall.
   #undef CYTHON_OPAQUE_OBJECTS
   #define CYTHON_OPAQUE_OBJECTS 0
   #elif !defined(CYTHON_OPAQUE_OBJECTS)
@@ -877,14 +878,17 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
   #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
 #endif
 
+// For out shared types, they are only ever opaque in the Limited API.
+// While there may be a reason to let users override their own types,
+// there's no benefit to changing our internal types except in the Limited API.
 #if CYTHON_OPAQUE_OBJECTS && CYTHON_COMPILING_IN_LIMITED_API
     #define __PYX_SHARED_SIZEOF(T) -((int)sizeof(T))
     #define __PYX_SHARED_RELATIVE_OFFSET Py_RELATIVE_OFFSET
-    #define __Pyx_GetSharedTypeData(o, cls, T) ((T)PyObject_GetTypeData((o), cls))
+    #define CYTHON_OPAQUE_SHARED_TYPES 1
 #else
     #define __PYX_SHARED_SIZEOF(T) sizeof(T)
     #define __PYX_SHARED_RELATIVE_OFFSET 0
-    #define __Pyx_GetSharedTypeData(o, cls, T) ((T)(o))
+    #define CYTHON_OPAQUE_SHARED_TYPES 1
 #endif
 
 #if CYTHON_USE_MODULE_STATE

@@ -948,8 +948,7 @@ class FusedCFuncDefNode(StatListNode):
 
             fused_type_name = code.name_in_module_state("__pyx_FusedFunctionType")
             code.putln(
-                f"(__Pyx_GetSharedTypeData({fused_func.result()}, {fused_type_name}, __pyx_FusedFunctionObject *))"
-                f"->__signatures__ = {signatures.result()};")
+                f"__Pyx_as_FusedFunctionObject({fused_func.result()})->__signatures__ = {signatures.result()};")
 
             signatures.generate_giveref(code)
             signatures.generate_post_assignment_code(code)
