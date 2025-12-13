@@ -1625,8 +1625,7 @@ __pyx_err:;
 
     if (likely(unbound_result_func)) {
         if (fusedfunc->self) {
-            // TODO: move this to InitClassCell
-            __Pyx_CyFunction_SetClassObj(unbound_result_func, __Pyx_CyFunction_GetClassObj(self));
+            assert(__Pyx_CyFunction_GetClassObj(unbound_result_func) == __Pyx_CyFunction_GetClassObj(self));
 
             result_func = __pyx_FusedFunction_descr_get(unbound_result_func,
                                                         fusedfunc->self, fusedfunc->self);
@@ -1728,7 +1727,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         if (unlikely(!new_func))
             goto bad;
 
-        __Pyx_CyFunction_SetClassObj(new_func, __Pyx__CyFunction_GetClassObj(cyfunc));
+        assert(__Pyx_CyFunction_GetClassObj(new_func) == __Pyx_CyFunction_GetClassObj(cyfunc));
 
         func = new_func;
     }

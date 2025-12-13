@@ -112,11 +112,11 @@ _ERRORS = """
 19:13: Array dimension cannot be const variable
 20:14: Array dimension cannot be const variable
 21:15: Array dimension cannot be const variable
-21:15: Array dimension not integer
+21:15: Array dimension not integer, got 'const float'
 25:8: Array dimension cannot be const variable
 26:8: Array dimension cannot be const variable
 27:8: Array dimension cannot be const variable
-27:8: Array dimension not integer
+27:8: Array dimension not integer, got 'const float'
 31:8: Assignment to const 'a'
 32:8: Assignment to const 'c'
 33:5: Assignment to const dereference

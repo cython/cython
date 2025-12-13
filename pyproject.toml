@@ -43,7 +43,7 @@ select = "*i686 *musllinux* *win32 *win_arm64 *macosx_x86_64 *armv7l"
 inherit.environment = "append"
 environment.CYTHON_LIMITED_API = "true"
 inherit.test-requires = "append"
-test-requires = ["abi3audit>=0.0.22"]
+test-requires = ["abi3audit>=0.0.25"]
 inherit.test-command = "append"
 test-command = ["abi3audit --strict --report {wheel}"]
 
