@@ -37,6 +37,7 @@ run[.]pyarray
 run[.]sequential_parallel
 run[.]special_methods_T561
 run[.]cythonscope
+run[.]shared_utility
 
 # generic filters
 buffer

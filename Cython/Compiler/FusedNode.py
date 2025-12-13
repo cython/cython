@@ -1,7 +1,7 @@
 import copy
 import hashlib
 
-from . import (ExprNodes, PyrexTypes, MemoryView,
+from . import (ExprNodes, PyrexTypes,
                ParseTreeTransforms, StringEncoding, Errors,
                Naming)
 from .ExprNodes import CloneNode, CodeObjectNode, ProxyNode, TupleNode
@@ -390,7 +390,7 @@ class FusedCFuncDefNode(StatListNode):
         coerce_from_py_func = memslice_type.from_py_function
 
         decl_code.putln(
-            f"{MemoryView.memviewslice_cname} {coerce_from_py_func}(object, int)")
+            f"{Naming.memviewslice_cname} {coerce_from_py_func}(object, int)")
 
         match = specialized_type.specialization_string
         sizeof_dtype = self._sizeof_dtype(dtype)
@@ -503,16 +503,16 @@ class FusedCFuncDefNode(StatListNode):
         """
         decl_code.put_chunk(
             f"""
-                ctypedef struct {MemoryView.memviewslice_cname}:
+                ctypedef struct {Naming.memviewslice_cname}:
                     void *memview
 
-                void __PYX_XCLEAR_MEMVIEW({MemoryView.memviewslice_cname} *, int have_gil)
+                void __PYX_XCLEAR_MEMVIEW({Naming.memviewslice_cname} *, int have_gil)
                 bint __pyx_memoryview_check(object)
             """)
 
         pyx_code['local_variable_declarations'].put_chunk(
             f"""
-                cdef {MemoryView.memviewslice_cname} memslice
+                cdef {Naming.memviewslice_cname} memslice
                 cdef Py_ssize_t itemsize
                 cdef bint dtype_signed
                 cdef Py_UCS4 kind
@@ -948,8 +948,7 @@ class FusedCFuncDefNode(StatListNode):
 
             fused_type_name = code.name_in_module_state("__pyx_FusedFunctionType")
             code.putln(
-                f"(__Pyx_GetSharedTypeData({fused_func.result()}, {fused_type_name}, __pyx_FusedFunctionObject *))"
-                f"->__signatures__ = {signatures.result()};")
+                f"__Pyx_as_FusedFunctionObject({fused_func.result()})->__signatures__ = {signatures.result()};")
 
             signatures.generate_giveref(code)
             signatures.generate_post_assignment_code(code)

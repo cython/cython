@@ -540,25 +540,12 @@ In some scenarios, it can be useful to link multiple Cython modules
 Python in another application.  This can be done through the inittab
 import mechanism of CPython.
 
-Create a new C file to integrate the extension modules and add this
-macro to it:
-
-.. code-block:: c
-
-    #if PY_MAJOR_VERSION < 3
-    # define MODINIT(name)  init ## name
-    #else
-    # define MODINIT(name)  PyInit_ ## name
-    #endif
-
-If you are only targeting Python 3.x, just use ``PyInit_`` as prefix.
-
-Then, for each of the modules, declare its module init function
+For each of the modules, declare its module init function
 as follows, replacing ``some_module_name`` with the name of the module:
 
 .. code-block:: c
 
-    PyMODINIT_FUNC  MODINIT(some_module_name) (void);
+    PyMODINIT_FUNC  PyInit_some_module_name (void);
 
 In C++, declare them as ``extern C``.
 
@@ -573,7 +560,7 @@ the name of each of the modules:
 
 .. code-block:: c
 
-    PyImport_AppendInittab("some_module_name", MODINIT(some_module_name));
+    PyImport_AppendInittab("some_module_name", PyInit_some_module_name);
 
 This enables normal imports for the embedded extension modules.
 
@@ -960,6 +947,8 @@ Cython code.  Here is the list of currently supported directives:
     the logic and consider it safe to run. Since free-threading support
     is still experimental itself, this is also an experimental directive that
     might be changed or removed in future releases.
+    This option can be overridden at C compile time by setting the
+    ``CYTHON_FREETHREADING_COMPATIBLE`` C macro to 1/0 for True/False.
 
 ``subinterpreters_compatible``  (no / shared_gil / own_gil), *default=no*
     If set to ``shared_gil`` or ``own_gil``, then Cython sets the
@@ -1326,6 +1315,8 @@ From Cython 3.1, this is still possible, but should be migrated to using the C m
 Before Cython 3.1, the ``CYTHON_CLINE_IN_TRACEBACK`` macro already works as described
 but the Cython option is needed to remove the compile-time cost.
 
+.. _C_macro_defines:
+
 C macro defines
 ===============
 
@@ -1344,9 +1335,9 @@ most important to least important:
     Turns on Cython's Limited API support, meaning that one compiled module
     can be used by many Python interpreter versions (at the cost of some performance).
     At this stage many features do not work in the Limited API.  You should set this
-    macro to be the version hex for the
-    minimum Python version you want to support (\>=3.8).  ``0x03080000`` will support
-    Python 3.8 upwards.
+    macro to be the version hex for the minimum Python version you want to support
+    (\>=3.8).  ``0x03090000`` will support Python 3.9 upwards.
+    Cython requires at least Python 3.9 from Cython 3.3 on.
     Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`,
     rather than just a Cython macro, and so it changes what parts of the Python headers
     are visible too.  See :ref:`limited_api` for more details about this feature.
@@ -1413,6 +1404,12 @@ most important to least important:
     the constants are used in many different threads because it avoids most writes
     to the constants due to reference counting. Disabled by default, but enabled
     in free-threaded builds.
+
+``CYTHON_FREETHREADING_COMPATIBLE``
+    In Freethreading Python runtimes, setting this to ``0`` will force enabling
+    the GIL when importing the module, ``1`` will keep it untouched.
+    The default setting depends on the ``freethreading_compatible`` directive.
+    This C macro allows to override the directive at C compile time.
 
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the

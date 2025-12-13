@@ -18,6 +18,8 @@ def use_del():
     cdef A *p = &a
     del p
 
+cdef extern from *:
+    int use_exception() except+
 
 _ERRORS = """
 4:4: Using 'cppclass' while Cython is not in c++ mode
@@ -26,4 +28,5 @@ _ERRORS = """
 10:0: Using 'cppclass' while Cython is not in c++ mode
 14:16: Operation only allowed in c++
 19:4: Operation only allowed in c++
+22:21: Operation only allowed in c++
 """

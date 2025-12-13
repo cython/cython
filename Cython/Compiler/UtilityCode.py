@@ -201,7 +201,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.tree = tree
         return tree
 
-    def put_code(self, output):
+    def put_code(self, globalstate, used_by=None):
         pass
 
     @classmethod
