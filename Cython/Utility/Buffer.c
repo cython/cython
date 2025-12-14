@@ -652,8 +652,9 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           size_t struct_alignment = ctx->struct_alignment;
           ctx->new_count = 1;
           ++ts;
-          if (*ts != '{') {
-            PyErr_SetString(PyExc_ValueError, "Buffer acquisition: Expected '{' after 'T'");
+          if (*ts != '\x7B') {
+            // opening brace
+            PyErr_SetString(PyExc_ValueError, "Buffer acquisition: Expected '\x7B' after 'T'");
             return NULL;
           }
           if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
@@ -670,7 +671,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           if (struct_alignment) ctx->struct_alignment = struct_alignment;
         }
         break;
-      case '}': /* end of substruct; either repeat or move on */
+      case '\x7D': /* closing brace, end of substruct; either repeat or move on */
         {
           size_t alignment = ctx->struct_alignment;
           ++ts;
