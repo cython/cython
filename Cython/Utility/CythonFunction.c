@@ -1741,7 +1741,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         if (unlikely(!new_func))
             goto bad;
 
-        assert(__Pyx_CyFunction_GetClassObj(new_func) == __Pyx_CyFunction_GetClassObj(cyfunc));
+        assert(__Pyx_CyFunction_GetClassObj(new_func) == __Pyx_CyFunction_GetClassObj(func));
 
         func = new_func;
     }
