@@ -1718,7 +1718,7 @@ class PyExtensionType(PyObjectType):
         if not type_data_cast or self.is_external:
             return super().cast_code(expr_code)
         if self.scope.is_internal:
-            return f"__Pyx_GetInternalTypeDataAndCast({expr_code}, {self.declaration_code("", opaque_decl=False)})"
+            return f"__Pyx_GetInternalTypeDataAndCast({expr_code}, {self.declaration_code('', opaque_decl=False)})"
         # TODO - this will be specialized for cdef classes later
         return super().cast_code(expr_code)
 
