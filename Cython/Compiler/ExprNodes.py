@@ -8193,9 +8193,11 @@ class AttributeNode(ExprNode):
                     # (AnalyseExpressionsTransform)
                     self.member = self.entry.cname
 
+                obj_code = obj.result_as(obj.type.vtabslot_type)
+
                 return "((struct %s *)%s%s%s)->%s" % (
                     obj.type.vtabstruct_cname, obj_code, self.op,
-                    obj.type.vtabslot_cname, self.member)
+                    Naming.vtabslot_cname, self.member)
             elif self.result_is_used:
                 return self.member
             # Generating no code at all for unused access to optimised builtin
