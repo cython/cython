@@ -4936,6 +4936,8 @@ class GeneratorBodyDefNode(DefNode):
                 py_object_type.declaration_code(Naming.cur_scope_obj_cname),
                 Naming.generator_cname
             ))
+            # FIXME: this silences a potential "unused" warning => try to avoid unused closures in more cases
+            closure_init_code.putln(f"CYTHON_MAYBE_UNUSED_VAR({Naming.cur_scope_obj_cname});")
             closure_init_code.putln("#endif")
             closure_init_code.putln('%s = %s;' % (
                 lenv.scope_class.type.declaration_code(Naming.cur_scope_cname, opaque_decl=False),
