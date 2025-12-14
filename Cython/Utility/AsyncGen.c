@@ -451,7 +451,7 @@ static int
 __Pyx_PyAsyncGen_ClearFreeLists(void)
 {
     #if CYTHON_USE_FREELISTS
-    // FIXME - fix casts when we implemnt freelists
+    // FIXME - fix casts when we implement freelists
     int ret = CGLOBAL(__Pyx_ag_value_freelist_free) + CGLOBAL(__Pyx_ag_asend_freelist_free);
 
     while (CGLOBAL(__Pyx_ag_value_freelist_free)) {
