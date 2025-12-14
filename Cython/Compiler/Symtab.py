@@ -157,7 +157,7 @@ class Entry:
     # pytyping_modifiers          Python type modifiers like "typing.ClassVar" but also "dataclasses.InitVar"
     # enum_int_value  None or int  If known, the int that corresponds to this enum value
     # specialiser  function or None  Callable to specialise a function to specific C arguments.
-    # preprocessor_guard  str or None   Declare this variable in #if preprocessor_guard 
+    # preprocessor_guard  str or None   Declare this variable in #if preprocessor_guard
     #                                   (only for cdef class members right now)
 
     # TODO: utility_code and utility_code_definition serves the same purpose...

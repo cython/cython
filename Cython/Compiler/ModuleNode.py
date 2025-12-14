@@ -1650,7 +1650,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "%s = %s;" % (
                 type.declaration_code("p", opaque_decl=False),
                 type.cast_code("o", type_data_cast=True)))
-        
+
     @contextlib.contextmanager
     def _generate_entry_preprocessor_guard(self, entry, code):
         if entry.preprocessor_guard is not None:
