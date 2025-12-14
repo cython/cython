@@ -1451,7 +1451,7 @@ class BuiltinObjectType(PyObjectType):
     is_exception_type = False
 
     # fields that let it look like an extension type
-    vtabslot_cname = None 
+    vtabslot_cname = None
     vtabstruct_cname = None
     vtabptr_cname = None
     typedef_flag = True
@@ -1599,7 +1599,7 @@ class PyExtensionType(PyObjectType):
     #  objtypedef_cname string           Name of PyObject struct typedef
     #  typeobj_cname    string or None   C code fragment referring to type object
     #  typeptr_cname    string or None   Name of pointer to external type object
-    #  vtabslot_cname   string Name of C method table member
+    #  vtabslot_cname   string           Name of C method table member
     #  vtabstruct_cname string           Name of C method table struct
     #  vtabptr_cname    string           Name of pointer to C method table
     #  vtable_cname     string           Name of C method table definition
@@ -1611,7 +1611,7 @@ class PyExtensionType(PyObjectType):
     #  multiple_bases    boolean          Does this class have multiple bases
     #  has_sequence_flag  boolean        Set Py_TPFLAGS_SEQUENCE
     #  opaque_decl_by_default boolean    When using "CYTHON_OPAQUE_OBJECTS", declarations of this type
-    #                                       should be opaque (unless specifically requested not to be) 
+    #                                       should be opaque (unless specifically requested not to be)
 
     is_extension_type = 1
     has_attributes = 1
@@ -1713,7 +1713,7 @@ class PyExtensionType(PyObjectType):
 
     def attributes_known(self):
         return self.scope is not None
-    
+
     def cast_code(self, expr_code, type_data_cast: bool = False):
         if not type_data_cast or self.is_external:
             return super().cast_code(expr_code)
@@ -5761,7 +5761,7 @@ def same_type(type1, type2):
 def assignable_from(type1, type2):
     return type1.assignable_from(type2)
 
-def typecast(to_type, from_type, expr_code, type_data_cast=False):
+def typecast(to_type, from_type, expr_code):
     #  Return expr_code cast to a C type which can be
     #  assigned to to_type, assuming its existing C type
     #  is from_type.
