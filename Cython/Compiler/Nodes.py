@@ -2051,7 +2051,6 @@ class FuncDefNode(StatNode, BlockNode):
             outer_scope_cname = Naming.outer_scope_cname
             outer_scope_obj_cname = Naming.outer_scope_obj_cname
         lenv.mangle_closure_cnames(outer_scope_cname)
-        # lenv.mangle_closure_cnames(outer_scope_obj_cname)  # FIXME adjust this!
         # Generate closure function definitions
         self.body.generate_function_definitions(lenv, code)
         # generate lambda function definitions
@@ -2214,9 +2213,8 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("}")
             # Note that it is unsafe to decref the scope at this point.
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
-            code.putln(f"{Naming.cur_scope_cname} = __Pyx_GetCClassTypeData({Naming.cur_scope_obj_cname}, "
-                    f"{code.name_in_module_state(lenv.scope_class.type.typeoffset_cname)}, "
-                    f"{lenv.scope_class.type.empty_declaration_code(opaque_decl=False)});")
+            code.putln(f"{Naming.cur_scope_cname} = ({lenv.scope_class.type.empty_declaration_code(opaque_decl=False)})"
+                    f"PyObject_GetTypeData({Naming.cur_scope_obj_cname}, Py_TYPE({Naming.cur_scope_obj_cname}));")
             code.putln("#endif")
         if self.needs_outer_scope:
             if self.is_cyfunction:
@@ -2229,16 +2227,16 @@ class FuncDefNode(StatNode, BlockNode):
                     outer_scope_obj_cname,
                     cenv.scope_class.type.empty_declaration_code(),
                     Naming.self_cname,))
-            code.putln("#if CYTHON_OPAQUE_OBJECTS")
-            code.putln("%s = __Pyx_GetCClassTypeData(%s, %s, %s);" % (
+            code.putln("#if CYTHON_OPAQUE_INTERNAL_TYPES")
+            code.putln("%s = (%s)PyObject_GetTypeData(%s, Py_TYPE(%s));" % (
                     outer_scope_cname,
+                    cenv.scope_class.type.empty_declaration_code(opaque_decl=False),
                     outer_scope_obj_cname,
-                    code.name_in_module_state(cenv.scope_class.type.typeoffset_cname),
-                    cenv.scope_class.type.empty_declaration_code(opaque_decl=False),))
+                    outer_scope_obj_cname,))
             code.putln("#endif")
             if lenv.is_passthrough:
                 code.putln("%s = %s;" % (Naming.cur_scope_obj_cname, outer_scope_obj_cname))
-                code.putln("#if CYTHON_OPAQUE_OBJECTS")
+                code.putln("#if CYTHON_OPAQUE_INTERNAL_TYPES")
                 code.putln("%s = %s;" % (Naming.cur_scope_cname, outer_scope_cname))
                 code.putln("#endif")
             elif self.needs_closure:
@@ -4529,9 +4527,9 @@ class DefNodeWrapper(FuncDefNode):
             max_args, ','.join('0'*max_args)))
 
         if self.target.defaults_struct:
-            code.putln('struct %s *%s = __Pyx_CyFunction_Defaults(struct %s, %s, %s);' % (
+            code.putln('struct %s *%s = __Pyx_CyFunction_Defaults(struct %s, %s);' % (
                 self.target.defaults_struct.name, Naming.dynamic_args_cname,
-                self.target.defaults_struct.name, code.name_in_module_state(self.target.defaults_struct.parent_type.typeoffset_cname), Naming.self_cname))
+                self.target.defaults_struct.name, Naming.self_cname))
 
     def generate_argument_defaults_assignment_code(self, args, code):
         # Assign the default values to the empty entries of the 'values' array.
@@ -4933,7 +4931,7 @@ class GeneratorBodyDefNode(DefNode):
         self.generate_function_body(env, code)
         # ----- Closure initialization
         if lenv.scope_class.type.scope.var_entries:
-            closure_init_code.putln("#if CYTHON_OPAQUE_OBJECTS")
+            closure_init_code.putln("#if CYTHON_OPAQUE_INTERNAL_TYPES")
             closure_init_code.putln('%s = %s->closure;' % (
                 py_object_type.declaration_code(Naming.cur_scope_obj_cname),
                 Naming.generator_cname
@@ -5772,7 +5770,6 @@ class CClassDefNode(ClassDefNode):
         # type defined in this module.
         type = entry.type
         typeptr_cname = f"{Naming.modulestatevalue_cname}->{type.typeptr_cname}"
-        typeoffset_cname = f"{Naming.modulestatevalue_cname}->{type.typeoffset_cname}"
         scope = type.scope
         if not scope:  # could be None if there was an error
             return
@@ -5906,11 +5903,6 @@ class CClassDefNode(ClassDefNode):
             code.put_error_if_neg(entry.pos, "__Pyx_PyType_Ready(%s)" % typeptr_cname)
             code.putln("#endif")
             code.put_make_object_deferred(f"(PyObject*){typeptr_cname}")
-
-            code.putln("#if CYTHON_OPAQUE_OBJECTS")
-            code.putln(f"{typeoffset_cname} = __Pyx_CalculateTypeOffset({typeptr_cname});")
-            code.put_error_if_neg(entry.pos, typeoffset_cname);
-            code.putln("#endif")
 
             # Use specialised attribute lookup for types with generic lookup but no instance dict.
             getattr_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_getattro')

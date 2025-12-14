@@ -460,7 +460,7 @@ class ConstructorSlot(InternalMethodSlot):
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
                 and not scope.has_explicitly_constructable_attrs
-                and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_type)):
+                and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_cname)):
             entry = scope.lookup_here(self.method) if self.method else None
             if not (entry and entry.is_special):
                 return False
@@ -736,7 +736,9 @@ class DictOffsetSlot(SlotDescriptor):
         dict_offset = self.slot_code(scope)
         if dict_offset == "0":
             return None
-        return '{"__dictoffset__", T_PYSSIZET, %s, __PYX_C_CLASS_RELATIVE_OFFSET | READONLY, NULL},' % dict_offset
+        relative_offset = '__PYX_INTERNAL_TYPE_RELATIVE_OFFSET' if scope.is_internal else '0'
+        return '{"__dictoffset__", T_PYSSIZET, %s, %s | READONLY, NULL},' % (
+            dict_offset, relative_offset)
 
 ## The following slots are (or could be) initialised with an
 ## extern function pointer.

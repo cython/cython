@@ -12,21 +12,11 @@ setup(ext_modules= cythonize("check_size.pyx"))
 
 setup(ext_modules = cythonize("_check_size*.pyx"))
 
-setup(ext_modules= cythonize("opaque_objects_test.pyx"))
-
 try:
     setup(ext_modules= cythonize("check_size_invalid.pyx"))
     assert False
 except CompileError as e:
     pass
-
-######## opaque_objects_test.pyx #########
-
-cdef extern from *:
-    int CYTHON_OPAQUE_OBJECTS
-
-def get_opaque_objects():
-    return CYTHON_OPAQUE_OBJECTS
 
 ######## check_size_nominal.h ########
 
@@ -189,12 +179,6 @@ cpdef public int testme(Foo f) except -1:
     return f.f9
 
 ######## runner.py ########
-
-import opaque_objects_test
-
-if opaque_objects_test.get_opaque_objects():
-    print("Test is not meaningful with opaque objects - skipping.")
-    exit(0)
 
 import check_size, _check_size_exact, warnings
 

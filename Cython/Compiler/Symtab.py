@@ -237,7 +237,6 @@ class Entry:
     pytyping_modifiers = None
     enum_int_value = None
     vtable_type = None
-    inherited_scope = None
     preprocessor_guard = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
@@ -1494,6 +1493,8 @@ class ModuleScope(Scope):
         scope = entry.type.scope
         scope.is_internal = True
         scope.is_defaults_class_scope = True
+        entry.type.is_final = True
+        entry.type.opaque_decl_by_default=True
 
         # zero pad the argument number so they can be sorted
         num_zeros = len(str(len(components)))
@@ -1849,7 +1850,6 @@ class ModuleScope(Scope):
                 type.typeptr_cname = typeptr_cname
             else:
                 type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
-            type.typeoffset_cname = self.mangle(Naming.typeoffset_prefix, name)
             entry = self.declare_type(name, type, pos, visibility = visibility,
                 defining = 0, shadow = shadow)
             entry.is_cclass = True
@@ -1926,9 +1926,10 @@ class ModuleScope(Scope):
         #  If extension type has a vtable, allocate vtable struct and
         #  slot names for it.
         type = entry.type
-        if type.base_type and type.base_type.vtabslot_type:
-            #print "...allocating vtabslot_type because base type has one" ###
-            type.vtabslot_type = type.base_type.vtabslot_type
+        if type.base_type and type.base_type.vtabslot_cname:
+            #print "...allocating vtabslot_cname because base type has one" ###
+            type.vtabslot_cname = "%s.%s" % (
+                Naming.obj_base_cname, type.base_type.vtabslot_cname)
         elif type.scope and type.scope.cfunc_entries:
             # one special case here: when inheriting from builtin
             # types, the methods may also be built-in, in which
@@ -1943,9 +1944,9 @@ class ModuleScope(Scope):
                     # builtin base type defines all methods => no vtable needed
                     return
                 base_type = base_type.base_type
-            #print "...allocating vtabslot_type because there are C methods" ###
-            type.vtabslot_type = type
-        if type.vtabslot_type:
+            #print "...allocating vtabslot_cname because there are C methods" ###
+            type.vtabslot_cname = Naming.vtabslot_cname
+        if type.vtabslot_cname:
             #print "...allocating other vtable related cnames" ###
             type.vtabstruct_cname = self.mangle(Naming.vtabstruct_prefix, entry.name)
             type.vtabptr_cname = self.mangle(Naming.vtabptr_prefix, entry.name)
@@ -1985,7 +1986,7 @@ class ModuleScope(Scope):
                     error(method_entry.pos, "C method '%s' is declared but not defined" %
                         method_entry.name)
         # Allocate vtable name if necessary
-        if type.vtabslot_type:
+        if type.vtabslot_cname:
             #print "ModuleScope.check_c_classes: allocating vtable cname for", self ###
             type.vtable_cname = self.mangle(Naming.vtable_prefix, entry.name)
 
@@ -2790,17 +2791,16 @@ class CClassScope(ClassScope):
         # Declare entries for all the C attributes of an
         # inherited type, with cnames modified appropriately
         # to work with this type.
-        def adapt(base_cname):
-            return "%s.%s" % (Naming.obj_base_cname, base_cname)
+        def adapt(cname):
+            return "%s.%s" % (Naming.obj_base_cname, base_entry.cname)
 
         entries = base_scope.inherited_var_entries + base_scope.var_entries
         for base_entry in entries:
             entry = self.declare(
-                base_entry.name, base_entry.cname,
+                base_entry.name, adapt(base_entry.cname),
                 base_entry.type, None, 'private')
             entry.is_variable = 1
             entry.is_inherited = True
-            entry.inherited_scope = base_entry.inherited_scope or base_scope
             entry.annotation = base_entry.annotation
             self.inherited_var_entries.append(entry)
 
@@ -2816,12 +2816,11 @@ class CClassScope(ClassScope):
             var_entry = base_entry.as_variable
             is_builtin = var_entry and var_entry.is_builtin
             if not is_builtin:
-                cname = adapt(base_entry.cname)
+                cname = adapt(cname)
             entry = self.add_cfunction(
                 base_entry.name, base_entry.type, base_entry.pos, cname,
                 base_entry.visibility, base_entry.func_modifiers, inherited=True)
             entry.is_inherited = 1
-            entry.inherited_scope = base_entry.inherited_scope or base_scope
             if base_entry.is_final_cmethod:
                 entry.is_final_cmethod = True
                 entry.is_inline_cmethod = base_entry.is_inline_cmethod

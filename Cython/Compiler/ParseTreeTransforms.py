@@ -3557,6 +3557,7 @@ class CreateClosureClasses(CythonTransform):
             name=as_name, pos=node.pos, defining=True,
             implementing=True)
         entry.type.is_final_type = True
+        entry.type.opaque_decl_by_default = True
 
         func_scope.scope_class = entry
         class_scope = entry.type.scope
@@ -3589,7 +3590,7 @@ class CreateClosureClasses(CythonTransform):
                 cname=Naming.outer_scope_cname,
                 type=direct_entry_type,
                 is_cdef=True)
-            direct_entry.preprocessor_guard = "CYTHON_OPAQUE_OBJECTS"
+            direct_entry.preprocessor_guard = "CYTHON_OPAQUE_INTERNAL_TYPES"
         for name, entry in in_closure:
             closure_entry = class_scope.declare_var(
                 pos=entry.pos,

@@ -1451,7 +1451,7 @@ class BuiltinObjectType(PyObjectType):
     is_exception_type = False
 
     # fields that let it look like an extension type
-    vtabslot_type = None 
+    vtabslot_cname = None 
     vtabstruct_cname = None
     vtabptr_cname = None
     typedef_flag = True
@@ -1599,8 +1599,7 @@ class PyExtensionType(PyObjectType):
     #  objtypedef_cname string           Name of PyObject struct typedef
     #  typeobj_cname    string or None   C code fragment referring to type object
     #  typeptr_cname    string or None   Name of pointer to external type object
-    #  typeoffset_cname string           Name storing the offset of the objstruct (in pep 697 opaque objects mode)
-    #  vtabslot_type = None   PyExtensionType   Type in the inheritance heirarchy that holds the vtabslot member
+    #  vtabslot_cname   string Name of C method table member
     #  vtabstruct_cname string           Name of C method table struct
     #  vtabptr_cname    string           Name of pointer to C method table
     #  vtable_cname     string           Name of C method table definition
@@ -1622,7 +1621,7 @@ class PyExtensionType(PyObjectType):
     dataclass_fields = None
     multiple_bases = False
     has_sequence_flag = False
-    opaque_decl_by_default = True
+    opaque_decl_by_default = False
 
     def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
@@ -1635,7 +1634,7 @@ class PyExtensionType(PyObjectType):
         self.objstruct_cname = None
         self.typeobj_cname = None
         self.typeptr_cname = None
-        self.vtabslot_type = None
+        self.vtabslot_cname = None
         self.vtabstruct_cname = None
         self.vtabptr_cname = None
         self.vtable_cname = None
@@ -1718,9 +1717,10 @@ class PyExtensionType(PyObjectType):
     def cast_code(self, expr_code, type_data_cast: bool = False):
         if not type_data_cast or self.is_external:
             return super().cast_code(expr_code)
-        # FIXME - we really need Code to get to this
-        typeoffset_cname = f"{Naming.modulestateglobal_cname}->{self.typeoffset_cname}"
-        return f"__Pyx_GetCClassTypeDataAndCast({expr_code}, {typeoffset_cname}, {self.declaration_code("", opaque_decl=False)})"
+        if self.scope.is_internal:
+            return f"__Pyx_GetInternalTypeDataAndCast({expr_code}, {self.declaration_code("", opaque_decl=False)})"
+        # TODO - this will be specialized for cdef classes later
+        return super().cast_code(expr_code)
 
     def __str__(self):
         return self.name

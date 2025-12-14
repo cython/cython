@@ -1444,7 +1444,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.sue_header_footer(type, "struct", type.objstruct_cname)
         code.putln(header)
         base_type = type.base_type
-        code.putln("#if !CYTHON_OPAQUE_OBJECTS")
+        if type.scope.is_internal:
+            code.putln("#if !CYTHON_OPAQUE_INTERNAL_TYPES")
+        else:
+            code.putln("#if !CYTHON_OPAQUE_CDEF_TYPES")
         if base_type:
             basestruct_cname = base_type.objstruct_cname
             if basestruct_cname == "PyTypeObject":
@@ -1459,11 +1462,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "PyObject_HEAD")
         code.putln("#endif")  # opaque objects
-        if type.vtabslot_type == type:
+        if type.vtabslot_cname and not (type.base_type and type.base_type.vtabslot_cname):
             code.putln(
                 "struct %s *%s;" % (
                     type.vtabstruct_cname,
-                    Naming.vtabslot_cname))
+                    type.vtabslot_cname))
         for attr in type.scope.var_entries:
             if attr.is_declared_generic:
                 attr_type = py_object_type
@@ -1489,9 +1492,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
                 module_state.putln("PyTypeObject *%s;" % entry.type.typeptr_cname)
-                module_state.putln("#if CYTHON_OPAQUE_OBJECTS")
-                module_state.putln(f"Py_ssize_t {entry.type.typeoffset_cname};")
-                module_state.putln("#endif")
                 module_state_clear.putln(
                     "Py_CLEAR(clear_module_state->%s);" %
                     entry.type.typeptr_cname)
@@ -1723,7 +1723,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             scope, PyrexTypes.py_objptr_type, "tp_new",
             f"PyTypeObject *t, {unused_marker}PyObject *a, {unused_marker}PyObject *k", needs_prototype=True)
 
-        need_self_cast = (type.vtabslot_type or
+        need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
                           explicitly_constructable_attrs)
         if need_self_cast:
@@ -1783,28 +1783,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # from this point on, ensure DECREF(o) on failure
         needs_error_cleanup = False
 
-        if type.vtabslot_type:
-            vtab_base_type = type.vtabslot_type
+        if type.vtabslot_cname:
+            vtab_base_type = type
+            while vtab_base_type.base_type and vtab_base_type.base_type.vtabstruct_cname:
+                vtab_base_type = vtab_base_type.base_type
             if vtab_base_type is not type:
-                levels = 0
-                test_tp = type
-                while vtab_base_type is not test_tp:
-                    test_tp = test_tp.base_type
-                    levels += 1
-                vtab_access_code = f"{'.'.join([Naming.obj_base_cname]*levels)}."
                 struct_type_cast = "(struct %s*)" % vtab_base_type.vtabstruct_cname
             else:
-                vtab_access_code = ""
                 struct_type_cast = ""
-            code.putln("#if CYTHON_OPAQUE_OBJECTS")
-            code.putln(f"__Pyx_GetCClassTypeData(o, {code.name_in_module_state(vtab_base_type.typeoffset_cname)}, "
-                       f"{vtab_base_type.empty_declaration_code(opaque_decl=False)})->{Naming.vtabslot_cname}"
-                       f" = {struct_type_cast}{type.vtabptr_cname};")
-            code.putln("#else")
-            code.putln("p->%s%s = %s%s;" % (
-                vtab_access_code, Naming.vtabslot_cname,
+            code.putln("p->%s = %s%s;" % (
+                type.vtabslot_cname,
                 struct_type_cast, type.vtabptr_cname))
-            code.putln("#endif")
 
         for entry in explicitly_constructable_attrs:
             entry.type.generate_explicit_construction(
@@ -2788,8 +2777,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # used in the non-limited API case, this doesn't preserve the weaklistoffset
                 # from base classes.
                 # Practically that doesn't matter, but it isn't exactly the identical.
-                code.putln('{"__weaklistoffset__", T_PYSSIZET, offsetof(%s, %s), __PYX_C_CLASS_RELATIVE_OFFSET | READONLY, 0},'
-                           % (objstruct, weakref_entry.cname))
+                relative_offset = '__PYX_INTERNAL_TYPE_RELATIVE_OFFSET' if scope.is_internal else '0'
+                code.putln('{"__weaklistoffset__", T_PYSSIZET, offsetof(%s, %s), %s | READONLY, 0},'
+                           % (objstruct, weakref_entry.cname, relative_offset))
             code.putln("#endif")
             code.putln("{0, 0, 0, 0, 0}")
             code.putln("};")
@@ -2805,7 +2795,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         classname = scope.class_name.as_c_string_literal()
         code.putln("static PyType_Spec %s_spec = {" % ext_type.typeobj_cname)
         code.putln('"%s.%s",' % (self.full_module_name, classname.replace('"', '')))
-        code.putln("__PYX_C_CLASS_SIZEOF(%s)," % objstruct)
+        sizeof = '__PYX_INTERNAL_SIZEOF' if scope.is_internal else 'sizeof'
+        code.putln(f"{sizeof}({objstruct}),")
         code.putln("0,")
         code.putln("%s," % TypeSlots.get_slot_by_name("tp_flags", scope.directives).slot_code(scope))
         code.putln("%s_slots," % ext_type.typeobj_cname)
@@ -4033,18 +4024,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             raise RuntimeError(
                 f"invalid value for check_size '{type.check_size}' when compiling {module_name}.{type.name}")
-        code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion}, ')
-        # is it pep697-opaque?
-        # (Don't allow pep697-opaque extern types for now)
-        code.put(f"{not is_builtin:d} && {not type.is_external:d} && CYTHON_OPAQUE_OBJECTS_{Naming.cyversion});")
+        code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
         code.putln(f' if (!{typeptr_cname}) {error_code}')
-
-        if not is_builtin and not type.is_external:
-            code.putln('#if CYTHON_OPAQUE_OBJECTS')
-            code.putln(f'{code.name_in_module_state(type.typeoffset_cname)} = __Pyx_CalculateTypeOffset({typeptr_cname});')
-            code.putln(f'if ({code.name_in_module_state(type.typeoffset_cname)} < 0) {error_code}')
-            code.putln('#endif')
 
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)

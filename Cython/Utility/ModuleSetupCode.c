@@ -424,10 +424,6 @@
   #endif
   #ifndef CYTHON_OPAQUE_OBJECTS
     #define CYTHON_OPAQUE_OBJECTS 0
-  #elif !CYTHON_USE_TYPE_SPECS /* || PY_VERSION_HEX < 0x030E0000 */  // TODO re-enable this check
-    // opaque objects are incompatible with static types
-    #undef CYTHON_OPAQUE_OBJECTS
-    #define CYTHON_OPAQUE_OBJECTS 0
   #endif
 #endif
 
@@ -888,62 +884,38 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
 #if CYTHON_OPAQUE_OBJECTS && CYTHON_COMPILING_IN_LIMITED_API
     #define __PYX_SHARED_SIZEOF(T) -((int)sizeof(T))
     #define __PYX_SHARED_RELATIVE_OFFSET Py_RELATIVE_OFFSET
+
+    #define __PYX_INTERNAL_SIZEOF(T) -((int)sizeof(T))
+    #define __PYX_INTERNAL_TYPE_RELATIVE_OFFSET Py_RELATIVE_OFFSET
+    #define __Pyx_GetInternalTypeDataAndCast(o, T) ((T)PyObject_GetTypeData(o, Py_TYPE(o)))
+    
     #define CYTHON_OPAQUE_SHARED_TYPES 1
+    #define CYTHON_OPAQUE_INTERNAL_TYPES 1  // e.g. closure classes
 #else
     #define __PYX_SHARED_SIZEOF(T) sizeof(T)
     #define __PYX_SHARED_RELATIVE_OFFSET 0
+
+    #define __PYX_INTERNAL_SIZEOF(T) sizeof(T)
+    #define __PYX_INTERNAL_TYPE_RELATIVE_OFFSET 0
+    #define __Pyx_GetInternalTypeDataAndCast(o, T) ((T)o)
+
     #define CYTHON_OPAQUE_SHARED_TYPES 0
-#endif
-#if CYTHON_OPAQUE_OBJECTS
-    #define __PYX_C_CLASS_SIZEOF(T) -((int)sizeof(T))
-    #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
-    // Relative offset can't work in this case. This does not produce a great error, but it won't compile.
-    #define __PYX_C_CLASS_RELATIVE_OFFSET ("Relative offset does not work on Python <3.14"/0)
-    #else
-    #define __PYX_C_CLASS_RELATIVE_OFFSET Py_RELATIVE_OFFSET
-    #endif
-    #define __PYX_C_CLASS_DECL(T) PyObject
-    #define __Pyx_GetCClassTypeData(o, cls_offset, T, ...) ((T)(((char*)(o)) + cls_offset))
-    #define __Pyx_GetCClassTypeDataAndCast(o, cls_offset, T) __Pyx_GetCClassTypeData(o, cls_offset, T)
-
-    #if CYTHON_USE_FREELISTS
-    // It's a bit difficult (but not impossible) to work out how much memory to zero out in this case
-    // so turn it off in the short-term.
-    #undef CYTHON_USE_FREELISTS
-    #define CYTHON_USE_FREELISTS 0
-    #endif
-
-    CYTHON_UNUSED static Py_ssize_t __Pyx_CalculateTypeOffset(PyTypeObject *tp) {
-        // We can't directly use PyObject_GetTypeData because it requires the GIL and we need to access cdef
-        // attributes without the GIL. Therefore, get Python to calculate the offset once when the type is initialized
-        // and use that instead.
-        allocfunc alloc = (allocfunc)PyType_GetSlot(tp, Py_tp_alloc);
-        freefunc free = (freefunc)PyType_GetSlot(tp, Py_tp_free);
-        assert(alloc && free);
-        PyObject *dummy = alloc(tp, 0);
-        if (!dummy) return -1;
-        void *objstruct = PyObject_GetTypeData(dummy, tp);
-        Py_ssize_t delta = ((char*)objstruct - (char*)dummy);
-        if (PyType_IS_GC(tp)) {
-            PyObject_GC_UnTrack(dummy);
-        }
-        free(dummy);
-        return delta;
-    }
-#else
-    #define __PYX_C_CLASS_SIZEOF(T) sizeof(T)
-    #define __PYX_C_CLASS_RELATIVE_OFFSET 0
-    #define __PYX_C_CLASS_DECL(T) T
-
-    #define __PYX_GET_THIRD(first, second, third, ...) third
-    // Assumes __VA_ARGS__ is 1 or 2 long
-    #define __PYX_GET_SECOND(first, ...) __VA_ARGS__
-    #define __PYX_DEREF_IF_VARARGS(...) __PYX_GET_THIRD(__VA_ARGS__, &,)
-    // No cast - o should be the correct type. Third argument is always T but it's in __VA_ARGS__
-    #define __Pyx_GetCClassTypeData(o, cls_offset, ...) (__PYX_DEREF_IF_VARARGS(__VA_ARGS__)((o)__PYX_GET_SECOND(__VA_ARGS__)))
-    #define __Pyx_GetCClassTypeDataAndCast(o, cls_offset, T) ((T)(__Pyx_GetCClassTypeData(o, cls_offset, T)))
+    #define CYTHON_OPAQUE_INTERNAL_TYPES 0
     #define $cur_scope_obj_cname $cur_scope_cname 
     #define $outer_scope_obj_cname $outer_scope_cname
+#endif
+#define CYTHON_OPAQUE_CDEF_TYPES 0
+#if CYTHON_OPAQUE_OBJECTS && CYTHON_USE_FREELISTS
+    // Turn freelists off here because it's more difficult to calculate the size of the type
+    // to zero out, and because opaque types are mainly for freethreading compatibility and
+    // our freelists aren't thread-safe anyway.
+    #undef CYTHON_USE_FREELISTS
+    #define CYTHON_USE_FREELISTS 0
+#endif
+#if CYTHON_OPAQUE_OBJECTS
+    #define __PYX_C_CLASS_DECL(T) PyObject
+#else
+    #define __PYX_C_CLASS_DECL(T) T
 #endif
 
 #if CYTHON_USE_MODULE_STATE

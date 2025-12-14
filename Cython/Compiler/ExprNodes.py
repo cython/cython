@@ -560,7 +560,7 @@ class ExprNode(Node):
         """
         return True
 
-    def result_as(self, type=None):
+    def result_as(self, type = None):
         #  Return the result code cast to the specified C type.
         if (self.is_temp and self.type.is_pyobject and
                 type != py_object_type):
@@ -8175,39 +8175,11 @@ class AttributeNode(ExprNode):
             result = "(*%s)" % result
         return result
 
-    def _calculate_obj_code(self):
-        obj = self.obj
-        if obj.type.is_extension_type:
-            obj_code = obj.result()
-            access_type = obj.type
-            access_code = ""
-            if self.entry and self.entry.is_cmethod and not self.entry.is_builtin_cmethod:
-                access_type = obj.type.vtabslot_type
-            elif self.entry.is_inherited:
-                access_type = self.entry.inherited_scope.parent_type
-            if access_type != obj.type:
-                tp = obj.type
-                levels = 0
-                while tp != access_type:
-                    tp = tp.base_type
-                    levels += 1
-                access_code = f", ->{'.'.join([Naming.obj_base_cname]*levels)}"
-            if access_type.is_external:
-                return obj.result_as(access_type)
-            else:
-                cast = "AndCast" if obj.is_temp and obj.type != py_object_type else ""
-                # FIXME - we really need Code to get to this
-                typeoffset_cname = f"{Naming.modulestateglobal_cname}->{access_type.typeoffset_cname}"
-                objstruct_cname = access_type.objstruct_cname if access_type.typedef_flag else f"struct {access_type.objstruct_cname}"
-                return f"__Pyx_GetCClassTypeData{cast}({obj_code}, {typeoffset_cname}, {objstruct_cname}*{access_code})"
-        else:
-            return obj.result_as(obj.type)
-
     def calculate_access_code(self):
         # Does the job of calculate_result_code but doesn't dereference cpp_optionals
         # Therefore allowing access to the holder variable
         obj = self.obj
-        obj_code = self._calculate_obj_code()
+        obj_code = obj.result_as(obj.type)
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
             if obj.type.is_extension_type and not self.entry.is_builtin_cmethod:
@@ -8221,9 +8193,9 @@ class AttributeNode(ExprNode):
                     # (AnalyseExpressionsTransform)
                     self.member = self.entry.cname
 
-                return "((struct %s *)(%s%s%s))->%s" % (
+                return "((struct %s *)%s%s%s)->%s" % (
                     obj.type.vtabstruct_cname, obj_code, self.op,
-                    Naming.vtabslot_cname, self.member)
+                    obj.type.vtabslot_cname, self.member)
             elif self.result_is_used:
                 return self.member
             # Generating no code at all for unused access to optimised builtin
@@ -10612,10 +10584,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                     self.result(),
                     code.name_in_module_state(self.defaults_entry.type.typeptr_cname),
                     code.error_goto(self.pos)))
-            defaults = '__Pyx_CyFunction_Defaults(struct %s, %s, %s)' % (
-                self.defaults_entry.type.objstruct_cname,
-                code.name_in_module_state(self.defaults_entry.type.typeoffset_cname),
-                self.result())
+            defaults = '__Pyx_CyFunction_Defaults(struct %s, %s)' % (
+                self.defaults_entry.type.objstruct_cname, self.result())
             for arg, entry in self.defaults:
                 arg.generate_assignment_code(code, target='%s->%s' % (
                     defaults, entry.cname))
@@ -10850,11 +10820,8 @@ class DefaultNonLiteralArgNode(ExprNode):
         pass
 
     def result(self):
-        return '__Pyx_CyFunction_Defaults(struct %s, %s, %s)->%s' % (
-            self.defaults_struct.name,
-            # FIXME - we really need Code to get to this
-            f"{Naming.modulestateglobal_cname}->{self.defaults_struct.parent_type.typeoffset_cname}",
-            Naming.self_cname,
+        return '__Pyx_CyFunction_Defaults(struct %s, %s)->%s' % (
+            self.defaults_struct.name, Naming.self_cname,
             self.defaults_struct.lookup(self.arg.defaults_class_key).cname)
 
 

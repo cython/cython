@@ -20,9 +20,6 @@ cdef extern from *:
         PyObject *obj
         const __Pyx_TypeInfo *typeinfo
 
-    ctypedef struct __pyx_memoryview_o "__PYX_C_CLASS_DECL(struct __pyx_memoryview_obj)":
-        pass
-
     ctypedef int __pyx_atomic_int_type
 
     {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
@@ -92,9 +89,6 @@ cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, const __Pyx_
 @cname('__pyx_memoryview_check')
 cdef inline bint memoryview_check(object o) noexcept:
     return isinstance(o, memoryview)
-
-@cname('__Pyx_GetMemoryviewStructPointerImpl')
-cdef __pyx_memoryview* memoryview_struct_ptr_impl(__pyx_memoryview_o *o) noexcept nogil
 
 @cname('__pyx_memview_slice')
 cdef memoryview memview_slice(memoryview memview, object indices)

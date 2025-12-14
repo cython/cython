@@ -45,11 +45,14 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 #define __Pyx_CyFunction_SetClassObj(f, classobj)  \
     __Pyx__CyFunction_SetClassObj(__Pyx_as_CyFunctionObject(f), (classobj))
 
-#define __Pyx_CyFunction_Defaults(type, typeoffset, f) \
-    __Pyx_GetCClassTypeDataAndCast( \
-        __Pyx_as_CyFunctionObject(f)->defaults, \
-        typeoffset, \
-        type*)
+#if CYTHON_OPAQUE_INTERNAL_TYPES
+static CYTHON_INLINE void *__Pyx__CyFunction_Defaults(PyObject *f);
+#define __Pyx_CyFunction_Defaults(type, f) \
+    ((type*)__Pyx__CyFunction_Defaults(f))
+#else
+#define __Pyx_CyFunction_Defaults(type, f) \
+    ((type *)((__Pyx_as_CyFunctionObject(f))->defaults))
+#endif
 #define __Pyx_CyFunction_SetDefaultsGetter(f, g) \
     (__Pyx_as_CyFunctionObject(f))->defaults_getter = (g)
 
@@ -148,6 +151,14 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: ExtensionTypes.c::CallTypeTraverse
 //@requires: Synchronization.c::CriticalSections
 //@substitute: naming
+
+#if CYTHON_OPAQUE_INTERNAL_TYPES
+static CYTHON_INLINE void *__Pyx__CyFunction_Defaults(PyObject *f) {
+    PyObject* defaults = __Pyx_as_CyFunctionObject(f)->defaults;
+    // defaults classes are never inherited so Py_TYPE(defaults) is always right
+    return PyObject_GetTypeData(defaults, Py_TYPE(defaults));
+}
+#endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunctionNoMethod(PyObject *func, void (*cfunc)(void)) {
