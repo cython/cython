@@ -1597,7 +1597,7 @@ class PyExtensionType(PyObjectType):
     #  objtypedef_cname string           Name of PyObject struct typedef
     #  typeobj_cname    string or None   C code fragment referring to type object
     #  typeptr_cname    string or None   Name of pointer to external type object
-    #  vtabslot_type    PyExtensionType or None   Type in the inheritance heirarchy that holds the vtabslot member
+    #  vtabslot_type    PyExtensionType or None   Type in the inheritance hierarchy that holds the vtabslot member
     #  vtabstruct_cname string           Name of C method table struct
     #  vtabptr_cname    string           Name of pointer to C method table
     #  vtable_cname     string           Name of C method table definition
