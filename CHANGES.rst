@@ -50,7 +50,7 @@ Other changes
   (Github issue :issue:`7271`)
 
 
-3.2.3 (2025-12-??)
+3.2.3 (2025-12-13)
 ==================
 
 Features added
@@ -70,8 +70,11 @@ Bugs fixed
   (Github issue :issue:`7381`)
 
 * Parallel builds with the ``cythonize`` command could request more processes
-  than allows by the platform, thus failing the build.
+  than allowed by the platform, thus failing the build.
   (Github issue :issue:`7384`)
+
+* A minor thread sanitizer issue was resolved.
+  (Github issue :issue:`7383`)
 
 
 3.2.2 (2025-11-30)
