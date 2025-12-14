@@ -50,7 +50,7 @@ Other changes
   (Github issue :issue:`7271`)
 
 
-3.2.3 (2025-12-13)
+3.2.3 (2025-12-14)
 ==================
 
 Features added
@@ -68,6 +68,10 @@ Bugs fixed
 
 * t-strings lost the last element when compiled for the Limited API.
   (Github issue :issue:`7381`)
+
+* The ``array.data`` property of the ``cpython.array`` declarations generated a
+  useless exception check that degraded its use in ``nogil`` code.
+  (Github issue :issue:`7408`)
 
 * Parallel builds with the ``cythonize`` command could request more processes
   than allowed by the platform, thus failing the build.
