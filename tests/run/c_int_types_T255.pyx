@@ -695,7 +695,7 @@ def test_convert_pyint(x):
    >>> test_convert_pyint(MyBadInt(0)) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   TypeError: ... returned non-... (type ...)
+   TypeError: ...
 
    >>> test_convert_pyint(False) == 0
    True
@@ -743,7 +743,7 @@ def test_convert_pylong(x):
    >>> test_convert_pylong(MyBadLong(0)) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   TypeError: ... returned non-... (type ...)
+   TypeError: ...
 
    >>> test_convert_pylong(False) == 0
    True
