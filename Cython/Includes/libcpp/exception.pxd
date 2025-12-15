@@ -129,11 +129,11 @@ cdef inline void __pyx_call_rethrow_exception "__pyx_call_rethrow_exception"(exc
 cdef extern from *:
     """
     namespace {
-        #if __cplusplus >= 201703L
+        #if __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
         template <typename ExceptionT>
-        bool __pyx_call_exception_handler(std::exception_ptr e_ptr, void (*handler)(ExceptionT&)) {
+        bool __pyx_call_exception_handler(void (*handler)(ExceptionT&)) {
             try {
-                std::rethrow_exception(e_ptr);
+                throw;
             } catch(ExceptionT &ex) {
                 handler(ex);
                 return static_cast<bool>(PyErr_Occurred());
@@ -142,9 +142,9 @@ cdef extern from *:
             }
         }
 
-        bool __pyx_call_exception_handler(std::exception_ptr e_ptr, void(*handler)()) {
+        bool __pyx_call_exception_handler(void(*handler)()) {
             try {
-                std::rethrow_exception(e_ptr);
+                throw;
             } catch (...) {
                 handler();
                 return static_cast<bool>(PyErr_Occurred());
@@ -153,63 +153,58 @@ cdef extern from *:
 
         template <typename ...HandlerTs>
         void __pyx_delegate_to_exception_handlers(HandlerTs&& ... handlers) {
-            auto e_ptr = std::current_exception();
-            if (!e_ptr) {
+            if (!std::current_exception()) {
                 PyErr_SetString(PyExc_SystemError, "__pyx_delegrate_to_exception_handlers called without a C++ exception");
                 return;
             }
-            bool handled = (__pyx_call_exception_handler(e_ptr, std::forward<HandlerTs>(handlers)) || ... );
+            bool handled = (__pyx_call_exception_handler(std::forward<HandlerTs>(handlers)) || ... );
             if (!handled)
-                std::rethrow_exception(e_ptr);
+                throw;
         }
 
-        // MSVC defaults to C++14 as of 2025. If set to use a higher standard then it copes
-        // fine with the code above. However, it doesn't like to make it easy to detect by
-        // default.
-        #elif __cplusplus >= 201103L || defined(_MSC_VER)
+        #elif __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
 
-        bool __pyx_call_exception_handler_recursive(std::exception_ptr) {
+        inline bool __pyx_call_exception_handler_recursive() {
             return false;
         }
 
         template <typename ExceptionT, typename ...HandlerTs>
-        bool __pyx_call_exception_handler_recursive(std::exception_ptr e_ptr, void (*first_handler)(ExceptionT&), HandlerTs&& ...handlers);
+        bool __pyx_call_exception_handler_recursive(void (*first_handler)(ExceptionT&), HandlerTs&& ...handlers);
 
         template <typename ...HandlerTs>
-        bool __pyx_call_exception_handler_recursive(std::exception_ptr e_ptr, void (*first_handler)(), HandlerTs&& ...handlers) {
+        bool __pyx_call_exception_handler_recursive(void (*first_handler)(), HandlerTs&& ...handlers) {
             try {
-                std::rethrow_exception(e_ptr);
+                throw;
             } catch (...) {
                 first_handler();
                 if (static_cast<bool>(PyErr_Occurred())) return true;
             }
-            return __pyx_call_exception_handler_recursive(std::move(e_ptr), std::forward<HandlerTs>(handlers)...);
+            return __pyx_call_exception_handler_recursive(std::forward<HandlerTs>(handlers)...);
         }
 
         template <typename ExceptionT, typename ...HandlerTs>
-        bool __pyx_call_exception_handler_recursive(std::exception_ptr e_ptr, void (*first_handler)(ExceptionT&), HandlerTs&& ...handlers) {
+        bool __pyx_call_exception_handler_recursive(void (*first_handler)(ExceptionT&), HandlerTs&& ...handlers) {
             try {
-                std::rethrow_exception(e_ptr);
+                throw;
             } catch (ExceptionT& e) {
                 first_handler(e);
                 if (static_cast<bool>(PyErr_Occurred())) return true;
             } catch (...) {}
-            return __pyx_call_exception_handler_recursive(std::move(e_ptr), std::forward<HandlerTs>(handlers)...);
+            return __pyx_call_exception_handler_recursive(std::forward<HandlerTs>(handlers)...);
         }
 
         template <typename ...HandlerTs>
         void __pyx_delegate_to_exception_handlers(HandlerTs&& ... handlers) {
-            auto e_ptr = std::current_exception();
-            if (!e_ptr) {
+            if (!std::current_exception()) {
                 PyErr_SetString(PyExc_SystemError, "__pyx_delegrate_to_exception_handlers called without a C++ exception");
                 return;
             }
-            bool handled = __pyx_call_exception_handler_recursive(e_ptr, std::forward<HandlerTs>(handlers)...);
+            bool handled = __pyx_call_exception_handler_recursive(std::forward<HandlerTs>(handlers)...);
             if (!handled)
-                std::rethrow_exception(e_ptr);
+                throw;
         }
         #endif
-    } // empty namespace
+    } // anonymous namespace
     """
     # Convenience function for writing easy custom C++ exception handlers.
     # Pass it a collection of C++ function pointers taking either an exception reference, or no arguments.
