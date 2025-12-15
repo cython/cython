@@ -467,7 +467,7 @@ in order. A handler function is a ``cdef`` function that you define which
 either takes a C++ type by reference, or no arguments.
 
 * If a handler function matches the current C++ exception then it is called
-  (no argument functions match any exception).
+  (no-argument functions match any exception).
 * The handler function can optionally raise a Python exception.
 * If the handler raises a Python exception then
   evaluation stops, otherwise the next handler function is tried.
@@ -482,6 +482,8 @@ This approach needs a compiler that supports C++11 or greater.
 
 Manual approach
 ^^^^^^^^^^^^^^^
+
+::
 
     cdef int raise_py_error()
     cdef int something_dangerous() except +raise_py_error
