@@ -6,7 +6,47 @@ cdef extern from "<exception>" namespace "std" nogil:
 
     exception_ptr make_exception_ptr[E](E e) noexcept
     void rethrow_exception(exception_ptr) except +
-    # current_exception skipped because it'll be almost impossible to use from Cython
+    exception_ptr current_exception() noexcept
+
+    cdef cppclass exception:
+        const char* what() noexcept
+
+cdef extern from "<stdexcept>" namespace "std" nogil:
+    # Omitting the constructors of derived exception classes for now.
+    # They can't be stack-allocated easily in Cython because they don't have
+    # a nullary constructor. They also can't be thrown in Cython.
+    # So they're most useful just as class names when implementing
+    # exception handlers.
+    cdef cppclass logic_error(exception):
+        pass
+    cdef cppclass invalid_argument(logic_error):
+        pass
+    cdef cppclass domain_error(logic_error):
+        pass
+    cdef cppclass length_error(logic_error):
+        pass
+    cdef cppclass out_of_range(logic_error):
+        pass
+
+    cdef cppclass runtime_error(exception):
+        pass
+    cdef cppclass range_error(runtime_error):
+        pass
+    cdef cppclass overflow_error(runtime_error):
+        pass
+
+    cdef cppclass bad_typeid(exception):
+        pass
+
+    cdef cppclass bad_cast(exception):
+        pass
+
+    cdef cppclass bad_alloc(exception):
+        pass
+
+    cdef cppclass bad_exception(exception):
+        pass
+
 
 cdef extern from *:
     """
