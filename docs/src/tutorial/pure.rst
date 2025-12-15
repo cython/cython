@@ -374,7 +374,7 @@ Further Cython functions and declarations
         .. literalinclude:: ../../examples/tutorial/pure/sizeof.pyx
            :caption: sizeof.pyx
 
-* ``typeof`` returns a string representation of the argument's type for debugging purposes. It can take expressions.
+* ``typeof`` returns a string representation of the argument's type for debugging purposes. It can take expressions and is a compile-time feature.
 
   .. tabs::
 

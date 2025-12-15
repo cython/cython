@@ -1,11 +1,4 @@
-from libc.stddef cimport size_t 
+cdef object obj = 123
 
-ctypedef int* T
-
-cdef size_t t 
-
-t = 12345
-
-t1 = <size_t><T>t
-
-t2 = <size_t><T?>t
+i1 = <int>obj
+i2 = <int?>obj

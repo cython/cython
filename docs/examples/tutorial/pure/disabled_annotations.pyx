@@ -1,5 +1,5 @@
 def function_without_typing(a, b):
-    # c is a Python integer here, matching the behavior when annotations are ignored.
+    # c is a generic Python object here, matching the behavior when annotations are ignored.
     c = a + b
     return c * a
 
@@ -21,7 +21,7 @@ cdef class NotAnnotatedClass:
 cpdef list annotated_function(int a, int b):
     cdef int s = a + b
     
-    # In the original, 'c' was ignored, making it a Python list.
+    # In the original, 'c' was ignored, making it a generic Python object.
     cdef object c = []
     
     c.append(a)
