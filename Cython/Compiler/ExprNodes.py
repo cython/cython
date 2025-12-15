@@ -4178,6 +4178,10 @@ class IndexNode(_IndexingBaseNode):
                 # C array
                 index = self.index.compile_time_value(env)
                 if index is not None:
+                    if self.index.is_name:
+                        entry = index  # See NameNode.compile_time_value()
+                        if entry.type.is_enum:
+                            return PyrexTypes.CArrayType(base_type, entry.cname)
                     try:
                         index = int(index)
                     except (ValueError, TypeError):
