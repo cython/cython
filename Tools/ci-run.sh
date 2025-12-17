@@ -117,7 +117,7 @@ else
     fi
 
     if [[ $PYTHON_VERSION == "graalpy"* ]]; then
-      export 'SETUPTOOLS_USE_DISTUTILS="local"'
+      # export 'SETUPTOOLS_USE_DISTUTILS="local"'
     fi
   fi
 fi

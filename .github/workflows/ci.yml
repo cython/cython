@@ -81,7 +81,7 @@ jobs:
           - os: ubuntu-22.04
             python-version: graalpy25
             backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
+            env: { NO_CYTHON_COMPILE: 1, SETUPTOOLS_USE_DISTUTILS: local }
             allowed_failure: true
           # GCC 13 (with broad language standards)
 #           - os: ubuntu-22.04
