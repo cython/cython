@@ -1,5 +1,5 @@
 # mode: run
-# tag: openmp, pure3.6
+# tag: openmp, pure3.6, threads
 
 import cython
 from cython.parallel import prange, parallel

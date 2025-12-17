@@ -979,6 +979,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
             code.putln("")
 
+        code.putln("#ifdef CYTHON_FREETHREADING_COMPATIBLE")
+        code.putln("#if CYTHON_FREETHREADING_COMPATIBLE")
+        code.putln("#define __Pyx_FREETHREADING_COMPATIBLE Py_MOD_GIL_NOT_USED")
+        code.putln("#else")
+        code.putln("#define __Pyx_FREETHREADING_COMPATIBLE Py_MOD_GIL_USED")
+        code.putln("#endif")
+        code.putln("#else")
+        ft_compatible = "Py_MOD_GIL_NOT_USED" if env.directives["freethreading_compatible"] else "Py_MOD_GIL_USED"
+        code.putln(f"#define __Pyx_FREETHREADING_COMPATIBLE {ft_compatible}")
+        code.putln("#endif")
+
         c_string_type = env.directives['c_string_type']
         c_string_encoding = env.directives['c_string_encoding']
         if c_string_type not in ('bytes', 'bytearray') and not c_string_encoding:
@@ -2950,6 +2961,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_start(self, env, code):
         # TODO: Refactor to move module state struct decl closer to the static decl
+        code.putln("#ifdef __cplusplus")
+        code.putln("namespace {")
+        code.putln("#endif")
         code.putln('typedef struct {')
         code.putln('PyObject *%s;' % env.module_dict_cname)
         code.putln('PyObject *%s;' % Naming.builtins_cname)
@@ -2965,6 +2979,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_clear = globalstate['module_state_clear_end']
         module_state_traverse = globalstate['module_state_traverse_end']
         module_state.putln('} %s;' % Naming.modulestatetype_cname)
+        module_state.putln("#ifdef __cplusplus")
+        module_state.putln("} /* anonymous namespace */")
+        module_state.putln("#endif")
         module_state.putln('')
         globalstate.use_utility_code(
             UtilityCode.load("MultiPhaseInitModuleState", "ModuleSetupCode.c")
@@ -3658,10 +3675,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
         code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
-        gil_option = ("Py_MOD_GIL_NOT_USED"
-                      if env.directives["freethreading_compatible"]
-                      else "Py_MOD_GIL_USED")
-        code.putln("{Py_mod_gil, %s}," % gil_option)
+        code.putln("{Py_mod_gil, __Pyx_FREETHREADING_COMPATIBLE},")
         code.putln("#endif")
         code.putln("#if PY_VERSION_HEX >= 0x030C0000 && CYTHON_USE_MODULE_STATE")
         subinterp_option = {
