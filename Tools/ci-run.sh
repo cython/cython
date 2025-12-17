@@ -115,6 +115,10 @@ else
     if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
       python -m pip install mypy || exit 1
     fi
+
+    if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+      python -m pip install setuptools || exit 1
+    fi
   fi
 fi
 
