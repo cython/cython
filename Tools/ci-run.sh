@@ -116,9 +116,6 @@ else
       python -m pip install mypy || exit 1
     fi
 
-    if [[ $PYTHON_VERSION == "graalpy"* ]]; then
-      # export 'SETUPTOOLS_USE_DISTUTILS="local"'
-    fi
   fi
 fi
 
