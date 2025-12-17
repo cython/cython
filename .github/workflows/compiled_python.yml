@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set compiler
         if: ${{inputs.compiler}}
@@ -49,7 +49,6 @@ jobs:
           fi
           echo "CC=$CC" >> $GITHUB_ENV
           echo "CXX=$CXX" >> $GITHUB_ENV
-              
 
       - name: Set up sanitizer args
         if: ${{inputs.sanitize}}
@@ -105,16 +104,16 @@ jobs:
           echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libstdc++.so)")" >> $GITHUB_ENV
           echo "CONFIGURE_ARGS=$CONFIGURE_ARGS" >> $GITHUB_ENV
           echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS" >> $GITHUB_ENV
-          echo "EXTRA_CONFIGURE_CFLAGS=$EXTRA_CONFIGURE_CFLAGS" >> $GITHUB_ENV 
+          echo "EXTRA_CONFIGURE_CFLAGS=$EXTRA_CONFIGURE_CFLAGS" >> $GITHUB_ENV
 
       - name: Install build dependencies
         run: |
           sudo apt-get update -y -q
-          sudo apt-get install -y -q libbz2-dev lzma-dev libreadline-dev libgmp-dev
+          sudo apt-get install -y -q libbz2-dev liblzma-dev libreadline-dev libgmp-dev
 
       - name: Build Python
         run: |
-          git clone https://github.com/python/cpython/ cpython_main
+          git clone --branch main --depth 1 https://github.com/python/cpython/ cpython_main
           cd cpython_main
           ./configure ${CONFIGURE_ARGS} --prefix=${GITHUB_WORKSPACE}/cpython_install CFLAGS="-O2 $EXTRA_CONFIGURE_CFLAGS"
           make -j8
@@ -129,7 +128,7 @@ jobs:
 
       - name: Archive logs
         if: ${{ inputs.sanitize && always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{inputs.sanitize}}-logs
           path: san_log.*

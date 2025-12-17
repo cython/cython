@@ -50,11 +50,53 @@ Other changes
   (Github issue :issue:`7271`)
 
 
-3.2.2 (2025-??-??)
+3.2.3 (2025-12-14)
 ==================
+
+Features added
+--------------
+
+* The C-API declarations were updated to include the new ``PyList_*()`` functions.
+  (Github issue :issue:`7291`)
+
+* The ``Py_mod_gil`` module setting can now be changed with a C macro, overriding
+  the ``freethreading_compatible`` directive setting.
+  (Github issue :issue:`7404`)
 
 Bugs fixed
 ----------
+
+* t-strings lost the last element when compiled for the Limited API.
+  (Github issue :issue:`7381`)
+
+* The ``array.data`` property of the ``cpython.array`` declarations generated a
+  useless exception check that degraded its use in ``nogil`` code.
+  (Github issue :issue:`7408`)
+
+* Parallel builds with the ``cythonize`` command could request more processes
+  than allowed by the platform, thus failing the build.
+  (Github issue :issue:`7384`)
+
+* A minor thread sanitizer issue was resolved.
+  (Github issue :issue:`7383`)
+
+
+3.2.2 (2025-11-30)
+==================
+
+Features added
+--------------
+
+* The C-API declarations were updated to include the new ``PyDict_*Ref()`` functions.
+  (Github issue :issue:`7291`)
+
+Bugs fixed
+----------
+
+* Iteration over literal sequences and strings in generators generated invalid C code since 3.2.0.
+  This was a regression due to the C array iteration optimisation in :issue:`6926`, which is now
+  disabled inside of generators.
+  (Github issue :issue:`7342`)
 
 * Calling special methods of known exception types failed with an ``AttributeError``.
   (Github issue :issue:`7342`)

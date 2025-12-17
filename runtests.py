@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import sys
+import sysconfig
 import time
 import traceback
 import unittest
@@ -75,7 +76,6 @@ except ImportError:
     pass
 
 from distutils.command.build_ext import build_ext as _build_ext
-from distutils import sysconfig
 _to_clean = []
 
 @atexit.register
@@ -604,10 +604,7 @@ def import_ext(module_name, file_path=None):
 class build_ext(_build_ext):
     def build_extension(self, ext):
         try:
-            try: # Py2.7+ & Py3.2+
-                compiler_obj = self.compiler_obj
-            except AttributeError:
-                compiler_obj = self.compiler
+            compiler_obj = self.compiler
             if ext.language == 'c++':
                 compiler_obj.compiler_so.remove('-Wstrict-prototypes')
             if CCACHE:
@@ -1134,7 +1131,8 @@ class CythonCompileTestCase(unittest.TestCase):
         if not self.abi3audit:
             return
         shared_libs = [ file for file in os.listdir(self.workdir)
-                        if os.path.splitext(file)[1] in ('.so', '.dll') ]
+                        if (os.path.splitext(file)[1] in ('.so', '.dll')
+                                and not file.startswith('_cython_inline')) ]
         if not shared_libs:
             return
         shared_libs = [ os.path.join(self.workdir, file) for file in shared_libs ]
@@ -1788,7 +1786,7 @@ class TestCodeFormat(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def runTest(self):
-        source_dirs = ['Cython', 'Demos', 'docs', 'pyximport', 'tests']
+        source_dirs = ['Cython', 'Demos', 'pyximport', 'tests']
 
         import pycodestyle
 
@@ -1813,11 +1811,18 @@ class TestCodeFormat(unittest.TestCase):
         result = style.check_files(paths)
         total_errors += result.total_errors
 
-        # checks for non-Python source files
+        # Within the docs we sometimes use whitespace to make .py and .pyx files
+        # line up.  So allow these there.
+        allowed_in_docs = ('W391', 'W293', 'W2', 'W3')
         paths = []
-        for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
-            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
-        style = pycodestyle.StyleGuide(config_file=config_file, select=[
+        for codedir in ['docs']:
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, ignore=allowed_in_docs)
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+
+        non_python_list = [
             'E711',
             'E713',
             'E714',
@@ -1849,6 +1854,24 @@ class TestCodeFormat(unittest.TestCase):
             'E121',
             'E125',
             'E129',
+        ]
+
+        # checks for non-Python source files
+        paths = []
+        for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, select=non_python_list)
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+
+        # checks for non-Python docs source files
+        paths = []
+        for codedir in ['docs']:
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, select=[
+            item for item in non_python_list
+            if item not in allowed_in_docs
         ])
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
@@ -2036,7 +2059,7 @@ class EndToEndTest(unittest.TestCase):
         new_path = self.cython_syspath
         if old_path:
             new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
-        env_cflags = list(CFLAGS) + [f'"-D{macro}={definition}"' for macro, definition in CDEFS]
+        env_cflags = list(CFLAGS) + [f'-D{macro}={definition}' for macro, definition in CDEFS]
         env_cflags = " ".join(env_cflags)
         env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8',
                    CFLAGS=env_cflags)
@@ -2139,8 +2162,14 @@ class EmbedTest(unittest.TestCase):
 
 
 def load_listfile(filename):
-    # just reuse the FileListExclude implementation
-    return FileListExcluder(filename)
+    excludes = {}  # deduplicate but keep file order
+    with open(filename) as f:
+        for line in f:
+            line = line.strip()
+            if line and line[0] != '#':
+                excludes[line.split()[0]] = True
+    return list(excludes)
+
 
 class MissingDependencyExcluder(object):
     def __init__(self, deps):
@@ -2202,20 +2231,15 @@ class VersionDependencyExcluder(object):
 
 class FileListExcluder(object):
     def __init__(self, list_file, verbose=False):
+        self.excludes = load_listfile(list_file)
         self.verbose = verbose
-        self.excludes = {}
         self._list_file = os.path.relpath(list_file)
-        with open(list_file) as f:
-            for line in f:
-                line = line.strip()
-                if line and line[0] != '#':
-                    self.excludes[line.split()[0]] = True
+        self._excluders = [RegExSelector(exclude).regex_matches for exclude in self.excludes]
 
     def __call__(self, testname, tags=None):
-        exclude = any(string_selector(ex)(testname) for ex in self.excludes)
+        exclude = any(is_excluded(testname) for is_excluded in self._excluders)
         if exclude and self.verbose:
-            print("Excluding %s because it's listed in %s"
-                  % (testname, self._list_file))
+            print(f"Excluding {testname} because it's listed in {self._list_file}")
         return exclude
 
 
@@ -2236,7 +2260,7 @@ class RegExSelector(object):
         try:
             self.regex_matches = re.compile(pattern_string, re.I|re.U).search
         except re.error:
-            print('Invalid pattern: %r' % pattern_string)
+            print(f'Invalid pattern: {pattern_string!r}')
             raise
 
     def __call__(self, testname, tags=None):
@@ -2584,7 +2608,7 @@ def main():
 
     if options.listfile:
         for listfile in options.listfile:
-            cmd_args.extend(load_listfile(listfile).excludes.keys())
+            cmd_args.extend(load_listfile(listfile))
 
     if options.capture and not options.for_debugging:
         keep_alive_interval = 10
@@ -2910,7 +2934,7 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.excludefile:
         for excludefile in options.excludefile:
-            exclude_selectors.append(load_listfile(excludefile))
+            exclude_selectors.append(FileListExcluder(excludefile))
 
     if not COMPILER_HAS_INT128:
         exclude_selectors += [RegExSelector('int128')]
@@ -2944,6 +2968,16 @@ def runtests(options, cmd_args, coverage=None):
         exclude_selectors += [
             TagsSelector('tag', 'memoryview'),
             FileListExcluder(os.path.join(ROOTDIR, "memoryview_tests.txt")),
+        ]
+    if options.limited_api:
+        # The Limited API is really useless for embedding in a specific Python runtime.
+        exclude_selectors += [
+            TagsSelector('tag', 'embed'),
+        ]
+    elif sysconfig.get_config_var('Py_DEBUG'):
+        # Embedding also doesn't seem to work in Py_DEBUG builds.
+        exclude_selectors += [
+            TagsSelector('tag', 'embed'),
         ]
 
     if not test_bugs and re.match("arm|aarch", platform.machine(), re.IGNORECASE):
