@@ -117,7 +117,7 @@ else
     fi
 
     if [[ $PYTHON_VERSION == "graalpy"* ]]; then
-      python -m pip install setuptools || exit 1
+      export 'SETUPTOOLS_USE_DISTUTILS="local"'
     fi
   fi
 fi
