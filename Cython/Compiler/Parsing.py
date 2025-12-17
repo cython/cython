@@ -560,7 +560,7 @@ def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tupl
     while s.sy != ')':
         if s.sy == '*':
             if starstar_seen:
-                s.error("Non-keyword arg following keyword arg", pos=s.position())
+                s.error("Non-keyword arg following keyword arg")
             s.next()
             positional_args.append(p_test(s))
             last_was_tuple_unpack = True
@@ -4593,25 +4593,21 @@ def p_group_pattern(s: PyrexScanner):
 
 @cython.cfunc
 def p_sequence_pattern(s: PyrexScanner):
-    opener = s.sy
     pos = s.position()
-    if opener in ['[', '(']:
-        closer = ']' if opener == '[' else ')'
+    assert s.sy in ('(', '[')
+    closer = ')' if s.sy == '(' else ']'
+    s.next()
+    # maybe_sequence_pattern and open_sequence_pattern
+    patterns = []
+    while s.sy != closer:
+        patterns.append(p_maybe_star_pattern(s))
+        if s.sy != ",":
+            if closer == ')' and len(patterns) == 1:
+                s.error("tuple-like pattern of length 1 must finish with ','")
+            break
         s.next()
-        # maybe_sequence_pattern and open_sequence_pattern
-        patterns = []
-        while s.sy != closer:
-            patterns.append(p_maybe_star_pattern(s))
-            if s.sy == ",":
-                s.next()
-            else:
-                if opener == '(' and len(patterns) == 1:
-                    s.error("tuple-like pattern of length 1 must finish with ','")
-                break
-        s.expect(closer)
-        return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
-    else:
-        s.error("Expected '[' or '('")
+    s.expect(closer)
+    return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
 
 
 @cython.cfunc
