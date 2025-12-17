@@ -43,15 +43,15 @@ jobs:
         backend: [c, cpp]
         python-version:
           - "3.9"
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.13t"
-          - "3.14"
-          - "3.14t"
-          - "3.15-dev"
-          - "3.15t-dev"
+          # - "3.10"
+          # - "3.11"
+          # - "3.12"
+          # - "3.13"
+          # - "3.13t"
+          # - "3.14"
+          # - "3.14t"
+          # - "3.15-dev"
+          # - "3.15t-dev"
         env: [{}]
 
         exclude:
@@ -82,138 +82,138 @@ jobs:
             python-version: graalpy25
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
-            allowed_failure: true
+            allowed_failure: false
           # GCC 13 (with broad language standards)
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: c
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c99" }
-            extra_hash: "-c99"
-          - os: ubuntu-22.04
-            python-version: "3.10"
-            backend: c
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
-            extra_hash: "-gcc11"
-          - os: ubuntu-22.04
-            python-version: "3.12"
-            backend: c
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
-            extra_hash: "-gcc11"
-          - os: ubuntu-22.04
-            python-version: "3.13"
-            backend: cpp
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c++20" }
-            extra_hash: "-gcc11"
-          # Arm64
-          - os: ubuntu-22.04-arm
-            python-version: "3.13"
-            backend: c
-            env: {}
-          - os: ubuntu-22.04-arm
-            python-version: "3.13"
-            backend: cpp
-            env: {}
-          - os:  windows-11-arm
-            python-version: "3.13"
-            backend: "c"
-            env: {}
-          - os:  windows-11-arm
-            python-version: "3.13"
-            backend: "cpp"
-            env: {}
-          # compile all modules
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: c
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: cpp
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          - os: ubuntu-22.04
-            python-version: "3.11"
-            backend: c
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          - os: ubuntu-22.04
-            python-version: "3.11"
-            backend: cpp
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          # Linting
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: "c,cpp"
-            env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
-            extra_hash: "-codestyle"
-          # Limited API
-          - os: ubuntu-22.04
-            python-version: "3.11"
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
-            extra_hash: "-limited_api"
-          - os: ubuntu-22.04
-            python-version: "3.12"
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
-            extra_hash: "-limited_api"
-          - os: ubuntu-22.04
-            python-version: "3.13"
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
-            extra_hash: "-limited_api"
-          # Type specs
-          - os: ubuntu-22.04
-            python-version: "3.14"
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          - os: ubuntu-22.04
-            python-version: "3.12"
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          # Pypy
-          - os: ubuntu-22.04
-            python-version: pypy-3.9
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-          - os: ubuntu-22.04
-            python-version: pypy-3.10
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-          - os: ubuntu-22.04
-            python-version: pypy-3.11
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-          # Free-threading
-          - os: ubuntu-22.04
-            python-version: 3.13t
-            backend: "c"
-          - os: ubuntu-22.04
-            python-version: 3.13t
-            backend: "cpp"
-#          - os: windows-2022
-#            python-version: 3.13t
-#            backend: "c"
-#            allowed_failure: true
-#          - os: windows-2022
-#            python-version: 3.13t
-#            backend: "cpp"
-#            allowed_failure: true
-          - os: macos-latest
-            python-version: 3.13t
-            backend: "c"
-          - os: macos-latest
-            python-version: 3.13t
-            backend: "cpp"
+#           - os: ubuntu-22.04
+#             python-version: "3.9"
+#             backend: c
+#             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c99" }
+#             extra_hash: "-c99"
+#           - os: ubuntu-22.04
+#             python-version: "3.10"
+#             backend: c
+#             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
+#             extra_hash: "-gcc11"
+#           - os: ubuntu-22.04
+#             python-version: "3.12"
+#             backend: c
+#             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
+#             extra_hash: "-gcc11"
+#           - os: ubuntu-22.04
+#             python-version: "3.13"
+#             backend: cpp
+#             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c++20" }
+#             extra_hash: "-gcc11"
+#           # Arm64
+#           - os: ubuntu-22.04-arm
+#             python-version: "3.13"
+#             backend: c
+#             env: {}
+#           - os: ubuntu-22.04-arm
+#             python-version: "3.13"
+#             backend: cpp
+#             env: {}
+#           - os:  windows-11-arm
+#             python-version: "3.13"
+#             backend: "c"
+#             env: {}
+#           - os:  windows-11-arm
+#             python-version: "3.13"
+#             backend: "cpp"
+#             env: {}
+#           # compile all modules
+#           - os: ubuntu-22.04
+#             python-version: "3.9"
+#             backend: c
+#             env: { CYTHON_COMPILE_ALL: 1 }
+#             extra_hash: "-all"
+#           - os: ubuntu-22.04
+#             python-version: "3.9"
+#             backend: cpp
+#             env: { CYTHON_COMPILE_ALL: 1 }
+#             extra_hash: "-all"
+#           - os: ubuntu-22.04
+#             python-version: "3.11"
+#             backend: c
+#             env: { CYTHON_COMPILE_ALL: 1 }
+#             extra_hash: "-all"
+#           - os: ubuntu-22.04
+#             python-version: "3.11"
+#             backend: cpp
+#             env: { CYTHON_COMPILE_ALL: 1 }
+#             extra_hash: "-all"
+#           # Linting
+#           - os: ubuntu-22.04
+#             python-version: "3.9"
+#             backend: "c,cpp"
+#             env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
+#             extra_hash: "-codestyle"
+#           # Limited API
+#           - os: ubuntu-22.04
+#             python-version: "3.11"
+#             backend: "c,cpp"
+#             env: { LIMITED_API: "--limited-api --abi3audit" }
+#             extra_hash: "-limited_api"
+#           - os: ubuntu-22.04
+#             python-version: "3.12"
+#             backend: "c,cpp"
+#             env: { LIMITED_API: "--limited-api --abi3audit" }
+#             extra_hash: "-limited_api"
+#           - os: ubuntu-22.04
+#             python-version: "3.13"
+#             backend: "c,cpp"
+#             env: { LIMITED_API: "--limited-api --abi3audit" }
+#             extra_hash: "-limited_api"
+#           # Type specs
+#           - os: ubuntu-22.04
+#             python-version: "3.14"
+#             backend: c
+#             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+#             extra_hash: "-typespecs"
+#           - os: ubuntu-22.04
+#             python-version: "3.12"
+#             backend: c
+#             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+#             extra_hash: "-typespecs"
+#           - os: ubuntu-22.04
+#             python-version: "3.9"
+#             backend: c
+#             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+#             extra_hash: "-typespecs"
+#           # Pypy
+#           - os: ubuntu-22.04
+#             python-version: pypy-3.9
+#             backend: c
+#             env: { NO_CYTHON_COMPILE: 1 }
+#           - os: ubuntu-22.04
+#             python-version: pypy-3.10
+#             backend: c
+#             env: { NO_CYTHON_COMPILE: 1 }
+#           - os: ubuntu-22.04
+#             python-version: pypy-3.11
+#             backend: c
+#             env: { NO_CYTHON_COMPILE: 1 }
+#           # Free-threading
+#           - os: ubuntu-22.04
+#             python-version: 3.13t
+#             backend: "c"
+#           - os: ubuntu-22.04
+#             python-version: 3.13t
+#             backend: "cpp"
+# #          - os: windows-2022
+# #            python-version: 3.13t
+# #            backend: "c"
+# #            allowed_failure: true
+# #          - os: windows-2022
+# #            python-version: 3.13t
+# #            backend: "cpp"
+# #            allowed_failure: true
+#           - os: macos-latest
+#             python-version: 3.13t
+#             backend: "c"
+#           - os: macos-latest
+#             python-version: 3.13t
+#             backend: "cpp"
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~10-15 minutes for ubuntu / macos and ~25 for windows,

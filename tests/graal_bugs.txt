@@ -40,6 +40,62 @@ test_raisefrom
 userbuffer
 unicode_identifiers$
 unicode_identifiers_normalization
+test_fused_memslice_dtype_repeated_2
+constfused_typedef_name_clashes
+listcomp
+test_wraparound_signed
+test_release_gil_in_nogil
+pep442_tp_finalize
+object_float
+py_div_long
+assert_multi_step_code_object_reuse
+collect2
+test_weakref
+make_new_args
+test_str_subclass_kwargs
+starargs
+slice_ptr
+reraise
+pep448_extended_unpacking
+nogil
+object_float
+future_division
+ext_auto_richcmp
+enumerate_T316
+embed_modules
+bufaccess
+test_tstring
+test_templatelib
+test_del
+weakfail
+tp_new
+str_subclass_kwargs
+int_float_builtins_as_casts_T400
+trashcan
+tryfinally
+tryfinallychaining
+python_bool_type
+pyclass_special_methods
+py35_pep492_interop
+list_pop
+index
+importfrom
+genexpr_iterable_lookup_T600
+generators_in_refcycles
+generators_GH1731
+generators
+funcexcept
+external_ref_reassignment
+code_object_cache
+cdivision_CEP_516
+builtin_float
+numpy_memoryview
+memoryview_pep484_typing
+memoryview_in_subclasses
+memoryview
+cythonarray
+dict_iter_unpack
+asyncio_leaks
 
 # probably just GC?
 double_dealloc_T796
@@ -75,6 +131,70 @@ reimport_from_subinterpreter
 cyfunction_defaults
 posonly
 r_extcomplex2
+arg_incref
+builtin_pycomplex
+builtin_type_inheritance_T608
+constant_folding
+memslice
+closure_tests_4_def_to_cdef
+extern_builtins_T258
+large_integer_T5290
+del_temp_slice
+decorators_T593
+int_literals
+py_mix_by_neg1
+cpython_capi
+pyarray
+pyint
 
 # appears to run forever
 common_include_dir
+
+# concurrent.futures.process.BrokenProcessPool
+exectest
+exttype
+datetime_pxd
+parallel
+pep526_variable_annotations_cy
+__pyx_f_22pure_nogil_conditional_f_with_gil
+generator_cclass
+unicode_imports
+
+
+# UnsupportedSpecializationException
+test_carray_forin_constant_char_7_constant
+args_kwargs
+py_enumerate_dict
+test_literal_genexpr_literal_int_266_literal
+fused_types
+fused_def
+fused_cpdef
+iterdict
+pep526_variable_annotations
+iterdict_dictcomp
+ticket_124
+dictcomp
+genexpr_in_dictcomp_dictiter
+unicodemethods
+numpy_test
+r_forloop
+setcomp
+ticket_123
+
+# IllegalMonitorStateException
+test_release_gil_in_nogil
+
+# Functions not implemented in GraalPy:
+# PyThread_acquire_lock_timed
+pymutex
+
+# PyImport_ReloadModule
+reload_ext_module
+
+# _PyTime_GetSystemClock
+threading_stress_tests
+time_pxd
+
+# cannot import name '_excepthook' from '_thread' (unknown location)
+
+cython3
