@@ -6,6 +6,7 @@
 import copy
 import hashlib
 import re
+from typing import Optional
 
 from functools import partial, reduce
 from itertools import product
@@ -153,8 +154,12 @@ class BaseType:
         """
         return None
 
-    def get_container_type(self) -> str:
-        """Equivalent to typing.get_origin()"""
+    def get_container_type(self) -> Optional[str]:
+        """Returns the basic container type name of the (potentially subscripted) type,
+        or None if not a container type.
+
+        Similar to typing.get_origin().
+        """
         return None
 
 
