@@ -612,3 +612,62 @@ def literal_compare_bytes_str():
     """
     # we must not constant fold the subexpressions as the result is Py2/3 sensitive
     return b'abc' != 'abc'
+
+
+# Py_UCS4 comparison
+
+@cython.test_assert_path_exists(
+    '//PrimaryCmpNode',
+    '//PrimaryCmpNode[@operator = "=="]',
+    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//CascadedCmpNode[@is_pycmp = False]",
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch97"]',
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_ch99_str"]',
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch98"]',
+)
+@cython.test_fail_if_path_exists(
+    "//CascadedCmpNode[@is_pycmp = True]",
+    "//PrimaryCmpNode[@is_pycmp = True]",
+)
+def eq_char(str s):
+    """
+    >>> eq_char('a')
+    (True, False, False)
+    >>> eq_char('b')
+    (False, False, True)
+    >>> eq_char('c')
+    (False, True, False)
+    >>> eq_char('ab')
+    (False, False, False)
+    >>> eq_char('bcda')
+    (False, False, False)
+    """
+    return s == 'a', 'c' == s, s == 'b' == s
+
+@cython.test_assert_path_exists(
+    '//PrimaryCmpNode',
+    '//PrimaryCmpNode[@operator = "!="]',
+    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//CascadedCmpNode[@is_pycmp = False]",
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch97"]',
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_ch99_str"]',
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch98"]',
+)
+@cython.test_fail_if_path_exists(
+    "//CascadedCmpNode[@is_pycmp = True]",
+    "//PrimaryCmpNode[@is_pycmp = True]",
+)
+def neq_char(str s):
+    """
+    >>> neq_char('a')
+    (False, True, True)
+    >>> neq_char('b')
+    (True, True, False)
+    >>> neq_char('c')
+    (True, False, True)
+    >>> neq_char('ab')
+    (True, True, True)
+    >>> neq_char('bcda')
+    (True, True, True)
+    """
+    return s != 'a', 'c' != s, s != 'b' != s
