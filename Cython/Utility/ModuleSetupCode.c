@@ -2434,10 +2434,6 @@ static PyObject* __Pyx_PyCode_New(
         PyObject *py_minor_version = NULL;
         #endif
         long minor_version = 0;
-        PyObject *type, *value, *traceback;
-
-        // we must be able to call this while an exception is happening - thus clear then restore the state
-        PyErr_Fetch(&type, &value, &traceback);
 
         #if __PYX_LIMITED_VERSION_HEX >= 0x030b0000
         minor_version = 11;
@@ -2454,16 +2450,8 @@ static PyObject* __Pyx_PyCode_New(
         if (!(types_module = PyImport_ImportModule("types"))) goto end;
         if (!(code_type = PyObject_GetAttrString(types_module, "CodeType"))) goto end;
 
-        if (minor_version <= 7) {
-            // 3.7:
-            // code(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring,
-            //        constants, names, varnames, filename, name, firstlineno,
-            //        lnotab[, freevars[, cellvars]])
-            (void)p;
-            result = PyObject_CallFunction(code_type, "iiiiiOOOOOOiOOO", a, k, l, s, f, code,
-                          c, n, v, fn, name, fline, lnos, fv, cell);
-        } else if (minor_version <= 10) {
-            // 3.8, 3.9, 3.10
+        if (minor_version <= 10) {
+            // [3.8], 3.9, 3.10
             // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
             //    flags, codestring, constants, names, varnames, filename, name,
             //    firstlineno, lnotab[, freevars[, cellvars]])
@@ -2485,9 +2473,25 @@ static PyObject* __Pyx_PyCode_New(
         Py_XDECREF(code_type);
         Py_XDECREF(exception_table);
         Py_XDECREF(types_module);
-        if (type) {
-            PyErr_Restore(type, value, traceback);
+
+        if (!result) {
+            // We use private API to create code objects and so it could fail in future.
+            // In this case it's probably best if they keep working with a warning:
+            // they're mostly just introspection decoration.
+            PyObject *exc_type, *exc_value, *exc_tb;
+            PyErr_Fetch(&exc_type, &exc_value, &exc_tb);
+            if (PyErr_WarnFormat(
+                    PyExc_RuntimeWarning, 1,
+                    "Code object creation failed in Cython module: %S\nTry recompiling with a more recent version of Cython.",
+                    exc_value ? exc_value : exc_type) == 0) {
+                result = Py_None;
+                Py_INCREF(result);
+            }
+            Py_DECREF(exc_type);
+            Py_XDECREF(exc_value);
+            Py_XDECREF(exc_tb);
         }
+
         return result;
     }
 
