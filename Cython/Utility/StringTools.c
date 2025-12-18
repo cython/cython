@@ -320,11 +320,12 @@ static CYTHON_INLINE int __Pyx__PyUnicode_EqualsUCS4(PyObject* s1, Py_UCS4 ch2, 
     if (length != 1) goto return_ne;
 
     Py_UCS4 ch1;
+    int kind = __Pyx_PyUnicode_KIND(s1);
     // The following conditions are written to allow optimising on the inlined constants ch2 and kind.
     if (ch2 < 256) {
-        ch1 = __Pyx_PyUnicode_READ_CHAR(s1, 0);
+        void *data1 = __Pyx_PyUnicode_DATA(s1);
+        ch1 = __Pyx_PyUnicode_READ(kind, data1, 0);
     } else if (ch2 < 65536) {
-        int kind = __Pyx_PyUnicode_KIND(s1);
         if (kind == PyUnicode_2BYTE_KIND) {
             void *data1 = __Pyx_PyUnicode_DATA(s1);
             ch1 = __Pyx_PyUnicode_READ(kind, data1, 0);
@@ -335,7 +336,6 @@ static CYTHON_INLINE int __Pyx__PyUnicode_EqualsUCS4(PyObject* s1, Py_UCS4 ch2, 
             goto return_ne;
         }
     } else {
-        int kind = __Pyx_PyUnicode_KIND(s1);
         if (kind == PyUnicode_4BYTE_KIND){
             void *data1 = __Pyx_PyUnicode_DATA(s1);
             ch1 = __Pyx_PyUnicode_READ(kind, data1, 0);
