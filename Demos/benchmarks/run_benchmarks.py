@@ -183,7 +183,7 @@ def cythonize_cython(cython_dir: pathlib.Path):
     t = time.perf_counter()
     run([sys.executable, "setup.py", "build_ext", "-i", "--cython-compile-minimal"], cwd=cython_dir)
     t = time.perf_counter() - t
-    logging.info(f"    'setup.py build_ext --compile-minimal' after translation: {t:.2f} sec")
+    logging.info(f"    'setup.py build_ext --cython-compile-minimal' after translation: {t:.2f} sec")
     cythonize_times['cythonize_build_ext'] = [t]
 
     # Cythonize modules with minimal binary Cython.
