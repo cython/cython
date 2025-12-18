@@ -4455,8 +4455,8 @@ def p_closed_pattern(s: PyrexScanner):
     | class_pattern
 
     For the sake avoiding too much backtracking, we know:
-    * starts with "{" is a sequence_pattern
-    * starts with "[" is a mapping_pattern
+    * starts with "{" is a mapping_pattern
+    * starts with "[" is a sequence_pattern
     * starts with "(" is a group_pattern or sequence_pattern
     * wildcard pattern is just identifier=='_'
     The rest are then tried in order with backtracking
