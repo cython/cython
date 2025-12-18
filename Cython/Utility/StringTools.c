@@ -289,15 +289,20 @@ return_ne:
 //////////////////// UnicodeEqualsUCS4.proto ////////////////////
 
 #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
-#define __Pyx_PyObject_Equals_uchar(s1, s2, ch2, equals, s1_is_str) \
-    __Pyx__PyObject_EqualsUCS4(s1, s2, equals)
+#define __Pyx_PyObject_Equals_uchar(s1, s2, ch2, equals, s1_is_str) (\
+    ((s1) == (s2)) ? ((equals) == Py_EQ) : \
+    ((s1) == Py_None) ? ((equals) == Py_NE) : \
+    __Pyx__PyObject_EqualsUCS4(s1, s2, equals) \
+    )
 
 #else
 #define __Pyx_PyObject_Equals_uchar(s1, s2, ch2, equals, s1_is_str) (\
-    likely((s1_is_str) ? ((s1) != Py_None) : PyUnicode_CheckExact(s1)) ? \
+    ((s1) == (s2)) ? ((equals) == Py_EQ) : \
+    ((s1) == Py_None) ? ((equals) == Py_NE) : \
+    (likely((s1_is_str) || PyUnicode_CheckExact(s1)) ? \
         __Pyx__PyUnicode_EqualsUCS4(s1, ch2, equals) : \
         __Pyx__PyObject_EqualsUCS4(s1, s2, equals) \
-    )
+    ))
 
 static CYTHON_INLINE int __Pyx__PyUnicode_EqualsUCS4(PyObject* s1, Py_UCS4 ch2, int equals); /*proto*/
 #endif

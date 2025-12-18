@@ -688,6 +688,8 @@ def neq_char(str s):
 )
 def eq_uchar(str s):
     """
+    >>> eq_uchar(None)
+    (False, False, False)
     >>> eq_uchar('a')
     (False, False, False)
     >>> eq_uchar('\N{Winking Face}')
@@ -722,6 +724,8 @@ def eq_uchar(str s):
 )
 def neq_uchar(str s):
     """
+    >>> neq_uchar(None)
+    (True, True, True)
     >>> neq_uchar('a')
     (True, True, True)
     >>> neq_uchar('\N{Winking Face}')
