@@ -17,7 +17,7 @@ BENCHMARK_FILES = sorted(
     list((BENCHMARKS_DIR.glob("bm_*.pyx")))
 )
 
-ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES]
+ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES] + ['cythonize']
 
 LIMITED_API_VERSION = max((3, 12), sys.version_info[:2])
 
@@ -137,6 +137,78 @@ def git_clone(rev_dir, revision):
     run(["git", "checkout", rev_hash], cwd=rev_dir)
 
 
+def cythonize_cython(cython_dir: pathlib.Path):
+    compiled_modules = [
+        "Cython.Plex.Actions",
+        "Cython.Plex.Scanners",
+        "Cython.Compiler.FlowControl",
+        #"Cython.Compiler.LineTable",  # not in base line Cython revision
+        "Cython.Compiler.Scanning",
+        "Cython.Compiler.Visitor",
+        #"Cython.Runtime.refnanny",  # .pyx
+        "Cython.Plex.Machines",
+        "Cython.Plex.Transitions",
+        "Cython.Plex.DFA",
+        "Cython.Compiler.Code",
+        "Cython.Compiler.FusedNode",
+        "Cython.Compiler.Parsing",
+        "Cython.Tempita._tempita",
+        "Cython.StringIOTree",
+        "Cython.Utils",
+        "Cython.Compiler.Lexicon",
+        "Cython.Compiler.Pythran",
+        "Cython.Build.Dependencies",
+        "Cython.Compiler.ParseTreeTransforms",
+        "Cython.Compiler.Nodes",
+        "Cython.Compiler.ExprNodes",
+        "Cython.Compiler.ModuleNode",
+        "Cython.Compiler.Optimize",
+    ]
+
+    source_files = [
+        os.path.join(*module.split('.')) + '.py'
+        for module in compiled_modules
+    ]
+
+    cythonize_times = {}
+
+    # Cythonize modules in Python.
+    t = time.perf_counter()
+    run([sys.executable, "cythonize.py", "-f", *source_files], cwd=cython_dir)
+    t = time.perf_counter() - t
+    logging.info(f"    Cythonize modules in Python: {t:.2f} sec")
+    cythonize_times['cythonize_python'] = [t]
+
+    # Build binary modules (without cythonize).
+    t = time.perf_counter()
+    run([sys.executable, "setup.py", "build_ext", "-i", "--cython-compile-minimal"], cwd=cython_dir)
+    t = time.perf_counter() - t
+    logging.info(f"    'setup.py build_ext --compile-minimal' after translation: {t:.2f} sec")
+    cythonize_times['cythonize_build_ext'] = [t]
+
+    # Cythonize modules with minimal binary Cython.
+    t = time.perf_counter()
+    run([sys.executable, "cythonize.py", "-f", *source_files], cwd=cython_dir)
+    t = time.perf_counter() - t
+    logging.info(f"    Cythonize modules with minimal compiled Cython: {t:.2f} sec")
+    cythonize_times['cythonize_compiled_minimal'] = [t]
+
+    # Build binary modules (without cythonize). Time not reported.
+    t = time.perf_counter()
+    run([sys.executable, "setup.py", "build_ext", "-i"], cwd=cython_dir)
+    t = time.perf_counter() - t
+    logging.info(f"    'setup.py build_ext' after translation: {t:.2f} sec")
+
+    # Cythonize modules with binary Cython.
+    t = time.perf_counter()
+    run([sys.executable, "cythonize.py", "-f", *source_files], cwd=cython_dir)
+    t = time.perf_counter() - t
+    logging.info(f"    Cythonize modules with compiled Cython: {t:.2f} sec")
+    cythonize_times['cythonize_compiled'] = [t]
+
+    return cythonize_times
+
+
 def find_benchmark_cname(c_file_path: pathlib.Path):
     module_name = c_file_path.stem
     prefix = f"__pyx_pw_{len(module_name)}{module_name}_"
@@ -236,19 +308,32 @@ def _make_bench_func(bm_dir, module_name, pythonpath=None):
 
 
 def measure_benchmark_sizes(bm_paths: list[pathlib.Path]):
-    out = {}
-    for bm_path in bm_paths:
-        name = bm_path.stem
-        dir = bm_path.parent
-        stripped_path = dir / f"{name}.stripped"
-        # TODO - this'll only work on unix at the moment because it only looks for .so files
-        # (but it's unlikely that Windows will have 'strip' either)
-        compiled_path, = dir.glob(f"{name}*.so")
-        subprocess.run(
-            ["strip", compiled_path, "-g", "-o" , stripped_path ]
-        )
-        out[name] = stripped_path.stat().st_size
-    return out
+    return {
+        bm_path.stem: measure_dll_size(bm_path)
+        for bm_path in bm_paths
+    }
+
+
+def measure_all_dll_sizes(directory: pathlib.Path, suffix='.so'):
+    return {
+        so_file.stem: measure_dll_size(so_file)
+        for so_file in directory.glob(f"**/*{suffix}")
+    }
+
+
+def measure_dll_size(path: pathlib.Path):
+    name = path.stem
+    dir = path.parent
+    stripped_path = dir / f"{name}.stripped"
+    # TODO - this'll only work on unix at the moment because it only looks for .so files
+    # (but it's unlikely that Windows will have 'strip' either)
+    compiled_path, = dir.glob(f"{name}*.so")
+    subprocess.run(
+        ["strip", compiled_path, "-g", "-o" , stripped_path ]
+    )
+    stripped_size = stripped_path.stat().st_size
+    stripped_path.unlink()
+    return stripped_size
 
 
 def run_benchmark(bm_dir, module_name, pythonpath=None, profiler=None):
@@ -291,7 +376,9 @@ def run_benchmarks(bm_dir, benchmarks, pythonpath=None, profiler=None):
     return timings
 
 
-def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=None, limited_revisions=(), shared_revisions=(), show_size=False):
+def benchmark_revisions(
+        benchmarks, revisions, cythonize_args=None, profiler=None,
+        cythonize=False, limited_revisions=(), shared_revisions=(), show_size=False):
     python_version = f"Python {PYTHON_VERSION}"
     logging.info(f"### Comparing revisions in {python_version}: {' '.join(revisions)}.")
     logging.info(f"CFLAGS={os.environ.get('CFLAGS', DISTUTILS_CFLAGS)}")
@@ -314,7 +401,7 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=Non
 
         logging.info(f"### Preparing benchmark run for {revision_name}.")
         timings[revision_name], sizes[revision_name] = benchmark_revision(
-            revision, benchmarks, cythonize_args, profiler, plain_python, show_size=show_size)
+            revision, benchmarks, cythonize_args, profiler, cythonize, plain_python, show_size=show_size)
 
         if revision in limited_revisions:
             logging.info(
@@ -339,11 +426,17 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=Non
 
 
 def benchmark_revision(
-        revision, benchmarks, cythonize_args=None, profiler=None, plain_python=False, c_macros=None, show_size=False, use_shared_module=False):
+        revision, benchmarks, cythonize_args=None, profiler=None,
+        plain_python=False, c_macros=None, show_size=False, use_shared_module=False):
     with_profiler = None if plain_python else profiler
 
     if with_profiler:
         cythonize_args = (cythonize_args or []) + ['--annotate']
+
+    cythonize = 'cythonize' in benchmarks
+    if cythonize:
+        benchmarks = benchmarks[:]
+        benchmarks.remove('cythonize')
 
     with tempfile.TemporaryDirectory() as base_dir_str:
         base_dir = pathlib.Path(base_dir_str)
@@ -352,25 +445,43 @@ def benchmark_revision(
 
         git_clone(cython_dir, revision=None if plain_python else revision)
 
-        bm_dir.mkdir(parents=True)
-        bm_files = copy_benchmarks(bm_dir, benchmarks)
-        sizes = None
-        if plain_python:
-            # Exclude non-Python modules.
-            bm_files = [bm_file for bm_file in bm_files if bm_file.suffix == '.py']
-            benchmarks = [bm_file.stem for bm_file in bm_files]
-        else:
-            if use_shared_module:
-                compile_shared_benchmarks(cython_dir, bm_files, c_macros=c_macros, tmp_dir=bm_dir)
-            else:
-                compile_benchmarks(cython_dir, bm_files, cythonize_args, c_macros=c_macros, tmp_dir=base_dir_str)
-            if show_size:
-                sizes = measure_benchmark_sizes(bm_files)
+        cythonize_times = None
+        if cythonize:
+            logging.info(f"### Running cythonize benchmarks for {revision}.")
+            cythonize_times = cythonize_cython(cython_dir)
 
-        logging.info(f"### Running benchmarks for {revision}.")
-        pythonpath = cython_dir if plain_python else None
-        timings = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
-        return timings, sizes
+        timings = {}
+        sizes = {}
+
+        if benchmarks or not cythonize:
+            logging.info(f"### Preparing benchmark run for {revision}.")
+
+            bm_dir.mkdir(parents=True)
+            bm_files = copy_benchmarks(bm_dir, benchmarks)
+
+            if plain_python:
+                # Exclude non-Python modules.
+                bm_files = [bm_file for bm_file in bm_files if bm_file.suffix == '.py']
+                benchmarks = [bm_file.stem for bm_file in bm_files]
+            else:
+                if use_shared_module:
+                    compile_shared_benchmarks(cython_dir, bm_files, c_macros=c_macros, tmp_dir=bm_dir)
+                else:
+                    compile_benchmarks(cython_dir, bm_files, cythonize_args, c_macros=c_macros, tmp_dir=base_dir_str)
+
+                if show_size:
+                    sizes.update(measure_benchmark_sizes(bm_files))
+
+            logging.info(f"### Running benchmarks for {revision}.")
+            pythonpath = cython_dir if plain_python else None
+            timings = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
+
+        if cythonize_times:
+            timings.update(cythonize_times)
+        if show_size and cythonize:
+            sizes.update(measure_all_dll_sizes(cython_dir))
+
+    return timings, (sizes or None)
 
 
 def report_revision_timings(rev_timings, csv_out=None):
