@@ -312,15 +312,18 @@ static CYTHON_INLINE int __Pyx__PyObject_EqualsUCS4(PyObject* s1, PyObject* s2, 
 
 #if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL)
 static CYTHON_INLINE int __Pyx__PyUnicode_EqualsUCS4(PyObject* s1, Py_UCS4 ch2, int equals) {
+    Py_ssize_t length;
+    Py_UCS4 ch1;
+    int kind;
+
     if (unlikely(__Pyx_PyUnicode_READY(s1) < 0)) goto bad;
-    Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(s1);
+    length = __Pyx_PyUnicode_GET_LENGTH(s1);
     #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(length < 0)) goto bad;
     #endif
     if (length != 1) goto return_ne;
 
-    Py_UCS4 ch1;
-    int kind = __Pyx_PyUnicode_KIND(s1);
+    kind = __Pyx_PyUnicode_KIND(s1);
     // The following conditions are written to allow optimising on the inlined constants ch2 and kind.
     if (ch2 < 256) {
         void *data1 = __Pyx_PyUnicode_DATA(s1);
