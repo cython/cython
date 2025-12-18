@@ -671,3 +671,72 @@ def neq_char(str s):
     (True, True, True)
     """
     return s != 'a', 'c' != s, s != 'b' != s
+
+
+@cython.test_assert_path_exists(
+    '//PrimaryCmpNode',
+    '//PrimaryCmpNode[@operator = "=="]',
+    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//CascadedCmpNode[@is_pycmp = False]",
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch128521"]',  # Emoji Winking Face
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_ch9731_str"]',    # SNOWMAN
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch246"]',     # ö
+)
+@cython.test_fail_if_path_exists(
+    "//CascadedCmpNode[@is_pycmp = True]",
+    "//PrimaryCmpNode[@is_pycmp = True]",
+)
+def eq_uchar(str s):
+    """
+    >>> eq_uchar('a')
+    (False, False, False)
+    >>> eq_uchar('\N{Winking Face}')
+    (True, False, False)
+    >>> eq_uchar('\N{SNOWMAN}')
+    (False, True, False)
+    >>> eq_uchar('ö')
+    (False, False, True)
+    >>> eq_uchar('ä')
+    (False, False, False)
+    >>> eq_uchar('\N{Winking Face}ö')
+    (False, False, False)
+    >>> eq_uchar('ö\N{Winking Face}')
+    (False, False, False)
+    >>> eq_uchar('\N{SNOWMAN}ö')
+    (False, False, False)
+    """
+    return s == '\N{Winking Face}', '\N{SNOWMAN}' == s, s == 'ö' == s
+
+@cython.test_assert_path_exists(
+    '//PrimaryCmpNode',
+    '//PrimaryCmpNode[@operator = "!="]',
+    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//CascadedCmpNode[@is_pycmp = False]",
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch128521"]',  # Emoji Winking Face
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_ch9731_str"]',    # SNOWMAN
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch246"]',     # ö
+)
+@cython.test_fail_if_path_exists(
+    "//CascadedCmpNode[@is_pycmp = True]",
+    "//PrimaryCmpNode[@is_pycmp = True]",
+)
+def neq_uchar(str s):
+    """
+    >>> neq_uchar('a')
+    (True, True, True)
+    >>> neq_uchar('\N{Winking Face}')
+    (False, True, True)
+    >>> neq_uchar('\N{SNOWMAN}')
+    (True, False, True)
+    >>> neq_uchar('ö')
+    (True, True, False)
+    >>> neq_uchar('ä')
+    (True, True, True)
+    >>> neq_uchar('\N{Winking Face}ö')
+    (True, True, True)
+    >>> neq_uchar('ö\N{Winking Face}')
+    (True, True, True)
+    >>> neq_uchar('\N{SNOWMAN}ö')
+    (True, True, True)
+    """
+    return s != '\N{Winking Face}', '\N{SNOWMAN}' != s, s != 'ö' != s
