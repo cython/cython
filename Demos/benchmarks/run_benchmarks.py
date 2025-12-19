@@ -164,7 +164,7 @@ def git_clone(rev_dir, revision):
     run(["git", "checkout", rev_hash], cwd=rev_dir)
 
 
-def cythonize_cython(cython_dir: pathlib.Path):
+def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
     compiled_modules = [
         "Cython.Plex.Actions",
         "Cython.Plex.Scanners",
@@ -211,7 +211,9 @@ def cythonize_cython(cython_dir: pathlib.Path):
     pre_imports = ','.join(compiled_modules)
     times = run_timed_python(
         ["-c", f"import {pre_imports}; import setup; setup.run_build()", "build_ext", "-i", parallel, "--cython-compile-minimal"],
-        cwd=cython_dir)
+        cwd=cython_dir,
+        c_macros=c_macros,
+    )
     t = times['user']
     logging.info(f"    'setup.py build_ext --cython-compile-minimal' after translation: {t:.2f} sec user ({times['elapsed']} sec)")
     cythonize_times['cythonize_build_ext'] = [t]
@@ -223,7 +225,7 @@ def cythonize_cython(cython_dir: pathlib.Path):
     cythonize_times['cythonize_compiled_minimal'] = [t]
 
     # Build binary modules (without cythonize). Time not reported.
-    times = run_timed_python(["setup.py", "build_ext", "-i", parallel], cwd=cython_dir)
+    times = run_timed_python(["setup.py", "build_ext", "-i", parallel], cwd=cython_dir, c_macros=c_macros)
     t = times['user']
     logging.info(f"    'setup.py build_ext' after translation: {t:.2f} sec user ({times['elapsed']} sec)")
 
@@ -474,7 +476,7 @@ def benchmark_revision(
         cythonize_times = None
         if benchmark_cythonize:
             logging.info(f"### Running cythonize benchmarks for {revision}.")
-            cythonize_times = cythonize_cython(cython_dir)
+            cythonize_times = cythonize_cython(cython_dir, c_macros)
 
         timings = {}
         sizes = {}
