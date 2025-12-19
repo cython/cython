@@ -345,7 +345,7 @@ def measure_benchmark_sizes(bm_paths: list[pathlib.Path]):
 
 def measure_all_dll_sizes(directory: pathlib.Path, suffix='.so'):
     return {
-        so_file.stem: measure_dll_size(so_file)
+        so_file.name.partition('.')[0]: measure_dll_size(so_file)
         for so_file in directory.glob(f"**/*{suffix}")
     }
 
