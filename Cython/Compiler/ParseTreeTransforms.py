@@ -3138,6 +3138,11 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             value = self.directives["critical_section"]
             if value is not None:
                 error(node.pos, "critical_section decorator does not take arguments")
+            if self.in_py_class:
+                warning(
+                    node.pos,
+                    "@critical_section on method of a class that is not an extension type is unlikely to be useful",
+                    2)
             new_body = Nodes.CriticalSectionStatNode(
                 node.pos,
                 args=[ExprNodes.FirstArgumentForCriticalSectionNode(node.pos, func_node=node)],
@@ -3695,6 +3700,7 @@ class GilCheck(VisitorTransform):
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil_state = Nodes.NoGilState.HasGil
+        self.in_critical_section = False
 
         self.nogil_state_at_current_gilstatnode = Nodes.NoGilState.HasGil
         return super().__call__(root)
@@ -3722,7 +3728,9 @@ class GilCheck(VisitorTransform):
         if inner_nogil and node.nogil_check:
             node.nogil_check(node.local_scope)
 
+        in_critical_section, self.in_critical_section = self.in_critical_section, False
         self._visit_scoped_children(node, self.nogil_state)
+        self.in_critical_section = in_critical_section
 
         # FuncDefNodes can be nested, because a cpdef function contains a def function
         # inside it. Therefore restore to previous state
@@ -3819,7 +3827,10 @@ class GilCheck(VisitorTransform):
 
     def visit_CriticalSectionStatNode(self, node):
         # skip normal "try/finally node" handling
-        return self.visit_Node(node)
+        in_critical_section, self.in_critical_section = self.in_critical_section, True
+        result = self.visit_Node(node)
+        self.in_critical_section = in_critical_section
+        return result
 
     def visit_CythonLockStatNode(self, node):
         # skip normal "try/finally node" handling
@@ -3861,6 +3872,14 @@ class GilCheck(VisitorTransform):
                     node.function.type,
                     args=[node.self],
                 )
+        return self.visit_Node(node)
+
+    def visit_AttributeNode(self, node):
+        if self.in_critical_section and node.is_py_attr:
+            warning(
+                node.pos,
+                "Python attribute access is not usefully protected by critical_section",
+                1)
         return self.visit_Node(node)
 
 
