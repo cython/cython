@@ -506,8 +506,6 @@ def benchmark_revision(
             logging.info(f"### Running benchmarks for {revision}.")
             pythonpath = cython_dir if plain_python else None
             fresh_timings = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
-            for name, t in fresh_timings.items():
-                logging.info(f"Min. time for {name}: {min(t):.2f} seconds")
             timings.update(fresh_timings)
 
         if cythonize_times:
