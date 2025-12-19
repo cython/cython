@@ -430,7 +430,7 @@ def benchmark_revisions(
             hashes[rev_hash] = revision
 
         timings[revision_name], sizes[revision_name] = benchmark_revision(
-            revision, benchmarks, cythonize_args, profiler, cythonize, plain_python, show_size=show_size)
+            revision, benchmarks, cythonize_args, profiler, plain_python, show_size=show_size)
 
         if revision in limited_revisions:
             logging.info(
