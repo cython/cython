@@ -51,7 +51,7 @@ jobs:
       - name: Copy coverage HTML
         run: |
           if [ -d './coverage-report-html' ]; then
-            ESCAPED_HEAD=$(printf "%s" "$HEAD" | python Tools/escape_url.py)
+            ESCAPED_HEAD=$(python3 -c "import sys; from urllib.parse import quote; print(quote(sys.argv[1], safe=''))" "$HEAD")
             mkdir -p gh_pages_coverage/coverage/ \
               && cp -r './coverage-report-html' "gh_pages_coverage/coverage/$ESCAPED_HEAD";
           fi
@@ -77,7 +77,7 @@ jobs:
         run: |
           echo "## Python coverage results:" >> $GITHUB_STEP_SUMMARY
           PAGES_URL="${{ steps.htmldeploy.outputs.page_url }}"
-          ESCAPED_HEAD=$(printf "%s" "$HEAD" | python Tools/escape_url.py)
+          ESCAPED_HEAD=$(python3 -c "import sys; from urllib.parse import quote; print(quote(sys.argv[1], safe=''))" "$HEAD")
           if [ -n "${PAGES_URL}" ]; then echo "[Coverage HTML](${PAGES_URL}/coverage/$ESCAPED_HEAD)" >> $GITHUB_STEP_SUMMARY; fi
           if [ -f coverage-report.md ]; then { echo; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
