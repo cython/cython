@@ -114,6 +114,7 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c
         c_macros=c_macros,
         tmp_dir=tmp_dir,
     )
+    logging.info(f"Compiled {bm_count} benchmark{'s' if bm_count != 1 else ''} in {times['user']:.2f} seconds")
     return times['user']
 
 
@@ -504,7 +505,10 @@ def benchmark_revision(
         if benchmarks:
             logging.info(f"### Running benchmarks for {revision}.")
             pythonpath = cython_dir if plain_python else None
-            timings.update(run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler))
+            fresh_timings = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
+            for name, t in fresh_timings.items():
+                logging.info(f"Min. time for {name}: {min(t):.2f} seconds")
+            timings.update(fresh_timings)
 
         if cythonize_times:
             timings.update(cythonize_times)
