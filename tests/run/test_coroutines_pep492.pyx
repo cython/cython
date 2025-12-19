@@ -63,10 +63,10 @@ try:
     from sys import getrefcount
 except ImportError:
     from cpython.ref cimport PyObject, Py_REFCNT
-    def getrefcount(obj):
+    def getrefcount(obj, _exec=exec):
         gc.collect()
         # PyPy needs to execute a bytecode to run the finalizers
-        exec('', {}, {})
+        _exec('', {}, {})
         return Py_REFCNT(obj)
 
 
@@ -75,19 +75,21 @@ def no_pypy(f):
     if platform.python_implementation() == 'PyPy':
         return unittest.skip("excluded in PyPy")
 
+include "skip_limited_api_helper.pxi"
 
 # compiled exec()
 def exec(code_string, l, g):
-    from Cython.Shadow import inline
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from Cython.Build.Inline import cython_inline
+    from io import StringIO
 
     old_stderr = sys.stderr
     try:
         sys.stderr = StringIO()
-        ns = inline(code_string, locals=l, globals=g, lib_dir=os.path.dirname(__file__), language_level=3)
+        ns = cython_inline(
+            code_string, locals=l, globals=g,
+            lib_dir=os.path.dirname(__file__),
+            language_level=3,
+        )
     finally:
         sys.stderr = old_stderr
     g.update(ns)
@@ -760,6 +762,7 @@ class AsyncBadSyntaxTest(unittest.TestCase):
 
 class TokenizerRegrTest(unittest.TestCase):
 
+    @unittest.skip("Very slow C code compilation.")
     def test_oneline_defs(self):
         buf = []
         for i in range(500):
@@ -994,6 +997,7 @@ class CoroutineTest(unittest.TestCase):
 
         self.assertEqual(run_async(bar()), ([], 'spam') )
 
+    @skip_if_limited_api("relies on finalizers")
     def test_func_9(self):
         async def foo(): pass
 

@@ -8,8 +8,8 @@ import re
 import sys
 import io
 
-if sys.version_info[:2] < (3, 8):
-    sys.stderr.write("Sorry, Cython requires Python 3.8+, found %d.%d\n" % tuple(sys.version_info[:2]))
+if sys.version_info[:2] < (3, 9):
+    sys.stderr.write("Sorry, Cython requires Python 3.9+, found %d.%d\n" % tuple(sys.version_info[:2]))
     sys.exit(1)
 
 # Do not import Parsing here, import it when needed, because Parsing imports
@@ -80,6 +80,7 @@ class Context:
         self.options = options
 
         self.pxds = {}  # full name -> node tree
+        self.utility_pxds = {}  # pxd name -> node tree
         self._interned = {}  # (type(value), value, *key_args) -> interned_value
 
         if language_level is not None:
@@ -93,6 +94,14 @@ class Context:
     def from_options(cls, options):
         return cls(options.include_path, options.compiler_directives,
                    options.cplus, options.language_level, options=options)
+
+    @property
+    def shared_c_file_path(self):
+        return self.options.shared_c_file_path if self.options else None
+
+    @property
+    def shared_utility_qualified_name(self):
+        return self.options.shared_utility_qualified_name if self.options else None
 
     def set_language_level(self, level):
         from .Future import print_function, unicode_literals, absolute_import, division, generator_stop
@@ -129,6 +138,14 @@ class Context:
             result_sink = create_default_resultobj(source, self.options)
             pipeline = Pipeline.create_pyx_as_pxd_pipeline(self, result_sink)
             result = Pipeline.run_pipeline(pipeline, source)
+        elif source_desc.in_utility_code:
+            from . import ParseTreeTransforms
+            transform = ParseTreeTransforms.CnameDirectivesTransform(self)
+            pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, transform,
+                before=ParseTreeTransforms.InterpretCompilerDirectives)
+            result = Pipeline.run_pipeline(pipeline, source_desc)
         else:
             pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
             result = Pipeline.run_pipeline(pipeline, source_desc)
@@ -422,7 +439,7 @@ class Context:
         return ".".join(names)
 
     def setup_errors(self, options, result):
-        Errors.init_thread()
+        Errors.reset()
         if options.use_listing_file:
             path = result.listing_file = Utils.replace_suffix(result.main_source_file, ".lis")
         else:
@@ -622,17 +639,17 @@ class CompilationResultSet(dict):
 
 
 def get_fingerprint(cache, source, options):
-        from ..Build.Dependencies import create_dependency_tree
-        from ..Build.Cache import FingerprintFlags
-        context = Context.from_options(options)
-        dependencies = create_dependency_tree(context)
-        return cache.transitive_fingerprint(
-                source, dependencies.all_dependencies(source), options,
-                FingerprintFlags(
-                    'c++' if options.cplus else 'c',
-                    np_pythran=options.np_pythran
-                )
-        )
+    from ..Build.Dependencies import create_dependency_tree
+    from ..Build.Cache import FingerprintFlags
+    context = Context.from_options(options)
+    dependencies = create_dependency_tree(context)
+    return cache.transitive_fingerprint(
+            source, dependencies.all_dependencies(source), options,
+            FingerprintFlags(
+                'c++' if options.cplus else 'c',
+                np_pythran=options.np_pythran
+            )
+    )
 
 
 def compile_single(source, options, full_module_name, cache=None, context=None, fingerprint=None):
@@ -825,6 +842,11 @@ def main(command_line = 0):
         os.chdir(options.working_path)
 
     try:
+        if options.shared_c_file_path:
+            from ..Build.SharedModule import generate_shared_module
+            generate_shared_module(options)
+            return
+
         result = compile(sources, options)
         if result.num_errors > 0:
             any_failures = 1

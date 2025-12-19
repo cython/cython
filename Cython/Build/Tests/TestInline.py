@@ -122,20 +122,20 @@ class TestCymeit(unittest.TestCase):
         # Note: we cannot compare against the expected 0.2 due to large timing variations on CI.
         max_time = max(timing * number for timing in timings)
         if isinstance(max_time, int):
-            self.assertGreaterEqual(max_time, 1_000_000)
+            self.assertGreaterEqual(max_time, 100_000)
         else:
-            self.assertGreaterEqual(max_time, 0.001)
+            self.assertGreaterEqual(max_time, 0.0001)
         self.assertGreater(number, 10)  # arbitrary lower bound for our very quick benchmarks
 
         return timings
 
     def test_benchmark_simple(self):
-        setup_code = "numbers = list(range(0, 100, 3))"
+        setup_code = "numbers = list(range(0, 1000, 3))"
         self._run("sum([num for num in numbers])", setup_code, repeat=3)
 
     def test_benchmark_timer(self):
         import time
-        setup_code = "numbers = list(range(0, 100, 3))"
+        setup_code = "numbers = list(range(0, 1000, 3))"
         timings = self._run("sum([num for num in numbers])", setup_code, timer=time.perf_counter, repeat=3)
 
         for timing in timings:
@@ -143,7 +143,7 @@ class TestCymeit(unittest.TestCase):
 
     def test_benchmark_timer_ns(self):
         import time
-        setup_code = "numbers = list(range(0, 100, 3))"
+        setup_code = "numbers = list(range(0, 1000, 3))"
         timings = self._run("sum([num for num in numbers])", setup_code, timer=time.perf_counter_ns, repeat=3)
 
         for timing in timings:

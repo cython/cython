@@ -1,3 +1,5 @@
+# tag: threads
+
 UNSET CFLAGS
 PYTHON setup.py build_ext --inplace
 PYTHON main.py
@@ -8,7 +10,7 @@ import sys
 from setuptools import setup
 from Cython.Build import cythonize
 
-if sys.version_info < (3, 13):
+if sys.version_info < (3, 14):
     exit(0)
 
 setup(
@@ -20,6 +22,7 @@ setup(
 #################### cy_module.pyx ##################
 
 # distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1
+# cython: subinterpreters_compatible = own_gil
 
 cdef extern from *:
     # actually returns a borrowed PyObject*
@@ -45,14 +48,7 @@ def run(start_next_queue, stop_queue):
 
 ################## callable.py ###################
 
-# Note - free globals are evaluated in the interpreter's "__main__" module
-# (which we prepare)
-
-def f():
-    import _imp
-    # TODO - eventually we'll properly allow this, at least for multi-phase.
-    _imp._override_multi_interp_extensions_check(-1)
-
+def f(*, stop_queue, started_queue, start_next_queue):
     # wait for previous interpreter to reach its read-loop before proceeding
     # with this one.
     start_next_queue.get(20.0)
@@ -71,14 +67,13 @@ def f():
 
 import sys
 import sysconfig
-if sys.version_info[:2] != (3, 13):
+if sys.version_info[:2] < (3, 14):
     exit(0)  # test won't work
 if sysconfig.get_config_var("Py_GIL_DISABLED"):
     # we aren't allowed to do _imp._override_multi_interp_extensions_check(-1) on freethreading
     exit(0)
 
-# TODO - in Py3.14 this'll probably be in the standard library
-from interpreters_backport import interpreters
+from concurrent import interpreters
 
 # create a bunch of interpreters
 num_interpreters = 5
@@ -95,17 +90,14 @@ started_queue = interpreters.create_queue()
 start_next_queue = interpreters.create_queue()
 start_next_queue.put(None)
 
-for i in all_interpreters:
-    # I don't think this exec should be needed, but as of Nov 2024 it is.
-    i.exec("from interpreters_backport.interpreters import queues")
-    i.prepare_main(
-        stop_queue=stop_queue,
-        started_queue=started_queue,
-        start_next_queue=start_next_queue)
-
 import callable
 
-threads = [ i.call_in_thread(callable.f) for i in all_interpreters ]
+threads = [
+    i.call_in_thread(
+        callable.f,
+        stop_queue=stop_queue, started_queue=started_queue, start_next_queue=start_next_queue
+    ) for i in all_interpreters
+]
 
 # wait until we know all interpreters have started
 for _ in range(num_interpreters):

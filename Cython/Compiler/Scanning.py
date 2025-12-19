@@ -18,7 +18,7 @@ from .. import Utils
 from ..Plex.Scanners import Scanner
 from ..Plex.Errors import UnrecognizedInput
 from .Errors import error, warning, hold_errors, release_errors, CompileError
-from .Lexicon import any_string_prefix, make_lexicon, IDENT
+from .Lexicon import any_string_prefix, ft_string_prefixes, make_lexicon, IDENT
 from .Future import print_function
 
 debug_scanner = 0
@@ -93,9 +93,9 @@ def initial_compile_time_env():
     names = (
         'False', 'True',
         'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'bytearray', 'bytes',
-        'chr', 'cmp', 'complex', 'dict', 'divmod', 'enumerate', 'filter',
+        'chr', 'complex', 'dict', 'divmod', 'enumerate', 'filter',
         'float', 'format', 'frozenset', 'hash', 'hex', 'int', 'len',
-        'list', 'map', 'max', 'min', 'oct', 'ord', 'pow', 'range',
+        'list', 'map', 'max', 'min', 'next', 'oct', 'ord', 'pow', 'range',
         'repr', 'reversed', 'round', 'set', 'slice', 'sorted', 'str',
         'sum', 'tuple', 'zip',
         ### defined below in a platform independent way
@@ -103,18 +103,14 @@ def initial_compile_time_env():
     )
 
     for name in names:
-        try:
-            benv.declare(name, getattr(builtins, name))
-        except AttributeError:
-            # ignore, likely Py3
-            pass
+        benv.declare(name, getattr(builtins, name))
 
-    # Py2/3 adaptations
+    # legacy Py2 names
     from functools import reduce
     benv.declare('reduce', reduce)
     benv.declare('unicode', str)
-    benv.declare('long', getattr(builtins, 'long', getattr(builtins, 'int')))
-    benv.declare('xrange', getattr(builtins, 'xrange', getattr(builtins, 'range')))
+    benv.declare('long', int)
+    benv.declare('xrange', range)
 
     denv = CompileTimeScope(benv)
     return denv
@@ -209,22 +205,15 @@ class FileSourceDescriptor(SourceDescriptor):
         # we cache the lines only the second time this is called, in
         # order to save memory when they are only used once
         key = (encoding, error_handling)
-        try:
-            lines = self._lines[key]
-            if lines is not None:
-                return lines
-        except KeyError:
-            pass
+        lines = self._lines.get(key)
+        if lines is not None:
+            return lines
 
         with self.get_file_object(encoding=encoding, error_handling=error_handling) as f:
-            lines = f.readlines()
+            lines = [line.rstrip() for line in f.readlines()]
 
-        if key in self._lines:
-            self._lines[key] = lines
-        else:
-            # do not cache the first access, but remember that we
-            # already read it once
-            self._lines[key] = None
+        # Do not cache the first access, but add the key to remember that we already read it once.
+        self._lines[key] = lines if key in self._lines else None
         return lines
 
     def get_file_object(self, encoding=None, error_handling=None):
@@ -261,7 +250,7 @@ class StringSourceDescriptor(SourceDescriptor):
     def __init__(self, name, code):
         self.name = name
         #self.set_file_type_from_name(name)
-        self.codelines = [x + "\n" for x in code.split("\n")]
+        self.codelines = [line.rstrip() for line in code.splitlines()]
         self._cmp_name = name
 
     def get_lines(self, encoding=None, error_handling=None):
@@ -340,6 +329,9 @@ class PyrexScanner(Scanner):
         self.indentation_stack = [0]
         self.indentation_char = '\0'
         self.bracket_nesting_level = 0
+        # fstrings/tstrings
+        self.ft_string_state_stack = []
+        self.in_ft_string_expr_prescan = 0
 
         self.put_back_on_failure = None
 
@@ -370,6 +362,32 @@ class PyrexScanner(Scanner):
         self.bracket_nesting_level -= 1
         return text
 
+    def open_brace_action(self, text):
+        return self.open_bracket_action(text)
+
+    def close_brace_action(self, text):
+        assert text == '}'
+        if (self.ft_string_state_stack and
+                self.ft_string_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
+            if not self.ft_string_state_stack[-1].in_format_specifier():
+                self.in_ft_string_expr_prescan -= 1
+                if self.in_ft_string_expr_prescan == 0:
+                    self.produce("END_FT_STRING_EXPR")
+            self.begin(self.ft_string_state_stack[-1].scanner_state)
+            self.ft_string_state_stack[-1].pop_bracket_state()
+        self.bracket_nesting_level -= 1
+        return text
+
+    def colon_action(self, text):
+        if (self.ft_string_state_stack and
+                self.ft_string_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
+            self.in_ft_string_expr_prescan -= 1
+            if self.in_ft_string_expr_prescan == 0:
+                self.produce("END_FT_STRING_EXPR")
+            self.begin(self.ft_string_state_stack[-1].scanner_state)
+            self.ft_string_state_stack[-1].set_in_format_specifier()
+        return text
+
     def newline_action(self, text):
         if self.bracket_nesting_level == 0:
             self.begin('INDENT')
@@ -389,8 +407,78 @@ class PyrexScanner(Scanner):
         self.produce('BEGIN_STRING')
 
     def end_string_action(self, text):
-        self.begin('')
+        self.begin('FT_STRING_EXPR_PRESCAN' if self.in_ft_string_expr_prescan else '')
         self.produce('END_STRING')
+
+    def begin_ft_string_action(self, text):
+        is_raw = 'r' in text or 'R' in text
+        while text and (text[0] in any_string_prefix or text[0] in ft_string_prefixes):
+            text = text[1:]
+        ft_string_state = f'{self.string_states[text]}_FT{"R" if is_raw else ""}'
+        self.ft_string_state_stack.append(
+            FTStringState(ft_string_state)
+        )
+        self.begin(ft_string_state)
+        self.produce('BEGIN_FT_STRING')
+
+    def end_ft_string_action(self, text):
+        self.ft_string_state_stack.pop()
+        self.begin('FT_STRING_EXPR_PRESCAN' if self.in_ft_string_expr_prescan else '')
+        self.produce('END_FT_STRING')
+
+    def _handle_open_single_ft_string_brace(self, started_ft_string_expr):
+        self.bracket_nesting_level += 1
+        if not started_ft_string_expr:
+            self.ft_string_state_stack[-1].push_bracket_state(self.bracket_nesting_level)
+            self.begin('FT_STRING_EXPR_PRESCAN')
+            self.in_ft_string_expr_prescan += 1
+        self.produce('{')
+
+    def open_ft_string_brace_action(self, text):
+        len_text = len(text)
+        started_ft_string_expr = False
+        if self.ft_string_state_stack[-1].in_format_specifier():
+            self._handle_open_single_ft_string_brace(started_ft_string_expr)
+            len_text -= 1
+            started_ft_string_expr = True
+        assert not self.ft_string_state_stack[-1].in_format_specifier()
+
+        double_braces = len_text // 2
+        for _ in range(double_braces):
+            self.produce('CHARS', '{')
+        len_text -= (double_braces*2)
+
+        if len_text:
+            assert len_text == 1
+            self._handle_open_single_ft_string_brace(started_ft_string_expr)
+
+    def _handle_close_single_ft_string_brace(self):
+        ft_string_bracket_level = self.ft_string_state_stack[-1].bracket_nesting_level()
+        if ft_string_bracket_level is None or self.bracket_nesting_level < ft_string_bracket_level:
+            # To help try to parse a little further, don't reduce the bracket
+            # nesting level more.
+            self.error(
+                # Unfortunately the scanner doesn't know which
+                "f-string or t-string: single '}' is not allowed",
+                pos=self.get_current_scan_pos(),
+                fatal=False)
+            self.produce('}', '}')
+        else:
+            self.produce(self.close_brace_action('}'), '}')
+
+    def close_ft_string_brace_action(self, text):
+        len_text = len(text)
+        while len_text and self.ft_string_state_stack[-1].in_format_specifier():
+            self._handle_close_single_ft_string_brace()
+            len_text -= 1
+
+        double_braces = len_text // 2
+        for _ in range(double_braces):
+            self.produce('CHARS', '}')
+        len_text -= double_braces*2
+
+        if len_text:
+            self._handle_close_single_ft_string_brace()
 
     def unclosed_string_action(self, text):
         self.end_string_action(text)
@@ -443,7 +531,7 @@ class PyrexScanner(Scanner):
             sy, systring = self.read()
         except UnrecognizedInput:
             self.error_at_scanpos("Unrecognized character")
-            return  # just a marker, error() always raises
+            return -1  # just a marker, error() always raises
         if sy == IDENT:
             if systring in self.keywords:
                 if systring == 'print' and print_function in self.context.future_directives:
@@ -480,7 +568,6 @@ class PyrexScanner(Scanner):
         self.sy = sy
         self.systring = systring
         self.last_token_position_tuple = pos
-
 
     def error(self, message, pos=None, fatal=True):
         if pos is None:
@@ -524,7 +611,7 @@ class PyrexScanner(Scanner):
     def expect_dedent(self):
         self.expect('DEDENT', "Expected a decrease in indentation level")
 
-    def expect_newline(self, message="Expected a newline", ignore_semicolon: cython.bint = False):
+    def expect_newline(self, message="Expected a newline", ignore_semicolon=False):
         # Expect either a newline or end of file
         useless_trailing_semicolon = None
         if ignore_semicolon and self.sy == ';':
@@ -575,3 +662,39 @@ def tentatively_scan(scanner: PyrexScanner):
             scanner.put_back_on_failure = put_back_on_failure
     finally:
         release_errors(ignore=True)
+
+
+class FTStringState:
+    def __init__(self, scanner_state):
+        self.scanner_state = scanner_state
+        self.bracket_states = []
+
+    def bracket_nesting_level(self):
+        if not self.bracket_states:
+            return None
+        return self.bracket_states[-1].bracket_nesting_level
+
+    def in_format_specifier(self):
+        if not self.bracket_states:
+            return False
+        return self.bracket_states[-1].in_format_specifier
+
+    def set_in_format_specifier(self):
+        self.bracket_states[-1].in_format_specifier = True
+
+    def push_bracket_state(self, bracket_nesting_level: int):
+        self.bracket_states.append(FTStringBracketState(bracket_nesting_level))
+
+    def pop_bracket_state(self):
+        self.bracket_states.pop()
+
+
+class FTStringBracketState:
+    # Because of the way this is accessed, it probably doesn't make sense as a cdef class
+    # so just use __slots__ to keep it compact.
+    __slots__ = ('bracket_nesting_level', 'in_format_specifier')
+    bracket_nesting_level: int
+    in_format_specifier: bool
+    def __init__(self, bracket_nesting_level: int):
+        self.bracket_nesting_level = bracket_nesting_level
+        self.in_format_specifier = False

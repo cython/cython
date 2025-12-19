@@ -160,12 +160,11 @@ class Scanner:
             return (text, action)
         else:
             if self.cur_pos == self.start_pos:
-                if self.cur_char is EOL:
-                    self.next_char()
                 if self.cur_char is None or self.cur_char is EOF:
                     return ('', None)
             raise Errors.UnrecognizedInput(self, self.state_name)
 
+    @cython.final
     def run_machine_inlined(self):
         """
         Inlined version of run_machine for speed.
@@ -278,37 +277,6 @@ class Scanner:
             if action is not None:
                 print("Doing %s" % action)
         return action
-
-    def next_char(self):
-        input_state: cython.int = self.input_state
-        if self.trace:
-            print("Scanner: next: %s [%d] %d" % (" " * 20, input_state, self.cur_pos))
-        if input_state == 1:
-            self.cur_pos = self.next_pos
-            c = self.read_char()
-            if c == '\n':
-                self.cur_char = EOL
-                self.input_state = 2
-            elif not c:
-                self.cur_char = EOL
-                self.input_state = 4
-            else:
-                self.cur_char = c
-        elif input_state == 2:
-            self.cur_char = '\n'
-            self.input_state = 3
-        elif input_state == 3:
-            self.cur_line += 1
-            self.cur_line_start = self.cur_pos = self.next_pos
-            self.cur_char = BOL
-            self.input_state = 1
-        elif input_state == 4:
-            self.cur_char = EOF
-            self.input_state = 5
-        else:  # input_state = 5
-            self.cur_char = ''
-        if self.trace:
-            print("--> [%d] %d %r" % (input_state, self.cur_pos, self.cur_char))
 
     def position(self) -> tuple:
         """

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """Simple, brute-force N-Queens solver."""
 
@@ -81,16 +81,15 @@ def test_n_queens(iterations, size=8, scale: cython.long = 1, timer=time.perf_co
 main = test_n_queens
 
 
-def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
-    return test_n_queens(repeat, 7, scale, timer)
+def run_benchmark(repeat=True, scale=1):
+    from util import repeat_to_accuracy
 
+    def single_run(size: cython.int, scale: cython.long, timer):
+        s: cython.long
+        t0 = timer()
+        for s in range(scale):
+            list(n_queens(size))
+        t1 = timer()
+        return t1 - t0
 
-if __name__ == "__main__":
-    import util
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description=("Test the performance of an N-Queens solvers."))
-    util.add_standard_options_to(parser)
-    options, args = parser.parse_args()
-
-    util.run_benchmark(options, options.num_runs, test_n_queens)
+    return repeat_to_accuracy(single_run, 7, scale=scale, repeat=repeat)[0]
