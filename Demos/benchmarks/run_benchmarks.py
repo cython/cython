@@ -196,36 +196,41 @@ def cythonize_cython(cython_dir: pathlib.Path):
         os.path.join(*module.split('.')) + '.py'
         for module in compiled_modules
     ]
+    parallel = f'-j{len(source_files)}'
 
     cythonize_times = {}
 
     # Cythonize modules in Python.
-    times = run_timed_python(["cythonize.py", "-f", *source_files], cwd=cython_dir)
+    times = run_timed_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
     t = times['user']
-    logging.info(f"    Cythonize modules in Python: {t:.2f} sec")
+    logging.info(f"    Cythonize modules in Python: {t:.2f} sec user ({times['elapsed']} sec)")
     cythonize_times['cythonize_python'] = [t]
 
     # Build binary modules (without cythonize).
-    times = run_timed_python(["setup.py", "build_ext", "-i", "--cython-compile-minimal"], cwd=cython_dir)
+    # To avoid partially compiled imports, import all non-compiled Cython modules before compiling them.
+    pre_imports = ','.join(compiled_modules)
+    times = run_timed_python(
+        ["-c", f"import {pre_imports}; import setup; setup.run_build()", "build_ext", "-i", parallel, "--cython-compile-minimal"],
+        cwd=cython_dir)
     t = times['user']
-    logging.info(f"    'setup.py build_ext --cython-compile-minimal' after translation: {t:.2f} sec")
+    logging.info(f"    'setup.py build_ext --cython-compile-minimal' after translation: {t:.2f} sec user ({times['elapsed']} sec)")
     cythonize_times['cythonize_build_ext'] = [t]
 
     # Cythonize modules with minimal binary Cython.
-    times = run_timed_python(["cythonize.py", "-f", *source_files], cwd=cython_dir)
+    times = run_timed_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
     t = times['user']
-    logging.info(f"    Cythonize modules with minimal compiled Cython: {t:.2f} sec")
+    logging.info(f"    Cythonize modules with minimal compiled Cython: {t:.2f} sec user ({times['elapsed']} sec)")
     cythonize_times['cythonize_compiled_minimal'] = [t]
 
     # Build binary modules (without cythonize). Time not reported.
-    times = run_timed_python(["setup.py", "build_ext", "-i"], cwd=cython_dir)
+    times = run_timed_python(["setup.py", "build_ext", "-i", parallel], cwd=cython_dir)
     t = times['user']
-    logging.info(f"    'setup.py build_ext' after translation: {t:.2f} sec")
+    logging.info(f"    'setup.py build_ext' after translation: {t:.2f} sec user ({times['elapsed']} sec)")
 
     # Cythonize modules with binary Cython.
-    times = run_timed_python(["cythonize.py", "-f", *source_files], cwd=cython_dir)
+    times = run_timed_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
     t = times['user']
-    logging.info(f"    Cythonize modules with compiled Cython: {t:.2f} sec")
+    logging.info(f"    Cythonize modules with compiled Cython: {t:.2f} sec user ({times['elapsed']} sec)")
     cythonize_times['cythonize_compiled'] = [t]
 
     return cythonize_times
@@ -474,9 +479,8 @@ def benchmark_revision(
         timings = {}
         sizes = {}
 
-        if benchmarks or not benchmark_cythonize:
+        if benchmarks or benchmark_cythonize:
             logging.info(f"### Preparing benchmark run for {revision}.")
-
             bm_dir.mkdir(parents=True)
             bm_files = copy_benchmarks(bm_dir, benchmarks)
 
@@ -495,9 +499,10 @@ def benchmark_revision(
                 if show_size:
                     sizes.update(measure_benchmark_sizes(bm_files))
 
+        if benchmarks:
             logging.info(f"### Running benchmarks for {revision}.")
             pythonpath = cython_dir if plain_python else None
-            timings = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
+            timings.update(run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler))
 
         if cythonize_times:
             timings.update(cythonize_times)
