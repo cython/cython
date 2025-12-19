@@ -13923,8 +13923,23 @@ class CmpNode:
             type1, type2 = operand1.type, self.operand2.type
             if result_is_bool or (type1.is_builtin_type and type2.is_builtin_type):
                 if type1 is Builtin.unicode_type or type2 is Builtin.unicode_type:
-                    self.special_bool_cmp_utility_code = UtilityCode.load_cached("UnicodeEquals", "StringTools.c")
-                    self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
+                    if operand1.is_string_literal and operand1.can_coerce_to_char_literal():
+                        # We need to keep the signature (obj1, obj2, eq), so we generate one macro function per character.
+                        character = ord(operand1.value[0])
+                        is_str = type2 is Builtin.unicode_type
+                        self.special_bool_cmp_utility_code = TempitaUtilityCode.load_cached(
+                            "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': True})
+                        self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_ch{character}_{'str' if is_str else 'obj'}"
+                    elif self.operand2.is_string_literal and self.operand2.can_coerce_to_char_literal():
+                        # We need to keep the signature (obj1, obj2, eq), so we generate one macro function per character.
+                        character = ord(self.operand2.value[0])
+                        is_str = type1 is Builtin.unicode_type
+                        self.special_bool_cmp_utility_code = TempitaUtilityCode.load_cached(
+                            "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': False})
+                        self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_{'str' if is_str else 'obj'}_ch{character}"
+                    else:
+                        self.special_bool_cmp_utility_code = UtilityCode.load_cached("UnicodeEquals", "StringTools.c")
+                        self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
                     return True
                 elif type1 is Builtin.bytes_type or type2 is Builtin.bytes_type:
                     self.special_bool_cmp_utility_code = UtilityCode.load_cached("BytesEquals", "StringTools.c")
