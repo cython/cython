@@ -1,4 +1,3 @@
-import cython
-obj = 123
-i1 = cython.cast(cython.int, obj)
-i2 = cython.cast(cython.int, obj, typecheck=True)
+obj = [1, 2, 3]
+l1 = cython.cast(list, obj)
+l2 = cython.cast(list, obj, typecheck=True)

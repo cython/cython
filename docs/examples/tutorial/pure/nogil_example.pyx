@@ -4,5 +4,5 @@ with nogil:
 
 
 
-cdef int func_released_gil() nogil:
+cdef int func_not_needing_the_gil() nogil:
     return 1

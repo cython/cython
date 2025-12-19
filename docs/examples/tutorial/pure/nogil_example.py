@@ -4,5 +4,5 @@ with cython.nogil:
 @cython.nogil
 @cython.cfunc
 @cython.returns(cython.int)
-def func_released_gil() -> cython.int:
+def func_not_needing_the_gil() -> cython.int:
     return 1

@@ -1,4 +1,3 @@
-cdef object obj = 123
-
-i1 = <int>obj
-i2 = <int?>obj
+cdef object obj = [1, 2, 3]
+i1 = <list>obj
+i2 = <list?>obj

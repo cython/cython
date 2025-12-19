@@ -3,7 +3,10 @@
 Pure Python Mode
 ================
 
-The Cython compiler supports two main syntax styles. While we present the traditional :file:`.pyx` syntax for comparison, **this page primarily focuses on teaching the modern Pure Python syntax** (used in :file:`.py` files), as it allows for easier integration with existing Python codebases.
+The Cython compiler supports two main syntax styles.
+While we present the traditional :file:`.pyx` syntax for comparison,
+**this page primarily focuses on teaching the modern Pure Python syntax** (used in :file:`.py` files),
+as it allows for easier integration with existing Python codebases.
 
 .. include::
     ../two-syntax-variants-used
@@ -38,11 +41,18 @@ because it depends on features of the Cython compiler.
 Augmenting .pxd
 ---------------
 
-Using an augmenting :file:`.pxd` allows to leave the original :file:`.py` file completely untouched. On the other hand, one needs to maintain both the :file:`.pxd` and the :file:`.py` to keep them in sync.
+Using an augmenting :file:`.pxd` allows to leave the original :file:`.py` file completely untouched.
+On the other hand, one needs to maintain both the :file:`.pxd` and the :file:`.py` to keep them in sync.
 
-While declarations in a :file:`.pyx` file must correspond exactly with those of a :file:`.pxd` file with the same name (and any contradiction results in a compile time error, see :doc:`pxd_files`), the untyped definitions in a :file:`.py` file can be overridden and augmented with static types by the more specific ones present in a :file:`.pxd`.
+While declarations in a :file:`.pyx` file must correspond exactly with those of a :file:`.pxd` file
+with the same name (and any contradiction results in a compile time error, see :doc:`pxd_files`),
+the untyped definitions in a :file:`.py` file can be overridden and augmented with static types
+by the more specific ones present in a :file:`.pxd`.
 
-If a :file:`.pxd` file is found with the same name as the :file:`.py` file being compiled, the compiler will convert the corresponding definitions in the :file:`.py` file to be of the declared type. The following tabs illustrate the process, showing the original Python file and the final equivalent Cython code, which are both defined by the declarations in the supplementing :file:`.pxd` file:
+If a :file:`.pxd` file is found with the same name as the :file:`.py` file being compiled,
+the compiler will convert the corresponding definitions in the :file:`.py` file to be of the declared type.
+The following tabs illustrate the process, showing the original Python file and the final equivalent Cython code,
+which are both defined by the declarations in the supplementing :file:`.pxd` file:
 
 .. tabs::
 
@@ -374,7 +384,7 @@ Further Cython functions and declarations
         .. literalinclude:: ../../examples/tutorial/pure/sizeof.pyx
            :caption: sizeof.pyx
 
-* ``typeof`` returns a string representation of the argument's type for debugging purposes. It can take expressions and is a compile-time feature.
+* ``typeof`` returns a string representation of the argument's type for debugging purposes. It can take expressions.
 
   .. tabs::
 
