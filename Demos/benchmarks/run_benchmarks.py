@@ -41,7 +41,7 @@ def mean(values: list):
     return math.fsum(values) / len(values)
 
 
-def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None):
+def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_lang=False):
     env = os.environ.copy()
     if pythonpath:
         env['PYTHONPATH'] = pythonpath
@@ -49,12 +49,36 @@ def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None):
         env['CFLAGS'] = env.get('CFLAGS', '') + " " + ' '.join(f" -D{macro}" for macro in c_macros)
     if tmp_dir:
         env.update(CCACHE_NOHASHDIR="1",CCACHE_BASEDIR=str(tmp_dir))
+    if unset_lang:
+        env['LANG'] = ''
 
     try:
         return subprocess.run(command, cwd=str(cwd) if cwd else None, check=True, capture_output=True, env=env)
     except subprocess.CalledProcessError as exc:
         logging.error(f"Command failed: {' '.join(map(str, command))}\nOutput:\n{exc.stderr.decode()}")
         raise
+
+
+def run_timed_python(python_command, **kwargs):
+    output = run(['time', sys.executable, *python_command], unset_lang=True, **kwargs)
+
+    import re
+    parse = re.compile(r"([0-9.:]+)([%\w]+)").findall
+
+    results = {}
+    for line in output.stderr.decode().splitlines()[-2:]:
+        for number, name in parse(line):
+            if ':' in number:
+                value = 0
+                factor = 1
+                for part in number.split(':'):
+                    value = value * factor + float(part)
+                    factor *= 60
+            else:
+                value = float(number)
+            results[name] = value
+
+    return results
 
 
 def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None):
@@ -84,12 +108,14 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c
     source_files = bm_files + util_files
 
     logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
-    run(
-        [sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *source_files, *(cythonize_args or [])],
+    times = run_timed_python(
+        [str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *source_files, *(cythonize_args or [])],
         cwd=cython_dir,
         c_macros=c_macros,
         tmp_dir=tmp_dir,
     )
+    return times['user']
+
 
 def compile_shared_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c_macros=None, tmp_dir=None):
     extensions = "\n".join([f'''Extension("{bm_file.name.split('.')[0]}", ["{bm_file}"]),''' for bm_file in bm_files])
@@ -113,13 +139,14 @@ setup(
     bm_list = ', '.join(bm_file.stem for bm_file in bm_files)
     bm_count = len(bm_files)
     logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
-    run(
-        [sys.executable, "setup.py", "build_ext", "-i"],
+    times = run_timed_python(
+        ["setup.py", "build_ext", "-i"],
         cwd=tmp_dir,
         pythonpath=cython_dir,
         c_macros=c_macros,
         tmp_dir=tmp_dir,
     )
+    return times['user']
 
 
 def get_git_rev(revision=None, rev_dir=None):
@@ -173,36 +200,31 @@ def cythonize_cython(cython_dir: pathlib.Path):
     cythonize_times = {}
 
     # Cythonize modules in Python.
-    t = time.perf_counter()
-    run([sys.executable, "cythonize.py", "-f", *source_files], cwd=cython_dir)
-    t = time.perf_counter() - t
+    times = run_timed_python(["cythonize.py", "-f", *source_files], cwd=cython_dir)
+    t = times['user']
     logging.info(f"    Cythonize modules in Python: {t:.2f} sec")
     cythonize_times['cythonize_python'] = [t]
 
     # Build binary modules (without cythonize).
-    t = time.perf_counter()
-    run([sys.executable, "setup.py", "build_ext", "-i", "--cython-compile-minimal"], cwd=cython_dir)
-    t = time.perf_counter() - t
+    times = run_timed_python(["setup.py", "build_ext", "-i", "--cython-compile-minimal"], cwd=cython_dir)
+    t = times['user']
     logging.info(f"    'setup.py build_ext --cython-compile-minimal' after translation: {t:.2f} sec")
     cythonize_times['cythonize_build_ext'] = [t]
 
     # Cythonize modules with minimal binary Cython.
-    t = time.perf_counter()
-    run([sys.executable, "cythonize.py", "-f", *source_files], cwd=cython_dir)
-    t = time.perf_counter() - t
+    times = run_timed_python(["cythonize.py", "-f", *source_files], cwd=cython_dir)
+    t = times['user']
     logging.info(f"    Cythonize modules with minimal compiled Cython: {t:.2f} sec")
     cythonize_times['cythonize_compiled_minimal'] = [t]
 
     # Build binary modules (without cythonize). Time not reported.
-    t = time.perf_counter()
-    run([sys.executable, "setup.py", "build_ext", "-i"], cwd=cython_dir)
-    t = time.perf_counter() - t
+    times = run_timed_python(["setup.py", "build_ext", "-i"], cwd=cython_dir)
+    t = times['user']
     logging.info(f"    'setup.py build_ext' after translation: {t:.2f} sec")
 
     # Cythonize modules with binary Cython.
-    t = time.perf_counter()
-    run([sys.executable, "cythonize.py", "-f", *source_files], cwd=cython_dir)
-    t = time.perf_counter() - t
+    times = run_timed_python(["cythonize.py", "-f", *source_files], cwd=cython_dir)
+    t = times['user']
     logging.info(f"    Cythonize modules with compiled Cython: {t:.2f} sec")
     cythonize_times['cythonize_compiled'] = [t]
 
@@ -399,7 +421,6 @@ def benchmark_revisions(
 
             hashes[rev_hash] = revision
 
-        logging.info(f"### Preparing benchmark run for {revision_name}.")
         timings[revision_name], sizes[revision_name] = benchmark_revision(
             revision, benchmarks, cythonize_args, profiler, cythonize, plain_python, show_size=show_size)
 
@@ -433,8 +454,8 @@ def benchmark_revision(
     if with_profiler:
         cythonize_args = (cythonize_args or []) + ['--annotate']
 
-    cythonize = 'cythonize' in benchmarks
-    if cythonize:
+    benchmark_cythonize = 'cythonize' in benchmarks
+    if benchmark_cythonize:
         benchmarks = benchmarks[:]
         benchmarks.remove('cythonize')
 
@@ -446,14 +467,14 @@ def benchmark_revision(
         git_clone(cython_dir, revision=None if plain_python else revision)
 
         cythonize_times = None
-        if cythonize:
+        if benchmark_cythonize:
             logging.info(f"### Running cythonize benchmarks for {revision}.")
             cythonize_times = cythonize_cython(cython_dir)
 
         timings = {}
         sizes = {}
 
-        if benchmarks or not cythonize:
+        if benchmarks or not benchmark_cythonize:
             logging.info(f"### Preparing benchmark run for {revision}.")
 
             bm_dir.mkdir(parents=True)
@@ -467,7 +488,9 @@ def benchmark_revision(
                 if use_shared_module:
                     compile_shared_benchmarks(cython_dir, bm_files, c_macros=c_macros, tmp_dir=bm_dir)
                 else:
-                    compile_benchmarks(cython_dir, bm_files, cythonize_args, c_macros=c_macros, tmp_dir=base_dir_str)
+                    cythonize_time = compile_benchmarks(cython_dir, bm_files, cythonize_args, c_macros=c_macros, tmp_dir=base_dir_str)
+                    if benchmark_cythonize:
+                        timings['cythonize_benchmarks'] = [cythonize_time]
 
                 if show_size:
                     sizes.update(measure_benchmark_sizes(bm_files))
@@ -478,7 +501,7 @@ def benchmark_revision(
 
         if cythonize_times:
             timings.update(cythonize_times)
-        if show_size and cythonize:
+        if show_size and benchmark_cythonize:
             sizes.update(measure_all_dll_sizes(cython_dir))
 
     return timings, (sizes or None)
