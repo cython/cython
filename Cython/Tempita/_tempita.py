@@ -42,10 +42,9 @@ __all__ = ['TemplateError', 'Template', 'sub', 'bunch']
 
 in_re = re.compile(r'\s+in\s+')
 var_re = re.compile(r'^[a-z_][a-z0-9_]*$', re.I)
-basestring_ = (bytes, str)
 
 def coerce_text(v):
-    if not isinstance(v, basestring_):
+    if not isinstance(v, str):
         if hasattr(v, '__str__'):
             return str(v)
         else:
@@ -116,7 +115,7 @@ class Template:
             delimiters = (self.default_namespace['start_braces'],
                           self.default_namespace['end_braces'])
         else:
-            #assert len(delimiters) == 2 and all([isinstance(delimiter, basestring)
+            #assert len(delimiters) == 2 and all([isinstance(delimiter, str)
             #                                     for delimiter in delimiters])
             self.default_namespace = self.__class__.default_namespace.copy()
             self.default_namespace['start_braces'] = delimiters[0]
@@ -191,7 +190,7 @@ class Template:
             result = self._interpret_inherit(result, defs, inherit, ns)
         return result
 
-    def _interpret(self, ns):
+    def _interpret(self, ns) -> tuple:
         __traceback_hide__ = True
         parts = []
         defs = {}
@@ -220,7 +219,7 @@ class Template:
     def _interpret_codes(self, codes, ns, out, defs):
         __traceback_hide__ = True
         for item in codes:
-            if isinstance(item, basestring_):
+            if isinstance(item, str):
                 out.append(item)
             else:
                 self._interpret_code(item, ns, out, defs)
@@ -291,7 +290,7 @@ class Template:
         __traceback_hide__ = True
         # @@: if/else/else gets through
         for part in parts:
-            assert not isinstance(part, basestring_)
+            assert not isinstance(part, str)
             name, pos = part[0], part[1]
             if name == 'else':
                 result = True
@@ -340,7 +339,7 @@ class Template:
                 except UnicodeDecodeError:
                     value = bytes(value)
             else:
-                if not isinstance(value, basestring_):
+                if not isinstance(value, str):
                     value = coerce_text(value)
                 if (isinstance(value, str)
                         and self.default_encoding):
@@ -547,7 +546,7 @@ del _Empty
 ############################################################
 
 
-def lex(s, name=None, trim_whitespace=True, line_offset=0, delimiters=None):
+def lex(s, name=None, trim_whitespace=True, line_offset=0, delimiters=None) -> list:
     """
     Lex a string into chunks:
 
@@ -607,7 +606,7 @@ def lex(s, name=None, trim_whitespace=True, line_offset=0, delimiters=None):
     if part:
         chunks.append(part)
     if trim_whitespace:
-        chunks = trim_lex(chunks)
+        trim_lex(chunks)
     return chunks
 
 statement_re = re.compile(r'^(?:if |elif |for |def |inherit |default |py:)')
@@ -616,7 +615,7 @@ trail_whitespace_re = re.compile(r'\n\r?[\t ]*$')
 lead_whitespace_re = re.compile(r'^[\t ]*\n')
 
 
-def trim_lex(tokens):
+def trim_lex(tokens: list):
     r"""
     Takes a lexed set of tokens, and removes whitespace when there is
     a directive on a line by itself:
@@ -625,11 +624,12 @@ def trim_lex(tokens):
        >>> tokens
        [('if x', (1, 3)), '\nx\n', ('endif', (3, 3)), '\ny']
        >>> trim_lex(tokens)
+       >>> tokens
        [('if x', (1, 3)), 'x\n', ('endif', (3, 3)), 'y']
     """
     last_trim = None
     for i, current in enumerate(tokens):
-        if isinstance(current, basestring_):
+        if isinstance(current, str):
             # we don't trim this
             continue
         item = current[0]
@@ -643,8 +643,8 @@ def trim_lex(tokens):
             next_chunk = ''
         else:
             next_chunk = tokens[i + 1]
-        if (not isinstance(next_chunk, basestring_)
-                or not isinstance(prev, basestring_)):
+        if (not isinstance(next_chunk, str)
+                or not isinstance(prev, str)):
             continue
         prev_ok = not prev or trail_whitespace_re.search(prev)
         if i == 1 and not prev.strip():
@@ -671,10 +671,9 @@ def trim_lex(tokens):
                     m = lead_whitespace_re.search(next_chunk)
                     next_chunk = next_chunk[m.end():]
                     tokens[i + 1] = next_chunk
-    return tokens
 
 
-def find_position(string, index, last_index, last_pos):
+def find_position(string: str, index, last_index, last_pos) -> tuple:
     """Given a string and index, return (line, column)"""
     lines = string.count('\n', last_index, index)
     if lines > 0:
@@ -745,9 +744,10 @@ def parse(s, name=None, line_offset=0, delimiters=None):
     return result
 
 
-def parse_expr(tokens, name, context=()):
-    if isinstance(tokens[0], basestring_):
+def parse_expr(tokens: list, name, context=()) -> tuple:
+    if isinstance(tokens[0], str):
         return tokens[0], tokens[1:]
+    expr: str
     expr, pos = tokens[0]
     expr = expr.strip()
     if expr.startswith('py:'):
@@ -798,7 +798,7 @@ def parse_expr(tokens, name, context=()):
     return ('expr', pos, tokens[0][0]), tokens[1:]
 
 
-def parse_cond(tokens, name, context):
+def parse_cond(tokens: list, name, context) -> tuple:
     start = tokens[0][1]
     pieces = []
     context = context + ('if',)
@@ -814,7 +814,8 @@ def parse_cond(tokens, name, context):
         pieces.append(next_chunk)
 
 
-def parse_one_cond(tokens, name, context):
+def parse_one_cond(tokens: list, name, context) -> tuple:
+    first: str
     (first, pos), tokens = tokens[0], tokens[1:]
     content = []
     if first.endswith(':'):
@@ -841,7 +842,8 @@ def parse_one_cond(tokens, name, context):
         content.append(next_chunk)
 
 
-def parse_for(tokens, name, context):
+def parse_for(tokens: list, name, context) -> tuple:
+    first: str
     first, pos = tokens[0]
     tokens = tokens[1:]
     context = ('for',) + context
@@ -876,7 +878,8 @@ def parse_for(tokens, name, context):
         content.append(next_chunk)
 
 
-def parse_default(tokens, name, context):
+def parse_default(tokens: list, name, context) -> tuple:
+    first: str
     first, pos = tokens[0]
     assert first.startswith('default ')
     first = first.split(None, 1)[1]
@@ -898,14 +901,16 @@ def parse_default(tokens, name, context):
     return ('default', pos, var, expr), tokens[1:]
 
 
-def parse_inherit(tokens, name, context):
+def parse_inherit(tokens: list, name, context) -> tuple:
+    first: str
     first, pos = tokens[0]
     assert first.startswith('inherit ')
     expr = first.split(None, 1)[1]
     return ('inherit', pos, expr), tokens[1:]
 
 
-def parse_def(tokens, name, context):
+def parse_def(tokens: list, name, context) -> tuple:
+    first: str
     first, start = tokens[0]
     tokens = tokens[1:]
     assert first.startswith('def ')
@@ -936,14 +941,14 @@ def parse_def(tokens, name, context):
         content.append(next_chunk)
 
 
-def parse_signature(sig_text, name, pos):
+def parse_signature(sig_text: str, name, pos) -> tuple:
     tokens = tokenize.generate_tokens(StringIO(sig_text).readline)
     sig_args = []
     var_arg = None
     var_kw = None
     defaults = {}
 
-    def get_token(pos=False):
+    def get_token(pos=False) -> tuple:
         try:
             tok_type, tok_string, (srow, scol), (erow, ecol), line = next(tokens)
         except StopIteration:
@@ -1012,7 +1017,7 @@ def parse_signature(sig_text, name, pos):
     return sig_args, var_arg, var_kw, defaults
 
 
-def isolate_expression(string, start_pos, end_pos):
+def isolate_expression(string: str, start_pos, end_pos) -> str:
     srow, scol = start_pos
     srow -= 1
     erow, ecol = end_pos

@@ -8,6 +8,7 @@ body:
         - DO NOT use the bug and feature tracker for general questions and support requests.
         Use the [`cython-users`](https://groups.google.com/g/cython-users) mailing list instead.
         It has a wider audience, so you get more and better answers.
+        - Do not ask for binary wheels. Cython works just fine with its Python wheel.
         - Did you search for SIMILAR ISSUES already?
         Please do, it helps to save us precious time that we otherwise could not invest into development.
         - Did you try the LATEST MASTER BRANCH or pre-release?

@@ -170,6 +170,8 @@ function's exception specification to check for an error, and then
 acquire the GIL only if needed, but ``except *`` functions are
 less efficient since Cython must always re-acquire the GIL.
 
+.. _gil_as_lock:
+
 Don't use the GIL as a lock
 ---------------------------
 
@@ -181,14 +183,13 @@ The GIL is only for the benefit of the interpreter, not for you.
 There are two issues here: 
 
 #. that future improvements in the Python interpreter may destroy 
-your "locking".
-
+   your "locking".
 #. Second, that the GIL can be released if any Python code is
-executed. The easiest way to run arbitrary Python code is to
-destroy a Python object that has a ``__del__`` function, but
-there are numerous other creative ways to do so, and it is
-almost impossible to know that you aren't going to trigger one
-of these.
+   executed. The easiest way to run arbitrary Python code is to
+   destroy a Python object that has a ``__del__`` function, but
+   there are numerous other creative ways to do so, and it is
+   almost impossible to know that you aren't going to trigger one
+   of these.
 
 If you want a reliable lock then use the tools in the standard library's
 ``threading`` module.

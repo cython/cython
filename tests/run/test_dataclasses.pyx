@@ -1219,9 +1219,9 @@ class TestReplace(unittest.TestCase):
         c.y = 20
         c1 = replace(c, x=5)
         self.assertEqual((c1.x, c1.y), (5, 10))
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValueError, TypeError)):
             replace(c, x=2, y=30)
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValueError, TypeError)):
             replace(c, y=30)
 
     def test_classvar(self):
@@ -1238,7 +1238,7 @@ class TestReplace(unittest.TestCase):
         C = C_TestReplace_test_initvar_is_specified
         c = C(1, 10)
         self.assertEqual(c.x, 10)
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValueError, TypeError)):
             replace(c, x=3)
         c = replace(c, x=3, y=5)
         self.assertEqual(c.x, 15)

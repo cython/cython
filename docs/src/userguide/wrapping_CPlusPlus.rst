@@ -457,15 +457,17 @@ that most users won't need, but for those that do a full example follows::
     cdef int raise_py_error()
     cdef int something_dangerous() except +raise_py_error
 
-If something_dangerous raises a C++ exception then raise_py_error will be
-called, which allows one to do custom C++ to Python error "translations." If
-raise_py_error does not actually raise an exception a RuntimeError will be
-raised. This approach may also be used to manage custom Python exceptions
-created using the Python C API. ::
+If ``something_dangerous`` raises a C++ exception then ``raise_py_error`` will be
+called during exception handling (i.e. typically, in a ``catch`` clause).
+At that point, ``raise_py_error`` should retrieve the current exception object,
+either by rethrowing the current exception with ``throw;`` and immediately catching it,
+or via ``std::current_exception()``.  It can then set a Python exception via the ``PyErr_Set*()``
+functions of the Python C-API to implement a custom error translation from C++ to Python.
+See the example below. If  ``raise_py_error`` does not actually raise an exception, a
+``RuntimeError`` will be raised.  This approach may also be used to manage custom
+Python exceptions created using the Python C API. ::
 
-    # raising.pxd
-    cdef extern from "Python.h" nogil:
-        ctypedef struct PyObject
+    from cpython.object cimport PyObject
 
     cdef extern from *:
         """
@@ -473,27 +475,30 @@ created using the Python C API. ::
         #include <stdexcept>
         #include <ios>
 
-        PyObject *CustomLogicError;
-
-        void create_custom_exceptions() {
-            CustomLogicError = PyErr_NewException("raiser.CustomLogicError", NULL, NULL);
-        }
-
-        void custom_exception_handler() {
+        static void cpp_handle_exception(PyObject *exc_type) {
+            if (PyErr_Occurred())
+                return; // let the latest Python exn pass through and ignore the current one
             try {
-                if (PyErr_Occurred()) {
-                    ; // let the latest Python exn pass through and ignore the current one
-                } else {
-                    throw;
-                }
+                throw;
             }  catch (const std::logic_error& exn) {
-                // Add mapping of std::logic_error -> CustomLogicError
-                PyErr_SetString(CustomLogicError, exn.what());
+                PyErr_SetString(exc_type, exn.what());
             } catch (...) {
                 PyErr_SetString(PyExc_RuntimeError, "Unknown exception");
             }
         }
+		"""
 
+        cdef void cpp_handle_exception(object) except *
+
+    class CustomLogicError(Exception): pass
+
+    cdef void translate_cpp_exception() except *:
+        # Pass our custom Python exception types into the C++ handler,
+        # in case it wants to raise them.
+        cpp_handle_exception(CustomLogicError)
+
+    cdef extern from *:
+        """
         class Raiser {
             public:
                 Raiser () {}
@@ -502,19 +507,9 @@ created using the Python C API. ::
                 }
         };
         """
-        cdef PyObject* CustomLogicError
-        cdef void create_custom_exceptions()
-        cdef void custom_exception_handler()
-
         cdef cppclass Raiser:
             Raiser() noexcept
-            void raise_exception() except +custom_exception_handler
-
-
-    # raising.pyx
-    create_custom_exceptions()
-    PyCustomLogicError = <object> CustomLogicError
-
+            void raise_exception() except +translate_cpp_exception
 
     cdef class PyRaiser:
         cdef Raiser c_obj
@@ -544,6 +539,92 @@ logic to handle all the standard exceptions that Cython typically handles as
 listed in the table above. The code for this standard exception handler can be
 found `here
 <https://github.com/cython/cython/blob/master/Cython/Utility/CppSupport.cpp>`__.
+
+You can reuse Cython's own C++ exception mapping with something like the following.
+Notice the ``convert_current_cpp_exception_to_python()`` function. ::
+
+    from cpython.object cimport PyObject
+
+    cdef extern from *:
+        """
+        #include <Python.h>
+        #include <stdexcept>
+        #include <ios>
+
+        static void rethrow_current_cpp_exception() {
+            throw;
+        }
+
+        void convert_current_cpp_exception_to_python();
+
+        static void cpp_handle_exception(PyObject *exc_type) {
+            if (PyErr_Occurred())
+                return;
+            try {
+                throw;
+            }  catch (const std::logic_error& exn) {
+                PyErr_SetString(exc_type, exn.what());
+            } catch (...) {
+                convert_current_cpp_exception_to_python();
+            }
+        }
+        """
+
+        cdef void rethrow_current_cpp_exception() except+
+
+        cdef void cpp_handle_exception(object)
+
+    cdef public void convert_current_cpp_exception_to_python() except *:
+        rethrow_current_cpp_exception()  # declared as ``except+``, which translates the exception
+
+    class CustomLogicError(Exception): pass
+
+    cdef void translate_cpp_exception() except *:
+        # Pass our custom Python exception types into the C++ handler,
+        # in case it wants to raise them.
+        cpp_handle_exception(CustomLogicError)
+
+    # Example of usage:
+
+    cdef extern from *:
+        """
+        class Raiser {
+            public:
+                Raiser () {}
+                void raise_logic_error() {
+                    throw std::logic_error("Failure");
+                }
+                void raise_overflow_error() {
+                    throw std::overflow_error("Failure");
+                }
+        };
+        """
+        cdef cppclass Raiser:
+            Raiser() noexcept
+            void raise_logic_error() except +translate_cpp_exception
+            void raise_overflow_error() except +translate_cpp_exception
+
+    cdef class PyRaiser:
+        cdef Raiser c_obj
+
+        def raise_logic_error(self):
+            self.c_obj.raise_logic_error()
+
+        def raise_overflow_error(self):
+            self.c_obj.raise_overflow_error()
+
+If you want to use `std::exception_ptr` then you can ``cimport`` it from
+``libcpp.exception``.  That provides a special exception handler
+``exception_ptr_error_handler`` allowing you to declare a function: ::
+
+    cdef extern from "some_header":
+        void some_function() except +exception_ptr_error_handler
+
+The exception raised from ``some_function`` will always be an ``Exception``
+and the underlying ``std::exception_ptr`` can be retrieved with
+``wrapped_exception_ptr_from_exception``.  This is a slightly niche use,
+but ``std::exception_ptr`` is a useful way to safely store arbitrary C++
+exceptions for later.
 
 There is also the special form::
 
@@ -588,7 +669,7 @@ caller's syntax.
 Scoped Enumerations
 -------------------
 
-Cython supports scoped enumerations (:keyword:`enum class`) in C++ mode::
+Cython supports scoped enumerations (``enum class``) in C++ mode::
 
     cdef enum class Cheese:
         cheddar = 1
@@ -654,17 +735,26 @@ in ``libcpp.typeindex``.
 Specify C++ language in setup.py
 ================================
 
-Instead of specifying the language and the sources in the source files, it is
-possible to declare them in the :file:`setup.py` file::
+The target language (C or C++) can be specified either in each source file
+(as shown below) or in the :file:`setup.py` file.
+For the latter, create an :class:`~setuptools.Extension` object for your
+extension::
 
-   from setuptools import setup
+   from setuptools import Extension, setup
    from Cython.Build import cythonize
 
-   setup(ext_modules = cythonize(
-              "rect.pyx",                 # our Cython source
-              sources=["Rectangle.cpp"],  # additional source file(s)
-              language="c++",             # generate C++ code
-         ))
+   setup(
+       ext_modules=cythonize([
+           Extension(
+               # Declare the extension module name (including package).
+               "rect",
+               # List the main extension file together with additional source files.
+               sources=["rect.pyx", "Rectangle.cpp"],
+               # Let Cython generate C++ code and setuptools use the C++ compiler.
+               language="c++",
+           )
+       ])
+   )
 
 Cython will generate and compile the :file:`rect.cpp` file (from
 :file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
@@ -673,25 +763,6 @@ together into :file:`rect.so` on Linux, or :file:`rect.pyd` on windows,
 which you can then import in Python using
 ``import rect`` (if you forget to link the :file:`Rectangle.o`, you will
 get missing symbols while importing the library in Python).
-
-Note that the ``language`` option has no effect on user provided Extension
-objects that are passed into ``cythonize()``.  It is only used for modules
-found by file name (as in the example above).
-
-The ``cythonize()`` function in Cython versions up to 0.21 does not
-recognize the ``language`` option and it needs to be specified as an
-option to an :class:`Extension` that describes your extension and that
-is then handled by ``cythonize()`` as follows::
-
-   from setuptools import Extension, setup
-   from Cython.Build import cythonize
-
-   setup(ext_modules = cythonize(Extension(
-              "rect",                                # the extension name
-              sources=["rect.pyx", "Rectangle.cpp"], # the Cython source and
-                                                     # additional C++ source files
-              language="c++",                        # generate and compile C++ code
-         )))
 
 The options can also be passed directly from the source file, which is
 often preferable (and overrides any global option).  Starting with

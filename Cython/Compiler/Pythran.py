@@ -156,6 +156,15 @@ def to_pythran(op, ptype=None):
     if op_type.is_int:
         # Make sure that integer literals always have exactly the type that the templates expect.
         return op_type.cast_code(op.result())
+    if is_pythran_expr(op_type) and (op.result_in_temp() or getattr(op, "entry", None)):
+        # Currently Pythran seems to generate different code for lvalve and rvalue references.
+        # The inferred variable types are all in terms of rvalue references (std::declval).
+        # Anything pythran expression written in terms of lvalue references ends up not
+        # default constructable so is unsuitable for use as a Cython temp.
+        # Therefore, we must make sure that we're passing rvalue references.
+        # (std::move would also do and likely be better in the case of most temps,
+        # but maybe not all temps)
+        return f"decltype({op.result()}){{{op.result()}}}"
     if is_type(op_type, ["is_pythran_expr", "is_numeric", "is_float", "is_complex"]):
         return op.result()
     if op.is_none:

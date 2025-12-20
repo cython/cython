@@ -36,7 +36,7 @@ def bar2() -> Bar:  # warning
     pass
 
 @cython.cfunc
-def bar3() -> stdint.bar:  # error
+def bar3() -> stdint.bar:  # warning
     pass
 
 def bar4(a: cython.foo[:]):  # error
@@ -53,8 +53,8 @@ _WARNINGS = """
 39:20: Unknown type declaration 'stdint.bar' in annotation, ignoring
 
 # Spurious warnings from utility code - not part of the core test
-25:10: 'cpdef_method' redeclared
-36:10: 'cpdef_cname_method' redeclared
+26:10: 'cpdef_method' redeclared
+37:10: 'cpdef_cname_method' redeclared
 958:29: Ambiguous exception value, same as default return value: 0
 958:29: Ambiguous exception value, same as default return value: 0
 999:46: Ambiguous exception value, same as default return value: 0
@@ -65,9 +65,6 @@ _WARNINGS = """
 
 _ERRORS = """
 17:16: Unknown type declaration 'cython.bar' in annotation
-30:13: Not a type
 30:19: Unknown type declaration 'cython.bar' in annotation
-35:14: Not a type
-39:14: Not a type
 42:18: Unknown type declaration 'cython.foo[:]' in annotation
 """

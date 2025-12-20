@@ -1,9 +1,10 @@
 # mode: run
-# tag: cpp, warnings
+# tag: cpp, no-cpp-locals, warnings
 
 cimport cython
 
 from libcpp.string cimport string, npos, to_string, stoi, stof
+from cython.operator cimport dereference as deref, preincrement as preinc, predecrement as predec
 
 b_asdf = b'asdf'
 b_asdg = b'asdg'
@@ -54,234 +55,334 @@ def test_conversion(py_obj):
     cdef string s = py_obj
     return s
 
-def test_indexing(char *py_str):
+def test_constructors(ch):
     """
-    >>> test_indexing(b_asdf)
-    ('s', 's')
+    >>> b_s_7 = b_s * 7
+    >>> test_constructors(b_s) == (b'', b_s, b_s * 3) + (b_s_7, ) * 5
+    True
     """
-    cdef string s
-    s = string(py_str)
-    return chr(s[1]), chr(s.at(1))
+    cdef string clone1 = string(7, <char>ord(ch))
+    cdef string substr1 = string(clone1, 3, 1)
+    cdef string substr2 = string(clone1.c_str(), 3)
+    cdef string clone2 = string(clone1.c_str())
+    cdef string clone3 = string(clone1)
+    cdef string clone4 = string(clone1.begin(), clone1.end())
+    cdef string clone5 = string(clone1.rbegin(), clone1.rend())
 
-def test_size(char *py_str):
+    return string(), substr1, substr2, clone1, clone2, clone3, clone4, clone5
+
+def test_iterators(string s):
+    """
+    >>> test_iterators(b'XXX hello, world! XXX')
+    (True, True)
+    """
+    cdef size_t c1 = 0, c2 = 0
+
+    cdef string.iterator it = s.begin()
+    cdef string.reverse_iterator rit = s.rbegin()
+
+    preinc(it)
+    preinc(rit)
+
+    assert deref(it + 1) == deref(rit + 1)
+    assert deref(it - 1) == deref(rit - 1)
+
+    assert it - 1 < it and it < it + 1
+    assert it - 1 <= it and it <= it + 1
+    assert it + 1 > it and it > it - 1
+    assert it + 1 >= it and it >= it - 1
+
+    assert rit - 1 < rit and rit < rit + 1
+    assert rit - 1 <= rit and rit <= rit + 1
+    assert rit + 1 > rit and rit > rit - 1
+    assert rit + 1 >= rit and rit >= rit - 1
+
+    assert it == it and it != it + 1
+    assert rit == rit and rit != rit + 1
+
+    predec(it)
+    predec(rit)
+
+    while it != s.end():
+        preinc(it)
+        preinc(c1)
+
+    while rit != s.rend():
+        preinc(rit)
+        preinc(c2)
+
+    return c1 == s.size(), c1 == c2
+
+def test_assign(string s_asdf, string s_asdg):
+    """
+    >>> test_assign(b_asdf, b_asdg) == (b'XXXXXXX', b_asdf, b_asdf[0:2], b_asdg, b_asdf, b_asdg)
+    True
+    """
+    cdef string s1, s2, s3, s4, s5, s6
+
+    s1.assign(7, <char>ord('X'))
+    s2.assign(s_asdf)
+    s3.assign(s_asdf, 0, 2)
+    s4.assign(s_asdg.c_str(), 4)
+    s5.assign(s_asdf.c_str())
+    s6.assign(s_asdg.begin(), s_asdg.end())
+
+    return (s1, s2, s3, s4, s5, s6)
+
+def test_access(string s, i):
+    """
+    >>> test_access(b_asdf, 1) == (ord(b_asdf[1:2]), ) * 2
+    True
+    >>> test_access(b_asdf, 5)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    IndexError: ...
+    """
+    return s.at(i), s[i]
+
+def test_empty(string s1, string s2):
+    """
+    >>> test_empty(b'', b_asdf)
+    (True, False)
+    """
+    return s1.empty(), s2.empty()
+
+def test_size(string s):
     """
     >>> test_size(b_asdf)
     (4, 4)
     """
-    cdef string s
-    s = string(py_str)
     return s.size(), s.length()
 
-def test_compare(char *a, char *b):
+def test_capacity(string s):
     """
-    >>> test_compare(b_asdf, b_asdf)
-    0
+    >>> test_capacity(b_asdf)
+    (True, True)
+    """
+    s.reserve(9)
+    s.resize(5)
+    s.resize(7, <char>ord('X'))
+    return s.max_size() > 0, s.capacity() > 0
 
-    >>> test_compare(b_asdf, b_asdg) < 0
+def test_cstr(string s):
+    """
+    >>> test_cstr(b_asdf) == b_asdf
     True
     """
-    cdef string s = string(a)
-    cdef string t = string(b)
-    return s.compare(t)
-
-def test_empty():
-    """
-    >>> test_empty()
-    (True, False)
-    """
-    cdef string a = string(<char *>b"")
-    cdef string b = string(<char *>b"aa")
-    return a.empty(), b.empty()
-
-def test_push_back(char *a):
-    """
-    >>> test_push_back(b_asdf) == b_asdf + b_s
-    True
-    """
-    cdef string s = string(a)
-    s.push_back(<char>ord('s'))
     return s.c_str()
 
-def test_pop_back(char *a):
+def test_clear(string s):
+    """
+    >>> test_clear(b_asdf) == b''
+    True
+    """
+    s.clear()
+    return s
+
+def test_insert(string a, string b, int i):
+    """
+    >>> test_insert(b'AAAA', b'BBBB', 2) == (b'AAAA', True, b'AA' + b'B' * 4 * 4 + b'AA')
+    True
+    """
+    cdef string s = a
+    s.insert(i, b)
+    s.insert(i, b, 0, b.size())
+    s.insert(i, b.c_str())
+    cdef string o = s.insert(i, b.c_str(), b.size())
+    return (a, s == o, s)
+
+def test_insert_iterator(string s):
+    """
+    >>> test_insert_iterator(b_asdf) == b_asdf[:2] + b_asdf
+    True
+    """
+    cdef string o = string()
+    cdef string.iterator it = o.insert(o.end(), s.at(0))
+    o.insert(o.end(), 1, s.at(1))
+    o.insert(o.end(), s.begin(), s.end())
+    return o
+
+def test_pop_back(string a):
     """
     >>> test_pop_back(b'abc') == b'ab' or test_pop_back(b'abc')
     True
     """
-    cdef string s = string(a)
-    s.pop_back()
+    a.pop_back()
+    return a
+
+def test_erase(string s):
+    """
+    >>> test_erase(b_asdf) == (b'', b_asdf[:2], b_asdf[2:], b_asdf[1:], b_asdf[2:])
+    True
+    """
+    cdef string o1, o2, o3, o4, o5
+    o1, o2, o3, o4, o5 = (s, ) * 5
+    o1.erase()
+    o2.erase(2)
+    o3.erase(0, 2)
+    o4.erase(o4.begin())
+    o5.erase(o5.begin(), o5.begin() + 2)
+    return o1, o2, o3, o4, o5
+
+def test_push_back(string s, a):
+    """
+    >>> test_push_back(b_asdf, b_s) == b_asdf + b_s
+    True
+    """
+    s.push_back(<char>ord(a))
     return s
 
-def test_insert(char *a, char *b, int i):
-    """
-    >>> test_insert('AAAA'.encode('ASCII'), 'BBBB'.encode('ASCII'), 2) == 'AABBBBAA'.encode('ASCII')
-    True
-    """
-    cdef string s = string(a)
-    cdef string t = string(b)
-    cdef string u = s.insert(i, t)
-    return u.c_str()
-
-def test_copy(char *a):
-    """
-    >>> test_copy(b_asdf) == b_asdf[1:]
-    True
-    """
-    cdef string t = string(a)
-    cdef char[6] buffer
-    cdef size_t length = t.copy(buffer, 4, 1)
-    buffer[length] = c'\0'
-    return buffer
-
-def test_find(char *a, char *b):
-    """
-    >>> test_find(b_asdf, 'df'.encode('ASCII'))
-    2
-    """
-    cdef string s = string(a)
-    cdef string t = string(b)
-    cdef size_t i = s.find(t)
-    return i
-
-def test_npos(char *a, char *b):
+def test_npos(string a, string b):
     """
     >>> test_npos(b'abc', b'x')
     True
     >>> test_npos(b'abc', b'a')
     False
     """
-    cdef string s = string(a)
-    cdef string st = string(b)
-    return s.find(st) == npos
+    return a.find(b) == npos
 
-def test_clear():
+def test_append(string s1, string s2):
     """
-    >>> test_clear() == ''.encode('ASCII')
+    >>> b_1234 = b'1234'
+    >>> test_append(b_asdf, b_1234) == (True, b_asdf + b_1234 * 3 + b_1234[0:1] * 4)
     True
     """
-    cdef string s = string(<char *>"asdf")
-    s.clear()
-    return s.c_str()
+    s1.append(s2)
+    s1.append(s2.begin(), s2.end())
+    s1.append(s2.c_str())
+    s1.append(s2.c_str(), 1)
+    s1.append(2, s2[0])
+    cdef string oo = s1.append(s2, 0, 1)
+    return (s1 == oo, s1)
 
-def test_erase(char *a, size_t pos=0, size_t count=npos):
+def test_compare(string s1, string s2):
     """
-    >>> test_erase(b'abc') == b'' or test_erase(b'abc')
+    >>> all(map(lambda x: x == 0, test_compare(b_asdf, b_asdf)))
     True
-    >>> test_erase(b'abc', 1) == b'a' or test_erase(b'abc', 1)
-    True
-    >>> test_erase(b'abc', 1, 1) == b'ac' or test_erase(b'abc', 1, 1)
-    True
-    """
-    cdef string s = string(a)
-    return s.erase(pos, count)
 
-def test_assign(char *a):
-    """
-    >>> test_assign(b_asdf) == 'ggg'.encode('ASCII')
+    >>> all(map(lambda x: x > 0, test_compare(b_asdf, b_asdg)))
     True
     """
-    cdef string s = string(a)
-    s.assign(<char *>"ggg")
-    return s.c_str()
+    return (s2.compare(s1),
+            s2.compare(0, s1.size(), s1),
+            s2.compare(0, s1.size(), s1, 0, s1.size()),
+            s2.compare(s1.c_str()),
+            s2.compare(0, s1.size(), s1.c_str()),
+            s2.compare(0, s1.size(), s1.c_str(), s1.size()))
 
-
-def test_substr(char *a):
+def test_replace(string s1, string s2):
     """
-    >>> test_substr('ABCDEFGH'.encode('ASCII')) == ('BCDEFGH'.encode('ASCII'), 'BCDE'.encode('ASCII'), 'ABCDEFGH'.encode('ASCII'))
+    >>> test_replace(b_asdf, b_asdg) == (b_asdg, ) * 6
     True
     """
-    cdef string s = string(a)
-    cdef string x, y, z
-    x = s.substr(1)
-    y = s.substr(1, 4)
-    z = s.substr()
-    return x.c_str(), y.c_str(), z.c_str()
+    cdef string o1, o2, o3, o4, o5, o6
+    o1, o2, o3, o4, o5, o6 = (s1, ) * 6
+    o1.replace(0, s2.size(), s2)
+    o2.replace(0, s2.size(), s2, 0, s2.size())
+    o3.replace(0, s2.size(), s2.c_str(), s2.size())
+    o4.replace(0, s2.size(), s2.c_str())
+    o5.replace(s2.size() - 1, 1, 1, deref(s2.rbegin()))
+    o6.replace(o6.begin(), o6.end(), s2.begin(), s2.end())
+    return o1, o2, o3, o4, o5, o6
 
-def test_replace(char *a, char *b, char* fill):
+def test_substr(string s):
     """
-    >>> test_replace(b_asdf, b_asdg, b_s)  == (b_asdg+b_asdf[2:], b_asdf[:-2]+b_asdg[-2:], (b_s*4)+b_asdg[2:])
+    >>> b_test_str = b'ABCDEFGH'
+    >>> test_substr(b_test_str) == (b_test_str, b_test_str[1:], b_test_str[1:5])
     True
     """
-    cdef string s1 = string(a)
-    cdef string s2 = string(a)
-    cdef string s3 = string(b)
-    s1.replace(0, 2, s3)
-    s2.replace(s2.size()-2, 2, s3, s3.size()-2, 2)
-    s3.replace(0, 2, 4, fill[0])
-    return s1.c_str(), s2.c_str(), s3.c_str()
+    cdef string o1, o2, o3
+    o1 = s.substr()
+    o2 = s.substr(1)
+    o3 = s.substr(1, 4)
+    return o1, o2, o3
 
-def test_append(char *a, char *b):
+def test_copy(string s):
     """
-    >>> test_append(b_asdf, '1234'.encode('ASCII')) == b_asdf + '1234'.encode('ASCII')
+    >>> test_copy(b_asdf) == (b_asdf[:3], b_asdf[1:])
     True
     """
-    cdef string s = string(a)
-    cdef string t = string(b)
-    cdef string j = s.append(t)
-    return j.c_str()
+    cdef char[5] buffer1, buffer2
+    cdef size_t length1 = s.copy(buffer1, 3)
+    cdef size_t length2 = s.copy(buffer2, 4, 1)
+    buffer1[length1] = c'\0'
+    buffer2[length2] = c'\0'
+    return buffer1, buffer2
 
-def test_char_compare(py_str):
+def test_swap(string s1, string s2):
     """
-    >>> test_char_compare(b_asdf)
+    >>> test_swap(b_asdf, b_asdg) == (b_asdg, b_asdf)
     True
     """
-    cdef char *a = py_str
-    cdef string b = string(a)
-    return b.compare(b) == 0
+    s1.swap(s2)
+    return s1, s2
 
-def test_cstr(char *a):
+def test_find(string s1, string s2):
     """
-    >>> test_cstr(b_asdf) == b_asdf
+    >>> all(map(lambda x: x == 2, test_find(b_asdf, b_asdf[2:])))
     True
     """
-    cdef string b = string(a)
-    return b.c_str()
+    return (s1.find(s2),
+            s1.find(s2, 1),
+            s1.find(s2.c_str(), 0, s2.size()),
+            s1.find(s2.c_str()),
+            s1.find(s2.c_str(), 0),
+            s1.find(s2.at(0), 0))
+
+def test_rfind(string s1, string s2):
+    """
+    >>> all(map(lambda x: x == 2, test_rfind(b_asdf, b_asdf[2:])))
+    True
+    """
+    return (s1.rfind(s2),
+            s1.rfind(s2, s1.size() - 2),
+            s1.rfind(s2.c_str(), s1.size() - 2, s2.size()),
+            s1.rfind(s2.c_str()),
+            s1.rfind(s2.c_str(), s1.size() - 2),
+            s1.rfind(s2.at(0), s1.size() - 2))
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
-def test_decode(char* a):
+def test_decode(string a):
     """
     >>> print(test_decode(b_asdf))
     asdf
     """
-    cdef string b = string(a)
-    return b.decode('ascii')
+    return a.decode('ascii')
 
 
 @cython.test_assert_path_exists("//ReturnStatNode//PythonCapiCallNode")
-def test_cstr_decode(char* a):
+def test_cstr_decode(string a):
     """
     >>> print(test_cstr_decode(b_asdf))
     asdf
     """
-    cdef string b = string(a)
-    return b.c_str().decode('utf-8')
+    return a.c_str().decode('utf-8')
 
 
 @cython.test_assert_path_exists("//ReturnStatNode//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//ReturnStatNode//AttributeNode")
-def test_cstr_ptr_decode(char* a):
+def test_cstr_ptr_decode(string a):
     """
     >>> print(test_cstr_ptr_decode(b_asdf))
     asdf
     """
-    cdef string b = string(a)
-    s = b.c_str()
+    s = a.c_str()
     return s.decode('utf-8')
 
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
-def test_decode_sliced(char* a):
+def test_decode_sliced(string a):
     """
     >>> print(test_decode_sliced(b_asdf))
     sd
     """
-    cdef string b = string(a)
-    return b[1:3].decode('ascii')
+    return a[1:3].decode('ascii')
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
-def test_decode_sliced_negative(char* a):
+def test_decode_sliced_negative(string a):
     """
     >>> a,b,c,d = test_decode_sliced_negative(b_asdf)
     >>> print(a)
@@ -293,12 +394,11 @@ def test_decode_sliced_negative(char* a):
     >>> print(d)
     <BLANKLINE>
     """
-    cdef string b = string(a)
-    return b[-3:-1].decode('ascii'), b[-5:-3].decode('ascii'), b[-20:-4].decode('ascii'), b[-2:-20].decode('ascii')
+    return a[-3:-1].decode('ascii'), a[-5:-3].decode('ascii'), a[-20:-4].decode('ascii'), a[-2:-20].decode('ascii')
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
-def test_decode_sliced_end(char* a):
+def test_decode_sliced_end(string a):
     """
     >>> a,b = test_decode_sliced_end(b_asdf)
     >>> print(a)
@@ -306,12 +406,11 @@ def test_decode_sliced_end(char* a):
     >>> print(b)
     asdf
     """
-    cdef string b = string(a)
-    return b[:3].decode('ascii'), b[:42].decode('ascii')
+    return a[:3].decode('ascii'), a[:42].decode('ascii')
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
-def test_decode_sliced_end_negative(char* a):
+def test_decode_sliced_end_negative(string a):
     """
     >>> a,b,c = test_decode_sliced_end_negative(b_asdf)
     >>> print(a)
@@ -321,22 +420,20 @@ def test_decode_sliced_end_negative(char* a):
     >>> print(c)
     <BLANKLINE>
     """
-    cdef string b = string(a)
-    return b[:-1].decode('ascii'), b[:-3].decode('ascii'), b[:-4].decode('ascii')
+    return a[:-1].decode('ascii'), a[:-3].decode('ascii'), a[:-4].decode('ascii')
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
-def test_decode_sliced_start(char* a):
+def test_decode_sliced_start(string a):
     """
     >>> print(test_decode_sliced_start(b_asdf))
     df
     """
-    cdef string b = string(a)
-    return b[2:].decode('ascii')
+    return a[2:].decode('ascii')
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
-def test_decode_sliced_start_negative(char* a):
+def test_decode_sliced_start_negative(string a):
     """
     >>> a,b = test_decode_sliced_start_negative(b_asdf)
     >>> print(a)
@@ -344,19 +441,17 @@ def test_decode_sliced_start_negative(char* a):
     >>> print(b)
     asdf
     """
-    cdef string b = string(a)
-    return b[-2:].decode('ascii'), b[-20:].decode('ascii')
+    return a[-2:].decode('ascii'), a[-20:].decode('ascii')
 
-def test_equals_operator(char *a, char *b):
+def test_equals_operator(char *a, string b):
     """
     >>> test_equals_operator(b_asdf, b_asdf)
     (True, False)
     """
     cdef string s = string(a)
-    cdef string t = string(b)
-    return t == s, t != <char *>"asdf"
+    return b == s, b != <char *>"asdf"
 
-def test_less_than(char *a, char *b):
+def test_less_than(string a, char *b):
     """
     >>> test_less_than(b_asdf[:-1], b_asdf)
     (True, True, True)
@@ -364,11 +459,10 @@ def test_less_than(char *a, char *b):
     >>> test_less_than(b_asdf[:-1], b_asdf[:-1])
     (False, False, True)
     """
-    cdef string s = string(a)
     cdef string t = string(b)
-    return (s < t, s < b, s <= b)
+    return (a < t, a < b, a <= b)
 
-def test_greater_than(char *a, char *b):
+def test_greater_than(string a, char *b):
     """
     >>> test_greater_than(b_asdf[:-1], b_asdf)
     (False, False, False)
@@ -376,9 +470,8 @@ def test_greater_than(char *a, char *b):
     >>> test_greater_than(b_asdf[:-1], b_asdf[:-1])
     (False, False, True)
     """
-    cdef string s = string(a)
     cdef string t = string(b)
-    return (s > t, s > b, s >= b)
+    return (a > t, a > b, a >= b)
 
 
 def test_iteration(string s):
@@ -390,34 +483,6 @@ def test_iteration(string s):
     """
     return [c for c in s]
 
-def test_to_string(x):
-    """
-    >>> print(test_to_string(5))
-    si=5 sl=5 ss=5 sss=5
-    >>> print(test_to_string(-5))
-    si=-5 sl=-5 ss=5 sss=-5
-    """
-    si = to_string(<int>x).decode('ascii')
-    sl = to_string(<long>x).decode('ascii')
-    ss = to_string(<size_t>abs(x)).decode('ascii')
-    sss = to_string(<ssize_t>x).decode('ascii')
-    return f"si={si} sl={sl} ss={ss} sss={sss}"
-
-def test_stoi(char *a):
-    """
-    >>> test_stoi(b'5')
-    5
-    """
-    cdef string s = string(a)
-    return stoi(s)
-
-def test_stof(char *a):
-    """
-    >>> test_stof(b'5.5')
-    5.5
-    """
-    cdef string s = string(a)
-    return stof(s)
 
 def test_to_string(x):
     """
@@ -433,35 +498,23 @@ def test_to_string(x):
     return f"si={si} sl={sl} ss={ss} sss={sss}"
 
 
-def test_stoi(char *a):
+def test_stoi(string a):
     """
     >>> test_stoi(b'5')
     5
     """
-    cdef string s = string(a)
-    return stoi(s)
+    return stoi(a)
 
 
-def test_stof(char *a):
+def test_stof(string a):
     """
     >>> test_stof(b'5.5')
     5.5
     """
-    cdef string s = string(a)
-    return stof(s)
+    return stof(a)
 
 
-def test_swap():
-    """
-    >>> test_swap()
-    """
-    cdef string s1 = b_asdf, s_asdf = b_asdf
-    cdef string s2 = b_asdg, s_asdg = b_asdg
-    s1.swap(s2)
-    assert s1 == s_asdg and s2 == s_asdf
-
-
-def test_float_parsing(bstring):
+def test_float_parsing(string a):
     """
     >>> test_float_parsing(b'0.5')
     0.5
@@ -472,10 +525,9 @@ def test_float_parsing(bstring):
     ... except ValueError: pass
     ... else: print("NOT RAISED!")
     """
-    cdef string s = bstring
-    return float(s)
+    return float(a)
 
 
 _WARNINGS = """
-21:31: Cannot pass Python object as C++ data structure reference (string &), will pass by copy.
+22:31: Cannot pass Python object as C++ data structure reference (string &), will pass by copy.
 """

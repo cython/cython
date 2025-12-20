@@ -46,7 +46,6 @@ cimport cpython.ref
 cimport cpython.sequence
 cimport cpython.set
 cimport cpython.slice
-cimport cpython.string
 cimport cpython.tuple
 cimport cpython.type
 cimport cpython.unicode

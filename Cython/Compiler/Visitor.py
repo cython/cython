@@ -546,10 +546,10 @@ class MethodDispatcherTransform(EnvTransform):
             if special_method_name == '__contains__':
                 operand1, operand2 = operand2, operand1
             elif special_method_name == '__div__':
-                if Future.division in self.current_env().global_scope().context.future_directives:
+                if Future.division in self.current_env().context.future_directives:
                     special_method_name = '__truediv__'
             obj_type = operand1.type
-            if obj_type.is_builtin_type:
+            if obj_type.is_builtin_type and not obj_type.is_exception_type:
                 type_name = obj_type.name
             else:
                 type_name = "object"  # safety measure
@@ -564,7 +564,7 @@ class MethodDispatcherTransform(EnvTransform):
         if special_method_name:
             operand = node.operand
             obj_type = operand.type
-            if obj_type.is_builtin_type:
+            if obj_type.is_builtin_type and not obj_type.is_exception_type:
                 type_name = obj_type.name
             else:
                 type_name = "object"  # safety measure
@@ -581,9 +581,9 @@ class MethodDispatcherTransform(EnvTransform):
             return None
 
         call_type = 'general' if has_kwargs else 'simple'
-        handler = getattr(self, '_handle_%s_%s' % (call_type, match_name), None)
+        handler = getattr(self, f'_handle_{call_type}_{match_name}', None)
         if handler is None:
-            handler = getattr(self, '_handle_any_%s' % match_name, None)
+            handler = getattr(self, f'_handle_any_{match_name}', None)
         return handler
 
     def _delegate_to_assigned_value(self, node, function, arg_list, kwargs):
@@ -619,7 +619,8 @@ class MethodDispatcherTransform(EnvTransform):
                     # => see if it's usable instead
                     return self._delegate_to_assigned_value(
                         node, function, arg_list, kwargs)
-                if arg_list and entry.is_cmethod and entry.scope and entry.scope.parent_type.is_builtin_type:
+                if (arg_list and entry.is_cmethod and entry.scope and
+                        entry.scope.parent_type.is_builtin_type and not entry.scope.parent_type.is_exception_type):
                     if entry.scope.parent_type is arg_list[0].type:
                         # Optimised (unbound) method of a builtin type => try to "de-optimise".
                         return self._dispatch_to_method_handler(
@@ -628,7 +629,7 @@ class MethodDispatcherTransform(EnvTransform):
                             node=node, function=function, arg_list=arg_list, kwargs=kwargs)
                 return node
             function_handler = self._find_handler(
-                "function_%s" % function.name, kwargs)
+                f"function_{function.name}", kwargs)
             if function_handler is None:
                 return self._handle_function(node, function.name, function, arg_list, kwargs)
             if kwargs:
@@ -650,7 +651,8 @@ class MethodDispatcherTransform(EnvTransform):
                 return node
             obj_type = self_arg.type
             is_unbound_method = False
-            if obj_type.is_builtin_type:
+            # Exceptions aren't necessarily exact types so could have unknown methods
+            if obj_type.is_builtin_type and not obj_type.is_exception_type:
                 if obj_type is Builtin.type_type and self_arg.is_name and arg_list and arg_list[0].type.is_pyobject:
                     # calling an unbound method like 'list.append(L,x)'
                     # (ignoring 'type.mro()' here ...)
@@ -659,6 +661,9 @@ class MethodDispatcherTransform(EnvTransform):
                     is_unbound_method = True
                 else:
                     type_name = obj_type.name
+                if type_name == 'str':
+                    # We traditionally used the type name 'unicode' for 'str' dispatch methods.
+                    type_name = 'unicode'
             else:
                 type_name = "object"  # safety measure
             return self._dispatch_to_method_handler(
@@ -671,12 +676,12 @@ class MethodDispatcherTransform(EnvTransform):
                                     is_unbound_method, type_name,
                                     node, function, arg_list, kwargs):
         method_handler = self._find_handler(
-            "method_%s_%s" % (type_name, attr_name), kwargs)
+            f"method_{type_name}_{attr_name}", kwargs)
         if method_handler is None:
             if (attr_name in TypeSlots.special_method_names
                     or attr_name in ['__new__', '__class__']):
                 method_handler = self._find_handler(
-                    "slot%s" % attr_name, kwargs)
+                    f"slot{attr_name}", kwargs)
             if method_handler is None:
                 return self._handle_method(
                     node, type_name, attr_name, function,
@@ -833,10 +838,12 @@ class PrintTree(TreeVisitor):
             elif isinstance(node, Nodes.DefNode):
                 result += "(name=\"%s\")" % node.name
             elif isinstance(node, Nodes.CFuncDefNode):
-                result += "(name=\"%s\")" % node.declared_name()
+                result += "(name=\"%s\", type=\"%s\")" % (
+                    node.declared_name(), getattr(node, "type", None))
             elif isinstance(node, ExprNodes.AttributeNode):
                 result += "(type=%s, attribute=\"%s\")" % (repr(node.type), node.attribute)
-            elif isinstance(node, (ExprNodes.ConstNode, ExprNodes.PyConstNode)):
+            elif isinstance(node,
+                    (ExprNodes.ConstNode, ExprNodes.PyConstNode, ExprNodes.ImagNode)):
                 result += "(type=%s, value=%r)" % (repr(node.type), node.value)
             elif isinstance(node, ExprNodes.ExprNode):
                 t = node.type

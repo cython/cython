@@ -56,10 +56,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyByteArray_FromString(const char*);
 #define __Pyx_PyBytes_FromStringAndSize PyBytes_FromStringAndSize
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 
-// TODO: remove this block
-#define __Pyx_PyStr_FromString        __Pyx_PyUnicode_FromString
-#define __Pyx_PyStr_FromStringAndSize __Pyx_PyUnicode_FromStringAndSize
-
 #if CYTHON_ASSUME_SAFE_MACROS
     #define __Pyx_PyBytes_AsWritableString(s)     ((char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsWritableSString(s)    ((signed char*) PyBytes_AS_STRING(s))
@@ -67,6 +63,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
     #define __Pyx_PyBytes_AsString(s)     ((const char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsSString(s)    ((const signed char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsUString(s)    ((const unsigned char*) PyBytes_AS_STRING(s))
+    #define __Pyx_PyByteArray_AsString(s) PyByteArray_AS_STRING(s)
 #else
     #define __Pyx_PyBytes_AsWritableString(s)     ((char*) PyBytes_AsString(s))
     #define __Pyx_PyBytes_AsWritableSString(s)    ((signed char*) PyBytes_AsString(s))
@@ -74,6 +71,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
     #define __Pyx_PyBytes_AsString(s)     ((const char*) PyBytes_AsString(s))
     #define __Pyx_PyBytes_AsSString(s)    ((const signed char*) PyBytes_AsString(s))
     #define __Pyx_PyBytes_AsUString(s)    ((const unsigned char*) PyBytes_AsString(s))
+    #define __Pyx_PyByteArray_AsString(s) PyByteArray_AsString(s)
 #endif
 #define __Pyx_PyObject_AsWritableString(s)    ((char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_AsWritableSString(s)    ((signed char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
@@ -83,34 +81,53 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 #define __Pyx_PyObject_FromCString(s)  __Pyx_PyObject_FromString((const char*)s)
 #define __Pyx_PyBytes_FromCString(s)   __Pyx_PyBytes_FromString((const char*)s)
 #define __Pyx_PyByteArray_FromCString(s)   __Pyx_PyByteArray_FromString((const char*)s)
-#define __Pyx_PyStr_FromCString(s)     __Pyx_PyStr_FromString((const char*)s)
 #define __Pyx_PyUnicode_FromCString(s) __Pyx_PyUnicode_FromString((const char*)s)
 #define __Pyx_PyUnicode_FromOrdinal(o)       PyUnicode_FromOrdinal((int)o)
 #define __Pyx_PyUnicode_AsUnicode            PyUnicode_AsUnicode
 
-#define __Pyx_NewRef(obj) (Py_INCREF(obj), obj)
-#define __Pyx_Owned_Py_None(b) __Pyx_NewRef(Py_None)
+static CYTHON_INLINE PyObject *__Pyx_NewRef(PyObject *obj) {
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030a0000 || defined(Py_NewRef)
+    return Py_NewRef(obj);
+#else
+    Py_INCREF(obj);
+    return obj;
+#endif
+}
+
+static CYTHON_INLINE PyObject *__Pyx_XNewRef(PyObject *obj) {
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030a0000 || defined(Py_XNewRef)
+    return Py_XNewRef(obj);
+#else
+    Py_XINCREF(obj);
+    return obj;
+#endif
+}
+
+static CYTHON_INLINE PyObject *__Pyx_Owned_Py_None(int b);
 static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b);
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
 static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject*);
-static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x);
+static CYTHON_INLINE PyObject* __Pyx_PyNumber_Long(PyObject* x);
 
 #define __Pyx_PySequence_Tuple(obj) \
     (likely(PyTuple_CheckExact(obj)) ? __Pyx_NewRef(obj) : PySequence_Tuple(obj))
 
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
-static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
+static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t);
 static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 
 #if CYTHON_ASSUME_SAFE_MACROS
 #define __Pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
 #define __Pyx_PyFloat_AS_DOUBLE(x) PyFloat_AS_DOUBLE(x)
+#define __Pyx_PyFloat_IsNonZero(x) (PyFloat_AS_DOUBLE(x) != 0.0)
 #else
 #define __Pyx_PyFloat_AsDouble(x) PyFloat_AsDouble(x)
 #define __Pyx_PyFloat_AS_DOUBLE(x) PyFloat_AsDouble(x)
+#define __Pyx_PyFloat_IsNonZero(x) PyObject_IsTrue(x)
 #endif
 #define __Pyx_PyFloat_AsFloat(x) ((float) __Pyx_PyFloat_AsDouble(x))
 
+// We call this __Pyx_PyNumber_Int() since it's the equivalent of the int() function call.
 #define __Pyx_PyNumber_Int(x) (PyLong_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Long(x))
 // __Pyx_PyNumber_Float is now in its own section since it has dependencies (needed to make
 // string conversion work the same in all circumstances).
@@ -123,7 +140,7 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #ifndef _PyLong_NON_SIZE_BITS
     #define _PyLong_NON_SIZE_BITS 3
   #endif
-  #define __Pyx_PyLong_Sign(x)  (((PyLongObject*)x)->long_value.lv_tag & _PyLong_SIGN_MASK)
+  #define __Pyx_PyLong_Sign(x)  ((int) (((PyLongObject*)x)->long_value.lv_tag & _PyLong_SIGN_MASK))
   #define __Pyx_PyLong_IsNeg(x)  ((__Pyx_PyLong_Sign(x) & 2) != 0)
   #define __Pyx_PyLong_IsNonNeg(x)  (!__Pyx_PyLong_IsNeg(x))
   #define __Pyx_PyLong_IsZero(x)  (__Pyx_PyLong_Sign(x) & 1)
@@ -167,42 +184,19 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #else
   #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->ob_digit)
   #endif
-#endif
 
-#if __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
-#define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_DecodeUTF8(c_str, size, NULL)
+  // Functions/macros that must be generally available, e.g. for truth testing.
+  #define __Pyx_PyLong_IsNonZero(x)  (!__Pyx_PyLong_IsZero(x))
 #else
-#define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_Decode(c_str, size, __PYX_DEFAULT_STRING_ENCODING, NULL)
-
-// __PYX_DEFAULT_STRING_ENCODING is either a user provided string constant
-// or we need to look it up here
-#if __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
-#include <string.h>
-
-static char* __PYX_DEFAULT_STRING_ENCODING;
-
-static int __Pyx_init_sys_getdefaultencoding_params(void) {
-    PyObject* sys;
-    PyObject* default_encoding = NULL;
-    char* default_encoding_c;
-
-    sys = PyImport_ImportModule("sys");
-    if (!sys) goto bad;
-    default_encoding = PyObject_CallMethod(sys, "getdefaultencoding", NULL);
-    Py_DECREF(sys);
-    if (!default_encoding) goto bad;
-    default_encoding_c = PyBytes_AsString(default_encoding);
-    if (!default_encoding_c) goto bad;
-    __PYX_DEFAULT_STRING_ENCODING = (char*) malloc(strlen(default_encoding_c) + 1);
-    if (!__PYX_DEFAULT_STRING_ENCODING) goto bad;
-    strcpy(__PYX_DEFAULT_STRING_ENCODING, default_encoding_c);
-    Py_DECREF(default_encoding);
-    return 0;
-bad:
-    Py_XDECREF(default_encoding);
-    return -1;
-}
+  #define __Pyx_PyLong_IsNonZero(x)  PyObject_IsTrue(x)
 #endif
+
+#if __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
+  #define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_DecodeUTF8(c_str, size, NULL)
+#elif __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+  #define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_DecodeASCII(c_str, size, NULL)
+#else
+  #define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_Decode(c_str, size, __PYX_DEFAULT_STRING_ENCODING, NULL)
 #endif
 
 /////////////// TypeConversions ///////////////
@@ -238,9 +232,36 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsString(PyObject* o) {
     return __Pyx_PyObject_AsStringAndSize(o, &ignore);
 }
 
-#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
+#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
 static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
     if (unlikely(__Pyx_PyUnicode_READY(o) == -1)) return NULL;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    {
+        const char* result;
+        Py_ssize_t unicode_length;
+        CYTHON_MAYBE_UNUSED_VAR(unicode_length); // only for __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+        #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        if (unlikely(PyArg_Parse(o, "s#", &result, length) < 0)) return NULL;
+        #else
+        result = PyUnicode_AsUTF8AndSize(o, length);
+        #endif
+        #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+        // Pre-checking "isascii" the Limited API involves making Python function calls.
+        // Therefore we do a post-check instead that the lengths of the encoded and unicode
+        // strings are the same (which is only true for ascii strings).
+        // If this isn't true then we've already done the encoding so it's a potential
+        // performance loss, but it should be better in the successful case.
+        unicode_length = PyUnicode_GetLength(o);
+        if (unlikely(unicode_length < 0)) return NULL;
+        if (unlikely(unicode_length != *length)) {
+            // raise the error
+            PyUnicode_AsASCIIString(o);
+            return NULL;
+        }
+        #endif
+        return result;
+    }
+#else /* CYTHON_COMPILING_IN_LIMITED_API */
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
     if (likely(PyUnicode_IS_ASCII(o))) {
         // cached for the lifetime of the object
@@ -251,26 +272,32 @@ static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py
         PyUnicode_AsASCIIString(o);
         return NULL;
     }
-#else /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
+#else
     return PyUnicode_AsUTF8AndSize(o, length);
 #endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
+#endif /* !CYTHON_COMPILING_IN_LIMITED_API */
 }
 #endif
 
 // Py3.7 returns a "const char*" for unicode strings
 static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
-#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
+#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
     if (PyUnicode_Check(o)) {
         return __Pyx_PyUnicode_AsStringAndSize(o, length);
     } else
-#endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII  || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT */
+#endif
 
-#if (!CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_LIMITED_API) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
     if (PyByteArray_Check(o)) {
+#if (CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS) || (CYTHON_COMPILING_IN_PYPY && (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE)))
         *length = PyByteArray_GET_SIZE(o);
         return PyByteArray_AS_STRING(o);
-    } else
+#else
+        *length = PyByteArray_Size(o);
+        if (*length == -1) return NULL;
+        return PyByteArray_AsString(o);
 #endif
+
+    } else
     {
         char* result;
         int r = PyBytes_AsStringAndSize(o, &result, length);
@@ -297,8 +324,8 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject* x) {
     return retval;
 }
 
-static PyObject* __Pyx_PyNumber_IntOrLongWrongResultType(PyObject* result, const char* type_name) {
-    __Pyx_TypeName result_type_name = __Pyx_PyType_GetName(Py_TYPE(result));
+static PyObject* __Pyx_PyNumber_LongWrongResultType(PyObject* result) {
+    __Pyx_TypeName result_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(result));
     if (PyLong_Check(result)) {
         // CPython issue #17576: warn if 'result' not of exact type int.
         if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
@@ -314,35 +341,33 @@ static PyObject* __Pyx_PyNumber_IntOrLongWrongResultType(PyObject* result, const
         return result;
     }
     PyErr_Format(PyExc_TypeError,
-                 "__%.4s__ returned non-%.4s (type " __Pyx_FMT_TYPENAME ")",
-                 type_name, type_name, result_type_name);
+                 "__int__ returned non-int (type " __Pyx_FMT_TYPENAME ")",
+                 result_type_name);
     __Pyx_DECREF_TypeName(result_type_name);
     Py_DECREF(result);
     return NULL;
 }
 
-static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
+static CYTHON_INLINE PyObject* __Pyx_PyNumber_Long(PyObject* x) {
 #if CYTHON_USE_TYPE_SLOTS
   PyNumberMethods *m;
 #endif
-  const char *name = NULL;
   PyObject *res = NULL;
   if (likely(PyLong_Check(x)))
       return __Pyx_NewRef(x);
 #if CYTHON_USE_TYPE_SLOTS
   m = Py_TYPE(x)->tp_as_number;
   if (likely(m && m->nb_int)) {
-      name = "int";
       res = m->nb_int(x);
   }
 #else
   if (!PyBytes_CheckExact(x) && !PyUnicode_CheckExact(x)) {
-      res = PyNumber_Int(x);
+      res = PyNumber_Long(x);
   }
 #endif
   if (likely(res)) {
       if (unlikely(!PyLong_CheckExact(res))) {
-          return __Pyx_PyNumber_IntOrLongWrongResultType(res, name);
+          return __Pyx_PyNumber_LongWrongResultType(res);
       }
   }
   else if (!PyErr_Occurred()) {
@@ -382,7 +407,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   }
   x = PyNumber_Index(b);
   if (!x) return -1;
-  ival = PyInt_AsSsize_t(x);
+  ival = PyLong_AsSsize_t(x);
   Py_DECREF(x);
   return ival;
 }
@@ -396,21 +421,130 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject* o) {
     PyObject *x;
     x = PyNumber_Index(o);
     if (!x) return -1;
-    ival = PyInt_AsLong(x);
+    ival = PyLong_AsLong(x);
     Py_DECREF(x);
     return ival;
   }
 }
 
+static CYTHON_INLINE PyObject *__Pyx_Owned_Py_None(int b) {
+    CYTHON_UNUSED_VAR(b);
+    return __Pyx_NewRef(Py_None);
+}
 
 static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b) {
-  return b ? __Pyx_NewRef(Py_True) : __Pyx_NewRef(Py_False);
+  return __Pyx_NewRef(b ? Py_True: Py_False);
 }
 
 
-static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
-    return PyInt_FromSize_t(ival);
+static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t ival) {
+    return PyLong_FromSize_t(ival);
 }
+
+
+/////////////// pybuiltin_invalid ///////////////
+
+static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *type_name, const char *argname) {
+    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
+    if (argname) {
+        PyErr_Format(PyExc_TypeError,
+            "Argument '%.200s' has incorrect type (expected %.200s, got " __Pyx_FMT_TYPENAME ")",
+            argname, type_name, obj_type_name
+        );
+    } else {
+        PyErr_Format(PyExc_TypeError,
+            "Expected %.200s, got " __Pyx_FMT_TYPENAME,
+            type_name, obj_type_name
+        );
+    }
+    __Pyx_DECREF_TypeName(obj_type_name);
+}
+
+
+/////////////// pyfloat_simplify.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const char *argname, int accept_none); /*proto*/
+
+/////////////// pyfloat_simplify ///////////////
+//@requires: pybuiltin_invalid
+
+static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const char *argname, int accept_none) {
+    // Convert any float-compatible Python number object into a Python float.
+    // NOTE: This function decrefs 'number' if a conversion happens to replace the original object.
+    PyObject *number = *number_var;
+    if (likely((accept_none && number == Py_None) || PyFloat_CheckExact(number))) {
+        return 0;
+    }
+
+    PyObject *float_object;
+    if (likely(PyLong_CheckExact(number))) {
+        double val;
+#if CYTHON_USE_PYLONG_INTERNALS
+        if (likely(__Pyx_PyLong_IsCompact(number))) {
+            val = (double) __Pyx_PyLong_CompactValue(number);
+        } else
+#endif
+        {
+            val = PyLong_AsDouble(number);
+            if (unlikely(val == -1.0 && PyErr_Occurred())) goto bad;
+        }
+        float_object = PyFloat_FromDouble(val);
+    }
+    else if (PyNumber_Check(number)) {
+        // PyNumber_Float() also parses strings, which we must reject.
+        float_object = PyNumber_Float(number);
+    } else {
+        __Pyx_PyBuiltin_Invalid(number, "float", argname);
+        goto bad;
+    }
+    if (unlikely(!float_object)) goto bad;
+
+    *number_var = float_object;
+    Py_DECREF(number);
+    return 0;
+
+bad:
+    *number_var = NULL;
+    Py_DECREF(number);
+    return -1;
+}
+
+
+/////////////// pyint_simplify.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const char *argname, int accept_none); /*proto*/
+
+/////////////// pyint_simplify ///////////////
+//@requires: pybuiltin_invalid
+
+static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const char *argname, int accept_none) {
+    // Convert any int-compatible Python number object into a Python int.
+    // NOTE: This function decrefs 'number' if a conversion happens to replace the original object.
+    PyObject *number = *number_var;
+    if (likely((accept_none && number == Py_None) || PyLong_CheckExact(number))) {
+        return 0;
+    }
+
+    PyObject *int_object;
+    if (likely(PyNumber_Check(number))) {
+        // PyNumber_Long() also parses strings, which we must reject.
+        int_object = PyNumber_Long(number);
+        if (unlikely(!int_object)) goto bad;
+    } else {
+        __Pyx_PyBuiltin_Invalid(number, "int", argname);
+        goto bad;
+    }
+
+    *number_var = int_object;
+    Py_DECREF(number);
+    return 0;
+
+bad:
+    *number_var = NULL;
+    Py_DECREF(number);
+    return -1;
+}
+
 
 /////////////// pynumber_float.proto ///////////////
 
@@ -461,25 +595,42 @@ no_error:
 
 
 /////////////// ToPyCTupleUtility.proto ///////////////
+
 static PyObject* {{funcname}}({{struct_type_decl}});
 
 /////////////// ToPyCTupleUtility ///////////////
+
 static PyObject* {{funcname}}({{struct_type_decl}} value) {
-    PyObject* item = NULL;
-    PyObject* result = PyTuple_New({{size}});
-    if (!result) goto bad;
+    PyObject* items[{{size}}] = { {{ ', '.join('0'*size) }} };
+    PyObject* result = NULL;
 
     {{for ix, component in enumerate(components):}}
-        {{py:attr = "value.f%s" % ix}}
-        item = {{component.to_py_function}}({{attr}});
-        if (!item) goto bad;
-        PyTuple_SET_ITEM(result, {{ix}}, item);
+        {{py:attr = f"value.f{ix}" }}
+        items[{{ix}}] = {{component.to_py_function}}({{attr}});
+        if (unlikely(!items[{{ix}}])) goto bad;
     {{endfor}}
 
+    result = PyTuple_New({{size}});
+    if (unlikely(!result)) goto bad;
+
+    for (Py_ssize_t i=0; i<{{ size }}; ++i) {
+        PyObject *item = items[i];
+        items[i] = NULL;
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        // PyTuple_SetItem() always steals a reference.
+        if (unlikely(PyTuple_SetItem(result, i, item) < 0)) goto bad;
+        #else
+        PyTuple_SET_ITEM(result, i, item);
+        #endif
+    }
+
     return result;
+
 bad:
-    Py_XDECREF(item);
     Py_XDECREF(result);
+    for (Py_ssize_t i={{ size-1 }}; i >= 0; --i) {
+        Py_XDECREF(items[i]);
+    }
     return NULL;
 }
 
@@ -515,7 +666,7 @@ bad:
 
 static void __Pyx_seq_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
     if (unlikely(!PySequence_Check(o))) {
-        __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
+        __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
         PyErr_Format(PyExc_TypeError,
                      "Expected a sequence of size %zd, got " __Pyx_FMT_TYPENAME, (Py_ssize_t) {{size}}, o_type_name);
         __Pyx_DECREF_TypeName(o_type_name);
@@ -565,30 +716,38 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject*);
 
 /////////////// UnicodeAsUCS4 ///////////////
 
-static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject* x) {
-    Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(x);
-    if (likely(length == 1)) {
-        return __Pyx_PyUnicode_READ_CHAR(x, 0);
-    } else if (likely(length >= 0)) {
+static void __Pyx_PyUnicode_AsPy_UCS4_error(Py_ssize_t length) {
+    if (likely(length >= 0)) {
         // "length == -1" indicates an error already.
         PyErr_Format(PyExc_ValueError,
                      "only single character unicode strings can be converted to Py_UCS4, "
                      "got length %" CYTHON_FORMAT_SSIZE_T "d", length);
     }
-    return (Py_UCS4)-1;
+}
+
+static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject* x) {
+    Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(x);
+    if (unlikely(length != 1)) {
+        __Pyx_PyUnicode_AsPy_UCS4_error(length);
+        return (Py_UCS4)-1;
+    }
+    return __Pyx_PyUnicode_READ_CHAR(x, 0);
 }
 
 
 /////////////// ObjectAsUCS4.proto ///////////////
 //@requires: UnicodeAsUCS4
 
-#define __Pyx_PyObject_AsPy_UCS4(x) \
-    (likely(PyUnicode_Check(x)) ? __Pyx_PyUnicode_AsPy_UCS4(x) : __Pyx__PyObject_AsPy_UCS4(x))
 static Py_UCS4 __Pyx__PyObject_AsPy_UCS4(PyObject*);
+
+static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject *x) {
+    return (likely(PyUnicode_Check(x)) ? __Pyx_PyUnicode_AsPy_UCS4(x) : __Pyx__PyObject_AsPy_UCS4(x));
+}
+
 
 /////////////// ObjectAsUCS4 ///////////////
 
-static Py_UCS4 __Pyx__PyObject_AsPy_UCS4_raise_error(long ival) {
+static void __Pyx__PyObject_AsPy_UCS4_raise_error(long ival) {
    if (ival < 0) {
        if (!PyErr_Occurred())
            PyErr_SetString(PyExc_OverflowError,
@@ -597,14 +756,14 @@ static Py_UCS4 __Pyx__PyObject_AsPy_UCS4_raise_error(long ival) {
        PyErr_SetString(PyExc_OverflowError,
                        "value too large to convert to Py_UCS4");
    }
-   return (Py_UCS4)-1;
 }
 
 static Py_UCS4 __Pyx__PyObject_AsPy_UCS4(PyObject* x) {
    long ival;
-   ival = __Pyx_PyInt_As_long(x);
+   ival = __Pyx_PyLong_As_long(x);
    if (unlikely(!__Pyx_is_valid_index(ival, 1114111 + 1))) {
-       return __Pyx__PyObject_AsPy_UCS4_raise_error(ival);
+       __Pyx__PyObject_AsPy_UCS4_raise_error(ival);
+       return (Py_UCS4)-1;
    }
    return (Py_UCS4)ival;
 }
@@ -636,7 +795,7 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
         }
         ival = PyUnicode_READ_CHAR(x, 0);
     } else {
-        ival = __Pyx_PyInt_As_long(x);
+        ival = __Pyx_PyLong_As_long(x);
     }
     if (unlikely(!__Pyx_is_valid_index(ival, maxval + 1))) {
         if (ival < 0) {
@@ -674,21 +833,21 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
     const int is_unsigned = neg_one > const_zero;
     if (is_unsigned) {
         if (sizeof({{TYPE}}) < sizeof(long)) {
-            return PyInt_FromLong((long) value);
+            return PyLong_FromLong((long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
             return PyLong_FromUnsignedLong((unsigned long) value);
-#ifdef HAVE_LONG_LONG
+#if !CYTHON_COMPILING_IN_PYPY
+        // PyLong_FromUnsignedLongLong() does not necessarily accept ULL arguments in PyPy.
+        // See https://github.com/cython/cython/issues/6890
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
             return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
 #endif
         }
     } else {
         if (sizeof({{TYPE}}) <= sizeof(long)) {
-            return PyInt_FromLong((long) value);
-#ifdef HAVE_LONG_LONG
+            return PyLong_FromLong((long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
             return PyLong_FromLongLong((PY_LONG_LONG) value);
-#endif
         }
     }
     {
@@ -737,6 +896,84 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 }
 
 
+/////////////// COrdinalToPyUnicode.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_CheckUnicodeValue(int value);
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t width, char padding_char);
+
+/////////////// COrdinalToPyUnicode ///////////////
+//@requires: StringTools.c::BuildPyUnicode
+
+static CYTHON_INLINE int __Pyx_CheckUnicodeValue(int value) {
+    return value <= 1114111;
+}
+
+static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulength, char padding_char) {
+    Py_ssize_t padding_length = ulength - 1;
+    if (likely((padding_length <= 250) && (value < 0xD800 || value > 0xDFFF))) {
+        // Encode to UTF-8 / Latin1 buffer, then decode.
+        char chars[256];
+
+        if (value <= 255) {
+            // Simple Latin1 result, fast to decode.
+            memset(chars, padding_char, (size_t) padding_length);
+            chars[ulength-1] = (char) value;
+            return PyUnicode_DecodeLatin1(chars, ulength, NULL);
+        }
+
+        char *cpos = chars + sizeof(chars);
+        if (value < 0x800) {
+            *--cpos = (char) (0x80 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0xc0 | (value & 0x1f));
+        } else if (value < 0x10000) {
+            *--cpos = (char) (0x80 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0x80 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0xe0 | (value & 0x0f));
+        } else {
+            *--cpos = (char) (0x80 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0x80 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0x80 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0xf0 | (value & 0x07));
+        }
+        cpos -= padding_length;
+        memset(cpos, padding_char, (size_t) padding_length);
+        return PyUnicode_DecodeUTF8(cpos, chars + sizeof(chars) - cpos, NULL);
+    }
+
+    if (value <= 127 && CYTHON_USE_UNICODE_INTERNALS) {
+        const char chars[1] = {(char) value};
+        return __Pyx_PyUnicode_BuildFromAscii(ulength, chars, 1, 0, padding_char);
+    }
+
+    {
+        PyObject *uchar, *padding_uchar, *padding, *result;
+
+        padding_uchar = PyUnicode_FromOrdinal(padding_char);
+        if (unlikely(!padding_uchar)) return NULL;
+        padding = PySequence_Repeat(padding_uchar, padding_length);
+        Py_DECREF(padding_uchar);
+        if (unlikely(!padding)) return NULL;
+
+        uchar = PyUnicode_FromOrdinal(value);
+        if (unlikely(!uchar)) {
+            Py_DECREF(padding);
+            return NULL;
+        }
+
+        result = PyUnicode_Concat(padding, uchar);
+        Py_DECREF(padding);
+        Py_DECREF(uchar);
+        return result;
+    }
+}
+
+
 /////////////// CIntToDigits ///////////////
 
 static const char DIGIT_PAIRS_10[2*10*10+1] = {
@@ -771,17 +1008,50 @@ static const char DIGITS_HEX[2*16+1] = {
 
 /////////////// CIntToPyUnicode.proto ///////////////
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char);
+#define {{TO_PY_FUNCTION}}(value, width, padding_char, format_char) ( \
+    ((format_char) == ('c')) ? \
+        __Pyx_uchar_{{TO_PY_FUNCTION}}(value, width, padding_char) : \
+        __Pyx__{{TO_PY_FUNCTION}}(value, width, padding_char, format_char) \
+    )
+static CYTHON_INLINE PyObject* __Pyx_uchar_{{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char);
+static CYTHON_INLINE PyObject* __Pyx__{{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char);
 
 /////////////// CIntToPyUnicode ///////////////
 //@requires: StringTools.c::IncludeStringH
 //@requires: StringTools.c::BuildPyUnicode
+//@requires: ModuleSetupCode.c::IncludeStdlibH
+//@requires: COrdinalToPyUnicode
 //@requires: CIntToDigits
 //@requires: GCCDiagnostics
 
 // NOTE: inlining because most arguments are constant, which collapses lots of code below
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char) {
+static CYTHON_INLINE PyObject* __Pyx_uchar_{{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char) {
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
+    const int is_unsigned = neg_one > const_zero;
+
+    // This check is just an awful variation on "(0 <= value <= 1114111)",
+    // but without C compiler complaints about compile time constant conditions depending on the signed/unsigned TYPE.
+    if (unlikely(!(is_unsigned || value == 0 || value > 0) ||
+                    !(sizeof(value) <= 2 || value & ~ ({{TYPE}}) 0x01fffff || __Pyx_CheckUnicodeValue((int) value)))) {
+        // PyUnicode_FromOrdinal() and chr() raise ValueError, f-strings raise OverflowError. :-/
+        PyErr_SetString(PyExc_OverflowError, "%c arg not in range(0x110000)");
+        return NULL;
+    }
+    if (width <= 1) {
+        return PyUnicode_FromOrdinal((int) value);
+    }
+    return __Pyx_PyUnicode_FromOrdinal_Padded((int) value, width, padding_char);
+}
+
+static CYTHON_INLINE PyObject* __Pyx__{{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char) {
     // simple and conservative C string allocation on the stack: each byte gives at most 3 digits, plus sign
     char digits[sizeof({{TYPE}})*3+2];
     // 'dpos' points to end of digits array + 1 initially to allow for pre-decrement looping
@@ -869,12 +1139,6 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     ((value) ? __Pyx_NewRef({{TRUE_CONST}}) : __Pyx_NewRef({{FALSE_CONST}}))
 
 
-/////////////// PyIntFromDouble.proto ///////////////
-
-// TODO: remove
-#define __Pyx_PyInt_FromDouble(value) PyLong_FromDouble(value)
-
-
 /////////////// CIntFromPyVerify ///////////////
 
 // see CIntFromPy
@@ -925,7 +1189,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 
     if (unlikely(!PyLong_Check(x))) {
         {{TYPE}} val;
-        PyObject *tmp = __Pyx_PyNumber_IntOrLong(x);
+        PyObject *tmp = __Pyx_PyNumber_Long(x);
         if (!tmp) return ({{TYPE}}) -1;
         val = {{FROM_PY_FUNCTION}}(tmp);
         Py_DECREF(tmp);
@@ -974,10 +1238,8 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
         if ((sizeof({{TYPE}}) <= sizeof(unsigned long))) {
             __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
-#ifdef HAVE_LONG_LONG
         } else if ((sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
             __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
-#endif
         }
 
     } else {
@@ -1007,10 +1269,8 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
         if ((sizeof({{TYPE}}) <= sizeof(long))) {
             __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
-#ifdef HAVE_LONG_LONG
         } else if ((sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
             __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
-#endif
         }
     }
 
@@ -1145,57 +1405,4 @@ raise_neg_overflow:
     PyErr_SetString(PyExc_OverflowError,
         "can't convert negative value to {{TYPE}}");
     return ({{TYPE}}) -1;
-}
-
-/////////////// CFuncPtrTypedef.proto ///////////////
-
-typedef void (*__Pyx_generic_func_pointer)(void);
-
-/////////////// CFuncPtrToPy.proto ///////////////
-//@requires: CFuncPtrTypedef
-
-static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer funcptr, const char* name); /* proto */
-
-/////////////// CFuncPtrToPy ///////////////
-//@requires: StringTools.c::IncludeStringH
-
-static void __Pyx_destroy_c_func_ptr_capsule(PyObject *capsule) {
-    void* ptr = PyCapsule_GetPointer(capsule, PyCapsule_GetName(capsule));
-    PyMem_Free(ptr);
-}
-
-static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer funcptr, const char* name) {
-    if (sizeof(funcptr) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
-        // The C standard does not guarantee that a function pointer fits inside a regular pointer
-        // (and on some platforms it doesn't). On these, we need to allocate space to store the function pointer
-        __Pyx_generic_func_pointer *copy_into = (__Pyx_generic_func_pointer*) PyMem_Malloc(sizeof(funcptr));
-        *copy_into = funcptr;
-        return PyCapsule_New(copy_into, name, __Pyx_destroy_c_func_ptr_capsule);
-    } else {
-        // on all other platforms (which is the vast majority, since POSIX require a function pointer
-        // can be  converted to a void*) we skip the allocation and store directly into the capsule's value.
-        // Use memcpy to copy the data from the function pointer to the void*.
-        // (since just casting is prohibited by standard C, and using unions is prohibited by standard c++)
-        void *copy_into;
-        memcpy((void*)&copy_into, (void*)&funcptr, sizeof(funcptr));
-        return PyCapsule_New(copy_into, name, NULL);
-    }
-}
-
-/////////////// CFuncPtrFromPy.proto ///////////////
-//@requires: CFuncPtrTypedef
-
-static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule, const char* name); /* proto */
-
-/////////////// CFuncPtrFromPy.proto ///////////////
-
-static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule, const char* name) {
-    void *data = PyCapsule_GetPointer(capsule, name);
-    __Pyx_generic_func_pointer funcptr;
-    if (sizeof(funcptr) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
-        funcptr = *((__Pyx_generic_func_pointer*)data);
-    } else {
-        memcpy((void*)&funcptr, (void*)&data, sizeof(funcptr));
-    }
-    return funcptr;
 }

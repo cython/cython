@@ -18,8 +18,6 @@ looper you can get a better sense of the context.  Use like::
 
 """
 
-basestring_ = (bytes, str)
-
 __all__ = ['looper']
 
 
@@ -142,7 +140,7 @@ class loop_pos:
     def _compare_group(self, item, other, getter):
         if getter is None:
             return item != other
-        elif (isinstance(getter, basestring_)
+        elif (isinstance(getter, str)
               and getter.startswith('.')):
             getter = getter[1:]
             if getter.endswith('()'):

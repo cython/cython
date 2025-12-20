@@ -505,3 +505,35 @@ def const_in_binop(v):
         return 1
     else:
         return 0
+
+
+@cython.test_fail_if_path_exists(
+    "//JoinedStrNode",
+)
+def const_fstring():
+    """
+    >>> const_fstring()
+    ('123a456', 'a456', '-123b', 'a-45b')
+    """
+    return (
+        f"{123}a{456}",
+        f"a{456}",
+        f"{-123}b",
+        f"a{-45}b",
+    )
+
+
+@cython.test_fail_if_path_exists(
+    "//AddNode",
+)
+def fstring_plus(x: cython.int):
+    """
+    >>> fstring_plus(9)
+    ('9a9xyz', 'xyza9a', 'b9b', 'a9bx9x')
+    """
+    return (
+        f"{x}a{x}" + "xyz",
+        "xyz" + f"a{x}a",
+        f"b{x}b" + "",
+        f"a{x}b" + f"x{x}x",
+    )

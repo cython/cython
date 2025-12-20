@@ -6,8 +6,8 @@ Cython -- Things that don't belong anywhere else in particular
 import cython
 
 cython.declare(
-    os=object, sys=object, re=object, io=object, codecs=object, glob=object, shutil=object, tempfile=object,
-    wraps=object, cython_version=object,
+    os=object, sys=object, re=object, io=object, glob=object, shutil=object, tempfile=object,
+    update_wrapper=object, partial=object, wraps=object, cython_version=object,
     _cache_function=object, _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
 )
 
@@ -15,11 +15,11 @@ import os
 import sys
 import re
 import io
-import codecs
 import glob
 import shutil
 import tempfile
 from functools import wraps
+
 
 from . import __version__ as cython_version
 
@@ -130,13 +130,9 @@ def open_new_file(path):
         # safely hard link the output files.
         os.unlink(path)
 
-    # we use the ISO-8859-1 encoding here because we only write pure
-    # ASCII strings or (e.g. for file names) byte encoded strings as
-    # Unicode, so we need a direct mapping from the first 256 Unicode
-    # characters to a byte sequence, which ISO-8859-1 provides
-
-    # note: can't use io.open() in Py2 as we may be writing str objects
-    return codecs.open(path, "w", encoding="ISO-8859-1")
+    # We only write pure ASCII code strings, but need to write file paths in position comments.
+    # Those are encoded in UTF-8 so that tools can parse them out again.
+    return open(path, "w", encoding="UTF-8")
 
 
 def castrate_file(path, st):
@@ -611,14 +607,12 @@ def write_depfile(target, source, dependencies):
     # paths below the base_dir are relative, otherwise absolute
     paths = []
     for fname in dependencies:
-        if fname.startswith(src_base_dir):
-            try:
-                newpath = os.path.relpath(fname, cwd)
-            except ValueError:
-                # if they are on different Windows drives, absolute is fine
-                newpath = os.path.abspath(fname)
-        else:
+        try:
+            newpath = os.path.relpath(fname, cwd)
+        except ValueError:
+            # if they are on different Windows drives, absolute is fine
             newpath = os.path.abspath(fname)
+
         paths.append(newpath)
 
     depline = os.path.relpath(target, cwd) + ": \\\n  "

@@ -4,7 +4,7 @@ __doc__ = u"""
     >>> import re
     >>> t
     ('2',)
-    >>> t == re.search('(\\d+)', '-2.80 98\\n').groups()
+    >>> t == re.search(r'(\\d+)', '-2.80 98\\n').groups()
     True
 """
 

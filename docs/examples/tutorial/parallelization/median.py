@@ -14,12 +14,12 @@ def median_along_axis0(x: cython.double[:,:]):
     out: cython.double[::1] = np.empty(x.shape[1])
     i: cython.Py_ssize_t
     j: cython.Py_ssize_t
-    scratch: cython.pointer(cython.double)
-    median_it: cython.pointer(cython.double)
+    scratch: cython.p_double
+    median_it: cython.p_double
     with cython.nogil, parallel():
         # allocate scratch space per loop
         scratch = cython.cast(
-            cython.pointer(cython.double),
+            cython.p_double,
             malloc(cython.sizeof(cython.double)*x.shape[0]))
         try:
             for i in prange(x.shape[1]):
