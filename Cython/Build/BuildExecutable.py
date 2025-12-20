@@ -12,20 +12,7 @@ DEBUG = True
 
 import sys
 import os
-if sys.version_info < (3, 9):
-    from distutils import sysconfig as _sysconfig
-
-    class sysconfig:
-
-        @staticmethod
-        def get_path(name):
-            assert name == 'include'
-            return _sysconfig.get_python_inc()
-
-        get_config_var = staticmethod(_sysconfig.get_config_var)
-else:
-    # sysconfig can be trusted from cpython >= 3.8.7
-    import sysconfig
+import sysconfig
 
 
 def get_config_var(name, default=''):
