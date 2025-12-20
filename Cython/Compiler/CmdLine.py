@@ -4,7 +4,7 @@
 
 
 import os
-from argparse import ArgumentParser, Action, SUPPRESS
+from argparse import ArgumentParser, Action, SUPPRESS, RawDescriptionHelpFormatter
 from . import Options
 
 
@@ -67,12 +67,18 @@ class SetAnnotateCoverageAction(Action):
         namespace.annotate = True
         namespace.annotate_coverage_xml = values
 
-
 def create_cython_argparser():
     description = "Cython (https://cython.org/) is a compiler for code written in the "\
                   "Cython language.  Cython is based on Pyrex by Greg Ewing."
 
-    parser = ArgumentParser(description=description, argument_default=SUPPRESS)
+    parser = ArgumentParser(
+        description=description,
+        argument_default=SUPPRESS,
+        formatter_class=RawDescriptionHelpFormatter,
+        epilog="""\
+Environment variables:
+  CYTHON_CACHE_DIR: the base directory containing Cython's caches."""
+    )
 
     parser.add_argument("-V", "--version", dest='show_version', action='store_const', const=1,
                       help='Display version number of cython compiler')
@@ -95,6 +101,8 @@ def create_cython_argparser():
     parser.add_argument("--cleanup", dest='generate_cleanup_code', action='store', type=int,
                       help='Release interned objects on python exit, for memory debugging. '
                            'Level indicates aggressiveness, default 0 releases nothing.')
+    parser.add_argument("--cache", dest='cache', action='store_true',
+                      help='Enables Cython compilation cache.')
     parser.add_argument("-w", "--working", dest='working_path', action='store', type=str,
                       help='Sets the working directory for Cython (the directory modules are searched from)')
     parser.add_argument("--gdb", action=SetGDBDebugAction, nargs=0,
@@ -117,6 +125,8 @@ def create_cython_argparser():
     parser.add_argument('--embed', action='store_const', const='main',
                       help='Generate a main() function that embeds the Python interpreter. '
                            'Pass --embed=<method_name> for a name other than main().')
+    parser.add_argument('--embed-modules', action='store', type=comma_list,
+                      help='')
     parser.add_argument('-2', dest='language_level', action='store_const', const=2,
                       help='Compile based on Python-2 syntax and code semantics.')
     parser.add_argument('-3', dest='language_level', action='store_const', const=3,
@@ -149,6 +159,11 @@ def create_cython_argparser():
                            'deduced from the import path if source file is in '
                            'a package, or equals the filename otherwise.')
     parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
+    parser.add_argument("--generate-shared", dest='shared_c_file_path', action='store', type=str,
+                        help='Generates shared module with specified name.')
+    parser.add_argument("--shared", dest='shared_utility_qualified_name', action='store', type=str,
+                        help='Imports utility code from shared module specified by fully qualified module name.')
+
     parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help
@@ -167,6 +182,8 @@ def create_cython_argparser():
 
     return parser
 
+def comma_list(string):
+    return string.split(',')
 
 def parse_command_line_raw(parser, args):
     # special handling for --embed and --embed=xxxx as they aren't correctly parsed
@@ -231,7 +248,10 @@ def parse_command_line(args):
 
     if options.use_listing_file and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using -o\n")
-    if len(sources) == 0 and not options.show_version:
+    if options.shared_c_file_path:
+        if len(sources) > 0:
+            parser.error("cython: Source file not allowed when using --generate-shared\n")
+    elif len(sources) == 0 and not options.show_version:
         parser.error("cython: Need at least one source file\n")
     if Options.embed and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using --embed\n")

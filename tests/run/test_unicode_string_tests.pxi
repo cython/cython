@@ -977,9 +977,8 @@ class CommonTest(BaseTest):
     def test_capitalize_nonascii(self):
         # check that titlecased chars are lowered correctly
         # \u1ffc is the titlecased char
-        # Note: differs between Py<3.8 and later.
-        #self.checkequal('\u03a9\u0399\u1ff3\u1ff3\u1ff3',
-        #                '\u1ff3\u1ff3\u1ffc\u1ffc', 'capitalize')
+        self.checkequal('\u1ffc\u1ff3\u1ff3\u1ff3',
+                        '\u1ff3\u1ff3\u1ffc\u1ffc', 'capitalize')
         # check with cased non-letter chars
         self.checkequal('\u24c5\u24e8\u24e3\u24d7\u24de\u24dd',
                         '\u24c5\u24ce\u24c9\u24bd\u24c4\u24c3', 'capitalize')
@@ -990,8 +989,8 @@ class CommonTest(BaseTest):
         self.checkequal('\u2160\u2171\u2172',
                         '\u2170\u2171\u2172', 'capitalize')
         # check with Ll chars with no upper - nothing changes here
-        self.checkequal('\u019b\u1d00\u1d86\u0221\u1fb7',
-                        '\u019b\u1d00\u1d86\u0221\u1fb7', 'capitalize')
+        self.checkequal('\u1d00\u1d86\u0221\u1fb7',
+                        '\u1d00\u1d86\u0221\u1fb7', 'capitalize')
 
     def test_list_concat(self):
         # https://github.com/cython/cython/issues/3426

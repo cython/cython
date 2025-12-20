@@ -101,12 +101,11 @@ class BasicStarshipExt(object):
 T = TypeVar('T')
 
 
-# FIXME: this fails in Py3.7 now
-#class Box(Generic[T]):
-#    def __init__(self, content):
-#        self.content: T = content
-#
-#box = Box(content=5)
+class Box(Generic[T]):
+    def __init__(self, content):
+        self.content: T = content
+
+box = Box(content=5)
 
 
 class Cls(object):
@@ -195,14 +194,16 @@ def test_subscripted_types():
     print(cython.typeof(b3) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
+
 def test_use_typing_attributes_as_non_annotations():
     """
     >>> test_use_typing_attributes_as_non_annotations()
     typing.Tuple typing.Tuple[int]
-    typing.Optional True
-    typing.Optional True
-    typing.Union typing.FrozenSet
-    typing.Union typing.Dict
+    Optional True
+    Optional True
+    Optional True
+    Union typing.FrozenSet
+    Union typing.Dict
     """
     x1 = typing.Tuple
     x2 = typing.Tuple[int]
@@ -216,21 +217,32 @@ def test_use_typing_attributes_as_non_annotations():
     q2 = typing.Union[typing.FrozenSet]
     w1 = Union
     w2 = Union[Dict]
+
+    def name_of(special_decl):
+        try:
+            return special_decl.__name__
+        except AttributeError:
+            return str(special_decl).partition('.')[-1]
+
     # The result of printing "Optional[type]" is slightly version-dependent
-    # so accept both possible forms
+    # so accept different forms.
     allowed_optional_frozenset_strings = [
         "typing.Union[typing.FrozenSet, NoneType]",
-        "typing.Optional[typing.FrozenSet]"
+        "typing.Optional[typing.FrozenSet]",
+        "typing.FrozenSet | None",
     ]
     allowed_optional_dict_strings = [
         "typing.Union[typing.Dict, NoneType]",
-        "typing.Optional[typing.Dict]"
+        "typing.Optional[typing.Dict]",
+        "typing.Dict | None",
     ]
     print(x1, x2)
-    print(y1, str(y2) in allowed_optional_frozenset_strings  or  str(y2))
-    print(z1, str(z2) in allowed_optional_dict_strings  or  str(z2))
-    print(q1, str(q2) == "typing.Union[typing.FrozenSet, NoneType]" or str(q2))
-    print(w1, str(w2) == "typing.Union[typing.Dict, NoneType]" or str(w2))
+    print(name_of(y1), y1 is z1 or (y1, z1))
+    print(name_of(y1), str(y2) in allowed_optional_frozenset_strings  or  str(y2))
+    print(name_of(z1), str(z2) in allowed_optional_dict_strings  or  str(z2))
+    print(name_of(q1), str(q2) in ["typing.Union[typing.FrozenSet, NoneType]", "typing.FrozenSet | None"] or str(q2))
+    print(name_of(w1), str(w2) in ["typing.Union[typing.Dict, NoneType]", "typing.Dict | None"] or str(w2))
+
 
 try:
     import numpy.typing as npt
@@ -240,6 +252,7 @@ except ImportError:
     # of a reproducer that caused a compiler crash. We don't need it
     # available to use it in annotations, so don't fail if it's not there
     pass
+
 
 def list_float_to_numpy(z: List[float]) -> List[npt.NDArray[np.float64]]:
     # since we're not actually requiring numpy, don't make the return type match

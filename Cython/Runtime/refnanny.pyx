@@ -1,4 +1,4 @@
-# cython: language_level=3, auto_pickle=False
+# cython: language_level=3, auto_pickle=False, freethreading_compatible=True
 
 from cpython.ref cimport PyObject, Py_INCREF, Py_CLEAR, Py_XDECREF, Py_XINCREF
 from cpython.exc cimport PyErr_Fetch, PyErr_Restore
@@ -9,43 +9,23 @@ cimport cython
 cdef extern from *:
     """
     #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-    static CYTHON_INLINE int __Pyx_refnanny_init_lock(PyThread_type_lock* lock) {
-         *lock = PyThread_allocate_lock();
-         if (!*lock) {
-            PyErr_NoMemory();
-            return -1;
-         }
-         return 0;
+    #define __Pyx_refnanny_mutex PyMutex
+    static CYTHON_INLINE void __Pyx_refnanny_lock_acquire(PyMutex *lock) {
+        PyMutex_Lock(lock);
     }
 
-    static CYTHON_INLINE void __Pyx_refnanny_free_lock(PyThread_type_lock lock) {
-        PyThread_free_lock(lock);
-    }
-
-    static CYTHON_INLINE void __Pyx_refnanny_lock_acquire(PyThread_type_lock lock) {
-        while (!PyThread_acquire_lock_timed(lock, 100, 0)) {
-            // If we can't get the lock, release and acquire the GIL to avoid
-            // deadlocking.
-            Py_BEGIN_ALLOW_THREADS
-            Py_END_ALLOW_THREADS
-        }
-    }
-
-    static CYTHON_INLINE void __Pyx_refnanny_lock_release(PyThread_type_lock lock) {
-        PyThread_release_lock(lock);
+    static CYTHON_INLINE void __Pyx_refnanny_lock_release(PyMutex *lock) {
+        PyMutex_Unlock(lock);
     }
     #else
-    #define __Pyx_refnanny_init_lock(lock) 0
-    #define __Pyx_refnanny_free_lock(lock)
+    #define __Pyx_refnanny_mutex void*
     #define __Pyx_refnanny_lock_acquire(lock)
     #define __Pyx_refnanny_lock_release(lock)
     #endif
     """
-    ctypedef void *PyThread_type_lock
-    int __Pyx_refnanny_init_lock(PyThread_type_lock* lock) except -1
-    void __Pyx_refnanny_free_lock(PyThread_type_lock lock)
-    void __Pyx_refnanny_lock_acquire(PyThread_type_lock lock)
-    void __Pyx_refnanny_lock_release(PyThread_type_lock lock)
+    ctypedef void *__Pyx_refnanny_mutex
+    void __Pyx_refnanny_lock_acquire(__Pyx_refnanny_mutex *lock)
+    void __Pyx_refnanny_lock_release(__Pyx_refnanny_mutex *lock)
 
 loglevel = 0
 reflog = []
@@ -71,24 +51,20 @@ cdef class Context(object):
     cdef readonly dict refs
     cdef readonly list errors
     cdef readonly Py_ssize_t start
-    cdef PyThread_type_lock lock
+    cdef __Pyx_refnanny_mutex lock
 
     def __cinit__(self, name, line=0, filename=None):
-        __Pyx_refnanny_init_lock(&self.lock)
         self.name = name
         self.start = line
         self.filename = filename
         self.refs = {} # id -> (count, [lineno])
         self.errors = []
 
-    def __dealloc__(self):
-        __Pyx_refnanny_free_lock(self.lock)
-
     cdef void acquire_lock(self) noexcept:
-        __Pyx_refnanny_lock_acquire(self.lock)
+        __Pyx_refnanny_lock_acquire(&self.lock)
 
     cdef void release_lock(self) noexcept:
-        __Pyx_refnanny_lock_release(self.lock)
+        __Pyx_refnanny_lock_release(&self.lock)
 
     cdef int regref(self, obj, Py_ssize_t lineno, bint is_null) except -1:
         log(_LOG_ALL, u'regref', u"<NULL>" if is_null else obj, lineno)

@@ -1,9 +1,5 @@
-/////////////// Profile.proto ///////////////
-//@requires: Exceptions.c::PyErrFetchRestore
-//@substitute: naming
-
-// Note that cPython ignores PyTrace_EXCEPTION,
-// but maybe some other profilers don't.
+/////////////// Profile_config.proto ///////////////
+//@proto_block: utility_code_proto_before_types
 
 #ifndef CYTHON_PROFILE
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
@@ -25,8 +21,68 @@
   #define CYTHON_TRACE 0
 #endif
 
+
+#if CYTHON_PROFILE || CYTHON_TRACE
+#if CYTHON_USE_SYS_MONITORING
+
+    // TODO: make list of event types specific to functions.
+    typedef enum {
+        __Pyx_Monitoring_PY_START = 0,
+        __Pyx_Monitoring_PY_RETURN,
+        __Pyx_Monitoring_PY_UNWIND,
+        //__Pyx_Monitoring_CALL,
+        __Pyx_Monitoring_LINE,
+        __Pyx_Monitoring_RAISE,
+        __Pyx_Monitoring_RERAISE,
+        __Pyx_Monitoring_EXCEPTION_HANDLED,
+        __Pyx_Monitoring_PY_RESUME,
+        __Pyx_Monitoring_PY_YIELD,
+        __Pyx_Monitoring_STOP_ITERATION,
+    } __Pyx_Monitoring_Event_Index;
+
+    // Note: This is used by the generator/coroutine object struct (in its '.proto' section).
+    static const unsigned char __Pyx_MonitoringEventTypes[] = {
+        PY_MONITORING_EVENT_PY_START,
+        PY_MONITORING_EVENT_PY_RETURN,
+        PY_MONITORING_EVENT_PY_UNWIND,
+        //PY_MONITORING_EVENT_CALL,
+        PY_MONITORING_EVENT_LINE,
+        PY_MONITORING_EVENT_RAISE,
+        PY_MONITORING_EVENT_RERAISE,
+        PY_MONITORING_EVENT_EXCEPTION_HANDLED,
+        // generator specific:
+        PY_MONITORING_EVENT_PY_RESUME,
+        PY_MONITORING_EVENT_PY_YIELD,
+        PY_MONITORING_EVENT_STOP_ITERATION,
+    };
+
+    #define __Pyx_MonitoringEventTypes_CyFunc_count (sizeof(__Pyx_MonitoringEventTypes) - 3)
+    #define __Pyx_MonitoringEventTypes_CyGen_count (sizeof(__Pyx_MonitoringEventTypes))
+
+#endif
+#endif
+
+
+/////////////// Profile.proto ///////////////
+//@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Profile_config
+//@substitute: naming
+
+// Note that cPython ignores PyTrace_EXCEPTION,
+// but maybe some other profilers don't.
+
 #if CYTHON_TRACE
   #undef CYTHON_PROFILE_REUSE_FRAME
+#endif
+
+#if CYTHON_USE_MODULE_STATE
+  #undef CYTHON_PROFILE_REUSE_CODEOBJ
+  #define CYTHON_PROFILE_REUSE_CODEOBJ 0
+  #undef CYTHON_PROFILE_REUSE_FRAME
+#endif
+
+#ifndef CYTHON_PROFILE_REUSE_CODEOBJ
+  #define CYTHON_PROFILE_REUSE_CODEOBJ 1
 #endif
 
 #ifndef CYTHON_PROFILE_REUSE_FRAME
@@ -46,56 +102,28 @@
 #if CYTHON_USE_SYS_MONITORING
 // Use the Py3.13 monitoring C-API: https://github.com/python/cpython/issues/111997
 
-  // TODO: make list of event types specific to functions
-
-  typedef enum {
-      __Pyx_Monitoring_PY_START = 0,
-      __Pyx_Monitoring_PY_RETURN,
-      __Pyx_Monitoring_PY_UNWIND,
-      //__Pyx_Monitoring_CALL,
-      __Pyx_Monitoring_LINE,
-      __Pyx_Monitoring_RAISE,
-      __Pyx_Monitoring_RERAISE,
-      __Pyx_Monitoring_EXCEPTION_HANDLED,
-      __Pyx_Monitoring_PY_RESUME,
-      __Pyx_Monitoring_PY_YIELD,
-      __Pyx_Monitoring_STOP_ITERATION,
-  } __Pyx_Monitoring_Event_Index;
-
-  static const unsigned char __Pyx_MonitoringEventTypes[] = {
-      PY_MONITORING_EVENT_PY_START,
-      PY_MONITORING_EVENT_PY_RETURN,
-      PY_MONITORING_EVENT_PY_UNWIND,
-      //PY_MONITORING_EVENT_CALL,
-      PY_MONITORING_EVENT_LINE,
-      PY_MONITORING_EVENT_RAISE,
-      PY_MONITORING_EVENT_RERAISE,
-      PY_MONITORING_EVENT_EXCEPTION_HANDLED,
-      // generator specific:
-      PY_MONITORING_EVENT_PY_RESUME,
-      PY_MONITORING_EVENT_PY_YIELD,
-      PY_MONITORING_EVENT_STOP_ITERATION,
-  };
-
   typedef uint64_t __pyx_monitoring_version_type;
-
-  #define __Pyx_MonitoringEventTypes_CyFunc_count (sizeof(__Pyx_MonitoringEventTypes) - 3)
-  #define __Pyx_MonitoringEventTypes_CyGen_count (sizeof(__Pyx_MonitoringEventTypes))
 
   #define __Pyx_TraceDeclarationsFunc \
       PyObject *$frame_code_cname = NULL; \
       PyMonitoringState $monitoring_states_cname[__Pyx_MonitoringEventTypes_CyFunc_count]; \
-      int __pyx_exception_already_reported = 0;
+      int __pyx_exception_already_reported = 0; \
+      const int __pyx_sys_monitoring_disabled_in_parallel = 0; CYTHON_UNUSED_VAR(__pyx_sys_monitoring_disabled_in_parallel);
 
   #define __Pyx_TraceDeclarationsGen \
-      PyObject *$frame_code_cname = $generator_cname->gi_code; \
+      PyObject *$frame_code_cname = Py_NewRef($generator_cname->gi_code); \
       PyMonitoringState* $monitoring_states_cname = $generator_cname->$monitoring_states_cname; \
       __pyx_monitoring_version_type $monitoring_version_cname = $generator_cname->$monitoring_version_cname; \
-      int __pyx_exception_already_reported = 0;
+      int __pyx_exception_already_reported = 0; \
+      const int __pyx_sys_monitoring_disabled_in_parallel = 0; CYTHON_UNUSED_VAR(__pyx_sys_monitoring_disabled_in_parallel);
 
-  #define __Pyx_IsTracing(event_id)  (($monitoring_states_cname[event_id]).active)
+  #define __Pyx_IsTracing(event_id)  ((!__pyx_sys_monitoring_disabled_in_parallel) && ($monitoring_states_cname[event_id]).active)
   #define __Pyx_TraceFrameInit(codeobj) \
       if (codeobj) $frame_code_cname = codeobj;
+
+  #define __Pyx_TurnOffSysMonitoringInParallel \
+    const int __pyx_sys_monitoring_disabled_in_parallel = 1; \
+    CYTHON_UNUSED_VAR(__pyx_sys_monitoring_disabled_in_parallel);
 
   CYTHON_UNUSED static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
   CYTHON_UNUSED static int __Pyx__TraceStartFunc(PyMonitoringState *state_array, PyObject *code_obj, int offset, int skip_event); /*proto*/
@@ -103,7 +131,20 @@
   CYTHON_UNUSED static int __Pyx__TraceResumeGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, int offset); /*proto*/
   CYTHON_UNUSED static void __Pyx__TraceException(PyMonitoringState *monitoring_state, PyObject *code_obj, int offset, int reraised); /*proto*/
 
-  #define __Pyx_PyMonitoring_ExitScope()  (PyMonitoring_ExitScope(), (void) __pyx_exception_already_reported)
+  #define __Pyx_PyMonitoring_ExitScope(nogil)              \
+    if (nogil) {                                           \
+        (void) __pyx_exception_already_reported;           \
+        if (CYTHON_TRACE_NOGIL) {                          \
+            PyGILState_STATE state = PyGILState_Ensure();  \
+            PyMonitoring_ExitScope();                      \
+            Py_XDECREF($frame_code_cname);                 \
+            PyGILState_Release(state);                     \
+        }                                                  \
+    } else {                                               \
+        PyMonitoring_ExitScope();                          \
+        Py_XDECREF($frame_code_cname);                     \
+    }
+
 
   // We check "tstate->tracing" after clearing the monitoring state to prevent re-entry while a trace function is running.
   #define __Pyx_TraceStartFunc(funcname, srcfile, firstlineno, offset, nogil, skip_event, goto_error) \
@@ -114,18 +155,20 @@
           if (CYTHON_TRACE_NOGIL) {                                                          \
               PyGILState_STATE state = PyGILState_Ensure();                                  \
               if (!__Pyx_PyThreadState_Current->tracing) {                                   \
-                  if (unlikely(!$frame_code_cname)) $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
-                  if (unlikely(!$frame_code_cname)) goto_error;                              \
-                  ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
-              }                                                                              \
+                  if (likely($frame_code_cname)) Py_INCREF($frame_code_cname);               \
+                  else $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
+                  if (unlikely(!$frame_code_cname)) ret = -1;                                \
+                  else ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
+              } else $frame_code_cname = NULL;                                               \
               PyGILState_Release(state);                                                     \
-          }                                                                                  \
+          } else $frame_code_cname = NULL;                                                   \
       } else {                                                                               \
           if (!__Pyx_PyThreadState_Current->tracing) {                                       \
-              if (unlikely(!$frame_code_cname)) $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
-              if (unlikely(!$frame_code_cname)) goto_error;                                  \
-              ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
-          }                                                                                  \
+              if (likely($frame_code_cname)) Py_INCREF($frame_code_cname);                   \
+              else $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
+              if (unlikely(!$frame_code_cname)) ret = -1;                                    \
+              else ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
+          } else $frame_code_cname = NULL;                                                   \
       }                                                                                      \
       if (unlikely(ret == -1)) goto_error;                                                   \
   }
@@ -209,14 +252,20 @@
           if (CYTHON_TRACE_NOGIL) {                                                          \
               PyGILState_STATE state = PyGILState_Ensure();                                  \
               PyObject *pyvalue = convert_function(cresult);                                 \
-              if (unlikely(!pyvalue)) goto_error;                                            \
+              if (unlikely(!pyvalue)) {                                                      \
+                  PyErr_Clear();                                                             \
+                  pyvalue = Py_None; Py_INCREF(Py_None);                                     \
+              }                                                                              \
               ret = PyMonitoring_FirePyReturnEvent(&$monitoring_states_cname[__Pyx_Monitoring_PY_RETURN], $frame_code_cname, offset, pyvalue); \
               Py_DECREF(pyvalue);                                                            \
               PyGILState_Release(state);                                                     \
           }                                                                                  \
       } else {                                                                               \
           PyObject *pyvalue = convert_function(cresult);                                     \
-          if (unlikely(!pyvalue)) goto_error;                                                \
+          if (unlikely(!pyvalue)) {                                                          \
+              PyErr_Clear();                                                                 \
+              pyvalue = Py_None; Py_INCREF(Py_None);                                         \
+          }                                                                                  \
           ret = PyMonitoring_FirePyReturnEvent(&$monitoring_states_cname[__Pyx_Monitoring_PY_RETURN], $frame_code_cname, offset, pyvalue); \
           Py_DECREF(pyvalue);                                                                \
       }                                                                                      \
@@ -263,7 +312,7 @@
   #include "compile.h"
   #include "frameobject.h"
   #include "traceback.h"
-#if PY_VERSION_HEX >= 0x030b00a6
+#if PY_VERSION_HEX >= 0x030b00a6 && !defined(PYPY_VERSION)
   #ifndef Py_BUILD_CORE
     #define Py_BUILD_CORE 1
   #endif
@@ -278,8 +327,15 @@
     #define CYTHON_FRAME_DEL(frame) Py_CLEAR(frame)
   #endif
 
+  #if CYTHON_PROFILE_REUSE_CODEOBJ
+    #define CYTHON_CODEOBJ_MODIFIER static
+  #else
+    #define CYTHON_CODEOBJ_MODIFIER
+  #endif
+
+
   #define __Pyx_TraceDeclarationsFunc \
-      static PyCodeObject *$frame_code_cname = NULL;                      \
+      CYTHON_CODEOBJ_MODIFIER PyCodeObject *$frame_code_cname = NULL;     \
       CYTHON_FRAME_MODIFIER PyFrameObject *$frame_cname = NULL;           \
       int __Pyx_use_tracing = 0;
 
@@ -291,10 +347,18 @@
   #define __Pyx_TraceFrameInit(codeobj)                                   \
       if (codeobj) $frame_code_cname = (PyCodeObject*) codeobj;
 
-  #define __Pyx_PyMonitoring_ExitScope()  {}
+  #define __Pyx_PyMonitoring_ExitScope(nogil)         \
+    if (!CYTHON_PROFILE_REUSE_FRAME && nogil) {       \
+        PyGILState_STATE state = PyGILState_Ensure(); \
+        CYTHON_FRAME_DEL($frame_cname);               \
+        PyGILState_Release(state);                    \
+    } else {                                          \
+        CYTHON_FRAME_DEL($frame_cname);               \
+    }
   #define __Pyx_TraceException(offset, reraised, fresh)  {}
   #define __Pyx_TraceExceptionHandled(offset)  {}
   #define __Pyx_TraceExceptionDone()  {}
+  #define __Pyx_TurnOffSysMonitoringInParallel {} // Only needed for freethreading
 
 #if PY_VERSION_HEX >= 0x030b00a2
   #if PY_VERSION_HEX >= 0x030C00b1
@@ -371,7 +435,7 @@
   if (likely(!__Pyx_use_tracing)); else {                                                \
       PyThreadState* tstate = __Pyx_PyThreadState_Current;                               \
       if (__Pyx_IsTracing(tstate, 0, 0)) {                                               \
-          __Pyx_call_return_trace_func(tstate, $frame_cname, (PyObject*)result, 0);      \
+          __Pyx_call_return_trace_func(tstate, $frame_cname, (PyObject*)result);         \
       }                                                                                  \
       if ((1)); else goto_error;                                                         \
   }
@@ -379,7 +443,7 @@
   #define __Pyx_TraceResumeGen(funcname, srcfile, firstlineno, offset, goto_error) \
       __Pyx_TraceStartFunc(funcname, srcfile, firstlineno, offset, 0, 0, goto_error)
 
-  CYTHON_UNUSED static void __Pyx_call_return_trace_func(PyThreadState *tstate, PyFrameObject *frame, PyObject *result, int delete_frame) {
+  CYTHON_UNUSED static void __Pyx_call_return_trace_func(PyThreadState *tstate, PyFrameObject *frame, PyObject *result) {
       PyObject *type, *value, *traceback;
       __Pyx_ErrFetchInState(tstate, &type, &value, &traceback);
       __Pyx_EnterTracing(tstate);
@@ -387,9 +451,6 @@
           tstate->c_tracefunc(tstate->c_traceobj, frame, PyTrace_RETURN, result);
       if (tstate->c_profilefunc)
           tstate->c_profilefunc(tstate->c_profileobj, frame, PyTrace_RETURN, result);
-      if (delete_frame) {
-          CYTHON_FRAME_DEL(frame);
-      }
       __Pyx_LeaveTracing(tstate);
       __Pyx_ErrRestoreInState(tstate, type, value, traceback);
   }
@@ -402,14 +463,14 @@
               PyGILState_STATE state = PyGILState_Ensure();                               \
               tstate = __Pyx_PyThreadState_Current;                                       \
               if (__Pyx_IsTracing(tstate, 0, 0)) {                                        \
-                  __Pyx_call_return_trace_func(tstate, $frame_cname, (PyObject*)result, 1);  \
+                  __Pyx_call_return_trace_func(tstate, $frame_cname, (PyObject*)result);  \
               }                                                                           \
               PyGILState_Release(state);                                                  \
           }                                                                               \
       } else {                                                                            \
           PyThreadState* tstate = __Pyx_PyThreadState_Current;                            \
           if (__Pyx_IsTracing(tstate, 0, 0)) {                                            \
-              __Pyx_call_return_trace_func(tstate, $frame_cname, (PyObject*)result, 1);   \
+              __Pyx_call_return_trace_func(tstate, $frame_cname, (PyObject*)result);      \
           }                                                                               \
       }                                                                                   \
       if ((1)); else goto_error;                                                          \
@@ -424,8 +485,11 @@
               tstate = __Pyx_PyThreadState_Current;                                       \
               if (__Pyx_IsTracing(tstate, 0, 0)) {                                        \
                   PyObject *pyvalue = convert_function(cresult);                          \
-                  if (unlikely(!pyvalue)) goto_error;                                     \
-                  __Pyx_call_return_trace_func(tstate, $frame_cname, pyvalue, 1);         \
+                  if (unlikely(!pyvalue)) {                                               \
+                    PyErr_Clear();                                                        \
+                    pyvalue = Py_None; Py_INCREF(Py_None);                                \
+                  }                                                                       \
+                  __Pyx_call_return_trace_func(tstate, $frame_cname, pyvalue);            \
                   Py_DECREF(pyvalue);                                                     \
               }                                                                           \
               PyGILState_Release(state);                                                  \
@@ -434,11 +498,15 @@
           PyThreadState* tstate = __Pyx_PyThreadState_Current;                            \
           if (__Pyx_IsTracing(tstate, 0, 0)) {                                            \
               PyObject *pyvalue = convert_function(cresult);                              \
-              if (unlikely(!pyvalue)) goto_error;                                         \
-              __Pyx_call_return_trace_func(tstate, $frame_cname, pyvalue, 1);             \
+              if (unlikely(!pyvalue)) {                                                   \
+                  PyErr_Clear();                                                          \
+                  pyvalue = Py_None; Py_INCREF(Py_None);                                  \
+              }                                                                           \
+              __Pyx_call_return_trace_func(tstate, $frame_cname, pyvalue);                \
               Py_DECREF(pyvalue);                                                         \
           }                                                                               \
       }                                                                                   \
+      if ((1)); else goto_error;                                                          \
   }
 
   #define __Pyx_TraceExceptionUnwind(offset, nogil) \
@@ -449,14 +517,14 @@
               PyGILState_STATE state = PyGILState_Ensure();                               \
               tstate = __Pyx_PyThreadState_Current;                                       \
               if (__Pyx_IsTracing(tstate, 0, 0)) {                                        \
-                  __Pyx_call_return_trace_func(tstate, $frame_cname, Py_None, 1);         \
+                  __Pyx_call_return_trace_func(tstate, $frame_cname, Py_None);            \
               }                                                                           \
               PyGILState_Release(state);                                                  \
           }                                                                               \
       } else {                                                                            \
           PyThreadState* tstate = __Pyx_PyThreadState_Current;                            \
           if (__Pyx_IsTracing(tstate, 0, 0)) {                                            \
-              __Pyx_call_return_trace_func(tstate, $frame_cname, Py_None, 1);             \
+              __Pyx_call_return_trace_func(tstate, $frame_cname, Py_None);                \
           }                                                                               \
       }                                                                                   \
   }
@@ -499,7 +567,8 @@
   #define __Pyx_TraceDeclarationsGen
   #define __Pyx_TraceExceptionDone()  {}
   #define __Pyx_TraceFrameInit(codeobj)  {}
-  #define __Pyx_PyMonitoring_ExitScope()  {}
+  #define __Pyx_TurnOffSysMonitoringInParallel {}
+  #define __Pyx_PyMonitoring_ExitScope(nogil)  {}
   #define __Pyx_TraceException(offset, reraised, fresh)  {}
   #define __Pyx_TraceExceptionUnwind(offset, nogil)  {}
   #define __Pyx_TraceExceptionHandled(offset)  {}
@@ -609,7 +678,8 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
                                    int firstlineno,
                                    int skip_event) {
     if (*frame == NULL || !CYTHON_PROFILE_REUSE_FRAME) {
-        if (*code == NULL) {
+        int needs_new_code_obj = (*code == NULL);
+        if (needs_new_code_obj) {
             *code = __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno);
             if (*code == NULL) return 0;
         }
@@ -619,6 +689,8 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
             NAMED_CGLOBAL(moddict_cname),    /*PyObject *globals*/
             0                                /*PyObject *locals*/
         );
+        if (needs_new_code_obj && !CYTHON_PROFILE_REUSE_CODEOBJ)
+            Py_CLEAR(*code); // otherwise the reference is owned externally
         if (*frame == NULL) return 0;
         if (CYTHON_TRACE && (*frame)->f_trace == NULL) {
             // this enables "f_lineno" lookup, at least in CPython ...

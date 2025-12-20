@@ -18,10 +18,10 @@ except ImportError:
 else:
     numpy_demo = [Extension("*",
                             ["numpy_*.pyx"],
-                            include_dirs=get_include())]
+                            include_dirs=[get_include()])]
     ext_modules.extend(cythonize(numpy_demo))
 
 setup(
-  name = 'Demos',
-  ext_modules = ext_modules,
+    name = 'Demos',
+    ext_modules = ext_modules,
 )

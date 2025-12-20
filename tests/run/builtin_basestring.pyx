@@ -46,7 +46,7 @@ def basestring_typed_variable(obj):
     >>> class S(str): pass
     >>> basestring_typed_variable(S())   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...got S...
+    TypeError: ...got ...S...
     """
     cdef basestring s
     s = u'abc'
@@ -71,7 +71,7 @@ def basestring_typed_argument(basestring obj):
     >>> class S(str): pass
     >>> basestring_typed_argument(S())   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...got S...
+    TypeError: ...got ...S...
     """
     return obj
 

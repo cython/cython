@@ -268,6 +268,23 @@ Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
         soft = 2
         runny = 3
 
+Up to Cython version 3.0.x, this used to copy all item names into the global
+module namespace, so that they were available both as attributes of the Python
+enum type (``CheseState`` above) and as global constants.
+This was changed in Cython 3.1 to distinguish between anonymous cpdef enums,
+which only create global Python constants for their items, and named cpdef enums,
+where the items live only in the namespace of the enum type and do not create
+global Python constants.
+
+To create global constants also for the items of a declared named enum type,
+you can copy the enum items into the global Python module namespace manually.
+In Cython before 3.1, this will simply overwrite the global names with
+their own value, which makes it backwards compatible.
+
+::
+
+    globals().update(getattr(CheeseState, '__members__'))
+
 There is currently no special syntax for defining a constant, but you can use
 an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
@@ -391,6 +408,9 @@ This requires an *exact* match of the class, it does not allow subclasses.
 This allows Cython to optimize code by accessing internals of the builtin class,
 which is the main reason for declaring builtin types in the first place.
 
+Since Cython 3.1, builtin *exception* types generally no longer fall under the "exact type" restriction.
+Thus, declarations like ``exc: BaseException`` accept all exception objects, as they probably intend.
+
 For declared builtin types, Cython uses internally a C variable of type :c:expr:`PyObject*`.
 
 .. note:: The Python types ``int``, ``long``, and ``float`` are not available for static
@@ -429,6 +449,7 @@ and is typically what one wants).
 If you want to use these numeric Python types simply omit the
 type declaration and let them be objects.
 
+.. _type_qualifiers:
 
 Type qualifiers
 ---------------
@@ -474,8 +495,15 @@ Similar to pointers Cython supports shortcut types that can be used in pure pyth
      - ``cython.pp_const_long``
 
 
-For full list of shortcut types see the ``Shadow.pyi`` file.
+For full list of shortcut types see the ``Shadow.py`` file.
 
+The ``const`` qualifier supports declaration of global constants::
+
+    cdef const int i = 5
+
+    # constant pointers are defined as pointer to a constant value.
+    cdef const char *msg = "Dummy string"
+    msg = "Another dummy string"
 
 .. Note::
 
@@ -633,14 +661,21 @@ with string attributes if they are to be used after the function returns.
 C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
-C Functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
-Python object return type, like Python functions, will return a ``None``
-value when execution leaves the function body without an explicit return value. This is in
-contrast to C/C++, which leaves the return value undefined.
-In the case of non-Python object return types, the equivalent of zero is returned, for example, 0 for ``int``, ``False`` for ``bint`` and ``NULL`` for pointer types.
-
 A more complete comparison of the pros and cons of these different method
 types can be found at :ref:`early-binding-for-speed`.
+
+.. _default_return_values:
+
+Default return values
+---------------------
+
+C functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
+Python object return type, like Python functions, will return a ``None``
+value when execution leaves the function body without an explicit return value.
+This is in contrast to C/C++, which leaves the return value undefined.
+
+In the case of non-Python object return types, the equivalent of zero is returned,
+for example, 0 for ``int``, ``False`` for ``bint`` and ``NULL`` for pointer types.
 
 
 Python objects as parameters and return values
@@ -878,9 +913,10 @@ occurred and can now process or propagate it. Calling ``spam()`` is roughly tran
     if (ret_val == -1) goto error_handler;
 
 When you declare an exception value for a function, you should never explicitly
-or implicitly return that value.  This includes empty :keyword:`return`
-statements, without a return value, for which Cython inserts the default return
-value (e.g. ``0`` for C number types).  In general, exception return values
+or implicitly return that value.  This includes the case where the execution
+leaves the function body without returning a value, for which Cython
+inserts the default return value (e.g. ``0`` for C number types,
+see :ref:`default_return_values`). In general, exception return values
 are best chosen from invalid or very unlikely return values of the function,
 such as a negative value for functions that return only non-negative results,
 or a very large value like ``INT_MAX`` for a function that "usually" only
@@ -1023,16 +1059,16 @@ Some things to note:
   which return Python objects. Remember that a function with no declared
   return type implicitly returns a Python object. (Exceptions on such
   functions are implicitly propagated by returning ``NULL``.)
-  
-* There's a known performance pitfall when combining ``nogil`` and 
+
+* There's a known performance pitfall when combining ``nogil`` and
   ``except *`` \ ``@cython.exceptval(check=True)``.
   In this case Cython must always briefly re-acquire the GIL after a function
   call to check if an exception has been raised.  This can commonly happen with a
   function returning nothing (C ``void``).  Simple workarounds are to mark the
   function as ``noexcept`` if you're certain that exceptions cannot be thrown, or
   to change the return type to ``int`` and just let Cython use the return value
-  as an error flag (by default, ``-1`` triggers the exception check).
-
+  as an error flag (by default, ``-1`` triggers the exception check, i.e.
+  functions returning ``int`` use ``except? -1`` by default)
 
 .. _checking_return_values_of_non_cython_functions:
 
@@ -1141,7 +1177,7 @@ possibilities.
 .. [#2] Other than signed/unsigned char[].
    The conversion will fail if the length of C array is not known at compile time,
    and when using a slice of a C array.
-   
+
 .. [#4] The automatic conversion of a struct to a ``dict`` (and vice
    versa) does have some potential pitfalls detailed
    :ref:`elsewhere in the documentation <automatic_conversion_pitfalls>`.
@@ -1683,6 +1719,11 @@ expression must evaluate to a Python value of type ``int``, ``long``,
 ``float``, ``bytes`` or ``unicode`` (``str`` in Py3).
 
 .. literalinclude:: ../../examples/userguide/language_basics/compile_time.pyx
+
+.. Note::
+
+   Compile-time constants are deprecated. The preferred way for declaring global
+   constants is using global ``const`` variables. See :ref:`type_qualifiers`.
 
 
 Conditional Statements

@@ -1,6 +1,17 @@
 from cpython.object cimport PyObject
 from cpython.version cimport PY_VERSION_HEX
 
+cdef extern from *:
+    """
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    #ifdef _MSC_VER
+    #pragma message ("This module uses CPython specific internals of 'datetime.datetime', which are not available in the limited API.")
+    #else
+    #warning This module uses CPython specific internals of 'datetime.datetime', which are not available in the limited API.
+    #endif
+    #endif
+    """
+
 cdef extern from "Python.h":
     ctypedef struct PyTypeObject:
         pass
@@ -362,15 +373,15 @@ cdef inline int datetime_fold(object o) noexcept:
 
 # Get days of timedelta
 cdef inline int timedelta_days(object o) noexcept:
-    return (<PyDateTime_Delta*>o).days
+    return PyDateTime_DELTA_GET_DAYS(o)
 
 # Get seconds of timedelta
 cdef inline int timedelta_seconds(object o) noexcept:
-    return (<PyDateTime_Delta*>o).seconds
+    return PyDateTime_DELTA_GET_SECONDS(o)
 
 # Get microseconds of timedelta
 cdef inline int timedelta_microseconds(object o) noexcept:
-    return (<PyDateTime_Delta*>o).microseconds
+    return PyDateTime_DELTA_GET_MICROSECONDS(o)
 
 cdef inline double total_seconds(timedelta obj) noexcept:
     # Mirrors the "timedelta.total_seconds()" method.

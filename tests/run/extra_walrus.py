@@ -40,6 +40,34 @@ def optimize_literals1():
     return (x := 10)
 
 
+@cython.test_fail_if_path_exists(
+    "//CloneNode",
+    "//CoercionNode",
+)
+def optimize_literals1_typed_int():
+    """
+    There's a small optimization for literals to avoid creating unnecessary temps
+    >>> optimize_literals1_typed_int()
+    10
+    """
+    x: cython.int = 5
+    return (x := 10)
+
+
+@cython.test_fail_if_path_exists(
+    "//CloneNode",
+    "//CoercionNode",
+)
+def optimize_literals1_typed_object():
+    """
+    There's a small optimization for literals to avoid creating unnecessary temps
+    >>> optimize_literals1_typed_object()
+    10
+    """
+    x: object = 5
+    return (x := 10)
+
+
 @cython.test_fail_if_path_exists("//CloneNode")
 def optimize_literals2():
     """
@@ -299,3 +327,11 @@ def flow_control_genexp(it, value):
     """
     all((target := value) for _ in it)
     return target
+
+def memoryview_walrus(x: cython.uchar[:]):
+    """
+    >>> memoryview_walrus(bytearray(b"123"))
+    '1'
+    """
+    (y := x)
+    return chr(y[0])

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 # NOTE: Most of this file is taken from the Python source distribution
 # It can be found under Tools/gdb/libpython.py. It is shipped with Cython

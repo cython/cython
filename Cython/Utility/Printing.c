@@ -1,26 +1,26 @@
 ////////////////////// Print.proto //////////////////////
-//@substitute: naming
 
 static int __Pyx_Print(PyObject*, PyObject *, int); /*proto*/
-static PyObject* $print_function = 0;
-static PyObject* $print_function_kwargs = 0;
+
+////////////////////// Print.module_state_decls /////////////
+//@substitute: naming
+PyObject* $print_function;
+PyObject* $print_function_kwargs;
 
 ////////////////////// Print.cleanup //////////////////////
-//@substitute: naming
 
-Py_CLEAR($print_function);
-Py_CLEAR($print_function_kwargs);
+Py_CLEAR(NAMED_CGLOBAL(print_function));
+Py_CLEAR(NAMED_CGLOBAL(print_function_kwargs));
 
 ////////////////////// Print //////////////////////
-//@substitute: naming
 
 static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
     PyObject* kwargs = 0;
     PyObject* result = 0;
     PyObject* end_string;
-    if (unlikely(!$print_function)) {
-        $print_function = PyObject_GetAttr(NAMED_CGLOBAL(builtins_cname), PYIDENT("print"));
-        if (!$print_function)
+    if (unlikely(!NAMED_CGLOBAL(print_function))) {
+        NAMED_CGLOBAL(print_function) = PyObject_GetAttr(NAMED_CGLOBAL(builtins_cname), PYIDENT("print"));
+        if (!NAMED_CGLOBAL(print_function))
             return -1;
     }
     if (stream) {
@@ -40,30 +40,30 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
             Py_DECREF(end_string);
         }
     } else if (!newline) {
-        if (unlikely(!$print_function_kwargs)) {
-            $print_function_kwargs = PyDict_New();
-            if (unlikely(!$print_function_kwargs))
+        if (unlikely(!NAMED_CGLOBAL(print_function_kwargs))) {
+            NAMED_CGLOBAL(print_function_kwargs) = PyDict_New();
+            if (unlikely(!NAMED_CGLOBAL(print_function_kwargs)))
                 return -1;
             end_string = PyUnicode_FromStringAndSize(" ", 1);
             if (unlikely(!end_string))
                 return -1;
-            if (PyDict_SetItem($print_function_kwargs, PYIDENT("end"), end_string) < 0) {
+            if (PyDict_SetItem(NAMED_CGLOBAL(print_function_kwargs), PYIDENT("end"), end_string) < 0) {
                 Py_DECREF(end_string);
                 return -1;
             }
             Py_DECREF(end_string);
         }
-        kwargs = $print_function_kwargs;
+        kwargs = NAMED_CGLOBAL(print_function_kwargs);
     }
-    result = PyObject_Call($print_function, arg_tuple, kwargs);
-    if (unlikely(kwargs) && (kwargs != $print_function_kwargs))
+    result = PyObject_Call(NAMED_CGLOBAL(print_function), arg_tuple, kwargs);
+    if (unlikely(kwargs) && (kwargs != NAMED_CGLOBAL(print_function_kwargs)))
         Py_DECREF(kwargs);
     if (!result)
         return -1;
     Py_DECREF(result);
     return 0;
 bad:
-    if (kwargs != $print_function_kwargs)
+    if (kwargs != NAMED_CGLOBAL(print_function_kwargs))
         Py_XDECREF(kwargs);
     return -1;
 }
