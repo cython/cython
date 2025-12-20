@@ -560,16 +560,14 @@ def generate_repr_code(code, repr, node, fields, *, critical_section_placeholder
                 try:
             """)
             code.indent()
+        code.add_code_line('name = getattr(type(self), "__qualname__", None) or type(self).__name__')
         with code.indenter(f"with {critical_section_placeholder_name}(self):"):
             strs = ["%s={self.%s!r}" % (name, name)
                     for name, field in fields.items()
                     if field.repr.value and not field.is_initvar]
             format_string = ", ".join(strs)
 
-            code.add_code_chunk(f'''
-                name = getattr(type(self), "__qualname__", None) or type(self).__name__
-                return f'{{name}}({format_string})'
-            ''')
+            code.add_code_line(f"return f'{{name}}({format_string})'")
         if needs_recursive_guard:
             code.dedent()
             with code.indenter("finally:"):
