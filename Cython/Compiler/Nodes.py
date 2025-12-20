@@ -3252,43 +3252,33 @@ class DefNode(FuncDefNode):
         if cfunc_type is not None:
             # If we have cfunc_type (i.e. it's come from a pxdfile)
             # we can fill in a lot more information than if we don't
-            declarator_kwds = dict(
-                exception_check = cfunc_type.exception_check,
-                with_gil = cfunc_type.with_gil,
-                nogil = cfunc_type.nogil
-            )
-            def_node_kwds = dict(
-                overridable = cfunc_type.is_overridable,
-                type = cfunc_type,
-                with_gil = cfunc_type.with_gil,
-                nogil = cfunc_type.nogil,
-            )
+            exception_check = cfunc_type.exception_check
+            with_gil = cfunc_type.with_gil
+            nogil = cfunc_type.nogil
+            overridable = cfunc_type.is_overridable
+            def_node_kwds = { 'type': cfunc_type }
             base_type = CAnalysedBaseTypeNode(self.pos, type=cfunc_type.return_type)
         else:
-            declarator_kwds = dict(
-                exception_check = exception_check,
-                nogil = nogil,
-                with_gil = with_gil,
-            )
-            def_node_kwds = dict(
-                overridable = overridable,
-                nogil = nogil,
-                with_gil = with_gil,
-            )
+            def_node_kwds = {}
             base_type = CAnalysedBaseTypeNode(self.pos, type=py_object_type)
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),
                                          args=self.args,
                                          has_varargs=False,
+                                         exception_check=exception_check,
                                          exception_value=exception_value,
                                          has_explicit_exc_clause = has_explicit_exc_clause,
-                                         **declarator_kwds)
+                                         with_gil=with_gil,
+                                         nogil=nogil)
         return CFuncDefNode(self.pos,
                             modifiers=modifiers or [],
                             base_type = base_type,
                             declarator=declarator,
                             body=self.body,
                             doc=self.doc,
+                            overridable=overridable,
+                            with_gil=with_gil,
+                            nogil=nogil,
                             visibility='private',
                             api=False,
                             directive_locals=getattr(cfunc, 'directive_locals', {}),
