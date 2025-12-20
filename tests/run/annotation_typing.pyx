@@ -319,27 +319,49 @@ class LateClass(object):
     pass
 
 
-def py_float_default(price : Optional[float]=None, bar: Union[float, None]=None, spam: float | None = None, ndigits=4):
+def py_float_default(price : Optional[float]=None,
+                     bar: Union[float, None]=None,
+                     spam: float | None = None,
+                     float_or_int_or_none: float | int | None = None,
+                     int_default: float | None = 99,
+                     ndigits=4):
     """
-    Python default arguments should prevent C type inference.
+    Python default arguments should prevent C type inference but still allow all acceptable (number) types.
 
     >>> py_float_default()
-    (None, None, None, 4)
+    (None, None, None, None, 99.0, 4)
     >>> py_float_default(None)
-    (None, None, None, 4)
-    >>> py_float_default(2)  # doctest: +ELLIPSIS
+    (None, None, None, None, 99.0, 4)
+    >>> py_float_default(2.0, 3.0, 4.0, 9.0, 88.0)
+    (2.0, 3.0, 4.0, 9.0, 88.0, 4)
+
+    # type errors
+    >>> py_float_default('123.0')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...float...
-    >>> py_float_default(2.0, 3.0, 4.0)
-    (2.0, 3.0, 4.0, 4)
-    >>> py_float_default(2, None, None, 4)  # doctest: +ELLIPSIS
+    >>> py_float_default(1j)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...float...
-    >>> py_float_default(None, 2, None, 4)  # doctest: +ELLIPSIS
+    >>> py_float_default(b'123')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...float...
+
+    # conversions
+    >>> py_float_default(1, 2, 3, 9, 5)
+    (1.0, 2.0, 3.0, 9, 5.0, 4)
+    >>> py_float_default(2, None, None, None, None, 8)  # doctest: +ELLIPSIS
+    (2.0, None, None, None, None, 8)
+    >>> py_float_default(None, 2, None, 99, 44, 4)  # doctest: +ELLIPSIS
+    (None, 2.0, None, 99, 44.0, 4)
     """
-    return price, bar, spam, ndigits
+    assert typeof(price) == 'float object', typeof(price)
+    assert typeof(bar) == 'float object', typeof(bar)
+    assert typeof(spam) == 'float object', typeof(spam)
+    assert typeof(float_or_int_or_none) == 'Python object', typeof(float_or_int_or_none)
+    assert typeof(int_default) == 'float object', typeof(int_default)
+    assert typeof(ndigits) == 'Python object', typeof(ndigits)
+
+    return price, bar, spam, float_or_int_or_none, int_default, ndigits
 
 
 cdef class ClassAttribute:
@@ -449,6 +471,72 @@ def pytypes_multi_union(a: Union[list, tuple, None], b: list | tuple | None):
     print((typeof(a), typeof(b)))
     return [a, b]
 
+
+def optional_py_bool(a: Optional[bool]):
+    """
+    >>> optional_py_bool(True)
+    True
+    >>> optional_py_bool(None)
+    """
+    return a
+
+
+ctypedef bint c_bool
+
+# Mostly a code-generation test. Although this doesn't quite make sense, it should
+# compile in some form.
+def optional_c_bool(a: Optional[c_bool]):
+    """
+    >>> optional_c_bool(True)
+    True
+    >>> optional_c_bool(None)
+    """
+    return a
+
+# Mostly code-generation tests
+class PyClass:
+
+    def __repr__(self):
+        return 'PyClass()'
+
+@cython.ccall
+def unknown_pyclass(a: PyClass) -> PyClass:
+    """
+    >>> unknown_pyclass(PyClass())
+    PyClass()
+    """
+    return a
+
+@cython.ccall
+def none_as_type(a: None) -> None:
+    """
+    >>> repr(none_as_type(None))
+    'None'
+    """
+    return a
+
+@cython.cfunc
+def c_unknown_pyclass(a: PyClass) -> PyClass:
+    return a
+
+def def_unknown_pyclass(a: PyClass) -> PyClass:
+    """
+    >>> def_unknown_pyclass(PyClass())
+    PyClass()
+    """
+    return c_unknown_pyclass(a)
+
+@cython.cfunc
+def c_none_as_type(a: None) -> None:
+    return a
+
+def def_none_as_type(a: None) -> None:
+    """
+    >>> repr(def_none_as_type(None))
+    'None'
+    """
+    return c_none_as_type(a)
+
 _WARNINGS = """
 15:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 15:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -469,9 +557,17 @@ _WARNINGS = """
 175:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
 180:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
 315:44: Unknown type declaration in annotation, ignoring
-346:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
-437:32: Unknown type declaration in annotation, ignoring
-437:69: Unknown type declaration in annotation, ignoring
+325:55: Unknown type declaration in annotation, ignoring
+368:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+459:32: Unknown type declaration in annotation, ignoring
+459:69: Unknown type declaration in annotation, ignoring
+511:20: Unknown type declaration in annotation, ignoring
+511:20: Unknown type declaration in annotation, ignoring
+511:29: Unknown type declaration in annotation, ignoring
+530:22: Unknown type declaration in annotation, ignoring
+530:31: Unknown type declaration in annotation, ignoring
+533:24: Unknown type declaration in annotation, ignoring
+533:33: Unknown type declaration in annotation, ignoring
 # DUPLICATE:
 75:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 75:44: Unknown type declaration 'long' in annotation, ignoring
@@ -481,4 +577,6 @@ _WARNINGS = """
 222:0: 'struct_convert' redeclared
 241:0: 'exception_default' redeclared
 272:0: 'exception_default_uint' redeclared
+502:0: 'unknown_pyclass' redeclared
+510:0: 'none_as_type' redeclared
 """

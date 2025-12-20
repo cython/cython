@@ -6,6 +6,7 @@
 # known and working. It should be dropped once the limited API is
 # better tested
 
+UNSET CFLAGS
 PYTHON setup.py build_ext --inplace
 PYTHON run.py limited_single_phase
 PYTHON run.py limited_single_phase_modstate
@@ -14,23 +15,37 @@ PYTHON run.py limited_multi_phase
 
 ##################### setup.py ################################
 
-import sys
-from setuptools import setup
+import sysconfig
+from setuptools import setup, Extension
 from Cython.Build import cythonize
+import os
+import sys
 
-if hasattr(sys, "_is_gil_enabled"):
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
     print("Skipping isolated_limited_api tests on free-threading build")
     exit(0)  # At least for 3.13, freethreading and limited API don't mix
 
 modules = [
-    "limited_single_phase.pyx",
-    "limited_single_phase_modstate.pyx",
-    "limited_multi_phase.pyx"
+    "limited_single_phase",
+    "limited_single_phase_modstate",
+    "limited_multi_phase"
 ]
 
-setup(
-    ext_modules = cythonize(modules),
-)
+for version in range(9, sys.version_info[1]+1):
+    all_extensions = []
+    for module in modules:
+        version_hex = f"0x03{version:02x}0000"
+        ext = Extension(
+            f"{module}_{version}",
+            sources=[f"{module}.pyx"],
+            define_macros=[('Py_LIMITED_API', version_hex)],
+            py_limited_api=True)
+        all_extensions.append(ext)
+    setup(
+        ext_modules = cythonize(all_extensions),
+    )
+    for module in modules:
+        os.remove(f"{module}.c")  # make sure it's rebuilt on the next version loop
 
 ##################### run.py ##################################
 
@@ -38,93 +53,106 @@ import decimal
 
 import weakref
 import sys
+import sysconfig
 
-if hasattr(sys, "_is_gil_enabled"):
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
     print("Skipping isolated_limited_api tests on free-threading build")
     exit(0)  # At least for 3.13, freethreading and limited API don't mix
 
-module_name = sys.argv[1]
 
-limited = __import__(module_name)
+def run_one(module_name):
+    limited = __import__(module_name)
 
-limited.fib(11)
+    limited.fib(11)
 
-assert limited.lsum(list(range(10))) == 90
-assert limited.lsum(tuple(range(10))) == 90
-assert limited.lsum(iter(range(10))) == 45
+    assert limited.lsum(list(range(10))) == 90
+    assert limited.lsum(tuple(range(10))) == 90
+    assert limited.lsum(iter(range(10))) == 45
 
-try:
-    limited.raises()
-except RuntimeError:
-    pass
+    try:
+        limited.raises()
+    except RuntimeError:
+        pass
 
-limited.catches()
+    limited.catches()
 
-limited.C()
-limited.D()
-limited.E()
-if sys.version_info >= (3, 9):
-    # Weak-referenceable classes won't work in Python <3.9 because
-    # of an interpreter bug (https://github.com/python/cpython/issues/82321).
-    # This depends on the interpreter version, not the limited API version.
+    limited.C()
+    limited.D()
+    limited.E()
     weakref.ref(limited.D())
     weakref.ref(limited.E())
 
-assert limited.C.cm() == limited.C().cm() == limited.C
-assert limited.D.cm() == limited.D().cm() == limited.D
+    assert limited.C.cm() == limited.C().cm() == limited.C
+    assert limited.D.cm() == limited.D().cm() == limited.D
 
-assert limited.decode(b'a', bytearray(b'b')) == "ab"
+    assert limited.decode(b'a', bytearray(b'b')) == "ab"
 
-assert limited.cast_float(1) == 1.0
-assert limited.cast_float("2.0") == 2.0
-assert limited.cast_float(bytearray(b"3")) == 3.0
+    assert limited.cast_float(1) == 1.0
+    assert limited.cast_float("2.0") == 2.0
+    assert limited.cast_float(bytearray(b"3")) == 3.0
 
-gen = limited.my_generator(1)
-assert next(gen) == 1
-assert next(gen) == 1
-try:
-    next(gen)
-except StopIteration:
-    pass
-else:
-    assert False  # should have finished
+    gen = limited.my_generator(1)
+    assert next(gen) == 1
+    assert next(gen) == 1
+    try:
+        next(gen)
+    except StopIteration:
+        pass
+    else:
+        assert False  # should have finished
 
-gen = limited.my_generator("raise")
-try:
-    next(gen)
-except RuntimeError:
-    pass
-else:
-    assert False  # should have raised
+    gen = limited.my_generator("raise")
+    try:
+        next(gen)
+    except RuntimeError:
+        pass
+    else:
+        assert False  # should have raised
 
-assert limited.add_one(2) == 3
-assert limited.float_equals(1.5)
-assert not limited.float_equals(2)
-assert not limited.float_equals(None)
-assert limited.float_equals(decimal.Decimal("1.5"))
+    assert limited.add_one(2) == 3
+    assert limited.float_equals(1.5)
+    assert not limited.float_equals(2)
+    assert not limited.float_equals(None)
+    assert limited.float_equals(decimal.Decimal("1.5"))
 
+    assert limited.get_template_string_result(1, 2) == "x=1 however y=2"
+
+module_name = sys.argv[1]
+
+for version in range(9, sys.version_info[1]+1):
+    run_one(f"{module_name}_{version}")
 
 ##################### limited_single_phase.pyx ################
 
-# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000 -DCYTHON_PEP489_MULTI_PHASE_INIT=0
+# distutils: extra_compile_args = -DCYTHON_PEP489_MULTI_PHASE_INIT=0
 
 include 'limited.pxi'
 
 ##################### limited_multi_phase.pyx ################
 
-# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000 -DCYTHON_PEP489_MULTI_PHASE_INIT=1
+# distutils: extra_compile_args = -DCYTHON_PEP489_MULTI_PHASE_INIT=1
 
 include 'limited.pxi'
 
 ##################### limited_single_phase_modstate.pyx ################
 
-# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000 -DCYTHON_PEP489_MULTI_PHASE_INIT=0 -DCYTHON_USE_MODULE_STATE=1
+# distutils: extra_compile_args = -DCYTHON_PEP489_MULTI_PHASE_INIT=0 -DCYTHON_USE_MODULE_STATE=1
 
 include 'limited.pxi'
 
 ##################### limited.pxi #############################
 
 import cython
+
+# Cimporting from cpython imports a range of types with their internals exposed.
+# These can't necessarily be used in the limited API but simply cimporting them
+# shouldn't break compilation.
+cimport cpython
+cimport cpython.bool
+cimport cpython.complex
+cimport cpython.descr
+cimport cpython.longintrepr
+cimport cpython.type
 
 @cython.binding(False)
 def fib(int n):
@@ -188,3 +216,13 @@ def my_generator(x):
         raise RuntimeError
     yield x
     yield x
+
+def template_to_string(t):
+    parts = [
+        (part if isinstance(part, str) else format(part.value))
+        for part in t
+    ]
+    return "".join(parts)
+
+def get_template_string_result(x, y):
+    return template_to_string(t"{x=} however y={y}")

@@ -10,3 +10,6 @@ memoryview_in_subclasses
 
 # """Fatal RPython error: NotImplementedError"""
 pep442_tp_finalize
+
+# Deadlock when calling Event.set
+generator_thread_safety

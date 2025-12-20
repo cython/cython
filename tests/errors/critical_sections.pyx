@@ -18,14 +18,72 @@ def f():
         with cython.critical_section(o):  # critical sections require the GIL
             pass
 
+@cython.critical_section
+def crit_sec_func():
+    pass
+
+@cython.critical_section
+def crit_sec_func2(*args):
+    pass
+
+@cython.critical_section
+def crit_sec_func3(**kwds):
+    pass
+
+@cython.critical_section(True)  # should not have arguments
+def crit_sec_func4(arg):
+    pass
+
+@cython.critical_section
+def has_int_arg(int arg):
+    pass
+
+@cython.critical_section
+cdef void some_nogil_function(a) noexcept nogil:
+    pass
+
+def mixed_critical_section1():
+    o = object()
+    cdef cython.pymutex m
+    with cython.critical_section(o, m):
+        pass
+
+def mixed_critical_section2():
+    o = object()
+    cdef cython.pymutex m
+    with cython.critical_section(&m, o):
+        pass
+
+def no_yield():
+    o = object()
+    with cython.critical_section(o):
+        yield
+
+async def no_await(hypothetical_awaitable):
+    o = object()
+    with cython.critical_section(o):
+        await hypothetical_awaitable()
+
 
 _ERRORS = """
 7:9: critical_section directive accepts one or two positional arguments
 9:9: critical_section directive accepts one or two positional arguments
 11:9: critical_section directive accepts one or two positional arguments
-13:33: Arguments to cython.critical_section must be Python objects.
-15:33: Arguments to cython.critical_section must be Python objects.
+13:33: Arguments to cython.critical_section must be Python objects, pymutex, or pymutex*.
+15:33: Arguments to cython.critical_section must be Python objects, pymutex, or pymutex*.
 18:13: Critical sections require the GIL
+21:0: critical_section directive can only be applied to a function with one or more positional arguments
+25:0: critical_section directive can only be applied to a function with one or more positional arguments
+29:0: critical_section directive can only be applied to a function with one or more positional arguments
+33:0: critical_section decorator does not take arguments
+37:0: Arguments to cython.critical_section must be Python objects, pymutex, or pymutex*.
+41:0: Critical sections require the GIL
+48:9: Arguments to cython.critical_section must not mix objects and pymutexes.
+54:9: Arguments to cython.critical_section must not mix objects and pymutexes.
+59:9: Cannot yield while in a cython.critical_section.
+64:9: Cannot yield while in a cython.critical_section.
+
 # slightly extraneous, but no real harm
 18:37: Creating temporary Python reference not allowed without gil
+41:0: Creating temporary Python reference not allowed without gil
 """

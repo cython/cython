@@ -1,3 +1,6 @@
+# tag: subinterpreters, threads
+
+UNSET CFLAGS
 PYTHON setup.py build_ext --inplace
 
 # single-phase uses Python's mechanisms so should be reliable
@@ -33,10 +36,11 @@ import _interpreters
 some_global = []
 def append_to_global():
     some_global.append(f"hello from interpreter {_interpreters.get_current()}")
-    
+
 #################### with_multiphase.pyx ####################
 
 # distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1
+# cython: subinterpreters_compatible = own_gil
 
 include "shared.pxi"
 
@@ -44,22 +48,27 @@ include "shared.pxi"
 
 # distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1 -DCYTHON_PEP489_MULTI_PHASE_INIT=0
 
+# Declaring single-phase module compatible doesn't work.
+
 include "shared.pxi"
-    
+
 #################### runtest.py #############################
 
 import sys
+import sysconfig
 
 if sys.version_info < (3, 13):
     # No chance of this working I think.
     # (Although there probably is a test that would...)
     exit(0)
-if hasattr(sys, "_is_gil_enabled"):
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
     # _override_multi_interp_extensions_check is banned on free-threading builds
     exit(0)
 
-# TODO - in Py3.14 this'll probably be in the standard library
-from interpreters_backport import interpreters
+try:
+    from concurrent import interpreters
+except ImportError:
+    from interpreters_backport import interpreters
 
 SKIP_FIRST = "skip_first="
 CYTHON_MODULE = "cython_module="
@@ -93,16 +102,16 @@ if randomize_order:
     random.shuffle(all_interpreters)
 
 code_to_exec = f"""
-import _imp
-# TODO - eventually we'll properly allow this, at least for multi-phase
-_imp._override_multi_interp_extensions_check(-1)
+if {cython_module == 'with_singlephase'}:
+    import _imp
+    _imp._override_multi_interp_extensions_check(-1)
 
 import {cython_module} as cymod
 cymod.append_to_global()
 # will fail if accidentally shared
 assert len(cymod.some_global) == 1
 """
-    
+
 # skip_first is useful because we apply an optimization when all the interpreter ids are small,
 # so it lets us pick this optimization.
 for i in all_interpreters[skip_first:]:

@@ -163,7 +163,7 @@ def simple_repr(self, renamed=None, state=True):
             self.__class__.__qualname__, "(",
             ",".join(names_and_values("\n\t\t", init_attrs, init_arg_names)),
             "\n\t)", *names_and_values("\nself.", state_repr)
-        ])
+    ])
 
 
 class CythonModule:
@@ -220,31 +220,30 @@ class CythonFunction(CythonVariable):
 
 # General purpose classes
 
-# fail fast if the API changes
-frame_repr_whitelist = set(f.__qualname__ for f in [
-    gdb.Frame.is_valid,
-    gdb.Frame.name,
-    gdb.Frame.architecture,
-    gdb.Frame.type,
-    gdb.Frame.pc,
-    gdb.Frame.block,
-    gdb.Frame.function,
-    gdb.Frame.older,
-    gdb.Frame.newer,
-    gdb.Frame.find_sal,
-    gdb.Frame.select,
-    gdb.Frame.static_link,
-    gdb.Frame.level,
-    gdb.Frame.language,
-    gdb.Symbol.is_valid,
-    gdb.Symbol.value,
-    gdb.Symtab_and_line.is_valid,
-    gdb.Symtab.is_valid,
-    gdb.Symtab.fullname,
-    gdb.Symtab.global_block,
-    gdb.Symtab.static_block,
-    gdb.Symtab.linetable,
-])
+frame_repr_whitelist = {
+    "Frame.is_valid",
+    "Frame.name",
+    "Frame.architecture",
+    "Frame.type",
+    "Frame.pc",
+    "Frame.block",
+    "Frame.function",
+    "Frame.older",
+    "Frame.newer",
+    "Frame.find_sal",
+    "Frame.select",
+    "Frame.static_link",
+    "Frame.level",
+    "Frame.language",
+    "Symbol.is_valid",
+    "Symbol.value",
+    "Symtab_and_line.is_valid",
+    "Symtab.is_valid",
+    "Symtab.fullname",
+    "Symtab.global_block",
+    "Symtab.static_block",
+    "Symtab.linetable",
+}
 
 def frame_repr(frame):
     """Returns a string representing the internal state of a provided GDB frame
@@ -313,11 +312,11 @@ class CythonBase:
     @default_selected_gdb_frame()
     def get_cython_lineno(self, frame):
         """
-        Get the current Cython line number. Returns 0 if there is no
+        Get the current Cython line number. Returns ("<no filename>", 0) if there is no
         correspondence between the C and Cython code.
         """
         cyfunc = self.get_cython_function(frame)
-        return cyfunc.module.lineno_c2cy.get(self.get_c_lineno(frame), 0)
+        return cyfunc.module.lineno_c2cy.get(self.get_c_lineno(frame), ("<no filename>", 0))
 
     @default_selected_gdb_frame()
     def get_source_desc(self, frame):

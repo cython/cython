@@ -1,0 +1,129 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import m1, m2, m3"
+PYTHON -c "import i1, i2, i3"
+PYTHON -c "import api1, api2, api3"
+PYTHON -c "import ci1, ci2, ci3a, ci3b"
+
+################# setup.py ######################
+
+# The tests in this file are mainly about ensuring that the
+# correct utility code is included when needed.
+# Therefore, future additions should add new files rather than
+# new code in the existing files.
+
+from setuptools import setup
+from Cython.Build import cythonize
+
+ext_modules = (
+    cythonize("m*.pyx") + 
+    cythonize("i*.pyx") +
+    cythonize("api*.pyx") +
+    cythonize("ci*.pyx"))
+
+# Don't worry about ABI compatibility if using the Limited API:
+# it's not what we're testing.
+for ext_module in ext_modules:
+    ext_module.define_macros.append(
+        ('CYTHON_UNSAFE_IGNORE_PYMUTEX_ABI_COMPATIBILITY', 1))
+
+setup(ext_modules=ext_modules)
+
+################## m1.pxd #######################
+
+cimport cython
+cdef public api cython.pymutex my_public_mtx
+
+################# m1.pyx ########################
+
+################# m2.pxd ########################
+
+cimport cython
+cdef public api void f(cython.pymutex* m)
+
+################# m2.pyx ########################
+
+cdef void f(cython.pymutex* m):
+    pass
+
+################# m3.pxd ########################
+
+cimport cython
+cdef public api class C[object C_obj, type C_type]:
+    cdef cython.pymutex m
+
+################# m3.pyx ########################
+
+cdef class C:
+    pass
+
+################# i1.pyx ########################
+
+# This generates a warning about not defining __PYX_EXTERN_C externally.
+# It's not relevant for the test though.
+cdef extern from "m1.h":
+    pass
+
+################# i2.pyx ########################
+
+# This generates a warning about not defining __PYX_EXTERN_C externally.
+# It's not relevant for the test though.
+cdef extern from "m2.h":
+    pass
+
+################# i3.pyx ########################
+
+# This generates a warning about not defining __PYX_EXTERN_C externally.
+# It's not relevant for the test though.
+cdef extern from "m3.h":
+    pass
+
+################# api1.pyx ########################
+
+# This generates a warning about not defining __PYX_EXTERN_C externally.
+# It's not relevant for the test though.
+cdef extern from "m1_api.h":
+    pass
+
+################# api2.pyx ########################
+
+# This generates a warning about not defining __PYX_EXTERN_C externally.
+# It's not relevant for the test though.
+cdef extern from "m2_api.h":
+    pass
+
+################# api3.pyx ########################
+
+# This generates a warning about not defining __PYX_EXTERN_C externally.
+# It's not relevant for the test though.
+cdef extern from "m3_api.h":
+    pass
+
+################# ci1.pyx #######################
+
+cimport m1
+print(<long long><void*>&m1.my_public_mtx)
+
+################# ci2.pyx #######################
+
+cimport m2
+print(<long long><void*>&m2.f)
+
+################# ci3a.pyx #######################
+
+cimport m3
+
+cdef class D(m3.C):
+    pass
+
+################# ci3b.pxd #######################
+
+cimport m3
+
+cdef class D(m3.C):
+    pass
+
+################ ci3b.pyx #######################
+
+cdef class D:
+    pass
+
