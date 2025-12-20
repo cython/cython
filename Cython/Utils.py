@@ -606,15 +606,20 @@ def write_depfile(target, source, dependencies):
         src_base_dir += os.sep
     # paths below the base_dir are relative, otherwise absolute
     paths = []
+    print('-'*80)
+    print(f"{cwd=}")
+    print(f"{target=}")
+    print(f"{source=}")
     for fname in dependencies:
+        print(f"{fname=}")
         try:
             newpath = os.path.relpath(fname, cwd)
         except ValueError:
             # if they are on different Windows drives, absolute is fine
             newpath = os.path.abspath(fname)
 
-        # Escape backslashes and spaces
-        newpath = newpath.replace("\\", "\\\\").replace(" ", "\\ ")
+        # Escape spaces
+        newpath = newpath.replace(" ", "\\ ")
         paths.append(newpath)
 
     depline = os.path.relpath(target, cwd) + ": \\\n  "
