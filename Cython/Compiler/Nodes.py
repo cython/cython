@@ -7073,17 +7073,16 @@ class ReturnStatNode(StatNode):
 
         if value:
             value.generate_post_assignment_code(code)
-            if (not self.return_type.is_memoryviewslice and
-                    # for now, avoid thread-safety issues in parallel blocks by not tracing the return value.
-                    not self.in_parallel and
-                    (code.globalstate.directives['profile'] or code.globalstate.directives['linetrace'])):
-                code.put_trace_return(
-                    Naming.retval_cname,
-                    self.pos,
-                    return_type=self.return_type,
-                    nogil=not code.funcstate.gil_owned,
-                )
             value.free_temps(code)
+        if (# for now, avoid thread-safety issues in parallel blocks by not tracing the return value.
+                not self.in_parallel and
+                (code.globalstate.directives['profile'] or code.globalstate.directives['linetrace'])):
+            code.put_trace_return(
+                Naming.retval_cname,
+                self.pos,
+                return_type=self.return_type,
+                nogil=not code.funcstate.gil_owned,
+            )
 
         for cname, type in code.funcstate.temps_holding_reference():
             code.put_decref_clear(cname, type)
