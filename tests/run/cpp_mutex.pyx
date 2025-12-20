@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp17, no-cpp-locals
+# tag: cpp, cpp17, no-cpp-locals, threads
 
 # cython: language_level=3
 
@@ -108,6 +108,35 @@ def test_py_safe_lock_nogil():
         py_safe_lock(m)
         m.unlock()
 
+def py_safe_lock_stress_test():
+    """
+    >>> py_safe_lock_stress_test()
+    2000
+    """
+    cdef mutex m
+    cdef int count = 0
+
+    def thread_func():
+        nonlocal count
+        for i in range(500):
+            if i%2:
+                with nogil:
+                    py_safe_lock(m)
+                    count += 1
+                    m.unlock()
+            else:
+                py_safe_lock(m)
+                count += 1
+                m.unlock()
+
+    threads = [ Thread(target=thread_func) for _ in range(4) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    print(count)
+
+
 
 # Note that it is only safe to acquire the GIL because we aren't actually running the
 # tests from multiple threads.
@@ -140,7 +169,9 @@ def test_once_flag1():
 
 def test_once_flag2():
     """
-    >>> test_once_flag2()
+    # Test disabled - this usage is correct and works but GCCs libstdc++ is broken on every
+    # non-x86 platform (and more...) https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66146
+    # >>> test_once_flag2()
     """
     cdef once_flag flag
     try:

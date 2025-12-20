@@ -10,6 +10,7 @@ memoryview.memoryview$
 #run.unicodemethods
 # multiphase import not supported
 run.unicode_imports
+run.combined_modules
 
 run.tp_new
 run.test_fstring
@@ -36,6 +37,7 @@ run.reimport_from_subinterpreter
 run.reimport_failure
 pkg.cimportfrom
 embedded
+embed_modules
 TestCyCache
 run.ext_auto_richcmp
 run.coverage_cmd
@@ -63,6 +65,3 @@ memoryview.parallel_refcounting_stress_test
 # bugs in cpyext: PyNumber_InPlacePower with non-None modulus is not supported
 run.special_methods_T561
 run.special_methods_T561_py2
-
-lock_type  # No timed-acquire
-e_limited_lock

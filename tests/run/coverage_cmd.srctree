@@ -21,6 +21,7 @@ setup(ext_modules = cythonize([
 
 ######## .coveragerc ########
 [run]
+core = ctrace
 plugins = Cython.Coverage
 
 

@@ -540,25 +540,12 @@ In some scenarios, it can be useful to link multiple Cython modules
 Python in another application.  This can be done through the inittab
 import mechanism of CPython.
 
-Create a new C file to integrate the extension modules and add this
-macro to it:
-
-.. code-block:: c
-
-    #if PY_MAJOR_VERSION < 3
-    # define MODINIT(name)  init ## name
-    #else
-    # define MODINIT(name)  PyInit_ ## name
-    #endif
-
-If you are only targeting Python 3.x, just use ``PyInit_`` as prefix.
-
-Then, for each of the modules, declare its module init function
+For each of the modules, declare its module init function
 as follows, replacing ``some_module_name`` with the name of the module:
 
 .. code-block:: c
 
-    PyMODINIT_FUNC  MODINIT(some_module_name) (void);
+    PyMODINIT_FUNC  PyInit_some_module_name (void);
 
 In C++, declare them as ``extern C``.
 
@@ -573,7 +560,7 @@ the name of each of the modules:
 
 .. code-block:: c
 
-    PyImport_AppendInittab("some_module_name", MODINIT(some_module_name));
+    PyImport_AppendInittab("some_module_name", PyInit_some_module_name);
 
 This enables normal imports for the embedded extension modules.
 
@@ -960,6 +947,8 @@ Cython code.  Here is the list of currently supported directives:
     the logic and consider it safe to run. Since free-threading support
     is still experimental itself, this is also an experimental directive that
     might be changed or removed in future releases.
+    This option can be overridden at C compile time by setting the
+    ``CYTHON_FREETHREADING_COMPATIBLE`` C macro to 1/0 for True/False.
 
 ``subinterpreters_compatible``  (no / shared_gil / own_gil), *default=no*
     If set to ``shared_gil`` or ``own_gil``, then Cython sets the
@@ -1056,6 +1045,14 @@ Cython code.  Here is the list of currently supported directives:
 
 ``profile`` (True / False), *default=False*
     Write hooks for Python profilers into the compiled C code.
+    Whether the generated module actually uses profiling depends on
+    the value of the C macro ``CYTHON_PROFILE`` which is ``1`` by
+    default but which you can optionally set to ``0`` to turn off the
+    profiling code at C compile-time.  Define ``CYTHON_USE_SYS_MONITORING``
+    to either 1 or 0 to control the mechanism used to implement profiling
+    on Python 3.13 and above.  Note that neither ``profile``
+    nor ``linetrace`` work with any tool that uses ``sys.monitoring``
+    on Python 3.12.
 
 ``linetrace`` (True / False), *default=False*
     Write line tracing hooks for Python profilers or coverage reporting
@@ -1108,7 +1105,7 @@ Cython code.  Here is the list of currently supported directives:
     the cache is enabled for Cython implemented types.  To disable it
     explicitly in the rare cases where a type needs to juggle with its ``tp_dict``
     internally without paying attention to cache consistency, this option can
-    be set to False.
+    be set to False.  Note that this no longer applies to Python 3.11 and later.
 
 ``unraisable_tracebacks`` (True / False), *default=False*
     Whether to print tracebacks when suppressing unraisable exceptions.
@@ -1318,6 +1315,8 @@ From Cython 3.1, this is still possible, but should be migrated to using the C m
 Before Cython 3.1, the ``CYTHON_CLINE_IN_TRACEBACK`` macro already works as described
 but the Cython option is needed to remove the compile-time cost.
 
+.. _C_macro_defines:
+
 C macro defines
 ===============
 
@@ -1336,9 +1335,9 @@ most important to least important:
     Turns on Cython's Limited API support, meaning that one compiled module
     can be used by many Python interpreter versions (at the cost of some performance).
     At this stage many features do not work in the Limited API.  You should set this
-    macro to be the version hex for the
-    minimum Python version you want to support (\>=3.7).  ``0x03070000`` will support
-    Python 3.7 upwards.
+    macro to be the version hex for the minimum Python version you want to support
+    (\>=3.8).  ``0x03090000`` will support Python 3.9 upwards.
+    Cython requires at least Python 3.9 from Cython 3.3 on.
     Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`,
     rather than just a Cython macro, and so it changes what parts of the Python headers
     are visible too.  See :ref:`limited_api` for more details about this feature.
@@ -1364,6 +1363,8 @@ most important to least important:
 ``CYTHON_PROFILE``, ``CYTHON_TRACE``, ``CYTHON_TRACE_NOGIL``
     These control the inclusion of profiling and line tracing calls in the module.
     See the ``profile`` and ``linetrace`` :ref:`compiler-directives`.
+    ``CYTHON_PROFILE`` is on by default; the ``CYTHON_TRACE`` macros are
+    off by default.
 
 ``CYTHON_USE_SYS_MONITORING``
     On Python 3.13+ this selects the new `sys.monitoring <https://docs.python.org/3/library/sys.monitoring.html>`_
@@ -1396,6 +1397,19 @@ most important to least important:
     ``compression.zstd`` can be selected with ``CYTHON_COMPRESS_STRINGS=3`` but is only
     available in the standard library in Python 3.14 and later.  Cython will then
     fall back to ``zlib`` when compiling in older Python versions.
+
+``CYTHON_IMMORTAL_CONSTANTS``
+    Makes cached constants (e.g. strings, tuples, ints, floats, slices) immortal,
+    in Python versions that support immortality. This is most useful when
+    the constants are used in many different threads because it avoids most writes
+    to the constants due to reference counting. Disabled by default, but enabled
+    in free-threaded builds.
+
+``CYTHON_FREETHREADING_COMPATIBLE``
+    In Freethreading Python runtimes, setting this to ``0`` will force enabling
+    the GIL when importing the module, ``1`` will keep it untouched.
+    The default setting depends on the ``freethreading_compatible`` directive.
+    This C macro allows to override the directive at C compile time.
 
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the

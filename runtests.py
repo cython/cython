@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import atexit
 import base64
@@ -10,10 +10,12 @@ import locale
 import math
 import operator
 import os
+import platform
 import re
 import shutil
 import subprocess
 import sys
+import sysconfig
 import time
 import traceback
 import unittest
@@ -23,7 +25,6 @@ from collections import defaultdict
 from contextlib import contextmanager
 
 try:
-    import platform
     IS_PYPY = platform.python_implementation() == 'PyPy'
     IS_CPYTHON = platform.python_implementation() == 'CPython'
     IS_GRAAL = platform.python_implementation() == 'GraalVM'
@@ -75,7 +76,6 @@ except ImportError:
     pass
 
 from distutils.command.build_ext import build_ext as _build_ext
-from distutils import sysconfig
 _to_clean = []
 
 @atexit.register
@@ -146,6 +146,8 @@ EXT_DEP_MODULES = {
     'tag:jedi':     'jedi_BROKEN_AND_DISABLED',
     'tag:test.support': 'test.support',  # support module for CPython unit tests
 }
+if sys.version_info < (3, 14):
+    EXT_DEP_MODULES['tag:subinterpreters'] = 'interpreters_backport'
 
 def patch_inspect_isfunction():
     import inspect
@@ -244,10 +246,27 @@ def exclude_test_on_platform(*platforms):
     return sys.platform in platforms
 
 
+def exclude_test_on_dev():
+    return sys.version_info.releaselevel != 'final'
+
+
+include_debugger = IS_CPYTHON
+
+
+def exclude_test_if_no_gdb(*, _has_gdb=[None]):
+    if not include_debugger:
+        _has_gdb[0] = False
+    if _has_gdb[0] is None:
+        try:
+            subprocess.check_call(["gdb", "--version"])
+        except (IOError, subprocess.CalledProcessError):
+            _has_gdb[0] = False
+        else:
+            _has_gdb[0] = True
+    return not _has_gdb[0]
+
+
 def update_linetrace_extension(ext):
-    if not IS_CPYTHON and sys.version_info[:2] < (3, 13):
-        # Tracing/profiling requires PEP-669 monitoring or old CPython tracing.
-        return EXCLUDE_EXT
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
 
@@ -261,7 +280,10 @@ def update_numpy_extension(ext, set_api17_macro=True):
     ]
     ext.library_dirs += lib_path
     if sys.platform == "win32":
-        ext.libraries += ["npymath"]
+        if platform.machine().lower() != 'arm64':
+            # For unknown reasons, Windows arm provides libnpymath.a instead of npymath.lib.
+            # See if we can get away without it.
+            ext.libraries += ["npymath"]
     else:
         ext.libraries += ["npymath", "m"]
     ext.include_dirs.append(np.get_include())
@@ -270,29 +292,10 @@ def update_numpy_extension(ext, set_api17_macro=True):
         ext.define_macros.append(('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'))
     del np
 
-def update_gdb_extension(ext, _has_gdb=[None]):
-    # We should probably also check for Python support.
-    if not include_debugger:
-        _has_gdb[0] = False
-    if _has_gdb[0] is None:
-        try:
-            subprocess.check_call(["gdb", "--version"])
-        except (IOError, subprocess.CalledProcessError):
-            _has_gdb[0] = False
-        else:
-            _has_gdb[0] = True
-    if not _has_gdb[0]:
-        return EXCLUDE_EXT
-    return ext
-
 
 def update_openmp_extension(ext):
     ext.openmp = True
     language = ext.language
-
-    if sys.platform == 'win32' and sys.version_info[:2] == (3,4):
-        # OpenMP tests fail in appveyor in Py3.4 -> just ignore them, EoL of Py3.4 is early 2019...
-        return EXCLUDE_EXT
 
     if language == 'cpp':
         flags = OPENMP_CPP_COMPILER_FLAGS
@@ -467,7 +470,6 @@ EXCLUDE_EXT = object()
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
-    'tag:gdb': update_gdb_extension,
     'tag:cpp11': update_cpp11_extension,
     'tag:cpp17': update_cpp17_extension,
     'tag:cpp20': update_cpp20_extension,
@@ -479,22 +481,30 @@ EXT_EXTRAS = {
 TAG_EXCLUDERS = sorted({
     'no-macos':  exclude_test_on_platform('darwin'),
     'pstats': exclude_test_in_pyver((3,12)),
-    'coverage': exclude_test_in_pyver((3,12)),
+    'coverage': exclude_test_in_pyver((3,12)) or exclude_test_on_dev(),
     'monitoring': exclude_test_in_pyver((3,12)),
-    'trace': not IS_CPYTHON,
+    'gdb': exclude_test_if_no_gdb(),
+    'trace': not IS_CPYTHON or exclude_test_in_pyver((3,12)),
 }.items())
+
+def iterate_matcher_fixer_dict(matchers_and_fixers):
+    for matcher, fixer in list(matchers_and_fixers.items()):
+        if isinstance(matcher, str):
+            # lazy init
+            del matchers_and_fixers[matcher]
+            matcher = string_selector(matcher)
+            matchers_and_fixers[matcher] = fixer
+        yield matcher, fixer
 
 # TODO: use tags
 VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
-    # (2,4) : (operator.lt, ...) excludes ... when PyVer < 2.4.x
+    # (3,12) : (operator.lt, ...) excludes ... when PyVer < 3.12.x
 
     # FIXME: fix? delete?
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
 
-    (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
-                                         ]),
     (3,12): (operator.ge, lambda x: x in [
         'run.py_unicode_strings',  # Py_UNICODE was removed
         'compile.pylong',  # PyLongObject changed its structure
@@ -594,10 +604,7 @@ def import_ext(module_name, file_path=None):
 class build_ext(_build_ext):
     def build_extension(self, ext):
         try:
-            try: # Py2.7+ & Py3.2+
-                compiler_obj = self.compiler_obj
-            except AttributeError:
-                compiler_obj = self.compiler
+            compiler_obj = self.compiler
             if ext.language == 'c++':
                 compiler_obj.compiler_so.remove('-Wstrict-prototypes')
             if CCACHE:
@@ -739,11 +746,7 @@ class TestBuilder(object):
                     continue
                 suite.addTest(
                     self.handle_directory(path, filename))
-        if (sys.platform not in ['win32'] and self.add_embedded_test
-                # the embedding test is currently broken in Py3.8+ and Py2.7, except on Linux.
-                and ((3, 0) <= sys.version_info < (3, 8) or sys.platform != 'darwin')
-                # broken on graal too
-                and not IS_GRAAL):
+        if (sys.platform not in ['win32', 'darwin'] and self.add_embedded_test and not IS_GRAAL):
             # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
                     and not [1 for selector in self.exclude_selectors if selector("embedded")]:
@@ -1128,7 +1131,8 @@ class CythonCompileTestCase(unittest.TestCase):
         if not self.abi3audit:
             return
         shared_libs = [ file for file in os.listdir(self.workdir)
-                        if os.path.splitext(file)[1] in ('.so', '.dll') ]
+                        if (os.path.splitext(file)[1] in ('.so', '.dll')
+                                and not file.startswith('_cython_inline')) ]
         if not shared_libs:
             return
         shared_libs = [ os.path.join(self.workdir, file) for file in shared_libs ]
@@ -1337,12 +1341,7 @@ class CythonCompileTestCase(unittest.TestCase):
             if 'traceback' not in self.tags['tag']:
                 extension.define_macros.append(("CYTHON_CLINE_IN_TRACEBACK", 1))
 
-            for matcher, fixer in list(EXT_EXTRAS.items()):
-                if isinstance(matcher, str):
-                    # lazy init
-                    del EXT_EXTRAS[matcher]
-                    matcher = string_selector(matcher)
-                    EXT_EXTRAS[matcher] = fixer
+            for matcher, fixer in iterate_matcher_fixer_dict(EXT_EXTRAS):
                 if matcher(module, self.tags):
                     newext = fixer(extension)
                     if newext is EXCLUDE_EXT:
@@ -1539,6 +1538,7 @@ class CythonRunTestCase(CythonCompileTestCase):
                 failures, errors, skipped = len(result.failures), len(result.errors), len(result.skipped)
                 if not self.cython_only and ext_so_path is not None:
                     self.run_tests(result, ext_so_path)
+                self.runAbi3AuditTest()
                 if failures == len(result.failures) and errors == len(result.errors):
                     # No new errors...
                     self.success = True
@@ -1786,9 +1786,17 @@ class TestCodeFormat(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def runTest(self):
-        source_dirs = ['Cython', 'Demos', 'docs', 'pyximport', 'tests']
+        source_dirs = ['Cython', 'Demos', 'pyximport', 'tests']
 
         import pycodestyle
+
+        @pycodestyle.register_check
+        def breakpoint_check(physical_line):
+            if 'breakpoint()' not in physical_line:
+                return None
+            idx = physical_line.find('breakpoint()')
+            return idx, "Z001 Stray 'breakpoint' call"
+
         config_file = os.path.join(self.cython_dir, "setup.cfg")
         if not os.path.exists(config_file):
             config_file = os.path.join(os.path.dirname(__file__), "setup.cfg")
@@ -1797,43 +1805,125 @@ class TestCodeFormat(unittest.TestCase):
         # checks for .py files
         paths = []
         for codedir in source_dirs:
-            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file)
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
         total_errors += result.total_errors
 
+        # Within the docs we sometimes use whitespace to make .py and .pyx files
+        # line up.  So allow these there.
+        allowed_in_docs = ('W391', 'W293', 'W2', 'W3')
+        paths = []
+        for codedir in ['docs']:
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, ignore=allowed_in_docs)
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+
+        non_python_list = [
+            'E711',
+            'E713',
+            'E714',
+            #'E501',
+            'W291',
+            'W292',
+            'E502',
+            'E703',
+            # whitespace
+            'W1',
+            'W2',
+            'W3',
+            #'E211',
+            'E223',
+            'E224',
+            #'E227',
+            'E228',
+            'E242',
+            #'E261',
+            'E273',
+            'E274',
+            #'E275',
+            # indentation
+            'E101',
+            'E111',
+            'E112',
+            #'E113',
+            'E117',
+            'E121',
+            'E125',
+            'E129',
+        ]
+
         # checks for non-Python source files
         paths = []
         for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
-            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, select=non_python_list)
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+
+        # checks for non-Python docs source files
+        paths = []
+        for codedir in ['docs']:
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file, select=[
-            # whitespace
-            "W1", "W2", "W3",
-            # indentation
-            "E101", "E111",
+            item for item in non_python_list
+            if item not in allowed_in_docs
         ])
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
         total_errors += result.total_errors
 
-        """
-        # checks for non-Python test files
+        # checks for non-Python test source files
         paths = []
-        for codedir in ['tests']:
-            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
-        style = pycodestyle.StyleGuide(select=[
+        for codedir in ['tests']:  # source_dirs:
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, select=[
+            #'E711',
+            #'E713',
+            #'E714',
+            #'E501',
+            #'E502',
+            #'E703',
             # whitespace
-            "W1", "W2", "W3",
-        ])
+            #'W1',
+            #'W2',
+            #'W3',
+            #'W291',
+            'W292',
+            #'E211',
+            'E223',
+            'E224',
+            #'E227',
+            #'E228',
+            'E242',
+            #'E261',
+            'E273',
+            'E274',
+            #'E275',
+            # indentation
+            'E101',
+            #'E111',
+            'E112',
+            'E113',
+            #'E117',
+            #'E121',
+            #'E125',
+            #'E129',
+            ],
+            exclude=[
+                "*badindent*",
+                "*tabspace*",
+            ],
+        )
+        print("")  # Fix the first line of the report.
         result = style.check_files(paths)
         total_errors += result.total_errors
-        """
 
         self.assertEqual(total_errors, 0, "Found code style errors.")
-
-
-include_debugger = IS_CPYTHON
 
 
 def collect_unittests(path, module_prefix, suite, selectors, exclude_selectors):
@@ -1969,7 +2059,7 @@ class EndToEndTest(unittest.TestCase):
         new_path = self.cython_syspath
         if old_path:
             new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
-        env_cflags = list(CFLAGS) + [f'"-D{macro}={definition}"' for macro, definition in CDEFS]
+        env_cflags = list(CFLAGS) + [f'-D{macro}={definition}' for macro, definition in CDEFS]
         env_cflags = " ".join(env_cflags)
         env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8',
                    CFLAGS=env_cflags)
@@ -2072,8 +2162,14 @@ class EmbedTest(unittest.TestCase):
 
 
 def load_listfile(filename):
-    # just reuse the FileListExclude implementation
-    return list(FileListExcluder(filename))
+    excludes = {}  # deduplicate but keep file order
+    with open(filename) as f:
+        for line in f:
+            line = line.strip()
+            if line and line[0] != '#':
+                excludes[line.split()[0]] = True
+    return list(excludes)
+
 
 class MissingDependencyExcluder(object):
     def __init__(self, deps):
@@ -2135,20 +2231,15 @@ class VersionDependencyExcluder(object):
 
 class FileListExcluder(object):
     def __init__(self, list_file, verbose=False):
+        self.excludes = load_listfile(list_file)
         self.verbose = verbose
-        self.excludes = {}
         self._list_file = os.path.relpath(list_file)
-        with open(list_file) as f:
-            for line in f:
-                line = line.strip()
-                if line and line[0] != '#':
-                    self.excludes[line.split()[0]] = True
+        self._excluders = [RegExSelector(exclude).regex_matches for exclude in self.excludes]
 
     def __call__(self, testname, tags=None):
-        exclude = any(string_selector(ex)(testname) for ex in self.excludes)
+        exclude = any(is_excluded(testname) for is_excluded in self._excluders)
         if exclude and self.verbose:
-            print("Excluding %s because it's listed in %s"
-                  % (testname, self._list_file))
+            print(f"Excluding {testname} because it's listed in {self._list_file}")
         return exclude
 
 
@@ -2169,7 +2260,7 @@ class RegExSelector(object):
         try:
             self.regex_matches = re.compile(pattern_string, re.I|re.U).search
         except re.error:
-            print('Invalid pattern: %r' % pattern_string)
+            print(f'Invalid pattern: {pattern_string!r}')
             raise
 
     def __call__(self, testname, tags=None):
@@ -2372,6 +2463,10 @@ def main():
         help="exclude tests matching the PATTERN")
     parser.add_argument(
         "--listfile", dest="listfile",
+        action="append",
+        help="specify a file containing a list of tests to run")
+    parser.add_argument(
+        "--excludefile", dest="excludefile",
         action="append",
         help="specify a file containing a list of tests to run")
     parser.add_argument(
@@ -2756,9 +2851,9 @@ def runtests(options, cmd_args, coverage=None):
             compiler_default_options['gdb_debug'] = True
             compiler_default_options['output_dir'] = os.getcwd()
 
-    if IS_PYPY:
+    if IS_PYPY or IS_GRAAL:
         if options.with_refnanny:
-            sys.stderr.write("Disabling refnanny in PyPy\n")
+            sys.stderr.write("Disabling refnanny in PyPy/GraalPy\n")
             options.with_refnanny = False
 
     refnanny = None
@@ -2837,6 +2932,10 @@ def runtests(options, cmd_args, coverage=None):
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
 
+    if options.excludefile:
+        for excludefile in options.excludefile:
+            exclude_selectors.append(FileListExcluder(excludefile))
+
     if not COMPILER_HAS_INT128:
         exclude_selectors += [RegExSelector('int128')]
 
@@ -2851,8 +2950,8 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
-            ('limited_api_bugs_38.txt', options.limited_api and sys_version_or_limited_version < (3, 9)),
             ('windows_bugs.txt', sys.platform == 'win32'),
+            ('windows_arm_bugs.txt', sys.platform == 'win32' and platform.machine().lower() == "arm64"),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
         ]
@@ -2869,6 +2968,16 @@ def runtests(options, cmd_args, coverage=None):
         exclude_selectors += [
             TagsSelector('tag', 'memoryview'),
             FileListExcluder(os.path.join(ROOTDIR, "memoryview_tests.txt")),
+        ]
+    if options.limited_api:
+        # The Limited API is really useless for embedding in a specific Python runtime.
+        exclude_selectors += [
+            TagsSelector('tag', 'embed'),
+        ]
+    elif sysconfig.get_config_var('Py_DEBUG'):
+        # Embedding also doesn't seem to work in Py_DEBUG builds.
+        exclude_selectors += [
+            TagsSelector('tag', 'embed'),
         ]
 
     if not test_bugs and re.match("arm|aarch", platform.machine(), re.IGNORECASE):

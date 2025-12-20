@@ -4,7 +4,6 @@
 import os
 import os.path
 import re
-import codecs
 import textwrap
 from datetime import datetime
 from functools import partial
@@ -108,9 +107,12 @@ class AnnotationCCodeWriter(CCodeWriter):
 
     # on-click toggle function to show/hide C source code
     _onclick_attr = ' onclick="{}"'.format((
-        "(function(s){"
-        "    s.display =  s.display === 'block' ? 'none' : 'block'"
-        "})(this.nextElementSibling.style)"
+        # Use local JS variables by declaring them as function arguments.
+        "(function(f, s, c) {"
+        "    c = f.nodeValue == '+';"
+        "    s.display = c ? 'block' : 'none';"
+        "    f.nodeValue = c ? '−' : '+'"
+        "})(this.firstChild, this.nextElementSibling.style)"
         ).replace(' ', '')  # poor dev's JS minification
     )
 
@@ -121,7 +123,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         c_file = Utils.decode_filename(os.path.basename(target_filename))
         html_filename = os.path.splitext(target_filename)[0] + ".html"
 
-        with codecs.open(html_filename, "w", encoding="UTF-8") as out_buffer:
+        with open(html_filename, "w", encoding="UTF-8") as out_buffer:
             out_buffer.write(self._save_annotation(code, generated_code, c_file, source_filename, coverage_xml))
 
     def _save_annotation_header(self, c_file, source_filename, coverage_timestamp=None):

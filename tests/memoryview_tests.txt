@@ -22,6 +22,7 @@ compile.fused_redeclare_T3111
 compile.c_directives
 compile.cpp_structs
 compile.ctuple_unused_T3543
+compile[.]except_clause_needs_exception
 
 run[.]cdef_class_dataclass
 run[.]cyfunction_defaults
@@ -36,6 +37,7 @@ run[.]pyarray
 run[.]sequential_parallel
 run[.]special_methods_T561
 run[.]cythonscope
+run[.]shared_utility
 
 # generic filters
 buffer

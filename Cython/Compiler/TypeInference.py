@@ -79,6 +79,8 @@ class MarkParallelAssignments(EnvTransform):
         return node
 
     def visit_SingleAssignmentNode(self, node):
+        if self.parallel_block_stack:
+            node.in_parallel_block = True
         self.mark_assignment(node.lhs, node.rhs)
         self.visitchildren(node)
         return node
@@ -246,6 +248,12 @@ class MarkParallelAssignments(EnvTransform):
 
     def visit_ReturnStatNode(self, node):
         node.in_parallel = bool(self.parallel_block_stack)
+        return node
+
+    def visit_ExprNode(self, node):
+        self.visitchildren(node)
+        if self.parallel_block_stack:
+            node.in_parallel_block = True
         return node
 
 

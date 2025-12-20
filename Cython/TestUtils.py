@@ -51,10 +51,10 @@ def treetypes(root):
 class CythonTest(unittest.TestCase):
 
     def setUp(self):
-        Errors.init_thread()
+        Errors.reset()
 
     def tearDown(self):
-        Errors.init_thread()
+        Errors.reset()
 
     def assertLines(self, expected, result):
         "Checks that the given strings or lists of strings are equal line by line"
@@ -285,6 +285,18 @@ class TreeAssertVisitor(VisitorTransform):
             self._c_patterns.extend(directives['test_assert_c_code_has'])
         if 'test_fail_if_c_code_has' in directives:
             self._c_antipatterns.extend(directives['test_fail_if_c_code_has'])
+        if 'test_body_needs_exception_handling' in directives:
+            value = directives['test_body_needs_exception_handling']
+            if value is not None:
+                from .Compiler.ParseTreeTransforms import HasNoExceptionHandlingVisitor
+                visitor = HasNoExceptionHandlingVisitor()
+                result = not visitor(node.body)
+                if value != result:
+                    visitor(node.body)
+                    Errors.error(
+                        node.pos,
+                        "Node had unexpected exception handling value"
+                    )
 
     def visit_ModuleNode(self, node):
         self._module_pos = node.pos
