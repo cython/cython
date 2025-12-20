@@ -162,8 +162,13 @@ class MatchCaseNode(Node):
     def analyse_case_expressions(self, subject_node, env):
         self.pattern = self.pattern.analyse_pattern_expressions(subject_node, env)
         self.original_pattern = self.pattern
+        # coerce_to_boolean.coerce_to_simple is taken from analyse_temp_boolean_expression
+        # and ensures that self.comp_node.generate_disposal_code is trivial and so
+        # it doesn't matter if it's skipped in one branch. IfClauseNode relies on the same mechanism.
         self.pattern.comp_node = self.pattern.comp_node.coerce_to_boolean(env).coerce_to_simple(env)
         if self.guard:
+            # analyse_temp_boolean_expression ensures that means that self.guard.generate_disposal_code
+            # is trivial and so it doesn't matter if it's skipped in one branch.
             self.guard = self.guard.analyse_temp_boolean_expression(env)
         self.body = self.body.analyse_expressions(env)
         return self
