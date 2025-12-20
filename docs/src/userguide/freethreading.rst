@@ -150,11 +150,11 @@ wrapping will avoid deadlocks with the GIL.
 Automatically applied critical sections
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-From Cython 3.2, Cython adds critical sections to automatically generated functions.
+From Cython 3.3, Cython adds critical sections to automatically generated functions.
 This includes properties on extension types (e.g. ``cdef public int x`` or
 ``cdef readonly int x``), the auto-generated pickle functions of
 extension types, and functions of ``cython.dataclasses.dataclass`` class.
-The thread-safety here is achieve by adding ``with cython.critical_section(self[, other]):``
+The thread-safety here is achieved by adding ``with cython.critical_section(self[, other]):``
 where ``self`` is the instance of the extension type and ``other`` is the second argument
 for dataclass comparison functions only.  Therefore, if you are writing
 your own code interacting with the underlying data then you can use the same
