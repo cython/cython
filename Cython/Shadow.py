@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.1.0a0"
+__version__ = "3.3.0a0"
 
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
@@ -109,14 +109,16 @@ annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
     auto_cpdef = c_api_binop_methods = \
     allow_none_for_extension_args = callspec = show_performance_hints = \
     cpp_locals = py2_import = iterable_coroutine = remove_unreachable = \
+    overflowcheck = test_body_needs_exception_handling = \
         lambda _: _EmptyDecoratorAndManager()
 
 # Note that fast_getattr is untested and undocumented!
 fast_getattr = lambda _: _EmptyDecoratorAndManager()
+# c_compile_guard is largely for internal use
+c_compile_guard = lambda _:_EmptyDecoratorAndManager()
 
 exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
-overflowcheck = lambda _: _EmptyDecoratorAndManager()
 optimize = _Optimization()
 
 
@@ -227,6 +229,19 @@ with_gil = _nogil()  # Actually not a context manager, but compilation will give
 del _nogil
 
 
+class critical_section:
+    def __init__(self, arg0, arg1=None):
+        # It's ambiguous if this is being used as a decorator or context manager
+        # even with a callable arg.
+        self.arg0 = arg0
+    def __call__(self, *args, **kwds):
+        return self.arg0(*args, **kwds)
+    def __enter__(self):
+        pass
+    def __exit__(self, exc_class, exc, tb):
+        return False
+
+
 # Emulated types
 
 class CythonMetaType(type):
@@ -274,7 +289,8 @@ class PointerType(CythonType):
             return not self._items and not value._items
 
     def __repr__(self):
-        return "%s *" % (self._basetype,)
+        return f"{self._basetype} *"
+
 
 class ArrayType(PointerType):
 
@@ -353,16 +369,30 @@ class UnionType(CythonType):
         else:
             raise AttributeError("Union has no member '%s'" % key)
 
-def pointer(basetype):
-    class PointerInstance(PointerType):
-        _basetype = basetype
-    return PointerInstance
 
-def array(basetype, n):
-    class ArrayInstance(ArrayType):
-        _basetype = basetype
-        _n = n
-    return ArrayInstance
+class pointer(PointerType):
+    # Implemented as class to support both 'pointer(int)' and 'pointer[int]'.
+    def __new__(cls, basetype):
+        class PointerInstance(PointerType):
+            _basetype = basetype
+        return PointerInstance
+
+    def __class_getitem__(cls, basetype):
+        return cls(basetype)
+
+
+class array(ArrayType):
+    # Implemented as class to support both 'array(int, 5)' and 'array[int, 5]'.
+    def __new__(cls, basetype, n):
+        class ArrayInstance(ArrayType):
+            _basetype = basetype
+            _n = n
+        return ArrayInstance
+
+    def __class_getitem__(cls, item):
+        basetype, n = item
+        return cls(basetype, item)
+
 
 def struct(**members):
     class StructInstance(StructType):
@@ -378,6 +408,7 @@ def union(**members):
         setattr(UnionInstance, key, None)
     return UnionInstance
 
+
 class typedef(CythonType):
 
     def __init__(self, type, name=None):
@@ -392,6 +423,25 @@ class typedef(CythonType):
         return self.name or str(self._basetype)
 
     __getitem__ = index_type
+
+
+class const(typedef):
+    def __init__(self, type, name=None):
+        name = f"const {name or repr(type)}"
+        super().__init__(type, name)
+
+    def __class_getitem__(cls, base_type):
+        return const(base_type)
+
+
+class volatile(typedef):
+    def __init__(self, type, name=None):
+        name = f"volatile {name or repr(type)}"
+        super().__init__(type, name)
+
+    def __class_getitem__(cls, base_type):
+        return volatile(base_type)
+
 
 class _FusedType(CythonType):
     __getitem__ = index_type
@@ -416,11 +466,6 @@ def fused_type(*args):
     # isn't really meant to be used, as we can't keep track of the context in
     # pure-mode. Casting won't do anything in this case.
     return _FusedType()
-
-
-def _specialized_from_args(signatures, args, kwargs):
-    "Perhaps this should be implemented in a TreeFragment in Cython code"
-    raise Exception("yet to be implemented")
 
 
 py_int = typedef(int, "int")
@@ -472,10 +517,7 @@ to_repr = {
 
 gs = globals()
 
-import builtins
-
-gs['unicode'] = typedef(getattr(builtins, 'unicode', str), 'unicode')
-del builtins
+gs['unicode'] = typedef(str, 'unicode')
 
 for name in int_types:
     reprname = to_repr(name, name)
@@ -496,18 +538,28 @@ bint = typedef(bool, "bint")
 void = typedef(None, "void")
 Py_tss_t = typedef(None, "Py_tss_t")
 
-for t in int_types:
-    for i in range(1, 4):
-        gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
-        if 'u'+t in gs:
-            gs["%s_u%s" % ('p'*i, t)] = gs['u'+t]._pointer(i)
-            gs["%s_s%s" % ('p'*i, t)] = gs['s'+t]._pointer(i)
+# Generate const types.
+for t in int_types + float_types + complex_types + other_types:
+    for t in (t, f'u{t}', f's{t}'):
+        if t in gs:
+            gs[f"const_{t}"] = const(gs[t], t)
 
-for t in float_types + complex_types + other_types:
-    for i in range(1, 4):
-        gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
+# Generate pointer types: p_int, p_const_char, etc.
+for i in range(1, 4):
+    for const_ in ('', 'const_'):
+        for t in int_types:
+            for t in (t, f'u{t}', f's{t}'):
+                if t in gs:
+                    gs[f"{'p'*i}_{const_}{t}"] = pointer(gs[f"{'p'*(i-1)}{'_' if i > 1 else ''}{const_}{t}"])
 
-del t, i
+        for t in float_types + complex_types:
+            gs[f"{'p'*i}_{const_}{t}"] = pointer(gs[f"{'p'*(i-1)}{'_' if i > 1 else ''}{const_}{t}"])
+
+    gs[f"{'p'*i}_const_bint"] = pointer(gs[f"{'p'*(i-1)}{'_' if i > 1 else ''}const_bint"])
+    for t in other_types:
+        gs[f"{'p'*i}_{t}"] = pointer(gs[f"{'p'*(i-1)}{'_' if i > 1 else ''}{t}"])
+
+del t, const_, i
 
 NULL = gs['p_void'](0)
 
@@ -612,3 +664,29 @@ sys.modules['cython.cimports'] = CythonCImports('cython.cimports', libc=sys.modu
 # shadow the standard library ones (if they are available)
 dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
 del math, sys
+
+class pymutex:
+    def __init__(self):
+        import threading
+        self._l = threading.Lock()
+
+    def acquire(self):
+        return self._l.acquire()
+
+    def release(self):
+        return self._l.release()
+
+    def locked(self):
+        return self._l.locked()
+
+    def can_check_locked(self):
+        """Check if locked() is available. Always True in pure Python mode."""
+        return True
+
+    def __enter__(self):
+        return self._l.__enter__()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return self._l.__exit__(exc_type, exc_value, traceback)
+
+pythread_type_lock = pymutex

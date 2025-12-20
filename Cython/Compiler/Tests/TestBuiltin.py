@@ -4,6 +4,7 @@ import unittest
 
 from ..Builtin import (
     inferred_method_return_types, find_return_type_of_builtin_method,
+    unsafe_compile_time_methods, is_safe_compile_time_method,
     builtin_scope,
 )
 
@@ -34,6 +35,7 @@ class TestBuiltinReturnTypes(unittest.TestCase):
                 else:
                     self.assertEqual(return_type.empty_declaration_code(pyrex=True), return_type_name)
 
+
 class TestBuiltinCompatibility(unittest.TestCase):
     def test_python_builtin_compatibility(self):
         expected_builtins = set(KNOWN_PYTHON_BUILTINS)
@@ -48,3 +50,23 @@ class TestBuiltinCompatibility(unittest.TestCase):
                 self.skipTest(f'skipping test, older Python release found. Missing builtins: {", ".join(sorted(missing_builtins))}')
             self.skipTest('skipping test, older Python release found.')
         self.assertSetEqual(runtime_builtins, expected_builtins)
+
+    def test_unsafe_compile_time_methods(self):
+        """Validate the table of builtin methods that are not safe for compile time evaluation
+        against the table of known builtin methods (and their types).
+        """
+        for builtin_type_name, unsafe_methods in unsafe_compile_time_methods.items():
+            self.assertIsInstance(unsafe_methods, set)
+
+            builtin_type = getattr(builtins, builtin_type_name)  # All named types must exist as builtin types.
+
+            known_methods = sorted(
+                inferred_method_return_types[builtin_type_name])  # All types are also in "inferred_method_return_types".
+
+            self.assertFalse(unsafe_methods.difference(known_methods))  # Only known methods are listed.
+
+            for method_name in known_methods:
+                builtin_method = getattr(builtin_type, method_name, None)
+                if builtin_method is None:
+                    self.assertIn(method_name, unsafe_methods)  # Non-portable methods are always unsafe.
+                    continue

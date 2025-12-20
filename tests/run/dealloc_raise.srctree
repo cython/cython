@@ -1,0 +1,45 @@
+# github 6022
+# This used to crash, probably due to a stray reference
+# to a destructed object being kept in stashed exception
+# state on interpreter shutdown.
+
+PYTHON setup.py build_ext --inplace
+PYTHON test_dealloc_raise1.py
+PYTHON test_dealloc_raise2.py
+
+############## setup.py ##########################
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+############# dealloc_raise.pyx ##################
+
+cdef class Foo:
+    def __dealloc__(self):
+        self.cleanup()  # doesn't exist
+
+############# test_dealloc_raise1.py #############
+
+import dealloc_raise
+
+class Derived(dealloc_raise.Foo):
+    pass
+
+def main():
+    ob = Derived()
+
+main()
+
+############# test_dealloc_raise2.py #############
+
+import dealloc_raise
+
+class Derived(dealloc_raise.Foo):
+    pass
+
+class Main:
+    ob = Derived()

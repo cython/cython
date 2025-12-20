@@ -42,10 +42,9 @@ __all__ = ['TemplateError', 'Template', 'sub', 'bunch']
 
 in_re = re.compile(r'\s+in\s+')
 var_re = re.compile(r'^[a-z_][a-z0-9_]*$', re.I)
-basestring_ = (bytes, str)
 
 def coerce_text(v):
-    if not isinstance(v, basestring_):
+    if not isinstance(v, str):
         if hasattr(v, '__str__'):
             return str(v)
         else:
@@ -116,7 +115,7 @@ class Template:
             delimiters = (self.default_namespace['start_braces'],
                           self.default_namespace['end_braces'])
         else:
-            #assert len(delimiters) == 2 and all([isinstance(delimiter, basestring)
+            #assert len(delimiters) == 2 and all([isinstance(delimiter, str)
             #                                     for delimiter in delimiters])
             self.default_namespace = self.__class__.default_namespace.copy()
             self.default_namespace['start_braces'] = delimiters[0]
@@ -220,7 +219,7 @@ class Template:
     def _interpret_codes(self, codes, ns, out, defs):
         __traceback_hide__ = True
         for item in codes:
-            if isinstance(item, basestring_):
+            if isinstance(item, str):
                 out.append(item)
             else:
                 self._interpret_code(item, ns, out, defs)
@@ -291,7 +290,7 @@ class Template:
         __traceback_hide__ = True
         # @@: if/else/else gets through
         for part in parts:
-            assert not isinstance(part, basestring_)
+            assert not isinstance(part, str)
             name, pos = part[0], part[1]
             if name == 'else':
                 result = True
@@ -340,7 +339,7 @@ class Template:
                 except UnicodeDecodeError:
                     value = bytes(value)
             else:
-                if not isinstance(value, basestring_):
+                if not isinstance(value, str):
                     value = coerce_text(value)
                 if (isinstance(value, str)
                         and self.default_encoding):
@@ -629,7 +628,7 @@ def trim_lex(tokens):
     """
     last_trim = None
     for i, current in enumerate(tokens):
-        if isinstance(current, basestring_):
+        if isinstance(current, str):
             # we don't trim this
             continue
         item = current[0]
@@ -643,8 +642,8 @@ def trim_lex(tokens):
             next_chunk = ''
         else:
             next_chunk = tokens[i + 1]
-        if (not isinstance(next_chunk, basestring_)
-                or not isinstance(prev, basestring_)):
+        if (not isinstance(next_chunk, str)
+                or not isinstance(prev, str)):
             continue
         prev_ok = not prev or trail_whitespace_re.search(prev)
         if i == 1 and not prev.strip():
@@ -746,7 +745,7 @@ def parse(s, name=None, line_offset=0, delimiters=None):
 
 
 def parse_expr(tokens, name, context=()):
-    if isinstance(tokens[0], basestring_):
+    if isinstance(tokens[0], str):
         return tokens[0], tokens[1:]
     expr, pos = tokens[0]
     expr = expr.strip()

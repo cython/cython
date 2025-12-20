@@ -174,6 +174,12 @@ cdef class Γναμε2:
     cpdef εxciting_cpdef(self):
         """docstring"""
         return 2
+    cpdef cpdef_with_exciting_arg(self, ααα):
+        """
+        >>> Γναμε2().cpdef_with_exciting_arg(5)
+        5
+        """
+        return ααα
 
 cdef class Derived(Γναμε2):
     pass

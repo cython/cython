@@ -179,6 +179,10 @@ try: aa.r3(True)
 except ValueError: assert False, "ValueError not raised"
 else:              pass
 
+######## bar.pxd ########
+cdef int func_noexcept_declared_in_pxd() noexcept
+cdef int func_implicit_declared_in_pxd()
+
 ######## bar.pyx ########
 
 cdef int func_noexcept() noexcept:
@@ -187,11 +191,20 @@ cdef int func_noexcept() noexcept:
 cdef int func_implicit():
     raise RuntimeError()
 
+cdef int func_noexcept_declared_in_pxd():
+    raise RuntimeError()
+
+cdef int func_implicit_declared_in_pxd():
+    raise RuntimeError()
+
 cdef int func_return_value() except -1:
     raise RuntimeError()
 
 func_noexcept()
 func_implicit()
+
+func_noexcept_declared_in_pxd()
+func_implicit_declared_in_pxd()
 
 try:
     func_return_value()

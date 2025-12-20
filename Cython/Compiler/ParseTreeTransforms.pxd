@@ -28,7 +28,7 @@ cdef class PostParse(ScopeTrackingTransform):
 #class AnalyseDeclarationsTransform(EnvTransform):
 
 cdef class AnalyseExpressionsTransform(CythonTransform):
-    pass
+    cdef list positions
 
 cdef class ExpandInplaceOperators(EnvTransform):
     pass
@@ -69,9 +69,9 @@ cdef class CreateClosureClasses(CythonTransform):
 
 cdef class GilCheck(VisitorTransform):
     cdef list env_stack
-    cdef bint nogil
-    cdef bint nogil_declarator_only
-    cdef bint current_gilstat_node_knows_gil_state
+    cdef int nogil_state
+    cdef int nogil_state_at_current_gilstatnode
+    cdef object in_lock_block
 
 cdef class TransformBuiltinMethods(EnvTransform):
     cdef dict def_node_body_insertions

@@ -37,7 +37,8 @@ cython_debug/
 !tests/build/
 /dist/
 .gitrev
-.coverage
+.coverage*
+coverage*.md
 coverage*.xml
 coverage*.html
 /coverage*/

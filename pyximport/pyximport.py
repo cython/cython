@@ -229,7 +229,7 @@ class PyxImportMetaFinder(MetaPathFinder):
 
     def find_spec(self, fullname, path, target=None):
         if not path:
-            path = [os.getcwd()]  # top level import --
+            path = [os.getcwd()] + sys.path  # top level import --
         if "." in fullname:
             *parents, name = fullname.split(".")
         else:
@@ -264,8 +264,11 @@ class PyImportMetaFinder(MetaPathFinder):
         self.blocked_modules = ['Cython', 'pyxbuild', 'pyximport.pyxbuild',
                                 'distutils', 'cython']
         self.blocked_packages = ['Cython.', 'distutils.']
+        self.found = False
 
     def find_spec(self, fullname, path, target=None):
+        if self.found:
+            return None
         if fullname in sys.modules:
             return None
         if any([fullname.startswith(pkg) for pkg in self.blocked_packages]):
@@ -277,7 +280,7 @@ class PyImportMetaFinder(MetaPathFinder):
         self.blocked_modules.append(fullname)
         name = fullname
         if not path:
-            path = [os.getcwd()]  # top level import --
+            path = [os.getcwd()] + sys.path  # top level import --
         try:
             for entry in path:
                 if os.path.isdir(os.path.join(entry, name)):
@@ -290,6 +293,7 @@ class PyImportMetaFinder(MetaPathFinder):
                 if not os.path.exists(filename):
                     continue
 
+                self.found = True
                 return spec_from_file_location(
                     fullname, filename,
                     loader=PyxImportLoader(filename, self.pyxbuild_dir, self.inplace, self.language_level),

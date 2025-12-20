@@ -18,18 +18,19 @@ setup(ext_modules = cythonize([
 
 ######## .coveragerc ########
 [run]
+core = ctrace
 plugins = Cython.Coverage
 
 
 ######## coverage_test_nogil_fastgil.pyx ########
 # cython: linetrace=True,fast_gil=True
-# distutils: define_macros=CYTHON_TRACE=1 CYTHON_TRACE_NOGIL=1
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_TRACE_NOGIL=1 CYTHON_USE_SYS_MONITORING=0
 include "_coverage_test_nogil.pxi"
 
 
 ######## coverage_test_nogil_nofastgil.pyx ########
 # cython: linetrace=True,fast_gil=False
-# distutils: define_macros=CYTHON_TRACE=1 CYTHON_TRACE_NOGIL=1
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_TRACE_NOGIL=1 CYTHON_USE_SYS_MONITORING=0
 include "_coverage_test_nogil.pxi"
 
 

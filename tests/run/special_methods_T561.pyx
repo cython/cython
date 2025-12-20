@@ -96,14 +96,7 @@ __doc__ = u"""
     VS __index__ 0
     >>> set_name = SetName()
     >>> assert "SetName 'SetName' 'attr'" == set_name.attr, set_name.attr
-"""
 
-cdef extern from *:
-    # type specs require a bug fix in Py3.8+ for some of these tests.
-    const int CYTHON_USE_TYPE_SPECS
-
-if not CYTHON_USE_TYPE_SPECS or sys.version_info >= (3,8):
-    __doc__ += u"""
     >>> # If you define either setattr or delattr, you get wrapper objects
     >>> # for both methods.  (This behavior is unchanged by #561.)
     >>> sa_setattr = SetAttr().__setattr__
@@ -1068,6 +1061,11 @@ cdef class TwoArgIPow:
     >>> a**=2
     >>> print(a)
     a**2
+
+    >>> ipow(TwoArgIPow('a'), 'x', 'y')
+    Traceback (most recent call last):
+        ...
+    TypeError: special_methods_T561.TwoArgIPow.__ipow__() takes 3 arguments but 2 were given
     """
     cdef str name
 
@@ -1076,15 +1074,6 @@ cdef class TwoArgIPow:
 
     def __ipow__(self, other):
         return f"{self.name}**{other}"
-
-if sys.version_info >= (3, 8):
-    # Due to a bug this check can't usefully work in Python <3.8
-    __doc__ += """
->>> ipow(TwoArgIPow('a'), 'x', 'y')
-Traceback (most recent call last):
-    ...
-TypeError: special_methods_T561.TwoArgIPow.__ipow__() takes 3 arguments but 2 were given
-    """
 
 
 cdef class TwoOrThreeArgPow:

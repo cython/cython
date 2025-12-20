@@ -1,8 +1,8 @@
 # mode: run
 # tag: cpp, werror, cpp17, cppexecpolicies
 
-from libcpp.numeric cimport (reduce, transform_reduce, inclusive_scan, 
-                             exclusive_scan, transform_inclusive_scan, 
+from libcpp.numeric cimport (reduce, transform_reduce, inclusive_scan,
+                             exclusive_scan, transform_inclusive_scan,
                              transform_exclusive_scan, gcd, lcm)
 from libcpp.execution cimport seq
 from libcpp.vector cimport vector
@@ -36,7 +36,7 @@ def test_reduce(vector[int] v, int init):
 
 def test_reduce_with_bin_op(vector[int] v, int init):
     """
-    Test reduce with a binary operation (subtraction). 
+    Test reduce with a binary operation (subtraction).
      0 - 1 = -1
     -1 - 2 = -3
     -3 - 3 = -6
@@ -47,7 +47,7 @@ def test_reduce_with_bin_op(vector[int] v, int init):
 
 # def test_reduce_with_execpolicy(vector[int] v, int init):
 #     """
-#     Test reduce with execution policy. 
+#     Test reduce with execution policy.
 #      0 + 1 = 1
 #      1 + 2 = 3
 #      3 + 3 = 6
@@ -58,7 +58,7 @@ def test_reduce_with_bin_op(vector[int] v, int init):
 
 def test_reduce_with_bin_op_and_execpolicy(vector[int] v, int init):
     """
-    Test reduce with execution policy and a binary operation (subtraction). 
+    Test reduce with execution policy and a binary operation (subtraction).
      0 - 1 = -1
     -1 - 2 = -3
     -3 - 3 = -6

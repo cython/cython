@@ -6,7 +6,6 @@
 Embedding Cython modules in C/C++ applications
 **********************************************
 
-**This is a stub documentation page. PRs very welcome.**
 
 Quick links:
 
@@ -14,10 +13,10 @@ Quick links:
 
 * `Cython Wiki <https://github.com/cython/cython/wiki/EmbeddingCython>`_
 
-* See the ``--embed`` option to the ``cython`` and ``cythonize`` frontends
-  for generating a C main function and the
-  `cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_
-  script for merging multiple extension modules into one library.
+* See the ``cython --embed`` option to the ``cython`` and ``cythonize`` frontends
+  for generating a C main function. For embedding multiple modules, the previously used
+  `cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_ script
+  has been superseded by the ``cython --embed-modules`` option.
 
 * `Embedding demo program <https://github.com/cython/cython/tree/master/Demos/embed>`_
 
@@ -40,14 +39,14 @@ For details, see the documentation of the
 in CPython and `PEP 489 <https://www.python.org/dev/peps/pep-0489/>`_ regarding the module
 initialisation mechanism in CPython 3.5 and later.
 
-The `PyImport_AppendInittab() <https://docs.python.org/3/c-api/import.html#c.PyImport_AppendInittab>`_
+The :c:func:`PyImport_AppendInittab()`
 function in CPython allows registering statically (or dynamically) linked extension
 modules for later imports.  An example is given in the documentation of the module
 init function that is linked above.
 
 
-Embedding example code
-======================
+Embedding a single module
+=========================
 
 The following is a simple example that shows the main steps for embedding a
 Cython module (``embedded.pyx``) in Python 3.x.
@@ -58,10 +57,13 @@ to export it as a linker symbol that can be used by other C files, which in this
 case is ``embedded_main.c``.
 
 .. literalinclude:: ../../examples/tutorial/embedding/embedded.pyx
+   :lines: 4-
+   :caption: embedded.pyx
 
 The C ``main()`` function of your program could look like this:
 
 .. literalinclude:: ../../examples/tutorial/embedding/embedded_main.c
+    :caption: embedded_main.c
     :linenos:
     :language: c
 
@@ -69,19 +71,121 @@ The C ``main()`` function of your program could look like this:
 <https://docs.python.org/3/extending/extending.html#the-module-s-method-table-and-initialization-function>`_.)
 
 Instead of writing such a ``main()`` function yourself, you can also let
-Cython generate one into your module's C file with the ``cython --embed``
-option.  Or use the
-`cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_
-script to embed multiple modules.  See the
-`embedding demo program <https://github.com/cython/cython/tree/master/Demos/embed>`_
-for a complete example setup.
+Cython generate one into your module's C file with the ``cython --embed`` option.
 
-Be aware that your application will not contain any external dependencies that
-you use (including Python standard library modules) and so may not be truly portable.
-If you want to generate a portable application we recommend using a specialized
-tool (e.g. `PyInstaller <https://pyinstaller.org/en/stable/>`_
-or `cx_freeze <https://cx-freeze.readthedocs.io/en/latest/index.html>`_) to find and
-bundle these dependencies.
+When using ``--embed``, Cython generates the C implementation file (e.g., ``embedded.c``) 
+along with a header file (e.g., ``embedded.h``).
+
+The generated ``embedded.c`` file contains a ``__Pyx_main()`` function. 
+This function initializes the Python interpreter and can be modified to call public functions 
+exported by your Cython module (such as ``say_hello_from_python()``).
+
+The full process for compiling and running is as follows:
+
+.. code-block:: bash
+
+    gcc -c embedded.c $(python3-config --cflags) -o embedded.o
+    gcc embedded.o $(python3-config --ldflags --embed) -o embedded
+
+After compilation, the ``embedded`` executable is created. 
+Running it will execute the content of ``__Pyx_main()``:
+
+.. code-block:: bash
+
+    $ ./embedded
+    Hello from Python!
+
+
+Embedding multiple modules
+==========================
+
+To statically link multiple Cython modules into a single executable, you can use the
+``cython --embed-modules`` option alongside the ``cython --embed`` option.
+This option enables the necessary C-level initialisation calls (via :c:func:`PyImport_AppendInittab`)
+for all listed modules within the main program's C code.
+
+The argument is a comma-separated list of the module names you wish to embed:
+
+.. code-block:: bash
+
+    cython  --embed  --embed-modules=mod1,mod2  main_script.pyx
+
+To illustrate how it works, let's assume we have the following files:
+
+lcmath.pyx:
+
+.. code-block:: cython
+    :caption: lcmath.pyx
+
+    def add(a, b):
+        return a + b
+
+    cdef int sub(int a, int b):
+        return a - b
+
+lcmath.pxd:
+
+.. code-block:: cython
+    :caption: lcmath.pxd
+
+    cdef int sub(int a, int b)
+
+combinatorics.pyx:
+
+.. code-block:: cython
+    :caption: combinatorics.pyx
+
+    from lcmath import add
+    from lcmath cimport sub
+
+    cdef void add_one(int a):
+        print(add(a, 1))
+
+    cdef void sub_one(int a):
+        print(sub(a, 1))
+
+    if __name__ == "__main__":
+        add_one(5)
+        sub_one(3)
+
+The full process for static linking involves these steps:
+
+First, generate the dependency C code:
+
+.. code-block:: bash
+
+        cython lcmath.pyx  # creates lcmath.c
+
+Next, generate the main C code(which includes the ``main()`` function and module initialisers):
+
+.. code-block:: bash
+
+        cython --embed --embed-modules=lcmath combinatorics.pyx  # creates combinatorics.c
+
+Then, compile the object files:
+
+.. code-block:: bash
+
+        gcc -c combinatorics.c  $(python3-config --cflags)  -o combinatorics.o  # compile combinatorics
+        gcc -c lcmath.c  $(python3-config --cflags)  -o lcmath.o  # compile lcmath
+
+Finally, statically link the executable (linking the object files and the Python library):
+
+.. code-block:: bash
+
+        gcc lcmath.o combinatorics.o -o combinatorics  $(python3-config --ldflags --embed)   # link them together statically
+
+
+.. note::
+    **Limitations on Portability**
+
+    Be aware that your application will not contain any external dependencies that
+    you use (including Python standard library modules) and so may not be truly portable.
+    If you want to generate a portable application we recommend using a specialized
+    tool (e.g. `PyInstaller <https://pyinstaller.org/en/stable/>`_
+    or `cx_freeze <https://cx-freeze.readthedocs.io/en/latest/index.html>`_) to find and
+    bundle these dependencies.
+
 
 Troubleshooting
 ===============

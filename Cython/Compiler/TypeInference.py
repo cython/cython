@@ -79,6 +79,8 @@ class MarkParallelAssignments(EnvTransform):
         return node
 
     def visit_SingleAssignmentNode(self, node):
+        if self.parallel_block_stack:
+            node.in_parallel_block = True
         self.mark_assignment(node.lhs, node.rhs)
         self.visitchildren(node)
         return node
@@ -122,20 +124,19 @@ class MarkParallelAssignments(EnvTransform):
                                     sequence = sequence.args[0]
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
-            if sequence.self is None and function.is_name:
+            if sequence.self is None and function.is_name and function.name in ('range', 'xrange'):
                 entry = iterator_scope.lookup(function.name)
-                if not entry or entry.is_builtin:
-                    if function.name in ('range', 'xrange'):
-                        is_special = True
-                        for arg in sequence.args[:2]:
-                            self.mark_assignment(target, arg)
-                        if len(sequence.args) > 2:
-                            self.mark_assignment(
-                                target,
-                                ExprNodes.binop_node(node.pos,
-                                                     '+',
-                                                     sequence.args[0],
-                                                     sequence.args[2]))
+                if not entry or entry.is_type and entry.type is Builtin.range_type:
+                    is_special = True
+                    for arg in sequence.args[:2]:
+                        self.mark_assignment(target, arg)
+                    if len(sequence.args) > 2:
+                        self.mark_assignment(
+                            target,
+                            ExprNodes.binop_node(node.pos,
+                                                    '+',
+                                                    sequence.args[0],
+                                                    sequence.args[2]))
         if not is_special:
             # A for-loop basically translates to subsequent calls to
             # __getitem__(), so using an IndexNode here allows us to
@@ -168,7 +169,7 @@ class MarkParallelAssignments(EnvTransform):
 
     def visit_ExceptClauseNode(self, node):
         if node.target is not None:
-            self.mark_assignment(node.target, object_expr)
+            self.mark_assignment(node.target, node.exc_value)
         self.visitchildren(node)
         return node
 
@@ -228,10 +229,7 @@ class MarkParallelAssignments(EnvTransform):
             self.parallel_errors = True
 
         if node.is_prange:
-            child_attrs = node.child_attrs
-            node.child_attrs = ['body', 'target', 'args']
-            self.visitchildren(node)
-            node.child_attrs = child_attrs
+            self.visitchildren(node, attrs=('body', 'target', 'args'))
 
             self.parallel_block_stack.pop()
             if node.else_clause:
@@ -250,6 +248,12 @@ class MarkParallelAssignments(EnvTransform):
 
     def visit_ReturnStatNode(self, node):
         node.in_parallel = bool(self.parallel_block_stack)
+        return node
+
+    def visit_ExprNode(self, node):
+        self.visitchildren(node)
+        if self.parallel_block_stack:
+            node.in_parallel_block = True
         return node
 
 

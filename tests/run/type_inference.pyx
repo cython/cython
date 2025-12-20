@@ -9,7 +9,6 @@ from cpython cimport bool
 
 assert typeof(1 / 2) in ('long', 'double')
 IS_LANGUAGE_LEVEL_3 = typeof(1 / 2) == 'double'
-str_type = "unicode object" if IS_LANGUAGE_LEVEL_3 else "str object"
 
 ##################################################
 # type inference tests in 'full' mode (infer_types=True)
@@ -32,9 +31,9 @@ def simple():
     b = b"abc"
     assert typeof(b) == "bytes object", typeof(b)
     s = "abc"
-    assert typeof(s) == str_type, (typeof(s), str_type)
+    assert typeof(s) == "str object", typeof(s)
     u = u"xyz"
-    assert typeof(u) == "unicode object", typeof(u)
+    assert typeof(u) == "str object", typeof(u)
     L = [1,2,3]
     assert typeof(L) == "list object", typeof(L)
     t = (4,5,6,())
@@ -48,8 +47,10 @@ def builtin_types():
     """
     b = bytes()
     assert typeof(b) == "bytes object", typeof(b)
-    u = unicode()
-    assert typeof(u) == "unicode object", typeof(u)
+    s = str()
+    assert typeof(s) == "str object", typeof(u)
+    u = unicode()  # legacy name is still available
+    assert typeof(u) == "str object", typeof(u)
     L = list()
     assert typeof(L) == "list object", typeof(L)
     t = tuple()
@@ -58,6 +59,27 @@ def builtin_types():
     assert typeof(d) == "dict object", typeof(d)
     B = bool()
     assert typeof(B) == "bool", typeof(B)
+
+
+def builtin_exceptions():
+    """
+    >>> builtin_exceptions()
+    """
+    a = Exception("msg")
+    assert typeof(a) == "Exception object", typeof(a)
+    b = BaseException("msg")
+    assert typeof(b) == "BaseException object", typeof(b)
+
+    c = TypeError("msg")
+    assert typeof(c) == "TypeError object", typeof(c)
+    d = AssertionError("msg")
+    assert typeof(d) == "AssertionError object", typeof(d)
+
+    e = FutureWarning("msg")
+    assert typeof(e) == "FutureWarning object", typeof(e)
+    f = DeprecationWarning("msg")
+    assert typeof(f) == "DeprecationWarning object", typeof(f)
+
 
 def slicing():
     """
@@ -71,18 +93,18 @@ def slicing():
     assert typeof(b2) == "bytes object", typeof(b2)
 
     u = u"xyz"
-    assert typeof(u) == "unicode object", typeof(u)
+    assert typeof(u) == "str object", typeof(u)
     u1 = u[1:2]
-    assert typeof(u1) == "unicode object", typeof(u1)
+    assert typeof(u1) == "str object", typeof(u1)
     u2 = u[1:2:2]
-    assert typeof(u2) == "unicode object", typeof(u2)
+    assert typeof(u2) == "str object", typeof(u2)
 
     s = "xyz"
-    assert typeof(s) == str_type, (typeof(s), str_type)
+    assert typeof(s) == "str object", typeof(s)
     s1 = s[1:2]
-    assert typeof(s1) == str_type, (typeof(s1), str_type)
+    assert typeof(s1) == "str object", typeof(s1)
     s2 = s[1:2:2]
-    assert typeof(s2) == str_type, (typeof(s2), str_type)
+    assert typeof(s2) == "str object", typeof(s2)
 
     L = [1,2,3]
     assert typeof(L) == "list object", typeof(L)
@@ -106,17 +128,17 @@ def indexing():
     b = b"abc"
     assert typeof(b) == "bytes object", typeof(b)
     b1 = b[1]
-    assert typeof(b1) == "Python object", typeof(b1) # Py2: bytes, Py3: int
+    assert typeof(b1) == "unsigned char", typeof(b1)
 
     u = u"xyz"
-    assert typeof(u) == "unicode object", typeof(u)
+    assert typeof(u) == "str object", typeof(u)
     u1 = u[1]
     assert typeof(u1) == "Py_UCS4", typeof(u1)
 
     s = "xyz"
-    assert typeof(s) == str_type, (typeof(s), str_type)
+    assert typeof(s) == "str object", typeof(s)
     s1 = s[1]
-    assert typeof(s1) == ("Py_UCS4" if IS_LANGUAGE_LEVEL_3 else "str object"), (typeof(s1), str_type)
+    assert typeof(s1) == "Py_UCS4", typeof(s1)
 
     L = [1,2,3]
     assert typeof(L) == "list object", typeof(L)
@@ -131,17 +153,17 @@ def indexing():
     t2 = ('abc', 'def', 'ghi')
     assert typeof(t2) == "tuple object", typeof(t2)
     t2_1 = t2[1]
-    assert typeof(t2_1) == str_type, (typeof(t2_1), str_type)
+    assert typeof(t2_1) == "str object", typeof(t2_1)
     t2_2 = t2[t[0]-3]
-    assert typeof(t2_2) == str_type, (typeof(t2_2), str_type)
+    assert typeof(t2_2) == "str object", typeof(t2_2)
 
     t5 = (b'abc', 'def', u'ghi')
     t5_0 = t5[0]
     assert typeof(t5_0) == "bytes object", typeof(t5_0)
     t5_1 = t5[1]
-    assert typeof(t5_1) == str_type, (typeof(t5_1), str_type)
+    assert typeof(t5_1) == "str object", typeof(t5_1)
     t5_2 = t5[2]
-    assert typeof(t5_2) == "unicode object", typeof(t5_2)
+    assert typeof(t5_2) == "str object", typeof(t5_2)
     t5_3 = t5[t[0]-3]
     assert typeof(t5_3) == "Python object", typeof(t5_3)
 
@@ -187,6 +209,14 @@ def arithmetic():
     assert typeof(f) == "long", typeof(f)
     g = 4 // <int>2
     assert typeof(g) == "long", typeof(g)
+    h = int(2) / 3.0
+    assert typeof(h) == "double", typeof(h)
+    i = 3.0 + int(5)
+    assert typeof(h) == "double", typeof(h)
+    j = int(-1) + 1.0
+    assert typeof(j) == "double", typeof(j)
+    k = 7.0 - int(2)
+    assert typeof(k) == "double", typeof(k)
 
 cdef class some_class:
     pass
@@ -224,22 +254,22 @@ def builtin_type_operations():
 
     u1 = u'a' * 10
     u1 = 10 * u'a'
-    assert typeof(u1) == "unicode object", typeof(u1)
+    assert typeof(u1) == "str object", typeof(u1)
     u2 = u'a' + u'b'
-    assert typeof(u2) == "unicode object", typeof(u2)
+    assert typeof(u2) == "str object", typeof(u2)
     u3 = u'a%s' % u'b'
     u3 = u'a%s' % 10
-    assert typeof(u3) == "unicode object", typeof(u3)
+    assert typeof(u3) == "str object", typeof(u3)
 
     s1 = "abc %s" % "x"
     s1 = "abc %s" % 10
-    assert typeof(s1) == str_type, (typeof(s1), str_type)
+    assert typeof(s1) == "str object", (typeof(s1), "str object")
     s2 = "abc %s" + "x"
-    assert typeof(s2) == str_type, (typeof(s2), str_type)
+    assert typeof(s2) == "str object", (typeof(s2), "str object")
     s3 = "abc %s" * 10
     s3 = "abc %s" * 10 * 10
     s3 = 10 * "abc %s" * 10
-    assert typeof(s3) == str_type, (typeof(s3), str_type)
+    assert typeof(s3) == "str object", (typeof(s3), "str object")
 
     x: int = 15
     f1 = x / 3
@@ -275,23 +305,23 @@ def builtin_type_methods():
     assert typeof(split) == 'list object', typeof(split)
 
     str_result1 = u.upper()
-    assert typeof(str_result1) == 'unicode object', typeof(str_result1)
+    assert typeof(str_result1) == "str object", typeof(str_result1)
     str_result2 = u.upper().lower()
-    assert typeof(str_result2) == 'unicode object', typeof(str_result2)
+    assert typeof(str_result2) == "str object", typeof(str_result2)
     str_result3 = u.upper().lower().strip()
-    assert typeof(str_result3) == 'unicode object', typeof(str_result3)
+    assert typeof(str_result3) == "str object", typeof(str_result3)
     str_result4 = u.upper().lower().strip().lstrip()
-    assert typeof(str_result4) == 'unicode object', typeof(str_result4)
+    assert typeof(str_result4) == "str object", typeof(str_result4)
     str_result5 = u.upper().lower().strip().lstrip().rstrip()
-    assert typeof(str_result5) == 'unicode object', typeof(str_result5)
+    assert typeof(str_result5) == "str object", typeof(str_result5)
     str_result6 = u.upper().lower().strip().lstrip().rstrip().center(20)
-    assert typeof(str_result6) == 'unicode object', typeof(str_result6)
+    assert typeof(str_result6) == "str object", typeof(str_result6)
     str_result7 = u.upper().lower().strip().lstrip().rstrip().center(20).format()
-    assert typeof(str_result7) == 'unicode object', typeof(str_result7)
+    assert typeof(str_result7) == "str object", typeof(str_result7)
     str_result8 = u.upper().lower().strip().lstrip().rstrip().center(20).format().expandtabs(4)
-    assert typeof(str_result8) == 'unicode object', typeof(str_result8)
+    assert typeof(str_result8) == "str object", typeof(str_result8)
     str_result9 = u.upper().lower().strip().lstrip().rstrip().center(20).format().expandtabs(4).swapcase()
-    assert typeof(str_result9) == 'unicode object', typeof(str_result9)
+    assert typeof(str_result9) == "str object", typeof(str_result9)
 
     predicate1 = u.isupper()
     assert typeof(predicate1) == 'bint', typeof(predicate1)
@@ -390,26 +420,28 @@ def increment():
     a += 1
     assert typeof(a) == "long"
 
+
 def loop():
     """
     >>> loop()
     """
     for a in range(10):
         pass
-    assert typeof(a) == "long"
+    assert typeof(a) == "long", typeof(a)
 
     b = 1.0
     for b in range(5):
         pass
-    assert typeof(b) == "double"
+    assert typeof(b) == "double", typeof(b)
 
     for c from 0 <= c < 10 by .5:
         pass
-    assert typeof(c) == "double"
+    assert typeof(c) == "double", typeof(c)
 
     for d in range(0, 10L, 2):
         pass
-    assert typeof(a) == "long"
+    assert typeof(d) == "long", typeof(d)
+
 
 def loop_over_charptr():
     """
@@ -424,7 +456,7 @@ def loop_over_charptr():
 def loop_over_bytes_literal():
     """
     >>> print( loop_over_bytes_literal() )
-    Python object
+    unsigned char
     """
     for c in b'abcdefg':
         pass
@@ -433,7 +465,7 @@ def loop_over_bytes_literal():
 def loop_over_bytes():
     """
     >>> print( loop_over_bytes() )
-    Python object
+    unsigned char
     """
     cdef bytes bytes_string = b'abcdefg'
     # bytes in Py2, int in Py3
@@ -449,7 +481,7 @@ def loop_over_str():
     # str (bytes) in Py2, str (unicode) in Py3
     for c in string:
         pass
-    assert ((typeof(c) == 'Py_UCS4') if IS_LANGUAGE_LEVEL_3 else (typeof(c) == 'str object')), typeof(c)
+    assert typeof(c) == 'Py_UCS4', typeof(c)
 
 def loop_over_unicode():
     """
@@ -472,6 +504,92 @@ def loop_over_unicode_literal():
         pass
     return typeof(uchar)
 
+
+def loop_over_sequence_literal_str():
+    """
+    >>> loop_over_sequence_literal_str()
+    """
+    for tuple_str_item in ("abc", "", "x"):
+        pass
+    assert typeof(tuple_str_item) == 'str object', typeof(tuple_str_item)
+
+    for list_str_item in ["abc", "", "x"]:
+        pass
+    assert typeof(list_str_item) == 'str object', typeof(list_str_item)
+
+    for set_str_item in {"abc", "", "x"}:
+        pass
+    assert typeof(set_str_item) == 'str object', typeof(set_str_item)
+
+
+def loop_over_sequence_literal_with_none():
+    """
+    >>> loop_over_sequence_literal_with_none()
+    """
+    for tuple_str_item in ("abc", "", None, "x"):
+        pass
+    assert typeof(tuple_str_item) == 'str object', typeof(tuple_str_item)
+
+    for list_str_item in ["abc", "", "x", None]:
+        pass
+    assert typeof(list_str_item) == 'str object', typeof(list_str_item)
+
+    for set_str_item in {None, "abc", "", "x"}:
+        pass
+    assert typeof(set_str_item) == 'str object', typeof(set_str_item)
+
+
+def loop_over_sequence_literal_int():
+    """
+    >>> loop_over_sequence_literal_int()
+    """
+    for tuple_int_item in (1, 2, 3, 4):
+        pass
+    assert typeof(tuple_int_item) == 'long', typeof(tuple_int_item)
+
+    for list_int_item in [1, 2, 3, 4]:
+        pass
+    assert typeof(list_int_item) == 'long', typeof(list_int_item)
+
+    for set_int_item in {1, 2, 3, 4}:
+        pass
+    assert typeof(set_int_item) == 'long', typeof(set_int_item)
+
+
+def loop_over_sequence_literal_float():
+    """
+    >>> loop_over_sequence_literal_float()
+    """
+    for tuple_float_item in (1., 2., 3., 4.):
+        pass
+    assert typeof(tuple_float_item) == 'double', typeof(tuple_float_item)
+
+    for list_float_item in [1., 2., 3., 4.]:
+        pass
+    assert typeof(list_float_item) == 'double', typeof(list_float_item)
+
+    for set_float_item in {1., 2., 3., 4.}:
+        pass
+    assert typeof(set_float_item) == 'double', typeof(set_float_item)
+
+
+def loop_over_sequence_literal_mixed():
+    """
+    >>> loop_over_sequence_literal_mixed()
+    """
+    for tuple_mixed_item in ("abc", b'', "x", None):
+        pass
+    assert typeof(tuple_mixed_item) == 'Python object', typeof(tuple_mixed_item)
+
+    for list_mixed_item in ["abc", b'', "x", None]:
+        pass
+    assert typeof(list_mixed_item) == 'Python object', typeof(list_mixed_item)
+
+    for set_mixed_item in {"abc", b'', "x", None}:
+        pass
+    assert typeof(set_mixed_item) == 'Python object', typeof(set_mixed_item)
+
+
 def loop_over_int_array():
     """
     >>> print( loop_over_int_array() )
@@ -481,6 +599,70 @@ def loop_over_int_array():
     for i in int_array:
         pass
     return typeof(i)
+
+
+@cython.test_assert_path_exists(
+    "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_ch']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_ch']",
+)
+def loop_over_character_list():
+    """
+    >>> loop_over_character_list()
+    Py_UCS4
+    str object
+    """
+    for c_ch in ['a', '\x0a', '\N{SNOWMAN}']:
+        assert not c_ch.isdigit()
+    print(typeof(c_ch))
+
+    for py_ch in ['a', '\x0a', None, '\N{SNOWMAN}']:
+        pass
+    print(typeof(py_ch))
+
+
+@cython.test_assert_path_exists(
+    "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_ch']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_ch']",
+)
+def loop_over_single_bytes_tuple():
+    """
+    >>> loop_over_single_bytes_tuple()
+    unsigned char
+    bytes object
+    """
+    for c_ch in (b'a', b'\x0a', b' '):
+        assert c_ch > 0
+    print(typeof(c_ch))
+
+    for py_ch in (b'a', b'\x0a', b' ', None):
+        assert py_ch or not py_ch
+    print(typeof(py_ch))
+
+
+@cython.test_assert_path_exists(
+    "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_b']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_b']",
+)
+def loop_over_bools():
+    """
+    >>> loop_over_bools()
+    bint
+    bool object
+    """
+    for c_b in True, False, False, True:
+        assert c_b or not c_b
+    print(typeof(c_b))
+
+    for py_b in None, True, False, False, True:
+        assert py_b or not py_b
+    print(typeof(py_b))
+
 
 cdef struct MyStruct:
     int a
@@ -574,9 +756,9 @@ def safe_only():
     assert typeof(div_res) == ("double" if IS_LANGUAGE_LEVEL_3 else "Python object"), typeof(div_res)
 
     s = "abc"
-    assert typeof(s) == str_type, (typeof(s), str_type)
+    assert typeof(s) == "str object", (typeof(s), "str object")
     cdef str t = "def"
-    assert typeof(t) == str_type, (typeof(t), str_type)
+    assert typeof(t) == "str object", (typeof(t), "str object")
 
     # potentially overflowing arithmetic
     e = 1
@@ -723,10 +905,10 @@ def large_literals():
     a = 10
     b = 100000000000000000000000000000000
     assert typeof(a) == "long", typeof(a)
-    assert typeof(b) == "Python object", typeof(b)
+    assert typeof(b) == "int object", typeof(b)
     c, d = 10, 100000000000000000000000000000000
     assert typeof(c) == "long", typeof(c)
-    assert typeof(d) == "Python object", typeof(d)
+    assert typeof(d) == "int object", typeof(d)
 
 
 class EmptyContextManager(object):
@@ -821,10 +1003,11 @@ def int64_long_sum():
     # preferable to incorrect width.
     assert typeof(ux + x64) == typeof(x64 + ux) == 'int64_t', typeof(ux + x64)
 
+
 cdef class InferInProperties:
     """
     >>> InferInProperties().x
-    ('double', 'unicode object', 'MyEnum', 'MyEnum')
+    ('double', 'str object', 'MyEnum', 'MyEnum')
     """
     cdef MyEnum attr
     def __cinit__(self):
@@ -848,6 +1031,7 @@ cdef class WithMethods:
     cpdef int default_arg(self, int x, int y=0):
         return x + y + self.offset
 
+
 def test_bound_methods():
   """
   >>> test_bound_methods()
@@ -862,6 +1046,7 @@ def test_bound_methods():
   assert default_arg(2) == 12, default_arg(2)
   assert default_arg(2, 3) == 15, default_arg(2, 2)
 
+
 def test_builtin_max():
     """
     # builtin max is slightly complicated because it gets transformed to EvalWithTempExprNode
@@ -874,3 +1059,52 @@ def test_builtin_max():
             a = max(self.a, self.a)
             assert typeof(a) == "Python object", typeof(a)
     C().get_max()
+
+
+def variable_with_name_of_type_builtin():
+    """
+    >>> variable_with_name_of_type_builtin()
+    ([], 'abcabc')
+    """
+    # Names like 'list.append' refer to the type and must be inferred as such,
+    # but a simple variable called 'list' is not the same and used to break type inference.
+    # See https://github.com/cython/cython/issues/6835
+    rest_list = []
+    list = []  # note: same name as type of value
+    list += rest_list
+    list = list + rest_list
+    assert typeof(list) == 'list object', typeof(list)
+
+    rest_str = "abc"
+    str = ""
+    str += rest_str
+    str = str + rest_str
+    assert typeof(str) == 'str object', typeof(str)
+
+    return list, str
+
+cdef class SomeExtType:
+    cdef SomeExtType get(self):
+        return self
+
+def variable_with_name_of_type_exttype(SomeExtType x):
+    """
+    >>> x = SomeExtType()
+    >>> res = variable_with_name_of_type_exttype(x)
+    >>> res == x
+    True
+    """
+    SomeExtType = x
+    SomeExtType = SomeExtType.get()
+    assert typeof(SomeExtType) == "SomeExtType", typeof(SomeExtType)
+    return SomeExtType
+
+def type_bitwise_or(actually_run_it, type t1, type t2):
+    """
+    >>> import sys
+    >>> type_bitwise_or(sys.version_info >= (3, 10), list, int)
+    """
+    if actually_run_it:
+        t3 = t1 | t2
+    # Generic object, not "type"
+    assert typeof(t3) == "Python object", typeof(t3)
