@@ -100,9 +100,8 @@ def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code
         return
 
     if rhs_is_borrowed_temp and not first_assignment:
-        # Here we can skip the reference counting in the fairly
-        # likely case that the lhs and rhs are equal (e.g. repeated slicing in a
-        # loop).
+        # Here we can skip the reference counting in the fairly likely case
+        # that the lhs and rhs are equal (e.g. repeated slicing in a loop).
         code.putln(f"if ({lhs_cname}.memview != {rhs_cname}.memview) ""{")
     if not first_assignment:
         code.put_xdecref(lhs_cname, memviewslicetype,

@@ -5393,12 +5393,12 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
         rhs.free_temps(code)
 
     def generate_disposal_code(self, code):
-        if self.is_temp and self.use_borrowed_ref:
-            # temporarily hide the temp code to stop our borrowed ref
-            # being cleaned up.
+        is_borrowed_temp = self.is_temp and self.use_borrowed_ref
+        if is_borrowed_temp:
+            # Temporarily hide the temp code to stop our borrowed ref being cleaned up.
             old_temp_code, self.temp_code = self.temp_code, None
         super().generate_disposal_code(code)
-        if self.is_temp and self.use_borrowed_ref:
+        if is_borrowed_temp:
             self.temp_code = old_temp_code
 
 

@@ -1737,9 +1737,8 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
         # What we're trying to work out is whether we can drop
         # the reference counting for the temp.
         # We should be fairly conservative here.
-        # We require a local variable name node (so that
-        # we know what nothing external can reassign it while
-        # we're working)
+        # We require a local variable name node (so that we know
+        # that nothing external can reassign it while we're working)
         if not node.base.is_name:
             return result
         entry = node.base.entry
@@ -1747,13 +1746,10 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
             return result
 
         # anything in a (non-generator) closure is suspect
-        if (entry.from_closure and entry.outer_entry.scope.is_closure_scope and
-                not entry.outer_entry.scope.is_pure_generator_scope):
-            return result
-        if (entry.in_closure and entry.scope.is_closure_scope and
-                not entry.scope.is_pure_generator_scope):
-            # anything in a (non-generator) closure is suspect
-            return result
+        if entry.from_closure or entry.in_closure:
+            defining_scope = entry.outer_entry.scope if entry.from_closure else entry.scope
+            if defining_scope.is_closure_scope and not defining_scope.is_pure_generator_scope:
+                return result
 
         # We then exclude any rhs that has a parallel or
         # a name expression assignment or the basis that they might
@@ -1774,6 +1770,7 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
                 # If we're in a parallel block, take the view that
                 # we can't reason about any assignment to the rhs.
                 return result
+
         node.use_borrowed_ref = True
         node.use_managed_ref = False
         return result
