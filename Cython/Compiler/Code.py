@@ -3561,13 +3561,10 @@ class CCodeWriter:
         self.globalstate.use_utility_code(_utility_code)
         self.putln(f"__Pyx_default_placement_construct(&({target}));")
 
-    def putln_openmp(self, string, additional_tests=None):
-        test = "defined(_OPENMP)"
-        if additional_tests:
-            test = f"{test} && {additional_tests}"
-        self.putln(f"#if {test}")
+    def putln_openmp(self, string):
+        self.putln("#ifdef _OPENMP")
         self.putln(string)
-        self.putln(f"#endif /* {test} */")
+        self.putln("#endif /* _OPENMP */")
 
     def undef_builtin_expect(self, cond):
         """

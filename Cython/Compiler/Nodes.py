@@ -7026,13 +7026,14 @@ class ReturnStatNode(StatNode):
             # If we have the GIL we can rely on it for locking (unless in freethreading).
             # Where we use a critical section, we do our best to keep the contents as
             # simple as possible.
+            if code.funcstate.gil_owned:
+                code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
             code.putln_openmp(
                 # For scalar types this could be omp atomic (at least on semi-recent versions
                 # of OpenMP). However, MSVC doesn't look to support that.
-                "#pragma omp critical(__pyx_returning)",
-                additional_tests=(
-                    "CYTHON_COMPILING_IN_CPYTHON_FREETHREADING" if code.funcstate.gil_owned
-                    else None))
+                "#pragma omp critical(__pyx_returning)")
+            if code.funcstate.gil_owned:
+                code.putln("#endif")
         code.putln("{")
 
         if self.return_type.needs_refcounting:
