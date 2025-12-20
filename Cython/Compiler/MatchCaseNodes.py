@@ -162,9 +162,7 @@ class MatchCaseNode(Node):
     def analyse_case_expressions(self, subject_node, env):
         self.pattern = self.pattern.analyse_pattern_expressions(subject_node, env)
         self.original_pattern = self.pattern
-        self.pattern.comp_node = self.pattern.comp_node.coerce_to_boolean(
-            env
-        ).coerce_to_simple(env)
+        self.pattern.comp_node = self.pattern.comp_node.coerce_to_boolean(env).coerce_to_simple(env)
         if self.guard:
             self.guard = self.guard.analyse_temp_boolean_expression(env)
         self.body = self.body.analyse_expressions(env)
@@ -452,9 +450,7 @@ class OrPatternNode(PatternNode):
     def analyse_pattern_expressions(self, subject_node, env):
         for a in self.alternatives:
             a = a.analyse_pattern_expressions(subject_node, env)
-        self.comp_node = self.get_comparison_node(
-            subject_node
-        ).analyse_temp_boolean_expression(env)
+        self.comp_node = self.get_comparison_node(subject_node).analyse_temp_boolean_expression(env)
         return self
 
 
