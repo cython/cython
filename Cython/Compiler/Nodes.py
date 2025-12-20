@@ -1029,8 +1029,7 @@ class CArgDeclNode(Node):
             if arg_type is not None:
                 base_type = arg_type
         name, type_ = self.declarator.analyse(base_type, env, nonempty=nonempty)
-        if (type_ is None or type_ is PyrexTypes.py_object_type and
-                self.type_according_to_pxd is not None):
+        if type_ is None or type_ is py_object_type and self.type_according_to_pxd is not None:
             # Use an overridden type from the pxd if available.
             # If the type is resolved to something else, and contradicts
             # the type from the pxd this is likely an error (but generated elsewhere)
