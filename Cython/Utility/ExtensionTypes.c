@@ -894,3 +894,35 @@ static PyObject *__Pyx_AllocateExtensionType(PyTypeObject *t, int is_final) {
     (__PYX_CHECK_FINAL_TYPE_FOR_FREELISTS((t), (expected_tp), (expected_size)) & \
      (int) (!__Pyx_PyType_HasFeature((t), __PYX_CHECK_TYPE_FOR_FREELIST_FLAGS)))
 #endif
+
+/////////////////// ApplySequenceOrMappingFlag.proto //////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API || (CYTHON_COMPILING_IN_PYPY && CYTHON_USE_TYPE_SPECS)
+int __Pyx_ApplySequenceOrMappingFlag(PyTypeObject *tp, int is_sequence);
+#else
+// No-op - the type flag is sufficient.
+#define __Pyx_ApplySequenceOrMappingFlag(tp, is_sequence) (0)
+#endif
+
+/////////////////// ApplySequenceOrMappingFlag //////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API || (CYTHON_COMPILING_IN_PYPY && CYTHON_USE_TYPE_SPECS)
+int __Pyx_ApplySequenceOrMappingFlag(PyTypeObject *tp, int is_sequence) {
+    PyObject *abc;
+    PyObject *collections_abc = PyImport_ImportModule("collections.abc");
+    if (unlikely(!collections_abc)) return -1;
+    if (is_sequence) {
+        abc = PyObject_GetAttrString(collections_abc, "Sequence");
+    } else {
+        abc = PyObject_GetAttrString(collections_abc, "Mapping");
+    }
+    Py_DECREF(collections_abc);
+    if (unlikely(!abc)) return -1;
+
+    PyObject *register_result = PyObject_CallMethod(abc, "register", "O", (PyObject*)tp);
+    Py_DECREF(abc);
+    if (unlikely(!register_result)) return -1;
+    Py_DECREF(register_result);
+    return 0;
+}
+#endif
