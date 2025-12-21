@@ -2,6 +2,157 @@
 Cython Changelog
 ================
 
+3.3.0a1 (202?-??-??)
+====================
+
+Features added
+--------------
+
+* Changes were made to adapt to Python 3.15.
+  (Github issues :issue:`7358`)
+
+* PEP-634 Pattern Matching is being implemented.
+  (Github issue :issue:`4029`)
+
+* ``cython.pymutex`` and ``cython.pythread_type_lock`` now support a ``.locked()`` method
+  to check if the lock is currently held without blocking. The method works on all Python
+  versions using atomic reads on Python 3.13+ and a try-acquire approach on older versions.
+  (Github issue :issue:`7275`)
+
+* The runtime conversion from a Python mapping to a C struct/union uses less code.
+  (Github issue :issue:`7343`)
+
+* Programmatic use of Cython has become easier by avoiding the need to manually set up
+  the error reporting.
+  (Github issue :issue:`7235`)
+
+* Unicode 17.0.0 is used to parse identifiers.
+
+Bugs fixed
+----------
+
+* Optimised Python ``int`` and ``float`` operations did not remember their result type,
+  leading to less optimised code in longer expressions.
+  (Github issue :issue:`7363`)
+
+* The global module state struct now lives in an anonymous namespace in C++ mode to
+  allow linking multiple modules together in one shared library file.
+  (Github issue :issue:`7159`)
+
+* Includes all fixes as of Cython 3.2.x.
+
+Other changes
+-------------
+
+* Support for Python 3.8 has been removed.
+  As a side-effekt, support for StacklessPython and Pyston (last release was 3.8) was also removed.
+  Python 3.9 is planned to remain supported for several years due to its use in LTS Linux distributions.
+  (Github issue :issue:`7271`)
+
+
+3.2.3 (2025-12-14)
+==================
+
+Features added
+--------------
+
+* The C-API declarations were updated to include the new ``PyList_*()`` functions.
+  (Github issue :issue:`7291`)
+
+* The ``Py_mod_gil`` module setting can now be changed with a C macro, overriding
+  the ``freethreading_compatible`` directive setting.
+  (Github issue :issue:`7404`)
+
+Bugs fixed
+----------
+
+* t-strings lost the last element when compiled for the Limited API.
+  (Github issue :issue:`7381`)
+
+* The ``array.data`` property of the ``cpython.array`` declarations generated a
+  useless exception check that degraded its use in ``nogil`` code.
+  (Github issue :issue:`7408`)
+
+* Parallel builds with the ``cythonize`` command could request more processes
+  than allowed by the platform, thus failing the build.
+  (Github issue :issue:`7384`)
+
+* A minor thread sanitizer issue was resolved.
+  (Github issue :issue:`7383`)
+
+
+3.2.2 (2025-11-30)
+==================
+
+Features added
+--------------
+
+* The C-API declarations were updated to include the new ``PyDict_*Ref()`` functions.
+  (Github issue :issue:`7291`)
+
+Bugs fixed
+----------
+
+* Iteration over literal sequences and strings in generators generated invalid C code since 3.2.0.
+  This was a regression due to the C array iteration optimisation in :issue:`6926`, which is now
+  disabled inside of generators.
+  (Github issue :issue:`7342`)
+
+* Calling special methods of known exception types failed with an ``AttributeError``.
+  (Github issue :issue:`7342`)
+
+* Calling the unbound ``__mul__`` special method of builtin collections with subtypes failed.
+  (Github issue :issue:`7340`)
+
+* C string literals could generate invalid "const to non-const" casts in the C code.
+  (Github issue :issue:`7346`)
+
+* ``yield`` is no longer allowed inside of a ``cython.critical_section``,
+  but *is* now allowed while holding a ``cython.pymutex``.
+  (Github issue :issue:`7317`)
+
+* Under lock congestion, acquiring the GIL could crash in Python 3.11, part 2.
+  This bug was introduced in Cython 3.2.0.
+  (Github issue :issue:`7312`)
+
+* The new ``py_safe_*`` functions in ``libc.threads`` triggered C compiler warnings.
+  (Github issue :issue:`7356`)
+
+
+3.2.1 (2025-11-12)
+==================
+
+Features added
+--------------
+
+* Cython now leaves markers about its utility code dependencies in the generated C code
+  to help debugging "unused function" C compiler warnings.
+  (Github issue :issue:`7294`)
+
+Bugs fixed
+----------
+
+* Relative imports could fail if the shared utility module is used.
+  This bug was introduced in Cython 3.2.0.
+  (Github issue :issue:`7290`)
+
+* Under lock congestion, acquiring the GIL could crash in Python 3.11.
+  This bug was introduced in Cython 3.2.0.
+  (Github issue :issue:`7312`)
+
+* Using the shared utility module left an unused C function in user modules with memoryviews.
+  To make debugging this kind of issue easier, Cython now leaves "used by …" markers in the
+  generated C files that indicate why a specific piece of utility code was included.
+  This bug was introduced in Cython 3.2.0.
+  (Github issue :issue:`7293`)
+
+* Code using the pre-import scope failed with an undefined name.
+  This bug was introduced in Cython 3.2.0.
+  (Github issue :issue:`7304`)
+
+* Includes all fixes as of Cython 3.1.7.
+
+
 3.2.0 (2025-11-05)
 ==================
 
@@ -117,7 +268,6 @@ Features added
   (Github issue :issue:`7228`)
 
 * Unicode 16.0.0 is used to parse identifiers.
-  (Github issue :issue:`6836`)
 
 Bugs fixed
 ----------
@@ -488,11 +638,34 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.7 (2025-??-??)
+3.1.8 (2025-??-??)
 ==================
 
 Bugs fixed
 ----------
+
+* Some internal C symbols were not declared as ``static``, preventing static linking
+  of multiple modules.
+  Patch by Yury Popov.  (Github issue :issue:`7310`)
+
+* Accidentally using ``except +`` in C mode did not raise a compile error but generated
+  invalid C code leading to obscure error messages.
+  Patch by user202729.  (Github issue :issue:`6560`)
+
+
+3.1.7 (2025-11-12)
+==================
+
+Bugs fixed
+----------
+
+* Unicode characters formatted from C integers with padding, as in ``f"{value:XXc}"``,
+  could result in invalid Python string objects since Cython 3.1.0.
+  Also, lone surrogates failed to format in this way.
+  (Github issue :issue:`7298`)
+
+* Assigning nested structs from a list of structs (item by item) could crash Cython.
+  (Github issue :issue:`7308`)
 
 * Cython incorrectly called ``PyList_GetItemRef()`` in PyPy and GraalPython before Py3.13.
   (Github issue :issue:`7269`)
@@ -546,7 +719,6 @@ Features added
 --------------
 
 * Declarations for the new ``PyUnstable_*()`` refcounting C-API functions in Py3.14 were added.
-  (Github issue :issue:`6836`)
 
 Bugs fixed
 ----------

@@ -252,16 +252,17 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     } else
 #if CYTHON_COMPILING_IN_CPYTHON && defined(CO_ITERABLE_COROUTINE)
 #if PY_VERSION_HEX >= 0x030C00A6
-    if (PyGen_CheckExact(obj) && (PyGen_GetCode((PyGenObject*)obj)->co_flags & CO_ITERABLE_COROUTINE)) {
+    if (PyGen_CheckExact(obj) && (PyGen_GetCode((PyGenObject*)obj)->co_flags & CO_ITERABLE_COROUTINE))
 #else
-    if (PyGen_CheckExact(obj) && ((PyGenObject*)obj)->gi_code && ((PyCodeObject *)((PyGenObject*)obj)->gi_code)->co_flags & CO_ITERABLE_COROUTINE) {
+    if (PyGen_CheckExact(obj) && ((PyGenObject*)obj)->gi_code && ((PyCodeObject *)((PyGenObject*)obj)->gi_code)->co_flags & CO_ITERABLE_COROUTINE)
 #endif
+    {
         // Python generator marked with "@types.coroutine" decorator
         return __Pyx_NewRef(obj);
     } else
 #endif
     {
-#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000))
+#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || !CYTHON_COMPILING_IN_LIMITED_API)
         PyObject *args[] = { obj };
         res = PyObject_VectorcallMethod(PYIDENT("__await__"), args, 1 |  PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
         if (unlikely(!res)) {
@@ -520,10 +521,10 @@ static PyObject *__Pyx_Coroutine_fail_reduce_ex(PyObject *self, PyObject *arg); 
 //////////////////// Coroutine.proto ////////////////////
 
 #define __Pyx_Coroutine_USED
-#define __Pyx_Coroutine_CheckExact(obj) __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_CoroutineType))
+#define __Pyx_Coroutine_CheckExact(obj) Py_IS_TYPE(obj, CGLOBAL(__pyx_CoroutineType))
 // __Pyx_Coroutine_Check(obj): see override for IterableCoroutine below
 #define __Pyx_Coroutine_Check(obj) __Pyx_Coroutine_CheckExact(obj)
-#define __Pyx_CoroutineAwait_CheckExact(obj) __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_CoroutineAwaitType))
+#define __Pyx_CoroutineAwait_CheckExact(obj) Py_IS_TYPE(obj, CGLOBAL(__pyx_CoroutineAwaitType))
 
 #define __Pyx_Coroutine_New(body, code, closure, name, qualname, module_name)  \
     __Pyx__Coroutine_New(CGLOBAL(__pyx_CoroutineType), body, code, closure, name, qualname, module_name)
@@ -542,7 +543,7 @@ static __Pyx_PySendResult __Pyx_CoroutineAwait_Close(__pyx_CoroutineAwaitObject 
 //////////////////// Generator.proto ////////////////////
 
 #define __Pyx_Generator_USED
-#define __Pyx_Generator_CheckExact(obj) __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_GeneratorType))
+#define __Pyx_Generator_CheckExact(obj) Py_IS_TYPE(obj, CGLOBAL(__pyx_GeneratorType))
 
 #define __Pyx_Generator_New(body, code, closure, name, qualname, module_name)  \
     __Pyx__Coroutine_New(CGLOBAL(__pyx_GeneratorType), body, code, closure, name, qualname, module_name)
@@ -622,7 +623,7 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
             Py_INCREF(Py_None);
             value = Py_None;
         }
-        else if (likely(__Pyx_IS_TYPE(ev, (PyTypeObject*)PyExc_StopIteration))) {
+        else if (likely(Py_IS_TYPE(ev, (PyTypeObject*)PyExc_StopIteration))) {
             #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
             value = PyObject_GetAttr(ev, PYIDENT("value"));
             if (unlikely(!value)) goto limited_api_failure;
@@ -1066,12 +1067,9 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
         #endif
       #endif
         {
-            #if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x03080000
-            // PyIter_Check() is needed here but broken in the Py3.7 Limited API.
             if (value == Py_None && PyIter_Check(yf))
                 ret = __Pyx_PyIter_Next_Plain(yf);
             else
-            #endif
                 ret = __Pyx_PyObject_CallMethod1(yf, PYIDENT("send"), value);
         }
         if (likely(ret)) {
@@ -2007,7 +2005,7 @@ if (likely(__pyx_IterableCoroutine_init($module_cname) == 0)); else
 #define __Pyx_IterableCoroutine_USED
 
 #undef __Pyx_Coroutine_Check
-#define __Pyx_Coroutine_Check(obj) (__Pyx_Coroutine_CheckExact(obj) || __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_IterableCoroutineType)))
+#define __Pyx_Coroutine_Check(obj) (__Pyx_Coroutine_CheckExact(obj) || Py_IS_TYPE(obj, CGLOBAL(__pyx_IterableCoroutineType)))
 
 #define __Pyx_IterableCoroutine_New(body, code, closure, name, qualname, module_name)  \
     __Pyx__Coroutine_New(CGLOBAL(__pyx_IterableCoroutineType), body, code, closure, name, qualname, module_name)

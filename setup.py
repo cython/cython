@@ -18,7 +18,7 @@ is_cpython = platform.python_implementation() == 'CPython'
 
 # this specifies which versions of python we support, pip >= 9 knows to skip
 # versions of packages which are not compatible with the running python
-PYTHON_REQUIRES = '>=3.8'
+PYTHON_REQUIRES = '>=3.9'
 
 TRACKER_URL = "https://github.com/cython/cython/issues/"
 
@@ -61,7 +61,7 @@ setup_args['package_data'] = {
     'Cython.Compiler' : ['*.pxd'],
     'Cython.Runtime'  : ['*.pyx', '*.pxd'],
     'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
-    'Cython'          : [ p[7:] for p in pxd_include_patterns ] + ['py.typed', '__init__.pyi', 'Shadow.pyi'],
+    'Cython'          : [ p[7:] for p in pxd_include_patterns ] + ['py.typed'],
     'Cython.Debugger.Tests': ['codefile', 'cfuncs.c'],
 }
 
@@ -326,12 +326,7 @@ def check_limited_api_option(name):
     def handle_arg(arg: str):
         arg = arg.lower()
         if arg == "true":
-            # The default Limited API version is 3.9, unless we're on a lower Python version
-            # (which is mainly for the sake of testing 3.8 on the CI)
-            if sys.version_info >= (3, 9):
-                return (3, 9)
-            else:
-                return sys.version_info[:2]
+            return sys.version_info[:2]
         if arg == "false":
             return None
         major, minor = arg.split('.', 1)
@@ -466,7 +461,6 @@ def run_build():
             "Operating System :: OS Independent",
             "Programming Language :: Python",
             "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
             "Programming Language :: Python :: 3.11",
@@ -475,7 +469,6 @@ def run_build():
             "Programming Language :: Python :: 3.14",
             "Programming Language :: Python :: Implementation :: CPython",
             "Programming Language :: Python :: Implementation :: PyPy",
-            "Programming Language :: Python :: Implementation :: Stackless",
             "Programming Language :: C",
             "Programming Language :: C++",
             "Programming Language :: Cython",

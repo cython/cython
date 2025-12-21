@@ -42,7 +42,7 @@ static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
         #else
         PyList_SET_ITEM(list, len, x);
         #endif
-        __Pyx_SET_SIZE(list, len + 1);
+        Py_SET_SIZE(list, len + 1);
         return 0;
     }
     return PyList_Append(list, x);
@@ -67,7 +67,7 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
         #else
         PyList_SET_ITEM(list, len, x);
         #endif
-        __Pyx_SET_SIZE(list, len + 1);
+        Py_SET_SIZE(list, len + 1);
         return 0;
     }
     return PyList_Append(list, x);
@@ -110,7 +110,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L); /*proto*/
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
-    if (__Pyx_IS_TYPE(L, &PySet_Type)) {
+    if (Py_IS_TYPE(L, &PySet_Type)) {
         return PySet_Pop(L);
     }
     return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
@@ -120,7 +120,7 @@ static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
 static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L) {
     /* Check that both the size is positive and no reallocation shrinking needs to be done. */
     if (likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
-        __Pyx_SET_SIZE(L, Py_SIZE(L) - 1);
+        Py_SET_SIZE(L, Py_SIZE(L) - 1);
         return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
     }
     return CALL_UNBOUND_METHOD(PyList_Type, "pop", L);
@@ -183,7 +183,7 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t
         }
         if (likely(__Pyx_is_valid_index(cix, size))) {
             PyObject* v = PyList_GET_ITEM(L, cix);
-            __Pyx_SET_SIZE(L, Py_SIZE(L) - 1);
+            Py_SET_SIZE(L, Py_SIZE(L) - 1);
             size -= 1;
             memmove(&PyList_GET_ITEM(L, cix), &PyList_GET_ITEM(L, cix+1), (size_t)(size-cix)*sizeof(PyObject*));
             return v;
@@ -1191,6 +1191,13 @@ static {{c_ret_type}} __Pyx_Fallback_{{cfunc_name}}(PyObject *op1, PyObject *op2
 }
 
 #if CYTHON_USE_PYLONG_INTERNALS
+{{if op == 'Lshift'}}
+#if __clang__ || __GNUC__
+// left-shift by more than the width of the number is undefined behaviour.
+// We do check it (and test that it gives the right answer though).
+__attribute__((no_sanitize("shift")))
+#endif
+{{endif}}
 static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check) {
     CYTHON_MAYBE_UNUSED_VAR(inplace);
     CYTHON_UNUSED_VAR(zerodivision_check);

@@ -31,7 +31,7 @@ modules = [
     "limited_multi_phase"
 ]
 
-for version in range(8, sys.version_info[1]+1):
+for version in range(9, sys.version_info[1]+1):
     all_extensions = []
     for module in modules:
         version_hex = f"0x03{version:02x}0000"
@@ -79,12 +79,8 @@ def run_one(module_name):
     limited.C()
     limited.D()
     limited.E()
-    if sys.version_info >= (3, 9):
-        # Weak-referenceable classes won't work in Python <3.9 because
-        # of an interpreter bug (https://github.com/python/cpython/issues/82321).
-        # This depends on the interpreter version, not the limited API version.
-        weakref.ref(limited.D())
-        weakref.ref(limited.E())
+    weakref.ref(limited.D())
+    weakref.ref(limited.E())
 
     assert limited.C.cm() == limited.C().cm() == limited.C
     assert limited.D.cm() == limited.D().cm() == limited.D
@@ -119,9 +115,11 @@ def run_one(module_name):
     assert not limited.float_equals(None)
     assert limited.float_equals(decimal.Decimal("1.5"))
 
+    assert limited.get_template_string_result(1, 2) == "x=1 however y=2"
+
 module_name = sys.argv[1]
 
-for version in range(8, sys.version_info[1]+1):
+for version in range(9, sys.version_info[1]+1):
     run_one(f"{module_name}_{version}")
 
 ##################### limited_single_phase.pyx ################
@@ -218,3 +216,13 @@ def my_generator(x):
         raise RuntimeError
     yield x
     yield x
+
+def template_to_string(t):
+    parts = [
+        (part if isinstance(part, str) else format(part.value))
+        for part in t
+    ]
+    return "".join(parts)
+
+def get_template_string_result(x, y):
+    return template_to_string(t"{x=} however y={y}")

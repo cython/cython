@@ -892,8 +892,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#ifndef Py_PYTHON_H")
         code.putln("    #error Python headers needed to compile C extensions, "
                    "please install development version of Python.")
-        code.putln("#elif PY_VERSION_HEX < 0x03080000")
-        code.putln("    #error Cython requires Python 3.8+.")
+        code.putln("#elif PY_VERSION_HEX < 0x03090000")
+        code.putln("    #error Cython requires Python 3.9+.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
@@ -978,6 +978,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#define CYTHON_CCOMPLEX 1")
             code.putln("#endif")
             code.putln("")
+
+        code.putln("#ifdef CYTHON_FREETHREADING_COMPATIBLE")
+        code.putln("#if CYTHON_FREETHREADING_COMPATIBLE")
+        code.putln("#define __Pyx_FREETHREADING_COMPATIBLE Py_MOD_GIL_NOT_USED")
+        code.putln("#else")
+        code.putln("#define __Pyx_FREETHREADING_COMPATIBLE Py_MOD_GIL_USED")
+        code.putln("#endif")
+        code.putln("#else")
+        ft_compatible = "Py_MOD_GIL_NOT_USED" if env.directives["freethreading_compatible"] else "Py_MOD_GIL_USED"
+        code.putln(f"#define __Pyx_FREETHREADING_COMPATIBLE {ft_compatible}")
+        code.putln("#endif")
 
         c_string_type = env.directives['c_string_type']
         c_string_encoding = env.directives['c_string_encoding']
@@ -2008,9 +2019,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("PyErr_Fetch(&etype, &eval, &etb);")
         # increase the refcount while we are calling into user code
         # to prevent recursive deallocation
-        code.putln("__Pyx_SET_REFCNT(o, Py_REFCNT(o) + 1);")
+        code.putln("Py_SET_REFCNT(o, Py_REFCNT(o) + 1);")
         code.putln("%s(o);" % entry.func_cname)
-        code.putln("__Pyx_SET_REFCNT(o, Py_REFCNT(o) - 1);")
+        code.putln("Py_SET_REFCNT(o, Py_REFCNT(o) - 1);")
         code.putln("PyErr_Restore(etype, eval, etb);")
         code.putln("}")
 
@@ -2749,22 +2760,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("{0, 0, 0, 0, 0}")
             code.putln("};")
 
-            if weakref_entry:
-                position = format_position(weakref_entry.pos)
-                weakref_warn_mesage = (
-                    f"{position}: __weakref__ is unsupported in the Limited API when "
-                    "running on Python <3.9.")
-                # Note: Limited API rather than USE_TYPE_SPECS - we work round the issue
-                # with USE_TYPE_SPECS outside the limited API
-                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000")
-                code.putln("#if defined(__GNUC__) || defined(__clang__)")
-                code.putln(f'#warning "{weakref_warn_mesage}"')
-                code.putln("#elif defined(_MSC_VER)")
-                code.putln(f'#pragma message("{weakref_warn_mesage}")')
-                code.putln("#endif")
-                code.putln("#endif")
-
-
         code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
         for slot in TypeSlots.get_slot_table(code.globalstate.directives):
             slot.generate_spec(scope, code)
@@ -2966,6 +2961,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_start(self, env, code):
         # TODO: Refactor to move module state struct decl closer to the static decl
+        code.putln("#ifdef __cplusplus")
+        code.putln("namespace {")
+        code.putln("#endif")
         code.putln('typedef struct {')
         code.putln('PyObject *%s;' % env.module_dict_cname)
         code.putln('PyObject *%s;' % Naming.builtins_cname)
@@ -2981,6 +2979,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_clear = globalstate['module_state_clear_end']
         module_state_traverse = globalstate['module_state_traverse_end']
         module_state.putln('} %s;' % Naming.modulestatetype_cname)
+        module_state.putln("#ifdef __cplusplus")
+        module_state.putln("} /* anonymous namespace */")
+        module_state.putln("#endif")
         module_state.putln('')
         globalstate.use_utility_code(
             UtilityCode.load("MultiPhaseInitModuleState", "ModuleSetupCode.c")
@@ -3628,10 +3629,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
         code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
-        gil_option = ("Py_MOD_GIL_NOT_USED"
-                      if env.directives["freethreading_compatible"]
-                      else "Py_MOD_GIL_USED")
-        code.putln("{Py_mod_gil, %s}," % gil_option)
+        code.putln("{Py_mod_gil, __Pyx_FREETHREADING_COMPATIBLE},")
         code.putln("#endif")
         code.putln("#if PY_VERSION_HEX >= 0x030C0000 && CYTHON_USE_MODULE_STATE")
         subinterp_option = {

@@ -531,7 +531,7 @@ class PyrexScanner(Scanner):
             sy, systring = self.read()
         except UnrecognizedInput:
             self.error_at_scanpos("Unrecognized character")
-            return  # just a marker, error() always raises
+            return -1  # just a marker, error() always raises
         if sy == IDENT:
             if systring in self.keywords:
                 if systring == 'print' and print_function in self.context.future_directives:
@@ -568,7 +568,6 @@ class PyrexScanner(Scanner):
         self.sy = sy
         self.systring = systring
         self.last_token_position_tuple = pos
-
 
     def error(self, message, pos=None, fatal=True):
         if pos is None:
@@ -612,7 +611,7 @@ class PyrexScanner(Scanner):
     def expect_dedent(self):
         self.expect('DEDENT', "Expected a decrease in indentation level")
 
-    def expect_newline(self, message="Expected a newline", ignore_semicolon: cython.bint = False):
+    def expect_newline(self, message="Expected a newline", ignore_semicolon=False):
         # Expect either a newline or end of file
         useless_trailing_semicolon = None
         if ignore_semicolon and self.sy == ';':

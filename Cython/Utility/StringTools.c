@@ -199,7 +199,6 @@ static CYTHON_INLINE int __Pyx_StrEq(const char *s1, const char *s2) {
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
 
 //////////////////// UnicodeEquals ////////////////////
-//@requires: BytesEquals
 
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
 #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
@@ -275,6 +274,93 @@ return_ne:
     return (equals == Py_NE);
 #endif
 }
+
+
+//////////////////// UnicodeEquals_uchar.proto ////////////////////
+//@requires: UnicodeEqualsUCS4
+
+{{if REVERSE}}
+#define __Pyx_PyObject_Equals_ch{{CHAR}}_{{'str' if IS_STR else 'obj'}}(s1, s2, equals)  __Pyx_PyObject_Equals_uchar(s2, s1, {{CHAR}}, equals, {{1 if IS_STR else 0}})
+{{else}}
+#define __Pyx_PyObject_Equals_{{'str' if IS_STR else 'obj'}}_ch{{CHAR}}(s1, s2, equals)  __Pyx_PyObject_Equals_uchar(s1, s2, {{CHAR}}, equals, {{1 if IS_STR else 0}})
+{{endif}}
+
+
+//////////////////// UnicodeEqualsUCS4.proto ////////////////////
+
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
+#define __Pyx_PyObject_Equals_uchar(s1, s2, ch2, equals, s1_is_str) (\
+    ((s1) == (s2)) ? ((equals) == Py_EQ) : \
+    ((s1) == Py_None) ? ((equals) == Py_NE) : \
+    PyObject_RichCompareBool(s1, s2, equals) \
+    )
+
+#else
+#define __Pyx_PyObject_Equals_uchar(s1, s2, ch2, equals, s1_is_str) (\
+    ((s1) == (s2)) ? ((equals) == Py_EQ) : \
+    ((s1) == Py_None) ? ((equals) == Py_NE) : \
+    (likely((s1_is_str) || PyUnicode_CheckExact(s1)) ? \
+        __Pyx__PyUnicode_EqualsUCS4(s1, ch2, equals) : \
+        PyObject_RichCompareBool(s1, s2, equals) \
+    ))
+
+static CYTHON_INLINE int __Pyx__PyUnicode_EqualsUCS4(PyObject* s1, Py_UCS4 ch2, int equals); /*proto*/
+#endif
+
+//////////////////// UnicodeEqualsUCS4 ////////////////////
+
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL)
+static CYTHON_INLINE int __Pyx__PyUnicode_EqualsUCS4(PyObject* s1, Py_UCS4 ch2, int equals) {
+    Py_ssize_t length;
+    Py_UCS4 ch1;
+    int kind;
+
+    if (unlikely(__Pyx_PyUnicode_READY(s1) < 0)) goto bad;
+    length = __Pyx_PyUnicode_GET_LENGTH(s1);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length < 0)) goto bad;
+    #endif
+    if (length != 1) goto return_ne;
+
+    kind = PyUnicode_KIND(s1);
+    // The following conditions are written to allow optimising on the inlined constant ch2.
+    if (ch2 < 256) {
+        if (likely(kind == PyUnicode_1BYTE_KIND)) {
+            ch1 = PyUnicode_1BYTE_DATA(s1)[0];
+        } else if (kind == PyUnicode_2BYTE_KIND) {
+            ch1 = PyUnicode_2BYTE_DATA(s1)[0];
+        } else {
+            ch1 = PyUnicode_4BYTE_DATA(s1)[0];
+        }
+    } else if (ch2 < 65536) {
+        if (kind == PyUnicode_2BYTE_KIND) {
+            ch1 = PyUnicode_2BYTE_DATA(s1)[0];
+        } else if (kind == PyUnicode_4BYTE_KIND) {
+            ch1 = PyUnicode_4BYTE_DATA(s1)[0];
+        } else {
+            goto return_ne;
+        }
+    } else {
+        if (kind == PyUnicode_4BYTE_KIND){
+            ch1 = PyUnicode_4BYTE_DATA(s1)[0];
+        } else {
+            goto return_ne;
+        }
+    }
+
+    if (ch1 == ch2) {
+        goto return_eq;
+    } else {
+        goto return_ne;
+    }
+return_eq:
+    return (equals == Py_EQ);
+return_ne:
+    return (equals == Py_NE);
+bad:
+    return -1;
+}
+#endif
 
 
 //////////////////// BytesEquals.proto ////////////////////
