@@ -43,11 +43,13 @@ class BaseType:
     def cast_code(self, expr_code):
         return "((%s)%s)" % (self.empty_declaration_code(), expr_code)
 
-    def empty_declaration_code(self, pyrex=False):
+    def empty_declaration_code(self, pyrex=False, **kwds):
         if pyrex:
-            return self.declaration_code('', pyrex=True)
+            return self.declaration_code('', pyrex=True, **kwds)
+        if kwds:
+            return self.declaration_code('', **kwds)
         if self._empty_declaration is None:
-            self._empty_declaration = self.declaration_code('')
+            self._empty_declaration = self.declaration_code('', **kwds)
         return self._empty_declaration
 
     def specialization_name(self):
@@ -1608,6 +1610,8 @@ class PyExtensionType(PyObjectType):
     #  dataclass_fields  OrderedDict nor None   Used for inheriting from dataclasses
     #  multiple_bases    boolean          Does this class have multiple bases
     #  has_sequence_flag  boolean        Set Py_TPFLAGS_SEQUENCE
+    #  opaque_decl_by_default boolean    When using "CYTHON_OPAQUE_OBJECTS", declarations of this type
+    #                                       should be opaque (unless specifically requested not to be)
 
     is_extension_type = 1
     has_attributes = 1
@@ -1617,6 +1621,7 @@ class PyExtensionType(PyObjectType):
     dataclass_fields = None
     multiple_bases = False
     has_sequence_flag = False
+    opaque_decl_by_default = False
 
     def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
@@ -1678,7 +1683,9 @@ class PyExtensionType(PyObjectType):
         return False
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0, deref = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, deref = 0, opaque_decl = None):
+        if opaque_decl is None:
+            opaque_decl = self.opaque_decl_by_default
         if pyrex or for_display:
             base_code = self.name
         else:
@@ -1686,6 +1693,8 @@ class PyExtensionType(PyObjectType):
                 objstruct = self.objstruct_cname
             else:
                 objstruct = "struct %s" % self.objstruct_cname
+            if opaque_decl and not self.is_external:
+                objstruct = f"__PYX_C_CLASS_DECL({objstruct})"
             base_code = public_decl(objstruct, dll_linkage)
             if deref:
                 assert not entity_code
@@ -1704,6 +1713,14 @@ class PyExtensionType(PyObjectType):
 
     def attributes_known(self):
         return self.scope is not None
+
+    def cast_code(self, expr_code, type_data_cast: bool = False):
+        if not type_data_cast or self.is_external:
+            return super().cast_code(expr_code)
+        if self.scope.is_internal:
+            return f"__Pyx_GetInternalTypeDataAndCast({expr_code}, {self.declaration_code('', opaque_decl=False)})"
+        # TODO - this will be specialized for cdef classes later
+        return super().cast_code(expr_code)
 
     def __str__(self):
         return self.name

@@ -884,11 +884,38 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
 #if CYTHON_OPAQUE_OBJECTS && CYTHON_COMPILING_IN_LIMITED_API
     #define __PYX_SHARED_SIZEOF(T) -((int)sizeof(T))
     #define __PYX_SHARED_RELATIVE_OFFSET Py_RELATIVE_OFFSET
+
+    #define __PYX_INTERNAL_SIZEOF(T) -((int)sizeof(T))
+    #define __PYX_INTERNAL_TYPE_RELATIVE_OFFSET Py_RELATIVE_OFFSET
+    #define __Pyx_GetInternalTypeDataAndCast(o, T) ((T)PyObject_GetTypeData(o, Py_TYPE(o)))
+    
     #define CYTHON_OPAQUE_SHARED_TYPES 1
+    #define CYTHON_OPAQUE_INTERNAL_TYPES 1  // e.g. closure classes
 #else
     #define __PYX_SHARED_SIZEOF(T) sizeof(T)
     #define __PYX_SHARED_RELATIVE_OFFSET 0
+
+    #define __PYX_INTERNAL_SIZEOF(T) sizeof(T)
+    #define __PYX_INTERNAL_TYPE_RELATIVE_OFFSET 0
+    #define __Pyx_GetInternalTypeDataAndCast(o, T) ((T)o)
+
     #define CYTHON_OPAQUE_SHARED_TYPES 0
+    #define CYTHON_OPAQUE_INTERNAL_TYPES 0
+    #define $cur_scope_obj_cname $cur_scope_cname 
+    #define $outer_scope_obj_cname $outer_scope_cname
+#endif
+#define CYTHON_OPAQUE_CDEF_TYPES 0
+#if CYTHON_OPAQUE_OBJECTS && CYTHON_USE_FREELISTS
+    // Turn freelists off here because it's more difficult to calculate the size of the type
+    // to zero out, and because opaque types are mainly for freethreading compatibility and
+    // our freelists aren't thread-safe anyway.
+    #undef CYTHON_USE_FREELISTS
+    #define CYTHON_USE_FREELISTS 0
+#endif
+#if CYTHON_OPAQUE_OBJECTS
+    #define __PYX_C_CLASS_DECL(T) PyObject
+#else
+    #define __PYX_C_CLASS_DECL(T) T
 #endif
 
 #if CYTHON_USE_MODULE_STATE

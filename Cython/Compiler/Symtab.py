@@ -157,6 +157,8 @@ class Entry:
     # pytyping_modifiers          Python type modifiers like "typing.ClassVar" but also "dataclasses.InitVar"
     # enum_int_value  None or int  If known, the int that corresponds to this enum value
     # specialiser  function or None  Callable to specialise a function to specific C arguments.
+    # preprocessor_guard  str or None   Declare this variable in #if preprocessor_guard
+    #                                   (only for cdef class members right now)
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -235,6 +237,7 @@ class Entry:
     pytyping_modifiers = None
     enum_int_value = None
     vtable_type = None
+    preprocessor_guard = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -1490,6 +1493,8 @@ class ModuleScope(Scope):
         scope = entry.type.scope
         scope.is_internal = True
         scope.is_defaults_class_scope = True
+        entry.type.is_final = True
+        entry.type.opaque_decl_by_default=True
 
         # zero pad the argument number so they can be sorted
         num_zeros = len(str(len(components)))

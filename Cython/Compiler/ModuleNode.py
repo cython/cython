@@ -9,6 +9,7 @@ cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=objec
                EncodedString=object, re=object)
 
 from collections import defaultdict
+import contextlib
 import json
 import operator
 import os
@@ -1443,6 +1444,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.sue_header_footer(type, "struct", type.objstruct_cname)
         code.putln(header)
         base_type = type.base_type
+        if type.scope.is_internal:
+            code.putln("#if !CYTHON_OPAQUE_INTERNAL_TYPES")
+        else:
+            code.putln("#if !CYTHON_OPAQUE_CDEF_TYPES")
         if base_type:
             basestruct_cname = base_type.objstruct_cname
             if basestruct_cname == "PyTypeObject":
@@ -1456,6 +1461,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             code.putln(
                 "PyObject_HEAD")
+        code.putln("#endif")  # opaque objects
         if type.vtabslot_cname and not (type.base_type and type.base_type.vtabslot_cname):
             code.putln(
                 "struct %s *%s;" % (
@@ -1471,7 +1477,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 decl = attr_type.declaration_code(attr.cname)
             code.globalstate.use_entry_utility_code(attr)
-            code.putln("%s;" % decl)
+            with self._generate_entry_preprocessor_guard(attr, code):
+                code.putln("%s;" % decl)
         code.putln(footer)
         if type.objtypedef_cname is not None:
             # Only for exposing public typedef name.
@@ -1640,9 +1647,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_self_cast(self, scope, code):
         type = scope.parent_type
         code.putln(
-            "%s = (%s)o;" % (
-                type.declaration_code("p"),
-                type.empty_declaration_code()))
+            "%s = %s;" % (
+                type.declaration_code("p", opaque_decl=False),
+                type.cast_code("o", type_data_cast=True)))
+
+    @contextlib.contextmanager
+    def _generate_entry_preprocessor_guard(self, entry, code):
+        if entry.preprocessor_guard is not None:
+            code.putln(f"#if {entry.preprocessor_guard}")
+        yield
+        if entry.preprocessor_guard is not None:
+            code.putln(f"#endif")
+
 
     @staticmethod
     def generate_freelist_condition(code, size_check, type_cname, type):
@@ -1652,7 +1668,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             freelist_check = '__PYX_CHECK_FINAL_TYPE_FOR_FREELISTS'
         else:
             freelist_check = '__PYX_CHECK_TYPE_FOR_FREELISTS'
-        obj_struct = type.declaration_code("", deref=True)
+        obj_struct = type.declaration_code("", deref=True, opaque_decl=False)
         typeptr_cname = code.name_in_slot_module_state(type.typeptr_cname)
         code.putln(
             f"if (likely((int)({size_check}) & {freelist_check}({type_cname}, {typeptr_cname}, sizeof({obj_struct}))))")
@@ -1711,7 +1727,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                           (py_buffers or memoryview_slices or py_attrs) or
                           explicitly_constructable_attrs)
         if need_self_cast:
-            code.putln("%s;" % scope.parent_type.declaration_code("p"))
+            code.putln("%s;" % scope.parent_type.declaration_code("p", opaque_decl=False))
         if base_type:
             tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
             base_type_typeptr_cname = base_type.typeptr_cname
@@ -1733,7 +1749,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name,
                     freecount_name))
-                obj_struct = type.declaration_code("", deref=True)
+                obj_struct = type.declaration_code("", deref=True, opaque_decl=False)
                 code.putln("#if CYTHON_USE_TYPE_SPECS")
                 # We still hold a reference to the type object held by the previous
                 # user of the freelist object - release it.
@@ -1760,7 +1776,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if freelist_size and not base_type:
             code.putln('}')
         if need_self_cast:
-            code.putln("p = %s;" % type.cast_code("o"))
+            code.putln("p = %s;" % type.cast_code("o", type_data_cast=True))
         #if need_self_cast:
         #    self.generate_self_cast(scope, code)
 
@@ -1919,11 +1935,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("if (p->__dict__) PyDict_Clear(p->__dict__);")
 
         for entry in explicitly_destructable_attrs:
-            entry.type.generate_explicit_destruction(code, entry, extra_access_code="p->")
+            with self._generate_entry_preprocessor_guard(entry, code):
+                entry.type.generate_explicit_destruction(code, entry, extra_access_code="p->")
 
         for entry in (py_attrs + memoryview_slices):
-            code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
-                                   clear_before_decref=True, have_gil=True)
+            with self._generate_entry_preprocessor_guard(entry, code):
+                code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
+                                       clear_before_decref=True, have_gil=True)
 
         if base_type:
             base_cname = base_type.typeptr_cname
@@ -2092,21 +2110,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 UtilityCode.load_cached("CallTypeTraverse", "ExtensionTypes.c"))
 
         for entry in py_attrs:
-            var_code = "p->%s" % entry.cname
-            var_as_pyobject = PyrexTypes.typecast(py_object_type, entry.type, var_code)
-            code.putln("if (%s) {" % var_code)
-            code.putln("e = (*v)(%s, a); if (e) return e;" % var_as_pyobject)
-            code.putln("}")
+            with self._generate_entry_preprocessor_guard(entry, code):
+                var_code = "p->%s" % entry.cname
+                var_as_pyobject = PyrexTypes.typecast(py_object_type, entry.type, var_code)
+                code.putln("if (%s) {" % var_code)
+                code.putln("e = (*v)(%s, a); if (e) return e;" % var_as_pyobject)
+                code.putln("}")
 
         # Traverse buffer exporting objects.
         # Note: not traversing memoryview attributes of memoryview slices!
         # When triggered by the GC, it would cause multiple visits (gc_refs
         # subtractions which is not matched by its reference count!)
         for entry in py_buffers:
-            cname = entry.cname + ".obj"
-            code.putln("if (p->%s) {" % cname)
-            code.putln("e = (*v)(p->%s, a); if (e) return e;" % cname)
-            code.putln("}")
+            with self._generate_entry_preprocessor_guard(entry, code):
+                cname = entry.cname + ".obj"
+                code.putln("if (p->%s) {" % cname)
+                code.putln("e = (*v)(p->%s, a); if (e) return e;" % cname)
+                code.putln("}")
 
         code.putln("return 0;")
         code.putln("}")
@@ -2168,20 +2188,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.clear_to_none:
             for entry in py_attrs:
-                name = "p->%s" % entry.cname
-                code.putln("tmp = ((PyObject*)%s);" % name)
-                if entry.is_declared_generic:
-                    code.put_init_to_py_none(name, py_object_type, nanny=False)
-                else:
-                    code.put_init_to_py_none(name, entry.type, nanny=False)
-                code.putln("Py_XDECREF(tmp);")
+                with self._generate_entry_preprocessor_guard(entry, code):
+                    name = "p->%s" % entry.cname
+                    code.putln("tmp = ((PyObject*)%s);" % name)
+                    if entry.is_declared_generic:
+                        code.put_init_to_py_none(name, py_object_type, nanny=False)
+                    else:
+                        code.put_init_to_py_none(name, entry.type, nanny=False)
+                    code.putln("Py_XDECREF(tmp);")
         else:
             for entry in py_attrs:
-                code.putln("Py_CLEAR(p->%s);" % entry.cname)
+                with self._generate_entry_preprocessor_guard(entry, code):
+                    code.putln("Py_CLEAR(p->%s);" % entry.cname)
 
         for entry in py_buffers:
-            # Note: shouldn't this call PyBuffer_Release ??
-            code.putln("Py_CLEAR(p->%s.obj);" % entry.cname)
+            with self._generate_entry_preprocessor_guard(entry, code):
+                # Note: shouldn't this call PyBuffer_Release ??
+                code.putln("Py_CLEAR(p->%s.obj);" % entry.cname)
 
         if cclass_entry.cname == '__pyx_memoryviewslice':
             code.putln("__PYX_XCLEAR_MEMVIEW(&p->from_slice, 1);")
@@ -2754,8 +2777,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # used in the non-limited API case, this doesn't preserve the weaklistoffset
                 # from base classes.
                 # Practically that doesn't matter, but it isn't exactly the identical.
-                code.putln('{"__weaklistoffset__", T_PYSSIZET, offsetof(%s, %s), READONLY, 0},'
-                           % (objstruct, weakref_entry.cname))
+                relative_offset = '__PYX_INTERNAL_TYPE_RELATIVE_OFFSET' if scope.is_internal else '0'
+                code.putln('{"__weaklistoffset__", T_PYSSIZET, offsetof(%s, %s), %s | READONLY, 0},'
+                           % (objstruct, weakref_entry.cname, relative_offset))
             code.putln("#endif")
             code.putln("{0, 0, 0, 0, 0}")
             code.putln("};")
@@ -2771,7 +2795,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         classname = scope.class_name.as_c_string_literal()
         code.putln("static PyType_Spec %s_spec = {" % ext_type.typeobj_cname)
         code.putln('"%s.%s",' % (self.full_module_name, classname.replace('"', '')))
-        code.putln("sizeof(%s)," % objstruct)
+        sizeof = '__PYX_INTERNAL_SIZEOF' if scope.is_internal else 'sizeof'
+        code.putln(f"{sizeof}({objstruct}),")
         code.putln("0,")
         code.putln("%s," % TypeSlots.get_slot_by_name("tp_flags", scope.directives).slot_code(scope))
         code.putln("%s_slots," % ext_type.typeobj_cname)
@@ -4002,6 +4027,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
         code.putln(f' if (!{typeptr_cname}) {error_code}')
+
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)
 

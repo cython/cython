@@ -10436,7 +10436,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             for arg, entry in self.defaults:
                 arg.default_value = '%s->%s' % (
                     Naming.dynamic_args_cname, entry.cname)
-            self.def_node.defaults_struct = defaults_class_scope.name
+            self.def_node.defaults_struct = defaults_class_scope
 
         if default_args or default_kwargs:
             if self.defaults_entry is None:
@@ -10616,7 +10616,7 @@ class InnerFunctionNode(PyCFunctionNode):
 
     def closure_result_code(self):
         if self.needs_closure_code:
-            return "((PyObject*)%s)" % Naming.cur_scope_cname
+            return "((PyObject*)%s)" % Naming.cur_scope_obj_cname
         return "NULL"
 
 
