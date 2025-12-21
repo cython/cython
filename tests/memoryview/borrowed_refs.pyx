@@ -3,6 +3,8 @@
 
 from cython.parallel import prange
 
+import gc
+
 include "../buffers/mockbuffers.pxi"
 
 cdef extern from *:
@@ -324,6 +326,9 @@ def dont_use_borrowed_refs_closure1(double[:,:] x):
 
     inner()
     print("done")
+    # Limited API needs GC to clean up the closure
+    del inner
+    gc.collect()
 
 def dont_use_borrowed_refs_closure2(double[:,:] x):
     """
@@ -348,6 +353,9 @@ def dont_use_borrowed_refs_closure2(double[:,:] x):
 
     inner()
     print("done")
+    # Limited API needs GC to clean up the closure
+    del inner
+    gc.collect()
 
 def dont_use_borrowed_refs_prange(double[:, :] x):
     """
