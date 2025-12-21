@@ -1,4 +1,5 @@
- 
+cimport cython
+
 @cython.collection_type("sequence")
 cdef class Range5:
     # be sure to define the sequence methods!
