@@ -4,11 +4,18 @@ Python Lexical Analyser
 
 Converting NFA to DFA
 """
-from __future__ import absolute_import
 
+import cython
 from . import Machines
 from .Machines import LOWEST_PRIORITY
 from .Transitions import TransitionMap
+
+if cython.compiled:
+    from cython.cimports.Cython.Plex.Machines import Node, FastMachine
+    from cython.cimports.Cython.Plex.Transitions import TransitionMap as type_TransitionMap
+else:
+    from Cython.Plex.Machines import Node, FastMachine
+    from Cython.Plex.Transitions import TransitionMap as type_TransitionMap
 
 
 def nfa_to_dfa(old_machine, debug=None):
@@ -25,8 +32,9 @@ def nfa_to_dfa(old_machine, debug=None):
     # on that character from any of the old states. As new combinations of
     # old states are created, new states are added as needed until closure
     # is reached.
-    new_machine = Machines.FastMachine()
-    state_map = StateMap(new_machine)
+    transitions: type_TransitionMap
+    new_machine: FastMachine = Machines.FastMachine()
+    state_map: StateMap = StateMap(new_machine)
 
     # Seed the process using the initial states of the old machine.
     # Make the corresponding new states into initial states of the new
@@ -52,19 +60,21 @@ def nfa_to_dfa(old_machine, debug=None):
     return new_machine
 
 
-def set_epsilon_closure(state_set):
+@cython.cfunc
+def set_epsilon_closure(state_set: set) -> set:
     """
     Given a set of states, return the union of the epsilon
     closures of its member states.
     """
-    result = {}
+    result = set()
     for state1 in state_set:
         for state2 in epsilon_closure(state1):
-            result[state2] = 1
+            result.add(state2)
     return result
 
 
-def epsilon_closure(state):
+@cython.cfunc
+def epsilon_closure(state: Node) -> set:
     """
     Return the set of states reachable from the given state
     by epsilon moves.
@@ -72,26 +82,30 @@ def epsilon_closure(state):
     # Cache the result
     result = state.epsilon_closure
     if result is None:
-        result = {}
+        result = set()
         state.epsilon_closure = result
         add_to_epsilon_closure(result, state)
     return result
 
 
-def add_to_epsilon_closure(state_set, state):
+@cython.cfunc
+def add_to_epsilon_closure(state_set: set, state: Node):
     """
     Recursively add to |state_set| states reachable from the given state
     by epsilon moves.
     """
-    if not state_set.get(state, 0):
-        state_set[state] = 1
+    state_set_2: set
+    state2: Node
+
+    if state not in state_set:
+        state_set.add(state)
         state_set_2 = state.transitions.get_epsilon()
         if state_set_2:
             for state2 in state_set_2:
                 add_to_epsilon_closure(state_set, state2)
 
 
-class StateMap(object):
+class StateMap:
     """
     Helper class used by nfa_to_dfa() to map back and forth between
     sets of states from the old machine and states of the new machine.
@@ -102,7 +116,7 @@ class StateMap(object):
         self.old_to_new_dict = {}  # {(old_state,...) : new_state}
         self.new_to_old_dict = {}  # {id(new_state) : old_state_set}
 
-    def old_to_new(self, old_state_set):
+    def old_to_new(self, old_state_set: set):
         """
         Return the state of the new machine corresponding to the
         set of old machine states represented by |state_set|. A new
@@ -119,9 +133,10 @@ class StateMap(object):
             self.new_to_old_dict[id(new_state)] = old_state_set
         return new_state
 
-    def highest_priority_action(self, state_set):
+    def highest_priority_action(self, state_set: set):
         best_action = None
         best_priority = LOWEST_PRIORITY
+        state: Node
         for state in state_set:
             priority = state.action_priority
             if priority > best_priority:
@@ -133,7 +148,7 @@ class StateMap(object):
         """Given a new state, return a set of corresponding old states."""
         return self.new_to_old_dict[id(new_state)]
 
-    def make_key(self, state_set):
+    def make_key(self, state_set: set):
         """
         Convert a set of states into a uniquified
         sorted tuple suitable for use as a dictionary key.

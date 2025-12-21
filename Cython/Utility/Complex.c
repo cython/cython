@@ -4,8 +4,9 @@
 #if !defined(CYTHON_CCOMPLEX)
   #if defined(__cplusplus)
     #define CYTHON_CCOMPLEX 1
-  #elif defined(_Complex_I) || (__STDC_VERSION__ >= 201112L && !defined(__STDC_NO_COMPLEX__))
-    // <complex.h> should exist since C99, but only C11 defines a test to detect it
+  #elif (defined(_Complex_I) && !defined(_MSC_VER)) || ((defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_COMPLEX__) && !defined(_MSC_VER))
+    // <complex.h> should exist since C99, but only C11 defines a test to detect it.
+    // MSVC defines "_Complex_I" but not "_Complex". See https://github.com/cython/cython/issues/5512
     #define CYTHON_CCOMPLEX 1
   #else
     #define CYTHON_CCOMPLEX 0
@@ -132,8 +133,19 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject*);
 /////////////// FromPy ///////////////
 
 static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+    double real=-1.0, imag=-1.0;
+    real = PyComplex_RealAsDouble(o);
+    if (unlikely(real == -1.0 && PyErr_Occurred())) goto end;
+    imag = PyComplex_ImagAsDouble(o);
+    // No error check on imag since we do the same thing either way
+  end:
+    return {{type_name}}_from_parts(
+        ({{real_type}})real, ({{real_type}})imag
+    );
+#else
     Py_complex cval;
-#if !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_GRAAL
     if (PyComplex_CheckExact(o))
         cval = ((PyComplexObject *)o)->cval;
     else
@@ -142,6 +154,7 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
     return {{type_name}}_from_parts(
                ({{real_type}})cval.real,
                ({{real_type}})cval.imag);
+#endif
 }
 
 
@@ -323,22 +336,27 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
 
 /////////////// SoftComplexToDouble.proto //////////////////
 
-static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value); /* proto */
+static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value, int have_nogil); /* proto */
 
 /////////////// SoftComplexToDouble //////////////////
 //@requires: RealImag
 
-static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value) {
+static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value, int have_nogil) {
     // This isn't an absolutely perfect match for the Python behaviour:
     // In Python the type would be determined right after the number is
     // created (usually '**'), while here it's determined when coerced
     // to a PyObject, which may be a few operations later.
     if (unlikely(__Pyx_CIMAG(value))) {
+        PyGILState_STATE gilstate;
+        if (have_nogil)
+            gilstate = PyGILState_Ensure();
         PyErr_SetString(PyExc_TypeError,
             "Cannot convert 'complex' with non-zero imaginary component to 'double' "
             "(this most likely comes from the '**' operator; "
             "use 'cython.cpow(True)' to return 'nan' instead of a "
             "complex number).");
+        if (have_nogil)
+            PyGILState_Release(gilstate);
         return -1.;
     }
     return __Pyx_CREAL(value);

@@ -8,22 +8,19 @@
 
 import sys
 
-if sys.version_info >= (3, 4):
-    def funcdoc(f):
-        if not getattr(f, "__text_signature__", None):
-            return f.__doc__
-        doc = '%s%s' % (f.__name__, f.__text_signature__)
-        if f.__doc__:
-            if '\n' in f.__doc__:
-                # preceding line endings get stripped
-                doc = '%s\n\n%s' % (doc, f.__doc__)
-            else:
-                doc = '%s\n%s' % (doc, f.__doc__)
-        return doc
+include "skip_limited_api_helper.pxi"
 
-else:
-    def funcdoc(f):
+def funcdoc(f):
+    if not getattr(f, "__text_signature__", None):
         return f.__doc__
+    doc = '%s%s' % (f.__name__, f.__text_signature__)
+    if f.__doc__:
+        if '\n' in f.__doc__:
+            # preceding line endings get stripped
+            doc = '%s\n\n%s' % (doc, f.__doc__)
+        else:
+            doc = '%s\n%s' % (doc, f.__doc__)
+    return doc
 
 
 # note the r, we use \n below
@@ -33,9 +30,11 @@ __doc__ = ur"""
 
     >>> print (Ext.attr0.__doc__)
     attr0: 'int'
+    <BLANKLINE>
     attr0 docstring
     >>> print (Ext.attr1.__doc__)
     attr1: object
+    <BLANKLINE>
     attr1 docstring
     >>> print (Ext.attr2.__doc__)
     attr2: list
@@ -50,6 +49,7 @@ __doc__ = ur"""
     attr4 docstring
     >>> print (Ext.attr5.__doc__)
     attr5: 'int'
+    <BLANKLINE>
     attr5 docstring
 
     >>> print (Ext.a.__doc__)
@@ -81,16 +81,22 @@ __doc__ = ur"""
 
     >>> print (Ext.l.__doc__)
     Ext.l(self, a, b, c=1, *args, d=42, e=17, f, **kwds)
+    <BLANKLINE>
     Existing string
 
     >>> print (Ext.m.__doc__)
-    Ext.m(self, a=u'spam')
+    Ext.m(self, a='spam', b='foo', c=b'bar')
 
     >>> print (Ext.n.__doc__)
     Ext.n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
 
     >>> print (Ext.o.__doc__)
     Ext.o(self, a, b=1, /, c=5, *args, **kwargs)
+
+    >>> print (Ext.__add__.__doc__)
+    Ext.__add__(self, Ext other) -> Ext
+    <BLANKLINE>
+    add docstring
 
     >>> print (Ext.get_int.__doc__)
     Ext.get_int(self) -> int
@@ -100,6 +106,7 @@ __doc__ = ur"""
 
     >>> print (Ext.get_str.__doc__)
     Ext.get_str(self) -> str
+    <BLANKLINE>
     Existing string
 
     >>> print (Ext.clone.__doc__)
@@ -109,16 +116,16 @@ __doc__ = ur"""
     foo()
 
     >>> funcdoc(with_doc_1)
-    'with_doc_1(a, b, c)\nExisting string'
+    'with_doc_1(a, b, c)\n\nExisting string'
 
     >>> funcdoc(with_doc_2)
-    'with_doc_2(a, b, c)\n\n    Existing string\n    '
+    'with_doc_2(a, b, c)\n\nExisting string'
 
     >>> funcdoc(with_doc_3)
-    'with_doc_3(a, b, c)\nExisting string'
+    'with_doc_3(a, b, c)\n\nExisting string'
 
     >>> funcdoc(with_doc_4)
-    'with_doc_4(int a, str b, list c) -> str\n\n    Existing string\n    '
+    'with_doc_4(int a, str b, list c) -> str\n\nExisting string'
 
     >>> funcdoc(f_sd)
     "f_sd(str s='spam')"
@@ -203,6 +210,16 @@ __doc__ = ur"""
     f_charptr_null(char *s=NULL) -> char *
 """
 
+
+@skip_if_limited_api("known bugs")
+def test_nonlimited_api():
+    """
+    >>> print (Ext.__call__.__doc__)
+    Ext.__call__(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
+    <BLANKLINE>
+    call docstring
+    """
+
 cdef class Ext:
 
     cdef public int  attr0
@@ -268,7 +285,7 @@ cdef class Ext:
         """Existing string"""
         pass
 
-    def m(self, a=u'spam'):
+    def m(self, a=u'spam', b='foo', c=b'bar'):
         pass
 
     def n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True):
@@ -276,6 +293,18 @@ cdef class Ext:
 
     def o(self, a, b=1, /, c=5, *args, **kwargs):
         pass
+
+    def __call__(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True):
+        """
+        call docstring
+        """
+        pass
+
+    def __add__(self, Ext other) -> Ext:
+        """
+        add docstring
+        """
+        return self
 
     cpdef int get_int(self):
         return 0
@@ -409,6 +438,7 @@ lambda_bar = lambda x: 20
 
 
 cdef class Foo:
+    def __init__(self, *args, **kwargs): pass
     def m00(self, a: None) ->  None: pass
     def m01(self, a: ...) ->  Ellipsis: pass
     def m02(self, a: True, b: False) ->  bool: pass
@@ -441,8 +471,13 @@ cdef class Foo:
     def m29(self, a: list(range(3))[0:1:1]): pass
     def m30(self, a: list(range(3))[7, 3:2:1, ...]): pass
     def m31(self, double[::1] a): pass
+    def m32(self, a: tuple[()]) -> tuple[tuple[()]]: pass
 
 __doc__ += ur"""
+>>> print(Foo.__doc__)
+Foo(*args, **kwargs)
+>>> assert Foo.__init__.__doc__ == type.__init__.__doc__
+
 >>> print(Foo.m00.__doc__)
 Foo.m00(self, a: None) -> None
 
@@ -538,4 +573,19 @@ Foo.m30(self, a: list(range(3))[7, 3:2:1, ...])
 
 >>> print(Foo.m31.__doc__)
 Foo.m31(self, double[::1] a)
+
+>>> print(Foo.m32.__doc__)
+Foo.m32(self, a: tuple[()]) -> tuple[tuple[()]]
+
+"""
+
+def has_lambda(arg=lambda z: z+1):
+    pass
+
+# Currently the lambda is shown as an Ellipsis because it's unformatable
+# (and in this context, failure is basically OK). If that changes and we're able to
+# print it properly then update the test.
+__doc__ += """
+>>> print(has_lambda.__doc__)
+has_lambda(arg=...)
 """

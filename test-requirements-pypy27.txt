@@ -1,2 +1,0 @@
--r test-requirements.txt
-mock==3.0.5

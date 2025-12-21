@@ -3,18 +3,18 @@
 
 from __future__ import generator_stop
 
-import sys
-if sys.version_info[0] >= 3:
-    # additionally test exception chaining
-    __doc__ = u"""
+# additionally test exception chaining
+__doc__ = u"""
 >>> g = test_raise_StopIteration_value()
 >>> next(g)
 1
 >>> try: next(g)
 ... except RuntimeError as exc:
 ...     print(type(exc.__context__) is StopIteration or type(exc.__context__), exc.__context__)
+...     print(type(exc.__cause__) is StopIteration or type(exc.__cause__), exc.__context__)
 ... else:
 ...     print("NOT RAISED!")
+True huhu
 True huhu
 """
 

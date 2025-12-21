@@ -42,3 +42,11 @@ def test_wraparound():
     # the wraparound directive from this scope should not affect the inline pxd
     a = [ 0.0, 1.0 ]
     return inlinepxd_support.index(a)
+
+
+def test_call_inlined(L):
+    """
+    >>> test_call_inlined([1, 2, 3])
+    3
+    """
+    return inlinepxd_support.call_index(L)

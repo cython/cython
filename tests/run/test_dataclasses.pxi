@@ -1,6 +1,6 @@
-from cython.dataclasses cimport dataclass, field
 from cython cimport cclass
 from dataclasses import (
+    dataclass, field,
     fields, FrozenInstanceError, InitVar, is_dataclass, asdict, astuple, replace
 )
 import unittest

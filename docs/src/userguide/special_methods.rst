@@ -35,7 +35,7 @@ Docstrings
 Currently, docstrings are not fully supported in some special methods of extension
 types. You can place a docstring in the source to serve as a comment, but it
 won't show up in the corresponding :attr:`__doc__` attribute at run time. (This
-seems to be is a Python limitation -- there's nowhere in the `PyTypeObject`
+seems to be is a Python limitation -- there's nowhere in the :c:type:`PyTypeObject`
 data structure to put such docstrings.)
 
 
@@ -223,11 +223,12 @@ Depending on the application, one way or the other may be better:
 
   These constants can be cimported from the ``cpython.object`` module.
 
-* Use the ``@cython.total_ordering`` decorator, which is a low-level
-  re-implementation of the `functools.total_ordering
-  <https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
-  decorator specifically for ``cdef`` classes.  (Normal Python classes can use
-  the original ``functools`` decorator.)
+* If you use the `functools.total_ordering <https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
+  decorator on an extension type/``cdef`` class, Cython replaces it with a low-level reimplementation
+  designed specifically for extension types.  (On a normal Python classes, the ``functools`` 
+  decorator continues to work as before.)  As a shortcut you can also use ``cython.total_ordering``, which
+  applies the same re-implementation but also transforms the class to an extension type if it
+  isn't already.
 
 .. tabs::
 
@@ -484,25 +485,20 @@ Buffer interface [:PEP:`3118`] (no Python equivalents - see note 1)
 | __releasebuffer__     | self, Py_buffer `*view`               |             |                                                     |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 
-Buffer interface [legacy] (no Python equivalents - see note 1)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Customizing class creation
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+https://docs.python.org/3/reference/datamodel.html#customizing-class-creation
 
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| Name                  | Parameters                            | Return type |         Description                                 |
-+=======================+=======================================+=============+=====================================================+
-| __getreadbuffer__     | self, Py_ssize_t i, void `**p`        |             |                                                     |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __getwritebuffer__    | self, Py_ssize_t i, void `**p`        |             |                                                     |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __getsegcount__       | self, Py_ssize_t `*p`                 |             |                                                     |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __getcharbuffer__     | self, Py_ssize_t i, char `**p`        |             |                                                     |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
++-----------------------+---------------------------------------+-------------+----------------------------------------------------------------------+
+| Name                  | Parameters                            | Return type |         Description                                                  |
++=======================+=======================================+=============+======================================================================+
+| __set_name__          | self, owner, name                     |             |  Automatically called at the time the owning class owner is created. |
++-----------------------+---------------------------------------+-------------+----------------------------------------------------------------------+
 
 Descriptor objects (see note 2)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-https://docs.python.org/3/reference/datamodel.html#emulating-container-types
+https://docs.python.org/3/reference/datamodel.html#implementing-descriptors
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
@@ -515,10 +511,10 @@ https://docs.python.org/3/reference/datamodel.html#emulating-container-types
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 
 .. note:: (1) The buffer interface was intended for use by C code and is not directly
-        accessible from Python. It is described in the Python/C API Reference Manual
-        of Python 2.x under sections 6.6 and 10.6. It was superseded by the new
-        :PEP:`3118` buffer protocol in Python 2.6 and is no longer available in Python 3.
-        For a how-to guide to the new API, see :ref:`buffer`.
+        accessible from Python.  For a how-to guide to the new API, see :ref:`buffer`.
+        The old Python 2 buffer protocol (```__getreadbuffer__``, ``__getwritebuffer__``,
+        ``__getsegcount__``, ``__getcharbuffer__``) is no longer supported from Cython 3.1
+        since Python 2 is no longer supported.
 
 .. note:: (2) Descriptor objects are part of the support mechanism for new-style
         Python classes. See the discussion of descriptors in the Python documentation.

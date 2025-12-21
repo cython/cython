@@ -3,12 +3,11 @@
 # tag: cyfunction, closures
 
 cimport cython
-import sys
+
 
 def get_defaults(func):
-    if sys.version_info >= (2, 6, 0):
-        return func.__defaults__
-    return func.func_defaults
+    return func.__defaults__
+
 
 def test_defaults_none():
     """
@@ -349,3 +348,27 @@ def check_defaults_on_methods_for_introspection():
     {'c': None}
     """
     pass
+
+cdef extern from *:
+    """
+    #define TWO 2.0
+    #define THREE 3.0
+    #define FOUR 4.0
+    #define FIVE 5.0
+    #define SIX 6.0
+    #define SEVEN 7.0
+    #define EIGHT 8.0
+    #define NINE 9.0
+    """
+    double TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE
+
+# https://github.com/cython/cython/issues/6843
+# This is to do with lexical sorting of fields called arg0, arg1, arg10, arg2, ...
+def test_eleven_defaults(a=[], b=set(), c={}, double d=TWO, double e=THREE,
+                      double f=FOUR, double g=FIVE, double h=SIX, double i=SEVEN, double j=EIGHT,
+                      double k=NINE):
+    """
+    >>> test_eleven_defaults()
+    [] set() {} 2.0 3.0 4.0 5.0 6.0 7.0 8.0
+    """
+    print a, b, c, d, e, f, g, h, i, j

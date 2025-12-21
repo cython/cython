@@ -137,7 +137,7 @@ def test_obj_to_struct(MyStruct mystruct):
     Traceback (most recent call last):
        ...
     ValueError: No value specified for struct attribute 'c'
-    >>> test_obj_to_struct(dict(c=b"world"))
+    >>> test_obj_to_struct(dict(c=b"world", i=5, f=2.0, s=b'x'))
     Traceback (most recent call last):
        ...
     TypeError: an integer is required
@@ -183,3 +183,14 @@ def test_struct_to_obj_cnames():
     {'x': 2}
     """
     return OverriddenCname(2)
+
+cdef struct ArrayFieldStruct:
+    int arr[4]
+
+def test_array_field_init():
+    """
+    >>> test_array_field_init()
+    [1, 2, 3, 4]
+    """
+    cdef ArrayFieldStruct s = ArrayFieldStruct([1, 2, 3, 4])
+    print(s.arr);

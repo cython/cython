@@ -84,9 +84,12 @@ def return_nested_tuple():
     """
     return (1, (2, 3), (3, (4, 5), (2, 3) * 2))
 
-@cython.test_assert_path_exists("//TupleNode",
-                                "//TupleNode[@is_literal = true]")
-@cython.test_fail_if_path_exists("//TupleNode[@is_literal = false]")
+@cython.test_assert_path_exists(
+    "//TupleNode",
+    # We are not testing ctuples here, so allow either ctuple or constant Python tuple,
+    # but not a dynamically created tuple.
+    "//TupleNode[@is_literal = true or @type.is_ctuple = true]",
+)
 def constant_tuple1():
     """
     >>> constant_tuple1()
@@ -141,6 +144,7 @@ def return_constant_tuple_strings():
     """
     return ('tuple_1', 'bc', 'tuple_2')
 
+
 @cython.test_assert_path_exists("//TupleNode",
                                 "//TupleNode[@is_literal = true]")
 @cython.test_fail_if_path_exists("//TupleNode[@is_literal = false]")
@@ -148,13 +152,14 @@ def return_constant_tuples_string_types():
     """
     >>> a,b,c = return_constant_tuples_string_types()
     >>> a is b
-    False
+    True
     >>> a is c
     False
     >>> b is c
     False
     """
     return ('a', 'bc'), (u'a', u'bc'), (b'a', b'bc')
+
 
 @cython.test_assert_path_exists("//ReturnStatNode//TupleNode",
                                 "//ReturnStatNode//TupleNode[@is_literal = false]")
@@ -173,12 +178,13 @@ def constant_types_comparing_equal():
     >>> constant_types_comparing_equal()
     ((False, False), (0, 0), (0.0, 0.0), (0, False), (False, 0.0), (0, 0.0))
     """
-    bool_tuple= (False, False)
-    int_tuple = (0, 0)
-    float_tuple = (0.0, 0.0)
-    int_bool = (0, False)
-    bool_float = (False, 0.0)
-    int_float = (0, 0.0)
+    # Explicitly type as Python tuple object to prevent ctuple usage.
+    bool_tuple: tuple = (False, False)
+    int_tuple: tuple = (0, 0)
+    float_tuple: tuple = (0.0, 0.0)
+    int_bool: tuple = (0, False)
+    bool_float: tuple = (False, 0.0)
+    int_float: tuple = (0, 0.0)
 
     assert bool_tuple is (False, False)
     assert int_tuple is (0, 0)

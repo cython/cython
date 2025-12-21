@@ -53,10 +53,10 @@ __doc__ = u"""
     >>> g01 = object.__getattribute__(GetAttr(), '__getattribute__')
     >>> g01('attr')
     GetAttr getattr 'attr'
-    >>> g10 = object.__getattribute__(GetAttribute(), '__getattr__')
-    Traceback (most recent call last):
-    ...
-    AttributeError: 'special_methods_T561.GetAttribute' object has no attribute '__getattr__'
+    >>> try: object.__getattribute__(GetAttribute(), '__getattr__')
+    ... except AttributeError as err:
+    ...      assert '__getattr__' in str(err), err
+    ... else: print("NOT RAISED!")
     >>> g11 = object.__getattribute__(GetAttribute(), '__getattribute__')
     >>> g11('attr')
     GetAttribute getattribute 'attr'
@@ -89,37 +89,29 @@ __doc__ = u"""
     >>> Li = Long().__int__
     >>> Li()
     Long __long__
-"""
-if sys.version_info >= (2,5):
-    __doc__ += u"""\
     >>> vs0 = VerySpecial(0)
     VS __init__ 0
     >>> vs0_index = vs0.__index__
     >>> vs0_index()
     VS __index__ 0
-"""
+    >>> set_name = SetName()
+    >>> assert "SetName 'SetName' 'attr'" == set_name.attr, set_name.attr
 
-cdef extern from *:
-    # type specs require a bug fix in Py3.8+ for some of these tests.
-    const int CYTHON_USE_TYPE_SPECS
-
-if not CYTHON_USE_TYPE_SPECS or sys.version_info >= (3,8):
-    __doc__ += u"""
     >>> # If you define either setattr or delattr, you get wrapper objects
     >>> # for both methods.  (This behavior is unchanged by #561.)
     >>> sa_setattr = SetAttr().__setattr__
     >>> sa_setattr('foo', 'bar')
     SetAttr setattr 'foo' 'bar'
     >>> sa_delattr = SetAttr().__delattr__
-    >>> sa_delattr('foo')
+    >>> sa_delattr('foo')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    AttributeError: 'special_methods_T561.SetAttr' object has no attribute 'foo'
+    AttributeError: 'special_methods_T561.SetAttr' object has no attribute 'foo'...
     >>> da_setattr = DelAttr().__setattr__
-    >>> da_setattr('foo', 'bar')
+    >>> da_setattr('foo', 'bar')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    AttributeError: 'special_methods_T561.DelAttr' object has no attribute 'foo'
+    AttributeError: 'special_methods_T561.DelAttr' object has no attribute 'foo'...
     >>> da_delattr = DelAttr().__delattr__
     >>> da_delattr('foo')
     DelAttr delattr 'foo'
@@ -552,6 +544,20 @@ cdef class SetDelete:
 cdef class Long:
     def __long__(self):
         print "Long __long__"
+
+class _SetName:
+
+    def __init__(self):
+        self.set_name = None
+
+    def __set_name__(self, owner, name):
+        self.set_name = "SetName %r %r" % (owner.__name__, name)
+
+    def __get__(self, inst, own):
+        return self.set_name
+
+cdef class SetName:
+    attr = _SetName()
 
 cdef class GetAttrGetItemRedirect:
     """
@@ -1055,6 +1061,11 @@ cdef class TwoArgIPow:
     >>> a**=2
     >>> print(a)
     a**2
+
+    >>> ipow(TwoArgIPow('a'), 'x', 'y')
+    Traceback (most recent call last):
+        ...
+    TypeError: special_methods_T561.TwoArgIPow.__ipow__() takes 3 arguments but 2 were given
     """
     cdef str name
 
@@ -1063,15 +1074,6 @@ cdef class TwoArgIPow:
 
     def __ipow__(self, other):
         return f"{self.name}**{other}"
-
-if sys.version_info >= (3, 8):
-    # Due to a bug this check can't usefully work in Python <3.8
-    __doc__ += """
->>> ipow(TwoArgIPow('a'), 'x', 'y')
-Traceback (most recent call last):
-    ...
-TypeError: special_methods_T561.TwoArgIPow.__ipow__() takes 3 arguments but 2 were given
-    """
 
 
 cdef class TwoOrThreeArgPow:

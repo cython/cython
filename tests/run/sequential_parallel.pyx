@@ -1,5 +1,8 @@
 # tag: run
 
+# This file is also included from "parallel.pyx" to run the same tests
+# but with OpenMP enabled.
+
 cimport cython.parallel
 from cython.parallel import prange, threadid
 from cython.view cimport array
@@ -8,12 +11,20 @@ from libc.stdio cimport puts
 
 import os
 import sys
+import sysconfig
 
 try:
     from builtins import next # Py3k
 except ImportError:
     def next(it):
         return it.next()
+
+def skip_in_freethreading(f):
+    # defined in parallel.pyx
+    if "OPENMP_PARALLEL" in globals():
+        if sysconfig.get_config_var("Py_GIL_DISABLED"):
+            return None
+    return f
 
 #@cython.test_assert_path_exists(
 #    "//ParallelWithBlockNode//ParallelRangeNode[@schedule = 'dynamic']",
@@ -236,9 +247,9 @@ cdef extern from "types.h":
 
 ctypedef int myint_t
 
-def test_nan_init():
+def test_init_parallel():
     """
-    >>> test_nan_init()
+    >>> test_init_parallel()
     """
     cdef int mybool = 0
     cdef int err = 0
@@ -265,54 +276,96 @@ def test_nan_init():
 
     cdef void *p = <void *> 10
 
+    cdef object o = 10.0
+
     with nogil, cython.parallel.parallel():
-        # First, trick the error checking to make it believe these variables
-        # are initialized after this if
+        # First, trick the flow control to make it believe these variables
+        # are assigned to within the parallel block
 
         if mybool: # mybool is always false!
             a1 = a2 = b1 = b2 = c1 = c2 = d1 = d2 = e1 = e2 = 0
             f = g = h = 0.0
             p = NULL
             miss1 = miss2 = typedef1 = 0
+            with gil:
+                o = 0
 
-        if (a1 == 10 or a2 == 10 or
-            b1 == 10 or b2 == 10 or
-            c1 == 10 or c2 == 10 or
-            d1 == 10 or d2 == 10 or
-            e1 == 10 or e2 == 10 or
-            f == 10.0 or g == 10.0 or h == 10.0 or
-            p == <void *> 10 or miss1 == 10 or miss2 == 10
-            or typedef1 == 10):
+        if (a1 != 10 or a2 != 10 or
+            b1 != 10 or b2 != 10 or
+            c1 != 10 or c2 != 10 or
+            d1 != 10 or d2 != 10 or
+            e1 != 10 or e2 != 10 or
+            f != 10.0 or g != 10.0 or h != 10.0 or
+            p != <void *> 10 or miss1 != 10 or miss2 != 10
+            or typedef1 != 10):
             errp[0] = 1
+        with gil:
+            if o != 10:
+                errp[0] = 1
+
+    if err:
+        raise Exception("One of the values was not initialized from its value before the parallel block")
+
+
+def test_init_prange():
+    """
+    >>> test_init_prange()
+    """
+    cdef int mybool = 0
+    cdef int err = 0
+    cdef int *errp = &err
+
+    cdef signed char a1 = 10
+    cdef unsigned char a2 = 10
+    cdef short b1 = 10
+    cdef unsigned short b2 = 10
+    cdef int c1 = 10
+    cdef unsigned int c2 = 10
+    cdef long d1 = 10
+    cdef unsigned long d2 = 10
+    cdef long long e1 = 10
+    cdef unsigned long long e2 = 10
+
+    cdef actually_long_t miss1 = 10
+    cdef actually_short_t miss2 = 10
+    cdef myint_t typedef1 = 10
+
+    cdef float f = 10.0
+    cdef double g = 10.0
+    cdef long double h = 10.0
+
+    cdef void *p = <void *> 10
+
+    cdef object o = 10.0
 
     cdef int i
     for i in prange(10, nogil=True):
-        # First, trick the error checking to make it believe these variables
-        # are initialized after this if
+        # First, trick the flow control to make it believe these variables
+        # are assigned to in the parallel prange
 
         if mybool: # mybool is always false!
             a1 = a2 = b1 = b2 = c1 = c2 = d1 = d2 = e1 = e2 = 0
             f = g = h = 0.0
             p = NULL
             miss1 = miss2 = typedef1 = 0
+            with gil:
+                o = 0.0
 
-        if (a1 == 10 or a2 == 10 or
-            b1 == 10 or b2 == 10 or
-            c1 == 10 or c2 == 10 or
-            d1 == 10 or d2 == 10 or
-            e1 == 10 or e2 == 10 or
-            f == 10.0 or g == 10.0 or h == 10.0 or
-            p == <void *> 10 or miss1 == 10 or miss2 == 10
-            or typedef1 == 10):
+        if (a1 != 10 or a2 != 10 or
+            b1 != 10 or b2 != 10 or
+            c1 != 10 or c2 != 10 or
+            d1 != 10 or d2 != 10 or
+            e1 != 10 or e2 != 10 or
+            f != 10.0 or g != 10.0 or h != 10.0 or
+            p != <void *> 10 or miss1 != 10 or miss2 != 10
+            or typedef1 != 10):
             errp[0] = 1
+        with gil:
+            if o != 10.0:
+                errp[0] = 1
 
     if err:
-        raise Exception("One of the values was not initialized to a maximum "
-                        "or NaN value")
-
-    c1 = 20
-    with nogil, cython.parallel.parallel():
-        c1 = 16
+        raise Exception("One of the values was not initialized from its value before the parallel block")
 
 
 cdef void nogil_print(char *s) noexcept with gil:
@@ -604,6 +657,7 @@ def parallel_exceptions2():
                     continue
                     return
 
+@skip_in_freethreading  # Reassignment of 'obj'
 def test_parallel_with_gil_return():
     """
     >>> test_parallel_with_gil_return()
@@ -730,6 +784,8 @@ def test_clean_temps():
     try:
         for i in prange(100, nogil=True, num_threads=1):
             with gil:
+                # freethreading - if we actually assigned to x this would currently be dodgy
+                # but the test doesn't get that far.
                 x = PrintOnDealloc() + error()
     except Exception, e:
         print e.args[0]
@@ -752,6 +808,7 @@ def test_pointer_temps(double x):
     return f[0]
 
 
+@skip_in_freethreading  #  "+=" on a Python object isn't atomic
 def test_prange_in_with(int x, ctx):
     """
     >>> from contextlib import contextmanager
@@ -816,3 +873,73 @@ def test_inner_private():
     assert inner_are_the_same == False,  "Temporary variables in inner loop should be private"
 
     print('ok')
+
+cdef void prange_exception_checked_function(int* ptr, int id) except * nogil:
+    # requires the GIL after each call
+    ptr[0] = id;
+
+cdef void prange_call_exception_checked_function_impl(int* arr, int N) nogil:
+    # Inside a nogil function, prange can't be sure the GIL has been released.
+    # Therefore Cython must release the GIL itself.
+    # Otherwise, we can experience cause lock-ups if anything inside it acquires the GIL
+    # (since if any other thread has finished, it will be holding the GIL).
+    #
+    # An equivalent test with prange is in "sequential_parallel.pyx"
+    cdef int i
+    for i in prange(N, num_threads=4, schedule='static', chunksize=1):
+        prange_exception_checked_function(arr+i, i)
+
+def test_prange_call_exception_checked_function():
+    """
+    >>> test_prange_call_exception_checked_function()
+    """
+
+    cdef int N = 10000
+    cdef int* buf = <int*>malloc(sizeof(int)*N)
+    if buf == NULL:
+        raise MemoryError
+    try:
+        # Don't release the GIL
+        prange_call_exception_checked_function_impl(buf, N)
+
+        for i in range(N):
+            assert buf[i] == i
+    finally:
+        free(buf)
+
+def test_prange_type_inference_1(short end):
+    """
+    >>> test_prange_type_inference_1(1)
+    """
+    for i in prange(end, nogil=True):
+        pass
+    assert cython.typeof(i) == "short", cython.typeof(i)
+
+def test_prange_type_inference_2(long start, short end):
+    """
+    >>> test_prange_type_inference_2(-100, 5)
+    """
+    for i in prange(start, end, nogil=True):
+        pass
+    assert cython.typeof(i) == "long", cython.typeof(i)
+
+def test_prange_type_inference_3(short start, short end, short step):
+    """
+    >>> test_prange_type_inference_3(-100, 5, 2)
+    """
+    for i in prange(start, end, step, nogil=True):
+        pass
+    # Addition in "step" makes it expand the type to "int"
+    assert cython.typeof(i) == "int", cython.typeof(i)
+
+def test_type_inference_two_step(unsigned char[:] x):
+    """
+    >>> ba = bytearray(b'\\0'*50)
+    >>> test_type_inference_two_step(ba)
+    >>> for n, c in enumerate(ba):
+    ...     assert c==n, c
+    """
+    length = x.shape[0]  # type of length should be inferred...
+    for n in prange(length, nogil=True):  # then used to infer the type of n
+        x[n] = n
+    assert cython.typeof(n) == "Py_ssize_t", cython.typeof(n)

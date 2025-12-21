@@ -39,243 +39,226 @@ jobs:
       matrix:
         # Tests [amd64]
         #
-        # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
-        # in all python versions and test failures (builtin_float) in 3.5<
-        os: [windows-2019, ubuntu-18.04]
+        os: [ubuntu-22.04, windows-2022, macos-latest]
         backend: [c, cpp]
         python-version:
-          - "2.7"
-          - "3.4"
-          - "3.5"
-          - "3.6"
-          - "3.7"
-          - "3.8"
           - "3.9"
           - "3.10"
           - "3.11"
-          - "3.12-dev"
+          - "3.12"
+          - "3.13"
+          - "3.13t"
+          - "3.14"
+          - "3.14t"
+          - "3.15-dev"
+          - "3.15t-dev"
         env: [{}]
 
+        exclude:
+          # Windows and free-threading is difficult to build right now
+          - os: windows-2022
+            python-version: 3.13t
+            backend: "c"
+          - os: windows-2022
+            python-version: 3.13t
+            backend: "cpp"
+          - os: windows-2022
+            python-version: 3.14t
+            backend: "c"
+          - os: windows-2022
+            python-version: 3.14t
+            backend: "cpp"
+
         include:
-          # Temporary - Allow failure on Python 3.12-dev jobs until they are in beta (feature frozen)
-          - python-version: 3.12-dev
-            allowed_failure: true
+          #- python-version: "3.15-dev"
+          #  allowed_failure: true
+          #- python-version: "3.15t-dev"
+          #  allowed_failure: true
 
           # Ubuntu sub-jobs:
           # ================
-          # GCC 11 (with latest language standards)
-          - os: ubuntu-18.04
-            python-version: 3.9
+          # graalpy is really slow...
+          #- os: ubuntu-22.04
+          #  python-version: graalpy24
+          #  backend: c
+          #  env: { NO_CYTHON_COMPILE: 1 }
+          #  allowed_failure: true
+          # GCC 13 (with broad language standards)
+          - os: ubuntu-22.04
+            python-version: "3.9"
             backend: c
-            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c17" }
+            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c99" }
+            extra_hash: "-c99"
+          - os: ubuntu-22.04
+            python-version: "3.10"
+            backend: c
+            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-gcc11"
-          - os: ubuntu-18.04
-            python-version: 3.9
+          - os: ubuntu-22.04
+            python-version: "3.12"
+            backend: c
+            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
+            extra_hash: "-gcc11"
+          - os: ubuntu-22.04
+            python-version: "3.13"
             backend: cpp
-            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c++20" }
+            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c++20" }
             extra_hash: "-gcc11"
+          # Arm64
+          - os: ubuntu-22.04-arm
+            python-version: "3.13"
+            backend: c
+            env: {}
+          - os: ubuntu-22.04-arm
+            python-version: "3.13"
+            backend: cpp
+            env: {}
+          - os:  windows-11-arm
+            python-version: "3.13"
+            backend: "c"
+            env: {}
+          - os:  windows-11-arm
+            python-version: "3.13"
+            backend: "cpp"
+            env: {}
           # compile all modules
-          - os: ubuntu-18.04
-            python-version: 2.7
+          - os: ubuntu-22.04
+            python-version: "3.9"
             backend: c
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
-          - os: ubuntu-18.04
-            python-version: 2.7
+          - os: ubuntu-22.04
+            python-version: "3.9"
             backend: cpp
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
-          - os: ubuntu-18.04
-            python-version: "3.10"
+          - os: ubuntu-22.04
+            python-version: "3.11"
             backend: c
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
-          - os: ubuntu-18.04
-            python-version: "3.10"
+          - os: ubuntu-22.04
+            python-version: "3.11"
             backend: cpp
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
           # Linting
-          - os: ubuntu-18.04
-            python-version: 3.7
+          - os: ubuntu-22.04
+            python-version: "3.9"
             backend: "c,cpp"
             env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
             extra_hash: "-codestyle"
           # Limited API
-          - os: ubuntu-18.04
-            python-version: 3.6
+          - os: ubuntu-22.04
+            python-version: "3.11"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api --abi3audit" }
             extra_hash: "-limited_api"
-          - os: ubuntu-18.04
-            python-version: 3.7
+          - os: ubuntu-22.04
+            python-version: "3.12"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api --abi3audit" }
             extra_hash: "-limited_api"
-          - os: ubuntu-18.04
-            python-version: 3.8
+          - os: ubuntu-22.04
+            python-version: "3.13"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api --abi3audit" }
+            extra_hash: "-limited_api"
+          - os: ubuntu-22.04
+            python-version: "3.15-dev"
+            backend: "c,cpp"
+            env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           # Type specs
-          - os: ubuntu-18.04
-            python-version: 3.9
+          - os: ubuntu-22.04
+            python-version: "3.14"
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
-          - os: ubuntu-18.04
-            python-version: 3.8
+          - os: ubuntu-22.04
+            python-version: "3.12"
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
-          - os: ubuntu-18.04
-            python-version: 3.7
+          - os: ubuntu-22.04
+            python-version: "3.9"
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
-          - os: ubuntu-18.04
-            python-version: 3.6
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          # Stackless
-          - os: ubuntu-18.04
-            python-version: 2.7
-            backend: c
-            env: { STACKLESS: true, PY: 2 }
-            extra_hash: "-stackless"
-          - os: ubuntu-18.04
-            python-version: 3.6
-            backend: c
-            env: { STACKLESS: true, PY: 3 }
-            extra_hash: "-stackless"
-          - os: ubuntu-18.04
-            python-version: 3.8
-            backend: c
-            env: { STACKLESS: true, PY: 3 }
-            extra_hash: "-stackless"
           # Pypy
-          - os: ubuntu-18.04
-            python-version: pypy-2.7
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-          - os: ubuntu-18.04
+          - os: ubuntu-22.04
             python-version: pypy-3.9
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
-          # Coverage
-          - os: ubuntu-18.04
-            python-version: 3.8
-            backend: "c,cpp"
-            env: { COVERAGE: 1 }
-            extra_hash: '-coverage'
-
-          - os: windows-2019
-            # missing dependencies
-            python-version: 3.6
-            allowed_failure: true
-          - os: windows-2019
-            # TestInline
-            python-version: 3.8
-            allowed_failure: true
-          - os: windows-2019
-            # TestInline
-            python-version: 3.10
-            allowed_failure: true
-          - os: windows-2019
-            # TestInline
-            python-version: 3.11
-            allowed_failure: true
-
-          # MacOS sub-jobs
-          # ==============
-          # (C-only builds are used to create wheels)
-          - os: macos-11
-            python-version: 2.7
+          - os: ubuntu-22.04
+            python-version: pypy-3.10
             backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 2.7
-            backend: cpp
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.5
+            env: { NO_CYTHON_COMPILE: 1 }
+          - os: ubuntu-22.04
+            python-version: pypy-3.11
             backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.6
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.7
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
-          - os: macos-11
-            python-version: 3.8
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
-          - os: macos-11
-            python-version: 3.9
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.9
-            backend: cpp
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: "3.10"
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: "3.10"
-            backend: cpp
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-
-        exclude:
-          # fails due to lack of a compatible compiler
-          - os: windows-2019
-            python-version: 2.7
-          - os: windows-2019
-            python-version: 3.4
-
-          # cpp specific test fails
-          - os: windows-2019
-            python-version: 3.5
-            backend: cpp
-
+            env: { NO_CYTHON_COMPILE: 1 }
+          # Free-threading
+          - os: ubuntu-22.04
+            python-version: 3.13t
+            backend: "c"
+          - os: ubuntu-22.04
+            python-version: 3.13t
+            backend: "cpp"
+#          - os: windows-2022
+#            python-version: 3.13t
+#            backend: "c"
+#            allowed_failure: true
+#          - os: windows-2022
+#            python-version: 3.13t
+#            backend: "cpp"
+#            allowed_failure: true
+          - os: macos-latest
+            python-version: 3.13t
+            backend: "c"
+          - os: macos-latest
+            python-version: 3.13t
+            backend: "cpp"
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
-    # From testing, the runs tend to take ~20 minutes for ubuntu / macos and ~40 for windows,
-    # so a limit of 50 minutes should be enough. This can always be changed in the future if needed.
-    timeout-minutes: 50
+    # From testing, the runs tend to take ~10-15 minutes for ubuntu / macos and ~25 for windows,
+    # so a limit of 80 minutes should be enough. This can always be changed in the future if needed.
+    timeout-minutes: 80
     runs-on: ${{ matrix.os }}
 
     env:
       BACKEND: ${{ matrix.backend }}
       PYTHON_VERSION: ${{ matrix.python-version }}
-      GCC_VERSION: 8
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+      GCC_VERSION: 10
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
-      CCACHE_MAXSIZE: "200M"
+      CCACHE_COMPRESSLEVEL: 5
+      # Size guide: 10GB maximum cache storage / total number of CI jobs creating a cache.
+      # However, a single run currently generates 170-210 MB, so less would use less but be useless.
+      CCACHE_MAXSIZE: "220M"
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v6.1.0
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Cache [ccache]
-        uses: pat-s/always-upload-cache@v3.0.11
-        if: startsWith(runner.os, 'Linux')
+      - name: Compilation Cache
+        uses: hendrikmuhs/ccache-action@v1.2.20
         with:
-          path: ~/.ccache
-          key: ${{ runner.os }}-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
+          variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
+          create-symlink: ${{ startsWith(runner.os, 'Linux') && 'false' || 'true' }}  # fake ternary
+          # Disable ccache saving from pull requests to reserve caching storage for the main branches.
+          save: ${{ startsWith(github.ref, '/refs/pull/') && 'false' || 'true' }}  # fake ternary
+          key: ${{ runner.os }}-${{ runner.arch }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/**/ci-run.sh') }}
+          max-size: ${{ env.CCACHE_MAXSIZE }}
 
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}
@@ -283,72 +266,25 @@ jobs:
         run: bash ./Tools/ci-run.sh
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: htmldocs
           path: docs/build/html
           if-no-files-found: ignore
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
-          name: wheels-${{ runner.os }}${{ matrix.extra_hash }}
+          name: wheels-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}${{ matrix.extra_hash }}
           path: dist/*.whl
           if-no-files-found: ignore
 
-
-  pycoverage:
-    runs-on: ubuntu-18.04
-
-    env:
-      BACKEND: c,cpp
-      OS_NAME: ubuntu-18.04
-      PYTHON_VERSION: "3.10"
+  codespell:
+    name: Check for spelling errors
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Setup python
-        uses: actions/setup-python@v3
-        with:
-          python-version: "3.10"
-
-      - name: Run Coverage
-        env: { COVERAGE: 1, NO_CYTHON_COMPILE: 1 }
-        run: bash ./Tools/ci-run.sh
-
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v3
-        with:
-          name: pycoverage_html
-          path: coverage-report-html
-
-  cycoverage:
-    runs-on: ubuntu-18.04
-
-    env:
-      BACKEND: c,cpp
-      OS_NAME: ubuntu-18.04
-      PYTHON_VERSION: 3.9
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 1
-
-      - name: Setup python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-
-      - name: Run Coverage
-        env: { COVERAGE: 1 }
-        run: bash ./Tools/ci-run.sh
-
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v2
-        with:
-          name: cycoverage_html
-          path: coverage-report-html
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Codespell
+        uses: codespell-project/actions-codespell@v2

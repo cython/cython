@@ -1,12 +1,9 @@
 # cython: infer_types=True
-# cython: language_level=3str
-# cython: auto_pickle=False
 
 #
 #   Tree visitor and transform framework
 #
 
-from __future__ import absolute_import, print_function
 
 import sys
 import inspect
@@ -22,15 +19,10 @@ from . import Future
 import cython
 
 
-cython.declare(_PRINTABLE=tuple)
-
-if sys.version_info[0] >= 3:
-    _PRINTABLE = (bytes, str, int, float)
-else:
-    _PRINTABLE = (str, unicode, long, int, float)
+_PRINTABLE = cython.declare(tuple, (bytes, str, int, float, complex))
 
 
-class TreeVisitor(object):
+class TreeVisitor:
     """
     Base class for writing visitors for a Cython tree, contains utilities for
     recursing such trees using visitors. Each node is
@@ -74,7 +66,7 @@ class TreeVisitor(object):
     out 0
     """
     def __init__(self):
-        super(TreeVisitor, self).__init__()
+        super().__init__()
         self.dispatch_table = {}
         self.access_path = []
 
@@ -88,7 +80,7 @@ class TreeVisitor(object):
             if source:
                 import os.path
                 source = os.path.basename(source.get_description())
-            values.append(u'%s:%s:%s' % (source, pos[1], pos[2]))
+            values.append('%s:%s:%s' % (source, pos[1], pos[2]))
         attribute_names = dir(node)
         for attr in attribute_names:
             if attr in ignored:
@@ -102,13 +94,13 @@ class TreeVisitor(object):
             if value is None or value == 0:
                 continue
             elif isinstance(value, list):
-                value = u'[...]/%d' % len(value)
+                value = '[...]/%d' % len(value)
             elif not isinstance(value, _PRINTABLE):
                 continue
             else:
                 value = repr(value)
-            values.append(u'%s = %s' % (attr, value))
-        return u'%s(%s)' % (node.__class__.__name__, u',\n    '.join(values))
+            values.append('%s = %s' % (attr, value))
+        return '%s(%s)' % (node.__class__.__name__, ',\n    '.join(values))
 
     def _find_node_path(self, stacktrace):
         import os.path
@@ -135,19 +127,19 @@ class TreeVisitor(object):
                 index = ''
             else:
                 node = node[index]
-                index = u'[%d]' % index
-            trace.append(u'%s.%s%s = %s' % (
+                index = '[%d]' % index
+            trace.append('%s.%s%s = %s' % (
                 parent.__class__.__name__, attribute, index,
                 self.dump_node(node)))
         stacktrace, called_nodes = self._find_node_path(sys.exc_info()[2])
         last_node = child
         for node, method_name, pos in called_nodes:
             last_node = node
-            trace.append(u"File '%s', line %d, in %s: %s" % (
+            trace.append("File '%s', line %d, in %s: %s" % (
                 pos[0], pos[1], method_name, self.dump_node(node)))
         raise Errors.CompilerCrash(
             getattr(last_node, 'pos', None), self.__class__.__name__,
-            u'\n'.join(trace), e, stacktrace)
+            '\n'.join(trace), e, stacktrace)
 
     @cython.final
     def find_handler(self, obj):
@@ -202,7 +194,6 @@ class TreeVisitor(object):
         return self._visitchildren(parent, attrs, exclude)
 
     @cython.final
-    @cython.locals(idx=cython.Py_ssize_t)
     def _visitchildren(self, parent, attrs, exclude):
         # fast cdef entry point for calls from Cython subclasses
         """
@@ -214,6 +205,8 @@ class TreeVisitor(object):
         or a list of return values (in the case of multiple children
         in an attribute)).
         """
+        idx: cython.Py_ssize_t
+
         if parent is None: return None
         result = {}
         for attr in parent.child_attrs:
@@ -302,14 +295,14 @@ class CythonTransform(VisitorTransform):
      - Tracks directives in effect in self.current_directives
     """
     def __init__(self, context):
-        super(CythonTransform, self).__init__()
+        super().__init__()
         self.context = context
 
     def __call__(self, node):
         from .ModuleNode import ModuleNode
         if isinstance(node, ModuleNode):
             self.current_directives = node.directives
-        return super(CythonTransform, self).__call__(node)
+        return super().__call__(node)
 
     def visit_CompilerDirectivesNode(self, node):
         old = self.current_directives
@@ -362,7 +355,7 @@ class EnvTransform(CythonTransform):
     def __call__(self, root):
         self.env_stack = []
         self.enter_scope(root, root.scope)
-        return super(EnvTransform, self).__call__(root)
+        return super().__call__(root)
 
     def current_env(self):
         return self.env_stack[-1][1]
@@ -427,7 +420,7 @@ class EnvTransform(CythonTransform):
         return node
 
 
-class NodeRefCleanupMixin(object):
+class NodeRefCleanupMixin:
     """
     Clean up references to nodes that were replaced.
 
@@ -438,7 +431,7 @@ class NodeRefCleanupMixin(object):
     and by ordering the "child_attrs" of nodes appropriately.
     """
     def __init__(self, *args):
-        super(NodeRefCleanupMixin, self).__init__(*args)
+        super().__init__(*args)
         self._replacements = {}
 
     def visit_CloneNode(self, node):
@@ -553,10 +546,10 @@ class MethodDispatcherTransform(EnvTransform):
             if special_method_name == '__contains__':
                 operand1, operand2 = operand2, operand1
             elif special_method_name == '__div__':
-                if Future.division in self.current_env().global_scope().context.future_directives:
+                if Future.division in self.current_env().context.future_directives:
                     special_method_name = '__truediv__'
             obj_type = operand1.type
-            if obj_type.is_builtin_type:
+            if obj_type.is_builtin_type and not obj_type.is_exception_type:
                 type_name = obj_type.name
             else:
                 type_name = "object"  # safety measure
@@ -571,7 +564,7 @@ class MethodDispatcherTransform(EnvTransform):
         if special_method_name:
             operand = node.operand
             obj_type = operand.type
-            if obj_type.is_builtin_type:
+            if obj_type.is_builtin_type and not obj_type.is_exception_type:
                 type_name = obj_type.name
             else:
                 type_name = "object"  # safety measure
@@ -583,21 +576,14 @@ class MethodDispatcherTransform(EnvTransform):
     ### dispatch to specific handlers
 
     def _find_handler(self, match_name, has_kwargs):
-        try:
-            match_name.encode('ascii')
-        except UnicodeEncodeError:
-            # specifically when running the Cython compiler under Python 2
-            #  getattr can't take a unicode string.
-            #  Classes with unicode names won't have specific handlers and thus it
-            #  should be OK to return None.
-            # Doing the test here ensures that the same code gets run on
-            # Python 2 and 3
+        if not match_name.isascii():
+            # Classes with unicode names won't have specific handlers.
             return None
 
         call_type = 'general' if has_kwargs else 'simple'
-        handler = getattr(self, '_handle_%s_%s' % (call_type, match_name), None)
+        handler = getattr(self, f'_handle_{call_type}_{match_name}', None)
         if handler is None:
-            handler = getattr(self, '_handle_any_%s' % match_name, None)
+            handler = getattr(self, f'_handle_any_{match_name}', None)
         return handler
 
     def _delegate_to_assigned_value(self, node, function, arg_list, kwargs):
@@ -633,7 +619,8 @@ class MethodDispatcherTransform(EnvTransform):
                     # => see if it's usable instead
                     return self._delegate_to_assigned_value(
                         node, function, arg_list, kwargs)
-                if arg_list and entry.is_cmethod and entry.scope and entry.scope.parent_type.is_builtin_type:
+                if (arg_list and entry.is_cmethod and entry.scope and
+                        entry.scope.parent_type.is_builtin_type and not entry.scope.parent_type.is_exception_type):
                     if entry.scope.parent_type is arg_list[0].type:
                         # Optimised (unbound) method of a builtin type => try to "de-optimise".
                         return self._dispatch_to_method_handler(
@@ -642,7 +629,7 @@ class MethodDispatcherTransform(EnvTransform):
                             node=node, function=function, arg_list=arg_list, kwargs=kwargs)
                 return node
             function_handler = self._find_handler(
-                "function_%s" % function.name, kwargs)
+                f"function_{function.name}", kwargs)
             if function_handler is None:
                 return self._handle_function(node, function.name, function, arg_list, kwargs)
             if kwargs:
@@ -664,7 +651,8 @@ class MethodDispatcherTransform(EnvTransform):
                 return node
             obj_type = self_arg.type
             is_unbound_method = False
-            if obj_type.is_builtin_type:
+            # Exceptions aren't necessarily exact types so could have unknown methods
+            if obj_type.is_builtin_type and not obj_type.is_exception_type:
                 if obj_type is Builtin.type_type and self_arg.is_name and arg_list and arg_list[0].type.is_pyobject:
                     # calling an unbound method like 'list.append(L,x)'
                     # (ignoring 'type.mro()' here ...)
@@ -673,6 +661,9 @@ class MethodDispatcherTransform(EnvTransform):
                     is_unbound_method = True
                 else:
                     type_name = obj_type.name
+                if type_name == 'str':
+                    # We traditionally used the type name 'unicode' for 'str' dispatch methods.
+                    type_name = 'unicode'
             else:
                 type_name = "object"  # safety measure
             return self._dispatch_to_method_handler(
@@ -685,12 +676,12 @@ class MethodDispatcherTransform(EnvTransform):
                                     is_unbound_method, type_name,
                                     node, function, arg_list, kwargs):
         method_handler = self._find_handler(
-            "method_%s_%s" % (type_name, attr_name), kwargs)
+            f"method_{type_name}_{attr_name}", kwargs)
         if method_handler is None:
             if (attr_name in TypeSlots.special_method_names
                     or attr_name in ['__new__', '__class__']):
                 method_handler = self._find_handler(
-                    "slot%s" % attr_name, kwargs)
+                    f"slot{attr_name}", kwargs)
             if method_handler is None:
                 return self._handle_method(
                     node, type_name, attr_name, function,
@@ -721,7 +712,7 @@ class RecursiveNodeReplacer(VisitorTransform):
     another node.
     """
     def __init__(self, orig_node, new_node):
-        super(RecursiveNodeReplacer, self).__init__()
+        super().__init__()
         self.orig_node, self.new_node = orig_node, new_node
 
     def visit_CloneNode(self, node):
@@ -748,7 +739,7 @@ class NodeFinder(TreeVisitor):
     Find out if a node appears in a subtree.
     """
     def __init__(self, node):
-        super(NodeFinder, self).__init__()
+        super().__init__()
         self.node = node
         self.found = False
 
@@ -847,10 +838,12 @@ class PrintTree(TreeVisitor):
             elif isinstance(node, Nodes.DefNode):
                 result += "(name=\"%s\")" % node.name
             elif isinstance(node, Nodes.CFuncDefNode):
-                result += "(name=\"%s\")" % node.declared_name()
+                result += "(name=\"%s\", type=\"%s\")" % (
+                    node.declared_name(), getattr(node, "type", None))
             elif isinstance(node, ExprNodes.AttributeNode):
                 result += "(type=%s, attribute=\"%s\")" % (repr(node.type), node.attribute)
-            elif isinstance(node, (ExprNodes.ConstNode, ExprNodes.PyConstNode)):
+            elif isinstance(node,
+                    (ExprNodes.ConstNode, ExprNodes.PyConstNode, ExprNodes.ImagNode)):
                 result += "(type=%s, value=%r)" % (repr(node.type), node.value)
             elif isinstance(node, ExprNodes.ExprNode):
                 t = node.type

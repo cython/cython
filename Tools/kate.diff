@@ -11,7 +11,7 @@ diff -r db4133d43a7e -r 0a6ce52272f6 Tools/cython-numpy-mode-kate.xml
 @@ -0,0 +1,1133 @@
 +<?xml version="1.0" encoding="UTF-8"?>
 +<!DOCTYPE language>
-+<!-- Python syntax highlightning v0.9 by Per Wigren -->
++<!-- Python syntax highlighting v0.9 by Per Wigren -->
 +<!-- Python syntax highlighting v1.9 by Michael Bueker (improved keyword differentiation) -->
 +<!-- Python syntax highlighting v1.97 by Paul Giannaros -->
 +<!-- Pyrex syntax highlighting v0.1 by Matthew Marshall -->

@@ -223,7 +223,7 @@ and typed views of memory however.  Indeed, one may write:
             # and
 
             @cython.cfunc
-            cdef otherfunc(x: cython.pointer(A)):
+            cdef otherfunc(x: cython.pointer[A]):
                 ...
 
 
@@ -345,7 +345,7 @@ not the full argument type:
         .. code-block:: python
 
             @cython.cfunc
-            def myfunc(x: cython.pointer(A)):
+            def myfunc(x: cython.pointer[A]):
                 ...
 
             # Specialize using int, not int *
@@ -367,27 +367,11 @@ For memoryview indexing from python space we can do the following:
 
     .. group-tab:: Pure Python
 
-        .. code-block:: python
-
-            my_fused_type = cython.fused_type(cython.int[:, ::1], cython.float[:, ::1])
-
-            def func(array: my_fused_type):
-                print("func called:", cython.typeof(array))
-
-            my_fused_type[cython.int[:, ::1]](myarray)
+        .. literalinclude:: ../../examples/userguide/fusedtypes/memoryview_indexing.py
 
     .. group-tab:: Cython
 
-        .. code-block:: cython
-
-            ctypedef fused my_fused_type:
-                int[:, ::1]
-                float[:, ::1]
-
-            def func(my_fused_type array):
-                print("func called:", cython.typeof(array))
-
-            my_fused_type[cython.int[:, ::1]](myarray)
+        .. literalinclude:: ../../examples/userguide/fusedtypes/memoryview_indexing.pyx
 
 The same goes for when using e.g. ``cython.numeric[:, :]``.
 
@@ -493,8 +477,6 @@ Conditional GIL Acquiring / Releasing
 Acquiring and releasing the GIL can be controlled by a condition
 which is known at compile time (see :ref:`gil_conditional`).
 
-.. Note:: Pure python mode currently does not support Conditional GIL Acquiring / Releasing. See Github issue :issue:`5113`.
-
 This is most useful when combined with fused types.
 A fused type function may have to handle both cython native types
 (e.g. cython.int or cython.double) and python types (e.g. object or bytes).
@@ -502,7 +484,15 @@ Conditional Acquiring / Releasing the GIL provides a method for running
 the same piece of code either with the GIL released (for cython native types)
 and with the GIL held (for python types):
 
-.. literalinclude:: ../../examples/userguide/fusedtypes/conditional_gil.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/fusedtypes/conditional_gil.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/fusedtypes/conditional_gil.pyx
 
 __signatures__
 ==============

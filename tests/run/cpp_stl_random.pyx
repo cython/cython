@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp11
+# tag: cpp, cpp11, no-cpp-locals
 
 from libcpp.random cimport mt19937, mt19937_64, random_device, uniform_int_distribution, \
     uniform_real_distribution, bernoulli_distribution, binomial_distribution, \
