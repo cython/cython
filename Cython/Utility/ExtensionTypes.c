@@ -911,11 +911,7 @@ int __Pyx_ApplySequenceOrMappingFlag(PyTypeObject *tp, int is_sequence) {
     PyObject *abc;
     PyObject *collections_abc = PyImport_ImportModule("collections.abc");
     if (unlikely(!collections_abc)) return -1;
-    if (is_sequence) {
-        abc = PyObject_GetAttrString(collections_abc, "Sequence");
-    } else {
-        abc = PyObject_GetAttrString(collections_abc, "Mapping");
-    }
+    abc = PyObject_GetAttrString(collections_abc, is_sequence ? "Sequence": "Mapping");
     Py_DECREF(collections_abc);
     if (unlikely(!abc)) return -1;
 

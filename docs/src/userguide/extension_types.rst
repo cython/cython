@@ -1044,7 +1044,15 @@ although you may choose to provide them for clarity.
 
 As an example:
 
-.. literalinclude:: ../../examples/userguide/extension_types/sequence.py
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/sequence.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/sequence.pyx
             
 Then in Python (since Cython doesn't currently implement pattern matching)::
 
