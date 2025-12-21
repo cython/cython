@@ -1,6 +1,6 @@
 from .Errors import CompileError, error
 from . import ExprNodes
-from .ExprNodes import IntNode, NameNode, AttributeNode, MemoryViewSliceNode
+from .ExprNodes import IntNode, NameNode, AttributeNode
 from . import Options
 from .. import Utils
 from .Code import UtilityCode, TempitaUtilityCode
@@ -69,9 +69,7 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
     "We can avoid decreffing the lhs if we know it is the first assignment"
     assert rhs.type.is_memoryviewslice
 
-    rhs_is_borrowed_temp = False
-    if isinstance(rhs, MemoryViewSliceNode):
-        rhs_is_borrowed_temp = rhs.use_borrowed_ref
+    rhs_is_borrowed_temp = rhs.is_memview_slice and rhs.use_borrowed_ref
 
     pretty_rhs = rhs.result_in_temp() or rhs.is_simple()
     if pretty_rhs:
