@@ -48,11 +48,16 @@ class MatchNode(StatNode):
         current_if_statement = None
         new_cases = []
         for c in self.cases:
-            if c.is_simple_value_comparison():
+            if c is not None and c.is_simple_value_comparison():
+                body = SubstitutedIfStatListNode(
+                    c.body.pos,
+                    stats = c.body.stats,
+                    match_node = self
+                )
                 if_clause = Nodes.IfClauseNode(
                     c.pos,
                     condition=c.pattern.get_simple_comparison_node(subject),
-                    body=c.body,
+                    body=body,
                 )
                 new_assignment_stats = []
                 for t in c.pattern.get_targets():
@@ -97,9 +102,12 @@ class MatchNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
+        end_label = self.end_label = code.new_label()
         self.subject.generate_evaluation_code(code)
         for c in self.cases:
-            c.generate_execution_code(code)
+            c.generate_execution_code(code, end_label)
+        if code.label_used(end_label):
+            code.put_label(end_label)
         self.subject.generate_disposal_code(code)
         self.subject.free_temps(code)
 
@@ -118,6 +126,9 @@ class MatchCaseNode(Node):
     pattern    PatternNode
     body       StatListNode
     guard      ExprNode or None
+
+    generated:
+    original_pattern  PatternNode  (not coerced to temp)
     """
 
     child_attrs = ["pattern", "body", "guard"]
@@ -149,14 +160,37 @@ class MatchCaseNode(Node):
         self.body.analyse_declarations(env)
 
     def analyse_case_expressions(self, subject_node, env):
+        self.pattern = self.pattern.analyse_pattern_expressions(subject_node, env)
+        self.original_pattern = self.pattern
+        # coerce_to_boolean.coerce_to_simple is taken from analyse_temp_boolean_expression
+        # and ensures that self.comp_node.generate_disposal_code is trivial and so
+        # it doesn't matter if it's skipped in one branch. IfClauseNode relies on the same mechanism.
+        self.pattern.comp_node = self.pattern.comp_node.coerce_to_boolean(env).coerce_to_simple(env)
         if self.guard:
-            error(self.pos, "Cases with guards are currently not supported")
-            return self
-        error(self.pos, "This case statement is not yet supported")
+            # analyse_temp_boolean_expression ensures that self.guard.generate_disposal_code is trivial
+            # and so it doesn't matter if it's skipped in one branch.
+            self.guard = self.guard.analyse_temp_boolean_expression(env)
+        self.body = self.body.analyse_expressions(env)
         return self
 
-    def generate_execution_code(self, code):
-        error(self.pos, "This case statement is not yet supported")
+    def generate_execution_code(self, code, end_label):
+        self.pattern.generate_comparison_evaluation_code(code)
+        code.putln("if (%s) { /* pattern */" % self.pattern.comparison_result())
+        self.pattern.generate_comparison_disposal_code(code)
+        self.pattern.free_comparison_temps(code)
+        if self.original_pattern.get_targets():
+            error(self.pos, "Cannot currently handle patterns with targets")
+        if self.guard:
+            self.guard.generate_evaluation_code(code)
+            code.putln("if (%s) { /* guard */" % self.guard.result())
+            self.guard.generate_disposal_code(code)
+            self.guard.free_temps(code)
+        self.body.generate_execution_code(code)
+        if not self.body.is_terminator:
+            code.put_goto(end_label)
+        if self.guard:
+            code.putln("} /* guard */")
+        code.putln("} /* pattern */")
 
 
 class SubstitutedMatchCaseNode(MatchCaseBaseNode):
@@ -170,7 +204,7 @@ class SubstitutedMatchCaseNode(MatchCaseBaseNode):
         self.body = self.body.analyse_expressions(env)
         return self
 
-    def generate_execution_code(self, code):
+    def generate_execution_code(self, code, end_label):
         self.body.generate_execution_code(code)
 
 
@@ -182,14 +216,30 @@ class PatternNode(Node):
     times.
 
     as_targets   [NameNode]    any target assign by "as"
+
+    Generated in analysis:
+    comp_node   ExprNode     node to evaluate for the pattern
     """
 
-    child_attrs = ["as_targets"]
+    as_target = None
+    comp_node = None
+
+    # When pattern nodes are analysed it changes which children are important.
+    # Therefore have two different list of child_attrs and switch
+    initial_child_attrs = ["as_targets"]
+    post_analysis_child_attrs = ["comp_node"]
 
     def __init__(self, pos, **kwds):
         if "as_targets" not in kwds:
             kwds["as_targets"] = []
         super(PatternNode, self).__init__(pos, **kwds)
+
+    @property
+    def child_attrs(self):
+        if self.comp_node is None:
+            return self.initial_child_attrs
+        else:
+            return self.post_analysis_child_attrs
 
     def is_irrefutable(self):
         return False
@@ -234,6 +284,28 @@ class PatternNode(Node):
             if child is not None and isinstance(child, PatternNode):
                 child.validate_irrefutable()
 
+    def analyse_pattern_expressions(self, subject_node, env):
+        error(self.pos, "This type of pattern is not currently supported")
+        return self
+
+    def calculate_result_code(self):
+        return self.comp_node.result()
+
+    def generate_result_code(self, code):
+        pass
+
+    def generate_comparison_evaluation_code(self, code):
+        self.comp_node.generate_evaluation_code(code)
+
+    def comparison_result(self):
+        return self.comp_node.result()
+
+    def generate_comparison_disposal_code(self, code):
+        self.comp_node.generate_disposal_code(code)
+
+    def free_comparison_temps(self, code):
+        self.comp_node.free_temps(code)
+
 
 class MatchValuePatternNode(PatternNode):
     """
@@ -241,7 +313,8 @@ class MatchValuePatternNode(PatternNode):
     is_is_check   bool     Picks "is" or equality check
     """
 
-    child_attrs = PatternNode.child_attrs + ["value"]
+    initial_child_attrs = PatternNode.initial_child_attrs + ["value"]
+
     is_is_check = False
 
     def get_main_pattern_targets(self):
@@ -250,11 +323,26 @@ class MatchValuePatternNode(PatternNode):
     def is_simple_value_comparison(self):
         return True
 
-    def get_simple_comparison_node(self, subject_node):
+    def get_comparison_node(self, subject_node):
         op = "is" if self.is_is_check else "=="
         return MatchValuePrimaryCmpNode(
             self.pos, operator=op, operand1=subject_node, operand2=self.value
         )
+
+    def get_simple_comparison_node(self, subject_node):
+        # for this node the comparison and "simple" comparison are the same
+        return self.get_comparison_node(subject_node)
+
+    def analyse_declarations(self, env):
+        super(MatchValuePatternNode, self).analyse_declarations(env)
+        if self.value:
+            self.value.analyse_declarations(env)
+
+    def analyse_pattern_expressions(self, subject_node, env):
+        if self.value:
+            self.value = self.value.analyse_expressions(env)
+        self.comp_node = self.get_comparison_node(subject_node).analyse_expressions(env)
+        return self
 
 
 class MatchAndAssignPatternNode(PatternNode):
@@ -266,7 +354,7 @@ class MatchAndAssignPatternNode(PatternNode):
     target = None
     is_star = False
 
-    child_atts = PatternNode.child_attrs + ["target"]
+    initial_child_attrs = PatternNode.initial_child_attrs + ["target"]
 
     def is_irrefutable(self):
         return not self.is_star
@@ -296,7 +384,7 @@ class OrPatternNode(PatternNode):
     alternatives   list of PatternNodes
     """
 
-    child_attrs = PatternNode.child_attrs + ["alternatives"]
+    initial_child_attrs = PatternNode.initial_child_attrs + ["alternatives"]
 
     def get_first_irrefutable(self):
         for alternative in self.alternatives:
@@ -359,13 +447,24 @@ class OrPatternNode(PatternNode):
             )
         return binop
 
+    def analyse_declarations(self, env):
+        super(OrPatternNode, self).analyse_declarations(env)
+        for a in self.alternatives:
+            a.analyse_declarations(env)
+
+    def analyse_pattern_expressions(self, subject_node, env):
+        for a in self.alternatives:
+            a = a.analyse_pattern_expressions(subject_node, env)
+        self.comp_node = self.get_comparison_node(subject_node).analyse_temp_boolean_expression(env)
+        return self
+
 
 class MatchSequencePatternNode(PatternNode):
     """
     patterns   list of PatternNodes
     """
 
-    child_attrs = PatternNode.child_attrs + ["patterns"]
+    initial_child_attrs = PatternNode.initial_child_attrs + ["patterns"]
 
     def get_main_pattern_targets(self):
         targets = set()
@@ -385,7 +484,7 @@ class MatchMappingPatternNode(PatternNode):
     value_patterns = []
     double_star_capture_target = None
 
-    child_attrs = PatternNode.child_attrs + [
+    initial_child_attrs = PatternNode.initial_child_attrs + [
         "keys",
         "value_patterns",
         "double_star_capture_target",
@@ -414,7 +513,7 @@ class ClassPatternNode(PatternNode):
     keyword_pattern_names = []
     keyword_pattern_patterns = []
 
-    child_attrs = PatternNode.child_attrs + [
+    initial_child_attrs = PatternNode.initial_child_attrs + [
         "class_",
         "positional_patterns",
         "keyword_pattern_names",
@@ -451,3 +550,16 @@ class MatchValuePrimaryCmpNode(ExprNodes.PrimaryCmpNode):
                 return ExprNodes.BoolNode(self.pos, value=False).analyse_expressions(env)
 
         return super().analyse_types(env)
+
+
+class SubstitutedIfStatListNode(Nodes.StatListNode):
+    """
+    Like StatListNode but with a "goto end of match" at the
+    end of it
+
+    match_node   - the enclosing match statement
+    """
+    def generate_execution_code(self, code):
+        super(SubstitutedIfStatListNode, self).generate_execution_code(code)
+        if not self.is_terminator:
+            code.put_goto(self.match_node.end_label)
