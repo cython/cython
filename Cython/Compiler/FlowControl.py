@@ -332,9 +332,9 @@ class ExceptionDescr:
 
 
 class AssignmentType(enum.IntEnum):
-        Other = 0
-        Parallel = 1
-        AssignmentExpression = 2
+    Other = 0
+    Parallel = 1
+    AssignmentExpression = 2
 
 
 class NameAssignment:
