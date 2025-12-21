@@ -7074,7 +7074,7 @@ class ReturnStatNode(StatNode):
         if value:
             value.generate_post_assignment_code(code)
             value.free_temps(code)
-        if (# for now, avoid thread-safety issues in parallel blocks by not tracing the return value.
+        if (  # for now, avoid thread-safety issues in parallel blocks by not tracing the return value.
                 not self.in_parallel and
                 (code.globalstate.directives['profile'] or code.globalstate.directives['linetrace'])):
             code.put_trace_return(
