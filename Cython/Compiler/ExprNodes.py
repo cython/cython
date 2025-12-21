@@ -332,6 +332,7 @@ class ExprNode(Node):
     #  annotation   ExprNode or None    PEP526 annotation for names or expressions
     #  generator_arg_tag  None or Node   A tag to mark ExprNodes that potentially need to
     #                              be changed to a generator argument
+    #  use_borrowed_ref boolean   only relevant if is_temp; avoid disposing of the temp
 
     result_ctype = None
     type = None
@@ -343,6 +344,7 @@ class ExprNode(Node):
     is_numpy_attribute = False
     generator_arg_tag = None
     in_parallel_block = False
+    use_borrowed_ref = False
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -897,7 +899,7 @@ class ExprNode(Node):
         if self.has_temp_moved:
             code.globalstate.use_utility_code(
                     UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
-        if self.is_temp:
+        if self.is_temp and not self.use_borrowed_ref:
             if self.type.is_string or self.type.is_pyunicode_ptr:
                 # postponed from self.generate_evaluation_code()
                 self.generate_subexpr_disposal_code(code)
@@ -5391,15 +5393,6 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
 
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
-
-    def generate_disposal_code(self, code):
-        is_borrowed_temp = self.is_temp and self.use_borrowed_ref
-        if is_borrowed_temp:
-            # Temporarily hide the temp code to stop our borrowed ref being cleaned up.
-            old_temp_code, self.temp_code = self.temp_code, None
-        super().generate_disposal_code(code)
-        if is_borrowed_temp:
-            self.temp_code = old_temp_code
 
 
 class MemoryCopyNode(ExprNode):
