@@ -952,7 +952,7 @@ class ControlFlowAnalysis(CythonTransform):
         # a reasonable amount of freedom about when a binding takes
         # effect (especially for matches that fail after a few completed
         # steps).
-        # To make it easier to reason about which variables around bound,
+        # To make it easier to reason about which variables are bound,
         # Cython delays the binding until the entire statement has been
         # evaluated, but before the guard is evaluated.
         # Therefore an unguarded match statement is equivalent to
