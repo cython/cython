@@ -211,6 +211,13 @@ elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
   fi
 fi
 
+if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+  # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
+  # JIT actually makes it faster! And reduces the number of cores each process uses.
+  # export GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
+  TEST_PARALLELISM=-j4
+fi
+
 RUNTESTS_ARGS=""
 if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --coverage-md --cython-only"
@@ -222,13 +229,6 @@ if [[ $TEST_CODE_STYLE != "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS $TEST_PARALLELISM"
 fi
 
-
-if [[ $PYTHON_VERSION == "graalpy"* ]]; then
-  # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
-  # JIT actually makes it faster! And reduces the number of cores each process uses.
-  # export GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
-  echo "pass"
-fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
 if [[ $PYTHON_VERSION == "3.13t" ]]; then
