@@ -3397,16 +3397,16 @@ class MarkClosureVisitor(CythonTransform):
     # generator iterable and marking them
 
     def visit_ModuleNode(self, node):
-        self.needs_closure = False
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         self.excludes = []
         self.visitchildren(node)
         return node
 
     def visit_FuncDefNode(self, node):
-        self.needs_closure = False
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         self.visitchildren(node)
         node.needs_closure = self.needs_closure
-        self.needs_closure = True
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
 
         collector = YieldNodeCollector(self.excludes)
         collector.visitchildren(node)
@@ -3444,27 +3444,31 @@ class MarkClosureVisitor(CythonTransform):
             gbody=gbody, lambda_name=node.lambda_name,
             return_type_annotation=node.return_type_annotation,
             is_generator_expression=node.is_generator_expression)
+        if node.needs_closure:
+            # We may have determined that we need a "full closure"
+            # so upgrade the coroutine to signal that
+            coroutine.needs_closure = node.needs_closure
         return coroutine
 
     def visit_CFuncDefNode(self, node):
-        self.needs_closure = False
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         self.visitchildren(node)
         node.needs_closure = self.needs_closure
-        self.needs_closure = True
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         if node.needs_closure and node.overridable:
             error(node.pos, "closures inside cpdef functions not yet supported")
         return node
 
     def visit_LambdaNode(self, node):
-        self.needs_closure = False
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         self.visitchildren(node)
         node.needs_closure = self.needs_closure
-        self.needs_closure = True
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         return node
 
     def visit_ClassDefNode(self, node):
         self.visitchildren(node)
-        self.needs_closure = True
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         return node
 
     def visit_GeneratorExpressionNode(self, node):
@@ -3524,7 +3528,7 @@ class CreateClosureClasses(CythonTransform):
         in_closure.sort()
 
         # Now from the beginning
-        node.needs_closure = False
+        node.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         node.needs_outer_scope = False
 
         func_scope = node.local_scope
@@ -3590,7 +3594,7 @@ class CreateClosureClasses(CythonTransform):
                 is_cdef=True)
             if entry.is_declared_generic:
                 closure_entry.is_declared_generic = 1
-        node.needs_closure = True
+        node.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         # Do it here because other classes are already checked
         target_module_scope.check_c_class(func_scope.scope_class)
 

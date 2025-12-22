@@ -16,6 +16,8 @@ from . import PyrexTypes
 from .Visitor import TreeVisitor, CythonTransform
 from .Errors import error, warning, InternalError
 
+import enum
+
 
 class TypedExprNode(ExprNodes.ExprNode):
     # Used for declaring assignments of a specified type without a known entry.
@@ -171,9 +173,13 @@ class ControlFlow:
         if self.block:
             self.block.positions.add(node.pos[:2])
 
-    def mark_assignment(self, lhs, rhs, entry, rhs_scope=None):
+    def mark_assignment(self, lhs, rhs, entry, rhs_scope=None, assignment_type=None):
         if self.block and self.is_tracked(entry):
-            assignment = NameAssignment(lhs, rhs, entry, rhs_scope=rhs_scope)
+            if assignment_type is None:
+                assignment_type = AssignmentType.Other
+            assignment = NameAssignment(
+                lhs, rhs, entry, rhs_scope=rhs_scope,
+                assignment_type=assignment_type)
             self.block.stats.append(assignment)
             self.block.gen[entry] = assignment
             self.entries.add(entry)
@@ -325,8 +331,14 @@ class ExceptionDescr:
         self.finally_exit = finally_exit
 
 
+class AssignmentType(enum.IntEnum):
+    Other = 0
+    Parallel = 1
+    AssignmentExpression = 2
+
+
 class NameAssignment:
-    def __init__(self, lhs, rhs, entry, rhs_scope=None):
+    def __init__(self, lhs, rhs, entry, rhs_scope=None, assignment_type=AssignmentType.Other):
         if lhs.cf_state is None:
             lhs.cf_state = set()
         self.lhs = lhs
@@ -339,6 +351,7 @@ class NameAssignment:
         self.inferred_type = None
         # For generator expression targets, the rhs can have a different scope than the lhs.
         self.rhs_scope = rhs_scope
+        self.assignment_type = assignment_type
 
     def __repr__(self):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
@@ -713,6 +726,7 @@ class ControlFlowAnalysis(CythonTransform):
         self.reductions = set()
 
         self.in_inplace_assignment = False
+        self.in_assignment_expression = False
         self.env = node.scope
         self.flow = ControlFlow()
         self.stack = []  # a stack of (env, flow) tuples
@@ -787,7 +801,7 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_CTypeDefNode(self, node):
         return node
 
-    def mark_assignment(self, lhs, rhs=None, rhs_scope=None):
+    def mark_assignment(self, lhs, rhs=None, rhs_scope=None, assignment_type=None):
         if not self.flow.block:
             return
         if self.flow.exceptions:
@@ -804,7 +818,7 @@ class ControlFlowAnalysis(CythonTransform):
                 entry = self.env.lookup(lhs.name)
             if entry is None:  # TODO: This shouldn't happen...
                 return
-            self.flow.mark_assignment(lhs, rhs, entry, rhs_scope=rhs_scope)
+            self.flow.mark_assignment(lhs, rhs, entry, rhs_scope=rhs_scope, assignment_type=assignment_type)
         elif lhs.is_sequence_constructor:
             for i, arg in enumerate(lhs.args):
                 if arg.is_starred:
@@ -814,7 +828,7 @@ class ControlFlowAnalysis(CythonTransform):
                     item_node = rhs
                 else:
                     item_node = rhs.inferable_item_node(i)
-                self.mark_assignment(arg, item_node, rhs_scope=rhs_scope)
+                self.mark_assignment(arg, item_node, rhs_scope=rhs_scope, assignment_type=assignment_type)
         else:
             self._visit(lhs)
 
@@ -835,12 +849,21 @@ class ControlFlowAnalysis(CythonTransform):
         self.visitchildren(node)
         return node
 
+    def visit_AssignmentExpressionNode(self, node):
+        in_assignment_expression, self.in_assignment_expression = self.in_assignment_expression, True
+        self.visitchildren(node)
+        self.in_assignment_expression = in_assignment_expression
+        return node
+
     def visit_AssignmentNode(self, node):
         raise InternalError("Unhandled assignment node %s" % type(node))
 
     def visit_SingleAssignmentNode(self, node):
         self._visit(node.rhs)
-        self.mark_assignment(node.lhs, node.rhs)
+        self.mark_assignment(
+            node.lhs, node.rhs,
+            assignment_type=AssignmentType.AssignmentExpression
+                if self.in_assignment_expression else None)
         return node
 
     def visit_CascadedAssignmentNode(self, node):
@@ -855,7 +878,7 @@ class ControlFlowAnalysis(CythonTransform):
         for lhs, rhs in collector.assignments:
             self._visit(rhs)
         for lhs, rhs in collector.assignments:
-            self.mark_assignment(lhs, rhs)
+            self.mark_assignment(lhs, rhs, assignment_type=AssignmentType.Parallel)
         return node
 
     def visit_InPlaceAssignmentNode(self, node):
