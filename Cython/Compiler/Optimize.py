@@ -1752,18 +1752,19 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
                 return result
 
         # We then exclude any rhs that has a parallel or
-        # a name expression assignment or the basis that they might
+        # a named expression assignment or the basis that they might
         # be reassigned while the temp is still active.
         # TODO - this can be more sophisticated and use
         # the same logic as in https://github.com/cython/cython/pull/4607.
         # In that case we can probably drop AssignemntType from
         # NameAssignment (since it was added just to help with this)
         from .FlowControl import AssignmentType
+        unsafe_assigment_types = (
+            AssignmentType.Parallel,
+            AssignmentType.AssignmentExpression
+        )
         for assignment in entry.cf_assignments:
-            if (assignment.assignment_type in (
-                        AssignmentType.Parallel,
-                        AssignmentType.AssignmentExpression
-                    )):
+            if assignment.assignment_type in unsafe_assigment_types:
                 return result
             if self.in_parallel and not assignment.is_arg:
                 # If we're in a parallel block, take the view that
