@@ -1592,10 +1592,8 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
     """
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
-    def __call__(self, node):
-        self.in_return_or_yield = False
-        self.in_parallel = False
-        return super().__call__(node)
+    in_return_or_yield = False
+    in_parallel = False
 
     def visit_ParallelAssignmentNode(self, node):
         """
