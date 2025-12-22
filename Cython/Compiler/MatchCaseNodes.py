@@ -316,7 +316,7 @@ class PatternNode(Node):
 
     def generate_target_assignments(self, subject_node):
         # Generates the assignment code needed to initialize all the targets.
-        # Returns either a StatListNode or None
+        # Returns either a StatListNode or None.
         assignments = []
         for target in self.as_targets:
             if (
@@ -338,9 +338,9 @@ class PatternNode(Node):
             return None
 
     def generate_main_pattern_assignment_list(self, subject_node):
-        # generates assignments for everything except the "as_target".
+        # Generates assignments for everything except the "as_targets".
         # Override in subclasses.
-        # Returns a list of Nodes
+        # Returns a list of Nodes.
         return []
 
 
@@ -420,24 +420,16 @@ class MatchAndAssignPatternNode(PatternNode):
         return self.get_simple_comparison_node(subject_node)
 
     def generate_main_pattern_assignment_list(self, subject_node):
-        if self.target:
-            return [
-                Nodes.SingleAssignmentNode(
-                    self.pos, lhs=self.target.clone_node(), rhs=subject_node
-                )
-            ]
-        else:
+        if not self.target:
             return []
+        return [Nodes.SingleAssignmentNode(self.pos, lhs=self.target.clone_node(), rhs=subject_node)]
 
     def analyse_pattern_expressions(self, subject_node, env):
         if self.is_star:
-            return super(MatchAndAssignPatternNode, self).analyse_pattern_expressions(
-                subject_node, env
-            )
+            return super().analyse_pattern_expressions(subject_node, env)
         else:
-            self.comp_node = self.get_comparison_node(subject_node).analyse_expressions(
-                env
-            )
+            comp_node = self.get_comparison_node(subject_node)
+            self.comp_node = comp_node.analyse_expressions(env)
             return self
 
 
