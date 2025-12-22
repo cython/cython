@@ -506,6 +506,7 @@ class OrPatternNode(PatternNode):
 
     def analyse_pattern_expressions(self, subject_node, env):
         self.alternatives = [
+        self.alternatives = [
             a.analyse_pattern_expressions(subject_node, env)
             for a in self.alternatives
         ]
