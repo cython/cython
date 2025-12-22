@@ -257,8 +257,8 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         """
         src = self.cname
 
-        code.putln("%(dst)s.data = %(src)s.data;" % locals())
-        code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
+        code.putln(f"{dst}.data = {src}.data;")
+        code.putln(f"{dst}.memview = {src}.memview;")
         code.put_incref_memoryviewslice(dst, dst_type, have_gil=have_gil)
 
         all_dimensions_direct = all(access == 'direct' for access, packing in self.type.axes)
