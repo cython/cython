@@ -1,19 +1,19 @@
 """
-CYTHONIZE -M foo.pyx
+CYTHONIZE -M 'folder with spaces/foo.pyx'
 PYTHON check.py
 """
 
-######## foo.pyx ########
+######## folder with spaces/foo.pyx ########
 
 from bar cimport empty
 
-include "baz.pxi"
+include "baz with spaces.pxi"
 
 empty()
 print(foo())
 
 
-######## baz.pxi ########
+######## folder with spaces/baz with spaces.pxi ########
 
 from cython.cimports.libc.math import sin
 
@@ -22,7 +22,7 @@ def foo():
 
 print(sin(0))
 
-######## bar.pxd ########
+######## folder with spaces/bar.pxd ########
 
 cdef inline void empty():
     print("empty")
@@ -30,8 +30,14 @@ cdef inline void empty():
 
 ######## check.py ########
 
-with open("foo.c.dep", "r") as f:
-    contents = f.read().replace("\\\n", " ").replace('\\', '/').replace('../', '')
+with open("folder with spaces/foo.c.dep", "r") as f:
+    contents = f.readlines()
+    contents = [c.replace('../', '').lstrip().rstrip(" \\\n") for c in contents]
 
-assert sorted(contents.split()) == [
-    'Cython/Includes/libc/math.pxd', 'bar.pxd', 'baz.pxi', 'foo.c:', 'foo.pyx'], contents
+assert sorted(contents) == [
+    "Cython/Includes/libc/math.pxd",
+    "folder with spaces/foo.c:",
+    "folder\\ with\\ spaces/bar.pxd",
+    "folder\\ with\\ spaces/baz\\ with\\ spaces.pxi",
+    "folder\\ with\\ spaces/foo.pyx",
+], sorted(contents)
