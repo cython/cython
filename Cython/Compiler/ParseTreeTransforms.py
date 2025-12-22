@@ -2121,23 +2121,29 @@ class AnalyseDeclarationsTransform(EnvTransform):
     basic_property = TreeFragment("""
 property NAME:
     def __get__(self):
-        return ATTR
+        with CRITICAL_SECTION(self):
+            return ATTR
     def __set__(self, value):
-        ATTR = value
+        with CRITICAL_SECTION(self):
+            ATTR = value
     """, level='c_class', pipeline=[NormalizeTree(None)])
     basic_pyobject_property = TreeFragment("""
 property NAME:
     def __get__(self):
-        return ATTR
+        with CRITICAL_SECTION(self):
+            return ATTR
     def __set__(self, value):
-        ATTR = value
+        with CRITICAL_SECTION(self):
+            ATTR = value
     def __del__(self):
-        ATTR = None
+        with CRITICAL_SECTION(self):
+            ATTR = None
     """, level='c_class', pipeline=[NormalizeTree(None)])
     basic_property_ro = TreeFragment("""
 property NAME:
     def __get__(self):
-        return ATTR
+        with CRITICAL_SECTION(self):
+            return ATTR
     """, level='c_class', pipeline=[NormalizeTree(None)])
 
     struct_or_union_wrapper = TreeFragment("""
@@ -2328,11 +2334,13 @@ if VALUE is not None:
 
             pickle_code = f"""
                 def __reduce_cython__(self):
+                    cdef Py_ssize_t idx
                     cdef tuple state
                     cdef object _dict
                     cdef bint use_setstate
-                    state = ({members})
-                    _dict = getattr(self, '__dict__', None)
+                    with CRITICAL_SECTION(self):
+                        state = ({members})
+                        _dict = getattr(self, '__dict__', None)
                     if _dict is not None and _dict:
                         state += (_dict,)
                         use_setstate = True
@@ -2347,7 +2355,10 @@ if VALUE is not None:
                     {unpickle_func_name}__set_state(self, __pyx_state)
             """
 
-            pickle_func = TreeFragment(pickle_code, level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
+            pickle_func = TreeFragment(pickle_code, level='c_class', pipeline=[NormalizeTree(None)]).substitute(
+                {'CRITICAL_SECTION': self._create_critical_section_name_node(node.scope, node.pos)}
+            )
+            pickle_func = InterpretCompilerDirectives(None, {})(pickle_func)
             pickle_func.analyse_declarations(node.scope)
 
             self.enter_scope(node, node.scope)  # functions should be visited in the class scope
@@ -2714,9 +2725,11 @@ if VALUE is not None:
                 "ATTR": ExprNodes.AttributeNode(pos=entry.pos,
                                                 obj=ExprNodes.NameNode(pos=entry.pos, name="self"),
                                                 attribute=entry.name),
+                "CRITICAL_SECTION": self._create_critical_section_name_node(self.current_env(), entry.pos)
             },
-            pos=entry.pos,
+            pos=entry.pos
         ).stats[0]
+        property = InterpretCompilerDirectives(None, {})(property)
         property.name = entry.name
         property.doc = entry.doc
         return property
@@ -2725,6 +2738,13 @@ if VALUE is not None:
         self.visitchildren(node)
         node.analyse_declarations(self.current_env())
         return node
+
+    def _create_critical_section_name_node(self, env, pos):
+        return ExprNodes.NameNode(
+            pos,
+            name="critical_section",
+            cython_attribute="critical_section"
+        )
 
 
 def _calculate_pickle_checksums(member_names):
