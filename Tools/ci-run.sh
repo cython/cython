@@ -226,7 +226,8 @@ fi
 if [[ $PYTHON_VERSION == "graalpy"* ]]; then
   # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
   # JIT actually makes it faster! And reduces the number of cores each process uses.
-  export GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
+  # export GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
+  echo "pass"
 fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
