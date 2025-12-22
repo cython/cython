@@ -40,7 +40,6 @@ test_raisefrom
 userbuffer
 unicode_identifiers$
 unicode_identifiers_normalization
-arg_incref
 
 # probably just GC?
 double_dealloc_T796
@@ -76,6 +75,8 @@ reimport_from_subinterpreter
 cyfunction_defaults
 posonly
 r_extcomplex2
+arg_incref
+builtin_pycomplex
 
 # appears to run forever
 common_include_dir
