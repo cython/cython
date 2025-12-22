@@ -40,6 +40,7 @@ test_raisefrom
 userbuffer
 unicode_identifiers$
 unicode_identifiers_normalization
+arg_incref
 
 # probably just GC?
 double_dealloc_T796
