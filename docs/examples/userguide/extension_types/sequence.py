@@ -1,4 +1,3 @@
- 
 @cython.collection_type("sequence")
 @cython.cclass
 class Range5:
