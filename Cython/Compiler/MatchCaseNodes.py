@@ -506,7 +506,6 @@ class OrPatternNode(PatternNode):
 
     def analyse_pattern_expressions(self, subject_node, env):
         self.alternatives = [
-        self.alternatives = [
             a.analyse_pattern_expressions(subject_node, env)
             for a in self.alternatives
         ]
@@ -518,7 +517,7 @@ class OrPatternNode(PatternNode):
         for a in self.alternatives:
             a_assignment = a.generate_target_assignments(subject_node)
             if a_assignment:
-                # In an "or" pattern we need we will need to chose which targets to assign to
+                # In an "or" pattern we will need to chose which targets to assign to
                 # based on which alternative matches.
                 error(self.pos, "Assignment in 'or' patterns is not yet handled")
                 assignments.append(a_assignment)
