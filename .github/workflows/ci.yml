@@ -164,6 +164,11 @@ jobs:
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api --abi3audit" }
             extra_hash: "-limited_api"
+          - os: ubuntu-22.04
+            python-version: "3.15-dev"
+            backend: "c,cpp"
+            env: { LIMITED_API: "--limited-api" }
+            extra_hash: "-limited_api"
           # Type specs
           - os: ubuntu-22.04
             python-version: "3.14"

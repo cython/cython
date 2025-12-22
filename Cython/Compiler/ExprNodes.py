@@ -332,6 +332,7 @@ class ExprNode(Node):
     #  annotation   ExprNode or None    PEP526 annotation for names or expressions
     #  generator_arg_tag  None or Node   A tag to mark ExprNodes that potentially need to
     #                              be changed to a generator argument
+    #  use_borrowed_ref boolean   only relevant if is_temp; avoid disposing of the temp
 
     result_ctype = None
     type = None
@@ -343,6 +344,7 @@ class ExprNode(Node):
     is_numpy_attribute = False
     generator_arg_tag = None
     in_parallel_block = False
+    use_borrowed_ref = False
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -897,7 +899,7 @@ class ExprNode(Node):
         if self.has_temp_moved:
             code.globalstate.use_utility_code(
                     UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
-        if self.is_temp:
+        if self.is_temp and not self.use_borrowed_ref:
             if self.type.is_string or self.type.is_pyunicode_ptr:
                 # postponed from self.generate_evaluation_code()
                 self.generate_subexpr_disposal_code(code)
@@ -5254,6 +5256,7 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
     is_memview_scalar_assignment = False
     is_memview_index = False
     is_memview_broadcast = False
+    use_borrowed_ref = False
 
     def analyse_ellipsis_noop(self, env, getting):
         """Slicing operations needing no evaluation, i.e. m[...] or m[:, :]"""
@@ -5369,7 +5372,8 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
         buffer_entry.generate_buffer_slice_code(
             code, self.original_indices, self.result(), self.type,
             have_gil=have_gil, have_slices=have_slices,
-            directives=code.globalstate.directives)
+            directives=code.globalstate.directives,
+            drop_temp_refcounting=self.use_borrowed_ref)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         if self.is_ellipsis_noop:
