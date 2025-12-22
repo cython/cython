@@ -29,15 +29,16 @@ cdef inline void empty():
 
 
 ######## check.py ########
+import os
 
 with open("folder with spaces/foo.c.dep", "r") as f:
     contents = f.readlines()
-    contents = [c.replace('../', '').lstrip().rstrip(" \\\n") for c in contents]
+    contents = [c.replace(f'..{os.sep}', '').lstrip().rstrip(" \\\n") for c in contents]
 
 assert sorted(contents) == [
-    "Cython/Includes/libc/math.pxd",
-    "folder with spaces/foo.c:",
-    "folder\\ with\\ spaces/bar.pxd",
-    "folder\\ with\\ spaces/baz\\ with\\ spaces.pxi",
-    "folder\\ with\\ spaces/foo.pyx",
+    os.path.join("Cython", "Includes", "libc", "math.pxd"),
+    os.path.join("folder with spaces", "foo.c:"),
+    os.path.join("folder\\ with\\ spaces", "bar.pxd"),
+    os.path.join("folder\\ with\\ spaces", "baz\\ with\\ spaces.pxi"),
+    os.path.join("folder\\ with\\ spaces", "foo.pyx"),
 ], sorted(contents)
