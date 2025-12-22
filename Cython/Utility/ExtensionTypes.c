@@ -897,7 +897,7 @@ static PyObject *__Pyx_AllocateExtensionType(PyTypeObject *t, int is_final) {
 
 /////////////////// ApplySequenceOrMappingFlag.proto //////////////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API || (CYTHON_COMPILING_IN_PYPY && CYTHON_USE_TYPE_SPECS)
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
 int __Pyx_ApplySequenceOrMappingFlag(PyTypeObject *tp, int is_sequence);
 #else
 // No-op - the type flag is sufficient.
@@ -920,5 +920,15 @@ int __Pyx_ApplySequenceOrMappingFlag(PyTypeObject *tp, int is_sequence) {
     if (unlikely(!register_result)) return -1;
     Py_DECREF(register_result);
     return 0;
+}
+#elif CYTHON_COMPILING_IN_PYPY // && !CYTHON_USE_TYPE_SPECS
+int __Pyx_ApplySequenceOrMappingFlag(PyTypeObject *tp, int is_sequence) {
+    CYTHON_UNUSED_VAR(tp);
+    CYTHON_UNUSED_VAR(is_sequence);
+    return PyErr_WarnEx(
+        PyExc_RuntimeWarning,
+        "cython.collection_type only works on PyPy with the C flag CYTHON_USE_TYPE_SPECS=1",
+        1
+    );
 }
 #endif

@@ -67,4 +67,4 @@ run.special_methods_T561
 run.special_methods_T561_py2
 
 # PyPy doesn't know about the sequence or mapping type flags.
-collection_flags
+run[.]collection_flags
