@@ -40,6 +40,13 @@ test_raisefrom
 userbuffer
 unicode_identifiers$
 unicode_identifiers_normalization
+test_fused_memslice_dtype_repeated_2
+constfused_typedef_name_clashes
+listcomp
+test_wraparound_signed
+test_release_gil_in_nogil
+pep442_tp_finalize
+
 
 # probably just GC?
 double_dealloc_T796
@@ -92,3 +99,5 @@ exectest
 exttype
 datetime_pxd
 parallel
+pep526_variable_annotations_cy
+‘__pyx_f_22pure_nogil_conditional_f_with_gil’
