@@ -79,6 +79,16 @@ arg_incref
 builtin_pycomplex
 builtin_type_inheritance_T608
 constant_folding
+memslice
+closure_tests_4_def_to_cdef
+extern_builtins_T258
+large_integer_T5290
 
 # appears to run forever
 common_include_dir
+
+# concurrent.futures.process.BrokenProcessPool
+exectest
+exttype
+datetime_pxd
+parallel
