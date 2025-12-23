@@ -1,3 +1,6 @@
+# mode: run
+# tag: warnings
+
 import cython
 
 def test_sizeof():
@@ -182,3 +185,53 @@ def ext_type_string_ref(x: "ExtType"):
     'ExtType'
     """
     return cython.typeof(x)
+
+
+with cython.cdivision(True):
+
+    @cython.cdivision(False)
+    @cython.cdivision(True)
+    def test_override_reset(x: cython.int):
+        """
+        >>> test_override_reset(-3)  # @cdivision(False)
+        -2
+        """
+        return x / 2
+
+    @cython.cdivision(True)
+    @cython.cdivision(False)
+    def test_override_set(x: cython.int):
+        """
+        >>> test_override_set(-5)  # @cdivision(True)
+        -1
+        """
+        return x / 3
+
+    @cython.cdivision(True)
+    @cython.cdivision(False)
+    @cython.cdivision(True)
+    @cython.cdivision(False)
+    @cython.cdivision(False)
+    @cython.cdivision(False)
+    @cython.cdivision(True)
+    @cython.cdivision(False)
+    @cython.cdivision(True)
+    @cython.cdivision(True)
+    @cython.cdivision(True)
+    @cython.cdivision(False)
+    def test_override_set_repeated(x: cython.int):
+        """
+        >>> test_override_set_repeated(-5)  # @cdivision(True)
+        -1
+        """
+        return x / 3
+
+
+_WARNINGS = """
+181:27: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+193:4: Directive does not change previous value (cdivision=True)
+213:4: Directive does not change previous value (cdivision=False)
+214:4: Directive does not change previous value (cdivision=False)
+218:4: Directive does not change previous value (cdivision=True)
+219:4: Directive does not change previous value (cdivision=True)
+"""

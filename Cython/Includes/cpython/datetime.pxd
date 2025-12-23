@@ -1,58 +1,31 @@
 from cpython.object cimport PyObject
 from cpython.version cimport PY_VERSION_HEX
 
+cdef extern from *:
+    """
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    #ifdef _MSC_VER
+    #pragma message ("This module uses CPython specific internals of 'datetime.datetime', which are not available in the limited API.")
+    #else
+    #warning This module uses CPython specific internals of 'datetime.datetime', which are not available in the limited API.
+    #endif
+    #endif
+    """
+
 cdef extern from "Python.h":
     ctypedef struct PyTypeObject:
         pass
 
 cdef extern from "datetime.h":
     """
-    /* Backport for Python 2.x */
-    #if PY_MAJOR_VERSION < 3
-        #ifndef PyDateTime_DELTA_GET_DAYS
-            #define PyDateTime_DELTA_GET_DAYS(o) (((PyDateTime_Delta*)o)->days)
-        #endif
-        #ifndef PyDateTime_DELTA_GET_SECONDS
-            #define PyDateTime_DELTA_GET_SECONDS(o) (((PyDateTime_Delta*)o)->seconds)
-        #endif
-        #ifndef PyDateTime_DELTA_GET_MICROSECONDS
-            #define PyDateTime_DELTA_GET_MICROSECONDS(o) (((PyDateTime_Delta*)o)->microseconds)
-        #endif
-    #endif
+    #define __Pyx_DateTime_DateTimeWithFold(year, month, day, hour, minute, second, microsecond, tz, fold) \
+        PyDateTimeAPI->DateTime_FromDateAndTimeAndFold(year, month, day, hour, minute, second, \
+            microsecond, tz, fold, PyDateTimeAPI->DateTimeType)
+    #define __Pyx_DateTime_TimeWithFold(hour, minute, second, microsecond, tz, fold) \
+        PyDateTimeAPI->Time_FromTimeAndFold(hour, minute, second, microsecond, tz, fold, PyDateTimeAPI->TimeType)
 
-    /* Backport for Python < 3.6 */
-    #if PY_VERSION_HEX < 0x030600a4
-        #ifndef PyDateTime_TIME_GET_FOLD
-            #define PyDateTime_TIME_GET_FOLD(o) ((void)(o), 0)
-        #endif
-        #ifndef PyDateTime_DATE_GET_FOLD
-            #define PyDateTime_DATE_GET_FOLD(o) ((void)(o), 0)
-        #endif
-    #endif
-
-    /* Backport for Python < 3.6 */
-    #if PY_VERSION_HEX < 0x030600a4
-        #define __Pyx_DateTime_DateTimeWithFold(year, month, day, hour, minute, second, microsecond, tz, fold) \
-            ((void)(fold), PyDateTimeAPI->DateTime_FromDateAndTime(year, month, day, hour, minute, second, \
-                microsecond, tz, PyDateTimeAPI->DateTimeType))
-        #define __Pyx_DateTime_TimeWithFold(hour, minute, second, microsecond, tz, fold) \
-            ((void)(fold), PyDateTimeAPI->Time_FromTime(hour, minute, second, microsecond, tz, PyDateTimeAPI->TimeType))
-    #else /* For Python 3.6+ so that we can pass tz */
-        #define __Pyx_DateTime_DateTimeWithFold(year, month, day, hour, minute, second, microsecond, tz, fold) \
-            PyDateTimeAPI->DateTime_FromDateAndTimeAndFold(year, month, day, hour, minute, second, \
-                microsecond, tz, fold, PyDateTimeAPI->DateTimeType)
-        #define __Pyx_DateTime_TimeWithFold(hour, minute, second, microsecond, tz, fold) \
-            PyDateTimeAPI->Time_FromTimeAndFold(hour, minute, second, microsecond, tz, fold, PyDateTimeAPI->TimeType)
-    #endif
-
-    /* Backport for Python < 3.7 */
-    #if PY_VERSION_HEX < 0x030700b1
-        #define __Pyx_TimeZone_UTC NULL
-        #define __Pyx_TimeZone_FromOffsetAndName(offset, name) ((void)(offset), (void)(name), (PyObject*)NULL)
-    #else
-        #define __Pyx_TimeZone_UTC PyDateTime_TimeZone_UTC
-        #define __Pyx_TimeZone_FromOffsetAndName(offset, name) PyTimeZone_FromOffsetAndName(offset, name)
-    #endif
+    #define __Pyx_TimeZone_UTC PyDateTime_TimeZone_UTC
+    #define __Pyx_TimeZone_FromOffsetAndName(offset, name) PyTimeZone_FromOffsetAndName(offset, name)
 
     /* Backport for Python < 3.10 */
     #if PY_VERSION_HEX < 0x030a00a1
@@ -69,32 +42,32 @@ cdef extern from "datetime.h":
 
     ctypedef extern class datetime.date[object PyDateTime_Date]:
         @property
-        cdef inline int year(self):
+        cdef inline int year(self) noexcept:
             return PyDateTime_GET_YEAR(self)
 
         @property
-        cdef inline int month(self):
+        cdef inline int month(self) noexcept:
             return PyDateTime_GET_MONTH(self)
 
         @property
-        cdef inline int day(self):
+        cdef inline int day(self) noexcept:
             return PyDateTime_GET_DAY(self)
 
     ctypedef extern class datetime.time[object PyDateTime_Time]:
         @property
-        cdef inline int hour(self):
+        cdef inline int hour(self) noexcept:
             return PyDateTime_TIME_GET_HOUR(self)
 
         @property
-        cdef inline int minute(self):
+        cdef inline int minute(self) noexcept:
             return PyDateTime_TIME_GET_MINUTE(self)
 
         @property
-        cdef inline int second(self):
+        cdef inline int second(self) noexcept:
             return PyDateTime_TIME_GET_SECOND(self)
 
         @property
-        cdef inline int microsecond(self):
+        cdef inline int microsecond(self) noexcept:
             return PyDateTime_TIME_GET_MICROSECOND(self)
 
         @property
@@ -102,37 +75,37 @@ cdef extern from "datetime.h":
             return <object>PyDateTime_TIME_GET_TZINFO(self)
 
         @property
-        cdef inline int fold(self):
+        cdef inline int fold(self) noexcept:
             # For Python < 3.6 this returns 0 no matter what
             return PyDateTime_TIME_GET_FOLD(self)
 
     ctypedef extern class datetime.datetime[object PyDateTime_DateTime]:
         @property
-        cdef inline int year(self):
+        cdef inline int year(self) noexcept:
             return PyDateTime_GET_YEAR(self)
 
         @property
-        cdef inline int month(self):
+        cdef inline int month(self) noexcept:
             return PyDateTime_GET_MONTH(self)
 
         @property
-        cdef inline int day(self):
+        cdef inline int day(self) noexcept:
             return PyDateTime_GET_DAY(self)
 
         @property
-        cdef inline int hour(self):
+        cdef inline int hour(self) noexcept:
             return PyDateTime_DATE_GET_HOUR(self)
 
         @property
-        cdef inline int minute(self):
+        cdef inline int minute(self) noexcept:
             return PyDateTime_DATE_GET_MINUTE(self)
 
         @property
-        cdef inline int second(self):
+        cdef inline int second(self) noexcept:
             return PyDateTime_DATE_GET_SECOND(self)
 
         @property
-        cdef inline int microsecond(self):
+        cdef inline int microsecond(self) noexcept:
             return PyDateTime_DATE_GET_MICROSECOND(self)
 
         @property
@@ -140,21 +113,21 @@ cdef extern from "datetime.h":
             return <object>PyDateTime_DATE_GET_TZINFO(self)
 
         @property
-        cdef inline int fold(self):
+        cdef inline int fold(self) noexcept:
             # For Python < 3.6 this returns 0 no matter what
             return PyDateTime_DATE_GET_FOLD(self)
 
     ctypedef extern class datetime.timedelta[object PyDateTime_Delta]:
         @property
-        cdef inline int day(self):
+        cdef inline int day(self) noexcept:
             return PyDateTime_DELTA_GET_DAYS(self)
 
         @property
-        cdef inline int second(self):
+        cdef inline int second(self) noexcept:
             return PyDateTime_DELTA_GET_SECONDS(self)
 
         @property
-        cdef inline int microsecond(self):
+        cdef inline int microsecond(self) noexcept:
             return PyDateTime_DELTA_GET_MICROSECONDS(self)
 
     ctypedef extern class datetime.tzinfo[object PyDateTime_TZInfo]:
@@ -279,7 +252,7 @@ cdef extern from "datetime.h":
 
 # Datetime C API initialization function.
 # You have to call it before any usage of DateTime CAPI functions.
-cdef inline void import_datetime():
+cdef inline void import_datetime() noexcept:
     PyDateTime_IMPORT
 
 # Create date object using DateTime CAPI factory function.
@@ -304,8 +277,6 @@ cdef inline timedelta timedelta_new(int days, int seconds, int useconds):
 
 # Create timedelta object using DateTime CAPI factory function.
 cdef inline object timezone_new(object offset, object name=None):
-    if PY_VERSION_HEX < 0x030700b1:
-        raise RuntimeError('Time zones are not available from the C-API.')
     return __Pyx_TimeZone_FromOffsetAndName(offset, <PyObject*>name if name is not None else NULL)
 
 # Create datetime object using DB API constructor.
@@ -324,8 +295,6 @@ cdef inline date date_from_timestamp(timestamp):
 
 # Get UTC singleton
 cdef inline object get_utc():
-    if PY_VERSION_HEX < 0x030700b1:
-        raise RuntimeError('Time zones are not available from the C-API.')
     return <object>__Pyx_TimeZone_UTC
 
 # Get tzinfo of time
@@ -337,84 +306,84 @@ cdef inline object datetime_tzinfo(object o):
     return <object>PyDateTime_DATE_GET_TZINFO(o)
 
 # Get year of date
-cdef inline int date_year(object o):
+cdef inline int date_year(object o) noexcept:
     return PyDateTime_GET_YEAR(o)
 
 # Get month of date
-cdef inline int date_month(object o):
+cdef inline int date_month(object o) noexcept:
     return PyDateTime_GET_MONTH(o)
 
 # Get day of date
-cdef inline int date_day(object o):
+cdef inline int date_day(object o) noexcept:
     return PyDateTime_GET_DAY(o)
 
 # Get year of datetime
-cdef inline int datetime_year(object o):
+cdef inline int datetime_year(object o) noexcept:
     return PyDateTime_GET_YEAR(o)
 
 # Get month of datetime
-cdef inline int datetime_month(object o):
+cdef inline int datetime_month(object o) noexcept:
     return PyDateTime_GET_MONTH(o)
 
 # Get day of datetime
-cdef inline int datetime_day(object o):
+cdef inline int datetime_day(object o) noexcept:
     return PyDateTime_GET_DAY(o)
 
 # Get hour of time
-cdef inline int time_hour(object o):
+cdef inline int time_hour(object o) noexcept:
     return PyDateTime_TIME_GET_HOUR(o)
 
 # Get minute of time
-cdef inline int time_minute(object o):
+cdef inline int time_minute(object o) noexcept:
     return PyDateTime_TIME_GET_MINUTE(o)
 
 # Get second of time
-cdef inline int time_second(object o):
+cdef inline int time_second(object o) noexcept:
     return PyDateTime_TIME_GET_SECOND(o)
 
 # Get microsecond of time
-cdef inline int time_microsecond(object o):
+cdef inline int time_microsecond(object o) noexcept:
     return PyDateTime_TIME_GET_MICROSECOND(o)
 
 # Get fold of time
-cdef inline int time_fold(object o):
+cdef inline int time_fold(object o) noexcept:
     # For Python < 3.6 this returns 0 no matter what
     return PyDateTime_TIME_GET_FOLD(o)
 
 # Get hour of datetime
-cdef inline int datetime_hour(object o):
+cdef inline int datetime_hour(object o) noexcept:
     return PyDateTime_DATE_GET_HOUR(o)
 
 # Get minute of datetime
-cdef inline int datetime_minute(object o):
+cdef inline int datetime_minute(object o) noexcept:
     return PyDateTime_DATE_GET_MINUTE(o)
 
 # Get second of datetime
-cdef inline int datetime_second(object o):
+cdef inline int datetime_second(object o) noexcept:
     return PyDateTime_DATE_GET_SECOND(o)
 
 # Get microsecond of datetime
-cdef inline int datetime_microsecond(object o):
+cdef inline int datetime_microsecond(object o) noexcept:
     return PyDateTime_DATE_GET_MICROSECOND(o)
 
 # Get fold of datetime
-cdef inline int datetime_fold(object o):
+cdef inline int datetime_fold(object o) noexcept:
     # For Python < 3.6 this returns 0 no matter what
     return PyDateTime_DATE_GET_FOLD(o)
 
 # Get days of timedelta
-cdef inline int timedelta_days(object o):
-    return (<PyDateTime_Delta*>o).days
+cdef inline int timedelta_days(object o) noexcept:
+    return PyDateTime_DELTA_GET_DAYS(o)
 
 # Get seconds of timedelta
-cdef inline int timedelta_seconds(object o):
-    return (<PyDateTime_Delta*>o).seconds
+cdef inline int timedelta_seconds(object o) noexcept:
+    return PyDateTime_DELTA_GET_SECONDS(o)
 
 # Get microseconds of timedelta
-cdef inline int timedelta_microseconds(object o):
-    return (<PyDateTime_Delta*>o).microseconds
+cdef inline int timedelta_microseconds(object o) noexcept:
+    return PyDateTime_DELTA_GET_MICROSECONDS(o)
 
-cdef inline double total_seconds(timedelta obj):
+cdef inline double total_seconds(timedelta obj) noexcept:
     # Mirrors the "timedelta.total_seconds()" method.
     # Note that this implementation is not guaranteed to give *exactly* the same
     # result as the original method, due to potential differences in floating point rounding.

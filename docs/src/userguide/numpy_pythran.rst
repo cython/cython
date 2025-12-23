@@ -31,10 +31,13 @@ Here is an example of a simple ``setup.py`` file using setuptools:
 
   from setuptools import setup
   from Cython.Build import cythonize
+  import numpy
+  import pythran
 
   setup(
       name = "My hello app",
-      ext_modules = cythonize('hello_pythran.pyx')
+      ext_modules = cythonize('hello_pythran.pyx'),
+      include_dirs = [numpy.get_include(), pythran.get_include()]
   )
 
 Then, with the following header in ``hello_pythran.pyx``:

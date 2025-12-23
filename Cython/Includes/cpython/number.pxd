@@ -227,13 +227,6 @@ cdef extern from "Python.h":
     # &o2) is equivalent to the Python statement "o1, o2 = coerce(o1,
     # o2)".
 
-    object PyNumber_Int(object o)
-    # Return value: New reference.
-    # Returns the o converted to an integer object on success, or NULL
-    # on failure. If the argument is outside the integer range a long
-    # object will be returned instead. This is the equivalent of the
-    # Python expression "int(o)".
-
     object PyNumber_Long(object o)
     # Return value: New reference.
     # Returns the o converted to a long integer object on success, or

@@ -17,6 +17,7 @@ Tutorials
    pure
    numpy
    array
+   parallelization
    readings
    related_work
    appendix

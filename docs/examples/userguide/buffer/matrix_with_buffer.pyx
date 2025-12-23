@@ -5,8 +5,8 @@ from libcpp.vector cimport vector
 
 cdef class Matrix:
     cdef Py_ssize_t ncols
-    cdef Py_ssize_t shape[2]
-    cdef Py_ssize_t strides[2]
+    cdef Py_ssize_t[2] shape
+    cdef Py_ssize_t[2] strides
     cdef vector[float] v
 
     def __cinit__(self, Py_ssize_t ncols):
@@ -25,11 +25,10 @@ cdef class Matrix:
         # Stride 1 is the distance, in bytes, between two items in a row;
         # this is the distance between two adjacent items in the vector.
         # Stride 0 is the distance between the first elements of adjacent rows.
-        self.strides[1] = <Py_ssize_t>(  <char *>&(self.v[1])
-                                       - <char *>&(self.v[0]))
-
-
-
+        self.strides[1] = <Py_ssize_t>(
+              <char *>&(self.v[1])
+            - <char *>&(self.v[0])
+        )
         self.strides[0] = self.ncols * self.strides[1]
 
         buffer.buf = <char *>&(self.v[0])

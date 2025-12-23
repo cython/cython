@@ -58,3 +58,19 @@ def subtypes():
         '-%s-' % PySubtype("PySub"),
         '-%s-' % ExtSubtype("ExtSub"),
     ]
+
+
+def format_int(value):
+    """
+    >>> print(format_int(5))
+    5
+    >>> print(format_int(5.0))
+    5
+    >>> format_int(u"xyz")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...int...
+    >>> format_int([])  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...int...
+    """
+    return "%d" % (value,)

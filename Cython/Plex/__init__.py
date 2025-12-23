@@ -26,7 +26,6 @@ see the attached docstrings for more information.
         creating a Lexicon.
 """
 # flake8: noqa:F401
-from __future__ import absolute_import
 
 from .Actions import TEXT, IGNORE, Begin, Method
 from .Lexicons import Lexicon, State

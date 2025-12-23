@@ -1,0 +1,83 @@
+# language_level=2
+PYTHON -m Cython.Build.Cythonize -2if "**/*.pyx"
+PYTHON -c "import pkg.imports_py2"  # cython2
+PYTHON test.py  # cython2
+
+# language_level=3
+PYTHON -m Cython.Build.Cythonize -3if "**/*.pyx"
+PYTHON test.py  # cython3
+
+
+######## pkg/__init__.py ########
+
+######## pkg/imported.py ########
+
+######## pkg/sub/__init__.py ########
+
+######## pkg/sub/subimported.py ########
+
+######## pkg/imports_py2.pyx ########
+# cython: language_level=2
+
+import sub as _sub
+import imported as _imported
+import sub.subimported as _subimported
+import sub2.imports2 as _imports2
+
+assert "pkg" not in globals()
+assert "sub" not in globals()
+assert "imported" not in globals()
+assert "imports2" not in globals()
+assert _sub.__name__ == "pkg.sub", _sub.__name__
+assert _imported.__name__ == "pkg.imported", _imported.__name__
+assert _subimported.__name__ == "pkg.sub.subimported", _subimported.__name__
+assert _imports2.__name__ == "pkg.sub2.imports2", _imports2.__name__
+assert _imports2._corey.__name__ == "distutils.core", _imports2._corey.__name__
+
+
+######## pkg/imports.pyx ########
+
+import sys as _sous
+import distutils.core as _corey
+from copy import deepcopy as _copey
+import distutils.command as _commie
+
+######## pkg/sub2/__init__.py ########
+
+######## pkg/sub2/imports2.pyx ########
+
+import sys as _sous
+import distutils.core as _corey
+from copy import deepcopy as _copey
+import distutils.command as _commie
+
+
+######## test.py ########
+
+import pkg.imports as pkg_imports
+
+import sys as _sous
+import distutils.core as _corey
+from copy import deepcopy as _copey
+import distutils.command as _commie
+
+
+assert not hasattr(pkg_imports, "sys")
+assert not hasattr(pkg_imports, "distutils")
+assert not hasattr(pkg_imports, "pkg")
+assert not hasattr(pkg_imports, "imported")
+
+assert pkg_imports._sous is _sous, pkg_imports._sous
+assert pkg_imports._corey is _corey, pkg_imports._corey
+assert pkg_imports._copey is _copey, pkg_imports.copey
+assert pkg_imports._commie is _commie, pkg_imports._commie
+
+assert pkg_imports._sous is not None, pkg_imports._sous
+assert pkg_imports._corey is not None, pkg_imports._corey
+assert pkg_imports._copey is not None, pkg_imports._copey
+assert pkg_imports._commie is not None, pkg_imports._commie
+
+assert pkg_imports._sous.__name__ == "sys", pkg_imports._sous.__name__
+assert pkg_imports._corey.__name__ == "distutils.core", pkg_imports._corey.__name__
+assert pkg_imports._copey.__name__ == "deepcopy", pkg_imports._copey.__name__
+assert pkg_imports._commie.__name__ == "distutils.command", pkg_imports._commie.__name__

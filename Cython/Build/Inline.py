@@ -1,10 +1,10 @@
-from __future__ import absolute_import
-
+import gc
 import hashlib
 import inspect
 import os
 import re
 import sys
+import time
 
 from distutils.core import Distribution, Extension
 from distutils.command.build_ext import build_ext
@@ -17,39 +17,19 @@ from ..Compiler.Options import (default_options, CompilationOptions,
 from ..Compiler.Visitor import CythonTransform, EnvTransform
 from ..Compiler.ParseTreeTransforms import SkipDeclarations
 from ..Compiler.TreeFragment import parse_from_strings
-from ..Compiler.StringEncoding import _unicode
 from .Dependencies import strip_string_literals, cythonize, cached_function
+from .Cache import get_cython_cache_dir
 from ..Compiler import Pipeline
-from ..Utils import get_cython_cache_dir
 import cython as cython_module
 
+import importlib.util
+from importlib.machinery import ExtensionFileLoader
 
-IS_PY3 = sys.version_info >= (3,)
-
-# A utility function to convert user-supplied ASCII strings to unicode.
-if not IS_PY3:
-    def to_unicode(s):
-        if isinstance(s, bytes):
-            return s.decode('ascii')
-        else:
-            return s
-else:
-    to_unicode = lambda x: x
-
-
-if sys.version_info < (3, 5):
-    import imp
-    def load_dynamic(name, module_path):
-        return imp.load_dynamic(name, module_path)
-else:
-    import importlib.util
-    from importlib.machinery import ExtensionFileLoader
-
-    def load_dynamic(name, path):
-        spec = importlib.util.spec_from_file_location(name, loader=ExtensionFileLoader(name, path))
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
+def load_dynamic(name, path):
+    spec = importlib.util.spec_from_file_location(name, loader=ExtensionFileLoader(name, path))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class UnboundSymbols(EnvTransform, SkipDeclarations):
@@ -61,13 +41,12 @@ class UnboundSymbols(EnvTransform, SkipDeclarations):
             self.unbound.add(node.name)
         return node
     def __call__(self, node):
-        super(UnboundSymbols, self).__call__(node)
+        super().__call__(node)
         return self.unbound
 
 
 @cached_function
 def unbound_symbols(code, context=None):
-    code = to_unicode(code)
     if context is None:
         context = Context([], get_directive_defaults(),
                           options=CompilationOptions(default_options))
@@ -79,10 +58,7 @@ def unbound_symbols(code, context=None):
         tree = phase(tree)
         if isinstance(phase, AnalyseDeclarationsTransform):
             break
-    try:
-        import builtins
-    except ImportError:
-        import __builtin__ as builtins
+    import builtins
     return tuple(UnboundSymbols()(tree) - set(dir(builtins)))
 
 
@@ -151,6 +127,11 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
                     locals = calling_frame.f_locals
                 if globals is None:
                     globals = calling_frame.f_globals
+            if not isinstance(locals, dict):
+                # FrameLocalsProxy is stricter than dict on how it looks up keys
+                # and this means our "EncodedStrings" don't match the keys in locals.
+                # Therefore copy to a dict.
+                locals = dict(locals)
             if symbol in locals:
                 kwds[symbol] = locals[symbol]
             elif symbol in globals:
@@ -161,7 +142,7 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
 
 def _inline_key(orig_code, arg_sigs, language_level):
     key = orig_code, arg_sigs, sys.version_info, sys.executable, language_level, Cython.__version__
-    return hashlib.sha1(_unicode(key).encode('utf-8')).hexdigest()
+    return hashlib.sha256(str(key).encode('utf-8')).hexdigest()
 
 
 def cython_inline(code, get_type=unsafe_type,
@@ -175,7 +156,7 @@ def cython_inline(code, get_type=unsafe_type,
 
     cython_compiler_directives = dict(cython_compiler_directives) if cython_compiler_directives else {}
     if language_level is None and 'language_level' not in cython_compiler_directives:
-        language_level = '3str'
+        language_level = '3'
     if language_level is not None:
         cython_compiler_directives['language_level'] = language_level
 
@@ -194,7 +175,6 @@ def cython_inline(code, get_type=unsafe_type,
             return invoke(*arg_list)
 
     orig_code = code
-    code = to_unicode(code)
     code, literals = strip_string_literals(code)
     code = strip_common_indent(code)
     if locals is None:
@@ -230,6 +210,7 @@ def cython_inline(code, get_type=unsafe_type,
             build_extension = _get_build_extension()
             cython_inline.so_ext = build_extension.get_ext_filename('')
 
+        lib_dir = os.path.abspath(lib_dir)
         module_path = os.path.join(lib_dir, module_name + cython_inline.so_ext)
 
         if not os.path.exists(lib_dir):
@@ -287,18 +268,141 @@ def __invoke(%(params)s):
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
-        module = load_dynamic(module_name, module_path)
+        if sys.platform == 'win32':
+            with os.add_dll_directory(os.path.abspath(lib_dir)):
+                module = load_dynamic(module_name, module_path)
+        else:
+            module = load_dynamic(module_name, module_path)
 
     _cython_inline_cache[orig_code, arg_sigs, key_hash] = module.__invoke
     arg_list = [kwds[arg] for arg in arg_names]
     return module.__invoke(*arg_list)
 
 
+# The code template used for cymeit benchmark runs.
+# We keep the benchmark repetition separate from the benchmarked code
+# to prevent the C compiler from doing unhelpful loop optimisations.
+_CYMEIT_TEMPLATE = """
+def __PYX_repeat_benchmark(benchmark, timer, size_t number):
+    cdef size_t i
+
+    t0 = timer()
+    for i in range(number):
+        benchmark()
+    t1 = timer()
+    return t1 - t0
+
+def __PYX_make_benchmark():
+    {setup_code}
+
+    def __PYX_run_benchmark():
+        {benchmark_code}
+
+    return __PYX_run_benchmark
+"""
+
+
+def cymeit(code, setup_code=None, import_module=None, directives=None, timer=time.perf_counter, repeat=9):
+    """Benchmark a Cython code string similar to 'timeit'.
+
+    'setup_code': string of setup code that will be run before taking the timings.
+
+    'import_module': a module namespace to run the benchmark in
+                     (usually a compiled Cython module).
+
+    'directives': Cython directives to use when compiling the benchmark code.
+
+    'timer': The timer function. Defaults to 'time.perf_counter', returning float seconds.
+             Nanosecond timers are detected (and can only be used) if they return integers.
+
+    'repeat': The number of timings to take and return.
+
+    Returns a tuple: (list of single-loop timings, number of loops run for each)
+    """
+    import textwrap
+
+    # Compile the benchmark code as an inline closure function.
+
+    setup_code = strip_common_indent(setup_code) if setup_code else ''
+    code = strip_common_indent(code) if code.strip() else 'pass'
+
+    module_namespace = __import__(import_module).__dict__ if import_module else None
+
+    cymeit_code = _CYMEIT_TEMPLATE.format(
+        setup_code=textwrap.indent(setup_code, ' '*4).strip(),
+        benchmark_code=textwrap.indent(code, ' '*8).strip(),
+
+    )
+
+    namespace = cython_inline(
+        cymeit_code,
+        cython_compiler_directives=directives,
+        locals=module_namespace,
+    )
+
+    make_benchmark = namespace['__PYX_make_benchmark']
+    repeat_benchmark = namespace['__PYX_repeat_benchmark']
+
+    # Based on 'timeit' in CPython 3.13.
+
+    def timeit(number):
+        benchmark = make_benchmark()
+
+        gcold = gc.isenabled()
+        gc.disable()
+        try:
+            timing = repeat_benchmark(benchmark, timer, number)
+        finally:
+            if gcold:
+                gc.enable()
+        return timing
+
+    # Find a sufficiently large number of loops, warm up the system.
+
+    timer_returns_nanoseconds = isinstance(timer(), int)
+    one_second = 1_000_000_000 if timer_returns_nanoseconds else 1.0
+
+    # Run for at least 0.2 seconds, either as integer nanoseconds or floating point seconds.
+    min_runtime = one_second // 5 if timer_returns_nanoseconds else one_second / 5
+
+    def autorange():
+        i = 1
+        while True:
+            for j in 1, 2, 5:
+                number = i * j
+                time_taken = timeit(number)
+                assert isinstance(time_taken, int if timer_returns_nanoseconds else float)
+                if time_taken >= min_runtime:
+                    return number
+                elif timer_returns_nanoseconds and (time_taken < 10 and number >= 10):
+                    # Arbitrary sanity check to prevent endless loops for non-ns timers.
+                    raise RuntimeError(f"Timer seems to return non-ns timings: {timer}")
+            i *= 10
+
+    autorange()  # warmup
+    number = autorange()
+
+    # Run and repeat the benchmark.
+    timings = [
+        timeit(number)
+        for _ in range(repeat)
+    ]
+
+    half = number // 2  # for integer rounding
+
+    timings = [
+        (timing + half) // number if timer_returns_nanoseconds else timing / number
+        for timing in timings
+    ]
+
+    return (timings, number)
+
+
 # Cached suffix used by cython_inline above.  None should get
 # overridden with actual value upon the first cython_inline invocation
 cython_inline.so_ext = None
 
-_find_non_space = re.compile('[^ ]').search
+_find_non_space = re.compile(r'\S').search
 
 
 def strip_common_indent(code):
@@ -348,7 +452,7 @@ def get_body(source):
 
 # Lots to be done here... It would be especially cool if compiled functions
 # could invoke each other quickly.
-class RuntimeCompiledFunction(object):
+class RuntimeCompiledFunction:
 
     def __init__(self, f):
         self._f = f
@@ -356,7 +460,4 @@ class RuntimeCompiledFunction(object):
 
     def __call__(self, *args, **kwds):
         all = inspect.getcallargs(self._f, *args, **kwds)
-        if IS_PY3:
-            return cython_inline(self._body, locals=self._f.__globals__, globals=self._f.__globals__, **all)
-        else:
-            return cython_inline(self._body, locals=self._f.func_globals, globals=self._f.func_globals, **all)
+        return cython_inline(self._body, locals=self._f.__globals__, globals=self._f.__globals__, **all)

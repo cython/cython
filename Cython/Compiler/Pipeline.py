@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import itertools
 from time import time
 
@@ -54,11 +52,20 @@ def generate_pyx_code_stage_factory(options, result):
         return result
     return generate_pyx_code_stage
 
+def inject_utility_pxd_code_stage_factory(context):
+
+    def inject_utility_pxd_code_stage(module_node):
+        for statlistnode, scope in context.utility_pxds.values():
+            module_node.merge_in(statlistnode, scope, stage="pxd")
+        return module_node
+
+    return inject_utility_pxd_code_stage
 
 def inject_pxd_code_stage_factory(context):
+
     def inject_pxd_code_stage(module_node):
         for name, (statlistnode, scope) in context.pxds.items():
-            module_node.merge_in(statlistnode, scope)
+            module_node.merge_in(statlistnode, scope, stage="pxd")
         return module_node
     return inject_pxd_code_stage
 
@@ -107,12 +114,13 @@ def normalize_deps(utilcodes):
         utilcode.requires = [deps.setdefault(dep, dep) for dep in utilcode.requires or ()]
 
 
-def inject_utility_code_stage_factory(context):
+def inject_utility_code_stage_factory(context, internalise_c_class_entries=True):
     def inject_utility_code_stage(module_node):
         module_node.prepare_utility_code()
         use_utility_code_definitions(context.cython_scope, module_node.scope)
 
-        utility_code_list = module_node.scope.utility_code_list
+        module_scope = module_node.scope
+        utility_code_list = module_scope.utility_code_list
         utility_code_list[:] = sorted_utility_codes_and_deps(utility_code_list)
         normalize_deps(utility_code_list)
 
@@ -127,10 +135,12 @@ def inject_utility_code_stage_factory(context):
                 for dep in utilcode.requires:
                     if dep not in added:
                         utility_code_list.append(dep)
-            tree = utilcode.get_tree(cython_scope=context.cython_scope)
-            if tree:
+            if tree := utilcode.get_tree(cython_scope=context.cython_scope):
                 module_node.merge_in(tree.with_compiler_directives(),
-                                     tree.scope, merge_scope=True)
+                                     tree.scope, stage="utility")
+                module_node.merge_scope(tree.scope, internalise_c_class_entries=internalise_c_class_entries)
+            elif shared_library_scope := utilcode.get_shared_library_scope(cython_scope=context.cython_scope):
+                module_scope.cimported_modules.append(shared_library_scope)
         return module_node
 
     return inject_utility_code_stage
@@ -213,7 +223,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         _check_c_declarations,
         InlineDefNodeCalls(context),
         AnalyseExpressionsTransform(context),
-        FindInvalidUseOfFusedTypes(context),
+        FindInvalidUseOfFusedTypes(),
         ExpandInplaceOperators(context),
         IterationTransform(context),
         SwitchTransform(context),
@@ -254,9 +264,12 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
         [parse_stage_factory(context)],
         create_pipeline(context, mode, exclude_classes=exclude_classes),
         test_support,
-        [inject_pxd_code_stage_factory(context),
-         inject_utility_code_stage_factory(context),
-         abort_on_errors],
+        [
+            inject_pxd_code_stage_factory(context),
+            inject_utility_code_stage_factory(context),
+            inject_utility_pxd_code_stage_factory(context),
+            abort_on_errors,
+        ],
         debug_transform,
         [generate_pyx_code_stage_factory(options, result)],
         ctest_support,
@@ -344,12 +357,10 @@ def insert_into_pipeline(pipeline, transform, before=None, after=None):
 # Running a pipeline
 #
 
-_pipeline_entry_points = {}
-
 try:
     from threading import local as _threadlocal
 except ImportError:
-    class _threadlocal(object): pass
+    class _threadlocal: pass
 
 threadlocal = _threadlocal()
 
@@ -361,10 +372,25 @@ def get_timings():
         return {}
 
 
+_pipeline_entry_points = {}
+
+def _make_debug_phase_runner(phase_name):
+    # Create a new wrapper for each step to show the name in profiles.
+    try:
+        return _pipeline_entry_points[phase_name]
+    except KeyError:
+        pass
+
+    def run(phase, data):
+        return phase(data)
+
+    run.__name__ = run.__qualname__ = phase_name
+    _pipeline_entry_points[phase_name] = run
+    return run
+
+
 def run_pipeline(pipeline, source, printtree=True):
     from .Visitor import PrintTree
-    exec_ns = globals().copy() if DebugFlags.debug_verbose_pipeline else None
-
     try:
         timings = threadlocal.cython_pipeline_timings
     except AttributeError:
@@ -386,12 +412,7 @@ def run_pipeline(pipeline, source, printtree=True):
                 phase_name = getattr(phase, '__name__', type(phase).__name__)
                 if DebugFlags.debug_verbose_pipeline:
                     print("Entering pipeline phase %r" % phase)
-                    # create a new wrapper for each step to show the name in profiles
-                    try:
-                        run = _pipeline_entry_points[phase_name]
-                    except KeyError:
-                        exec("def %s(phase, data): return phase(data)" % phase_name, exec_ns)
-                        run = _pipeline_entry_points[phase_name] = exec_ns[phase_name]
+                    run = _make_debug_phase_runner(phase_name)
 
                 t = time()
                 data = run(phase, data)

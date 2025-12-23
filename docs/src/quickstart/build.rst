@@ -13,7 +13,7 @@ Cython code must, unlike Python, be compiled. This happens in two stages:
    
 To understand fully the Cython + setuptools build process,
 one may want to read more about
-`distributing Python modules <https://docs.python.org/3/distributing/index.html>`_.
+`distributing Python modules <https://packaging.python.org/en/latest/tutorials/packaging-projects/>`_.
 
 There are several ways to build Cython code:
 
@@ -53,10 +53,6 @@ To build, run ``python setup.py build_ext --inplace``.  Then simply
 start a Python session and do ``from hello import say_hello_to`` and
 use the imported function as you see fit.
 
-One caveat: the default action when running ``python setup.py install`` is to
-create a zipped ``egg`` file which will not work with ``cimport`` for ``pxd``
-files when you try to use them from a dependent package.  To prevent this,
-include ``zip_safe=False`` in the arguments to ``setup()``.
 
 .. _jupyter-notebook:
 
@@ -117,13 +113,12 @@ For more information about the arguments of the ``%%cython`` magic, see
 Using the Sage notebook
 -----------------------
 
-.. figure:: sage.png
-
-  For users of the Sage math distribution, the Sage notebook allows
-  transparently editing and compiling Cython code simply by typing
-  ``%cython`` at the top of a cell and evaluate it.  Variables and
-  functions defined in a Cython cell imported into the running session.
-
+   For users of the SageMath distribution, the Sage notebook uses Jupyter by default.
+   Sage provides its own implementation of the ``%%cython`` cell magic (see
+   `Sage Magics <https://doc.sagemath.org/html/en/reference/repl/sage/repl/ipython_extension.html#sage.repl.ipython_extension.SageMagics.cython>`_)
+   which is loaded by default.
+   Alternatively, you can overwrite it with the implementation provided by Cython,
+   the procedure outlined for Jupyter notebooks also applies.
 
 .. [Jupyter] https://jupyter.org/
 ..

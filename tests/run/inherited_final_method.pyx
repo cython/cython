@@ -3,32 +3,73 @@
 
 cimport cython
 
+cdef class TopBase:
+    cdef method(self):
+        return None
 
-cdef class BaseClass:
+
+cdef class BaseClass(TopBase):
     """
     >>> obj = BaseClass()
     >>> obj.call_base()
-    True
+    'base'
     """
+    cdef base(self):
+        return '@base'
+
     cdef method(self):
-        return True
+        return 'base'
 
     def call_base(self):
         return self.method()
 
 
 @cython.final
-cdef class Child(BaseClass):
+cdef class ChildClass(BaseClass):
     """
-    >>> obj = Child()
+    >>> obj = ChildClass()
     >>> obj.call_base()
-    True
+    'child'
     >>> obj.call_child()
-    True
+    'child'
     """
+    cdef child(self):
+        return '@child'
+
     cdef method(self):
-        return True
+        return 'child'
 
     def call_child(self):
         # original bug: this requires a proper cast for self
         return self.method()
+
+
+def test_BaseClass():
+    """
+    >>> test_BaseClass()
+    '@base'
+    'base'
+    """
+    cdef BaseClass obj = BaseClass()
+    print(repr(obj.base()))
+    print(repr(obj.method()))
+
+
+def test_ChildClass():
+    """
+    >>> test_ChildClass()
+    '@base'
+    '@child'
+    'child'
+    '@base'
+    '@child'
+    'child'
+    """
+    cdef ChildClass obj = ChildClass()
+    print(repr(obj.base()))
+    print(repr(obj.child()))
+    print(repr(obj.method()))
+    cdef BaseClass bobj = obj
+    print(repr(obj.base()))
+    print(repr(obj.child()))
+    print(repr(bobj.method()))

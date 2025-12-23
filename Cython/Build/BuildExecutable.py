@@ -7,19 +7,18 @@ Basic usage:
     python -m Cython.Build.BuildExecutable [ARGS] somefile.py
 """
 
-from __future__ import absolute_import
 
 DEBUG = True
 
 import sys
 import os
-from distutils import sysconfig
+import sysconfig
 
 
 def get_config_var(name, default=''):
     return sysconfig.get_config_var(name) or default
 
-INCDIR = sysconfig.get_python_inc()
+INCDIR = sysconfig.get_path('include')
 LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
 PYLIB = get_config_var('LIBRARY')

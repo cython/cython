@@ -1,5 +1,3 @@
-# cython: language_level=3str
-
 cimport cython
 
 from .Visitor cimport (
@@ -22,12 +20,6 @@ cdef class PostParse(ScopeTrackingTransform):
     cdef _visit_assignment_node(self, node, list expr_list)
 
 
-#def eliminate_rhs_duplicates(list expr_list_list, list ref_node_sequence)
-#def sort_common_subsequences(list items)
-@cython.locals(starred_targets=Py_ssize_t, lhs_size=Py_ssize_t, rhs_size=Py_ssize_t)
-cdef flatten_parallel_assignments(list input, list output)
-cdef map_starred_assignment(list lhs_targets, list starred_assignments, list lhs_args, list rhs_args)
-
 #class PxdPostParse(CythonTransform, SkipDeclarations):
 #class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
 #class WithTransform(VisitorTransform, SkipDeclarations):
@@ -36,7 +28,7 @@ cdef map_starred_assignment(list lhs_targets, list starred_assignments, list lhs
 #class AnalyseDeclarationsTransform(EnvTransform):
 
 cdef class AnalyseExpressionsTransform(CythonTransform):
-    pass
+    cdef list positions
 
 cdef class ExpandInplaceOperators(EnvTransform):
     pass
@@ -55,10 +47,12 @@ cdef class YieldNodeCollector(TreeVisitor):
     cdef public bint has_return_value
     cdef public bint has_yield
     cdef public bint has_await
+    cdef list excludes
 
 @cython.final
 cdef class MarkClosureVisitor(CythonTransform):
     cdef bint needs_closure
+    cdef list excludes
 
 @cython.final
 cdef class CreateClosureClasses(CythonTransform):
@@ -75,8 +69,11 @@ cdef class CreateClosureClasses(CythonTransform):
 
 cdef class GilCheck(VisitorTransform):
     cdef list env_stack
-    cdef bint nogil
-    cdef bint nogil_declarator_only
+    cdef int nogil_state
+    cdef int nogil_state_at_current_gilstatnode
+    cdef object in_lock_block
+    cdef bint in_critical_section
 
 cdef class TransformBuiltinMethods(EnvTransform):
+    cdef dict def_node_body_insertions
     cdef visit_cython_attribute(self, node)

@@ -1,5 +1,3 @@
-# cython: auto_pickle=False
-
 r"""
 Implements a buffer with insertion points. When you know you need to
 "get back" to a place and write more later, simply call insertion_point()
@@ -35,16 +33,11 @@ EXAMPLE:
 ['first', 'second', 'alpha', 'inserted', 'beta', 'gamma', 'third']
 """
 
-from __future__ import absolute_import  #, unicode_literals
 
-try:
-    # Prefer cStringIO since io.StringIO() does not support writing 'str' in Py2.
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 
-class StringIOTree(object):
+class StringIOTree:
     """
     See module docs.
     """
@@ -57,12 +50,18 @@ class StringIOTree(object):
         self.write = stream.write
         self.markers = []
 
+    def empty(self):
+        if self.stream.tell():
+            return False
+        return all([child.empty() for child in self.prepended_children]) if self.prepended_children else True
+
     def getvalue(self):
         content = []
         self._collect_in(content)
         return "".join(content)
 
     def _collect_in(self, target_list):
+        x: StringIOTree
         for x in self.prepended_children:
             x._collect_in(target_list)
         stream_content = self.stream.getvalue()
@@ -72,6 +71,7 @@ class StringIOTree(object):
     def copyto(self, target):
         """Potentially cheaper than getvalue as no string concatenation
         needs to happen."""
+        child: StringIOTree
         for child in self.prepended_children:
             child.copyto(target)
         stream_content = self.stream.getvalue()
@@ -87,6 +87,12 @@ class StringIOTree(object):
             self.markers = []
             self.stream = StringIO()
             self.write = self.stream.write
+
+    def reset(self):
+        self.prepended_children = []
+        self.markers = []
+        self.stream = StringIO()
+        self.write = self.stream.write
 
     def insert(self, iotree):
         """
@@ -114,6 +120,7 @@ class StringIOTree(object):
         return other
 
     def allmarkers(self):
+        c: StringIOTree
         children = self.prepended_children
         return [m for c in children for m in c.allmarkers()] + self.markers
 

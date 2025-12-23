@@ -3,10 +3,7 @@ __doc__ = u"""
 ...     try:
 ...         foo()
 ...     except ValueError:
-...         if IS_PY3:
-...             print(isinstance(sys.exc_info()[1].__cause__, TypeError))
-...         else:
-...             print(True)
+...         print(isinstance(sys.exc_info()[1].__cause__, TypeError))
 
 >>> bar()
 True
@@ -18,14 +15,10 @@ True
 ...     try:
 ...         foo2()
 ...     except ValueError:
-...         if IS_PY3:
-...             cause = sys.exc_info()[1].__cause__
-...             print(isinstance(cause, TypeError))
-...             print(cause.args==('value',))
-...             pass
-...         else:
-...             print(True)
-...             print(True)
+...         cause = sys.exc_info()[1].__cause__
+...         print(isinstance(cause, TypeError))
+...         print(cause.args==('value',))
+...         pass
 
 >>> bar2()
 True
@@ -33,9 +26,6 @@ True
 """
 
 import sys
-IS_PY3 = sys.version_info[0] >= 3
-if not IS_PY3:
-    sys.exc_clear()
 
 def foo():
     try:
