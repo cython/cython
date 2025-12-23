@@ -5,7 +5,7 @@ static CYTHON_INLINE int __Pyx_MatchCase_IsExactSequence(PyObject *o) {
     // is one of the small list of builtin types known to be a sequence
     if (PyList_CheckExact(o) || PyTuple_CheckExact(o) ||
             Py_IS_TYPE(o, &PyRange_Type) || Py_IS_TYPE(o, &PyMemoryView_Type)) {
-        // Use exact type match for these checks. In in the event of inheritence we need to make sure
+        // Use exact type match for these checks. In in the event of inheritance we need to make sure
         // that it isn't a mapping too
         return 1;
     }
@@ -305,7 +305,7 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
 
 // This is substantially based off ceval unpack_iterable.
 // It's also pretty similar to itertools.islice
-// Indices must be postive - there's no wraparound or boundschecking
+// Indices must be positive - there's no wraparound or boundschecking
 
 static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
     int total = end-start;
@@ -348,7 +348,7 @@ static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start,
 //@requires: ObjectHandling.c::TupleAndListFromArray
 
 // Note that this should also work fine on lists (if needed)
-// Indices must be postive - there's no wraparound or boundschecking
+// Indices must be positive - there's no wraparound or boundschecking
 
 static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
 #if !CYTHON_COMPILING_IN_CPYTHON
