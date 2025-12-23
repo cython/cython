@@ -14,6 +14,11 @@ Features added
 * PEP-634 Pattern Matching is being implemented.
   (Github issue :issue:`4029`)
 
+* Extension types can declare themselves explicitly as sequence or mapping with
+  ``@cython.collection_type("sequence")`` or ``@cython.collection_type("mapping")``.
+  This has an effect on their behaviour in pattern matching and (possibly) subscripting.
+  (Github issue :issue:`5027`)
+
 * C arrays may now be declared with (``extern`` or internal) enum values as their size.
   (Github issues :issue:`7401`, :issue:`7406`)
 
