@@ -1,11 +1,11 @@
 ///////////////////////////// ABCCheck //////////////////////////////
 
-#if PY_VERSION_HEX < 0x030A0000
+#if PY_VERSION_HEX < 0x030A0000 || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
 static CYTHON_INLINE int __Pyx_MatchCase_IsExactSequence(PyObject *o) {
     // is one of the small list of builtin types known to be a sequence
     if (PyList_CheckExact(o) || PyTuple_CheckExact(o) ||
-            PyType_CheckExact(o, PyRange_Type) || PyType_CheckExact(o, PyMemoryView_Type)) {
-        // Use exact type match for these checks. I in the event of inheritence we need to make sure
+            Py_IS_TYPE(o, &PyRange_Type) || Py_IS_TYPE(o, &PyMemoryView_Type)) {
+        // Use exact type match for these checks. In in the event of inheritence we need to make sure
         // that it isn't a mapping too
         return 1;
     }
@@ -20,8 +20,7 @@ static CYTHON_INLINE int __Pyx_MatchCase_IsExactMapping(PyObject *o) {
 }
 
 static int __Pyx_MatchCase_IsExactNeitherSequenceNorMapping(PyObject *o) {
-    if (PyType_GetFlags(Py_TYPE(o)) & (Py_TPFLAGS_BYTES_SUBCLASS | Py_TPFLAGS_UNICODE_SUBCLASS)) ||
-            PyByteArray_Check(o)) {
+    if (PyByteArray_Check(o) || PyBytes_Check(o) || PyUnicode_Check(o)) {
         return 1;  // these types are deliberately excluded from the sequence test
             // even though they look like sequences for most other purposes.
             // Leave them as inexact checks since they do pass
@@ -31,11 +30,6 @@ static int __Pyx_MatchCase_IsExactNeitherSequenceNorMapping(PyObject *o) {
     if (o == Py_None || PyLong_CheckExact(o) || PyFloat_CheckExact(o)) {
         return 1;
     }
-    #if PY_MAJOR_VERSION < 3
-    if (PyInt_CheckExact(o)) {
-        return 1;
-    }
-    #endif
 
     return 0;
 }
@@ -54,22 +48,16 @@ static int __Pyx_MatchCase_IsExactNeitherSequenceNorMapping(PyObject *o) {
 //  2. definitely not a sequence
 //  3. definitely not a mapping
 
-#if PY_VERSION_HEX < 0x030A0000
 #define __PYX_DEFINITELY_SEQUENCE_FLAG 1U
 #define __PYX_DEFINITELY_MAPPING_FLAG (1U<<1)
 #define __PYX_DEFINITELY_NOT_SEQUENCE_FLAG (1U<<2)
 #define __PYX_DEFINITELY_NOT_MAPPING_FLAG (1U<<3)
 #define __PYX_SEQUENCE_MAPPING_ERROR (1U<<4)  // only used by the ABCCheck function
-#endif
 
-static int __Pyx_MatchCase_InitAndIsInstanceAbc(PyObject *o, PyObject *abc_module,
-                                                PyObject **abc_type, PyObject *name) {
-    assert(!abc_type);
-    abc_type = PyObject_GetAttr(abc_module, name);
-    if (!abc_type) {
-        return -1;
-    }
-    return PyObject_IsInstance(o, abc_type);
+static int __Pyx_MatchCase_InitAbcType(PyObject *abc_module, PyObject **abc_type, PyObject *name) {
+    if (*abc_type) return 0;
+    *abc_type = PyObject_GetAttr(abc_module, name);
+    return *abc_type ? 0 : -1;
 }
 
 // the result is defined using the specification for sequence_mapping_temp
@@ -85,33 +73,35 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     int sequence_result=0, mapping_result=0;
     unsigned int result = 0;
 
-    abc_module = PyImport_ImportModule(
-#if PY_VERSION_HEX > 0x03030000
-        "collections.abc"
-#else
-        "collections"
-#endif
-                 );
+    abc_module = PyImport_ImportModule("collections.abc");
     if (!abc_module) {
         return __PYX_SEQUENCE_MAPPING_ERROR;
     }
     if (sequence_first) {
         if (definitely_not_sequence) {
-            result = __PYX_DEFINITELY_SEQUENCE_FLAG;
+            result = __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
             goto end;
         }
-        sequence_result = __Pyx_MatchCase_InitAndIsInstanceAbc(o, abc_module, &sequence_type, PYIDENT("Sequence"));
-        if (sequence_result < 0) {
+        if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &sequence_type, PYIDENT("Sequence")) == -1)) {
+            result = __PYX_SEQUENCE_MAPPING_ERROR;
+            goto end;
+        }
+        sequence_result = PyObject_IsInstance(o, sequence_type);
+        if (unlikely(sequence_result < 0)) {
             result = __PYX_SEQUENCE_MAPPING_ERROR;
             goto end;
         } else if (sequence_result == 0) {
-            result |= __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
+            result = __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
             goto end;
         }
         // else wait to see what mapping is
     }
     if (!definitely_not_mapping) {
-        mapping_result = __Pyx_MatchCase_InitAndIsInstanceAbc(o, abc_module, &mapping_type, PYIDENT("Mapping"));
+        if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &mapping_type, PYIDENT("Mapping")) == -1)) {
+            result = __PYX_SEQUENCE_MAPPING_ERROR;
+            goto end;
+        }
+        mapping_result = PyObject_IsInstance(o, mapping_type);
         if (mapping_result < 0) {
             result = __PYX_SEQUENCE_MAPPING_ERROR;
             goto end;
@@ -133,9 +123,13 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
         // here we know mapping_result is true because we'd have returned otherwise
         assert(mapping_result);
         if (!definitely_not_sequence) {
-            sequence_result = __Pyx_MatchCase_InitAndIsInstanceAbc(o, abc_module, &sequence_type, PYIDENT("Sequence"));
+            if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &sequence_type, PYIDENT("Sequence")) == -1)) {
+                result = __PYX_SEQUENCE_MAPPING_ERROR;
+                goto end;
+            }
+            sequence_result = PyObject_IsInstance(o, sequence_type);
         }
-        if (sequence_result < 0) {
+        if (unlikely(sequence_result < 0)) {
             result = __PYX_SEQUENCE_MAPPING_ERROR;
             goto end;
         } else if (sequence_result == 0) {
@@ -148,7 +142,7 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     // In event of failure treat it as "could be either"
     result = __PYX_DEFINITELY_SEQUENCE_FLAG | __PYX_DEFINITELY_MAPPING_FLAG;
     mro = PyObject_GetAttrString((PyObject*)Py_TYPE(o), "__mro__");
-    Py_ssize_t i;
+    Py_ssize_t i, mro_size;
     if (!mro) {
         PyErr_Clear();
         goto end;
@@ -157,9 +151,19 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
         Py_DECREF(mro);
         goto end;
     }
-    for (i=1; i < PyTuple_GET_SIZE(mro); ++i) {
+    mro_size = __Pyx_PyTuple_GET_SIZE(mro);
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(mro_size == -1)) {
+        Py_DECREF(mro);
+        goto end;
+    }
+#endif
+    for (i=1; i < mro_size; ++i) {
         int is_subclass_sequence, is_subclass_mapping;
-        PyObject *mro_item = PyTuple_GET_ITEM(mro, i);
+        PyObject *mro_item = __Pyx_PyTuple_GET_ITEM(mro, i);
+#if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely(!mro_item)) goto loop_error;
+#endif
         is_subclass_sequence = PyObject_IsSubclass(mro_item, sequence_type);
         if (is_subclass_sequence < 0) goto loop_error;
         is_subclass_mapping = PyObject_IsSubclass(mro_item, mapping_type);
@@ -197,7 +201,7 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
 //@requires: ABCCheck
 
 static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mapping_temp) {
-#if PY_VERSION_HEX >= 0x030A0000
+#if PY_VERSION_HEX >= 0x030A0000 && !(CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY)
     return __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_SEQUENCE);
 #else
     // Py_TPFLAGS_SEQUENCE doesn't exit.
@@ -249,43 +253,45 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
     // Do the test by checking the module name, and then importing/testing the class
     // It also doesn't give perfect results for classes that inherit from both array.array
     // and a mapping
-    o_module_name = PyObject_GetAttrString((PyObject*)Py_TYPE(o), "__module__");
-    if (!o_module_name) {
-        return -1;
-    }
-#if PY_MAJOR_VERSION >= 3
-    if (PyUnicode_Check(o_module_name) && PyUnicode_CompareWithASCIIString(o_module_name, "array") == 0)
-#else
-    if (PyBytes_Check(o_module_name) && PyBytes_AS_STRING(o_module_name)[0] == 'a' &&
-        PyBytes_AS_STRING(o_module_name)[1] == 'r' && PyBytes_AS_STRING(o_module_name)[2] == 'r' &&
-        PyBytes_AS_STRING(o_module_name)[3] == 'a' && PyBytes_AS_STRING(o_module_name)[4] == 'y' &&
-        PyBytes_AS_STRING(o_module_name)[5] == '\0')
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX < 0x030A0000
+#if CYTHON_COMPILING_IN_LIMITED_API
+    if (__Pyx_get_runtime_version() < 0x030A0000)
 #endif
     {
-        int is_array;
-        PyObject *array_module, *array_object;
-        Py_DECREF(o_module_name);
-        array_module = PyImport_ImportModule("array");
-        if (!array_module) {
+        o_module_name = PyObject_GetAttrString((PyObject*)Py_TYPE(o), "__module__");
+        if (!o_module_name) {
+            return -1;
+        }
+        if (PyUnicode_Check(o_module_name) && PyUnicode_CompareWithASCIIString(o_module_name, "array") == 0)
+        {
+            int is_array;
+            PyObject *array_module, *array_object;
+            Py_DECREF(o_module_name);
+            array_module = PyImport_ImportModule("array");
+            if (!array_module) {
+                PyErr_Clear();
+                return 0;  // treat these tests as "soft" and don't cause an exception
+            }
+            array_object = PyObject_GetAttrString(array_module, "array");
+            Py_DECREF(array_module);
+            if (!array_object) {
+                PyErr_Clear();
+                return 0;
+            }
+            is_array = PyObject_IsInstance(o, array_object);
+            Py_DECREF(array_object);
+            if (is_array) {
+                *sequence_mapping_temp |= __PYX_DEFINITELY_SEQUENCE_FLAG;
+                return 1;
+            }
             PyErr_Clear();
-            return 0;  // treat these tests as "soft" and don't cause an exception
+        } else {
+            Py_DECREF(o_module_name);
         }
-        array_object = PyObject_GetAttrString(array_module, "array");
-        Py_DECREF(array_module);
-        if (!array_object) {
-            PyErr_Clear();
-            return 0;
-        }
-        is_array = PyObject_IsInstance(o, array_object);
-        Py_DECREF(array_object);
-        if (is_array) {
-            *sequence_mapping_temp |= __PYX_DEFINITELY_SEQUENCE_FLAG;
-            return 1;
-        }
-        PyErr_Clear();
-    } else {
-        Py_DECREF(o_module_name);
     }
+#else
+    CYTHON_UNUSED_VAR(o_module_name);
+#endif
     *sequence_mapping_temp |= __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
     return 0;
 #endif
@@ -306,21 +312,13 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
     int i;
     PyObject *list;
     ssizeargfunc slot;
-    PyTypeObject *type = Py_TYPE(x);
 
     list = PyList_New(total);
     if (!list) {
         return NULL;
     }
 
-#if CYTHON_USE_TYPE_SLOTS || PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
-    slot = type->tp_as_sequence ? type->tp_as_sequence->sq_item : NULL;
-#else
-    if ((PY_VERSION_HEX >= 0x030A0000) || __Pyx_PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
-        // PyType_GetSlot only works on heap types in Python <3.10
-        slot = (ssizeargfunc) PyType_GetSlot(type, Py_sq_item);
-    }
-#endif
+    slot = __Pyx_PyObject_TryGetSubSlot(x, tp_as_sequence, sq_item, ssizeargfunc);
     if (!slot) {
         #if !defined(Py_LIMITED_API) && !defined(PySequence_ITEM)
         // PyPy (and maybe others?) implements PySequence_ITEM as a function. In this case
@@ -333,11 +331,10 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
 
     for (i=start; i<end; ++i) {
         PyObject *obj = slot(x, i);
-        if (!obj) {
+        if (unlikely(!obj || __Pyx_PyList_SET_ITEM(list, i-start, obj) == -1)) {
             Py_DECREF(list);
             return NULL;
         }
-        PyList_SET_ITEM(list, i-start, obj);
     }
     return list;
 }
