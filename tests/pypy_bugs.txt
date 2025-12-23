@@ -65,3 +65,6 @@ memoryview.parallel_refcounting_stress_test
 # bugs in cpyext: PyNumber_InPlacePower with non-None modulus is not supported
 run.special_methods_T561
 run.special_methods_T561_py2
+
+# PyPy doesn't know about the sequence or mapping type flags.
+run[.]collection_flags

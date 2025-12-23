@@ -8,19 +8,47 @@ Cython Changelog
 Features added
 --------------
 
-* Changes were made to adapt to Python 3.15.
-  (Github issues :issue:`7358`)
+* Changes were made to adapt to Python 3.15 and its Limited API.
+  (Github issues :issue:`7358`, :issue:`7347`, :issue:`7348`, :issue:`7190`)
 
 * PEP-634 Pattern Matching is being implemented.
   (Github issue :issue:`4029`)
+
+* Extension types can declare themselves explicitly as sequence or mapping with
+  ``@cython.collection_type("sequence")`` or ``@cython.collection_type("mapping")``.
+  This has an effect on their behaviour in pattern matching and (possibly) subscripting.
+  (Github issue :issue:`5027`)
+
+* C arrays may now be declared with (``extern`` or internal) enum values as their size.
+  (Github issues :issue:`7401`, :issue:`7406`)
 
 * ``cython.pymutex`` and ``cython.pythread_type_lock`` now support a ``.locked()`` method
   to check if the lock is currently held without blocking. The method works on all Python
   versions using atomic reads on Python 3.13+ and a try-acquire approach on older versions.
   (Github issue :issue:`7275`)
 
+* Repeated memoryview slicing inside of loops now avoids redundant reference counting,
+  making it substantially faster.
+  (Github issue :issue:`5507`)
+
+* C arrays are substituted for sequence iteration in more cases, also inside of generators.
+  Ad-hoc C array storage on the stack and in closures was reworked along the way.
+  (Github issues :issue:`7323`, :issue:`7339`)
+
+* Unicode string comparisons to single character literals are faster.
+  (Github issue :issue:`7418`)
+
 * The runtime conversion from a Python mapping to a C struct/union uses less code.
   (Github issue :issue:`7343`)
+
+* Several C++ exception declarations were added to ``libcpp.exceptions``.
+  (Github issue :issue:`7389`)
+
+* Error detection when assigning to ``const`` variables was improved.
+  (Github issue :issue:`7359`)
+
+* Some cases of likely misuse of ``critical_section`` now generate warnings.
+  (Github issue :issue:`6766`)
 
 * Programmatic use of Cython has become easier by avoiding the need to manually set up
   the error reporting.
@@ -31,6 +59,13 @@ Features added
 Bugs fixed
 ----------
 
+* Generated Cython language features like properties, auto-pickle or dataclasses
+  now use a critical section (on the object itself) as guard for concurrent access.
+  (Github issue :issue:`6621`)
+
+* Mixing function signature declarations in Python modules and their ``.pxd`` modules could fail.
+  (Github issues :issue:`5970`, :issue:`4388`)
+
 * Optimised Python ``int`` and ``float`` operations did not remember their result type,
   leading to less optimised code in longer expressions.
   (Github issue :issue:`7363`)
@@ -38,6 +73,15 @@ Bugs fixed
 * The global module state struct now lives in an anonymous namespace in C++ mode to
   allow linking multiple modules together in one shared library file.
   (Github issue :issue:`7159`)
+
+* The ``__signatures__`` dict of fused functions is no longer writable.
+  (Github issue :issue:`7386`)
+
+* Cython no longer warns if ``@profile`` or ``@linetrace`` is applied to a function
+  without changing the global/outer setting.  This avoids annoyance when users leave
+  such redundant decorators in the code for occasional use.
+
+* Several C compiler warnings related to mixed signed/unsigned C integer usage were resolved.
 
 * Includes all fixes as of Cython 3.2.x.
 
@@ -48,6 +92,21 @@ Other changes
   As a side-effekt, support for StacklessPython and Pyston (last release was 3.8) was also removed.
   Python 3.9 is planned to remain supported for several years due to its use in LTS Linux distributions.
   (Github issue :issue:`7271`)
+
+* ``Cython/Shadow.pyi`` has been merged into ``Cython/Shadow.py``.
+  (Github issue :issue:`7376`)
+
+
+3.2.4 (2025-12-??)
+==================
+
+Bugs fixed
+----------
+
+* ``PyDict_SetDefaultRef()`` is now used when available to avoid temporary borrowed references.
+  (Github issue :issue:`7347`)
+
+* Includes all fixes as of Cython 3.1.8.
 
 
 3.2.3 (2025-12-14)
@@ -638,11 +697,15 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.8 (2025-??-??)
+3.1.8 (2025-12-??)
 ==================
 
 Bugs fixed
 ----------
+
+* Assignment expressions used in comprehensions could look at the wrong scope,
+  thus using different variables and different data.
+  (Github issue :issue:`6547`)
 
 * Some internal C symbols were not declared as ``static``, preventing static linking
   of multiple modules.

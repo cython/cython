@@ -1933,7 +1933,7 @@ class FuncDefNode(StatNode, BlockNode):
     #  return_type     PyrexType
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
-    #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
+    #  needs_closure   FuncDefNode.NeedsClosure enum        Whether or not this function has inner functions/classes/yield
     #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  pymethdef_required boolean     Force Python method struct generation
     #  directive_locals { string : ExprNode } locals defined by cython.locals(...)
@@ -1948,8 +1948,13 @@ class FuncDefNode(StatNode, BlockNode):
     #       by AnalyseDeclarationsTransform, so it can replace CFuncDefNodes
     #       with fused argument types with a FusedCFuncDefNode
 
+    class NeedsClosure(enum.IntEnum):
+        NO_CLOSURE = 0
+        GENERATOR_ONLY = 1
+        FULL_CLOSURE = 2
+
     py_func = None
-    needs_closure = False
+    needs_closure = NeedsClosure.NO_CLOSURE
     needs_outer_scope = False
     pymethdef_required = False
     is_generator = False
@@ -2033,7 +2038,8 @@ class FuncDefNode(StatNode, BlockNode):
             lenv = cls(name=self.entry.name,
                                 outer_scope=genv,
                                 parent_scope=env,
-                                scope_name=self.entry.cname)
+                                scope_name=self.entry.cname,
+                                is_pure_generator_scope=self.needs_closure != self.NeedsClosure.FULL_CLOSURE)
         else:
             lenv = LocalScope(name=self.entry.name,
                               outer_scope=genv,
@@ -4720,7 +4726,7 @@ class GeneratorDefNode(DefNode):
     is_generator = True
     is_iterable_coroutine = False
     gen_type_name = 'Generator'
-    needs_closure = True
+    needs_closure = FuncDefNode.NeedsClosure.GENERATOR_ONLY
 
     child_attrs = DefNode.child_attrs + ["gbody"]
 
@@ -5864,6 +5870,11 @@ class CClassDefNode(ClassDefNode):
                     break
                 base_type = base_type.base_type
 
+            if type.has_sequence_flag or type.has_mapping_flag:
+                code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("ApplySequenceOrMappingFlag", "ExtensionTypes.c"))
+                code.put_error_if_neg(
+                    entry.pos, f"__Pyx_ApplySequenceOrMappingFlag({typeptr_cname}, {type.has_sequence_flag:d})")
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
             for slot in TypeSlots.get_slot_table(code.globalstate.directives):
