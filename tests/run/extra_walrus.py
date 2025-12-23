@@ -335,3 +335,21 @@ def memoryview_walrus(x: cython.uchar[:]):
     """
     (y := x)
     return chr(y[0])
+
+def comprehension_scope():
+    """
+    >>> comprehension_scope()
+    [1, 2, 3, 4]
+    """
+    i = 0
+    # i needs to refer to the loop variable, not the function one
+    return [ x for i in range(5) if (x := i) ]
+
+def genexp_scope():
+    """
+    >>> genexp_scope()
+    (1, 2, 3, 4)
+    """
+    i = 0
+    # i needs to refer to the loop variable, not the function one
+    return tuple(x for i in range(5) if (x := i))
