@@ -97,6 +97,18 @@ Other changes
   (Github issue :issue:`7376`)
 
 
+3.2.4 (2025-12-??)
+==================
+
+Bugs fixed
+----------
+
+* ``PyDict_SetDefaultRef()`` is now used when available to avoid temporary borrowed references.
+  (Github issue :issue:`7347`)
+
+* Includes all fixes as of Cython 3.1.8.
+
+
 3.2.3 (2025-12-14)
 ==================
 
@@ -685,11 +697,15 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.8 (2025-??-??)
+3.1.8 (2025-12-??)
 ==================
 
 Bugs fixed
 ----------
+
+* Assignment expressions used in comprehensions could look at the wrong scope,
+  thus using different variables and different data.
+  (Github issue :issue:`6547`)
 
 * Some internal C symbols were not declared as ``static``, preventing static linking
   of multiple modules.
