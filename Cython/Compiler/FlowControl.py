@@ -349,7 +349,8 @@ class NameAssignment:
         self.is_arg = False
         self.is_deletion = False
         self.inferred_type = None
-        # For generator expression targets, the rhs can have a different scope than the lhs.
+        # For generator expression targets in comprehensions (and possibly other things),
+        # the rhs can have a different scope than the lhs.
         self.rhs_scope = rhs_scope
         self.assignment_type = assignment_type
 
@@ -818,7 +819,7 @@ class ControlFlowAnalysis(CythonTransform):
                 entry = self.env.lookup(lhs.name)
             if entry is None:  # TODO: This shouldn't happen...
                 return
-            self.flow.mark_assignment(lhs, rhs, entry, rhs_scope=rhs_scope, assignment_type=assignment_type)
+            self.flow.mark_assignment(lhs, rhs, entry, rhs_scope=(rhs_scope or self.env), assignment_type=assignment_type)
         elif lhs.is_sequence_constructor:
             for i, arg in enumerate(lhs.args):
                 if arg.is_starred:
