@@ -279,13 +279,16 @@ def copy_profile(bm_dir, module_name, profiler):
         shutil.move(str(ext), ext.name)
 
 
-def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.20):
+def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.25):
     python_command = [python_executable]
     i = 1
+    all_timings = bench_func(python_command, repeat=False, scale=i)
+    # We put a minimum bar on the fastest run time (to avoid outliers) of the slowest benchmark,
+    # assuming that the other sub-benchmarks will be scaled internally.
+    min_actual_time = max(min(timings) for timings in all_timings.values())
+
     # Quickly scale up by factors of 10.
     # Note that this will be increasingly off for fast non-linear benchmarks, so we stop an order away.
-    all_timings = bench_func(python_command, repeat=False, scale=i)
-    min_actual_time = min(t for timings in all_timings.values() for t in timings)
     while min_actual_time * 130 < min_runtime:
         i *= 10
         min_actual_time *= 10
@@ -296,7 +299,7 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
             number = i * j
             all_timings = bench_func(python_command, repeat=False, scale=number)
 
-            min_actual_time = min(t for timings in all_timings.values() for t in timings)
+            min_actual_time = max(min(timings) for timings in all_timings.values())
             if min_actual_time >= min_runtime:
                 if (min_actual_time - min_runtime) / (min_actual_time - last_min) > .4:
                     # Avoid large overshoots due to large j steps.
