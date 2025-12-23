@@ -78,6 +78,7 @@ r_extcomplex2
 arg_incref
 builtin_pycomplex
 builtin_type_inheritance_T608
+constant_folding
 
 # appears to run forever
 common_include_dir
