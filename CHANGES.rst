@@ -2,6 +2,18 @@
 Cython Changelog
 ================
 
+3.2.4 (2025-12-??)
+==================
+
+Bugs fixed
+----------
+
+* ``PyDict_SetDefaultRef()`` is now used when available to avoid temporary borrowed references.
+  (Github issue :issue:`7347`)
+
+* Includes all fixes as of Cython 3.1.8.
+
+
 3.2.3 (2025-12-14)
 ==================
 
