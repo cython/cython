@@ -154,8 +154,7 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     mro_size = __Pyx_PyTuple_GET_SIZE(mro);
 #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(mro_size == -1)) {
-        Py_DECREF(mro);
-        goto end;
+        goto loop_error;
     }
 #endif
     for (i=1; i < mro_size; ++i) {
