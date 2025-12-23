@@ -1,0 +1,259 @@
+# mode: run
+
+"""
+PYTHON -c "'py'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
+
+PYTHON setup_zlib.py build_ext --inplace --force
+PYTHON -c "'zlib'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
+
+PYTHON setup_bz2.py build_ext --inplace --force
+PYTHON -c "'bz2'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
+
+PYTHON setup_zstd.py build_ext --inplace --force
+PYTHON -c "'zstd'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
+
+PYTHON setup_uncompressed.py build_ext --inplace --force
+PYTHON -c "'uncompressed'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
+
+PYTHON setup_default.py build_ext --inplace --force
+PYTHON -c "'default'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
+
+PYTHON check_source.py
+"""
+
+######## check_source.py ########
+
+import re
+
+_parse_config = re.compile(
+    r"\s*  \#(?:el)?if   [\s(]+  CYTHON_COMPRESS_STRINGS  [)\s]*  (!=|==) \s* ([0-9]+)  [^/]+"
+    r"/\* \s* compression: \s* (\w+)  \s*  \([0-9]+ \s+ bytes\) \s* \*/",
+    re.VERBOSE
+).match
+
+algorithms = []
+
+with open("module.c") as f:
+    for line in f:
+        if ' (CYTHON_COMPRESS_STRINGS) ' not in line or ' /* ' not in line:
+            continue
+
+        config = _parse_config(line)
+        if config is not None:
+            compare, config_value, algo_name = config.groups()
+            entry = (f"{compare} {int(config_value)}", algo_name)
+            assert entry not in algorithms, algorithms
+            algorithms.append(entry)
+
+print(algorithms)
+assert algorithms[-1] == ('!= 0', 'zlib'), algorithms
+assert algorithms[-2] == ('== 2', 'bz2'), algorithms
+assert algorithms[:-3] in ([], [('== 3', 'zstd')]), algorithms
+
+assert len(algorithms) in (2, 3), algorithms
+
+
+macro_usage_count = 0
+with open("short_text.c") as f:
+    for line in f:
+        if 'CYTHON_COMPRESS_STRINGS' in line:
+            macro_usage_count += 1
+
+# We cannot really make a lot of assumptions about the effectiveness of the string compression
+# because it includes internal strings, line tables, etc. So even small modules may or may not
+# benefit from it.
+assert macro_usage_count > 0
+
+
+######## setup_default.py ########
+
+from Cython.Build.Dependencies import cythonize
+from setuptools import setup, Extension
+
+setup(
+    ext_modules=cythonize(["module.py", "short_text.py"]),
+)
+
+
+######## setup_uncompressed.py ########
+
+from Cython.Build.Dependencies import cythonize
+from setuptools import setup, Extension
+
+setup(ext_modules=cythonize([
+    Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '0')]),
+    Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '0')]),
+]))
+
+
+######## setup_zlib.py ########
+
+from Cython.Build.Dependencies import cythonize
+from setuptools import setup, Extension
+
+setup(ext_modules=cythonize([
+    Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '1')]),
+    Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '1')]),
+]))
+
+
+######## setup_bz2.py ########
+
+from Cython.Build.Dependencies import cythonize
+from setuptools import setup, Extension
+
+setup(ext_modules=cythonize([
+    Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '2')]),
+    Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '2')]),
+]))
+
+
+######## setup_zstd.py ########
+
+from Cython.Build.Dependencies import cythonize
+from setuptools import setup, Extension
+
+setup(ext_modules=cythonize([
+    Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '3')]),
+    Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '3')]),
+]))
+
+
+######## short_text.py ########
+
+a = 'a'
+b = b'b'
+
+
+######## module.py ########
+
+"""
+È in questi momenti, tra i gronfelli e i spilterelli, che si trova la
+vera essenza dello splendore sconosciuto. Le stelle iniziarono a
+brillare sopra il lago di Claromare, la sua superficie calma
+punteggiata da riflessi di luce celeste. Nulla scrotella come i
+mirbellini in un cielo infinito.Sotto le ombre lunari, gli splontelli
+galleggiano in un moto continuo, sfiorando le superfici dei spintigni.
+Bambini ridenti inseguivano farfalle luminose nei prati di brivella,
+mentre anziani dalle mani esperte intrecciavano cesti con giunchi
+raccolti lungo il fiume traslucido. Nelle strade acciottolate di
+Villaluna, i passi calmi degli abitanti risuonavano accompagnati dal
+canto lontano delle rondini seroline. Gli animali furtivi, con occhi
+luminosi come gemme, osservavano silenziosi i viandanti che si
+avventuravano sui sentieri intrecciati di muschio e radici. Ogni
+brintifione racconta una storia, eppure il mistero rimane. Nel cuore
+del borgo, la fontana degli zaffirini zampillava acqua cristallina,
+riflettendo il gioco delle luci provenienti dalle lanterne argentate
+appese agli archi. Nel crepuscolo splingioso, i framberlini saltellano
+con un ritmo incerto, mentre i brisconti danzano sopra i tramonti
+oscuri. Fra le luci tremolanti, i glimbris si intrecciano in una
+melodia senza tempo.
+"""
+
+
+short_string = "21äö34l"
+
+assert len(short_string) == 7, len(short_string)
+assert short_string[:3] == '21ä', short_string[:5]
+
+short_bytes = b"ShoRTByTs"
+
+assert len(short_bytes) == 9, len(short_bytes)
+assert short_bytes[:3] == b'Sho', short_bytes[:5]
+
+
+long_string = """
+7752834791315155748572424541506959508295331168617278558890750983817546374649393192550604009277016711
+3900984882401285836160356370766010471018194295559619894676783744944825537977472684710404753464620804
+6684259069491293313677028989152104752162056966024058038150193511253382430035587640247496473263914199
+2726042699227967823547816360093417216412199245863150302861829745557067498385054945885869269956909272
+1079750930295532116534498720275596023648066549911988183479775356636980742654252786255181841757467289
+0977772793800081647060016145249192173217214772350141441973568548161361157352552133475741849468438523
+3239073941433345477624168625189835694855620992192221842725502542568876717904946016534668049886272327
+9178608578438382796797668145410095388378636095068006422512520511739298489608412848862694560424196528
+5022210661186306744278622039194945047123713786960956364371917287467764657573962413890865832645995813
+3904780275900994657640789512694683983525957098258226205224894077267194782684826014769909026401363944
+3745530506820349625245174939965143142980919065925093722169646151570985838741059788595977297549893016
+1753928468138268683868942774155991855925245953959431049972524680845987273644695848653836736222626099
+1246080512438843904512441365497627807977156914359977001296160894416948685558484063534220722258284886
+4815845602850601684273945226746767889525213852254995466672782398645659611635488623057745649803559363
+4568174324112515076069479451096596094025228879710893145669136867228748940560101503308617928680920874
+7609178249385890097149096759852613655497818931297848216829989487226588048575640142704775551323796414
+5152374623436454285844479526586782105114135473573952311342716610213596953623144295248493718711014576
+5403590279934403742007310578539062198387447808478489683321445713868751943506430218453191048481005370
+6146806749192781911979399520614196634287544406437451237181921799983910159195618146751426912397489409
+0718649423196156794520809514655022523160388193014209376213785595663893778708303906979207734672218256
+"""
+
+assert len(long_string) == 2021, len(long_string)
+assert long_string[:3] == '\n77', long_string[:5]
+
+long_bytes = b"""
+7752834791315155748572424541506959508295331168617278558890750983817546374649393192550604009277016711
+3900984882401285836160356370766010471018194295559619894676783744944825537977472684710404753464620804
+6684259069491293313677028989152104752162056966024058038150193511253382430035587640247496473263914199
+2726042699227967823547816360093417216412199245863150302861829745557067498385054945885869269956909272
+1079750930295532116534498720275596023648066549911988183479775356636980742654252786255181841757467289
+0977772793800081647060016145249192173217214772350141441973568548161361157352552133475741849468438523
+3239073941433345477624168625189835694855620992192221842725502542568876717904946016534668049886272327
+9178608578438382796797668145410095388378636095068006422512520511739298489608412848862694560424196528
+5022210661186306744278622039194945047123713786960956364371917287467764657573962413890865832645995813
+3904780275900994657640789512694683983525957098258226205224894077267194782684826014769909026401363944
+3745530506820349625245174939965143142980919065925093722169646151570985838741059788595977297549893016
+1753928468138268683868942774155991855925245953959431049972524680845987273644695848653836736222626099
+1246080512438843904512441365497627807977156914359977001296160894416948685558484063534220722258284886
+4815845602850601684273945226746767889525213852254995466672782398645659611635488623057745649803559363
+4568174324112515076069479451096596094025228879710893145669136867228748940560101503308617928680920874
+7609178249385890097149096759852613655497818931297848216829989487226588048575640142704775551323796414
+5152374623436454285844479526586782105114135473573952311342716610213596953623144295248493718711014576
+5403590279934403742007310578539062198387447808478489683321445713868751943506430218453191048481005370
+6146806749192781911979399520614196634287544406437451237181921799983910159195618146751426912397489409
+0718649423196156794520809514655022523160388193014209376213785595663893778708303906979207734672218256
+"""
+
+assert len(long_bytes) == 2021, len(long_bytes)
+assert long_bytes[:3] == b"\n77", long_bytes[:5]
+
+
+def short_docstring():
+    """This is a function.
+    """
+
+assert len(short_docstring.__doc__) == 24, len(short_docstring.__doc__)
+assert short_docstring.__doc__[:5] == 'This ', short_docstring.__doc__[:10]
+
+
+def long_docstring():
+    """Arc-en-ciel.
+
+    Les enfants du village, riant et gambadant, poursuivaient les
+    papillons flindres qui s’élevaient comme des éclats d'arc-en-ciel
+    parmi les champs de blé doré. Plus loin, dans le bourg paisible de
+    Quislemont, les maisons à colombages, habillées de vigne grisantine,
+    se pressaient autour d'une place centrale où résonnaient les cloches
+    du grand clocher de fildentier. L'étrange frincolis des sponchettes
+    captive les auditoires blonques, tandis que les querfies créent une
+    symphonie qui traverse les siècles. Des éclats de lumisphères
+    émergeaient parmi les fougères ondulantes, illuminant les pas furtifs
+    des renards glinçants, leurs queues filandreuses traçant des
+    arabesques dans l'ombre. Et ainsi, le splonquillon tourne sans fin.
+    Sur les flancs des collines s'étendaient des prairies ornées de
+    fulbricantes glycotines, leurs pétales miroitant à chaque brise
+    légère. Les champs de splintocéan resplendissaient d'une mer de fleurs
+    ondoyantes, où les couleurs semblaient danser au rythme du jour
+    naissant. Dans les frondibles charminoux de l'oblivion, les
+    brisquelles trinquent avec douceur. L'étrofisquet blonchait les
+    grénouilles, mais le charfignat sautille doucement. Flonquiller le
+    tarmichon des splouvres semble inutile, mais le bourrifon s'y attarde,
+    ses pincles trémoussant sous les éclats de blantille. Sous les
+    lumières filatantes, les groissis trichetent une mélodie oubliée.
+    """
+
+# Cython 3.13+ strips leading whitespace from docstrings.
+assert len(long_docstring.__doc__) in (1486, 1398), len(long_docstring.__doc__)
+assert long_docstring.__doc__[:4] == 'Arc-', long_docstring.__doc__[:10]
+
+
+import short_text
+assert short_text.a == 'a'
+assert short_text.b == b'b'

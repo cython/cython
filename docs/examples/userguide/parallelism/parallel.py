@@ -11,7 +11,7 @@ idx = cython.declare(cython.Py_ssize_t)
 i = cython.declare(cython.Py_ssize_t)
 j = cython.declare(cython.Py_ssize_t)
 n = cython.declare(cython.Py_ssize_t, 100)
-local_buf = cython.declare(p_int)
+local_buf = cython.declare(cython.p_int)
 size = cython.declare(cython.size_t, 10)
 
 with cython.nogil, parallel():

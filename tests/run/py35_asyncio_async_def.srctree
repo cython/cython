@@ -25,7 +25,7 @@ from contextlib import closing
 async def main():
     await cy_test.say()
 
-with closing(asyncio.get_event_loop()) as loop:
+with closing(asyncio.new_event_loop()) as loop:
     print("Running Python coroutine ...")
     loop.run_until_complete(main())
 

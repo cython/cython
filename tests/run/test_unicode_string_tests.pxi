@@ -977,9 +977,8 @@ class CommonTest(BaseTest):
     def test_capitalize_nonascii(self):
         # check that titlecased chars are lowered correctly
         # \u1ffc is the titlecased char
-        # Note: differs between Py<3.8 and later.
-        #self.checkequal('\u03a9\u0399\u1ff3\u1ff3\u1ff3',
-        #                '\u1ff3\u1ff3\u1ffc\u1ffc', 'capitalize')
+        self.checkequal('\u1ffc\u1ff3\u1ff3\u1ff3',
+                        '\u1ff3\u1ff3\u1ffc\u1ffc', 'capitalize')
         # check with cased non-letter chars
         self.checkequal('\u24c5\u24e8\u24e3\u24d7\u24de\u24dd',
                         '\u24c5\u24ce\u24c9\u24bd\u24c4\u24c3', 'capitalize')
@@ -990,8 +989,8 @@ class CommonTest(BaseTest):
         self.checkequal('\u2160\u2171\u2172',
                         '\u2170\u2171\u2172', 'capitalize')
         # check with Ll chars with no upper - nothing changes here
-        self.checkequal('\u019b\u1d00\u1d86\u0221\u1fb7',
-                        '\u019b\u1d00\u1d86\u0221\u1fb7', 'capitalize')
+        self.checkequal('\u1d00\u1d86\u0221\u1fb7',
+                        '\u1d00\u1d86\u0221\u1fb7', 'capitalize')
 
     def test_list_concat(self):
         # https://github.com/cython/cython/issues/3426
@@ -1006,7 +1005,6 @@ class MixinStrUnicodeUserStringTest:
     # additional tests that only work for
     # stringlike objects, i.e. str, UserString
 
-    @unittest.skipIf(sys.version_info < (3, 5), 'Python str.startswith() test requires Py3.5+')
     def test_startswith(self):
         self.checkequal(True, 'hello', 'startswith', 'he')
         self.checkequal(True, 'hello', 'startswith', 'hello')
@@ -1055,7 +1053,6 @@ class MixinStrUnicodeUserStringTest:
 
         self.checkraises(TypeError, 'hello', 'startswith', (42,))
 
-    @unittest.skipIf(sys.version_info < (3, 5), 'Python str.endswith() test requires Py3.5+')
     def test_endswith(self):
         self.checkequal(True, 'hello', 'endswith', 'lo')
         self.checkequal(False, 'hello', 'endswith', 'he')
@@ -1297,7 +1294,6 @@ class MixinStrUnicodeUserStringTest:
         self.checkequal('A', 'a', 'title')
         self.checkequal(True, 'a', 'islower')
 
-    @unittest.skipIf(sys.version_info < (3, 5), 'Python str.partition() test requires Py3.5+')
     def test_partition(self):
 
         self.checkequal(('this is the par', 'ti', 'tion method'),
@@ -1313,7 +1309,6 @@ class MixinStrUnicodeUserStringTest:
         self.checkraises(ValueError, S, 'partition', '')
         self.checkraises(TypeError, S, 'partition', None)
 
-    @unittest.skipIf(sys.version_info < (3, 5), 'Python str.rpartition() test requires Py3.5+')
     def test_rpartition(self):
 
         self.checkequal(('this is the rparti', 'ti', 'on method'),
@@ -1371,19 +1366,19 @@ class MixinStrUnicodeUserStringTest:
         # issue 11828
         s = 'hello'
         x = 'x'
-        self.assertRaisesRegex(TypeError, r'^find\(', s.find,
+        self.assertRaisesRegex(TypeError, r'^find\b', s.find,
                                 x, None, None, None)
-        self.assertRaisesRegex(TypeError, r'^rfind\(', s.rfind,
+        self.assertRaisesRegex(TypeError, r'^rfind\b', s.rfind,
                                 x, None, None, None)
-        self.assertRaisesRegex(TypeError, r'^index\(', s.index,
+        self.assertRaisesRegex(TypeError, r'^index\b', s.index,
                                 x, None, None, None)
-        self.assertRaisesRegex(TypeError, r'^rindex\(', s.rindex,
+        self.assertRaisesRegex(TypeError, r'^rindex\b', s.rindex,
                                 x, None, None, None)
-        self.assertRaisesRegex(TypeError, r'^count\(', s.count,
+        self.assertRaisesRegex(TypeError, r'^count\b', s.count,
                                 x, None, None, None)
-        self.assertRaisesRegex(TypeError, r'^startswith\(', s.startswith,
+        self.assertRaisesRegex(TypeError, r'^startswith\b', s.startswith,
                                 x, None, None, None)
-        self.assertRaisesRegex(TypeError, r'^endswith\(', s.endswith,
+        self.assertRaisesRegex(TypeError, r'^endswith\b', s.endswith,
                                 x, None, None, None)
 
         # issue #15534

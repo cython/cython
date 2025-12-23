@@ -10,7 +10,7 @@ cdef class CheeseShop:
 
     @property
     def cheese(self):
-        return "We don't have: %s" % self.cheeses
+        return f"We don't have: {self.cheeses}"
 
     @cheese.setter
     def cheese(self, value):

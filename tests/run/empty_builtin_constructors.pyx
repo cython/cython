@@ -1,8 +1,7 @@
+# mode: run
 
 cimport cython
-import sys
 
-IS_PY3 = sys.version_info[0] >= 3
 
 def _bool():
     """
@@ -17,13 +16,6 @@ def _int():
     True
     """
     return int()
-
-def _long():
-    """
-    >>> IS_PY3 or _long() == long()
-    True
-    """
-    return long()
 
 def _float():
     """
@@ -41,7 +33,7 @@ def _complex():
 
 def _bytes():
     """
-    >>> IS_PY3 and _bytes() == bytes() or _bytes() == str()
+    >>> _bytes() == bytes()
     True
     """
     return bytes()
@@ -55,7 +47,7 @@ def _str():
 
 def _unicode():
     """
-    >>> IS_PY3 and _unicode() == str() or _unicode() == unicode()
+    >>> _unicode() == str()
     True
     """
     return unicode()

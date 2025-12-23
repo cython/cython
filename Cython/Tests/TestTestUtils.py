@@ -1,23 +1,21 @@
-# -*- coding: utf-8 -*-
-
 import os.path
 import unittest
 import tempfile
 import textwrap
 import shutil
 
-from ..TestUtils import write_file, write_newer_file
+from ..TestUtils import write_file, write_newer_file, _parse_pattern
 
 
 class TestTestUtils(unittest.TestCase):
     def setUp(self):
-        super(TestTestUtils, self).setUp()
+        super().setUp()
         self.temp_dir = tempfile.mkdtemp()
 
     def tearDown(self):
         if self.temp_dir and os.path.isdir(self.temp_dir):
             shutil.rmtree(self.temp_dir)
-        super(TestTestUtils, self).tearDown()
+        super().tearDown()
 
     def _test_path(self, filename):
         return os.path.join(self.temp_dir, filename)
@@ -32,11 +30,11 @@ class TestTestUtils(unittest.TestCase):
         assert found == expected, (repr(expected), repr(found))
 
     def test_write_file_text(self):
-        text = u"abcüöä"
+        text = "abcüöä"
         self._test_write_file(text, text.encode('utf8'))
 
     def test_write_file_dedent(self):
-        text = u"""
+        text = """
         A horse is a horse,
         of course, of course,
         And no one can talk to a horse
@@ -68,3 +66,25 @@ class TestTestUtils(unittest.TestCase):
         assert not os.path.exists(file_path)
         write_newer_file(file_path, file_path, "xyz")
         assert os.path.isfile(file_path)
+
+    def test_parse_pattern(self):
+        self.assertEqual(
+            _parse_pattern("pattern"),
+            (None, None, 'pattern')
+        )
+        self.assertEqual(
+            _parse_pattern("/start/:pattern"),
+            ('start', None, 'pattern')
+        )
+        self.assertEqual(
+            _parse_pattern(":/end/  pattern"),
+            (None, 'end', 'pattern')
+        )
+        self.assertEqual(
+            _parse_pattern("/start/:/end/  pattern"),
+            ('start', 'end', 'pattern')
+        )
+        self.assertEqual(
+            _parse_pattern("/start/:/end/pattern"),
+            ('start', 'end', 'pattern')
+        )

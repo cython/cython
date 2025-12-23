@@ -1,4 +1,7 @@
 # mode: run
+# tag: perf_hints
+
+from nogil_other cimport voidexceptnogil_in_other_pxd
 
 try:
     from StringIO import StringIO
@@ -48,6 +51,27 @@ def test_release_gil_in_nogil():
         release_gil_in_nogil2()
     release_gil_in_nogil()
     release_gil_in_nogil2()
+
+
+def test_release_gil_in_nogil_contended(num_threads):
+    """
+    >>> test_release_gil_in_nogil_contended(num_threads=4)  # shouldn't crash
+    """
+    from threading import Thread, Barrier
+    # barrier just increase the chances of threads being nogil at the same time
+    b = Barrier(num_threads)
+
+    def inner():
+        b.wait(5.0)
+        with nogil:
+            release_gil_in_nogil()
+
+    threads = [Thread(target=inner) for t in range(num_threads)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
 
 cdef void get_gil_in_nogil() nogil:
     with gil:
@@ -104,3 +128,131 @@ def test_unraisable():
     finally:
         sys.stderr = old_stderr
     return stderr.getvalue().strip()
+
+
+cdef int initialize_array() nogil:
+    cdef int[4] a = [1, 2, 3, 4]
+    return a[0] + a[1] + a[2] + a[3]
+
+cdef int copy_array() nogil:
+    cdef int[4] a
+    a[:] = [0, 1, 2, 3]
+    return a[0] + a[1] + a[2] + a[3]
+
+cdef double copy_array2() nogil:
+    cdef double[4] x = [1.0, 3.0, 5.0, 7.0]
+    cdef double[4] y
+    y[:] = x[:]
+    return y[0] + y[1] + y[2] + y[3]
+
+cdef double copy_array3() nogil:
+    cdef double[4] x = [2.0, 4.0, 6.0, 8.0]
+    cdef double[4] y
+    y = x
+    return y[0] + y[1] + y[2] + y[3]
+
+cdef void copy_array_exception(int n) nogil:
+    cdef double[5] a = [1,2,3,4,5]
+    cdef double[6] b
+    b[:n] = a
+
+def test_initalize_array():
+    """
+    >>> test_initalize_array()
+    10
+    """
+    return initialize_array()
+
+def test_copy_array():
+    """
+    >>> test_copy_array()
+    6
+    """
+    return copy_array()
+
+def test_copy_array2():
+    """
+    >>> test_copy_array2()
+    16.0
+    """
+    return copy_array2()
+
+def test_copy_array3():
+    """
+    >>> test_copy_array3()
+    20.0
+    """
+    return copy_array3()
+
+def test_copy_array_exception(n):
+    """
+    >>> test_copy_array_exception(20)
+    Traceback (most recent call last):
+        ...
+    ValueError: Assignment to slice of wrong length, expected 5, got 20
+    """
+    copy_array_exception(n)
+
+def test_copy_array_exception_nogil(n):
+    """
+    >>> test_copy_array_exception_nogil(20)
+    Traceback (most recent call last):
+        ...
+    ValueError: Assignment to slice of wrong length, expected 5, got 20
+    """
+    cdef int cn = n
+    with nogil:
+        copy_array_exception(cn)
+
+# Should still get a warning even though it's declared in a pxd
+cdef void voidexceptnogil_in_pxd() nogil:
+    pass
+
+def test_performance_hint_nogil():
+    """
+    >>> test_performance_hint_nogil()
+    """
+    with nogil:
+        voidexceptnogil_in_pxd()
+        # The function call should generate a performance hint, but the definition should
+        # not (since it's in an external pxd we don't control)
+        voidexceptnogil_in_other_pxd()
+
+
+cdef int f_in_pxd1() nogil except -1:
+    return 0
+
+cdef int f_in_pxd2() nogil:  # implicit except -1?
+    return 0
+
+def test_declared_in_pxd():
+    """
+    >>> test_declared_in_pxd()
+    """
+    with nogil:
+        # no warnings here because we're in the same file as the declaration
+        f_in_pxd1()
+        f_in_pxd2()
+
+
+# Note that we're only able to check the first line of the performance hint
+_PERFORMANCE_HINTS = """
+5:18: No exception value declared for 'f_in_pxd1' in pxd file.
+6:18: No exception value declared for 'f_in_pxd2' in pxd file.
+20:9: Exception check after calling 'f' will always require the GIL to be acquired.
+24:0: Exception check on 'f' will always require the GIL to be acquired.
+34:0: Exception check on 'release_gil_in_nogil' will always require the GIL to be acquired.
+39:0: Exception check on 'release_gil_in_nogil2' will always require the GIL to be acquired.
+49:28: Exception check after calling 'release_gil_in_nogil' will always require the GIL to be acquired.
+51:29: Exception check after calling 'release_gil_in_nogil2' will always require the GIL to be acquired.
+67:32: Exception check after calling 'release_gil_in_nogil' will always require the GIL to be acquired.
+76:0: Exception check on 'get_gil_in_nogil' will always require the GIL to be acquired.
+80:0: Exception check on 'get_gil_in_nogil2' will always require the GIL to be acquired.
+89:24: Exception check after calling 'get_gil_in_nogil' will always require the GIL to be acquired.
+91:25: Exception check after calling 'get_gil_in_nogil2' will always require the GIL to be acquired.
+154:0: Exception check on 'copy_array_exception' will always require the GIL to be acquired.
+205:28: Exception check after calling 'copy_array_exception' will always require the GIL to be acquired.
+208:0: Exception check on 'voidexceptnogil_in_pxd' will always require the GIL to be acquired.
+216:30: Exception check after calling 'voidexceptnogil_in_pxd' will always require the GIL to be acquired.
+219:36: Exception check after calling 'voidexceptnogil_in_other_pxd' will always require the GIL to be acquired.
+"""

@@ -18,13 +18,10 @@ looper you can get a better sense of the context.  Use like::
 
 """
 
-import sys
-from Cython.Tempita.compat3 import basestring_
-
 __all__ = ['looper']
 
 
-class looper(object):
+class looper:
     """
     Helper for looping (particularly in templates)
 
@@ -46,7 +43,7 @@ class looper(object):
             self.__class__.__name__, self.seq)
 
 
-class looper_iter(object):
+class looper_iter:
 
     def __init__(self, seq):
         self.seq = list(seq)
@@ -62,11 +59,8 @@ class looper_iter(object):
         self.pos += 1
         return result
 
-    if sys.version < "3":
-        next = __next__
 
-
-class loop_pos(object):
+class loop_pos:
 
     def __init__(self, seq, pos):
         self.seq = seq
@@ -94,9 +88,6 @@ class loop_pos(object):
         except IndexError:
             return None
     __next__ = property(__next__)
-
-    if sys.version < "3":
-        next = __next__
 
     def previous(self):
         if self.pos == 0:
@@ -149,7 +140,7 @@ class loop_pos(object):
     def _compare_group(self, item, other, getter):
         if getter is None:
             return item != other
-        elif (isinstance(getter, basestring_)
+        elif (isinstance(getter, str)
               and getter.startswith('.')):
             getter = getter[1:]
             if getter.endswith('()'):

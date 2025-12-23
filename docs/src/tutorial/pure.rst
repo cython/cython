@@ -166,11 +166,12 @@ There are numerous types built into the Cython module.  It provides all the
 standard C types, namely ``char``, ``short``, ``int``, ``long``, ``longlong``
 as well as their unsigned versions ``uchar``, ``ushort``, ``uint``, ``ulong``,
 ``ulonglong``.  The special ``bint`` type is used for C boolean values and
-``Py_ssize_t`` for (signed) sizes of Python containers.
+:c:type:`Py_ssize_t` for (signed) sizes of Python containers.
 
 For each type, there are pointer types ``p_int``, ``pp_int``, etc., up to
 three levels deep in interpreted mode, and infinitely deep in compiled mode.
-Further pointer types can be constructed with ``cython.pointer(cython.int)``,
+Further pointer types can be constructed with ``cython.pointer[cython.int]``
+(or ``cython.pointer(cython.int)`` for compatibility with Cython versions before 3.1),
 and arrays as ``cython.int[10]``. A limited attempt is made to emulate these
 more complex types, but only so much can be done from the Python language.
 
@@ -221,7 +222,10 @@ Managing the Global Interpreter Lock
     @cython.nogil
     @cython.cfunc
     def func_released_gil() -> cython.int:
-        # function with the GIL released
+        # function that can be run with the GIL released
+
+  Note that the two uses differ: the context manager releases the GIL while the decorator marks that a
+  function *can* be run without the GIL. See :ref:`cython_and_gil` for more details.
 
 * ``cython.gil`` can be used as a context manager to replace the :keyword:`gil` keyword::
 
@@ -249,6 +253,7 @@ releasing or acquiring the GIL. The condition must be constant (at compile time)
 
 A common use case for conditionally acquiring and releasing the GIL are fused types
 that allow different GIL handling depending on the specific type (see :ref:`gil_conditional`).
+
 
 .. py:module:: cython.cimports
 
@@ -323,6 +328,12 @@ Further Cython functions and declarations
     t1 = cython.cast(T, t)
     t2 = cython.cast(T, t, typecheck=True)
 
+* ``fused_type`` creates a new type definition that refers to the multiple types.
+  The following example declares a new type called ``my_fused_type`` which can
+  be either an ``int`` or a ``double``.::
+
+    my_fused_type = cython.fused_type(cython.int, cython.float)
+
 .. _magic_attributes_pxd:
 
 Magic Attributes within the .pxd
@@ -354,6 +365,11 @@ following example:
 Note the use of ``cython.int`` rather than ``int`` - Cython does not translate
 an ``int`` annotation to a C integer by default since the behaviour can be
 quite different with respect to overflow and division.
+
+Annotations on global variables are currently ignored.  This is because we expect
+annotation-typed code to be in majority written for Python, and global type annotations
+would turn the Python variable into an internal C variable, thus removing it from the
+module dict.  To declare global variables as typed C variables, use ``@cython.declare()``.
 
 Annotations can be combined with the ``@cython.exceptval()`` decorator for non-Python
 return types:
@@ -397,6 +413,7 @@ complete. Cython 3 currently understands the following features from the
 ``typing`` module:
 
 * ``Optional[tp]``, which is interpreted as ``tp or None``;
+* ``Union[tp, None]`` or ``Union[None, tp]``, which is interpreted as ``tp or None``;
 * typed containers such as ``List[str]``, which is interpreted as ``list``. The
   hint that the elements are of type ``str`` is currently ignored;
 * ``Tuple[...]``, which is converted into a Cython C-tuple where possible
@@ -410,18 +427,61 @@ efficient C code. In other cases, however, where the generated C code could
 benefit from these type hints but does not currently, help is welcome to
 improve the type analysis in Cython.
 
+Reference table
+^^^^^^^^^^^^^^^
+
+The following reference table documents how type annotations are currently interpreted.
+Cython 0.29 behaviour is only shown where it differs from Cython 3.0 behaviour.
+The current limitations will likely be lifted at some point.
+
+.. csv-table:: Annotation typing rules
+   :file: annotation_typing_table.csv
+   :header-rows: 1
+   :class: longtable
+   :widths: 1 1 1
+
+
 Tips and Tricks
 ---------------
+
+Avoiding the ``cython`` runtime dependency
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Python modules that are intended to run both compiled and as plain Python
+usually have the line ``ìmport cython`` in them and make use of the magic
+attributes in that module. If not compiled, this creates a runtime dependency
+on Cython's shadow module that provides fake implementations of types and
+decorators.
+
+Code that does not want to require Cython or its shadow module as as runtime
+dependency at all can often get away with a simple, stripped-down replacement
+like the following::
+
+    try:
+        import cython
+    except ImportError:
+        class _fake_cython:
+            compiled = False
+            def cfunc(self, func): return func
+            def ccall(self, func): return func
+            def __getattr__(self, type_name): return "object"
+
+        cython = _fake_cython()
+
 
 .. _calling-c-functions:
 
 Calling C functions
 ^^^^^^^^^^^^^^^^^^^
 
-Normally, it isn't possible to call C functions in pure Python mode as there
-is no general way to support it in normal (uncompiled) Python.  However, in
-cases where an equivalent Python function exists, this can be achieved by
-combining C function coercion with a conditional import as follows:
+The magic :py:mod:`cython.cimports` package provides a way to cimport external
+compile time C declarations from code written in plain Python.  For convenience,
+it also provides a fallback Python implementation for the ``libc.math`` module.
+
+However, it is normally not possible to *call* C functions in pure Python
+code as there is no general way to represent them in normal (uncompiled) Python.
+But in cases where an equivalent Python function exists, this can be achieved
+by combining C function coercion with a conditional import as follows:
 
 .. literalinclude:: ../../examples/tutorial/pure/mymodule.pxd
 

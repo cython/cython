@@ -1,5 +1,7 @@
+import functools
 import cython
-@cython.total_ordering
+
+@functools.total_ordering
 @cython.cclass
 class ExtGe:
     x: cython.int

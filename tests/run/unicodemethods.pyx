@@ -2,7 +2,6 @@
 
 cimport cython
 
-import sys
 
 text = u'ab jd  sdflk as sa  sadas asdas fsdf '
 sep = u'  '
@@ -237,7 +236,7 @@ def join_sep(l):
     ab|jd|sdflk|as|sa|sadas|asdas|fsdf
     """
     result = u'|'.join(l)
-    assert cython.typeof(result) == 'unicode object', cython.typeof(result)
+    assert cython.typeof(result) == "str object", cython.typeof(result)
     return result
 
 
@@ -264,7 +263,7 @@ def join_sep_genexpr(l):
     <<ab |jd |sdflk |as |sa |sadas |asdas |fsdf >>
     """
     result = u'|'.join(s + u' ' for s in l)
-    assert cython.typeof(result) == 'unicode object', cython.typeof(result)
+    assert cython.typeof(result) == "str object", cython.typeof(result)
     return result
 
 
@@ -289,7 +288,7 @@ def join_sep_genexpr_dictiter(dict d):
     0:ab|1:jd|2:sdflk|3:as|4:sa|5:sadas|6:asdas|7:fsdf
     """
     result = u' '.join('%s:%s' % (k, v) for k, v in d.iteritems())
-    assert cython.typeof(result) == 'unicode object', cython.typeof(result)
+    assert cython.typeof(result) == "str object", cython.typeof(result)
     return result
 
 
@@ -513,7 +512,7 @@ def concat(unicode s, str suffix):
     TypeError: ...
     """
     assert cython.typeof(s + object()) == 'Python object', cython.typeof(s + object())
-    assert cython.typeof(s + suffix) == 'unicode object', cython.typeof(s + suffix)
+    assert cython.typeof(s + suffix) == "str object", cython.typeof(s + suffix)
     return s + suffix
 
 
@@ -526,7 +525,7 @@ def concat_literal_str(str suffix):
     TypeError: ...NoneType...
     """
     assert cython.typeof(u'abc' + object()) == 'Python object', cython.typeof(u'abc' + object())
-    assert cython.typeof(u'abc' + suffix) == 'unicode object', cython.typeof(u'abc' + suffix)
+    assert cython.typeof(u'abc' + suffix) == "str object", cython.typeof(u'abc' + suffix)
     return u'abc' + suffix
 
 
@@ -538,7 +537,7 @@ def concat_literal_unicode(unicode suffix):
     Traceback (most recent call last):
     TypeError: ...NoneType...
     """
-    assert cython.typeof(u'abc' + suffix) == 'unicode object', cython.typeof(u'abc' + suffix)
+    assert cython.typeof(u'abc' + suffix) == "str object", cython.typeof(u'abc' + suffix)
     return u'abc' + suffix
 
 
@@ -574,7 +573,7 @@ def mod_format_literal(values):
     >>> mod_format_literal(['sa']) == "abc['sa']def"  or  mod_format(format1, ['sa'])
     True
     """
-    assert cython.typeof(u'abc%sdef' % values) == 'unicode object', cython.typeof(u'abc%sdef' % values)
+    assert cython.typeof(u'abc%sdef' % values) == "str object", cython.typeof(u'abc%sdef' % values)
     return u'abc%sdef' % values
 
 
@@ -586,7 +585,7 @@ def mod_format_tuple(*values):
     Traceback (most recent call last):
     TypeError: not enough arguments for format string
     """
-    assert cython.typeof(u'abc%sdef' % values) == 'unicode object', cython.typeof(u'abc%sdef' % values)
+    assert cython.typeof(u'abc%sdef' % values) == "str object", cython.typeof(u'abc%sdef' % values)
     return u'abc%sdef' % values
 
 
@@ -777,3 +776,177 @@ def replace_maxcount(unicode s, substring, repl, maxcount):
     ab jd  sdflk as SA  sadas asdas fsdf\x20
     """
     return s.replace(substring, repl, maxcount)
+
+
+# unicode * int
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+@cython.test_assert_path_exists(
+    "//MulNode[@is_sequence_mul = True]",
+)
+def multiply(unicode ustring, int mul):
+    """
+    >>> astr = u"abc"
+    >>> ustr = u"abcüöä\\U0001F642"
+
+    >>> print(multiply(astr, -1))
+    <BLANKLINE>
+    >>> print(multiply(ustr, -1))
+    <BLANKLINE>
+
+    >>> print(multiply(astr, 0))
+    <BLANKLINE>
+    >>> print(multiply(ustr, 0))
+    <BLANKLINE>
+
+    >>> print(multiply(astr, 1))
+    abc
+    >>> print(multiply(ustr, 1))
+    abcüöä\U0001F642
+
+    >>> print(multiply(astr, 2))
+    abcabc
+    >>> print(multiply(ustr, 2))
+    abcüöä\U0001F642abcüöä\U0001F642
+
+    >>> print(multiply(astr, 5))
+    abcabcabcabcabc
+    >>> print(multiply(ustr, 5))
+    abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642
+    """
+    return ustring * mul
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+@cython.test_assert_path_exists(
+    "//MulNode[@is_sequence_mul = True]",
+)
+def multiply_call(ustring, int mul):
+    """
+    >>> astr = u"abc"
+    >>> ustr = u"abcüöä\\U0001F642"
+
+    >>> print(multiply_call(astr, 2))
+    abcabc
+    >>> print(multiply_call(ustr, 2))
+    abcüöä\U0001F642abcüöä\U0001F642
+    """
+    return unicode(ustring) * mul
+
+
+#@cython.test_fail_if_path_exists(
+#    "//CoerceToPyTypeNode",
+#    "//CastNode", "//TypecastNode")
+#@cython.test_assert_path_exists(
+#    "//PythonCapiCallNode")
+def multiply_inplace(unicode ustring, int mul):
+    """
+    >>> astr = u"abc"
+    >>> ustr = u"abcüöä\\U0001F642"
+
+    >>> print(multiply_inplace(astr, -1))
+    <BLANKLINE>
+    >>> print(multiply_inplace(ustr, -1))
+    <BLANKLINE>
+
+    >>> print(multiply_inplace(astr, 0))
+    <BLANKLINE>
+    >>> print(multiply_inplace(ustr, 0))
+    <BLANKLINE>
+
+    >>> print(multiply_inplace(astr, 1))
+    abc
+    >>> print(multiply_inplace(ustr, 1))
+    abcüöä\U0001F642
+
+    >>> print(multiply_inplace(astr, 2))
+    abcabc
+    >>> print(multiply_inplace(ustr, 2))
+    abcüöä\U0001F642abcüöä\U0001F642
+
+    >>> print(multiply_inplace(astr, 5))
+    abcabcabcabcabc
+    >>> print(multiply_inplace(ustr, 5))
+    abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642
+    """
+    ustring *= mul
+    return ustring
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+@cython.test_assert_path_exists(
+    "//MulNode[@is_sequence_mul = True]",
+)
+def multiply_reversed(unicode ustring, int mul):
+    """
+    >>> astr = u"abc"
+    >>> ustr = u"abcüöä\\U0001F642"
+
+    >>> print(multiply_reversed(astr, -1))
+    <BLANKLINE>
+    >>> print(multiply_reversed(ustr, -1))
+    <BLANKLINE>
+
+    >>> print(multiply_reversed(astr, 0))
+    <BLANKLINE>
+    >>> print(multiply_reversed(ustr, 0))
+    <BLANKLINE>
+
+    >>> print(multiply_reversed(astr, 1))
+    abc
+    >>> print(multiply_reversed(ustr, 1))
+    abcüöä\U0001F642
+
+    >>> print(multiply_reversed(astr, 2))
+    abcabc
+    >>> print(multiply_reversed(ustr, 2))
+    abcüöä\U0001F642abcüöä\U0001F642
+
+    >>> print(multiply_reversed(astr, 5))
+    abcabcabcabcabc
+    >>> print(multiply_reversed(ustr, 5))
+    abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642
+    """
+    return mul * ustring
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def unicode__mul__(unicode ustring, int mul):
+    """
+    >>> astr = u"abc"
+    >>> ustr = u"abcüöä\\U0001F642"
+
+    >>> print(unicode__mul__(astr, -1))
+    <BLANKLINE>
+    >>> print(unicode__mul__(ustr, -1))
+    <BLANKLINE>
+
+    >>> print(unicode__mul__(astr, 0))
+    <BLANKLINE>
+    >>> print(unicode__mul__(ustr, 0))
+    <BLANKLINE>
+
+    >>> print(unicode__mul__(astr, 1))
+    abc
+    >>> print(unicode__mul__(ustr, 1))
+    abcüöä\U0001F642
+
+    >>> print(unicode__mul__(astr, 2))
+    abcabc
+    >>> print(unicode__mul__(ustr, 2))
+    abcüöä\U0001F642abcüöä\U0001F642
+
+    >>> print(unicode__mul__(astr, 5))
+    abcabcabcabcabc
+    >>> print(unicode__mul__(ustr, 5))
+    abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642
+    """
+    return ustring.__mul__(mul)

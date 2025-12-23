@@ -127,18 +127,18 @@ Class-private name mangling
 
 Cython has been updated to follow the `Python rules for class-private names
 <https://docs.python.org/3/tutorial/classes.html#private-variables>`_
-more closely. Essentially any name that starts with and doesn't end with 
+more closely. Essentially any name that starts with and doesn't end with
 ``__`` within a class is mangled with the class name. Most user code
 should be unaffected -- unlike in Python unmangled global names will
 still be matched to ensure it is possible to access C names
 beginning with ``__``::
 
      cdef extern void __foo()
-     
+
      class C: # or "cdef class"
         def call_foo(self):
             return __foo() # still calls the global name
-            
+
 What will no-longer work is overriding methods starting with ``__`` in
 a ``cdef class``::
 
@@ -154,7 +154,7 @@ a ``cdef class``::
             return 2
 
 Here ``Base.__bar`` is mangled to ``_Base__bar`` and ``Derived.__bar``
-to ``_Derived__bar``. Therefore ``call_bar`` will always call 
+to ``_Derived__bar``. Therefore ``call_bar`` will always call
 ``_Base__bar``. This matches established Python behaviour and applies
 for ``def``, ``cdef`` and ``cpdef`` methods and attributes.
 
@@ -162,30 +162,33 @@ Arithmetic special methods
 ==========================
 
 The behaviour of arithmetic special methods (for example ``__add__``
-and ``__pow__``) of cdef classes has changed in Cython 3.0. They now 
-support separate "reversed" versions of these methods (e.g. 
+and ``__pow__``) of cdef classes has changed in Cython 3.0. They now
+support separate "reversed" versions of these methods (e.g.
 ``__radd__``, ``__rpow__``) that behave like in pure Python.
 The main incompatible change is that the type of the first operand
 (usually ``__self__``) is now assumed to be that of the defining class,
 rather than relying on the user to test and cast the type of each operand.
 
-The old behaviour can be restored with the 
+The old behaviour can be restored with the
 :ref:`directive <compiler-directives>` ``c_api_binop_methods=True``.
 More details are given in :ref:`arithmetic_methods`.
 
 Exception values and ``noexcept``
 =================================
 
-``cdef`` functions that are not ``extern`` now propagate Python
-exceptions by default, where previously they needed to explicitly be
-declated with an :ref:`exception value <error_return_values>` in order
-for them to do so. A new ``noexcept`` modifier can be used to declare
-``cdef`` functions that will not raise exceptions.
+``cdef`` functions that are not ``extern`` now safely propagate Python
+exceptions by default.  Previously, they needed to explicitly be declared
+with an :ref:`exception value <error_return_values>` to prevent them from
+swallowing exceptions.  A new ``noexcept`` modifier can be used to declare
+``cdef`` functions that really will not raise exceptions.
 
 In existing code, you should mainly look out for ``cdef`` functions
 that are declared without an exception value::
 
   cdef int spam(int x):
+      pass
+
+  cdef void silent(int x):
       pass
 
 If you left out the exception value by mistake, i.e., the function
@@ -202,13 +205,33 @@ To prevent that, you must declare the function explicitly as being
   cdef int spam(int x) noexcept:
       pass
 
+  cdef void silent(int x) noexcept:
+      pass
+
 The behaviour for ``cdef`` functions that are also ``extern`` is
 unchanged as ``extern`` functions are less likely to raise Python
-exceptions
+exceptions and rather tend to be plain C functions.  This mitigates
+the effect of this change for code that talks to C libraries.
 
 The behaviour for any ``cdef`` function that is declared with an
 explicit exception value (e.g., ``cdef int spam(int x) except -1``) is
 also unchanged.
+
+There is an easy-to-encounter performance pitfall here with ``nogil`` functions
+with an implicit exception specification of ``except *``.  This can happen
+most commonly when the return type is ``void`` (but in principle applies
+to most non-numeric return types).  In this case, Cython is forced to
+re-acquire the GIL briefly *after each call* to check the exception state.
+To avoid this overhead, either change the signature to ``noexcept`` (if
+you have determined that it's suitable to do so), or to returning an ``int``
+instead to let Cython use the ``int`` as an error flag
+(by default, ``-1`` triggers the exception check).
+
+.. note::
+  The unsafe legacy behaviour of not propagating exceptions by default can be enabled by
+  setting ``legacy_implicit_noexcept`` :ref:`compiler directive<compiler-directives>`
+  to ``True``.
+
 
 Annotation typing
 =================
@@ -217,6 +240,17 @@ Cython 3 has made substantial improvements in recognising types in
 annotations and it is well worth reading
 :ref:`the pure Python tutorial<pep484_type_annotations>` to understand
 some of the improvements.
+
+A notable backwards-incompatible change is that ``x: int`` is now typed
+such that ``x`` is an exact Python ``int`` (Cython 0.29 would accept
+any Python object for ``x``), unless the language level is explicitly
+set to 2.  To mitigate the effect, Cython 3.0 still accepts both Python
+``int`` and ``long`` values under Python 2.x.
+
+One potential issue you may encounter is that types like ``typing.List``
+are now understood in annotations (where previously they were ignored)
+and are interpreted to mean *exact* ``list``. This is stricter than
+the interpretation specified in PEP-484, which also allows subclasses.
 
 To make it easier to handle cases where your interpretation of type
 annotations differs from Cython's, Cython 3 now supports setting the
@@ -235,3 +269,57 @@ When running into an error it is required to add the corresponding operator::
         Example operator++(int)
         Example operator--(int)
 
+Public Declarations in C++
+==========================
+
+Public declarations in C++ mode are exported as C++ API in Cython 3, using ``extern "C++"``.
+This behaviour can be changed by setting the export keyword using the ``CYTHON_EXTERN_C`` macro
+to allow Cython modules to be implemented in C++ but callable from C.
+
+.. _power-operator:
+
+``**`` power operator
+=====================
+
+Cython 3 has changed the behaviour of the power operator to be
+more like Python. The consequences are that
+
+#. ``a**b`` of two ints may return a floating point type,
+#. ``a**b`` of one or more non-complex floating point numbers may
+   return a complex number.
+
+The old behaviour can be restored by setting the ``cpow``
+:ref:`compiler directive <compiler-directives>` to ``True``.
+
+
+.. _deprecated_DEF_IF:
+
+Deprecation of ``DEF`` / ``IF``
+===============================
+
+The :ref:`conditional compilation feature <conditional_compilation>` has been
+deprecated and should no longer be used in new code.
+It is expected to get removed in some future release.
+
+Usages of ``DEF`` should be replaced by:
+
+- global cdef constants
+- global enums (C or Python)
+- C macros, e.g. defined in :ref:`verbatim C code <verbatim_c>`
+- the usual Python mechanisms for sharing values across modules and usages
+
+Usages of ``IF`` should be replaced by runtime conditions and conditional Python imports,
+i.e. the usual Python patterns.  Specifically:
+
+- Non-trivial or platform specific functionalities can often be separated out into optional
+  Cython modules that can be imported/used at need (with regular runtime Python imports).
+- Version specific struct field names that are unused can be left out of a Cython
+  :ref:`extern struct definition <external-C-code>` (which does not have to be complete).
+  If they are used, C shims to access them with functions or macros can often be used,
+  easily defined in :ref:`verbatim C code <verbatim_c>`.
+- Largely different layouts of extern structs can be declared in Cython as separate structs
+  with different Cython names and different (e.g. version/platform dependent) attributes,
+  but with the C struct name provided as :ref:`same cname string <resolve-conflicts>`.
+  This allows their usage from more use case specific code that can be included and
+  reused from different optional modules.
+- If all else fails, code generation using the :ref:`Tempita template engine <tempita>` can be used as a last resort.

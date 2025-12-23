@@ -8,7 +8,7 @@ class TestPyAttr(object):
     """
     >>> TestPyAttr.pyvar    # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    AttributeError: ...TestPyAttr...has no attribute 'pyvar'
+    AttributeError: ...TestPyAttr...has no attribute 'pyvar'...
     >>> TestPyAttr.pyval1
     3
     >>> TestPyAttr.pyval2
@@ -27,7 +27,7 @@ class TestCdefAttr(object):
     """
     >>> TestCdefAttr.cdefvar   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    AttributeError: ...TestCdefAttr...has no attribute 'cdefvar'
+    AttributeError: ...TestCdefAttr...has no attribute 'cdefvar'...
     >>> TestCdefAttr.cdefval1
     11
 

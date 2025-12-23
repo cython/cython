@@ -1,0 +1,6 @@
+Type of ``a``,Type of ``b``,``cpow==True``,``cpow==False``
+C integer,Negative integer compile-time constant,Return type is C double,Return type is C double (special case)
+C integer,C integer (known to be >= 0 at compile time),Return type is integer,Return type is integer
+C integer,C integer (may be negative),Return type is integer,"Return type is C double (note that Python would dynamically pick ``int`` or ``float`` here, while Cython doesn’t)"
+C floating point,C integer,Return type is floating point,Return type is floating point
+C floating point (or C integer),C floating point,"Return type is floating point, result is NaN if the result would be complex",Either a C  real or complex number at cost of some speed

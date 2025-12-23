@@ -59,13 +59,9 @@ class TestMROEntry(unittest.TestCase):
         self.assertEqual(D.__mro__, (D, A, B, object))
         class E(c): ...
         self.assertEqual(tested[-1], (c,))
-        if sys.version_info[0] > 2:
-            # not all of it works on Python 2
-            self.assertEqual(E.__bases__, (object,))
+        self.assertEqual(E.__bases__, (object,))
         self.assertEqual(E.__orig_bases__, (c,))
-        if sys.version_info[0] > 2:
-            # not all of it works on Python 2
-            self.assertEqual(E.__mro__, (E, object))
+        self.assertEqual(E.__mro__, (E, object))
 
     def test_mro_entry_with_builtins(self):
         tested = []
@@ -145,7 +141,6 @@ class TestMROEntry(unittest.TestCase):
         self.assertEqual(D.__mro__, (D, A, object))
         self.assertEqual(D.__class__, Meta)
 
-    @unittest.skipIf(sys.version_info < (3, 7), "'type' checks for __mro_entries__ not implemented")
     def test_mro_entry_type_call(self):
         # Substitution should _not_ happen in direct type call
         class C:
@@ -216,7 +211,6 @@ class TestClassGetitem(unittest.TestCase):
         self.assertEqual(D[int], 'D[int]')
         self.assertEqual(D[D], 'D[D]')
 
-    @unittest.skipIf(sys.version_info < (3, 6), "__init_subclass__() requires Py3.6+ (PEP 487)")
     def test_class_getitem_patched(self):
         class C:
             def __init_subclass__(cls):

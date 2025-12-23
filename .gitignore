@@ -9,6 +9,7 @@ __pycache__
 *.egg-info
 .*cache*/
 *venv*/
+/.hg
 
 /Cython/Build/*.c
 /Cython/Compiler/*.c
@@ -25,7 +26,9 @@ __pycache__
 /Tools/*.elc
 /Demos/*.html
 /Demos/*/*.html
+/Demos/benchmarks/*.c
 
+/TEST/
 /TEST_TMP/
 /build/
 /cython_build/
@@ -34,7 +37,11 @@ cython_debug/
 !tests/build/
 /dist/
 .gitrev
-.coverage
+.coverage*
+coverage*.md
+coverage*.xml
+coverage*.html
+/coverage*/
 *.patch
 *.diff
 *.orig
@@ -43,6 +50,9 @@ cython_debug/
 *.log
 *.dep
 *.swp
+*.gz
+*.bz2
+*.xz
 *~
 callgrind.out.*
 

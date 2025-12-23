@@ -2,7 +2,15 @@
 # mode: run
 # tag: pep492, pure3.5, gh1462, async, await
 
+import cython
 
+def skip_in_limited_api(f):
+    # CYTHON_COMPILING_IN_LIMITED_API is cdef extern in pxd file
+    if not cython.compiled or not CYTHON_COMPILING_IN_LIMITED_API:
+        return f
+
+# Limited API isn't able to return useful frames for coroutines
+@skip_in_limited_api
 async def test_coroutine_frame(awaitable):
     """
     >>> class Awaitable(object):

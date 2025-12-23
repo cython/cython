@@ -1,7 +1,7 @@
 """
 Initial cleanup and 'calibration':
 >>> _ = gc.collect()
->>> old_unreachable = gc.collect()
+>>> old_unreachable = len(gc.garbage)
 
 Test:
 >>> x = SimpleGarbage()
@@ -36,7 +36,8 @@ cdef class Collector:
     def __dealloc__(self):
         print "Collector.__dealloc__"
         global new_unreachable
-        new_unreachable = gc.collect()
+        gc.collect()
+        new_unreachable = len(gc.garbage)
 
 cdef class SimpleGarbage:
     cdef Collector c  # to participate in garbage collection

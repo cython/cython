@@ -15,9 +15,12 @@ print(foo())
 
 ######## baz.pxi ########
 
+from cython.cimports.libc.math import sin
+
 def foo():
     return "foo"
 
+print(sin(0))
 
 ######## bar.pxd ########
 
@@ -28,6 +31,7 @@ cdef inline void empty():
 ######## check.py ########
 
 with open("foo.c.dep", "r") as f:
-    contents = f.read().replace("\\\n", " ").replace("\n", " ")
+    contents = f.read().replace("\\\n", " ").replace('\\', '/').replace('../', '')
 
-assert sorted(contents.split()) == ['bar.pxd', 'baz.pxi', 'foo.c:', 'foo.pyx'], contents
+assert sorted(contents.split()) == [
+    'Cython/Includes/libc/math.pxd', 'bar.pxd', 'baz.pxi', 'foo.c:', 'foo.pyx'], contents

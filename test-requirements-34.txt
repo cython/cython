@@ -1,3 +1,0 @@
-numpy<1.16.0
-coverage
-pycodestyle

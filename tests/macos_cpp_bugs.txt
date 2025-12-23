@@ -13,3 +13,8 @@ cpp_stl_algo_permutation_ops
 cpp_stl_algo_sorted_ranges_set_ops
 cpp_stl_algo_sorted_ranges_other_ops
 cpp_stl_bit_cpp20
+cpp_stl_cmath_cpp20
+cpp_stl_cmath_cpp17
+libcpp_threadsync_cpp20
+libcpp_stop_token
+cpp_condition_variables_cpp20

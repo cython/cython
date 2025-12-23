@@ -3,30 +3,26 @@
 
 __doc__ = u"""
    >>> u('test')
-   u'test'
+   'test'
    >>> e
-   u''
+   ''
    >>> z
-   u'test'
+   'test'
    >>> c('testing')
-   u'testing'
+   'testing'
    >>> subu('testing a Python subtype')
-   u'testing a Python subtype'
+   'testing a Python subtype'
    >>> sub('testing a Python subtype')
-   u'testing a Python subtype'
+   'testing a Python subtype'
 
 #   >>> csubu('testing a C subtype')
-#   u'testing a C subtype'
+#   'testing a C subtype'
 #   >>> csub('testing a C subtype')
-#   u'testing a C subtype'
+#   'testing a C subtype'
 """
 
 
 cimport cython
-
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u" u'", u" '")
 
 u = unicode
 e = unicode()

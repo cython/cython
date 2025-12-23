@@ -1,11 +1,6 @@
 
-import sys
-IS_PY3 = sys.version_info[0] >= 3
-
 __doc__ = """
 >>> it = iter([1,2,3])
->>> if not IS_PY3:
-...     next = type(it).next
 >>> next(it)
 1
 >>> next(it)
@@ -21,13 +16,9 @@ StopIteration
 Traceback (most recent call last):
 StopIteration
 
->>> if IS_PY3: next(it, 123)
-... else: print(123)
+>>> next(it, 123)
 123
-"""
 
-if IS_PY3:
-    __doc__ += """
 >>> next(123)      # doctest: +ELLIPSIS
 Traceback (most recent call last):
 TypeError: ...int... object is not an iterator
@@ -44,33 +35,44 @@ def test_next_not_iterable(it):
 def test_single_next(it):
     """
     >>> it = iter([1,2,3])
-    >>> test_single_next(it)
+    >>> test_single_next(it)  # 1
     1
-    >>> test_single_next(it)
+    >>> test_single_next(it)  # 2
     2
-    >>> test_single_next(it)
+    >>> test_single_next(it)  # 3
     3
-    >>> test_single_next(it)
+    >>> test_single_next(it)  # 4
     Traceback (most recent call last):
     StopIteration
     >>> test_single_next(it)
     Traceback (most recent call last):
     StopIteration
+
+    >>> class It:
+    ...     def __init__(self, value):
+    ...         self.value = value
+    ...     def __next__(self):
+    ...         raise StopIteration(self.value)
+
+    # Assert that the StopIteration value doesn't get lost.
+    >>> test_single_next(It(42))
+    Traceback (most recent call last):
+    StopIteration: 42
     """
     return next(it)
 
 def test_default_next(it, default):
     """
     >>> it = iter([1,2,3])
-    >>> test_default_next(it, 99)
+    >>> test_default_next(it, 99)  # 1
     1
-    >>> test_default_next(it, 99)
+    >>> test_default_next(it, 99)  # 2
     2
-    >>> test_default_next(it, 99)
+    >>> test_default_next(it, 99)  # 3
     3
-    >>> test_default_next(it, 99)
+    >>> test_default_next(it, 99)  # 4
     99
-    >>> test_default_next(it, 99)
+    >>> test_default_next(it, 99)  # 5
     99
     """
     return next(it, default)
@@ -78,13 +80,13 @@ def test_default_next(it, default):
 def test_next_override(it):
     """
     >>> it = iter([1,2,3])
-    >>> test_next_override(it)
+    >>> test_next_override(it)  # 1
     1
-    >>> test_next_override(it)
+    >>> test_next_override(it)  # 2
     1
-    >>> test_next_override(it)
+    >>> test_next_override(it)  # 3
     1
-    >>> test_next_override(it)
+    >>> test_next_override(it)  # 4
     1
     """
     def next(it):

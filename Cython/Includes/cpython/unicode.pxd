@@ -1,3 +1,4 @@
+from libc.stddef cimport wchar_t
 
 cdef extern from *:
     ctypedef unsigned char Py_UCS1  # uint8_t
@@ -180,14 +181,33 @@ cdef extern from *:
     # following functions. Support is optimized if Python's own
     # Py_UNICODE type is identical to the system's wchar_t.
 
-    #ctypedef int wchar_t
-
     # Create a Unicode object from the wchar_t buffer w of the given
     # size. Return NULL on failure.
-    #PyObject* PyUnicode_FromWideChar(wchar_t *w, Py_ssize_t size)
+    object PyUnicode_FromWideChar(wchar_t *w, Py_ssize_t size)
 
-    #Py_ssize_t PyUnicode_AsWideChar(object o, wchar_t *w, Py_ssize_t size)
+    # Copy the Unicode object contents into the wchar_t buffer w.
+    # At most size wchar_t characters are copied (excluding a possibly
+    # trailing null termination character). Return the number of wchar_t
+    # characters copied or -1 in case of an error. Note that the
+    # esulting wchar_t* string may or may not be null-terminated.
+    # It is the responsibility of the caller to make sure that the wchar_t*
+    # string is null-terminated in case this is required by the application.
+    # Also, note that the wchar_t* string might contain null characters,
+    # which would cause the string to be truncated when used with most C functions.
+    Py_ssize_t PyUnicode_AsWideChar(object o, wchar_t *w, Py_ssize_t size) except -1
 
+    # Convert the Unicode object to a wide character string. The output
+    # string always ends with a null character. If size is not NULL,
+    # write the number of wide characters (excluding the trailing null
+    # termination character) into *size. Note that the resulting wchar_t
+    # string might contain null characters, which would cause the string
+    # to be truncated when used with most C functions. If size is NULL and
+    # the wchar_t* string contains null characters a ValueError is raised.
+
+    # Returns a buffer allocated by PyMem_New (use PyMem_Free() to free it)
+    # on success. On error, returns NULL and *size is undefined. Raises a
+    # MemoryError if memory allocation is failed.
+    wchar_t *PyUnicode_AsWideCharString(object o, Py_ssize_t *size) except NULL
 
 # Unicode Methods
 
@@ -357,8 +377,28 @@ cdef extern from *:
     # raised by the codec.
     bytes PyUnicode_EncodeUTF8(Py_UNICODE *s, Py_ssize_t size, char *errors)
 
-    # Encode a Unicode objects using UTF-8 and return the result as Python string object. Error handling is ``strict''. Return NULL if an exception was raised by the codec.
+    # Encode a Unicode objects using UTF-8 and return the result as Python bytes object. Error handling is ``strict''. Return NULL if an exception was raised by the codec.
     bytes PyUnicode_AsUTF8String(object unicode)
+
+
+    # Return a pointer to the UTF-8 encoding of the Unicode object,
+    # and store the size of the encoded representation (in bytes) in size.
+    # The size argument can be NULL; in this case no size will be stored.
+    # The returned buffer always has an extra null byte appended
+    # (not included in size), regardless of whether there are any
+    # other null code points.
+
+    # In the case of an error, NULL is returned with an exception set and
+    # no size is stored.
+
+    # This caches the UTF-8 representation of the string in the Unicode
+    # object, and subsequent calls will return a pointer to the same buffer.
+    # The caller is not responsible for deallocating the buffer
+    const char* PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size) except NULL
+
+
+    # As PyUnicode_AsUTF8AndSize(), but does not store the size.
+    const char *PyUnicode_AsUTF8(object unicode) except NULL
 
 # These are the UTF-16 codec APIs:
 

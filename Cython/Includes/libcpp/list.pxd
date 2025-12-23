@@ -63,7 +63,7 @@ cdef extern from "<list>" namespace "std" nogil:
             bint operator==(const_reverse_iterator)
             bint operator!=(reverse_iterator)
             bint operator!=(const_reverse_iterator)
-    
+
         list() except +
         list(list&) except +
         list(size_t, T&) except +
