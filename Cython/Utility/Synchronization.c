@@ -9,7 +9,7 @@
 // using CYTHON_ATOMICS as a cdef extern bint in the Cython memoryview code
 // interacts badly with "import *". Therefore, define a helper function-like macro
 #define __PYX_CYTHON_ATOMICS_ENABLED() CYTHON_ATOMICS
-#define __PYX_GET_CYTHON_COMPILING_IN_CPYTHON_FREETHREADING() CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#define __PYX_GET_CYTHON_COMPILING_IN_FREETHREADING() (CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING)
 
 #define __pyx_atomic_int_type int
 #define __pyx_nonatomic_int_type int
