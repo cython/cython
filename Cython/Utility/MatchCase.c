@@ -394,7 +394,7 @@ static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping
 //@requires: ABCCheck
 
 static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping_temp) {
-#if PY_VERSION_HEX >= 0x030A0000
+#if PY_VERSION_HEX >= 0x030A0000 && !(CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY)
     return __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_MAPPING);
 #else
     unsigned int abc_result, dummy=0;
