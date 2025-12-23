@@ -17,7 +17,6 @@ cdef bint is_null(int* x):
         case _:
             return False
 
-
 def test_is_null():
     """
     >>> test_is_null()

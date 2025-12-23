@@ -53,13 +53,16 @@ class MatchNode(StatNode):
         for c in self.cases:
             if c is not None and c.is_simple_value_comparison():
                 body = SubstitutedIfStatListNode(
-                    c.body.pos, stats=c.body.stats, match_node=self
+                    c.body.pos,
+                    stats=c.body.stats,
+                    match_node=self
                 )
                 if_clause = Nodes.IfClauseNode(
                     c.pos,
                     condition=c.pattern.get_simple_comparison_node(subject),
                     body=body,
                 )
+                # Passing None for env is safe only because we know it's a simple value comparison.
                 assignments = c.pattern.generate_target_assignments(subject, None)
                 if assignments:
                     if_clause.body.stats.insert(0, assignments)
@@ -186,9 +189,7 @@ class MatchCaseNode(Node):
 
     def analyse_case_declarations(self, subject_node, env):
         self.pattern.analyse_declarations(env)
-        self.target_assignments = self.pattern.generate_target_assignments(
-            subject_node, env
-        )
+        self.target_assignments = self.pattern.generate_target_assignments(subject_node, env)
         if self.target_assignments:
             self.target_assignments.analyse_declarations(env)
         if self.guard:
@@ -245,7 +246,6 @@ class MatchCaseNode(Node):
             code.putln("if (%s) { /* guard */" % self.guard.result())
             self.guard.generate_disposal_code(code)
             self.guard.free_temps(code)
-        # body_insertion_point = code.insertion_point()
         self.body.generate_execution_code(code)
         if not self.body.is_terminator:
             code.put_goto(end_label)
@@ -380,9 +380,16 @@ class PatternNode(Node):
     def generate_target_assignments(self, subject_node, env):
         # Generates the assignment code needed to initialize all the targets.
         # Returns either a StatListNode or None.
+        #
+        # env may be None only if self.is_simple_value_comparison().
+        # In which case there is no main_pattern_assignment_list.
         assignments = []
         for target in self.as_targets:
-            if self.is_match_value_pattern and self.value and self.value.is_simple():
+            if (
+                self.is_match_value_pattern and
+                self.value and
+                self.value.is_simple()
+            ):
                 # in this case we can optimize slightly and just take the value
                 subject_node = self.value.clone_node()
             assignments.append(
@@ -390,9 +397,8 @@ class PatternNode(Node):
                     target.pos, lhs=target.clone_node(), rhs=subject_node
                 )
             )
-        assignments.extend(
-            self.generate_main_pattern_assignment_list(subject_node, env)
-        )
+        assert env or self.is_simple_value_comparison()
+        assignments.extend(self.generate_main_pattern_assignment_list(subject_node, env))
         if assignments:
             return Nodes.StatListNode(self.pos, stats=assignments)
         else:
