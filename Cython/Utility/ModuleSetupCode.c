@@ -747,10 +747,10 @@ static int __Pyx_init_co_variables(void); /* proto */
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
 #ifndef Py_TPFLAGS_SEQUENCE
-  #define Py_TPFLAGS_SEQUENCE 0
+  #define Py_TPFLAGS_SEQUENCE (1 << 5)
 #endif
 #ifndef Py_TPFLAGS_MAPPING
-  #define Py_TPFLAGS_MAPPING 0
+  #define Py_TPFLAGS_MAPPING (1 << 6)
 #endif
 #ifndef Py_TPFLAGS_IMMUTABLETYPE
   #define Py_TPFLAGS_IMMUTABLETYPE (1UL << 8)
