@@ -214,7 +214,7 @@ class MatchCaseNode(Node):
         # and ensures that self.comp_node.generate_disposal_code is trivial and so
         # it doesn't matter if it's skipped in one branch. IfClauseNode relies on the same mechanism.
         self.comp_node = self.comp_node.coerce_to_boolean(env).coerce_to_simple(env)
-        
+
         if self.target_assignments:
             self.target_assignments = self.target_assignments.analyse_expressions(env)
         if self.guard:
@@ -299,7 +299,7 @@ class PatternNode(Node):
        PatternNode.analyse_pattern_expressions, which calls its
        sub-pattern recursively.
     3. At the end of the "analyse_expressions" stage the MatchCaseNode
-       class PatternNode.get_comparison_node (which calls 
+       class PatternNode.get_comparison_node (which calls
        PatternNode.get_comparison_node for its sub-patterns). This
        returns an ExprNode which can be evaluated to determine if the
        pattern has matched.
@@ -1206,7 +1206,7 @@ class SliceToListNode(ExprNodes.ExprNode):
             func_name = "PyList_GetSlice"
         elif (
             self.base.type.is_pyobject
-            and not self.base.type is PyrexTypes.py_object_type
+            and self.base.type is not PyrexTypes.py_object_type
         ):
             # some specialized type that almost certainly isn't a list. Just go straight
             # to the "other" version of it
