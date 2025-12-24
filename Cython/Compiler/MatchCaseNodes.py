@@ -1016,7 +1016,7 @@ class StaticTypeCheckNode(ExprNodes.ExprNode):
     """
     Useful for structural pattern matching, where we
     can skip the "is_seqeunce/is_mapping" checks if
-    we know the type in advantage (or reduce it to a
+    we know the type in advance (or reduce it to a
     None check).
 
     This should optimize itself out at the analyse_expressions
