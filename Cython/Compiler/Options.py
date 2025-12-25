@@ -3,11 +3,6 @@
 #
 
 
-import os
-
-from .. import Utils
-
-
 class ShouldBeFromDirective:
 
     known_directives = []
@@ -357,7 +352,7 @@ directive_types = {
     'auto_pickle': bool,
     'locals': dict,
     'final' : bool,  # final cdef classes and methods
-    'collection_type': one_of('sequence'),
+    'collection_type': one_of('sequence', 'mapping'),
     'nogil' : DEFER_ANALYSIS_OF_ARGUMENTS,
     'gil' : DEFER_ANALYSIS_OF_ARGUMENTS,
     'critical_section' : DEFER_ANALYSIS_OF_ARGUMENTS,

@@ -43,14 +43,9 @@ select = "*i686 *musllinux* *win32 *win_arm64 *macosx_x86_64 *armv7l"
 inherit.environment = "append"
 environment.CYTHON_LIMITED_API = "true"
 inherit.test-requires = "append"
-test-requires = ["abi3audit>=0.0.24"]
+test-requires = ["abi3audit>=0.0.25"]
 inherit.test-command = "append"
 test-command = ["abi3audit --strict --report {wheel}"]
-
-[[tool.cibuildwheel.overrides]]
-select = "cp39*"
-# abi3audit 0.0.23 no longer supports Py3.9
-test-requires = ["abi3audit>=0.0.22"]
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64", "x86", "ARM64"]
