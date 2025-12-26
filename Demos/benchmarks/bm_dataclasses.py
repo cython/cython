@@ -111,7 +111,7 @@ def run_benchmark(repeat=True, scale=10):
     points = benchmark_create(POINTS)
 
     collected_timings['create'] = repeat_to_accuracy(
-        timeit, benchmark_create, POINTS, scale=scales['create'], repeat=repeat)[0]
+        timeit, benchmark_create, POINTS, scale=scales['create'], repeat=repeat, scale_to=scale)[0]
 
     for name, bench_func in [
             ('float', benchmark_float),
@@ -119,7 +119,7 @@ def run_benchmark(repeat=True, scale=10):
             ('compare', benchmark_compare),
             ]:
         collected_timings[name] = repeat_to_accuracy(
-            timeit, bench_func, points, scale=scales[name], repeat=repeat)[0]
+            timeit, bench_func, points, scale=scales[name], repeat=repeat, scale_to=scale)[0]
 
     for name, timings in collected_timings.items():
         print(f"bm_dataclasses[{name}]: {timings}")
