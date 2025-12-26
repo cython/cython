@@ -78,7 +78,7 @@ jobs:
           # Run benchmarks in all Python versions, Limited C-API only in 3.14.
           LIMITED_API=--with-limited
           for PYTHON in  python3.14  python3.13  python3.14t  python3.12  python3.10  ; do
-              ${PYTHON} -m pip install setuptools
+              ${PYTHON} -m pip install setuptools numpy
               if [[ ${PYTHON} == *t || ${PYTHON} == *"t-dev" ]]; then
                 COMMITS=("origin/3.1.x" "origin/master"  "HEAD")
                 CYTHONIZE_ARGS="-Xfreethreading_compatible=True"
