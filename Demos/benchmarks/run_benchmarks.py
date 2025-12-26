@@ -41,7 +41,7 @@ def mean(values: list):
     return math.fsum(values) / len(values)
 
 
-def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_lang=False):
+def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_lang=False, capture_stderr=True):
     env = os.environ.copy()
     if pythonpath:
         env['PYTHONPATH'] = pythonpath
@@ -53,7 +53,14 @@ def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_l
         env['LANG'] = ''
 
     try:
-        return subprocess.run(command, cwd=str(cwd) if cwd else None, check=True, capture_output=True, env=env)
+        return subprocess.run(
+            command,
+            cwd=str(cwd) if cwd else None,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE if capture_stderr else None,
+            env=env,
+        )
     except subprocess.CalledProcessError as exc:
         logging.error(f"Command failed: {' '.join(map(str, command))}\nOutput:\n{exc.stderr.decode()}")
         raise
@@ -316,7 +323,7 @@ def _make_bench_func(bm_dir, module_name, pythonpath=None):
         py_code = f"import {module_name} as bm; bm.run_benchmark({repeat}, 3); print(bm.run_benchmark({repeat}, {scale:d}))"
         command = python_command + ["-c", py_code]
 
-        output = run(command, cwd=bm_dir, pythonpath=pythonpath)
+        output = run(command, cwd=bm_dir, pythonpath=pythonpath, capture_stderr=False)
 
         timings = {}
 
