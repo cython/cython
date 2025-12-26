@@ -70,6 +70,10 @@ def bm_getitem_array(iterations, timer=DEFAULT_TIMER):
     from functools import partial
     return _bm_getitems(iterations, partial(array, 'I'), timer)
 
+def bm_getitem_numpy(iterations, timer=DEFAULT_TIMER):
+    import numpy
+    return _bm_getitems(iterations, numpy.asarray, timer)
+
 def bm_getitem_memoryview(iterations, timer=DEFAULT_TIMER):
     from array import array
     return _bm_getitems(iterations, lambda data: memoryview(array('I', data)), timer)
@@ -93,16 +97,31 @@ def bm_getitem_ext_mapping(iterations, timer=DEFAULT_TIMER):
 def run_benchmark(repeat=True, scale=1_000):
     from util import repeat_to_accuracy, scale_subbenchmarks
 
+    benchmarks = [
+        (name, func)
+        for name, func in globals().items()
+        if name.startswith('bm_')
+    ]
+
+    try:
+        import numpy
+    except ImportError:
+        benchmarks = [
+            (name, func)
+            for name, func in benchmarks
+            if 'numpy' not in name
+        ]
+
     collected_timings = collections.defaultdict(list)
 
     timings = {}
-    for name, func in globals().items():
+    for name, func in benchmarks:
         if name.startswith('bm_'):
             timings[name] = func(200)
 
     scales = scale_subbenchmarks(timings, scale)
 
-    for name, func in globals().items():
+    for name, func in benchmarks:
         if name.startswith('bm_'):
             collected_timings[name] = repeat_to_accuracy(
                 func, scale=scales[name], repeat=repeat, scale_to=scale)[0]
