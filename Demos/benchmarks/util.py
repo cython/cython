@@ -9,11 +9,12 @@ import time
 
 
 def repeat_to_accuracy(func, *args,
-                       variance_threshold: float = .02,
+                       variance_threshold: float = 1e-5,
                        scale=1,
                        repeat=True,
                        max_iterations: cython.long = 5_000,
                        min_iterations: cython.long = 5,
+                       scale_to=None,
                        ):
     """Repeatedly call and time the function
     until the variance of the timings is below 'variance_threshold'.
@@ -26,8 +27,13 @@ def repeat_to_accuracy(func, *args,
     times = []
     call_benchmark = partial(func, *args, scale, time.perf_counter)
 
+    if scale_to is None or scale_to == scale:
+        scale_factor = 1.0
+    else:
+        scale_factor = scale_to / scale
+
     # First counted run.
-    execution_time: float = call_benchmark()
+    execution_time: float = call_benchmark() * scale_factor
     times.append(execution_time)
 
     mean: float = execution_time
@@ -45,10 +51,13 @@ def repeat_to_accuracy(func, *args,
         variance_threshold = .1
         min_runtime = 0.
 
+    # Run for at most 1 wall clock minute
+    max_runtime = get_wall_time() + 1 * 60
+
     count: cython.long
     for count in range(2, max_iterations + 1):
         # Time the function.
-        execution_time = call_benchmark()
+        execution_time = call_benchmark() * scale_factor
         times.append(execution_time)
 
         # Incrementally calculate mean and sum of squares.
@@ -64,6 +73,8 @@ def repeat_to_accuracy(func, *args,
                 continue
             elif get_wall_time() < min_runtime:
                 continue
+            break
+        elif get_wall_time() > max_runtime:
             break
 
     return times, mean, variance

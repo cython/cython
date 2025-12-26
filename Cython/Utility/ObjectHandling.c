@@ -430,6 +430,34 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
 }
 #endif
 
+
+/////////////// GetItemInt_wraparound.proto ///////////////
+
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+static int __Pyx_GetItemInt_wraparound(PyObject *o, PySequenceMethods *sm, Py_ssize_t *i);
+#endif
+
+/////////////// GettItemInt_wraparound ///////////////
+
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+static int __Pyx_GetItemInt_wraparound(PyObject *o, PySequenceMethods *sm, Py_ssize_t *i) {
+    assert(*i < 0);
+    if (likely(sm->sq_length)) {
+        Py_ssize_t l = sm->sq_length(o);
+        if (likely(l >= 0)) {
+            *i += l;
+        } else {
+            // if length > max(Py_ssize_t), maybe the object can wrap around itself?
+            if (!PyErr_ExceptionMatches(PyExc_OverflowError))
+                return -1;
+            PyErr_Clear();
+        }
+    }
+    return 0;
+}
+#endif
+
+
 /////////////// GetItemInt.proto ///////////////
 //@substitute: tempita
 
@@ -455,6 +483,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
 
 /////////////// GetItemInt ///////////////
 //@substitute: tempita
+//@requires: GettItemInt_wraparound
 
 static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
     PyObject *r;
@@ -492,6 +521,16 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
 }
 {{endfor}}
 
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast_mapping(PyObject *o, binaryfunc getitem, Py_ssize_t i) {
+    PyObject *r, *key = PyLong_FromSsize_t(i);
+    if (unlikely(!key)) return NULL;
+    r = getitem(o, key);
+    Py_DECREF(key);
+    return r;
+}
+#endif
+
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list,
                                                      int wraparound, int boundscheck, int unsafe_shared) {
     CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
@@ -515,32 +554,44 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         }
     } else
     #endif
+#else
+    if ((!wraparound || i >= 0) & (is_list || PyList_CheckExact(o))) {
+        return __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared);
+    } else
 #endif
 #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+    // This dict check is so cheap after the other type checks above that it would be costly *not* to do it.
+    if (!is_list && PyDict_CheckExact(o)) {
+        return __Pyx_GetItemInt_Fast_mapping(o, PyDict_Type.tp_as_mapping->mp_subscript, i);
+    } else
     {
         // inlined PySequence_GetItem() + special cased length overflow
-        PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
-        PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
-        if (!is_list && mm && mm->mp_subscript) {
-            PyObject *r, *key = PyLong_FromSsize_t(i);
-            if (unlikely(!key)) return NULL;
-            r = mm->mp_subscript(o, key);
-            Py_DECREF(key);
-            return r;
+        PyTypeObject *obj_type = Py_TYPE(o);
+
+        int seq_or_mapping = __Pyx_PyType_GetFlags(obj_type) & (Py_TPFLAGS_SEQUENCE|Py_TPFLAGS_MAPPING);
+
+        // We prefer sq_item() if type has Py_TPFLAGS_SEQUENCE,
+        // but still try mp_subscript() if that fails.
+        // We repeat the calls to __Pyx_GetItemInt_Fast_mapping() rather than
+        // __Pyx_GetItemInt_Fast_seq() because the latter may result in more code,
+        // thus potentially hindering the inlining.
+        if (!is_list && seq_or_mapping != Py_TPFLAGS_SEQUENCE) {
+            PyMappingMethods *mm = obj_type->tp_as_mapping;
+            if (mm && mm->mp_subscript)
+                return __Pyx_GetItemInt_Fast_mapping(o, mm->mp_subscript, i);
         }
+
+        PySequenceMethods *sm = obj_type->tp_as_sequence;
         if (is_list || likely(sm && sm->sq_item)) {
-            if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
-                Py_ssize_t l = sm->sq_length(o);
-                if (likely(l >= 0)) {
-                    i += l;
-                } else {
-                    // if length > max(Py_ssize_t), maybe the object can wrap around itself?
-                    if (!PyErr_ExceptionMatches(PyExc_OverflowError))
-                        return NULL;
-                    PyErr_Clear();
-                }
-            }
+            if (wraparound && (i < 0) && unlikely(__Pyx_GetItemInt_wraparound(o, sm, &i) == -1))
+                return NULL;
             return sm->sq_item(o, i);
+        }
+
+        if (seq_or_mapping == Py_TPFLAGS_SEQUENCE) {
+            PyMappingMethods *mm = obj_type->tp_as_mapping;
+            if (likely(mm && mm->mp_subscript))
+                return __Pyx_GetItemInt_Fast_mapping(o, mm->mp_subscript, i);
         }
     }
 #else
@@ -555,6 +606,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
     return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
 }
 
+
 /////////////// SetItemInt.proto ///////////////
 
 #define __Pyx_SetItemInt(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
@@ -568,6 +620,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
                                                int is_list, int wraparound, int boundscheck, int unsafe_shared);
 
 /////////////// SetItemInt ///////////////
+//@requires: GettItemInt_wraparound
 
 static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
     int r;
@@ -576,6 +629,16 @@ static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
     Py_DECREF(j);
     return r;
 }
+
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+static CYTHON_INLINE int __Pyx_SetItemInt_Fast_mapping(PyObject *o, objobjargproc setitem, Py_ssize_t i, PyObject *value) {
+    PyObject *key = PyLong_FromSsize_t(i);
+    if (unlikely(!key)) return -1;
+    int r = setitem(o, key, value);
+    Py_DECREF(key);
+    return r;
+}
+#endif
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int is_list,
                                                int wraparound, int boundscheck, int unsafe_shared) {
@@ -597,31 +660,37 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     } else
 #endif
 #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+    if (!is_list && PyDict_CheckExact(o)) {
+        return __Pyx_SetItemInt_Fast_mapping(o, PyDict_Type.tp_as_mapping->mp_ass_subscript, i, v);
+    } else
     {
         // inlined PySequence_SetItem() + special cased length overflow
-        PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
-        PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
-        if (!is_list && mm && mm->mp_ass_subscript) {
-            int r;
-            PyObject *key = PyLong_FromSsize_t(i);
-            if (unlikely(!key)) return -1;
-            r = mm->mp_ass_subscript(o, key, v);
-            Py_DECREF(key);
-            return r;
+        PyTypeObject *obj_type = Py_TYPE(o);
+
+        int seq_or_mapping = __Pyx_PyType_GetFlags(obj_type) & (Py_TPFLAGS_SEQUENCE|Py_TPFLAGS_MAPPING);
+
+        // We prefer sq_ass_item() if type has Py_TPFLAGS_SEQUENCE,
+        // but still try mp_ass_subscript() if that fails.
+        // We repeat the calls to __Pyx_GetItemInt_Fast_mapping() rather than
+        // __Pyx_GetItemInt_Fast_seq() because the latter may result in more code,
+        // thus potentially hindering the inlining.
+        if (!is_list && seq_or_mapping != Py_TPFLAGS_SEQUENCE) {
+            PyMappingMethods *mm = obj_type->tp_as_mapping;
+            if (mm && mm->mp_ass_subscript)
+                return __Pyx_SetItemInt_Fast_mapping(o, mm->mp_ass_subscript, i, v);
         }
+
+        PySequenceMethods *sm = obj_type->tp_as_sequence;
         if (is_list || likely(sm && sm->sq_ass_item)) {
-            if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
-                Py_ssize_t l = sm->sq_length(o);
-                if (likely(l >= 0)) {
-                    i += l;
-                } else {
-                    // if length > max(Py_ssize_t), maybe the object can wrap around itself?
-                    if (!PyErr_ExceptionMatches(PyExc_OverflowError))
-                        return -1;
-                    PyErr_Clear();
-                }
-            }
+            if (wraparound && (i < 0) && unlikely(__Pyx_GetItemInt_wraparound(o, sm, &i) == -1))
+                return -1;
             return sm->sq_ass_item(o, i, v);
+        }
+
+        if (seq_or_mapping == Py_TPFLAGS_SEQUENCE) {
+            PyMappingMethods *mm = obj_type->tp_as_mapping;
+            if (likely(mm && mm->mp_ass_subscript))
+                return __Pyx_SetItemInt_Fast_mapping(o, mm->mp_ass_subscript, i, v);
         }
     }
 #else
@@ -646,10 +715,10 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
                __Pyx_DelItem_Generic(o, to_py_func(i))))
 
 static int __Pyx_DelItem_Generic(PyObject *o, PyObject *j);
-static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                               int is_list, int wraparound);
+static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list, int wraparound);
 
 /////////////// DelItemInt ///////////////
+//@requires: GettItemInt_wraparound
 
 static int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     int r;
@@ -659,37 +728,55 @@ static int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     return r;
 }
 
-static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                               int is_list, CYTHON_NCP_UNUSED int wraparound) {
-#if !CYTHON_USE_TYPE_SLOTS
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+static CYTHON_INLINE int __Pyx_DelItemInt_Fast_mapping(PyObject *o, objobjargproc setitem, Py_ssize_t i) {
+    PyObject *key = PyLong_FromSsize_t(i);
+    if (unlikely(!key)) return -1;
+    int r = setitem(o, key, (PyObject*) NULL);
+    Py_DECREF(key);
+    return r;
+}
+#endif
+
+static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list, int wraparound) {
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+    // inlined PySequence_DelItem() + special cased length overflow
+    PyTypeObject *obj_type = Py_TYPE(o);
+
+    int seq_or_mapping = __Pyx_PyType_GetFlags(obj_type) & (Py_TPFLAGS_SEQUENCE|Py_TPFLAGS_MAPPING);
+
+    // We prefer sq_ass_item() if type has Py_TPFLAGS_SEQUENCE,
+    // but still try mp_ass_subscript() if that fails.
+    // We repeat the calls to __Pyx_GetItemInt_Fast_mapping() rather than
+    // __Pyx_GetItemInt_Fast_seq() because the latter may result in more code,
+    // thus potentially hindering the inlining.
+    if (!is_list && seq_or_mapping != Py_TPFLAGS_SEQUENCE) {
+        PyMappingMethods *mm = obj_type->tp_as_mapping;
+        if (mm && mm->mp_ass_subscript)
+            return __Pyx_DelItemInt_Fast_mapping(o, mm->mp_ass_subscript, i);
+    }
+
+    PySequenceMethods *sm = obj_type->tp_as_sequence;
+    if (is_list || likely(sm && sm->sq_ass_item)) {
+        if (wraparound && (i < 0) && unlikely(__Pyx_GetItemInt_wraparound(o, sm, &i) == -1))
+            return -1;
+        return sm->sq_ass_item(o, i, (PyObject *)NULL);
+    }
+
+    if (seq_or_mapping == Py_TPFLAGS_SEQUENCE) {
+        PyMappingMethods *mm = obj_type->tp_as_mapping;
+        if (likely(mm && mm->mp_ass_subscript))
+            return __Pyx_DelItemInt_Fast_mapping(o, mm->mp_ass_subscript, i);
+    }
+#else
+    (void) wraparound;
     // PySequence_DelItem behaves differently to PyObject_DelItem for i<0
     // and possibly some other cases so can't generally be substituted
     if (is_list || !PyMapping_Check(o)) {
         return PySequence_DelItem(o, i);
     }
-#else
-    // inlined PySequence_DelItem() + special cased length overflow
-    PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
-    PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
-    if ((!is_list) && mm && mm->mp_ass_subscript) {
-        PyObject *key = PyLong_FromSsize_t(i);
-        return likely(key) ? mm->mp_ass_subscript(o, key, (PyObject *)NULL) : -1;
-    }
-    if (likely(sm && sm->sq_ass_item)) {
-        if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
-            Py_ssize_t l = sm->sq_length(o);
-            if (likely(l >= 0)) {
-                i += l;
-            } else {
-                // if length > max(Py_ssize_t), maybe the object can wrap around itself?
-                if (!PyErr_ExceptionMatches(PyExc_OverflowError))
-                    return -1;
-                PyErr_Clear();
-            }
-        }
-        return sm->sq_ass_item(o, i, (PyObject *)NULL);
-    }
 #endif
+
     return __Pyx_DelItem_Generic(o, PyLong_FromSsize_t(i));
 }
 

@@ -41,7 +41,7 @@ def mean(values: list):
     return math.fsum(values) / len(values)
 
 
-def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_lang=False):
+def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_lang=False, capture_stderr=True):
     env = os.environ.copy()
     if pythonpath:
         env['PYTHONPATH'] = pythonpath
@@ -53,7 +53,14 @@ def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_l
         env['LANG'] = ''
 
     try:
-        return subprocess.run(command, cwd=str(cwd) if cwd else None, check=True, capture_output=True, env=env)
+        return subprocess.run(
+            command,
+            cwd=str(cwd) if cwd else None,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE if capture_stderr else None,
+            env=env,
+        )
     except subprocess.CalledProcessError as exc:
         logging.error(f"Command failed: {' '.join(map(str, command))}\nOutput:\n{exc.stderr.decode()}")
         raise
@@ -279,13 +286,16 @@ def copy_profile(bm_dir, module_name, profiler):
         shutil.move(str(ext), ext.name)
 
 
-def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.20):
+def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.25):
     python_command = [python_executable]
     i = 1
+    all_timings = bench_func(python_command, repeat=False, scale=i)
+    # We put a minimum bar on the fastest run time (to avoid outliers) of the slowest benchmark,
+    # assuming that the other sub-benchmarks will be scaled internally.
+    min_actual_time = max(min(timings) for timings in all_timings.values())
+
     # Quickly scale up by factors of 10.
     # Note that this will be increasingly off for fast non-linear benchmarks, so we stop an order away.
-    all_timings = bench_func(python_command, repeat=False, scale=i)
-    min_actual_time = min(t for timings in all_timings.values() for t in timings)
     while min_actual_time * 130 < min_runtime:
         i *= 10
         min_actual_time *= 10
@@ -296,7 +306,7 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
             number = i * j
             all_timings = bench_func(python_command, repeat=False, scale=number)
 
-            min_actual_time = min(t for timings in all_timings.values() for t in timings)
+            min_actual_time = max(min(timings) for timings in all_timings.values())
             if min_actual_time >= min_runtime:
                 if (min_actual_time - min_runtime) / (min_actual_time - last_min) > .4:
                     # Avoid large overshoots due to large j steps.
@@ -313,7 +323,7 @@ def _make_bench_func(bm_dir, module_name, pythonpath=None):
         py_code = f"import {module_name} as bm; bm.run_benchmark({repeat}, 3); print(bm.run_benchmark({repeat}, {scale:d}))"
         command = python_command + ["-c", py_code]
 
-        output = run(command, cwd=bm_dir, pythonpath=pythonpath)
+        output = run(command, cwd=bm_dir, pythonpath=pythonpath, capture_stderr=False)
 
         timings = {}
 
