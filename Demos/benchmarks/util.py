@@ -51,6 +51,9 @@ def repeat_to_accuracy(func, *args,
         variance_threshold = .1
         min_runtime = 0.
 
+    # Run for at most 1 wall clock minute
+    max_runtime = get_wall_time() + 1 * 60
+
     count: cython.long
     for count in range(2, max_iterations + 1):
         # Time the function.
@@ -70,6 +73,8 @@ def repeat_to_accuracy(func, *args,
                 continue
             elif get_wall_time() < min_runtime:
                 continue
+            break
+        elif get_wall_time() > max_runtime:
             break
 
     return times, mean, variance
