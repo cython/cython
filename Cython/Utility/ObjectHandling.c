@@ -560,6 +560,10 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
     } else
 #endif
 #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+    // This dict check is so cheap after the other type checks above that it would be costly *not* to do it.
+    if (!is_list && PyDict_CheckExact(o)) {
+        return __Pyx_GetItemInt_Fast_mapping(o, PyDict_Type.tp_as_mapping->mp_subscript, i);
+    } else
     {
         // inlined PySequence_GetItem() + special cased length overflow
         PyTypeObject *obj_type = Py_TYPE(o);
@@ -656,6 +660,9 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     } else
 #endif
 #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+    if (!is_list && PyDict_CheckExact(o)) {
+        return __Pyx_SetItemInt_Fast_mapping(o, PyDict_Type.tp_as_mapping->mp_ass_subscript, i, v);
+    } else
     {
         // inlined PySequence_SetItem() + special cased length overflow
         PyTypeObject *obj_type = Py_TYPE(o);
