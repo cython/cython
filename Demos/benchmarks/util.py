@@ -9,7 +9,7 @@ import time
 
 
 def repeat_to_accuracy(func, *args,
-                       variance_threshold: float = .01,
+                       variance_threshold: float = 1e-5,
                        scale=1,
                        repeat=True,
                        max_iterations: cython.long = 5_000,
