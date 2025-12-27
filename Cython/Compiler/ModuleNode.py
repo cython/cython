@@ -1588,7 +1588,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         if scope.needs_tp_clear():
                             self.generate_clear_function(scope, code, entry)
                     if scope.defines_any_special(["__getitem__"]):
-                        self.generate_getitem_int_function(scope, code)
+                        self.generate_getitem_function(scope, code)
                     if scope.defines_any_special(["__setitem__", "__delitem__"]):
                         self.generate_ass_subscript_function(scope, code)
                     if scope.defines_any_special(["__getslice__", "__setslice__", "__delslice__"]):
@@ -1596,8 +1596,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                 "__getslice__, __setslice__, and __delslice__ are not supported by Python 3, "
                                 "use __getitem__, __setitem__, and __delitem__ instead", 1)
                         code.putln("#error __getslice__, __setslice__, and __delslice__ not supported in Python 3.")
-                    if scope.defines_any_special(["__setslice__", "__delslice__"]):
-                        self.generate_ass_slice_function(scope, code)
                     if scope.defines_any_special(["__getattr__", "__getattribute__"]):
                         self.generate_getattro_function(scope, code)
                     if scope.defines_any_special(["__setattr__", "__delattr__"]):
@@ -2190,27 +2188,62 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("}")
         code.exit_cfunc_scope()
 
-    def generate_getitem_int_function(self, scope, code):
-        # This function is put into the sq_item slot when
-        # a __getitem__ method is present. It converts its
-        # argument to a Python integer and calls mp_subscript.
+    def generate_getitem_function(self, scope, code):
+        # Implement both 'sq_item()' and 'mp_subscript()'.
+        # Use a delegating wrapper for the less suitable slot.
+        get_entry = scope.lookup_here("__getitem__")
+        is_sequence_impl = get_entry.signature == TypeSlots.sequence_subscript_signatures['__getitem__']
+        if not is_sequence_impl:
+            assert get_entry.signature == TypeSlots.objargfunc, get_entry.signature
+
+        # Sequence protocol.
         code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "sq_item", "PyObject *o, Py_ssize_t i", needs_funcstate=False)
+        if is_sequence_impl:
+            code.putln(f"return {get_entry.func_cname}(o, i);")
+        else:
+            code.putln(
+                "PyObject *r;")
+            code.putln(
+                "PyObject *x = PyLong_FromSsize_t(i); if (unlikely(!x)) return 0;")
+            # Note that PyType_GetSlot only works on heap-types before 3.10, so not using type slots
+            # and defining cdef classes as non-heap types is probably impossible
+            code.putln("#if CYTHON_USE_TYPE_SLOTS || (!CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX < 0x030A0000)")
+            code.putln(
+                "r = Py_TYPE(o)->tp_as_mapping->mp_subscript(o, x);")
+            code.putln("#else")
+            code.putln(
+                "r = ((binaryfunc)PyType_GetSlot(Py_TYPE(o), Py_mp_subscript))(o, x);")
+            code.putln("#endif")
+            code.putln(
+                "Py_DECREF(x);")
+            code.putln(
+                "return r;")
+
         code.putln(
-            "PyObject *r;")
-        code.putln(
-            "PyObject *x = PyLong_FromSsize_t(i); if(!x) return 0;")
-        # Note that PyType_GetSlot only works on heap-types before 3.10, so not using type slots
-        # and defining cdef classes as non-heap types is probably impossible
-        code.putln("#if CYTHON_USE_TYPE_SLOTS || (!CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX < 0x030A0000)")
-        code.putln(
-            "r = Py_TYPE(o)->tp_as_mapping->mp_subscript(o, x);")
-        code.putln("#else")
-        code.putln("r = ((binaryfunc)PyType_GetSlot(Py_TYPE(o), Py_mp_subscript))(o, x);")
-        code.putln("#endif")
-        code.putln(
-            "Py_DECREF(x);")
-        code.putln(
-            "return r;")
+            "}")
+        code.exit_cfunc_scope()
+
+        # Mapping protocol.
+        code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "mp_subscript", "PyObject *o, PyObject *i", needs_funcstate=False)
+        if is_sequence_impl:
+            code.putln(
+                "PyObject *r;")
+            code.putln(
+                "Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); if (unlikely(x == -1 && PyErr_Occurred())) return 0;")
+            # Note that PyType_GetSlot only works on heap-types before 3.10, so not using type slots
+            # and defining cdef classes as non-heap types is probably impossible
+            code.putln("#if CYTHON_USE_TYPE_SLOTS || (!CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX < 0x030A0000)")
+            code.putln(
+                "r = Py_TYPE(o)->tp_as_sequence->sq_item(o, x);")
+            code.putln("#else")
+            code.putln(
+                "r = ((binaryfunc)PyType_GetSlot(Py_TYPE(o), Py_sq_item))(o, x);")
+            code.putln("#endif")
+            code.putln(
+                "return r;")
+        else:
+            code.putln(f"return {get_entry.func_cname}(o, i);")
+
         code.putln(
             "}")
         code.exit_cfunc_scope()
@@ -2222,49 +2255,102 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         base_type = scope.parent_type.base_type
         set_entry = scope.lookup_here("__setitem__")
         del_entry = scope.lookup_here("__delitem__")
-        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "mp_ass_subscript", "PyObject *o, PyObject *i, PyObject *v")
-        code.putln(
-            "if (v) {")
-        if set_entry:
-            code.putln("return %s(o, i, v);" % set_entry.func_cname)
-        else:
+
+        is_sequence_set = set_entry and set_entry.signature == TypeSlots.sequence_subscript_signatures['__setitem__']
+        is_sequence_del = del_entry and del_entry.signature == TypeSlots.sequence_subscript_signatures['__delitem__']
+
+        def handle_not_supported(op_name):
             code.putln(
-                "__Pyx_TypeName o_type_name;")
-            self.generate_guarded_basetype_call(
-                base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
-            code.putln(
-                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
+                "__Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
             code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                '  "Subscript assignment not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
+                f'  "Subscript %.10s not supported by " __Pyx_FMT_TYPENAME, "{op_name}", o_type_name);')
             code.putln(
                 "__Pyx_DECREF_TypeName(o_type_name);")
             code.putln(
                 "return -1;")
+
+        set_or_del = "likely(v)" if not del_entry else "unlikely(v)" if not set_entry else "v"
+
+        # Sequence protocol.
+        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "sq_ass_item", "PyObject *o, Py_ssize_t i, PyObject *v")
+        code.putln("if (%s) {" % set_or_del)
+
+        if is_sequence_set:
+            code.putln(
+                f"return {set_entry.func_cname}(o, i, v);")
+        elif set_entry:
+            code.putln(
+                "PyObject *x = PyLong_FromSsize_t(i); if (unlikely(!x)) return -1;")
+            code.putln(
+                f"int r = {set_entry.func_cname}(o, x, v);")
+            code.putln(
+                "Py_DECREF(x);")
+            code.putln(
+                "return r;")
+        else:
+            self.generate_guarded_basetype_call(
+                base_type, "tp_as_sequence", "sq_ass_item", "ssizeobjargproc", "o, i, v", code)
+            handle_not_supported("assignment")
+
+        code.putln(
+            "} else {")
+        if is_sequence_del:
+            code.putln(
+                f"return {del_entry.func_cname}(o, i);")
+        elif del_entry:
+            code.putln(
+                "PyObject *x = PyLong_FromSsize_t(i); if (unlikely(!x)) return -1;")
+            code.putln(
+                f"int r = {del_entry.func_cname}(o, x);")
+            code.putln(
+                "Py_DECREF(x);")
+            code.putln(
+                "return r;")
+        else:
+            self.generate_guarded_basetype_call(
+                base_type, "tp_as_sequence", "sq_ass_item", "ssizeobjargproc", "o, i, v", code)
+            handle_not_supported("deletion")
+
         code.putln(
             "}")
         code.putln(
-            "else {")
-        if del_entry:
+            "}")
+        code.exit_cfunc_scope()
+
+        # Mapping protocol.
+        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "mp_ass_subscript", "PyObject *o, PyObject *i, PyObject *v")
+        code.putln("if (%s) {" % set_or_del)
+
+        if is_sequence_set:
             code.putln(
-                "return %s(o, i);" % (
-                    del_entry.func_cname))
+                "Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); if (unlikely(x == -1 && PyErr_Occurred())) return -1;")
+            code.putln(
+                f"return {set_entry.func_cname}(o, x, v);")
+        elif set_entry:
+            code.putln(
+                f"return {set_entry.func_cname}(o, i, v);")
         else:
-            code.putln(
-                "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
+            handle_not_supported("assignment")
+
+        code.putln(
+            "} else {")
+        if is_sequence_del:
             code.putln(
-                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
+                "Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); if (unlikely(x == -1 && PyErr_Occurred())) return -1;")
             code.putln(
-                "PyErr_Format(PyExc_NotImplementedError,")
+                f"return {del_entry.func_cname}(o, x);")
+        elif del_entry:
             code.putln(
-                '  "Subscript deletion not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
-            code.putln(
-                "__Pyx_DECREF_TypeName(o_type_name);")
-            code.putln(
-                "return -1;")
+                f"return {del_entry.func_cname}(o, i);")
+        else:
+            self.generate_guarded_basetype_call(
+                base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
+            handle_not_supported("deletion")
+
         code.putln(
             "}")
         code.putln(
