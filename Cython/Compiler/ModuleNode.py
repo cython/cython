@@ -2237,7 +2237,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "r = Py_TYPE(o)->tp_as_sequence->sq_item(o, x);")
             code.putln("#else")
             code.putln(
-                "r = ((binaryfunc)PyType_GetSlot(Py_TYPE(o), Py_sq_item))(o, x);")
+                "r = ((ssizeargfunc)PyType_GetSlot(Py_TYPE(o), Py_sq_item))(o, x);")
             code.putln("#endif")
             code.putln(
                 "return r;")
