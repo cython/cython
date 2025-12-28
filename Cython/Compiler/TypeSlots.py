@@ -565,6 +565,9 @@ class TypeFlagsSlot(SlotDescriptor):
             value += "|Py_TPFLAGS_HAVE_GC"
         if scope.parent_type.has_sequence_flag:
             value += "|Py_TPFLAGS_SEQUENCE"
+        if scope.parent_type.has_mapping_flag:
+            assert not scope.parent_type.has_sequence_flag
+            value += "|Py_TPFLAGS_MAPPING"
         return value
 
     def generate_spec(self, scope, code):
@@ -715,6 +718,8 @@ class DictOffsetSlot(SlotDescriptor):
     def slot_code(self, scope):
         dict_entry = scope.lookup_here("__dict__") if not scope.is_closure_class_scope else None
         if dict_entry and dict_entry.is_variable:
+            if dict_entry.is_inherited:
+                return "0"
             from . import Builtin
             if dict_entry.type is not Builtin.dict_type:
                 error(dict_entry.pos, "__dict__ slot must be of type 'dict'")

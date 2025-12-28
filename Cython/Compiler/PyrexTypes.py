@@ -1608,6 +1608,7 @@ class PyExtensionType(PyObjectType):
     #  dataclass_fields  OrderedDict nor None   Used for inheriting from dataclasses
     #  multiple_bases    boolean          Does this class have multiple bases
     #  has_sequence_flag  boolean        Set Py_TPFLAGS_SEQUENCE
+    #  has_mapping_flag   boolean        Set Py_TPFLAGS_MAPPING
 
     is_extension_type = 1
     has_attributes = 1
@@ -1617,6 +1618,7 @@ class PyExtensionType(PyObjectType):
     dataclass_fields = None
     multiple_bases = False
     has_sequence_flag = False
+    has_mapping_flag = False
 
     def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
@@ -5001,8 +5003,22 @@ class CythonLockType(PyrexType):
                     defining=1,
                     cname=f"__Pyx_Locks_{self.cname_part}_Unlock",
                     utility_code=self.get_usage_utility_code())
-            # Don't define a "locked" function because we can't do this with Py_Mutex
-            # (which is the preferred implementation)
+            scope.declare_cfunction(
+                    "locked",
+                    CFuncType(c_bint_type, [CFuncTypeArg("self", self_type, None)],
+                              nogil=True),
+                    pos=None,
+                    defining=1,
+                    cname=f"__Pyx_Locks_{self.cname_part}_Locked",
+                    utility_code=self.get_usage_utility_code())
+            scope.declare_cfunction(
+                    "can_check_locked",
+                    CFuncType(c_bint_type, [CFuncTypeArg("self", self_type, None)],
+                              nogil=True),
+                    pos=None,
+                    defining=1,
+                    cname=f"__Pyx_Locks_{self.cname_part}_CanCheckLocked",
+                    utility_code=self.get_usage_utility_code())
 
         return True
 

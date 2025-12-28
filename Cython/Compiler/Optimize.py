@@ -240,21 +240,44 @@ class IterationTransform(Visitor.EnvTransform):
                 return node
             return self._transform_set_iteration(node, iterable)
 
+        env = self.current_env()
+        unpacked_iterable = unwrap_coerced_node(iterable)
+
         # C array (slice) iteration?
-        if iterable.type.is_ptr or iterable.type.is_array:
+        optimised_node = self._try_optimise_array_iteration(node, unpacked_iterable, env, reversed=reversed)
+        if optimised_node is None and unpacked_iterable is not iterable:
+            # Try coerced (probably Python object) iterable as well.
+            optimised_node = self._try_optimise_array_iteration(node, iterable, env, reversed=reversed)
+
+        if optimised_node is not None:
+            return optimised_node
+
+        # Optimisable builtin function?
+        if isinstance(iterable, ExprNodes.SimpleCallNode):
+            optimised_node = self._try_optimise_iterator_function(node, iterable, reversed)
+            if optimised_node is not None:
+                return optimised_node
+
+        return node
+
+    def _try_optimise_array_iteration(self, node, iterable, env ,reversed=False):
+        if (iterable.type.is_ptr and not iterable.type.is_string) or iterable.type.is_array:
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
+
         if iterable.is_sequence_constructor:
             # Convert iteration over homogeneous sequences of C types into array iteration.
-            env = self.current_env()
             item_type = ExprNodes.infer_sequence_item_type(
                 env, iterable, seq_type=iterable.type)
             if item_type and not item_type.is_pyobject and not any(item.is_starred for item in iterable.args):
-                iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args).analyse_types(env).coerce_to(
-                    PyrexTypes.c_array_type(item_type, len(iterable.args)), env)
+                if not item_type.is_const:
+                    item_type = PyrexTypes.c_const_type(item_type)
+                carray_type = PyrexTypes.c_array_type(item_type, len(iterable.args))
+                iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args)
+                iterable = iterable.analyse_types(env).coerce_to(carray_type, env)
                 return self._transform_carray_iteration(node, iterable, reversed=reversed)
+
         if iterable.is_string_literal:
             # Iterate over C array of single character values.
-            env = self.current_env()
             if iterable.type is Builtin.unicode_type:
                 item_type = PyrexTypes.c_py_ucs4_type
                 items = map(ord, iterable.value)
@@ -264,23 +287,27 @@ class IterationTransform(Visitor.EnvTransform):
 
             as_int_node = partial(ExprNodes.IntNode.for_int, iterable.pos, type=item_type)
             iterable = ExprNodes.ListNode(iterable.pos, args=[as_int_node(ch)for ch in items])
-            iterable = iterable.analyse_types(env).coerce_to(PyrexTypes.c_array_type(item_type, len(iterable.args)), env)
+            carray_type = PyrexTypes.c_array_type(PyrexTypes.c_const_type(item_type), len(iterable.args))
+            iterable = iterable.analyse_types(env).coerce_to(carray_type, env)
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
+
         if iterable.type is Builtin.bytes_type:
             return self._transform_bytes_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.unicode_type:
             return self._transform_unicode_iteration(node, iterable, reversed=reversed)
+
         # in principle _transform_indexable_iteration would work on most of the above, and
         # also tuple and list. However, it probably isn't quite as optimized
         if iterable.type is Builtin.bytearray_type:
             return self._transform_indexable_iteration(node, iterable, is_mutable=True, reversed=reversed)
-        if isinstance(iterable, ExprNodes.CoerceToPyTypeNode) and iterable.arg.type.is_memoryviewslice:
-            return self._transform_indexable_iteration(node, iterable.arg, is_mutable=False, reversed=reversed)
+        if iterable.type.is_memoryviewslice:
+            return self._transform_indexable_iteration(node, iterable, is_mutable=False, reversed=reversed)
 
-        # the rest is based on function calls
-        if not isinstance(iterable, ExprNodes.SimpleCallNode):
-            return node
+        # Failed to optimise.
+        return None
 
+    def _try_optimise_iterator_function(self, node, iterable, reversed):
+        function = iterable.function
         if iterable.args is None:
             arg_count = iterable.arg_tuple and len(iterable.arg_tuple.args) or 0
         else:
@@ -288,7 +315,6 @@ class IterationTransform(Visitor.EnvTransform):
             if arg_count and iterable.self is not None:
                 arg_count -= 1
 
-        function = iterable.function
         # dict iteration?
         if function.is_attribute and not reversed and not arg_count:
             base_obj = iterable.self or function.obj
@@ -349,7 +375,8 @@ class IterationTransform(Visitor.EnvTransform):
                 else:
                     return self._transform_range_iteration(node, iterable, reversed=reversed)
 
-        return node
+        # Failed to optimise.
+        return None
 
     def _transform_reversed_iteration(self, node, reversed_function):
         args = reversed_function.arg_tuple.args
@@ -729,7 +756,12 @@ class IterationTransform(Visitor.EnvTransform):
                 return node
             slice_base = slice_node
             start = step = None
-            stop = ExprNodes.IntNode.for_size(slice_node.pos, slice_node.type.size)
+            if isinstance(slice_node.type.size, int):
+                stop = ExprNodes.IntNode.for_size(slice_node.pos, slice_node.type.size)
+            else:
+                # enum name or const variable
+                stop = ExprNodes.RawCNameExprNode(
+                    slice_node.pos, PyrexTypes.c_py_ssize_t_type, slice_node.type.size)
 
         else:
             if not slice_node.type.is_pyobject:
@@ -1560,6 +1592,9 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
     """
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
+    in_return_or_yield = False
+    in_parallel = False
+
     def visit_ParallelAssignmentNode(self, node):
         """
         Parallel swap assignments like 'a,b = b,a' are safe.
@@ -1669,6 +1704,74 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
         else:
             return None
         return (base.name, index_val)
+
+    def visit_ReturnStatNode(self, node):
+        in_return_or_yield, self.in_return_or_yield = self.in_return_or_yield, True
+        result = self.visit_Node(node)
+        self.in_return_or_yield = in_return_or_yield
+        return result
+
+    def visit_YieldExprNode(self, node):
+        return self.visit_ReturnStatNode(node)
+
+    def visit_ParallelStatNode(self, node):
+        in_parallel, self.in_parallel = self.in_parallel, True
+        result = self.visit_Node(node)
+        self.in_parallel = in_parallel
+        return result
+
+    def visit_MemoryViewSliceNode(self, node):
+        result = self.visit_Node(node)
+        if not node.type.is_memoryviewslice or not node.is_temp:
+            return result
+        if self.in_return_or_yield:
+            return result
+        if self.in_parallel:
+            # TODO - I'd like to apply a looser set of rules here.
+            # However parallel blocks appear to do some cleanup even on unmanaged temps.
+            # This needs a further look to see if it's a wider bug, but right now it
+            # means we have to exclude all slicing in parallel from the optimization.
+            return result
+        # What we're trying to work out is whether we can drop
+        # the reference counting for the temp.
+        # We should be fairly conservative here.
+        # We require a local variable name node (so that we know
+        # that nothing external can reassign it while we're working)
+        if not node.base.is_name:
+            return result
+        entry = node.base.entry
+        if not entry or entry.scope.is_module_scope:
+            return result
+
+        # anything in a (non-generator) closure is suspect
+        if entry.from_closure or entry.in_closure:
+            defining_scope = entry.outer_entry.scope if entry.from_closure else entry.scope
+            if defining_scope.is_closure_scope and not defining_scope.is_pure_generator_scope:
+                return result
+
+        # We then exclude any rhs that has a parallel or
+        # a named expression assignment or the basis that they might
+        # be reassigned while the temp is still active.
+        # TODO - this can be more sophisticated and use
+        # the same logic as in https://github.com/cython/cython/pull/4607.
+        # In that case we can probably drop AssignemntType from
+        # NameAssignment (since it was added just to help with this)
+        from .FlowControl import AssignmentType
+        unsafe_assigment_types = (
+            AssignmentType.Parallel,
+            AssignmentType.AssignmentExpression
+        )
+        for assignment in entry.cf_assignments:
+            if assignment.assignment_type in unsafe_assigment_types:
+                return result
+            if self.in_parallel and not assignment.is_arg:
+                # If we're in a parallel block, take the view that
+                # we can't reason about any assignment to the rhs.
+                return result
+
+        node.use_borrowed_ref = True
+        node.use_managed_ref = False
+        return result
 
 
 class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
@@ -3382,7 +3485,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 PyrexTypes.CFuncTypeArg("zerodiv_check", PyrexTypes.c_bint_type, None),
             ], exception_value=None if ret_type.is_pyobject else ret_type.exception_value)
         for ctype in (PyrexTypes.c_long_type, PyrexTypes.c_double_type)
-        for ret_type in (PyrexTypes.py_object_type, PyrexTypes.c_bint_type)
+        for ret_type in (Builtin.float_type, Builtin.int_type, PyrexTypes.py_object_type, PyrexTypes.c_bint_type)
         }
 
     def _handle_simple_method_object___add__(self, node, function, args, is_unbound_method):
@@ -3493,7 +3596,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if len(args) != 2:
             return node
 
-        if node.type.is_pyobject:
+        if node.type is Builtin.int_type or node.type is Builtin.float_type:
+            ret_type = node.type
+        elif node.type.is_pyobject:
             ret_type = PyrexTypes.py_object_type
         elif node.type is PyrexTypes.c_bint_type and operator in ('Eq', 'Ne'):
             ret_type = PyrexTypes.c_bint_type
@@ -3501,7 +3606,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
 
         result = optimise_numeric_binop(operator, node, ret_type, args[0], args[1])
-        if not result:
+        if result is None:
             return node
         func_cname, utility_code, extra_args, num_type = result
         assert all([arg.type.is_pyobject for arg in args])
@@ -3512,7 +3617,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             func_cname,
             self.Pyx_BinopInt_func_types[(num_type, ret_type)],
             '__%s__' % operator[:3].lower(), is_unbound_method, args,
-            may_return_none=True,
+            may_return_none=ret_type is PyrexTypes.py_object_type,
             with_none_check=False,
             utility_code=utility_code)
 

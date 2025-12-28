@@ -44,8 +44,6 @@ def await_one(coro):
             await_one(next(a))
     except StopIteration as exc:
         result = exc.args[0] if exc.args else None
-    else:
-        result = 0
     return result
 
 
@@ -56,7 +54,7 @@ def time_bm(fn, *args, scale: cython.long = 1, timer=time.perf_counter):
     for s in range(scale):
         result = await_one(fn(*args))
     end = timer()
-    return result, end-begin
+    return result, end - begin
 
 
 def benchmark(N, count=1_000, scale=1, timer=time.perf_counter):
@@ -68,21 +66,13 @@ def benchmark(N, count=1_000, scale=1, timer=time.perf_counter):
     return times
 
 
-main = benchmark
+def run_benchmark(repeat=True, scale=1):
+    from util import repeat_to_accuracy
 
+    def single_run(scale, timer):
+        N = 1_000
+        result, t = time_bm(bm_await_nested, N, scale=scale, timer=timer)
+        assert result == 8221043302, result
+        return t
 
-def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
-    return benchmark(repeat, scale=scale, timer=timer)
-
-
-if __name__ == "__main__":
-    import optparse
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description="Micro benchmarks for generators.")
-
-    import util
-    util.add_standard_options_to(parser)
-    options, args = parser.parse_args()
-
-    util.run_benchmark(options, options.num_runs, benchmark)
+    return repeat_to_accuracy(single_run, scale=scale, repeat=repeat)[0]

@@ -5,11 +5,9 @@
 
 import cython
 
-import optparse
 import time
 from bisect import bisect
 
-import util
 
 w, h = 5, 10
 dir_no = 6
@@ -139,34 +137,31 @@ def solve(n: cython.long, i_min: cython.long, free, curr_board: list, pieces_lef
 
 SOLVE_ARG = 60
 
-def main(n, solve_arg=SOLVE_ARG, scale: cython.long = 1, timer=time.perf_counter):
+
+def single_run(scale: cython.int, timer, solve_arg=SOLVE_ARG):
     s: cython.long
 
-    times = []
-    for i in range(n):
-        t0 = timer()
-        for s in range(scale):
-            free = frozenset(range(len(board)))
-            curr_board = [-1] * len(board)
-            pieces_left = list(range(len(pieces)))
-            solutions = []
-            solve(solve_arg, 0, free, curr_board, pieces_left, solutions)
-            #print len(solutions),  'solutions found\n'
-            #for i in (0, -1): print_board(solutions[i])
-        tk = timer()
-        times.append(tk - t0)
+    t0 = timer()
+    for s in range(scale):
+        free = frozenset(range(len(board)))
+        curr_board = [-1] * len(board)
+        pieces_left = list(range(len(pieces)))
+        solutions = []
+        solve(solve_arg, 0, free, curr_board, pieces_left, solutions)
+        #print len(solutions),  'solutions found\n'
+        #for i in (0, -1): print_board(solutions[i])
+    tk = timer()
+    return tk - t0
+
+
+def main(n, solve_arg=SOLVE_ARG, scale: cython.int = 1, timer=time.perf_counter):
+    times = [
+        single_run(scale, timer, solve_arg)
+        for i in range(n)
+    ]
     return times
 
 
-def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
-    return main(repeat, scale=scale, timer=timer)
-
-
-if __name__ == "__main__":
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description="Test the performance of the Float benchmark")
-    util.add_standard_options_to(parser)
-    options, args = parser.parse_args()
-
-    util.run_benchmark(options, options.num_runs, main)
+def run_benchmark(repeat=True, scale=1):
+    from util import repeat_to_accuracy
+    return repeat_to_accuracy(single_run, scale=scale, repeat=repeat)[0]
