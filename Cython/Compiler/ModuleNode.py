@@ -2192,13 +2192,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Implement both 'sq_item()' and 'mp_subscript()'.
         # Use a delegating wrapper for the less suitable slot.
         get_entry = scope.lookup_here("__getitem__")
-        is_sequence_impl = get_entry.signature == TypeSlots.sequence_subscript_signatures['__getitem__']
-        if not is_sequence_impl:
-            assert get_entry.signature == TypeSlots.objargfunc, get_entry.signature
+        is_sequence_get = get_entry.signature == TypeSlots.sequence_subscript_signatures['__getitem__']
 
-        # Sequence protocol.
+        # Sequence protocol, always implemented but should only be the fallback if both are tried.
         code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "sq_item", "PyObject *o, Py_ssize_t i", needs_funcstate=False)
-        if is_sequence_impl:
+        if is_sequence_get:
             code.putln(f"return {get_entry.func_cname}(o, i);")
         else:
             code.putln(
@@ -2223,30 +2221,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
         code.exit_cfunc_scope()
 
-        # Mapping protocol.
-        code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "mp_subscript", "PyObject *o, PyObject *i", needs_funcstate=False)
-        if is_sequence_impl:
-            code.putln(
-                "PyObject *r;")
-            code.putln(
-                "Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); if (unlikely(x == -1 && PyErr_Occurred())) return 0;")
-            # Note that PyType_GetSlot only works on heap-types before 3.10, so not using type slots
-            # and defining cdef classes as non-heap types is probably impossible
-            code.putln("#if CYTHON_USE_TYPE_SLOTS || (!CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX < 0x030A0000)")
-            code.putln(
-                "r = Py_TYPE(o)->tp_as_sequence->sq_item(o, x);")
-            code.putln("#else")
-            code.putln(
-                "r = ((ssizeargfunc)PyType_GetSlot(Py_TYPE(o), Py_sq_item))(o, x);")
-            code.putln("#endif")
-            code.putln(
-                "return r;")
-        else:
+        # Mapping protocol, only implemented for non-sequences.
+        if not is_sequence_get:
+            code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "mp_subscript", "PyObject *o, PyObject *i", needs_funcstate=False)
             code.putln(f"return {get_entry.func_cname}(o, i);")
-
-        code.putln(
-            "}")
-        code.exit_cfunc_scope()
+            code.putln(
+                "}")
+            code.exit_cfunc_scope()
 
     def generate_ass_subscript_function(self, scope, code):
         # Setting and deleting an item are both done through
@@ -2258,6 +2239,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         is_sequence_set = set_entry and set_entry.signature == TypeSlots.sequence_subscript_signatures['__setitem__']
         is_sequence_del = del_entry and del_entry.signature == TypeSlots.sequence_subscript_signatures['__delitem__']
+        is_mapping = not (set_entry and is_sequence_set or del_entry and is_sequence_del)
 
         def handle_not_supported(op_name):
             code.putln(
@@ -2273,7 +2255,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         set_or_del = "likely(v)" if not del_entry else "unlikely(v)" if not set_entry else "v"
 
-        # Sequence protocol.
+        # Sequence protocol, always implemented.
         code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "sq_ass_item", "PyObject *o, Py_ssize_t i, PyObject *v")
         code.putln("if (%s) {" % set_or_del)
 
@@ -2319,7 +2301,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
         code.exit_cfunc_scope()
 
-        # Mapping protocol.
+        # Mapping protocol, only implemented for non-sequences.
+        if not is_mapping:
+            return
         code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "mp_ass_subscript", "PyObject *o, PyObject *i, PyObject *v")
         code.putln("if (%s) {" % set_or_del)
 

@@ -525,6 +525,29 @@ class SyntheticSlot(InternalMethodSlot):
         return self.slot_code(scope)
 
 
+class SubscriptSlot(SyntheticSlot):
+    def __init__(self, slot_name, user_methods):
+        super().__init__(slot_name, user_methods, "0")
+
+    def slot_code(self, scope):
+        entries = []
+        is_sequence_impl = True
+        for name in self.user_methods:
+            entry = scope.lookup_here(name)
+            if entry is None or not entry.is_special:
+                continue
+            if entry.signature != sequence_subscript_signatures[name]:
+                is_sequence_impl = False
+            entries.append(entry)
+
+        if not entries:
+            return self.default_value
+        if is_sequence_impl and self.slot_name.startswith('mp_'):
+            return self.default_value
+
+        return InternalMethodSlot.slot_code(self, scope)
+
+
 class BinopSlot(SyntheticSlot):
     def __init__(self, signature, slot_name, left_method, method_name_to_slot, **kargs):
         assert left_method.startswith('__')
@@ -1001,9 +1024,9 @@ class SlotTable:
             MethodSlot(lenfunc, "sq_length", "__len__", method_name_to_slot),
             EmptySlot("sq_concat"),  # nb_add used instead
             EmptySlot("sq_repeat"),  # nb_multiply used instead
-            SyntheticSlot("sq_item", ["__getitem__"], "0"),
+            SubscriptSlot("sq_item", ["__getitem__"]),
             EmptySlot("sq_slice"),
-            SyntheticSlot("sq_ass_item", ["__setitem__", "__delitem__"], "0"),
+            SubscriptSlot("sq_ass_item", ["__setitem__", "__delitem__"]),
             EmptySlot("sq_ass_slice"),
             MethodSlot(cmpfunc, "sq_contains", "__contains__", method_name_to_slot),
             EmptySlot("sq_inplace_concat"),  # nb_inplace_add used instead
@@ -1012,8 +1035,8 @@ class SlotTable:
 
         self.PyMappingMethods = (
             MethodSlot(lenfunc, "mp_length", "__len__", method_name_to_slot),
-            SyntheticSlot("mp_subscript", ["__getitem__"], "0"),
-            SyntheticSlot("mp_ass_subscript", ["__setitem__", "__delitem__"], "0"),
+            SubscriptSlot("mp_subscript", ["__getitem__"]),
+            SubscriptSlot("mp_ass_subscript", ["__setitem__", "__delitem__"]),
         )
 
         self.PyBufferProcs = (
