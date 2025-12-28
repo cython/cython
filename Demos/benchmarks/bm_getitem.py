@@ -43,11 +43,22 @@ def _getitems(seq):
     return ret
 
 
-def _bm_getitems(iterations: cython.Py_ssize_t, seq_factory, timer=DEFAULT_TIMER):
+def _getitems_from_py(seq):
+    i: cython.Py_ssize_t
+    len_seq: cython.Py_ssize_t = len(seq)
+
+    getitem = eval("lambda i, _seq=seq: _seq[i]", {'seq': seq})
+
+    ret = 1  # fake result use
+    for i in range(len_seq):
+        ret = getitem(i) if ret is not None else 1
+    return ret
+
+
+def _bm_getitems(iterations: cython.Py_ssize_t, seq_factory, timer=DEFAULT_TIMER, bm_func=_getitems):
     seq = seq_factory(range(GETITEM_DATA_SIZE))
 
     _: cython.Py_ssize_t
-    bm_func = _getitems
 
     t = timer()
     for _ in range(iterations):
@@ -90,6 +101,15 @@ def bm_getitem_ext_sequence(iterations, timer=DEFAULT_TIMER):
 
 def bm_getitem_ext_mapping(iterations, timer=DEFAULT_TIMER):
     return _bm_getitems(iterations, GetItemExtMapping, timer)
+
+def bm_getitem_ext_from_py(iterations, timer=DEFAULT_TIMER):
+    return _bm_getitems(iterations, GetItemExt, timer, _getitems_from_py)
+
+def bm_getitem_ext_from_py_sequence(iterations, timer=DEFAULT_TIMER):
+    return _bm_getitems(iterations, GetItemExtSequence, timer, _getitems_from_py)
+
+def bm_getitem_ext_from_py_mapping(iterations, timer=DEFAULT_TIMER):
+    return _bm_getitems(iterations, GetItemExtMapping, timer, _getitems_from_py)
 
 
 # main
