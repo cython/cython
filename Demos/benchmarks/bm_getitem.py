@@ -24,7 +24,7 @@ class GetItemExt:
 @cython.cclass
 class GetItemExtSequence(GetItemExt):
     def __getitem__(self, index: cython.Py_ssize_t):
-        return self._len
+        return 5  # do not waste time on PyLong_FromSsize_t()
 
 # Decorator value 'mapping' is not supported by older Cython versions.
 #@cython.collection_type("mapping")
