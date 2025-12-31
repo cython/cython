@@ -117,7 +117,7 @@ def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None, cython_version=None):
 
 def transform_file(src, dst, cython_version: tuple):
     """
-    Uncomment version dependant code while copying the source file.
+    Uncomment version dependent code while copying the source file.
     """
     target_rev, *cy_version = cython_version
     base_branch = git_branch(src.parent)
