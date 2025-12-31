@@ -2434,7 +2434,7 @@ class GlobalState:
         # because setting the refcount isn't thread-safe. The chances are that most of the constants
         # that this applies to are already immortal though so that isn't a great loss.
         writer.putln("#if PY_VERSION_HEX < 0x030E0000")
-        writer.putln("if (Py_REFCNT(table[i]) == 1)")
+        writer.putln("if (_Py_IsOwnedByCurrentThread(table[i]) && Py_REFCNT(table[i]) == 1)")
         writer.putln("#else")
         writer.putln("if (PyUnstable_Object_IsUniquelyReferenced(table[i]))")
         writer.putln("#endif")
