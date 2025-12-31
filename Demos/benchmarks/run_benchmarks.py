@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -18,6 +19,10 @@ BENCHMARK_FILES = sorted(
 )
 
 ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES] + ['cythonize']
+
+PROCESSED_BENCHMARKS = frozenset({
+    "bm_getitem.py",
+})
 
 LIMITED_API_VERSION = max((3, 12), sys.version_info[:2])
 
@@ -69,7 +74,6 @@ def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_l
 def run_timed_python(python_command, **kwargs):
     output = run(['time', sys.executable, *python_command], unset_lang=True, **kwargs)
 
-    import re
     parse = re.compile(r"([0-9.:]+)([%\w]+)").findall
 
     results = {}
@@ -88,7 +92,7 @@ def run_timed_python(python_command, **kwargs):
     return results
 
 
-def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None):
+def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None, cython_version=None):
     util_file = BENCHMARKS_DIR / "util.py"
     if util_file.exists():
         shutil.copy(util_file, bm_dir / util_file.name)
@@ -98,12 +102,45 @@ def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None):
         if benchmarks and bm_src_file.stem not in benchmarks:
             continue
         bm_file = bm_dir / bm_src_file.name
-        shutil.copy(bm_src_file, bm_file)
+
+        if cython_version and bm_src_file.name in PROCESSED_BENCHMARKS:
+            transform_file(bm_src_file, bm_file, cython_version)
+        else:
+            shutil.copy(bm_src_file, bm_file)
+
         for dep in BENCHMARKS_DIR.glob(bm_src_file.stem + ".pxd"):
             shutil.copy(dep, bm_dir / dep.name)
         bm_files.append(bm_file)
 
     return bm_files
+
+
+def transform_file(src, dst, cython_version: tuple):
+    """
+    Uncomment version dependant code while copying the source file.
+    """
+    target_rev, *cy_version = cython_version
+    base_branch = git_branch(src.parent)
+
+    # We consider both a "major.minor" version number and an optional (PR) feature branch name
+    # that added a feature.  If we run from that branch, we exclude the commented code
+    # on the same (master) version unless we're targeting 'HEAD'.
+    parse_conditional_line = re.compile(r'#\[([0-9.]+)([+])(\w*)\][^#]*#(.*)$').match
+
+    lines = []
+    with open(src) as f:
+        for line in f:
+            if line[0] == '#' and line[1] == '[':
+                version, min_or_max, branch_added, rest = parse_conditional_line(line).groups()  # error if parsing fails
+                assert min_or_max == '+', min_or_max  # currently only min version used
+                min_version = list(map(int, version.split('.')))
+                if cy_version > min_version or (
+                        cy_version == min_version and (branch_added != base_branch or target_rev == 'HEAD')):
+                    line = rest.rstrip() + '\n'
+            lines.append(line)
+
+    with open(dst, mode='w') as f:
+        f.writelines(lines)
 
 
 def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], cythonize_args=None, c_macros=None, tmp_dir=None):
@@ -170,6 +207,19 @@ def git_clone(rev_dir, revision):
     rev_hash = get_git_rev(revision)
     run(["git", "clone", "-n", "--no-single-branch", ".", str(rev_dir)])
     run(["git", "checkout", rev_hash], cwd=rev_dir)
+
+
+def git_branch(rev_dir):
+    output = run(["git", "branch", "--show-current"], cwd=rev_dir)
+    return output.stdout.decode().strip()
+
+
+def read_cython_version(cython_dir: pathlib.Path):
+    with open(cython_dir / "Cython" / "Shadow.py") as f:
+        for line in f:
+            if line[0] == '_' and line.startswith('__version__'):
+                return line.partition('=')[2].strip().strip('"\'')
+    raise RuntimeError("Cython '__version__' not found in Shadow.py")
 
 
 def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
@@ -483,19 +533,21 @@ def benchmark_revision(
         bm_dir = base_dir / "benchmarks" / revision
 
         git_clone(cython_dir, revision=None if plain_python else revision)
+        cython_version_str = read_cython_version(cython_dir)
+        cython_version = (revision, *map(int, cython_version_str.split('.', 2)[:2]))
 
         cythonize_times = None
         if benchmark_cythonize:
-            logging.info(f"### Running cythonize benchmarks for {revision}.")
+            logging.info(f"### Running cythonize benchmarks for {revision} (Cython {cython_version_str}).")
             cythonize_times = cythonize_cython(cython_dir, c_macros)
 
         timings = {}
         sizes = {}
 
         if benchmarks or benchmark_cythonize:
-            logging.info(f"### Preparing benchmark run for {revision}.")
+            logging.info(f"### Preparing benchmark run for {revision} (Cython {cython_version_str}).")
             bm_dir.mkdir(parents=True)
-            bm_files = copy_benchmarks(bm_dir, benchmarks)
+            bm_files = copy_benchmarks(bm_dir, benchmarks, cython_version)
 
             if plain_python:
                 # Exclude non-Python modules.
@@ -513,7 +565,7 @@ def benchmark_revision(
                     sizes.update(measure_benchmark_sizes(bm_files))
 
         if benchmarks:
-            logging.info(f"### Running benchmarks for {revision}.")
+            logging.info(f"### Running benchmarks for {revision} (Cython {cython_version_str}).")
             pythonpath = cython_dir if plain_python else None
             fresh_timings = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
             timings.update(fresh_timings)

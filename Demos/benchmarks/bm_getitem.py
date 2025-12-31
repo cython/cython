@@ -20,17 +20,30 @@ class GetItemExt:
 
 
 # Decorator @collection_type() is not supported by older Cython versions.
-#@cython.collection_type("sequence")
+#[3.3+getitem_bench] #@cython.collection_type("sequence")
 @cython.cclass
-class GetItemExtSequence(GetItemExt):
+class GetItemExtSequence:
+    _len: cython.int
+
+    def __init__(self, data):
+        self._len = len(data)
+    def __len__(self):
+        return self._len
     def __getitem__(self, index: cython.Py_ssize_t):
         return 5  # do not waste time on PyLong_FromSsize_t()
 
 # Decorator value 'mapping' is not supported by older Cython versions.
-#@cython.collection_type("mapping")
+#[3.3+getitem_bench] #@cython.collection_type("mapping")
 @cython.cclass
-class GetItemExtMapping(GetItemExt):
-    pass
+class GetItemExtMapping:
+    _len: cython.int
+
+    def __init__(self, data):
+        self._len = len(data)
+    def __len__(self):
+        return self._len
+    def __getitem__(self, index):
+        return index
 
 
 def _getitems(seq):
