@@ -526,26 +526,50 @@ class SyntheticSlot(InternalMethodSlot):
 
 
 class SubscriptSlot(SyntheticSlot):
+    """
+    Slot descriptor that implements the functionally overlapping sequence/mapping slots.
+    """
     def __init__(self, slot_name, user_methods):
         super().__init__(slot_name, user_methods, "0")
 
-    def slot_code(self, scope):
-        entries = []
-        is_sequence_impl = True
-        for name in self.user_methods:
-            entry = scope.lookup_here(name)
+    _slot_methods = {
+        'sq_item': ['__getitem__'],
+        'sq_ass_item': ['__setitem__', '__delitem__'],
+        'mp_subscript': ['__getitem__'],
+        'mp_ass_subscript': ['__setitem__', '__delitem__'],
+    }
+
+    @classmethod
+    def implements_slot(cls, scope, slot_name):
+        collection_type = scope.directives.get('collection_type')
+        if collection_type is None:
+            if slot_name.startswith('mp_') and collection_type == 'sequence':
+                return False
+
+        has_impl = False
+        is_sequence_impl = False
+        for method_name in cls._slot_methods[slot_name]:
+            entry = scope.lookup_here(method_name)
             if entry is None or not entry.is_special:
                 continue
-            if entry.signature != sequence_subscript_signatures[name]:
+            has_impl = True
+            if entry.signature == sequence_subscript_signatures[method_name]:
+                is_sequence_impl = True
+            else:
                 is_sequence_impl = False
-            entries.append(entry)
+                break
 
-        if not entries:
-            return self.default_value
-        if is_sequence_impl and self.slot_name.startswith('mp_'):
-            return self.default_value
+        if not has_impl:
+            return False
+        if slot_name.startswith('mp_') and is_sequence_impl:
+            return False
+        return True
 
-        return InternalMethodSlot.slot_code(self, scope)
+    def slot_code(self, scope):
+        if self.implements_slot(scope, self.slot_name):
+            return InternalMethodSlot.slot_code(self, scope)
+        else:
+            return self.default_value
 
 
 class BinopSlot(SyntheticSlot):
