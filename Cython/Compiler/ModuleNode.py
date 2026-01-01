@@ -2227,9 +2227,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_ass_subscript_function(self, scope, code):
         # Setting and deleting an item are both done through the ass_item/ass_subscript slots,
         # so we dispatch to user's __setitem__ or __delitem__, or raise an exception.
+        set_entry = TypeSlots.SubscriptSlot.find_special_method(scope, '__setitem__')
+        del_entry = TypeSlots.SubscriptSlot.find_special_method(scope, '__delitem__')
         base_type = scope.parent_type.base_type
-        set_entry = scope.lookup_here("__setitem__")
-        del_entry = scope.lookup_here("__delitem__")
 
         is_sequence_set = set_entry and set_entry.signature == TypeSlots.sequence_subscript_signatures['__setitem__']
         is_sequence_del = del_entry and del_entry.signature == TypeSlots.sequence_subscript_signatures['__delitem__']

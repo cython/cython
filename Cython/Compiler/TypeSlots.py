@@ -539,6 +539,17 @@ class SubscriptSlot(SyntheticSlot):
         'mp_ass_subscript': ['__setitem__', '__delitem__'],
     }
 
+    @staticmethod
+    def find_special_method(scope, method_name):
+        while True:
+            entry = scope.lookup_here(method_name)
+            if entry is not None:
+                return entry if entry.is_special else None
+            base_type = scope.parent_type.base_type
+            if base_type is None or base_type.is_external:
+                return None
+            scope = base_type.scope
+
     @classmethod
     def implements_slot(cls, scope, slot_name):
         collection_type = scope.directives.get('collection_type')
@@ -549,10 +560,11 @@ class SubscriptSlot(SyntheticSlot):
         has_impl = False
         is_sequence_impl = False
         for method_name in cls._slot_methods[slot_name]:
-            entry = scope.lookup_here(method_name)
-            if entry is None or not entry.is_special:
+            entry = cls.find_special_method(scope, method_name)
+            if entry is None:
                 continue
-            has_impl = True
+            if entry.scope is scope:
+                has_impl = True
             if entry.signature == sequence_subscript_signatures[method_name]:
                 is_sequence_impl = True
             else:
