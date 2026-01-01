@@ -2191,8 +2191,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope()
 
     def generate_getitem_function(self, scope, code):
-        # Implement both 'sq_item()' and 'mp_subscript()'.
-        # Use a delegating wrapper for the less suitable slot.
+        # Implement 'sq_item()' and/or 'mp_subscript()', whichever is more suitable.
         get_entry = scope.lookup_here("__getitem__")
         is_sequence_get = get_entry.signature == TypeSlots.sequence_subscript_signatures['__getitem__']
 
@@ -2204,8 +2203,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 code.putln("PyObject *r;")
                 code.putln("PyObject *x = PyLong_FromSsize_t(i); if (unlikely(!x)) return 0;")
-                # Note that PyType_GetSlot only works on heap-types before 3.10, so not using type slots
-                # and defining cdef classes as non-heap types is probably impossible
+                # Note that PyType_GetSlot() only works on heap-types before 3.10, so not using type slots
+                # and defining cdef classes as non-heap types is probably impossible.
                 code.putln("#if CYTHON_USE_TYPE_SLOTS || (!CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX < 0x030A0000)")
                 code.putln("r = Py_TYPE(o)->tp_as_mapping->mp_subscript(o, x);")
                 code.putln("#else")
@@ -2217,15 +2216,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("}")
             code.exit_cfunc_scope()
 
-        # Mapping protocol, only implemented for non-sequences.
+        # Mapping protocol.
         if TypeSlots.SubscriptSlot.implements_slot(scope, 'mp_subscript'):
+            assert not is_sequence_get  # Mapping protocol is only implemented for non-sequences.
             code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "mp_subscript", "PyObject *o, PyObject *i", needs_funcstate=False)
             code.putln(f"return {get_entry.func_cname}(o, i);")
             code.putln("}")
             code.exit_cfunc_scope()
 
     def generate_ass_subscript_function(self, scope, code):
-        # Setting and deleting an item are both done through the ass_subscript method,
+        # Setting and deleting an item are both done through the ass_item/ass_subscript slots,
         # so we dispatch to user's __setitem__ or __delitem__, or raise an exception.
         base_type = scope.parent_type.base_type
         set_entry = scope.lookup_here("__setitem__")
@@ -2243,7 +2243,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         set_or_del = "likely(v)" if not del_entry else "unlikely(v)" if not set_entry else "v"
 
-        # Sequence protocol, always implemented for non-mappings unless it's inefficient.
+        # Sequence protocol.
         if TypeSlots.SubscriptSlot.implements_slot(scope, 'sq_ass_item'):
             code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "sq_ass_item", "PyObject *o, Py_ssize_t i, PyObject *v")
             code.putln("if (%s) {" % set_or_del)
@@ -2277,7 +2277,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("}")
             code.exit_cfunc_scope()
 
-        # Mapping protocol, only implemented for non-sequences.
+        # Mapping protocol.
         if TypeSlots.SubscriptSlot.implements_slot(scope, 'mp_ass_subscript'):
             code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "mp_ass_subscript", "PyObject *o, PyObject *i, PyObject *v")
             code.putln("if (%s) {" % set_or_del)
