@@ -8604,10 +8604,10 @@ def _gen_test_code():
     ]
 
     def test_name(ext_or_py, method_names, index_name, base_name):
-        return f'{ext_or_py}{index_name}{''.join(method_names)}{"_subclassing_"+base_name if base_name else ""}'
+        return f"{ext_or_py}{index_name}{''.join(method_names)}{'_subclassing_'+base_name if base_name else ''}"
 
     def generate_classes(method_names, base_class_methods, base_index_name, base_index):
-        base_name = f'Ext{base_index_name}{''.join(base_class_methods)}' if base_class_methods else ''
+        base_name = f"Ext{base_index_name}{''.join(base_class_methods)}" if base_class_methods else ''
         base_class_methods = [name for name in base_class_methods if name not in method_names]
 
         for index_name, index in index_arg_code:
