@@ -852,6 +852,7 @@ intargfunc = Signature("Ti", "O")          # typedef PyObject *(*intargfunc)(PyO
 ssizeargfunc = Signature("Tz", "O")        # typedef PyObject *(*ssizeargfunc)(PyObject *, Py_ssize_t);
 intintargfunc = Signature("Tii", "O")      # typedef PyObject *(*intintargfunc)(PyObject *, int, int);
 ssizessizeargfunc = Signature("Tzz", "O")  # typedef PyObject *(*ssizessizeargfunc)(PyObject *, Py_ssize_t, Py_ssize_t);
+ssizeargproc = Signature("Tz", "r")        # typedef int(*ssizeargfunc)(PyObject *, Py_ssize_t);
 intobjargproc = Signature("TiO", 'r')      # typedef int(*intobjargproc)(PyObject *, int, PyObject *);
 ssizeobjargproc = Signature("TzO", 'r')    # typedef int(*ssizeobjargproc)(PyObject *, Py_ssize_t, PyObject *);
 intintobjargproc = Signature("TiiO", 'r')  # typedef int(*intintobjargproc)(PyObject *, int, int, PyObject *);
@@ -903,6 +904,12 @@ sendfunc = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
     exception_value="PYGEN_ERROR",
     exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
 ))
+
+sequence_subscript_signatures = {
+    '__getitem__': ssizeargfunc,
+    '__setitem__': ssizeobjargproc,
+    '__delitem__': ssizeargproc,
+}
 
 
 #------------------------------------------------------------------------------------------
@@ -994,9 +1001,9 @@ class SlotTable:
             MethodSlot(lenfunc, "sq_length", "__len__", method_name_to_slot),
             EmptySlot("sq_concat"),  # nb_add used instead
             EmptySlot("sq_repeat"),  # nb_multiply used instead
-            SyntheticSlot("sq_item", ["__getitem__"], "0"),    #EmptySlot("sq_item"),   # mp_subscript used instead
+            SyntheticSlot("sq_item", ["__getitem__"], "0"),
             EmptySlot("sq_slice"),
-            EmptySlot("sq_ass_item"),  # mp_ass_subscript used instead
+            SyntheticSlot("sq_ass_item", ["__setitem__", "__delitem__"], "0"),
             EmptySlot("sq_ass_slice"),
             MethodSlot(cmpfunc, "sq_contains", "__contains__", method_name_to_slot),
             EmptySlot("sq_inplace_concat"),  # nb_inplace_add used instead
@@ -1005,7 +1012,7 @@ class SlotTable:
 
         self.PyMappingMethods = (
             MethodSlot(lenfunc, "mp_length", "__len__", method_name_to_slot),
-            MethodSlot(objargfunc, "mp_subscript", "__getitem__", method_name_to_slot),
+            SyntheticSlot("mp_subscript", ["__getitem__"], "0"),
             SyntheticSlot("mp_ass_subscript", ["__setitem__", "__delitem__"], "0"),
         )
 
@@ -1108,6 +1115,7 @@ class SlotTable:
         MethodSlot(initproc, "", "__cinit__", method_name_to_slot)
         MethodSlot(destructor, "", "__dealloc__", method_name_to_slot)
         MethodSlot(destructor, "", "__del__", method_name_to_slot)
+        MethodSlot(objargfunc, "", "__getitem__", method_name_to_slot)
         MethodSlot(objobjargproc, "", "__setitem__", method_name_to_slot)
         MethodSlot(objargproc, "", "__delitem__", method_name_to_slot)
         MethodSlot(ssizessizeobjargproc, "", "__setslice__", method_name_to_slot)
