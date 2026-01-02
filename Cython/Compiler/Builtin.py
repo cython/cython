@@ -499,6 +499,8 @@ types_that_construct_their_instance = frozenset({
 
 # When updating this mapping, also update "unsafe_compile_time_methods" below
 # if methods are added that are not safe to evaluate at compile time.
+# 'T' - type identical to type in dictionary key
+# 'I' - type from index - e.g. for list[int], I is `int`
 inferred_method_return_types = {
     'complex': dict(
         conjugate='complex',
@@ -523,6 +525,7 @@ inferred_method_return_types = {
         copy='T',
         count='Py_ssize_t',
         index='Py_ssize_t',
+        pop='I',
     ),
     'tuple': dict(
         count='Py_ssize_t',
@@ -556,7 +559,7 @@ inferred_method_return_types = {
         ljust='T',
         lower='T',
         lstrip='T',
-        maketrans='dict[int,object]',  # staticmethod
+        maketrans='dict[int,int]',  # staticmethod
         partition='tuple[T,T,T]',
         removeprefix='T',
         removesuffix='T',
@@ -640,6 +643,7 @@ inferred_method_return_types = {
         issuperset='bint',
         symmetric_difference='T',
         union='T',
+        pop='I',
     ),
     'frozenset': dict(
         # Inherited from 'set' below.
@@ -648,6 +652,7 @@ inferred_method_return_types = {
         copy='T',
         fromkeys='T',  # classmethod
         popitem='tuple',
+        pop='I',
     ),
 }
 
@@ -655,24 +660,31 @@ inferred_method_return_types['bytearray'].update(inferred_method_return_types['b
 inferred_method_return_types['frozenset'].update(inferred_method_return_types['set'])
 
 
-def find_return_type_of_builtin_method(builtin_type, method_name):
-    type_name = builtin_type.name
+def find_return_type_of_builtin_method(pos, env, builtin_type, method_name):
+    type_name = tn if (tn := builtin_type.get_container_type()) else builtin_type.name
+    subscripted_types = ()
     if type_name in inferred_method_return_types:
         methods = inferred_method_return_types[type_name]
         if method_name in methods:
             return_type_name = methods[method_name]
             if '[' in return_type_name:
-                # TODO: Keep the "[...]" part when we add support for generics.
+                subscripted_types = return_type_name.partition('[')[2].partition(']')[0]
                 return_type_name = return_type_name.partition('[')[0]
             if return_type_name == 'T':
                 return builtin_type
-            if 'T' in return_type_name:
-                return_type_name = return_type_name.replace('T', builtin_type.name)
+            if return_type_name == 'I':
+                return indexed_type if (indexed_type := builtin_type.infer_indexed_type()) else PyrexTypes.py_object_type
+            if 'T' in subscripted_types:
+                subscripted_types = subscripted_types.replace('T', builtin_type.name)
             if return_type_name == 'bint':
                 return PyrexTypes.c_bint_type
             elif return_type_name == 'Py_ssize_t':
                 return PyrexTypes.c_py_ssize_t_type
-            return builtin_scope.lookup(return_type_name).type
+            container_type = builtin_scope.lookup(return_type_name).type
+            if subscripted_types:
+                subscripted_types = [builtin_scope.lookup(t).type for t in subscripted_types.split(',')]
+                container_type = container_type.specialize_here(pos, env, subscripted_types)
+            return container_type
     return PyrexTypes.py_object_type
 
 
@@ -840,7 +852,7 @@ def init_builtins():
     global bytes_type, unicode_type, bytearray_type
     global float_type, int_type, bool_type, complex_type
     global memoryview_type, py_buffer_type
-    global sequence_types
+    global sequence_types, typed_container_types
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -859,6 +871,13 @@ def init_builtins():
     int_type = builtin_scope.lookup('int').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
+
+    typed_container_types = (
+        list_type,
+        set_type,
+        frozenset_type,
+        dict_type,
+    )
 
     sequence_types = (
         list_type,
