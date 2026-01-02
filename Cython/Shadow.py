@@ -156,7 +156,7 @@ internal = c_api_binop_methods = type_version_tag = no_gc_clear = \
     no_gc = total_ordering = _empty_class_decorator
 
 annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
-    nonecheck = cdivision = cdivision_warnings = \
+    nonecheck = cdivision = cdivision_warnings = collection_type = \
     profile = linetrace = infer_types = \
     freelist = auto_pickle = cpow = trashcan = auto_cpdef = \
     allow_none_for_extension_args = callspec = show_performance_hints = \
