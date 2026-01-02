@@ -557,18 +557,18 @@ class SubscriptSlot(SyntheticSlot):
             if slot_name.startswith('mp_') and collection_type == 'sequence':
                 return False
 
-        has_impl = False
+        scope_implements_methods = False
         is_sequence_impl = True
         for method_name in cls._slot_methods[slot_name]:
             entry = cls.find_special_method(scope, method_name)
             if entry is None:
                 continue
             if entry.scope is scope:
-                has_impl = True
+                scope_implements_methods = True
             if entry.signature != sequence_subscript_signatures[method_name]:
                 is_sequence_impl = False
 
-        if not has_impl:
+        if not scope_implements_methods:
             return False
         if slot_name.startswith('mp_') and is_sequence_impl:
             # Even when implementing the sequence protocol, a base class might have chosen to
