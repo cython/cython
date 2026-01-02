@@ -553,9 +553,8 @@ class SubscriptSlot(SyntheticSlot):
     @classmethod
     def implements_slot(cls, scope, slot_name):
         collection_type = scope.directives.get('collection_type')
-        if collection_type is None:
-            if slot_name.startswith('mp_') and collection_type == 'sequence':
-                return False
+        if collection_type == 'sequence' and slot_name.startswith('mp_'):
+            return False
 
         scope_implements_methods = False
         is_sequence_impl = True

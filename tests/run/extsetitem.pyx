@@ -45,6 +45,66 @@ class SetItemExtSequenceAnn:
         print(i, x)
 
 
+@cython.collection_type("sequence")
+@cython.cclass
+class SetItemExtCollectionTypeSequenceInt:
+    """
+    >>> s = SetItemExtCollectionTypeSequenceInt()
+    >>> s[2] = 4
+    2 4
+    >>> del s[2]
+    Traceback (most recent call last):
+    NotImplementedError: Subscript deletion not supported by extsetitem.SetItemExtCollectionTypeSequenceInt
+    """
+    def __setitem__(self, i: cython.Py_ssize_t, x):
+        print(i, x)
+
+
+@cython.collection_type("sequence")
+@cython.cclass
+class SetItemExtCollectionTypeSequenceObj:
+    """
+    >>> s = SetItemExtCollectionTypeSequenceObj()
+    >>> s[2] = 4
+    2 4
+    >>> del s[2]
+    Traceback (most recent call last):
+    NotImplementedError: Subscript deletion not supported by extsetitem.SetItemExtCollectionTypeSequenceObj
+    """
+    def __setitem__(self, i, x):
+        print(i, x)
+
+
+@cython.collection_type("mapping")
+@cython.cclass
+class SetItemExtCollectionTypeMappingInt:
+    """
+    >>> s = SetItemExtCollectionTypeMappingInt()
+    >>> s[2] = 4
+    2 4
+    >>> del s[2]
+    Traceback (most recent call last):
+    NotImplementedError: Subscript deletion not supported by extsetitem.SetItemExtCollectionTypeMappingInt
+    """
+    def __setitem__(self, i: cython.Py_ssize_t, x):
+        print(i, x)
+
+
+@cython.collection_type("mapping")
+@cython.cclass
+class SetItemExtCollectionTypeMappingObj:
+    """
+    >>> s = SetItemExtCollectionTypeMappingObj()
+    >>> s[2] = 4
+    2 4
+    >>> del s[2]
+    Traceback (most recent call last):
+    NotImplementedError: Subscript deletion not supported by extsetitem.SetItemExtCollectionTypeMappingObj
+    """
+    def __setitem__(self, i, x):
+        print(i, x)
+
+
 @cython.cclass
 class SetItemExtSequenceSmallInt:
     """
@@ -60,5 +120,5 @@ class SetItemExtSequenceSmallInt:
 
 
 _WARNINGS = """
-58:26: Smaller index type 'int' than 'Py_ssize_t' may get truncated in sequence protocol
+118:26: Smaller index type 'int' than 'Py_ssize_t' may get truncated in sequence protocol
 """

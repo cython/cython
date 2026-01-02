@@ -2194,6 +2194,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Implement 'sq_item()' and/or 'mp_subscript()', whichever is more suitable.
         get_entry = scope.lookup_here("__getitem__")
         is_sequence_get = get_entry.signature == TypeSlots.sequence_subscript_signatures['__getitem__']
+        implements_mapping_get = TypeSlots.SubscriptSlot.implements_slot(scope, 'mp_subscript')
 
         # Sequence protocol
         if TypeSlots.SubscriptSlot.implements_slot(scope, 'sq_item'):
@@ -2206,10 +2207,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # Note that PyType_GetSlot() only works on heap-types before 3.10, so not using type slots
                 # and defining cdef classes as non-heap types is probably impossible.
                 code.putln("#if CYTHON_USE_TYPE_SLOTS || (!CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX < 0x030A0000)")
-                code.putln("r = Py_TYPE(o)->tp_as_mapping->mp_subscript(o, x);")
+                if implements_mapping_get:
+                    code.putln("binaryfunc f = Py_TYPE(o)->tp_as_mapping->mp_subscript;")
+                else:
+                    code.putln("PyMappingMethods *mapping_methods = Py_TYPE(o)->tp_as_mapping;")
+                    code.putln("binaryfunc f = mapping_methods ? mapping_methods->mp_subscript : NULL;")
                 code.putln("#else")
-                code.putln("r = ((binaryfunc)PyType_GetSlot(Py_TYPE(o), Py_mp_subscript))(o, x);")
+                code.putln("binaryfunc f = ((binaryfunc)PyType_GetSlot(Py_TYPE(o), Py_mp_subscript));")
                 code.putln("#endif")
+                if not implements_mapping_get:
+                    code.putln(f"if (unlikely(!f)) f = (binaryfunc) {get_entry.func_cname};")
+                code.putln("r = f(o, x);")
                 code.putln("Py_DECREF(x);")
                 code.putln("return r;")
 
@@ -2217,7 +2225,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.exit_cfunc_scope()
 
         # Mapping protocol.
-        if TypeSlots.SubscriptSlot.implements_slot(scope, 'mp_subscript'):
+        if implements_mapping_get:
             code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "mp_subscript", "PyObject *o, PyObject *i", needs_funcstate=False)
             if is_sequence_get:
                 code.putln("Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); if (unlikely(x == -1 && PyErr_Occurred())) return NULL;")
