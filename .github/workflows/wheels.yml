@@ -124,7 +124,7 @@ jobs:
           python -m pip install twine
           python -m twine check ./wheelhouse/*.whl
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6.0.0
         with:
           name: ${{ matrix.only }}
           path: ./wheelhouse/*.whl
@@ -176,7 +176,7 @@ jobs:
           python -m pip install twine
           python -m twine check ./wheelhouse/*.whl
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6.0.0
         with:
           name: Stable-ABI-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
@@ -208,12 +208,12 @@ jobs:
           python setup.py bdist_wheel --no-cython-compile
           twine check ./dist/*.whl
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6.0.0
         with:
           name: sdist
           path: ./dist/*.tar.gz
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6.0.0
         with:
           name: pure-wheel
           path: ./dist/*.whl
@@ -228,7 +228,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           path: ./release_upload
           merge-multiple: true
@@ -237,7 +237,7 @@ jobs:
         run: ls -la ./release_upload
 
       - name: Upload wheels
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           path: ./release_upload/*.whl
           name: all_wheels
