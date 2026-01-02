@@ -552,10 +552,6 @@ class SubscriptSlot(SyntheticSlot):
 
     @classmethod
     def implements_slot(cls, scope, slot_name):
-        collection_type = scope.directives.get('collection_type')
-        if collection_type == 'sequence' and slot_name.startswith('mp_'):
-            return False
-
         scope_implements_methods = False
         is_sequence_impl = True
         for method_name in cls._slot_methods[slot_name]:
@@ -569,10 +565,26 @@ class SubscriptSlot(SyntheticSlot):
 
         if not scope_implements_methods:
             return False
-        if slot_name.startswith('mp_') and is_sequence_impl:
+
+        if slot_name.startswith('mp_') and scope.parent_type.base_type is not None:
             # Even when implementing the sequence protocol, a base class might have chosen to
-            # implement the mapping protocol (or may choose to do so in the future).
-            return scope.parent_type.base_type is not None
+            # implement the mapping protocol (or may choose to do so in the future),
+            # and that would unfortunately take precedence.
+            return True
+
+        collection_type = scope.directives.get('collection_type')
+        if collection_type == 'mapping':
+            if slot_name.startswith('mp_'):
+                return True
+            # Implementing the Sequence slot doesn't hurt because the Mapping protocol takes precedence.
+        elif collection_type == 'sequence':
+            if slot_name.startswith('sq_'):
+                return True
+            elif is_sequence_impl:
+                # Mapping slot in a Sequence, implemented with sequence signature.
+                # Allow callers to see that it would be efficient to use by not implementing it.
+                return False
+
         return True
 
     def slot_code(self, scope):
