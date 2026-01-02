@@ -11,9 +11,7 @@ class TestShadow(unittest.TestCase):
         missing_directives = []
         extra_directives = []
         for full_directive in Options.directive_types.keys():
-            # Python 2 doesn't support "directive, *rest = full_directive.split('.')"
-            split_directive = full_directive.split('.')
-            directive, rest = split_directive[0], split_directive[1:]
+            directive, *rest = full_directive.split('.')
 
             scope = Options.directive_scopes.get(full_directive)
             if scope and len(scope) == 1 and scope[0] == "module":
