@@ -558,23 +558,22 @@ class SubscriptSlot(SyntheticSlot):
                 return False
 
         has_impl = False
-        is_sequence_impl = False
+        is_sequence_impl = True
         for method_name in cls._slot_methods[slot_name]:
             entry = cls.find_special_method(scope, method_name)
             if entry is None:
                 continue
             if entry.scope is scope:
                 has_impl = True
-            if entry.signature == sequence_subscript_signatures[method_name]:
-                is_sequence_impl = True
-            else:
+            if entry.signature != sequence_subscript_signatures[method_name]:
                 is_sequence_impl = False
-                break
 
         if not has_impl:
             return False
         if slot_name.startswith('mp_') and is_sequence_impl:
-            return False
+            # Even when implementing the sequence protocol, a base class might have chosen to
+            # implement the mapping protocol (or may choose to do so in the future).
+            return scope.parent_type.base_type is not None
         return True
 
     def slot_code(self, scope):

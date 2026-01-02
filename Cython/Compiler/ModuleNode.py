@@ -2202,7 +2202,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln(f"return {get_entry.func_cname}(o, i);")
             else:
                 code.putln("PyObject *r;")
-                code.putln("PyObject *x = PyLong_FromSsize_t(i); if (unlikely(!x)) return 0;")
+                code.putln("PyObject *x = PyLong_FromSsize_t(i); if (unlikely(!x)) return NULL;")
                 # Note that PyType_GetSlot() only works on heap-types before 3.10, so not using type slots
                 # and defining cdef classes as non-heap types is probably impossible.
                 code.putln("#if CYTHON_USE_TYPE_SLOTS || (!CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX < 0x030A0000)")
@@ -2218,9 +2218,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # Mapping protocol.
         if TypeSlots.SubscriptSlot.implements_slot(scope, 'mp_subscript'):
-            assert not is_sequence_get  # Mapping protocol is only implemented for non-sequences.
             code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "mp_subscript", "PyObject *o, PyObject *i", needs_funcstate=False)
-            code.putln(f"return {get_entry.func_cname}(o, i);")
+            if is_sequence_get:
+                code.putln("Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); if (unlikely(x == -1 && PyErr_Occurred())) return NULL;")
+                code.putln(f"return {get_entry.func_cname}(o, x);")
+            else:
+                code.putln(f"return {get_entry.func_cname}(o, i);")
             code.putln("}")
             code.exit_cfunc_scope()
 
