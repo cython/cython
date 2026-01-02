@@ -21,10 +21,6 @@ class TestShadow(unittest.TestCase):
                 if hasattr(Shadow, directive):
                     extra_directives.append(full_directive)
                 continue
-            if full_directive == "collection_type":
-                # collection_type is current restricted to utility code only
-                # so doesn't need to be in Shadow
-                continue
             if full_directive == "staticmethod":
                 # staticmethod is a weird special-case and not really intended to be
                 # used from the cython module
