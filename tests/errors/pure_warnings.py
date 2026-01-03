@@ -7,7 +7,7 @@ from cython.cimports.libc import stdint
 
 
 def main():
-    foo1: typing.Tuple = None
+    foo0: typing.Tuple = None
     foo1: typing.Bar = None
     foo2: Bar = 1  # warning
     foo3: int = 1
