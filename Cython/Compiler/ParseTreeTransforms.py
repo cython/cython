@@ -2336,7 +2336,6 @@ if VALUE is not None:
 
             pickle_code = f"""
                 def __reduce_cython__(self):
-                    cdef Py_ssize_t idx
                     cdef tuple state
                     cdef object _dict
                     cdef bint use_setstate
