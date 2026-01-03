@@ -2323,7 +2323,7 @@ if VALUE is not None:
 
             members = ', '.join(f'self.{v}' for v in all_members_names) + (',' if len(all_members_names) == 1 else '')
             # Even better, we could check PyType_IS_GC.
-            any_notnone_members = ' or '.join([f'self.{e.name} is not None' for e in all_members if e.type.is_pyobject] or ['False']),
+            any_notnone_members = ' or '.join([f'self.{e.name} is not None' for e in all_members if e.type.is_pyobject] or ['False'])
 
             pickle_code = f"""
                 def __reduce_cython__(self):
