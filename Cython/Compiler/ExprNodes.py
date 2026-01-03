@@ -10491,8 +10491,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             defaults = '__Pyx_CyFunction_Defaults(struct %s, %s)' % (
                 self.defaults_entry.type.objstruct_cname, self.result())
             for arg, entry in self.defaults:
-                arg.generate_assignment_code(code, target='%s->%s' % (
-                    defaults, entry.cname))
+                if arg.is_dynamic:
+                    arg.generate_assignment_code(code, cyfunc_struct_target=f'{defaults}->{entry.cname}')
 
         if self.defaults_tuple:
             code.putln('__Pyx_CyFunction_SetDefaultsTuple(%s, %s);' % (
