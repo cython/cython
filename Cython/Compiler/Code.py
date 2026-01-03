@@ -2422,7 +2422,17 @@ class GlobalState:
         writer.putln(f"PyObject **table = {array_cname};")
         writer.putln(f"for (Py_ssize_t i=0; i<{constant_count}; ++i) {{")
         writer.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        # We don't want to set the refcount on shared constants (e.g. cached integers)
+        # because setting the refcount isn't thread-safe. The chances are that most of the constants
+        # that this applies to are already immortal though so that isn't a great loss.
+        writer.putln("#if PY_VERSION_HEX < 0x030E0000")
+        writer.putln("if (_Py_IsOwnedByCurrentThread(table[i]) && Py_REFCNT(table[i]) == 1)")
+        writer.putln("#else")
+        writer.putln("if (PyUnstable_Object_IsUniquelyReferenced(table[i]))")
+        writer.putln("#endif")
+        writer.putln("{")
         writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_REFCNT_LOCAL);")
+        writer.putln("}")
         writer.putln("#else")
         writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_INITIAL_REFCNT);")
         writer.putln("#endif")
