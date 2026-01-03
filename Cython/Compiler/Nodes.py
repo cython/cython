@@ -1082,7 +1082,7 @@ class CArgDeclNode(Node):
     def generate_assignment_code(self, code, overloaded_assignment=False,
                                  cyfunc_struct_target=None):
         default = self.default
-        if default is None or default.is_literal:
+        if default is None or (default.is_literal and cyfunc_struct_target is None):
             return
         # Note that even if self.is_dynamic, default may be a literal if it's been
         # optimized into a literal after analyse_expressions
