@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.3.0a1 (202?-??-??)
+3.3.0a1 (2026-??-??)
 ====================
 
 Features added
@@ -43,6 +43,9 @@ Features added
 
 * Several C++ exception declarations were added to ``libcpp.exceptions``.
   (Github issue :issue:`7389`)
+
+* Missing Python type flag declarations were added to ``cpython.object``.
+  (Github issue :issue:`7441`)
 
 * Error detection when assigning to ``const`` variables was improved.
   (Github issue :issue:`7359`)
