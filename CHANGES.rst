@@ -615,7 +615,7 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.8 (2025-12-??)
+3.1.8 (2026-01-03)
 ==================
 
 Bugs fixed
