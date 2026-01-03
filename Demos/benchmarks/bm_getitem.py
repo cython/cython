@@ -109,19 +109,19 @@ def bm_getitem_deque(iterations, timer=DEFAULT_TIMER):
 def bm_getitem_ext(iterations, timer=DEFAULT_TIMER):
     return _bm_getitems(iterations, GetItemExt, timer)
 
-def bm_getitem_ext_sequence(iterations, timer=DEFAULT_TIMER):
+def bm_getitem_ext_seq(iterations, timer=DEFAULT_TIMER):
     return _bm_getitems(iterations, GetItemExtSequence, timer)
 
-def bm_getitem_ext_mapping(iterations, timer=DEFAULT_TIMER):
+def bm_getitem_ext_map(iterations, timer=DEFAULT_TIMER):
     return _bm_getitems(iterations, GetItemExtMapping, timer)
 
 def bm_getitem_ext_from_py(iterations, timer=DEFAULT_TIMER):
     return _bm_getitems(iterations, GetItemExt, timer, _getitems_from_py)
 
-def bm_getitem_ext_from_py_sequence(iterations, timer=DEFAULT_TIMER):
+def bm_getitem_ext_from_py_seq(iterations, timer=DEFAULT_TIMER):
     return _bm_getitems(iterations, GetItemExtSequence, timer, _getitems_from_py)
 
-def bm_getitem_ext_from_py_mapping(iterations, timer=DEFAULT_TIMER):
+def bm_getitem_ext_from_py_map(iterations, timer=DEFAULT_TIMER):
     return _bm_getitems(iterations, GetItemExtMapping, timer, _getitems_from_py)
 
 
