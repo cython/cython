@@ -100,11 +100,23 @@ Other changes
   (Github issue :issue:`7376`)
 
 
-3.2.4 (2025-12-??)
+3.2.4 (2026-01-04)
 ==================
 
 Bugs fixed
 ----------
+
+* Pseudo-literal default values of function arguments like ``arg=str()`` could generate
+  invalid C code when internally converted into a real literal.
+  (Github issue :issue:`6192`)
+
+* The pickle serialisation of extension types using the ``auto_pickle`` feature was
+  larger than necessary since 3.2.0 for types without Python object attributes.
+  It is now back to the state before 3.2.0 again.
+  (Github issue :issue:`7443`)
+
+* Constants are now only made immortal on freethreading Python if they are not shared.
+  (Github issue :issue:`7439`)
 
 * ``PyDict_SetDefaultRef()`` is now used when available to avoid temporary borrowed references.
   (Github issue :issue:`7347`)
@@ -700,7 +712,7 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.8 (2025-12-??)
+3.1.8 (2026-01-03)
 ==================
 
 Bugs fixed
