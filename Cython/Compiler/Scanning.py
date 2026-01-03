@@ -360,6 +360,9 @@ class PyrexScanner(Scanner):
 
     def close_bracket_action(self, text):
         self.bracket_nesting_level -= 1
+        if (self.ft_string_state_stack and
+                self.ft_string_state_stack[-1].bracket_nesting_level() > self.bracket_nesting_level):
+            self.error_at_scanpos(f"Unmatched '{text}'")
         return text
 
     def open_brace_action(self, text):
