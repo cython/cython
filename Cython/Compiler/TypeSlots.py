@@ -582,7 +582,7 @@ class SubscriptSlot(SyntheticSlot):
                 return True
             elif is_sequence_impl:
                 # Mapping slot in a Sequence, implemented with sequence signature.
-                # Allow callers to see that it would be efficient to use by not implementing it.
+                # By not implementing it, we allow callers to see that it would be inefficient to use.
                 return False
 
         return True
