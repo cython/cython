@@ -103,6 +103,17 @@ Other changes
 3.2.4 (2026-01-04)
 ==================
 
+Features added
+--------------
+
+* In preparation of Cython 3.3, a new decorator ``@collection_type(tname)`` can be used
+  to advertise an extension type as being a ``'sequence'`` or ``'mapping'``.  This currently
+  only has the effect of setting the ``Py_TPFLAGS_SEQUENCE`` flag on the type or not, but
+  is provided for convenience to allow using the new decorator already in Cython 3.2 code.
+
+* Several C++ exception declarations were added to ``libcpp.exceptions``.
+  (Github issue :issue:`7389`)
+
 Bugs fixed
 ----------
 
