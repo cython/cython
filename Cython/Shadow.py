@@ -103,7 +103,7 @@ class _Optimization:
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
 annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
-    nonecheck = embedsignature = cdivision = cdivision_warnings = \
+    nonecheck = embedsignature = cdivision = cdivision_warnings = collection_type = \
     always_allow_keywords = profile = linetrace = infer_types = \
     unraisable_tracebacks = freelist = auto_pickle = cpow = trashcan = \
     auto_cpdef = c_api_binop_methods = \
