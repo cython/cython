@@ -7,7 +7,7 @@ import time
 from functools import partial
 
 
-# Unpacking buffers.
+# Memoryviews.
 
 def _unpack_buffer_const_char_1d(provider, int number, timer=time.perf_counter):
     cdef const unsigned char[:] buffer
@@ -24,6 +24,36 @@ bm_mview_const_char_bytes = partial(_unpack_buffer_const_char_1d, _bytes_data)
 bm_mview_const_char_bytearray = partial(_unpack_buffer_const_char_1d, bytearray(_bytes_data))
 bm_mview_const_char_pyarray = partial(_unpack_buffer_const_char_1d, array.array('B', _bytes_data))
 del _bytes_data
+
+
+cdef const unsigned char[:] _pass_slice(const unsigned char[:] view):
+    return view[::2]
+
+
+def _slice_memoryview(data, int number, timer=time.perf_counter):
+    cdef const unsigned char[:] view = data
+    cdef const unsigned char[:] view2
+    cdef long dummy = 0
+    cdef Py_ssize_t i
+
+    t = timer()
+
+    for _ in range(number):
+        for i in range(len(view) - 1):
+            view2 = _pass_slice(view[i:])
+            dummy += view2[0]
+
+            view2 = _pass_slice(view[:i+1])
+            dummy -= view2[i // 2]
+
+    t = timer() - t
+
+    if dummy == 0:
+        raise RuntimeError("did it calculate?")
+    return t
+
+
+bm_slice_memoryview = partial(_slice_memoryview, bytes([i % 256 for i in range(100)]))
 
 
 # With statement.

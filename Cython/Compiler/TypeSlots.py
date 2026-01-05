@@ -558,13 +558,15 @@ class TypeFlagsSlot(SlotDescriptor):
         else:
             # Used to be in 'Py_TPFLAGS_DEFAULT' up to Py3.10.
             value = f"({value}&~Py_TPFLAGS_HAVE_VERSION_TAG)"
-        value += "|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
         if not scope.parent_type.is_final_type:
             value += "|Py_TPFLAGS_BASETYPE"
         if scope.needs_gc():
             value += "|Py_TPFLAGS_HAVE_GC"
         if scope.parent_type.has_sequence_flag:
             value += "|Py_TPFLAGS_SEQUENCE"
+        if scope.parent_type.has_mapping_flag:
+            assert not scope.parent_type.has_sequence_flag
+            value += "|Py_TPFLAGS_MAPPING"
         return value
 
     def generate_spec(self, scope, code):

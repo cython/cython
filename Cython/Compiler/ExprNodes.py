@@ -340,6 +340,7 @@ class ExprNode(Node):
     #  annotation   ExprNode or None    PEP526 annotation for names or expressions
     #  generator_arg_tag  None or Node   A tag to mark ExprNodes that potentially need to
     #                              be changed to a generator argument
+    #  use_borrowed_ref boolean   only relevant if is_temp; avoid disposing of the temp
 
     result_ctype = None
     type = None
@@ -351,6 +352,7 @@ class ExprNode(Node):
     is_numpy_attribute = False
     generator_arg_tag = None
     in_parallel_block = False
+    use_borrowed_ref = False
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -905,7 +907,7 @@ class ExprNode(Node):
         if self.has_temp_moved:
             code.globalstate.use_utility_code(
                     UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
-        if self.is_temp:
+        if self.is_temp and not self.use_borrowed_ref:
             if self.type.is_string or self.type.is_pyunicode_ptr:
                 # postponed from self.generate_evaluation_code()
                 self.generate_subexpr_disposal_code(code)
@@ -5276,6 +5278,7 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
     is_memview_scalar_assignment = False
     is_memview_index = False
     is_memview_broadcast = False
+    use_borrowed_ref = False
 
     def analyse_ellipsis_noop(self, env, getting):
         """Slicing operations needing no evaluation, i.e. m[...] or m[:, :]"""
@@ -5391,7 +5394,8 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
         buffer_entry.generate_buffer_slice_code(
             code, self.original_indices, self.result(), self.type,
             have_gil=have_gil, have_slices=have_slices,
-            directives=code.globalstate.directives)
+            directives=code.globalstate.directives,
+            drop_temp_refcounting=self.use_borrowed_ref)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         if self.is_ellipsis_noop:
@@ -10609,8 +10613,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             defaults = '__Pyx_CyFunction_Defaults(struct %s, %s)' % (
                 self.defaults_entry.type.objstruct_cname, self.result())
             for arg, entry in self.defaults:
-                arg.generate_assignment_code(code, target='%s->%s' % (
-                    defaults, entry.cname))
+                if arg.is_dynamic:
+                    arg.generate_assignment_code(code, cyfunc_struct_target=f'{defaults}->{entry.cname}')
 
         if self.defaults_tuple:
             code.putln('__Pyx_CyFunction_SetDefaultsTuple(%s, %s);' % (
@@ -13945,8 +13949,23 @@ class CmpNode:
             type1, type2 = operand1.type, self.operand2.type
             if result_is_bool or (type1.is_builtin_type and type2.is_builtin_type):
                 if type1 is Builtin.unicode_type or type2 is Builtin.unicode_type:
-                    self.special_bool_cmp_utility_code = UtilityCode.load_cached("UnicodeEquals", "StringTools.c")
-                    self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
+                    if operand1.is_string_literal and operand1.can_coerce_to_char_literal():
+                        # We need to keep the signature (obj1, obj2, eq), so we generate one macro function per character.
+                        character = ord(operand1.value[0])
+                        is_str = type2 is Builtin.unicode_type
+                        self.special_bool_cmp_utility_code = TempitaUtilityCode.load_cached(
+                            "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': True})
+                        self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_ch{character}_{'str' if is_str else 'obj'}"
+                    elif self.operand2.is_string_literal and self.operand2.can_coerce_to_char_literal():
+                        # We need to keep the signature (obj1, obj2, eq), so we generate one macro function per character.
+                        character = ord(self.operand2.value[0])
+                        is_str = type1 is Builtin.unicode_type
+                        self.special_bool_cmp_utility_code = TempitaUtilityCode.load_cached(
+                            "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': False})
+                        self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_{'str' if is_str else 'obj'}_ch{character}"
+                    else:
+                        self.special_bool_cmp_utility_code = UtilityCode.load_cached("UnicodeEquals", "StringTools.c")
+                        self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
                     return True
                 elif type1 is Builtin.bytes_type or type2 is Builtin.bytes_type:
                     self.special_bool_cmp_utility_code = UtilityCode.load_cached("BytesEquals", "StringTools.c")
