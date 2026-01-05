@@ -339,33 +339,27 @@ def copy_profile(bm_dir, module_name, profiler):
 def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.25):
     python_command = [python_executable]
     i = 1
-    all_timings = bench_func(python_command, repeat=False, scale=i)
-    # We put a minimum bar on the fastest run time (to avoid outliers) of the slowest benchmark,
-    # assuming that the other sub-benchmarks will be scaled internally.
-    min_actual_time = max(min(timings) for timings in all_timings.values())
+    min_actual_time = 0
+    while min_actual_time < min_runtime * .6:
+        all_timings = bench_func(python_command, repeat=False, scale=i)
 
-    # Quickly scale up by factors of 10.
-    # Note that this will be increasingly off for fast non-linear benchmarks, so we stop an order away.
-    while min_actual_time * 130 < min_runtime:
-        i *= 10
-        min_actual_time *= 10
+        # We put a minimum bar on the fastest run time (to avoid outliers) of the slowest benchmark,
+        # assuming that the other sub-benchmarks will be scaled internally.
+        min_actual_time = max(min(timings) for timings in all_timings.values())
 
-    last_min = 0.
-    while True:
-        for j in 1, 2, 5:
-            number = i * j
-            all_timings = bench_func(python_command, repeat=False, scale=number)
+        factor = (min_runtime - min_actual_time) / min_actual_time
+        if factor < .1:
+            break
+        i += int( i * factor * .8 )  # account for non-linear benchmark scaling
 
+    step = int(i * (min_runtime - min_actual_time) / min_actual_time) // 2
+    if step > 0:
+        while min_actual_time < min_runtime:
+            i += step
+            all_timings = bench_func(python_command, repeat=False, scale=i)
             min_actual_time = max(min(timings) for timings in all_timings.values())
-            if min_actual_time >= min_runtime:
-                if (min_actual_time - min_runtime) / (min_actual_time - last_min) > .4:
-                    # Avoid large overshoots due to large j steps.
-                    number -= i // (3 if j == 1 else 2 if j == 2 else 1)
-                return number
 
-            last_min = min_actual_time
-
-        i *= 10
+    return i
 
 
 def _make_bench_func(bm_dir, module_name, pythonpath=None):
