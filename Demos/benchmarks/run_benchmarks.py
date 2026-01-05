@@ -340,7 +340,7 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
     python_command = [python_executable]
     i = 1
     min_actual_time = 0
-    while min_actual_time < min_runtime * .6:
+    while min_actual_time < min_runtime * .75:
         all_timings = bench_func(python_command, repeat=False, scale=i)
 
         # We put a minimum bar on the fastest run time (to avoid outliers) of the slowest benchmark,
@@ -352,13 +352,9 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
             break
         i += int( i * factor * .8 )  # account for non-linear benchmark scaling
 
-    step = int(i * (min_runtime - min_actual_time) / min_actual_time) // 2
-    if step > 0:
-        while min_actual_time < min_runtime:
-            i += step
-            all_timings = bench_func(python_command, repeat=False, scale=i)
-            min_actual_time = max(min(timings) for timings in all_timings.values())
-
+    # For the rest, apply a "good enough" factor, up or down, to get us in the right range.
+    # Avoid running the benchmarks again with that since we will do that properly in an instant.
+    i += int(round(i * .9 * (min_runtime - min_actual_time) / min_actual_time))
     return i
 
 
