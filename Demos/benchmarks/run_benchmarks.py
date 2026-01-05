@@ -370,7 +370,7 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
 
 def _make_bench_func(bm_dir, module_name, pythonpath=None):
     def bench_func(python_command: list, repeat: bool, scale: int):
-        py_code = f"import {module_name} as bm; bm.run_benchmark({repeat}, 3); print(bm.run_benchmark({repeat}, {scale:d}))"
+        py_code = f"import {module_name} as bm; print(bm.run_benchmark({repeat}, {scale:d}))"
         command = python_command + ["-c", py_code]
 
         output = run(command, cwd=bm_dir, pythonpath=pythonpath, capture_stderr=False)
