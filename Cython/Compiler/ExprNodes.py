@@ -114,7 +114,6 @@ def find_coercion_error(type_tuple, default, env):
             type0 = type0.get_subscripted_type(0)
             type1 = type1.get_subscripted_type(0)
             return find_coercion_error((type0, type1), default, env)
-    if err is None:
         return default
     elif (env.directives['c_string_encoding'] and
               any(t in type_tuple for t in (PyrexTypes.c_char_ptr_type, PyrexTypes.c_uchar_ptr_type,
