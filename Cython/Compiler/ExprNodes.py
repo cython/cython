@@ -4370,11 +4370,7 @@ class IndexNode(_IndexingBaseNode):
                 base_type = self.base.type
 
         if base_type.is_pyobject:
-            self.analyse_as_pyobject(env, is_slice, getting, setting)
-            if base_type in typed_container_types and (sub_type := base_type.infer_indexed_type()):
-                self.type = base_type
-                self = self.coerce_to(sub_type, env)
-            return self
+            return self.analyse_as_pyobject(env, is_slice, getting, setting)
         elif base_type.is_ptr or base_type.is_array:
             return self.analyse_as_c_array(env, is_slice)
         elif base_type.is_cpp_class:
@@ -4451,6 +4447,11 @@ class IndexNode(_IndexingBaseNode):
                 self.type = item_type
 
         self.wrap_in_nonecheck_node(env, getting)
+
+        if base_type in typed_container_types and (sub_type := base_type.infer_indexed_type()):
+            self.type = base_type
+            return self.coerce_to(sub_type, env)
+
         return self
 
     def analyse_as_c_array(self, env, is_slice):
