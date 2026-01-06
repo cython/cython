@@ -338,7 +338,9 @@ def copy_profile(bm_dir, module_name, profiler):
 
 def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.25):
     python_command = [python_executable]
+
     i = 1
+    steps = []
     min_actual_time = 0
     while min_actual_time < min_runtime * .75:
         all_timings = bench_func(python_command, repeat=False, scale=i)
@@ -346,6 +348,7 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
         # We put a minimum bar on the fastest run time (to avoid outliers) of the slowest benchmark,
         # assuming that the other sub-benchmarks will be scaled internally.
         min_actual_time = max(min(timings) for timings in all_timings.values())
+        steps.append((i, min_actual_time))
 
         factor = (min_runtime - min_actual_time) / min_actual_time
         if factor < .1:
@@ -355,6 +358,13 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
     # For the rest, apply a "good enough" factor, up or down, to get us in the right range.
     # Avoid running the benchmarks again with that since we will do that properly in an instant.
     i += int(round(i * .9 * (min_runtime - min_actual_time) / min_actual_time))
+
+    if i < 1:
+        i = 1
+
+    steps = ' '.join([f"{step:d} ({t:.4f})" for step, t in steps])
+    logging.info(f"Autoscaled benchmark '{bench_func.__name__}' with steps {steps} -> {i}")
+
     return i
 
 
@@ -441,6 +451,9 @@ def run_benchmark(bm_dir, module_name, pythonpath=None, profiler=None):
     timings = bench_func(python_command, repeat=True, scale=scale)
 
     timings = {name: [t / scale for t in values] for name, values in timings.items()}
+
+    results = ', '.join([f"{name} ({format_time(min(times))})" for name, times in sorted(timings.items())])
+    logging.info(f"Best timings for benchmark '{module_name}': {results}")
 
     if profiler:
         copy_profile(bm_dir, module_name, profiler)
@@ -568,19 +581,20 @@ def benchmark_revision(
     return timings, (sizes or None)
 
 
+_time_units = {"nsec": 1e-9, "usec": 1e-6, "msec": 1e-3, "sec": 1.0}
+_time_scales = [(scale, unit) for unit, scale in reversed(_time_units.items())]  # biggest first
+
+def format_time(t, scales=_time_scales):
+    pos_t = abs(t)
+    for scale, unit in scales:
+        if pos_t >= scale:
+            break
+    else:
+        raise RuntimeError(f"Timing is below nanoseconds: {t:f}")
+    return f"{t / scale :.3f} {unit}"
+
+
 def report_revision_timings(rev_timings, csv_out=None):
-    units = {"nsec": 1e-9, "usec": 1e-6, "msec": 1e-3, "sec": 1.0}
-    scales = [(scale, unit) for unit, scale in reversed(units.items())]  # biggest first
-
-    def format_time(t):
-        pos_t = abs(t)
-        for scale, unit in scales:
-            if pos_t >= scale:
-                break
-        else:
-            raise RuntimeError(f"Timing is below nanoseconds: {t:f}")
-        return f"{t / scale :.3f} {unit}"
-
     timings_by_benchmark = collections.defaultdict(list)
     for revision_name, bm_timings in rev_timings.items():
         for benchmark, timings in bm_timings.items():
