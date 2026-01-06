@@ -57,6 +57,11 @@ def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_l
     except subprocess.CalledProcessError as exc:
         logging.error(f"Command failed: {' '.join(map(str, command))}\nOutput:\n{exc.stderr.decode()}")
         raise
+    except FileNotFoundError:
+        import shutil
+        if not shutil.which("time"):
+            logging.error("GNU time not found.")
+        raise
 
 
 def run_timed_python(python_command, **kwargs):
