@@ -359,6 +359,9 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
     # Avoid running the benchmarks again with that since we will do that properly in an instant.
     i += int(round(i * .9 * (min_runtime - min_actual_time) / min_actual_time))
 
+    if i < 1:
+        i = 1
+
     steps = ' '.join([f"{step:d} ({t:.4f})" for step, t in steps])
     logging.info(f"Autoscaled benchmark '{bench_func.__name__}' with steps {steps} -> {i}")
 
