@@ -3131,11 +3131,11 @@ class IteratorNode(ScopedExprNode):
             sequence = self.sequence.arg_tuple.args[0].arg
             return CppIteratorNode(self.pos, sequence=sequence, reversed=True).analyse_types(env)
         else:
-            if self.sequence.type in typed_container_types:
-                self.type = self.sequence.type
             self.sequence = self.sequence.coerce_to_pyobject(env)
             if self.sequence.type in (list_type, tuple_type):
                 self.sequence = self.sequence.as_none_safe_node("'NoneType' object is not iterable")
+            if self.sequence.type in typed_container_types:
+                self.type = self.sequence.type
         self.is_temp = 1
         return self
 
