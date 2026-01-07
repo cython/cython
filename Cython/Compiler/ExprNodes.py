@@ -13988,6 +13988,24 @@ class CmpNode:
                 return True
         return False
 
+    def find_compare_function(self, code, operand1):
+        if self.operator in ('==', '!=', '<', '<=', '>=', '>'):
+            type1, type2 = operand1.type, self.operand2.type
+            if {type1, type2} < {py_object_type, Builtin.int_type, Builtin.float_type}:
+                type_names = (type1.name, type2.name)
+                op_name = {'==': 'Eq', '!=': 'Ne', '<': 'Lt', '<=': 'Le', '>=': 'Ge', '>': 'Gt'}[self.operator]
+                code.globalstate.use_utility_code(TempitaUtilityCode.load_cached(
+                    "PyObjectCompare", "Optimize.c", context={
+                        'type1': type1.name,
+                        'type2': type2.name,
+                        'c_op': self.operator,
+                        'op': op_name,
+                        'ret_type': self.type,
+                    }))
+                return f"__Pyx_PyObject_Compare{'' if self.type.is_pyobject else 'Bool'}{op_name}_{type1.name}_{type2.name}"
+
+        return f"PyObject_RichCompare{'' if self.type.is_pyobject else 'Bool'}"
+
     def generate_operation_code(self, code, result_code,
             operand1, op, operand2):
         if self.type.is_pyobject:
@@ -14031,14 +14049,12 @@ class CmpNode:
         elif operand1.type.is_pyobject and op not in ('is', 'is_not'):
             assert op not in ('in', 'not_in'), op
             assert self.type.is_pyobject or self.type is PyrexTypes.c_bint_type
-            code.putln("%s = PyObject_RichCompare%s(%s, %s, %s); %s%s" % (
-                    result_code,
-                    "" if self.type.is_pyobject else "Bool",
-                    operand1.py_result(),
-                    operand2.py_result(),
-                    richcmp_constants[op],
-                    got_ref,
-                    error_clause(result_code, self.pos)))
+            function = self.find_compare_function(code, operand1)
+            op1 = operand1.py_result()
+            op2 = operand2.py_result()
+            error_goto = error_clause(result_code, self.pos)
+            code.putln(
+                f"{result_code} = {function}({op1}, {op2}, {richcmp_constants[op]}); {got_ref}{error_goto}")
 
         elif operand1.type.is_complex:
             code.putln("%s = %s(%s%s(%s, %s));" % (
