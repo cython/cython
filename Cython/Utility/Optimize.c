@@ -1082,31 +1082,26 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop) {
     CYTHON_UNUSED_VAR(pyop);
 
-    {{if not has_object or not ret_type.is_pyobject}}
-    {{if op in 'EqLeGe'}}
-    if (op1 == op2) return 1;
-    {{elif op == 'NeLtGt'}}
-    if (op1 == op2) return 0;
-    {{endif}}
+    {{if op in 'EqNe' and (not has_object or not ret_type.is_pyobject)}}
+    if (op1 == op2) {{return_true if op == 'Eq' else return_false}};
     {{endif}}
 
     {{# TODO: exclude NaN etc. !! }}
 
     {{if has_object or has_float}}
-    {{if type1 == 'object'}}
-    if ({{'likely' if type2 == 'float' else ''}}(PyFloat_CheckExact(op1)))
-    {{elif type1 == 'float'}}
+
+    {{if type1 in ('object', 'float')}}
+    {{if type1 == 'float'}}
     if (likely(op1 != Py_None))
     {{else}}
-    if ((0))
+    if ({{'likely' if type2 == 'float' else ''}}(PyFloat_CheckExact(op1)))
     {{endif}}
     {
-        {{if type2 == 'object'}}
-        if ({{'likely' if type1 == 'float'  else ''}}(PyFloat_CheckExact(op2)))
-        {{elif type2 == 'float'}}
+        {{if type2 in ('object', 'float')}}
+        {{if type2 == 'float'}}
         if (likely(op2 != Py_None))
         {{else}}
-        if ((0))
+        if ({{'likely' if type1 == 'float'  else ''}}(PyFloat_CheckExact(op2)))
         {{endif}}
         {
             double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
@@ -1119,7 +1114,9 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
             #endif
             if (float_op1 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
         }
-        {{if type2 == 'object' or type2 == 'int'}}
+        {{endif}}
+
+        {{if type2 in ('object', 'int')}}
         #if CYTHON_USE_PYLONG_INTERNALS
         if (PyLong_CheckExact(op2) && __Pyx_PyLong_IsCompact(op2)) {
             Py_ssize_t iop2 = __Pyx_PyLong_CompactValue(op2);
@@ -1134,9 +1131,11 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 
         goto __pyx_richcmp;
     }
+    {{endif}}
+
     {{if type1 in ('object', 'int') and type2 in ('object', 'float')}}
     #if CYTHON_USE_PYLONG_INTERNALS
-    else if ({{if type2 == 'object'}}PyFloat_CheckExact(op2){{else}}likely(op2 != Py_None){{endif}})
+    if ({{if type2 == 'object'}}PyFloat_CheckExact(op2){{else}}likely(op2 != Py_None){{endif}})
     {
         if (PyLong_CheckExact(op1)) {
             double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
@@ -1174,40 +1173,21 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
     if (PyLong_CheckExact(op1) & PyLong_CheckExact(op2))
     {{endif}}
     {
-        int sign1 = __Pyx_PyLong_Sign(op1);
-        int sign2 = __Pyx_PyLong_Sign(op2);
-        if (sign1 != sign2) {
+        int cmp = __Pyx_PyLong_CompareSignAndSize(op1, op2);
+        if (cmp != 0) {
             {{if op in 'EqNe'}}
-            {{return_true if op == 'Ne' else return_false}};
+            {{return_false if op == 'Eq' else return_true}};
             {{else}}
-            if (sign1 < sign2) {
-                {{return_true if op in 'LeLt' else return_false}};
-            } else {
-                {{return_false if op in 'LeLt' else return_true}};
-            }
+            if (cmp < 0) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
             {{endif}}
         }
-        if (!sign1) {
-            {{# both zero}}
-            {{return_true if op in 'EqLeGe' else return_false}};
-        }
-
-        Py_ssize_t size1 = __Pyx_PyLong_DigitCount(op1);
-        Py_ssize_t size2 = __Pyx_PyLong_DigitCount(op2);
-        if (size1 != size2) {
-            {{if op in 'EqNe'}}
-            {{return_true if op == 'Ne' else return_false}};
-            {{else}}
-            if (size1 {{'<' if op in 'LtLe' else '>'}} size2) {{return_true}}; else {{return_false}};
-            {{endif}}
-        }
-
+        Py_ssize_t size = __Pyx_PyLong_DigitCount(op1);
         const digit* digits1 = __Pyx_PyLong_Digits(op1);
         const digit* digits2 = __Pyx_PyLong_Digits(op2);
-        for (Py_ssize_t i=0; i < size1; i++) {
+        for (Py_ssize_t i=0; i < size; i++) {
             if (digits1[i] != digits2[i]) {
                 {{if op in 'EqNe'}}
-                {{return_true if op == 'Ne' else return_false}};
+                {{return_false if op == 'Eq' else return_true}};
                 {{else}}
                 if (digits1[i] {{'<' if op in 'LtLe' else '>'}} digits2[i]) {{return_true}}; else {{return_false}};
                 {{endif}}

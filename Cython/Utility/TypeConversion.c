@@ -158,6 +158,20 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
     #define __Pyx_PyLong_CompactValue(x)  ((1 - (Py_ssize_t) __Pyx_PyLong_Sign(x)) * (Py_ssize_t) __Pyx_PyLong_Digits(x)[0])
   #endif
 
+  static CYTHON_INLINE int __Pyx_PyLong_CompareSignAndSize(PyObject *a, PyObject *b) {
+      uintptr_t tag_a = ((PyLongObject*)a)->long_value.lv_tag;
+      uintptr_t tag_b = ((PyLongObject*)b)->long_value.lv_tag;
+      if (tag_a == tag_b) return 0;
+      int sign_a = (int) (tag_a & _PyLong_SIGN_MASK);
+      int sign_b = (int) (tag_b & _PyLong_SIGN_MASK);
+      // 0: positive, 1: zero, 2: negative
+      if (sign_a > sign_b) return -1;
+      if (sign_a < sign_b) return 1;
+      uintptr_t size_a = tag_a >> _PyLong_NON_SIZE_BITS;
+      uintptr_t size_b = tag_b >> _PyLong_NON_SIZE_BITS;
+      return (1 - sign_a) * ((size_a < size_b) ? -1 : 1);
+  }
+
   // CPython 3.12 requires C99, which defines 'size_t' (but not 'ssize_t')
   typedef Py_ssize_t  __Pyx_compact_pylong;
   typedef size_t  __Pyx_compact_upylong;
@@ -174,6 +188,12 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #define __Pyx_PyLong_IsCompact(x)  (Py_SIZE(x) == 0 || Py_SIZE(x) == 1 || Py_SIZE(x) == -1)
   #define __Pyx_PyLong_CompactValue(x)  \
         ((Py_SIZE(x) == 0) ? (sdigit) 0 : ((Py_SIZE(x) < 0) ? -(sdigit)__Pyx_PyLong_Digits(x)[0] : (sdigit)__Pyx_PyLong_Digits(x)[0]))
+
+  static CYTHON_INLINE int __Pyx_PyLong_CompareSignAndSize(PyObject *a, PyObject *b) {
+      Py_ssize_t size_a = Py_SIZE(a);
+      Py_ssize_t size_b = Py_SIZE(b);
+      return (size_a == size_b) ? 0 : (size_a < size_b) ? -1 : 1;
+  }
 
   typedef sdigit  __Pyx_compact_pylong;
   typedef digit  __Pyx_compact_upylong;
