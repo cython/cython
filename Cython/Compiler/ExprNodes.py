@@ -111,9 +111,12 @@ def find_coercion_error(type_tuple, default, env):
         type0, type1 = type_tuple
         if type0 in typed_container_types and type1 in typed_container_types:
             # Typed containers. Validate the coercion of their item types.
-            type0 = type0.get_subscripted_type(0)
-            type1 = type1.get_subscripted_type(0)
-            return find_coercion_error((type0, type1), default, env)
+            for i in range(max(len(type0.subscripted_types), len(type1.subscripted_types))):
+                subscripted_type0 = type0.get_subscripted_type(i)
+                subscripted_type1 = type1.get_subscripted_type(i)
+                if (ret := find_coercion_error((subscripted_type0, subscripted_type1), default, env)) == default:
+                    continue
+                return ret
         return default
     elif (env.directives['c_string_encoding'] and
               any(t in type_tuple for t in (PyrexTypes.c_char_ptr_type, PyrexTypes.c_uchar_ptr_type,
