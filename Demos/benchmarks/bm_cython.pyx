@@ -200,6 +200,8 @@ class Wrapped:
         return self._value < other
 
     def __gt__(self, other):
+        if isinstance(other, Wrapped):
+            other = cython.cast(Wrapped, other)._value
         return self._value > other
 
 
