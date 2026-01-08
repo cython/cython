@@ -1179,7 +1179,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
             const digit* digits1 = __Pyx_PyLong_Digits(op1);
             const digit* digits2 = __Pyx_PyLong_Digits(op2);
             for (Py_ssize_t i=size-1; i >= 0 && !cmp; --i) {
-                cmp = (Py_ssize_t) digits1[i] - (Py_ssize_t) digits2[i]);
+                cmp = (Py_ssize_t) digits1[i] - (Py_ssize_t) digits2[i];
             }
             if (cmp == 0) {{return_true if op in 'EqLeGe' else return_false}};
         }
