@@ -1112,19 +1112,46 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
             #if !CYTHON_ASSUME_SAFE_MACROS
             if (unlikely(float_op2 == -1. && PyErr_Occurred())) goto bad;
             #endif
+            if (unlikely(!(isfinite(float_op1) & isfinite(float_op2)))) goto __pyx_richcmp;
             if (float_op1 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
         }
         {{endif}}
 
         {{if type2 in ('object', 'int')}}
         #if CYTHON_USE_PYLONG_INTERNALS
-        if (PyLong_CheckExact(op2) && __Pyx_PyLong_IsCompact(op2)) {
-            Py_ssize_t iop2 = __Pyx_PyLong_CompactValue(op2);
+        if ({{if type2 == 'object'}}PyLong_CheckExact(op2){{else}}likely(op2 != Py_None){{endif}}) {
             double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
             #if !CYTHON_ASSUME_SAFE_MACROS
             if (unlikely(float_op1 == -1. && PyErr_Occurred())) goto bad;
             #endif
-            if (float_op1 {{c_op}} ((double)iop2)) {{return_true}}; else {{return_false}};
+            if (unlikely(!isfinite(float_op1))) goto __pyx_richcmp;
+
+            if (__Pyx_PyLong_IsCompact(op2)) {
+                Py_ssize_t iop2 = __Pyx_PyLong_CompactValue(op2);
+                if (float_op1 {{c_op}} ((double)iop2)) {{return_true}}; else {{return_false}};
+            } else {
+                int sign1 = (float_op1 > 0.) - (float_op1 < 0.);
+                int sign2 = __Pyx_PyLong_Sign(op2);
+                if (sign1 != sign2) {
+                    {{if op == 'Eq'}}
+                    {{return_false}};
+                    {{elif op == 'Ne'}}
+                    {{return_true}};
+                    {{else}}
+                    if (sign1 < sign2) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
+                    {{endif}}
+                }
+                if (fabs(float_op1) < (double) (1L << PyLong_SHIFT)) {
+                    {{# float value is definitely compact but PyLong is not}}
+                    {{if op == 'Eq'}}
+                    {{return_false}};
+                    {{elif op == 'Ne'}}
+                    {{return_true}};
+                    {{else}}
+                    if (float_op1 > 0.) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
+                    {{endif}}
+                }
+            }
         }
         #endif
         {{endif}}
@@ -1137,18 +1164,37 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
     #if CYTHON_USE_PYLONG_INTERNALS
     if ({{if type2 == 'object'}}PyFloat_CheckExact(op2){{else}}likely(op2 != Py_None){{endif}})
     {
-        if (PyLong_CheckExact(op1)) {
+        if ({{if type1 == 'object'}}PyLong_CheckExact(op1){{else}}likely(op1 != Py_None){{endif}}) {
             double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
             #if !CYTHON_ASSUME_SAFE_MACROS
             if (unlikely(float_op2 == -1. && PyErr_Occurred())) goto bad;
             #endif
+            if (unlikely(!isfinite(float_op2))) goto __pyx_richcmp;
+
             if (__Pyx_PyLong_IsCompact(op1)) {
                 Py_ssize_t iop1 = __Pyx_PyLong_CompactValue(op1);
                 if (((double)iop1) {{c_op}} float_op2) {{return_true}}; else {{return_false}};
             } else {
-                int sign_diff = __Pyx_PyLong_Sign(op1) - ((float_op2 > 0) - (float_op2 < 0));
-                if (sign_diff != 0) {
-                    if (sign_diff < 0) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
+                int sign1 = __Pyx_PyLong_Sign(op1);
+                int sign2 = (float_op2 > 0.) - (float_op2 < 0.);
+                if (sign1 != sign2) {
+                    {{if op == 'Eq'}}
+                    {{return_false}};
+                    {{elif op == 'Ne'}}
+                    {{return_true}};
+                    {{else}}
+                    if (sign1 < sign2) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
+                    {{endif}}
+                }
+                if (fabs(float_op2) < (double) (1L << PyLong_SHIFT)) {
+                    {{# float value is definitely compact but PyLong is not}}
+                    {{if op == 'Eq'}}
+                    {{return_false}};
+                    {{elif op == 'Ne'}}
+                    {{return_true}};
+                    {{else}}
+                    if (float_op2 > 0.) {{return_true if op in 'GeGt' else return_false}}; else {{return_false if op in 'GeGt' else return_true}};
+                    {{endif}}
                 }
             }
         }
