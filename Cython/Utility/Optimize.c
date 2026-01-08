@@ -1145,8 +1145,11 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
             if (__Pyx_PyLong_IsCompact(op1)) {
                 Py_ssize_t iop1 = __Pyx_PyLong_CompactValue(op1);
                 if (((double)iop1) {{c_op}} float_op2) {{return_true}}; else {{return_false}};
-            } else if (__Pyx_PyLong_Sign(op1) != ((float_op2 > 0) - (float_op2 < 0))) {
-                {{return_false}};
+            } else {
+                int sign_diff = __Pyx_PyLong_Sign(op1) - ((float_op2 > 0) - (float_op2 < 0));
+                if (sign_diff != 0) {
+                    if (sign_diff < 0) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
+                }
             }
         }
         goto __pyx_richcmp;
