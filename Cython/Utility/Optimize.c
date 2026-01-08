@@ -1209,10 +1209,12 @@ __pyx_return_true:
 __pyx_return_false:
     {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
 
+{{if has_object or has_float}}
 #if !CYTHON_ASSUME_SAFE_MACROS
 bad:
     return {{'NULL' if ret_type.is_pyobject else '-1'}}
 #endif
+{{endif}}
 }
 
 
