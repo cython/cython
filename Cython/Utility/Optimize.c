@@ -1182,7 +1182,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
             if (cmp == 0) {{return_true if op in 'EqLeGe' else return_false}};
         }
         {{if op == 'Eq'}}
-        {{return_false}}
+        {{return_false}};
         {{elif op == 'Ne'}}
         {{return_true}};
         {{else}}
