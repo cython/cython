@@ -1176,7 +1176,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
     if (PyLong_CheckExact(op1) & PyLong_CheckExact(op2))
     {{endif}}
     {
-        int cmp = __Pyx_PyLong_CompareSignAndSize(op1, op2);
+        Py_ssize_t cmp = __Pyx_PyLong_CompareSignAndSize(op1, op2);
         if (cmp == 0) {
             Py_ssize_t size = __Pyx_PyLong_DigitCount(op1);
             const digit* digits1 = __Pyx_PyLong_Digits(op1);
