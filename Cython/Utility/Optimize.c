@@ -1173,27 +1173,21 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
     if (PyLong_CheckExact(op1) & PyLong_CheckExact(op2))
     {{endif}}
     {
-        int cmp = __Pyx_PyLong_CompareSignAndSize(op1, op2);
-        if (cmp != 0) {
-            {{if op in 'EqNe'}}
-            {{return_false if op == 'Eq' else return_true}};
-            {{else}}
-            if (cmp < 0) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
-            {{endif}}
+        Py_ssize_t cmp = __Pyx_PyLong_SignedDigitCount(op1) - __Pyx_PyLong_SignedDigitCount(op2);
+        if (cmp == 0) {
+            Py_ssize_t size = __Pyx_PyLong_DigitCount(op1);
+            const digit* digits1 = __Pyx_PyLong_Digits(op1);
+            const digit* digits2 = __Pyx_PyLong_Digits(op2);
+            for (Py_ssize_t i=size; --i >= 0 && !cmp; cmp = (Py_ssize_t) digits1[i] - (Py_ssize_t) digits2[i]);
+            if (cmp == 0) {{return_true if op in 'EqLeGe' else return_false}};
         }
-        Py_ssize_t size = __Pyx_PyLong_DigitCount(op1);
-        const digit* digits1 = __Pyx_PyLong_Digits(op1);
-        const digit* digits2 = __Pyx_PyLong_Digits(op2);
-        for (Py_ssize_t i=0; i < size; i++) {
-            if (digits1[i] != digits2[i]) {
-                {{if op in 'EqNe'}}
-                {{return_false if op == 'Eq' else return_true}};
-                {{else}}
-                if (digits1[i] {{'<' if op in 'LtLe' else '>'}} digits2[i]) {{return_true}}; else {{return_false}};
-                {{endif}}
-            }
-        }
-        {{return_true if op in 'EqLeGe' else return_false}};
+        {{if op == 'Eq'}}
+        {{return_false}}
+        {{elif op == 'Ne'}}
+        {{return_true}};
+        {{else}}
+        if (cmp < 0) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
+        {{endif}}
     }
     #endif
     {{endif}}
