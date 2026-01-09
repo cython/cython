@@ -269,7 +269,7 @@ def _comparisons(type_selection: cython.int, item_type, scale: cython.Py_ssize_t
 
 
 bm_cmp_obj_obj_mix = partial(_comparisons, 1, lambda v: v if v&1 else float(v))
-bm_cmp_obj_obj_ext = partial(_comparisons, 1, lambda v: Wrapped(v) if v%3 == 0 else float(v) if v%3 == 1 else v)
+bm_cmp_obj_obj_ext = partial(_comparisons, 1, lambda v: Wrapped(v) if v % 3 == 0 else float(v) if v % 3 == 1 else v)
 bm_cmp_obj_obj_int = partial(_comparisons, 1, int)
 bm_cmp_obj_obj_float = partial(_comparisons, 1, float)
 bm_cmp_obj_int = partial(_comparisons, 2, int)
