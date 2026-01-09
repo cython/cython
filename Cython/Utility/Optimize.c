@@ -1082,12 +1082,6 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop) {
     CYTHON_UNUSED_VAR(pyop);
 
-    {{if op in 'EqNe' and (not has_object or not ret_type.is_pyobject)}}
-    if (op1 == op2) {{return_true if op == 'Eq' else return_false}};
-    {{endif}}
-
-    {{# TODO: exclude NaN etc. !! }}
-
     {{if has_object or has_float}}
 
     {{if type1 in ('object', 'float')}}
@@ -1112,9 +1106,13 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
             #if !CYTHON_ASSUME_SAFE_MACROS
             if (unlikely(float_op2 == -1. && PyErr_Occurred())) goto bad;
             #endif
-            if (unlikely(!(isfinite(float_op1) & isfinite(float_op2)))) goto __pyx_richcmp;
             if (float_op1 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
         }
+        {{endif}}
+
+        {{if op in 'EqNe' and not (has_object or ret_type.is_pyobject)}}
+        {{# Cannot do this up-front due to nan != nan }}
+        if (op1 == op2) {{return_true if op == 'Eq' else return_false}};
         {{endif}}
 
         {{if type2 in ('object', 'int')}}
@@ -1124,11 +1122,13 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
             #if !CYTHON_ASSUME_SAFE_MACROS
             if (unlikely(float_op1 == -1. && PyErr_Occurred())) goto bad;
             #endif
-            if (unlikely(!isfinite(float_op1))) goto __pyx_richcmp;
 
             if (__Pyx_PyLong_IsCompact(op2)) {
                 Py_ssize_t iop2 = __Pyx_PyLong_CompactValue(op2);
                 if (float_op1 {{c_op}} ((double)iop2)) {{return_true}}; else {{return_false}};
+            } else if (!isfinite(float_op1)) {
+                {{# CPython just compares them to 0.0}}
+                if (float_op1 {{c_op}} 0.0) {{return_true}}; else {{return_false}};
             } else {
                 int sign1 = (float_op1 > 0.) - (float_op1 < 0.);
                 int sign2 = __Pyx_PyLong_Sign(op2);
@@ -1169,11 +1169,13 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
             #if !CYTHON_ASSUME_SAFE_MACROS
             if (unlikely(float_op2 == -1. && PyErr_Occurred())) goto bad;
             #endif
-            if (unlikely(!isfinite(float_op2))) goto __pyx_richcmp;
 
             if (__Pyx_PyLong_IsCompact(op1)) {
                 Py_ssize_t iop1 = __Pyx_PyLong_CompactValue(op1);
                 if (((double)iop1) {{c_op}} float_op2) {{return_true}}; else {{return_false}};
+            } else if (!isfinite(float_op2)) {
+                {{# CPython just compares them to 0.0}}
+                if (0.0 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
             } else {
                 int sign1 = __Pyx_PyLong_Sign(op1);
                 int sign2 = (float_op2 > 0.) - (float_op2 < 0.);
@@ -1207,6 +1209,12 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
     {{endif}}
 
     {{if not has_float}}
+
+    {{if op in 'EqNe' and not (has_object or ret_type.is_pyobject)}}
+    {{# Cannot do this for floats due to nan != nan }}
+    if (op1 == op2) {{return_true if op == 'Eq' else return_false}};
+    {{endif}}
+
     #if CYTHON_USE_PYLONG_INTERNALS
     {{if type1 == 'int' and type2 == 'int'}}
     if (unlikely((op1 == Py_None) | (op2 == Py_None))) {
