@@ -1,5 +1,5 @@
 # mode: run
-# tag: comparison,int,pylong,float,total_ordering,pure310
+# tag: comparison,int,pylong,float,total_ordering
 
 # GENERATED TEST CODE
 # Run me as a Python script to regenerate my test code.
