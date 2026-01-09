@@ -1266,7 +1266,7 @@ __pyx_return_false:
 {{if has_object or has_float}}
 #if !CYTHON_ASSUME_SAFE_MACROS
 bad:
-    return {{'NULL' if ret_type.is_pyobject else '-1'}}
+    return {{'NULL' if ret_type.is_pyobject else '-1'}};
 #endif
 {{endif}}
 }
