@@ -1078,6 +1078,21 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 {{py: has_object = type1 == 'object' or type2 == 'object'}}
 {{py: has_int = type1 == 'int' or type2 == 'int'}}
 {{py: has_float = type1 == 'float' or type2 == 'float'}}
+{{py:
+def is_type(operand, expected, type1=type1, type2=type2):
+    assert operand in ('op1', 'op2'), operand
+    assert expected in ('int', 'float'), type
+    type = type1 if operand == 'op1' else type2
+    if type == expected:
+        check = f"likely({operand} != Py_None)"
+    else:
+        function = "PyFloat_CheckExact" if expected == 'float' else 'PyLong_CheckExact'
+        check = f"{function}({operand})"
+        other_type = type2 if operand == 'op1' else type1
+        if other_type == expected:
+            check = f"likely({check})"
+    return check
+}}
 
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop) {
     CYTHON_UNUSED_VAR(pyop);
@@ -1085,19 +1100,9 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
     {{if has_object or has_float}}
 
     {{if type1 in ('object', 'float')}}
-    {{if type1 == 'float'}}
-    if (likely(op1 != Py_None))
-    {{else}}
-    if ({{'likely' if type2 == 'float' else ''}}(PyFloat_CheckExact(op1)))
-    {{endif}}
-    {
+    if ({{is_type('op1', 'float')}}) {
         {{if type2 in ('object', 'float')}}
-        {{if type2 == 'float'}}
-        if (likely(op2 != Py_None))
-        {{else}}
-        if ({{'likely' if type1 == 'float'  else ''}}(PyFloat_CheckExact(op2)))
-        {{endif}}
-        {
+        if ({{is_type('op2', 'float')}}) {
             double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
             #if !CYTHON_ASSUME_SAFE_MACROS
             if (unlikely(float_op1 == -1. && PyErr_Occurred())) goto bad;
@@ -1117,7 +1122,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 
         {{if type2 in ('object', 'int')}}
         #if CYTHON_USE_PYLONG_INTERNALS
-        if ({{if type2 == 'object'}}PyLong_CheckExact(op2){{else}}likely(op2 != Py_None){{endif}}) {
+        if ({{is_type('op2', 'int')}}) {
             double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
             #if !CYTHON_ASSUME_SAFE_MACROS
             if (unlikely(float_op1 == -1. && PyErr_Occurred())) goto bad;
@@ -1162,9 +1167,8 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 
     {{if type1 in ('object', 'int') and type2 in ('object', 'float')}}
     #if CYTHON_USE_PYLONG_INTERNALS
-    if ({{if type2 == 'object'}}PyFloat_CheckExact(op2){{else}}likely(op2 != Py_None){{endif}})
-    {
-        if ({{if type1 == 'object'}}PyLong_CheckExact(op1){{else}}likely(op1 != Py_None){{endif}}) {
+    if ({{is_type('op2', 'float')}}) {
+        if ({{is_type('op1', 'int')}}) {
             double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
             #if !CYTHON_ASSUME_SAFE_MACROS
             if (unlikely(float_op2 == -1. && PyErr_Occurred())) goto bad;
