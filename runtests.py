@@ -2,7 +2,7 @@
 
 import atexit
 import base64
-import doctest
+from doctest import DocTestSuite
 import gc
 import glob
 import heapq
@@ -1565,7 +1565,7 @@ class CythonRunTestCase(CythonCompileTestCase):
                     module = import_ext(module_or_name, ext_so_path)
             else:
                 module = module_or_name
-            tests = doctest.DocTestSuite(module)
+            tests = DocTestSuite(module)
             if self.test_selector:
                 filter_test_suite(tests, self.test_selector)
             with self.stats.time(self.name, self.language, 'run'):
@@ -1606,7 +1606,7 @@ class PureDoctestTestCase(unittest.TestCase):
 
             try:
                 with self.stats.time(self.name, 'py', 'pyrun'):
-                    doctest.DocTestSuite(m).run(result)
+                    DocTestSuite(m).run(result)
             finally:
                 del m
                 if loaded_module_name in sys.modules:
@@ -2005,7 +2005,7 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
                 module = import_module(modulename)
                 if hasattr(module, "__doc__") or hasattr(module, "__test__"):
                     try:
-                        suite.addTest(doctest.DocTestSuite(module))
+                        suite.addTest(DocTestSuite(module))
                     except ValueError: # no tests
                         pass
 
@@ -2577,6 +2577,19 @@ def main():
     parser.add_argument(
         "--abi3audit", dest="abi3audit", default=False, action="store_true",
         help="Validate compiled files with ABI3 audit")
+    parser.add_argument(
+        "--parallel-doctest", dest="parallel_doctest", default=False, action="store_true",
+        help=("Run doctests in parallel with threading. "
+              "This is intended to be used to check thread-safety - it is not intended to accelerate the run. "
+              "To do that use the '-j' argument to run the tests in isolated processes."))
+    parser.add_argument(
+        "--parallel-doctest-repeats", dest="parallel_doctest_repeats", type=int, default=None, action="store",
+        help=("The number of times each test should be repeated with --parallel-doctest."
+              "Ignored unless --parallel-doctest is activated."))
+    parser.add_argument(
+        "--parallel-doctest-workers", dest="parallel_doctest_workers", type=int, default=None, action="store",
+        help=("The number of workers to use with --parallel-doctest."
+              "Ignored unless --parallel-doctest is activated."))
     parser.add_argument('cmd_args', nargs='*')
 
     options = parser.parse_args(args)
@@ -2891,6 +2904,17 @@ def runtests(options, cmd_args, coverage=None):
 
     if WITH_CYTHON:
         sys.stderr.write("Using Cython language level %d.\n" % options.language_level)
+
+    if options.parallel_doctest:
+        global DocTestSuite
+        def DocTestSuite(module):
+            import parallel_doctest
+            return parallel_doctest.load_module_as_unittest_case(
+                module,
+                optionflags=parallel_doctest.SEQUENTIAL_BLOCK,
+                repeats=options.parallel_doctest_repeats,
+                max_workers=options.parallel_doctest_workers,
+            )
 
     test_bugs = False
     if options.tickets:
