@@ -811,7 +811,7 @@ static double __Pyx_PyUnicode_AsDouble_WithSpaces(PyObject *obj) {
         if (unlikely(!last)) goto fallback;
         value = PyOS_string_to_double(number, &end, NULL);
     } else {
-        char *number = (char*) PyMem_Malloc((length + 1) * sizeof(char));
+        char *number = (char*) PyMem_Malloc(((size_t) length + 1) * sizeof(char));
         if (unlikely(!number)) goto fallback;
         last = __Pyx__PyUnicode_AsDouble_Copy(data, kind, number, start, start + length);
         if (unlikely(!last)) {
@@ -993,7 +993,7 @@ CYTHON_UNUSED static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* s
         if (unlikely(!last)) goto fallback;
         value = PyOS_string_to_double(number, &end, NULL);
     } else {
-        char *number = (char*) PyMem_Malloc((digits + 1) * sizeof(char));
+        char *number = (char*) PyMem_Malloc(((size_t) digits + 1) * sizeof(char));
         if (unlikely(!number)) goto fallback;
         last = __Pyx__PyBytes_AsDouble_Copy(start, number, length);
         if (unlikely(!last)) {
