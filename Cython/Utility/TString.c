@@ -17,8 +17,10 @@ Py_VISIT((PyObject*)traverse_module_state->__pyx_templatelib_Interpolation);
 
 //////////////////////////// InitializeTemplateLib.module_state_clear ////////////////////////////
 
-Py_CLEAR((PyObject*)traverse_module_state->__pyx_templatelib_Template);
-Py_CLEAR((PyObject*)traverse_module_state->__pyx_templatelib_Interpolation)
+Py_XDECREF((PyObject*)clear_module_state->__pyx_templatelib_Template);
+clear_module_state->__pyx_templatelib_Template = 0;
+Py_XDECREF((PyObject*)clear_module_state->__pyx_templatelib_Interpolation);
+clear_module_state->__pyx_templatelib_Interpolation = 0;
 
 //////////////////////////// InitializeTemplateLib.proto ///////////////////////////
 
@@ -325,7 +327,7 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
 #endif
     zipped_tuple = PyTuple_New(strings_len + interpolations_len);
     if (!zipped_tuple) goto end;
-    for (Py_ssize_t i=0; (i<interpolations_len && i<strings_len); ++i) {
+    for (Py_ssize_t i=0; (i<interpolations_len || i<strings_len); ++i) {
         if (i < strings_len) {
             PyObject *s = __Pyx_PyTuple_GET_ITEM(strings, i);
 #if !CYTHON_ASSUME_SAFE_MACROS

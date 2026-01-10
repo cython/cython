@@ -28,7 +28,7 @@ plugins = Cython.Coverage
 ######## pkg/__init__.py ########
 
 ######## pkg/coverage_test_py.py ########
-# cython: linetrace=True
+# cython: linetrace=True, auto_pickle=False
 # distutils: define_macros=CYTHON_TRACE=1 CYTHON_USE_SYS_MONITORING=0
 import cython
 
@@ -57,7 +57,7 @@ class A:
 
 
 ######## pkg/coverage_test_pyx.pyx ########
-# cython: linetrace=True
+# cython: linetrace=True, auto_pickle=False
 # distutils: define_macros=CYTHON_TRACE=1 CYTHON_USE_SYS_MONITORING=0
 
 
@@ -236,7 +236,7 @@ def run_json_report():
 
         assert not frozenset(
             report['missing_lines'] + report['excluded_lines']
-        ).intersection(report['executed_lines'])
+        ).intersection(report['executed_lines']), report
 
 
 def run_html_report():

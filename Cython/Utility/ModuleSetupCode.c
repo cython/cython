@@ -123,6 +123,8 @@
   #define CYTHON_USE_FREELISTS 0
   #undef CYTHON_IMMORTAL_CONSTANTS
   #define CYTHON_IMMORTAL_CONSTANTS 0
+  #undef CYTHON_OPAQUE_OBJECTS
+  #define CYTHON_OPAQUE_OBJECTS 0
 
 #elif defined(PYPY_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 1
@@ -192,6 +194,8 @@
   #define CYTHON_USE_FREELISTS 0
   #undef CYTHON_IMMORTAL_CONSTANTS
   #define CYTHON_IMMORTAL_CONSTANTS 0
+  #undef CYTHON_OPAQUE_OBJECTS
+  #define CYTHON_OPAQUE_OBJECTS 0
 
 #elif defined(CYTHON_LIMITED_API)
   // EXPERIMENTAL !!
@@ -274,6 +278,16 @@
   #endif
   #undef CYTHON_IMMORTAL_CONSTANTS
   #define CYTHON_IMMORTAL_CONSTANTS 0
+  // Opaque objects: generally we prefer not to use them for performance reasons.
+  #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
+  // If users manually request them then they aren't usable before 3.14 because
+  // it isn't possible to specify relative offsets like vectorcall.
+  #undef CYTHON_OPAQUE_OBJECTS
+  #define CYTHON_OPAQUE_OBJECTS 0
+  #elif !defined(CYTHON_OPAQUE_OBJECTS)
+  // From 3.15 it starts being needed for freethreading compatibility
+  #define CYTHON_OPAQUE_OBJECTS (__PYX_LIMITED_VERSION_HEX >= 0x030F0000)
+  #endif
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -407,6 +421,9 @@
     // (hence freethreading only), and that with module state the module may be unloaded and reloaded (so they
     // could be a memory leak). However the user can always override these assumptions.
     #define CYTHON_IMMORTAL_CONSTANTS (PY_VERSION_HEX >= 0x030C0000 && !CYTHON_USE_MODULE_STATE && CYTHON_COMPILING_IN_CPYTHON_FREETHREADING)
+  #endif
+  #ifndef CYTHON_OPAQUE_OBJECTS
+    #define CYTHON_OPAQUE_OBJECTS 0
   #endif
 #endif
 
@@ -717,15 +734,6 @@ static int __Pyx_init_co_variables(void); /* proto */
   #define __Pyx_PyObject_GC_IsFinalized(o) PyObject_GC_IsFinalized(o)
 #endif
 
-#ifndef Py_TPFLAGS_CHECKTYPES
-  #define Py_TPFLAGS_CHECKTYPES 0
-#endif
-#ifndef Py_TPFLAGS_HAVE_INDEX
-  #define Py_TPFLAGS_HAVE_INDEX 0
-#endif
-#ifndef Py_TPFLAGS_HAVE_NEWBUFFER
-  #define Py_TPFLAGS_HAVE_NEWBUFFER 0
-#endif
 #ifndef Py_TPFLAGS_HAVE_FINALIZE
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
@@ -859,6 +867,19 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
   #define __Pyx_PyThreadState_Current PyThreadState_GetUnchecked()
 #else
   #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
+#endif
+
+// For our shared types, they are only ever opaque in the Limited API.
+// While there may be a reason to let users override their own types,
+// there's no benefit to changing our internal types except in the Limited API.
+#if CYTHON_OPAQUE_OBJECTS && CYTHON_COMPILING_IN_LIMITED_API
+    #define __PYX_SHARED_SIZEOF(T) -((int)sizeof(T))
+    #define __PYX_SHARED_RELATIVE_OFFSET Py_RELATIVE_OFFSET
+    #define CYTHON_OPAQUE_SHARED_TYPES 1
+#else
+    #define __PYX_SHARED_SIZEOF(T) sizeof(T)
+    #define __PYX_SHARED_RELATIVE_OFFSET 0
+    #define CYTHON_OPAQUE_SHARED_TYPES 0
 #endif
 
 #if CYTHON_USE_MODULE_STATE
@@ -1330,7 +1351,14 @@ static int __Pyx_init_co_variables(void) {
     #define __PYX_FREELISTS_ABI_SUFFIX "nofreelists"
 #endif
 
-#define CYTHON_ABI  __PYX_ABI_VERSION __PYX_LIMITED_ABI_SUFFIX __PYX_MONITORING_ABI_SUFFIX __PYX_TP_FINALIZE_ABI_SUFFIX __PYX_FREELISTS_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX
+// Outside the Limited API we don't use opaque objects for shared types (even if we may use them elsewhere)
+#if CYTHON_OPAQUE_OBJECTS && CYTHON_COMPILING_IN_LIMITED_API
+    #define __PYX_OPAQUE_OBJECTS_ABI_SUFFIX "opaque"
+#else
+    #define __PYX_OPAQUE_OBJECTS_ABI_SUFFIX
+#endif
+
+#define CYTHON_ABI  __PYX_ABI_VERSION __PYX_LIMITED_ABI_SUFFIX __PYX_MONITORING_ABI_SUFFIX __PYX_TP_FINALIZE_ABI_SUFFIX __PYX_FREELISTS_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX __PYX_OPAQUE_OBJECTS_ABI_SUFFIX
 
 #define __PYX_ABI_MODULE_NAME "_cython_" CYTHON_ABI
 #define __PYX_TYPE_MODULE_PREFIX __PYX_ABI_MODULE_NAME "."
@@ -3118,7 +3146,7 @@ static CYTHON_INLINE int __Pyx_UnknownThreadStateMayHaveHadGil(__Pyx_UnknownThre
 
 ///////////////////// AddModuleRef.proto ///////////////////////
 
-#if ((CYTHON_COMPILING_IN_CPYTHON_FREETHREADING /* && __PYX_LIMITED_VERSION_HEX < some future value */) || \
+#if ((CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && PY_VERSION_HEX < 0x030F00a3) || \
      __PYX_LIMITED_VERSION_HEX < 0x030d0000)
   // https://github.com/python/cpython/issues/137422 - PyImport_AddModule(Ref) isn't thread safe!
   static PyObject *__Pyx_PyImport_AddModuleRef(const char *name); /* proto */
@@ -3128,8 +3156,10 @@ static CYTHON_INLINE int __Pyx_UnknownThreadStateMayHaveHadGil(__Pyx_UnknownThre
 
 ///////////////////// AddModuleRef ////////////////////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING /* && __PYX_LIMITED_VERSION_HEX < some future value */
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && PY_VERSION_HEX < 0x030F00a3
   // https://github.com/python/cpython/issues/137422 - PyImport_AddModule(Ref) isn't thread safe!
+  // TODO - if this gets used for anything other than implementing AddModuleRef then add a
+  // runtime version check for fixed versions.
   static PyObject *__Pyx_PyImport_AddModuleObjectRef(PyObject *name) {
       // We're going to assume nobody is swapping the module dict out from under us
       // (even though they're allowed to) because we really can't write code that's
@@ -3161,15 +3191,17 @@ static CYTHON_INLINE int __Pyx_UnknownThreadStateMayHaveHadGil(__Pyx_UnknownThre
       }
   }
   static PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
+      if ((PY_VERSION_HEX >= 0x030E0000) &&  Py_Version >= 0x030E0100) {
+          // Fixed here... their implementation is probably better
+          return PyImport_AddModuleRef(name);
+      }
       PyObject *py_name = PyUnicode_FromString(name);
       if (!py_name) return NULL;
       PyObject *module = __Pyx_PyImport_AddModuleObjectRef(py_name);
       Py_DECREF(py_name);
       return module;
   }
-#elif __PYX_LIMITED_VERSION_HEX >= 0x030d0000
-  #define __Pyx_PyImport_AddModuleRef(name) PyImport_AddModuleRef(name)
-#else
+#elif __PYX_LIMITED_VERSION_HEX < 0x030d0000
   static PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
       PyObject *module = PyImport_AddModule(name);
       Py_XINCREF(module);
