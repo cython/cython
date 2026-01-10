@@ -70,6 +70,9 @@ def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_l
         logging.error(f"Command failed: {' '.join(map(str, command))}\nOutput:\n{exc.stderr.decode()}")
         raise
 
+def run_not_timed_python(python_command, **kwargs):
+    output = run([sys.executable, *python_command], unset_lang=True, **kwargs)
+    return {'user': float('NaN')}
 
 def run_timed_python(python_command, **kwargs):
     output = run(['time', sys.executable, *python_command], unset_lang=True, **kwargs)
@@ -91,6 +94,13 @@ def run_timed_python(python_command, **kwargs):
 
     return results
 
+def check_gnu_time():
+    global run_python
+    if not shutil.which("time"):
+        logging.warning("GNU time is not installed. Python command duration will not be shown!")
+        run_python = run_not_timed_python
+    else:
+        run_python = run_timed_python
 
 def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None, cython_version=None):
     util_file = BENCHMARKS_DIR / "util.py"
@@ -152,7 +162,7 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c
     source_files = bm_files + util_files
 
     logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
-    times = run_timed_python(
+    times = run_python(
         [str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *source_files, *(cythonize_args or [])],
         cwd=cython_dir,
         c_macros=c_macros,
@@ -184,7 +194,7 @@ setup(
     bm_list = ', '.join(bm_file.stem for bm_file in bm_files)
     bm_count = len(bm_files)
     logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
-    times = run_timed_python(
+    times = run_python(
         ["setup.py", "build_ext", "-i"],
         cwd=tmp_dir,
         pythonpath=cython_dir,
@@ -259,7 +269,7 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
     cythonize_times = {}
 
     # Cythonize modules in Python.
-    times = run_timed_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
+    times = run_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
     t = times['user']
     logging.info(f"    Cythonize modules in Python: {t:.2f} sec user ({times['elapsed']} sec)")
     cythonize_times['cythonize_python'] = [t]
@@ -267,7 +277,7 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
     # Build binary modules (without cythonize).
     # To avoid partially compiled imports, import all non-compiled Cython modules before compiling them.
     pre_imports = ','.join(compiled_modules)
-    times = run_timed_python(
+    times = run_python(
         ["-c", f"import {pre_imports}; import setup; setup.run_build()", "build_ext", "-i", parallel, "--cython-compile-minimal"],
         cwd=cython_dir,
         c_macros=c_macros,
@@ -277,18 +287,18 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
     cythonize_times['cythonize_build_ext'] = [t]
 
     # Cythonize modules with minimal binary Cython.
-    times = run_timed_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
+    times = run_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
     t = times['user']
     logging.info(f"    Cythonize modules with minimal compiled Cython: {t:.2f} sec user ({times['elapsed']} sec)")
     cythonize_times['cythonize_compiled_minimal'] = [t]
 
     # Build binary modules (without cythonize). Time not reported.
-    times = run_timed_python(["setup.py", "build_ext", "-i", parallel], cwd=cython_dir, c_macros=c_macros)
+    times = run_python(["setup.py", "build_ext", "-i", parallel], cwd=cython_dir, c_macros=c_macros)
     t = times['user']
     logging.info(f"    'setup.py build_ext' after translation: {t:.2f} sec user ({times['elapsed']} sec)")
 
     # Cythonize modules with binary Cython.
-    times = run_timed_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
+    times = run_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
     t = times['user']
     logging.info(f"    Cythonize modules with compiled Cython: {t:.2f} sec user ({times['elapsed']} sec)")
     cythonize_times['cythonize_compiled'] = [t]
@@ -746,6 +756,8 @@ if __name__ == '__main__':
         format="%(asctime)s  %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    check_gnu_time()
 
     benchmark_selectors = set(bm.strip() for bm in options.benchmarks.split(","))
     benchmarks = [bm for bm in ALL_BENCHMARKS if any(selector in bm for selector in benchmark_selectors)]
