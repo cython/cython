@@ -109,6 +109,8 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
 static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyNumber_Long(PyObject* x);
 
+#define __Pyx_PyObject_RichCompareBool(a,b,cmp)  __Pyx_PyObject_IsTrueAndDecref(PyObject_RichCompare((a),(b),(cmp)))
+
 #define __Pyx_PySequence_Tuple(obj) \
     (likely(PyTuple_CheckExact(obj)) ? __Pyx_NewRef(obj) : PySequence_Tuple(obj))
 

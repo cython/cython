@@ -1256,7 +1256,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 {{if has_object or has_float}}
 __pyx_richcmp:
 {{endif}}
-    return PyObject_RichCompare{{'' if ret_type.is_pyobject else 'Bool'}}(op1, op2, Py_{{op.upper()}});
+    return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
 
 __pyx_return_true:
     {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
@@ -1343,8 +1343,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyLong_{{'' if ret_type.is_pyobject el
         {{return_compare('(double)a', '(double)b', c_op)}}
     }
 
-    return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
-        PyObject_RichCompare(op1, op2, Py_{{op.upper()}}));
+    return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
 }
 
 
@@ -1355,7 +1354,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyLong_{{'' if ret_type.is_pyobject el
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyLong_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check); /*proto*/
 #else
 #define __Pyx_PyLong_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(op1, op2, intval, inplace, zerodivision_check) \
-    {{if op in ('Eq', 'Ne')}}{{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(PyObject_RichCompare(op1, op2, Py_{{op.upper()}}))
+    {{if op in ('Eq', 'Ne')}}{{'PyObject_RichCompare' if ret_type.is_pyobject else 'PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}})
     {{else}}(inplace ? PyNumber_InPlace{{op}}(op1, op2) : PyNumber_{{op}}(op1, op2))
     {{endif}}
 #endif
@@ -1390,8 +1389,7 @@ def zerodiv_check(operand, optype='integer', _is_mod=op == 'Remainder', _needs_c
 static {{c_ret_type}} __Pyx_Fallback_{{cfunc_name}}(PyObject *op1, PyObject *op2, int inplace) {
     {{if op in ('Eq', 'Ne')}}
     CYTHON_UNUSED_VAR(inplace);
-    return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
-        PyObject_RichCompare(op1, op2, Py_{{op.upper()}}));
+    return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
     {{else}}
     return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
     {{endif}}
@@ -1677,7 +1675,7 @@ static CYTHON_INLINE {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2,
 static {{c_ret_type}} __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace, int zerodivision_check); /*proto*/
 #else
 #define __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(op1, op2, floatval, inplace, zerodivision_check) \
-    {{if op in ('Eq', 'Ne')}}{{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(PyObject_RichCompare(op1, op2, Py_{{op.upper()}}))
+    {{if op in ('Eq', 'Ne')}}{{'PyObject_RichCompare' if ret_type.is_pyobject else 'PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}})
     {{elif op == 'Divide'}}((inplace ? __Pyx_PyNumber_InPlaceDivide(op1, op2) : __Pyx_PyNumber_Divide(op1, op2)))
     {{else}}(inplace ? PyNumber_InPlace{{op}}(op1, op2) : PyNumber_{{op}}(op1, op2))
     {{endif}}
@@ -1786,8 +1784,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
         #endif
     } else {
         {{if op in ('Eq', 'Ne')}}
-        return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
-            PyObject_RichCompare(op1, op2, Py_{{op.upper()}}));
+        return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
         {{elif op == 'Divide'}}
         return (inplace ? __Pyx_PyNumber_InPlaceDivide(op1, op2) : __Pyx_PyNumber_Divide(op1, op2));
         {{else}}

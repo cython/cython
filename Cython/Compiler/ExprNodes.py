@@ -14004,7 +14004,7 @@ class CmpNode:
                     }))
                 return f"__Pyx_PyObject_Compare{'' if self.type.is_pyobject else 'Bool'}{op_name}_{type1.name}_{type2.name}"
 
-        return f"PyObject_RichCompare{'' if self.type.is_pyobject else 'Bool'}"
+        return "PyObject_RichCompare" if self.type.is_pyobject else "__Pyx_PyObject_RichCompareBool"
 
     def generate_operation_code(self, code, result_code,
             operand1, op, operand2):
