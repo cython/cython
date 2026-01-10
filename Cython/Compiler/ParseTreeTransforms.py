@@ -1398,6 +1398,8 @@ class InterpretCompilerDirectives(CythonTransform):
                 elif isinstance(old_value, list):
                     old_value.extend(value)
                 else:
+                    if name == "collection_type" and value != optdict[name]:
+                        error(node.pos, "Multiple values of collection_type are not supported")
                     optdict[name] = value
             else:
                 optdict[name] = value
@@ -2330,11 +2332,10 @@ if VALUE is not None:
 
             members = ', '.join(f'self.{v}' for v in all_members_names) + (',' if len(all_members_names) == 1 else '')
             # Even better, we could check PyType_IS_GC.
-            any_notnone_members = ' or '.join([f'self.{e.name} is not None' for e in all_members if e.type.is_pyobject] or ['False']),
+            any_notnone_members = ' or '.join([f'self.{e.name} is not None' for e in all_members if e.type.is_pyobject] or ['False'])
 
             pickle_code = f"""
                 def __reduce_cython__(self):
-                    cdef Py_ssize_t idx
                     cdef tuple state
                     cdef object _dict
                     cdef bint use_setstate

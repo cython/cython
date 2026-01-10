@@ -197,7 +197,7 @@ def run_benchmark(repeat: bool, scale=1000):
     for name, func in globals().items():
         if not name.startswith('bm_'):
             continue
-        collected_timings[name] = repeat_to_accuracy(func, scale=scales[name], repeat=repeat)[0]
+        collected_timings[name] = repeat_to_accuracy(func, scale=scales[name], repeat=repeat, scale_to=scale)[0]
 
     for name, timings in collected_timings.items():
         print(f"{name}: {timings}")

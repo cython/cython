@@ -1088,12 +1088,14 @@ class CArgDeclNode(Node):
         if self.default:
             self.default.annotate(code)
 
-    def generate_assignment_code(self, code, target=None, overloaded_assignment=False):
+    def generate_assignment_code(self, code, overloaded_assignment=False,
+                                 cyfunc_struct_target=None):
         default = self.default
-        if default is None or default.is_literal:
+        if default is None or (default.is_literal and cyfunc_struct_target is None):
             return
-        if target is None:
-            target = self.calculate_default_value_code(code)
+        # Note that even if self.is_dynamic, default may be a literal if it's been
+        # optimized into a literal after analyse_expressions
+        target = cyfunc_struct_target or self.calculate_default_value_code(code)
         default.generate_evaluation_code(code)
         default.make_owned_reference(code)
         result = default.result() if overloaded_assignment else default.result_as(self.type)
@@ -5870,6 +5872,11 @@ class CClassDefNode(ClassDefNode):
                     break
                 base_type = base_type.base_type
 
+            if type.has_sequence_flag or type.has_mapping_flag:
+                code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("ApplySequenceOrMappingFlag", "ExtensionTypes.c"))
+                code.put_error_if_neg(
+                    entry.pos, f"__Pyx_ApplySequenceOrMappingFlag({typeptr_cname}, {type.has_sequence_flag:d})")
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
             for slot in TypeSlots.get_slot_table(code.globalstate.directives):
