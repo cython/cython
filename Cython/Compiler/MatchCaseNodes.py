@@ -118,14 +118,11 @@ class MatchNode(StatNode):
     def generate_execution_code(self, code):
         if self.sequence_mapping_temp:
             self.sequence_mapping_temp.allocate(code)
-            code.putln(
-                "%s = 0; /* sequence/mapping test temp */"
-                % self.sequence_mapping_temp.result()
-            )
+            code.putln(f"{self.sequence_mapping_temp.result()} = 0; /* sequence/mapping test temp */")
             # For things that are a sequence at compile-time it's difficult
             # to avoid generating the sequence mapping temp. Therefore, silence
-            # an "unused error"
-            code.putln("(void)%s;" % self.sequence_mapping_temp.result())
+            # an "unused error".
+            code.putln("(void){self.sequence_mapping_temp.result()};")
         end_label = self.end_label = code.new_label()
         self.subject.generate_evaluation_code(code)
         for c in self.cases:
@@ -183,9 +180,7 @@ class MatchCaseNode(Node):
         self.pattern.validate_irrefutable()
 
     def is_sequence_or_mapping(self):
-        return isinstance(
-            self.pattern, (MatchSequencePatternNode, MatchMappingPatternNode)
-        )
+        return isinstance(self.pattern, (MatchSequencePatternNode, MatchMappingPatternNode))
 
     def analyse_case_declarations(self, subject_node, env):
         self.pattern.analyse_declarations(env)
@@ -205,7 +200,7 @@ class MatchCaseNode(Node):
         if self.comp_node and self.comp_node.is_literal:
             self.comp_node.calculate_constant_result()
             if not self.comp_node.constant_result:
-                # we know this pattern can't succeed. Ignore any errors and return None
+                # We know this pattern can't succeed. Ignore any errors and return None.
                 return None
         for error in errors:
             report_error(error)
@@ -230,7 +225,7 @@ class MatchCaseNode(Node):
 
         end_of_case_label = code.new_label()
 
-        code.putln("if (!%s) { /* !pattern */" % self.comp_node.result())
+        code.putln(f"if (!{self.comp_node.result()}) ""{ /* !pattern */")
         self.pattern.dispose_of_subject_temps(code)  # failed, don't need the subjects
         code.put_goto(end_of_case_label)
 
@@ -290,27 +285,25 @@ class PatternNode(Node):
 
     ----------------------------------------
     How these nodes are processed:
-    1. During "analyse_declarations" PatternNode.generate_target_assignments
-       is called on the main PatternNode of the case. This calls its
-       sub-patterns generate_target_assignments recursively.
-       This creates a StatListNode that is held by the
-       MatchCaseNode.
-    2. In the "analyse_expressions" phases, the MatchCaseNode calls
-       PatternNode.analyse_pattern_expressions, which calls its
-       sub-pattern recursively.
-    3. At the end of the "analyse_expressions" stage the MatchCaseNode
-       class PatternNode.get_comparison_node (which calls
-       PatternNode.get_comparison_node for its sub-patterns). This
-       returns an ExprNode which can be evaluated to determine if the
+    1. During "analyse_declarations", "PatternNode.generate_target_assignments()"
+       is called on the main "PatternNode" of the case. This calls its
+       sub-patterns ".generate_target_assignments()" recursively.
+       This creates a "StatListNode" that is held by the "MatchCaseNode".
+    2. In the "analyse_expressions" phases, the "MatchCaseNode" calls
+       "PatternNode.analyse_pattern_expressions", which calls its sub-pattern recursively.
+    3. At the end of the "analyse_expressions" stage, the "MatchCaseNode"
+       class "PatternNode.get_comparison_node()" (which calls
+       "PatternNode.get_comparison_node()" for its sub-patterns).
+       This returns an ExprNode which can be evaluated to determine if the
        pattern has matched.
        While generating the comparison we try quite hard not to
        analyse it until right at the end, because otherwise it'll lead
        to a lot of repeated work for deeply nested patterns.
-    4. In the code generation stage, PatternNodes hardly generate any
-       code themselves. However, they do set up whatever temps they
-       need (mainly for sub-pattern subjects), with "allocate_subject_temps",
+    4. In the code generation stage, "PatternNodes" hardly generate any
+       code themselves. However, they do set up whatever temps they need
+       (mainly for sub-pattern subjects), with "allocate_subject_temps",
        "release_subject_temps", and "dispose_of_subject_temps" (which
-       they also call recursively on their sub-patterns)
+       they also call recursively on their sub-patterns).
     """
 
     # useful for type tests
@@ -361,7 +354,7 @@ class PatternNode(Node):
         raise NotImplementedError
 
     def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
-        error(self.pos, "This type of pattern is not currently supported %s" % self)
+        error(self.pos, f"This type of pattern is not currently supported: {self}")
         raise NotImplementedError
 
     def validate_irrefutable(self):
@@ -371,7 +364,7 @@ class PatternNode(Node):
                 child.validate_irrefutable()
 
     def analyse_pattern_expressions(self, env, sequence_mapping_temp):
-        error(self.pos, "This type of pattern is not currently supported %s" % self)
+        error(self.pos, f"This type of pattern is not currently supported {self}")
         raise NotImplementedError
 
     def generate_result_code(self, code):
@@ -492,7 +485,7 @@ class MatchAndAssignPatternNode(PatternNode):
 
     def get_simple_comparison_node(self, subject_node):
         assert self.is_simple_value_comparison()
-        return self.get_comparison_node(subject_node, None)
+        return self.get_comparison_node(subject_node)
 
     def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
         return ExprNodes.BoolNode(self.pos, value=True)
@@ -574,7 +567,7 @@ class OrPatternNode(PatternNode):
             )
         return binop
 
-    def get_comparison_node(self, subject_node, sequence_mapping_temp):
+    def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
         error(self.pos, "'or' cases aren't fully implemented yet")
         return ExprNodes.BoolNode(self.pos, value=False)
 
