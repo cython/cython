@@ -12,10 +12,8 @@ from ..Compiler import Options
 
 try:
     import multiprocessing
-    parallel_compiles = int(multiprocessing.cpu_count() * 1.5)
 except ImportError:
     multiprocessing = None
-    parallel_compiles = 0
 
 
 def find_package_base(path):
@@ -85,7 +83,8 @@ def _build(ext_modules, parallel):
     if not modcount:
         return
 
-    serial_execution_mode = modcount == 1 or parallel < 2
+    serial_execution_mode = modcount == 1 or (
+        parallel is not None and parallel < 2)
 
     try:
         pool_cm = (
@@ -248,8 +247,8 @@ Environment variables:
                       help="use CODESTRING as pre-benchmark setup code for --bench")
 
     parser.add_argument('-j', '--parallel', dest='parallel', metavar='N',
-                      type=int, default=parallel_compiles,
-                      help=f'run builds in N parallel jobs (default: {parallel_compiles or 1})')
+                      type=int, default=None,
+                      help='run builds in N parallel jobs (default: CPU count)')
     parser.add_argument('-f', '--force', dest='force', action='store_true', default=None,
                       help='force recompilation')
     parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=None,

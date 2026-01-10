@@ -639,9 +639,10 @@ class CArrayDeclaratorNode(CDeclaratorNode):
         size = None
         if self.dimension:
             self.dimension = self.dimension.analyse_const_expression(env)
-            if not self.dimension.type.is_int:
-                error(self.dimension.pos, "Array dimension not integer")
-            if self.dimension.type.is_const and self.dimension.entry.visibility != 'extern':
+            dimension_type = self.dimension.type
+            if not (dimension_type.is_int or dimension_type.is_enum):
+                error(self.dimension.pos, f"Array dimension not integer, got '{dimension_type}'")
+            if dimension_type.is_const and self.dimension.entry.visibility != 'extern':
                 # extern const variables declaring C constants are allowed
                 error(self.dimension.pos, "Array dimension cannot be const variable")
             size = (self.dimension.constant_result if isinstance(self.dimension.constant_result, int)
@@ -936,6 +937,7 @@ class CArgDeclNode(Node):
     # is_dynamic     boolean            Non-literal arg stored inside CyFunction
     # pos_only       boolean            Is a positional-only argument
     # type_from_annotation boolean      Was the type deduced from an annotation
+    # type_according_to_pyx  PyrexType or None  The type assigned by the pxd file
     #
     # name_cstring                         property that converts the name to a cstring taking care of unicode
     #                                      and quoting it
@@ -959,6 +961,7 @@ class CArgDeclNode(Node):
     is_dynamic = 0
     defaults_class_key = None
     type_from_annotation = False
+    type_according_to_pxd = None
 
     def declared_name(self):
         return self.declarator.declared_name()
@@ -1025,7 +1028,14 @@ class CArgDeclNode(Node):
             arg_type = self.inject_type_from_annotations(env)
             if arg_type is not None:
                 base_type = arg_type
-        return self.declarator.analyse(base_type, env, nonempty=nonempty)
+        name, type_ = self.declarator.analyse(base_type, env, nonempty=nonempty)
+        if type_ is None or type_ is py_object_type and self.type_according_to_pxd is not None:
+            # Use an overridden type from the pxd if available.
+            # If the type is resolved to something else, and contradicts
+            # the type from the pxd this is likely an error (but generated elsewhere)
+            type_ = self.type_according_to_pxd
+        return name, type_
+
 
     def inject_type_from_annotations(self, env):
         annotation = self.annotation
@@ -1078,12 +1088,14 @@ class CArgDeclNode(Node):
         if self.default:
             self.default.annotate(code)
 
-    def generate_assignment_code(self, code, target=None, overloaded_assignment=False):
+    def generate_assignment_code(self, code, overloaded_assignment=False,
+                                 cyfunc_struct_target=None):
         default = self.default
-        if default is None or default.is_literal:
+        if default is None or (default.is_literal and cyfunc_struct_target is None):
             return
-        if target is None:
-            target = self.calculate_default_value_code(code)
+        # Note that even if self.is_dynamic, default may be a literal if it's been
+        # optimized into a literal after analyse_expressions
+        target = cyfunc_struct_target or self.calculate_default_value_code(code)
         default.generate_evaluation_code(code)
         default.make_owned_reference(code)
         result = default.result() if overloaded_assignment else default.result_as(self.type)
@@ -1923,7 +1935,7 @@ class FuncDefNode(StatNode, BlockNode):
     #  return_type     PyrexType
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
-    #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
+    #  needs_closure   FuncDefNode.NeedsClosure enum        Whether or not this function has inner functions/classes/yield
     #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  pymethdef_required boolean     Force Python method struct generation
     #  directive_locals { string : ExprNode } locals defined by cython.locals(...)
@@ -1938,8 +1950,13 @@ class FuncDefNode(StatNode, BlockNode):
     #       by AnalyseDeclarationsTransform, so it can replace CFuncDefNodes
     #       with fused argument types with a FusedCFuncDefNode
 
+    class NeedsClosure(enum.IntEnum):
+        NO_CLOSURE = 0
+        GENERATOR_ONLY = 1
+        FULL_CLOSURE = 2
+
     py_func = None
-    needs_closure = False
+    needs_closure = NeedsClosure.NO_CLOSURE
     needs_outer_scope = False
     pymethdef_required = False
     is_generator = False
@@ -2023,7 +2040,8 @@ class FuncDefNode(StatNode, BlockNode):
             lenv = cls(name=self.entry.name,
                                 outer_scope=genv,
                                 parent_scope=env,
-                                scope_name=self.entry.cname)
+                                scope_name=self.entry.cname,
+                                is_pure_generator_scope=self.needs_closure != self.NeedsClosure.FULL_CLOSURE)
         else:
             lenv = LocalScope(name=self.entry.name,
                               outer_scope=genv,
@@ -3215,23 +3233,8 @@ class DefNode(FuncDefNode):
         nogil = nogil or with_gil
 
         if cfunc is None:
-            cfunc_args = []
-            for formal_arg in self.args:
-                name_declarator, type = formal_arg.analyse(scope, nonempty=1)
-                cfunc_args.append(PyrexTypes.CFuncTypeArg(name=name_declarator.name,
-                                                          cname=None,
-                                                          annotation=formal_arg.annotation,
-                                                          type=py_object_type,
-                                                          pos=formal_arg.pos))
-            cfunc_type = PyrexTypes.CFuncType(return_type=py_object_type,
-                                              args=cfunc_args,
-                                              has_varargs=False,
-                                              exception_value=None,
-                                              exception_check=exception_check,
-                                              nogil=nogil,
-                                              with_gil=with_gil,
-                                              is_overridable=overridable)
-            cfunc = CVarDefNode(self.pos, type=cfunc_type)
+            cfunc_type = None
+            cfunc = CVarDefNode(self.pos)
         else:
             if scope is None:
                 scope = cfunc.scope
@@ -3245,40 +3248,49 @@ class DefNode(FuncDefNode):
                 error(self.pos, "wrong number of arguments")
                 error(cfunc.pos, "previous declaration here")
             for i, (formal_arg, type_arg) in enumerate(zip(self.args, cfunc_type.args)):
-                name_declarator, type = formal_arg.analyse(scope, nonempty=1,
-                                                           is_self_arg=(i == 0 and scope.is_c_class_scope))
-                if type is None or type is PyrexTypes.py_object_type:
-                    formal_arg.type = type_arg.type
-                    formal_arg.name_declarator = name_declarator
+                formal_arg.type_according_to_pxd = type_arg.type
 
-        if exception_value is None and cfunc_type.exception_value is not None:
+        if exception_value is None and cfunc_type and cfunc_type.exception_value is not None:
             from .ExprNodes import ConstNode
             exception_value = ConstNode.for_type(
                 self.pos, value=str(cfunc_type.exception_value), type=cfunc_type.return_type,
                 constant_result=cfunc_type.exception_value.python_value)
+
+        if cfunc_type is not None:
+            # If we have cfunc_type (i.e. it's come from a pxdfile)
+            # we can fill in a lot more information than if we don't
+            exception_check = cfunc_type.exception_check
+            with_gil = cfunc_type.with_gil
+            nogil = cfunc_type.nogil
+            overridable = cfunc_type.is_overridable
+            def_node_kwds = { 'type': cfunc_type }
+            base_type = CAnalysedBaseTypeNode(self.pos, type=cfunc_type.return_type)
+        else:
+            def_node_kwds = {}
+            base_type = CAnalysedBaseTypeNode(self.pos, type=py_object_type)
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),
                                          args=self.args,
                                          has_varargs=False,
-                                         exception_check=cfunc_type.exception_check,
+                                         exception_check=exception_check,
                                          exception_value=exception_value,
                                          has_explicit_exc_clause = has_explicit_exc_clause,
-                                         with_gil=cfunc_type.with_gil,
-                                         nogil=cfunc_type.nogil)
+                                         with_gil=with_gil,
+                                         nogil=nogil)
         return CFuncDefNode(self.pos,
                             modifiers=modifiers or [],
-                            base_type=CAnalysedBaseTypeNode(self.pos, type=cfunc_type.return_type),
+                            base_type = base_type,
                             declarator=declarator,
                             body=self.body,
                             doc=self.doc,
-                            overridable=cfunc_type.is_overridable,
-                            type=cfunc_type,
-                            with_gil=cfunc_type.with_gil,
-                            nogil=cfunc_type.nogil,
+                            overridable=overridable,
+                            with_gil=with_gil,
+                            nogil=nogil,
                             visibility='private',
                             api=False,
                             directive_locals=getattr(cfunc, 'directive_locals', {}),
-                            directive_returns=returns)
+                            directive_returns=returns,
+                            **def_node_kwds)
 
     def is_cdef_func_compatible(self):
         """Determines if the function's signature is compatible with a
@@ -4716,7 +4728,7 @@ class GeneratorDefNode(DefNode):
     is_generator = True
     is_iterable_coroutine = False
     gen_type_name = 'Generator'
-    needs_closure = True
+    needs_closure = FuncDefNode.NeedsClosure.GENERATOR_ONLY
 
     child_attrs = DefNode.child_attrs + ["gbody"]
 
@@ -5860,6 +5872,11 @@ class CClassDefNode(ClassDefNode):
                     break
                 base_type = base_type.base_type
 
+            if type.has_sequence_flag or type.has_mapping_flag:
+                code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("ApplySequenceOrMappingFlag", "ExtensionTypes.c"))
+                code.put_error_if_neg(
+                    entry.pos, f"__Pyx_ApplySequenceOrMappingFlag({typeptr_cname}, {type.has_sequence_flag:d})")
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
             for slot in TypeSlots.get_slot_table(code.globalstate.directives):

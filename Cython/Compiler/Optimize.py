@@ -756,7 +756,12 @@ class IterationTransform(Visitor.EnvTransform):
                 return node
             slice_base = slice_node
             start = step = None
-            stop = ExprNodes.IntNode.for_size(slice_node.pos, slice_node.type.size)
+            if isinstance(slice_node.type.size, int):
+                stop = ExprNodes.IntNode.for_size(slice_node.pos, slice_node.type.size)
+            else:
+                # enum name or const variable
+                stop = ExprNodes.RawCNameExprNode(
+                    slice_node.pos, PyrexTypes.c_py_ssize_t_type, slice_node.type.size)
 
         else:
             if not slice_node.type.is_pyobject:
@@ -1587,6 +1592,9 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
     """
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
+    in_return_or_yield = False
+    in_parallel = False
+
     def visit_ParallelAssignmentNode(self, node):
         """
         Parallel swap assignments like 'a,b = b,a' are safe.
@@ -1696,6 +1704,74 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
         else:
             return None
         return (base.name, index_val)
+
+    def visit_ReturnStatNode(self, node):
+        in_return_or_yield, self.in_return_or_yield = self.in_return_or_yield, True
+        result = self.visit_Node(node)
+        self.in_return_or_yield = in_return_or_yield
+        return result
+
+    def visit_YieldExprNode(self, node):
+        return self.visit_ReturnStatNode(node)
+
+    def visit_ParallelStatNode(self, node):
+        in_parallel, self.in_parallel = self.in_parallel, True
+        result = self.visit_Node(node)
+        self.in_parallel = in_parallel
+        return result
+
+    def visit_MemoryViewSliceNode(self, node):
+        result = self.visit_Node(node)
+        if not node.type.is_memoryviewslice or not node.is_temp:
+            return result
+        if self.in_return_or_yield:
+            return result
+        if self.in_parallel:
+            # TODO - I'd like to apply a looser set of rules here.
+            # However parallel blocks appear to do some cleanup even on unmanaged temps.
+            # This needs a further look to see if it's a wider bug, but right now it
+            # means we have to exclude all slicing in parallel from the optimization.
+            return result
+        # What we're trying to work out is whether we can drop
+        # the reference counting for the temp.
+        # We should be fairly conservative here.
+        # We require a local variable name node (so that we know
+        # that nothing external can reassign it while we're working)
+        if not node.base.is_name:
+            return result
+        entry = node.base.entry
+        if not entry or entry.scope.is_module_scope:
+            return result
+
+        # anything in a (non-generator) closure is suspect
+        if entry.from_closure or entry.in_closure:
+            defining_scope = entry.outer_entry.scope if entry.from_closure else entry.scope
+            if defining_scope.is_closure_scope and not defining_scope.is_pure_generator_scope:
+                return result
+
+        # We then exclude any rhs that has a parallel or
+        # a named expression assignment or the basis that they might
+        # be reassigned while the temp is still active.
+        # TODO - this can be more sophisticated and use
+        # the same logic as in https://github.com/cython/cython/pull/4607.
+        # In that case we can probably drop AssignemntType from
+        # NameAssignment (since it was added just to help with this)
+        from .FlowControl import AssignmentType
+        unsafe_assigment_types = (
+            AssignmentType.Parallel,
+            AssignmentType.AssignmentExpression
+        )
+        for assignment in entry.cf_assignments:
+            if assignment.assignment_type in unsafe_assigment_types:
+                return result
+            if self.in_parallel and not assignment.is_arg:
+                # If we're in a parallel block, take the view that
+                # we can't reason about any assignment to the rhs.
+                return result
+
+        node.use_borrowed_ref = True
+        node.use_managed_ref = False
+        return result
 
 
 class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
