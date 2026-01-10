@@ -4900,11 +4900,11 @@ class GeneratorBodyDefNode(DefNode):
         # ----- prepare target container for inlined comprehension
         if self.is_inlined and self.inlined_comprehension_type is not None:
             target_type = self.inlined_comprehension_type
-            if target_type is Builtin.list_type:
+            if target_type == Builtin.list_type:
                 comp_init = 'PyList_New(0)'
             elif target_type is Builtin.set_type:
                 comp_init = 'PySet_New(NULL)'
-            elif target_type is Builtin.dict_type:
+            elif target_type == Builtin.dict_type:
                 comp_init = 'PyDict_New()'
             else:
                 raise InternalError(
@@ -6356,6 +6356,11 @@ class SingleAssignmentNode(AssignmentNode):
                     env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
             else:
                 rhs = self.rhs.coerce_to(self.lhs.type, env)
+        elif (self.lhs.type in Builtin.typed_container_types and
+              self.rhs.type in Builtin.typed_container_types and
+              not self.lhs.type.assignable_from(self.rhs.type)):
+            rhs = self.rhs
+            rhs.fail_assignment(self.lhs.type)
         else:
             rhs = self.rhs.coerce_to(self.lhs.type, env)
 
@@ -7733,6 +7738,11 @@ class _ForInStatNode(LoopNode, StatNode):
                 self.target.type.assignable_from(self.iterator.type)):
             # C array slice optimization.
             pass
+        elif (self.iterator.type in Builtin.typed_container_types and
+             (iterator_type := self.iterator.type.infer_iterator_type()) and
+             not self.target.type.assignable_from(iterator_type)):
+            # indexed type of container is not compatible with iterator variable type
+            self.iterator.fail_assignment(self.target.type)
         else:
             self.item = self.item.coerce_to(self.target.type, env)
         self.body = self.body.analyse_expressions(env)
