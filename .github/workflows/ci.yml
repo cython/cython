@@ -249,11 +249,17 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup extra python versions
-        uses: actions/setup-python@v6.1.0
+      - name: Write extra Python versions
         if: ${{ matrix.extra_python_versions[0] != null }}
+        run: |
+          for py_version in ${{ join(matrix.extra_python_versions, ' ') }}; do
+            echo $py_version >> .python-version
+          done
+      - name: Setup extra Python versions
+        if: ${{ matrix.extra_python_versions[0] != null }}
+        uses: actions/setup-python@v6.1.0
         with:
-          python-version: ${{ matrix.extra_python_versions }} 
+          python-version-file: .python-versions
 
       - name: Setup python
         uses: actions/setup-python@v6.1.0
