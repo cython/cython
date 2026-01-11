@@ -249,6 +249,7 @@ if [[ $PYTHON_VERSION == "3.13t" ]]; then
   export PYTHON_GIL=0
 fi
 $PYTHON runtests.py \
+  list
   -vv $STYLE_ARGS \
   -x Debugger \
   --backends=$BACKEND \
