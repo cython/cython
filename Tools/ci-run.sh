@@ -4,7 +4,7 @@ set -x
 
 GCC_VERSION=${GCC_VERSION:=10}
 
-if [[ $PYTHON == ""]]; then
+if [[ $PYTHON == "" ]]; then
   PYTHON=python
 fi
 
