@@ -155,7 +155,7 @@ jobs:
             backend: "c,cpp"
             env: { LIMITED_API: 1, ABI3AUDIT: 1 }
             extra_hash: "-limited_api"
-            extra_python_versions: ["3.9", "3.11", "3.12", "3.13", "3.14"]
+            extra_python_versions: ["3.10", "3.11", "3.12", "3.13", "3.14"]
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
@@ -249,13 +249,16 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Setup extra python versions
+        uses: actions/setup-python@v6.1.0
+        if: ${{ matrix.extra_python_versions[0] != null }}
+        with:
+          python-version: ${{ matrix.extra_python_versions }} 
+
       - name: Setup python
         uses: actions/setup-python@v6.1.0
         with:
-          # "real" Python version comes last
-          python-version: |
-            ${{ join(matrix.extra_python_versions, '\n') }}
-            ${{ matrix.python-version }}
+          python-version: ${{ matrix.python-version }}
 
       - name: Compilation Cache
         uses: hendrikmuhs/ccache-action@v1.2.20
