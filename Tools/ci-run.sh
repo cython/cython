@@ -234,15 +234,15 @@ fi
 
 if [[ $LIMITED_API == "1" ]]; then
   # don't cleanup to give us the opportunity to rerun at higher Python versions
-  RUNTESTS_ARGS = "$RUNTESTS_ARGS --limited-api --no-cleanup --no-cleanup-sharedlib"
+  RUNTESTS_ARGS="$RUNTESTS_ARGS --limited-api --no-cleanup --no-cleanup-sharedlib"
 fi
 if [[ $ABI3AUDIT == "1" ]]; then
-  RUNTESTS_ARGS = "$RUNTESTS_ARGS --abi3audit"
+  RUNTESTS_ARGS="$RUNTESTS_ARGS --abi3audit"
 fi
 if [[ $NO_COMPILE_TESTS == "1" ]]; then
   # --no-unit because they often do significant "inline" compilation and we're trying to
   # keep this quick.
-  RUNTESTS_ARGS = "$RUNTESTS_ARGS --no-compile --no-cleanup --no-cleanup-sharedlib --no-unit"
+  RUNTESTS_ARGS="$RUNTESTS_ARGS --no-compile --no-cleanup --no-cleanup-sharedlib --no-unit"
 fi
 
 echo "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
