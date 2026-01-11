@@ -287,7 +287,7 @@ jobs:
         if: ${{ matrix.extra_python_versions[0] != null }}
         run: |
           for py_version in ${{ join(matrix.extra_python_versions, ' ') }}; do
-            PYTHON=python$py_version PYTHON_VERSION=$py_version NO_COMPILE_TESTS=1 bash ./Tools/ci-run.sh
+            PYTHON=python$py_version PYTHON_VERSION=$py_version NO_COMPILE_TESTS=1 NO_CYTHON_COMPILE=1 bash ./Tools/ci-run.sh
           done
 
       - name: Upload HTML docs

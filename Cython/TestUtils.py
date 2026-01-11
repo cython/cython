@@ -346,7 +346,7 @@ def unpack_source_tree(tree_file, workdir, cython_root, skip_compile_steps):
                         prog, args = command[0], command[1:]
                         if skip_compile_steps and (
                                 command[0] in ('CYTHONIZE', 'PYTHON_COMPILE')):
-                            continue 
+                            continue
                         try:
                             header.append(programs[prog]+args)
                         except KeyError:
