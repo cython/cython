@@ -1,6 +1,6 @@
 UNSET PYTHON_GIL
 UNSET CFLAGS
-PYTHON setup.py build_ext --inplace
+PYTHON_COMPILE setup.py build_ext --inplace
 PYTHON -c "import default; default.test()"
 PYTHON -c "import compatible; compatible.test()"
 PYTHON -c "import incompatible; incompatible.test()"

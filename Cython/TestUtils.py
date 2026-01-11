@@ -312,9 +312,11 @@ class TreeAssertVisitor(VisitorTransform):
     visit_Node = VisitorTransform.recurse_to_children
 
 
-def unpack_source_tree(tree_file, workdir, cython_root):
+def unpack_source_tree(tree_file, workdir, cython_root, skip_compile_steps):
     programs = {
         'PYTHON': [sys.executable],
+        # Just PYTHON, but can be skipped if --no-compile
+        'PYTHON_COMPILE': [sys.executable],
         'CYTHON': [sys.executable, os.path.join(cython_root, 'cython.py')],
         'CYTHONIZE': [sys.executable, os.path.join(cython_root, 'cythonize.py')]
     }
@@ -342,6 +344,9 @@ def unpack_source_tree(tree_file, workdir, cython_root):
                         if not command: continue
                         # In Python 3: prog, *args = command
                         prog, args = command[0], command[1:]
+                        if skip_compile_steps and (
+                                command[0] in ('CYTHONIZE', 'PYTHON_COMPILE')):
+                            continue 
                         try:
                             header.append(programs[prog]+args)
                         except KeyError:

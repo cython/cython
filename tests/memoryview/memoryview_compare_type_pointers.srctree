@@ -1,4 +1,4 @@
-PYTHON setup.py build_ext --inplace
+PYTHON_COMPILE setup.py build_ext --inplace
 PYTHON -c "import test_compare_type_pointers"
 
 ######## setup.py ########

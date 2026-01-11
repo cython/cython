@@ -2,7 +2,7 @@
 CYTHON a.pyx
 CYTHON --module-name w b.pyx
 CYTHON --module-name my_module.submod.x c.pyx
-PYTHON setup.py build_ext --inplace
+PYTHON_COMPILE setup.py build_ext --inplace
 PYTHON checks.py
 
 ######## checks.py ########

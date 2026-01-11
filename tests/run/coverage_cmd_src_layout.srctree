@@ -2,7 +2,7 @@
 # tag: coverage,trace
 
 """
-PYTHON setup.py build_ext -i
+PYTHON_COMPILE setup.py build_ext -i
 PYTHON -m coverage run --source=src coverage_test.py
 PYTHON collect_coverage.py
 """

@@ -1,7 +1,7 @@
 # mode: run
 # ticket: 1888
 
-PYTHON setup.py build_ext --inplace
+PYTHON_COMPILE setup.py build_ext --inplace
 PYTHON -c "import a; a.test()"
 
 ######## setup.py ########

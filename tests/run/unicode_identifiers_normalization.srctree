@@ -8,7 +8,7 @@ PYTHON -m doctest test0.py
 PYTHON -m doctest test1.py
 PYTHON -m doctest test2.py
 
-PYTHON setup.py build_ext --inplace
+PYTHON_COMPILE setup.py build_ext --inplace
 # test in Cython mode
 PYTHON -c "import doctest; import test0 as m; exit(doctest.testmod(m)[0])"
 PYTHON -c "import doctest; import test1 as m; exit(doctest.testmod(m)[0])"

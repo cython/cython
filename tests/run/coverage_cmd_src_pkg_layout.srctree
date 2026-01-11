@@ -21,7 +21,7 @@
 #
 # [1]: https://github.com/pypa/pip/issues/6334
 PYTHON -m pip install --no-build-isolation .
-PYTHON setup.py build_ext --inplace
+PYTHON_COMPILE setup.py build_ext --inplace
 PYTHON -m coverage run --source=pkg coverage_test.py
 PYTHON collect_coverage.py
 """

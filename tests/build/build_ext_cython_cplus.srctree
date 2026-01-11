@@ -1,6 +1,6 @@
 # tag: cpp
 
-PYTHON setup.py build_ext --inplace --cython-cplus
+PYTHON_COMPILE setup.py build_ext --inplace --cython-cplus
 PYTHON -c "import a; a.use_vector([1,2,3])"
 
 ######## setup.py ########
