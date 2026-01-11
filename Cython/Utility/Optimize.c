@@ -1078,6 +1078,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 {{py: has_object = type1 == 'object' or type2 == 'object'}}
 {{py: has_int = type1 == 'int' or type2 == 'int'}}
 {{py: has_float = type1 == 'float' or type2 == 'float'}}
+{{py: c_op_reversed = {'==': '==', '!=': '!=', '<': '>=', '<=': '>', '>=': '<', '>': '<='}[c_op] }}
 {{py:
 def is_type(operand, expected, type1=type1, type2=type2):
     assert operand in ('op1', 'op2'), operand
@@ -1094,10 +1095,133 @@ def is_type(operand, expected, type1=type1, type2=type2):
     return check
 }}
 
+{{if (has_object or has_float) and type2 in ('object', 'int')}}
+// Less likely, non-inlined comparison of float and int.
+#if CYTHON_USE_PYLONG_INTERNALS
+static {{if (type1, type2) == ('float', 'int')}}CYTHON_INLINE{{endif}} {{c_ret_type}}
+__Pyx_PyObject_CompareFloatInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
+    double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
+    #if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(float_op1 == -1. && PyErr_Occurred())) goto bad;
+    #endif
+
+    if (__Pyx_PyLong_IsCompact(op2)) {
+        Py_ssize_t iop2 = __Pyx_PyLong_CompactValue(op2);
+        if (float_op1 {{c_op}} ((double)iop2)) {{return_true}}; else {{return_false}};
+    }
+    if (unlikely(!isfinite(float_op1))) {
+        // CPython just compares inf/nan to 0.0
+        if (float_op1 {{c_op}} 0.0) {{return_true}}; else {{return_false}};
+    } else {
+        // op2 != 0 (which would be compact)
+        int sign2 = __Pyx_PyLong_Sign(op2);
+        if (float_op1 >= 0.) {
+            if (sign2 < 0) {{return_true if op in 'NeGeGt' else return_false}};
+            // same sign - is float value compact while PyLong is not?
+            if (float_op1 < (double) (1L << PyLong_SHIFT)) {{return_true if op in 'NeLeLt' else return_false}};
+        } else {
+            if (sign2 > 0) {{return_true if op in 'NeLeLt' else return_false}};
+            // same sign - is float value compact while PyLong is not?
+            if (float_op1 > -(double) (1L << PyLong_SHIFT)) {{return_false if op in 'EqLeLt' else return_true}};
+        }
+    }
+
+    return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
+
+#if !CYTHON_ASSUME_SAFE_MACROS
+bad:
+    return {{'NULL' if ret_type.is_pyobject else '-1'}};
+#endif
+}
+#endif
+{{endif}}
+
+{{if (has_object or has_float) and type1 in ('object', 'int') and type2 in ('object', 'float')}}
+// Less likely, non-inlined comparison of int and float.
+#if CYTHON_USE_PYLONG_INTERNALS
+static {{if (type1, type2) == ('int', 'float')}}CYTHON_INLINE{{endif}} {{c_ret_type}}
+__Pyx_PyObject_CompareIntFloat{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
+    double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
+    #if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(float_op2 == -1. && PyErr_Occurred())) goto bad;
+    #endif
+
+    if (__Pyx_PyLong_IsCompact(op1)) {
+        Py_ssize_t iop1 = __Pyx_PyLong_CompactValue(op1);
+        if (((double)iop1) {{c_op}} float_op2) {{return_true}}; else {{return_false}};
+    }
+    if (unlikely(!isfinite(float_op2))) {
+        // CPython just compares inf/nan to 0.0
+        if (0.0 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
+    } else {
+        // op1 != 0 (which would be compact)
+        int sign1 = __Pyx_PyLong_Sign(op1);
+        if (float_op2 >= 0.) {
+            if (sign1 < 0) {{return_true if op in 'NeLeLt' else return_false}};
+            // same sign - is float value compact while PyLong is not?
+            if (float_op2 < (double) (1L << PyLong_SHIFT)) {{return_true if op in 'NeGeGt' else return_false}};
+        } else {
+            if (sign1 > 0) {{return_true if op in 'NeGeGt' else return_false}};
+            // same sign - is float value compact while PyLong is not?
+            if (float_op2 > -(double) (1L << PyLong_SHIFT)) {{return_false if op in 'EqGeGt' else return_true}};
+        }
+    }
+
+    return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
+
+#if !CYTHON_ASSUME_SAFE_MACROS
+bad:
+    return {{'NULL' if ret_type.is_pyobject else '-1'}};
+#endif
+}
+#endif
+{{endif}}
+
+{{if not has_float}}
+#if CYTHON_USE_PYLONG_INTERNALS
+static {{if (type1, type2) == ('int', 'int')}}CYTHON_INLINE{{endif}} {{c_ret_type}}
+__Pyx_PyObject_CompareIntInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
+    Py_ssize_t cmp = __Pyx_PyLong_CompareSignAndSize(op1, op2);
+    if (cmp == 0) {
+        Py_ssize_t size = __Pyx_PyLong_DigitCount(op1);
+        const digit* digits1 = __Pyx_PyLong_Digits(op1);
+        const digit* digits2 = __Pyx_PyLong_Digits(op2);
+        for (Py_ssize_t i=size-1; i >= 0 && !cmp; --i) {
+            cmp = (Py_ssize_t) digits1[i] - (Py_ssize_t) digits2[i];
+        }
+        if (cmp == 0) {{return_true if op in 'EqLeGe' else return_false}};
+        cmp *= __Pyx_PyLong_Sign(op1);
+    }
+
+    {{if op == 'Eq'}}
+    {{return_false}};
+    {{elif op == 'Ne'}}
+    {{return_true}};
+    {{else}}
+    if (cmp < 0) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
+    {{endif}}
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
+}
+#endif
+{{endif}}
+
+
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop) {
     CYTHON_UNUSED_VAR(pyop);
-
-    {{if has_object or has_float}}
 
     {{if type1 in ('object', 'float')}}
     if ({{is_type('op1', 'float')}}) {
@@ -1115,48 +1239,10 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
         }
         {{endif}}
 
-        {{if op in 'EqNe' and not (has_object or ret_type.is_pyobject)}}
-        // Cannot do this up-front due to nan != nan
-        if (op1 == op2) {{return_true if op == 'Eq' else return_false}};
-        {{endif}}
-
         {{if type2 in ('object', 'int')}}
         #if CYTHON_USE_PYLONG_INTERNALS
         if ({{is_type('op2', 'int')}}) {
-            double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
-            #if !CYTHON_ASSUME_SAFE_MACROS
-            if (unlikely(float_op1 == -1. && PyErr_Occurred())) goto bad;
-            #endif
-
-            if (__Pyx_PyLong_IsCompact(op2)) {
-                Py_ssize_t iop2 = __Pyx_PyLong_CompactValue(op2);
-                if (float_op1 {{c_op}} ((double)iop2)) {{return_true}}; else {{return_false}};
-            } else if (!isfinite(float_op1)) {
-                // CPython just compares them to 0.0
-                if (float_op1 {{c_op}} 0.0) {{return_true}}; else {{return_false}};
-            } else {
-                int sign1 = (float_op1 > 0.) - (float_op1 < 0.);
-                int sign2 = __Pyx_PyLong_Sign(op2);
-                if (sign1 != sign2) {
-                    {{if op == 'Eq'}}
-                    {{return_false}};
-                    {{elif op == 'Ne'}}
-                    {{return_true}};
-                    {{else}}
-                    if (sign1 < sign2) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
-                    {{endif}}
-                }
-                if (fabs(float_op1) < (double) (1L << PyLong_SHIFT)) {
-                    // float value is definitely compact but PyLong is not
-                    {{if op == 'Eq'}}
-                    {{return_false}};
-                    {{elif op == 'Ne'}}
-                    {{return_true}};
-                    {{else}}
-                    if (float_op1 > 0.) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
-                    {{endif}}
-                }
-            }
+            return __Pyx_PyObject_CompareFloatInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(op1, op2);
         }
         #endif
         {{endif}}
@@ -1165,99 +1251,38 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
     }
     {{endif}}
 
-    {{if type1 in ('object', 'int') and type2 in ('object', 'float')}}
-    #if CYTHON_USE_PYLONG_INTERNALS
-    if ({{is_type('op2', 'float')}}) {
-        if ({{is_type('op1', 'int')}}) {
-            double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
-            #if !CYTHON_ASSUME_SAFE_MACROS
-            if (unlikely(float_op2 == -1. && PyErr_Occurred())) goto bad;
-            #endif
-
-            if (__Pyx_PyLong_IsCompact(op1)) {
-                Py_ssize_t iop1 = __Pyx_PyLong_CompactValue(op1);
-                if (((double)iop1) {{c_op}} float_op2) {{return_true}}; else {{return_false}};
-            } else if (!isfinite(float_op2)) {
-                // CPython just compares these to 0.0
-                if (0.0 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
-            } else {
-                int sign1 = __Pyx_PyLong_Sign(op1);
-                int sign2 = (float_op2 > 0.) - (float_op2 < 0.);
-                if (sign1 != sign2) {
-                    {{if op == 'Eq'}}
-                    {{return_false}};
-                    {{elif op == 'Ne'}}
-                    {{return_true}};
-                    {{else}}
-                    if (sign1 < sign2) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
-                    {{endif}}
-                }
-                if (fabs(float_op2) < (double) (1L << PyLong_SHIFT)) {
-                    // float value is definitely compact but PyLong is not
-                    {{if op == 'Eq'}}
-                    {{return_false}};
-                    {{elif op == 'Ne'}}
-                    {{return_true}};
-                    {{else}}
-                    if (float_op2 > 0.) {{return_true if op in 'GeGt' else return_false}}; else {{return_false if op in 'GeGt' else return_true}};
-                    {{endif}}
-                }
-            }
-        }
-        goto __pyx_richcmp;
-    }
-    #endif
-    {{endif}}
-
-    {{endif}}
-    // end of PyFloat part
-
-    {{if not has_float}}
-
-    {{if op in 'EqNe' and not (has_object or ret_type.is_pyobject)}}
+    {{if op in 'EqNe' and not (has_float or has_object or ret_type.is_pyobject)}}
     // Cannot do this for floats due to nan != nan
     if (op1 == op2) {{return_true if op == 'Eq' else return_false}};
     {{endif}}
 
+    {{if type1 in ('object', 'int')}}
     #if CYTHON_USE_PYLONG_INTERNALS
-    {{if type1 == 'int' and type2 == 'int'}}
-    if (unlikely((op1 == Py_None) | (op2 == Py_None))) {
-        {{if op in 'EqNe'}}
-        if (op1 == op2) {{return_true if op == 'Eq' else return_false}};
+    if ({{is_type('op1', 'int')}}) {
+        {{if op in 'EqNeLeGe'}}
+        if (op1 == op2) {{return_false if op == 'Ne' else return_true}};
         {{endif}}
-    } else
-    {{elif type1 == 'int'}}
-    if (likely((op1 != Py_None) & PyLong_CheckExact(op2)))
-    {{elif type2 == 'int'}}
-    if (likely((op2 != Py_None) & PyLong_CheckExact(op1)))
-    {{else}}
-    if (PyLong_CheckExact(op1) & PyLong_CheckExact(op2))
-    {{endif}}
-    {
-        Py_ssize_t cmp = __Pyx_PyLong_CompareSignAndSize(op1, op2);
-        if (cmp == 0) {
-            Py_ssize_t size = __Pyx_PyLong_DigitCount(op1);
-            const digit* digits1 = __Pyx_PyLong_Digits(op1);
-            const digit* digits2 = __Pyx_PyLong_Digits(op2);
-            for (Py_ssize_t i=size-1; i >= 0 && !cmp; --i) {
-                cmp = (Py_ssize_t) digits1[i] - (Py_ssize_t) digits2[i];
-            }
-            if (cmp == 0) {{return_true if op in 'EqLeGe' else return_false}};
-            cmp *= __Pyx_PyLong_Sign(op1);
+
+        {{if type2 in ('object', 'int')}}
+        if ({{is_type('op2', 'int')}}) {
+            return __Pyx_PyObject_CompareIntInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(op1, op2);
         }
-        {{if op == 'Eq'}}
-        {{return_false}};
-        {{elif op == 'Ne'}}
-        {{return_true}};
-        {{else}}
-        if (cmp < 0) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
+        {{endif}}
+
+        {{if type2 in ('object', 'float')}}
+        if ({{is_type('op2', 'float')}}) {
+            return __Pyx_PyObject_CompareIntFloat{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(op1, op2);
+        }
         {{endif}}
     }
     #endif
     {{endif}}
-    // end of PyLong part
 
-{{if has_object or has_float}}
+    {{if op in 'EqNe'}}
+    if ((op1 == Py_None) & (op2 == Py_None)) {{return_true if op == 'Eq' else return_false}};
+    {{endif}}
+
+{{if type1 in ('object', 'float')}}
 __pyx_richcmp:
 {{endif}}
     return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
