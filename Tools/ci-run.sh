@@ -240,9 +240,14 @@ if [[ $ABI3AUDIT == "1" ]]; then
   RUNTESTS_ARGS = "$RUNTESTS_ARGS --abi3audit"
 fi
 if [[ $NO_COMPILE_TESTS == "1" ]]; then
-  RUNTESTS_ARGS = "$RUNTESTS_ARGS --no-compile --no-cleanup --no-cleanup-sharedlib"
+  # --no-unit because they often do significant "inline" compilation and we're trying to
+  # keep this quick.
+  RUNTESTS_ARGS = "$RUNTESTS_ARGS --no-compile --no-cleanup --no-cleanup-sharedlib --no-unit"
 fi
 
+echo "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+echo $RUNTESTS_ARGS
+echo $NO_COMPILE_TESTS
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
 if [[ $PYTHON_VERSION == "3.13t" ]]; then
