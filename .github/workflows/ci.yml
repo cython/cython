@@ -253,7 +253,9 @@ jobs:
         uses: actions/setup-python@v6.1.0
         with:
           # "real" Python version comes last
-          python-version: ${{ join(matrix.extra_python_versions, ' ') }} ${{ matrix.python-version }}
+          python-version: |
+            ${{ join(matrix.extra_python_versions, '\n') }}
+            ${{ matrix.python-version }}
 
       - name: Compilation Cache
         uses: hendrikmuhs/ccache-action@v1.2.20
