@@ -14165,7 +14165,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         if is_pythran_expr(type1) or is_pythran_expr(type2):
             if is_pythran_supported_type(type1) and is_pythran_supported_type(type2):
                 self.type = PythranExpr(pythran_binop_type(self.operator, type1, type2))
-                self.is_pycmp = False
                 return self
 
         if self.analyse_memoryviewslice_comparison(env):
@@ -14176,7 +14175,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
 
         if self.operator in ('in', 'not_in'):
             if self.is_c_string_contains():
-                self.is_pycmp = False
                 common_type = None
                 if self.cascade:
                     error(self.pos, "Cascading comparison not yet supported for 'int_val in string'.")
@@ -14201,18 +14199,14 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 if not self.operand1.type.is_pyobject:
                     self.operand1 = self.operand1.coerce_to_pyobject(env)
                 common_type = None  # if coercion needed, the method call above has already done it
-                self.is_pycmp = False  # result is bint
             else:
                 common_type = py_object_type
-                self.is_pycmp = True
         elif self.find_special_bool_compare_function(env, self.operand1):
             if not self.operand1.type.is_pyobject:
                 self.operand1 = self.operand1.coerce_to_pyobject(env)
             common_type = None  # if coercion needed, the method call above has already done it
-            self.is_pycmp = False  # result is bint
         else:
             common_type = self.find_common_type(env, self.operator, self.operand1)
-            self.is_pycmp = common_type.is_pyobject
 
         if common_type is not None and not common_type.is_error:
             if self.operand1.type != common_type:
@@ -14230,7 +14224,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         else:
             self.type = PyrexTypes.c_bint_type
         self.unify_cascade_type()
-        if self.is_pycmp or self.cascade or self.special_bool_cmp_function:
+        if self.type.is_pyobject or self.cascade or self.special_bool_cmp_function:
             # 1) owned reference, 2) reused value, 3) potential function error return value
             self.is_temp = 1
         return self
@@ -14238,7 +14232,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     def analyse_cpp_comparison(self, env):
         type1 = self.operand1.type
         type2 = self.operand2.type
-        self.is_pycmp = False
         entry = env.lookup_operator(self.operator, [self.operand1, self.operand2])
         if entry is None:
             error(self.pos, "Invalid types for '%s' (%s, %s)" %
@@ -14268,7 +14261,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                       self.operand2.type.is_memoryviewslice)
         ops = ('==', '!=', 'is', 'is_not')
         if have_slice and have_none and self.operator in ops:
-            self.is_pycmp = False
             self.type = PyrexTypes.c_bint_type
             self.is_memslice_nonecheck = True
             return True
@@ -14291,7 +14283,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         # Now make sure that we return a bint, however we calculate the result.
         self.type = PyrexTypes.c_bint_type
         self.is_temp = 1
-        self.is_pycmp = False
         self.unify_cascade_type()
 
         return self
@@ -14429,7 +14420,6 @@ class CascadedCmpNode(Node, CmpNode):
 
     def optimise_comparison(self, operand1, env, result_is_bool=False):
         if self.find_special_bool_compare_function(env, operand1, result_is_bool):
-            self.is_pycmp = False
             self.type = PyrexTypes.c_bint_type
             if not operand1.type.is_pyobject:
                 operand1 = operand1.coerce_to_pyobject(env)
