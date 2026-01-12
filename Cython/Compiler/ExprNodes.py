@@ -14276,22 +14276,25 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         return False
 
     def coerce_to_boolean(self, env):
-        if self.is_pycmp:
-            # coercing to bool => may allow for more efficient comparison code
-            if self.find_special_bool_compare_function(
-                    env, self.operand1, result_is_bool=True):
-                self.is_pycmp = False
-                self.type = PyrexTypes.c_bint_type
-                self.is_temp = 1
-                if self.cascade:
-                    operand2 = self.cascade.optimise_comparison(
-                        self.operand2, env, result_is_bool=True)
-                    if operand2 is not self.operand2:
-                        self.coerced_operand2 = operand2
-                self.unify_cascade_type()
-                return self
-        # TODO: check if we can optimise parts of the cascade here
-        return ExprNode.coerce_to_boolean(self, env)
+        if self.type is PyrexTypes.c_bint_type:
+            return self
+
+        # coercing to bool => may allow for more efficient comparison code
+        self.find_special_bool_compare_function(env, self.operand1, result_is_bool=True)
+
+        if self.cascade:
+            operand2 = self.cascade.optimise_comparison(
+                self.operand2, env, result_is_bool=True)
+            if operand2 is not self.operand2:
+                self.coerced_operand2 = operand2
+
+        # Now make sure that we return a bint, however we calculate the result.
+        self.type = PyrexTypes.c_bint_type
+        self.is_temp = 1
+        self.is_pycmp = False
+        self.unify_cascade_type()
+
+        return self
 
     def has_python_operands(self):
         return (self.operand1.type.is_pyobject
