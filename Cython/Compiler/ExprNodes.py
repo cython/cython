@@ -14199,14 +14199,19 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 if not self.operand1.type.is_pyobject:
                     self.operand1 = self.operand1.coerce_to_pyobject(env)
                 common_type = None  # if coercion needed, the method call above has already done it
+                self.is_temp = True  # error return
             else:
                 common_type = py_object_type
+                self.is_temp = True  # owned reference
         elif self.find_special_bool_compare_function(env, self.operand1):
             if not self.operand1.type.is_pyobject:
                 self.operand1 = self.operand1.coerce_to_pyobject(env)
             common_type = None  # if coercion needed, the method call above has already done it
+            self.is_temp = True  # error return
         else:
             common_type = self.find_common_type(env, self.operator, self.operand1)
+            if common_type.is_pyobject:
+                self.is_temp = True  # owned reference
 
         if common_type is not None and not common_type.is_error:
             if self.operand1.type != common_type:
@@ -14214,19 +14219,20 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.coerce_operands_to(common_type, env)
 
         if self.cascade:
+            self.is_temp = True  # reused value
             self.operand2 = self.operand2.coerce_to_simple(env)
             self.cascade.coerce_cascaded_operands_to_temp(env)
             operand2 = self.cascade.optimise_comparison(self.operand2, env)
             if operand2 is not self.operand2:
                 self.coerced_operand2 = operand2
+
         if self.is_python_result():
             self.type = PyrexTypes.py_object_type
+            self.is_temp = True  # owned reference
         else:
             self.type = PyrexTypes.c_bint_type
         self.unify_cascade_type()
-        if self.type.is_pyobject or self.cascade or self.special_bool_cmp_function:
-            # 1) owned reference, 2) reused value, 3) potential function error return value
-            self.is_temp = 1
+
         return self
 
     def analyse_cpp_comparison(self, env):
