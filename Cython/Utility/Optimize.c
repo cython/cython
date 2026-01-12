@@ -1075,6 +1075,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 {{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
 {{py: return_true = 'goto __pyx_return_true'}}
 {{py: return_false = 'goto __pyx_return_false'}}
+{{py: return_error = "return NULL" if ret_type.is_pyobject else "return -1"}}
 {{py: has_object = type1 == 'object' or type2 == 'object'}}
 {{py: has_int = type1 == 'int' or type2 == 'int'}}
 {{py: has_float = type1 == 'float' or type2 == 'float'}}
@@ -1102,7 +1103,7 @@ static {{if (type1, type2) == ('float', 'int')}}CYTHON_INLINE{{endif}} {{c_ret_t
 __Pyx_PyObject_CompareFloatInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
     double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
     #if !CYTHON_ASSUME_SAFE_MACROS
-    if (unlikely(float_op1 == -1. && PyErr_Occurred())) goto bad;
+    if (unlikely(float_op1 == -1. && PyErr_Occurred())) {{return_error}};
     #endif
 
     if (__Pyx_PyLong_IsCompact(op2)) {
@@ -1132,11 +1133,6 @@ __pyx_return_true:
     {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
 __pyx_return_false:
     {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
-
-#if !CYTHON_ASSUME_SAFE_MACROS
-bad:
-    return {{'NULL' if ret_type.is_pyobject else '-1'}};
-#endif
 }
 #endif
 {{endif}}
@@ -1148,7 +1144,7 @@ static {{if (type1, type2) == ('int', 'float')}}CYTHON_INLINE{{endif}} {{c_ret_t
 __Pyx_PyObject_CompareIntFloat{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
     double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
     #if !CYTHON_ASSUME_SAFE_MACROS
-    if (unlikely(float_op2 == -1. && PyErr_Occurred())) goto bad;
+    if (unlikely(float_op2 == -1. && PyErr_Occurred())) {{return_error}};
     #endif
 
     if (__Pyx_PyLong_IsCompact(op1)) {
@@ -1178,11 +1174,6 @@ __pyx_return_true:
     {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
 __pyx_return_false:
     {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
-
-#if !CYTHON_ASSUME_SAFE_MACROS
-bad:
-    return {{'NULL' if ret_type.is_pyobject else '-1'}};
-#endif
 }
 #endif
 {{endif}}
@@ -1253,18 +1244,13 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
         if ({{is_type('op2', 'float')}}) {
             double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
             #if !CYTHON_ASSUME_SAFE_MACROS
-            if (unlikely(float_op1 == -1. && PyErr_Occurred())) goto bad;
+            if (unlikely(float_op1 == -1. && PyErr_Occurred())) {{return_error}};
             #endif
             double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
             #if !CYTHON_ASSUME_SAFE_MACROS
-            if (unlikely(float_op2 == -1. && PyErr_Occurred())) goto bad;
+            if (unlikely(float_op2 == -1. && PyErr_Occurred())) {{return_error}};
             #endif
             if (float_op1 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
-
-        #if !CYTHON_ASSUME_SAFE_MACROS
-        bad:
-            return {{'NULL' if ret_type.is_pyobject else '-1'}};
-        #endif
         }
         {{endif}}
 
