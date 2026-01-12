@@ -2832,7 +2832,7 @@ def runtests_callback(args):
 
 
 def runtests(options, cmd_args, coverage=None):
-    global WITH_CYTHON, WITH_COMPILE
+    global WITH_CYTHON, WITH_COMPILE, WORKDIR
 
     # faulthandler should be able to provide a limited traceback
     # in the event of a segmentation fault. Only available on Python 3.3+
