@@ -279,7 +279,6 @@ jobs:
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}
         env: ${{ matrix.env }}
-        if: 0
         run: bash ./Tools/ci-run.sh
 
       - name: Run extra versions
