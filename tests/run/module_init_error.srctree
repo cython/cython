@@ -1,4 +1,4 @@
-PYTHON setup.py build_ext --inplace
+PYTHON_COMPILE setup.py build_ext --inplace
 PYTHON -c "import test_fail_in_init; test_fail_in_init.try_import()"
 PYTHON -c "import test_fail_in_init_after_atexit; test_fail_in_init_after_atexit.try_import()"
 

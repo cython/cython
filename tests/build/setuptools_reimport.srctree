@@ -1,7 +1,7 @@
 # mode: run
 # tag: setuptools
 
-PYTHON setup.py
+PYTHON_COMPILE setup.py
 
 
 ######## module.pyx ########

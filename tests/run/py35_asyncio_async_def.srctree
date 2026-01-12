@@ -1,7 +1,7 @@
 # mode: run
 # tag: asyncio, gh1685, gh2273
 
-PYTHON setup.py build_ext -i
+PYTHON_COMPILE setup.py build_ext -i
 PYTHON main.py
 
 

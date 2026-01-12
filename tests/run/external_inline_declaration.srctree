@@ -1,4 +1,4 @@
-PYTHON setup.py build_ext --inplace
+PYTHON_COMPILE setup.py build_ext --inplace
 PYTHON -c "import a; assert a.test() == 1"
 
 ######## setup.py ########

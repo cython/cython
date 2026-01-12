@@ -1,5 +1,5 @@
 PYTHON -c "import a; assert a.__file__.rstrip('co').endswith('.py'), a.__file__; a.test()"
-PYTHON setup.py build_ext --inplace
+PYTHON_COMPILE setup.py build_ext --inplace
 PYTHON -c "import a; assert not a.__file__.rstrip('co').endswith('.py'), a.__file__; a.test()"
 
 ######## setup.py ########

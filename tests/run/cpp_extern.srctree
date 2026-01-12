@@ -3,7 +3,7 @@
 # ticket: 1839
 
 """
-PYTHON setup.py build_ext --inplace
+PYTHON_COMPILE setup.py build_ext --inplace
 PYTHON -c "from include_as_c_and_cpp import test; test()"
 PYTHON -c "from include_from_c_and_cpp import test; test()"
 PYTHON -c "from cdefines import test; test()"

@@ -2,7 +2,7 @@
 # tag: cpp
 
 """
-PYTHON setup.py build_ext --inplace
+PYTHON_COMPILE setup.py build_ext --inplace
 PYTHON -c "from assignment_overload import test; test()"
 """
 

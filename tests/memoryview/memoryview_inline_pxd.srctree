@@ -5,7 +5,7 @@
 # Do not add more to this test - it is intentionally minimal
 # to avoid including the utility code through other means
 
-PYTHON setup.py build_ext --inplace
+PYTHON_COMPILE setup.py build_ext --inplace
 PYTHON -c "import uses_inline; uses_inline.main()"
 
 ######## setup.py ########
