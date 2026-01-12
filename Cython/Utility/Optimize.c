@@ -1076,9 +1076,6 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 {{py: return_true = 'goto __pyx_return_true'}}
 {{py: return_false = 'goto __pyx_return_false'}}
 {{py: return_error = "return NULL" if ret_type.is_pyobject else "return -1"}}
-{{py: has_object = type1 == 'object' or type2 == 'object'}}
-{{py: has_int = type1 == 'int' or type2 == 'int'}}
-{{py: has_float = type1 == 'float' or type2 == 'float'}}
 {{py: c_op_reversed = {'==': '==', '!=': '!=', '<': '>=', '<=': '>', '>=': '<', '>': '<='}[c_op] }}
 {{py:
 def is_type(operand, expected, type1=type1, type2=type2):
@@ -1096,7 +1093,7 @@ def is_type(operand, expected, type1=type1, type2=type2):
     return check
 }}
 
-{{if (has_object or has_float) and type2 in ('object', 'int')}}
+{{if type1 in ('object', 'float') and type2 in ('object', 'int')}}
 // Less likely, non-inlined comparison of float and int.
 #if CYTHON_USE_PYLONG_INTERNALS
 static {{if (type1, type2) == ('float', 'int')}}CYTHON_INLINE{{endif}} {{c_ret_type}}
@@ -1137,7 +1134,7 @@ __pyx_return_false:
 #endif
 {{endif}}
 
-{{if (has_object or has_float) and type1 in ('object', 'int') and type2 in ('object', 'float')}}
+{{if type1 in ('object', 'int') and type2 in ('object', 'float')}}
 // Less likely, non-inlined comparison of int and float.
 #if CYTHON_USE_PYLONG_INTERNALS
 static {{if (type1, type2) == ('int', 'float')}}CYTHON_INLINE{{endif}} {{c_ret_type}}
@@ -1178,7 +1175,7 @@ __pyx_return_false:
 #endif
 {{endif}}
 
-{{if not has_float}}
+{{if type1 != 'float' and type2 != 'float'}}
 #if CYTHON_USE_PYLONG_INTERNALS
 static {{if (type1, type2) == ('int', 'int')}}CYTHON_INLINE{{endif}} {{c_ret_type}}
 __Pyx_PyObject_CompareIntInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
@@ -1289,6 +1286,10 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
     }
     #endif
     {{endif}}
+
+    // avoid unused labels
+    if ((0)) {{return_true}};
+    if ((0)) {{return_false}};
 
 __pyx_richcmp:
     return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
