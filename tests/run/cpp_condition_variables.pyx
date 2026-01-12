@@ -1,16 +1,16 @@
 # mode: run
-# tag: cpp, cpp11, no-cpp-locals
+# tag: cpp, cpp11, no-cpp-locals, threads
 # Note - keep this file as cpp11 (and put cpp20 tests in a separate file)
 # to make sure that it's usable in cpp11 mode.
 
 # cython: language_level=3
 
 from libcpp.condition_variable cimport *
-from libcpp.mutex cimport mutex, timed_mutex, unique_lock
+from libcpp.mutex cimport mutex, timed_mutex, unique_lock, py_safe_construct_unique_lock
 from libcpp cimport bool
-from libcpp.utility cimport move
 
 from threading import Thread
+import time
 
 # define some placeholder chrono stuff for the sake of testing
 cdef extern from "<chrono>" namespace "std::chrono" nogil:
@@ -18,6 +18,20 @@ cdef extern from "<chrono>" namespace "std::chrono" nogil:
         milliseconds()
         milliseconds(long)
 
+cdef extern from *:
+    """
+    namespace {
+        std::chrono::time_point<std::chrono::steady_clock> get_time_point() {
+            return std::chrono::time_point<std::chrono::steady_clock>::max();
+        }
+
+        using time_point_type = decltype(get_time_point());
+    }
+    """
+    cdef cppclass time_point_type:
+        pass
+
+    time_point_type get_time_point()
 
 cdef int global_value = 0
 
@@ -61,7 +75,7 @@ cdef class CVHelperClass:
             l = unique_lock[mutex](self.m)
         def thread_func():
             with nogil:
-                l2 = move(l)
+                l2 = unique_lock[mutex](self.m)
                 if pred:
                     self.cv.wait(l2, pred)
                 else:
@@ -75,7 +89,7 @@ cdef class CVHelperClass:
             l = unique_lock[mutex](self.m)
         def thread_func():
             with nogil:
-                l2 = move(l)
+                l2 = unique_lock[mutex](self.m)
                 if pred:
                     self.outcome = ("true" if self.cv.wait_for(l2, duration, pred) else "false")
                 else:
@@ -95,8 +109,13 @@ def test_cv_wait(bint use_predicate, int how_to_notify):
     global_value = 0
     helper = CVHelperClass()
     t = helper.wait_on_new_thread(global_value_predicate if use_predicate else <cfunc_predicate>NULL)
-    helper.notify(how_to_notify=how_to_notify, new_value=(5 if use_predicate else None))
-    t.join()
+    if use_predicate:
+        helper.notify(how_to_notify=how_to_notify, new_value=5)
+        t.join()
+    else:
+        while t.is_alive():
+            helper.notify(how_to_notify=how_to_notify, new_value=None)
+            t.join(0.0)
 
 def test_cv_wait_for(bint use_predicate, int how_to_notify, int ms):
     """
@@ -113,8 +132,13 @@ def test_cv_wait_for(bint use_predicate, int how_to_notify, int ms):
     global_value = 0
     helper = CVHelperClass()
     t = helper.wait_for_on_new_thread(milliseconds(ms), global_value_predicate if use_predicate else <cfunc_predicate>NULL)
-    helper.notify(how_to_notify=how_to_notify, new_value=(5 if use_predicate else None))
-    t.join()
+    if use_predicate:
+        helper.notify(how_to_notify=how_to_notify, new_value=5)
+        t.join()
+    else:
+        while t.is_alive():
+            helper.notify(how_to_notify=how_to_notify, new_value=None)
+            t.join(0.0)
     return helper.outcome
 
 
@@ -150,7 +174,7 @@ cdef class CVAnyHelperClass:
             l = unique_lock[timed_mutex](self.m)
         def thread_func():
             with nogil:
-                l2 = move(l)
+                l2 = unique_lock[timed_mutex](self.m)
                 if pred:
                     self.cv.wait(l2, pred)
                 else:
@@ -164,7 +188,7 @@ cdef class CVAnyHelperClass:
             l = unique_lock[timed_mutex](self.m)
         def thread_func():
             with nogil:
-                l2 = move(l)
+                l2 = unique_lock[timed_mutex](self.m)
                 if pred:
                     self.outcome = ("true" if self.cv.wait_for(l2, duration, pred) else "false")
                 else:
@@ -184,8 +208,13 @@ def test_cv_any_wait(bint use_predicate, int how_to_notify):
     global_value = 0
     helper = CVAnyHelperClass()
     t = helper.wait_on_new_thread(global_value_predicate if use_predicate else <cfunc_predicate>NULL)
-    helper.notify(how_to_notify=how_to_notify, new_value=(5 if use_predicate else None))
-    t.join()
+    if use_predicate:
+        helper.notify(how_to_notify=how_to_notify, new_value=5)
+        t.join()
+    else:
+        while t.is_alive():
+            helper.notify(how_to_notify=how_to_notify, new_value=None)
+            t.join(0.0)
 
 def test_cv_any_wait_for(bint use_predicate, int how_to_notify, int ms):
     """
@@ -202,6 +231,131 @@ def test_cv_any_wait_for(bint use_predicate, int how_to_notify, int ms):
     global_value = 0
     helper = CVAnyHelperClass()
     t = helper.wait_for_on_new_thread(milliseconds(ms), global_value_predicate if use_predicate else <cfunc_predicate>NULL)
-    helper.notify(how_to_notify=how_to_notify, new_value=(5 if use_predicate else None))
-    t.join()
+    if use_predicate:
+        helper.notify(how_to_notify=how_to_notify, new_value=5)
+        t.join()
+    else:
+        while t.is_alive():
+            helper.notify(how_to_notify=how_to_notify, new_value=None)
+            t.join(0.0)
     return helper.outcome
+
+def test_py_safe_wait_basic(sleep_for):
+    """
+    >>> test_py_safe_wait_basic(None)
+    >>> test_py_safe_wait_basic(0.05)
+    >>> test_py_safe_wait_basic(0.0)
+    """
+    cdef condition_variable cv
+    cdef mutex m
+    l = unique_lock[mutex](m)
+
+    def trigger():
+        # needs the GIL
+        l2 = py_safe_construct_unique_lock(m)
+        cv.notify_all()
+        if sleep_for is not None:
+            time.sleep(sleep_for)
+
+    t = Thread(target=trigger)
+    t.start()
+    py_safe_wait(cv, l)
+    t.join()
+
+    # try wait_for (testing compilation, rather than timeout)
+    t = Thread(target=trigger)
+    t.start()
+    py_safe_wait_for(cv, l, milliseconds(50000))
+    t.join()
+
+    # try wait_until (testing compilation, rather than timeout)
+    t = Thread(target=trigger)
+    t.start()
+    py_safe_wait_until(cv, l, get_time_point())
+    t.join()
+
+def test_py_safe_wait_object(sleep_for):
+    """
+    >>> test_py_safe_wait_object(None)
+    >>> test_py_safe_wait_object(0.05)
+    >>> test_py_safe_wait_object(0.0)
+    """
+    cdef condition_variable cv
+    cdef mutex m
+    success = False
+    l = unique_lock[mutex](m)
+
+    import sys
+
+    def predicate():
+        # The condition variable will always call this with the lock held
+        return success
+
+    def trigger():
+        nonlocal success
+        # needs the GIL (for the sake of testing)
+        l2 = py_safe_construct_unique_lock(m)
+        success = True
+        cv.notify_all()
+        if sleep_for is not None:
+            time.sleep(sleep_for)
+
+    t = Thread(target=trigger)
+    t.start()
+    py_safe_object_wait(cv, l, predicate)
+    t.join()
+
+    # try wait_for (testing compilation, rather than timeout)
+    success = False
+    t = Thread(target=trigger)
+    t.start()
+    py_safe_object_wait_for(cv, l, milliseconds(50000), predicate)
+    t.join()
+
+    # try wait_until (testing compilation, rather than timeout)
+    success = False
+    t = Thread(target=trigger)
+    t.start()
+    py_safe_object_wait_until(cv, l, get_time_point(), predicate)
+    t.join()
+
+def test_py_safe_wait_p(sleep_for):
+    """
+    >>> test_py_safe_wait_p(None)
+    >>> test_py_safe_wait_p(0.05)
+    >>> test_py_safe_wait_p(0.0)
+    """
+    global global_value
+    global_value = 0
+
+    cdef condition_variable cv
+    cdef mutex m
+    l = unique_lock[mutex](m)
+
+    def trigger():
+        global global_value
+        # needs the GIL (for the sake of testing)
+        l2 = py_safe_construct_unique_lock(m)
+        global_value = 1
+        cv.notify_all()
+        if sleep_for is not None:
+            time.sleep(sleep_for)
+
+    t = Thread(target=trigger)
+    t.start()
+    py_safe_wait(cv, l, global_value_predicate)
+    t.join()
+
+    # try wait_for (testing compilation, rather than timeout)
+    global_value = 0
+    t = Thread(target=trigger)
+    t.start()
+    py_safe_wait_for(cv, l, milliseconds(50000), global_value_predicate)
+    t.join()
+
+    # try wait_until (testing compilation, rather than timeout)
+    global_value = 0
+    t = Thread(target=trigger)
+    t.start()
+    py_safe_wait_until(cv, l, get_time_point(), global_value_predicate)
+    t.join()

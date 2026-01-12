@@ -119,9 +119,11 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 #if CYTHON_ASSUME_SAFE_MACROS
 #define __Pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
 #define __Pyx_PyFloat_AS_DOUBLE(x) PyFloat_AS_DOUBLE(x)
+#define __Pyx_PyFloat_IsNonZero(x) (PyFloat_AS_DOUBLE(x) != 0.0)
 #else
 #define __Pyx_PyFloat_AsDouble(x) PyFloat_AsDouble(x)
 #define __Pyx_PyFloat_AS_DOUBLE(x) PyFloat_AsDouble(x)
+#define __Pyx_PyFloat_IsNonZero(x) PyObject_IsTrue(x)
 #endif
 #define __Pyx_PyFloat_AsFloat(x) ((float) __Pyx_PyFloat_AsDouble(x))
 
@@ -138,7 +140,7 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #ifndef _PyLong_NON_SIZE_BITS
     #define _PyLong_NON_SIZE_BITS 3
   #endif
-  #define __Pyx_PyLong_Sign(x)  (((PyLongObject*)x)->long_value.lv_tag & _PyLong_SIGN_MASK)
+  #define __Pyx_PyLong_Sign(x)  ((int) (((PyLongObject*)x)->long_value.lv_tag & _PyLong_SIGN_MASK))
   #define __Pyx_PyLong_IsNeg(x)  ((__Pyx_PyLong_Sign(x) & 2) != 0)
   #define __Pyx_PyLong_IsNonNeg(x)  (!__Pyx_PyLong_IsNeg(x))
   #define __Pyx_PyLong_IsZero(x)  (__Pyx_PyLong_Sign(x) & 1)
@@ -177,13 +179,16 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   typedef digit  __Pyx_compact_upylong;
   #endif
 
-  static CYTHON_INLINE int __Pyx_PyLong_CompactAsLong(PyObject *x, long *return_value); /*proto*/
-
   #if PY_VERSION_HEX >= 0x030C00A5
   #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->long_value.ob_digit)
   #else
   #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->ob_digit)
   #endif
+
+  // Functions/macros that must be generally available, e.g. for truth testing.
+  #define __Pyx_PyLong_IsNonZero(x)  (!__Pyx_PyLong_IsZero(x))
+#else
+  #define __Pyx_PyLong_IsNonZero(x)  PyObject_IsTrue(x)
 #endif
 
 #if __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
@@ -435,21 +440,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b) {
 static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t ival) {
     return PyLong_FromSize_t(ival);
 }
-
-#if CYTHON_USE_PYLONG_INTERNALS
-static CYTHON_INLINE int __Pyx_PyLong_CompactAsLong(PyObject *x, long *return_value) {
-    // Safely convert a compact (Py_ssize_t, usually max. 30 bits) PyLong into a C long.
-    if (unlikely(!__Pyx_PyLong_IsCompact(x)))
-        return 0;
-
-    Py_ssize_t value = __Pyx_PyLong_CompactValue(x);
-    if ((sizeof(long) < sizeof(Py_ssize_t)) && unlikely(value != (long) value))
-        return 0;
-
-    *return_value = (long) value;
-    return 1;
-}
-#endif
 
 
 /////////////// pybuiltin_invalid ///////////////
@@ -919,13 +909,14 @@ static CYTHON_INLINE int __Pyx_CheckUnicodeValue(int value) {
 }
 
 static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulength, char padding_char) {
-    if (likely(ulength <= 250)) {
+    Py_ssize_t padding_length = ulength - 1;
+    if (likely((padding_length <= 250) && (value < 0xD800 || value > 0xDFFF))) {
         // Encode to UTF-8 / Latin1 buffer, then decode.
         char chars[256];
 
         if (value <= 255) {
             // Simple Latin1 result, fast to decode.
-            memset(chars, padding_char, (size_t) (ulength - 1));
+            memset(chars, padding_char, (size_t) padding_length);
             chars[ulength-1] = (char) value;
             return PyUnicode_DecodeLatin1(chars, ulength, NULL);
         }
@@ -950,8 +941,8 @@ static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulengt
             value >>= 6;
             *--cpos = (char) (0xf0 | (value & 0x07));
         }
-        cpos -= ulength;
-        memset(cpos, padding_char, (size_t) (ulength - 1));
+        cpos -= padding_length;
+        memset(cpos, padding_char, (size_t) padding_length);
         return PyUnicode_DecodeUTF8(cpos, chars + sizeof(chars) - cpos, NULL);
     }
 
@@ -965,7 +956,7 @@ static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulengt
 
         padding_uchar = PyUnicode_FromOrdinal(padding_char);
         if (unlikely(!padding_uchar)) return NULL;
-        padding = PySequence_Repeat(padding_uchar, ulength - 1);
+        padding = PySequence_Repeat(padding_uchar, padding_length);
         Py_DECREF(padding_uchar);
         if (unlikely(!padding)) return NULL;
 
@@ -1017,7 +1008,13 @@ static const char DIGITS_HEX[2*16+1] = {
 
 /////////////// CIntToPyUnicode.proto ///////////////
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char);
+#define {{TO_PY_FUNCTION}}(value, width, padding_char, format_char) ( \
+    ((format_char) == ('c')) ? \
+        __Pyx_uchar_{{TO_PY_FUNCTION}}(value, width, padding_char) : \
+        __Pyx__{{TO_PY_FUNCTION}}(value, width, padding_char, format_char) \
+    )
+static CYTHON_INLINE PyObject* __Pyx_uchar_{{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char);
+static CYTHON_INLINE PyObject* __Pyx__{{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char);
 
 /////////////// CIntToPyUnicode ///////////////
 //@requires: StringTools.c::IncludeStringH
@@ -1029,7 +1026,32 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 
 // NOTE: inlining because most arguments are constant, which collapses lots of code below
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char) {
+static CYTHON_INLINE PyObject* __Pyx_uchar_{{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char) {
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
+    const int is_unsigned = neg_one > const_zero;
+
+    // This check is just an awful variation on "(0 <= value <= 1114111)",
+    // but without C compiler complaints about compile time constant conditions depending on the signed/unsigned TYPE.
+    if (unlikely(!(is_unsigned || value == 0 || value > 0) ||
+                    !(sizeof(value) <= 2 || value & ~ ({{TYPE}}) 0x01fffff || __Pyx_CheckUnicodeValue((int) value)))) {
+        // PyUnicode_FromOrdinal() and chr() raise ValueError, f-strings raise OverflowError. :-/
+        PyErr_SetString(PyExc_OverflowError, "%c arg not in range(0x110000)");
+        return NULL;
+    }
+    if (width <= 1) {
+        return PyUnicode_FromOrdinal((int) value);
+    }
+    return __Pyx_PyUnicode_FromOrdinal_Padded((int) value, width, padding_char);
+}
+
+static CYTHON_INLINE PyObject* __Pyx__{{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char) {
     // simple and conservative C string allocation on the stack: each byte gives at most 3 digits, plus sign
     char digits[sizeof({{TYPE}})*3+2];
     // 'dpos' points to end of digits array + 1 initially to allow for pre-decrement looping
@@ -1047,22 +1069,6 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 #pragma GCC diagnostic pop
 #endif
     const int is_unsigned = neg_one > const_zero;
-
-    // Format 'c' (unicode character) is really a different thing but included for practical reasons.
-    if (format_char == 'c') {
-        // This check is just an awful variation on "(0 <= value <= 1114111)",
-        // but without C compiler complaints about compile time constant conditions depending on the signed/unsigned TYPE.
-        if (unlikely(!(is_unsigned || value == 0 || value > 0) ||
-                     !(sizeof(value) <= 2 || value & ~ ({{TYPE}}) 0x01fffff || __Pyx_CheckUnicodeValue((int) value)))) {
-            // PyUnicode_FromOrdinal() and chr() raise ValueError, f-strings raise OverflowError. :-/
-            PyErr_SetString(PyExc_OverflowError, "%c arg not in range(0x110000)");
-            return NULL;
-        }
-        if (width <= 1) {
-            return PyUnicode_FromOrdinal((int) value);
-        }
-        return __Pyx_PyUnicode_FromOrdinal_Padded((int) value, width, padding_char);
-    }
 
     if (format_char == 'X') {
         hex_digits += 16;

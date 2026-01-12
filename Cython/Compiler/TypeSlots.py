@@ -558,13 +558,15 @@ class TypeFlagsSlot(SlotDescriptor):
         else:
             # Used to be in 'Py_TPFLAGS_DEFAULT' up to Py3.10.
             value = f"({value}&~Py_TPFLAGS_HAVE_VERSION_TAG)"
-        value += "|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
         if not scope.parent_type.is_final_type:
             value += "|Py_TPFLAGS_BASETYPE"
         if scope.needs_gc():
             value += "|Py_TPFLAGS_HAVE_GC"
         if scope.parent_type.has_sequence_flag:
             value += "|Py_TPFLAGS_SEQUENCE"
+        if scope.parent_type.has_mapping_flag:
+            assert not scope.parent_type.has_sequence_flag
+            value += "|Py_TPFLAGS_MAPPING"
         return value
 
     def generate_spec(self, scope, code):
@@ -715,6 +717,8 @@ class DictOffsetSlot(SlotDescriptor):
     def slot_code(self, scope):
         dict_entry = scope.lookup_here("__dict__") if not scope.is_closure_class_scope else None
         if dict_entry and dict_entry.is_variable:
+            if dict_entry.is_inherited:
+                return "0"
             from . import Builtin
             if dict_entry.type is not Builtin.dict_type:
                 error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
@@ -1089,7 +1093,7 @@ class SlotTable:
             EmptySlot("tp_watched", ifdef="PY_VERSION_HEX >= 0x030C0000"),
             EmptySlot("tp_versions_used", ifdef="PY_VERSION_HEX >= 0x030d00A4"),
             # PyPy specific extension - only here to avoid C compiler warnings.
-            EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000"),
+            EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x030a0000"),
         )
 
         #------------------------------------------------------------------------------------------

@@ -194,7 +194,7 @@ cdef extern from *:
             return 1;
         #elif PY_VERSION_HEX >= 0x030d0000
             return PyThreadState_GetUnchecked() != NULL;
-        #elif PY_VERSION_HEX >= 0x030b0000
+        #elif PY_VERSION_HEX >= 0x030C0000
             return _PyThreadState_UncheckedGet() != NULL;
         #else
             return PyGILState_Check();
@@ -295,6 +295,8 @@ cdef extern from *:
     void __pyx_std_lock_wrapper(Lockable0T& arg0, Lockable1T& arg1, Lockables&... args) {
         std::lock(arg0, arg1, args...);
     }
+
+    inline void __pyx_libcpp_mutex_unlock() {} // no-op
 
     template <typename Lockable0T, typename ... Lockables>
     void __pyx_libcpp_mutex_unlock(Lockable0T& arg0, Lockables&... locks) {
