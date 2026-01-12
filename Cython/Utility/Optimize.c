@@ -1223,6 +1223,30 @@ __pyx_return_false:
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop) {
     CYTHON_UNUSED_VAR(pyop);
 
+    {{if type1 != 'object'}}
+    // For concrete types, the whole rest simplifies a lot if we handle None up front.
+    if (unlikely(op1 == Py_None)) {
+        {{if op == 'Eq'}}
+        if (op2 == Py_None) {{return_true}}; else {{if type2 != 'object'}}{{return_false}}{{else}}goto __pyx_richcmp{{endif}};
+        {{elif op == 'Ne'}}
+        if (op2 == Py_None) {{return_false}}; else {{if type2 != 'object'}}{{return_true}}{{else}}goto __pyx_richcmp{{endif}};
+        {{else}}
+        goto __pyx_richcmp;
+        {{endif}}
+    }
+    {{endif}}
+    {{if type2 != 'object'}}
+    if (unlikely(op2 == Py_None)) {
+        {{if op == 'Eq'}}
+        if (op1 == Py_None) {{return_true}}; else {{if type1 != 'object'}}{{return_false}}{{else}}goto __pyx_richcmp{{endif}};
+        {{elif op == 'Ne'}}
+        if (op1 == Py_None) {{return_false}}; else {{if type1 != 'object'}}{{return_true}}{{else}}goto __pyx_richcmp{{endif}};
+        {{else}}
+        goto __pyx_richcmp;
+        {{endif}}
+    }
+    {{endif}}
+
     {{if type1 in ('object', 'float')}}
     if ({{is_type('op1', 'float')}}) {
         {{if type2 in ('object', 'float')}}
@@ -1236,6 +1260,11 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
             if (unlikely(float_op2 == -1. && PyErr_Occurred())) goto bad;
             #endif
             if (float_op1 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
+
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        bad:
+            return {{'NULL' if ret_type.is_pyobject else '-1'}};
+        #endif
         }
         {{endif}}
 
@@ -1249,11 +1278,6 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 
         goto __pyx_richcmp;
     }
-    {{endif}}
-
-    {{if op in 'EqNe' and not (has_float or has_object or ret_type.is_pyobject)}}
-    // Cannot do this for floats due to nan != nan
-    if (op1 == op2) {{return_true if op == 'Eq' else return_false}};
     {{endif}}
 
     {{if type1 in ('object', 'int')}}
@@ -1274,30 +1298,19 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
             return __Pyx_PyObject_CompareIntFloat{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(op1, op2);
         }
         {{endif}}
+
+        goto __pyx_richcmp;
     }
     #endif
     {{endif}}
 
-    {{if op in 'EqNe'}}
-    if ((op1 == Py_None) & (op2 == Py_None)) {{return_true if op == 'Eq' else return_false}};
-    {{endif}}
-
-{{if type1 in ('object', 'float')}}
 __pyx_richcmp:
-{{endif}}
     return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
 
 __pyx_return_true:
     {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
 __pyx_return_false:
     {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
-
-{{if has_object or has_float}}
-#if !CYTHON_ASSUME_SAFE_MACROS
-bad:
-    return {{'NULL' if ret_type.is_pyobject else '-1'}};
-#endif
-{{endif}}
 }
 
 
