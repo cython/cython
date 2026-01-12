@@ -1176,19 +1176,29 @@ __pyx_return_false:
 {{endif}}
 
 {{if type1 != 'float' and type2 != 'float'}}
+{{py: from Cython.Utility import pylong_join }}
+
 #if CYTHON_USE_PYLONG_INTERNALS
 static {{if (type1, type2) == ('int', 'int')}}CYTHON_INLINE{{endif}} {{c_ret_type}}
 __Pyx_PyObject_CompareIntInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
     Py_ssize_t cmp = __Pyx_PyLong_CompareSignAndSize(op1, op2);
     if (cmp == 0) {
         Py_ssize_t size = __Pyx_PyLong_DigitCount(op1);
-        const digit* digits1 = __Pyx_PyLong_Digits(op1);
-        const digit* digits2 = __Pyx_PyLong_Digits(op2);
-        for (Py_ssize_t i=size-1; i >= 0 && !cmp; --i) {
-            cmp = (Py_ssize_t) digits1[i] - (Py_ssize_t) digits2[i];
+        if (size > 0) {
+            const digit* digits1 = __Pyx_PyLong_Digits(op1);
+            const digit* digits2 = __Pyx_PyLong_Digits(op2);
+            if (size == 1) {
+                cmp = (Py_ssize_t) digits1[0] - (Py_ssize_t) digits2[0];
+            } else if ((size == 2) && (8 * sizeof(Py_ssize_t) >= 2 * PyLong_SHIFT)) {
+                cmp = (Py_ssize_t) {{pylong_join(2, 'digits1', 'size_t')}} - (Py_ssize_t) {{pylong_join(2, 'digits2', 'size_t')}};
+            } else {
+                for (Py_ssize_t i=size-1; i >= 0 && !cmp; --i) {
+                    cmp = (Py_ssize_t) digits1[i] - (Py_ssize_t) digits2[i];
+                }
+            }
         }
         if (cmp == 0) {{return_true if op in 'EqLeGe' else return_false}};
-        cmp *= __Pyx_PyLong_Sign(op1);
+        if (__Pyx_PyLong_IsNeg(op1)) cmp = -cmp;
     }
 
     {{if op == 'Eq'}}
