@@ -171,6 +171,22 @@ def forbidden_subscribed_types_assignments():
     sa = f
     sa = d
 
+
+cdef list_bytes(a: list[bytes]):
+    pass
+
+cdef dict_bytes(a: dict[str, bytes], b: dict[bytes, str], c: dict[bytes, bytes], d: dict[str, str]):
+    pass
+
+def forbidden_subscribed_types_args():
+    la: list[str] = ['asdf']
+    list_bytes(la)
+    da: dict[bytes, str] = {}
+    db: dict[str, bytes] = {}
+    dc: dict[str, str] = {}
+    dd: dict[bytes, bytes] = {}
+    dict_bytes(da, db, dc, dd)
+
 _ERRORS = """
 13:42: typing.Optional[...] cannot be applied to type int
 13:66: typing.Optional[...] cannot be applied to type double
@@ -185,11 +201,9 @@ _ERRORS = """
 20:30: typing.Optional[...] cannot be applied to type MyStruct
 
 28:20: Modifier 'typing.ClassVar' is not allowed here.
-
 30:29: typing.Union[...] cannot be applied to type int
 30:50: typing.Union[...] cannot be applied to type float
 30:96: typing.Union[...] cannot be applied to type long
-
 33:31: '[...] | None' cannot be applied to type int
 33:60: '[...] | None' cannot be applied to type float
 33:78: '[...] | None' cannot be applied to type double complex
@@ -214,15 +228,15 @@ _ERRORS = """
 58:9: Cannot assign type 'list[float] object' to 'dict[float,float] object'
 64:22: Cannot assign type 'float' to 'int'
 66:12: Cannot assign type 'float' to 'int'
-68:13: Cannot assign type 'list[float] object' to 'int'
+68:13: Cannot assign type 'float' to 'int'
 73:22: Cannot assign type 'float' to 'int'
 75:12: Cannot assign type 'float' to 'int'
-77:13: Cannot assign type 'dict[float,float] object' to 'int'
+77:13: Cannot assign type 'float' to 'int'
 82:8: Cannot convert Python object to 'int *'
-82:13: Cannot assign type 'set[int] object' to 'int *'
+82:13: Cannot assign type 'int' to 'int *'
 85:33: Cannot assign type 'set object' to 'frozenset[int] object'
 87:8: Cannot convert Python object to 'int *'
-87:13: Cannot assign type 'set[int] object' to 'int *'
+87:13: Cannot assign type 'int' to 'int *'
 143:9: Cannot assign type 'set[int] object' to 'list[int] object'
 144:9: Cannot assign type 'frozenset[int] object' to 'list[int] object'
 145:9: Cannot assign type 'dict[int,int] object' to 'list[int] object'
@@ -247,4 +261,9 @@ _ERRORS = """
 170:9: Cannot assign type 'list object' to 'set[int] object'
 171:9: Cannot assign type 'frozenset object' to 'set[int] object'
 172:9: Cannot assign type 'dict object' to 'set[int] object'
+183:15: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
+188:15: Cannot convert 'bytes' object to str implicitly, decoding required
+188:19: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
+188:23: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
+188:27: Cannot convert 'bytes' object to str implicitly, decoding required
 """
