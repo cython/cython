@@ -269,8 +269,8 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         """
         src = self.cname
 
-        code.putln("%(dst)s.data = %(src)s.data;" % locals())
-        code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
+        code.putln(f"{dst}.data = {src}.data;")
+        code.putln(f"{dst}.memview = {src}.memview;")
         if not drop_temp_refcounting:
             code.put_incref_memoryviewslice(dst, dst_type, have_gil=have_gil)
 
@@ -281,9 +281,20 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
             # create global temp variable at request
             if not suboffset_dim_temp:
                 suboffset_dim = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
-                code.putln("%s = -1;" % suboffset_dim)
+                code.putln(f"{suboffset_dim} = -1;")
                 suboffset_dim_temp.append(suboffset_dim)
             return suboffset_dim_temp[0]
+
+        boundscheck = directives['boundscheck']
+        template_vars = {
+            'src': src,
+            'dst': dst,
+            'have_gil': have_gil,
+            'get_suboffset_dim': get_suboffset_dim,
+            'all_dimensions_direct': all_dimensions_direct,
+            'wraparound': int(directives['wraparound']),
+            'boundscheck': int(boundscheck),
+        }
 
         dim = -1
         new_ndim = 0
@@ -291,7 +302,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
             if index.is_none:
                 # newaxis
                 for attrib, value in [('shape', 1), ('strides', 0), ('suboffsets', -1)]:
-                    code.putln("%s.%s[%d] = %d;" % (dst, attrib, new_ndim, value))
+                    code.putln(f"{dst}.{attrib}[{new_ndim:d}] = {value:d};")
 
                 new_ndim += 1
                 continue
@@ -299,18 +310,29 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
             dim += 1
             access, packing = self.type.axes[dim]
 
+            d = dict(
+                template_vars,
+                dim=dim,
+                new_ndim=new_ndim,
+                access=access,
+            )
+
             if index.is_slice:
                 # slice, unspecified dimension, or part of ellipsis
-                d = dict(locals())
-                for s in "start stop step".split():
+                is_full_slice = True
+                for s in ("start", "stop", "step"):
                     idx = getattr(index, s)
-                    have_idx = d['have_' + s] = not idx.is_none
-                    d[s] = idx.result() if have_idx else "0"
+                    if idx.is_none:
+                        d['have_' + s] = False
+                        d[s] = "0"
+                    else:
+                        is_full_slice = False
+                        d['have_' + s] = True
+                        d[s] = idx.result()
 
-                if not (d['have_start'] or d['have_stop'] or d['have_step']):
-                    # full slice (:), simply copy over the extent, stride
-                    # and suboffset. Also update suboffset_dim if needed
-                    d['access'] = access
+                if is_full_slice:
+                    # For a full slice (:), we just copy over the extent, stride and suboffset.
+                    # Also update suboffset_dim if needed.
                     util_name = "SimpleSlice"
                 else:
                     util_name = "ToughSlice"
@@ -319,24 +341,18 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                 new_ndim += 1
             else:
                 # normal index
-                idx = index.result()
+                if access != 'direct' and new_ndim != 0:
+                    error(index.pos, "All preceding dimensions must be indexed and not sliced")
+                    return
 
-                indirect = access != 'direct'
-                if indirect:
-                    generic = access == 'full'
-                    if new_ndim != 0:
-                        return error(index.pos,
-                                     "All preceding dimensions must be "
-                                     "indexed and not sliced")
-
-                d = dict(
-                    locals(),
-                    wraparound=int(directives['wraparound']),
-                    boundscheck=int(directives['boundscheck']),
-                )
-                if d['boundscheck']:
-                    d['error_goto'] = code.error_goto(index.pos)
                 util_name = "SliceIndex"
+                d.update(
+                    idx=index.result(),
+                    indirect=access != 'direct',
+                    generic=access == 'full',
+                )
+                if boundscheck:
+                    d['error_goto'] = code.error_goto(index.pos)
 
             _, impl = TempitaUtilityCode.load_as_string(util_name, "MemoryView_C.c", context=d)
             code.put(impl)

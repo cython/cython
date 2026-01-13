@@ -198,27 +198,6 @@ jobs:
             python-version: pypy-3.11
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
-          # Free-threading
-          - os: ubuntu-22.04
-            python-version: 3.13t
-            backend: "c"
-          - os: ubuntu-22.04
-            python-version: 3.13t
-            backend: "cpp"
-#          - os: windows-2022
-#            python-version: 3.13t
-#            backend: "c"
-#            allowed_failure: true
-#          - os: windows-2022
-#            python-version: 3.13t
-#            backend: "cpp"
-#            allowed_failure: true
-          - os: macos-latest
-            python-version: 3.13t
-            backend: "c"
-          - os: macos-latest
-            python-version: 3.13t
-            backend: "cpp"
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~10-15 minutes for ubuntu / macos and ~25 for windows,

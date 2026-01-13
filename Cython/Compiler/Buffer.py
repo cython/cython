@@ -343,9 +343,9 @@ def get_getbuffer_call(code, obj_cname, buffer_aux, buffer_type):
     dtype_typeinfo = get_type_information_cname(code, buffer_type.dtype)
 
     code.globalstate.use_utility_code(acquire_utility_code)
-    return ("__Pyx_GetBufferAndValidate(&%(pybuffernd_struct)s.rcbuffer->pybuffer, "
-            "(PyObject*)%(obj_cname)s, &%(dtype_typeinfo)s, %(flags)s, %(ndim)d, "
-            "%(cast)d, __pyx_stack)" % locals())
+    return (f"__Pyx_GetBufferAndValidate(&{pybuffernd_struct}.rcbuffer->pybuffer, "
+            f"(PyObject*){obj_cname}, &{dtype_typeinfo}, {flags}, {ndim:d}, "
+            f"{cast:d}, __pyx_stack)")
 
 
 def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
