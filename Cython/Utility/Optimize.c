@@ -1095,7 +1095,6 @@ def is_type(operand, expected, type1=type1, type2=type2):
 
 {{if type1 in ('object', 'float') and type2 in ('object', 'int')}}
 // Less likely, non-inlined comparison of float and int.
-#if CYTHON_USE_PYLONG_INTERNALS
 static {{if (type1, type2) == ('float', 'int')}}CYTHON_INLINE{{endif}} {{c_ret_type}}
 __Pyx_PyObject_CompareFloatInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
     double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
@@ -1103,6 +1102,7 @@ __Pyx_PyObject_CompareFloatInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{
     if (unlikely(float_op1 == -1. && PyErr_Occurred())) {{return_error}};
     #endif
 
+    #if CYTHON_USE_PYLONG_INTERNALS
     if (__Pyx_PyLong_IsCompact(op2)) {
         Py_ssize_t iop2 = __Pyx_PyLong_CompactValue(op2);
         if (float_op1 {{c_op}} ((double)iop2)) {{return_true}}; else {{return_false}};
@@ -1123,6 +1123,18 @@ __Pyx_PyObject_CompareFloatInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{
             if (float_op1 > -(double) (1L << PyLong_SHIFT)) {{return_false if op in 'EqLeLt' else return_true}};
         }
     }
+    #else
+    int overflow2;
+    // We know that we have an exact PyLong value, so we assume no exceptions.
+    long iop2 = PyLong_AsLongAndOverflow(op2, &overflow2);
+    if (likely(!overflow2)) {
+        if (float_op1 {{c_op}} iop2) {{return_true}}; else {{return_false}};
+    } else if (overflow2 > 0) {
+        if (float_op1 <= LONG_MAX) {{return_true if op in 'NeLeLt' else return_false}};
+    } else {
+        if (float_op1 >= LONG_MIN) {{return_true if op in 'NeGeGt' else return_false}};
+    }
+    #endif
 
     return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
 
@@ -1131,12 +1143,10 @@ __pyx_return_true:
 __pyx_return_false:
     {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
 }
-#endif
 {{endif}}
 
 {{if type1 in ('object', 'int') and type2 in ('object', 'float')}}
 // Less likely, non-inlined comparison of int and float.
-#if CYTHON_USE_PYLONG_INTERNALS
 static {{if (type1, type2) == ('int', 'float')}}CYTHON_INLINE{{endif}} {{c_ret_type}}
 __Pyx_PyObject_CompareIntFloat{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
     double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
@@ -1144,6 +1154,7 @@ __Pyx_PyObject_CompareIntFloat{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{
     if (unlikely(float_op2 == -1. && PyErr_Occurred())) {{return_error}};
     #endif
 
+    #if CYTHON_USE_PYLONG_INTERNALS
     if (__Pyx_PyLong_IsCompact(op1)) {
         Py_ssize_t iop1 = __Pyx_PyLong_CompactValue(op1);
         if (((double)iop1) {{c_op}} float_op2) {{return_true}}; else {{return_false}};
@@ -1164,6 +1175,18 @@ __Pyx_PyObject_CompareIntFloat{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{
             if (float_op2 > -(double) (1L << PyLong_SHIFT)) {{return_false if op in 'EqGeGt' else return_true}};
         }
     }
+    #else
+    int overflow1;
+    // We know that we have an exact PyLong value, so we assume no exceptions.
+    long iop1 = PyLong_AsLongAndOverflow(op1, &overflow1);
+    if (likely(!overflow1)) {
+        if (iop1 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
+    } else if (overflow1 < 0) {
+        if (float_op2 >= LONG_MIN) {{return_true if op in 'NeLeLt' else return_false}};
+    } else {
+        if (float_op2 <= LONG_MAX) {{return_true if op in 'NeGeGt' else return_false}};
+    }
+    #endif
 
     return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
 
@@ -1172,7 +1195,6 @@ __pyx_return_true:
 __pyx_return_false:
     {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
 }
-#endif
 {{endif}}
 
 {{if type1 != 'float' and type2 != 'float'}}
@@ -1279,11 +1301,9 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
         {{endif}}
 
         {{if type2 in ('object', 'int')}}
-        #if CYTHON_USE_PYLONG_INTERNALS
         if ({{is_type('op2', 'int')}}) {
             return __Pyx_PyObject_CompareFloatInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(op1, op2);
         }
-        #endif
         {{endif}}
 
         goto __pyx_richcmp;
@@ -1300,13 +1320,11 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
         }
         {{endif}}
 
-        #if CYTHON_USE_PYLONG_INTERNALS
         {{if type2 in ('object', 'float')}}
         if ({{is_type('op2', 'float')}}) {
             return __Pyx_PyObject_CompareIntFloat{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(op1, op2);
         }
         {{endif}}
-        #endif
 
         goto __pyx_richcmp;
     }
