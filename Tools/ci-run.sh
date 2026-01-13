@@ -214,7 +214,7 @@ fi
 if [[ $PYTHON_VERSION == "graalpy"* ]]; then
   # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
   # JIT actually makes it faster! And reduces the number of cores each process uses.
-  # export GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
+  GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
   TEST_PARALLELISM=-j2
 fi
 
@@ -234,7 +234,7 @@ export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
 if [[ $PYTHON_VERSION == *"t" ]]; then
   export PYTHON_GIL=0
 fi
-python runtests.py \
+python $GRAAL_PYTHON_ARGS runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \
   --backends=$BACKEND \
