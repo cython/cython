@@ -231,7 +231,7 @@ fi
 
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
-if [[ $PYTHON_VERSION == "3.13t" ]]; then
+if [[ $PYTHON_VERSION == *"t" ]]; then
   export PYTHON_GIL=0
 fi
 python runtests.py \

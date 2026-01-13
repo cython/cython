@@ -1899,14 +1899,10 @@ class ModuleScope(Scope):
         if self.directives.get('final'):
             entry.type.is_final_type = True
         collection_type = self.directives.get('collection_type')
-        if collection_type:
-            from .UtilityCode import NonManglingModuleScope
-            if not isinstance(self, NonManglingModuleScope):
-                # TODO - DW would like to make it public, but I'm making it internal-only
-                # for now to avoid adding new features without consensus
-                error(pos, "'collection_type' is not a public cython directive")
         if collection_type == 'sequence':
             entry.type.has_sequence_flag = True
+        elif collection_type == 'mapping':
+            entry.type.has_mapping_flag = True
 
         # cdef classes are always exported, but we need to set it to
         # distinguish between unused Cython utility code extension classes
@@ -2232,9 +2228,12 @@ class ComprehensionScope(Scope):
 class ClosureScope(LocalScope):
 
     is_closure_scope = True
+    is_pure_generator_scope = False
 
-    def __init__(self, name, scope_name, outer_scope, parent_scope=None):
+    def __init__(self, name, scope_name, outer_scope, parent_scope=None,
+                 is_pure_generator_scope=False):
         LocalScope.__init__(self, name, outer_scope, parent_scope)
+        self.is_pure_generator_scope = is_pure_generator_scope
         self.closure_cname = "%s%s" % (Naming.closure_scope_prefix, scope_name)
 
 #    def mangle_closure_cnames(self, scope_var):

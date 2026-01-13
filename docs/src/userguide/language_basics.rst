@@ -495,7 +495,7 @@ Similar to pointers Cython supports shortcut types that can be used in pure pyth
      - ``cython.pp_const_long``
 
 
-For full list of shortcut types see the ``Shadow.pyi`` file.
+For full list of shortcut types see the ``Shadow.py`` file.
 
 The ``const`` qualifier supports declaration of global constants::
 
