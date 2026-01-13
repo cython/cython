@@ -4,7 +4,6 @@ import cython
 
 import array
 import collections
-import itertools
 import time
 
 from functools import partial
