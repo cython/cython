@@ -1124,15 +1124,27 @@ __Pyx_PyObject_CompareFloatInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{
         }
     }
     #else
-    int overflow2;
-    // We know that we have an exact PyLong value, so we assume no exceptions.
-    long long iop2 = PyLong_AsLongLongAndOverflow(op2, &overflow2);
-    if (likely(!overflow2)) {
-        if (float_op1 {{c_op}} iop2) {{return_true}}; else {{return_false}};
-    } else if (overflow2 > 0) {
-        if (float_op1 <= LLONG_MAX) {{return_true if op in 'NeLeLt' else return_false}};
+    if (unlikely(!isfinite(float_op1))) {
+        // CPython just compares inf/nan to 0.0
+        if (float_op1 {{c_op}} 0.0) {{return_true}}; else {{return_false}};
     } else {
-        if (float_op1 >= LLONG_MIN) {{return_true if op in 'NeGeGt' else return_false}};
+        int overflow2;
+        // We know that we have an exact PyLong value, so we assume no exceptions.
+        long iop2 = PyLong_AsLongAndOverflow(op2, &overflow2);
+        if (likely(!overflow2)) {
+            if ((long long) iop2 >= (1LL << 53)) {
+                overflow2 = 1;
+            } else if ((long long) iop2 <= - (1LL << 53)) {
+                overflow2 = -1;
+            } else {
+                if (float_op1 {{c_op}} ((double) iop2)) {{return_true}}; else {{return_false}};
+            }
+        }
+        if (overflow2 > 0) {
+            if (float_op1 < ((double) (1LL << 53))) {{return_true if op in 'NeLeLt' else return_false}};
+        } else {
+            if (float_op1 > - ((double) (1LL << 53))) {{return_true if op in 'NeGeGt' else return_false}};
+        }
     }
     #endif
 
@@ -1176,15 +1188,27 @@ __Pyx_PyObject_CompareIntFloat{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{
         }
     }
     #else
-    int overflow1;
-    // We know that we have an exact PyLong value, so we assume no exceptions.
-    long long iop1 = PyLong_AsLongLongAndOverflow(op1, &overflow1);
-    if (likely(!overflow1)) {
-        if (iop1 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
-    } else if (overflow1 < 0) {
-        if (float_op2 >= LLONG_MIN) {{return_true if op in 'NeLeLt' else return_false}};
+    if (unlikely(!isfinite(float_op2))) {
+        // CPython just compares inf/nan to 0.0
+        if (0.0 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
     } else {
-        if (float_op2 <= LLONG_MAX) {{return_true if op in 'NeGeGt' else return_false}};
+        int overflow1;
+        // We know that we have an exact PyLong value, so we assume no exceptions.
+        long iop1 = PyLong_AsLongAndOverflow(op1, &overflow1);
+        if (likely(!overflow1)) {
+            if ((long long) iop1 >= (1LL << 53)) {
+                overflow1 = 1;
+            } else if ((long long) iop1 <= - (1LL << 53)) {
+                overflow1 = -1;
+            } else {
+                if (((double) iop1) {{c_op}} float_op2) {{return_true}}; else {{return_false}};
+            }
+        }
+        if (overflow1 < 0) {
+            if (float_op2 > ((double) (1LL << 53))) {{return_true if op in 'NeLeLt' else return_false}};
+        } else {
+            if (float_op2 < - ((double) (1LL << 53))) {{return_true if op in 'NeGeGt' else return_false}};
+        }
     }
     #endif
 
