@@ -1,3 +1,5 @@
+# cython: auto_pickle=False
+
 import cython
 
 import array
@@ -12,9 +14,15 @@ from functools import partial
 def _unpack_buffer_const_char_1d(provider, int number, timer=time.perf_counter):
     cdef const unsigned char[:] buffer
 
+    provider1 = provider
+    provider2 = provider[:]
+
+    cdef int i
+
     t = timer()
-    for _ in range(number):
-        buffer = provider
+    for i in range(number):
+        buffer = provider1
+        buffer = provider2
     t = timer() - t
     return t
 
@@ -34,17 +42,33 @@ def _slice_memoryview(data, int number, timer=time.perf_counter):
     cdef const unsigned char[:] view = data
     cdef const unsigned char[:] view2
     cdef long dummy = 0
-    cdef Py_ssize_t i
+    cdef Py_ssize_t i, max_index = len(view) - 1
 
     t = timer()
 
-    for _ in range(number):
-        for i in range(len(view) - 1):
-            view2 = _pass_slice(view[i:])
-            dummy += view2[0]
+    index = 0
+    for i in range(number):
+        index += 1
+        if index >= max_index:
+            index = 0
 
-            view2 = _pass_slice(view[:i+1])
-            dummy -= view2[i // 2]
+        view2 = _pass_slice(view[index:])
+        dummy += view2[0]
+
+        view2 = _pass_slice(view[:index+1])
+        dummy -= view2[index // 2]
+
+        view2 = _pass_slice(view[:index+1:2])
+        dummy -= view2[0]
+
+        view2 = _pass_slice(view[index:])
+        dummy += view2[0]
+
+        view2 = _pass_slice(view[:index+1])
+        dummy -= view2[index // 2]
+
+        view2 = _pass_slice(view[:index+1:2])
+        dummy -= view2[0]
 
     t = timer() - t
 
@@ -107,6 +131,12 @@ def bm_create_inner_func_plain(scale, timer=time.perf_counter):
             pass
         def inner_c(arg1, int arg2):
             pass
+        def inner_d(arg1, int arg2):
+            pass
+        def inner_e(arg1, int arg2):
+            pass
+        def inner_f(arg1, int arg2):
+            pass
     t = timer() - t
     return t
 
@@ -120,7 +150,13 @@ def bm_create_inner_func_closure(scale, timer=time.perf_counter):
         def inner2(arg1, int arg2):
             return inner1()
         def inner3(arg1, arg2=inner1):
-            return inner2()
+            return inner2(arg1, 4)
+        def inner4(arg1, arg2):
+            return inner3(arg1)
+        def inner5(arg1, int arg2):
+            return inner4(arg1, arg2)
+        def inner6(arg1, arg2=inner4):
+            return inner5(arg2, 5)
     t = timer() - t
     return t
 
@@ -132,8 +168,8 @@ def bm_iter_str_listcomp(scale, timer=time.perf_counter):
     t = timer()
     for i in range(scale):
         [ch for ch in (
-            "3141592653589793238462643383279502884197169399375105820974944592307816406286"  # 76 characters
-            "2089986280348253421170679821480865132823066470938446095505822317253594081284"  # 76 characters
+            "3141592653589793238462643383279502884197169399375105820974944592307816"  # 70 characters
+            "4062862089986280348253421170679821480865132823066470938446095505822317"  # 70 characters
         )]
     t = timer() - t
     return t
@@ -144,12 +180,13 @@ def bm_iter_str_forin(scale, timer=time.perf_counter):
     t = timer()
     for i in range(scale):
         for ch in (
-                "3141592653589793238462643383279502884197169399375105820974944592307816406286"  # 76 characters
-                "2089986280348253421170679821480865132823066470938446095505822317253594081284"  # 76 characters
+                "3141592653589793238462643383279502884197169399375105820974944592307816"  # 70 characters
+                "4062862089986280348253421170679821480865132823066470938446095505822317"  # 70 characters
                 ):
             any_none |= (ch is None)
     t = timer() - t
-    assert not any_none
+    if any_none:
+        raise RuntimeError("unexpected result")
     return t
 
 
@@ -157,8 +194,8 @@ def bm_iter_bytes_listcomp(scale, timer=time.perf_counter):
     t = timer()
     for i in range(scale):
         [ch for ch in (
-            b"3141592653589793238462643383279502884197169399375105820974944592307816406286"  # 76 characters
-            b"2089986280348253421170679821480865132823066470938446095505822317253594081284"  # 76 characters
+            b"3141592653589793238462643383279502884197169399375105820974944592307816"  # 70 characters
+            b"4062862089986280348253421170679821480865132823066470938446095505822317"  # 70 characters
         )]
     t = timer() - t
     return t
@@ -169,14 +206,17 @@ def bm_iter_bytes_forin(scale, timer=time.perf_counter):
     t = timer()
     for i in range(scale):
         for ch in (
-                b"3141592653589793238462643383279502884197169399375105820974944592307816406286"  # 76 characters
-                b"2089986280348253421170679821480865132823066470938446095505822317253594081284"  # 76 characters
+                b"3141592653589793238462643383279502884197169399375105820974944592307816"  # 70 characters
+                b"4062862089986280348253421170679821480865132823066470938446095505822317"  # 70 characters
                 ):
             any_none |= (ch is None)
     t = timer() - t
-    assert not any_none
+    if any_none:
+        raise RuntimeError("unexpected result")
     return t
 
+
+#### main ####
 
 def time_benchmarks(scale):
     timings = {}
@@ -190,7 +230,8 @@ def time_benchmarks(scale):
 def run_benchmark(repeat: bool, scale=1000):
     from util import repeat_to_accuracy, scale_subbenchmarks
 
-    scales = scale_subbenchmarks(time_benchmarks(1000), scale)
+    scales = scale_subbenchmarks(time_benchmarks(100), scale)
+    import sys; sys.stderr.write(f"{scales}\n")
 
     collected_timings = collections.defaultdict(list)
 
