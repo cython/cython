@@ -230,7 +230,7 @@ def time_benchmarks(scale):
 def run_benchmark(repeat: bool, scale=1000):
     from util import repeat_to_accuracy, scale_subbenchmarks
 
-    scales = scale_subbenchmarks(time_benchmarks(100), scale)
+    scales = scale_subbenchmarks(time_benchmarks(1000), scale)
 
     collected_timings = collections.defaultdict(list)
 
