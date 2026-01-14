@@ -1073,6 +1073,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 /////////////// PyObjectCompare ///////////////
 
 {{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
+{{py: func_suffix = f"{'' if ret_type.is_pyobject else 'Bool'}{op}"}}
 {{py: return_true = 'goto __pyx_return_true'}}
 {{py: return_false = 'goto __pyx_return_false'}}
 {{py: return_error = "return NULL" if ret_type.is_pyobject else "return -1"}}
@@ -1095,8 +1096,9 @@ def is_type(operand, expected, type1=type1, type2=type2):
 
 {{if type1 in ('object', 'float') and type2 in ('object', 'int')}}
 // Less likely, non-inlined comparison of float and int.
-static {{if (type1, type2) == ('float', 'int')}}CYTHON_INLINE{{endif}} {{c_ret_type}}
-__Pyx_PyObject_CompareFloatInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
+#ifndef __Pyx_DEFINED_PyObject_CompareFloatInt{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareFloatInt{{func_suffix}}
+static {{c_ret_type}} __Pyx_PyObject_CompareFloatInt{{func_suffix}}(PyObject *op1, PyObject *op2) {
     double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
     #if !CYTHON_ASSUME_SAFE_MACROS
     if (unlikely(float_op1 == -1. && PyErr_Occurred())) {{return_error}};
@@ -1155,12 +1157,14 @@ __pyx_return_true:
 __pyx_return_false:
     {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
 }
+#endif
 {{endif}}
 
 {{if type1 in ('object', 'int') and type2 in ('object', 'float')}}
 // Less likely, non-inlined comparison of int and float.
-static {{if (type1, type2) == ('int', 'float')}}CYTHON_INLINE{{endif}} {{c_ret_type}}
-__Pyx_PyObject_CompareIntFloat{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
+#ifndef __Pyx_DEFINED_PyObject_CompareIntFloat{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareIntFloat{{func_suffix}}
+static {{c_ret_type}} __Pyx_PyObject_CompareIntFloat{{func_suffix}}(PyObject *op1, PyObject *op2) {
     double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
     #if !CYTHON_ASSUME_SAFE_MACROS
     if (unlikely(float_op2 == -1. && PyErr_Occurred())) {{return_error}};
@@ -1219,13 +1223,15 @@ __pyx_return_true:
 __pyx_return_false:
     {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
 }
+#endif
 {{endif}}
 
 {{if type1 != 'float' and type2 != 'float'}}
 {{py: from Cython.Utility import pylong_join }}
 
-static {{if (type1, type2) == ('int', 'int')}}CYTHON_INLINE{{endif}} {{c_ret_type}}
-__Pyx_PyObject_CompareIntInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
+#ifndef __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
+static {{c_ret_type}} __Pyx_PyObject_CompareIntInt{{func_suffix}}(PyObject *op1, PyObject *op2) {
 #if CYTHON_USE_PYLONG_INTERNALS
     Py_ssize_t cmp = __Pyx_PyLong_CompareSignAndSize(op1, op2);
     if (cmp == 0) {
@@ -1274,10 +1280,11 @@ __pyx_return_true:
 __pyx_return_false:
     {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
 }
+#endif
 {{endif}}
 
 
-static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop) {
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{func_suffix}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop) {
     CYTHON_UNUSED_VAR(pyop);
 
     {{if type1 != 'object'}}
@@ -1326,7 +1333,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 
         {{if type2 in ('object', 'int')}}
         if ({{is_type('op2', 'int')}}) {
-            return __Pyx_PyObject_CompareFloatInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(op1, op2);
+            return __Pyx_PyObject_CompareFloatInt{{func_suffix}}(op1, op2);
         }
         {{endif}}
 
@@ -1340,13 +1347,13 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 
         {{if type2 in ('object', 'int')}}
         if ({{is_type('op2', 'int')}}) {
-            return __Pyx_PyObject_CompareIntInt{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(op1, op2);
+            return __Pyx_PyObject_CompareIntInt{{func_suffix}}(op1, op2);
         }
         {{endif}}
 
         {{if type2 in ('object', 'float')}}
         if ({{is_type('op2', 'float')}}) {
-            return __Pyx_PyObject_CompareIntFloat{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(op1, op2);
+            return __Pyx_PyObject_CompareIntFloat{{func_suffix}}(op1, op2);
         }
         {{endif}}
 
