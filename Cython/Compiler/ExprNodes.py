@@ -13509,7 +13509,7 @@ class BoolBinopResultNode(ExprNode):
         arg = ProxyNode(arg)
         super().__init__(
             arg.pos, arg=arg, type=result_type,
-            value=CloneNode(arg).coerce_to(result_type, env))
+            value=CloneNode(arg).analyse_types(env).coerce_to(result_type, env))
 
     def coerce_to_boolean(self, env):
         return self.coerce_to(PyrexTypes.c_bint_type, env)
