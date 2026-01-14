@@ -231,7 +231,6 @@ def run_benchmark(repeat: bool, scale=1000):
     from util import repeat_to_accuracy, scale_subbenchmarks
 
     scales = scale_subbenchmarks(time_benchmarks(100), scale)
-    import sys; sys.stderr.write(f"{scales}\n")
 
     collected_timings = collections.defaultdict(list)
 
