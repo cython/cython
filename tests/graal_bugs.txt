@@ -96,6 +96,7 @@ memoryview
 cythonarray
 dict_iter_unpack
 asyncio_leaks
+test_benchmark_timer_ns
 
 # probably just GC?
 double_dealloc_T796
