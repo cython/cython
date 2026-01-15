@@ -803,8 +803,10 @@ static double __Pyx_PyUnicode_AsDouble_WithSpaces(PyObject *obj) {
 
     // parse NaN / inf
     value = __Pyx__PyUnicode_AsDouble_inf_nan(data, kind, start, length);
-    if (unlikely(value == -1.0)) goto fallback;
-    if (value != 0.0) return value;
+    if (value != 0.0) {
+        if (unlikely(value == -1.0)) goto fallback;
+        return value;
+    }
 
     if (length < 40) {
         char number[40];
@@ -982,8 +984,10 @@ CYTHON_UNUSED static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* s
 
     // parse NaN / inf
     value = __Pyx__PyBytes_AsDouble_inf_nan(start, length);
-    if (unlikely(value == -1.0)) goto fallback;
-    if (value != 0.0) return value;
+    if (value != 0.0) {
+        if (unlikely(value == -1.0)) goto fallback;
+        return value;
+    }
 
     // look for underscores
     digits = 0;
