@@ -78,11 +78,11 @@ jobs:
           # Ubuntu sub-jobs:
           # ================
           # graalpy is really slow...
-          #- os: ubuntu-22.04
-          #  python-version: graalpy24
-          #  backend: c
-          #  env: { NO_CYTHON_COMPILE: 1 }
-          #  allowed_failure: true
+          - os: ubuntu-22.04
+            python-version: graalpy25
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
+            allowed_failure: false
           # GCC 13 (with broad language standards)
           - os: ubuntu-22.04
             python-version: "3.9"
