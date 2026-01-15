@@ -618,6 +618,15 @@ How do I automatically generate Cython definition files from C (.h) or C++ (.hpp
 **Answer**: Two actively maintained tools can help automate the creation of
 Cython bindings from C/C++ headers. They serve complementary purposes:
 
+**autowrap** generates complete ``.pyx`` wrapper modules from annotated ``.pxd`` files.
+
+- Takes hand-written or generated ``.pxd`` files with special annotations
+- Produces Python extension modules with automatic type conversions
+- Supports STL containers, exception handling, and operator overloads
+- Useful when fine-grained control over the Python API is needed
+
+https://github.com/OpenMS/autowrap
+
 **autopxd2** generates ``.pxd`` declaration files directly from C/C++ headers.
 
 - Parses unmodified header files using libclang (recommended) or pycparser
@@ -626,15 +635,6 @@ Cython bindings from C/C++ headers. They serve complementary purposes:
 - Available via pip: ``pip install autopxd2``
 
 https://github.com/elijahr/python-autopxd2
-
-**autowrap** generates complete ``.pyx`` wrapper modules from annotated ``.pxd`` files.
-
-- Takes hand-written or generated ``.pxd`` files with special annotations
-- Produces Python extension modules with automatic type conversions
-- Supports STL containers, exception handling, and operator overloads
-- Useful when fine-grained control over the Python API is needed
-
-https://github.com/uweschmitt/autowrap
 
 These tools can be used together: autopxd2 generates the initial ``.pxd``
 declarations, which can then be annotated for autowrap to produce the final
