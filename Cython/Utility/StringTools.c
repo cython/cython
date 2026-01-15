@@ -182,18 +182,6 @@ static CYTHON_INLINE int __Pyx_PyUnicode_ContainsTF(PyObject* substring, PyObjec
 }
 
 
-//////////////////// CStringEquals.proto ////////////////////
-
-static CYTHON_INLINE int __Pyx_StrEq(const char *, const char *); /*proto*/
-
-//////////////////// CStringEquals ////////////////////
-
-static CYTHON_INLINE int __Pyx_StrEq(const char *s1, const char *s2) {
-    while (*s1 != '\0' && *s1 == *s2) { s1++; s2++; }
-    return *s1 == *s2;
-}
-
-
 //////////////////// UnicodeEquals.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
