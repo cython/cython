@@ -787,6 +787,7 @@ static double __Pyx_PyUnicode_AsDouble_WithSpaces(PyObject *obj) {
     double value;
     const char *last;
     char *end;
+    int valid_parse;
     Py_ssize_t start, length = PyUnicode_GET_LENGTH(obj);
     const int kind = PyUnicode_KIND(obj);
     const void* data = PyUnicode_DATA(obj);
@@ -810,6 +811,7 @@ static double __Pyx_PyUnicode_AsDouble_WithSpaces(PyObject *obj) {
         last = __Pyx__PyUnicode_AsDouble_Copy(data, kind, number, start, start + length);
         if (unlikely(!last)) goto fallback;
         value = PyOS_string_to_double(number, &end, NULL);
+        valid_parse = (end == last);
     } else {
         char *number = (char*) PyMem_Malloc(((size_t) length + 1) * sizeof(char));
         if (unlikely(!number)) goto fallback;
@@ -819,9 +821,10 @@ static double __Pyx_PyUnicode_AsDouble_WithSpaces(PyObject *obj) {
             goto fallback;
         }
         value = PyOS_string_to_double(number, &end, NULL);
+        valid_parse = (end == last);
         PyMem_Free(number);
     }
-    if (likely(end == last) || (value == (double)-1 && PyErr_Occurred())) {
+    if (likely(valid_parse) || (value == (double)-1 && PyErr_Occurred())) {
         return value;
     }
 fallback:
@@ -967,6 +970,7 @@ CYTHON_UNUSED static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* s
     Py_ssize_t i, digits;
     const char *last = start + length;
     char *end;
+    int valid_parse;
 
     // strip spaces at start and end
     while (__Pyx__PyBytes_AsDouble_IsSpace(*start))
@@ -987,11 +991,13 @@ CYTHON_UNUSED static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* s
 
     if (likely(digits == length)) {
         value = PyOS_string_to_double(start, &end, NULL);
+        valid_parse = (end == last);
     } else if (digits < 40) {
         char number[40];
         last = __Pyx__PyBytes_AsDouble_Copy(start, number, length);
         if (unlikely(!last)) goto fallback;
         value = PyOS_string_to_double(number, &end, NULL);
+        valid_parse = (end == last);
     } else {
         char *number = (char*) PyMem_Malloc(((size_t) digits + 1) * sizeof(char));
         if (unlikely(!number)) goto fallback;
@@ -1001,9 +1007,10 @@ CYTHON_UNUSED static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* s
             goto fallback;
         }
         value = PyOS_string_to_double(number, &end, NULL);
+        valid_parse = (end == last);
         PyMem_Free(number);
     }
-    if (likely(end == last) || (value == (double)-1 && PyErr_Occurred())) {
+    if (likely(valid_parse) || (value == (double)-1 && PyErr_Occurred())) {
         return value;
     }
 fallback:
