@@ -2909,6 +2909,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         entry_names = [
             name for name, entry in entries.items()
             if entry.is_cglobal and entry.used and not entry.type.is_const
+            and not entry.scope.is_internal
         ]
         entry_names.sort()
         groups = [
@@ -2977,7 +2978,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         internal_names = [
             name for name, entry in entries.items()
-            if entry.is_type
+            if entry.is_cclass or (entry.scope.is_internal and entry.is_cglobal and not entry.type.is_const)
         ]
 
         if internal_names:
