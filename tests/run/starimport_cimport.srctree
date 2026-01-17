@@ -42,10 +42,15 @@ cdef test_pxd t = test_pxd()
 
 ######## star_import_all_null.pyx ########
 
+cdef list __all__ = []
+cdef _orig_all = __all__
+
 from all_null import *
 
 assert '\0' in globals()
 assert '' not in globals(), globals()['']
+
+assert __all__ is _orig_all, __all__
 
 ######## all_null.py ########
 
@@ -57,10 +62,12 @@ globals()[''] = 6
 
 ######## star_import_all_things.pyx ########
 
+cdef int contiguous
+
 from all_things import *
 
 assert 'cython' in globals()
-assert 'contiguous' in globals()
+assert contiguous == 6
 assert 'indirect' in globals()
 assert 'indirect_contiguous' in globals()
 assert 'strided' not in globals()  # not in "__all__"
@@ -70,11 +77,13 @@ assert '__all__' not in globals()  # not in "__all__"
 
 ######## star_import_noall_things.pyx ########
 
+cdef int indirect
+
 from noall_things import *
 
 assert 'cython' in globals()
 assert 'contiguous' in globals()
-assert 'indirect' in globals()
+assert indirect == 7
 assert 'indirect_contiguous' in globals()
 assert 'strided' in globals()
 
@@ -95,6 +104,21 @@ else:
 @cython.cclass
 class indirect:
     pass
+
+
+######## star_import_all_things_pointer.pyx ########
+
+import cython
+
+try:
+    from all_things import *
+except TypeError as exc:
+    assert 'indirect_contiguous' in str(exc), exc
+else:
+    assert False, "Import did not fail"
+
+cdef int contiguous
+cdef int* indirect_contiguous = &contiguous
 
 
 ######## star_import_noall_things_cclass.pyx ########
