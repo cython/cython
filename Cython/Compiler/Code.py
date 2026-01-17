@@ -1985,6 +1985,8 @@ class GlobalState:
 
         decl = self.parts['module_state']
         init = self.parts['cached_builtins']
+        traverse = self.parts['module_state_traverse']
+        clear = self.parts['module_state_clear']
 
         init.putln("")
         init.putln("/* Cached unbound methods */")
@@ -2002,6 +2004,9 @@ class GlobalState:
             init.putln(
                 f'{init.name_in_main_c_code_module_state(cname)}.method_name = '
                 f'&{init.name_in_main_c_code_module_state(method_name_cname)};')
+            # method is owned - Other PyObjects in __Pyx_CachedCFunction are borrowed.
+            clear.putln(f'Py_CLEAR(clear_module_state->{cname}.method);')
+            traverse.putln(f'Py_VISIT(traverse_module_state->{cname}.method);')
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
