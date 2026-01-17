@@ -270,22 +270,21 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
 
 static int ${import_star}(PyObject* m) {
     int ret = -1;
+    Py_ssize_t size;
     PyObject *locals = 0;
     PyObject *list = 0;
-    PyObject *name;
-    PyObject *item;
-    PyObject *import_obj;
     ${modulestatetype_cname} *mstate = __Pyx_PyModule_GetState(m);
 
     locals = PyDict_New();              if (!locals) goto bad;
     if (__Pyx_import_all_from(locals, m) < 0) goto bad;
     list = PyDict_Items(locals);        if (!list) goto bad;
 
-    Py_ssize_t size = __Pyx_PyList_GET_SIZE(list);
+    size = __Pyx_PyList_GET_SIZE(list);
     #if !CYTHON_ASSUME_SAFE_SIZE
     if (size < 0) goto bad;
     #endif
     for (Py_ssize_t i=0; i<size; i++) {
+        PyObject *import_obj, *name, *item;
         import_obj = __Pyx_PyList_GET_ITEM(list, i); if (!import_obj) goto bad;
         name = __Pyx_PyTuple_GET_ITEM(import_obj, 0); if (!name) goto bad;
         item = __Pyx_PyTuple_GET_ITEM(import_obj, 1); if (!item) goto bad;

@@ -2904,7 +2904,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # Always compare and store plain, interned 'str' objects.
         code.putln("PyObject *__pyx_interned_name = PyUnicode_FromObject(py_name);")
-        code.putln("if (unlikely(!__pyx_interned_name)) goto bad;")
+        code.putln("if (unlikely(!__pyx_interned_name)) return -1;")
         code.putln("Py_ssize_t __pyx_slen = PyUnicode_GetLength(__pyx_interned_name);")
         code.putln("if (unlikely(__pyx_slen < 1)) {")
         code.put("if (__pyx_slen < 0) goto bad; else ")
@@ -2962,14 +2962,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 (start_letter, list(names))
                 for start_letter, names in itertools.groupby(cglobal_names, key=operator.itemgetter(0))
             ]
+            code.putln("{")
+            code.putln("const char* failed_type = NULL;")
+            code.putln("CYTHON_UNUSED_VAR(failed_type);")
 
             code.putln("Py_UCS4 __pyx_start_letter = __Pyx_PyUnicode_READ_CHAR(py_name, 0);")
             code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
             code.putln("if (unlikely(__pyx_start_letter) == (Py_UCS4) -1) goto bad;")
             code.putln("#endif")
-
-            code.putln("const char* failed_type;")
-            code.putln("CYTHON_UNUSED_VAR(failed_type);")
 
             code.putln("switch (__pyx_start_letter) {")
             for start_letter, names in prefix_groups:
@@ -2977,6 +2977,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 for name in names:
                     handle_entry(name, entries[name])
                 code.putln("break;")
+            code.putln("}")
             code.putln("}")
 
         # Generic module dict assignment.
