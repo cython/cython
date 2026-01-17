@@ -2893,32 +2893,47 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.start_initcfunc(
             f"int {Naming.import_star_set}("
             f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname}, "
-            "PyObject *o, PyObject* py_name, const char *name)")
+            "PyObject* o, PyObject* py_name)")
 
         code.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
-        code.putln("CYTHON_UNUSED_VAR(name);")
 
+        old_error_label = code.new_error_label()
         cannot_overwrite = code.new_label("cannot_overwrite")
         cannot_convert = code.new_label("cannot_convert")
         done = code.new_label("done")
 
+        # Always compare and store plain, interned 'str' objects.
+        code.putln("PyObject *__pyx_interned_name = PyUnicode_FromObject(py_name);")
+        code.putln("if (unlikely(!__pyx_interned_name)) goto bad;")
+        code.putln("Py_ssize_t __pyx_slen = PyUnicode_GetLength(__pyx_interned_name);")
+        code.putln("if (unlikely(__pyx_slen < 1)) {")
+        code.put("if (__pyx_slen < 0) goto bad; else ")
+        code.put_goto(done)
+        code.putln("}")
+        code.putln("PyUnicode_InternInPlace(&__pyx_interned_name);")
+        # Replace borrowed argument reference with borrowed local reference.
+        code.putln("py_name = __pyx_interned_name;")
+
+        # Specific C assignments.
+
         entries = env.entries
-
-        # Generate assignment code.
-
-        entry_names = [
+        cglobal_names = [
             name for name, entry in entries.items()
-            if entry.is_cglobal and entry.used and not entry.type.is_const
-            and not entry.scope.is_internal
+            if not entry.scope.is_internal and not name.startswith('__pyx_') and (
+                entry.is_cglobal and entry.used and not entry.type.is_const
+                or entry.is_cclass
+            )
         ]
-        entry_names.sort()
-        groups = [
-            (start_letter, list(names))
-            for start_letter, names in itertools.groupby(entry_names, key=operator.itemgetter(0))
-        ]
+        cglobal_names.sort()
 
         def handle_entry(name, entry):
-            code.putln(f'if (strcmp(name, "{name}") == 0) ''{')
+            py_name = code.get_py_string_const(name, identifier=True)
+            code.put(f'if (py_name == {py_name}) ')  # Compare the two interned names.
+            if entry.is_cclass:
+                code.put_goto(cannot_overwrite)
+                return
+
+            code.putln('{')
             if entry.type.is_pyobject:
                 if entry.type.is_extension_type or entry.type.is_builtin_type:
                     type_test = entry.type.type_test_code(
@@ -2938,78 +2953,30 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     'o', entry.cname, entry.pos, code))
                 code.put_goto(done)
             else:
-                code.putln(f"failed_type = {EncodedString(entry.type).as_c_string_literal()};")
+                code.put(f"failed_type = {EncodedString(entry.type).as_c_string_literal()}; ")
                 code.put_goto(cannot_convert)
             code.putln('}')
 
-        def compare_prefixes(start, end):
-            length = end - start
-            if length < 4:
-                name_groups = sorted(groups[start:end], key=lambda g: len(g[1]), reverse=True)
-                for start_letter, names in name_groups:
-                    if len(names) == 1:
-                        name = names[0]
-                        handle_entry(name, entries[name])
-                    else:
-                        code.putln(f"if (name[0] == '{start_letter}') ""{")
-                        for name in names:
-                            handle_entry(name, entries[name])
-                        code.putln("}")
-                return
+        if cglobal_names:
+            prefix_groups = [
+                (start_letter, list(names))
+                for start_letter, names in itertools.groupby(cglobal_names, key=operator.itemgetter(0))
+            ]
 
-            mid = (start + end) // 2
-            mid_start_letter, _ = groups[mid]
-            code.putln(f"if (name[0] < '{mid_start_letter}') ""{")
-            compare_prefixes(start, mid)
-            code.putln('}')
-            code.putln("else {")
-            compare_prefixes(mid, end)
-            code.putln('}')
+            code.putln("Py_UCS4 __pyx_start_letter = __Pyx_PyUnicode_READ_CHAR(py_name, 0);")
+            code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+            code.putln("if (unlikely(__pyx_start_letter) == (Py_UCS4) -1) goto bad;")
+            code.putln("#endif")
 
-        old_error_label = code.new_error_label()
-
-        if groups:
-            env.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
             code.putln("const char* failed_type;")
             code.putln("CYTHON_UNUSED_VAR(failed_type);")
-            compare_prefixes(0, len(groups))
 
-        # Reject assignments to internal types.
-
-        internal_names = [
-            name for name, entry in entries.items()
-            if entry.is_cclass or (entry.scope.is_internal and entry.is_cglobal and not entry.type.is_const)
-        ]
-
-        if internal_names:
-            # Store type names in reversed sort order to allow termination on lowest character '\0'.
-            type_names_utf8 = [name.encode('utf8') for name in internal_names]
-            type_names_utf8.sort(reverse=True)
-
-            env.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
-            code.putln("if (likely(name[0] != '\\0')) {")  # Safety check to guarantee loop termination.
-
-            names = b'\0'.join(type_names_utf8 + [b'\0'])
-            code.putln(f"const char internal_names[] = {bytes_literal(names, 'UTF-8').as_c_string_literal()};")
-            code.putln("const char *type_name = internal_names;")
-            if len(internal_names) > 5:
-                steps = 4 if len(internal_names) < 20 else 6
-                last_start_byte = None
-                for i in range(steps-1, 0, -1):
-                    start_byte = type_names_utf8[(len(type_names_utf8) + 1) * i // steps][0]
-                    if start_byte != last_start_byte:
-                        code.put(f"if (name[0] <= {start_byte}) type_name += {names.index(bytes([0, start_byte])) + 1}; else ")
-                        last_start_byte = start_byte
-                code.putln("{}")
-
-            code.putln("while (name[0] <= type_name[0]) {")
-            code.put("if ((name[0] == type_name[0]) && (strcmp(name, type_name) == 0)) ")
-            code.put_goto(cannot_overwrite)
-            if len(internal_names) == 1:
-                code.putln('break;')
-            else:
-                code.putln("type_name = strchr(type_name+1, '\\0') + 1;")
-            code.putln("}")
+            code.putln("switch (__pyx_start_letter) {")
+            for start_letter, names in prefix_groups:
+                code.putln(f"case {ord(start_letter)}:")
+                for name in names:
+                    handle_entry(name, entries[name])
+                code.putln("break;")
             code.putln("}")
 
         # Generic module dict assignment.
@@ -3018,27 +2985,27 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # Error handling and function exit.
 
-        if code.label_used(done):
-            code.put_label(done)
+        code.put_label(done)
         code.putln("return 0;")
 
         if code.label_used(cannot_convert):
             code.put_label(cannot_convert)
             code.putln(
-                f'PyErr_Format(PyExc_TypeError, "Cannot convert Python object %.200s to %.200s", name, failed_type);')
+                f'PyErr_Format(PyExc_TypeError, "Cannot convert Python object %.200U to %.200s", py_name, failed_type);')
             code.put_goto(code.error_label)
 
         if code.label_used(cannot_overwrite):
             code.put_label(cannot_overwrite)
-            code.putln('PyErr_Format(PyExc_TypeError, "Cannot overwrite C type %s", name);')
+            code.putln('PyErr_Format(PyExc_TypeError, "Cannot overwrite C type %.200U", py_name);')
             code.put_goto(code.error_label)
 
         if code.label_used(code.error_label):
             code.put_label(code.error_label)
             # This helps locate the offending name.
-            code.put_add_traceback(EncodedString(self.full_module_name))
+            #code.put_add_traceback(EncodedString(self.full_module_name))
         code.error_label = old_error_label
         code.putln("bad:")
+        code.putln("Py_XDECREF(__pyx_interned_name);")
         code.putln("return -1;")
         code.putln("}")
         code.putln("")
