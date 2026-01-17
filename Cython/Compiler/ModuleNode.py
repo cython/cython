@@ -2962,9 +2962,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 (start_letter, list(names))
                 for start_letter, names in itertools.groupby(cglobal_names, key=operator.itemgetter(0))
             ]
+
             code.putln("{")
             code.putln("const char* failed_type = NULL;")
-            code.putln("CYTHON_UNUSED_VAR(failed_type);")
 
             code.putln("Py_UCS4 __pyx_start_letter = __Pyx_PyUnicode_READ_CHAR(py_name, 0);")
             code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
@@ -2978,6 +2978,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     handle_entry(name, entries[name])
                 code.putln("break;")
             code.putln("}")
+
+            if not code.label_used(cannot_convert):
+                code.putln("CYTHON_UNUSED_VAR(failed_type);")
+
+            pysetattr = code.new_label("python_setattr")
+            code.put_goto(pysetattr)
+
+            if code.label_used(cannot_convert):
+                code.put_label(cannot_convert)
+                code.putln(
+                    f'PyErr_Format(PyExc_TypeError, "Cannot convert Python object %.200U to %.200s", py_name, failed_type);')
+                code.putln("goto bad;")
+
+            if code.label_used(cannot_overwrite):
+                code.put_label(cannot_overwrite)
+                code.putln('PyErr_Format(PyExc_TypeError, "Cannot overwrite C type %.200U", py_name);')
+                code.putln("goto bad;")
+
+            code.put_label(pysetattr)
             code.putln("}")
 
         # Generic module dict assignment.
@@ -2989,24 +3008,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_label(done)
         code.putln("return 0;")
 
-        if code.label_used(cannot_convert):
-            code.put_label(cannot_convert)
-            code.putln(
-                f'PyErr_Format(PyExc_TypeError, "Cannot convert Python object %.200U to %.200s", py_name, failed_type);')
-            code.putln("goto bad;")
-
-        if code.label_used(cannot_overwrite):
-            code.put_label(cannot_overwrite)
-            code.putln('PyErr_Format(PyExc_TypeError, "Cannot overwrite C type %.200U", py_name);')
-            code.putln("goto bad;")
-
         if code.label_used(code.error_label):
             code.put_label(code.error_label)
             # This helps locate the offending name, but we can only jump here with a known valid code position.
             code.put_add_traceback(EncodedString(self.full_module_name))
         code.error_label = old_error_label
         code.putln("bad:")
-        code.putln("Py_XDECREF(__pyx_interned_name);")
+        code.putln("Py_DECREF(__pyx_interned_name);")
         code.putln("return -1;")
         code.putln("}")
         code.putln("")
