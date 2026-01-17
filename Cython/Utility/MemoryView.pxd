@@ -70,6 +70,9 @@ cdef class memoryview:
     cdef assign_item_from_object(self, char *itemp, object value)
     cdef _get_base(self)
 
+@cname('__pyx_memoryview_new')
+cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, const __Pyx_TypeInfo *typeinfo)
+
 @cname('__pyx_memoryview_check')
 cdef inline bint memoryview_check(object o) noexcept:
     return isinstance(o, memoryview)
@@ -92,3 +95,9 @@ cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
                           object (*to_object_func)(char *),
                           int (*to_dtype_func)(char *, object) except 0,
                           bint dtype_is_object)
+
+@cname('__pyx_memoryview_copy_contents')
+cdef int memoryview_copy_contents({{memviewslice_name}} src,
+                                  {{memviewslice_name}} dst,
+                                  int src_ndim, int dst_ndim,
+                                  bint dtype_is_object) except -1 nogil

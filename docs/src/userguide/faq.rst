@@ -612,33 +612,33 @@ name) to the list of files to be compiled for the extension.
 
 ----------
 
-How do I automatically generate Cython definition files from C (.h) or C++ (.hpp) header files ?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I automatically generate Cython definition files from C (.h) or C++ (.hpp) header files?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Several people have created scripts to parse header files and
-automatically produce Cython bindings.
+**Answer**: Two actively maintained tools can help automate the creation of
+Cython bindings from C/C++ headers. They serve complementary purposes:
 
-**autowrap**
+**autowrap** generates complete ``.pyx`` wrapper modules from annotated ``.pxd`` files.
 
-autowrap automatically generates python extension modules for wrapping C++
-libraries based on annotated (commented) cython pxd files. Current features
-include wrapping of template classes, enums, free functions and static methods
-as well as converters from Python data types to (many) STL containers and back.
-Finally, also manually written Cython code can be incorporated for wrapping
-code.
+- Takes hand-written or generated ``.pxd`` files with special annotations
+- Produces Python extension modules with automatic type conversions
+- Supports STL containers, exception handling, and operator overloads
+- Useful when fine-grained control over the Python API is needed
 
-http://github.com/uweschmitt/autowrap
+https://github.com/OpenMS/autowrap
 
-**python-autopxd**
+**autopxd2** generates ``.pxd`` declaration files directly from C/C++ headers.
 
-Automatically generate pxd from C headers. It uses
-[pycparser](https://github.com/eliben/pycparser) to parse the definitions, so
-the only requirement beyond python dependencies is a C preprocessor on PATH.
+- Parses unmodified header files using libclang (recommended) or pycparser
+- Supports C and C++ including templates, namespaces, classes, and enums
+- Handles recursive includes and system headers automatically
+- Available via pip: ``pip install autopxd2``
 
-https://github.com/gabrieldemarmiesse/python-autopxd2 (A friendly fork of
-python-autopxd, supporting recent Python versions)
+https://github.com/elijahr/python-autopxd2
 
-https://github.com/tarruda/python-autopxd (original version)
+These tools can be used together: autopxd2 generates the initial ``.pxd``
+declarations, which can then be annotated for autowrap to produce the final
+wrapper code.
 
 ----------
 
