@@ -2992,17 +2992,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_label(cannot_convert)
             code.putln(
                 f'PyErr_Format(PyExc_TypeError, "Cannot convert Python object %.200U to %.200s", py_name, failed_type);')
-            code.put_goto(code.error_label)
+            code.putln("goto bad;")
 
         if code.label_used(cannot_overwrite):
             code.put_label(cannot_overwrite)
             code.putln('PyErr_Format(PyExc_TypeError, "Cannot overwrite C type %.200U", py_name);')
-            code.put_goto(code.error_label)
+            code.putln("goto bad;")
 
         if code.label_used(code.error_label):
             code.put_label(code.error_label)
-            # This helps locate the offending name.
-            #code.put_add_traceback(EncodedString(self.full_module_name))
+            # This helps locate the offending name, but we can only jump here with a known valid code position.
+            code.put_add_traceback(EncodedString(self.full_module_name))
         code.error_label = old_error_label
         code.putln("bad:")
         code.putln("Py_XDECREF(__pyx_interned_name);")
