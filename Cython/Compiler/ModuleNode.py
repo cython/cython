@@ -2919,7 +2919,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         entries = env.entries
         cglobal_names = [
             name for name, entry in entries.items()
-            if not entry.scope.is_internal and not name.startswith('__pyx_') and (
+            if not (entry.scope.is_internal or name.lower().startswith('__pyx_')) and (
                 entry.is_cglobal and entry.used and not entry.type.is_const
                 or entry.is_cclass
             )
