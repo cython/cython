@@ -1075,7 +1075,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln_openmp("#include <omp.h>")
 
     def generate_filename_table(self, code):
-        from os.path import isabs, basename
         code.putln("")
         code.putln("static const char* const %s[] = {" % Naming.filetable_cname)
         if code.globalstate.filename_list:
