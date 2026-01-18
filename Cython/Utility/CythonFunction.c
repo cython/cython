@@ -39,11 +39,15 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 #define __Pyx_CyFunction_SetClassObj(f, classobj)  \
     __Pyx__CyFunction_SetClassObj(__Pyx_GetSharedTypeData(f, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *), (classobj))
 
-#define __Pyx_CyFunction_Defaults(type, typeoffset, f) \
-    __Pyx_GetCClassTypeData( \
-        __PYX_C_CLASS_DECL(type*)(__Pyx_GetSharedTypeData(f, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *))->defaults, \
-        typeoffset, \
-        type*)
+#if CYTHON_OPAQUE_OBJECTS
+static CYTHON_INLINE void *__Pyx__CyFunction_Defaults(PyObject *defaults_obj) {
+    return PyObject_GetTypeData(defaults_obj, Py_TYPE(defaults_obj));
+}
+#else
+#define __Pyx__CyFunction_Defaults(defaults_obj) defaults_obj
+#endif
+#define __Pyx_CyFunction_Defaults(type, f) \
+    ((type*)__Pyx__CyFunction_Defaults(__Pyx_GetSharedTypeData(f, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *)->defaults))
 #define __Pyx_CyFunction_SetDefaultsGetter(f, g) \
     (__Pyx_GetSharedTypeData(f, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *))->defaults_getter = (g)
 

@@ -10609,9 +10609,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                     self.result(),
                     code.name_in_module_state(self.defaults_entry.type.typeptr_cname),
                     code.error_goto(self.pos)))
-            defaults = '__Pyx_CyFunction_Defaults(struct %s, %s, %s)' % (
+            defaults = '__Pyx_CyFunction_Defaults(struct %s, %s)' % (
                 self.defaults_entry.type.objstruct_cname,
-                code.name_in_module_state(self.defaults_entry.type.typeoffset_cname),
                 self.result())
             for arg, entry in self.defaults:
                 arg.generate_assignment_code(code, target='%s->%s' % (
@@ -10847,10 +10846,8 @@ class DefaultNonLiteralArgNode(ExprNode):
         pass
 
     def result(self):
-        return '__Pyx_CyFunction_Defaults(struct %s, %s, %s)->%s' % (
+        return '__Pyx_CyFunction_Defaults(struct %s, %s)->%s' % (
             self.defaults_struct.name,
-            # FIXME - we really need Code to get to this
-            f"{Naming.modulestateglobal_cname}->{self.defaults_struct.parent_type.typeoffset_cname}",
             Naming.self_cname,
             self.defaults_struct.lookup(self.arg.defaults_class_key).cname)
 

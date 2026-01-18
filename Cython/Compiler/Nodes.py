@@ -4528,9 +4528,9 @@ class DefNodeWrapper(FuncDefNode):
             max_args, ','.join('0'*max_args)))
 
         if self.target.defaults_struct:
-            code.putln('struct %s *%s = __Pyx_CyFunction_Defaults(struct %s, %s, %s);' % (
+            code.putln('struct %s *%s = __Pyx_CyFunction_Defaults(struct %s, %s);' % (
                 self.target.defaults_struct.name, Naming.dynamic_args_cname,
-                self.target.defaults_struct.name, code.name_in_module_state(self.target.defaults_struct.parent_type.typeoffset_cname), Naming.self_cname))
+                self.target.defaults_struct.name, Naming.self_cname))
 
     def generate_argument_defaults_assignment_code(self, args, code):
         # Assign the default values to the empty entries of the 'values' array.
