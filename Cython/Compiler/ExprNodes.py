@@ -8032,6 +8032,10 @@ class AttributeNode(ExprNode):
             self.op = "->"
         elif obj_type.is_extension_type or obj_type.is_builtin_type:
             self.op = "->"
+            if obj_type.is_extension_type:
+                env.use_utility_code(
+                    UtilityCode.load_cached("OpaqueStructLookup", "ExtensionTypes.c")
+                )
         elif obj_type.is_reference and obj_type.is_fake_reference:
             self.op = "->"
         else:
@@ -8193,10 +8197,12 @@ class AttributeNode(ExprNode):
             if access_type.is_external:
                 return obj_code
             else:
+                has_gil = self.in_nogil_context
                 # FIXME - we really need Code to get to this
                 typeoffset_cname = f"{Naming.modulestateglobal_cname}->{access_type.typeoffset_cname}"
+                typeptr_cname = f"(PyTypeObject*){Naming.modulestateglobal_cname}->{access_type.typeptr_cname}"
                 objstruct_cname = access_type.objstruct_cname if access_type.typedef_flag else f"struct {access_type.objstruct_cname}"
-                return f"__Pyx_GetCClassTypeData({obj_code}, {typeoffset_cname}, {objstruct_cname}*)"
+                return f"__Pyx_GetCClassTypeData({obj_code}, {has_gil:d}, {typeptr_cname}, {typeoffset_cname}, {objstruct_cname}*)"
         else:
             return obj.result_as(obj.type)
 

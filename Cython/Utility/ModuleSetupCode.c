@@ -903,10 +903,18 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     #else
     #define __PYX_C_CLASS_RELATIVE_OFFSET Py_RELATIVE_OFFSET
     #endif
+
     // Return first if opaque object, second if not
     #define __PYX_SELECT_OPAQUE_OBJECT(first, second) first
     #define __PYX_C_CLASS_DECL(T) PyObject
-    #define __Pyx_GetCClassTypeData(o, cls_offset, T) ((T)(((char*)(o)) + cls_offset))
+    #define __Pyx_GetCClassTypeData_Gil(o, cls, T) ((T)PyObject_GetTypeData(o, cls))
+    // __Pyx_GetCClassTypeData_NoGil comes from ExtensionTypes::OpaqueStructLookup.c
+    // and is included if needed
+    #define __Pyx_GetCClassTypeData(o, has_gil, cls, cls_offset, T) \
+        ((T)(has_gil ? \
+            PyObject_GetTypeData(o, cls) : \
+            __Pyx_GetCClassTypeData_NoGil(o, cls, &cls_offset) \
+        ))
 
     #if CYTHON_USE_FREELISTS
     // It's a bit difficult (but not impossible) to work out how much memory to zero out in this case
@@ -914,24 +922,6 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     #undef CYTHON_USE_FREELISTS
     #define CYTHON_USE_FREELISTS 0
     #endif
-
-    CYTHON_UNUSED static Py_ssize_t __Pyx_CalculateTypeOffset(PyTypeObject *tp) {
-        // We can't directly use PyObject_GetTypeData because it requires the GIL and we need to access cdef
-        // attributes without the GIL. Therefore, get Python to calculate the offset once when the type is initialized
-        // and use that instead.
-        allocfunc alloc = (allocfunc)PyType_GetSlot(tp, Py_tp_alloc);
-        freefunc free = (freefunc)PyType_GetSlot(tp, Py_tp_free);
-        assert(alloc && free);
-        PyObject *dummy = alloc(tp, 0);
-        if (!dummy) return -1;
-        void *objstruct = PyObject_GetTypeData(dummy, tp);
-        Py_ssize_t delta = ((char*)objstruct - (char*)dummy);
-        if (PyType_IS_GC(tp)) {
-            PyObject_GC_UnTrack(dummy);
-        }
-        free(dummy);
-        return delta;
-    }
 #else
     #define __PYX_C_CLASS_SIZEOF(T) sizeof(T)
     #define __PYX_C_CLASS_RELATIVE_OFFSET 0
@@ -939,7 +929,8 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
 
     // Return first if opaque object, second if not
     #define __PYX_SELECT_OPAQUE_OBJECT(first, second) second
-    #define __Pyx_GetCClassTypeData(o, cls_offset, T) (o)
+    #define __Pyx_GetCClassTypeData_Gil(o, cls, T) (o)
+    #define __Pyx_GetCClassTypeData(o, has_gil, cls, cls_offset, T) (o)
     #define $cur_scope_obj_cname $cur_scope_cname 
     #define $outer_scope_obj_cname $outer_scope_cname
 #endif

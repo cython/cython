@@ -1479,7 +1479,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if definition or entry.defined_in_pxd:
                 module_state.putln("PyTypeObject *%s;" % entry.type.typeptr_cname)
                 module_state.putln("#if CYTHON_OPAQUE_OBJECTS")
-                module_state.putln(f"Py_ssize_t {entry.type.typeoffset_cname};")
+                # Store a pointer to the atomic rather than a copy so we can keep in in sync.
+                # This relies on atomics being ABI compatible across cimported modules, but that's
+                # true for memoryviews as well do isn't a new restriction.
+                if definition:
+                    module_state.putln(f"__pyx_atomic_Py_ssize_t {entry.type.typeoffset_cname};")
+                else:
+                    module_state.putln(f"__pyx_atomic_Py_ssize_t *__pyx{entry.type.typeoffset_cname};")
+                    module_state.putln(f"#define {entry.type.typeoffset_cname} __pyx{entry.type.typeoffset_cname}[0]")
                 module_state.putln("#endif")
                 module_state_clear.putln(
                     "Py_CLEAR(clear_module_state->%s);" %
@@ -1762,6 +1769,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             )
             code.putln(f"o = __Pyx_AllocateExtensionType(t, {is_final_type:d});")
         code.putln("if (unlikely(!o)) return 0;")
+
+        if not type.is_final_type:
+            code.putln("#if CYTHON_OPAQUE_OBJECTS")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("ValidateTypeOffset", "ExtensionTypes.c")
+            )
+            typeptr_cname = f"(PyTypeObject*){code.name_in_slot_module_state(type.typeptr_cname)}"
+            typeoffset_cname = code.name_in_slot_module_state(type.typeoffset_cname)
+            code.putln(f"if ({typeptr_cname} != t) {{")
+            code.putln(f"__Pyx_ValidateTypeOffset(o, {typeptr_cname}, &{typeoffset_cname});")
+            code.putln("}")
+            code.putln("#endif")
         if freelist_size and not base_type:
             code.putln('}')
         if need_self_cast:
@@ -1786,7 +1805,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 vtab_access_code = ""
                 struct_type_cast = ""
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
-            code.putln(f"__Pyx_GetCClassTypeData(o, {code.name_in_module_state(vtab_base_type.typeoffset_cname)}, "
+            code.putln(f"__Pyx_GetCClassTypeData_Gil(o, {code.name_in_module_state(vtab_base_type.typeptr_cname)}, "
                        f"{vtab_base_type.empty_declaration_code(opaque_decl=False)})->{Naming.vtabslot_cname}"
                        f" = {struct_type_cast}{type.vtabptr_cname};")
             code.putln("#else")
@@ -4083,11 +4102,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln(f' if (!{typeptr_cname}) {error_code}')
 
-        if not is_builtin and not type.is_external:
-            code.putln('#if CYTHON_OPAQUE_OBJECTS')
-            code.putln(f'{code.name_in_module_state(type.typeoffset_cname)} = __Pyx_CalculateTypeOffset({typeptr_cname});')
-            code.putln(f'if ({code.name_in_module_state(type.typeoffset_cname)} < 0) {error_code}')
-            code.putln('#endif')
+        if not is_builtin and not type.is_external and not is_api:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CImportTypeOffset", "ExtensionTypes.c"))
+            code.putln(
+                'if ('
+                f'__Pyx_CImportTypeOffset(&({code.name_in_module_state("__pyx"+type.typeoffset_cname)}), {typeptr_cname})'
+                f' < 0) {error_code}')
 
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)

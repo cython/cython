@@ -35,6 +35,7 @@
     #define __pyx_atomic_int_type atomic_int
     #define __pyx_atomic_ptr_type atomic_uintptr_t
     #define __pyx_nonatomic_ptr_type uintptr_t
+    #define __pyx_atomic_Py_ssize_t _Atomic(Py_ssize_t)
     #define __pyx_atomic_incr_relaxed(value) atomic_fetch_add_explicit(value, 1, memory_order_relaxed)
     #define __pyx_atomic_incr_acq_rel(value) atomic_fetch_add_explicit(value, 1, memory_order_acq_rel)
     #define __pyx_atomic_decr_acq_rel(value) atomic_fetch_sub_explicit(value, 1, memory_order_acq_rel)
@@ -61,6 +62,7 @@
     #define __pyx_atomic_int_type std::atomic_int
     #define __pyx_atomic_ptr_type std::atomic_uintptr_t
     #define __pyx_nonatomic_ptr_type uintptr_t
+    #define __pyx_atomic_Py_ssize_t std::atomic<Py_ssize_t>
     #define __pyx_atomic_incr_relaxed(value) std::atomic_fetch_add_explicit(value, 1, std::memory_order_relaxed)
     #define __pyx_atomic_incr_acq_rel(value) std::atomic_fetch_add_explicit(value, 1, std::memory_order_acq_rel)
     #define __pyx_atomic_decr_acq_rel(value) std::atomic_fetch_sub_explicit(value, 1, std::memory_order_acq_rel)
@@ -84,6 +86,7 @@
     /* gcc >= 4.1.2 */
     #define __pyx_atomic_ptr_type void*
     #define __pyx_nonatomic_ptr_type void*
+    #define __pyx_atomic_Py_ssize_t Py_ssize_t
     #define __pyx_atomic_incr_relaxed(value) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_incr_acq_rel(value) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_decr_acq_rel(value) __sync_fetch_and_sub(value, 1)
@@ -119,6 +122,7 @@
     #undef __pyx_nonatomic_int_type
     #define __pyx_nonatomic_int_type long
     #define __pyx_nonatomic_ptr_type void*
+    #define __pyx_atomic_Py_ssize_t Py_ssize_t
     #pragma intrinsic (_InterlockedExchangeAdd, _InterlockedExchange, _InterlockedCompareExchange, _InterlockedCompareExchangePointer, _InterlockedExchangePointer)
     #define __pyx_atomic_incr_relaxed(value) _InterlockedExchangeAdd(value, 1)
     #define __pyx_atomic_incr_acq_rel(value) _InterlockedExchangeAdd(value, 1)

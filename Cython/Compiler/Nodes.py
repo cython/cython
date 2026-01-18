@@ -2213,8 +2213,8 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("}")
             # Note that it is unsafe to decref the scope at this point.
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
-            code.putln(f"{Naming.cur_scope_cname} = __Pyx_GetCClassTypeData({Naming.cur_scope_obj_cname}, "
-                    f"{code.name_in_module_state(lenv.scope_class.type.typeoffset_cname)}, "
+            code.putln(f"{Naming.cur_scope_cname} = __Pyx_GetCClassTypeData_Gil({Naming.cur_scope_obj_cname},"
+                    f"{code.name_in_module_state(lenv.scope_class.type.typeptr_cname)}, "
                     f"{lenv.scope_class.type.empty_declaration_code(opaque_decl=False)});")
             code.putln("#endif")
         if self.needs_outer_scope:
@@ -2229,10 +2229,10 @@ class FuncDefNode(StatNode, BlockNode):
                     cenv.scope_class.type.empty_declaration_code(),
                     Naming.self_cname,))
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
-            code.putln("%s = __Pyx_GetCClassTypeData(%s, %s, %s);" % (
+            code.putln("%s = __Pyx_GetCClassTypeData_Gil(%s, %s, %s);" % (
                     outer_scope_cname,
                     outer_scope_obj_cname,
-                    code.name_in_module_state(cenv.scope_class.type.typeoffset_cname),
+                    code.name_in_module_state(cenv.scope_class.type.typeptr_cname),
                     cenv.scope_class.type.empty_declaration_code(opaque_decl=False),))
             code.putln("#endif")
             if lenv.is_passthrough:
@@ -5909,8 +5909,11 @@ class CClassDefNode(ClassDefNode):
             code.put_make_object_deferred(f"(PyObject*){typeptr_cname}")
 
             code.putln("#if CYTHON_OPAQUE_OBJECTS")
-            code.putln(f"{typeoffset_cname} = __Pyx_CalculateTypeOffset({typeptr_cname});")
-            code.put_error_if_neg(entry.pos, typeoffset_cname);
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CalculateTypeOffset", "ExtensionTypes.c"))
+            code.put_error_if_neg(
+                entry.pos,
+                f"__Pyx_CalculateTypeOffset(&{typeoffset_cname}, {typeptr_cname})")
             code.putln("#endif")
 
             # Use specialised attribute lookup for types with generic lookup but no instance dict.

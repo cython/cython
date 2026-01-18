@@ -895,3 +895,194 @@ static PyObject *__Pyx_AllocateExtensionType(PyTypeObject *t, int is_final) {
     (__PYX_CHECK_FINAL_TYPE_FOR_FREELISTS((t), (expected_tp), (expected_size)) & \
      (int) (!__Pyx_PyType_HasFeature((t), __PYX_CHECK_TYPE_FOR_FREELIST_FLAGS)))
 #endif
+
+//////////////////////////// CalculateTypeOffset.proto //////////////////////////////
+//@requires: Synchronization.c::Atomics
+//@requires: SetItemOnTypeDict
+
+#if CYTHON_OPAQUE_OBJECTS
+#if !CYTHON_ATOMICS
+    #error Cython with opaque objects requires atomics
+#endif
+
+static int __Pyx_CalculateTypeOffset(__pyx_atomic_Py_ssize_t* offset, PyTypeObject *tp); /* proto */
+#else
+static CYTHON_INLINE int __Pyx_CalculateTypeOffset(void) {
+    // This function is to avoid an unused warning on __Pyx__SetItemOnTypeDict 
+    (void)__Pyx__SetItemOnTypeDict;
+    return 0;
+}
+#endif
+
+//////////////////////////// CalculateTypeOffset //////////////////////////////
+
+#if CYTHON_OPAQUE_OBJECTS
+static int __Pyx_CalculateTypeOffset(__pyx_atomic_Py_ssize_t* offset, PyTypeObject *tp) {
+    // We can't directly use PyObject_GetTypeData because it requires the GIL and we need to access cdef
+    // attributes without the GIL. Therefore, get Python to calculate the offset once when the type is initialized
+    // and use that instead.
+    allocfunc alloc = (allocfunc)PyType_GetSlot(tp, Py_tp_alloc);
+    freefunc free = (freefunc)PyType_GetSlot(tp, Py_tp_free);
+    assert(alloc && free);
+    PyObject *dummy = alloc(tp, 0);
+    if (!dummy) return -1;
+    void *objstruct = PyObject_GetTypeData(dummy, tp);
+    Py_ssize_t delta = ((char*)objstruct - (char*)dummy);
+    if (PyType_IS_GC(tp)) {
+        PyObject_GC_UnTrack(dummy);
+    }
+    free(dummy);
+
+    __pyx_nonatomic_int_type delta_nonatomic = delta;
+    __pyx_atomic_store(offset, delta_nonatomic);
+
+    // We also want to store a pointer to the type offset on the type for the benefit
+    // of anyone that may cimport it.
+    PyObject *as_long = PyLong_FromVoidPtr(offset);
+    if (unlikely(!as_long)) return -1;
+    int set_item_result = __Pyx__SetItemOnTypeDict(tp, PYIDENT("__cython_typeoffset__"), as_long);
+    Py_DECREF(as_long);    
+
+    return set_item_result;
+}
+#endif
+
+//////////////////////////// ValidateTypeOffset.proto //////////////////////////////
+//@requires: Synchronization.c::Atomics
+
+#if CYTHON_OPAQUE_OBJECTS
+#if !CYTHON_ATOMICS
+    #error Cython with opaque objects requires atomics
+#endif
+
+static void __Pyx_ValidateTypeOffset(PyObject *o, PyTypeObject *tp, __pyx_atomic_Py_ssize_t* offset); /* proto */
+#endif
+
+//////////////////////////// ValidateTypeOffset /////////////////////////////////
+
+#if CYTHON_OPAQUE_OBJECTS
+// There's a strong assumption that the offset of the object struct will always remain the same
+// in any derived class. However it isn't completely guaranteed into the future.
+// If the assumption holds then we can use this offset to do attribute access without the GIL.
+// If the assumption fails then we *must* reacquire the GIL to do attribute access.
+// As an optimization, we always assume the assumption is true for exact non-derived types.
+
+static void __Pyx_ValidateTypeOffset(PyObject *o, PyTypeObject *tp, __pyx_atomic_Py_ssize_t* offset) {
+    Py_ssize_t stored_offset = __pyx_atomic_load(offset);
+    if (likely(stored_offset > 0)) {
+        void *objstruct = PyObject_GetTypeData(o, tp);
+        Py_ssize_t actual_offset = ((char*)objstruct - (char*)o);
+        if (unlikely(actual_offset != stored_offset)) {
+            // ALthough the user can't do anything, we would like to know if this
+            // is going wrong so that we can examime different options.
+            PyErr_WarnFormat(
+                PyExc_RuntimeWarning, 1,
+                "Type %T has its object struct at a different offset to type %N. "
+                "This will cause reduced performance in attribute lookups without the GIL",
+                o, tp);
+            // Negative number signals the broken assumption
+            __pyx_atomic_store(offset, -stored_offset);
+        }
+    }
+}
+
+#endif
+
+//////////////////////////// OpaqueStructLookup.proto //////////////////////////////
+//@requires: Synchronization.c::Atomics
+
+#if CYTHON_OPAQUE_OBJECTS
+#if !CYTHON_ATOMICS
+    #error Cython with opaque objects requires atomics
+#endif
+
+static CYTHON_INLINE void* __Pyx_GetCClassTypeData_NoGil(PyObject *o, PyTypeObject *cls, __pyx_atomic_Py_ssize_t* cls_offset); /* proto */
+#endif
+
+//////////////////////////// OpaqueStructLookup //////////////////////////////
+
+#if CYTHON_OPAQUE_OBJECTS
+static CYTHON_INLINE void* __Pyx_GetCClassTypeData_NoGil(PyObject *o, PyTypeObject *cls, __pyx_atomic_Py_ssize_t* cls_offset) {
+    Py_ssize_t offset = __pyx_atomic_load(cls_offset);
+    if (likely(offset >= 0)) {
+        return (((char*)(o)) + offset);
+    } else if (cls == Py_TYPE(o)) {
+        // Type is an exact match (but we have seen non-matching offsets before).
+        // This can still go through a fast-path.
+        return (((char*)(o)) - offset);
+    }
+    // Unexpected path
+    void *result;
+    PyGILState_STATE gil = PyGILState_Ensure();
+    result = PyObject_GetTypeData(o, cls);
+    PyGILState_Release(gil);
+    return result;
+}
+#endif
+
+////////////////////////////// CImportTypeOffset.proto ////////////////////////
+//@requires: Synchronization.c::Atomics
+
+#if CYTHON_OPAQUE_OBJECTS
+#if !CYTHON_ATOMICS
+    #error Cython with opaque objects requires atomics
+#endif
+
+static int __Pyx_CImportTypeOffset(__pyx_atomic_Py_ssize_t** offset, PyTypeObject *tp); /* proto */
+#elif CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX >= 0x030E0000
+
+static int __Pyx__CImportTypeOffset(PyTypeObject *tp); /* proto */
+#define __Pyx_CImportTypeOffset(ignore, tp) __Pyx__CImportTypeOffset(tp)
+
+#else
+// No check worthwhile
+#define __Pyx_CImportTypeOffset(ignore, tp) 0
+#endif
+
+////////////////////////////// CImportTypeOffset ////////////////////////
+
+#if CYTHON_OPAQUE_OBJECTS
+static int __Pyx_CImportTypeOffset(__pyx_atomic_Py_ssize_t** offset, PyTypeObject *tp) {
+    PyObject *tp_offset_py = PyObject_GetAttr((PyObject*)tp, PYIDENT("__cython_typeoffset__"));
+    if (unlikely(!tp_offset_py)) {
+        PyErr_Format(
+            PyExc_TypeError,
+            "Type %T has no attribute '__cython_typeoffset__'. "
+            "You are probably trying to cimport a module built without CYTHON_OPAQUE_OBJECTS set "
+            "from a module with it set.",
+            tp);
+        return -1;
+    }
+    void *tp_offset = PyLong_AsVoidPtr(tp_offset_py);
+    if (unlikely(!tp_offset_py)) {
+        PyErr_Format(
+            PyExc_TypeError,
+            "Invalid value of '__cython_typeoffset__' for type %T: %R",
+            tp, tp_offset);
+        Py_DECREF(tp_offset_py);
+        return -1;
+    }
+    Py_DECREF(tp_offset_py);
+    *offset = (__pyx_atomic_Py_ssize_t*)tp_offset;
+    return 0;
+}
+#elif CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX >= 0x030E0000
+
+static int __Pyx__CImportTypeOffset(PyTypeObject *tp) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+    if (__Pyx_get_runtime_version() < 0x030E0000) return 0;
+#endif
+    if (PyObject_HasAttr((PyObject*)tp, PYIDENT("__cython_typeoffset__"))) {
+        PyErr_Format(
+            PyExc_TypeError,
+            "Cimported type '%T' has '__cython_typeoffset__'. "
+            "You are probably trying to cimport a module built with CYTHON_OPAQUE_OBJECTS set "
+            "from a module without it set.",
+            tp);
+        return -1;
+    }
+    return 0;
+}
+
+
+#endif
