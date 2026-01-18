@@ -8187,15 +8187,16 @@ class AttributeNode(ExprNode):
                 while tp != access_type:
                     tp = tp.base_type
                     levels += 1
-                access_code = f", ->{'.'.join([Naming.obj_base_cname]*levels)}"
+                access_code = '.'.join([Naming.obj_base_cname]*levels)
                 obj_code = obj.result_as(obj.type)
+                obj_code = f'__PYX_SELECT_OPAQUE_OBJECT({obj_code}, &({obj_code}->{access_code}))'  
             if access_type.is_external:
                 return obj_code
             else:
                 # FIXME - we really need Code to get to this
                 typeoffset_cname = f"{Naming.modulestateglobal_cname}->{access_type.typeoffset_cname}"
                 objstruct_cname = access_type.objstruct_cname if access_type.typedef_flag else f"struct {access_type.objstruct_cname}"
-                return f"__Pyx_GetCClassTypeData({obj_code}, {typeoffset_cname}, {objstruct_cname}*{access_code})"
+                return f"__Pyx_GetCClassTypeData({obj_code}, {typeoffset_cname}, {objstruct_cname}*)"
         else:
             return obj.result_as(obj.type)
 
