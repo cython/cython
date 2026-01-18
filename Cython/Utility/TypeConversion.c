@@ -1180,108 +1180,111 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 
 static {{TYPE}} __Pyx_LargePyLong_{{FROM_PY_FUNCTION}}(PyObject *x); /*proto*/
 
-static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wconversion"
-#endif
-    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic pop
-#endif
-    const int is_unsigned = neg_one > const_zero;
-
-    if (unlikely(!PyLong_Check(x))) {
-        {{TYPE}} val;
-        PyObject *tmp = __Pyx_PyNumber_Long(x);
-        if (!tmp) return ({{TYPE}}) -1;
-        val = {{FROM_PY_FUNCTION}}(tmp);
-        Py_DECREF(tmp);
-        return val;
-    }
-
-    if (is_unsigned) {
+static CYTHON_INLINE {{TYPE}} __Pyx_PyULong_{{FROM_PY_FUNCTION}}(PyObject *x) {
+    const int is_unsigned = 1;
 #if CYTHON_USE_PYLONG_INTERNALS
-        if (unlikely(__Pyx_PyLong_IsNeg(x))) {
-            goto raise_neg_overflow;
-        } else if (__Pyx_PyLong_IsZero(x)) {
-            return ({{TYPE}}) 0;
-        } else {
-            const digit* digits = __Pyx_PyLong_Digits(x);
-            const Py_ssize_t size = __Pyx_PyLong_DigitCount(x);
-            {{for _size in (1, 2, 3, 4)}}
-            if (size == {{_size}} && (8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
-                if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
-                    __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
-                } else if ((8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT)) {
-                    return ({{TYPE}}) {{pylong_join(_size, 'digits', TYPE)}};
-                }
-            } else
-            {{endfor}}
-            {}
-        }
-#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030C00A7
-        if (unlikely(Py_SIZE(x) < 0)) {
-            goto raise_neg_overflow;
-        }
-#else
-        {
-            // misuse Py_False as a quick way to compare to a '0' int object in PyPy
-            int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
-            if (unlikely(result < 0))
-                return ({{TYPE}}) -1;
-            if (unlikely(result == 1))
-                goto raise_neg_overflow;
-        }
-#endif
-        if ((sizeof({{TYPE}}) <= sizeof(unsigned long))) {
-            __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
-        } else if ((sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
-            __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
-        }
-
+    if (unlikely(__Pyx_PyLong_IsNeg(x))) {
+        goto raise_neg_overflow;
+    } else if (__Pyx_PyLong_IsZero(x)) {
+        return ({{TYPE}}) 0;
     } else {
-        // signed
-#if CYTHON_USE_PYLONG_INTERNALS
-        if (__Pyx_PyLong_IsZero(x)) {
-            return ({{TYPE}}) 0;
-        }
-
-        const int is_neg = __Pyx_PyLong_IsNeg(x);
-        const Py_ssize_t size = __Pyx_PyLong_DigitCount(x);
         const digit* digits = __Pyx_PyLong_Digits(x);
+        const Py_ssize_t size = __Pyx_PyLong_DigitCount(x);
         {{for _size in (1, 2, 3, 4)}}
         if (size == {{_size}} && (8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
-            if ((8 * sizeof(long) > {{_size}} * PyLong_SHIFT)) {
-                unsigned long uival = {{pylong_join(_size, 'digits')}};
-                long ival = (is_neg ? -(long)ival : (long)ival);
-                __PYX_VERIFY_RETURN_INT({{TYPE}}, long, ival)
-            } else if ((8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT)) {
-                {{TYPE}} ival = {{pylong_join(_size, 'digits', TYPE)}};
-                if (is_neg) ival = -ival;
-                return ival;
+            if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
+            } else if ((8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT)) {
+                return ({{TYPE}}) {{pylong_join(_size, 'digits', TYPE)}};
             }
         } else
         {{endfor}}
         {}
+    }
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030C00A7
+    if (unlikely(Py_SIZE(x) < 0)) {
+        goto raise_neg_overflow;
+    }
+#else
+    {
+        // misuse Py_False as a quick way to compare to a '0' int object in PyPy
+        int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
+        if (unlikely(result < 0))
+            return ({{TYPE}}) -1;
+        if (unlikely(result == 1))
+            goto raise_neg_overflow;
+    }
 #endif
-        if ((sizeof({{TYPE}}) <= sizeof(long))) {
-            __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
-        } else if ((sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
-            __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
-        }
+    if ((sizeof({{TYPE}}) <= sizeof(unsigned long))) {
+        __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
+    } else if ((sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
+        __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
     }
 
     return __Pyx_LargePyLong_{{FROM_PY_FUNCTION}}(x);
+
+raise_neg_overflow:
+    PyErr_SetString(PyExc_OverflowError,
+        "can't convert negative value to {{TYPE}}");
+    return ({{TYPE}}) -1;
 
 raise_overflow:
     PyErr_SetString(PyExc_OverflowError,
         "value too large to convert to {{TYPE}}");
     return ({{TYPE}}) -1;
+}
+
+static CYTHON_INLINE {{TYPE}} __Pyx_PySLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
+    const int is_unsigned = 0;
+#if CYTHON_USE_PYLONG_INTERNALS
+    if (__Pyx_PyLong_IsZero(x)) {
+        return ({{TYPE}}) 0;
+    }
+    if (__Pyx_PyLong_IsNeg(x)) {
+        const Py_ssize_t size = __Pyx_PyLong_DigitCount(x);
+        const digit* digits = __Pyx_PyLong_Digits(x);
+        {{for _size in (1, 2, 3, 4)}}
+        if (size == {{_size}} && (8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
+            if ((8 * sizeof(long) > {{_size}} * PyLong_SHIFT)) {
+                long ival = - (long) {{pylong_join(_size, 'digits')}};
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, long, ival)
+            } else if ((8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT)) {
+                return - ({{TYPE}}) {{pylong_join(_size, 'digits', TYPE)}};
+            }
+        } else
+        {{endfor}}
+        {}
+    } else {
+        const Py_ssize_t size = __Pyx_PyLong_DigitCount(x);
+        const digit* digits = __Pyx_PyLong_Digits(x);
+        {{for _size in (1, 2, 3, 4)}}
+        if (size == {{_size}} && (8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
+            if ((8 * sizeof(long) > {{_size}} * PyLong_SHIFT)) {
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, long, {{pylong_join(_size, 'digits')}})
+            } else if ((8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT)) {
+                return ({{TYPE}}) {{pylong_join(_size, 'digits', TYPE)}};
+            }
+        } else
+        {{endfor}}
+        {}
+    }
+#endif
+    if ((sizeof({{TYPE}}) <= sizeof(long))) {
+        __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
+    } else if ((sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
+        __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
+    }
+
+    return __Pyx_LargePyLong_{{FROM_PY_FUNCTION}}(x);
 
 raise_neg_overflow:
     PyErr_SetString(PyExc_OverflowError,
         "can't convert negative value to {{TYPE}}");
+    return ({{TYPE}}) -1;
+
+raise_overflow:
+    PyErr_SetString(PyExc_OverflowError,
+        "value too large to convert to {{TYPE}}");
     return ({{TYPE}}) -1;
 }
 
@@ -1422,4 +1425,39 @@ raise_overflow:
     PyErr_SetString(PyExc_OverflowError,
         "value too large to convert to {{TYPE}}");
     return ({{TYPE}}) -1;
+}
+
+static CYTHON_INLINE {{TYPE}} __Pyx_PyLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
+    const int is_unsigned = neg_one > const_zero;
+
+    if (is_unsigned) {
+        return __Pyx_PyULong_{{FROM_PY_FUNCTION}}(x);
+    } else {
+        return __Pyx_PySLong_{{FROM_PY_FUNCTION}}(x);
+    }
+}
+
+static {{TYPE}} __Pyx_NonPyLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
+    {{TYPE}} val;
+    PyObject *tmp = __Pyx_PyNumber_Long(x);
+    if (!tmp) return ({{TYPE}}) -1;
+    val = {{FROM_PY_FUNCTION}}(tmp);
+    Py_DECREF(tmp);
+    return val;
+}
+
+static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
+    if (likely(PyLong_Check(x))) {
+        return __Pyx_PyLong_{{FROM_PY_FUNCTION}}(x);
+    } else {
+        return __Pyx_NonPyLong_{{FROM_PY_FUNCTION}}(x);
+    }
 }
