@@ -8174,13 +8174,13 @@ class AttributeNode(ExprNode):
     def _calculate_obj_code(self):
         obj = self.obj
         if obj.type.is_extension_type:
-            obj_code = obj.result()
             access_type = obj.type
             access_code = ""
             if self.entry and self.entry.is_cmethod and not self.entry.is_builtin_cmethod:
                 access_type = obj.type.vtabslot_type
             elif self.entry.is_inherited:
                 access_type = self.entry.inherited_scope.parent_type
+            obj_code = obj.result_as(access_type)
             if access_type != obj.type:
                 tp = obj.type
                 levels = 0
@@ -8188,14 +8188,14 @@ class AttributeNode(ExprNode):
                     tp = tp.base_type
                     levels += 1
                 access_code = f", ->{'.'.join([Naming.obj_base_cname]*levels)}"
+                obj_code = obj.result_as(obj.type)
             if access_type.is_external:
-                return obj.result_as(access_type)
+                return obj_code
             else:
-                cast = "AndCast" if obj.is_temp and obj.type != py_object_type else ""
                 # FIXME - we really need Code to get to this
                 typeoffset_cname = f"{Naming.modulestateglobal_cname}->{access_type.typeoffset_cname}"
                 objstruct_cname = access_type.objstruct_cname if access_type.typedef_flag else f"struct {access_type.objstruct_cname}"
-                return f"__Pyx_GetCClassTypeData{cast}({obj_code}, {typeoffset_cname}, {objstruct_cname}*{access_code})"
+                return f"__Pyx_GetCClassTypeData({obj_code}, {typeoffset_cname}, {objstruct_cname}*{access_code})"
         else:
             return obj.result_as(obj.type)
 

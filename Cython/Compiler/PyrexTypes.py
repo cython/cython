@@ -1720,7 +1720,10 @@ class PyExtensionType(PyObjectType):
             return super().cast_code(expr_code)
         # FIXME - we really need Code to get to this
         typeoffset_cname = f"{Naming.modulestateglobal_cname}->{self.typeoffset_cname}"
-        return f"__Pyx_GetCClassTypeDataAndCast({expr_code}, {typeoffset_cname}, {self.declaration_code("", opaque_decl=False)})"
+        opaque_decl_code = self.declaration_code("")
+        decl_code = self.declaration_code("", opaque_decl=False)
+        return (f'__Pyx_GetCClassTypeData(({opaque_decl_code}){expr_code}, '
+                f'{typeoffset_cname}, {decl_code})')
 
     def __str__(self):
         return self.name
