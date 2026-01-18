@@ -142,6 +142,7 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #ifndef _PyLong_NON_SIZE_BITS
     #define _PyLong_NON_SIZE_BITS 3
   #endif
+  #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->long_value.ob_digit)
   #define __Pyx_PyLong_SignBits(x)  ((int) (((PyLongObject*)x)->long_value.lv_tag & _PyLong_SIGN_MASK))
   #define __Pyx_PyLong_Sign(x)  (1 - __Pyx_PyLong_SignBits(x))
   #define __Pyx_PyLong_IsNeg(x)  ((__Pyx_PyLong_SignBits(x) & 2) != 0)
@@ -180,6 +181,8 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   typedef size_t  __Pyx_compact_upylong;
 
   #else  /* Py < 3.12 */
+
+  #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->ob_digit)
   #define __Pyx_PyLong_Sign(x)  ((int) ((Py_SIZE(x) == 0) ? 0 : (Py_SIZE(x) < 0) ? -1 : 1))
   #define __Pyx_PyLong_IsNeg(x)  (Py_SIZE(x) < 0)
   #define __Pyx_PyLong_IsNonNeg(x)  (Py_SIZE(x) >= 0)
@@ -197,12 +200,6 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 
   typedef sdigit  __Pyx_compact_pylong;
   typedef digit  __Pyx_compact_upylong;
-  #endif
-
-  #if PY_VERSION_HEX >= 0x030C00A5
-  #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->long_value.ob_digit)
-  #else
-  #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->ob_digit)
   #endif
 
   // Functions/macros that must be generally available, e.g. for truth testing.
