@@ -62,6 +62,7 @@ globals()[''] = 6
 ######## star_import_all_things.pyx ########
 
 cdef int contiguous
+cdef object öbject
 
 from all_things import *
 
@@ -70,6 +71,7 @@ assert contiguous == 6
 assert 'indirect' in globals()
 assert 'indirect_contiguous' in globals()
 assert 'strided' not in globals()  # not in "__all__"
+assert öbject == 'non-ÄSCII'
 
 assert '__all__' not in globals()  # not in "__all__"
 
@@ -77,6 +79,7 @@ assert '__all__' not in globals()  # not in "__all__"
 ######## star_import_noall_things.pyx ########
 
 cdef int indirect
+cdef object öbject
 
 from noall_things import *
 
@@ -85,6 +88,7 @@ assert 'contiguous' in globals()
 assert indirect == 7
 assert 'indirect_contiguous' in globals()
 assert 'strided' in globals()
+assert öbject == 'non-ÄSCII'
 
 assert '__all__' not in globals()  # underscore => private
 
@@ -138,13 +142,15 @@ class indirect:
 
 ######## all_things.pyx ########
 
-__all__ = ['cython', 'contiguous', 'indirect', 'indirect_contiguous']
+__all__ = ['cython', 'contiguous', 'indirect', 'indirect_contiguous', 'öbject']
 
 cython = 5
 contiguous = 6
 indirect = 7
 indirect_contiguous = 8
 strided = 9  # not in "__all__"
+
+öbject = 'non-ÄSCII'
 
 ######## noall_things.pyx ########
 
@@ -153,3 +159,5 @@ contiguous = 6
 indirect = 7
 indirect_contiguous = 8
 strided = 9
+
+öbject = 'non-ÄSCII'
