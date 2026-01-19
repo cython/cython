@@ -1180,17 +1180,27 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 
 static {{TYPE}} __Pyx_LargePyLong_{{FROM_PY_FUNCTION}}(PyObject *x); /*proto*/
 
+static {{TYPE}} __Pyx_raise_neg_overflow_{{FROM_PY_FUNCTION}}(void) {
+    PyErr_SetString(PyExc_OverflowError,
+        "can't convert negative value to {{TYPE}}");
+    return ({{TYPE}}) -1;
+}
+
+static {{TYPE}} __Pyx_raise_overflow_{{FROM_PY_FUNCTION}}(void) {
+    PyErr_SetString(PyExc_OverflowError,
+        "value too large to convert to {{TYPE}}");
+    return ({{TYPE}}) -1;
+}
+
 static CYTHON_INLINE {{TYPE}} __Pyx_PyULong_{{FROM_PY_FUNCTION}}(PyObject *x) {
     const int is_unsigned = 1;
 #if CYTHON_USE_PYLONG_INTERNALS
-    if (unlikely(__Pyx_PyLong_IsNeg(x))) {
-        goto raise_neg_overflow;
-    } else if (__Pyx_PyLong_IsZero(x)) {
-        return ({{TYPE}}) 0;
-    } else {
+    // IsNeg() and IsCompact() were already checked in "__Pyx_PyLong_...()",
+    // so 'x' is positive and at least two digits.
+    {
         const digit* digits = __Pyx_PyLong_Digits(x);
         const Py_ssize_t size = __Pyx_PyLong_DigitCount(x);
-        {{for _size in (1, 2, 3, 4)}}
+        {{for _size in (2, 3, 4)}}
         if (size == {{_size}} && (8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
             if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
                 __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
@@ -1224,26 +1234,21 @@ static CYTHON_INLINE {{TYPE}} __Pyx_PyULong_{{FROM_PY_FUNCTION}}(PyObject *x) {
     return __Pyx_LargePyLong_{{FROM_PY_FUNCTION}}(x);
 
 raise_neg_overflow:
-    PyErr_SetString(PyExc_OverflowError,
-        "can't convert negative value to {{TYPE}}");
-    return ({{TYPE}}) -1;
+    return __Pyx_raise_neg_overflow_{{FROM_PY_FUNCTION}}();
 
 raise_overflow:
-    PyErr_SetString(PyExc_OverflowError,
-        "value too large to convert to {{TYPE}}");
-    return ({{TYPE}}) -1;
+    return __Pyx_raise_overflow_{{FROM_PY_FUNCTION}}();
 }
 
 static CYTHON_INLINE {{TYPE}} __Pyx_PySLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
     const int is_unsigned = 0;
 #if CYTHON_USE_PYLONG_INTERNALS
-    if (__Pyx_PyLong_IsZero(x)) {
-        return ({{TYPE}}) 0;
-    }
+    // IsCompact() was already checked in "__Pyx_PyLong_...()",
+    // so 'x' is non-zero and at least two digits.
     if (__Pyx_PyLong_IsNeg(x)) {
         const Py_ssize_t size = __Pyx_PyLong_DigitCount(x);
         const digit* digits = __Pyx_PyLong_Digits(x);
-        {{for _size in (1, 2, 3, 4)}}
+        {{for _size in (2, 3, 4)}}
         if (size == {{_size}} && (8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
             if ((8 * sizeof(long) > {{_size}} * PyLong_SHIFT)) {
                 long ival = - (long) {{pylong_join(_size, 'digits')}};
@@ -1257,7 +1262,7 @@ static CYTHON_INLINE {{TYPE}} __Pyx_PySLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
     } else {
         const Py_ssize_t size = __Pyx_PyLong_DigitCount(x);
         const digit* digits = __Pyx_PyLong_Digits(x);
-        {{for _size in (1, 2, 3, 4)}}
+        {{for _size in (2, 3, 4)}}
         if (size == {{_size}} && (8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
             if ((8 * sizeof(long) > {{_size}} * PyLong_SHIFT)) {
                 __PYX_VERIFY_RETURN_INT({{TYPE}}, long, {{pylong_join(_size, 'digits')}})
@@ -1278,14 +1283,10 @@ static CYTHON_INLINE {{TYPE}} __Pyx_PySLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
     return __Pyx_LargePyLong_{{FROM_PY_FUNCTION}}(x);
 
 raise_neg_overflow:
-    PyErr_SetString(PyExc_OverflowError,
-        "can't convert negative value to {{TYPE}}");
-    return ({{TYPE}}) -1;
+    return __Pyx_raise_neg_overflow_{{FROM_PY_FUNCTION}}();
 
 raise_overflow:
-    PyErr_SetString(PyExc_OverflowError,
-        "value too large to convert to {{TYPE}}");
-    return ({{TYPE}}) -1;
+    return __Pyx_raise_overflow_{{FROM_PY_FUNCTION}}();
 }
 
 static {{TYPE}} __Pyx_LargePyLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
@@ -1422,9 +1423,7 @@ done:
     return val;
 
 raise_overflow:
-    PyErr_SetString(PyExc_OverflowError,
-        "value too large to convert to {{TYPE}}");
-    return ({{TYPE}}) -1;
+    return __Pyx_raise_overflow_{{FROM_PY_FUNCTION}}();
 }
 
 static CYTHON_INLINE {{TYPE}} __Pyx_PyLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
@@ -1439,10 +1438,35 @@ static CYTHON_INLINE {{TYPE}} __Pyx_PyLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
     const int is_unsigned = neg_one > const_zero;
 
     if (is_unsigned) {
-        return __Pyx_PyULong_{{FROM_PY_FUNCTION}}(x);
+        #if CYTHON_USE_PYLONG_INTERNALS
+        // IsNeg() check is required here and not done later!
+        if (unlikely(__Pyx_PyLong_IsNeg(x))) {
+            goto raise_neg_overflow;
+        } else if (__Pyx_PyLong_IsCompact(x)) {
+            __PYX_VERIFY_RETURN_INT({{TYPE}}, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
+        } else
+        #endif
+        {
+            return __Pyx_PyULong_{{FROM_PY_FUNCTION}}(x);
+        }
     } else {
-        return __Pyx_PySLong_{{FROM_PY_FUNCTION}}(x);
+        #if CYTHON_USE_PYLONG_INTERNALS
+        if (__Pyx_PyLong_IsCompact(x)) {
+            __PYX_VERIFY_RETURN_INT({{TYPE}}, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
+        } else
+        #endif
+        {
+            return __Pyx_PySLong_{{FROM_PY_FUNCTION}}(x);
+        }
     }
+
+#if CYTHON_USE_PYLONG_INTERNALS
+raise_neg_overflow:
+    return __Pyx_raise_neg_overflow_{{FROM_PY_FUNCTION}}();
+
+raise_overflow:
+    return __Pyx_raise_overflow_{{FROM_PY_FUNCTION}}();
+#endif
 }
 
 static {{TYPE}} __Pyx_NonPyLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
