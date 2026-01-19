@@ -2942,10 +2942,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         type_test,
                         code.error_goto(entry.pos)))
                 code.putln("Py_INCREF(o);")
-                code.put_decref(entry.cname, entry.type, nanny=False)
+                code.putln(f"{entry.type.declaration_code(Naming.quick_temp_cname)} = {entry.cname};")
                 code.putln("%s = %s;" % (
                     entry.cname,
                     PyrexTypes.typecast(entry.type, py_object_type, "o")))
+                code.put_decref(Naming.quick_temp_cname, entry.type, nanny=False)
                 code.put_goto(done)
             elif entry.type.create_from_py_utility_code(env):
                 # if available, utility code was already created in self.prepare_utility_code()
