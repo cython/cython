@@ -8,7 +8,6 @@ PYTHON -c "import star_import_all_null"
 
 ######## setup.py ########
 
-from typing import Type
 from setuptools import setup
 from Cython.Build import cythonize
 
