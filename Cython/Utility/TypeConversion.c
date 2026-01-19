@@ -1349,7 +1349,7 @@ static {{TYPE}} __Pyx_LargePyLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
     int bits, remaining_bits, is_negative = 0;
     int chunk_size = (sizeof(long) < 8) ? 30 : 62;
 
-    // Use exact PyLong to prevent user defined &&/<</etc. implementations (and make Py_SIZE() work below).
+    // Use exact PyLong to prevent user defined &&/<</etc. implementations.
     if (likely(PyLong_CheckExact(x))) {
         v = __Pyx_NewRef(x);
     } else {
