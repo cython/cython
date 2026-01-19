@@ -1511,7 +1511,7 @@ def zerodiv_check(operand, _is_mod=op == 'Remainder', _needs_check=(order == 'CO
 
 static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatval, int inplace, int zerodivision_check) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
-    double {{fval}}{{if op not in ('Eq', 'Ne')}}, result{{endif}};
+    double {{fval}};
     CYTHON_UNUSED_VAR(inplace);
     CYTHON_UNUSED_VAR(zerodivision_check);
 
@@ -1575,9 +1575,6 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
             #endif
             {{endif}}
         {{endif}}
-        #if CYTHON_USE_PYLONG_INTERNALS
-        digits_done:
-        #endif
         }
     } else {
         {{if op in ('Eq', 'Ne')}}
@@ -1590,6 +1587,10 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
         {{endif}}
     }
 
+#if CYTHON_USE_PYLONG_INTERNALS
+digits_done:
+#endif
+
     {{if op in ('Eq', 'Ne')}}
         if (a {{c_op}} b) {
             {{return_true}};
@@ -1597,6 +1598,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
             {{return_false}};
         }
     {{else}}
+        double result;
         {{if c_op == '%'}}
         result = fmod(a, b);
         if (result)
