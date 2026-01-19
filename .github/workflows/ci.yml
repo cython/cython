@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - '**'
+      - '!Demos/benchmarks/**'
       - '!.github/**'
       - '.github/workflows/ci.yml'
   pull_request:
     paths:
       - '**'
+      - '!Demos/benchmarks/**'
       - '!.github/**'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
