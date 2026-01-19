@@ -1181,14 +1181,26 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 static {{TYPE}} __Pyx_LargePyLong_{{FROM_PY_FUNCTION}}(PyObject *x); /*proto*/
 
 static {{TYPE}} __Pyx_raise_neg_overflow_{{FROM_PY_FUNCTION}}(void) {
+    {{if len(TYPE) <= 200}}
+    const char* type_name = "{{TYPE}}";
+    PyErr_Format(PyExc_OverflowError,
+        "can't convert negative value to %.200s", type_name);
+    {{else}}
     PyErr_SetString(PyExc_OverflowError,
         "can't convert negative value to {{TYPE}}");
+    {{endif}}
     return ({{TYPE}}) -1;
 }
 
 static {{TYPE}} __Pyx_raise_overflow_{{FROM_PY_FUNCTION}}(void) {
+    {{if len(TYPE) <= 200}}
+    const char* type_name = "{{TYPE}}";
+    PyErr_Format(PyExc_OverflowError,
+        "value too large to convert to %.200s", type_name);
+    {{else}}
     PyErr_SetString(PyExc_OverflowError,
         "value too large to convert to {{TYPE}}");
+    {{endif}}
     return ({{TYPE}}) -1;
 }
 
