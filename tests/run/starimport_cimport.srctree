@@ -64,6 +64,9 @@ globals()[''] = 6
 cdef int contiguous
 cdef object öbject
 
+cdef enum strided:
+    indirect_contiguous
+
 from all_things import *
 
 assert 'cython' in globals()
@@ -80,6 +83,9 @@ assert '__all__' not in globals()  # not in "__all__"
 
 cdef int indirect
 cdef object öbject
+
+cdef enum contiguous:
+    strided
 
 from noall_things import *
 
