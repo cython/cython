@@ -1331,12 +1331,16 @@ static {{TYPE}} __Pyx_LargePyLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
     ret = _PyLong_AsByteArray((PyLongObject *)x,
                                 bytes, sizeof(val),
                                 is_little, !is_unsigned);
+    // Avoid unused label warning.
+    if ((0)) goto raise_overflow;
 #else
 {{if IS_ENUM}}
     // The fallback implementation uses math operations like shifting, which do not work well with enums.
     PyErr_SetString(PyExc_RuntimeError,
                     "_PyLong_AsByteArray() or PyLong_AsNativeBytes() not available, cannot convert large enums");
     val = ({{TYPE}}) -1;
+    // Avoid unused label warning.
+    if ((0)) goto raise_overflow;
 {{else}}
 // Inefficient copy of bit chunks through the C-API.  Probably still better than a "cannot do this" exception.
 // This is substantially faster in CPython (>30%) than calling "int.to_bytes()" through the C-API.
