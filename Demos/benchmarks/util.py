@@ -70,7 +70,7 @@ def repeat_to_accuracy(func, *args,
         delta = execution_time - mean
 
         # Discard extremely slow outliers.
-        if delta / mean > outlier_threshold:
+        if mean and delta / mean > outlier_threshold:
             discarded += 1
             continue
         count -= discarded
