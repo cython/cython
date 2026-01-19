@@ -1265,7 +1265,7 @@ static CYTHON_INLINE {{TYPE}} __Pyx_PySLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
         {{for _size in (2, 3, 4)}}
         if (size == {{_size}} && (8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
             if ((8 * sizeof(long) > {{_size}} * PyLong_SHIFT)) {
-                __PYX_VERIFY_RETURN_INT({{TYPE}}, long, {{pylong_join(_size, 'digits')}})
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
             } else if ((8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT)) {
                 return ({{TYPE}}) {{pylong_join(_size, 'digits', TYPE)}};
             }
