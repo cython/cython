@@ -601,8 +601,7 @@ def format_time(t, scales=_time_scales):
     for scale, unit in scales:
         if pos_t >= scale:
             break
-    else:
-        raise RuntimeError(f"Timing is below nanoseconds: {t:f}")
+    # Use the last unit (0 nsecs) for very small values.
     return f"{t / scale :.3f} {unit}"
 
 
