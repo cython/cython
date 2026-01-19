@@ -7,11 +7,11 @@
 # cython: test_assert_c_code_has = const char\* c_constant =
 
 bits = {
-    'char': 8* sizeof(char),
-    'short': 8* sizeof(short),
-    'int': 8* sizeof(int),
-    'long': 8* sizeof(long),
-    'size_t': 8* sizeof(size_t),
+    'char': 8 * sizeof(char),
+    'short': 8 * sizeof(short),
+    'int': 8 * sizeof(int),
+    'long': 8 * sizeof(long),
+    'size_t': 8 * sizeof(size_t),
 }
 
 pylong_constants = [
