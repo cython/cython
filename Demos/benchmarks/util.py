@@ -59,8 +59,6 @@ def repeat_to_accuracy(func, *args,
     # Put an upper bound on the wall clock runtime as well.
     max_runtime = get_wall_time() + 1 * 45
 
-    import sys
-
     count: cython.long
     discarded: cython.long = 0
     for count in range(2, max_iterations + 1):
