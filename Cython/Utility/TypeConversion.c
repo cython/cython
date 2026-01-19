@@ -416,14 +416,14 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
 
 
 static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject* o) {
-  if (sizeof(Py_hash_t) == sizeof(Py_ssize_t) && PyLong_CheckExact(o)) {
-    return (Py_hash_t) __Pyx_PyLong_AsSsize_t(o);
+  if (sizeof(Py_hash_t) == sizeof(Py_ssize_t)) {
+    return (Py_hash_t) __Pyx_PyIndex_AsSsize_t(o);
   } else {
     Py_ssize_t ival;
     PyObject *x;
     x = PyNumber_Index(o);
     if (!x) return -1;
-    ival = __Pyx_PyLong_AsSsize_t(x);
+    ival = PyLong_AsLong(x);
     Py_DECREF(x);
     return ival;
   }
