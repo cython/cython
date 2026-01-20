@@ -154,8 +154,8 @@ class BaseType:
         """
         return None
 
-    def get_container_type(self) -> Optional[str]:
-        """Returns the basic container type name of the (potentially subscripted) type,
+    def get_container_type(self):
+        """Returns the basic container type of the (potentially subscripted) type,
         or None if not a container type.
 
         Similar to typing.get_origin().
@@ -4847,6 +4847,7 @@ class PythonTypeConstructorMixin:
     """
     modifier_name = None
     contains_none = False
+    base_type = None
     subscripted_types = ()
 
     def get_subscripted_type(self, index: int):
@@ -4861,17 +4862,11 @@ class PythonTypeConstructorMixin:
             self.modifier_name == 'typing.Union' and self.contains_none
         )
 
-    @staticmethod
-    def _get_container_type_name(type_name: str) -> str:
-        """Extracts base name of the indexed type. E.g. for `list[int]` returns list."""
-        return re.match('[^[]+', type_name).group()
-
     def set_python_type_constructor_name(self, name: str) -> None:
-        """Function extracts type name. It removes subscribed part of the type."""
-        self.python_type_constructor_name = self._get_container_type_name(name)
+        self.python_type_constructor_name = name
 
     def __repr__(self):
-        if self.base_type:
+        if self.modifier_name:
             return "%s[%r]" % (self.name, self.base_type)
         else:
             return self.name
@@ -4884,10 +4879,11 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     """
     builtin types like list, dict etc which can be subscripted in annotations
     """
+
     def __init__(self, name, cname, objstruct_cname=None):
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
-        self.set_python_type_constructor_name(name)
+        self.set_python_type_constructor_name(self.get_container_type().name)
         self.specializations = {}
 
     def specialize_here(self, pos, env, template_values=None):
@@ -4898,11 +4894,12 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             if template_values in self.specializations:
                 return self.specializations[template_values]
             subscripted_types = ','.join([str(tv) for tv in template_values])
-            name = f'{self.get_container_type()}[{subscripted_types}]'
+            name = f'{self.get_container_type().name}[{subscripted_types}]'
 
             # TODO this code is copied from Symtab.py, we need some common function for that...
             objstruct_cname = 'PySetObject' if name == 'frozenset' else f'Py{name.capitalize()}Object'
             typ = BuiltinTypeConstructorObjectType(name=name, cname=self.cname, objstruct_cname=objstruct_cname)
+            typ.base_type = self
             typ.subscripted_types = tuple(template_values)
             env.global_scope().declare_type(name, typ, pos, cname=typ.cname)
             typ.scope = self.scope
@@ -4926,7 +4923,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         return super().assignable_from(src_type)
 
     def type_check_function(self, exact=True):
-        type_name = self.get_container_type()
+        type_name = self.get_container_type().name
         if type_name in _special_type_check_functions:
             type_check = _special_type_check_functions[type_name]
         elif self.is_exception_type:
@@ -4938,7 +4935,8 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         return type_check
 
     def infer_indexed_type(self):
-        if self.get_container_type() == 'dict':
+        from .Builtin import dict_type
+        if self.get_container_type() == dict_type:
             return self.get_subscripted_type(1)
         else:
             return self.get_subscripted_type(0)
@@ -4946,18 +4944,25 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     def infer_iterator_type(self):
         return self.get_subscripted_type(0)
 
-    def get_container_type(self) -> str:
-        """Equivalent to typing.get_origin()"""
-        return self._get_container_type_name(self.name)
+    def get_container_type(self):
+        """Returns the basic container type of the (potentially subscripted) type,
+        or None if not a container type.
+
+        Similar to typing.get_origin().
+        """
+        base_type = self.base_type
+        if base_type:
+            return base_type.get_container_type()
+        return self
 
     def __eq__(self, other):
-        return isinstance(other, BuiltinTypeConstructorObjectType) and self.get_container_type() == other.get_container_type()
+        return isinstance(other, BuiltinTypeConstructorObjectType) and self.get_container_type().name == other.get_container_type().name
 
     def __ne__(self, other):
-        return not (isinstance(other, BuiltinTypeConstructorObjectType) and self.get_container_type() == other.get_container_type())
+        return not (isinstance(other, BuiltinTypeConstructorObjectType) and self.get_container_type().name == other.get_container_type().name)
 
     def __hash__(self):
-        return hash((type(self), self.get_container_type()))
+        return hash((type(self), self.get_container_type().name))
 
 
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
