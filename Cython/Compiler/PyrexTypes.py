@@ -6,7 +6,6 @@
 import copy
 import hashlib
 import re
-from typing import Optional
 
 from functools import partial, reduce
 from itertools import product
