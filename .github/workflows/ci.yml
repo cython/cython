@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - '**'
+      - '!Demos/benchmarks/**'
       - '!.github/**'
       - '.github/workflows/ci.yml'
   pull_request:
     paths:
       - '**'
+      - '!Demos/benchmarks/**'
       - '!.github/**'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
@@ -78,11 +80,11 @@ jobs:
           # Ubuntu sub-jobs:
           # ================
           # graalpy is really slow...
-          #- os: ubuntu-22.04
-          #  python-version: graalpy24
-          #  backend: c
-          #  env: { NO_CYTHON_COMPILE: 1 }
-          #  allowed_failure: true
+          - os: ubuntu-22.04
+            python-version: graalpy25
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
+            allowed_failure: false
           # GCC 13 (with broad language standards)
           - os: ubuntu-22.04
             python-version: "3.9"
@@ -150,17 +152,17 @@ jobs:
             extra_hash: "-codestyle"
           # Limited API
           - os: ubuntu-22.04
+            python-version: "3.9"
+            backend: "c,cpp"
+            env: { LIMITED_API: "--limited-api --abi3audit" }
+            extra_hash: "-limited_api"
+          - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api --abi3audit" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.12"
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
-            extra_hash: "-limited_api"
-          - os: ubuntu-22.04
-            python-version: "3.13"
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api --abi3audit" }
             extra_hash: "-limited_api"
@@ -198,27 +200,6 @@ jobs:
             python-version: pypy-3.11
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
-          # Free-threading
-          - os: ubuntu-22.04
-            python-version: 3.13t
-            backend: "c"
-          - os: ubuntu-22.04
-            python-version: 3.13t
-            backend: "cpp"
-#          - os: windows-2022
-#            python-version: 3.13t
-#            backend: "c"
-#            allowed_failure: true
-#          - os: windows-2022
-#            python-version: 3.13t
-#            backend: "cpp"
-#            allowed_failure: true
-          - os: macos-latest
-            python-version: 3.13t
-            backend: "c"
-          - os: macos-latest
-            python-version: 3.13t
-            backend: "cpp"
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~10-15 minutes for ubuntu / macos and ~25 for windows,

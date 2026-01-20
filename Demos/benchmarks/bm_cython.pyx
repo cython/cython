@@ -1,3 +1,5 @@
+# cython: auto_pickle=False
+
 import cython
 
 import array
@@ -9,12 +11,18 @@ from functools import partial
 
 # Memoryviews.
 
-def _unpack_buffer_const_char_1d(provider, int number, timer=time.perf_counter):
+def _unpack_buffer_const_char_1d(provider, number: cython.long, timer=time.perf_counter):
     cdef const unsigned char[:] buffer
 
+    provider1 = provider
+    provider2 = provider[:]
+
+    i: cython.long
+
     t = timer()
-    for _ in range(number):
-        buffer = provider
+    for i in range(number):
+        buffer = provider1
+        buffer = provider2
     t = timer() - t
     return t
 
@@ -30,21 +38,37 @@ cdef const unsigned char[:] _pass_slice(const unsigned char[:] view):
     return view[::2]
 
 
-def _slice_memoryview(data, int number, timer=time.perf_counter):
+def _slice_memoryview(data, number: cython.long, timer=time.perf_counter):
     cdef const unsigned char[:] view = data
     cdef const unsigned char[:] view2
     cdef long dummy = 0
-    cdef Py_ssize_t i
+    cdef Py_ssize_t i, max_index = len(view) - 1
 
     t = timer()
 
-    for _ in range(number):
-        for i in range(len(view) - 1):
-            view2 = _pass_slice(view[i:])
-            dummy += view2[0]
+    index = 0
+    for i in range(number):
+        index += 1
+        if index >= max_index:
+            index = 0
 
-            view2 = _pass_slice(view[:i+1])
-            dummy -= view2[i // 2]
+        view2 = _pass_slice(view[index:])
+        dummy += view2[0]
+
+        view2 = _pass_slice(view[:index+1])
+        dummy -= view2[index // 2]
+
+        view2 = _pass_slice(view[:index+1:2])
+        dummy -= view2[0]
+
+        view2 = _pass_slice(view[index:])
+        dummy += view2[0]
+
+        view2 = _pass_slice(view[:index+1])
+        dummy -= view2[index // 2]
+
+        view2 = _pass_slice(view[:index+1:2])
+        dummy -= view2[0]
 
     t = timer() - t
 
@@ -58,7 +82,7 @@ bm_slice_memoryview = partial(_slice_memoryview, bytes([i % 256 for i in range(1
 
 # With statement.
 
-def _with_contextmanager_pass(cm, int number, timer=time.perf_counter):
+def _with_contextmanager_pass(cm, number: cython.long, timer=time.perf_counter):
     i: cython.long
     t = timer()
     for i in range(number):
@@ -68,7 +92,7 @@ def _with_contextmanager_pass(cm, int number, timer=time.perf_counter):
     return t
 
 
-def _with_contextmanager_raise(cm, int number, timer=time.perf_counter):
+def _with_contextmanager_raise(cm, number: cython.long, timer=time.perf_counter):
     i: cython.long
     exception = TypeError()
     t = timer()
@@ -97,7 +121,7 @@ bm_with_CyCM_raise = partial(_with_contextmanager_raise, CyCM())
 
 # Create inner functions.
 
-def bm_create_inner_func_plain(scale, timer=time.perf_counter):
+def bm_create_inner_func_plain(scale: cython.long, timer=time.perf_counter):
     i: cython.long
     t = timer()
     for i in range(scale):
@@ -107,11 +131,17 @@ def bm_create_inner_func_plain(scale, timer=time.perf_counter):
             pass
         def inner_c(arg1, int arg2):
             pass
+        def inner_d(arg1, int arg2):
+            pass
+        def inner_e(arg1, int arg2):
+            pass
+        def inner_f(arg1, int arg2):
+            pass
     t = timer() - t
     return t
 
 
-def bm_create_inner_func_closure(scale, timer=time.perf_counter):
+def bm_create_inner_func_closure(scale: cython.long, timer=time.perf_counter):
     i: cython.long
     t = timer()
     for i in range(scale):
@@ -120,63 +150,18 @@ def bm_create_inner_func_closure(scale, timer=time.perf_counter):
         def inner2(arg1, int arg2):
             return inner1()
         def inner3(arg1, arg2=inner1):
-            return inner2()
+            return inner2(arg1, 4)
+        def inner4(arg1, arg2):
+            return inner3(arg1)
+        def inner5(arg1, int arg2):
+            return inner4(arg1, arg2)
+        def inner6(arg1, arg2=inner4):
+            return inner5(arg2, 5)
     t = timer() - t
     return t
 
 
-# Iterate over first digits of π.
-
-def bm_iter_str_listcomp(scale, timer=time.perf_counter):
-    i: cython.long
-    t = timer()
-    for i in range(scale):
-        [ch for ch in (
-            "3141592653589793238462643383279502884197169399375105820974944592307816406286"  # 76 characters
-            "2089986280348253421170679821480865132823066470938446095505822317253594081284"  # 76 characters
-        )]
-    t = timer() - t
-    return t
-
-
-def bm_iter_str_forin(scale, timer=time.perf_counter):
-    any_none: bool = False
-    t = timer()
-    for i in range(scale):
-        for ch in (
-                "3141592653589793238462643383279502884197169399375105820974944592307816406286"  # 76 characters
-                "2089986280348253421170679821480865132823066470938446095505822317253594081284"  # 76 characters
-                ):
-            any_none |= (ch is None)
-    t = timer() - t
-    assert not any_none
-    return t
-
-
-def bm_iter_bytes_listcomp(scale, timer=time.perf_counter):
-    t = timer()
-    for i in range(scale):
-        [ch for ch in (
-            b"3141592653589793238462643383279502884197169399375105820974944592307816406286"  # 76 characters
-            b"2089986280348253421170679821480865132823066470938446095505822317253594081284"  # 76 characters
-        )]
-    t = timer() - t
-    return t
-
-
-def bm_iter_bytes_forin(scale, timer=time.perf_counter):
-    any_none: bool = False
-    t = timer()
-    for i in range(scale):
-        for ch in (
-                b"3141592653589793238462643383279502884197169399375105820974944592307816406286"  # 76 characters
-                b"2089986280348253421170679821480865132823066470938446095505822317253594081284"  # 76 characters
-                ):
-            any_none |= (ch is None)
-    t = timer() - t
-    assert not any_none
-    return t
-
+#### main ####
 
 def time_benchmarks(scale):
     timings = {}

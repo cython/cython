@@ -59,8 +59,6 @@ def repeat_to_accuracy(func, *args,
     # Put an upper bound on the wall clock runtime as well.
     max_runtime = get_wall_time() + 1 * 45
 
-    import sys
-
     count: cython.long
     discarded: cython.long = 0
     for count in range(2, max_iterations + 1):
@@ -72,7 +70,7 @@ def repeat_to_accuracy(func, *args,
         delta = execution_time - mean
 
         # Discard extremely slow outliers.
-        if delta / mean > outlier_threshold:
+        if mean and delta / mean > outlier_threshold:
             discarded += 1
             continue
         count -= discarded
