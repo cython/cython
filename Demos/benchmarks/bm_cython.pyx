@@ -11,13 +11,13 @@ from functools import partial
 
 # Memoryviews.
 
-def _unpack_buffer_const_char_1d(provider, int number, timer=time.perf_counter):
+def _unpack_buffer_const_char_1d(provider, number: cython.long, timer=time.perf_counter):
     cdef const unsigned char[:] buffer
 
     provider1 = provider
     provider2 = provider[:]
 
-    cdef int i
+    i: cython.long
 
     t = timer()
     for i in range(number):
@@ -38,7 +38,7 @@ cdef const unsigned char[:] _pass_slice(const unsigned char[:] view):
     return view[::2]
 
 
-def _slice_memoryview(data, int number, timer=time.perf_counter):
+def _slice_memoryview(data, number: cython.long, timer=time.perf_counter):
     cdef const unsigned char[:] view = data
     cdef const unsigned char[:] view2
     cdef long dummy = 0
@@ -82,7 +82,7 @@ bm_slice_memoryview = partial(_slice_memoryview, bytes([i % 256 for i in range(1
 
 # With statement.
 
-def _with_contextmanager_pass(cm, int number, timer=time.perf_counter):
+def _with_contextmanager_pass(cm, number: cython.long, timer=time.perf_counter):
     i: cython.long
     t = timer()
     for i in range(number):
@@ -92,7 +92,7 @@ def _with_contextmanager_pass(cm, int number, timer=time.perf_counter):
     return t
 
 
-def _with_contextmanager_raise(cm, int number, timer=time.perf_counter):
+def _with_contextmanager_raise(cm, number: cython.long, timer=time.perf_counter):
     i: cython.long
     exception = TypeError()
     t = timer()
@@ -121,7 +121,7 @@ bm_with_CyCM_raise = partial(_with_contextmanager_raise, CyCM())
 
 # Create inner functions.
 
-def bm_create_inner_func_plain(scale, timer=time.perf_counter):
+def bm_create_inner_func_plain(scale: cython.long, timer=time.perf_counter):
     i: cython.long
     t = timer()
     for i in range(scale):
@@ -141,7 +141,7 @@ def bm_create_inner_func_plain(scale, timer=time.perf_counter):
     return t
 
 
-def bm_create_inner_func_closure(scale, timer=time.perf_counter):
+def bm_create_inner_func_closure(scale: cython.long, timer=time.perf_counter):
     i: cython.long
     t = timer()
     for i in range(scale):
@@ -158,61 +158,6 @@ def bm_create_inner_func_closure(scale, timer=time.perf_counter):
         def inner6(arg1, arg2=inner4):
             return inner5(arg2, 5)
     t = timer() - t
-    return t
-
-
-# Iterate over first digits of π.
-
-def bm_iter_str_listcomp(scale, timer=time.perf_counter):
-    i: cython.long
-    t = timer()
-    for i in range(scale):
-        [ch for ch in (
-            "3141592653589793238462643383279502884197169399375105820974944592307816"  # 70 characters
-            "4062862089986280348253421170679821480865132823066470938446095505822317"  # 70 characters
-        )]
-    t = timer() - t
-    return t
-
-
-def bm_iter_str_forin(scale, timer=time.perf_counter):
-    any_none: bool = False
-    t = timer()
-    for i in range(scale):
-        for ch in (
-                "3141592653589793238462643383279502884197169399375105820974944592307816"  # 70 characters
-                "4062862089986280348253421170679821480865132823066470938446095505822317"  # 70 characters
-                ):
-            any_none |= (ch is None)
-    t = timer() - t
-    if any_none:
-        raise RuntimeError("unexpected result")
-    return t
-
-
-def bm_iter_bytes_listcomp(scale, timer=time.perf_counter):
-    t = timer()
-    for i in range(scale):
-        [ch for ch in (
-            b"3141592653589793238462643383279502884197169399375105820974944592307816"  # 70 characters
-            b"4062862089986280348253421170679821480865132823066470938446095505822317"  # 70 characters
-        )]
-    t = timer() - t
-    return t
-
-
-def bm_iter_bytes_forin(scale, timer=time.perf_counter):
-    any_none: bool = False
-    t = timer()
-    for i in range(scale):
-        for ch in (
-                b"3141592653589793238462643383279502884197169399375105820974944592307816"  # 70 characters
-                b"4062862089986280348253421170679821480865132823066470938446095505822317"  # 70 characters
-                ):
-            any_none |= (ch is None)
-    t = timer() - t
-    if any_none:
-        raise RuntimeError("unexpected result")
     return t
 
 
