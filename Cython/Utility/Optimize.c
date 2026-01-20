@@ -1591,7 +1591,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
     }
 
 #if CYTHON_USE_PYLONG_INTERNALS
-digits_done:
+digits_done:;
 #endif
 
     {{if op in ('Eq', 'Ne')}}
