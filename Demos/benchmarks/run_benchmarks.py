@@ -280,10 +280,13 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
         os.path.join(*module.split('.')) + '.py'
         for module in compiled_modules
     ]
-    source_files = [
-        source_file for source_file in source_files
-        if (cython_dir / source_file).is_file()
-    ]
+
+    # Some older Cython versions may not have some modules, so check again the checkout.
+    for compiled_module, source_file in list(zip(compiled_modules, source_files)):
+        if not (cython_dir / source_file).is_file():
+            compiled_modules.remove(compiled_module)
+            source_files.remove(source_file)
+
     parallel = f'-j{len(source_files)}'
 
     cythonize_times = {}
