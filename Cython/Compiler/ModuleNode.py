@@ -6,9 +6,10 @@
 import cython
 cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=object,
                error=object, warning=object, py_object_type=object, UtilityCode=object,
-               EncodedString=object, re=object)
+               EncodedString=object, itertools=object, operator=object, re=object)
 
 from collections import defaultdict
+import itertools
 import json
 import operator
 import os
@@ -2889,70 +2890,132 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.type.create_from_py_utility_code(env)
 
     def generate_import_star(self, env, code):
-        env.use_utility_code(UtilityCode.load_cached("CStringEquals", "StringTools.c"))
         code.start_initcfunc(
             f"int {Naming.import_star_set}("
-            f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname},"
-            "PyObject *o, PyObject* py_name, const char *name)")
+            f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname}, "
+            "PyObject* o, PyObject* py_name)")
 
-        code.putln("static const char* internal_type_names[] = {")
-        for name, entry in sorted(env.entries.items()):
-            if entry.is_type:
-                code.putln('"%s",' % name)
-        code.putln("0")
-        code.putln("};")
-
-        code.putln("const char** type_name = internal_type_names;")
-        code.putln("while (*type_name) {")
-        code.putln("if (__Pyx_StrEq(name, *type_name)) {")
-        code.putln('PyErr_Format(PyExc_TypeError, "Cannot overwrite C type %s", name);')
-        code.putln('goto bad;')
-        code.putln("}")
-        code.putln("type_name++;")
-        code.putln("}")
+        code.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
 
         old_error_label = code.new_error_label()
-        code.putln("if (0);")  # so the first one can be "else if"
-        msvc_count = 0
-        for name, entry in sorted(env.entries.items()):
-            if entry.is_cglobal and entry.used and not entry.type.is_const:
-                msvc_count += 1
-                if msvc_count % 100 == 0:
-                    code.putln("#ifdef _MSC_VER")
-                    code.putln("if (0);  /* Workaround for MSVC C1061. */")
-                    code.putln("#endif")
-                code.putln('else if (__Pyx_StrEq(name, "%s")) {' % name)
-                if entry.type.is_pyobject:
-                    if entry.type.is_extension_type or entry.type.is_builtin_type:
-                        type_test = entry.type.type_test_code(
-                            env, "o")
-                        code.putln("if (!(%s)) %s;" % (
-                            type_test,
-                            code.error_goto(entry.pos)))
-                    code.putln("Py_INCREF(o);")
-                    code.put_decref(entry.cname, entry.type, nanny=False)
-                    code.putln("%s = %s;" % (
-                        entry.cname,
-                        PyrexTypes.typecast(entry.type, py_object_type, "o")))
-                elif entry.type.create_from_py_utility_code(env):
-                    # if available, utility code was already created in self.prepare_utility_code()
-                    code.putln(entry.type.from_py_call_code(
-                        'o', entry.cname, entry.pos, code))
-                else:
-                    code.putln('PyErr_Format(PyExc_TypeError, "Cannot convert Python object %s to %s");' % (
-                        name, entry.type))
-                    code.putln(code.error_goto(entry.pos))
-                code.putln("}")
-        code.putln("else {")
-        code.putln("if (PyObject_SetAttr(%s, py_name, o) < 0) goto bad;" % Naming.module_cname)
+        cannot_overwrite = code.new_label("cannot_overwrite")
+        cannot_convert = code.new_label("cannot_convert")
+        done = code.new_label("done")
+
+        # Always compare and store plain, interned 'str' objects.
+        code.putln("PyObject *__pyx_interned_name = PyUnicode_FromObject(py_name);")
+        code.putln("if (unlikely(!__pyx_interned_name)) return -1;")
+        code.putln("Py_ssize_t __pyx_slen = PyUnicode_GetLength(__pyx_interned_name);")
+        code.putln("if (unlikely(__pyx_slen < 1)) {")
+        code.put("if (__pyx_slen < 0) goto bad; else ")
+        code.put_goto(done)
         code.putln("}")
+        code.putln("PyUnicode_InternInPlace(&__pyx_interned_name);")
+        # Replace borrowed argument reference with borrowed local reference.
+        code.putln("py_name = __pyx_interned_name;")
+
+        # Specific C assignments.
+
+        entries = env.entries
+        cglobal_names = [
+            name for name, entry in entries.items()
+            if not (entry.scope.is_internal or name.lower().startswith('__pyx_')) and (
+                entry.is_cglobal and entry.used and not entry.type.is_const
+                or entry.is_cclass
+            )
+        ]
+        cglobal_names.sort()
+
+        def handle_entry(name, entry):
+            py_name = code.get_py_string_const(name, identifier=True)
+            code.put(f'if (py_name == {py_name}) ')  # Compare the two interned names.
+            if entry.is_cclass:
+                code.put_goto(cannot_overwrite)
+                return
+
+            code.putln('{')
+            if entry.type.is_pyobject:
+                if entry.type.is_extension_type or entry.type.is_builtin_type:
+                    type_test = entry.type.type_test_code(
+                        env, "o")
+                    code.putln("if (!(%s)) %s;" % (
+                        type_test,
+                        code.error_goto(entry.pos)))
+                code.putln("Py_INCREF(o);")
+                code.putln(f"{entry.type.declaration_code(Naming.quick_temp_cname)} = {entry.cname};")
+                code.putln("%s = %s;" % (
+                    entry.cname,
+                    PyrexTypes.typecast(entry.type, py_object_type, "o")))
+                code.put_decref(Naming.quick_temp_cname, entry.type, nanny=False)
+                code.put_goto(done)
+            elif entry.type.create_from_py_utility_code(env):
+                # if available, utility code was already created in self.prepare_utility_code()
+                code.putln(entry.type.from_py_call_code(
+                    'o', entry.cname, entry.pos, code))
+                code.put_goto(done)
+            else:
+                code.put(f"failed_type = {EncodedString(entry.type).as_c_string_literal()}; ")
+                code.put_goto(cannot_convert)
+            code.putln('}')
+
+        if cglobal_names:
+            prefix_groups = [
+                (start_letter, list(names))
+                for start_letter, names in itertools.groupby(cglobal_names, key=operator.itemgetter(0))
+            ]
+
+            code.putln("{")
+            code.putln("const char* failed_type = NULL;")
+
+            code.putln("Py_UCS4 __pyx_start_letter = __Pyx_PyUnicode_READ_CHAR(py_name, 0);")
+            code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+            code.putln("if (unlikely(__pyx_start_letter) == (Py_UCS4) -1) goto bad;")
+            code.putln("#endif")
+
+            code.putln("switch (__pyx_start_letter) {")
+            for start_letter, names in prefix_groups:
+                code.putln(f"case {ord(start_letter)}:")
+                for name in names:
+                    handle_entry(name, entries[name])
+                code.putln("break;")
+            code.putln("}")
+
+            if not code.label_used(cannot_convert):
+                code.putln("CYTHON_UNUSED_VAR(failed_type);")
+
+            pysetattr = code.new_label("python_setattr")
+            code.put_goto(pysetattr)
+
+            if code.label_used(cannot_convert):
+                code.put_label(cannot_convert)
+                code.putln(
+                    f'PyErr_Format(PyExc_TypeError, "Cannot convert Python object %.200U to %.200s", py_name, failed_type);')
+                code.putln("goto bad;")
+
+            if code.label_used(cannot_overwrite):
+                code.put_label(cannot_overwrite)
+                code.putln('PyErr_Format(PyExc_TypeError, "Cannot overwrite C type %.200U", py_name);')
+                code.putln("goto bad;")
+
+            code.put_label(pysetattr)
+            code.putln("}")
+
+        # Generic module dict assignment.
+
+        code.putln(f"if (PyObject_SetAttr({Naming.module_cname}, py_name, o) < 0) goto bad;")
+
+        # Error handling and function exit.
+
+        code.put_label(done)
         code.putln("return 0;")
+
         if code.label_used(code.error_label):
             code.put_label(code.error_label)
-            # This helps locate the offending name.
+            # This helps locate the offending name, but we can only jump here with a known valid code position.
             code.put_add_traceback(EncodedString(self.full_module_name))
         code.error_label = old_error_label
         code.putln("bad:")
+        code.putln("Py_DECREF(__pyx_interned_name);")
         code.putln("return -1;")
         code.putln("}")
         code.putln("")

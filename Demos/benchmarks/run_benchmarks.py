@@ -71,26 +71,42 @@ def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_l
         raise
 
 def run_not_timed_python(python_command, **kwargs):
-    output = run([sys.executable, *python_command], unset_lang=True, **kwargs)
-    return {'user': float('NaN')}
+    timer = time.monotonic
+    t = timer()
+    run([sys.executable, *python_command], **kwargs)
+    t = timer() - t
+
+    return {'user': float('NaN'), 'elapsed': t}
 
 def run_timed_python(python_command, **kwargs):
+    timer = time.monotonic
+    t = timer()
     output = run(['time', sys.executable, *python_command], unset_lang=True, **kwargs)
+    t = timer() - t
 
-    parse = re.compile(r"([0-9.:]+)([%\w]+)").findall
+    # The exact output of the 'time' command looks different on different systems,
+    # but it's broadly something like this:
+    parse = re.compile(r"([0-9][0-9.:]*)\s*([%a-zA-Z]+)").findall
 
     results = {}
     for line in output.stderr.decode().splitlines()[-2:]:
         for number, name in parse(line):
-            if ':' in number:
-                value = 0
-                factor = 1
-                for part in number.split(':'):
-                    value = value * factor + float(part)
-                    factor *= 60
-            else:
-                value = float(number)
-            results[name] = value
+            try:
+                if ':' in number:
+                    value = 0
+                    factor = 1
+                    for part in number.split(':'):
+                        value = value * factor + float(part)
+                        factor *= 60
+                else:
+                    value = float(number)
+                results[name] = value
+            except ValueError:
+                # Hopefully unrelated output.
+                pass
+
+    if 'elapsed' not in results:
+        results['elapsed'] = results.get('real', t)
 
     return results
 
@@ -237,7 +253,7 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
         "Cython.Plex.Actions",
         "Cython.Plex.Scanners",
         "Cython.Compiler.FlowControl",
-        #"Cython.Compiler.LineTable",  # not in base line Cython revision
+        "Cython.Compiler.LineTable",  # not in base line Cython revision
         "Cython.Compiler.Scanning",
         "Cython.Compiler.Visitor",
         #"Cython.Runtime.refnanny",  # .pyx
@@ -264,6 +280,13 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
         os.path.join(*module.split('.')) + '.py'
         for module in compiled_modules
     ]
+
+    # Some older Cython versions may not have some modules, so check again the checkout.
+    for compiled_module, source_file in list(zip(compiled_modules, source_files)):
+        if not (cython_dir / source_file).is_file():
+            compiled_modules.remove(compiled_module)
+            source_files.remove(source_file)
+
     parallel = f'-j{len(source_files)}'
 
     cythonize_times = {}
@@ -431,7 +454,7 @@ def measure_dll_size(path: pathlib.Path):
     # (but it's unlikely that Windows will have 'strip' either)
     compiled_path, = dir.glob(f"{name}*.so")
     subprocess.run(
-        ["strip", compiled_path, "-g", "-o" , stripped_path ]
+        ["strip", compiled_path, "-S", "-o" , stripped_path ]
     )
     stripped_size = stripped_path.stat().st_size
     stripped_path.unlink()
