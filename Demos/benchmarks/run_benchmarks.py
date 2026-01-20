@@ -253,7 +253,7 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
         "Cython.Plex.Actions",
         "Cython.Plex.Scanners",
         "Cython.Compiler.FlowControl",
-        #"Cython.Compiler.LineTable",  # not in base line Cython revision
+        "Cython.Compiler.LineTable",  # not in base line Cython revision
         "Cython.Compiler.Scanning",
         "Cython.Compiler.Visitor",
         #"Cython.Runtime.refnanny",  # .pyx
@@ -279,6 +279,10 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
     source_files = [
         os.path.join(*module.split('.')) + '.py'
         for module in compiled_modules
+    ]
+    source_files = [
+        source_file for source_file in source_files
+        if (cython_dir / source_file).is_file()
     ]
     parallel = f'-j{len(source_files)}'
 
