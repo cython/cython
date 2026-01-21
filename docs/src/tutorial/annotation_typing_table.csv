@@ -1,7 +1,7 @@
 Feature             ,Cython 0.29        ,Cython 3.0                
 ``int``,Any Python object,Exact Python ``int`` (``language_level=3`` only)
 ``float``,,C ``double``
-"Builtin type  e.g. ``dict``, ``list`` ",,"Exact type (no  subclasses), not ``None``"
+"Builtin type  e.g. ``dict``, ``list``, ``list[any_type]``, ... ",,"Exact type (no  subclasses), not ``None``"
 Extension type defined in Cython ,,"Specified type or a  subclasses, not ``None``"
 "``cython.int``,  ``cython.long``,  etc. ",,Equivalent C numeric type
 ``typing.Optional[any_type]``,Not supported,"Specified type (which  must be a Python object), allows ``None``"

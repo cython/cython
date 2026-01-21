@@ -302,7 +302,7 @@ def builtin_type_methods():
 
     u = u'abc def'
     split = u.split()
-    assert typeof(split) == 'list object', typeof(split)
+    assert typeof(split) == 'list[str object] object', typeof(split)
 
     str_result1 = u.upper()
     assert typeof(str_result1) == "str object", typeof(str_result1)

@@ -720,7 +720,7 @@ class DictOffsetSlot(SlotDescriptor):
             if dict_entry.is_inherited:
                 return "0"
             from . import Builtin
-            if dict_entry.type is not Builtin.dict_type:
+            if dict_entry.type != Builtin.dict_type:
                 error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
                 return "0"
             type = scope.parent_type
