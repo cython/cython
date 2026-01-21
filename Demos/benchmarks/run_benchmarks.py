@@ -67,30 +67,56 @@ def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_l
             env=env,
         )
     except subprocess.CalledProcessError as exc:
-        logging.error(f"Command failed: {' '.join(map(str, command))}\nOutput:\n{exc.stderr.decode()}")
+        logging.error(f"Command failed: {' '.join(map(str, command))}\nOutput:\n{exc.stderr.decode() if capture_stderr else ''}")
         raise
 
+def run_not_timed_python(python_command, **kwargs):
+    timer = time.monotonic
+    t = timer()
+    run([sys.executable, *python_command], **kwargs)
+    t = timer() - t
+
+    return {'user': float('NaN'), 'elapsed': t}
 
 def run_timed_python(python_command, **kwargs):
+    timer = time.monotonic
+    t = timer()
     output = run(['time', sys.executable, *python_command], unset_lang=True, **kwargs)
+    t = timer() - t
 
-    parse = re.compile(r"([0-9.:]+)([%\w]+)").findall
+    # The exact output of the 'time' command looks different on different systems,
+    # but it's broadly something like this:
+    parse = re.compile(r"([0-9][0-9.:]*)\s*([%a-zA-Z]+)").findall
 
     results = {}
     for line in output.stderr.decode().splitlines()[-2:]:
         for number, name in parse(line):
-            if ':' in number:
-                value = 0
-                factor = 1
-                for part in number.split(':'):
-                    value = value * factor + float(part)
-                    factor *= 60
-            else:
-                value = float(number)
-            results[name] = value
+            try:
+                if ':' in number:
+                    value = 0
+                    factor = 1
+                    for part in number.split(':'):
+                        value = value * factor + float(part)
+                        factor *= 60
+                else:
+                    value = float(number)
+                results[name] = value
+            except ValueError:
+                # Hopefully unrelated output.
+                pass
+
+    if 'elapsed' not in results:
+        results['elapsed'] = results.get('real', t)
 
     return results
 
+def check_gnu_time():
+    global run_python
+    if not shutil.which("time"):
+        logging.warning("GNU time is not installed. Python command duration will not be shown!")
+        run_python = run_not_timed_python
+    else:
+        run_python = run_timed_python
 
 def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None, cython_version=None):
     util_file = BENCHMARKS_DIR / "util.py"
@@ -152,7 +178,7 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c
     source_files = bm_files + util_files
 
     logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
-    times = run_timed_python(
+    times = run_python(
         [str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *source_files, *(cythonize_args or [])],
         cwd=cython_dir,
         c_macros=c_macros,
@@ -184,7 +210,7 @@ setup(
     bm_list = ', '.join(bm_file.stem for bm_file in bm_files)
     bm_count = len(bm_files)
     logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
-    times = run_timed_python(
+    times = run_python(
         ["setup.py", "build_ext", "-i"],
         cwd=tmp_dir,
         pythonpath=cython_dir,
@@ -227,7 +253,7 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
         "Cython.Plex.Actions",
         "Cython.Plex.Scanners",
         "Cython.Compiler.FlowControl",
-        #"Cython.Compiler.LineTable",  # not in base line Cython revision
+        "Cython.Compiler.LineTable",  # not in base line Cython revision
         "Cython.Compiler.Scanning",
         "Cython.Compiler.Visitor",
         #"Cython.Runtime.refnanny",  # .pyx
@@ -254,12 +280,19 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
         os.path.join(*module.split('.')) + '.py'
         for module in compiled_modules
     ]
+
+    # Some older Cython versions may not have some modules, so check again the checkout.
+    for compiled_module, source_file in list(zip(compiled_modules, source_files)):
+        if not (cython_dir / source_file).is_file():
+            compiled_modules.remove(compiled_module)
+            source_files.remove(source_file)
+
     parallel = f'-j{len(source_files)}'
 
     cythonize_times = {}
 
     # Cythonize modules in Python.
-    times = run_timed_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
+    times = run_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
     t = times['user']
     logging.info(f"    Cythonize modules in Python: {t:.2f} sec user ({times['elapsed']} sec)")
     cythonize_times['cythonize_python'] = [t]
@@ -267,7 +300,7 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
     # Build binary modules (without cythonize).
     # To avoid partially compiled imports, import all non-compiled Cython modules before compiling them.
     pre_imports = ','.join(compiled_modules)
-    times = run_timed_python(
+    times = run_python(
         ["-c", f"import {pre_imports}; import setup; setup.run_build()", "build_ext", "-i", parallel, "--cython-compile-minimal"],
         cwd=cython_dir,
         c_macros=c_macros,
@@ -277,18 +310,18 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
     cythonize_times['cythonize_build_ext'] = [t]
 
     # Cythonize modules with minimal binary Cython.
-    times = run_timed_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
+    times = run_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
     t = times['user']
     logging.info(f"    Cythonize modules with minimal compiled Cython: {t:.2f} sec user ({times['elapsed']} sec)")
     cythonize_times['cythonize_compiled_minimal'] = [t]
 
     # Build binary modules (without cythonize). Time not reported.
-    times = run_timed_python(["setup.py", "build_ext", "-i", parallel], cwd=cython_dir, c_macros=c_macros)
+    times = run_python(["setup.py", "build_ext", "-i", parallel], cwd=cython_dir, c_macros=c_macros)
     t = times['user']
     logging.info(f"    'setup.py build_ext' after translation: {t:.2f} sec user ({times['elapsed']} sec)")
 
     # Cythonize modules with binary Cython.
-    times = run_timed_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
+    times = run_python(["cythonize.py", "-f", parallel, *source_files], cwd=cython_dir)
     t = times['user']
     logging.info(f"    Cythonize modules with compiled Cython: {t:.2f} sec user ({times['elapsed']} sec)")
     cythonize_times['cythonize_compiled'] = [t]
@@ -376,10 +409,11 @@ def _make_bench_func(bm_dir, module_name, pythonpath=None):
         command = python_command + ["-c", py_code]
 
         output = run(command, cwd=bm_dir, pythonpath=pythonpath, capture_stderr=False)
+        stdout = output.stdout.decode()
 
         timings = {}
 
-        for line in output.stdout.decode().splitlines():
+        for line in stdout.splitlines():
             name = module_name
             if line.endswith(']') and '[' in line:
                 if ':' in line:
@@ -390,7 +424,7 @@ def _make_bench_func(bm_dir, module_name, pythonpath=None):
                     timings[name] = [float(t) for t in line[1:-1].split(',')]
 
         if not timings:
-            logging.error(f"Benchmark failed: {module_name}\nOutput:\n{output.stderr.decode()}")
+            logging.error(f"Benchmark failed: {module_name}\nOutput:\n{stdout}")
             raise RuntimeError(f"Benchmark failed: {module_name}")
 
         return timings
@@ -421,7 +455,7 @@ def measure_dll_size(path: pathlib.Path):
     # (but it's unlikely that Windows will have 'strip' either)
     compiled_path, = dir.glob(f"{name}*.so")
     subprocess.run(
-        ["strip", compiled_path, "-g", "-o" , stripped_path ]
+        ["strip", compiled_path, "-S", "-o" , stripped_path ]
     )
     stripped_size = stripped_path.stat().st_size
     stripped_path.unlink()
@@ -746,6 +780,8 @@ if __name__ == '__main__':
         format="%(asctime)s  %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    check_gnu_time()
 
     benchmark_selectors = set(bm.strip() for bm in options.benchmarks.split(","))
     benchmarks = [bm for bm in ALL_BENCHMARKS if any(selector in bm for selector in benchmark_selectors)]

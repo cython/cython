@@ -1,6 +1,9 @@
 # cython.* namespace for pure mode.
 from __future__ import annotations
 
+# Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
+__version__ = "3.3.0a0"
+
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -21,10 +24,6 @@ _C_Or_TypeT = TypeVar('_C_Or_TypeT', _C, _TypeT)
 _Decorator = Callable[[_C_Or_TypeT], _C_Or_TypeT]
 _FuncDecorator = Callable[[_C], _C]
 _ClassDecorator = Callable[[_TypeT], _TypeT]
-
-# Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.3.0a0"
-
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
 

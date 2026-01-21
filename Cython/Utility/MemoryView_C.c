@@ -516,7 +516,7 @@ static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW($memviewslice_cname *memslice,
 static $memviewslice_cname
 __pyx_memoryview_copy_new_contig(const $memviewslice_cname *from_mvs,
                                  const char *mode, int ndim,
-                                 size_t sizeof_dtype, int contig_flag,
+                                 Py_ssize_t sizeof_dtype, int contig_flag,
                                  int dtype_is_object);
 
 
@@ -527,7 +527,7 @@ __pyx_memoryview_copy_new_contig(const $memviewslice_cname *from_mvs,
 static $memviewslice_cname
 __pyx_memoryview_copy_new_contig(const $memviewslice_cname *from_mvs,
                                  const char *mode, int ndim,
-                                 size_t sizeof_dtype, int contig_flag,
+                                 Py_ssize_t sizeof_dtype, int contig_flag,
                                  int dtype_is_object)
 {
     __Pyx_RefNannyDeclarations
@@ -614,7 +614,7 @@ no_fail:
 
 #define {{func_cname}}(slice) \
         __pyx_memoryview_copy_new_contig(&slice, "{{mode}}", {{ndim}},            \
-                                         sizeof({{dtype_decl}}), {{contig_flag}}, \
+                                         (Py_ssize_t) sizeof({{dtype_decl}}), {{contig_flag}}, \
                                          {{dtype_is_object}})
 
 

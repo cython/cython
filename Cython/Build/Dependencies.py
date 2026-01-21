@@ -1194,20 +1194,15 @@ if os.environ.get('XML_RESULTS'):
                 module = fully_qualified_name(args[0])
                 name = "cythonize." + module
                 failures = 1 - success
-                if success:
-                    failure_item = ""
-                else:
-                    failure_item = "failure"
-                output = open(os.path.join(compile_result_dir, name + ".xml"), "w")
-                output.write("""
+                with open(os.path.join(compile_result_dir, name + ".xml"), "w") as output:
+                    output.write(f"""
                     <?xml version="1.0" ?>
-                    <testsuite name="%(name)s" errors="0" failures="%(failures)s" tests="1" time="%(t)s">
-                    <testcase classname="%(name)s" name="cythonize">
-                    %(failure_item)s
+                    <testsuite name="{name}" errors="0" failures="{failures}" tests="1" time="{t}">
+                    <testcase classname="{name}" name="cythonize">
+                    {'' if success else 'failure'}
                     </testcase>
                     </testsuite>
-                """.strip() % locals())
-                output.close()
+                    """.strip())
         return with_record
 else:
     def record_results(func):
