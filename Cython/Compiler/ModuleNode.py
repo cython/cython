@@ -4074,6 +4074,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         alignment_func = f"__PYX_GET_STRUCT_ALIGNMENT_{Naming.cyversion}"
         code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
         code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
+        if not type.scope.var_entries:
+            # If we don't have any attributes to acccess then it's safe not
+            # to check when using opaque objects. Even inheritance doesn't need
+            # to know anything about the objstruct.
+            code.putln("#elif CYTHON_OPAQUE_OBJECTS")
+            code.putln('0, 0,')
         code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
         if is_builtin:
             # Builtin types are opaque in when the limited API is enabled

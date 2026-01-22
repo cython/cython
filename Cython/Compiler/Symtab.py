@@ -90,7 +90,7 @@ class Entry:
     # is_anonymous     boolean    Is a anonymous pyfunction entry
     # is_type          boolean    Is a type definition
     # is_cclass        boolean    Is an extension class
-    # is_cclass_var_rentry  boolean Is a var entry of an extension type
+    # is_cclass_var_entry  boolean Is a var entry of an extension type
     #                              (Hack! Only needed because most C globals are
     #                               static variables while these live in the module scope.
     #                               Remove when fixed.)
