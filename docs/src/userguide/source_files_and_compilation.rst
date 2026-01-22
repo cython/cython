@@ -574,6 +574,7 @@ Also take a look at the `cython_freeze
 It can generate the necessary boilerplate code for linking one or more
 modules into a single Python executable.
 
+You can also utilize the `snakehouse <https://github.com/smok-serwis/snakehouse>`_ module to automatically generate wrappers and stubs for your module, for using them with a standard Python runtime.
 
 .. _pyximport:
 
