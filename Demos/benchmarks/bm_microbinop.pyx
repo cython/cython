@@ -11,8 +11,8 @@ from functools import partial
 
 ### Comparisons
 
-number_types1 = cython.fused_type(int, float, object)
-number_types2 = cython.fused_type(int, float, object)
+item_types1 = cython.fused_type(int, float, str, object)
+item_types2 = cython.fused_type(int, float, str, object)
 
 
 @cython.total_ordering
@@ -34,20 +34,24 @@ class Wrapped:
 
 
 @cython.cfunc
-def _bubblesort_steps(items: list, _type1: number_types1=0, _type2: number_types2=0):
+def _bubblesort_steps(items: list, _type1: item_types1, _type2: item_types2):
     """A few iterations of bubblesort that scale linearly with the number of elements.
     """
-    if number_types1 is int:
+    if item_types1 is int:
         a: int | None
-    elif number_types1 is float:
+    elif item_types1 is float:
         a: float | None
+    elif item_types1 is str:
+        a: str | None
     else:
         a: object
 
-    if number_types2 is int:
+    if item_types2 is int:
         b: int | None
-    elif number_types2 is float:
+    elif item_types2 is float:
         b: float | None
+    elif item_types2 is str:
+        b: str | None
     else:
         b: object
 
@@ -74,22 +78,32 @@ def _bubblesort_steps(items: list, _type1: number_types1=0, _type2: number_types
 
 def _comparisons(type_selection: cython.int, item_type, scale: cython.Py_ssize_t, timer=time.perf_counter):
     items = list(map(item_type, itertools.chain(range(0, scale*10, 3), range(2, scale*10, 3))))
+    typeval = item_type(0)
 
     t = timer()
+    # numbers: int/float/Wrapped
     if type_selection == 1:
-        _bubblesort_steps[object,object](items)
+        _bubblesort_steps[object,object](items, typeval, typeval)
     elif type_selection == 2:
-        _bubblesort_steps[object,int](items)
+        _bubblesort_steps[object,int](items, typeval, typeval)
     elif type_selection == 3:
-        _bubblesort_steps[object,float](items)
+        _bubblesort_steps[object,float](items, typeval, typeval)
     elif type_selection == 4:
-        _bubblesort_steps[int,object](items)
+        _bubblesort_steps[int,object](items, typeval, typeval)
     elif type_selection == 5:
-        _bubblesort_steps[float,object](items)
+        _bubblesort_steps[float,object](items, typeval, typeval)
     elif type_selection == 6:
-        _bubblesort_steps[int,int](items)
+        _bubblesort_steps[int,int](items, typeval, typeval)
     elif type_selection == 7:
-        _bubblesort_steps[float,float](items)
+        _bubblesort_steps[float,float](items, typeval, typeval)
+    # str
+    elif type_selection == 8:
+        _bubblesort_steps[object,str](items, typeval, typeval)
+    elif type_selection == 9:
+        _bubblesort_steps[str,object](items, typeval, typeval)
+    elif type_selection == 10:
+        _bubblesort_steps[str,str](items, typeval, typeval)
+    # reject everything else
     else:
         assert False
     t = timer() - t
@@ -97,8 +111,9 @@ def _comparisons(type_selection: cython.int, item_type, scale: cython.Py_ssize_t
     return t
 
 
+# Number benchmarks
 bm_cmp_obj_obj_mix = partial(_comparisons, 1, lambda v: v if v&1 else float(v))
-bm_cmp_obj_obj_ext = partial(_comparisons, 1, lambda v: Wrapped(v) if v % 3 == 0 else float(v) if v % 3 == 1 else v)
+bm_cmp_obj_obj_numext = partial(_comparisons, 1, lambda v: Wrapped(v) if v % 3 == 0 else float(v) if v % 3 == 1 else v)
 bm_cmp_obj_obj_int = partial(_comparisons, 1, int)
 bm_cmp_obj_obj_float = partial(_comparisons, 1, float)
 bm_cmp_obj_int = partial(_comparisons, 2, int)
@@ -107,6 +122,13 @@ bm_cmp_int_obj = partial(_comparisons, 4, int)
 bm_cmp_float_obj = partial(_comparisons, 5, float)
 bm_cmp_int_int = partial(_comparisons, 6, int)
 bm_cmp_float_float = partial(_comparisons, 7, float)
+
+# String benchmarks
+bm_cmp_obj_obj_str = partial(_comparisons, 1, str)
+bm_cmp_obj_obj_strext = partial(_comparisons, 1, lambda v: Wrapped(str(v)) if v % 2 == 0 else str(v))
+bm_cmp_obj_str_str = partial(_comparisons, 8, str)
+bm_cmp_str_obj_str = partial(_comparisons, 9, str)
+bm_cmp_str_str_str = partial(_comparisons, 10, str)
 
 
 #### main ####
