@@ -598,6 +598,9 @@ class typedef(CythonType):
     def __repr__(self) -> str:
         return self.name or str(self._basetype)
 
+    def __instancecheck__(self, inst):
+        return isinstance(inst, self._basetype)
+
     __getitem__ = index_type
 
 
