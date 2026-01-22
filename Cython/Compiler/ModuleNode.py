@@ -4082,7 +4082,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # working when a builtin type is imported but not actually used.
             code.putln('0, 0,')
         else:
+            code.putln('#if !CYTHON_OPAQUE_OBJECTS')
             code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
+            code.putln('#else')
+            code.putln('0, 0,')
+            code.putln("#endif")
         code.putln('#else')
         code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
         code.putln("#endif")
