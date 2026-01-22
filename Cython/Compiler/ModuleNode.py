@@ -3402,8 +3402,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         class ModInitSubfunction:
             def __init__(self, code_type):
-                cname = '_'.join(code_type.lower().split())
-                assert re.match("^[a-z0-9_]+$", cname)
+                cname = '_'.join(code_type.split())
+                assert re.match("^[a-zA-Z0-9_]+$", cname)
                 self.cfunc_name = "__Pyx_modinit_%s" % cname
                 self.description = code_type
                 self.tempdecl_code = None
