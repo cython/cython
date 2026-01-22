@@ -970,6 +970,82 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.block = None
         return node
 
+    def visit_MatchNode(self, node):
+        # https://peps.python.org/pep-0634/#side-effects-and-undefined-behavior
+        # The specification of structural pattern matching gives
+        # a reasonable amount of freedom about when a binding takes
+        # effect (especially for matches that fail after a few completed
+        # steps).
+        # To make it easier to reason about which variables are bound,
+        # Cython delays the binding until the entire statement has been
+        # evaluated, but before the guard is evaluated.
+        # Therefore an unguarded match statement is equivalent to
+        #
+        #  if case1:
+        #     bound_variable = something
+        #     block
+        #  elif case2...
+        #
+        # while a guarded match statement is equivalent to
+        #
+        #  if case1:
+        #    bound_variable = something
+        #    if guard:
+        #      block
+        #      goto end
+        #  if case2: ...
+        #
+        # Note also that some of the cases may have just been transformed into
+        # if blocks
+        from .MatchCaseNodes import MatchCaseNode, SubstitutedMatchCaseNode
+
+        self._visit(node.subject)
+
+        next_block = self.flow.newblock()
+        orig_parent = self.flow.block
+        guard_block = None
+        for case in node.cases:
+            if isinstance(case, MatchCaseNode):
+                case_block = self.flow.nextblock(orig_parent)
+                if guard_block:
+                    guard_block.add_child(case_block)
+                self._visit(case.pattern)
+                self.flow.nextblock()
+                if case.target_assignments:
+                    self._visit(case.target_assignments)
+                if case.guard:
+                    guard_block = self.flow.nextblock()
+                    self._visit(case.guard)
+                else:
+                    guard_block = None
+                self.flow.nextblock()
+                self._visit(case.body)
+                if self.flow.block:
+                    self.flow.block.add_child(next_block)
+            elif isinstance(case, SubstitutedMatchCaseNode):
+                self.flow.nextblock()
+                if guard_block:
+                    guard_block.add_child(self.flow.block)
+                    guard_block = None
+                self._visit(case.body)
+                orig_parent = self.flow.block
+            else:
+                assert False, case
+
+        if orig_parent is not None:
+            orig_parent.add_child(next_block)
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
+        return node
+
+    def visit_PatternNode(self, node):
+        # avoid visiting anything that might be a target (since they're
+        # handled elsewhere)
+        self.visitchildren(node, attrs=None, exclude=["as_targets", "target"])
+        return node
+
     def visit_AssertStatNode(self, node):
         """Essentially an if-condition that wraps a RaiseStatNode.
         """

@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.3.0a1 (202?-??-??)
+3.3.0a1 (2026-??-??)
 ====================
 
 Features added
@@ -43,6 +43,9 @@ Features added
 
 * Several C++ exception declarations were added to ``libcpp.exceptions``.
   (Github issue :issue:`7389`)
+
+* Missing Python type flag declarations were added to ``cpython.object``.
+  (Github issue :issue:`7441`)
 
 * Error detection when assigning to ``const`` variables was improved.
   (Github issue :issue:`7359`)
@@ -97,11 +100,34 @@ Other changes
   (Github issue :issue:`7376`)
 
 
-3.2.4 (2025-12-??)
+3.2.4 (2026-01-04)
 ==================
+
+Features added
+--------------
+
+* In preparation of Cython 3.3, a new decorator ``@collection_type(tname)`` can be used
+  to advertise an extension type as being a ``'sequence'`` or ``'mapping'``.  This currently
+  only has the effect of setting the ``Py_TPFLAGS_SEQUENCE`` flag on the type or not, but
+  is provided for convenience to allow using the new decorator already in Cython 3.2 code.
+
+* Several C++ exception declarations were added to ``libcpp.exceptions``.
+  (Github issue :issue:`7389`)
 
 Bugs fixed
 ----------
+
+* Pseudo-literal default values of function arguments like ``arg=str()`` could generate
+  invalid C code when internally converted into a real literal.
+  (Github issue :issue:`6192`)
+
+* The pickle serialisation of extension types using the ``auto_pickle`` feature was
+  larger than necessary since 3.2.0 for types without Python object attributes.
+  It is now back to the state before 3.2.0 again.
+  (Github issue :issue:`7443`)
+
+* Constants are now only made immortal on freethreading Python if they are not shared.
+  (Github issue :issue:`7439`)
 
 * ``PyDict_SetDefaultRef()`` is now used when available to avoid temporary borrowed references.
   (Github issue :issue:`7347`)
@@ -697,7 +723,7 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.8 (2025-12-??)
+3.1.8 (2026-01-03)
 ==================
 
 Bugs fixed

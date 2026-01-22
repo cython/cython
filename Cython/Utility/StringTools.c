@@ -59,7 +59,7 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
 //@requires: TypeConversion.c::GCCDiagnostics
 
 static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
-    PyObject *module, *decompress, *compressed_bytes, *decompressed;
+    PyObject *module = NULL, *decompress, *compressed_bytes, *decompressed;
 
     const char* module_name = algo == 3 ? "compression.zstd" : algo == 2 ? "bz2" : "zlib";
 
@@ -69,7 +69,7 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
     #if __PYX_LIMITED_VERSION_HEX >= 0x030e0000
     if (algo == 3) {
         PyObject *fromlist = Py_BuildValue("[O]", methodname);
-        if (unlikely(!fromlist)) return NULL;
+        if (unlikely(!fromlist)) goto bad;
         module = PyImport_ImportModuleLevel("compression.zstd", NULL, NULL, fromlist, 0);
         Py_DECREF(fromlist);
     } else
@@ -182,18 +182,6 @@ static CYTHON_INLINE int __Pyx_PyUnicode_ContainsTF(PyObject* substring, PyObjec
 }
 
 
-//////////////////// CStringEquals.proto ////////////////////
-
-static CYTHON_INLINE int __Pyx_StrEq(const char *, const char *); /*proto*/
-
-//////////////////// CStringEquals ////////////////////
-
-static CYTHON_INLINE int __Pyx_StrEq(const char *s1, const char *s2) {
-    while (*s1 != '\0' && *s1 == *s2) { s1++; s2++; }
-    return *s1 == *s2;
-}
-
-
 //////////////////// UnicodeEquals.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
@@ -201,14 +189,16 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
 //////////////////// UnicodeEquals ////////////////////
 
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
-    return PyObject_RichCompareBool(s1, s2, equals);
-#else
-    int s1_is_unicode, s2_is_unicode;
     if (s1 == s2) {
-        /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
+        // as done by PyObject_RichCompareBool(); also catches the (interned) empty string
         goto return_eq;
     }
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL
+    return PyObject_RichCompareBool(s1, s2, equals);
+#elif CYTHON_COMPILING_IN_LIMITED_API
+    return __Pyx_PyObject_RichCompareBool(s1, s2, equals);
+#else
+    int s1_is_unicode, s2_is_unicode;
     s1_is_unicode = PyUnicode_CheckExact(s1);
     s2_is_unicode = PyUnicode_CheckExact(s2);
     if (s1_is_unicode & s2_is_unicode) {
@@ -260,19 +250,13 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
     } else if ((s2 == Py_None) & s1_is_unicode) {
         goto return_ne;
     } else {
-        int result;
-        PyObject* py_result = PyObject_RichCompare(s1, s2, equals);
-        if (!py_result)
-            return -1;
-        result = __Pyx_PyObject_IsTrue(py_result);
-        Py_DECREF(py_result);
-        return result;
+        return __Pyx_PyObject_RichCompareBool(s1, s2, equals);
     }
-return_eq:
-    return (equals == Py_EQ);
 return_ne:
     return (equals == Py_NE);
 #endif
+return_eq:
+    return (equals == Py_EQ);
 }
 
 
@@ -292,7 +276,7 @@ return_ne:
 #define __Pyx_PyObject_Equals_uchar(s1, s2, ch2, equals, s1_is_str) (\
     ((s1) == (s2)) ? ((equals) == Py_EQ) : \
     ((s1) == Py_None) ? ((equals) == Py_NE) : \
-    PyObject_RichCompareBool(s1, s2, equals) \
+    __Pyx_PyObject_RichCompareBool(s1, s2, equals) \
     )
 
 #else
@@ -301,7 +285,7 @@ return_ne:
     ((s1) == Py_None) ? ((equals) == Py_NE) : \
     (likely((s1_is_str) || PyUnicode_CheckExact(s1)) ? \
         __Pyx__PyUnicode_EqualsUCS4(s1, ch2, equals) : \
-        PyObject_RichCompareBool(s1, s2, equals) \
+        __Pyx_PyObject_RichCompareBool(s1, s2, equals) \
     ))
 
 static CYTHON_INLINE int __Pyx__PyUnicode_EqualsUCS4(PyObject* s1, Py_UCS4 ch2, int equals); /*proto*/
@@ -371,14 +355,16 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
 //@requires: IncludeStringH
 
 static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL || \
-        !(CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS)
-    return PyObject_RichCompareBool(s1, s2, equals);
-#else
     if (s1 == s2) {
-        /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
-        return (equals == Py_EQ);
-    } else if (PyBytes_CheckExact(s1) & PyBytes_CheckExact(s2)) {
+        // as done by PyObject_RichCompareBool(); also catches the (interned) empty string
+        goto return_eq;
+    }
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL
+    return PyObject_RichCompareBool(s1, s2, equals);
+#elif CYTHON_COMPILING_IN_LIMITED_API || !(CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS)
+    return __Pyx_PyObject_RichCompareBool(s1, s2, equals);
+#else
+    if (PyBytes_CheckExact(s1) & PyBytes_CheckExact(s2)) {
         const char *ps1, *ps2;
         Py_ssize_t length = PyBytes_GET_SIZE(s1);
         if (length != PyBytes_GET_SIZE(s2))
@@ -387,9 +373,9 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
         ps1 = PyBytes_AS_STRING(s1);
         ps2 = PyBytes_AS_STRING(s2);
         if (ps1[0] != ps2[0]) {
-            return (equals == Py_NE);
+            goto return_ne;
         } else if (length == 1) {
-            return (equals == Py_EQ);
+            goto return_eq;
         } else {
             int result;
 #if CYTHON_USE_UNICODE_INTERNALS && (PY_VERSION_HEX < 0x030B0000)
@@ -397,26 +383,24 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
             hash1 = ((PyBytesObject*)s1)->ob_shash;
             hash2 = ((PyBytesObject*)s2)->ob_shash;
             if (hash1 != hash2 && hash1 != -1 && hash2 != -1) {
-                return (equals == Py_NE);
+                goto return_ne;
             }
 #endif
             result = memcmp(ps1, ps2, (size_t)length);
             return (equals == Py_EQ) ? (result == 0) : (result != 0);
         }
     } else if ((s1 == Py_None) & PyBytes_CheckExact(s2)) {
-        return (equals == Py_NE);
+        goto return_ne;
     } else if ((s2 == Py_None) & PyBytes_CheckExact(s1)) {
-        return (equals == Py_NE);
+        goto return_ne;
     } else {
-        int result;
-        PyObject* py_result = PyObject_RichCompare(s1, s2, equals);
-        if (!py_result)
-            return -1;
-        result = __Pyx_PyObject_IsTrue(py_result);
-        Py_DECREF(py_result);
-        return result;
+        return __Pyx_PyObject_RichCompareBool(s1, s2, equals);
     }
+return_ne:
+    return (equals == Py_NE);
 #endif
+return_eq:
+    return (equals == Py_EQ);
 }
 
 //////////////////// SetStringIndexingError.proto /////////////////
