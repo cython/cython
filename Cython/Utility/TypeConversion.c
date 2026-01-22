@@ -1308,7 +1308,7 @@ static CYTHON_INLINE {{TYPE}} __Pyx_PySLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
 
     #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
-    if ((sizeof({{TYPE}}) <= sizeof(int))) {
+    if ((sizeof({{TYPE}}) <= sizeof(int)) && (sizeof(int) < sizeof(long))) {
         __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, int, PyLong_AsInt(x))
     } else
     #endif
