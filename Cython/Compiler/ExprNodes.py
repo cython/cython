@@ -13933,6 +13933,7 @@ class CmpNode:
                         self.special_bool_cmp_utility_code = TempitaUtilityCode.load_cached(
                             "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': True})
                         self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_ch{character}_{'str' if is_str else 'obj'}"
+                        return True
                     elif self.operand2.is_string_literal and self.operand2.can_coerce_to_char_literal():
                         # We need to keep the signature (obj1, obj2, eq), so we generate one macro function per character.
                         character = ord(self.operand2.value[0])
@@ -13940,10 +13941,7 @@ class CmpNode:
                         self.special_bool_cmp_utility_code = TempitaUtilityCode.load_cached(
                             "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': False})
                         self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_{'str' if is_str else 'obj'}_ch{character}"
-                    else:
-                        self.special_bool_cmp_utility_code = UtilityCode.load_cached("UnicodeEquals", "StringTools.c")
-                        self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
-                    return True
+                        return True
                 elif type1 is Builtin.bytes_type or type2 is Builtin.bytes_type:
                     self.special_bool_cmp_utility_code = UtilityCode.load_cached("BytesEquals", "StringTools.c")
                     self.special_bool_cmp_function = "__Pyx_PyBytes_Equals"
@@ -13990,7 +13988,7 @@ class CmpNode:
     def find_compare_function(self, code, operand1):
         if self.operator in ('==', '!=', '<', '<=', '>=', '>'):
             type1, type2 = operand1.type, self.operand2.type
-            if {type1, type2} < {py_object_type, Builtin.int_type, Builtin.float_type}:
+            if {type1, type2} < {py_object_type, Builtin.int_type, Builtin.float_type, Builtin.unicode_type}:
                 type_names = (type1.name, type2.name)
                 op_name = {'==': 'Eq', '!=': 'Ne', '<': 'Lt', '<=': 'Le', '>=': 'Ge', '>': 'Gt'}[self.operator]
                 code.globalstate.use_utility_code(TempitaUtilityCode.load_cached(

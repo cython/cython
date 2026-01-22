@@ -1090,20 +1090,172 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_py
 {{py: return_error = "return NULL" if ret_type.is_pyobject else "return -1"}}
 {{py: c_op_reversed = {'==': '==', '!=': '!=', '<': '>=', '<=': '>', '>=': '<', '>': '<='}[c_op] }}
 {{py:
-def is_type(operand, expected, type1=type1, type2=type2):
+check_functions = {
+    'float': "PyFloat_CheckExact",
+    'int': 'PyLong_CheckExact',
+    'str': 'PyUnicode_CheckExact',
+}
+}}
+{{py:
+def is_type(operand, expected, type1=type1, type2=type2, check_functions=check_functions):
     assert operand in ('op1', 'op2'), operand
-    assert expected in ('int', 'float'), type
+    assert expected in ('int', 'float', 'str'), type
     type = type1 if operand == 'op1' else type2
     if type == expected:
         check = f"likely({operand} != Py_None)"
     else:
-        function = "PyFloat_CheckExact" if expected == 'float' else 'PyLong_CheckExact'
+        function = check_functions[expected]
         check = f"{function}({operand})"
         other_type = type2 if operand == 'op1' else type1
         if other_type == expected:
             check = f"likely({check})"
     return check
 }}
+
+{{if type1 in ('object', 'str') and type2 in ('object', 'str')}}
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API)
+
+{{if op in 'EqNe'}}
+#ifndef __Pyx_DEFINED_PyObject_CompareStrStr{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareStrStr{{func_suffix}}
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(PyObject* s1, PyObject* s2) {
+    Py_ssize_t length, length2;
+    #if !CYTHON_COMPILING_IN_LIMITED_API
+    if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0))
+        return {{'NULL' if ret_type.is_pyobject else '-1'}};
+    #endif
+
+    length = __Pyx_PyUnicode_GET_LENGTH(s1);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length < 0)) return {{'NULL' if ret_type.is_pyobject else '-1'}};
+    #endif
+    length2 = __Pyx_PyUnicode_GET_LENGTH(s2);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length2 < 0)) return {{'NULL' if ret_type.is_pyobject else '-1'}};
+    #endif
+
+    if (length != length2) {{return_false if op == 'Eq' else return_true}};
+    // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
+
+    #if CYTHON_USE_UNICODE_INTERNALS
+    {
+        Py_hash_t hash1, hash2;
+        hash1 = ((PyASCIIObject*)s1)->hash;
+        hash2 = ((PyASCIIObject*)s2)->hash;
+        if (hash1 != hash2 && hash1 != -1 && hash2 != -1) {{return_false if op == 'Eq' else return_true}};
+    }
+    #endif
+
+    {
+        int kind = __Pyx_PyUnicode_KIND(s1);
+        if (kind != __Pyx_PyUnicode_KIND(s2)) {{return_false if op == 'Eq' else return_true}};
+
+        void *data1 = __Pyx_PyUnicode_DATA(s1);
+        void *data2 = __Pyx_PyUnicode_DATA(s2);
+
+        // Ignore the character kind as we are only interested in equal or not.
+        int result = memcmp(data1, data2, (size_t)(length * kind));
+        if (result {{c_op}} 0) {{return_true}}; else {{return_false}};
+    }
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
+}
+#endif
+
+{{else}}
+{{py: assert op in 'LtLeGeGt', op }}
+
+#ifndef __Pyx_DEFINED_PyObject_SameBuffer_CompareStrStr
+#define __Pyx_DEFINED_PyObject_SameBuffer_CompareStrStr
+static CYTHON_INLINE Py_ssize_t __Pyx_PyObject_SameBuffer_CompareStrStr(Py_ssize_t length, int kind, void* data1, void* data2) {
+    if (kind == 1) {
+        return memcmp(data1, data2, (size_t) length);
+    } else {
+        Py_ssize_t pos = 0;
+        Py_UCS4 char1, char2;
+        char1 = __Pyx_PyUnicode_READ(kind, data1, 0);
+        char2 = __Pyx_PyUnicode_READ(kind, data2, 0);
+        while (char1 == char2) {
+            ++pos;
+            if (pos >= length) return 0;
+            char1 = __Pyx_PyUnicode_READ(kind, data1, pos);
+            char2 = __Pyx_PyUnicode_READ(kind, data2, pos);
+        }
+        return char1 - char2;
+    }
+}
+#endif
+
+#ifndef __Pyx_DEFINED_PyObject_DifferentBuffer_CompareStrStr
+#define __Pyx_DEFINED_PyObject_DifferentBuffer_CompareStrStr
+static CYTHON_INLINE Py_ssize_t __Pyx_PyObject_DifferentBuffer_CompareStrStr(Py_ssize_t length, int kind1, int kind2, void* data1, void* data2) {
+    Py_ssize_t pos = 0;
+    Py_UCS4 char1, char2;
+    char1 = __Pyx_PyUnicode_READ(kind1, data1, 0);
+    char2 = __Pyx_PyUnicode_READ(kind2, data2, 0);
+    while (char1 == char2) {
+        ++pos;
+        if (pos >= length) return 0;
+        char1 = __Pyx_PyUnicode_READ(kind1, data1, pos);
+        char2 = __Pyx_PyUnicode_READ(kind2, data2, pos);
+    }
+    return char1 - char2;
+}
+#endif
+
+#ifndef __Pyx_DEFINED_PyObject_CompareStrStr{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareStrStr{{func_suffix}}
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(PyObject* s1, PyObject* s2) {
+    Py_ssize_t short_length, length1, length2;
+    #if !CYTHON_COMPILING_IN_LIMITED_API
+    if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0))
+        return {{'NULL' if ret_type.is_pyobject else '-1'}};
+    #endif
+
+    length1 = __Pyx_PyUnicode_GET_LENGTH(s1);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length1 < 0)) return {{'NULL' if ret_type.is_pyobject else '-1'}};
+    #endif
+    length2 = __Pyx_PyUnicode_GET_LENGTH(s2);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length2 < 0)) return {{'NULL' if ret_type.is_pyobject else '-1'}};
+    #endif
+
+    short_length = (length1 < length2) ? length1 : length2;
+    if (short_length == 0) {
+        if (length1 == 0) {{return_true if op in 'LtLe' else return_false}}; else {{return_false if op in 'LtLe' else return_true}};
+    }
+
+    {
+        int kind1 = __Pyx_PyUnicode_KIND(s1);
+        int kind2 = __Pyx_PyUnicode_KIND(s2);
+        void *data1 = __Pyx_PyUnicode_DATA(s1);
+        void *data2 = __Pyx_PyUnicode_DATA(s2);
+
+        Py_ssize_t cmp;
+        if (kind1 == kind2) {
+            cmp = __Pyx_PyObject_SameBuffer_CompareStrStr(short_length, kind1, data1, data2);
+        } else {
+            cmp = __Pyx_PyObject_DifferentBuffer_CompareStrStr(short_length, kind1, kind2, data1, data2);
+        }
+        if (cmp == 0) cmp = (length1 - length2);
+        if (cmp {{c_op}} 0) {{return_true}}; else {{return_false}};
+    }
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
+}
+#endif
+{{endif}}
+
+// End of str comparisons.
+#endif
+{{endif}}
 
 {{if type1 in ('object', 'float') and type2 in ('object', 'int')}}
 // Less likely, non-inlined comparison of float and int.
@@ -1237,7 +1389,7 @@ __pyx_return_false:
 #endif
 {{endif}}
 
-{{if type1 != 'float' and type2 != 'float'}}
+{{if type1 in ('object', 'int') and type2 in ('object', 'int')}}
 {{py: from Cython.Utility import pylong_join }}
 
 #ifndef __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
@@ -1370,6 +1522,21 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{func_suffix}}_{{type
 
         goto __pyx_richcmp;
     }
+    {{endif}}
+
+    {{if type1 in ('object', 'str') and type2 in ('object', 'str')}}
+    #if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API)
+    if ({{is_type('op1', 'str')}}) {
+        // Catch interned and identical strings as well as the empty string.
+        if (op1 == op2) {{return_true if op in 'EqLeGe' else return_false}};
+
+        if ({{is_type('op2', 'str')}}) {
+            return __Pyx_PyObject_CompareStrStr{{func_suffix}}(op1, op2);
+        }
+
+        goto __pyx_richcmp;
+    }
+    #endif
     {{endif}}
 
     // avoid unused labels
