@@ -18,6 +18,7 @@ import re
 import sys
 from typing import Sequence
 
+from .PyrexTypes import CPtrType
 from . import Future
 from . import Annotate
 from . import Code
@@ -28,8 +29,6 @@ from . import TypeSlots
 from . import PyrexTypes
 from . import Pythran
 
-from .PyrexTypes import CPtrType
-from .Symtab import punycodify_name
 from .Errors import error, warning, CompileError, format_position
 from .PyrexTypes import py_object_type, get_all_subtypes
 from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version, is_cython_generated_file
@@ -3403,7 +3402,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         class ModInitSubfunction:
             def __init__(self, code_type):
-                cname = punycodify_name('_'.join(code_type.lower().split()))
+                cname = '_'.join(code_type.lower().split())
                 assert re.match("^[a-z0-9_]+$", cname)
                 self.cfunc_name = "__Pyx_modinit_%s" % cname
                 self.description = code_type
@@ -3973,7 +3972,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_type_import_code(env, entry.type, entry.pos, code, import_generator)
                 else:
                     self.generate_base_type_import_code(env, entry, code, import_generator)
-                    with subfunction("Exttype " + entry.cname) as inner_code:
+                    with subfunction("Exttype " + entry.type.objstruct_cname) as inner_code:
                         self.generate_exttype_vtable_init_code(entry, inner_code)
                         if entry.type.early_init:
                             self.generate_type_ready_code(entry, inner_code)
