@@ -67,7 +67,7 @@ def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_l
             env=env,
         )
     except subprocess.CalledProcessError as exc:
-        logging.error(f"Command failed: {' '.join(map(str, command))}\nOutput:\n{exc.stderr.decode()}")
+        logging.error(f"Command failed: {' '.join(map(str, command))}\nOutput:\n{exc.stderr.decode() if capture_stderr else ''}")
         raise
 
 def run_not_timed_python(python_command, **kwargs):
@@ -409,10 +409,11 @@ def _make_bench_func(bm_dir, module_name, pythonpath=None):
         command = python_command + ["-c", py_code]
 
         output = run(command, cwd=bm_dir, pythonpath=pythonpath, capture_stderr=False)
+        stdout = output.stdout.decode()
 
         timings = {}
 
-        for line in output.stdout.decode().splitlines():
+        for line in stdout.splitlines():
             name = module_name
             if line.endswith(']') and '[' in line:
                 if ':' in line:
@@ -423,7 +424,7 @@ def _make_bench_func(bm_dir, module_name, pythonpath=None):
                     timings[name] = [float(t) for t in line[1:-1].split(',')]
 
         if not timings:
-            logging.error(f"Benchmark failed: {module_name}\nOutput:\n{output.stderr.decode()}")
+            logging.error(f"Benchmark failed: {module_name}\nOutput:\n{stdout}")
             raise RuntimeError(f"Benchmark failed: {module_name}")
 
         return timings
@@ -572,7 +573,7 @@ def benchmark_revision(
 
         git_clone(cython_dir, revision=None if plain_python else revision)
         cython_version_str = read_cython_version(cython_dir)
-        cython_version = (revision, *map(int, cython_version_str.split('.', 2)[:2]))
+        cython_version = (revision, *map(int, cython_version_str.split('.', 2)[:2])) if not plain_python else None
 
         cythonize_times = None
         if benchmark_cythonize:

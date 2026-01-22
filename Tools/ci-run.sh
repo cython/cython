@@ -81,7 +81,7 @@ if [[ $PYTHON_VERSION == "3.1"[2-9]* || $PYTHON_VERSION == *"-dev" || $PYTHON_VE
   python -m pip install -U pip wheel setuptools || exit 1
 else
   # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.10.
-  python -m pip install -U pip "setuptools<60" wheel twine "cryptography<42" "nh3<0.2.19" || exit 1
+  python -m pip install -U pip "setuptools<60" "wheel<0.46" "twine" "cryptography<42" "nh3<0.2.19" || exit 1
 fi
 if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" && $PYTHON_VERSION != "graalpy"* ]]; then
   # twine is not installable on freethreaded Python due to cryptography requirement
