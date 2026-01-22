@@ -573,7 +573,7 @@ def benchmark_revision(
 
         git_clone(cython_dir, revision=None if plain_python else revision)
         cython_version_str = read_cython_version(cython_dir)
-        cython_version = (revision, *map(int, cython_version_str.split('.', 2)[:2]))
+        cython_version = (revision, *map(int, cython_version_str.split('.', 2)[:2])) if not plain_python else None
 
         cythonize_times = None
         if benchmark_cythonize:
