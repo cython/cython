@@ -422,7 +422,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyLong_AsSsize_t(PyObject* b) {
 }
 
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
-    if (likely(PyLong_CheckExact(b))) {
+    if (likely(PyLong_Check(b))) {
         return __Pyx_PyLong_AsSsize_t(b);
     } else {
         Py_ssize_t ival;
