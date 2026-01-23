@@ -84,7 +84,7 @@ jobs:
                 COMMITS=("origin/3.1.x" "origin/master"  "HEAD")
                 CYTHONIZE_ARGS="${BENCHMARK_CYTHONIZE_ARGS} -Xfreethreading_compatible=True"
               else
-                COMMITS=("origin/3.0.x"  "3a7a936e099df468dcaa01829ae6567c577489c0"  "${LIMITED_API}" "origin/master"  "${LIMITED_API}" "HEAD")
+                COMMITS=("origin/3.0.x"  "3a7a936e099df468dcaa01829ae6567c577489c0"  "${LIMITED_API}" "origin/master" 356cb50fa002d6fd635fe2037a656ee50ec1b91a 5658cffcf7fb3c57376aea13941e6af5fbf1e2a9 31d10d53f6ec054022408309cb48d6981aa34778 "${LIMITED_API}" "HEAD")
                 CYTHONIZE_ARGS="${BENCHMARK_CYTHONIZE_ARGS}"
               fi
               ${PYTHON} Demos/benchmarks/run_benchmarks.py  --report-size benchmark_sizes_${PYTHON}.csv --report benchmark_results_${PYTHON}.csv --with-python  ${CYTHONIZE_ARGS} ${COMMITS[*]}
