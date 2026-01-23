@@ -13981,11 +13981,19 @@ class CmpNode:
                 return True
         return False
 
+    _optimised_compare_types = {
+        py_object_type,
+        Builtin.int_type,
+        Builtin.float_type,
+        Builtin.unicode_type,
+        Builtin.bytes_type,
+        Builtin.bytearray_type,
+    }
+
     def find_compare_function(self, code, operand1):
         if self.operator in ('==', '!=', '<', '<=', '>=', '>'):
             type1, type2 = operand1.type, self.operand2.type
-            if {type1, type2} < {py_object_type, Builtin.int_type, Builtin.float_type, Builtin.unicode_type, Builtin.bytes_type}:
-                type_names = (type1.name, type2.name)
+            if {type1, type2} < self._optimised_compare_types:
                 op_name = {'==': 'Eq', '!=': 'Ne', '<': 'Lt', '<=': 'Le', '>=': 'Ge', '>': 'Gt'}[self.operator]
                 code.globalstate.use_utility_code(TempitaUtilityCode.load_cached(
                     "PyObjectCompare", "Optimize.c", context={

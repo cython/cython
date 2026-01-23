@@ -110,6 +110,13 @@ def _comparisons(type_selection: cython.int, item_type, scale: cython.Py_ssize_t
         _bubblesort_steps[bytes,object](items, typeval, typeval)
     elif type_selection == 13:
         _bubblesort_steps[bytes,bytes](items, typeval, typeval)
+    # bytearray
+    elif type_selection == 14:
+        _bubblesort_steps[object,bytearray](items, typeval, typeval)
+    elif type_selection == 15:
+        _bubblesort_steps[bytearray,object](items, typeval, typeval)
+    elif type_selection == 16:
+        _bubblesort_steps[bytearray,bytearray](items, typeval, typeval)
     # reject everything else
     else:
         assert False
@@ -142,19 +149,33 @@ bm_cmp_str_obj = partial(_comparisons, 9, str)
 bm_cmp_str_str = partial(_comparisons, 10, str)
 bm_cmp_str_str_long = partial(_comparisons, 10, _make_long_str)
 
-# bytes benchmarks
+# bytes/bytearray benchmarks
 def _make_bytes(num):
     return b"%c" % (num % 256)
 def _make_long_bytes(num):
     return b' ' * (num % 349) + b"%c" % (num % 97)
 
+def _make_bytearray(num):
+    return bytearray(_make_bytes(num))
+def _make_long_bytearray(num):
+    return bytearray(_make_long_bytes(num))
+
 bm_cmp_obj_obj_bytes = partial(_comparisons, 1, _make_bytes)
+bm_cmp_obj_obj_bytearray = partial(_comparisons, 1, _make_bytearray)
+bm_cmp_obj_obj_bytemix = partial(_comparisons, 1, lambda v: _make_bytearray(v) if v % 3 == 0 else _make_bytes(v))
 bm_cmp_obj_obj_bytesext = partial(_comparisons, 1, lambda v: Wrapped(_make_bytes(v)) if v % 2 == 0 else _make_bytes(v))
+
 bm_cmp_obj_bytes = partial(_comparisons, 11, _make_bytes)
 bm_cmp_obj_bytes_long = partial(_comparisons, 11, _make_long_bytes)
 bm_cmp_bytes_obj = partial(_comparisons, 12, _make_bytes)
 bm_cmp_bytes_bytes = partial(_comparisons, 13, _make_bytes)
 bm_cmp_bytes_bytes_long = partial(_comparisons, 13, _make_long_bytes)
+
+bm_cmp_obj_bytearray = partial(_comparisons, 14, _make_bytearray)
+bm_cmp_obj_bytearray_long = partial(_comparisons, 14, _make_long_bytearray)
+bm_cmp_bytearray_obj = partial(_comparisons, 15, _make_bytearray)
+bm_cmp_bytearray_bytearray = partial(_comparisons, 16, _make_bytearray)
+bm_cmp_bytearray_bytearray_long = partial(_comparisons, 16, _make_long_bytearray)
 
 
 #### main ####
