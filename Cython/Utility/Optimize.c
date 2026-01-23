@@ -1184,7 +1184,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyObject_SameBuffer_CompareStrStr(Py_ssize
             char1 = __Pyx_PyUnicode_READ(kind, data1, pos);
             char2 = __Pyx_PyUnicode_READ(kind, data2, pos);
         }
-        return char1 - char2;
+        return (Py_ssize_t) char1 - (Py_ssize_t) char2;
     }
 }
 #endif
@@ -1202,7 +1202,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyObject_DifferentBuffer_CompareStrStr(Py_
         char1 = __Pyx_PyUnicode_READ(kind1, data1, pos);
         char2 = __Pyx_PyUnicode_READ(kind2, data2, pos);
     }
-    return char1 - char2;
+    return (Py_ssize_t) char1 - (Py_ssize_t) char2;
 }
 #endif
 
