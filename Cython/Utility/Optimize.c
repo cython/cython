@@ -1082,12 +1082,69 @@ fallback:
 #define __Pyx_PyUnicode_Equals(s1, s2)  __Pyx_PyObject_CompareBoolEq_str_str(s1, s2, Py_EQ)
 
 
+//////////////////// BytesEquals.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
+
+//////////////////// BytesEquals ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals) {
+    if (s1 == s2) {
+        // as done by PyObject_RichCompareBool(); also catches the (interned) empty string
+        goto return_eq;
+    }
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL
+    return PyObject_RichCompareBool(s1, s2, equals);
+#elif CYTHON_COMPILING_IN_LIMITED_API || !(CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS)
+    return __Pyx_PyObject_RichCompareBool(s1, s2, equals);
+#else
+    if (PyBytes_CheckExact(s1) & PyBytes_CheckExact(s2)) {
+        const char *ps1, *ps2;
+        Py_ssize_t length = PyBytes_GET_SIZE(s1);
+        if (length != PyBytes_GET_SIZE(s2))
+            return (equals == Py_NE);
+        // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
+        ps1 = PyBytes_AS_STRING(s1);
+        ps2 = PyBytes_AS_STRING(s2);
+        if (ps1[0] != ps2[0]) {
+            goto return_ne;
+        } else if (length == 1) {
+            goto return_eq;
+        } else {
+            int result;
+#if CYTHON_USE_UNICODE_INTERNALS && (PY_VERSION_HEX < 0x030B0000)
+            Py_hash_t hash1, hash2;
+            hash1 = ((PyBytesObject*)s1)->ob_shash;
+            hash2 = ((PyBytesObject*)s2)->ob_shash;
+            if (hash1 != hash2 && hash1 != -1 && hash2 != -1) {
+                goto return_ne;
+            }
+#endif
+            result = memcmp(ps1, ps2, (size_t)length);
+            return (equals == Py_EQ) ? (result == 0) : (result != 0);
+        }
+    } else if ((s1 == Py_None) & PyBytes_CheckExact(s2)) {
+        goto return_ne;
+    } else if ((s2 == Py_None) & PyBytes_CheckExact(s1)) {
+        goto return_ne;
+    } else {
+        return __Pyx_PyObject_RichCompareBool(s1, s2, equals);
+    }
+return_ne:
+    return (equals == Py_NE);
+#endif
+return_eq:
+    return (equals == Py_EQ);
+}
+
+
 /////////////// PyObjectCompare.proto ///////////////
 
 {{py: c_ret_type = 'PyObject*' if return_obj else 'int'}}
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if return_obj else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop); /*proto*/
 
 /////////////// PyObjectCompare ///////////////
+//@requires: StringTools.c::IncludeStringH
 
 {{py: c_ret_type = 'PyObject*' if return_obj else 'int'}}
 {{py: func_suffix = f"{'' if return_obj else 'Bool'}{op}"}}
@@ -1100,12 +1157,13 @@ check_functions = {
     'float': "PyFloat_CheckExact",
     'int': 'PyLong_CheckExact',
     'str': 'PyUnicode_CheckExact',
+    'bytes': 'PyBytes_CheckExact',
 }
 }}
 {{py:
 def is_type(operand, expected, type1=type1, type2=type2, check_functions=check_functions):
     assert operand in ('op1', 'op2'), operand
-    assert expected in ('int', 'float', 'str'), type
+    assert expected in ('int', 'float', 'str', 'bytes'), type
     type = type1 if operand == 'op1' else type2
     if type == expected:
         check = f"likely({operand} != Py_None)"
@@ -1117,6 +1175,8 @@ def is_type(operand, expected, type1=type1, type2=type2, check_functions=check_f
             check = f"likely({check})"
     return check
 }}
+
+// str comparisons
 
 {{if type1 in ('object', 'str') and type2 in ('object', 'str')}}
 #if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API)
@@ -1259,9 +1319,84 @@ __pyx_return_false:
 #endif
 {{endif}}
 
-// End of str comparisons.
+// end of str comparisons
 #endif
 {{endif}}
+
+// bytes comparisons
+
+{{if type1 in ('object', 'bytes') and type2 in ('object', 'bytes')}}
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API)
+
+#ifndef __Pyx_DEFINED_PyObject_CompareBytesBytes{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareBytesBytes{{func_suffix}}
+
+{{if op in 'EqNe'}}
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareBytesBytes{{func_suffix}}(PyObject* s1, PyObject* s2) {
+    const char *ps1, *ps2;
+    Py_ssize_t length = PyBytes_GET_SIZE(s1);
+    if (length != PyBytes_GET_SIZE(s2)) {{return_false if op == 'Eq' else return_true}};
+    // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
+
+    ps1 = PyBytes_AS_STRING(s1);
+    ps2 = PyBytes_AS_STRING(s2);
+    if (ps1[0] != ps2[0]) {{return_false if op == 'Eq' else return_true}};
+    if (length == 1) {{return_true if op == 'Eq' else return_false}};
+
+    {
+        int cmp;
+#if CYTHON_USE_UNICODE_INTERNALS && (PY_VERSION_HEX < 0x030B0000)
+        Py_hash_t hash1, hash2;
+        hash1 = ((PyBytesObject*)s1)->ob_shash;
+        hash2 = ((PyBytesObject*)s2)->ob_shash;
+        if (hash1 != hash2 && hash1 != -1 && hash2 != -1) {{return_false if op == 'Eq' else return_true}};
+#endif
+        cmp = memcmp(ps1, ps2, (size_t)length);
+        if (cmp {{c_op}} 0) {{return_true}}; else {{return_false}};
+    }
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
+}
+
+{{else}}
+// !EqNe
+
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareBytesBytes{{func_suffix}}(PyObject* s1, PyObject* s2) {
+    Py_ssize_t cmp;
+    Py_ssize_t length1 = PyBytes_GET_SIZE(s1);
+    Py_ssize_t length2 = PyBytes_GET_SIZE(s2);
+
+    Py_ssize_t short_length = (length1 < length2) ? length1 : length2;
+    if (short_length == 0) {
+        if (length1 == 0) {{return_true if op in 'LtLe' else return_false}}; else {{return_false if op in 'LtLe' else return_true}};
+    } else {
+        const char *ps1 = PyBytes_AS_STRING(s1);
+        const char *ps2 = PyBytes_AS_STRING(s2);
+        cmp = ps1[0] - ps2[0];
+
+        if (cmp == 0 && short_length > 1) {
+            cmp = memcmp(ps1, ps2, (size_t)short_length);
+        }
+    }
+    if (cmp == 0) cmp = (length1 - length2);
+    if (cmp {{c_op}} 0) {{return_true}}; else {{return_false}};
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
+}
+{{endif}}
+
+// End of bytes comparisons.
+#endif
+#endif
+{{endif}}
+
+// float/int comparisons
 
 {{if type1 in ('object', 'float') and type2 in ('object', 'int')}}
 // Less likely, non-inlined comparison of float and int.
@@ -1450,8 +1585,11 @@ __pyx_return_false:
     {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
 }
 #endif
+
+// end of float/int comparisons
 {{endif}}
 
+// main comparison function
 
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{func_suffix}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop) {
     CYTHON_UNUSED_VAR(pyop);
@@ -1530,20 +1668,26 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{func_suffix}}_{{type
     }
     {{endif}}
 
-    {{if type1 in ('object', 'str') and type2 in ('object', 'str')}}
+    {{for string_type in ('str', 'bytes')}}
+    {{if type1 in ('object', string_type) and type2 in ('object', string_type)}}
     #if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API)
-    if ({{is_type('op1', 'str')}}) {
+    if ({{is_type('op1', string_type)}}) {
         // Catch interned and identical strings as well as the empty string.
         if (op1 == op2) {{return_true if op in 'EqLeGe' else return_false}};
 
-        if ({{is_type('op2', 'str')}}) {
+        if ({{is_type('op2', string_type)}}) {
+            {{if string_type == 'str'}}
             return __Pyx_PyObject_CompareStrStr{{func_suffix}}(op1, op2);
+            {{else}}
+            return __Pyx_PyObject_CompareBytesBytes{{func_suffix}}(op1, op2);
+            {{endif}}
         }
 
         goto __pyx_richcmp;
     }
     #endif
     {{endif}}
+    {{endfor}}
 
     // avoid unused labels
     if ((0)) {{return_true}};

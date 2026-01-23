@@ -13942,10 +13942,6 @@ class CmpNode:
                             "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': False})
                         self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_{'str' if is_str else 'obj'}_ch{character}"
                         return True
-                elif type1 is Builtin.bytes_type or type2 is Builtin.bytes_type:
-                    self.special_bool_cmp_utility_code = UtilityCode.load_cached("BytesEquals", "StringTools.c")
-                    self.special_bool_cmp_function = "__Pyx_PyBytes_Equals"
-                    return True
                 elif result_is_bool:
                     from .Optimize import optimise_numeric_binop
                     result = optimise_numeric_binop(
@@ -13988,7 +13984,7 @@ class CmpNode:
     def find_compare_function(self, code, operand1):
         if self.operator in ('==', '!=', '<', '<=', '>=', '>'):
             type1, type2 = operand1.type, self.operand2.type
-            if {type1, type2} < {py_object_type, Builtin.int_type, Builtin.float_type, Builtin.unicode_type}:
+            if {type1, type2} < {py_object_type, Builtin.int_type, Builtin.float_type, Builtin.unicode_type, Builtin.bytes_type}:
                 type_names = (type1.name, type2.name)
                 op_name = {'==': 'Eq', '!=': 'Ne', '<': 'Lt', '<=': 'Le', '>=': 'Ge', '>': 'Gt'}[self.operator]
                 code.globalstate.use_utility_code(TempitaUtilityCode.load_cached(

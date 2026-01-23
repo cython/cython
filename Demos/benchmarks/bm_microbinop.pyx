@@ -11,8 +11,8 @@ from functools import partial
 
 ### Comparisons
 
-item_types1 = cython.fused_type(int, float, str, object)
-item_types2 = cython.fused_type(int, float, str, object)
+item_types1 = cython.fused_type(int, float, str, bytes, object)
+item_types2 = cython.fused_type(int, float, str, bytes, object)
 
 
 @cython.total_ordering
@@ -103,6 +103,13 @@ def _comparisons(type_selection: cython.int, item_type, scale: cython.Py_ssize_t
         _bubblesort_steps[str,object](items, typeval, typeval)
     elif type_selection == 10:
         _bubblesort_steps[str,str](items, typeval, typeval)
+    # bytes
+    elif type_selection == 11:
+        _bubblesort_steps[object,bytes](items, typeval, typeval)
+    elif type_selection == 12:
+        _bubblesort_steps[bytes,object](items, typeval, typeval)
+    elif type_selection == 13:
+        _bubblesort_steps[bytes,bytes](items, typeval, typeval)
     # reject everything else
     else:
         assert False
@@ -123,12 +130,31 @@ bm_cmp_float_obj = partial(_comparisons, 5, float)
 bm_cmp_int_int = partial(_comparisons, 6, int)
 bm_cmp_float_float = partial(_comparisons, 7, float)
 
-# String benchmarks
+# str benchmarks
+def _make_long_str(num):
+    return ' ' * (num % 349) + "%c" % (num % 97)
+
 bm_cmp_obj_obj_str = partial(_comparisons, 1, str)
 bm_cmp_obj_obj_strext = partial(_comparisons, 1, lambda v: Wrapped(str(v)) if v % 2 == 0 else str(v))
-bm_cmp_obj_str_str = partial(_comparisons, 8, str)
-bm_cmp_str_obj_str = partial(_comparisons, 9, str)
-bm_cmp_str_str_str = partial(_comparisons, 10, str)
+bm_cmp_obj_str = partial(_comparisons, 8, str)
+bm_cmp_obj_str_long = partial(_comparisons, 8, _make_long_str)
+bm_cmp_str_obj = partial(_comparisons, 9, str)
+bm_cmp_str_str = partial(_comparisons, 10, str)
+bm_cmp_str_str_long = partial(_comparisons, 10, _make_long_str)
+
+# bytes benchmarks
+def _make_bytes(num):
+    return b"%c" % (num % 256)
+def _make_long_bytes(num):
+    return b' ' * (num % 349) + b"%c" % (num % 97)
+
+bm_cmp_obj_obj_bytes = partial(_comparisons, 1, _make_bytes)
+bm_cmp_obj_obj_bytesext = partial(_comparisons, 1, lambda v: Wrapped(_make_bytes(v)) if v % 2 == 0 else _make_bytes(v))
+bm_cmp_obj_bytes = partial(_comparisons, 11, _make_bytes)
+bm_cmp_obj_bytes_long = partial(_comparisons, 11, _make_long_bytes)
+bm_cmp_bytes_obj = partial(_comparisons, 12, _make_bytes)
+bm_cmp_bytes_bytes = partial(_comparisons, 13, _make_bytes)
+bm_cmp_bytes_bytes_long = partial(_comparisons, 13, _make_long_bytes)
 
 
 #### main ####
