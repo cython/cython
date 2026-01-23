@@ -1698,13 +1698,13 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{func_suffix}}_{{type
             {{endif}}
         }
 
-        {{if string_type == 'bytes' or string_type == 'bytearray'}}
-        if ({{is_type('op2', 'bytearray' if string_type == 'bytes' else 'bytes')}}) {
-            {{if string_type == 'bytes'}}
+        {{if string_type == 'bytes' and type2 in ('object', 'bytearray')}}
+        if ({{is_type('op2', 'bytearray')}}) {
             return __Pyx_PyObject_ComparePyBytesPyByteArray{{func_suffix}}(op1, op2);
-            {{else}}
+        }
+        {{elif string_type == 'bytearray' and type2 in ('object', 'bytes')}}
+        if ({{is_type('op2', 'bytes')}}) {
             return __Pyx_PyObject_ComparePyByteArrayPyBytes{{func_suffix}}(op1, op2);
-            {{endif}}
         }
         {{endif}}
 
