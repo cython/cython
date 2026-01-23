@@ -1715,6 +1715,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{func_suffix}}_{{type
     {{endfor}}
 
     // avoid unused labels
+    if ((0)) goto __pyx_richcmp;
     if ((0)) {{return_true}};
     if ((0)) {{return_false}};
 
