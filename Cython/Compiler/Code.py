@@ -4,7 +4,8 @@
 
 
 import cython
-cython.declare(os=object, re=object, operator=object, textwrap=object,
+cython.declare(hashlib=object, json=object, operator=object, os=object, re=object,
+               shutil=object, textwrap=object,
                Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, defaultdict=object,
@@ -12,6 +13,7 @@ cython.declare(os=object, re=object, operator=object, textwrap=object,
                zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object)
 
 import hashlib
+import json
 import operator
 import os
 import re
@@ -555,7 +557,7 @@ class UtilityCodeBase(AbstractUtilityCode):
 
                 if tag_name not in ('requires', 'substitute', 'proto_block'):
                     raise RuntimeError(f"Found unknown tag name '{tag_name}' in utility section {name}.{type}")
-                if not re.match(r'\S+$', tag_value):
+                if not re.match(r'\S+(\{[^\}]*\})?$', tag_value):
                     raise RuntimeError(f"Found invalid tag value '{tag_value}' in utility section {name}.{type}")
 
                 tags[tag_name].add(tag_value)
@@ -594,13 +596,20 @@ class UtilityCodeBase(AbstractUtilityCode):
                     continue
                 # only pass lists when we have to: most argument expect one value or None
                 if name == 'requires':
-                    if orig_kwargs:
-                        values = [cls.load(dep, from_file, **orig_kwargs)
-                                  for dep in sorted(values)]
-                    else:
-                        # dependencies are rarely unique, so use load_cached() when we can
-                        values = [cls.load_cached(dep, from_file)
-                                  for dep in sorted(values)]
+                    dependencies = []
+                    for dep in sorted(values):
+                        if '{' in dep:
+                            split_pos = dep.index('{')
+                            tempita_context = json.loads(dep[split_pos:])
+                            dependency = TempitaUtilityCode.load_cached(
+                                dep[:split_pos], from_file, context=tempita_context, **kwargs)
+                        elif orig_kwargs:
+                            dependency = cls.load(dep, from_file, **orig_kwargs)
+                        else:
+                            # dependencies are rarely unique, so use load_cached() when we can
+                            dependency = cls.load_cached(dep, from_file)
+                        dependencies.append(dependency)
+                    values = dependencies
                 elif name == 'substitute':
                     # don't want to pass "naming" or "tempita" to the constructor
                     # since these will have been handled
