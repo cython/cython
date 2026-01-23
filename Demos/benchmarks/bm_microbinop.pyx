@@ -11,8 +11,8 @@ from functools import partial
 
 ### Comparisons
 
-item_types1 = cython.fused_type(int, float, str, bytes, object)
-item_types2 = cython.fused_type(int, float, str, bytes, object)
+item_types1 = cython.fused_type(int, float, str, bytes, bytearray, object)
+item_types2 = cython.fused_type(int, float, str, bytes, bytearray, object)
 
 
 @cython.total_ordering
