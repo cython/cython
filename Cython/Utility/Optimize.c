@@ -1076,18 +1076,24 @@ fallback:
 }
 
 
+/////////////// UnicodeEquals.proto ///////////////
+//@requires: PyObjectCompare{"return_obj": 0, "op": "Eq", "c_op": "==", "type1": "str", "type2": "str"}
+
+#define __Pyx_PyUnicode_Equals(s1, s2)  __Pyx_PyObject_CompareBoolEq_str_str(s1, s2, Py_EQ)
+
+
 /////////////// PyObjectCompare.proto ///////////////
 
-{{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
-static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop); /*proto*/
+{{py: c_ret_type = 'PyObject*' if return_obj else 'int'}}
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if return_obj else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop); /*proto*/
 
 /////////////// PyObjectCompare ///////////////
 
-{{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
-{{py: func_suffix = f"{'' if ret_type.is_pyobject else 'Bool'}{op}"}}
+{{py: c_ret_type = 'PyObject*' if return_obj else 'int'}}
+{{py: func_suffix = f"{'' if return_obj else 'Bool'}{op}"}}
 {{py: return_true = 'goto __pyx_return_true'}}
 {{py: return_false = 'goto __pyx_return_false'}}
-{{py: return_error = "return NULL" if ret_type.is_pyobject else "return -1"}}
+{{py: return_error = "return NULL" if return_obj else "return -1"}}
 {{py: c_op_reversed = {'==': '==', '!=': '!=', '<': '>=', '<=': '>', '>=': '<', '>': '<='}[c_op] }}
 {{py:
 check_functions = {
@@ -1122,16 +1128,16 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(
     Py_ssize_t length, length2;
     #if !CYTHON_COMPILING_IN_LIMITED_API
     if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0))
-        return {{'NULL' if ret_type.is_pyobject else '-1'}};
+        return {{'NULL' if return_obj else '-1'}};
     #endif
 
     length = __Pyx_PyUnicode_GET_LENGTH(s1);
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length < 0)) return {{'NULL' if ret_type.is_pyobject else '-1'}};
+    if (unlikely(length < 0)) return {{'NULL' if return_obj else '-1'}};
     #endif
     length2 = __Pyx_PyUnicode_GET_LENGTH(s2);
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length2 < 0)) return {{'NULL' if ret_type.is_pyobject else '-1'}};
+    if (unlikely(length2 < 0)) return {{'NULL' if return_obj else '-1'}};
     #endif
 
     if (length != length2) {{return_false if op == 'Eq' else return_true}};
@@ -1159,9 +1165,9 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(
     }
 
 __pyx_return_true:
-    {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
 __pyx_return_false:
-    {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
 }
 #endif
 
@@ -1212,16 +1218,16 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(
     Py_ssize_t short_length, length1, length2;
     #if !CYTHON_COMPILING_IN_LIMITED_API
     if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0))
-        return {{'NULL' if ret_type.is_pyobject else '-1'}};
+        return {{'NULL' if return_obj else '-1'}};
     #endif
 
     length1 = __Pyx_PyUnicode_GET_LENGTH(s1);
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length1 < 0)) return {{'NULL' if ret_type.is_pyobject else '-1'}};
+    if (unlikely(length1 < 0)) return {{'NULL' if return_obj else '-1'}};
     #endif
     length2 = __Pyx_PyUnicode_GET_LENGTH(s2);
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length2 < 0)) return {{'NULL' if ret_type.is_pyobject else '-1'}};
+    if (unlikely(length2 < 0)) return {{'NULL' if return_obj else '-1'}};
     #endif
 
     short_length = (length1 < length2) ? length1 : length2;
@@ -1246,9 +1252,9 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(
     }
 
 __pyx_return_true:
-    {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
 __pyx_return_false:
-    {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
 }
 #endif
 {{endif}}
@@ -1313,12 +1319,12 @@ static {{c_ret_type}} __Pyx_PyObject_CompareFloatInt{{func_suffix}}(PyObject *op
     }
     #endif
 
-    return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
+    return {{'PyObject_RichCompare' if return_obj else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
 
 __pyx_return_true:
-    {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
 __pyx_return_false:
-    {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
 }
 #endif
 {{endif}}
@@ -1379,12 +1385,12 @@ static {{c_ret_type}} __Pyx_PyObject_CompareIntFloat{{func_suffix}}(PyObject *op
     }
     #endif
 
-    return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
+    return {{'PyObject_RichCompare' if return_obj else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
 
 __pyx_return_true:
-    {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
 __pyx_return_false:
-    {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
 }
 #endif
 {{endif}}
@@ -1434,14 +1440,14 @@ static {{c_ret_type}} __Pyx_PyObject_CompareIntInt{{func_suffix}}(PyObject *op1,
     } else if (overflow1 != overflow2) {
         if (overflow1 {{c_op}} overflow2) {{return_true}}; else {{return_false}};
     } else {
-        return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
+        return {{'PyObject_RichCompare' if return_obj else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
     }
 #endif
 
 __pyx_return_true:
-    {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
 __pyx_return_false:
-    {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
 }
 #endif
 {{endif}}
@@ -1544,12 +1550,12 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{func_suffix}}_{{type
     if ((0)) {{return_false}};
 
 __pyx_richcmp:
-    return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
+    return {{'PyObject_RichCompare' if return_obj else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
 
 __pyx_return_true:
-    {{'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}};
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
 __pyx_return_false:
-    {{'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}};
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
 }
 
 

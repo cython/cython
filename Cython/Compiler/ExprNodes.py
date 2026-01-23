@@ -13997,7 +13997,7 @@ class CmpNode:
                         'type2': type2.name,
                         'c_op': self.operator,
                         'op': op_name,
-                        'ret_type': self.type,
+                        'return_obj': self.type.is_pyobject,
                     }))
                 return f"__Pyx_PyObject_Compare{'' if self.type.is_pyobject else 'Bool'}{op_name}_{type1.name}_{type2.name}"
 
