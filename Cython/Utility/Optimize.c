@@ -1278,7 +1278,7 @@ __pyx_return_false:
 {{py: s1_prefix = "PyBytes" if s1_type == 'bytes' else "PyByteArray"}}
 {{py: s2_prefix = "PyBytes" if s2_type == 'bytes' else "PyByteArray"}}
 
-#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API)
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL)
 
 #ifndef __Pyx_DEFINED_PyObject_Compare{{s1_prefix}}{{s2_prefix}}{{func_suffix}}
 #define __Pyx_DEFINED_PyObject_Compare{{s1_prefix}}{{s2_prefix}}{{func_suffix}}
@@ -1286,12 +1286,25 @@ __pyx_return_false:
 {{if op in 'EqNe'}}
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_prefix}}{{func_suffix}}(PyObject* s1, PyObject* s2) {
     const char *ps1, *ps2;
-    Py_ssize_t length = {{s1_prefix}}_GET_SIZE(s1);
+    Py_ssize_t length;
+
+    #if CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS
+    length = {{s1_prefix}}_GET_SIZE(s1);
     if (length != {{s2_prefix}}_GET_SIZE(s2)) {{return_false if op == 'Eq' else return_true}};
-    // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
 
     ps1 = {{s1_prefix}}_AS_STRING(s1);
     ps2 = {{s2_prefix}}_AS_STRING(s2);
+
+    #else
+
+    Py_ssize_t length2;
+    if (unlikely(PyBytes_AsStringAndSize(s1, &ps1, &length) == -1)) {{return_error}};
+    if (unlikely(PyBytes_AsStringAndSize(s2, &ps2, &length2) == -1)) {{return_error}};
+    if (length != length2) {{return_false if op == 'Eq' else return_true}};
+
+    #endif
+    // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
+
     if (ps1[0] != ps2[0]) {{return_false if op == 'Eq' else return_true}};
     if (length == 1) {{return_true if op == 'Eq' else return_false}};
 
@@ -1320,20 +1333,35 @@ __pyx_return_false:
 
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_prefix}}{{func_suffix}}(PyObject* s1, PyObject* s2) {
     Py_ssize_t cmp;
-    Py_ssize_t length1 = {{s1_prefix}}_GET_SIZE(s1);
-    Py_ssize_t length2 = {{s2_prefix}}_GET_SIZE(s2);
+    Py_ssize_t length1, length2, short_length;
+    const char *ps1, *ps2;
 
-    Py_ssize_t short_length = (length1 < length2) ? length1 : length2;
+    #if CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS
+    length1 = __Pyx_{{s1_prefix}}_GET_SIZE(s1);
+    length2 = __Pyx_{{s2_prefix}}_GET_SIZE(s2);
+
+    short_length = (length1 < length2) ? length1 : length2;
     if (short_length == 0) {
         if (length1 == 0) {{return_true if op in 'LtLe' else return_false}}; else {{return_false if op in 'LtLe' else return_true}};
-    } else {
-        const char *ps1 = {{s1_prefix}}_AS_STRING(s1);
-        const char *ps2 = {{s2_prefix}}_AS_STRING(s2);
-        cmp = ps1[0] - ps2[0];
+    }
 
-        if (cmp == 0 && short_length > 1) {
-            cmp = memcmp(ps1, ps2, (size_t)short_length);
-        }
+    ps1 = {{s1_prefix}}_AS_STRING(s1);
+    ps2 = {{s2_prefix}}_AS_STRING(s2);
+
+    #else
+
+    if (unlikely(PyBytes_AsStringAndSize(s1, &ps1, &length1) == -1)) {{return_error}};
+    if (unlikely(PyBytes_AsStringAndSize(s2, &ps2, &length2) == -1)) {{return_error}};
+
+    short_length = (length1 < length2) ? length1 : length2;
+    if (short_length == 0) {
+        if (length1 == 0) {{return_true if op in 'LtLe' else return_false}}; else {{return_false if op in 'LtLe' else return_true}};
+    }
+    #endif
+
+    cmp = ps1[0] - ps2[0];
+    if (cmp == 0 && short_length > 1) {
+        cmp = memcmp(ps1, ps2, (size_t)short_length);
     }
     if (cmp == 0) cmp = (length1 - length2);
     if (cmp {{c_op}} 0) {{return_true}}; else {{return_false}};
@@ -1627,7 +1655,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{func_suffix}}_{{type
 
     {{for string_type in ('str', 'bytes', 'bytearray')}}
     {{if type1 in ('object', string_type) and type2 in ('object', string_type)}}
-    #if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API)
+    #if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL)
     if ({{is_type('op1', string_type)}}) {
         // Catch interned and identical strings as well as the empty string.
         if (op1 == op2) {{return_true if op in 'EqLeGe' else return_false}};
