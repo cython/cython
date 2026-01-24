@@ -4705,7 +4705,6 @@ class IndexNode(_IndexingBaseNode):
 
     def extra_index_params(self, code):
         if self.index.type.is_int:
-            is_list = self.base.type is list_type
             wraparound = (
                 bool(code.globalstate.directives['wraparound']) and
                 self.original_index_type.signed and
@@ -4722,11 +4721,11 @@ class IndexNode(_IndexingBaseNode):
                     self.pos, "Indexing a bytearray with 'boundscheck' enabled and without the GIL "
                     "is not thread-safe on freethreaded Python "
                     "(disable 'boundscheck' to turn off this warning)", 1)
-            return ", %s, %d, %s, %d, %d, %d, %d, %s" % (
+            return ", %s, %d, %s, %d, %d, %d, %s" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
                 self.original_index_type.to_py_function,
-                is_list, wraparound, boundscheck, has_gil, unsafe_shared)
+                wraparound, boundscheck, has_gil, unsafe_shared)
         else:
             return ""
 
@@ -13988,6 +13987,24 @@ class CmpNode:
                 return True
         return False
 
+    def find_compare_function(self, code, operand1):
+        if self.operator in ('==', '!=', '<', '<=', '>=', '>'):
+            type1, type2 = operand1.type, self.operand2.type
+            if {type1, type2} < {py_object_type, Builtin.int_type, Builtin.float_type}:
+                type_names = (type1.name, type2.name)
+                op_name = {'==': 'Eq', '!=': 'Ne', '<': 'Lt', '<=': 'Le', '>=': 'Ge', '>': 'Gt'}[self.operator]
+                code.globalstate.use_utility_code(TempitaUtilityCode.load_cached(
+                    "PyObjectCompare", "Optimize.c", context={
+                        'type1': type1.name,
+                        'type2': type2.name,
+                        'c_op': self.operator,
+                        'op': op_name,
+                        'ret_type': self.type,
+                    }))
+                return f"__Pyx_PyObject_Compare{'' if self.type.is_pyobject else 'Bool'}{op_name}_{type1.name}_{type2.name}"
+
+        return "PyObject_RichCompare" if self.type.is_pyobject else "__Pyx_PyObject_RichCompareBool"
+
     def generate_operation_code(self, code, result_code,
             operand1, op, operand2):
         if self.type.is_pyobject:
@@ -14031,14 +14048,12 @@ class CmpNode:
         elif operand1.type.is_pyobject and op not in ('is', 'is_not'):
             assert op not in ('in', 'not_in'), op
             assert self.type.is_pyobject or self.type is PyrexTypes.c_bint_type
-            code.putln("%s = PyObject_RichCompare%s(%s, %s, %s); %s%s" % (
-                    result_code,
-                    "" if self.type.is_pyobject else "Bool",
-                    operand1.py_result(),
-                    operand2.py_result(),
-                    richcmp_constants[op],
-                    got_ref,
-                    error_clause(result_code, self.pos)))
+            function = self.find_compare_function(code, operand1)
+            op1 = operand1.py_result()
+            op2 = operand2.py_result()
+            error_goto = error_clause(result_code, self.pos)
+            code.putln(
+                f"{result_code} = {function}({op1}, {op2}, {richcmp_constants[op]}); {got_ref}{error_goto}")
 
         elif operand1.type.is_complex:
             code.putln("%s = %s(%s%s(%s, %s));" % (
@@ -14149,7 +14164,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         if is_pythran_expr(type1) or is_pythran_expr(type2):
             if is_pythran_supported_type(type1) and is_pythran_supported_type(type2):
                 self.type = PythranExpr(pythran_binop_type(self.operator, type1, type2))
-                self.is_pycmp = False
                 return self
 
         if self.analyse_memoryviewslice_comparison(env):
@@ -14160,7 +14174,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
 
         if self.operator in ('in', 'not_in'):
             if self.is_c_string_contains():
-                self.is_pycmp = False
                 common_type = None
                 if self.cascade:
                     error(self.pos, "Cascading comparison not yet supported for 'int_val in string'.")
@@ -14185,18 +14198,19 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 if not self.operand1.type.is_pyobject:
                     self.operand1 = self.operand1.coerce_to_pyobject(env)
                 common_type = None  # if coercion needed, the method call above has already done it
-                self.is_pycmp = False  # result is bint
+                self.is_temp = True  # error return
             else:
                 common_type = py_object_type
-                self.is_pycmp = True
+                self.is_temp = True  # owned reference
         elif self.find_special_bool_compare_function(env, self.operand1):
             if not self.operand1.type.is_pyobject:
                 self.operand1 = self.operand1.coerce_to_pyobject(env)
             common_type = None  # if coercion needed, the method call above has already done it
-            self.is_pycmp = False  # result is bint
+            self.is_temp = True  # error return
         else:
             common_type = self.find_common_type(env, self.operator, self.operand1)
-            self.is_pycmp = common_type.is_pyobject
+            if common_type.is_pyobject:
+                self.is_temp = True  # owned reference
 
         if common_type is not None and not common_type.is_error:
             if self.operand1.type != common_type:
@@ -14204,25 +14218,25 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.coerce_operands_to(common_type, env)
 
         if self.cascade:
+            self.is_temp = True  # reused value
             self.operand2 = self.operand2.coerce_to_simple(env)
             self.cascade.coerce_cascaded_operands_to_temp(env)
             operand2 = self.cascade.optimise_comparison(self.operand2, env)
             if operand2 is not self.operand2:
                 self.coerced_operand2 = operand2
+
         if self.is_python_result():
             self.type = PyrexTypes.py_object_type
+            self.is_temp = True  # owned reference
         else:
             self.type = PyrexTypes.c_bint_type
         self.unify_cascade_type()
-        if self.is_pycmp or self.cascade or self.special_bool_cmp_function:
-            # 1) owned reference, 2) reused value, 3) potential function error return value
-            self.is_temp = 1
+
         return self
 
     def analyse_cpp_comparison(self, env):
         type1 = self.operand1.type
         type2 = self.operand2.type
-        self.is_pycmp = False
         entry = env.lookup_operator(self.operator, [self.operand1, self.operand2])
         if entry is None:
             error(self.pos, "Invalid types for '%s' (%s, %s)" %
@@ -14252,7 +14266,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                       self.operand2.type.is_memoryviewslice)
         ops = ('==', '!=', 'is', 'is_not')
         if have_slice and have_none and self.operator in ops:
-            self.is_pycmp = False
             self.type = PyrexTypes.c_bint_type
             self.is_memslice_nonecheck = True
             return True
@@ -14260,22 +14273,24 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         return False
 
     def coerce_to_boolean(self, env):
-        if self.is_pycmp:
-            # coercing to bool => may allow for more efficient comparison code
-            if self.find_special_bool_compare_function(
-                    env, self.operand1, result_is_bool=True):
-                self.is_pycmp = False
-                self.type = PyrexTypes.c_bint_type
-                self.is_temp = 1
-                if self.cascade:
-                    operand2 = self.cascade.optimise_comparison(
-                        self.operand2, env, result_is_bool=True)
-                    if operand2 is not self.operand2:
-                        self.coerced_operand2 = operand2
-                self.unify_cascade_type()
-                return self
-        # TODO: check if we can optimise parts of the cascade here
-        return ExprNode.coerce_to_boolean(self, env)
+        if self.type is PyrexTypes.c_bint_type:
+            return self
+
+        # coercing to bool => may allow for more efficient comparison code
+        self.find_special_bool_compare_function(env, self.operand1, result_is_bool=True)
+
+        if self.cascade:
+            operand2 = self.cascade.optimise_comparison(
+                self.operand2, env, result_is_bool=True)
+            if operand2 is not self.operand2:
+                self.coerced_operand2 = operand2
+
+        # Now make sure that we return a bint, however we calculate the result.
+        self.type = PyrexTypes.c_bint_type
+        self.is_temp = 1
+        self.unify_cascade_type()
+
+        return self
 
     def has_python_operands(self):
         return (self.operand1.type.is_pyobject
@@ -14410,7 +14425,6 @@ class CascadedCmpNode(Node, CmpNode):
 
     def optimise_comparison(self, operand1, env, result_is_bool=False):
         if self.find_special_bool_compare_function(env, operand1, result_is_bool):
-            self.is_pycmp = False
             self.type = PyrexTypes.c_bint_type
             if not operand1.type.is_pyobject:
                 operand1 = operand1.coerce_to_pyobject(env)

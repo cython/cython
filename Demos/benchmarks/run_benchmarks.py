@@ -67,30 +67,46 @@ def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None, unset_l
             env=env,
         )
     except subprocess.CalledProcessError as exc:
-        logging.error(f"Command failed: {' '.join(map(str, command))}\nOutput:\n{exc.stderr.decode()}")
+        logging.error(f"Command failed: {' '.join(map(str, command))}\nOutput:\n{exc.stderr.decode() if capture_stderr else ''}")
         raise
 
 def run_not_timed_python(python_command, **kwargs):
-    output = run([sys.executable, *python_command], unset_lang=True, **kwargs)
-    return {'user': float('NaN')}
+    timer = time.monotonic
+    t = timer()
+    run([sys.executable, *python_command], **kwargs)
+    t = timer() - t
+
+    return {'user': float('NaN'), 'elapsed': t}
 
 def run_timed_python(python_command, **kwargs):
+    timer = time.monotonic
+    t = timer()
     output = run(['time', sys.executable, *python_command], unset_lang=True, **kwargs)
+    t = timer() - t
 
-    parse = re.compile(r"([0-9.:]+)([%\w]+)").findall
+    # The exact output of the 'time' command looks different on different systems,
+    # but it's broadly something like this:
+    parse = re.compile(r"([0-9][0-9.:]*)\s*([%a-zA-Z]+)").findall
 
     results = {}
     for line in output.stderr.decode().splitlines()[-2:]:
         for number, name in parse(line):
-            if ':' in number:
-                value = 0
-                factor = 1
-                for part in number.split(':'):
-                    value = value * factor + float(part)
-                    factor *= 60
-            else:
-                value = float(number)
-            results[name] = value
+            try:
+                if ':' in number:
+                    value = 0
+                    factor = 1
+                    for part in number.split(':'):
+                        value = value * factor + float(part)
+                        factor *= 60
+                else:
+                    value = float(number)
+                results[name] = value
+            except ValueError:
+                # Hopefully unrelated output.
+                pass
+
+    if 'elapsed' not in results:
+        results['elapsed'] = results.get('real', t)
 
     return results
 
@@ -237,7 +253,7 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
         "Cython.Plex.Actions",
         "Cython.Plex.Scanners",
         "Cython.Compiler.FlowControl",
-        #"Cython.Compiler.LineTable",  # not in base line Cython revision
+        "Cython.Compiler.LineTable",  # not in base line Cython revision
         "Cython.Compiler.Scanning",
         "Cython.Compiler.Visitor",
         #"Cython.Runtime.refnanny",  # .pyx
@@ -264,6 +280,13 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
         os.path.join(*module.split('.')) + '.py'
         for module in compiled_modules
     ]
+
+    # Some older Cython versions may not have some modules, so check again the checkout.
+    for compiled_module, source_file in list(zip(compiled_modules, source_files)):
+        if not (cython_dir / source_file).is_file():
+            compiled_modules.remove(compiled_module)
+            source_files.remove(source_file)
+
     parallel = f'-j{len(source_files)}'
 
     cythonize_times = {}
@@ -386,10 +409,11 @@ def _make_bench_func(bm_dir, module_name, pythonpath=None):
         command = python_command + ["-c", py_code]
 
         output = run(command, cwd=bm_dir, pythonpath=pythonpath, capture_stderr=False)
+        stdout = output.stdout.decode()
 
         timings = {}
 
-        for line in output.stdout.decode().splitlines():
+        for line in stdout.splitlines():
             name = module_name
             if line.endswith(']') and '[' in line:
                 if ':' in line:
@@ -400,7 +424,7 @@ def _make_bench_func(bm_dir, module_name, pythonpath=None):
                     timings[name] = [float(t) for t in line[1:-1].split(',')]
 
         if not timings:
-            logging.error(f"Benchmark failed: {module_name}\nOutput:\n{output.stderr.decode()}")
+            logging.error(f"Benchmark failed: {module_name}\nOutput:\n{stdout}")
             raise RuntimeError(f"Benchmark failed: {module_name}")
 
         return timings
@@ -431,7 +455,7 @@ def measure_dll_size(path: pathlib.Path):
     # (but it's unlikely that Windows will have 'strip' either)
     compiled_path, = dir.glob(f"{name}*.so")
     subprocess.run(
-        ["strip", compiled_path, "-g", "-o" , stripped_path ]
+        ["strip", compiled_path, "-S", "-o" , stripped_path ]
     )
     stripped_size = stripped_path.stat().st_size
     stripped_path.unlink()
@@ -549,7 +573,7 @@ def benchmark_revision(
 
         git_clone(cython_dir, revision=None if plain_python else revision)
         cython_version_str = read_cython_version(cython_dir)
-        cython_version = (revision, *map(int, cython_version_str.split('.', 2)[:2]))
+        cython_version = (revision, *map(int, cython_version_str.split('.', 2)[:2])) if not plain_python else None
 
         cythonize_times = None
         if benchmark_cythonize:

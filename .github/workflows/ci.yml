@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - '**'
+      - '!Demos/benchmarks/**'
       - '!.github/**'
       - '.github/workflows/ci.yml'
   pull_request:
     paths:
       - '**'
+      - '!Demos/benchmarks/**'
       - '!.github/**'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
@@ -78,11 +80,11 @@ jobs:
           # Ubuntu sub-jobs:
           # ================
           # graalpy is really slow...
-          #- os: ubuntu-22.04
-          #  python-version: graalpy24
-          #  backend: c
-          #  env: { NO_CYTHON_COMPILE: 1 }
-          #  allowed_failure: true
+          - os: ubuntu-22.04
+            python-version: graalpy25
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
+            allowed_failure: false
           # GCC 13 (with broad language standards)
           - os: ubuntu-22.04
             python-version: "3.9"
@@ -248,7 +250,10 @@ jobs:
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}
         env: ${{ matrix.env }}
-        run: bash ./Tools/ci-run.sh
+        run: bash -c "bash ./Tools/ci-run.sh 2> >(tee -a stderr.log >&2)"
+
+      - name: Report results
+        run: bash -c "if [ -f stderr.log ]; then tail -20 stderr.log | grep -A20 'Most expensive pipeline stages' | sed -e 's|^|    |'; fi" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload HTML docs
         uses: actions/upload-artifact@v6.0.0

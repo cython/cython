@@ -23,6 +23,7 @@ import warnings
 import zlib
 from collections import defaultdict
 from contextlib import contextmanager
+from functools import partial
 
 try:
     IS_PYPY = platform.python_implementation() == 'PyPy'
@@ -653,20 +654,48 @@ class ErrorWriter(object):
         pass  # ignore, only to match file-like interface
 
 
+class Heap:
+    def __init__(self, max_length=8):
+        assert max_length > 0, max_length
+        self._heap = []
+        self._max_length = max_length
+        self._push = heapq.heappush
+        self.push = self._push_growing
+
+    def _push_growing(self, item):
+        heapq.heappush(self._heap, item)
+        if len(self._heap) >= self._max_length:
+            self.push = partial(heapq.heappushpop, self._heap)
+
+    def push_all(self, items):
+        for item in (items._heap if isinstance(items, Heap) else items):
+            self.push(item)
+
+    def max(self):
+        return max(self._heap)
+
+    def __iter__(self):
+        return iter(sorted(self._heap, reverse=True))
+
+
 class Stats(object):
+    can_count_module_sizes = (
+        sys.platform == "darwin" or sys.platform == 'linux'
+        and shutil.which('strip')
+    )
+
     def __init__(self, top_n=8):
         self.top_n = top_n
         self.test_counts = defaultdict(int)
         self.test_times = defaultdict(float)
-        self.top_tests = defaultdict(list)
+        self.top_tests = defaultdict(partial(Heap, top_n))
+        self.module_sizes = {'count': 0, 'total': 0, 'largest': Heap(top_n), 'smallest': Heap(top_n)}
 
     def add_time(self, name, language, metric, t, count=1):
         self.test_counts[metric] += count
         self.test_times[metric] += t
-        top = self.top_tests[metric]
-        push = heapq.heappushpop if len(top) >= self.top_n else heapq.heappush
         # min-heap => pop smallest/shortest until longest times remain
-        push(top, (t, name, language))
+        self.top_tests[metric].push((t, name, language))
 
     @contextmanager
     def time(self, name, language, metric):
@@ -680,10 +709,32 @@ class Stats(object):
         for metric, t in stats.test_times.items():
             self.test_times[metric] += t
             self.test_counts[metric] += stats.test_counts[metric]
-            top = self.top_tests[metric]
-            for entry in stats.top_tests[metric]:
-                push = heapq.heappushpop if len(top) >= self.top_n else heapq.heappush
-                push(top, entry)
+            self.top_tests[metric].push_all(stats.top_tests[metric])
+
+        for heap in ('largest', 'smallest'):
+            self.module_sizes[heap].push_all(stats.module_sizes[heap])
+
+        self.module_sizes['total'] += stats.module_sizes['total']
+        self.module_sizes['count'] += stats.module_sizes['count']
+
+    def update_module_size(self, base_dir, test_module_dll):
+        if not self.can_count_module_sizes:
+            return
+        stripped_path = test_module_dll + ".stripped"
+        subprocess.run(['strip', '-S', test_module_dll, "-o" , stripped_path])
+        if os.path.isfile(stripped_path):
+            relative_module_path = os.path.relpath(test_module_dll, os.path.dirname(base_dir))
+            module_size = os.path.getsize(stripped_path)
+            self.module_sizes['largest'].push((module_size, relative_module_path))
+            self.module_sizes['smallest'].push((-module_size, relative_module_path))
+            self.module_sizes['total'] += module_size
+            self.module_sizes['count'] += 1
+
+    def update_module_sizes(self, test_dir):
+        if not self.can_count_module_sizes:
+            return
+        for module in glob.glob(os.path.join(test_dir, "**", "*.so")):
+            self.update_module_size(test_dir, module)
 
     def print_stats(self, out=sys.stderr):
         if not self.test_times:
@@ -695,6 +746,16 @@ class Stats(object):
             lines.append("%-12s: %8.2f sec  (%4d, %6.3f / run) - slowest: %s\n" % (
                 metric, t, count, t / count,
                 ', '.join("'{2}:{1}' ({0:.2f}s)".format(*item) for item in heapq.nlargest(self.top_n, top))))
+
+        if self.module_sizes['count']:
+            lines.append('Test module binary sizes (stripped):\n')
+            avg_size = self.module_sizes['total'] / self.module_sizes['count']
+            lines.append(f"Total: {self.module_sizes['total']:_d} bytes / {self.module_sizes['count']:_d} modules = {avg_size:_.2f} bytes/module\n")
+            modules = ', '.join([f"{name} ({-neg_size:_d})" for neg_size, name in self.module_sizes['smallest']])
+            lines.append(f"Smallest modules: {-self.module_sizes['smallest'].max()[0]:12_d} bytes - {modules}\n")
+            modules = ', '.join([f"{name} ({size:_d})" for size, name in self.module_sizes['largest']])
+            lines.append(f"Largest modules:  {self.module_sizes['largest'].max()[0]:12_d} bytes - {modules}\n")
+
         out.write(''.join(lines))
 
 
@@ -1500,6 +1561,7 @@ class CythonCompileTestCase(unittest.TestCase):
             else:
                 if 'cerror' in self.tags['tag']:
                     raise RuntimeError('should have failed C compile')
+                self.stats.update_module_size(workdir, so_path)
             finally:
                 if show_output:
                     stdout = get_stdout and get_stdout().strip()
@@ -2131,6 +2193,8 @@ class EndToEndTest(unittest.TestCase):
                 ))
                 self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
                     ' '.join(command), out[-1], err[-1]))
+
+        self.stats.update_module_sizes(workdir)
         self.success = True
 
 
