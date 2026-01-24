@@ -1082,62 +1082,6 @@ fallback:
 #define __Pyx_PyUnicode_Equals(s1, s2)  __Pyx_PyObject_CompareBoolEq_str_str(s1, s2, Py_EQ)
 
 
-//////////////////// BytesEquals.proto ////////////////////
-
-static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
-
-//////////////////// BytesEquals ////////////////////
-
-static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals) {
-    if (s1 == s2) {
-        // as done by PyObject_RichCompareBool(); also catches the (interned) empty string
-        goto return_eq;
-    }
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL
-    return PyObject_RichCompareBool(s1, s2, equals);
-#elif CYTHON_COMPILING_IN_LIMITED_API || !(CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS)
-    return __Pyx_PyObject_RichCompareBool(s1, s2, equals);
-#else
-    if (PyBytes_CheckExact(s1) & PyBytes_CheckExact(s2)) {
-        const char *ps1, *ps2;
-        Py_ssize_t length = PyBytes_GET_SIZE(s1);
-        if (length != PyBytes_GET_SIZE(s2))
-            return (equals == Py_NE);
-        // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
-        ps1 = PyBytes_AS_STRING(s1);
-        ps2 = PyBytes_AS_STRING(s2);
-        if (ps1[0] != ps2[0]) {
-            goto return_ne;
-        } else if (length == 1) {
-            goto return_eq;
-        } else {
-            int result;
-#if CYTHON_USE_UNICODE_INTERNALS && (PY_VERSION_HEX < 0x030B0000)
-            Py_hash_t hash1, hash2;
-            hash1 = ((PyBytesObject*)s1)->ob_shash;
-            hash2 = ((PyBytesObject*)s2)->ob_shash;
-            if (hash1 != hash2 && hash1 != -1 && hash2 != -1) {
-                goto return_ne;
-            }
-#endif
-            result = memcmp(ps1, ps2, (size_t)length);
-            return (equals == Py_EQ) ? (result == 0) : (result != 0);
-        }
-    } else if ((s1 == Py_None) & PyBytes_CheckExact(s2)) {
-        goto return_ne;
-    } else if ((s2 == Py_None) & PyBytes_CheckExact(s1)) {
-        goto return_ne;
-    } else {
-        return __Pyx_PyObject_RichCompareBool(s1, s2, equals);
-    }
-return_ne:
-    return (equals == Py_NE);
-#endif
-return_eq:
-    return (equals == Py_EQ);
-}
-
-
 /////////////// PyObjectCompare.proto ///////////////
 
 {{py: c_ret_type = 'PyObject*' if return_obj else 'int'}}
