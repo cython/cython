@@ -1550,7 +1550,8 @@ class CythonCompileTestCase(unittest.TestCase):
                     with captured_fd(2) as get_stderr:
                         with self.stats.time(self.name, self.language, 'compile-%s' % self.language):
                             so_path = self.run_distutils(test_directory, module, workdir, incdir)
-                            shared_so_path = self.run_distutils(test_directory, self.shared_module, workdir, incdir)
+                            if self.shared_module:
+                                shared_so_path = self.run_distutils(test_directory, self.shared_module, workdir, incdir)
             except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
                     ((get_stderr and get_stderr()) or
