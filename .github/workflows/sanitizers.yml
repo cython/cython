@@ -41,10 +41,7 @@ jobs:
       cpp_compiler: clang++
       sanitize: ${{ matrix.sanitizer }}
       name: ${{ matrix.sanitizer }}
-    if: |
-      ${{ github.event_name != 'label' }} ||
-        ${{ github.event.label.name == 'sanitizers' }} ||
-        ${{ github.event.label.name == 'full_sanitizers '}}
+    if: ${{ github.event_name != 'label' || github.event.label.name == 'sanitizers' || github.event.label.name == 'full_sanitizers' }}
 
   pydebug:
     uses: ./.github/workflows/compiled_python.yml
