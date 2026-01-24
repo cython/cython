@@ -237,6 +237,7 @@ python runtests.py \
   -x Debugger \
   --backends=$BACKEND \
   $LIMITED_API \
+  $SHARED_MODULE \
   $EXCLUDE \
   $RUNTESTS_ARGS
 
