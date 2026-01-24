@@ -2,6 +2,8 @@
 # DO NOT EDIT
 
 # cython: language_level=3
+# cython: auto_pickle=False
+
 include "test_dataclasses.pxi"
 
 @dataclass
@@ -412,18 +414,21 @@ class C_TestCase_test_field_metadata_default:
     i: int
 
 @dataclass
+@auto_pickle(True)
 @cclass
 class P_TestCase_test_dataclasses_pickleable:
     x: int
     y: int = 0
 
 @dataclass
+@auto_pickle(True)
 @cclass
 class Q_TestCase_test_dataclasses_pickleable:
     x: int
     y: int = field(default=0, init=False)
 
 @dataclass
+@auto_pickle(True)
 @cclass
 class R_TestCase_test_dataclasses_pickleable:
     x: int
