@@ -723,8 +723,10 @@ class Stats(object):
         stripped_path = test_module_dll + ".stripped"
         subprocess.run(['strip', '-S', test_module_dll, "-o" , stripped_path])
         if os.path.isfile(stripped_path):
-            relative_module_path = os.path.relpath(test_module_dll, os.path.dirname(base_dir))
             module_size = os.path.getsize(stripped_path)
+            os.unlink(stripped_path)
+
+            relative_module_path = os.path.relpath(test_module_dll, os.path.dirname(base_dir))
             self.module_sizes['largest'].push((module_size, relative_module_path))
             self.module_sizes['smallest'].push((-module_size, relative_module_path))
             self.module_sizes['total'] += module_size
