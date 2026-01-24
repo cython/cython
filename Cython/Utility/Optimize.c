@@ -1655,7 +1655,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{func_suffix}}_{{type
 
     {{for string_type in ('str', 'bytes', 'bytearray')}}
     {{if type1 in ('object', string_type) and type2 in ('object', string_type)}}
-    #if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL)
+    #if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL{{' || CYTHON_COMPILING_IN_LIMITED_API' if string_type == 'str' else ''}})
     if ({{is_type('op1', string_type)}}) {
         // Catch interned and identical strings as well as the empty string.
         if (op1 == op2) {{return_true if op in 'EqLeGe' else return_false}};
