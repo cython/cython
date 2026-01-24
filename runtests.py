@@ -794,6 +794,9 @@ class TestBuilder(object):
                     continue
                 if skip_limited(tags):
                     continue
+                if self.shared_module is not None and 'shared_module' not in tags['tag']:
+                    # It is redundant to run EndToEnd tests that are not related to using shared utility module
+                    continue
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
                     suite.addTest(EndToEndTest(filepath, workdir,
                              self.cleanup_workdir, stats=self.stats,
@@ -821,6 +824,9 @@ class TestBuilder(object):
 
             if mode == 'run' and ext == '.py' and not self.cython_only and not filename.startswith('test_'):
                 # additionally test file in real Python
+                if self.shared_module:
+                    # Without compilation it does not make sense run it with shared utility module enabled
+                    continue
                 min_py_ver = [
                     (int(pyver.group(1)), int(pyver.group(2)))
                     for pyver in map(re.compile(r'pure([0-9]+)[.]([0-9]+)').match, tags['tag'])
