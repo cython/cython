@@ -227,9 +227,9 @@ class SubstituteNameString(ast.NodeTransformer):
             if node.value.find("<locals>") != -1:
                 import re
 
-                new_value = new_value2 = re.sub("[\w.]*<locals>", "", node.value)
+                new_value = new_value2 = re.sub(r"[\w.]*<locals>", "", node.value)
                 for key, value in self.substitutions.items():
-                    new_value2 = re.sub(f"(?<![\w])[.]{key}(?![\w])", value, new_value2)
+                    new_value2 = re.sub(rf"(?<![\w])[.]{key}(?![\w])", value, new_value2)
                 if new_value != new_value2:
                     node.value = new_value2
         return node
