@@ -1359,7 +1359,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_pref
     }
     #endif
 
-    cmp = ps1[0] - ps2[0];
+    cmp = (Py_ssize_t) ((const unsigned char*) ps1)[0] - (Py_ssize_t) ((const unsigned char*) ps2)[0];
     if (cmp == 0 && short_length > 1) {
         cmp = memcmp(ps1, ps2, (size_t)short_length);
     }
