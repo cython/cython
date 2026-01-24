@@ -4904,8 +4904,8 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             typ.scope = self.scope
             self.specializations[template_values] = typ
             return typ
-        # for a lot of the typing classes it doesn't really matter what the template is
-        # (i.e. typing.Dict[int] is really just a dict)
+        # For a lot of the typing classes it doesn't really matter what the template is
+        # (e.g. typing.List[int] is really just a list).
         return self
 
     def assignable_from(self, src_type):
@@ -4955,10 +4955,9 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         return self
 
     def __eq__(self, other):
-        return isinstance(other, BuiltinTypeConstructorObjectType) and self.get_container_type().name == other.get_container_type().name
-
-    def __ne__(self, other):
-        return not (isinstance(other, BuiltinTypeConstructorObjectType) and self.get_container_type().name == other.get_container_type().name)
+        if isinstance(other, BuiltinTypeConstructorObjectType):
+            return self.get_container_type().name == other.get_container_type().name
+        return NotImplemented
 
     def __hash__(self):
         return hash((type(self), self.get_container_type().name))

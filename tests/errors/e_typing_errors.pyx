@@ -33,7 +33,7 @@ def union_pytypes(Union[int, None] i, Union[None, float] f, Union[complex, None]
 def bitwise_or_ctypes(i: cython.int | None, f: None | cython.float , c: cython.complex | None, l: cython.long | None):
     pass
 
-def subscribed_types_assignments():
+def subscripted_types_assignments():
     la: list[cython.float] = [5.0]
     lb: list[cython.int] = la
     sa: set[cython.float] = {5.0}

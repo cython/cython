@@ -207,7 +207,7 @@ if cython.compiled:
     """
 
 if sys.version_info >= (3, 11) or cython.compiled:
-    # test is failing python 3.9 and 3.10 because following exception occurs in Shadow.py:
+    # This part of the test is failing in Python 3.9 and 3.10 with the following exception in Shadow.py:
     # isinstance() argument 2 cannot be a parameterized generic
 
     def test_casting_subscripted_types():
@@ -301,9 +301,9 @@ def test_use_typing_attributes_as_non_annotations():
     print(name_of(q1), str(q2) in ["typing.Union[typing.FrozenSet, NoneType]", "typing.FrozenSet | None"] or str(q2))
     print(name_of(w1), str(w2) in ["typing.Union[typing.Dict, NoneType]", "typing.Dict | None"] or str(w2))
 
-def test_list_with_str_subscription():
+def test_list_with_str_subscript():
     """
-    >>> test_list_with_str_subscription()
+    >>> test_list_with_str_subscript()
     str object
     str object
     str object
