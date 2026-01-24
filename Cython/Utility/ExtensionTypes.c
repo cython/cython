@@ -601,16 +601,6 @@ static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t 
 
 /////////////// BinopSlot ///////////////
 
-static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
-    {{slot_type}} slot;
-#if CYTHON_USE_TYPE_SLOTS
-    slot = type->tp_as_number ? type->tp_as_number->{{slot_name}} : NULL;
-#else
-    slot = ({{slot_type}}) PyType_GetSlot(type, Py_{{slot_name}});
-#endif
-    return slot ? slot(left, right {{extra_arg}}) : __Pyx_NewRef(Py_NotImplemented);
-}
-
 static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}}) {
     int maybe_self_is_left, maybe_self_is_right = 0;
     maybe_self_is_left = Py_TYPE(left) == Py_TYPE(right)
