@@ -138,8 +138,8 @@ bm_cmp_int_int = partial(_comparisons, 6, int)
 bm_cmp_float_float = partial(_comparisons, 7, float)
 
 # str benchmarks
-def _make_long_str(num):
-    return ' ' * (num % 349) + "%c" % (num % 97)
+def _make_long_str(num: cython.long):
+    return ' ' * (100 * (3 + (num & 15))) + "%c" % (num % 97)
 
 bm_cmp_obj_obj_str = partial(_comparisons, 1, str)
 bm_cmp_obj_obj_strext = partial(_comparisons, 1, lambda v: Wrapped(str(v)) if v % 2 == 0 else str(v))
@@ -150,10 +150,10 @@ bm_cmp_str_str = partial(_comparisons, 10, str)
 bm_cmp_str_str_long = partial(_comparisons, 10, _make_long_str)
 
 # bytes/bytearray benchmarks
-def _make_bytes(num):
-    return b"%c" % (num % 256)
-def _make_long_bytes(num):
-    return b' ' * (num % 349) + b"%c" % (num % 97)
+def _make_bytes(num: cython.long):
+    return b"%c" % (num & 255)
+def _make_long_bytes(num: cython.long):
+    return b' ' * (100 * (3 + (num & 15))) + b"%c" % (num % 97)
 
 def _make_bytearray(num):
     return bytearray(_make_bytes(num))
@@ -192,7 +192,7 @@ def time_benchmarks(scale):
 def run_benchmark(repeat: bool, scale=1000):
     from util import repeat_to_accuracy, scale_subbenchmarks
 
-    scales = scale_subbenchmarks(time_benchmarks(1000), scale)
+    scales = scale_subbenchmarks(time_benchmarks(250), scale)
 
     collected_timings = collections.defaultdict(list)
 
