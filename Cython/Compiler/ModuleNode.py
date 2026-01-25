@@ -1963,6 +1963,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("__Pyx_call_next_tp_dealloc(o, %s);" % slot_func_cname)
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpDealloc", "ExtensionTypes.c"))
+
+            if tp_dealloc is None:
+                # A builtin type or an external extension type.
+                # Undo the incref of the type only for the lowest heaptype in the inheritance.
+                # (This is what Python does in subtype_dealloc so we should assume it's what
+                # other well-behaved types do).
+                code.putln("#if CYTHON_USE_TYPE_SPECS")
+                code.putln(f"if (!__Pyx_PyType_HasFeature({base_cname}, Py_TPFLAGS_HEAPTYPE)) {{")
+                code.putln("Py_DECREF((PyObject*)Py_TYPE(o));")
+                code.putln("}")
+                code.putln("#endif")
         else:
             freelist_size = scope.directives.get('freelist', 0)
             if freelist_size:

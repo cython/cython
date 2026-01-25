@@ -68,6 +68,7 @@ ext_auto_richcmp
 extern_builtins_T258
 pylistsubtype
 r_hordijk1
+refcount_types  # Is relevant to Limited API but is tested with the "heaptypes only" runs
 slice2b
 trashcan
 unbound_special_methods
