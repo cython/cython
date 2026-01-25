@@ -4164,7 +4164,7 @@ class TransformBuiltinMethods(EnvTransform):
             elif function == 'cast':
                 if len(node.args) != 2:
                     error(node.function.pos,
-                          "cast() takes exactly two arguments and an optional typecheck keyword")
+                          "cast() takes exactly two arguments and optional keywords")
                 else:
                     type = node.args[0].analyse_as_type(self.current_env())
                     if type:
@@ -4221,16 +4221,21 @@ class TransformBuiltinMethods(EnvTransform):
             # NOTE: assuming simple tuple/dict nodes for positional_args and keyword_args
             args = node.positional_args.args
             kwargs = node.keyword_args.compile_time_value(None)
-            if (len(args) != 2 or len(kwargs) > 1 or
-                    (len(kwargs) == 1 and 'typecheck' not in kwargs)):
+            allowed_kwargs = frozenset(('objstruct_cast', 'typecheck'))
+            if len(args) != 2:
                 error(node.function.pos,
-                      "cast() takes exactly two arguments and an optional typecheck keyword")
+                      "cast() takes exactly two arguments and optional keywords")
+            elif not allowed_kwargs.issuperset(kwargs.keys()):
+                error(node.function.pos,
+                      f"Only 'typecheck' and 'objstruct_cast' are valid keywords for cast()")
             else:
                 type = args[0].analyse_as_type(self.current_env())
                 if type:
                     typecheck = kwargs.get('typecheck', False)
+                    objstruct_cast = kwargs.get('objstruct_cast', False)
                     node = ExprNodes.TypecastNode(
-                        node.function.pos, type=type, operand=args[1], typecheck=typecheck)
+                        node.function.pos, type=type, operand=args[1],
+                        typecheck=typecheck, objstruct_cast=objstruct_cast)
                 else:
                     error(args[0].pos, "Not a type")
 

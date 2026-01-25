@@ -11689,12 +11689,14 @@ class TypecastNode(ExprNode):
     #  base_type    CBaseTypeNode
     #  declarator   CDeclaratorNode
     #  typecheck    boolean
+    #  objstruct_cast boolean
     #
     #  If used from a transform, one can if wanted specify the attribute
     #  "type" directly and leave base_type and declarator to None
 
     subexprs = ['operand']
     base_type = declarator = type = None
+    objstruct_cast = False
 
     def type_dependencies(self, env):
         return ()
@@ -11703,12 +11705,19 @@ class TypecastNode(ExprNode):
         if self.type is None:
             base_type = self.base_type.analyse(env)
             _, self.type = self.declarator.analyse(base_type, env)
+        if self.objstruct_cast:
+            self.type = PyrexTypes.c_void_ptr_type
         return self.type
 
     def analyse_types(self, env):
         if self.type is None:
             base_type = self.base_type.analyse(env)
             _, self.type = self.declarator.analyse(base_type, env)
+        if self.objstruct_cast:
+            if not self.type.is_extension_type:
+                error(self.pos, "objstruct_cast can only be applied to extension types") 
+            self.original_type = self.type
+            self.type = PyrexTypes.c_void_ptr_type
         if self.operand.has_constant_result():
             # Must be done after self.type is resolved.
             self.calculate_constant_result()
@@ -11725,6 +11734,8 @@ class TypecastNode(ExprNode):
         if from_py and not to_py and self.operand.is_ephemeral():
             if not self.type.is_numeric and not self.type.is_cpp_class:
                 error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
+        if self.objstruct_cast and self.typecheck:
+            self.operand = PyTypeTestNode(self.operand, self.original_type, env, notnone=True)
         if to_py and not from_py:
             if self.type is bytes_type and self.operand.type.is_int:
                 return CoerceIntToBytesNode(self.operand, env)
@@ -11793,6 +11804,13 @@ class TypecastNode(ExprNode):
     def calculate_result_code(self, operand_result = None):
         if operand_result is None:
             operand_result = self.operand.result()
+        if self.objstruct_cast:
+            has_gil = not self.in_nogil_context
+            # FIXME - we really need Code to get to this
+            typeoffset_cname = f"{Naming.modulestateglobal_cname}->{self.original_type.typeoffset_cname}"
+            typeptr_cname = f"(PyTypeObject*){Naming.modulestateglobal_cname}->{self.original_type.typeptr_cname}"
+            return (f"__Pyx_GetCClassTypeData({self.operand.result()}, {has_gil:d}, "
+                    f"{typeptr_cname}, {typeoffset_cname}, void*)")
         if self.type.is_complex:
             operand_result = self.operand.result()
             if self.operand.type.is_complex:

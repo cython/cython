@@ -174,6 +174,7 @@ def cmod(a, b):
 
 def cast(t, *args, **kwargs):
     kwargs.pop('typecheck', None)
+    kwargs.pop('objstruct_cast', None)
     assert not kwargs
 
     if isinstance(t, typedef):

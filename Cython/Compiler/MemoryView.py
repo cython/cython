@@ -824,6 +824,9 @@ def _get_memviewslice_declare_code():
 atomic_utility = load_memview_c_utility(
     "Atomics", util_code_filename="Synchronization.c", context=template_context)
 
+opaque_struct_lookup_utility = load_memview_c_utility(
+    "OpaqueStructLookup", util_code_filename="ExtensionTypes.c")
+
 memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")
 
 def _get_typeinfo_to_format_code():
@@ -881,6 +884,7 @@ def _get_memoryview_shared_utility_code(shared_utility_qualified_name):
                 memviewslice_declare_code,
                 refcount_utility,
                 atomic_utility,
+                opaque_struct_lookup_utility,
                 ],
     )
 

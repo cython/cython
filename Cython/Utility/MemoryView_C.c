@@ -57,13 +57,7 @@ static int __Pyx_init_memviewslice(
 #define __PYX_XCLEAR_MEMVIEW(slice, have_gil) __Pyx_XCLEAR_MEMVIEW(slice, have_gil, __LINE__)
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
 static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *, int, int);
-#if !CYTHON_OPAQUE_OBJECTS
-#define __Pyx_GetMemoryviewStructPointer(o) ((struct $memview_objstruct_cname*)o)
-#else
-#define __Pyx_GetMemoryviewStructPointer(o) __Pyx_GetMemoryviewStructPointerImpl(o)
-#endif
-#define __Pyx_MemoryviewOffsetOfTypeInfo() offsetof(struct $memview_objstruct_cname, typeinfo)
-
+#define __Pyx_GetMemoryviewStructPointer(o) __Pyx__GetMemoryviewStructPointer((__PYX_C_CLASS_DECL(struct $memview_objstruct_cname)*)o)
 
 /////////////// ObjectToMemviewSlice.proto ///////////////
 //@substitute: naming
