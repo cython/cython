@@ -1837,9 +1837,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.start_slotfunc(scope, PyrexTypes.c_void_type, "tp_finalize", "PyObject *o", needs_funcstate=False)
         code.putln("PyObject *etype, *eval, *etb;")
-        code.putln("PyErr_Fetch(&etype, &eval, &etb);")
+        code.putln("__Pyx_PyErr_FetchException(&etype, &eval, &etb);")
         code.putln("%s(o);" % entry.func_cname)
-        code.putln("PyErr_Restore(etype, eval, etb);")
+        code.putln("__Pyx_PyErr_RestoreException(etype, eval, etb);")
         code.putln("}")
         code.exit_cfunc_scope()
 
@@ -2017,13 +2017,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("{")
         code.putln("PyObject *etype, *eval, *etb;")
-        code.putln("PyErr_Fetch(&etype, &eval, &etb);")
+        code.putln("__Pyx_PyErr_FetchException(&etype, &eval, &etb);")
         # increase the refcount while we are calling into user code
         # to prevent recursive deallocation
         code.putln("Py_SET_REFCNT(o, Py_REFCNT(o) + 1);")
         code.putln("%s(o);" % entry.func_cname)
         code.putln("Py_SET_REFCNT(o, Py_REFCNT(o) - 1);")
-        code.putln("PyErr_Restore(etype, eval, etb);")
+        code.putln("__Pyx_PyErr_RestoreException(etype, eval, etb);")
         code.putln("}")
 
     def generate_traverse_function(self, scope, code, cclass_entry):
@@ -3365,9 +3365,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # fetch/restore the error indicator because PyState_RemoveModule might fail itself
         code.putln("if (pystate_addmodule_run) {")
         code.putln("PyObject *tp, *value, *tb;")
-        code.putln("PyErr_Fetch(&tp, &value, &tb);")
+        code.putln("__Pyx_PyErr_FetchException(&tp, &value, &tb);")
         code.putln("PyState_RemoveModule(&%s);" % Naming.pymoduledef_cname)
-        code.putln("PyErr_Restore(tp, value, tb);")
+        code.putln("__Pyx_PyErr_RestoreException(tp, value, tb);")
         code.putln("}")
         code.putln("#endif")
         code.putln('} else if (!PyErr_Occurred()) {')
