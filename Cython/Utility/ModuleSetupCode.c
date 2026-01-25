@@ -34,6 +34,12 @@
   #endif
 #endif
 
+#ifdef __has_builtin
+  #define __Pyx_has_cbuiltin(name) __has_builtin(name)
+#else
+  #define __Pyx_has_cbuiltin(name) (0)
+#endif
+
 #ifndef DL_IMPORT
   #define DL_IMPORT(t) t
 #endif
