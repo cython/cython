@@ -1837,9 +1837,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.start_slotfunc(scope, PyrexTypes.c_void_type, "tp_finalize", "PyObject *o", needs_funcstate=False)
         code.putln("PyObject *etype, *eval, *etb;")
-        code.putln("PyErr_Fetch(&etype, &eval, &etb);")
+        code.putln("__Pyx_PyErr_FetchException(&etype, &eval, &etb);")
         code.putln("%s(o);" % entry.func_cname)
-        code.putln("PyErr_Restore(etype, eval, etb);")
+        code.putln("__Pyx_PyErr_RestoreException(etype, eval, etb);")
         code.putln("}")
         code.exit_cfunc_scope()
 
@@ -2017,13 +2017,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("{")
         code.putln("PyObject *etype, *eval, *etb;")
-        code.putln("PyErr_Fetch(&etype, &eval, &etb);")
+        code.putln("__Pyx_PyErr_FetchException(&etype, &eval, &etb);")
         # increase the refcount while we are calling into user code
         # to prevent recursive deallocation
         code.putln("Py_SET_REFCNT(o, Py_REFCNT(o) + 1);")
         code.putln("%s(o);" % entry.func_cname)
         code.putln("Py_SET_REFCNT(o, Py_REFCNT(o) - 1);")
-        code.putln("PyErr_Restore(etype, eval, etb);")
+        code.putln("__Pyx_PyErr_RestoreException(etype, eval, etb);")
         code.putln("}")
 
     def generate_traverse_function(self, scope, code, cclass_entry):
@@ -3287,8 +3287,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         shared_utility_exporter.call_export_code(code)
 
-        with subfunction("Type init code") as inner_code:
-            self.generate_type_init_code(env, inner_code)
+        code.putln("/*--- Type init code ---*/")
+        self.generate_type_init_code(env, subfunction, code)
 
         with subfunction("Type import code") as inner_code:
             for module in imported_modules:
@@ -3365,9 +3365,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # fetch/restore the error indicator because PyState_RemoveModule might fail itself
         code.putln("if (pystate_addmodule_run) {")
         code.putln("PyObject *tp, *value, *tb;")
-        code.putln("PyErr_Fetch(&tp, &value, &tb);")
+        code.putln("__Pyx_PyErr_FetchException(&tp, &value, &tb);")
         code.putln("PyState_RemoveModule(&%s);" % Naming.pymoduledef_cname)
-        code.putln("PyErr_Restore(tp, value, tb);")
+        code.putln("__Pyx_PyErr_RestoreException(tp, value, tb);")
         code.putln("}")
         code.putln("#endif")
         code.putln('} else if (!PyErr_Occurred()) {')
@@ -3402,8 +3402,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         class ModInitSubfunction:
             def __init__(self, code_type):
-                cname = '_'.join(code_type.lower().split())
-                assert re.match("^[a-z0-9_]+$", cname)
+                cname = '_'.join(code_type.split())
+                assert re.match("^[a-zA-Z0-9_]+$", cname)
                 self.cfunc_name = "__Pyx_modinit_%s" % cname
                 self.description = code_type
                 self.tempdecl_code = None
@@ -3963,7 +3963,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         _generate_import_code(
             code, self.pos, imports, module.qualified_name, f"__Pyx_ImportFunction_{Naming.cyversion}", "void (**{name})(void)")
 
-    def generate_type_init_code(self, env, code):
+    def generate_type_init_code(self, env, subfunction, code):
         # Generate type import code for extern extension types
         # and type ready code for non-extern ones.
         with ModuleImportGenerator(code) as import_generator:
@@ -3972,9 +3972,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_type_import_code(env, entry.type, entry.pos, code, import_generator)
                 else:
                     self.generate_base_type_import_code(env, entry, code, import_generator)
-                    self.generate_exttype_vtable_init_code(entry, code)
-                    if entry.type.early_init:
-                        self.generate_type_ready_code(entry, code)
+                    with subfunction("Exttype " + entry.type.objstruct_cname) as inner_code:
+                        self.generate_exttype_vtable_init_code(entry, inner_code)
+                        if entry.type.early_init:
+                            self.generate_type_ready_code(entry, inner_code)
 
     def generate_base_type_import_code(self, env, entry, code, import_generator):
         base_type = entry.type.base_type
@@ -4065,6 +4066,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
         code.putln(f' if (!{typeptr_cname}) {error_code}')
+
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)
 

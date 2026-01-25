@@ -10759,7 +10759,7 @@ class CodeObjectNode(ExprNode):
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
         kwonly_argcount = func.num_kwonly_args
         nlocals = len(self.varnames)
-        flags = '(unsigned int)(%s)' % '|'.join(flags) or '0'
+        flags = '(unsigned int)(%s)' % '|'.join(flags)
 
         # See "generate_codeobject_constants()" in Code.py.
         code.putln("{")
