@@ -889,7 +889,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     // frame, and then customizing the details of the code to match.
     // We then run the code object and use the generated frame to set the traceback.
 
-    PyErr_Fetch(&exc_type, &exc_value, &exc_traceback);
+    __Pyx_PyErr_Fetch(&exc_type, &exc_value, &exc_traceback);
 
     code_object = $global_code_object_cache_find(c_line ? -c_line : py_line);
     if (!code_object) {
@@ -929,7 +929,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     success = 1;
 
   bad:
-    PyErr_Restore(exc_type, exc_value, exc_traceback);
+    __Pyx_PyErr_Restore(exc_type, exc_value, exc_traceback);
     Py_XDECREF(code_object);
     Py_XDECREF(py_py_line);
     Py_XDECREF(py_funcname);
