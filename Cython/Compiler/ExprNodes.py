@@ -159,7 +159,7 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
     if not seq_node.is_sequence_constructor:
         if seq_type is None:
             seq_type = seq_node.infer_type(env)
-        if seq_type is tuple_type:
+        if seq_type == tuple_type:
             # tuples are immutable => we can safely follow assignments
             if seq_node.cf_state and len(seq_node.cf_state) == 1:
                 try:
@@ -4767,7 +4767,7 @@ class IndexNode(_IndexingBaseNode):
             if self.index.type.is_int:
                 if base_type == list_type:
                     function = "__Pyx_GetItemInt_List"
-                elif base_type is tuple_type:
+                elif base_type == tuple_type:
                     function = "__Pyx_GetItemInt_Tuple"
                 else:
                     function = "__Pyx_GetItemInt"
@@ -5809,7 +5809,7 @@ class SliceIndexNode(ExprNode):
                 code.globalstate.use_utility_code(
                     TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
                 cfunc = '__Pyx_PyList_GetSlice'
-            elif base_type is tuple_type:
+            elif base_type == tuple_type:
                 code.globalstate.use_utility_code(
                     TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
                 cfunc = '__Pyx_PyTuple_GetSlice'
@@ -7559,7 +7559,7 @@ class AsTupleNode(ExprNode):
 
     def analyse_types(self, env):
         self.arg = self.arg.analyse_types(env).coerce_to_pyobject(env)
-        if self.arg.type is tuple_type:
+        if self.arg.type == tuple_type:
             return self.arg.as_none_safe_node("'NoneType' object is not iterable")
         self.type = tuple_type
         return self
@@ -8586,7 +8586,7 @@ class SequenceNode(ExprNode):
                 else:
                     size_factor = ' * (%s)' % (c_mult,)
 
-        if ((self.type is tuple_type or self.type == list_type) and
+        if ((self.type == tuple_type or self.type == list_type) and
                 (self.is_literal or self.slow) and
                 not c_mult and
                 len(self.args) > 0):
@@ -8614,7 +8614,7 @@ class SequenceNode(ExprNode):
             # build the tuple/list step by step, potentially multiplying it as we go
             if self.type == list_type:
                 create_func, set_item_func = 'PyList_New', '__Pyx_PyList_SET_ITEM'
-            elif self.type is tuple_type:
+            elif self.type == tuple_type:
                 create_func, set_item_func = 'PyTuple_New', '__Pyx_PyTuple_SET_ITEM'
             else:
                 raise InternalError("sequence packing for unexpected type %s" % self.type)
@@ -8734,7 +8734,7 @@ class SequenceNode(ExprNode):
             get_size_func = "__Pyx_PyList_GET_SIZE"
             if rhs.may_be_none():
                 sequence_type_test = none_check
-        elif rhs.type is tuple_type:
+        elif rhs.type == tuple_type:
             sequence_types = ['Tuple']
             get_size_func = "__Pyx_PyTuple_GET_SIZE"
             if rhs.may_be_none():
@@ -9069,7 +9069,7 @@ class TupleNode(SequenceNode):
         if self.type.is_ctuple:
             if dst_type.is_ctuple and self.type.size == dst_type.size:
                 return self.coerce_to_ctuple(dst_type, env)
-            elif dst_type is tuple_type or dst_type is py_object_type:
+            elif dst_type == tuple_type or dst_type is py_object_type:
                 coerced_args = [arg.coerce_to_pyobject(env) for arg in self.args]
                 return TupleNode(
                     self.pos,
@@ -9470,7 +9470,7 @@ class ComprehensionAppendNode(Node):
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ListCompAppend", "Optimize.c"))
             function = "__Pyx_ListComp_Append"
-        elif self.target.type is set_type:
+        elif self.target.type == set_type:
             function = "PySet_Add"
         else:
             raise InternalError(
@@ -9603,9 +9603,9 @@ class MergedSequenceNode(ExprNode):
             else:
                 items = item.constant_result
             result.extend(items)
-        if self.type is set_type:
+        if self.type == set_type:
             result = set(result)
-        elif self.type is tuple_type:
+        elif self.type == tuple_type:
             result = tuple(result)
         else:
             assert self.type == list_type
@@ -9623,12 +9623,12 @@ class MergedSequenceNode(ExprNode):
             else:
                 items = item.compile_time_value(denv)
             result.extend(items)
-        if self.type is set_type:
+        if self.type == set_type:
             try:
                 result = set(result)
             except Exception as e:
                 self.compile_time_value_error(e)
-        elif self.type is tuple_type:
+        elif self.type == tuple_type:
             result = tuple(result)
         else:
             assert self.type == list_type
@@ -9664,7 +9664,7 @@ class MergedSequenceNode(ExprNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
 
-        is_set = self.type is set_type
+        is_set = self.type == set_type
 
         args = iter(self.args)
         item = next(args)
@@ -9721,7 +9721,7 @@ class MergedSequenceNode(ExprNode):
             item.generate_disposal_code(code)
             item.free_temps(code)
 
-        if self.type is tuple_type:
+        if self.type == tuple_type:
             code.putln("{")
             code.putln("PyObject *%s = PyList_AsTuple(%s);" % (
                 Naming.quick_temp_cname,
