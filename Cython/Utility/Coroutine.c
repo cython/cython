@@ -221,7 +221,7 @@ static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
     PyObject *exc, *val, *val2, *tb;
     __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
     assert(PyErr_Occurred());
-    __Pyx_PyErr_Fetch(&exc, &val, &tb);
+    __Pyx_PyErr_FetchException(&exc, &val, &tb);
 #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
     PyErr_NormalizeException(&exc, &val, &tb);
     if (tb != NULL) {
@@ -235,14 +235,14 @@ static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
         "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
     __Pyx_DECREF_TypeName(source_type_name);
 
-    __Pyx_PyErr_Fetch(&exc, &val2, &tb);
+    __Pyx_PyErr_FetchException(&exc, &val2, &tb);
 #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
     PyErr_NormalizeException(&exc, &val2, &tb);
 #endif
     Py_INCREF(val);
     PyException_SetCause(val2, val);
     PyException_SetContext(val2, val);
-    __Pyx_PyErr_Restore(exc, val2, tb);
+    __Pyx_PyErr_RestoreException(exc, val2, tb);
 #endif
 }
 
@@ -273,9 +273,9 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
             // We need to distinguish between "doesn't have __await__" vs "__await__ failed"
             if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
                 PyObject *type, *value, *traceback;
-                __Pyx_PyErr_Fetch(&type, &value, &traceback);
+                __Pyx_PyErr_FetchException(&type, &value, &traceback);
                 int has_attr = PyObject_HasAttr(obj, PYIDENT("__await__"));
-                __Pyx_PyErr_Restore(type, value, traceback);
+                __Pyx_PyErr_RestoreException(type, value, traceback);
                 if (!has_attr) goto slot_error;
             }
         }
