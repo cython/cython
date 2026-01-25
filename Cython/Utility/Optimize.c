@@ -1207,7 +1207,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyObject_SameBuffer_CompareStrStr(Py_ssize
         }
         return 0;
     } else {
-        #if defined(__has_builtin) && __has_builtin(__builtin_unreachable)
+        #if __Pyx_has_cbuiltin(__builtin_unreachable)
         __builtin_unreachable();
         #elif defined(__clang__) || defined(__INTEL_COMPILER) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)))
         __builtin_unreachable();
@@ -1258,7 +1258,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyObject_DifferentBuffer_CompareStrStr(Py_
         }
         return 0;
     } else {
-        #if defined(__has_builtin) && __has_builtin(__builtin_unreachable)
+        #if __Pyx_has_cbuiltin(__builtin_unreachable)
         __builtin_unreachable();
         #elif defined(__clang__) || defined(__INTEL_COMPILER) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)))
         __builtin_unreachable();
