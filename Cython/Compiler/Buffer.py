@@ -392,7 +392,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
         code.globalstate.use_utility_code(raise_buffer_fallback_code)
         code.putln('__Pyx_RaiseBufferFallbackError();')
         code.putln('} else {')
-        code.putln('__pyx_PyErr_Restore(%s, %s, %s);' % exc_temps)
+        code.putln('__Pyx_PyErr_Restore(%s, %s, %s);' % exc_temps)
         code.putln('}')
         code.putln('%s = %s = %s = 0;' % exc_temps)
         for t in exc_temps:
