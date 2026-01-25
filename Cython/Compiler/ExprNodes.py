@@ -8197,7 +8197,7 @@ class AttributeNode(ExprNode):
             if access_type.is_external:
                 return obj_code
             else:
-                has_gil = self.in_nogil_context
+                has_gil = not self.in_nogil_context
                 # FIXME - we really need Code to get to this
                 typeoffset_cname = f"{Naming.modulestateglobal_cname}->{access_type.typeoffset_cname}"
                 typeptr_cname = f"(PyTypeObject*){Naming.modulestateglobal_cname}->{access_type.typeptr_cname}"
