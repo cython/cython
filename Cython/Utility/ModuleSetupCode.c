@@ -604,7 +604,7 @@ typedef uintptr_t  __pyx_uintptr_t;
 #define __Pyx_PyErr_Fetch(petype, peval, petb) PyErr_Fetch(petype, peval, petb)
 #define __Pyx_PyErr_Restore(etype, eval, etb) PyErr_Restore(etype, eval, etb)
 #else
-#define __Pyx_PyErr_Fetch(petype, peval, petb) *petype=NULL; *peval=PyErr_GetRaisedException(); *petb=NULL
+#define __Pyx_PyErr_Fetch(petype, peval, petb) *(petype)=NULL; *(peval)=PyErr_GetRaisedException(); *(petb)=NULL
 #define __Pyx_PyErr_Restore(etype, eval, etb) PyErr_SetRaisedException(eval)
 #endif
 
