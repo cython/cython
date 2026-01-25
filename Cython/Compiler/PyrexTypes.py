@@ -1526,7 +1526,10 @@ class BuiltinObjectType(PyObjectType):
         return type.is_pyobject and type.assignable_from(self)
 
     def type_check_function(self, exact=True):
-        type_name = self.name
+        if container_type := self.get_container_type():
+            type_name = container_type.name
+        else:
+            type_name = self.name
         if type_name in _special_type_check_functions:
             type_check = _special_type_check_functions[type_name]
         elif self.is_exception_type:
@@ -4895,9 +4898,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             subscripted_types = ','.join([str(tv) for tv in template_values])
             name = f'{self.get_container_type().name}[{subscripted_types}]'
 
-            # TODO this code is copied from Symtab.py, we need some common function for that...
-            objstruct_cname = 'PySetObject' if name == 'frozenset' else f'Py{name.capitalize()}Object'
-            typ = BuiltinTypeConstructorObjectType(name=name, cname=self.cname, objstruct_cname=objstruct_cname)
+            typ = BuiltinTypeConstructorObjectType(name=name, cname=self.cname, objstruct_cname=self.objstruct_cname)
             typ.base_type = self
             typ.subscripted_types = tuple(template_values)
             env.global_scope().declare_type(name, typ, pos, cname=typ.cname)
@@ -4920,18 +4921,6 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
                 return True
             return False
         return super().assignable_from(src_type)
-
-    def type_check_function(self, exact=True):
-        type_name = self.get_container_type().name
-        if type_name in _special_type_check_functions:
-            type_check = _special_type_check_functions[type_name]
-        elif self.is_exception_type:
-            type_check = f"__Pyx_PyExc_{type_name}_Check"
-        else:
-            type_check = f'Py{type_name.capitalize()}_Check'
-        if exact and not self.is_exception_type and type_name not in ('bool', 'slice', 'memoryview'):
-            type_check += 'Exact'
-        return type_check
 
     def infer_indexed_type(self):
         from .Builtin import dict_type
