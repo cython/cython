@@ -4888,7 +4888,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     def specialize_here(self, pos, env, template_values=None):
         if self.name not in ['dict', 'list', 'set', 'frozenset']:
             return self
-        if template_values and all(tv is not None for tv in template_values) and len(template_values) <= 2:
+        if template_values and None not in template_values and len(template_values) <= 2:
             template_values = tuple(template_values)
             if template_values in self.specializations:
                 return self.specializations[template_values]
