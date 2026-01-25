@@ -1297,8 +1297,21 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_pref
 
     char *ps1, *ps2;
     Py_ssize_t length, length2;
+
+    {{if s1_type == 'bytes'}}
     if (unlikely(PyBytes_AsStringAndSize(s1, &ps1, &length) == -1)) {{return_error}};
+    {{else}}
+    ps1 = __Pyx_PyByteArray_AsString(s1); if (unlikely(!ps1)) {{return_error}};
+    length = __Pyx_PyByteArray_GET_SIZE(s1); if (unlikely(length == -1)) {{return_error}};
+    {{endif}}
+
+    {{if s2_type == 'bytes'}}
     if (unlikely(PyBytes_AsStringAndSize(s2, &ps2, &length2) == -1)) {{return_error}};
+    {{else}}
+    ps2 = __Pyx_PyByteArray_AsString(s2); if (unlikely(!ps2)) {{return_error}};
+    length2 = __Pyx_PyByteArray_GET_SIZE(s2); if (unlikely(length2 == -1)) {{return_error}};
+    {{endif}}
+
     if (length != length2) {{return_false if op == 'Eq' else return_true}};
 
     #endif
@@ -1348,10 +1361,21 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_pref
     ps2 = {{s2_prefix}}_AS_STRING(s2);
 
     #else
-
     char *ps1, *ps2;
+
+    {{if s1_type == 'bytes'}}
     if (unlikely(PyBytes_AsStringAndSize(s1, &ps1, &length1) == -1)) {{return_error}};
+    {{else}}
+    ps1 = __Pyx_PyByteArray_AsString(s1); if (unlikely(!ps1)) {{return_error}};
+    length1 = __Pyx_PyByteArray_GET_SIZE(s1); if (unlikely(length1 == -1)) {{return_error}};
+    {{endif}}
+
+    {{if s2_type == 'bytes'}}
     if (unlikely(PyBytes_AsStringAndSize(s2, &ps2, &length2) == -1)) {{return_error}};
+    {{else}}
+    ps2 = __Pyx_PyByteArray_AsString(s2); if (unlikely(!ps2)) {{return_error}};
+    length2 = __Pyx_PyByteArray_GET_SIZE(s2); if (unlikely(length2 == -1)) {{return_error}};
+    {{endif}}
 
     short_length = (length1 < length2) ? length1 : length2;
     if (short_length == 0) {
