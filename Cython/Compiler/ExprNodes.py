@@ -108,13 +108,13 @@ coercion_error_dict = {
 def find_coercion_error(type_tuple, default, env):
     err = coercion_error_dict.get(type_tuple)
     if err is None:
-        type0, type1 = type_tuple
-        if type0 in typed_container_types and type1 in typed_container_types:
-            # Typed containers. Validate the coercion of their item types.
-            for i in range(max(len(type0.subscripted_types), len(type1.subscripted_types))):
-                subscripted_type0 = type0.get_subscripted_type(i)
+        type1, type2 = type_tuple
+        if type1 in typed_container_types and type2 in typed_container_types:
+            # Typed containers. Validate the coercion of their subscripted types.
+            for i in range(max(len(type1.subscripted_types), len(type2.subscripted_types))):
                 subscripted_type1 = type1.get_subscripted_type(i)
-                if (ret := find_coercion_error((subscripted_type0, subscripted_type1), default, env)) == default:
+                subscripted_type2 = type2.get_subscripted_type(i)
+                if (ret := find_coercion_error((subscripted_type1, subscripted_type2), default, env)) == default:
                     continue
                 return ret
         return default
