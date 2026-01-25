@@ -1285,11 +1285,9 @@ __pyx_return_false:
 
 {{if op in 'EqNe'}}
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_prefix}}{{func_suffix}}(PyObject* s1, PyObject* s2) {
-    const char *ps1, *ps2;
-    Py_ssize_t length;
-
     #if CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS
-    length = {{s1_prefix}}_GET_SIZE(s1);
+    const char *ps1, *ps2;
+    Py_ssize_t length = {{s1_prefix}}_GET_SIZE(s1);
     if (length != {{s2_prefix}}_GET_SIZE(s2)) {{return_false if op == 'Eq' else return_true}};
 
     ps1 = {{s1_prefix}}_AS_STRING(s1);
@@ -1297,7 +1295,8 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_pref
 
     #else
 
-    Py_ssize_t length2;
+    char *ps1, *ps2;
+    Py_ssize_t length, length2;
     if (unlikely(PyBytes_AsStringAndSize(s1, &ps1, &length) == -1)) {{return_error}};
     if (unlikely(PyBytes_AsStringAndSize(s2, &ps2, &length2) == -1)) {{return_error}};
     if (length != length2) {{return_false if op == 'Eq' else return_true}};
@@ -1334,9 +1333,9 @@ __pyx_return_false:
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_prefix}}{{func_suffix}}(PyObject* s1, PyObject* s2) {
     Py_ssize_t cmp;
     Py_ssize_t length1, length2, short_length;
-    const char *ps1, *ps2;
 
     #if CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS
+    const char *ps1, *ps2;
     length1 = __Pyx_{{s1_prefix}}_GET_SIZE(s1);
     length2 = __Pyx_{{s2_prefix}}_GET_SIZE(s2);
 
@@ -1350,6 +1349,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_pref
 
     #else
 
+    char *ps1, *ps2;
     if (unlikely(PyBytes_AsStringAndSize(s1, &ps1, &length1) == -1)) {{return_error}};
     if (unlikely(PyBytes_AsStringAndSize(s2, &ps2, &length2) == -1)) {{return_error}};
 
