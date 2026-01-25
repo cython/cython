@@ -32,6 +32,7 @@ jobs:
           #- "windows-latest"  # needs more setup work
 
     runs-on: ${{ matrix.os }}
+    if: ${{ github.repository == 'cython/cython' }}
 
     env:
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
