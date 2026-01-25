@@ -5,11 +5,13 @@ on:
     paths:
       - '.github/workflows/coverage.yml'
       - "Cython/**"
+      - '!Cython/Utility/**'
       - "tests/**"
   pull_request:
     paths:
       - '.github/workflows/coverage.yml'
       - "Cython/**"
+      - '!Cython/Utility/**'
       - "tests/**"
   workflow_dispatch:
 
