@@ -22,7 +22,7 @@ cdef class L(list):
     pass
 
 # Skip for PyPy and GraalPy - refcounting is likely unreliable.
-if not platform.python_implementation in ("PyPy", "GraalVM"):
+if platform.python_implementation() not in ("PyPy", "GraalVM"):
     __doc__= """
     >>> old_refcount_c = sys.getrefcount(C)
     >>> x = [C() for _ in range(100)]
