@@ -1181,14 +1181,19 @@ __pyx_return_false:
 
 #ifndef __Pyx_DEFINED_PyObject_CompareStrStr
 #define __Pyx_DEFINED_PyObject_CompareStrStr
-static CYTHON_INLINE Py_ssize_t __Pyx_PyObject_CompareStrStr(Py_ssize_t length, int kind1, int kind2, void* data1, void* data2) {
-    assert (kind1 <= kind2);
-    // The if-cases are spelled out to let the C compiler know (and optimise for) the exact kinds
-    // (i.e. character layouts) of the two strings.
-    if (kind1 == 1) {
-        if (kind2 == 1) {
+static Py_ssize_t __Pyx_PyObject_CompareStrStr(Py_ssize_t length, PyObject *s1, PyObject *s2) {
+    int kind1 = __Pyx_PyUnicode_KIND(s1);
+    void *data1 = __Pyx_PyUnicode_DATA(s1);
+
+    int kind2 = __Pyx_PyUnicode_KIND(s2);
+    void *data2 = __Pyx_PyUnicode_DATA(s2);
+
+    switch (kind1 | kind2) {
+        case 1: {
             return memcmp(data1, data2, (size_t) length);
-        } else if (kind2 == 2) {
+        }
+        case 2: {
+            kind1 = 2; kind2 = 2;
             for (Py_ssize_t i = 0; i < length; i++) {
                 Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
                 Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
@@ -1196,7 +1201,28 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyObject_CompareStrStr(Py_ssize_t length, 
                     return (char1 < char2) ? -1 : 1;
                 }
             }
-        } else if (kind2 == 4) {
+            return 0;
+        }
+        case 3: {
+            int swap = kind2 == 1;
+            if (swap) {
+                void *d = data1; data1 = data2; data2 = d;
+            }
+            kind1 = 1; kind2 = 2;
+            for (Py_ssize_t i = 0; i < length; i++) {
+                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
+                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
+                if (char1 != char2) {
+                    if (swap)
+                        return (char1 < char2) ? 1 : -1;
+                    else
+                        return (char1 < char2) ? -1 : 1;
+                }
+            }
+            return 0;
+        }
+        case 4: {
+            kind1 = 4; kind2 = 4;
             for (Py_ssize_t i = 0; i < length; i++) {
                 Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
                 Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
@@ -1204,41 +1230,47 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyObject_CompareStrStr(Py_ssize_t length, 
                     return (char1 < char2) ? -1 : 1;
                 }
             }
-        } else {
+            return 0;
+        }
+        case 5: {
+            int swap = kind2 == 1;
+            if (swap) {
+                void *d = data1; data1 = data2; data2 = d;
+            }
+            kind1 = 1; kind2 = 4;
+            for (Py_ssize_t i = 0; i < length; i++) {
+                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
+                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
+                if (char1 != char2) {
+                    if (swap)
+                        return (char1 < char2) ? 1 : -1;
+                    else
+                        return (char1 < char2) ? -1 : 1;
+                }
+            }
+            return 0;
+        }
+        case 6: {
+            int swap = kind2 == 2;
+            if (swap) {
+                void *d = data1; data1 = data2; data2 = d;
+            }
+            kind1 = 2; kind2 = 4;
+            for (Py_ssize_t i = 0; i < length; i++) {
+                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
+                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
+                if (char1 != char2) {
+                    if (swap)
+                        return (char1 < char2) ? 1 : -1;
+                    else
+                        return (char1 < char2) ? -1 : 1;
+                }
+            }
+            return 0;
+        }
+        default:
             __Pyx_UNREACHABLE();
-        }
-    } else if (kind1 == 2) {
-        if (kind2 == 2) {
-            for (Py_ssize_t i = 0; i < length; i++) {
-                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
-                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
-                if (char1 != char2) {
-                    return (char1 < char2) ? -1 : 1;
-                }
-            }
-        } else if (kind2 == 4) {
-            for (Py_ssize_t i = 0; i < length; i++) {
-                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
-                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
-                if (char1 != char2) {
-                    return (char1 < char2) ? -1 : 1;
-                }
-            }
-        } else {
-            __Pyx_UNREACHABLE();
-        }
-    } else if (kind1 == 4 && kind2 == 4) {
-        for (Py_ssize_t i = 0; i < length; i++) {
-            Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
-            Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
-            if (char1 != char2) {
-                return (char1 < char2) ? -1 : 1;
-            }
-        }
-    } else {
-        __Pyx_UNREACHABLE();
     }
-    return 0;
 }
 #endif
 
@@ -1266,25 +1298,8 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(
     }
 
     {
-        int kind1 = __Pyx_PyUnicode_KIND(s1);
-        int kind2 = __Pyx_PyUnicode_KIND(s2);
-        void *data1 = __Pyx_PyUnicode_DATA(s1);
-        void *data2 = __Pyx_PyUnicode_DATA(s2);
-
-        Py_ssize_t cmp;
-        int okind1, okind2;
-        void *odata1, *odata2;
-        if (kind1 <= kind2) {
-            okind1 = kind1; okind2 = kind2;
-            odata1 = data1; odata2 = data2;
-        } else {
-            okind2 = kind1; okind1 = kind2;
-            odata2 = data1; odata1 = data2;
-        }
-        cmp = __Pyx_PyObject_CompareStrStr(short_length, okind1, okind2, odata1, odata2);
+        Py_ssize_t cmp = __Pyx_PyObject_CompareStrStr(short_length, s1, s2);
         if (cmp == 0) cmp = (length1 - length2);
-        else if (!(kind1 <= kind2)) cmp = -cmp;
-
         if (cmp {{c_op}} 0) {{return_true}}; else {{return_false}};
     }
 
