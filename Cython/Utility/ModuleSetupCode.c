@@ -590,10 +590,8 @@ typedef uintptr_t  __pyx_uintptr_t;
   #define __Pyx_UNREACHABLE() __builtin_unreachable()
 #elif defined(_MSC_VER)
   #define __Pyx_UNREACHABLE() __assume(0)
-#elif !CYTHON_COMPILING_IN_LIMITED_API
-  #define __Pyx_UNREACHABLE() Py_FatalError("Unreachable C code path reached")
 #else
-  #define __Pyx_UNREACHABLE() assert(0); abort()
+  #define __Pyx_UNREACHABLE() Py_FatalError("Unreachable C code path reached")
 #endif
 
 #ifndef Py_UNREACHABLE
