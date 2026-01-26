@@ -1142,16 +1142,15 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(
     #endif
 #else
     Py_ssize_t length, length2;
-    if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0))
-        return {{'NULL' if return_obj else '-1'}};
+    if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0)) {{return_error}};
 
     length = __Pyx_PyUnicode_GET_LENGTH(s1);
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length < 0)) return {{'NULL' if return_obj else '-1'}};
+    if (unlikely(length < 0)) {{return_error}};
     #endif
     length2 = __Pyx_PyUnicode_GET_LENGTH(s2);
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length2 < 0)) return {{'NULL' if return_obj else '-1'}};
+    if (unlikely(length2 < 0)) {{return_error}};
     #endif
 
     if (length != length2) {{return_false if op == 'Eq' else return_true}};
@@ -1159,9 +1158,8 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(
 
     #if CYTHON_USE_UNICODE_INTERNALS
     {
-        Py_hash_t hash1, hash2;
-        hash1 = ((PyASCIIObject*)s1)->hash;
-        hash2 = ((PyASCIIObject*)s2)->hash;
+        Py_hash_t hash1 = ((PyASCIIObject*)s1)->hash;
+        Py_hash_t hash2 = ((PyASCIIObject*)s2)->hash;
         if (hash1 != hash2 && hash1 != -1 && hash2 != -1) {{return_false if op == 'Eq' else return_true}};
     }
     #endif
@@ -1295,16 +1293,15 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(
     if (result {{c_op}} 0) {{return_true}}; else {{return_false}};
 #else
     Py_ssize_t short_length, length1, length2;
-    if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0))
-        return {{'NULL' if return_obj else '-1'}};
+    if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0)) {{return_error}};
 
     length1 = __Pyx_PyUnicode_GET_LENGTH(s1);
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length1 < 0)) return {{'NULL' if return_obj else '-1'}};
+    if (unlikely(length1 < 0)) {{return_error}};
     #endif
     length2 = __Pyx_PyUnicode_GET_LENGTH(s2);
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length2 < 0)) return {{'NULL' if return_obj else '-1'}};
+    if (unlikely(length2 < 0)) {{return_error}};
     #endif
 
     short_length = (length1 < length2) ? length1 : length2;
@@ -1387,9 +1384,8 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_pref
         int cmp;
         {{if s1_type == 'bytes' and s2_type == 'bytes'}}
 #if CYTHON_USE_UNICODE_INTERNALS && (PY_VERSION_HEX < 0x030B0000)
-        Py_hash_t hash1, hash2;
-        hash1 = ((PyBytesObject*)s1)->ob_shash;
-        hash2 = ((PyBytesObject*)s2)->ob_shash;
+        Py_hash_t hash1 = ((PyBytesObject*)s1)->ob_shash;
+        Py_hash_t hash2 = ((PyBytesObject*)s2)->ob_shash;
         if (hash1 != hash2 && hash1 != -1 && hash2 != -1) {{return_false if op == 'Eq' else return_true}};
 #endif
         {{endif}}
