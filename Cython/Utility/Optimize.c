@@ -1202,10 +1202,11 @@ static Py_ssize_t __Pyx_PyObject_CompareStrStr(Py_ssize_t length, PyObject *s1, 
             return memcmp(data1, data2, (size_t) length);
         }
         case 2: {
-            kind1 = 2; kind2 = 2;
+            const Py_UCS2 *d1 = (const Py_UCS2*) data1;
+            const Py_UCS2 *d2 = (const Py_UCS2*) data2;
             for (Py_ssize_t i = 0; i < length; i++) {
-                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
-                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
+                Py_UCS4 char1 = d1[i];
+                Py_UCS4 char2 = d2[i];
                 if (char1 != char2) {
                     return (char1 < char2) ? -1 : 1;
                 }
@@ -1213,14 +1214,19 @@ static Py_ssize_t __Pyx_PyObject_CompareStrStr(Py_ssize_t length, PyObject *s1, 
             return 0;
         }
         case 3: {
+            const Py_UCS1 *d1;
+            const Py_UCS2 *d2;
             int swap = kind2 == 1;
             if (swap) {
-                void *d = data1; data1 = data2; data2 = d;
+                d1 = (const Py_UCS1*) data2;
+                d2 = (const Py_UCS2*) data1;
+            } else {
+                d1 = (const Py_UCS1*) data1;
+                d2 = (const Py_UCS2*) data2;
             }
-            kind1 = 1; kind2 = 2;
             for (Py_ssize_t i = 0; i < length; i++) {
-                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
-                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
+                Py_UCS4 char1 = d1[i];
+                Py_UCS4 char2 = d2[i];
                 if (char1 != char2) {
                     if (swap)
                         return (char1 < char2) ? 1 : -1;
@@ -1231,10 +1237,11 @@ static Py_ssize_t __Pyx_PyObject_CompareStrStr(Py_ssize_t length, PyObject *s1, 
             return 0;
         }
         case 4: {
-            kind1 = 4; kind2 = 4;
+            const Py_UCS4 *d1 = (const Py_UCS4*) data1;
+            const Py_UCS4 *d2 = (const Py_UCS4*) data2;
             for (Py_ssize_t i = 0; i < length; i++) {
-                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
-                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
+                Py_UCS4 char1 = d1[i];
+                Py_UCS4 char2 = d2[i];
                 if (char1 != char2) {
                     return (char1 < char2) ? -1 : 1;
                 }
@@ -1242,14 +1249,19 @@ static Py_ssize_t __Pyx_PyObject_CompareStrStr(Py_ssize_t length, PyObject *s1, 
             return 0;
         }
         case 5: {
+            const Py_UCS1 *d1;
+            const Py_UCS4 *d2;
             int swap = kind2 == 1;
             if (swap) {
-                void *d = data1; data1 = data2; data2 = d;
+                d1 = (const Py_UCS1*) data2;
+                d2 = (const Py_UCS4*) data1;
+            } else {
+                d1 = (const Py_UCS1*) data1;
+                d2 = (const Py_UCS4*) data2;
             }
-            kind1 = 1; kind2 = 4;
             for (Py_ssize_t i = 0; i < length; i++) {
-                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
-                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
+                Py_UCS4 char1 = d1[i];
+                Py_UCS4 char2 = d2[i];
                 if (char1 != char2) {
                     if (swap)
                         return (char1 < char2) ? 1 : -1;
@@ -1260,14 +1272,19 @@ static Py_ssize_t __Pyx_PyObject_CompareStrStr(Py_ssize_t length, PyObject *s1, 
             return 0;
         }
         case 6: {
+            const Py_UCS2 *d1;
+            const Py_UCS4 *d2;
             int swap = kind2 == 2;
             if (swap) {
-                void *d = data1; data1 = data2; data2 = d;
+                d1 = (const Py_UCS2*) data2;
+                d2 = (const Py_UCS4*) data1;
+            } else {
+                d1 = (const Py_UCS2*) data1;
+                d2 = (const Py_UCS4*) data2;
             }
-            kind1 = 2; kind2 = 4;
             for (Py_ssize_t i = 0; i < length; i++) {
-                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
-                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
+                Py_UCS4 char1 = d1[i];
+                Py_UCS4 char2 = d2[i];
                 if (char1 != char2) {
                     if (swap)
                         return (char1 < char2) ? 1 : -1;
