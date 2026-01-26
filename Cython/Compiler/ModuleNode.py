@@ -3588,23 +3588,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     scope.mangle_internal(Naming.freelist_name))
                 freecount_name = code.name_in_main_c_code_module_state(
                     scope.mangle_internal(Naming.freecount_name))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("ClearFreelist", "ExtensionTypes.c"))
                 code.putln('#if CYTHON_USE_FREELISTS')
-                code.putln("while (%s > 0) {" % freecount_name)
-                code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
-                    freelist_name, freecount_name))
-                code.putln("PyTypeObject *tp = Py_TYPE(o);")
-                code.putln("#if CYTHON_USE_TYPE_SLOTS")
-                code.putln("(*tp->tp_free)(o);")
-                code.putln("#else")
-                # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
-                code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(tp, Py_tp_free);")
-                code.putln("if (tp_free) tp_free(o);")
-                code.putln("#endif")
-                code.putln("#if CYTHON_USE_TYPE_SPECS")
-                # Release the reference that "o" owned for its type.
-                code.putln("Py_DECREF(tp);")
-                code.putln("#endif")
-                code.putln("}")
+                code.putln(f"__Pyx_ClearFreelist((PyObject **)&{freelist_name}, &{freecount_name});")
                 code.putln('#endif')  # CYTHON_USE_FREELISTS
 #        for entry in env.pynum_entries:
 #            code.put_decref_clear(entry.cname,
