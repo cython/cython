@@ -1179,97 +1179,66 @@ __pyx_return_false:
 {{else}}
 {{py: assert op in 'LtLeGeGt', op }}
 
-#ifndef __Pyx_DEFINED_PyObject_SameBuffer_CompareStrStr
-#define __Pyx_DEFINED_PyObject_SameBuffer_CompareStrStr
-static CYTHON_INLINE Py_ssize_t __Pyx_PyObject_SameBuffer_CompareStrStr(Py_ssize_t length, int kind, void* data1, void* data2) {
-    if (kind == 1) {
-        return memcmp(data1, data2, (size_t) length);
-    } else if (kind == 2) {
-        Py_ssize_t pos;
-        for (pos = 0; pos < length; pos++) {
-            Py_UCS4 char1, char2;
-            char1 = __Pyx_PyUnicode_READ(kind, data1, pos);
-            char2 = __Pyx_PyUnicode_READ(kind, data2, pos);
-            if (char1 != char2) {
-                return (char1 < char2) ? -1 : 1;
-            }
-        }
-        return 0;
-    } else if (kind == 4) {
-        Py_ssize_t pos;
-        for (pos = 0; pos < length; pos++) {
-            Py_UCS4 char1, char2;
-            char1 = __Pyx_PyUnicode_READ(kind, data1, pos);
-            char2 = __Pyx_PyUnicode_READ(kind, data2, pos);
-            if (char1 != char2) {
-                return (char1 < char2) ? -1 : 1;
-            }
-        }
-        return 0;
-    } else {
-        #if __Pyx_has_cbuiltin(__builtin_unreachable)
-        __builtin_unreachable();
-        #elif defined(__clang__) || defined(__INTEL_COMPILER) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)))
-        __builtin_unreachable();
-        #elif defined(_MSC_VER)
-        __assume(0);
-        #elif !CYTHON_COMPILING_IN_LIMITED_API
-        Py_FatalError("Unreachable C code path reached");
-        #else
-        assert(0);
-        #endif
-    }
-}
-#endif
-
-#ifndef __Pyx_DEFINED_PyObject_DifferentBuffer_CompareStrStr
-#define __Pyx_DEFINED_PyObject_DifferentBuffer_CompareStrStr
-static CYTHON_INLINE Py_ssize_t __Pyx_PyObject_DifferentBuffer_CompareStrStr(Py_ssize_t length, int kind1, int kind2, void* data1, void* data2) {
-    Py_ssize_t pos;
-    // We don't currently care about kind2, which has two options per case left after inlining (kind1 != kind2).
+#ifndef __Pyx_DEFINED_PyObject_CompareStrStr
+#define __Pyx_DEFINED_PyObject_CompareStrStr
+static CYTHON_INLINE Py_ssize_t __Pyx_PyObject_CompareStrStr(Py_ssize_t length, int kind1, int kind2, void* data1, void* data2) {
+    assert (kind1 <= kind2);
+    // The if-cases are spelled out to let the C compiler know (and optimise for) the exact kinds
+    // (i.e. character layouts) of the two strings.
     if (kind1 == 1) {
-        for (pos = 0; pos < length; pos++) {
-            Py_UCS4 char1, char2;
-            char1 = __Pyx_PyUnicode_READ(kind1, data1, pos);
-            char2 = __Pyx_PyUnicode_READ(kind2, data2, pos);
-            if (char1 != char2) {
-                return (char1 < char2) ? -1 : 1;
+        if (kind2 == 1) {
+            return memcmp(data1, data2, (size_t) length);
+        } else if (kind2 == 2) {
+            for (Py_ssize_t i = 0; i < length; i++) {
+                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
+                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
+                if (char1 != char2) {
+                    return (char1 < char2) ? -1 : 1;
+                }
             }
+        } else if (kind2 == 4) {
+            for (Py_ssize_t i = 0; i < length; i++) {
+                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
+                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
+                if (char1 != char2) {
+                    return (char1 < char2) ? -1 : 1;
+                }
+            }
+        } else {
+            __Pyx_UNREACHABLE();
         }
-        return 0;
     } else if (kind1 == 2) {
-        for (pos = 0; pos < length; pos++) {
-            Py_UCS4 char1, char2;
-            char1 = __Pyx_PyUnicode_READ(kind1, data1, pos);
-            char2 = __Pyx_PyUnicode_READ(kind2, data2, pos);
+        if (kind2 == 2) {
+            for (Py_ssize_t i = 0; i < length; i++) {
+                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
+                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
+                if (char1 != char2) {
+                    return (char1 < char2) ? -1 : 1;
+                }
+            }
+        } else if (kind2 == 4) {
+            for (Py_ssize_t i = 0; i < length; i++) {
+                Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
+                Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
+                if (char1 != char2) {
+                    return (char1 < char2) ? -1 : 1;
+                }
+            }
+        } else {
+            __Pyx_UNREACHABLE();
+        }
+    } else if (kind1 == 4 && kind2 == 4) {
+        for (Py_ssize_t i = 0; i < length; i++) {
+            Py_UCS4 char1 = __Pyx_PyUnicode_READ(kind1, data1, i);
+            Py_UCS4 char2 = __Pyx_PyUnicode_READ(kind2, data2, i);
             if (char1 != char2) {
                 return (char1 < char2) ? -1 : 1;
             }
         }
-        return 0;
-    } else if (kind1 == 4) {
-        for (pos = 0; pos < length; pos++) {
-            Py_UCS4 char1, char2;
-            char1 = __Pyx_PyUnicode_READ(kind1, data1, pos);
-            char2 = __Pyx_PyUnicode_READ(kind2, data2, pos);
-            if (char1 != char2) {
-                return (char1 < char2) ? -1 : 1;
-            }
-        }
-        return 0;
     } else {
-        #if __Pyx_has_cbuiltin(__builtin_unreachable)
-        __builtin_unreachable();
-        #elif defined(__clang__) || defined(__INTEL_COMPILER) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)))
-        __builtin_unreachable();
-        #elif defined(_MSC_VER)
-        __assume(0);
-        #elif !CYTHON_COMPILING_IN_LIMITED_API
-        Py_FatalError("Unreachable C code path reached");
-        #else
-        assert(0);
-        #endif
+        __Pyx_UNREACHABLE();
     }
+    return 0;
 }
 #endif
 
@@ -1303,12 +1272,19 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(
         void *data2 = __Pyx_PyUnicode_DATA(s2);
 
         Py_ssize_t cmp;
-        if (kind1 == kind2) {
-            cmp = __Pyx_PyObject_SameBuffer_CompareStrStr(short_length, kind1, data1, data2);
+        int okind1, okind2;
+        void *odata1, *odata2;
+        if (kind1 <= kind2) {
+            okind1 = kind1; okind2 = kind2;
+            odata1 = data1; odata2 = data2;
         } else {
-            cmp = __Pyx_PyObject_DifferentBuffer_CompareStrStr(short_length, kind1, kind2, data1, data2);
+            okind2 = kind1; okind1 = kind2;
+            odata2 = data1; odata1 = data2;
         }
+        cmp = __Pyx_PyObject_CompareStrStr(short_length, okind1, okind2, odata1, odata2);
         if (cmp == 0) cmp = (length1 - length2);
+        else if (!(kind1 <= kind2)) cmp = -cmp;
+
         if (cmp {{c_op}} 0) {{return_true}}; else {{return_false}};
     }
 
