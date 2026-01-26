@@ -244,7 +244,10 @@ jobs:
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}
         env: ${{ matrix.env }}
-        run: bash ./Tools/ci-run.sh
+        run: bash -c "bash ./Tools/ci-run.sh 2> >(tee -a stderr.log >&2)"
+
+      - name: Report results
+        run: bash -c "if [ -f stderr.log ]; then tail -20 stderr.log | grep -A20 'Most expensive pipeline stages' | sed -e 's|^|    |'; fi" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload HTML docs
         uses: actions/upload-artifact@v6.0.0

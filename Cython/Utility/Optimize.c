@@ -1971,24 +1971,21 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
         {{ival}} = (long) digits[0];
         if (!is_positive) {{ival}} *= -1;
     } else {
-        switch (size) {
-            {{for _size in range(2, 5)}}
-            case {{_size}}:
-                if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
-                    {{ival}} = (long) {{pylong_join(_size, 'digits')}};
-                    if (!is_positive) {{ival}} *= -1;
-                    goto calculate_long;
-                {{if op != 'TrueDivide'}}
-                } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}) {
-                    ll{{ival}} = (PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
-                    if (!is_positive) ll{{ival}} *= -1;
-                    goto calculate_long_long;
-                {{endif}}
-                }
-                // size doesn't fit into a long or PY_LONG_LONG any more
-                break;
-            {{endfor}}
-        }
+        {{for _size in range(2, 5)}}
+        if (size == {{_size}} && 8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
+            {{ival}} = (long) {{pylong_join(_size, 'digits')}};
+            if (!is_positive) {{ival}} *= -1;
+            goto calculate_long;
+        {{if op != 'TrueDivide'}}
+        } else if (size == {{_size}} && 8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}) {
+            ll{{ival}} = (PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
+            if (!is_positive) ll{{ival}} *= -1;
+            goto calculate_long_long;
+        {{endif}}
+        } else
+        // size doesn't fit into a long or PY_LONG_LONG any more
+        {{endfor}}
+        {}
 
         {{if op in ('Eq', 'Ne')}}
         #if PyLong_SHIFT < 30 && PyLong_SHIFT != 15
@@ -2208,7 +2205,7 @@ def zerodiv_check(operand, _is_mod=op == 'Remainder', _needs_check=(order == 'CO
 
 static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatval, int inplace, int zerodivision_check) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
-    double {{fval}}{{if op not in ('Eq', 'Ne')}}, result{{endif}};
+    double {{fval}};
     CYTHON_UNUSED_VAR(inplace);
     CYTHON_UNUSED_VAR(zerodivision_check);
 
@@ -2228,60 +2225,54 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
         if (__Pyx_PyLong_IsZero({{pyval}})) {
             {{fval}} = 0.0;
             {{zerodiv_check(fval)}}
+            goto digits_done;
         } else if (__Pyx_PyLong_IsCompact({{pyval}})) {
             {{fval}} = (double) __Pyx_PyLong_CompactValue({{pyval}});
+            goto digits_done;
         } else {
             const digit* digits = __Pyx_PyLong_Digits({{pyval}});
-            const Py_ssize_t size = __Pyx_PyLong_SignedDigitCount({{pyval}});
-            switch (size) {
-                {{for _size in (2, 3, 4)}}
-                case -{{_size}}:
-                case {{_size}}:
-                    if (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT && ((8 * sizeof(unsigned long) < 53) || ({{_size-1}} * PyLong_SHIFT < 53))) {
-                        {{fval}} = (double) {{pylong_join(_size, 'digits')}};
-                        // let CPython do its own float rounding from 2**53 on (max. consecutive integer in double float)
-                        if ((8 * sizeof(unsigned long) < 53) || ({{_size}} * PyLong_SHIFT < 53) || ({{fval}} < (double) ((PY_LONG_LONG)1 << 53))) {
-                            if (size == {{-_size}})
-                                {{fval}} = -{{fval}};
-                            break;
-                        }
-                    }
-                    // Fall through if size doesn't fit safely into a double anymore.
-                    // It may not be obvious that this is a safe fall-through given the "fval < 2**53"
-                    // check above.  However, the number of digits that CPython uses for a given PyLong
-                    // value is minimal, and together with the "(size-1) * SHIFT < 53" check above,
-                    // this should make it safe.
-                    CYTHON_FALLTHROUGH;
-                {{endfor}}
-                default:
-        #endif
-        {{if op in ('Eq', 'Ne')}}
-                    {
-                        PyObject *res =
-                    #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
-                            // PyType_GetSlot only works on non-heap types from Python 3.10
-                            __Pyx_PyType_GetSlot((&PyFloat_Type), tp_richcompare, richcmpfunc)
-                    #else
-                            PyObject_RichCompare
-                    #endif
-                        ({{'op1, op2' if order == 'CObj' else 'op2, op1'}},
-                         Py_{{op.upper()}});
-                    return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
-                        res);
-                    }
-        {{else}}
-                    {{fval}} = PyLong_AsDouble({{pyval}});
-                    if (unlikely({{fval}} == -1.0 && PyErr_Occurred())) return NULL;
-                    {{if zerodiv_check(fval)}}
-                    #if !CYTHON_USE_PYLONG_INTERNALS
-                    {{zerodiv_check(fval)}}
-                    #endif
-                    {{endif}}
-        {{endif}}
-        #if CYTHON_USE_PYLONG_INTERNALS
+            const Py_ssize_t size = __Pyx_PyLong_DigitCount({{pyval}});
+            {{for _size in (2, 3, 4)}}
+            if (size <= {{_size}} && (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT && ((8 * sizeof(unsigned long) < 53) || ({{_size-1}} * PyLong_SHIFT < 53)))) {
+                {{fval}} = (double) {{pylong_join(_size, 'digits')}};
+                // let CPython do its own float rounding from 2**53 on (max. consecutive integer in double float)
+                if ((8 * sizeof(unsigned long) < 53) || ({{_size}} * PyLong_SHIFT < 53) || ({{fval}} < (double) ((PY_LONG_LONG)1 << 53))) {
+                    if (__Pyx_PyLong_IsNeg({{pyval}})) {{fval}} = -{{fval}};
+                    goto digits_done;
+                }
             }
+            // Fall through if size doesn't fit safely into a double anymore.
+            // It may not be obvious that this is a safe fall-through given the "fval < 2**53"
+            // check above.  However, the number of digits that CPython uses for a given PyLong
+            // value is minimal, and together with the "(size-1) * SHIFT < 53" check above,
+            // this should make it safe.
+            {{endfor}}
         }
         #endif
+
+        {{if op in ('Eq', 'Ne')}}
+        {
+                PyObject *res =
+            #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+                    // PyType_GetSlot only works on non-heap types from Python 3.10
+                    __Pyx_PyType_GetSlot((&PyFloat_Type), tp_richcompare, richcmpfunc)
+            #else
+                    PyObject_RichCompare
+            #endif
+                ({{'op1, op2' if order == 'CObj' else 'op2, op1'}},
+                    Py_{{op.upper()}});
+
+                return {{if ret_type.is_pyobject}}res{{else}}__Pyx_PyObject_IsTrueAndDecref(res){{endif}};
+        }
+        {{else}}
+            {{fval}} = PyLong_AsDouble({{pyval}});
+            if (unlikely({{fval}} == -1.0 && PyErr_Occurred())) return NULL;
+            {{if zerodiv_check(fval)}}
+            #if !CYTHON_USE_PYLONG_INTERNALS
+            {{zerodiv_check(fval)}}
+            #endif
+            {{endif}}
+        {{endif}}
     } else {
         {{if op in ('Eq', 'Ne')}}
         return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
@@ -2292,6 +2283,10 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
         {{endif}}
     }
 
+#if CYTHON_USE_PYLONG_INTERNALS
+digits_done:;
+#endif
+
     {{if op in ('Eq', 'Ne')}}
         if (a {{c_op}} b) {
             {{return_true}};
@@ -2299,6 +2294,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
             {{return_false}};
         }
     {{else}}
+        double result;
         {{if c_op == '%'}}
         result = fmod(a, b);
         if (result)
