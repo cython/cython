@@ -1124,58 +1124,22 @@ def is_type(operand, expected, type1=type1, type2=type2, check_functions=check_f
 // str comparisons
 
 {{if type1 in ('object', 'str') and type2 in ('object', 'str')}}
-#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL)
-
-{{if op in 'EqNe'}}
 #ifndef __Pyx_DEFINED_PyObject_CompareStrStr{{func_suffix}}
 #define __Pyx_DEFINED_PyObject_CompareStrStr{{func_suffix}}
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(PyObject* s1, PyObject* s2) {
-#if CYTHON_COMPILING_IN_LIMITED_API
+    {{if op in 'EqNe'}}
     #if __PYX_LIMITED_VERSION_HEX >= 0x030e0000
     int result = PyUnicode_Equal(s1, s2);
     if (unlikely(result == -1)) {{return_error}};
     if (result {{c_op}} 0) {{return_false}}; else {{return_true}};
     #else
+    {{endif}}
     int result = PyUnicode_Compare(s1, s2);
     if (unlikely((result == -1) && PyErr_Occurred())) {{return_error}};
     if (result {{c_op}} 0) {{return_true}}; else {{return_false}};
+    {{if op in 'EqNe'}}
     #endif
-#else
-    Py_ssize_t length, length2;
-    if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0)) {{return_error}};
-
-    length = __Pyx_PyUnicode_GET_LENGTH(s1);
-    #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length < 0)) {{return_error}};
-    #endif
-    length2 = __Pyx_PyUnicode_GET_LENGTH(s2);
-    #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length2 < 0)) {{return_error}};
-    #endif
-
-    if (length != length2) {{return_false if op == 'Eq' else return_true}};
-    // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
-
-    #if CYTHON_USE_UNICODE_INTERNALS
-    {
-        Py_hash_t hash1 = ((PyASCIIObject*)s1)->hash;
-        Py_hash_t hash2 = ((PyASCIIObject*)s2)->hash;
-        if (hash1 != hash2 && hash1 != -1 && hash2 != -1) {{return_false if op == 'Eq' else return_true}};
-    }
-    #endif
-
-    {
-        int kind = __Pyx_PyUnicode_KIND(s1);
-        if (kind != __Pyx_PyUnicode_KIND(s2)) {{return_false if op == 'Eq' else return_true}};
-
-        void *data1 = __Pyx_PyUnicode_DATA(s1);
-        void *data2 = __Pyx_PyUnicode_DATA(s2);
-
-        // Ignore the character kind as we are only interested in equal or not.
-        int result = memcmp(data1, data2, (size_t)(length * kind));
-        if (result {{c_op}} 0) {{return_true}}; else {{return_false}};
-    }
-#endif
+    {{endif}}
 
 __pyx_return_true:
     {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
@@ -1183,166 +1147,7 @@ __pyx_return_false:
     {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
 }
 #endif
-
-{{else}}
-{{py: assert op in 'LtLeGeGt', op }}
-
-#if !CYTHON_COMPILING_IN_LIMITED_API
-#ifndef __Pyx_DEFINED_PyObject_CompareStrStr
-#define __Pyx_DEFINED_PyObject_CompareStrStr
-static Py_ssize_t __Pyx_PyObject_CompareStrStr(Py_ssize_t length, PyObject *s1, PyObject *s2) {
-    int kind1 = __Pyx_PyUnicode_KIND(s1);
-    void *data1 = __Pyx_PyUnicode_DATA(s1);
-
-    int kind2 = __Pyx_PyUnicode_KIND(s2);
-    void *data2 = __Pyx_PyUnicode_DATA(s2);
-
-    switch (kind1 | kind2) {
-        case 1: {
-            return memcmp(data1, data2, (size_t) length);
-        }
-        case 2: {
-            const Py_UCS2 *d1 = (const Py_UCS2*) data1;
-            const Py_UCS2 *d2 = (const Py_UCS2*) data2;
-            for (Py_ssize_t i = 0; i < length; i++) {
-                Py_UCS4 char1 = d1[i];
-                Py_UCS4 char2 = d2[i];
-                if (char1 != char2) {
-                    return (char1 < char2) ? -1 : 1;
-                }
-            }
-            return 0;
-        }
-        case 3: {
-            const Py_UCS1 *d1;
-            const Py_UCS2 *d2;
-            int swap = kind2 == 1;
-            if (swap) {
-                d1 = (const Py_UCS1*) data2;
-                d2 = (const Py_UCS2*) data1;
-            } else {
-                d1 = (const Py_UCS1*) data1;
-                d2 = (const Py_UCS2*) data2;
-            }
-            for (Py_ssize_t i = 0; i < length; i++) {
-                Py_UCS4 char1 = d1[i];
-                Py_UCS4 char2 = d2[i];
-                if (char1 != char2) {
-                    if (swap)
-                        return (char1 < char2) ? 1 : -1;
-                    else
-                        return (char1 < char2) ? -1 : 1;
-                }
-            }
-            return 0;
-        }
-        case 4: {
-            const Py_UCS4 *d1 = (const Py_UCS4*) data1;
-            const Py_UCS4 *d2 = (const Py_UCS4*) data2;
-            for (Py_ssize_t i = 0; i < length; i++) {
-                Py_UCS4 char1 = d1[i];
-                Py_UCS4 char2 = d2[i];
-                if (char1 != char2) {
-                    return (char1 < char2) ? -1 : 1;
-                }
-            }
-            return 0;
-        }
-        case 5: {
-            const Py_UCS1 *d1;
-            const Py_UCS4 *d2;
-            int swap = kind2 == 1;
-            if (swap) {
-                d1 = (const Py_UCS1*) data2;
-                d2 = (const Py_UCS4*) data1;
-            } else {
-                d1 = (const Py_UCS1*) data1;
-                d2 = (const Py_UCS4*) data2;
-            }
-            for (Py_ssize_t i = 0; i < length; i++) {
-                Py_UCS4 char1 = d1[i];
-                Py_UCS4 char2 = d2[i];
-                if (char1 != char2) {
-                    if (swap)
-                        return (char1 < char2) ? 1 : -1;
-                    else
-                        return (char1 < char2) ? -1 : 1;
-                }
-            }
-            return 0;
-        }
-        case 6: {
-            const Py_UCS2 *d1;
-            const Py_UCS4 *d2;
-            int swap = kind2 == 2;
-            if (swap) {
-                d1 = (const Py_UCS2*) data2;
-                d2 = (const Py_UCS4*) data1;
-            } else {
-                d1 = (const Py_UCS2*) data1;
-                d2 = (const Py_UCS4*) data2;
-            }
-            for (Py_ssize_t i = 0; i < length; i++) {
-                Py_UCS4 char1 = d1[i];
-                Py_UCS4 char2 = d2[i];
-                if (char1 != char2) {
-                    if (swap)
-                        return (char1 < char2) ? 1 : -1;
-                    else
-                        return (char1 < char2) ? -1 : 1;
-                }
-            }
-            return 0;
-        }
-        default:
-            __Pyx_UNREACHABLE();
-    }
-}
-#endif
-#endif
-
-#ifndef __Pyx_DEFINED_PyObject_CompareStrStr{{func_suffix}}
-#define __Pyx_DEFINED_PyObject_CompareStrStr{{func_suffix}}
-static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(PyObject* s1, PyObject* s2) {
-#if CYTHON_COMPILING_IN_LIMITED_API
-    int result = PyUnicode_Compare(s1, s2);
-    if (unlikely((result == -1) && PyErr_Occurred())) {{return_error}};
-    if (result {{c_op}} 0) {{return_true}}; else {{return_false}};
-#else
-    Py_ssize_t short_length, length1, length2;
-    if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0)) {{return_error}};
-
-    length1 = __Pyx_PyUnicode_GET_LENGTH(s1);
-    #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length1 < 0)) {{return_error}};
-    #endif
-    length2 = __Pyx_PyUnicode_GET_LENGTH(s2);
-    #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length2 < 0)) {{return_error}};
-    #endif
-
-    short_length = (length1 < length2) ? length1 : length2;
-    if (short_length == 0) {
-        if (length1 == 0) {{return_true if op in 'LtLe' else return_false}}; else {{return_false if op in 'LtLe' else return_true}};
-    }
-
-    {
-        Py_ssize_t cmp = __Pyx_PyObject_CompareStrStr(short_length, s1, s2);
-        if (cmp == 0) cmp = (length1 - length2);
-        if (cmp {{c_op}} 0) {{return_true}}; else {{return_false}};
-    }
-#endif
-
-__pyx_return_true:
-    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
-__pyx_return_false:
-    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
-}
-#endif
-{{endif}}
-
 // end of str comparisons
-#endif
 {{endif}}
 
 // bytes/bytearray comparisons
@@ -1755,7 +1560,8 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{func_suffix}}_{{type
 
     {{for string_type in ('str', 'bytes', 'bytearray')}}
     {{if type1 in ('object', string_type) and type2 in ('object', string_type)}}
-    #if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL)
+
+    {{if string_type != 'str'}}#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL){{endif}}
     if ({{is_type('op1', string_type)}}) {
         // Catch interned and identical strings as well as the empty string.
         if (op1 == op2) {{return_true if op in 'EqLeGe' else return_false}};
@@ -1782,7 +1588,8 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{func_suffix}}_{{type
 
         goto __pyx_richcmp;
     }
-    #endif
+    {{if string_type != 'str'}}#endif{{endif}}
+
     {{endif}}
     {{endfor}}
 
