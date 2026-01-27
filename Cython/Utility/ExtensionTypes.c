@@ -895,6 +895,36 @@ static PyObject *__Pyx_AllocateExtensionType(PyTypeObject *t, int is_final) {
      (int) (!__Pyx_PyType_HasFeature((t), __PYX_CHECK_TYPE_FOR_FREELIST_FLAGS)))
 #endif
 
+
+////////////////// ClearFreelist.proto ///////////////////////
+
+#if CYTHON_USE_FREELISTS
+static void __Pyx_ClearFreelist(PyObject **freelist, int *count); /* proto */
+#endif
+
+////////////////// ClearFreelist ////////////////////////////
+
+#if CYTHON_USE_FREELISTS
+static void __Pyx_ClearFreelist(PyObject **freelist, int *count) {
+    while (*count > 0) {
+        PyObject* o = freelist[--*count];
+        PyTypeObject *tp = Py_TYPE(o);
+        #if CYTHON_USE_TYPE_SLOTS
+        (*tp->tp_free)(o);
+        #else
+        // Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy.
+        freefunc tp_free = (freefunc) PyType_GetSlot(tp, Py_tp_free);
+        if (tp_free) tp_free(o);
+        #endif
+        #if CYTHON_USE_TYPE_SPECS
+        // Release the reference that "o" owned for its type.
+        Py_DECREF(tp);
+        #endif
+    }
+}
+#endif
+
+
 /////////////////// ApplySequenceOrMappingFlag.proto //////////////////////
 
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY

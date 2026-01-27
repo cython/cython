@@ -34,6 +34,12 @@
   #endif
 #endif
 
+#ifdef __has_builtin
+  #define __Pyx_has_cbuiltin(name) __has_builtin(name)
+#else
+  #define __Pyx_has_cbuiltin(name) (0)
+#endif
+
 #ifndef DL_IMPORT
   #define DL_IMPORT(t) t
 #endif
@@ -599,6 +605,14 @@ typedef uintptr_t  __pyx_uintptr_t;
 #define __PYX_REINTERPRET_FUNCION(func_pointer, other_pointer) ((func_pointer)(void(*)(void))(other_pointer))
 // #define __PYX_REINTERPRET_POINTER(pointer_type, pointer) ((pointer_type)(void *)(pointer))
 // #define __PYX_RUNTIME_REINTERPRET(type, var) (*(type *)(&var))
+
+#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
+#define __Pyx_PyErr_FetchException(petype, peval, petb) PyErr_Fetch(petype, peval, petb)
+#define __Pyx_PyErr_RestoreException(etype, eval, etb) PyErr_Restore(etype, eval, etb)
+#else
+#define __Pyx_PyErr_FetchException(petype, peval, petb) *(petype)=NULL; *(peval)=PyErr_GetRaisedException(); *(petb)=NULL
+#define __Pyx_PyErr_RestoreException(etype, eval, etb) PyErr_SetRaisedException(eval)
+#endif
 
 
 /////////////// CInitCode ///////////////
