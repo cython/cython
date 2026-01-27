@@ -601,7 +601,8 @@ def benchmark_revision(
                         timings['cythonize_benchmarks'] = [cythonize_time]
 
                 if show_size:
-                    sizes.update(measure_benchmark_sizes(bm_files))
+                    measured_files = bm_files + [bm_dir / '_cyutility.c'] if use_shared_module else bm_files
+                    sizes.update(measure_benchmark_sizes(measured_files))
 
         if benchmarks:
             logging.info(f"### Running benchmarks for {revision} (Cython {cython_version_str}).")
