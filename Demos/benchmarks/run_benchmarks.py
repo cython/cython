@@ -18,7 +18,8 @@ BENCHMARK_FILES = sorted(
     list((BENCHMARKS_DIR.glob("bm_*.pyx")))
 )
 
-ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES] + ['cythonize']
+ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES] + (
+    ['cythonize'] if sys.implementation.name != 'pypy' else [])
 
 PROCESSED_BENCHMARKS = frozenset({
     "bm_getitem.py",
