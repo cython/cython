@@ -370,7 +370,7 @@ def copy_profile(bm_dir, module_name, profiler):
         shutil.move(str(ext), ext.name)
 
 
-def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.25):
+def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.20):
     python_command = [python_executable]
 
     i = 1
