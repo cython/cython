@@ -1,3 +1,5 @@
+# tag: shared_module
+
 """
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import test_missing_shared_utility"

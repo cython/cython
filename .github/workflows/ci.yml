@@ -171,6 +171,12 @@ jobs:
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
+          # Cython Shared Module
+          - os: ubuntu-22.04
+            python-version: "3.12"
+            backend: "c,cpp"
+            env: { LIMITED_API: "--shared-module" }
+            extra_hash: "--shared-module"
           # Type specs
           - os: ubuntu-22.04
             python-version: "3.14"

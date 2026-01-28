@@ -794,6 +794,7 @@ class TestBuilder(object):
         self.add_cython_import = add_cython_import
         self.capture = options.capture
         self.add_cpp_locals_extra_tests = add_cpp_locals_extra_tests
+        self.shared_module = '_cython_shared' if options.use_shared_module else None
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -856,6 +857,9 @@ class TestBuilder(object):
                     continue
                 if skip_limited(tags):
                     continue
+                if self.shared_module is not None and 'shared_module' not in tags['tag']:
+                    # It is redundant to run EndToEnd tests that are not related to using shared utility module
+                    continue
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
                     suite.addTest(EndToEndTest(filepath, workdir,
                              self.cleanup_workdir, stats=self.stats,
@@ -883,6 +887,9 @@ class TestBuilder(object):
 
             if mode == 'run' and ext == '.py' and not self.cython_only and not filename.startswith('test_'):
                 # additionally test file in real Python
+                if self.shared_module:
+                    # Without compilation it does not make sense run it with shared utility module enabled
+                    continue
                 min_py_ver = [
                     (int(pyver.group(1)), int(pyver.group(2)))
                     for pyver in map(re.compile(r'pure([0-9]+)[.]([0-9]+)').match, tags['tag'])
@@ -987,7 +994,8 @@ class TestBuilder(object):
                           stats=self.stats,
                           add_cython_import=add_cython_import,
                           extra_directives=extra_directives,
-                          abi3audit=self.abi3audit
+                          abi3audit=self.abi3audit,
+                          shared_module=self.shared_module
                           )
 
 
@@ -1047,7 +1055,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
                  extra_directives=None, evaluate_tree_assertions=True,
-                 abi3audit=False):
+                 abi3audit=False, shared_module=None):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -1074,6 +1082,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.add_cython_import = add_cython_import
         self.extra_directives = extra_directives if extra_directives is not None else {}
         self.abi3audit = abi3audit
+        self.shared_module = shared_module
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -1209,8 +1218,19 @@ class CythonCompileTestCase(unittest.TestCase):
         if abi3result.returncode != 0:
             raise RuntimeError(f"ABI3 audit failed:\n{abi3result.stdout}")
 
+    def generateSharedModule(self):
+        from Cython.Build.SharedModule import generate_shared_module
+        from Cython.Compiler.Options import CompilationOptions
+        if self.language == 'cpp':
+            options = CompilationOptions(shared_c_file_path=f'{self.workdir}/{self.shared_module}.cpp')
+        else:
+            options = CompilationOptions(shared_c_file_path=f'{self.workdir}/{self.shared_module}.c')
+        if self.shared_module:
+            generate_shared_module(options)
+
     def runTest(self):
         self.success = False
+        self.generateSharedModule()
         self.runCompileTest()
         self.runAbi3AuditTest()
         self.success = True
@@ -1344,6 +1364,7 @@ class CythonCompileTestCase(unittest.TestCase):
             compiler_directives = compiler_directives,
             **extra_compile_options
             )
+        self.generateSharedModule()
         cython_compile(module_path, options=options, full_module_name=module)
 
     def run_distutils(self, test_directory, module, workdir, incdir,
@@ -1480,14 +1501,14 @@ class CythonCompileTestCase(unittest.TestCase):
                 with self.stats.time(self.name, self.language, 'cython'):
                     self.run_cython(
                         test_directory, module, module_path, workdir, incdir, annotate,
-                        evaluate_tree_assertions=evaluate_tree_assertions)
+                        evaluate_tree_assertions=evaluate_tree_assertions, extra_compile_options={'shared_utility_qualified_name': self.shared_module})
                 errors, warnings, perf_hints = sys.stderr.getall()
             finally:
                 sys.stderr = old_stderr
             if self.test_determinism and not expect_errors:
                 workdir2 = workdir + '-again'
                 os.mkdir(workdir2)
-                self.run_cython(test_directory, module, module_path, workdir2, incdir, annotate)
+                self.run_cython(test_directory, module, module_path, workdir2, incdir, annotate, extra_compile_options={'shared_utility_qualified_name': self.shared_module})
                 diffs = []
                 for file in os.listdir(workdir2):
                     with open(os.path.join(workdir, file)) as fid:
@@ -1520,6 +1541,7 @@ class CythonCompileTestCase(unittest.TestCase):
             self._match_output(expected_perf_hints, perf_hints, tostderr)
 
         so_path = None
+        shared_so_path = None
         if not self.cython_only:
             from Cython.Utils import captured_fd, print_bytes
             from distutils.errors import CCompilerError
@@ -1530,6 +1552,8 @@ class CythonCompileTestCase(unittest.TestCase):
                     with captured_fd(2) as get_stderr:
                         with self.stats.time(self.name, self.language, 'compile-%s' % self.language):
                             so_path = self.run_distutils(test_directory, module, workdir, incdir)
+                            if self.shared_module:
+                                shared_so_path = self.run_distutils(test_directory, self.shared_module, workdir, incdir)
             except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
                     ((get_stderr and get_stderr()) or
@@ -2643,6 +2667,9 @@ def main():
     parser.add_argument(
         "--abi3audit", dest="abi3audit", default=False, action="store_true",
         help="Validate compiled files with ABI3 audit")
+    parser.add_argument(
+        "--shared-module", dest="use_shared_module", default=False, action="store_true",
+        help="Compile modules with shared module")
     parser.add_argument('cmd_args', nargs='*')
 
     options = parser.parse_args(args)
