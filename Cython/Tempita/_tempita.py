@@ -29,6 +29,7 @@ can use ``__name='tmpl.html'`` to set the name of the template.
 If there are syntax errors ``TemplateError`` will be raised.
 """
 
+import cython
 
 import re
 import sys
@@ -150,6 +151,7 @@ class Template:
         if default_inherit is not None:
             self.default_inherit = default_inherit
 
+    @classmethod
     def from_filename(cls, filename, namespace=None, encoding=None,
                       default_inherit=None, get_template=get_file_template):
         with open(filename, 'rb') as f:
@@ -158,8 +160,6 @@ class Template:
             c = c.decode(encoding)
         return cls(content=c, name=filename, namespace=namespace,
                    default_inherit=default_inherit, get_template=get_template)
-
-    from_filename = classmethod(from_filename)
 
     def __repr__(self):
         return '<%s %s name=%r>' % (
@@ -568,40 +568,36 @@ def lex(s, name=None, trim_whitespace=True, line_offset=0, delimiters=None) -> l
         TemplateError: {{ inside expression at line 1 column 10
 
     """
-    if delimiters is None:
-        delimiters = ( Template.default_namespace['start_braces'],
-                       Template.default_namespace['end_braces'] )
+    start_braces: str = delimiters[0] if delimiters is not None else Template.default_namespace['start_braces']
+    end_braces: str = delimiters[1] if delimiters is not None else Template.default_namespace['end_braces']
+
     in_expr = False
     chunks = []
     last = 0
     last_pos = (line_offset + 1, 1)
 
-    token_re = re.compile(r'%s|%s' % (re.escape(delimiters[0]),
-                                      re.escape(delimiters[1])))
+    token_re = re.compile(r'%s|%s' % (re.escape(start_braces),
+                                      re.escape(end_braces)))
     for match in token_re.finditer(s):
-        expr = match.group(0)
+        expr: str = match.group(0)
         pos = find_position(s, match.end(), last, last_pos)
-        if expr == delimiters[0] and in_expr:
-            raise TemplateError('%s inside expression' % delimiters[0],
-                                position=pos,
-                                name=name)
-        elif expr == delimiters[1] and not in_expr:
-            raise TemplateError('%s outside expression' % delimiters[1],
-                                position=pos,
-                                name=name)
-        if expr == delimiters[0]:
+        if expr == start_braces:
+            if in_expr:
+                raise TemplateError(f'{start_braces} inside expression', position=pos, name=name)
             part = s[last:match.start()]
             if part:
                 chunks.append(part)
             in_expr = True
         else:
+            if not in_expr:
+                raise TemplateError(f'{end_braces} outside expression', position=pos, name=name)
             chunks.append((s[last:match.start()], last_pos))
             in_expr = False
         last = match.end()
         last_pos = pos
     if in_expr:
-        raise TemplateError('No %s to finish last expression' % delimiters[1],
-                            name=name, position=last_pos)
+        raise TemplateError(
+            f'No {end_braces} to finish last expression', name=name, position=last_pos)
     part = s[last:]
     if part:
         chunks.append(part)
@@ -627,6 +623,7 @@ def trim_lex(tokens: list):
        >>> tokens
        [('if x', (1, 3)), 'x\n', ('endif', (3, 3)), 'y']
     """
+    i: cython.Py_ssize_t
     last_trim = None
     for i, current in enumerate(tokens):
         if isinstance(current, str):
@@ -733,9 +730,6 @@ def parse(s, name=None, line_offset=0, delimiters=None):
             ...
         TemplateError: Multi-line py blocks must start with a newline at line 1 column 3
     """
-    if delimiters is None:
-        delimiters = ( Template.default_namespace['start_braces'],
-                       Template.default_namespace['end_braces'] )
     tokens = lex(s, name=name, line_offset=line_offset, delimiters=delimiters)
     result = []
     while tokens:
@@ -857,14 +851,11 @@ def parse_for(tokens: list, name, context) -> tuple:
         raise TemplateError(
             'Bad for (no "in") in %r' % first,
             position=pos, name=name)
-    vars = first[:match.start()]
-    if '(' in vars:
+    vars_part: str = first[:match.start()]
+    if '(' in vars_part:
         raise TemplateError(
-            'You cannot have () in the variable section of a for loop (%r)'
-            % vars, position=pos, name=name)
-    vars = tuple([
-        v.strip() for v in first[:match.start()].split(',')
-        if v.strip()])
+            f'You cannot have () in the variable section of a for loop ({vars_part!r})', position=pos, name=name)
+    vars = tuple([v.strip() for v in vars_part.split(',') if v.strip()])
     expr = first[match.end():]
     while 1:
         if not tokens:
@@ -888,7 +879,7 @@ def parse_default(tokens: list, name, context) -> tuple:
         raise TemplateError(
             "Expression must be {{default var=value}}; no = found in %r" % first,
             position=pos, name=name)
-    var = parts[0].strip()
+    var: str = parts[0].strip()
     if ',' in var:
         raise TemplateError(
             "{{default x, y = ...}} is not supported",
@@ -959,6 +950,8 @@ def parse_signature(sig_text: str, name, pos) -> tuple:
             return tok_type, tok_string
     while 1:
         var_arg_type = None
+        tok_type: int
+        tok_string: str
         tok_type, tok_string = get_token()
         if tok_type == tokenize.ENDMARKER:
             break
