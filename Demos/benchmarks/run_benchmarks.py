@@ -606,8 +606,7 @@ def benchmark_revision(
 
         if benchmarks:
             logging.info(f"### Running benchmarks for {revision} (Cython {cython_version_str}).")
-            pythonpath = cython_dir if plain_python else None
-            fresh_timings = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
+            fresh_timings = run_benchmarks(bm_dir, benchmarks, pythonpath=cython_dir, profiler=with_profiler)
             timings.update(fresh_timings)
 
         if cythonize_times:
