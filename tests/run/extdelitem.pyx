@@ -21,7 +21,7 @@ def implements_slot(obj, name):
     else:
         raise ValueError
 
-    if not IS_CPYTHON:
+    if not IS_CPYTHON or sys.version_info < (3,10):
         # Don't assume that other implementations fill all slots.
         return True
 
@@ -29,7 +29,7 @@ def implements_slot(obj, name):
 
 
 def slot_is_empty(obj, name):
-    if not IS_CPYTHON:
+    if not IS_CPYTHON or sys.version_info < (3,10):
         return True
     return not implements_slot(obj, name)
 
