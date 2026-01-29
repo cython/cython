@@ -138,7 +138,7 @@ cdef extern from "Python.h":
         Py_tp_vectorcall = 82     # New in 3.14
         Py_tp_token = 83          # New in 3.14
 
-    void* PyType_GetSlot(type t, int slot)
+    void* PyType_GetSlot(type t, int slot) except? NULL
     # Return the function pointer stored in the given slot.
     # If the result is NULL, this indicates that either the slot is NULL,
     # or that the function was called with invalid parameters.
