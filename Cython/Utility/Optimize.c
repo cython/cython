@@ -1130,7 +1130,10 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(
     {{if op in 'EqNe'}}
     #if __PYX_LIMITED_VERSION_HEX >= 0x030e0000
     int result = PyUnicode_Equal(s1, s2);
+    #if !CYTHON_COMPILING_IN_CPYTHON
+    // Cannot fail in CPython, but might in others.
     if (unlikely(result == -1)) {{return_error}};
+    #endif
     if (result {{c_op}} 0) {{return_false}}; else {{return_true}};
     #else
     {{endif}}
