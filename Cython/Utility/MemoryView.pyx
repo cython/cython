@@ -1172,7 +1172,7 @@ cdef void copy_strided_to_strided({{memviewslice_name}} *src,
 cdef size_t slice_get_size({{memviewslice_name}} *src, int ndim) noexcept nogil:
     "Return the size of the memory occupied by the slice in number of bytes"
     cdef Py_ssize_t shape
-    cdef size_t size = src.memview.view.itemsize
+    cdef size_t size = <size_t> src.memview.view.itemsize
 
     for shape in src.shape[:ndim]:
         size *= <size_t> shape
@@ -1212,7 +1212,7 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
     cdef int i
     cdef void *result
 
-    cdef size_t itemsize = src.memview.view.itemsize
+    cdef size_t itemsize = <size_t> src.memview.view.itemsize
     cdef size_t size = slice_get_size(src, ndim)
 
     result = malloc(size)
@@ -1270,7 +1270,7 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
     Check for overlapping memory and verify the shapes.
     """
     cdef void *tmpdata = NULL
-    cdef size_t itemsize = src.memview.view.itemsize
+    cdef size_t itemsize = <size_t> src.memview.view.itemsize
     cdef int i
     cdef char order = get_best_order(&src, src_ndim)
     cdef bint broadcasting = False

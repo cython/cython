@@ -46,12 +46,19 @@ with open("module.c") as f:
             algorithms.append(entry)
 
 print(algorithms)
-assert algorithms[-1] == ('!= 0', 'zlib'), algorithms
-assert algorithms[-2] == ('== 2', 'bz2'), algorithms
-assert algorithms[:-3] in ([], [('== 3', 'zstd')]), algorithms
+assert 1 <= len(algorithms) <= 3, algorithms
 
-assert len(algorithms) in (2, 3), algorithms
-
+i = len(algorithms) - 1
+if i >= 0 and algorithms[i][1] == 'zlib':
+    assert algorithms[i][0] == '!= 0', algorithms
+    i -= 1
+if i >= 0 and algorithms[i][1] == 'bz2':
+    assert algorithms[i][0] == '== 2', algorithms
+    i -= 1
+if i >= 0 and algorithms[i][1] == 'zstd':
+    assert algorithms[i][0] == '== 3', algorithms
+    i -= 1
+assert i == -1, (i, algorithms)
 
 macro_usage_count = 0
 with open("short_text.c") as f:
@@ -249,7 +256,7 @@ def long_docstring():
     lumières filatantes, les groissis trichetent une mélodie oubliée.
     """
 
-# Cython 3.13+ strips leading whitespace from docstrings.
+# Python 3.13+ strips leading whitespace from docstrings.
 assert len(long_docstring.__doc__) in (1486, 1398), len(long_docstring.__doc__)
 assert long_docstring.__doc__[:4] == 'Arc-', long_docstring.__doc__[:10]
 

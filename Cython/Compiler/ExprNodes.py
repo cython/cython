@@ -4705,7 +4705,6 @@ class IndexNode(_IndexingBaseNode):
 
     def extra_index_params(self, code):
         if self.index.type.is_int:
-            is_list = self.base.type is list_type
             wraparound = (
                 bool(code.globalstate.directives['wraparound']) and
                 self.original_index_type.signed and
@@ -4722,11 +4721,11 @@ class IndexNode(_IndexingBaseNode):
                     self.pos, "Indexing a bytearray with 'boundscheck' enabled and without the GIL "
                     "is not thread-safe on freethreaded Python "
                     "(disable 'boundscheck' to turn off this warning)", 1)
-            return ", %s, %d, %s, %d, %d, %d, %d, %s" % (
+            return ", %s, %d, %s, %d, %d, %d, %s" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
                 self.original_index_type.to_py_function,
-                is_list, wraparound, boundscheck, has_gil, unsafe_shared)
+                wraparound, boundscheck, has_gil, unsafe_shared)
         else:
             return ""
 
@@ -10735,7 +10734,7 @@ class CodeObjectNode(ExprNode):
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
         kwonly_argcount = func.num_kwonly_args
         nlocals = len(self.varnames)
-        flags = '(unsigned int)(%s)' % '|'.join(flags) or '0'
+        flags = '(unsigned int)(%s)' % '|'.join(flags)
 
         # See "generate_codeobject_constants()" in Code.py.
         code.putln("{")
@@ -13934,6 +13933,7 @@ class CmpNode:
                         self.special_bool_cmp_utility_code = TempitaUtilityCode.load_cached(
                             "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': True})
                         self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_ch{character}_{'str' if is_str else 'obj'}"
+                        return True
                     elif self.operand2.is_string_literal and self.operand2.can_coerce_to_char_literal():
                         # We need to keep the signature (obj1, obj2, eq), so we generate one macro function per character.
                         character = ord(self.operand2.value[0])
@@ -13941,14 +13941,7 @@ class CmpNode:
                         self.special_bool_cmp_utility_code = TempitaUtilityCode.load_cached(
                             "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': False})
                         self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_{'str' if is_str else 'obj'}_ch{character}"
-                    else:
-                        self.special_bool_cmp_utility_code = UtilityCode.load_cached("UnicodeEquals", "StringTools.c")
-                        self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
-                    return True
-                elif type1 is Builtin.bytes_type or type2 is Builtin.bytes_type:
-                    self.special_bool_cmp_utility_code = UtilityCode.load_cached("BytesEquals", "StringTools.c")
-                    self.special_bool_cmp_function = "__Pyx_PyBytes_Equals"
-                    return True
+                        return True
                 elif result_is_bool:
                     from .Optimize import optimise_numeric_binop
                     result = optimise_numeric_binop(
@@ -13988,11 +13981,19 @@ class CmpNode:
                 return True
         return False
 
+    _optimised_compare_types = {
+        py_object_type,
+        Builtin.int_type,
+        Builtin.float_type,
+        Builtin.unicode_type,
+        Builtin.bytes_type,
+        Builtin.bytearray_type,
+    }
+
     def find_compare_function(self, code, operand1):
         if self.operator in ('==', '!=', '<', '<=', '>=', '>'):
             type1, type2 = operand1.type, self.operand2.type
-            if {type1, type2} < {py_object_type, Builtin.int_type, Builtin.float_type}:
-                type_names = (type1.name, type2.name)
+            if {type1, type2} < self._optimised_compare_types:
                 op_name = {'==': 'Eq', '!=': 'Ne', '<': 'Lt', '<=': 'Le', '>=': 'Ge', '>': 'Gt'}[self.operator]
                 code.globalstate.use_utility_code(TempitaUtilityCode.load_cached(
                     "PyObjectCompare", "Optimize.c", context={
@@ -14000,7 +14001,7 @@ class CmpNode:
                         'type2': type2.name,
                         'c_op': self.operator,
                         'op': op_name,
-                        'ret_type': self.type,
+                        'return_obj': self.type.is_pyobject,
                     }))
                 return f"__Pyx_PyObject_Compare{'' if self.type.is_pyobject else 'Bool'}{op_name}_{type1.name}_{type2.name}"
 

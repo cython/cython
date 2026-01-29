@@ -34,6 +34,12 @@
   #endif
 #endif
 
+#ifdef __has_builtin
+  #define __Pyx_has_cbuiltin(name) __has_builtin(name)
+#else
+  #define __Pyx_has_cbuiltin(name) (0)
+#endif
+
 #ifndef DL_IMPORT
   #define DL_IMPORT(t) t
 #endif
@@ -576,8 +582,20 @@ typedef uintptr_t  __pyx_uintptr_t;
   #endif
 #endif
 
+#ifdef Py_UNREACHABLE
+  #define __Pyx_UNREACHABLE() Py_UNREACHABLE()
+#elif __Pyx_has_cbuiltin(__builtin_unreachable)
+  #define __Pyx_UNREACHABLE() __builtin_unreachable()
+#elif defined(__clang__) || defined(__INTEL_COMPILER) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)))
+  #define __Pyx_UNREACHABLE() __builtin_unreachable()
+#elif defined(_MSC_VER)
+  #define __Pyx_UNREACHABLE() __assume(0)
+#else
+  #define __Pyx_UNREACHABLE() Py_FatalError("Unreachable C code path reached")
+#endif
+
 #ifndef Py_UNREACHABLE
-  #define Py_UNREACHABLE()  assert(0); abort()
+  #define Py_UNREACHABLE() __Pyx_UNREACHABLE()
 #endif
 
 #ifdef __cplusplus
@@ -599,6 +617,14 @@ typedef uintptr_t  __pyx_uintptr_t;
 #define __PYX_REINTERPRET_FUNCION(func_pointer, other_pointer) ((func_pointer)(void(*)(void))(other_pointer))
 // #define __PYX_REINTERPRET_POINTER(pointer_type, pointer) ((pointer_type)(void *)(pointer))
 // #define __PYX_RUNTIME_REINTERPRET(type, var) (*(type *)(&var))
+
+#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
+#define __Pyx_PyErr_FetchException(petype, peval, petb) PyErr_Fetch(petype, peval, petb)
+#define __Pyx_PyErr_RestoreException(etype, eval, etb) PyErr_Restore(etype, eval, etb)
+#else
+#define __Pyx_PyErr_FetchException(petype, peval, petb) *(petype)=NULL; *(peval)=PyErr_GetRaisedException(); *(petb)=NULL
+#define __Pyx_PyErr_RestoreException(etype, eval, etb) PyErr_SetRaisedException(eval)
+#endif
 
 
 /////////////// CInitCode ///////////////
@@ -738,10 +764,10 @@ static int __Pyx_init_co_variables(void); /* proto */
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
 #ifndef Py_TPFLAGS_SEQUENCE
-  #define Py_TPFLAGS_SEQUENCE 0
+  #define Py_TPFLAGS_SEQUENCE (CYTHON_COMPILING_IN_LIMITED_API ? 0 : 1 << 5)
 #endif
 #ifndef Py_TPFLAGS_MAPPING
-  #define Py_TPFLAGS_MAPPING 0
+  #define Py_TPFLAGS_MAPPING (CYTHON_COMPILING_IN_LIMITED_API ? 0 : 1 << 6)
 #endif
 #ifndef Py_TPFLAGS_IMMUTABLETYPE
   #define Py_TPFLAGS_IMMUTABLETYPE (1UL << 8)

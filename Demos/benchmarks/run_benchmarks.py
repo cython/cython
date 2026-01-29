@@ -18,7 +18,8 @@ BENCHMARK_FILES = sorted(
     list((BENCHMARKS_DIR.glob("bm_*.pyx")))
 )
 
-ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES] + ['cythonize']
+ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES] + (
+    ['cythonize'] if sys.implementation.name != 'pypy' else [])
 
 PROCESSED_BENCHMARKS = frozenset({
     "bm_getitem.py",
@@ -369,7 +370,7 @@ def copy_profile(bm_dir, module_name, profiler):
         shutil.move(str(ext), ext.name)
 
 
-def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.25):
+def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.20):
     python_command = [python_executable]
 
     i = 1
@@ -573,7 +574,7 @@ def benchmark_revision(
 
         git_clone(cython_dir, revision=None if plain_python else revision)
         cython_version_str = read_cython_version(cython_dir)
-        cython_version = (revision, *map(int, cython_version_str.split('.', 2)[:2]))
+        cython_version = (revision, *map(int, cython_version_str.split('.', 2)[:2])) if not plain_python else None
 
         cythonize_times = None
         if benchmark_cythonize:
@@ -601,12 +602,12 @@ def benchmark_revision(
                         timings['cythonize_benchmarks'] = [cythonize_time]
 
                 if show_size:
-                    sizes.update(measure_benchmark_sizes(bm_files))
+                    measured_files = bm_files + [bm_dir / '_cyutility.c'] if use_shared_module else bm_files
+                    sizes.update(measure_benchmark_sizes(measured_files))
 
         if benchmarks:
             logging.info(f"### Running benchmarks for {revision} (Cython {cython_version_str}).")
-            pythonpath = cython_dir if plain_python else None
-            fresh_timings = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
+            fresh_timings = run_benchmarks(bm_dir, benchmarks, pythonpath=cython_dir, profiler=with_profiler)
             timings.update(fresh_timings)
 
         if cythonize_times:
@@ -625,8 +626,7 @@ def format_time(t, scales=_time_scales):
     for scale, unit in scales:
         if pos_t >= scale:
             break
-    else:
-        raise RuntimeError(f"Timing is below nanoseconds: {t:f}")
+    # Use the last unit (0 nsecs) for very small values.
     return f"{t / scale :.3f} {unit}"
 
 

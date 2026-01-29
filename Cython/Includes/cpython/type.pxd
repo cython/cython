@@ -141,5 +141,6 @@ cdef extern from "Python.h":
     void* PyType_GetSlot(type t, int slot) except? NULL
     # Return the function pointer stored in the given slot.
     # If the result is NULL, this indicates that either the slot is NULL,
-    # or that the function was called with invalid parameters.
+    # or that the function was called with invalid parameters and raised an exception.
+    # In Python 3.9, this function only supports heap types and raises otherwise.
     # Callers will typically cast the result pointer into the appropriate function type.
