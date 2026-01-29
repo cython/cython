@@ -1219,14 +1219,14 @@ class CythonCompileTestCase(unittest.TestCase):
             raise RuntimeError(f"ABI3 audit failed:\n{abi3result.stdout}")
 
     def generateSharedModule(self):
-        from Cython.Build.SharedModule import generate_shared_module
-        from Cython.Compiler.Options import CompilationOptions
-        if self.language == 'cpp':
-            options = CompilationOptions(shared_c_file_path=f'{self.workdir}/{self.shared_module}.cpp')
-        else:
-            options = CompilationOptions(shared_c_file_path=f'{self.workdir}/{self.shared_module}.c')
-        if self.shared_module:
-            generate_shared_module(options)
+        utility_gen_result = subprocess.run(
+            [
+                "python",
+                '-c' 'from Cython.Compiler.Main import main; main(command_line=1)',
+                '--generate-shared', os.path.join(self.workdir, f'{self.shared_module}.{self.language}')
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
+        if utility_gen_result.returncode != 0:
+            raise RuntimeError(f"Shared utility generation failed:\n{utility_gen_result.stdout}")
 
     def runTest(self):
         self.success = False
