@@ -1200,7 +1200,13 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_pref
     if (length != length2) {{return_false if op == 'Eq' else return_true}};
 
     #endif
-    // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
+
+    // len(s1) == len(s2)
+    {{if s1_type == 'bytearray'}}
+    if (length == 0) {{return_true if op == 'Eq' else return_false}};
+    {{else}}
+    // bytes: length >= 1  (empty bytes is singleton, and "s1 is not s2")
+    {{endif}}
 
     if (ps1[0] != ps2[0]) {{return_false if op == 'Eq' else return_true}};
     if (length == 1) {{return_true if op == 'Eq' else return_false}};
