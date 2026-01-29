@@ -11,6 +11,7 @@ import cython
 # Don't add FrozenSet to this list - it's necessary for one of the tests
 # that it isn't a module global name
 from typing import Dict, List, TypeVar, Optional, Generic, Tuple, Union
+import sys
 
 try:
     import typing
@@ -136,7 +137,7 @@ def iter_declared_dict(d):
 
     # specialized "compiled" test in module-level __doc__
     """
-    typed_dict : Dict[cython.float, cython.float] = d
+    typed_dict : Dict[object, cython.float] = d
     s = 0.0
     for key in typed_dict:
         s += d[key]
@@ -147,7 +148,7 @@ def iter_declared_dict(d):
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode",
 )
-def iter_declared_dict_arg(d : Dict[cython.float, cython.float]):
+def iter_declared_dict_arg(d : Dict[object, cython.float]):
     """
     >>> d = {1.1: 2.5, 3.3: 4.5}
     >>> iter_declared_dict_arg(d)
@@ -193,6 +194,63 @@ def test_subscripted_types():
     print(cython.typeof(b2) + (" object" if not cython.compiled else ""))
     print(cython.typeof(b3) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
+
+if cython.compiled:
+    test_subscripted_types.__doc__ = """
+    >>> test_subscripted_types()
+    dict[int,float] object
+    dict[int,float] object
+    list[int] object
+    list[int] object
+    list object
+    set[Python object] object
+    """
+
+if sys.version_info >= (3, 11) or cython.compiled:
+    # This part of the test is failing in Python 3.9 and 3.10 with the following exception in Shadow.py:
+    # isinstance() argument 2 cannot be a parameterized generic
+
+    def test_casting_subscripted_types():
+        """
+        >>> test_casting_subscripted_types()
+        list 1.0
+        list 1.0
+        dict 2
+        dict 2
+        int 3
+        int 3
+        """
+        # list
+        l: list[cython.float] = [1.0, 2.0]
+        x1 = cython.cast(list[cython.int], l)
+        y1 = cython.cast(list, l)
+        print(cython.typeof(x1), x1[0])
+        print(cython.typeof(y1), y1[0])
+        # dict
+        d: dict[str, cython.int] = {'a': 1, 'b': 2}
+        x2 = cython.cast(dict[str, cython.float], d)
+        y2 = cython.cast(dict, d)
+        print(cython.typeof(x2), x2['b'])
+        print(cython.typeof(y2), y2['b'])
+
+        d2: dict[cython.int, str] = {3: '3'}
+        for k1 in cython.cast(dict[cython.float, str], d2):
+            print(cython.typeof(k1), k1)
+
+        for k2 in cython.cast(dict, d2):
+            print(cython.typeof(k2), k2)
+
+
+if cython.compiled:
+    test_casting_subscripted_types.__doc__ = """
+    >>> test_casting_subscripted_types()
+    list[int] object 1
+    list object 1.0
+    dict[str object,float] object 2.0
+    dict object 2
+    float 3.0
+    Python object 3
+    """
 
 
 def test_use_typing_attributes_as_non_annotations():
@@ -242,6 +300,186 @@ def test_use_typing_attributes_as_non_annotations():
     print(name_of(z1), str(z2) in allowed_optional_dict_strings  or  str(z2))
     print(name_of(q1), str(q2) in ["typing.Union[typing.FrozenSet, NoneType]", "typing.FrozenSet | None"] or str(q2))
     print(name_of(w1), str(w2) in ["typing.Union[typing.Dict, NoneType]", "typing.Dict | None"] or str(w2))
+
+def test_list_with_str_subscript():
+    """
+    >>> test_list_with_str_subscript()
+    str object
+    str object
+    str object
+    FooBar
+    """
+    a: list[str] = ["Foo"]
+    b: List[str] = ["Bar"]
+    print(cython.typeof(a[0]) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(b[0]) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(a[0] + b[0]) + (" object" if not cython.compiled else ""))
+    print(a[0] + b[0])
+
+def test_list_with_int_subscription():
+    """
+    >>> test_list_with_int_subscription()
+    int
+    int
+    int
+    int
+    3
+    """
+    a: List[cython.int] = [1]
+    b: list[cython.int] = [2]
+    c = a[0] + b[0]
+    print(cython.typeof(a[0]))
+    print(cython.typeof(b[0]))
+    print(cython.typeof(a[0] + b[0]))
+    print(cython.typeof(c))
+    print(c)
+
+def test_dict_with_subscription():
+    """
+    >>> test_list_with_int_subscription()
+    int
+    int
+    int
+    int
+    3
+    """
+    a: Dict[str, cython.int] = {"a": 1}
+    b: Dict[cython.int, cython.int] = {1: 2}
+    c = a["a"] + b[1]
+    print(cython.typeof(a["a"]))
+    print(cython.typeof(b[1]))
+    print(cython.typeof(a["a"] + b[1]))
+    print(cython.typeof(c))
+    print(c)
+
+def test_assignment_list_with_subscription():
+    """
+    >>> test_assignment_list_with_subscription()
+    int
+    int
+    int
+    5 5 5
+    """
+    a: list[cython.int] = [5]
+    b: list = a
+    c: list[cython.float] = b
+    print(cython.typeof(a[0]))
+    print(cython.typeof(b[0]))
+    print(cython.typeof(c[0]))
+    print(a[0], b[0], c[0])
+
+if cython.compiled:
+    test_assignment_list_with_subscription.__doc__ = """
+    >>> test_assignment_list_with_subscription()
+    int
+    Python object
+    float
+    5 5 5.0
+    """
+
+def test_assignment_dict_with_subscription():
+    """
+    >>> test_assignment_dict_with_subscription()
+    int
+    int
+    int
+    5 5 5
+    """
+    a: dict[str, cython.int] = {'a': 5}
+    b: dict = a
+    c: dict[str, cython.float] = b
+    print(cython.typeof(a['a']))
+    print(cython.typeof(b['a']))
+    print(cython.typeof(c['a']))
+    print(a['a'], b['a'], c['a'])
+
+if cython.compiled:
+    test_assignment_dict_with_subscription.__doc__ = """
+    >>> test_assignment_dict_with_subscription()
+    int
+    Python object
+    float
+    5 5 5.0
+    """
+
+def test_failed_assignment_list_with_subscription():
+    """
+    >>> test_failed_assignment_list_with_subscription()
+    5 5 5
+    """
+    a: list[cython.int] = [5]
+    b: list = a
+    c: list[str] = b
+    print(a[0], b[0], c[0])
+
+if cython.compiled:
+    test_failed_assignment_list_with_subscription.__doc__ = """
+    >>> test_failed_assignment_list_with_subscription()  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+       ...
+    TypeError: Expected str, got int
+    """
+
+@cython.infer_types(True)
+def test_iteration_over_list_with_subscription():
+    """
+    >>> test_iteration_over_list_with_subscription()
+    int
+    int
+    3
+    """
+    b: cython.int = 1
+    a: list[cython.int] = [2]
+    for c in a:
+        print(cython.typeof(c))
+        print(cython.typeof(b + c))
+        print(b + c)
+
+@cython.infer_types(True)
+def test_iteration_over_set_with_subscription():
+    """
+    >>> test_iteration_over_set_with_subscription()
+    int
+    int
+    3
+    """
+    b: cython.int = 1
+    a: set[cython.int] = {2}
+    for c in a:
+        print(cython.typeof(c))
+        print(cython.typeof(b + c))
+        print(b + c)
+
+@cython.infer_types(True)
+def test_iteration_over_frozenset_with_subscription():
+    """
+    >>> test_iteration_over_frozenset_with_subscription()
+    int
+    int
+    3
+    """
+    b: cython.int = 1
+    a: frozenset[cython.int] = frozenset({2})
+    for c in a:
+        print(cython.typeof(c))
+        print(cython.typeof(b + c))
+        print(b + c)
+
+@cython.infer_types(True)
+def test_iteration_over_set_with_subscription():
+    """
+    >>> test_iteration_over_set_with_subscription()
+    int
+    int
+    3
+    """
+    b: cython.int = 1
+    a: dict[cython.int, cython.int] = {2: 3}
+    for c in a:
+        print(cython.typeof(c))
+        print(cython.typeof(b + c))
+        print(b + c)
+
 
 
 try:
