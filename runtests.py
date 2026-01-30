@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 import sysconfig
+from tempfile import TemporaryDirectory
 import time
 import traceback
 import unittest
@@ -1222,19 +1223,8 @@ class CythonCompileTestCase(unittest.TestCase):
         if abi3result.returncode != 0:
             raise RuntimeError(f"ABI3 audit failed:\n{abi3result.stdout}")
 
-    def generateSharedModule(self):
-        utility_gen_result = subprocess.run(
-            [
-                "python",
-                '-c' 'from Cython.Compiler.Main import main; main(command_line=1)',
-                '--generate-shared', os.path.join(self.workdir, f'{self.shared_module}.{self.language}')
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
-        if utility_gen_result.returncode != 0:
-            raise RuntimeError(f"Shared utility generation failed:\n{utility_gen_result.stdout}")
-
     def runTest(self):
         self.success = False
-        self.generateSharedModule()
         self.runCompileTest()
         self.runAbi3AuditTest()
         self.success = True
@@ -1368,7 +1358,6 @@ class CythonCompileTestCase(unittest.TestCase):
             compiler_directives = compiler_directives,
             **extra_compile_options
             )
-        self.generateSharedModule()
         cython_compile(module_path, options=options, full_module_name=module)
 
     def run_distutils(self, test_directory, module, workdir, incdir,
@@ -1550,7 +1539,6 @@ class CythonCompileTestCase(unittest.TestCase):
             self._match_output(expected_perf_hints, perf_hints, tostderr)
 
         so_path = None
-        shared_so_path = None
         if not self.cython_only:
             from Cython.Utils import captured_fd, print_bytes
             from distutils.errors import CCompilerError
@@ -1561,8 +1549,6 @@ class CythonCompileTestCase(unittest.TestCase):
                     with captured_fd(2) as get_stderr:
                         with self.stats.time(self.name, self.language, 'compile-%s' % self.language):
                             so_path = self.run_distutils(test_directory, module, workdir, incdir)
-                            if self.shared_module:
-                                shared_so_path = self.run_distutils(test_directory, self.shared_module, workdir, incdir)
             except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
                     ((get_stderr and get_stderr()) or
@@ -2895,6 +2881,7 @@ def generate_shared_utility(options):
 
         sys.path.append(workdir)
         yield workdir
+
 
 def configure_cython(options):
     global CompilationOptions, pyrex_default_options, cython_compile
