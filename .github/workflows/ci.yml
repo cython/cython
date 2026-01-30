@@ -175,8 +175,8 @@ jobs:
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: "c,cpp"
-            env: { LIMITED_API: "--shared-module" }
-            extra_hash: "--shared-module"
+            env: { SHARED_UTILITY: "--shared-utility" }
+            extra_hash: "--shared-utility"
           # Type specs
           - os: ubuntu-22.04
             python-version: "3.14"

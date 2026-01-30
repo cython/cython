@@ -1,4 +1,4 @@
-# tag: shared_module
+# tag: shared_utility
 
 """
 PYTHON setup.py build_ext --inplace
