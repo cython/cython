@@ -68,6 +68,12 @@ cdef extern from "cpp_operators_helper.h" nogil:
         const_char* operator>(int)
         const_char* operator<(int)
 
+        const char* operator+=(int)
+        const char* operator-=(int)
+        const char* operator*=(int)
+        const char* operator/=(int)
+        const char* operator%=(int)
+
         const_char* operator[](int) except +
         const_char* operator()(int) except +
 
@@ -132,6 +138,12 @@ cdef extern from "cpp_operators_helper.h" nogil:
         int& operator<=(int) except +
         int& operator>(int) except +
         int& operator<(int) except +
+
+        int& operator+=(int) except +
+        int& operator-=(int) except +
+        int& operator*=(int) except +
+        int& operator/=(int) except +
+        int& operator%=(int) except +
 
         int& operator[](int) except +
         int& operator()(int) except +
