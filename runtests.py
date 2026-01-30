@@ -891,7 +891,7 @@ class TestBuilder(object):
             if mode == 'run' and ext == '.py' and not filename.startswith('test_') and not (
                     self.cython_only or self.shared_utility):
                 # additionally test file in real Python
-                if self.shared_module:
+                if self.shared_utility:
                     # Without compilation it does not make sense run it with shared utility module enabled
                     continue
                 min_py_ver = [
