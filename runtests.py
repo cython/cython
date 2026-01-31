@@ -891,9 +891,6 @@ class TestBuilder(object):
             if mode == 'run' and ext == '.py' and not filename.startswith('test_') and not (
                     self.cython_only or self.shared_utility):
                 # additionally test file in real Python
-                if self.shared_utility:
-                    # Without compilation it does not make sense run it with shared utility module enabled
-                    continue
                 min_py_ver = [
                     (int(pyver.group(1)), int(pyver.group(2)))
                     for pyver in map(re.compile(r'pure([0-9]+)[.]([0-9]+)').match, tags['tag'])
