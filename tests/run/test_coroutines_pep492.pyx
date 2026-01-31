@@ -694,18 +694,8 @@ class AsyncBadSyntaxTest(TimedTest):
             """]
 
         for code in samples:
-            # assertRaises() differs in Py2.6, so use our own assertRaisesRegex() instead
-            with self.subTest(code=code), self.assertRaisesRegex(Errors.CompileError, '.'):
+            with self.subTest(code=code), self.assertRaises(Errors.CompileError):
                 exec(code, {}, {})
-
-    if not hasattr(unittest.TestCase, 'subTest'):
-        @contextlib.contextmanager
-        def subTest(self, code, **kwargs):
-            try:
-                yield
-            except Exception:
-                print(code)
-                raise
 
     def test_goodsyntax_1(self):
         # Tests for issue 24619
