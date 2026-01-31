@@ -889,7 +889,7 @@ class TestBuilder(object):
                 suite.addTest(test)
 
             if mode == 'run' and ext == '.py' and not filename.startswith('test_') and not (
-                    self.cython_only or self.shared_module):
+                    self.cython_only or self.shared_utility):
                 # additionally test file in real Python
                 min_py_ver = [
                     (int(pyver.group(1)), int(pyver.group(2)))
