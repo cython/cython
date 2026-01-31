@@ -861,7 +861,7 @@ class TestBuilder(object):
                 if skip_limited(tags):
                     continue
                 if self.shared_utility is not None and 'shared_utility' not in tags['tag']:
-                    # It is redundant to run EndToEnd tests that are not related to using shared utility module
+                     # EndToEnd tests have their own build setup which doesn't use the shared module unless the tag says so.
                     continue
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
                     suite.addTest(EndToEndTest(filepath, workdir,
