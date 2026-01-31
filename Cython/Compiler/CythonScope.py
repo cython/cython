@@ -6,6 +6,7 @@ from .Scanning import StringSourceDescriptor
 from . import MemoryView
 from .StringEncoding import EncodedString
 
+NON_TYPE_NAMES = {'pointer', 'const'}
 
 class CythonScope(ModuleScope):
     is_cython_builtin = 1
@@ -42,6 +43,8 @@ class CythonScope(ModuleScope):
 
     def lookup_type(self, name):
         # This function should go away when types are all first-level objects.
+        if name in NON_TYPE_NAMES:
+            return None
         type = parse_basic_type(name)
         if type:
             return type
