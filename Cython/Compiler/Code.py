@@ -4,7 +4,8 @@
 
 
 import cython
-cython.declare(os=object, re=object, operator=object, textwrap=object,
+cython.declare(hashlib=object, json=object, operator=object, os=object, re=object,
+               shutil=object, textwrap=object,
                Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, defaultdict=object,
@@ -12,6 +13,7 @@ cython.declare(os=object, re=object, operator=object, textwrap=object,
                zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object)
 
 import hashlib
+import json
 import operator
 import os
 import re
@@ -34,6 +36,7 @@ from ..StringIOTree import StringIOTree
 
 # Set up available compression algorithms for maximum compression.
 from zlib import compress as zlib_compress
+zlib_compress = partial(zlib_compress, level=9)
 try:
     from bz2 import compress as bz2_compress
 except ImportError:
@@ -62,7 +65,8 @@ else:
 
 compression_algorithms = [
     # Note: order is important and defines values for "CYTHON_COMPRESS_STRINGS" !
-    (1, 'zlib', partial(zlib_compress, level=9)),
+    # Later algorithms are excluded if prior ones beat them.
+    (1, 'zlib', zlib_compress),
     (2, 'bz2', bz2_compress),
     (3, 'zstd', zstd_compress),
     # LZMA is difficult to configure for efficient output from C code
@@ -555,7 +559,7 @@ class UtilityCodeBase(AbstractUtilityCode):
 
                 if tag_name not in ('requires', 'substitute', 'proto_block'):
                     raise RuntimeError(f"Found unknown tag name '{tag_name}' in utility section {name}.{type}")
-                if not re.match(r'\S+$', tag_value):
+                if not re.match(r'\S+(\{[^\}]*\})?$', tag_value):
                     raise RuntimeError(f"Found invalid tag value '{tag_value}' in utility section {name}.{type}")
 
                 tags[tag_name].add(tag_value)
@@ -594,13 +598,20 @@ class UtilityCodeBase(AbstractUtilityCode):
                     continue
                 # only pass lists when we have to: most argument expect one value or None
                 if name == 'requires':
-                    if orig_kwargs:
-                        values = [cls.load(dep, from_file, **orig_kwargs)
-                                  for dep in sorted(values)]
-                    else:
-                        # dependencies are rarely unique, so use load_cached() when we can
-                        values = [cls.load_cached(dep, from_file)
-                                  for dep in sorted(values)]
+                    dependencies = []
+                    for dep in sorted(values):
+                        if '{' in dep:
+                            split_pos = dep.index('{')
+                            tempita_context = json.loads(dep[split_pos:])
+                            dependency = TempitaUtilityCode.load_cached(
+                                dep[:split_pos], from_file, context=tempita_context, **kwargs)
+                        elif orig_kwargs:
+                            dependency = cls.load(dep, from_file, **orig_kwargs)
+                        else:
+                            # dependencies are rarely unique, so use load_cached() when we can
+                            dependency = cls.load_cached(dep, from_file)
+                        dependencies.append(dependency)
+                    values = dependencies
                 elif name == 'substitute':
                     # don't want to pass "naming" or "tempita" to the constructor
                     # since these will have been handled
@@ -2029,11 +2040,8 @@ class GlobalState:
                         text,
                     ))
 
-        c_consts.sort()
-        py_bytes_consts.sort()
-        py_unicode_consts.sort()
-
         # Generate C string constants.
+        c_consts.sort()
         decls_writer = self.parts['string_decls']
         for _, cname, escaped_value in c_consts:
             cliteral = StringEncoding.split_string_literal(escaped_value)
@@ -2069,47 +2077,76 @@ class GlobalState:
         first_interned: cython.Py_ssize_t = -1
         stringtab_pos: cython.Py_ssize_t = 0
 
-        # For (Unicode) text strings, the index stores the character lengths after UTF8 decoding.
-        for i, (is_interned, cname, text) in enumerate(text_strings):
+        # For (Unicode) text strings, the length index stores the byte lengths after UTF8 decoding.
+        text_strings.sort(key=operator.itemgetter(0, 2))
+        for is_interned, cname, text in text_strings:
             bytes_values.append(text.encode('utf-8'))
-            if first_interned == -1 and is_interned:
-                first_interned = i
+            if first_interned == -1:
+                if is_interned:
+                    first_interned = stringtab_pos
+            else:
+                assert is_interned, (
+                    f"All string entries after {first_interned} must be interned, but {stringtab_pos} is not: {text!r}")
             defines.putln(f"#define {cname} {Naming.stringtab_cname}[{stringtab_pos}]")
             stringtab_pos += 1
+
+        str_index = list(map(len, bytes_values))
 
         stringtab_bytes_start: cython.Py_ssize_t = len(text_strings)
 
-        # For bytes objects, the index stores the byte lengths, ignoring the initial Unicode string.
-        for _, cname, text in byte_strings:
-            bytes_values.append(text.byteencode() if text.encoding else text.utf8encode())
+        # For bytes objects, the length index stores the encoded byte lengths.
+        byte_strings = [
+            ((text.byteencode() if text.encoding else text.utf8encode()), cname)
+            for _, cname, text in byte_strings
+        ]
+        byte_strings.sort()
+        for text, cname in byte_strings:
+            bytes_values.append(text)
             defines.putln(f"#define {cname} {Naming.stringtab_cname}[{stringtab_pos}]")
             stringtab_pos += 1
 
-        index = list(map(len, bytes_values))
+        bytes_index = list(map(len, bytes_values[stringtab_bytes_start:]))
         concat_bytes = b''.join(bytes_values)
 
         w = self.parts['init_constants']
         w.putln("{")  # Start code block.
 
         # Store the index of string lengths.
-        w.putln(
-            "const struct { "
-            f"const unsigned int length: {max(index).bit_length()}; "
-            "} "
-            f"index[] = {{{','.join(['{%d}' % length for length in index])}}};",
-        )
+        for stype, index in [('str', str_index), ('bytes', bytes_index)]:
+            if not index:
+                continue
+            w.putln(
+                "const struct { "
+                f"const unsigned int length: {max(index).bit_length()}; "
+                "} "
+                f"{stype}_length_index[] = {{{','.join(['{%d}' % length for length in index])}}};",
+            )
 
         # Store and decompress the string data.
         self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
 
-        has_if = False
-        for algo_number, algo_name, compress in reversed(compression_algorithms):
+        min_size_seen = None
+        compressions = []
+        for algo_number, algo_name, compress in compression_algorithms:
             if compress is None:
                 continue
+
             compressed_bytes = compress(concat_bytes)
-            if len(compressed_bytes) >= len(concat_bytes) - 10:
+            compressed_size = len(compressed_bytes)
+            if compressed_size >= len(concat_bytes) - 15:
                 continue
 
+            if min_size_seen is None or compressed_size < min_size_seen:
+                min_size_seen = compressed_size
+            else:
+                # Avoid less widely used algorithms if they don't beat common ones
+                # (especially zlib) on the data at hand.
+                continue
+
+            compressions.append((algo_number, algo_name, compressed_bytes))
+
+        has_if = False
+        for algo_number, algo_name, compressed_bytes in reversed(compressions):
             if algo_name == 'zlib':
                 # Use zlib as fallback if the selected compression module is not available.
                 assert algo_number == 1, f"Compression algorithm no. 1 must be 'zlib' to be used as fallback."
@@ -2133,8 +2170,7 @@ class GlobalState:
             w.putln(f'if (likely(bytes)); else {{ Py_DECREF(data); {w.error_goto(self.module_pos)} }}')
             w.putln('#endif')
 
-        if has_if:
-            w.putln(f"#else /* compression: none ({len(concat_bytes)} bytes) */")
+        w.putln(f"{'#else ' if has_if else ''}/* compression: none ({len(concat_bytes)} bytes) */")
         escaped_bytes = StringEncoding.split_string_literal(
             StringEncoding.escape_byte_string(concat_bytes))
         w.putln(f'const char* const bytes = "{escaped_bytes}";', safe=True)
@@ -2156,7 +2192,7 @@ class GlobalState:
             # because it must copy Unicode slices between different character sizes.
             # We avoid this by repeatedly calling PyUnicode_DecodeUTF8() for each substring.
             w.putln(f"for ({'int' if stringtab_bytes_start < 2**15 else 'Py_ssize_t'} i = 0; i < {stringtab_bytes_start}; i++) {{")
-            w.putln("Py_ssize_t bytes_length = index[i].length;")
+            w.putln("Py_ssize_t bytes_length = str_length_index[i].length;")
 
             w.putln("PyObject *string = PyUnicode_DecodeUTF8(bytes + pos, bytes_length, NULL);")
             if first_interned >= 0:
@@ -2171,9 +2207,9 @@ class GlobalState:
             w.putln("}")  # for()
 
         # Unpack byte strings.
-        if stringtab_bytes_start < len(index):
-            w.putln(f"for ({'int' if len(index) < 2**15 else 'Py_ssize_t'} i = {stringtab_bytes_start}; i < {len(index)}; i++) {{")
-            w.putln("Py_ssize_t bytes_length = index[i].length;")
+        if stringtab_bytes_start < len(bytes_values):
+            w.putln(f"for ({'int' if len(bytes_values) < 2**15 else 'Py_ssize_t'} i = {stringtab_bytes_start}; i < {len(bytes_values)}; i++) {{")
+            w.putln(f"Py_ssize_t bytes_length = bytes_length_index[i-{stringtab_bytes_start}].length;")
 
             w.putln("PyObject *string = PyBytes_FromStringAndSize(bytes + pos, bytes_length);")
             w.putln("stringtab[i] = string;")
@@ -2189,7 +2225,7 @@ class GlobalState:
         w.putln("Py_XDECREF(data);")
 
         # Set up hash values.
-        w.putln(f"for (Py_ssize_t i = 0; i < {len(index)}; i++) {{")
+        w.putln(f"for (Py_ssize_t i = 0; i < {len(bytes_values)}; i++) {{")
         w.putln("if (unlikely(PyObject_Hash(stringtab[i]) == -1)) {")
         w.putln(w.error_goto(self.module_pos))
         w.putln('}')
@@ -2198,8 +2234,8 @@ class GlobalState:
         # Unicode strings are not trivially immortal but require certain rules.
         # See https://github.com/python/cpython/blob/920de7ccdcfa7284b6d23a124771b17c66dd3e4f/Objects/unicodeobject.c#L713-L739
         # But we can make bytes strings immortal.
-        if stringtab_bytes_start < len(index):
-            self.immortalize_constants(f"stringtab + {stringtab_bytes_start}", len(index) - stringtab_bytes_start, w)
+        if stringtab_bytes_start < len(bytes_values):
+            self.immortalize_constants(f"stringtab + {stringtab_bytes_start}", len(bytes_values) - stringtab_bytes_start, w)
 
         w.putln("}")  # close block
 

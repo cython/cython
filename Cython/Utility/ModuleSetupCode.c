@@ -582,8 +582,20 @@ typedef uintptr_t  __pyx_uintptr_t;
   #endif
 #endif
 
+#ifdef Py_UNREACHABLE
+  #define __Pyx_UNREACHABLE() Py_UNREACHABLE()
+#elif __Pyx_has_cbuiltin(__builtin_unreachable)
+  #define __Pyx_UNREACHABLE() __builtin_unreachable()
+#elif defined(__clang__) || defined(__INTEL_COMPILER) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)))
+  #define __Pyx_UNREACHABLE() __builtin_unreachable()
+#elif defined(_MSC_VER)
+  #define __Pyx_UNREACHABLE() __assume(0)
+#else
+  #define __Pyx_UNREACHABLE() Py_FatalError("Unreachable C code path reached")
+#endif
+
 #ifndef Py_UNREACHABLE
-  #define Py_UNREACHABLE()  assert(0); abort()
+  #define Py_UNREACHABLE() __Pyx_UNREACHABLE()
 #endif
 
 #ifdef __cplusplus

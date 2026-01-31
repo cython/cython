@@ -19,6 +19,8 @@ from test.support import (captured_stderr, check_impl_detail, gc_collect,
                           script_helper, SuppressCrashReport)
 from test import support
 
+from Cython.TestUtils import TimedTest
+
 try:
     from test.support.import_helper import import_module
     from test.support.os_helper import TESTFN, unlink
@@ -58,7 +60,7 @@ class BrokenStrException(Exception):
 
 # XXX This is not really enough, each *operation* should be tested!
 
-class ExceptionTests(unittest.TestCase):
+class ExceptionTests(TimedTest):
 
     def raise_catch(self, exc, excname):
         with self.subTest(exc=exc, excname=excname):
@@ -1854,7 +1856,7 @@ class ExceptionTests(unittest.TestCase):
         self.assertIn(b'MemoryError', err)
 
 
-class NameErrorTests(unittest.TestCase):
+class NameErrorTests(TimedTest):
     '''
     def test_name_error_has_name(self):
         try:
@@ -1910,7 +1912,7 @@ class NameErrorTests(unittest.TestCase):
 
 
 @unittest.skipIf(sys.version_info < (3,10), "needs Python 3.10+")
-class AttributeErrorTests(unittest.TestCase):
+class AttributeErrorTests(TimedTest):
     def test_attributes(self):
         # Setting 'attr' should not be a problem.
         exc = AttributeError('Ouch!')
@@ -1955,7 +1957,7 @@ class AttributeErrorTests(unittest.TestCase):
     # Note: name suggestion tests live in `test_traceback`.
 
 
-class ImportErrorTests(unittest.TestCase):
+class ImportErrorTests(TimedTest):
 
     def test_attributes(self):
         # Setting 'name' and 'path' should not be a problem.
@@ -2322,7 +2324,7 @@ class SyntaxErrorTests(unittest.TestCase):
 
 
 @unittest.skip("currently fails in Cython")
-class TestInvalidExceptionMatcher(unittest.TestCase):
+class TestInvalidExceptionMatcher(TimedTest):
     def test_except_star_invalid_exception_type(self):
         with self.assertRaises(TypeError):
             try:
@@ -2338,7 +2340,7 @@ class TestInvalidExceptionMatcher(unittest.TestCase):
 
 
 @unittest.skip("not implemented in Cython")
-class PEP626Tests(unittest.TestCase):
+class PEP626Tests(TimedTest):
 
     def lineno_after_raise(self, f, *expected):
         try:
