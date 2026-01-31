@@ -16,7 +16,6 @@ import shutil
 import subprocess
 import sys
 import sysconfig
-from tempfile import TemporaryDirectory
 import time
 import traceback
 import unittest
