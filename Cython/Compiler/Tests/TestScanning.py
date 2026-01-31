@@ -4,6 +4,7 @@ import string
 
 from .. import Scanning
 from ..Symtab import ModuleScope
+from ...TestUtils import TimedTest
 from ..TreeFragment import StringParseContext
 
 # generate some fake code - just a bunch of lines of the form "a0 a1 ..."
@@ -14,7 +15,7 @@ for ch in string.ascii_lowercase:
 code = "\n".join(code)
 
 
-class TestScanning(unittest.TestCase):
+class TestScanning(TimedTest):
     def make_scanner(self):
         source = Scanning.StringSourceDescriptor("fake code", code)
         buf = StringIO(code)

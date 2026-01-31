@@ -6,6 +6,7 @@ import contextlib
 from tempfile import NamedTemporaryFile
 from Cython.Compiler.Main import compile as cython_compile, CompileError
 from Cython.Build.Inline import cython_inline
+from Cython.TestUtils import TimedTest
 
 
 @contextlib.contextmanager
@@ -194,7 +195,7 @@ INVALID_UNDERSCORE_LITERALS = [
 ]
 
 
-class TokenTests(unittest.TestCase):
+class TokenTests(TimedTest):
 
     #from test.support import check_syntax_error
     check_syntax_error = check_syntax_error
@@ -375,7 +376,7 @@ class CNS:
         return self._dct[item]
 
 
-class GrammarTests(unittest.TestCase):
+class GrammarTests(TimedTest):
 
     #from test.support import check_syntax_error, check_syntax_warning
     check_syntax_error, check_syntax_warning = check_syntax_error, check_syntax_warning

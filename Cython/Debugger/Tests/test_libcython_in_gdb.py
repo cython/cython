@@ -27,6 +27,7 @@ import gdb
 from .. import libcython
 from .. import libpython
 from . import TestLibCython as test_libcython
+from ...TestUtils import TimedTest
 
 # for some reason sys.argv is missing in gdb
 sys.argv = ['gdb']
@@ -53,7 +54,7 @@ class TraceMethodCallMeta(type):
                 setattr(self, func_name, print_on_call_decorator(func))
 
 
-class DebugTestCase(unittest.TestCase, metaclass=TraceMethodCallMeta):
+class DebugTestCase(TimedTest, metaclass=TraceMethodCallMeta):
     """
     Base class for test cases. On teardown it kills the inferior and unsets
     all breakpoints.
@@ -91,6 +92,7 @@ class DebugTestCase(unittest.TestCase, metaclass=TraceMethodCallMeta):
         gdb.execute('run', to_string=True)
 
     def tearDown(self):
+        super().tearDown()
         gdb.execute('delete breakpoints', to_string=True)
         try:
             gdb.execute('kill inferior 1', to_string=True)
@@ -161,7 +163,7 @@ class TestReprMethods(DebugTestCase):
                          libcython.frame_repr(frame))
 
 
-class TestParameters(unittest.TestCase):
+class TestParameters(TimedTest):
 
     def test_parameters(self):
         gdb.execute('set cy_colorize_code on')

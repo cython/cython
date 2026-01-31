@@ -12,6 +12,9 @@ from typing import get_type_hints
 from collections import deque, OrderedDict, namedtuple
 import sys
 
+from Cython.TestUtils import TimedTest
+
+
 def skip_on_versions_below(version):
     def decorator(func):
         if sys.version_info >= version:

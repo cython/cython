@@ -20,6 +20,7 @@ import warnings
 import contextlib
 
 from Cython.Compiler import Errors
+from Cython.TestUtils import TimedTest
 
 
 try:
@@ -173,7 +174,7 @@ def captured_stderr():
         sys.stderr = orig_stderr
 
 
-class AsyncBadSyntaxTest(unittest.TestCase):
+class AsyncBadSyntaxTest(TimedTest):
 
     @contextlib.contextmanager
     def assertRaisesRegex(self, exc_type, regex):
@@ -760,7 +761,7 @@ class AsyncBadSyntaxTest(unittest.TestCase):
             self.assertTrue(inspect.iscoroutinefunction(f))
 
 
-class TokenizerRegrTest(unittest.TestCase):
+class TokenizerRegrTest(TimedTest):
 
     @unittest.skip("Very slow C code compilation.")
     def test_oneline_defs(self):
@@ -785,7 +786,7 @@ class TokenizerRegrTest(unittest.TestCase):
             self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
 
 
-class CoroutineTest(unittest.TestCase):
+class CoroutineTest(TimedTest):
 
     @classmethod
     def setUpClass(cls):
@@ -2414,7 +2415,7 @@ class CoroutineTest(unittest.TestCase):
         self.assertIn("was never awaited", stderr.getvalue())
 
 
-class CoroAsyncIOCompatTest(unittest.TestCase):
+class CoroAsyncIOCompatTest(TimedTest):
 
     def test_asyncio_1(self):
         import asyncio

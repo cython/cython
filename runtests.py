@@ -1125,7 +1125,10 @@ class CythonCompileTestCase(unittest.TestCase):
                         name = name.decode()
                         sys.modules[name] = CythonCImports(name)
 
+        super().setUp()
+
     def tearDown(self):
+        super().tearDown()
         from Cython.Compiler import Options
         for name, value in self._saved_options:
             setattr(Options, name, value)
@@ -1583,9 +1586,9 @@ class CythonCompileTestCase(unittest.TestCase):
 
 class CythonRunTestCase(CythonCompileTestCase):
     def setUp(self):
-        CythonCompileTestCase.setUp(self)
         from Cython.Compiler import Options
         Options.clear_to_none = False
+        super().setUp()
 
     def description_name(self):
         return self.name if self.cython_only else "and running %s" % self.name
@@ -1752,7 +1755,19 @@ class PartialTestResult(TextTestResult):
             self.write("%s\n" % line)
 
 
-class CythonUnitTestCase(CythonRunTestCase):
+class TimedTest(unittest.TestCase):
+    # Copied here from Cython/TestUtils.py to avoid import time dependency on Cython.
+    def setUp(self):
+        super().setUp()
+        self._start_time = time.time()
+
+    def tearDown(self):
+        t = time.time() - self._start_time
+        super().tearDown()
+        sys.stderr.write(f"[{self.id()}:{'' if t < .5 else ' SLOWTEST'} {t * 1000.:.2f} msec] ")
+
+
+class CythonUnitTestCase(TimedTest, CythonRunTestCase):
     def shortDescription(self):
         return "[%d] compiling (%s) tests in %s" % (
             self.shard_num, self.language, self.description_name())
@@ -1767,16 +1782,15 @@ class CythonUnitTestCase(CythonRunTestCase):
             tests.run(result)
 
 
-class CythonPyregrTestCase(CythonRunTestCase):
+class CythonPyregrTestCase(TimedTest, CythonRunTestCase):
     def setUp(self):
-        CythonRunTestCase.setUp(self)
         from Cython.Compiler import Options
         Options.error_on_unknown_names = False
         Options.error_on_uninitialized = False
         Options._directive_defaults.update(dict(
             binding=True, always_allow_keywords=True,
             set_initial_path="SOURCEFILE"))
-        patch_inspect_isfunction()
+        super().setUp()
 
     def related_files(self, test_directory, module_name):
         return _list_pyregr_data_files(test_directory)

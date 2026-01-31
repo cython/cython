@@ -1,10 +1,11 @@
 import textwrap
-from unittest import TestCase
 
 from .. import Naming
 from ..Code import _indent_chunk, UtilityCode, process_utility_ccode
+from ...TestUtils import TimedTest
 
-class TestIndent(TestCase):
+
+class TestIndent(TimedTest):
     def _test_indentations(self, chunk, expected):
         for indentation in range(16):
             expected_indented = textwrap.indent(expected, ' ' * indentation)
@@ -87,7 +88,7 @@ else:
         self._test_indentations(chunk, expected)
 
 
-class TestUtilityCodeProcessing(TestCase):
+class TestUtilityCodeProcessing(TimedTest):
     def _process(self, code):
         utility_code = UtilityCode()
         formatted_code, is_module_specific = process_utility_ccode(utility_code, None, code)
