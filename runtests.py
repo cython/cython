@@ -2868,6 +2868,7 @@ def generate_shared_utility(options):
         if utility_gen_result.returncode != 0:
             raise RuntimeError(f"Shared utility generation failed:\n{utility_gen_result.stdout}")
 
+
         compilation_result = subprocess.run(
             [
                 sys.executable, 'cythonize.py', '-bi', shared_utility_c_file
