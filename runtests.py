@@ -16,7 +16,6 @@ import shutil
 import subprocess
 import sys
 import sysconfig
-from tempfile import TemporaryDirectory
 import time
 import traceback
 import unittest
@@ -25,6 +24,7 @@ import zlib
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
+from tempfile import TemporaryDirectory
 
 try:
     IS_PYPY = platform.python_implementation() == 'PyPy'
