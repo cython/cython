@@ -1,0 +1,296 @@
+UNSET CFLAGS
+PYTHON setup.py build_ext -if
+PYTHON test.py
+
+############################ setup.py #####################
+
+import sys
+if sys.version_info < (3, 12):
+    exit(0)  # PEP 697 not supported
+
+from setuptools import Extension, setup
+from Cython.Build import cythonize
+
+ext_modules = [
+    Extension(
+        name="module_with_opaque_type",
+        sources=["module_with_opaque_type.c"],
+    ),
+    Extension(
+        name="module_with_nonopaque_type",
+        sources=["module_with_nonopaque_type.c"],
+    ),
+    Extension(
+        name="use_opaque_type",
+        sources=["use_opaque_type.pyx"],
+    ),
+    Extension(
+        name="use_opaque_type_opaque",
+        sources=["use_opaque_type_opaque.pyx"],
+    ),
+    Extension(
+        name="use_opaque_type_fail_inherit",
+        sources=["use_opaque_type_fail_inherit.pyx"],
+    ),
+    Extension(
+        name="use_nonopaque_type",
+        sources=["use_nonopaque_type.pyx"],
+    ),
+    Extension(
+        name="use_nonopaque_type_opaque",
+        sources=["use_nonopaque_type_opaque.pyx"],
+    ),
+]
+
+if sys.version_info >= (3, 15):
+    ext_modules.append(
+        Extension(
+            name="import_nonopaque_type_truly_opaque",
+            sources=["import_nonopaque_type_truly_opaque.pyx"],
+        ),
+    )
+
+setup(ext_modules=cythonize(ext_modules))
+
+################### module_with_opaque_type.h ###############
+
+typedef struct {
+    int attr;
+} OObj;
+
+################### module_with_opaque_type.c ###############
+
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
+#include "module_with_opaque_type.h"
+
+static PyTypeObject *opaque_type;
+
+static int type_init(PyObject *self, PyObject *args, PyObject *kwds) {
+    OObj *self_typedata = (OObj*)PyObject_GetTypeData(self, opaque_type);
+    int value;
+    if (!PyArg_ParseTuple(args, "i", &value))
+        return -1;
+    self_typedata->attr = value;
+    return 0;
+}
+
+static PyType_Slot type_slots[] = {
+    {Py_tp_init, type_init},
+    {0, NULL}
+};
+
+static PyType_Spec type_spec = {
+    "OpaqueType",
+    -(Py_ssize_t)(sizeof(OObj)),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    type_slots
+};
+
+static int
+module_exec(PyObject *m)
+{
+    opaque_type = (PyTypeObject*)PyType_FromSpec(&type_spec);
+    if (!opaque_type) return -1;
+
+    if (PyModule_AddObjectRef(m, "OpaqueType", (PyObject*)opaque_type) < 0) return -1;
+
+    return 0;
+}
+
+static PyModuleDef_Slot module_slots[] = {
+    {Py_mod_exec, module_exec},
+    {0, NULL}
+};
+
+static struct PyModuleDef module = {
+    .m_base = PyModuleDef_HEAD_INIT,
+    .m_name = "module_with_opaque_type",
+    .m_size = 0,  // non-negative
+    .m_slots = module_slots,
+};
+
+PyMODINIT_FUNC
+PyInit_module_with_opaque_type(void)
+{
+    return PyModuleDef_Init(&module);
+}
+
+################### module_with_nonopaque_type.h ##################
+
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
+typedef struct {
+    PyObject_HEAD
+    int attr;
+} NOObj;
+
+################### module_with_nonopaque_type.c ###############
+
+#include "module_with_nonopaque_type.h"
+
+static int type_init(PyObject *self, PyObject *args, PyObject *kwds) {
+    int value;
+    if (!PyArg_ParseTuple(args, "i", &value))
+        return -1;
+    ((NOObj*)self)->attr = value;
+    return 0;
+}
+
+static PyType_Slot type_slots[] = {
+    {Py_tp_init, type_init},
+    {0, NULL}
+};
+
+static PyType_Spec type_spec = {
+    "NonOpaqueType",
+    sizeof(NOObj),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    type_slots
+};
+
+static int
+module_exec(PyObject *m)
+{
+    PyObject *nonopaque_type = PyType_FromSpec(&type_spec);
+    if (!nonopaque_type) return -1;
+
+    if (PyModule_AddObjectRef(m, "NonOpaqueType", nonopaque_type) < 0) return -1;
+
+    return 0;
+}
+
+static PyModuleDef_Slot module_slots[] = {
+    {Py_mod_exec, module_exec},
+    {0, NULL}
+};
+
+static struct PyModuleDef module = {
+    .m_base = PyModuleDef_HEAD_INIT,
+    .m_name = "module_with_nonopaque_type",
+    .m_size = 0,  // non-negative
+    .m_slots = module_slots,
+};
+
+PyMODINIT_FUNC
+PyInit_module_with_nonopaque_type(void)
+{
+    return PyModuleDef_Init(&module);
+}
+
+######################## use_opaque_type_impl.pxi ##########################
+
+cdef extern from "module_with_opaque_type.h":
+    ctypedef class module_with_opaque_type.OpaqueType[object OObj, opaque_pyobject True]:
+        cdef int attr
+
+def get_value(OpaqueType o):
+    return o.attr
+
+def get_value_nogil(OpaqueType o):
+    with nogil:
+        r = o.attr
+    return r
+
+def test():
+    assert get_value(OpaqueType(4)) == 4
+    assert get_value_nogil(OpaqueType(4)) == 4
+
+###################### use_opaque_type.pyx #######################
+
+include 'use_opaque_type_impl.pxi'
+
+###################### use_opaque_type_opaque.pyx #######################
+
+# distutils: extra_compile_args = -DCYTHON_OPAQUE_OBJECTS=1
+
+# Note that CYTHON_OPAQUE_OBJECTS is ignored on Python <3.14.
+# This makes it a less useful test, but it still works.
+
+include 'use_opaque_type_impl.pxi'
+
+###################### use_opaque_type_fail_inherit.pyx #######################
+
+include 'use_opaque_type_impl.pxi'
+
+cdef class Inherit(OpaqueType):
+    pass
+
+#################### use_nonopaque_type_impl.pxi #####################
+
+cdef extern from "module_with_nonopaque_type.h":
+    ctypedef class module_with_nonopaque_type.NonOpaqueType[object NOObj, opaque_pyobject False]:
+        cdef int attr
+
+def get_value(NonOpaqueType o):
+    return o.attr
+
+def test():
+    assert get_value(NonOpaqueType(4)) == 4
+
+#################### use_nonopaque_type.pyx ##########################
+
+include 'use_nonopaque_type_impl.pxi'
+
+#################### use_nonopaque_type_opaque.pyx ##################
+
+# distutils: extra_compile_args = -DCYTHON_OPAQUE_OBJECTS=1
+
+# Note that CYTHON_OPAQUE_OBJECTS is ignored on Python <3.14.
+
+include 'use_nonopaque_type_impl.pxi'
+
+###################### import_nonopaque_type_truly_opaque.pyx #######################
+
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x030F0000 -DCYTHON_OPAQUE_OBJECTS=1 -D_Py_OPAQUE_PYOBJECT
+
+cimport cython
+
+cdef extern from *:
+    ctypedef class module_with_nonopaque_type.NonOpaqueType[object NOObj, opaque_pyobject False]:
+        cdef int attr
+
+# We can't do much with the type (e.g. access it's attributes)
+# but simply importing it isn't an error. And we can inherit from it.
+
+@cython.auto_pickle(False)
+cdef class Inherit(NonOpaqueType):
+    pass
+
+def test():
+    pass  # FIXME - calling inherit gets stuck in the destructor!? Inherit()
+
+#################### test.py ################################
+
+import sys
+
+if sys.version_info < (3, 12):
+    exit(0)
+
+import use_opaque_type
+import use_opaque_type_opaque
+import use_nonopaque_type
+import use_nonopaque_type_opaque
+
+for module in [
+            use_opaque_type,
+            use_nonopaque_type_opaque,
+            use_nonopaque_type,
+            use_nonopaque_type_opaque,
+        ]:
+    module.test()
+
+try:
+    import use_opaque_type_fail_inherit
+except TypeError:
+    pass
+else:
+    assert False  # should have failed
+
+if sys.version_info >= (3, 15):
+    import import_nonopaque_type_truly_opaque
+    import_nonopaque_type_truly_opaque.test()

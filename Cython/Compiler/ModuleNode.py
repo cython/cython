@@ -1478,16 +1478,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
                 module_state.putln("PyTypeObject *%s;" % entry.type.typeptr_cname)
-                module_state.putln("#if CYTHON_OPAQUE_OBJECTS")
-                # Store a pointer to the atomic rather than a copy so we can keep in in sync.
-                # This relies on atomics being ABI compatible across cimported modules, but that's
-                # true for memoryviews as well do isn't a new restriction.
-                if definition:
-                    module_state.putln(f"__pyx_atomic_Py_ssize_t {entry.type.typeoffset_cname};")
-                else:
-                    module_state.putln(f"__pyx_atomic_Py_ssize_t *__pyx{entry.type.typeoffset_cname};")
-                    module_state.putln(f"#define {entry.type.typeoffset_cname} __pyx{entry.type.typeoffset_cname}[0]")
-                module_state.putln("#endif")
+                if entry.type.opaque_pyobject is None:
+                    module_state.putln("#if CYTHON_OPAQUE_OBJECTS")
+                if entry.type.opaque_pyobject is not False:
+                    # Store a pointer to the atomic rather than a copy so we can keep in in sync.
+                    # This relies on atomics being ABI compatible across cimported modules, but that's
+                    # true for memoryviews as well do isn't a new restriction.
+                    if definition or entry.type.is_external:
+                        module_state.putln(f"__pyx_atomic_Py_ssize_t {entry.type.typeoffset_cname};")
+                    else:
+                        module_state.putln(f"__pyx_atomic_Py_ssize_t *__pyx{entry.type.typeoffset_cname};")
+                        module_state.putln(f"#define {entry.type.typeoffset_cname} __pyx{entry.type.typeoffset_cname}[0]")
+                if entry.type.opaque_pyobject is None:
+                    module_state.putln("#endif")
                 module_state_clear.putln(
                     "Py_CLEAR(clear_module_state->%s);" %
                     entry.type.typeptr_cname)
@@ -4080,6 +4083,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # to know anything about the objstruct.
             code.putln("#elif CYTHON_OPAQUE_OBJECTS")
             code.putln('0, 0,')
+        elif type.opaque_pyobject is False:
+            # We don't be able to access the type data (and the C compiler will
+            # enforce that as best as possible). However merely importing the
+            # type shouldn't be an error.  Inheriting is also safe.
+            code.putln("#elif !defined(PyObject_HEAD) && CYTHON_OPAQUE_OBJECTS")
+            code.putln('0, 0,')
         code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
         if is_builtin:
             # Builtin types are opaque in when the limited API is enabled
@@ -4093,6 +4102,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
         code.putln("#endif")
 
+        is_external_nonopaque = type.is_external and type.opaque_pyobject is not True
+
         # check_size
         if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
             check_size = type.check_size
@@ -4103,18 +4114,31 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f"invalid value for check_size '{type.check_size}' when compiling {module_name}.{type.name}")
         code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion}, ')
         # is it pep697-opaque?
-        # (Don't allow pep697-opaque extern types for now)
-        code.put(f"{not is_builtin:d} && {not type.is_external:d} && CYTHON_OPAQUE_OBJECTS_{Naming.cyversion});")
+        if not is_builtin and type.opaque_pyobject is not None:
+            code.putln(f'{type.opaque_pyobject:d});')
+        else:
+            code.put(f"{not is_builtin:d} && CYTHON_OPAQUE_OBJECTS_{Naming.cyversion});")
 
         code.putln(f' if (!{typeptr_cname}) {error_code}')
 
-        if not is_builtin and not type.is_external and not is_api:
+        if not is_builtin and not is_external_nonopaque and not is_api:
+            suffix = "ExternalOpaque" if type.is_external and type.opaque_pyobject else ''
             code.globalstate.use_utility_code(
-                UtilityCode.load_cached("CImportTypeOffset", "ExtensionTypes.c"))
+                TempitaUtilityCode.load_cached(
+                    f"CImportTypeOffset{suffix}", "ExtensionTypes.c"))
+            if type.is_external:
+                code.putln("{")
+                code.putln(
+                    f"__pyx_atomic_Py_ssize_t *tmp = &({code.name_in_module_state(type.typeoffset_cname)});")
+                offset_cname = "tmp"
+            else:
+                offset_cname = code.name_in_module_state("__pyx"+type.typeoffset_cname)
             code.putln(
                 'if ('
-                f'__Pyx_CImportTypeOffset(&({code.name_in_module_state("__pyx"+type.typeoffset_cname)}), {typeptr_cname})'
+                f'__Pyx_CImportTypeOffset{suffix}(&({offset_cname}), {typeptr_cname})'
                 f' < 0) {error_code}')
+            if type.is_external:
+                code.putln("}")
 
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)

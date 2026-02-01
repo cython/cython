@@ -5411,6 +5411,8 @@ class CClassDefNode(ClassDefNode):
     #  objstruct_name     string or None    Specified C name of object struct
     #  typeobj_name       string or None    Specified C name of type object
     #  check_size         'warn', 'error', 'ignore'     What to do if tp_basicsize does not match
+    #  opaque_pyobject    boolean or None   Whether or not the class is PEP-697 opaque. None means it's
+    #                                       defined at C compile time by CYTHON_OPAQUE_OBJECTS.
     #  in_pxd             boolean           Is in a .pxd file
     #  decorators         [DecoratorNode]   list of decorators or None
     #  doc                string or None
@@ -5428,6 +5430,7 @@ class CClassDefNode(ClassDefNode):
     objstruct_name = None
     typeobj_name = None
     check_size = None
+    opaque_pyobject = None
     decorators = None
     shadow = False
 
@@ -5468,6 +5471,7 @@ class CClassDefNode(ClassDefNode):
             visibility=self.visibility,
             typedef_flag=self.typedef_flag,
             check_size = self.check_size,
+            opaque_pyobject=self.opaque_pyobject,
             api=self.api,
             buffer_defaults=self.buffer_defaults(env),
             shadow=self.shadow)
@@ -5793,6 +5797,17 @@ class CClassDefNode(ClassDefNode):
             assert typeptr_cname
             assert type.typeobj_cname
             typespec_cname = "%s_spec" % type.typeobj_cname
+            
+            if (scope.parent_type.base_type and scope.parent_type.base_type.is_extension_type 
+                    and scope.parent_type.base_type.opaque_pyobject):
+                code.putln("#if !CYTHON_OPAQUE_OBJECTS")
+                # This is eventually expected to change, at least for heap types.
+                code.putln(
+                    'PyErr_SetString(PyExc_TypeError, '
+                    '"Inherting from opaque types is not supported without CYTHON_OPAQUE_OBJECTS");')
+                code.putln(code.error_goto(entry.pos))
+                code.putln("#endif")
+
             code.putln("#if CYTHON_USE_TYPE_SPECS")
             tuple_temp = None
             if not bases_tuple_cname and scope.parent_type.base_type:
@@ -5883,9 +5898,12 @@ class CClassDefNode(ClassDefNode):
                 if base_type.is_external and base_type.objstruct_cname != "PyTypeObject":
                     # 'type' is special-cased because it is actually based on PyHeapTypeObject
                     # Variable length bases are allowed if the current class doesn't grow
-                    code.putln("if (sizeof(%s%s) != sizeof(%s%s)) {" % (
+                    code.putln("#if !CYTHON_OPAQUE_OBJECTS")
+                    code.putln("if (sizeof(%s%s) != sizeof(%s%s))" % (
                         "" if type.typedef_flag else "struct ", type.objstruct_cname,
                         "" if base_type.typedef_flag else "struct ", base_type.objstruct_cname))
+                    code.putln("#endif")
+                    code.putln("{")
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("ValidateExternBase", "ExtensionTypes.c"))
                     base_typeptr_cname = code.typeptr_cname_in_module_state(type.base_type)

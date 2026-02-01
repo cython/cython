@@ -991,18 +991,26 @@ static void __Pyx_ValidateTypeOffset(PyObject *o, PyTypeObject *tp, __pyx_atomic
 //////////////////////////// OpaqueStructLookup.proto //////////////////////////////
 //@requires: Synchronization.c::Atomics
 
-#if CYTHON_OPAQUE_OBJECTS
+{{py:guard = '1' if explicit else 'CYTHON_OPAQUE_OBJECTS'}}
+{{py:funcname = 'PyObject_GetTypeData' if explicit else 'GetCClassTypeData'}}
+
+#if {{guard}}
 #if !CYTHON_ATOMICS
+    // Future note - if this turns out to be a problem then we could always just use the fallback
+    // code if atomics aren't available
     #error Cython with opaque objects requires atomics
 #endif
 
-static CYTHON_INLINE void* __Pyx_GetCClassTypeData_NoGil(PyObject *o, PyTypeObject *cls, __pyx_atomic_Py_ssize_t* cls_offset); /* proto */
+static CYTHON_INLINE void* __Pyx_{{funcname}}_NoGil(PyObject *o, PyTypeObject *cls, __pyx_atomic_Py_ssize_t* cls_offset); /* proto */
 #endif
 
 //////////////////////////// OpaqueStructLookup //////////////////////////////
 
-#if CYTHON_OPAQUE_OBJECTS
-static CYTHON_INLINE void* __Pyx_GetCClassTypeData_NoGil(PyObject *o, PyTypeObject *cls, __pyx_atomic_Py_ssize_t* cls_offset) {
+{{py:guard = '1' if explicit else 'CYTHON_OPAQUE_OBJECTS'}}
+{{py:funcname = 'PyObject_GetTypeData' if explicit else 'GetCClassTypeData'}}
+
+#if {{guard}}
+static CYTHON_INLINE void* __Pyx_{{funcname}}_NoGil(PyObject *o, PyTypeObject *cls, __pyx_atomic_Py_ssize_t* cls_offset) {
     Py_ssize_t offset = __pyx_atomic_load(cls_offset);
     if (likely(offset >= 0)) {
         return (((char*)(o)) + offset);
@@ -1083,6 +1091,36 @@ static int __Pyx__CImportTypeOffset(PyTypeObject *tp) {
     }
     return 0;
 }
-
-
 #endif
+
+////////////////////////////// CImportTypeOffsetExternalOpaque.proto ////////////////////////
+//@requires: Synchronization.c::Atomics
+
+#if !CYTHON_ATOMICS
+    #error Cython with opaque objects requires atomics
+#endif
+
+static int __Pyx_CImportTypeOffsetExternalOpaque(__pyx_atomic_Py_ssize_t** offset, PyTypeObject *tp); /* proto */
+
+////////////////////////////// CImportTypeOffsetExternalOpaque ////////////////////////
+
+static int __Pyx_CImportTypeOffsetExternalOpaque(__pyx_atomic_Py_ssize_t** offset, PyTypeObject *tp) {
+    // This is essentially CalculateTypeOffset but we always use a negative number to indicate
+    // "only exact types" and we don't set __cython_typeoffset__ because it isn't our type.
+
+    allocfunc alloc = (allocfunc)PyType_GetSlot(tp, Py_tp_alloc);
+    freefunc free = (freefunc)PyType_GetSlot(tp, Py_tp_free);
+    assert(alloc && free);
+    PyObject *dummy = alloc(tp, 0);
+    if (!dummy) return -1;
+    void *objstruct = PyObject_GetTypeData(dummy, tp);
+    Py_ssize_t delta = ((char*)objstruct - (char*)dummy);
+    if (PyType_IS_GC(tp)) {
+        PyObject_GC_UnTrack(dummy);
+    }
+    free(dummy);
+
+    __pyx_nonatomic_int_type delta_nonatomic = -delta;
+    __pyx_atomic_store(*offset, delta_nonatomic);
+    return 0;
+}

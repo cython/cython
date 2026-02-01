@@ -1608,6 +1608,8 @@ class PyExtensionType(PyObjectType):
     #  defered_declarations [thunk]      Used to declare class hierarchies in order
     #  is_external      boolean          Defined in a extern block
     #  check_size       'warn', 'error', 'ignore'    What to do if tp_basicsize does not match
+    #  opaque_pyobject  boolean or None  Whether or not the class is PEP-697 opaque. None means it's
+    #                                    defined at C compile time by CYTHON_OPAQUE_OBJECTS.
     #  dataclass_fields  OrderedDict nor None   Used for inheriting from dataclasses
     #  multiple_bases    boolean          Does this class have multiple bases
     #  has_sequence_flag  boolean        Set Py_TPFLAGS_SEQUENCE
@@ -1624,7 +1626,7 @@ class PyExtensionType(PyObjectType):
     has_sequence_flag = False
     opaque_decl_by_default = True
 
-    def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
+    def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None, opaque_pyobject=None):
         self.name = name
         self.scope = None
         self.typedef_flag = typedef_flag
@@ -1641,6 +1643,7 @@ class PyExtensionType(PyObjectType):
         self.vtable_cname = None
         self.is_external = is_external
         self.check_size = check_size or 'warn'
+        self.opaque_pyobject = opaque_pyobject
         self.defered_declarations = []
 
     def set_scope(self, scope):
@@ -1694,8 +1697,11 @@ class PyExtensionType(PyObjectType):
                 objstruct = self.objstruct_cname
             else:
                 objstruct = "struct %s" % self.objstruct_cname
-            if opaque_decl and not self.is_external:
-                objstruct = f"__PYX_C_CLASS_DECL({objstruct})"
+            if opaque_decl and self.opaque_pyobject is not False:
+                if self.opaque_pyobject is True:
+                    objstruct = 'PyObject'
+                else:
+                    objstruct = f"__PYX_C_CLASS_DECL({objstruct})"
             base_code = public_decl(objstruct, dll_linkage)
             if deref:
                 assert not entity_code
@@ -1716,13 +1722,14 @@ class PyExtensionType(PyObjectType):
         return self.scope is not None
     
     def cast_code(self, expr_code, type_data_cast: bool = False):
-        if not type_data_cast or self.is_external:
+        if not type_data_cast or self.opaque_pyobject is False:
             return super().cast_code(expr_code)
         # FIXME - we really need Code to get to this
         typeptr_cname = f"{Naming.modulestateglobal_cname}->{self.typeptr_cname}"
         opaque_decl_code = self.declaration_code("")
         decl_code = self.declaration_code("", opaque_decl=False)
-        return (f'__Pyx_GetCClassTypeData_Gil(({opaque_decl_code}){expr_code}, '
+        function_cname = "PyObject_GetTypeData" if self.opaque_pyobject is True else "GetCClassTypeData"
+        return (f'__Pyx_{function_cname}_Gil(({opaque_decl_code}){expr_code}, '
                 f'{typeptr_cname}, {decl_code})')
 
     def __str__(self):

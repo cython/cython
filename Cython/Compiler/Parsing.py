@@ -3974,6 +3974,7 @@ def p_c_class_definition(s: PyrexScanner, pos,  ctx):
     typeobj_name = None
     bases = None
     check_size = None
+    opaque_pyobject = None
     if s.sy == '(':
         positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
         if keyword_args:
@@ -3985,7 +3986,7 @@ def p_c_class_definition(s: PyrexScanner, pos,  ctx):
     if s.sy == '[':
         if ctx.visibility not in ('public', 'extern') and not ctx.api:
             error(s.position(), "Name options only allowed for 'public', 'api', or 'extern' C class")
-        objstruct_name, typeobj_name, check_size = p_c_class_options(s)
+        objstruct_name, typeobj_name, check_size, opaque_pyobject = p_c_class_options(s)
     if s.sy == ':':
         if ctx.level == 'module_pxd':
             body_level = 'c_class_pxd'
@@ -4001,17 +4002,23 @@ def p_c_class_definition(s: PyrexScanner, pos,  ctx):
             error(pos, "Module name required for 'extern' C class")
         if typeobj_name:
             error(pos, "Type object name specification not allowed for 'extern' C class")
+        if opaque_pyobject is None:
+            opaque_pyobject = False
     elif ctx.visibility == 'public':
         if not objstruct_name:
             error(pos, "Object struct name specification required for 'public' C class")
         if not typeobj_name:
             error(pos, "Type object name specification required for 'public' C class")
+        if opaque_pyobject is not None:
+            error(pos, "'opaque_pyobject' is currently only valid for extern C classes")
     elif ctx.visibility == 'private':
         if ctx.api:
             if not objstruct_name:
                 error(pos, "Object struct name specification required for 'api' C class")
             if not typeobj_name:
                 error(pos, "Type object name specification required for 'api' C class")
+            if opaque_pyobject is not None:
+                error(pos, "'opaque_pyobject' is currently only valid for extern C classes")
     else:
         error(pos, "Invalid class visibility '%s'" % ctx.visibility)
     return Nodes.CClassDefNode(pos,
@@ -4025,6 +4032,7 @@ def p_c_class_definition(s: PyrexScanner, pos,  ctx):
         objstruct_name = objstruct_name,
         typeobj_name = typeobj_name,
         check_size = check_size,
+        opaque_pyobject=opaque_pyobject,
         in_pxd = ctx.level == 'module_pxd',
         doc = doc,
         body = body)
@@ -4035,6 +4043,7 @@ def p_c_class_options(s: PyrexScanner) -> tuple:
     objstruct_name = None
     typeobj_name = None
     check_size = None
+    opaque_pyobject = None
     s.expect('[')
     while 1:
         if s.sy != 'IDENT':
@@ -4050,11 +4059,17 @@ def p_c_class_options(s: PyrexScanner) -> tuple:
             check_size = p_ident(s)
             if check_size not in ('ignore', 'warn', 'error'):
                 s.error("Expected one of ignore, warn or error, found %r" % check_size)
+        elif s.systring == 'opaque_pyobject':
+            s.next()
+            opaque_pyobject = p_ident(s)
+            if opaque_pyobject not in ('True', 'False'):
+                s.error(f"Expected a boolean value, found {opaque_pyobject:r}")
+            opaque_pyobject = opaque_pyobject == "True"
         if s.sy != ',':
             break
         s.next()
     s.expect(']', "Expected 'object', 'type' or 'check_size'")
-    return objstruct_name, typeobj_name, check_size
+    return objstruct_name, typeobj_name, check_size, opaque_pyobject
 
 
 @cython.cfunc

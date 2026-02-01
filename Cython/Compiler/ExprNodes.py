@@ -8034,7 +8034,9 @@ class AttributeNode(ExprNode):
             self.op = "->"
             if obj_type.is_extension_type:
                 env.use_utility_code(
-                    UtilityCode.load_cached("OpaqueStructLookup", "ExtensionTypes.c")
+                    TempitaUtilityCode.load_cached(
+                        "OpaqueStructLookup", "ExtensionTypes.c",
+                        context={'explicit': obj_type.opaque_pyobject is True})
                 )
         elif obj_type.is_reference and obj_type.is_fake_reference:
             self.op = "->"
@@ -8194,7 +8196,7 @@ class AttributeNode(ExprNode):
                 access_code = '.'.join([Naming.obj_base_cname]*levels)
                 obj_code = obj.result_as(obj.type)
                 obj_code = f'__PYX_SELECT_OPAQUE_OBJECT({obj_code}, &({obj_code}->{access_code}))'  
-            if access_type.is_external:
+            if access_type.opaque_pyobject is False:
                 return obj_code
             else:
                 has_gil = not self.in_nogil_context
@@ -8202,7 +8204,8 @@ class AttributeNode(ExprNode):
                 typeoffset_cname = f"{Naming.modulestateglobal_cname}->{access_type.typeoffset_cname}"
                 typeptr_cname = f"(PyTypeObject*){Naming.modulestateglobal_cname}->{access_type.typeptr_cname}"
                 objstruct_cname = access_type.objstruct_cname if access_type.typedef_flag else f"struct {access_type.objstruct_cname}"
-                return f"__Pyx_GetCClassTypeData({obj_code}, {has_gil:d}, {typeptr_cname}, {typeoffset_cname}, {objstruct_cname}*)"
+                func_cname = "PyObject_GetTypeData" if access_type.opaque_pyobject is True else "GetCClassTypeData"
+                return f"__Pyx_{func_cname}({obj_code}, {has_gil:d}, {typeptr_cname}, {typeoffset_cname}, {objstruct_cname}*)"
         else:
             return obj.result_as(obj.type)
 
@@ -11715,11 +11718,15 @@ class TypecastNode(ExprNode):
             _, self.type = self.declarator.analyse(base_type, env)
         if self.objstruct_cast:
             if not self.type.is_extension_type:
-                error(self.pos, "objstruct_cast can only be applied to extension types") 
+                error(self.pos, "objstruct_cast can only be applied to extension types")
+            if self.type.opaque_pyobject is False:
+                error(self.pos, "Cannot use of 'objstruct_cast' on a class explicitly declared as not opaque")
             self.original_type = self.type
             self.type = PyrexTypes.c_void_ptr_type
             env.use_utility_code(
-                UtilityCode.load_cached("OpaqueStructLookup", "ExtensionTypes.c")
+                TempitaUtilityCode.load_cached(
+                    "OpaqueStructLookup", "ExtensionTypes.c",
+                    context={'explicit': self.original_type.opaque_pyobject is True})
             )
         if self.operand.has_constant_result():
             # Must be done after self.type is resolved.
@@ -11812,7 +11819,8 @@ class TypecastNode(ExprNode):
             # FIXME - we really need Code to get to this
             typeoffset_cname = f"{Naming.modulestateglobal_cname}->{self.original_type.typeoffset_cname}"
             typeptr_cname = f"(PyTypeObject*){Naming.modulestateglobal_cname}->{self.original_type.typeptr_cname}"
-            return (f"__Pyx_GetCClassTypeData({self.operand.result()}, {has_gil:d}, "
+            func_cname = "PyObject_GetTypeData" if self.original_type.opaque_pyobject is True else "GetCClassTypeData"
+            return (f"__Pyx_{func_cname}({self.operand.result()}, {has_gil:d}, "
                     f"{typeptr_cname}, {typeoffset_cname}, void*)")
         if self.type.is_complex:
             operand_result = self.operand.result()
