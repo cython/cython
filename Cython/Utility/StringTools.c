@@ -664,9 +664,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t length;
-    #if !CYTHON_COMPILING_IN_LIMITED_API
     if (unlikely(__Pyx_PyUnicode_READY(text) == -1)) return NULL;
-    #endif
     length = __Pyx_PyUnicode_GET_LENGTH(text);
     #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(length < 0)) return NULL;
@@ -975,28 +973,31 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
 
 /////////////// JoinPyUnicode.export ///////////////
 
-static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength,
-                                      Py_UCS4 max_char);
+static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength, int kind); /*proto*/
 
 /////////////// JoinPyUnicode ///////////////
 //@requires: IncludeStringH
 
-static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength,
-                                      Py_UCS4 max_char) {
+static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength, int kind) {
 #if CYTHON_USE_UNICODE_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
     PyObject *result_uval;
     int result_ukind, kind_shift;
     Py_ssize_t i, char_pos;
     void *result_udata;
 
-    if (max_char > 1114111) max_char = 1114111;
-    result_uval = PyUnicode_New(result_ulength, max_char);
-    if (unlikely(!result_uval)) return NULL;
-    result_ukind = (max_char <= 255) ? PyUnicode_1BYTE_KIND : (max_char <= 65535) ? PyUnicode_2BYTE_KIND : PyUnicode_4BYTE_KIND;
-    kind_shift = (result_ukind == PyUnicode_4BYTE_KIND) ? 2 : result_ukind - 1;
-    result_udata = PyUnicode_DATA(result_uval);
-    assert(kind_shift == 2 || kind_shift == 1 || kind_shift == 0);
+    // We use '|' to combine the substring kinds, so index 3 actually means 1|2 => 2.
+    static const Py_UCS4 max_char[5] = {0x7fU, 0xffU, 0xffffU, 0xffffU, 0x10ffffU};
+    assert (kind >= 0);  /* ASCII */
+    if (kind > PyUnicode_4BYTE_KIND) kind = PyUnicode_4BYTE_KIND;
 
+    result_uval = PyUnicode_New(result_ulength, max_char[kind]);
+    if (unlikely(!result_uval)) return NULL;
+
+    kind_shift = kind >> 1;  // 0, 1, 2
+    result_ukind = 1 << kind_shift;  // 1, 2, 4
+    result_udata = PyUnicode_DATA(result_uval);
+
+    assert(kind_shift == 2 || kind_shift == 1 || kind_shift == 0);
     if (unlikely((PY_SSIZE_T_MAX >> kind_shift) - result_ulength < 0))
         goto overflow;
 
@@ -1006,10 +1007,8 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count,
         Py_ssize_t ulength;
         void *udata;
         PyObject *uval = values[i];
-        #if !CYTHON_COMPILING_IN_LIMITED_API
         if (__Pyx_PyUnicode_READY(uval) == (-1))
             goto bad;
-        #endif
         ulength = __Pyx_PyUnicode_GET_LENGTH(uval);
         #if !CYTHON_ASSUME_SAFE_SIZE
         if (unlikely(ulength < 0)) goto bad;
@@ -1049,7 +1048,7 @@ bad:
     PyObject *result = NULL;
     PyObject *value_tuple = PyTuple_New(value_count);
     if (unlikely(!value_tuple)) return NULL;
-    CYTHON_UNUSED_VAR(max_char);
+    CYTHON_UNUSED_VAR(kind);
     CYTHON_UNUSED_VAR(result_ulength);
 
     for (i=0; i<value_count; i++) {

@@ -1947,17 +1947,17 @@ class UnicodeNode(ConstNode):
         bool_value = bool(self.value)
         return BoolNode(self.pos, value=bool_value)
 
-    def estimate_max_charval(self):
+    def get_ustring_kind(self):
         # Most strings will probably be ASCII.
         if self.value.isascii():
-            return 127
+            return 0
         max_charval = ord(max(self.value))
         if max_charval <= 255:
-            return 255
+            return 1
         elif max_charval <= 65535:
-            return 65535
+            return 2
         else:
-            return 1114111
+            return 4
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
@@ -3789,40 +3789,30 @@ class JoinedStrNode(ExprNode):
         num_items = len(self.values)
         use_stack_memory = num_items < 32
 
-        unknown_nodes = set()
-        max_char_value = 127
-        for node in self.values:
-            if isinstance(node, UnicodeNode):
-                max_char_value = max(max_char_value, node.estimate_max_charval())
-            elif (isinstance(node, FormattedValueNode) and
-                    node.c_format_spec != 'c' and node.value.type.is_numeric):
-                # formatted C numbers are always ASCII
-                pass
-            elif isinstance(node, CloneNode):
-                # we already know the result
-                pass
-            else:
-                unknown_nodes.add(node)
+        known_length = 0
+        unknown_lengths = []
+        unknown_nodes = []
+        ustring_kind = 0
 
-        length_parts = []
-        counts = {}
-        charval_parts = [str(max_char_value)]
-        for node in self.values:
+        for i, node in enumerate(self.values):
             node.generate_evaluation_code(code)
 
             if isinstance(node, UnicodeNode):
-                length_part = str(len(node.value))
-            else:
-                # TODO: add exception handling for these macro calls if not ASSUME_SAFE_SIZE/MACROS
-                length_part = f"__Pyx_PyUnicode_GET_LENGTH({node.py_result()})"
-                if node in unknown_nodes:
-                    charval_parts.append(f"__Pyx_PyUnicode_MAX_CHAR_VALUE({node.py_result()})")
+                ustring_kind = max(ustring_kind, node.get_ustring_kind())
+                known_length += len(node.value)
+                continue
 
-            if length_part in counts:
-                counts[length_part] += 1
+            unknown_lengths.append(i)
+
+            if (isinstance(node, FormattedValueNode) and
+                    node.c_format_spec != 'c' and node.value.type.is_numeric):
+                # Formatted C numbers are always ASCII.
+                pass
+            elif isinstance(node, CloneNode):
+                # We already know the result, but we still need the length.
+                pass
             else:
-                length_parts.append(length_part)
-                counts[length_part] = 1
+                unknown_nodes.append(i)
 
         if use_stack_memory:
             values_array = code.funcstate.allocate_temp(
@@ -3838,23 +3828,30 @@ class JoinedStrNode(ExprNode):
         for i, node in enumerate(self.values):
             code.putln('%s[%d] = %s;' % (values_array, i, node.py_result()))
 
-        length_parts = [
-            f"{part} * {counts[part]}" if counts[part] > 1 else part
-            for part in length_parts
-        ]
+        # Assume that getting the length of an exact Unicode string object will not fail.
+        length_expr = ' + '.join([
+            f"__Pyx_PyUnicode_GET_LENGTH({values_array}[{i}])"
+            for i in unknown_lengths
+        ]) or '0'
+
+        if ustring_kind == 4:
+            # Cannot get larger.
+            ukind_expr = '4'
+        else:
+            # or-ing isn't entirely correct here since it can produce value 3 from 1|2,
+            # but we handle that in __Pyx_PyUnicode_Join().
+            ukind_expr = ' | '.join([str(ustring_kind)] + [
+                f"__Pyx_PyUnicode_KIND_04({values_array}[{i}])"
+                for i in unknown_nodes
+            ])
 
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
+
         code.globalstate.use_utility_code(UtilityCode.load_cached("JoinPyUnicode", "StringTools.c"))
-        code.putln('%s = __Pyx_PyUnicode_Join(%s, %d, %s, %s);' % (
-            self.result(),
-            values_array,
-            num_items,
-            ' + '.join(length_parts),
-            # or-ing isn't entirely correct here since it can produce values > 1114111,
-            # but we crop that in __Pyx_PyUnicode_Join().
-            ' | '.join(charval_parts),
-        ))
+        code.putln(
+            f'{self.result()} = __Pyx_PyUnicode_Join({values_array}, {num_items:d}, {known_length} + {length_expr}, {ukind_expr});'
+        )
 
         if not use_stack_memory:
             code.putln("PyMem_Free(%s);" % values_array)
