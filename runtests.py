@@ -2611,6 +2611,7 @@ def main():
         keep_alive_interval = 10
     else:
         keep_alive_interval = None
+    setup_test_directory(options)
     if options.shard_count > 1 and options.shard_num == -1:
         if "PYTHONIOENCODING" not in os.environ:
             # Make sure subprocesses can print() Unicode text.
@@ -2784,6 +2785,34 @@ def save_coverage(coverage, options):
         coverage.html_report(directory="coverage-report-html")
 
 
+def setup_test_directory(options):
+    WITH_CYTHON = options.with_cython
+    WORKDIR = os.path.abspath(options.work_dir)
+    if WITH_CYTHON:
+        if os.path.exists(WORKDIR):
+            for path in os.listdir(WORKDIR):
+                if path in ("support", "Cy3"): continue
+                shutil.rmtree(os.path.join(WORKDIR, path), ignore_errors=True)
+    os.makedirs(WORKDIR, exist_ok=True)
+
+    if IS_PYPY or IS_GRAAL:
+        if options.with_refnanny:
+            sys.stderr.write("Disabling refnanny in PyPy/GraalPy\n")
+            options.with_refnanny = False
+
+    if options.with_refnanny:
+        try:
+            import_refnanny()
+        except ImportError:
+            from pyximport.pyxbuild import pyx_to_dll
+            libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
+                                build_in_temp=True,
+                                pyxbuild_dir=os.path.join(WORKDIR, "support"))
+            sys.path.insert(0, os.path.split(libpath)[0])
+            import_refnanny()
+        CDEFS.append(('CYTHON_REFNANNY', '1'))
+
+
 def runtests_callback(args):
     options, cmd_args, shard_num = args
     options.shard_num = shard_num
@@ -2823,12 +2852,6 @@ def runtests(options, cmd_args, coverage=None):
     # RUN ALL TESTS!
     UNITTEST_MODULE = "Cython"
     UNITTEST_ROOT = os.path.join(os.path.dirname(__file__), UNITTEST_MODULE)
-    if WITH_CYTHON:
-        if os.path.exists(WORKDIR):
-            for path in os.listdir(WORKDIR):
-                if path in ("support", "Cy3"): continue
-                shutil.rmtree(os.path.join(WORKDIR, path), ignore_errors=True)
-    os.makedirs(WORKDIR, exist_ok=True)
 
     if options.shard_num <= 0:
         sys.stderr.write("Python %s\n" % sys.version)
@@ -2846,23 +2869,9 @@ def runtests(options, cmd_args, coverage=None):
             compiler_default_options['gdb_debug'] = True
             compiler_default_options['output_dir'] = os.getcwd()
 
-    if IS_PYPY or IS_GRAAL:
-        if options.with_refnanny:
-            sys.stderr.write("Disabling refnanny in PyPy/GraalPy\n")
-            options.with_refnanny = False
-
     refnanny = None
     if options.with_refnanny:
-        try:
-            refnanny = import_refnanny()
-        except ImportError:
-            from pyximport.pyxbuild import pyx_to_dll
-            libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
-                                build_in_temp=True,
-                                pyxbuild_dir=os.path.join(WORKDIR, "support"))
-            sys.path.insert(0, os.path.split(libpath)[0])
-            refnanny = import_refnanny()
-        CDEFS.append(('CYTHON_REFNANNY', '1'))
+        refnanny = import_refnanny()
 
     global sys_version_or_limited_version
     sys_version_or_limited_version = sys.version_info
