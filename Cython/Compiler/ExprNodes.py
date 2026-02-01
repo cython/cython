@@ -11718,6 +11718,9 @@ class TypecastNode(ExprNode):
                 error(self.pos, "objstruct_cast can only be applied to extension types") 
             self.original_type = self.type
             self.type = PyrexTypes.c_void_ptr_type
+            env.use_utility_code(
+                UtilityCode.load_cached("OpaqueStructLookup", "ExtensionTypes.c")
+            )
         if self.operand.has_constant_result():
             # Must be done after self.type is resolved.
             self.calculate_constant_result()

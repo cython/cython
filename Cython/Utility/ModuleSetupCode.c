@@ -908,7 +908,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     #define __PYX_SELECT_OPAQUE_OBJECT(first, second) first
     #define __PYX_C_CLASS_DECL(T) PyObject
     #define __Pyx_GetCClassTypeData_Gil(o, cls, T) ((T)PyObject_GetTypeData(o, cls))
-    // __Pyx_GetCClassTypeData_NoGil comes from ExtensionTypes::OpaqueStructLookup.c
+    // __Pyx_GetCClassTypeData_NoGil comes from ExtensionTypes.c::OpaqueStructLookup
     // and is included if needed
     #define __Pyx_GetCClassTypeData(o, has_gil, cls, cls_offset, T) \
         ((T)(has_gil ? \
