@@ -2852,28 +2852,13 @@ def generate_shared_utility(options):
     if utility_gen_result.returncode != 0:
         raise RuntimeError(f"Shared utility generation failed:\n{utility_gen_result.stdout}")
 
-    from distutils.core import Extension
+    compilation_result = subprocess.run(
+        [
+            'python', 'cythonize.py', '-bi', shared_utility_c_file
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
+    if compilation_result.returncode != 0:
+        raise RuntimeError(f"Shared utility compilation failed:\n{compilation_result.stdout}")
 
-    build_extension = build_ext(get_distutils_distro())
-    build_extension.finalize_options()
-    if COMPILER:
-        build_extension.compiler = COMPILER
-    ext_compile_flags = CFLAGS[:]
-    ext_compile_defines = CDEFS[:]
-    if  build_extension.compiler == 'mingw32':
-        ext_compile_flags.append('-Wno-format')
-
-    extension = Extension(
-        SHARED_UTILITY_MODULE_NAME,
-        sources=[shared_utility_c_file],
-        extra_compile_args=ext_compile_flags,
-        define_macros=ext_compile_defines,
-    )
-    build_extension.extensions = [extension]
-    build_extension.build_temp = workdir.name
-    build_extension.build_lib  = workdir.name
-
-    build_extension.run()
     sys.path.append(workdir.name)
     try:
         yield workdir
