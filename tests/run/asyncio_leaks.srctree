@@ -3,7 +3,7 @@
 # ticket: gh6878, gh6850
 
 """
-PYTHON_COMPILE setup.py build_ext -i
+PYTHON setup.py build_ext -i
 PYTHON test_no_leak.py
 """
 

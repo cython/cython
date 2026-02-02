@@ -1,4 +1,4 @@
-PYTHON_COMPILE setup.py build_ext --inplace
+PYTHON setup.py build_ext --inplace
 PYTHON -c "import b"
 
 ################### setup.py ###################

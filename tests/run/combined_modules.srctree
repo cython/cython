@@ -8,7 +8,7 @@
 # doesn't attempt to solve) and it definitely should not be taken
 # as a recipe.
 
-PYTHON_COMPILE setup.py build_ext -if
+PYTHON setup.py build_ext -if
 PYTHON test_single_phase.py
 PYTHON test_multi_phase.py
 

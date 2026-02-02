@@ -1,7 +1,7 @@
 # tag: cpp
 
 """
-PYTHON_COMPILE setup.py build_ext --inplace
+PYTHON setup.py build_ext --inplace
 PYTHON -c "from call_stack_allocated import test; test()"
 """
 

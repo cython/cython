@@ -2,7 +2,7 @@
 # tag: import
 
 """
-PYTHON_COMPILE setup.py build_ext -i
+PYTHON setup.py build_ext -i
 PYTHON test_relative_import.py
 """
 

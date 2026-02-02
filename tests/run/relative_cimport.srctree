@@ -1,7 +1,7 @@
 # mode: run
 # tag: cimport
 
-PYTHON_COMPILE setup.py build_ext --inplace
+PYTHON setup.py build_ext --inplace
 PYTHON -c "from py_pkg.py_a import test; test()"
 PYTHON -c "from pkg.a import test; assert test() == (5, 7)"
 PYTHON -c "from pkg.b import test; assert test() == (1, 2)"

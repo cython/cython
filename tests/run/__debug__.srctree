@@ -1,5 +1,5 @@
 """
-PYTHON_COMPILE setup.py build_ext -i
+PYTHON setup.py build_ext -i
 PYTHON debug_test.py
 PYTHON -O debug_test.py
 PYTHON -OO debug_test.py

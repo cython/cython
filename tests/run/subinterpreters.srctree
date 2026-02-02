@@ -1,7 +1,7 @@
 # tag: subinterpreters, threads
 
 UNSET CFLAGS
-PYTHON_COMPILE setup.py build_ext --inplace
+PYTHON setup.py build_ext --inplace
 
 # single-phase uses Python's mechanisms so should be reliable
 PYTHON runtest.py 20 cython_module=with_singlephase

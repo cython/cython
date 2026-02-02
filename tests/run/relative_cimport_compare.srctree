@@ -1,7 +1,7 @@
 # mode: run
 # tag: cimport, pep489
 
-PYTHON_COMPILE setup.py build_ext --inplace
+PYTHON setup.py build_ext --inplace
 PYTHON -c "import test_import"
 PYTHON -c "import test_cimport"
 

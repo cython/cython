@@ -1,5 +1,5 @@
 
-PYTHON_COMPILE setup.py build_ext --inplace --cython-include-dirs=./headers1 --include-dirs=./headers2
+PYTHON setup.py build_ext --inplace --cython-include-dirs=./headers1 --include-dirs=./headers2
 PYTHON -c 'import mymodule; assert mymodule.test_string == "TEST"; assert mymodule.header_value1 == 1; assert mymodule.header_value2 == 2; assert mymodule.header_value3 == 3; assert mymodule.header_value4 == 4'
 
 ############# setup.py #############

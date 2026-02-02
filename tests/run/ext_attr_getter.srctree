@@ -2,7 +2,7 @@
 # tag: cgetter, property
 
 """
-PYTHON_COMPILE setup.py build_ext --inplace
+PYTHON setup.py build_ext --inplace
 PYTHON run_failure_tests.py
 PYTHON runner.py
 """

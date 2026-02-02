@@ -1,5 +1,5 @@
-PYTHON_COMPILE symlink_or_copy.py subdir fake
-PYTHON_COMPILE setup.py build_ext --inplace
+PYTHON symlink_or_copy.py subdir fake
+PYTHON setup.py build_ext --inplace
 PYTHON -c "import a"
 PYTHON -c "import pkg.b"
 PYTHON check_paths.py

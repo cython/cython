@@ -2,7 +2,7 @@
 # tag: asyncio, pep492
 
 """
-PYTHON_COMPILE setup.py build_ext -i
+PYTHON setup.py build_ext -i
 PYTHON test_from_import.py
 PYTHON test_import.py
 PYTHON test_async_def.py

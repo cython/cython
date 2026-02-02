@@ -2,7 +2,7 @@
 # tag: coverage,trace
 
 """
-PYTHON_COMPILE setup.py build_ext -i
+PYTHON setup.py build_ext -i
 PYTHON -c "import shutil; shutil.move('ext_src/ext_pkg', 'ext_pkg')"
 PYTHON -m coverage run coverage_test.py
 PYTHON -m coverage report

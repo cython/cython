@@ -1,5 +1,5 @@
 # mode: run
-# tag: embed, requires-compile
+# tag: embed
 
 CYTHONIZE -j2 embedded1.pyx embedded2.pyx
 CYTHON --embed --embed-modules embedded1,embedded2 main_module.pyx

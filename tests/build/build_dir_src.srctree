@@ -2,8 +2,8 @@
 # a common "src" directory. We don't use --inplace and don't actually
 # import the built modules.
 
-PYTHON_COMPILE shutil_copy.py src/subdir src/fake
-PYTHON_COMPILE setup.py build_ext
+PYTHON shutil_copy.py src/subdir src/fake
+PYTHON setup.py build_ext
 PYTHON check_paths.py
 
 ######## shutil_copy.py ########

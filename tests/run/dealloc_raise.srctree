@@ -3,7 +3,7 @@
 # to a destructed object being kept in stashed exception
 # state on interpreter shutdown.
 
-PYTHON_COMPILE setup.py build_ext --inplace
+PYTHON setup.py build_ext --inplace
 PYTHON test_dealloc_raise1.py
 PYTHON test_dealloc_raise2.py
 

@@ -851,12 +851,10 @@ class TestBuilder(object):
                 mode = 'pyregr'
 
             if ext == '.srctree':
-                if self.cython_only:
+                if self.cython_only or not WITH_COMPILE:
                     # EndToEnd tests always execute arbitrary build and test code
                     continue
                 if skip_limited(tags):
-                    continue
-                if not WITH_COMPILE and 'requires-compile' in tags['tag']:
                     continue
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
                     suite.addTest(EndToEndTest(filepath, workdir,
@@ -2140,8 +2138,7 @@ class EndToEndTest(unittest.TestCase):
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
         _, self.commands = unpack_source_tree(
-            self.treefile, self.workdir, self.cython_root,
-            skip_compile_steps=not WITH_COMPILE)
+            self.treefile, self.workdir, self.cython_root)
 
     def tearDown(self):
         if self.cleanup_workdir:

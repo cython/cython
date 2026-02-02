@@ -1,6 +1,6 @@
 # Test for https://github.com/cython/cython/issues/4106
 
-PYTHON_COMPILE setup.py build_ext --inplace
+PYTHON setup.py build_ext --inplace
 PYTHON -c "import sub"
 
 ######## setup.py ########

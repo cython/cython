@@ -1,4 +1,4 @@
-PYTHON_COMPILE setup.py build_ext --inplace
+PYTHON setup.py build_ext --inplace
 PYTHON -c "import not_annotated; not_annotated.check()"
 PYTHON -c "import default_annotated; default_annotated.check()"
 PYTHON -c "import fullc_annotated; fullc_annotated.check()"

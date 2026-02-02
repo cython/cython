@@ -1,4 +1,4 @@
-PYTHON_COMPILE setup.py build_ext --inplace
+PYTHON setup.py build_ext --inplace
 PYTHON -c "import tp_new_tests; tp_new_tests.test_all()"
 PYTHON -c "import tp_new_tests; tp_new_tests.test_sub()"
 

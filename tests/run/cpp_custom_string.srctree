@@ -1,7 +1,7 @@
 # mode: run
 # tag: cpp, werror
 
-PYTHON_COMPILE setup.py build_ext --inplace
+PYTHON setup.py build_ext --inplace
 PYTHON -c "import a; a.test_convert()"
 
 ######## setup.py ########
