@@ -1141,7 +1141,7 @@ static PyObject* __Pyx_ReverseSlot_{{op_name}}_{{type1}}(PyObject *op1, PyObject
     // Adding a number to a sequence is rather unusual.
     slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_concat, binaryfunc);
     if (slot_func) {
-        return type_op2->tp_as_sequence->sq_concat(op1, op2);
+        return slot_func(op1, op2);
     }
     {{elif c_op == '*' and type1 != 'float'}}
     ssizeargfunc repeat_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_repeat, ssizeargfunc);
