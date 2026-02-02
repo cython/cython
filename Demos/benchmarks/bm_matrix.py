@@ -6,7 +6,8 @@ from functools import partial
 
 import cython
 
-from cython.cimports.libc.stdint import int64_t
+if cython.compiled:
+    from cython.cimports.libc.stdint import int64_t
 
 DEFAULT_TIMER = time.perf_counter
 MATRIX_SIZE = 40
