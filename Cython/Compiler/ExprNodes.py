@@ -3828,30 +3828,60 @@ class JoinedStrNode(ExprNode):
         for i, node in enumerate(self.values):
             code.putln('%s[%d] = %s;' % (values_array, i, node.py_result()))
 
-        # Assume that getting the length of an exact Unicode string object will not fail.
-        length_expr = ' + '.join([
-            f"__Pyx_PyUnicode_GET_LENGTH({values_array}[{i}])"
-            for i in unknown_lengths
-        ]) or '0'
+        def aggregate(indices, result_temp, initial_value, cfunc_name, operator):
+            assert operator in '+|', operator
+            if not indices:
+                code.putln(f"{result_temp} = {initial_value};")
+                return
+            if len(indices) == 1:
+                code.putln(f"{result_temp} = {initial_value} {operator} {cfunc_name}({values_array}[{indices[0]}]);")
+                return
 
+            index_count = len(indices)
+            if index_count > 3:
+                # Reduce code overhead for some common patterns.
+                steps = {indices[i] - indices[i-1] for i in range(1, index_count)}
+                if steps < {1, 2}:
+                    # steps all 1 => placeholder concatenation, all included
+                    # steps all 2 => alternating between text and placeholders
+                    step = steps.pop()
+                    min_index, max_index = indices[0], indices[-1]
+                    assert indices == list(range(min_index, max_index+1, step)), indices
+
+                    code.putln(f"{result_temp} = {initial_value};")
+                    code.putln(f"for (Py_ssize_t i={min_index}; i <= {max_index}; i += {step}) ""{")
+                    code.putln(f"{result_temp} {operator}= {cfunc_name}({values_array}[i]);")
+                    code.putln("}")
+                    return
+
+            expressions = [f"{cfunc_name}({values_array}[{i}])" for i in indices]
+            result = f' {operator} '.join(expressions)
+            code.putln(f"{result_temp} = {initial_value} {operator} {result};")
+
+        code.mark_pos(self.pos)
+
+        # Assume that getting the length of an exact Unicode string object will not fail.
+        length_temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+        aggregate(unknown_lengths, length_temp, known_length, "__Pyx_PyUnicode_GET_LENGTH", '+')
+
+        ukind_temp = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
         if ustring_kind == 4:
             # Cannot get larger.
-            ukind_expr = '4'
+            code.putln(f"{ukind_temp} = 4;")
         else:
             # or-ing isn't entirely correct here since it can produce value 3 from 1|2,
             # but we handle that in __Pyx_PyUnicode_Join().
-            ukind_expr = ' | '.join([str(ustring_kind)] + [
-                f"__Pyx_PyUnicode_KIND_04({values_array}[{i}])"
-                for i in unknown_nodes
-            ])
+            aggregate(unknown_nodes, ukind_temp, ustring_kind, "__Pyx_PyUnicode_KIND_04", '|')
 
-        code.mark_pos(self.pos)
         self.allocate_temp_result(code)
 
         code.globalstate.use_utility_code(UtilityCode.load_cached("JoinPyUnicode", "StringTools.c"))
         code.putln(
-            f'{self.result()} = __Pyx_PyUnicode_Join({values_array}, {num_items:d}, {known_length} + {length_expr}, {ukind_expr});'
+            f'{self.result()} = __Pyx_PyUnicode_Join({values_array}, {num_items:d}, {length_temp}, {ukind_temp});'
         )
+
+        code.funcstate.release_temp(ukind_temp)
+        code.funcstate.release_temp(length_temp)
 
         if not use_stack_memory:
             code.putln("PyMem_Free(%s);" % values_array)
