@@ -182,100 +182,6 @@ static CYTHON_INLINE int __Pyx_PyUnicode_ContainsTF(PyObject* substring, PyObjec
 }
 
 
-//////////////////// CStringEquals.proto ////////////////////
-
-static CYTHON_INLINE int __Pyx_StrEq(const char *, const char *); /*proto*/
-
-//////////////////// CStringEquals ////////////////////
-
-static CYTHON_INLINE int __Pyx_StrEq(const char *s1, const char *s2) {
-    while (*s1 != '\0' && *s1 == *s2) { s1++; s2++; }
-    return *s1 == *s2;
-}
-
-
-//////////////////// UnicodeEquals.proto ////////////////////
-
-static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
-
-//////////////////// UnicodeEquals ////////////////////
-
-static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
-    return PyObject_RichCompareBool(s1, s2, equals);
-#else
-    int s1_is_unicode, s2_is_unicode;
-    if (s1 == s2) {
-        /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
-        goto return_eq;
-    }
-    s1_is_unicode = PyUnicode_CheckExact(s1);
-    s2_is_unicode = PyUnicode_CheckExact(s2);
-    if (s1_is_unicode & s2_is_unicode) {
-        Py_ssize_t length, length2;
-        int kind;
-        void *data1, *data2;
-        #if !CYTHON_COMPILING_IN_LIMITED_API
-        if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0))
-            return -1;
-        #endif
-        length = __Pyx_PyUnicode_GET_LENGTH(s1);
-        #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(length < 0)) return -1;
-        #endif
-        length2 = __Pyx_PyUnicode_GET_LENGTH(s2);
-        #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(length2 < 0)) return -1;
-        #endif
-        if (length != length2) {
-            goto return_ne;
-        }
-#if CYTHON_USE_UNICODE_INTERNALS
-        {
-            Py_hash_t hash1, hash2;
-            hash1 = ((PyASCIIObject*)s1)->hash;
-            hash2 = ((PyASCIIObject*)s2)->hash;
-            if (hash1 != hash2 && hash1 != -1 && hash2 != -1) {
-                goto return_ne;
-            }
-        }
-#endif
-        // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
-        kind = __Pyx_PyUnicode_KIND(s1);
-        if (kind != __Pyx_PyUnicode_KIND(s2)) {
-            goto return_ne;
-        }
-        data1 = __Pyx_PyUnicode_DATA(s1);
-        data2 = __Pyx_PyUnicode_DATA(s2);
-        if (__Pyx_PyUnicode_READ(kind, data1, 0) != __Pyx_PyUnicode_READ(kind, data2, 0)) {
-            goto return_ne;
-        } else if (length == 1) {
-            goto return_eq;
-        } else {
-            int result = memcmp(data1, data2, (size_t)(length * kind));
-            return (equals == Py_EQ) ? (result == 0) : (result != 0);
-        }
-    } else if ((s1 == Py_None) & s2_is_unicode) {
-        goto return_ne;
-    } else if ((s2 == Py_None) & s1_is_unicode) {
-        goto return_ne;
-    } else {
-        int result;
-        PyObject* py_result = PyObject_RichCompare(s1, s2, equals);
-        if (!py_result)
-            return -1;
-        result = __Pyx_PyObject_IsTrue(py_result);
-        Py_DECREF(py_result);
-        return result;
-    }
-return_eq:
-    return (equals == Py_EQ);
-return_ne:
-    return (equals == Py_NE);
-#endif
-}
-
-
 //////////////////// UnicodeEquals_uchar.proto ////////////////////
 //@requires: UnicodeEqualsUCS4
 
@@ -292,7 +198,7 @@ return_ne:
 #define __Pyx_PyObject_Equals_uchar(s1, s2, ch2, equals, s1_is_str) (\
     ((s1) == (s2)) ? ((equals) == Py_EQ) : \
     ((s1) == Py_None) ? ((equals) == Py_NE) : \
-    PyObject_RichCompareBool(s1, s2, equals) \
+    __Pyx_PyObject_RichCompareBool(s1, s2, equals) \
     )
 
 #else
@@ -301,7 +207,7 @@ return_ne:
     ((s1) == Py_None) ? ((equals) == Py_NE) : \
     (likely((s1_is_str) || PyUnicode_CheckExact(s1)) ? \
         __Pyx__PyUnicode_EqualsUCS4(s1, ch2, equals) : \
-        PyObject_RichCompareBool(s1, s2, equals) \
+        __Pyx_PyObject_RichCompareBool(s1, s2, equals) \
     ))
 
 static CYTHON_INLINE int __Pyx__PyUnicode_EqualsUCS4(PyObject* s1, Py_UCS4 ch2, int equals); /*proto*/
@@ -363,62 +269,6 @@ bad:
 #endif
 
 
-//////////////////// BytesEquals.proto ////////////////////
-
-static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
-
-//////////////////// BytesEquals ////////////////////
-//@requires: IncludeStringH
-
-static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL || \
-        !(CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS)
-    return PyObject_RichCompareBool(s1, s2, equals);
-#else
-    if (s1 == s2) {
-        /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
-        return (equals == Py_EQ);
-    } else if (PyBytes_CheckExact(s1) & PyBytes_CheckExact(s2)) {
-        const char *ps1, *ps2;
-        Py_ssize_t length = PyBytes_GET_SIZE(s1);
-        if (length != PyBytes_GET_SIZE(s2))
-            return (equals == Py_NE);
-        // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
-        ps1 = PyBytes_AS_STRING(s1);
-        ps2 = PyBytes_AS_STRING(s2);
-        if (ps1[0] != ps2[0]) {
-            return (equals == Py_NE);
-        } else if (length == 1) {
-            return (equals == Py_EQ);
-        } else {
-            int result;
-#if CYTHON_USE_UNICODE_INTERNALS && (PY_VERSION_HEX < 0x030B0000)
-            Py_hash_t hash1, hash2;
-            hash1 = ((PyBytesObject*)s1)->ob_shash;
-            hash2 = ((PyBytesObject*)s2)->ob_shash;
-            if (hash1 != hash2 && hash1 != -1 && hash2 != -1) {
-                return (equals == Py_NE);
-            }
-#endif
-            result = memcmp(ps1, ps2, (size_t)length);
-            return (equals == Py_EQ) ? (result == 0) : (result != 0);
-        }
-    } else if ((s1 == Py_None) & PyBytes_CheckExact(s2)) {
-        return (equals == Py_NE);
-    } else if ((s2 == Py_None) & PyBytes_CheckExact(s1)) {
-        return (equals == Py_NE);
-    } else {
-        int result;
-        PyObject* py_result = PyObject_RichCompare(s1, s2, equals);
-        if (!py_result)
-            return -1;
-        result = __Pyx_PyObject_IsTrue(py_result);
-        Py_DECREF(py_result);
-        return result;
-    }
-#endif
-}
-
 //////////////////// SetStringIndexingError.proto /////////////////
 
 static void __Pyx_SetStringIndexingError(const char* message, int has_gil); /* proto */
@@ -437,7 +287,7 @@ static void __Pyx_SetStringIndexingError(const char* message, int has_gil) {
 /////////////// GetItemIntBytes.proto ///////////////
 //@requires: SetStringIndexingError
 
-#define __Pyx_GetItemInt_Bytes(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
+#define __Pyx_GetItemInt_Bytes(o, i, type, is_signed, to_py_func, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_GetItemInt_Bytes_Fast(o, (Py_ssize_t)i, wraparound, boundscheck, has_gil) : \
     (__Pyx_SetStringIndexingError("string index out of range", has_gil), -1))
@@ -478,7 +328,7 @@ static CYTHON_INLINE int __Pyx_GetItemInt_Bytes_Fast(PyObject* bytes, Py_ssize_t
 //////////////////// GetItemIntByteArray.proto ////////////////////
 //@requires: SetStringIndexingError
 
-#define __Pyx_GetItemInt_ByteArray(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
+#define __Pyx_GetItemInt_ByteArray(o, i, type, is_signed, to_py_func, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_GetItemInt_ByteArray_Fast(o, (Py_ssize_t)i, wraparound, boundscheck, has_gil, unsafe_shared) : \
     (__Pyx_SetStringIndexingError("bytearray index out of range", has_gil), -1))
@@ -542,7 +392,7 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
 //////////////////// SetItemIntByteArray.proto ////////////////////
 //@requires: SetStringIndexingError
 
-#define __Pyx_SetItemInt_ByteArray(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
+#define __Pyx_SetItemInt_ByteArray(o, i, v, type, is_signed, to_py_func, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_SetItemInt_ByteArray_Fast(o, (Py_ssize_t)i, v, wraparound, boundscheck, has_gil, unsafe_shared) : \
     (__Pyx_SetStringIndexingError("bytearray index out of range", has_gil), -1))
@@ -610,7 +460,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
 //////////////////// GetItemIntUnicode.proto ////////////////////
 //@requires: SetStringIndexingError
 
-#define __Pyx_GetItemInt_Unicode(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
+#define __Pyx_GetItemInt_Unicode(o, i, type, is_signed, to_py_func, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_GetItemInt_Unicode_Fast(o, (Py_ssize_t)i, wraparound, boundscheck, has_gil) : \
     (__Pyx_SetStringIndexingError("string index out of range", has_gil), (Py_UCS4)-1))

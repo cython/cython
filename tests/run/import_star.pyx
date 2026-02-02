@@ -1,6 +1,6 @@
 # mode: run
 
-cdef object executable, version_info
+cdef object executable, version_info, version
 cdef long hexversion
 
 ctypedef struct MyStruct:
@@ -18,11 +18,12 @@ from sys import *
 
 def test_cdefed_objects():
     """
-    >>> ex, vi = test_cdefed_objects()
+    >>> ex, vi, ver = test_cdefed_objects()
     >>> assert ex is not None
     >>> assert vi is not None
+    >>> assert ver is not None
     """
-    return executable, version_info
+    return executable, version_info, version
 
 
 def test_cdefed_cvalues():

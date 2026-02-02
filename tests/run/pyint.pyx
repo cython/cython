@@ -6,6 +6,14 @@
 # cython: test_assert_c_code_has = cint_constants_8\[\] = .*2147483648
 # cython: test_assert_c_code_has = const char\* c_constant =
 
+bits = {
+    'char': 8 * sizeof(char),
+    'short': 8 * sizeof(short),
+    'int': 8 * sizeof(int),
+    'long': 8 * sizeof(long),
+    'size_t': 8 * sizeof(size_t),
+}
+
 pylong_constants = [
     -130,
     126,
@@ -287,3 +295,108 @@ def test_pylong_constants(constants):
         for c, py in zip(constants, pylong_constants)
         if c != py
     ]
+
+
+def _test_c_conversion(test_func):
+    name = test_func.__name__
+    assert name.startswith('test_c')
+    type_name = name[6:]
+
+    signed = type_name.startswith('s')
+    max_bit_length = bits[type_name[1:]]
+
+    success = 0
+    overflow = 0
+    for c in pylong_constants:
+        if c.bit_length() < max_bit_length:
+            try:
+                repacked = test_func(c)
+            except OverflowError as exc:
+                assert not signed and c < 0, f"{type_name}({max_bit_length}): {c} -> {exc}"
+                overflow += 1
+            else:
+                assert repacked == c, f"{type_name}({max_bit_length}): {c} -> {repacked}"
+                success += 1
+
+    assert success > 0, f"{type_name}({max_bit_length}): ALL FAILED"
+    assert signed or overflow, f"{type_name}({max_bit_length}): NO OVERFLOWS"
+
+
+def test_cschar(c: int):
+    """
+    >>> _test_c_conversion(test_cschar)
+    """
+    cdef signed char x = c
+    return x
+
+
+def test_cuchar(c: int):
+    """
+    >>> _test_c_conversion(test_cuchar)
+    """
+    cdef unsigned char x = c
+    return x
+
+
+def test_csshort(c: int):
+    """
+    >>> _test_c_conversion(test_csshort)
+    """
+    cdef short x = c
+    return x
+
+
+def test_cushort(c: int):
+    """
+    >>> _test_c_conversion(test_cushort)
+    """
+    cdef unsigned short x = c
+    return x
+
+
+def test_csint(c: int):
+    """
+    >>> _test_c_conversion(test_csint)
+    """
+    cdef int x = c
+    return x
+
+
+def test_cuint(c: int):
+    """
+    >>> _test_c_conversion(test_cuint)
+    """
+    cdef unsigned int x = c
+    return x
+
+
+def test_cslong(c: int):
+    """
+    >>> _test_c_conversion(test_cslong)
+    """
+    cdef long x = c
+    return x
+
+
+def test_culong(c: int):
+    """
+    >>> _test_c_conversion(test_culong)
+    """
+    cdef unsigned long x = c
+    return x
+
+
+def test_cssize_t(c: int):
+    """
+    >>> _test_c_conversion(test_cssize_t)
+    """
+    cdef Py_ssize_t x = c
+    return x
+
+
+def test_cusize_t(c: int):
+    """
+    >>> _test_c_conversion(test_cusize_t)
+    """
+    cdef size_t x = c
+    return x

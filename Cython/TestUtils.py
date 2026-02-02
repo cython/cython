@@ -5,6 +5,7 @@ import shlex
 import sys
 import tempfile
 import textwrap
+import time
 from functools import partial
 
 from .Compiler import Errors
@@ -48,12 +49,25 @@ def treetypes(root):
     return "\n".join([""] + w.result + [""])
 
 
-class CythonTest(unittest.TestCase):
+class TimedTest(unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self._start_time = time.time()
+
+    def tearDown(self):
+        t = time.time() - self._start_time
+        super().tearDown()
+        sys.stderr.write(f"[{self.id()}:{'' if t < .5 else ' SLOWTEST'} {t * 1000.:.2f} msec] ")
+
+
+class CythonTest(TimedTest):
 
     def setUp(self):
         Errors.reset()
+        super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         Errors.reset()
 
     def assertLines(self, expected, result):
