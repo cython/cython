@@ -1106,7 +1106,7 @@ def is_type(operand, expected, type1=type1, type2=type2):
 #ifndef __Pyx_DEFINED_ReverseSlot_{{op_name}}_{{type1}}
 #define __Pyx_DEFINED_ReverseSlot_{{op_name}}_{{type1}}
 
-#if CYTHON_USE_TYPE_SLOTS
+#if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
 #ifndef __Pyx_DEFINED_BinopTypeError
 #define __Pyx_DEFINED_BinopTypeError
 static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op_name) {
@@ -1124,10 +1124,11 @@ static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op_na
 #endif
 
 static PyObject* __Pyx_ReverseSlot_{{op_name}}_{{type1}}(PyObject *op1, PyObject *op2) {
-    #if CYTHON_USE_TYPE_SLOTS
+    // Avoid running into non-heap-type problems in Py<3.10 Limited API.
+    #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
     binaryfunc slot_func;
     PyTypeObject *type_op2 = Py_TYPE(op2);
-    slot_func = __Pyx_PyType_TryGetSubSlot(type_op2, tp_as_number, nb_{{slot_name}}, binaryfunc);
+    slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_number, nb_{{slot_name}}, binaryfunc);
     if (likely(slot_func)) {
         PyObject *result = slot_func(op1, op2);
         if (likely(result != Py_NotImplemented)) {
@@ -1137,12 +1138,12 @@ static PyObject* __Pyx_ReverseSlot_{{op_name}}_{{type1}}(PyObject *op1, PyObject
     }
     {{if c_op == '+'}}
     // Adding a number to a sequence is rather unusual.
-    slot_func = __Pyx_PyType_TryGetSubSlot(type_op2, tp_as_sequence, sq_concat, binaryfunc);
+    slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_concat, binaryfunc);
     if (slot_func) {
         return type_op2->tp_as_sequence->sq_concat(op1, op2);
     }
     {{elif c_op == '*' and type1 != 'float'}}
-    ssizeargfunc repeat_func = __Pyx_PyType_TryGetSubSlot(type_op2, tp_as_sequence, sq_repeat, ssizeargfunc);
+    ssizeargfunc repeat_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_repeat, ssizeargfunc);
     if (likely(repeat_func)) {
         {{if type1 != 'int'}}
         if (PyLong_CheckExact(op1))
