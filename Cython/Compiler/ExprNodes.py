@@ -12651,8 +12651,8 @@ class NumBinopNode(BinopNode):
 
     def py_operation_function(self, code):
         function_name = self.py_functions[self.operator]
-        if self.inplace:
-            function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
+        inplace_function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
+
         if self.operator in self.fast_pyops:
             type1 = self.operand1.type
             type2 = self.operand2.type
@@ -12660,13 +12660,14 @@ class NumBinopNode(BinopNode):
                 code.globalstate.use_utility_code(
                     TempitaUtilityCode.load_cached("PyNumberBinop", "Optimize.c", context={
                         'op_name': function_name,
+                        'inplace_op_name': inplace_function_name,
                         'c_op': self.operator,
-                        'py_op': (self.operator + '=') if self.inplace else self.operator,
                         'type1': type1.name,
                         'type2': type2.name,
                     }))
-                return f'__Pyx_{function_name}_{type1.name}_{type2.name}'
-        return function_name
+                return f'__Pyx_{inplace_function_name if self.inplace else function_name}_{type1.name}_{type2.name}'
+
+        return inplace_function_name if self.inplace else function_name
 
     specialised_binop_types = (py_object_type, int_type, float_type)
 

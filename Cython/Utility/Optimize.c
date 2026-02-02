@@ -1077,7 +1077,10 @@ fallback:
 
 /////////////// PyNumberBinop.proto ///////////////
 
-static CYTHON_INLINE PyObject* __Pyx_{{op_name}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2); /*proto*/
+#define __Pyx_{{op_name}}_{{type1}}_{{type2}}(op1, op2)  __Pyx__{{op_name}}_{{type1}}_{{type2}}(op1, op2, 0)
+#define __Pyx_{{inplace_op_name}}_{{type1}}_{{type2}}(op1, op2)  __Pyx__{{op_name}}_{{type1}}_{{type2}}(op1, op2, 1)
+
+static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int inplace); /*proto*/
 
 /////////////// PyNumberBinop ///////////////
 //@requires: ObjectHandling.c::FormatTypeName
@@ -1109,13 +1112,15 @@ def is_type(operand, expected, type1=type1, type2=type2):
 #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
 #ifndef __Pyx_DEFINED_BinopTypeError
 #define __Pyx_DEFINED_BinopTypeError
-static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op_name) {
+
+static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op, int inplace) {
     // op1 is either 'int' or 'float', op2 is unknown.
     __Pyx_TypeName type_name_op1 = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(op1));
     __Pyx_TypeName type_name_op2 = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(op2));
     PyErr_Format(PyExc_TypeError,
-        "unsupported operand type(s) for %.3s: '%.5s' and '%.200s'",
-        op_name,
+        "unsupported operand type(s) for %.2s%.1s: '%.5s' and '%.200s'",
+        op,
+        inplace ? "=" : "",
         type_name_op1,
         type_name_op2);
     __Pyx_DECREF_TypeName(type_name_op1);
@@ -1124,7 +1129,7 @@ static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op_na
 #endif
 #endif
 
-static PyObject* __Pyx_ReverseSlot_{{op_name}}_{{type1}}(PyObject *op1, PyObject *op2) {
+static PyObject* __Pyx_ReverseSlot_{{op_name}}_{{type1}}(PyObject *op1, PyObject *op2, int inplace) {
     // Avoid running into non-heap-type problems in Py<3.10 Limited API.
     #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
     binaryfunc slot_func;
@@ -1165,18 +1170,18 @@ static PyObject* __Pyx_ReverseSlot_{{op_name}}_{{type1}}(PyObject *op1, PyObject
         }
     }
     {{endif}}
-    __Pyx_BinopTypeError(op1, op2, "{{py_op}}");
+    __Pyx_BinopTypeError(op1, op2, "{{c_op}}", inplace);
     return NULL;
 
     #else
-    return {{op_name}}(op1, op2);
+    return (inplace) ? {{inplace_op_name}}(op1, op2) : {{op_name}}(op1, op2);
     #endif
 }
 #endif
 // !(PyPy/Graal)
 #endif
 
-static CYTHON_INLINE PyObject* __Pyx_{{op_name}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2) {
+static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int inplace) {
 #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL
     goto py_fallback;
 #else
@@ -1288,7 +1293,7 @@ static CYTHON_INLINE PyObject* __Pyx_{{op_name}}_{{type1}}_{{type2}}(PyObject *o
 
         {{if type2 == 'object'}}if (PyLong_Check(op2)) goto py_fallback;{{endif}}
         // PyLong-op1 only handles PyLong as op2, everything else is left to op2, so go there directly.
-        return __Pyx_ReverseSlot_{{op_name}}_{{type1}}(op1, op2);
+        return __Pyx_ReverseSlot_{{op_name}}_{{type1}}(op1, op2, inplace);
     }
     {{endif}}
 
@@ -1338,7 +1343,7 @@ static CYTHON_INLINE PyObject* __Pyx_{{op_name}}_{{type1}}_{{type2}}(PyObject *o
 
         // PyFloat-op1 only handles PyFloat and PyLong as op2, everything else is left to op2, so go there directly.
         {{if type2 == 'object'}}if (PyLong_Check(op2) || PyFloat_Check(op2)) goto py_fallback;{{endif}}
-        return __Pyx_ReverseSlot_{{op_name}}_{{type1}}(op1, op2);
+        return __Pyx_ReverseSlot_{{op_name}}_{{type1}}(op1, op2, inplace);
     }
     {{endif}}
 
@@ -1348,7 +1353,7 @@ static CYTHON_INLINE PyObject* __Pyx_{{op_name}}_{{type1}}_{{type2}}(PyObject *o
 #endif
 
 py_fallback:
-    return {{op_name}}(op1, op2);
+    return (inplace) ? {{inplace_op_name}}(op1, op2) : {{op_name}}(op1, op2);
 }
 
 
