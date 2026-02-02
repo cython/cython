@@ -1114,7 +1114,7 @@ static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op_na
     __Pyx_TypeName type_name_op1 = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(op1));
     __Pyx_TypeName type_name_op2 = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(op2));
     PyErr_Format(PyExc_TypeError,
-        "unsupported operand type(s) for %.2s: '%.5s' and '%.200s'",
+        "unsupported operand type(s) for %.3s: '%.5s' and '%.200s'",
         op_name,
         type_name_op1,
         type_name_op2);
@@ -1129,6 +1129,7 @@ static PyObject* __Pyx_ReverseSlot_{{op_name}}_{{type1}}(PyObject *op1, PyObject
     #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
     binaryfunc slot_func;
     PyTypeObject *type_op2 = Py_TYPE(op2);
+    // Reverse operation => ignore 'InPlace' operator since it applies to op1, not op2.
     slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_number, nb_{{slot_name}}, binaryfunc);
     if (likely(slot_func)) {
         PyObject *result = slot_func(op1, op2);
@@ -1164,7 +1165,7 @@ static PyObject* __Pyx_ReverseSlot_{{op_name}}_{{type1}}(PyObject *op1, PyObject
         }
     }
     {{endif}}
-    __Pyx_BinopTypeError(op1, op2, "{{c_op}}");
+    __Pyx_BinopTypeError(op1, op2, "{{py_op}}");
     return NULL;
 
     #else

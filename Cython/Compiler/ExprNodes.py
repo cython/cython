@@ -12653,7 +12653,7 @@ class NumBinopNode(BinopNode):
         function_name = self.py_functions[self.operator]
         if self.inplace:
             function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
-        elif self.operator in self.fast_pyops:
+        if self.operator in self.fast_pyops:
             type1 = self.operand1.type
             type2 = self.operand2.type
             if type1 in self.specialised_binop_types and type2 in self.specialised_binop_types:
@@ -12661,6 +12661,7 @@ class NumBinopNode(BinopNode):
                     TempitaUtilityCode.load_cached("PyNumberBinop", "Optimize.c", context={
                         'op_name': function_name,
                         'c_op': self.operator,
+                        'py_op': (self.operator + '=') if self.inplace else self.operator,
                         'type1': type1.name,
                         'type2': type2.name,
                     }))
