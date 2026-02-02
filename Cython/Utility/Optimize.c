@@ -1110,10 +1110,11 @@ def is_type(operand, expected, type1=type1, type2=type2):
 #ifndef __Pyx_DEFINED_BinopTypeError
 #define __Pyx_DEFINED_BinopTypeError
 static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op_name) {
+    // op1 is either 'int' or 'float', op2 is unknown.
     __Pyx_TypeName type_name_op1 = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(op1));
     __Pyx_TypeName type_name_op2 = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(op2));
     PyErr_Format(PyExc_TypeError,
-        "unsupported operand type(s) for %.100s: '%.100s' and '%.100s'",
+        "unsupported operand type(s) for %.2s: '%.5s' and '%.200s'",
         op_name,
         type_name_op1,
         type_name_op2);
