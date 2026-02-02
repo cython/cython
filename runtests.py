@@ -1767,7 +1767,7 @@ class TimedTest(unittest.TestCase):
         sys.stderr.write(f"[{self.id()}:{'' if t < .5 else ' SLOWTEST'} {t * 1000.:.2f} msec] ")
 
 
-class CythonUnitTestCase(TimedTest, CythonRunTestCase):
+class CythonUnitTestCase(CythonRunTestCase):
     def shortDescription(self):
         return "[%d] compiling (%s) tests in %s" % (
             self.shard_num, self.language, self.description_name())
