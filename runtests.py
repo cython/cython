@@ -2894,8 +2894,9 @@ def save_coverage(coverage, options):
 
 def setup_test_directory(options):
     WITH_CYTHON = options.with_cython
+    WITH_COMPILE = options.with_compile
     WORKDIR = os.path.abspath(options.work_dir)
-    if WITH_CYTHON:
+    if WITH_CYTHON and WITH_COMPILE:
         if os.path.exists(WORKDIR):
             for path in os.listdir(WORKDIR):
                 if path in ("support", "Cy3"): continue
