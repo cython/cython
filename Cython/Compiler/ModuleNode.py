@@ -4237,7 +4237,7 @@ def generate_cfunction_declaration(entry, env, code, definition):
             definition or entry.defined_in_pxd or entry.visibility == 'extern' or from_cy_utility)):
         if entry.visibility == 'extern':
             storage_class = Naming.extern_c_macro
-            dll_linkage = "DL_IMPORT"
+            dll_linkage = None
         elif entry.visibility == 'public':
             storage_class = Naming.extern_c_macro
             dll_linkage = None
