@@ -3830,11 +3830,16 @@ class JoinedStrNode(ExprNode):
 
         def aggregate(indices, result_temp, initial_value, cfunc_name, operator):
             assert operator in '+|', operator
+            code.putln(f"{result_temp} = {initial_value};")
             if not indices:
-                code.putln(f"{result_temp} = {initial_value};")
                 return
+
+            # See guard in __Pyx_PyUnicode_Join() for using length and kind.
+            code.putln("#if CYTHON_USE_UNICODE_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
+
             if len(indices) == 1:
-                code.putln(f"{result_temp} = {initial_value} {operator} {cfunc_name}({values_array}[{indices[0]}]);")
+                code.putln(f"{result_temp} {operator}= {cfunc_name}({values_array}[{indices[0]}]);")
+                code.putln("#endif")
                 return
 
             index_count = len(indices)
@@ -3848,15 +3853,16 @@ class JoinedStrNode(ExprNode):
                     min_index, max_index = indices[0], indices[-1]
                     assert indices == list(range(min_index, max_index+1, step)), indices
 
-                    code.putln(f"{result_temp} = {initial_value};")
                     code.putln(f"for (Py_ssize_t i={min_index}; i <= {max_index}; i += {step}) ""{")
                     code.putln(f"{result_temp} {operator}= {cfunc_name}({values_array}[i]);")
                     code.putln("}")
+                    code.putln("#endif")
                     return
 
             expressions = [f"{cfunc_name}({values_array}[{i}])" for i in indices]
             result = f' {operator} '.join(expressions)
-            code.putln(f"{result_temp} = {initial_value} {operator} {result};")
+            code.putln(f"{result_temp} {operator}= {result};")
+            code.putln("#endif")
 
         code.mark_pos(self.pos)
 
