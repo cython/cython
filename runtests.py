@@ -1563,6 +1563,8 @@ class CythonCompileTestCase(unittest.TestCase):
                             end=None, file=sys.__stderr__)
                     if stdout or stderr:
                         tostderr("\n====================================\n")
+        elif not WITH_COMPILE and self.__class__ == CythonCompileTestCase:
+            self.skipTest("Compile-only test")
         elif not WITH_COMPILE:
             # We do want to run the doctests so we need to find an so path.
             files = glob.glob(
@@ -3069,6 +3071,7 @@ def runtests(options, cmd_args, coverage=None):
             ('windows_arm_bugs.txt', sys.platform == 'win32' and platform.machine().lower() == "arm64"),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
+            ('exclude_limited_api_rerun.txt', options.limited and not WITH_COMPILE),
         ]
 
         exclude_selectors += [

@@ -1,0 +1,2 @@
+# The test runner isn't giving the module suffix
+run[.]reload_ext_module
