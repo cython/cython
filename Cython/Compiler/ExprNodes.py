@@ -3834,8 +3834,7 @@ class JoinedStrNode(ExprNode):
             if not indices:
                 return
 
-            # See guard in __Pyx_PyUnicode_Join() for using length and kind.
-            code.putln("#if CYTHON_USE_UNICODE_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
+            code.putln("#if __Pyx_PyUnicode_Join_CAN_USE_KIND_AND_LENGTH")
 
             if len(indices) == 1:
                 code.putln(f"{result_temp} {operator}= {cfunc_name}({values_array}[{indices[0]}]);")

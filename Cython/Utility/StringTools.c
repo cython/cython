@@ -975,12 +975,19 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
 
 static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength, int kind); /*proto*/
 
+/////////////// JoinPyUnicode.proto ///////////////
+
+// This macro guard excludes the kind and length calculation on platforms where we definitely don't need it.
+// If the function lives in the shared module, user modules must provide kind and length on all other
+// platforms to prevent incorrect argument values if the shared module implementation requires it.
+#define __Pyx_PyUnicode_Join_CAN_USE_KIND_AND_LENGTH \
+    (!CYTHON_COMPILING_IN_GRAAL && !CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_LIMITED_API)
+
 /////////////// JoinPyUnicode ///////////////
 //@requires: IncludeStringH
 
 static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength, int kind) {
-// Keep in sync with guard in JoinedStrNode !
-#if CYTHON_USE_UNICODE_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+#if __Pyx_PyUnicode_Join_CAN_USE_KIND_AND_LENGTH && CYTHON_USE_UNICODE_INTERNALS
     PyObject *result_uval;
     int result_ukind, kind_shift;
     Py_ssize_t i, char_pos;
@@ -1038,11 +1045,13 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count,
         char_pos += ulength;
     }
     return result_uval;
+
 overflow:
     PyErr_SetString(PyExc_OverflowError, "join() result is too long for a Python string");
 bad:
     Py_DECREF(result_uval);
     return NULL;
+
 #else
     // non-CPython fallback
     Py_ssize_t i;
