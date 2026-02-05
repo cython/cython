@@ -21,7 +21,6 @@ def _multiply_matrices_float(A, B, C):
     i: cython.Py_ssize_t
     j: cython.Py_ssize_t
     k: cython.Py_ssize_t
-    result: float
 
     for i in range(size):
         for j in range(size):
@@ -36,7 +35,6 @@ def _multiply_matrices_int(A, B, C):
     i: cython.Py_ssize_t
     j: cython.Py_ssize_t
     k: cython.Py_ssize_t
-    result: cython.int
 
     for i in range(size):
         for j in range(size):
@@ -51,7 +49,6 @@ def _multiply_matrices_2d_float(A, B, C):
     i: cython.Py_ssize_t
     j: cython.Py_ssize_t
     k: cython.Py_ssize_t
-    result: float
 
     for i in range(size):
         for j in range(size):
@@ -66,7 +63,6 @@ def _multiply_matrices_2d_int(A, B, C):
     i: cython.Py_ssize_t
     j: cython.Py_ssize_t
     k: cython.Py_ssize_t
-    result: cython.int
 
     for i in range(size):
         for j in range(size):
