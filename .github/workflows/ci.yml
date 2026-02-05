@@ -286,6 +286,9 @@ jobs:
       - name: Report results
         run: bash -c "if [ -s ci-summary.txt ]; then grep -A20 'Most expensive pipeline stages' ci-summary.txt | sed -e 's|^|    |'; fi" >> $GITHUB_STEP_SUMMARY
 
+      - name: Figure out what 3.9 is actually calling the files (delete me!)
+        run: find TEST_TMP -type f
+
       - name: Run extra versions
         continue-on-error: ${{ matrix.allowed_failure || false }}
         env: ${{ matrix.env }}
