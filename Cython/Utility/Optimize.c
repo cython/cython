@@ -1104,7 +1104,7 @@ def is_type(operand, expected, type1=type1, type2=type2):
     return check
 }}
 
-#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL)
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API)
 
 #ifndef __Pyx_DEFINED_ReverseSlot_{{op_name}}_{{type1}}
 #define __Pyx_DEFINED_ReverseSlot_{{op_name}}_{{type1}}
@@ -1178,11 +1178,11 @@ static PyObject* __Pyx_ReverseSlot_{{op_name}}_{{type1}}(PyObject *op1, PyObject
     #endif
 }
 #endif
-// !(PyPy/Graal)
+// !(PyPy/Graal/LimitedAPI)
 #endif
 
 static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int inplace) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API
     goto py_fallback;
 #else
     {{if type1 in ('object', 'int')}}
