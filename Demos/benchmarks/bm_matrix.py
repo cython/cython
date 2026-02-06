@@ -88,6 +88,16 @@ def _bm_matrix(mkarray, matrix, bm_func, iterations: cython.Py_ssize_t, timer=DE
 def _list_matrix(matrix):
     return [row[:] for row in matrix]
 
+def _list_matrix_mix(matrix):
+    tp = [float, int, int, float, float, float, int, int]
+    i: cython.Py_ssize_t
+    j: cython.Py_ssize_t
+
+    return [
+        [tp[(i*j) % 8](cell) for j, cell in enumerate(row)]
+        for i, row in enumerate(matrix)
+    ]
+
 def _array_matrix_float(matrix):
     from array import array
     return [array('d', row) for row in matrix]
@@ -128,6 +138,8 @@ bm_matrix_numpy_memview_int = partial(_bm_matrix, _memview_matrix_int, INT_MATRI
 
 bm_matrix_numpy_2d_int = partial(_bm_matrix, _numpy_matrix_int, INT_MATRIX, _multiply_matrices_2d_int)
 bm_matrix_numpy_memview_2d_int = partial(_bm_matrix, _memview_matrix_int, INT_MATRIX, _multiply_matrices_2d_int)
+
+bm_matrix_list_mix = partial(_bm_matrix, _list_matrix_mix, INT_MATRIX, _multiply_matrices_int)
 
 
 # main
