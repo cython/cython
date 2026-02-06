@@ -337,6 +337,10 @@ class ExtractDataclassesToTopLevel(ast.NodeTransformer):
                 self.top_level_class = top_level_class
                 self.nested_name.pop()
                 return None
+            if len(node.bases) == 1 and isinstance(node.bases[0], ast.Attribute):
+                base = node.bases[0]
+                if base.attr == 'TestCase' and base.value.id == 'unittest':
+                    node.bases = [ast.Name(id="TimedTest", ctx=ast.Load())]
             self.generic_visit(node)
             self.nested_name.pop()
             if not node.body:

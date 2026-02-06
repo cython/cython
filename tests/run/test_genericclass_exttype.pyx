@@ -4,6 +4,8 @@
 import unittest
 import sys
 
+from Cython.TestUtils import TimedTest
+
 
 cdef class UnSupport: pass
 
@@ -48,7 +50,7 @@ cdef class Invalid4:
     __class_getitem__ = "Surprise!"
 
 
-class TestClassGetitem(unittest.TestCase):
+class TestClassGetitem(TimedTest):
     # BEGIN - Additional tests from cython
     def test_no_class_getitem(self):
         # PyPy<7.3.8 raises AttributeError on __class_getitem__

@@ -18,6 +18,8 @@ import warnings
 # from test import support, string_tests
 from contextlib import contextmanager
 
+from Cython.TestUtils import TimedTest
+
 
 class support(object):
     @staticmethod
@@ -78,7 +80,7 @@ class StrSubclass(str):
 class UnicodeTest(CommonTest,
         MixinStrUnicodeUserStringTest,
         MixinStrUnicodeTest,
-        unittest.TestCase):
+        TimedTest):
 
     type2test = str
 

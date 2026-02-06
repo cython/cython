@@ -5,13 +5,16 @@
 import pickle
 import unittest
 from collections.abc import Iterator, Iterable
+
+from Cython.TestUtils import TimedTest
+
 try:
     from string.templatelib import Template, Interpolation, convert
 except ImportError:
     t"{1}"  # from here, Cython should install Template and Interpolation into string.templatelib
     from string.templatelib import Template, Interpolation
     convert = None
-    
+
 ############# From test.test_support._string ##############
 class TStringBaseCase:
     def assertInterpolationEqual(self, i, exp):
@@ -85,7 +88,7 @@ def fstring(template):
 
 
 ############ from test_templatelib.py ###############
-class TestTemplate(unittest.TestCase, TStringBaseCase):
+class TestTemplate(TimedTest, TStringBaseCase):
 
     def test_common(self):
         self.assertEqual(type(t'').__name__, 'Template')
@@ -218,7 +221,7 @@ world"""
                     self.assertEqual(unpickled.format_spec, interpolation.format_spec)
 
 
-class TemplateIterTests(unittest.TestCase):
+class TemplateIterTests(TimedTest):
     def test_abc(self):
         self.assertIsInstance(iter(t''), Iterable)
         self.assertIsInstance(iter(t''), Iterator)
@@ -248,11 +251,11 @@ class TemplateIterTests(unittest.TestCase):
         self.assertRaises(StopIteration, next, template_iter)
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(TimedTest):
     def test_convert(self):
         if convert is None:
             # Cython doesn't patch in 'convert'
-            return 
+            return
         from fractions import Fraction
 
         for obj in ('Café', None, 3.14, Fraction(1, 2)):

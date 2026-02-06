@@ -10,10 +10,10 @@ import time
 
 def repeat_to_accuracy(func, *args,
                        variance_threshold: float = 5e-5,
-                       outlier_threshold: float = .15,
+                       outlier_threshold: float = .12,
                        scale=1,
                        repeat=True,
-                       max_iterations: cython.long = 5_000,
+                       max_iterations: cython.long = 1_000,
                        min_iterations: cython.long = 5,
                        scale_to=None,
                        ):
@@ -57,7 +57,7 @@ def repeat_to_accuracy(func, *args,
         min_runtime = 0.
 
     # Put an upper bound on the wall clock runtime as well.
-    max_runtime = get_wall_time() + 1 * 45
+    max_runtime = get_wall_time() + 1 * 30
 
     count: cython.long
     discarded: cython.long = 0
