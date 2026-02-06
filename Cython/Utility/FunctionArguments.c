@@ -66,7 +66,7 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
 }
 
 
-//////////////////// RaiseArgTupleInvalid.proto ////////////////////
+//////////////////// RaiseArgTupleInvalid.export ////////////////////
 
 static void __Pyx_RaiseArgtupleInvalid(const char* func_name, int exact,
     Py_ssize_t num_min, Py_ssize_t num_max, Py_ssize_t num_found); /*proto*/
