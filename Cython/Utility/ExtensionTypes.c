@@ -355,7 +355,7 @@ static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear) {
 }
 
 
-/////////////// SetupReduce.proto ///////////////
+/////////////// SetupReduce.export ///////////////
 
 static int __Pyx_setup_reduce(PyObject* type_obj);
 
@@ -795,10 +795,12 @@ static PyObject *__Pyx_GetTypeTypeDict(PyTypeObject *tp) {
 #endif
 
 
-////////////////// SetItemOnTypeDict.proto //////////////////////////
-//@requires: LimitedApiGetTypeTypeDict
+////////////////// SetItemOnTypeDict.export //////////////////////////
 
 static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v); /* proto */
+
+////////////////// SetItemOnTypeDict.proto //////////////////////////
+//@requires: LimitedApiGetTypeTypeDict
 
 #define __Pyx_SetItemOnTypeDict(tp, k, v) __Pyx__SetItemOnTypeDict((PyTypeObject*)tp, k, v)
 
@@ -825,9 +827,11 @@ static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v) 
     return result;
 }
 
-////////////////// DelItemOnTypeDict.proto //////////////////////////
+////////////////// DelItemOnTypeDict.export //////////////////////////
 
 static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k); /* proto */
+
+////////////////// DelItemOnTypeDict.proto //////////////////////////
 
 #define __Pyx_DelItemOnTypeDict(tp, k) __Pyx__DelItemOnTypeDict((PyTypeObject*)tp, k)
 
