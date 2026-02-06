@@ -531,7 +531,7 @@ static int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long check
 }
 
 
-/////////////// UpdateUnpickledDict.proto ///////////////
+/////////////// UpdateUnpickledDict.export ///////////////
 
 static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index); /*proto*/
 
