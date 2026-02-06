@@ -157,7 +157,7 @@ jobs:
             backend: "c,cpp"
             env: { LIMITED_API: 1, ABI3AUDIT: 1 }
             extra_hash: "-limited_api"
-            extra_python_versions: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+            extra_python_versions: ["3.11", "3.12", "3.13", "3.14"]
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
@@ -297,6 +297,9 @@ jobs:
           for py_version in ${{ join(matrix.extra_python_versions, ' ') }}; do
             PYTHON=python$py_version PYTHON_VERSION=$py_version NO_COMPILE_TESTS=1 NO_CYTHON_COMPILE=1 bash ./Tools/ci-run.sh
           done
+
+      - name: Figure out what 3.9 is actually calling the files 2 (delete me!)
+        run: find TEST_TMP -type f
 
       - name: Upload HTML docs
         uses: actions/upload-artifact@v6.0.0
