@@ -1027,6 +1027,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_ReadChar(u, i)
   #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((void)u, 1114111U)
   #define __Pyx_PyUnicode_KIND(u)         ((void)u, (0))
+  #define __Pyx_PyUnicode_KIND_04(u)      __Pyx_PyUnicode_KIND(u)
   // __Pyx_PyUnicode_DATA() and __Pyx_PyUnicode_READ() must go together, e.g. for iteration.
   #define __Pyx_PyUnicode_DATA(u)         ((void*)u)
   #define __Pyx_PyUnicode_READ(k, d, i)   ((void)k, PyUnicode_ReadChar((PyObject*)(d), i))
@@ -1058,6 +1059,11 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
     #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != (likely(PyUnicode_IS_READY(u)) ? PyUnicode_GET_LENGTH(u) : PyUnicode_GET_SIZE(u)))
     #endif
   #endif
+
+  static CYTHON_INLINE int __Pyx_PyUnicode_KIND_04(PyObject *o) {
+      // Returns 0 for ASCII strings and KIND (1, 2, 4) otherwise.
+      return PyUnicode_KIND(o) - !!PyUnicode_IS_ASCII(o);
+  }
 #endif
 
 #if CYTHON_COMPILING_IN_PYPY

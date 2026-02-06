@@ -1037,6 +1037,7 @@ cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
             result.view.suboffsets = <Py_ssize_t *> result.from_slice.suboffsets
             break
 
+    cdef Py_ssize_t length
     result.view.len = result.view.itemsize
     for length in result.view.shape[:ndim]:
         result.view.len *= length
