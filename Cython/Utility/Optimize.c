@@ -1195,12 +1195,12 @@ static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *
 
             if (!__Pyx_PyLong_IsCompact(op2)) {
                 if (__Pyx_PyLong_IsZero(op1)) return __Pyx_NewRef(op1);
-                goto reverse_slot_int;
+                goto call_slot_pyint;
             }
             long long int_op2 = (long long) __Pyx_PyLong_CompactValue(op2);
             if (int_op2 == 0) return __Pyx_NewRef(op2);
 
-            if (!__Pyx_PyLong_IsCompact(op1)) goto reverse_slot_int;
+            if (!__Pyx_PyLong_IsCompact(op1)) goto call_slot_pyint;
             long long int_op1 = (long long) __Pyx_PyLong_CompactValue(op1);
             if (int_op1 == 0) return __Pyx_NewRef(op1);
 
@@ -1212,14 +1212,14 @@ static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *
                 {{if c_op == '+'}}
                 if (__Pyx_PyLong_IsZero(op1)) return __Pyx_NewRef(op2);
                 {{endif}}
-                goto reverse_slot_int;
+                goto call_slot_pyint;
             }
             Py_ssize_t int_op2 = __Pyx_PyLong_CompactValue(op2);
             {{if c_op in '+-'}}
             if (int_op2 == 0) return __Pyx_NewRef(op1);
             {{endif}}
 
-            if (!__Pyx_PyLong_IsCompact(op1)) goto reverse_slot_int;
+            if (!__Pyx_PyLong_IsCompact(op1)) goto call_slot_pyint;
             Py_ssize_t int_op1 = __Pyx_PyLong_CompactValue(op1);
             {{if c_op == '+'}}
             if (int_op1 == 0) return __Pyx_NewRef(op2);
@@ -1227,11 +1227,19 @@ static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *
 
             return PyLong_FromSsize_t(int_op1 {{c_op}} int_op2);
             {{endif}}
+
+        call_slot_pyint:
+            static const binaryfunc slot_func = __Pyx_PyType_GetSubSlot(&PyLong_Type, tp_as_number, nb_{{slot_name}}, binaryfunc);
+            if (unlikely(!slot_func)) goto py_fallback;
+            return slot_func(op1, op2);
         }
-        #else
-        // Even without PyLong internals, we can directly dispatch to the right slot.
-        if (PyLong_Check(op2)) goto reverse_slot_int;
         #endif
+
+        if (PyLong_Check(op2)) {
+            binaryfunc slot_func = __Pyx_PyType_GetSubSlot(Py_TYPE(op2), tp_as_number, nb_{{slot_name}}, binaryfunc);
+            if (unlikely(!slot_func)) goto py_fallback;
+            return slot_func(op1, op2);
+        }
         {{endif}}
 
         {{if type2 in ('object', 'float')}}
@@ -1259,9 +1267,6 @@ static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *
         // PyLong-op1 only handles exact PyLong as op2, everything else is left to op2.
         // If op2 is exactly PyLong, it can also handle op1.
         // Thus, we can always pass on to op2 here.
-        {{if type2 in ('object', 'int')}}
-        reverse_slot_int:
-        {{endif}}
         return __Pyx_ReverseSlot_{{op_name}}_{{type1}}(op1, op2, inplace);
     }
     {{endif}}
@@ -1312,7 +1317,11 @@ static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *
         }
 
         // Pass PyLong subclasses to PyFloat-op1.
-        if (PyLong_Check(op2)) goto call_float_slot;
+        if (PyLong_Check(op2)) {
+            static const binaryfunc slot_func = __Pyx_PyType_GetSubSlot(&PyFloat_Type, tp_as_number, nb_{{slot_name}}, binaryfunc);
+            if (unlikely(!slot_func)) goto py_fallback;
+            return slot_func(op1, op2);
+        }
         {{endif}}
 
         // PyFloat-op1 only handles exact PyFloat/PyLong as op2, everything else is left to op2.
@@ -1323,20 +1332,6 @@ static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *
     {{endif}}
 
     goto py_fallback;
-
-{{if type2 in ('object', 'int')}}
-call_float_slot:
-    // Let PyFloat-op1 handle PyLong (subclasses) as op2.
-    #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
-    {
-        binaryfunc slot_func = __Pyx_PyType_GetSubSlot(&PyFloat_Type, tp_as_number, nb_{{slot_name}}, binaryfunc);
-        if (likely(slot_func)) {
-            return slot_func(op1, op2);
-        }
-    }
-    #endif
-    goto py_fallback;
-{{endif}}
 
 // !(PyPy/Graal)
 #endif
