@@ -14835,6 +14835,13 @@ class CoerceToPyTypeNode(CoercionNode):
                 self.type = unicode_type
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
+            elif arg.type.equivalent_type is not None and arg.type.equivalent_type.is_pyobject:
+                # Includes bint.
+                self.type = arg.type.equivalent_type
+            elif arg.type.is_int:
+                self.type = Builtin.int_type
+            elif arg.type.is_float:
+                self.type = Builtin.float_type
             self.target_type = self.type
         elif arg.type.is_string or arg.type.is_cpp_string:
             if (type not in (bytes_type, bytearray_type)
