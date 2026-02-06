@@ -1077,13 +1077,23 @@ fallback:
 
 /////////////// PyNumberBinop.proto ///////////////
 
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API
+
+#define __Pyx_{{op_name}}_{{type1}}_{{type2}}(op1, op2)  {{op_name}}(op1, op2)
+#define __Pyx_{{inplace_op_name}}_{{type1}}_{{type2}}(op1, op2)  {{inplace_op_name}}(op1, op2)
+
+#else
+
 #define __Pyx_{{op_name}}_{{type1}}_{{type2}}(op1, op2)  __Pyx__{{op_name}}_{{type1}}_{{type2}}(op1, op2, 0)
 #define __Pyx_{{inplace_op_name}}_{{type1}}_{{type2}}(op1, op2)  __Pyx__{{op_name}}_{{type1}}_{{type2}}(op1, op2, 1)
 
 static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int inplace); /*proto*/
+#endif
 
 /////////////// PyNumberBinop ///////////////
 //@requires: ObjectHandling.c::FormatTypeName
+
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API)
 
 {{py: assert type1 in ('object', 'int', 'float'), type1 }}
 {{py: assert type2 in ('object', 'int', 'float'), type2 }}
@@ -1103,11 +1113,6 @@ def is_type(operand, expected, type1=type1, type2=type2):
             check = f"likely({check})"
     return check
 }}
-
-#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API)
-
-#ifndef __Pyx_DEFINED_ReverseSlot_{{op_name}}_{{type1}}
-#define __Pyx_DEFINED_ReverseSlot_{{op_name}}_{{type1}}
 
 #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
 #ifndef __Pyx_DEFINED_BinopTypeError
@@ -1129,33 +1134,137 @@ static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op, i
 #endif
 #endif
 
-static PyObject* __Pyx_ReverseSlot_{{op_name}}_{{type1}}(PyObject *op1, PyObject *op2, int inplace) {
+{{if type1 in ('object', 'float')}}
+#ifndef __Pyx_DEFINED_{{op_name}}_xfloat_{{type2}}
+#define __Pyx_DEFINED_{{op_name}}_xfloat_{{type2}}
+
+static PyObject* __Pyx_{{op_name}}_xfloat_{{type2}}(PyObject *op1, PyObject *op2, int inplace) {
+    {{if type2 in ('object', 'int')}}
+    if ({{is_type('op2', 'int')}}) {
+        double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely((float_op1 == -1.) && PyErr_Occurred())) return NULL;
+        #endif
+
+        {{if c_op == '*'}}
+        if (float_op1 == 0.) return __Pyx_NewRef(op1);
+        {{endif}}
+
+        double int_op2;
+        #if CYTHON_USE_PYLONG_INTERNALS
+        if (__Pyx_PyLong_IsCompact(op2)) {
+            int_op2 = (double) __Pyx_PyLong_CompactValue(op2);
+        } else
+        #endif
+        {
+            int_op2 = PyLong_AsDouble(op2);
+            if (unlikely((int_op2 == -1.) && PyErr_Occurred())) return NULL;
+        }
+
+        {{if c_op in '+-'}}
+        if (int_op2 == 0.) return __Pyx_NewRef(op1);
+        {{endif}}
+        return PyFloat_FromDouble(float_op1 {{c_op}} int_op2);
+    }
+    {{endif}}
+
+    {{if type2 == 'object'}}
+    if (PyLong_Check(op2)) {
+        // Pass PyLong subclasses to PyFloat-op1.
+        binaryfunc slot_func = __Pyx_PyType_GetSubSlot(&PyFloat_Type, tp_as_number, nb_{{slot_name}}, binaryfunc);
+        if (likely(slot_func)) {
+            return slot_func(op1, op2);
+        }
+    }
+    {{endif}}
+
+    // PyFloat-op1 only handles exact PyFloat/PyLong as op2, everything else is left to op2.
+    // PyLong-op2 is handled above, so we can always pass on to op2 here.
+
     // Avoid running into non-heap-type problems in Py<3.10 Limited API.
     #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
-    binaryfunc slot_func;
-    PyTypeObject *type_op2 = Py_TYPE(op2);
-    // Reverse operation => ignore 'InPlace' operator since it applies to op1, not op2.
-    slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_number, nb_{{slot_name}}, binaryfunc);
-    if (likely(slot_func)) {
-        PyObject *result = slot_func(op1, op2);
-        if (likely(result != Py_NotImplemented)) {
-            return result;
+    {
+        PyTypeObject *type_op2 = Py_TYPE(op2);
+        // Reverse operation => ignore 'InPlace' operator since it applies to op1, not op2.
+        binaryfunc slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_number, nb_{{slot_name}}, binaryfunc);
+        if (likely(slot_func)) {
+            PyObject *result = slot_func(op1, op2);
+            if (likely(result != Py_NotImplemented)) {
+                return result;
+            }
+            Py_DECREF(result);
         }
-        Py_DECREF(result);
-    }
-    {{if c_op == '+'}}
-    // Adding a number to a sequence is rather unusual.
-    slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_concat, binaryfunc);
-    if (slot_func) {
-        return slot_func(op1, op2);
-    }
-    {{elif c_op == '*' and type1 != 'float'}}
-    ssizeargfunc repeat_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_repeat, ssizeargfunc);
-    if (likely(repeat_func)) {
-        {{if type1 != 'int'}}
-        if (PyLong_CheckExact(op1))
+        {{if c_op == '+'}}
+        // Adding a number to a sequence is rather unusual.
+        slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_concat, binaryfunc);
+        if (slot_func) {
+            return slot_func(op1, op2);
+        }
         {{endif}}
+
+        __Pyx_BinopTypeError(op1, op2, "{{c_op}}", inplace);
+        return NULL;
+
+    }
+    #else
+    return (inplace) ? {{inplace_op_name}}(op1, op2) : {{op_name}}(op1, op2);
+    #endif
+}
+#endif
+{{endif}}
+
+{{if type1 in ('object', 'int')}}
+#ifndef __Pyx_DEFINED_{{op_name}}_xint_{{type2}}
+#define __Pyx_DEFINED_{{op_name}}_xint_{{type2}}
+
+static PyObject* __Pyx_{{op_name}}_xint_{{type2}}(PyObject *op1, PyObject *op2, int inplace) {
+    {{if type2 in ('object', 'float')}}
+    if ({{is_type('op2', 'float')}}) {
+        double int_op1;
+        #if CYTHON_USE_PYLONG_INTERNALS
+        if (__Pyx_PyLong_IsCompact(op1)) {
+            int_op1 = (double) __Pyx_PyLong_CompactValue(op1);
+        } else
+        #endif
         {
+            int_op1 = PyLong_AsDouble(op1);
+            if (unlikely((int_op1 == -1.) && PyErr_Occurred())) return NULL;
+        }
+
+        double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely((float_op2 == -1.) && PyErr_Occurred())) return NULL;
+        #endif
+
+        return PyFloat_FromDouble((double) int_op1 {{c_op}} float_op2);
+    }
+    {{endif}}
+
+    // PyLong-op1 only handles exact PyLong as op2, everything else is left to op2.
+    // Thus, we can always pass on to op2 here.
+
+    // Avoid running into non-heap-type problems in Py<3.10 Limited API.
+    #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+    {
+        PyTypeObject *type_op2 = Py_TYPE(op2);
+        // Reverse operation => ignore 'InPlace' operator since it applies to op1, not op2.
+        binaryfunc slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_number, nb_{{slot_name}}, binaryfunc);
+        if (likely(slot_func)) {
+            PyObject *result = slot_func(op1, op2);
+            if (likely(result != Py_NotImplemented)) {
+                return result;
+            }
+            Py_DECREF(result);
+        }
+        {{if c_op == '+'}}
+        // Adding a number to a sequence is rather unusual.
+        slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_concat, binaryfunc);
+        if (slot_func) {
+            return slot_func(op1, op2);
+        }
+        {{elif c_op == '*'}}
+        ssizeargfunc repeat_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_repeat, ssizeargfunc);
+        if (likely(repeat_func)) {
             Py_ssize_t count;
             #if CYTHON_USE_PYLONG_INTERNALS
             if (__Pyx_PyLong_IsCompact(op1)) {
@@ -1168,109 +1277,20 @@ static PyObject* __Pyx_ReverseSlot_{{op_name}}_{{type1}}(PyObject *op1, PyObject
             }
             return repeat_func(op2, count);
         }
-    }
-    {{endif}}
-    __Pyx_BinopTypeError(op1, op2, "{{c_op}}", inplace);
-    return NULL;
+        {{endif}}
 
+        __Pyx_BinopTypeError(op1, op2, "{{c_op}}", inplace);
+        return NULL;
+
+    }
     #else
     return (inplace) ? {{inplace_op_name}}(op1, op2) : {{op_name}}(op1, op2);
     #endif
 }
 #endif
-// !(PyPy/Graal/LimitedAPI)
-#endif
+{{endif}}
 
 static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int inplace) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API
-    goto py_fallback;
-#else
-    {{if type1 in ('object', 'int')}}
-    if ({{is_type('op1', 'int')}}) {
-
-        {{if type2 in ('object', 'int')}}
-        #if CYTHON_USE_PYLONG_INTERNALS
-        if ({{is_type('op2', 'int')}}) {
-            {{if c_op == '*'}}
-
-            if (!__Pyx_PyLong_IsCompact(op2)) {
-                if (__Pyx_PyLong_IsZero(op1)) return __Pyx_NewRef(op1);
-                goto call_slot_pyint;
-            }
-            long long int_op2 = (long long) __Pyx_PyLong_CompactValue(op2);
-            if (int_op2 == 0) return __Pyx_NewRef(op2);
-
-            if (!__Pyx_PyLong_IsCompact(op1)) goto call_slot_pyint;
-            long long int_op1 = (long long) __Pyx_PyLong_CompactValue(op1);
-            if (int_op1 == 0) return __Pyx_NewRef(op1);
-
-            return PyLong_FromLongLong(int_op1 {{c_op}} int_op2);
-
-            {{else}}
-
-            if (!__Pyx_PyLong_IsCompact(op2)) {
-                {{if c_op == '+'}}
-                if (__Pyx_PyLong_IsZero(op1)) return __Pyx_NewRef(op2);
-                {{endif}}
-                goto call_slot_pyint;
-            }
-            Py_ssize_t int_op2 = __Pyx_PyLong_CompactValue(op2);
-            {{if c_op in '+-'}}
-            if (int_op2 == 0) return __Pyx_NewRef(op1);
-            {{endif}}
-
-            if (!__Pyx_PyLong_IsCompact(op1)) goto call_slot_pyint;
-            Py_ssize_t int_op1 = __Pyx_PyLong_CompactValue(op1);
-            {{if c_op == '+'}}
-            if (int_op1 == 0) return __Pyx_NewRef(op2);
-            {{endif}}
-
-            return PyLong_FromSsize_t(int_op1 {{c_op}} int_op2);
-            {{endif}}
-
-        call_slot_pyint:
-            static const binaryfunc slot_func = __Pyx_PyType_GetSubSlot(&PyLong_Type, tp_as_number, nb_{{slot_name}}, binaryfunc);
-            if (unlikely(!slot_func)) goto py_fallback;
-            return slot_func(op1, op2);
-        }
-        #endif
-
-        if (PyLong_Check(op2)) {
-            binaryfunc slot_func = __Pyx_PyType_GetSubSlot(Py_TYPE(op2), tp_as_number, nb_{{slot_name}}, binaryfunc);
-            if (unlikely(!slot_func)) goto py_fallback;
-            return slot_func(op1, op2);
-        }
-        {{endif}}
-
-        {{if type2 in ('object', 'float')}}
-        if ({{is_type('op2', 'float')}}) {
-            double int_op1;
-            #if CYTHON_USE_PYLONG_INTERNALS
-            if (__Pyx_PyLong_IsCompact(op1)) {
-                int_op1 = (double) __Pyx_PyLong_CompactValue(op1);
-            } else
-            #endif
-            {
-                int_op1 = PyLong_AsDouble(op1);
-                if (unlikely((int_op1 == -1.) && PyErr_Occurred())) return NULL;
-            }
-
-            double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
-            #if !CYTHON_ASSUME_SAFE_MACROS
-            if (unlikely((float_op2 == -1.) && PyErr_Occurred())) return NULL;
-            #endif
-
-            return PyFloat_FromDouble((double) int_op1 {{c_op}} float_op2);
-        }
-        {{endif}}
-
-        // PyLong-op1 only handles exact PyLong as op2, everything else is left to op2.
-        // If op2 is exactly PyLong, it can also handle op1.
-        // Thus, we can always pass on to op2 here.
-        return __Pyx_ReverseSlot_{{op_name}}_{{type1}}(op1, op2, inplace);
-    }
-    {{endif}}
-
     {{if type1 in ('object', 'float')}}
     if ({{is_type('op1', 'float')}}) {
         {{if type2 in ('object', 'float')}}
@@ -1287,58 +1307,68 @@ static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *
             return PyFloat_FromDouble(float_op1 {{c_op}} float_op2);
         }
         {{endif}}
-
-        {{if type2 in ('object', 'int')}}
-        if ({{is_type('op2', 'int')}}) {
-            double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
-            #if !CYTHON_ASSUME_SAFE_MACROS
-            if (unlikely((float_op1 == -1.) && PyErr_Occurred())) return NULL;
-            #endif
-
-            {{if c_op == '*'}}
-            if (float_op1 == 0.) return __Pyx_NewRef(op1);
-            {{endif}}
-
-            double int_op2;
-            #if CYTHON_USE_PYLONG_INTERNALS
-            if (__Pyx_PyLong_IsCompact(op2)) {
-                int_op2 = (double) __Pyx_PyLong_CompactValue(op2);
-            } else
-            #endif
-            {
-                int_op2 = PyLong_AsDouble(op2);
-                if (unlikely((int_op2 == -1.) && PyErr_Occurred())) return NULL;
-            }
-
-            {{if c_op in '+-'}}
-            if (int_op2 == 0.) return __Pyx_NewRef(op1);
-            {{endif}}
-            return PyFloat_FromDouble(float_op1 {{c_op}} int_op2);
-        }
-
-        // Pass PyLong subclasses to PyFloat-op1.
-        if (PyLong_Check(op2)) {
-            static const binaryfunc slot_func = __Pyx_PyType_GetSubSlot(&PyFloat_Type, tp_as_number, nb_{{slot_name}}, binaryfunc);
-            if (unlikely(!slot_func)) goto py_fallback;
-            return slot_func(op1, op2);
-        }
-        {{endif}}
-
-        // PyFloat-op1 only handles exact PyFloat/PyLong as op2, everything else is left to op2.
-        // If op2 is exactly PyFloat, it can also handle op1, and PyLong-op2 is handled above.
-        // Thus, we can always pass on to op2 here.
-        return __Pyx_ReverseSlot_{{op_name}}_{{type1}}(op1, op2, inplace);
+        return __Pyx_{{op_name}}_xfloat_{{type2}}(op1, op2, inplace);
     }
     {{endif}}
 
-    goto py_fallback;
+    {{if type1 in ('object', 'int')}}
+    if ({{is_type('op1', 'int')}}) {
+        {{if type2 in ('object', 'int')}}
+        if ({{is_type('op2', 'int')}}) {
+            #if CYTHON_USE_PYLONG_INTERNALS
+            {{if c_op == '*'}}
 
-// !(PyPy/Graal)
-#endif
+            if (__Pyx_PyLong_IsCompact(op1)) {
+                long long int_op1 = (long long) __Pyx_PyLong_CompactValue(op1);
+                if (int_op1 == 0) return __Pyx_NewRef(op1);
 
-py_fallback:
+                if (__Pyx_PyLong_IsCompact(op2)) {
+                    long long int_op2 = (long long) __Pyx_PyLong_CompactValue(op2);
+                    if (int_op2 == 0) return __Pyx_NewRef(op2);
+
+                    return PyLong_FromLongLong(int_op1 {{c_op}} int_op2);
+                }
+            } else if (__Pyx_PyLong_IsZero(op2)) return __Pyx_NewRef(op2);
+
+            {{else}}
+
+            if (__Pyx_PyLong_IsCompact(op1)) {
+                Py_ssize_t int_op1 = __Pyx_PyLong_CompactValue(op1);
+                {{if c_op == '+'}}
+                if (int_op1 == 0) return __Pyx_NewRef(op2);
+                {{endif}}
+
+                if (__Pyx_PyLong_IsCompact(op2)) {
+                    Py_ssize_t int_op2 = __Pyx_PyLong_CompactValue(op2);
+                    {{if c_op in '+-'}}
+                    if (int_op2 == 0) return __Pyx_NewRef(op1);
+                    {{endif}}
+
+                    return PyLong_FromSsize_t(int_op1 {{c_op}} int_op2);
+                }
+            }
+            {{if c_op in '+-'}}
+            else if (__Pyx_PyLong_IsZero(op2)) return __Pyx_NewRef(op1);
+            {{endif}}
+
+            {{endif}}
+            #endif
+
+            binaryfunc slot_func = __Pyx_PyType_GetSubSlot(&PyLong_Type, tp_as_number, nb_{{slot_name}}, binaryfunc);
+            if (likely(slot_func)) {
+                return slot_func(op1, op2);
+            }
+        }
+        {{endif}}
+
+        return __Pyx_{{op_name}}_xint_{{type2}}(op1, op2, inplace);
+    }
+    {{endif}}
+
     return (inplace) ? {{inplace_op_name}}(op1, op2) : {{op_name}}(op1, op2);
 }
+// !(PyPy/Graal/LimitedAPI)
+#endif
 
 
 /////////////// PyObjectCompare.proto ///////////////
