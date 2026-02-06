@@ -114,7 +114,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset,
 #endif
 
 
-/////////////// PyType_Ready.proto ///////////////
+/////////////// PyType_Ready.export ///////////////
 
 // unused when using type specs
 CYTHON_UNUSED static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
