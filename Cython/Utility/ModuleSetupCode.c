@@ -907,6 +907,13 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     #define __PYX_SHARED_RELATIVE_OFFSET 0
     #define CYTHON_OPAQUE_SHARED_TYPES 0
 #endif
+#if CYTHON_OPAQUE_OBJECTS && CYTHON_USE_FREELISTS
+    // It's a bit difficult (but not impossible) to work out how much memory to zero out in this case
+    // so turn it off in the short-term.
+    #undef CYTHON_USE_FREELISTS
+    #define CYTHON_USE_FREELISTS 0
+#endif
+
 
 #if CYTHON_USE_MODULE_STATE
 static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
