@@ -1957,7 +1957,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
 
     def _rename_property_function(self, node, name):
         if isinstance(node, Nodes.CFuncDefNode):
-            node.declarator.base.name = name
+            node.declarator.set_declared_name(name)
         else:
             node.name = name
 

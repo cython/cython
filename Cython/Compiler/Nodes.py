@@ -527,6 +527,9 @@ class CDeclaratorNode(Node):
 
     def declared_name(self):
         return None
+    
+    def set_declared_name(self, new_name):
+        raise NotImplementedError()
 
     def analyse_templates(self):
         # Only C++ functions have templates.
@@ -544,6 +547,9 @@ class CNameDeclaratorNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.name
+    
+    def set_declared_name(self, new_name):
+        self.name = new_name
 
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if nonempty and self.name == '':
@@ -575,6 +581,9 @@ class CPtrDeclaratorNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.base.declared_name()
+    
+    def set_declared_name(self, new_name):
+        self.base.set_declared_name(new_name)
 
     def analyse_templates(self):
         return self.base.analyse_templates()
@@ -591,6 +600,9 @@ class _CReferenceDeclaratorBaseNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.base.declared_name()
+    
+    def set_declared_name(self, new_name):
+        self.base.set_declared_name(new_name)
 
     def analyse_templates(self):
         return self.base.analyse_templates()
@@ -684,6 +696,9 @@ class CFuncDeclaratorNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.base.declared_name()
+    
+    def set_declared_name(self, new_name):
+        self.base.set_declared_name(new_name)
 
     def analyse_templates(self):
         if isinstance(self.base, CArrayDeclaratorNode):
