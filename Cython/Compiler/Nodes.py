@@ -527,7 +527,7 @@ class CDeclaratorNode(Node):
 
     def declared_name(self):
         return None
-    
+
     def set_declared_name(self, new_name):
         raise NotImplementedError()
 
@@ -547,7 +547,7 @@ class CNameDeclaratorNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.name
-    
+
     def set_declared_name(self, new_name):
         self.name = new_name
 
@@ -581,7 +581,7 @@ class CPtrDeclaratorNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.base.declared_name()
-    
+
     def set_declared_name(self, new_name):
         self.base.set_declared_name(new_name)
 
@@ -600,7 +600,7 @@ class _CReferenceDeclaratorBaseNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.base.declared_name()
-    
+
     def set_declared_name(self, new_name):
         self.base.set_declared_name(new_name)
 
@@ -696,7 +696,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.base.declared_name()
-    
+
     def set_declared_name(self, new_name):
         self.base.set_declared_name(new_name)
 
