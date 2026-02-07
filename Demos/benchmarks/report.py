@@ -5,7 +5,6 @@ Report benchmark results from CSV files in Markdown format.
 import csv
 import itertools
 import operator
-import string
 
 
 def unbreak(s):
@@ -35,6 +34,11 @@ def time_in_seconds(time_string):
     return float(number) * units[unit]
 
 
+def reformat_time(time_string):
+    number, unit = time_string.split()
+    return f"{float(number) :.2f}\N{NO-BREAK SPACE}{unit}"
+
+
 def warn_difference(reference, value, max_margin):
     difference = abs(value - reference) / reference
     is_better = value < reference
@@ -52,7 +56,7 @@ def warn_difference(reference, value, max_margin):
 def format_timings(tmin, tmed, tmean, tmax, diff, *, master_data=None, warn_margin=.1/3.):
     warn = warn_difference(time_in_seconds(master_data[0]), time_in_seconds(tmin), warn_margin) if master_data else ''
     diff_str = f" ({unbreak(diff.strip(' ()'))})" if diff else ''
-    return f"{unbreak(tmin)}{diff_str}{warn}"
+    return f"{reformat_time(tmin)}{diff_str}{warn}"
 
 
 def format_sizes(size, diff, *, master_data=None, warn_margin=.01):
