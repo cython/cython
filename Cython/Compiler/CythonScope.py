@@ -6,7 +6,7 @@ from .Scanning import StringSourceDescriptor
 from . import MemoryView
 from .StringEncoding import EncodedString
 
-NON_TYPE_NAMES = {'pointer', 'const'}
+NON_TYPE_NAMES = {'pointer', 'const', 'volatile', 'restrict', 'struct', 'union', 'enum'}
 
 class CythonScope(ModuleScope):
     is_cython_builtin = 1
