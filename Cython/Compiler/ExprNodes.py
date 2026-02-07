@@ -6331,14 +6331,30 @@ class SimpleCallNode(CallNode):
                     self.constant_result = method(*args)
 
     @classmethod
-    def for_cproperty(cls, pos, obj, entry):
+    def for_cproperty_get(cls, pos, obj, entry):
         # Create a call node for C property access.
         property_scope = entry.scope
-        getter_entry = property_scope.lookup_here(entry.name)
+        getter_entry = property_scope.lookup_here("__get__")
         assert getter_entry, "Getter not found in scope %s: %s" % (property_scope, property_scope.entries)
         function = NameNode(pos, name=entry.name, entry=getter_entry, type=getter_entry.type)
         node = cls(pos, function=function, args=[obj])
         return node
+
+    @classmethod
+    def for_cproperty_set(cls, pos, obj, entry):
+        # Create a call node for C property access.
+        # This actually returns a utility node that wraps the call node.
+        property_scope = entry.scope
+        setter_entry = property_scope.lookup_here("__set__")
+        if not setter_entry:
+            error(pos, "Assignment to a read-only property")
+            return None
+        from . import UtilNodes
+        function = NameNode(pos, name=entry.name, entry=setter_entry, type=setter_entry.type)
+        arg_type = setter_entry.type.args[1].type
+        arg1 = RawCNameExprNode(pos, type=arg_type)
+        node = cls(pos, function=function, args=[obj, arg1])
+        return UtilNodes.CPropertySetNode(pos, func_node=node, type=arg_type, arg1=arg1)
 
     def analyse_as_type(self, env):
         attr = self.function.as_cython_attribute()
@@ -8047,9 +8063,9 @@ class AttributeNode(ExprNode):
             error(self.pos, "Assignment to an immutable object field")
         elif self.entry and self.entry.is_cproperty:
             if not target:
-                return SimpleCallNode.for_cproperty(self.pos, self.obj, self.entry).analyse_types(env)
-            # TODO: implement writable C-properties?
-            error(self.pos, "Assignment to a read-only property")
+                return SimpleCallNode.for_cproperty_get(self.pos, self.obj, self.entry).analyse_types(env)
+            else:
+                return SimpleCallNode.for_cproperty_set(self.pos, self.obj, self.entry).analyse_types(env)
         #elif self.type.is_memoryviewslice and not target:
         #    self.is_temp = True
         return self

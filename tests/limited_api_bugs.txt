@@ -58,6 +58,8 @@ fastcall
 r_extcomplex2
 longintrepr
 run[.]no_gc
+# Would work on 3.12 and up (but not worth the effort to adapt it)
+run[.]ext_attr_setter
 
 # Inherit builtin type: PEP697
 builtin_subtype_methods_T653

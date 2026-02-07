@@ -6032,17 +6032,37 @@ class CPropertyNode(StatNode):
     is_cproperty = True
 
     @property
-    def cfunc(self):
+    def getter_cfunc(self):
         stats = self.body.stats
-        assert stats and isinstance(stats[0], CFuncDefNode), stats
-        return stats[0]
+        assert stats
+        for stat in stats:
+            if stat.declared_name() == "__get__":
+                assert isinstance(stat, CFuncDefNode), stat
+                return stat
+        assert False, stats  # we should have a getter
+
+    @property
+    def setter_cfunc(self):
+        stats = self.body.stats
+        assert stats
+        for stat in stats:
+            if stat.declared_name() == "__set__":
+                assert isinstance(stat, CFuncDefNode), stat
+                return stat
+        return None  # we may not have a setter
 
     def analyse_declarations(self, env):
         scope = PropertyScope(self.name, class_scope=env)
         self.body.analyse_declarations(scope)
+        getter = self.getter_cfunc
         entry = self.entry = env.declare_property(
-            self.name, self.doc, self.pos, ctype=self.cfunc.return_type, property_scope=scope)
-        entry.getter_cname = self.cfunc.entry.cname
+            self.name, self.doc, self.pos, ctype=getter.return_type, property_scope=scope)
+        entry.getter_cname = getter.entry.cname
+        setter = self.setter_cfunc
+        if setter:
+            entry = self.entry = env.declare_property(
+                self.name, self.doc, self.pos, ctype=setter.return_type, property_scope=scope)
+            entry.setter_cname = setter.entry.cname
 
     def analyse_expressions(self, env):
         self.body = self.body.analyse_expressions(env)
