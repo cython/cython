@@ -157,6 +157,8 @@ jobs:
             backend: "c,cpp"
             env: { LIMITED_API: 1, ABI3AUDIT: 1 }
             extra_hash: "-limited_api"
+            # 3.10 is deliberately skipped here because it somehow ends up deleting most
+            # of the .so files and I don't understand why.
             extra_python_versions: ["3.11", "3.12", "3.13", "3.14"]
           - os: ubuntu-22.04
             python-version: "3.11"
