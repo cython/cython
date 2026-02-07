@@ -1062,7 +1062,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
   static CYTHON_INLINE int __Pyx_PyUnicode_KIND_04(PyObject *o) {
       // Returns 0 for ASCII strings and KIND (1, 2, 4) otherwise.
-      return PyUnicode_KIND(o) - !!PyUnicode_IS_ASCII(o);
+      return __Pyx_PyUnicode_KIND(o) - (int) !!PyUnicode_IS_ASCII(o);
   }
 #endif
 
