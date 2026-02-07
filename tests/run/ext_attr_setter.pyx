@@ -3,6 +3,25 @@
 cimport cython
 
 cdef extern from *:
+    """
+    #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
+    // Replacement functions for older versions of Python.
+    // (It would be better to use functions which are always available
+    // but DW didn't realise these were version-dependent when he wrote the
+    // tests, and it doesn't really invalidate the tests anyway.)
+    static PyObject *PyException_GetArgs(PyObject *ex) {
+        return PyObject_GetAttrString(ex, "args");
+    }
+
+    static void PyException_SetArgs(PyObject *ex, PyObject *value) {
+        if (PyObject_SetAttrString(ex, "args", value) < 0) {
+            PyErr_WriteUnraisable(NULL);
+            PyErr_Clear();
+        }
+    }
+    #endif
+    """
+
     object PyException_GetArgs(object)
     void PyException_SetArgs(object, object) noexcept
 
