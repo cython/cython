@@ -13301,7 +13301,7 @@ class PowNode(NumBinopNode):
         if (self.type.is_pyobject and
                 self.operand1.constant_result == 2 and
                 isinstance(self.operand1.constant_result, int) and
-                self.operand2.type is py_object_type):
+                self.operand2.type in (py_object_type, Builtin.int_type)):
             code.globalstate.use_utility_code(UtilityCode.load_cached('PyNumberPow2', 'Optimize.c'))
             if self.inplace:
                 return '__Pyx_PyNumber_InPlacePowerOf2'
