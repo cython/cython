@@ -1363,7 +1363,7 @@ class PyObjectType(PyrexType):
                          clear=True, clear_before_decref=clear_before_decref)
 
     def get_gotref_code(self, cname):
-        return f"__Pyx_GOTREF({self.as_pyobject(cname)});" 
+        return f"__Pyx_GOTREF({self.as_pyobject(cname)});"
 
     def get_xgotref_code(self, cname):
         return f"__Pyx_XGOTREF({self.as_pyobject(cname)});"
