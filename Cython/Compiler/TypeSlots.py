@@ -460,7 +460,7 @@ class ConstructorSlot(InternalMethodSlot):
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
                 and not scope.has_explicitly_constructable_attrs
-                and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_cname)):
+                and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_type)):
             entry = scope.lookup_here(self.method) if self.method else None
             if not (entry and entry.is_special):
                 return False
