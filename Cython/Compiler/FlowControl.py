@@ -87,6 +87,18 @@ class ControlBlock:
         self.children.add(block)
         block.parents.add(self)
 
+    def print(self, level=0, seen=None):
+        if seen is None:
+            seen = set()
+        print(f"{' '*level}{self} {'*' if self in seen else ''}")
+        if self in seen:
+            return
+        for stat in self.stats:
+            print(f"{' '*(level+1)}-{stat}")
+        seen.add(self)
+        for child in self.children:
+            child.print(level+1, seen)
+
 
 class ExitBlock(ControlBlock):
     """Non-empty exit point block."""
@@ -949,8 +961,9 @@ class ControlFlowAnalysis(CythonTransform):
         parent = self.flow.block
         # If clauses
         for clause in node.if_clauses:
-            parent = self.flow.nextblock(parent)
+            self.flow.nextblock(parent)
             self._visit(clause.condition)
+            parent = self.flow.block
             self.flow.nextblock()
             self._visit(clause.body)
             if self.flow.block:
@@ -1014,8 +1027,9 @@ class ControlFlowAnalysis(CythonTransform):
                 if case.target_assignments:
                     self._visit(case.target_assignments)
                 if case.guard:
-                    guard_block = self.flow.nextblock()
+                    self.flow.nextblock()
                     self._visit(case.guard)
+                    guard_block = self.flow.block
                 else:
                     guard_block = None
                 self.flow.nextblock()
@@ -1031,6 +1045,9 @@ class ControlFlowAnalysis(CythonTransform):
                 orig_parent = self.flow.block
             else:
                 assert False, case
+
+        if guard_block:
+            guard_block.add_child(next_block)
 
         if orig_parent is not None:
             orig_parent.add_child(next_block)

@@ -353,3 +353,104 @@ def genexp_scope():
     i = 0
     # i needs to refer to the loop variable, not the function one
     return tuple(x for i in range(5) if (x := i))
+
+def return_x(x):
+    return x
+
+def in_try_block_1(x):
+    """
+    >>> in_try_block_1(True)
+    'Except return True'
+    >>> in_try_block_1(False)
+    'Normal return False'
+    """
+    try:
+        if (a := return_x(x)):
+            raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+
+def return_false():
+    return False
+
+def in_try_block_2(x):
+    """
+    >>> in_try_block_2(True)
+    'Except return True'
+    >>> in_try_block_2(False)
+    'Normal return False'
+    """
+    try:
+        if return_false():
+            raise RuntimeError
+        elif (a := return_x(x)):
+            raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def in_try_block_3(x):
+    """
+    >>> in_try_block_3(True)
+    'Except return True'
+    >>> in_try_block_3(False)
+    'Normal return False'
+    """
+    try:
+        if (a := return_x(x)):
+            raise RuntimeError
+        else:
+            pass
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def in_try_block_4(x):
+    """
+    >>> in_try_block_4(True)
+    'Normal return True'
+    >>> in_try_block_4(False)
+    'Except return False'
+    """
+    try:
+        if (a := return_x(x)):
+            pass
+        else:
+            raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def in_try_block_walrus_1(x):
+    """
+    >>> in_try_block_walrus_1(True)
+    'Except return True'
+    >>> in_try_block_walrus_1(False)
+    'Normal return False'
+    """
+    try:
+        match x:
+            case _ if (a := return_x(x)):
+                raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def in_try_block_walrus_2(x):
+    """
+    >>> in_try_block_walrus_2(True)
+    'Except return True'
+    >>> in_try_block_walrus_2(False)
+    'Normal return False'
+    """
+    try:
+        match x:
+            case _ if (a := return_x(x)):
+                raise RuntimeError
+            case _:
+                pass
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
