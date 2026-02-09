@@ -14994,6 +14994,7 @@ class CoerceToBooleanNode(CoercionNode):
         Builtin.list_type:       '__Pyx_PyList_GET_SIZE',
         Builtin.tuple_type:      '__Pyx_PyTuple_GET_SIZE',
         Builtin.set_type:        '__Pyx_PySet_GET_SIZE',
+        Builtin.dict_type:       '__Pyx_PyDict_GET_SIZE',
         Builtin.frozenset_type:  '__Pyx_PySet_GET_SIZE',
         Builtin.bytes_type:      '__Pyx_PyBytes_GET_SIZE',
         Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
