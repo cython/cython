@@ -8,7 +8,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                CompileError=object, UtilityCode=object, TempitaUtilityCode=object,
                StringEncoding=object, operator=object, local_errors=object, report_error=object,
                Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
-               list_type=object, tuple_type=object, set_type=object, dict_type=object,
+               list_type=object, tuple_type=object, set_type=object, dict_type=object, bool_type=object,
                unicode_type=object, bytes_type=object, type_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
@@ -42,7 +42,7 @@ from .PyrexTypes import c_char_ptr_type, py_object_type, typecast, error_type, \
 from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
-    unicode_type, bytes_type, bytearray_type,
+    unicode_type, bytes_type, bytearray_type, bool_type,
     slice_type, sequence_types as builtin_sequence_types, memoryview_type,
 )
 from . import Builtin
@@ -11726,7 +11726,11 @@ class TypecastNode(ExprNode):
             if not self.type.is_numeric and not self.type.is_cpp_class:
                 error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
         if to_py and not from_py:
-            if self.type is bytes_type and self.operand.type.is_int:
+            if self.type is bool_type:
+                # Allow "<bool>" to cast C values directly to Python bool.
+                # We explicitly exclude Python arguments here to keep the 'bool' type check.
+                return self.operand.coerce_to_boolean(env)
+            elif self.type is bytes_type and self.operand.type.is_int:
                 return CoerceIntToBytesNode(self.operand, env)
             elif self.operand.type.can_coerce_to_pyobject(env):
                 self.result_ctype = py_object_type
