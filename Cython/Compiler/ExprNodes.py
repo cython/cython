@@ -9,7 +9,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                StringEncoding=object, operator=object, local_errors=object, report_error=object,
                Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
                list_type=object, tuple_type=object, set_type=object, dict_type=object, bool_type=object,
-               unicode_type=object, bytes_type=object, type_type=object,
+               unicode_type=object, bytes_type=object, type_type=object, int_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
                bytearray_type=object, slice_type=object, memoryview_type=object,
@@ -42,7 +42,7 @@ from .PyrexTypes import c_char_ptr_type, py_object_type, typecast, error_type, \
 from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
-    unicode_type, bytes_type, bytearray_type, bool_type,
+    unicode_type, bytes_type, bytearray_type, int_type, bool_type,
     slice_type, sequence_types as builtin_sequence_types, memoryview_type,
 )
 from . import Builtin
@@ -11728,7 +11728,6 @@ class TypecastNode(ExprNode):
         if to_py and not from_py:
             if self.type is bool_type:
                 # Allow "<bool>" to cast C values directly to Python bool.
-                # We explicitly exclude Python arguments here to keep the 'bool' type check.
                 return self.operand.coerce_to_boolean(env)
             elif self.type is bytes_type and self.operand.type.is_int:
                 return CoerceIntToBytesNode(self.operand, env)
@@ -11756,9 +11755,17 @@ class TypecastNode(ExprNode):
         elif from_py and to_py:
             if self.typecheck:
                 self.operand = PyTypeTestNode(self.operand, self.type, env, notnone=True)
-            elif isinstance(self.operand, SliceIndexNode):
-                # This cast can influence the created type of string slices.
-                self.operand = self.operand.coerce_to(self.type, env)
+            else:
+                if self.type.is_builtin_type and self.operand.type.is_builtin_type and self.type != self.operand.type:
+                    if self.type is int_type and self.operand.type is bool_type:
+                        # 'bool' is an 'int' subclass, so this cast is not entirely useless.
+                        # It is difficult to test, though, because bool/int are shadowed by C bint/int.
+                        pass
+                    else:
+                        warning(self.pos, f"Cast from '{self.operand.type}' to '{self.type}' is invalid at runtime")
+                if isinstance(self.operand, SliceIndexNode):
+                    # This cast can influence the created type of string slices.
+                    self.operand = self.operand.coerce_to(self.type, env)
         elif self.type.is_complex and self.operand.type.is_complex:
             self.operand = self.operand.coerce_to_simple(env)
         elif self.operand.type.is_fused:

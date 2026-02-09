@@ -1,5 +1,16 @@
 # mode: run
-# tag: bool, bint, builtin
+# tag: bool, bint, builtin, warnings
+
+import cython
+
+
+def warn_about_invalid_cast_to_bool(x: list):
+    ok1 = <object> x
+    ok2 = <list> x
+    nok = <bool> x
+
+    return (ok1, ok2, nok)
+
 
 def cast_to_bool(x):
     """
@@ -9,11 +20,13 @@ def cast_to_bool(x):
     (1, 1)
     >>> cast_to_bool(2)
     (1, 1)
+    >>> cast_to_bool(100)
+    (1, 1)
     >>> cast_to_bool(-1)
     (1, 1)
     """
-    cdef int int_x = x
-    cdef signed char schar_x = x
+    int_x: cython.int = x
+    schar_x: cython.schar = x
 
     int_bool_int_x = <int> <bool> int_x
     int_bool_schar_x = <int> <bool> schar_x
@@ -30,6 +43,8 @@ def cast_bint_to_char(x):
     >>> cast_bint_to_char(2)
     1
     >>> cast_bint_to_char(256)
+    1
+    >>> cast_bint_to_char(12345)
     1
     """
     return <char> <bint> x
@@ -59,3 +74,8 @@ def call_arg_typing(x: bool):
     (True, 1, 1)
     """
     return (x, <char> x, <int> x)
+
+
+_WARNINGS = """
+10:10: Cast from 'list object' to 'bool object' is invalid at runtime
+"""
