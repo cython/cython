@@ -1085,11 +1085,12 @@ class ControlFlowAnalysis(CythonTransform):
 
     def visit_WhileStatNode(self, node):
         condition_block = self.flow.nextblock()
-        next_block = self.flow.newblock()
+        self.flow.newblock()
         # Condition block
-        self.flow.loops.append(LoopDescr(next_block, condition_block))
         if node.condition:
             self._visit(node.condition)
+        next_block = self.flow.block
+        self.flow.loops.append(LoopDescr(next_block, condition_block))
         # Body block
         self.flow.nextblock()
         self._visit(node.body)
@@ -1184,10 +1185,12 @@ class ControlFlowAnalysis(CythonTransform):
 
     def visit_ForInStatNode(self, node):
         condition_block = self.flow.nextblock()
-        next_block = self.flow.newblock()
+        self.flow.newblock()
         # Condition with iterator
-        self.flow.loops.append(LoopDescr(next_block, condition_block))
+        
         self._visit(node.iterator)
+        next_block = self.flow.block
+        self.flow.loops.append(LoopDescr(next_block, condition_block))
         # Target assignment
         self.flow.nextblock()
 
@@ -1261,13 +1264,14 @@ class ControlFlowAnalysis(CythonTransform):
 
     def visit_ForFromStatNode(self, node):
         condition_block = self.flow.nextblock()
-        next_block = self.flow.newblock()
+        self.flow.newblock()
         # Condition with iterator
-        self.flow.loops.append(LoopDescr(next_block, condition_block))
         self._visit(node.bound1)
         self._visit(node.bound2)
         if node.step is not None:
             self._visit(node.step)
+        next_block = self.flow.block
+        self.flow.loops.append(LoopDescr(next_block, condition_block))
         # Target assignment
         self.flow.nextblock()
         self.mark_assignment(node.target, node.bound1)
