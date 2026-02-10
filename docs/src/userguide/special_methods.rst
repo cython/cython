@@ -438,6 +438,9 @@ https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 | __ixor__ 	        | self, x 	                        | object      | `^=` operator                                       |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 
+
+.. _sequences_and_mappings:
+
 Sequences and mappings
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -457,7 +460,9 @@ https://docs.python.org/3/reference/datamodel.html#emulating-container-types
 | __contains__ 	        | self, x 	                        | int 	      | x in self                                           |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 
-To target specifically the sequence protocol (rather than the more general mapping protocol), implement the signatures as follows.
+To target specifically the sequence protocol (rather than the more general mapping protocol), use the class decorator
+``@cython.collection_type("sequence")`` (see :ref:`@collection_type() <collection_type>`)
+and implement the signatures as follows.
 This can avoid creating a Python integer object for the index when the indices are needed as C integers
 and happen to be already available as C integers by the callers.
 
