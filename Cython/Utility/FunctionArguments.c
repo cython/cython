@@ -936,7 +936,7 @@ static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_
 
 /////////////// fastcall ///////////////
 //@requires: ObjectHandling.c::TupleAndListFromArray
-//@requires: StringTools.c::UnicodeEquals
+//@requires: Optimize.c::UnicodeEquals
 
 #if CYTHON_METH_FASTCALL
 // kwnames: tuple with names of keyword arguments
@@ -966,7 +966,7 @@ static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyO
         #if !CYTHON_ASSUME_SAFE_MACROS
         if (unlikely(!namei)) return NULL;
         #endif
-        int eq = __Pyx_PyUnicode_Equals(s, namei, Py_EQ);
+        int eq = __Pyx_PyUnicode_Equals(s, namei);
         if (unlikely(eq != 0)) {
             if (unlikely(eq < 0)) return NULL;  /* error */
             return kwvalues[i];

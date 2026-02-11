@@ -2,12 +2,12 @@ import os
 import sys
 import re
 from io import StringIO
-from unittest import TestCase
 from unittest.mock import patch, Mock
 
 from .. import Options
 from ..CmdLine import parse_command_line
 
+from ...TestUtils import TimedTest
 from .Utils import backup_Options, restore_Options, check_global_options
 
 unpatched_exists = os.path.exists
@@ -28,8 +28,9 @@ def patched_exists(path):
         return True
     return unpatched_exists(path)
 
+
 @patch('os.path.exists', new=Mock(side_effect=patched_exists))
-class CmdLineParserTest(TestCase):
+class CmdLineParserTest(TimedTest):
     def setUp(self):
         self._options_backup = backup_Options()
 

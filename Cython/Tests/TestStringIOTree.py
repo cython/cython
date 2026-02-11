@@ -1,6 +1,5 @@
-import unittest
-
 from Cython import StringIOTree as stringtree
+from Cython.TestUtils import TimedTest
 
 code = """
 cdef int spam                   # line 1
@@ -23,10 +22,12 @@ cpdef bacon():
 
 linemap = dict(enumerate(code.splitlines()))
 
-class TestStringIOTree(unittest.TestCase):
+
+class TestStringIOTree(TimedTest):
 
     def setUp(self):
         self.tree = stringtree.StringIOTree()
+        super().setUp()
 
     def test_markers(self):
         assert not self.tree.allmarkers()

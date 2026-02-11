@@ -1947,17 +1947,17 @@ class UnicodeNode(ConstNode):
         bool_value = bool(self.value)
         return BoolNode(self.pos, value=bool_value)
 
-    def estimate_max_charval(self):
+    def get_ustring_kind(self):
         # Most strings will probably be ASCII.
         if self.value.isascii():
-            return 127
+            return 0
         max_charval = ord(max(self.value))
         if max_charval <= 255:
-            return 255
+            return 1
         elif max_charval <= 65535:
-            return 65535
+            return 2
         else:
-            return 1114111
+            return 4
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
@@ -3789,40 +3789,30 @@ class JoinedStrNode(ExprNode):
         num_items = len(self.values)
         use_stack_memory = num_items < 32
 
-        unknown_nodes = set()
-        max_char_value = 127
-        for node in self.values:
-            if isinstance(node, UnicodeNode):
-                max_char_value = max(max_char_value, node.estimate_max_charval())
-            elif (isinstance(node, FormattedValueNode) and
-                    node.c_format_spec != 'c' and node.value.type.is_numeric):
-                # formatted C numbers are always ASCII
-                pass
-            elif isinstance(node, CloneNode):
-                # we already know the result
-                pass
-            else:
-                unknown_nodes.add(node)
+        known_length = 0
+        unknown_lengths = []
+        unknown_nodes = []
+        ustring_kind = 0
 
-        length_parts = []
-        counts = {}
-        charval_parts = [str(max_char_value)]
-        for node in self.values:
+        for i, node in enumerate(self.values):
             node.generate_evaluation_code(code)
 
             if isinstance(node, UnicodeNode):
-                length_part = str(len(node.value))
-            else:
-                # TODO: add exception handling for these macro calls if not ASSUME_SAFE_SIZE/MACROS
-                length_part = f"__Pyx_PyUnicode_GET_LENGTH({node.py_result()})"
-                if node in unknown_nodes:
-                    charval_parts.append(f"__Pyx_PyUnicode_MAX_CHAR_VALUE({node.py_result()})")
+                ustring_kind = max(ustring_kind, node.get_ustring_kind())
+                known_length += len(node.value)
+                continue
 
-            if length_part in counts:
-                counts[length_part] += 1
+            unknown_lengths.append(i)
+
+            if (isinstance(node, FormattedValueNode) and
+                    node.c_format_spec != 'c' and node.value.type.is_numeric):
+                # Formatted C numbers are always ASCII.
+                pass
+            elif isinstance(node, CloneNode):
+                # We already know the result, but we still need the length.
+                pass
             else:
-                length_parts.append(length_part)
-                counts[length_part] = 1
+                unknown_nodes.append(i)
 
         if use_stack_memory:
             values_array = code.funcstate.allocate_temp(
@@ -3838,23 +3828,65 @@ class JoinedStrNode(ExprNode):
         for i, node in enumerate(self.values):
             code.putln('%s[%d] = %s;' % (values_array, i, node.py_result()))
 
-        length_parts = [
-            f"{part} * {counts[part]}" if counts[part] > 1 else part
-            for part in length_parts
-        ]
+        def aggregate(indices, result_temp, initial_value, cfunc_name, operator):
+            assert operator in '+|', operator
+            code.putln(f"{result_temp} = {initial_value};")
+            if not indices:
+                return
+
+            code.putln("#if __Pyx_PyUnicode_Join_CAN_USE_KIND_AND_LENGTH")
+
+            if len(indices) == 1:
+                code.putln(f"{result_temp} {operator}= {cfunc_name}({values_array}[{indices[0]}]);")
+                code.putln("#endif")
+                return
+
+            index_count = len(indices)
+            if index_count > 3:
+                # Reduce code overhead for some common patterns.
+                steps = {indices[i] - indices[i-1] for i in range(1, index_count)}
+                if steps < {1, 2}:
+                    # steps all 1 => placeholder concatenation, all included
+                    # steps all 2 => alternating between text and placeholders
+                    step = steps.pop()
+                    min_index, max_index = indices[0], indices[-1]
+                    assert indices == list(range(min_index, max_index+1, step)), indices
+
+                    code.putln(f"for (Py_ssize_t i={min_index}; i <= {max_index}; i += {step}) ""{")
+                    code.putln(f"{result_temp} {operator}= {cfunc_name}({values_array}[i]);")
+                    code.putln("}")
+                    code.putln("#endif")
+                    return
+
+            expressions = [f"{cfunc_name}({values_array}[{i}])" for i in indices]
+            result = f' {operator} '.join(expressions)
+            code.putln(f"{result_temp} {operator}= {result};")
+            code.putln("#endif")
 
         code.mark_pos(self.pos)
+
+        # Assume that getting the length of an exact Unicode string object will not fail.
+        length_temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+        aggregate(unknown_lengths, length_temp, known_length, "__Pyx_PyUnicode_GET_LENGTH", '+')
+
+        ukind_temp = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
+        if ustring_kind == 4:
+            # Cannot get larger.
+            code.putln(f"{ukind_temp} = 4;")
+        else:
+            # or-ing isn't entirely correct here since it can produce value 3 from 1|2,
+            # but we handle that in __Pyx_PyUnicode_Join().
+            aggregate(unknown_nodes, ukind_temp, ustring_kind, "__Pyx_PyUnicode_KIND_04", '|')
+
         self.allocate_temp_result(code)
+
         code.globalstate.use_utility_code(UtilityCode.load_cached("JoinPyUnicode", "StringTools.c"))
-        code.putln('%s = __Pyx_PyUnicode_Join(%s, %d, %s, %s);' % (
-            self.result(),
-            values_array,
-            num_items,
-            ' + '.join(length_parts),
-            # or-ing isn't entirely correct here since it can produce values > 1114111,
-            # but we crop that in __Pyx_PyUnicode_Join().
-            ' | '.join(charval_parts),
-        ))
+        code.putln(
+            f'{self.result()} = __Pyx_PyUnicode_Join({values_array}, {num_items:d}, {length_temp}, {ukind_temp});'
+        )
+
+        code.funcstate.release_temp(ukind_temp)
+        code.funcstate.release_temp(length_temp)
 
         if not use_stack_memory:
             code.putln("PyMem_Free(%s);" % values_array)
@@ -10695,11 +10727,9 @@ class CodeObjectNode(ExprNode):
 
         func_name_result = code.get_py_string_const(func.name, identifier=True)
         # FIXME: better way to get the module file path at module init time? Encoding to use?
-        file_path = func.pos[0].get_filenametable_entry()
-        if os.path.isabs(file_path):
-            file_path = func.pos[0].get_description()
+        file_path = func.pos[0].get_relative_path()
         # Always use / as separator
-        file_path = StringEncoding.EncodedString(pathlib.Path(file_path).as_posix())
+        file_path = StringEncoding.EncodedString(file_path.as_posix())
         file_path_result = code.get_py_string_const(file_path)
 
         if func.node_positions:
@@ -13289,7 +13319,7 @@ class PowNode(NumBinopNode):
         if (self.type.is_pyobject and
                 self.operand1.constant_result == 2 and
                 isinstance(self.operand1.constant_result, int) and
-                self.operand2.type is py_object_type):
+                self.operand2.type in (py_object_type, Builtin.int_type)):
             code.globalstate.use_utility_code(UtilityCode.load_cached('PyNumberPow2', 'Optimize.c'))
             if self.inplace:
                 return '__Pyx_PyNumber_InPlacePowerOf2'
@@ -13951,6 +13981,7 @@ class CmpNode:
                         self.special_bool_cmp_utility_code = TempitaUtilityCode.load_cached(
                             "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': True})
                         self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_ch{character}_{'str' if is_str else 'obj'}"
+                        return True
                     elif self.operand2.is_string_literal and self.operand2.can_coerce_to_char_literal():
                         # We need to keep the signature (obj1, obj2, eq), so we generate one macro function per character.
                         character = ord(self.operand2.value[0])
@@ -13958,14 +13989,7 @@ class CmpNode:
                         self.special_bool_cmp_utility_code = TempitaUtilityCode.load_cached(
                             "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': False})
                         self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_{'str' if is_str else 'obj'}_ch{character}"
-                    else:
-                        self.special_bool_cmp_utility_code = UtilityCode.load_cached("UnicodeEquals", "StringTools.c")
-                        self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
-                    return True
-                elif type1 is Builtin.bytes_type or type2 is Builtin.bytes_type:
-                    self.special_bool_cmp_utility_code = UtilityCode.load_cached("BytesEquals", "StringTools.c")
-                    self.special_bool_cmp_function = "__Pyx_PyBytes_Equals"
-                    return True
+                        return True
                 elif result_is_bool:
                     from .Optimize import optimise_numeric_binop
                     result = optimise_numeric_binop(
@@ -14005,11 +14029,19 @@ class CmpNode:
                 return True
         return False
 
+    _optimised_compare_types = {
+        py_object_type,
+        Builtin.int_type,
+        Builtin.float_type,
+        Builtin.unicode_type,
+        Builtin.bytes_type,
+        Builtin.bytearray_type,
+    }
+
     def find_compare_function(self, code, operand1):
         if self.operator in ('==', '!=', '<', '<=', '>=', '>'):
             type1, type2 = operand1.type, self.operand2.type
-            if {type1, type2} < {py_object_type, Builtin.int_type, Builtin.float_type}:
-                type_names = (type1.name, type2.name)
+            if {type1, type2} < self._optimised_compare_types:
                 op_name = {'==': 'Eq', '!=': 'Ne', '<': 'Lt', '<=': 'Le', '>=': 'Ge', '>': 'Gt'}[self.operator]
                 code.globalstate.use_utility_code(TempitaUtilityCode.load_cached(
                     "PyObjectCompare", "Optimize.c", context={
@@ -14017,7 +14049,7 @@ class CmpNode:
                         'type2': type2.name,
                         'c_op': self.operator,
                         'op': op_name,
-                        'ret_type': self.type,
+                        'return_obj': self.type.is_pyobject,
                     }))
                 return f"__Pyx_PyObject_Compare{'' if self.type.is_pyobject else 'Bool'}{op_name}_{type1.name}_{type2.name}"
 
@@ -14821,6 +14853,13 @@ class CoerceToPyTypeNode(CoercionNode):
                 self.type = unicode_type
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
+            elif arg.type.equivalent_type is not None and arg.type.equivalent_type.is_pyobject:
+                # Includes bint.
+                self.type = arg.type.equivalent_type
+            elif arg.type.is_int:
+                self.type = Builtin.int_type
+            elif arg.type.is_float:
+                self.type = Builtin.float_type
             self.target_type = self.type
         elif arg.type.is_string or arg.type.is_cpp_string:
             if (type not in (bytes_type, bytearray_type)
@@ -14980,6 +15019,7 @@ class CoerceToBooleanNode(CoercionNode):
         Builtin.list_type:       '__Pyx_PyList_GET_SIZE',
         Builtin.tuple_type:      '__Pyx_PyTuple_GET_SIZE',
         Builtin.set_type:        '__Pyx_PySet_GET_SIZE',
+        Builtin.dict_type:       '__Pyx_PyDict_GET_SIZE',
         Builtin.frozenset_type:  '__Pyx_PySet_GET_SIZE',
         Builtin.bytes_type:      '__Pyx_PyBytes_GET_SIZE',
         Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
