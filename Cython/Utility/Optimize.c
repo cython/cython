@@ -1194,13 +1194,7 @@ static PyObject* __Pyx_{{op_name}}_xfloat_{{type2}}(PyObject *op1, PyObject *op2
             }
             Py_DECREF(result);
         }
-        {{if c_op == '+'}}
-        // Adding a number to a sequence is rather unusual.
-        slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_concat, binaryfunc);
-        if (slot_func) {
-            return slot_func(op1, op2);
-        }
-        {{endif}}
+        // No "sq_concat" since Python doesn't try it on op2 and 'float' definitely doesn't have it.
 
         __Pyx_BinopTypeError(op1, op2, "{{c_op}}", inplace);
         return NULL;
@@ -1256,13 +1250,8 @@ static PyObject* __Pyx_{{op_name}}_xint_{{type2}}(PyObject *op1, PyObject *op2, 
             }
             Py_DECREF(result);
         }
-        {{if c_op == '+'}}
-        // Adding a number to a sequence is rather unusual.
-        slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_concat, binaryfunc);
-        if (slot_func) {
-            return slot_func(op1, op2);
-        }
-        {{elif c_op == '*'}}
+        // No "sq_concat" since Python doesn't try it on op2 and 'int' definitely doesn't have it.
+        {{if c_op == '*'}}
         ssizeargfunc repeat_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_repeat, ssizeargfunc);
         if (likely(repeat_func)) {
             Py_ssize_t count;
