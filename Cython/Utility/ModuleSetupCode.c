@@ -1425,12 +1425,15 @@ if (likely(__Pyx_init_co_variables() == 0)); else
 
 #ifndef CYTHON_NO_PYINIT_EXPORT
   #define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
+  #define __Pyx_PyMODEXPORT_FUNC PyMODEXPORT_FUNC
 #else
   // define this to PyObject * manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
   #ifdef __cplusplus
   #define __Pyx_PyMODINIT_FUNC extern "C" PyObject *
+  #define __Pyx_PyMODEXPORT_FUNC extern "C" PyModuleDef_Slot*
   #else
   #define __Pyx_PyMODINIT_FUNC PyObject *
+  #define __Pyx_PyMODEXPORT_FUNC PyModuleDef_Slot*
   #endif
 #endif
 
