@@ -1141,29 +1141,38 @@ static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op, i
 static PyObject* __Pyx_{{op_name}}_xfloat_{{type2}}(PyObject *op1, PyObject *op2, int inplace) {
     {{if type2 in ('object', 'int')}}
     if ({{is_type('op2', 'int')}}) {
+        double int_op2;
+        #if CYTHON_USE_PYLONG_INTERNALS
+        if (__Pyx_PyLong_IsCompact(op2)) {
+            Py_ssize_t compact_op2 = __Pyx_PyLong_CompactValue(op2);
+            {{if c_op in '+-'}}
+            if (compact_op2 == 0) return __Pyx_NewRef(op1);
+            {{endif}}
+            int_op2 = (double) compact_op2;
+        } else
+        #endif
+        {
+            int_op2 = PyLong_AsDouble(op2);
+            if (unlikely((int_op2 == -1.) && PyErr_Occurred())) return NULL;
+
+            {{if c_op in '+-'}}
+            #if !CYTHON_USE_PYLONG_INTERNALS
+            if (int_op2 == 0.) return __Pyx_NewRef(op1);
+            #endif
+            {{endif}}
+        }
+
         double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
         #if !CYTHON_ASSUME_SAFE_MACROS
         if (unlikely((float_op1 == -1.) && PyErr_Occurred())) return NULL;
         #endif
 
         {{if c_op == '*'}}
+        // "0 * op2" could be handled before extracting op2, but that has the potential
+        // to fail for very large numbers in op2 and we'd like to keep that error.
         if (float_op1 == 0.) return __Pyx_NewRef(op1);
         {{endif}}
 
-        double int_op2;
-        #if CYTHON_USE_PYLONG_INTERNALS
-        if (__Pyx_PyLong_IsCompact(op2)) {
-            int_op2 = (double) __Pyx_PyLong_CompactValue(op2);
-        } else
-        #endif
-        {
-            int_op2 = PyLong_AsDouble(op2);
-            if (unlikely((int_op2 == -1.) && PyErr_Occurred())) return NULL;
-        }
-
-        {{if c_op in '+-'}}
-        if (int_op2 == 0.) return __Pyx_NewRef(op1);
-        {{endif}}
         return PyFloat_FromDouble(float_op1 {{c_op}} int_op2);
     }
     {{endif}}
@@ -1217,12 +1226,22 @@ static PyObject* __Pyx_{{op_name}}_xint_{{type2}}(PyObject *op1, PyObject *op2, 
         double int_op1;
         #if CYTHON_USE_PYLONG_INTERNALS
         if (__Pyx_PyLong_IsCompact(op1)) {
-            int_op1 = (double) __Pyx_PyLong_CompactValue(op1);
+            Py_ssize_t compact_op1 = __Pyx_PyLong_CompactValue(op1);
+            {{if c_op == '+'}}
+            if (compact_op1 == 0) return __Pyx_NewRef(op2);
+            {{endif}}
+            int_op1 = (double) compact_op1;
         } else
         #endif
         {
             int_op1 = PyLong_AsDouble(op1);
             if (unlikely((int_op1 == -1.) && PyErr_Occurred())) return NULL;
+
+            {{if c_op == '+'}}
+            #if !CYTHON_USE_PYLONG_INTERNALS
+            if (int_op1 == 0.) return __Pyx_NewRef(op2);
+            #endif
+            {{endif}}
         }
 
         double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
@@ -1230,7 +1249,7 @@ static PyObject* __Pyx_{{op_name}}_xint_{{type2}}(PyObject *op1, PyObject *op2, 
         if (unlikely((float_op2 == -1.) && PyErr_Occurred())) return NULL;
         #endif
 
-        return PyFloat_FromDouble((double) int_op1 {{c_op}} float_op2);
+        return PyFloat_FromDouble(int_op1 {{c_op}} float_op2);
     }
     {{endif}}
 
