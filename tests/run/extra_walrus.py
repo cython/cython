@@ -454,7 +454,7 @@ def case_in_try_block_2(x):
         return f'Normal return {a}'
     except:
         return f'Except return {a}'
-    
+
 def match_in_try_block_2(x):
     """
     >>> match_in_try_block_2(True)
@@ -463,7 +463,10 @@ def match_in_try_block_2(x):
     'Normal return False'
     """
     try:
-        match (a := return_x(x)):
+        # Note that pycodestyle on older versions of Python
+        # enforces a weird spacing here and can't be turned
+        # off with noqa.  Undo this in future...
+        match(a := return_x(x)):
             case True:
                 raise RuntimeError
         return f'Normal return {a}'
@@ -501,11 +504,11 @@ def except_in_try_block(x):
             raise RuntimeError()
         except:
             pass
-            
+
         return f'Normal return {a.__name__}'
     except Exception:
         return f'Except return {a.__name__}'
-    
+
 def for_in_try_block_1(x):
     """
     >>> for_in_try_block_1(10)
@@ -516,11 +519,11 @@ def for_in_try_block_1(x):
     try:
         for x in range(a := x):
             raise RuntimeError()
-        
+
         return f'Normal return {a}'
     except Exception:
         return f'Except return {a}'
-    
+
 def for_in_try_block_2(x):
     """
     >>> for_in_try_block_2(10)
@@ -531,11 +534,11 @@ def for_in_try_block_2(x):
     try:
         for x in (a := return_x(range(x))):
             raise RuntimeError()
-        
+
         return f'Normal return {a.stop}'
     except Exception:
         return f'Except return {a.stop}'
-    
+
 class ContextManager:
     def __init__(self, value):
         self.value = value
