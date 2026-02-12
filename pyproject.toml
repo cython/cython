@@ -2,7 +2,7 @@
 requires = ["setuptools"]
 
 [tool.cibuildwheel]
-requires-python = ">=3.9"
+project-requires-python = ">=3.9"
 build-verbosity = 2
 skip = [
     # These platforms are served with the generic Python wheel:
