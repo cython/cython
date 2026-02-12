@@ -2,9 +2,10 @@
 requires = ["setuptools"]
 
 [tool.cibuildwheel]
-project-requires-python = ">=3.9"
 build-verbosity = 2
 skip = [
+    # Unsupported versions:
+    "cp36*", "cp37*", "cp38*",
     # These platforms are served with the generic Python wheel:
     "pp*",
     "gp*",
