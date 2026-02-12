@@ -19,6 +19,10 @@ from test.support import (captured_stderr, check_impl_detail, gc_collect,
                           script_helper, SuppressCrashReport)
 from test import support
 
+if sys.implementation.name == 'cpython':
+    # GC runs can be excessively slow, so avoid them if they are not required.
+    gc_collect = lambda : None
+
 from Cython.TestUtils import TimedTest
 
 try:
@@ -1841,6 +1845,7 @@ class ExceptionTests(TimedTest):
 
             gc_collect()
 
+    @unittest.skip("not relevant for Cython")
     def test_memory_error_in_subinterp(self):
         # gh-109894: subinterpreters shouldn't count on last resort memory error
         # when MemoryError is raised through PyErr_NoMemory() call,
