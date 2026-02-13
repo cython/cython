@@ -232,6 +232,10 @@ Further pointer types can be constructed with ``cython.pointer[cython.int]``
 and arrays as ``cython.int[10]``. A limited attempt is made to emulate these
 more complex types, but only so much can be done from the Python language.
 
+Pure python mode also supports type qualifiers ``const`` and ``volatile``,
+which can be applied using ``cython.const[cython.int]`` and
+``cython.volatile[cython.int]``. For more details see :ref:`type_qualifiers` section.
+
 The Python types int, long and bool are interpreted as C ``int``, ``long``
 and ``bint`` respectively. Also, the Python builtin types ``list``, ``dict``,
 ``tuple``, etc. may be used, as well as any user defined types.
