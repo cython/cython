@@ -9,7 +9,7 @@ import decimal
 import unittest
 import re
 import contextlib
-import sys
+import platform
 
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
@@ -769,6 +769,9 @@ y = (
 """, # this is equivalent to f'{}'
                              ])
 
+    @unittest.skipIf(
+        platform.python_implementation() == 'GraalVM',
+        "Intermittent 'returned NULL without an exception set'")
     def test_many_expressions(self):
         # Create a string with many expressions in it. Note that
         #  because we have a space in here as a literal, we're actually
@@ -1656,8 +1659,7 @@ y = (
             self.fragment("f'{a $ b}'")
 
     def test_with_two_commas_in_format_specifier(self):
-        error_msg = (re.escape("Cannot specify ',' with ','.")
-            if sys.version_info >= (3, 9) else "Cannot specify .*")
+        error_msg = re.escape("Cannot specify ',' with ','.")
         with self.assertRaisesRegex(ValueError, error_msg):
             f'{1:,,}'
 

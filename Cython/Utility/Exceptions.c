@@ -18,6 +18,11 @@ if (likely(__Pyx_init_assertions_enabled() == 0)); else
   static int __pyx_assertions_enabled_flag;
   #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)
 
+  #if __clang__ || __GNUC__
+  // "Assertions enabled" may be written multiple times when using subinterpreters.
+  // However, it should always be written to the same value to isn't a "real" race.
+  __attribute__((no_sanitize("thread")))
+  #endif
   static int __Pyx_init_assertions_enabled(void) {
     PyObject *builtins, *debug, *debug_str;
     int flag;
@@ -884,7 +889,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     // frame, and then customizing the details of the code to match.
     // We then run the code object and use the generated frame to set the traceback.
 
-    PyErr_Fetch(&exc_type, &exc_value, &exc_traceback);
+    __Pyx_PyErr_FetchException(&exc_type, &exc_value, &exc_traceback);
 
     code_object = $global_code_object_cache_find(c_line ? -c_line : py_line);
     if (!code_object) {
@@ -924,7 +929,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     success = 1;
 
   bad:
-    PyErr_Restore(exc_type, exc_value, exc_traceback);
+    __Pyx_PyErr_RestoreException(exc_type, exc_value, exc_traceback);
     Py_XDECREF(code_object);
     Py_XDECREF(py_py_line);
     Py_XDECREF(py_funcname);

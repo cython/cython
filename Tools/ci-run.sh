@@ -7,7 +7,7 @@ GCC_VERSION=${GCC_VERSION:=10}
 # Set up compilers
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   echo "Skipping compiler setup: Code style run"
-elif [[ $OSTYPE == "linux-gnu"* ]]; then
+elif [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
@@ -77,19 +77,20 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ $PYTHON_VERSION == "3.1"[2-9]* || $PYTHON_VERSION == *"-dev" || $PYTHON_VERSION == "pypy-3.11" ]]; then
+if [[ $PYTHON_VERSION == "3.1"[2-9]* || $PYTHON_VERSION == *"-dev" || $PYTHON_VERSION == "pypy-3.11" || $PYTHON_VERSION == "graalpy"* ]]; then
   python -m pip install -U pip wheel setuptools || exit 1
 else
   # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.10.
-  python -m pip install -U pip "setuptools<60" wheel twine "cryptography<42" "nh3<0.2.19" || exit 1
+  python -m pip install -U pip "setuptools<60" "wheel<0.46" "twine" "cryptography<42" "nh3<0.2.19" || exit 1
 fi
-if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" ]]; then
+if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" && $PYTHON_VERSION != "graalpy"* ]]; then
   # twine is not installable on freethreaded Python due to cryptography requirement
+  # On GraalPython, it is useless and takes long to install due to its binary dependencies.
   python -m pip install -U twine || exit 1
 fi
 if [[ $PYTHON_VERSION != *"-dev" ]]; then
   python -m pip install --pre -r test-requirements.txt || exit 1
-else
+elif [[ ! "$SANITIZER_CFLAGS" ]]; then
   # Install packages one by one, allowing failures due to missing recent wheels.
   cat test-requirements.txt | while read package; do python -m pip install --pre --only-binary ":all:" "$package" || true; done
 fi
@@ -112,9 +113,10 @@ else
       python -m pip install pythran || exit 1
     fi
 
-    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* ]]; then
+    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
       python -m pip install mypy || exit 1
     fi
+
   fi
 fi
 
@@ -133,7 +135,7 @@ if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
   # (off by default) 5045 warns that the compiler will insert Spectre mitigations for memory load if the /Qspectre switch is specified
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
   CFLAGS="-Od /Z7 /MP /W4 /wd4711 /wd4127 /wd5045 /wd4820"
-elif [[ $OSTYPE == "darwin"* ]]; then
+elif [[ $OSTYPE == "darwin"* || $CC == "clang" ]]; then
   CFLAGS="-O0 -g2 -Wall -Wextra -Wcast-qual -Wconversion -Wdeprecated -Wunused-result"
 else
   CFLAGS="-Og -g2 -Wall -Wextra -Wcast-qual -Wconversion -Wdeprecated -Wunused-result"
@@ -147,6 +149,10 @@ if [[ $BACKEND == *"cpp"* && $ODD_VERSION == "1" ]]; then
     CFLAGS="$CFLAGS -UNDEBUG"
 elif [[ $ODD_VERSION == "0" ]]; then
     CFLAGS="$CFLAGS -UNDEBUG"
+fi
+
+if [[ "$SANITIZER_CFLAGS" ]]; then
+    CFLAGS="$CFLAGS $SANITIZER_CFLAGS"
 fi
 
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
@@ -206,25 +212,30 @@ elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
   fi
 fi
 
+if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+  # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
+  # JIT actually makes it faster! And reduces the number of cores each process uses.
+  GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
+  TEST_PARALLELISM=-j2
+fi
+
 RUNTESTS_ARGS=""
 if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --coverage-md --cython-only"
 fi
 if [[ $TEST_CODE_STYLE != "1" ]]; then
-  RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
+  if [[ ! $TEST_PARALLELISM ]]; then
+    TEST_PARALLELISM=-j7
+  fi
+  RUNTESTS_ARGS="$RUNTESTS_ARGS $TEST_PARALLELISM"
 fi
 
-if [[ $PYTHON_VERSION == "graalpy"* ]]; then
-  # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
-  # JIT actually makes it faster! And reduces the number of cores each process uses.
-  export GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
-fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
-if [[ $PYTHON_VERSION == "3.13t" ]]; then
+if [[ $PYTHON_VERSION == *"t" ]]; then
   export PYTHON_GIL=0
 fi
-python runtests.py \
+python $GRAAL_PYTHON_ARGS runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \
   --backends=$BACKEND \

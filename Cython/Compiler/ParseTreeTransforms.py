@@ -1373,7 +1373,8 @@ class InterpretCompilerDirectives(CythonTransform):
                                 error(dec.pos, "Cannot apply @cfunc to @ufunc, please reverse the decorators.")
                             directives.append(directive)
                             current_opt_dict[name] = value
-                        else:
+                        elif name not in ['profile', 'linetrace']:
+                            # Exclude some decorators that people may leave around, but warn about useless ones.
                             warning(dec.pos, "Directive does not change previous value (%s%s)" % (
                                 name, '=%r' % value if value is not None else ''))
                         if directive[0] == 'staticmethod':
@@ -1397,6 +1398,8 @@ class InterpretCompilerDirectives(CythonTransform):
                 elif isinstance(old_value, list):
                     old_value.extend(value)
                 else:
+                    if name == "collection_type" and value != optdict[name]:
+                        error(node.pos, "Multiple values of collection_type are not supported")
                     optdict[name] = value
             else:
                 optdict[name] = value
@@ -2120,23 +2123,29 @@ class AnalyseDeclarationsTransform(EnvTransform):
     basic_property = TreeFragment("""
 property NAME:
     def __get__(self):
-        return ATTR
+        with CRITICAL_SECTION(self):
+            return ATTR
     def __set__(self, value):
-        ATTR = value
+        with CRITICAL_SECTION(self):
+            ATTR = value
     """, level='c_class', pipeline=[NormalizeTree(None)])
     basic_pyobject_property = TreeFragment("""
 property NAME:
     def __get__(self):
-        return ATTR
+        with CRITICAL_SECTION(self):
+            return ATTR
     def __set__(self, value):
-        ATTR = value
+        with CRITICAL_SECTION(self):
+            ATTR = value
     def __del__(self):
-        ATTR = None
+        with CRITICAL_SECTION(self):
+            ATTR = None
     """, level='c_class', pipeline=[NormalizeTree(None)])
     basic_property_ro = TreeFragment("""
 property NAME:
     def __get__(self):
-        return ATTR
+        with CRITICAL_SECTION(self):
+            return ATTR
     """, level='c_class', pipeline=[NormalizeTree(None)])
 
     struct_or_union_wrapper = TreeFragment("""
@@ -2323,15 +2332,16 @@ if VALUE is not None:
 
             members = ', '.join(f'self.{v}' for v in all_members_names) + (',' if len(all_members_names) == 1 else '')
             # Even better, we could check PyType_IS_GC.
-            any_notnone_members = ' or '.join([f'self.{e.name} is not None' for e in all_members if e.type.is_pyobject] or ['False']),
+            any_notnone_members = ' or '.join([f'self.{e.name} is not None' for e in all_members if e.type.is_pyobject] or ['False'])
 
             pickle_code = f"""
                 def __reduce_cython__(self):
                     cdef tuple state
                     cdef object _dict
                     cdef bint use_setstate
-                    state = ({members})
-                    _dict = getattr(self, '__dict__', None)
+                    with CRITICAL_SECTION(self):
+                        state = ({members})
+                        _dict = getattr(self, '__dict__', None)
                     if _dict is not None and _dict:
                         state += (_dict,)
                         use_setstate = True
@@ -2346,7 +2356,10 @@ if VALUE is not None:
                     {unpickle_func_name}__set_state(self, __pyx_state)
             """
 
-            pickle_func = TreeFragment(pickle_code, level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
+            pickle_func = TreeFragment(pickle_code, level='c_class', pipeline=[NormalizeTree(None)]).substitute(
+                {'CRITICAL_SECTION': self._create_critical_section_name_node(node.scope, node.pos)}
+            )
+            pickle_func = InterpretCompilerDirectives(None, {})(pickle_func)
             pickle_func.analyse_declarations(node.scope)
 
             self.enter_scope(node, node.scope)  # functions should be visited in the class scope
@@ -2713,9 +2726,11 @@ if VALUE is not None:
                 "ATTR": ExprNodes.AttributeNode(pos=entry.pos,
                                                 obj=ExprNodes.NameNode(pos=entry.pos, name="self"),
                                                 attribute=entry.name),
+                "CRITICAL_SECTION": self._create_critical_section_name_node(self.current_env(), entry.pos)
             },
-            pos=entry.pos,
+            pos=entry.pos
         ).stats[0]
+        property = InterpretCompilerDirectives(None, {})(property)
         property.name = entry.name
         property.doc = entry.doc
         return property
@@ -2725,18 +2740,24 @@ if VALUE is not None:
         node.analyse_declarations(self.current_env())
         return node
 
+    def _create_critical_section_name_node(self, env, pos):
+        return ExprNodes.NameNode(
+            pos,
+            name="critical_section",
+            cython_attribute="critical_section"
+        )
+
 
 def _calculate_pickle_checksums(member_names):
     # Cython 0.x used MD5 for the checksum, which a few Python installations remove for security reasons.
     # SHA-256 should be ok for years to come, but early Cython 3.0 alpha releases used SHA-1,
     # which may not be.
     member_names_string = ' '.join(member_names).encode('utf-8')
-    hash_kwargs = {'usedforsecurity': False} if sys.version_info >= (3, 9) else {}
     checksums = []
     for algo_name in ['sha256', 'sha1', 'md5']:
         try:
             mkchecksum = getattr(hashlib, algo_name)
-            checksum = mkchecksum(member_names_string, **hash_kwargs).hexdigest()
+            checksum = mkchecksum(member_names_string, usedforsecurity=False).hexdigest()
         except (AttributeError, ValueError):
             # The algorithm (i.e. MD5) might not be there at all, or might be blocked at runtime.
             continue
@@ -3138,6 +3159,11 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             value = self.directives["critical_section"]
             if value is not None:
                 error(node.pos, "critical_section decorator does not take arguments")
+            if self.in_py_class:
+                warning(
+                    node.pos,
+                    "@critical_section on method of a class that is not an extension type is unlikely to be useful",
+                    2)
             new_body = Nodes.CriticalSectionStatNode(
                 node.pos,
                 args=[ExprNodes.FirstArgumentForCriticalSectionNode(node.pos, func_node=node)],
@@ -3392,16 +3418,16 @@ class MarkClosureVisitor(CythonTransform):
     # generator iterable and marking them
 
     def visit_ModuleNode(self, node):
-        self.needs_closure = False
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         self.excludes = []
         self.visitchildren(node)
         return node
 
     def visit_FuncDefNode(self, node):
-        self.needs_closure = False
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         self.visitchildren(node)
         node.needs_closure = self.needs_closure
-        self.needs_closure = True
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
 
         collector = YieldNodeCollector(self.excludes)
         collector.visitchildren(node)
@@ -3439,27 +3465,31 @@ class MarkClosureVisitor(CythonTransform):
             gbody=gbody, lambda_name=node.lambda_name,
             return_type_annotation=node.return_type_annotation,
             is_generator_expression=node.is_generator_expression)
+        if node.needs_closure:
+            # We may have determined that we need a "full closure"
+            # so upgrade the coroutine to signal that
+            coroutine.needs_closure = node.needs_closure
         return coroutine
 
     def visit_CFuncDefNode(self, node):
-        self.needs_closure = False
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         self.visitchildren(node)
         node.needs_closure = self.needs_closure
-        self.needs_closure = True
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         if node.needs_closure and node.overridable:
             error(node.pos, "closures inside cpdef functions not yet supported")
         return node
 
     def visit_LambdaNode(self, node):
-        self.needs_closure = False
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         self.visitchildren(node)
         node.needs_closure = self.needs_closure
-        self.needs_closure = True
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         return node
 
     def visit_ClassDefNode(self, node):
         self.visitchildren(node)
-        self.needs_closure = True
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         return node
 
     def visit_GeneratorExpressionNode(self, node):
@@ -3519,7 +3549,7 @@ class CreateClosureClasses(CythonTransform):
         in_closure.sort()
 
         # Now from the beginning
-        node.needs_closure = False
+        node.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         node.needs_outer_scope = False
 
         func_scope = node.local_scope
@@ -3585,7 +3615,7 @@ class CreateClosureClasses(CythonTransform):
                 is_cdef=True)
             if entry.is_declared_generic:
                 closure_entry.is_declared_generic = 1
-        node.needs_closure = True
+        node.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         # Do it here because other classes are already checked
         target_module_scope.check_c_class(func_scope.scope_class)
 
@@ -3695,6 +3725,7 @@ class GilCheck(VisitorTransform):
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil_state = Nodes.NoGilState.HasGil
+        self.in_critical_section = False
 
         self.nogil_state_at_current_gilstatnode = Nodes.NoGilState.HasGil
         return super().__call__(root)
@@ -3722,7 +3753,9 @@ class GilCheck(VisitorTransform):
         if inner_nogil and node.nogil_check:
             node.nogil_check(node.local_scope)
 
+        in_critical_section, self.in_critical_section = self.in_critical_section, False
         self._visit_scoped_children(node, self.nogil_state)
+        self.in_critical_section = in_critical_section
 
         # FuncDefNodes can be nested, because a cpdef function contains a def function
         # inside it. Therefore restore to previous state
@@ -3819,7 +3852,10 @@ class GilCheck(VisitorTransform):
 
     def visit_CriticalSectionStatNode(self, node):
         # skip normal "try/finally node" handling
-        return self.visit_Node(node)
+        in_critical_section, self.in_critical_section = self.in_critical_section, True
+        result = self.visit_Node(node)
+        self.in_critical_section = in_critical_section
+        return result
 
     def visit_CythonLockStatNode(self, node):
         # skip normal "try/finally node" handling
@@ -3861,6 +3897,14 @@ class GilCheck(VisitorTransform):
                     node.function.type,
                     args=[node.self],
                 )
+        return self.visit_Node(node)
+
+    def visit_AttributeNode(self, node):
+        if self.in_critical_section and node.is_py_attr:
+            warning(
+                node.pos,
+                "Python attribute access is not usefully protected by critical_section",
+                1)
         return self.visit_Node(node)
 
 

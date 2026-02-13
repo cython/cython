@@ -1,0 +1,49 @@
+name: Sanitizers
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/sanitizers.yml"
+      - ".github/workflows/compiled_python.yml"
+      - "Cython/**"
+      - "tests/**"
+  pull_request:
+    paths:
+      # Only run these tests on PRs likely to affect code generation
+      - ".github/workflows/sanitizers.yml"
+      - ".github/workflows/compiled_python.yml"
+      - "Cython/Utility/**"
+      - "Cython/Compiler/Nodes.py"
+      - "Cython/Compiler/ExprNodes.py"
+      - "Cython/Compiler/Optimize.py"
+  label:
+    # Accepted labels (in the 'if' condition below) are:
+    # * sanitizers
+    # * full_sanitizers - runs thread sanitizer on all tests
+    types: [created]
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+jobs:
+  sanitizers:
+    strategy:
+      fail-fast: false
+      matrix:
+        # TODO memory sanitizer would be nice (but is hard)
+        sanitizer: ["address,undefined", "thread", "thread,ft"]
+    uses: ./.github/workflows/compiled_python.yml
+    with:
+      compiler: clang
+      cpp_compiler: clang++
+      sanitize: ${{ matrix.sanitizer }}
+      name: ${{ matrix.sanitizer }}
+    if: ${{ github.event_name != 'label' || github.event.label.name == 'sanitizers' || github.event.label.name == 'full_sanitizers' }}
+
+  pydebug:
+    uses: ./.github/workflows/compiled_python.yml
+    with:
+      name: pydebug

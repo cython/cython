@@ -35,10 +35,17 @@ for directory, _, files in os.walk(os.getcwd()):
 from Cython.Build import cythonize
 from setuptools import setup, Extension
 import numpy
+import sys
+
+extra_cflags = []
+if sys.platform == 'linux':
+    extra_cflags.append('-Wimplicit-function-declaration')
 
 extensions = [
-    Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()]),
-    Extension("pkg2.CythonShared", sources=["pkg2/CythonShared.c"]),
+    Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()],
+              extra_compile_args=extra_cflags),
+    Extension("pkg2.CythonShared", sources=["pkg2/CythonShared.c"],
+              extra_compile_args=extra_cflags),
 ]
 
 setup(
@@ -104,6 +111,8 @@ assert not pathlib.Path("build/pkg2/CythonShared.c").exists()
 from pkg1.pkg11.add_one import add_one, imported_func
 from array import array
 from pkg1.pkg11.cast import call_cast, call_cast_to_array
+from pkg1.pkg11.copying import copy_contig
+from pkg1.pkg11.cython_features import fstring
 
 a = array('i', [1, 2, 3, 4])
 add_one(a)
@@ -120,6 +129,11 @@ assert call_cast_to_array() == [1, 2, 3, 4]
 from pkg2 import CythonShared
 assert hasattr(CythonShared, '__pyx_capi__'), dir(CythonShared)
 
+a_wrapped = copy_contig(a)
+assert list(a) == list(a_wrapped), (a, a_wrapped)
+
+s = fstring()
+assert s == ' 5 != 10 ', s
 
 ######## pkg1/__init__.py ########
 
@@ -183,9 +197,22 @@ def call_cast_to_array():
     cdef int[4] g = [1, 2, 3, 4]
     return cast_to_array(<void *> g)
 
+######## pkg1/pkg11/cython_features.pyx ########
+
+v = 5
+cdef int iv = 10
+
+def fstring():
+    return f" {v} != {iv} "
+
 ######## pkg1/pkg11/import_from_me.pyx ########
 
 def imported_func():
     return 1
+
+######## pkg1/pkg11/copying.pyx ########
+
+def copy_contig(int[::1] buf):
+    return buf.copy()
 
 ######## pkg2/__init__.py ########

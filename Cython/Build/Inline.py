@@ -268,7 +268,7 @@ def __invoke(%(params)s):
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
-        if sys.platform == 'win32' and sys.version_info >= (3, 8):
+        if sys.platform == 'win32':
             with os.add_dll_directory(os.path.abspath(lib_dir)):
                 module = load_dynamic(module_name, module_path)
         else:
@@ -364,6 +364,8 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, timer=tim
 
     # Run for at least 0.2 seconds, either as integer nanoseconds or floating point seconds.
     min_runtime = one_second // 5 if timer_returns_nanoseconds else one_second / 5
+    # Jump by larger steps until we reach a reasonable time.
+    fast_jumptime = min_runtime // 20 if timer_returns_nanoseconds else min_runtime / 20
 
     def autorange():
         i = 1
@@ -374,12 +376,14 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, timer=tim
                 assert isinstance(time_taken, int if timer_returns_nanoseconds else float)
                 if time_taken >= min_runtime:
                     return number
+                elif time_taken < fast_jumptime:
+                    break
                 elif timer_returns_nanoseconds and (time_taken < 10 and number >= 10):
                     # Arbitrary sanity check to prevent endless loops for non-ns timers.
                     raise RuntimeError(f"Timer seems to return non-ns timings: {timer}")
             i *= 10
 
-    autorange()  # warmup
+    timeit(2)  # warmup
     number = autorange()
 
     # Run and repeat the benchmark.

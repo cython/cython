@@ -237,6 +237,8 @@
 #define __Pyx_Locks_PyThreadTypeLock_Delete(l) PyThread_free_lock(l)
 #define __Pyx_Locks_PyThreadTypeLock_LockNogil(l) (void)PyThread_acquire_lock(l, WAIT_LOCK)
 #define __Pyx_Locks_PyThreadTypeLock_Unlock(l) PyThread_release_lock(l)
+static CYTHON_INLINE int __Pyx_Locks_PyThreadTypeLock_CanCheckLocked(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
+static int __Pyx__Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 static void __Pyx__Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 // CYTHON_INLINE because these may be unused
@@ -245,6 +247,9 @@ static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThread
 }
 static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock) {
     __Pyx__Locks_PyThreadTypeLock_LockGil(lock);
+}
+static CYTHON_INLINE int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock) {
+    return __Pyx__Locks_PyThreadTypeLock_Locked(lock);
 }
 
 
@@ -300,7 +305,7 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
         PyGILState_Release(state);
         return;
     }
-#elif CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030B0000
+#elif CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030C0000
     has_gil = PyGILState_Check();
 #elif PY_VERSION_HEX < 0x030d0000
     has_gil = _PyThreadState_UncheckedGet() != NULL;
@@ -312,6 +317,24 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
     } else {
         __Pyx_Locks_PyThreadTypeLock_LockNogil(lock);
     }
+}
+
+static CYTHON_INLINE int __Pyx_Locks_PyThreadTypeLock_CanCheckLocked(__Pyx_Locks_PyThreadTypeLock lock) {
+    CYTHON_UNUSED_VAR(lock);
+    // PyThread_type_lock supports checking lock status via try-acquire
+    return 1;
+}
+
+static int __Pyx__Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock) {
+    // Check if lock is held by attempting a non-blocking acquire.
+    // If acquire succeeds, the lock was not held, so release it and return 0.
+    // If acquire fails, the lock is held (by this or another thread), return 1.
+    // This works for both "other thread locked" and "this thread locked" cases.
+    if (PyThread_acquire_lock(lock, NOWAIT_LOCK)) {
+        PyThread_release_lock(lock);
+        return 0;  // Lock was not held
+    }
+    return 1;  // Lock is held
 }
 
 
@@ -359,6 +382,20 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 #define __Pyx_Locks_PyMutex_LockGil(l) PyMutex_Lock(&l)
 #define  __Pyx_Locks_PyMutex_LockNogil(l) PyMutex_Lock(&l)
 
+// For Python 3.13+, check if PyMutex_IsLocked is available
+#if PY_VERSION_HEX >= 0x030e00C1
+// Python 3.14+ has PyMutex_IsLocked API
+#define __Pyx_Locks_PyMutex_Locked(l) PyMutex_IsLocked(&(l))
+#else
+// Python 3.13: Use atomic read of lock bits as per CPython's cpython/lock.h
+// _Py_LOCKED is defined in Include/cpython/lock.h
+#define __Pyx_Locks_PyMutex_Locked(l) \
+    ((int)(_Py_atomic_load_uint8_relaxed(&(l)._bits) & _Py_LOCKED))
+#endif
+
+// locked() is available on Python 3.13+ (atomic read) and older versions (try-acquire fallback)
+#define __Pyx_Locks_PyMutex_CanCheckLocked(l) (CYTHON_UNUSED_VAR(l), 1)
+
 #else
 
 #define __Pyx_Locks_PyMutex_Init(l) __Pyx_Locks_PyThreadTypeLock_Init(l)
@@ -367,6 +404,8 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 #define __Pyx_Locks_PyMutex_Unlock(l) __Pyx_Locks_PyThreadTypeLock_Unlock(l)
 #define __Pyx_Locks_PyMutex_LockGil(l) __Pyx_Locks_PyThreadTypeLock_LockGil(l)
 #define __Pyx_Locks_PyMutex_LockNogil(l) __Pyx_Locks_PyThreadTypeLock_LockNogil(l)
+#define __Pyx_Locks_PyMutex_Locked(l) __Pyx_Locks_PyThreadTypeLock_Locked(l)
+#define __Pyx_Locks_PyMutex_CanCheckLocked(l) __Pyx_Locks_PyThreadTypeLock_CanCheckLocked(l)
 
 #endif
 

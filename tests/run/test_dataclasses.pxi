@@ -1,4 +1,4 @@
-from cython cimport cclass
+from cython cimport cclass, auto_pickle
 from dataclasses import (
     dataclass, field,
     fields, FrozenInstanceError, InitVar, is_dataclass, asdict, astuple, replace
@@ -11,6 +11,9 @@ from typing import ClassVar, Any, List, Union, Tuple, Dict, Generic, TypeVar, Op
 from typing import get_type_hints
 from collections import deque, OrderedDict, namedtuple
 import sys
+
+from Cython.TestUtils import TimedTest
+
 
 def skip_on_versions_below(version):
     def decorator(func):

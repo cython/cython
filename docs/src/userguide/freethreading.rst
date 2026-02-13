@@ -119,7 +119,8 @@ Cython provides ``cython.pymutex`` as a more robust lock type.  Unlike
 ask it to (at the cost of losing ``critical_section``'s inbuilt protection against
 deadlocks).
 
-``cython.pymutex`` supports two operations: ``acquire`` and ``release``.
+``cython.pymutex`` supports three operations: ``acquire``, ``release``,
+and the predicate ``locked``.
 ``cython.pymutex`` can also be used in a ``with`` statement::
 
   cdef cython.pymutex l
@@ -130,6 +131,15 @@ deadlocks).
   l.acquire()
   ...  # perform operations with the lock
   l.release()
+  
+  # check if the lock is currently held
+  if l.locked():
+      ...  # lock is held
+
+The ``locked()`` method returns ``True`` if the lock is currently held, ``False`` otherwise.
+It can be called with or without the GIL and is available on all Python versions. On Python 3.13+,
+it uses the native PyMutex API for efficient atomic reads. On older Python versions, it uses a
+try-acquire approach that temporarily acquires and releases the lock if it's available.
 
 ``acquire`` will avoid deadlocks if the GIL is held (only relevant in
 non-freethreading versions of Python).  However, you are at risk of deadlock
@@ -148,6 +158,21 @@ modules with the Limited API (since ``PyMutex`` is unavailable in the
 Limited API).  Note that unlike the "raw" ``PyThread_type_lock`` our
 wrapping will avoid deadlocks with the GIL.
 
+
+Automatically applied critical sections
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+From Cython 3.3, Cython adds critical sections to automatically generated functions.
+This includes properties on extension types (e.g. ``cdef public int x`` or
+``cdef readonly int x``), the auto-generated pickle functions of
+extension types, and functions of ``cython.dataclasses.dataclass`` class.
+The thread-safety here is achieved by adding ``with cython.critical_section(self[, other]):``
+where ``self`` is the instance of the extension type and ``other`` is the second argument
+for dataclass comparison functions only.  Therefore, if you are writing
+your own code interacting with the underlying data then you can use the same
+lock.  Remember that critical sections can be interrupted so this is mostly
+a no-crash guarantee - the auto-generated pickle function won't necessary be
+an atomic snapshot for example.
 
 Pitfalls
 ========

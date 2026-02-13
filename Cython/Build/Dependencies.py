@@ -987,8 +987,6 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         language=language,
         aliases=aliases)
 
-    fix_windows_unicode_modules(module_list)
-
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
     if options.cache and not (options.annotate or Options.annotate):
@@ -1180,37 +1178,6 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     return module_list
 
 
-def fix_windows_unicode_modules(module_list):
-    # Hack around a distutils 3.[5678] bug on Windows for unicode module names.
-    # https://bugs.python.org/issue39432
-    if sys.platform != "win32":
-        return
-    if sys.version_info >= (3, 8, 2):
-        return
-
-    def make_filtered_list(ignored_symbol, old_entries):
-        class FilteredExportSymbols(list):
-            # export_symbols for unicode filename cause link errors on Windows
-            # Cython doesn't need them (it already defines PyInit with the correct linkage)
-            # so use this class as a temporary fix to stop them from being generated
-            def __contains__(self, val):
-                # so distutils doesn't "helpfully" add PyInit_<name>
-                return val == ignored_symbol or list.__contains__(self, val)
-
-        filtered_list = FilteredExportSymbols(old_entries)
-        if old_entries:
-            filtered_list.extend(name for name in old_entries if name != ignored_symbol)
-        return filtered_list
-
-    for m in module_list:
-        if m.name.isascii():
-            continue
-        m.export_symbols = make_filtered_list(
-            "PyInit_" + m.name.rsplit(".", 1)[-1],
-            m.export_symbols,
-        )
-
-
 if os.environ.get('XML_RESULTS'):
     compile_result_dir = os.environ['XML_RESULTS']
     def record_results(func):
@@ -1227,20 +1194,15 @@ if os.environ.get('XML_RESULTS'):
                 module = fully_qualified_name(args[0])
                 name = "cythonize." + module
                 failures = 1 - success
-                if success:
-                    failure_item = ""
-                else:
-                    failure_item = "failure"
-                output = open(os.path.join(compile_result_dir, name + ".xml"), "w")
-                output.write("""
+                with open(os.path.join(compile_result_dir, name + ".xml"), "w") as output:
+                    output.write(f"""
                     <?xml version="1.0" ?>
-                    <testsuite name="%(name)s" errors="0" failures="%(failures)s" tests="1" time="%(t)s">
-                    <testcase classname="%(name)s" name="cythonize">
-                    %(failure_item)s
+                    <testsuite name="{name}" errors="0" failures="{failures}" tests="1" time="{t}">
+                    <testcase classname="{name}" name="cythonize">
+                    {'' if success else 'failure'}
                     </testcase>
                     </testsuite>
-                """.strip() % locals())
-                output.close()
+                    """.strip())
         return with_record
 else:
     def record_results(func):

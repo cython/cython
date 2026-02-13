@@ -29,6 +29,7 @@ can use ``__name='tmpl.html'`` to set the name of the template.
 If there are syntax errors ``TemplateError`` will be raised.
 """
 
+import cython
 
 import re
 import sys
@@ -150,6 +151,7 @@ class Template:
         if default_inherit is not None:
             self.default_inherit = default_inherit
 
+    @classmethod
     def from_filename(cls, filename, namespace=None, encoding=None,
                       default_inherit=None, get_template=get_file_template):
         with open(filename, 'rb') as f:
@@ -158,8 +160,6 @@ class Template:
             c = c.decode(encoding)
         return cls(content=c, name=filename, namespace=namespace,
                    default_inherit=default_inherit, get_template=get_template)
-
-    from_filename = classmethod(from_filename)
 
     def __repr__(self):
         return '<%s %s name=%r>' % (
@@ -190,7 +190,7 @@ class Template:
             result = self._interpret_inherit(result, defs, inherit, ns)
         return result
 
-    def _interpret(self, ns):
+    def _interpret(self, ns) -> tuple:
         __traceback_hide__ = True
         parts = []
         defs = {}
@@ -546,7 +546,7 @@ del _Empty
 ############################################################
 
 
-def lex(s, name=None, trim_whitespace=True, line_offset=0, delimiters=None):
+def lex(s, name=None, trim_whitespace=True, line_offset=0, delimiters=None) -> list:
     """
     Lex a string into chunks:
 
@@ -568,45 +568,41 @@ def lex(s, name=None, trim_whitespace=True, line_offset=0, delimiters=None):
         TemplateError: {{ inside expression at line 1 column 10
 
     """
-    if delimiters is None:
-        delimiters = ( Template.default_namespace['start_braces'],
-                       Template.default_namespace['end_braces'] )
+    start_braces: str = delimiters[0] if delimiters is not None else Template.default_namespace['start_braces']
+    end_braces: str = delimiters[1] if delimiters is not None else Template.default_namespace['end_braces']
+
     in_expr = False
     chunks = []
     last = 0
     last_pos = (line_offset + 1, 1)
 
-    token_re = re.compile(r'%s|%s' % (re.escape(delimiters[0]),
-                                      re.escape(delimiters[1])))
+    token_re = re.compile(r'%s|%s' % (re.escape(start_braces),
+                                      re.escape(end_braces)))
     for match in token_re.finditer(s):
-        expr = match.group(0)
+        expr: str = match.group(0)
         pos = find_position(s, match.end(), last, last_pos)
-        if expr == delimiters[0] and in_expr:
-            raise TemplateError('%s inside expression' % delimiters[0],
-                                position=pos,
-                                name=name)
-        elif expr == delimiters[1] and not in_expr:
-            raise TemplateError('%s outside expression' % delimiters[1],
-                                position=pos,
-                                name=name)
-        if expr == delimiters[0]:
+        if expr == start_braces:
+            if in_expr:
+                raise TemplateError(f'{start_braces} inside expression', position=pos, name=name)
             part = s[last:match.start()]
             if part:
                 chunks.append(part)
             in_expr = True
         else:
+            if not in_expr:
+                raise TemplateError(f'{end_braces} outside expression', position=pos, name=name)
             chunks.append((s[last:match.start()], last_pos))
             in_expr = False
         last = match.end()
         last_pos = pos
     if in_expr:
-        raise TemplateError('No %s to finish last expression' % delimiters[1],
-                            name=name, position=last_pos)
+        raise TemplateError(
+            f'No {end_braces} to finish last expression', name=name, position=last_pos)
     part = s[last:]
     if part:
         chunks.append(part)
     if trim_whitespace:
-        chunks = trim_lex(chunks)
+        trim_lex(chunks)
     return chunks
 
 statement_re = re.compile(r'^(?:if |elif |for |def |inherit |default |py:)')
@@ -615,7 +611,7 @@ trail_whitespace_re = re.compile(r'\n\r?[\t ]*$')
 lead_whitespace_re = re.compile(r'^[\t ]*\n')
 
 
-def trim_lex(tokens):
+def trim_lex(tokens: list):
     r"""
     Takes a lexed set of tokens, and removes whitespace when there is
     a directive on a line by itself:
@@ -624,8 +620,10 @@ def trim_lex(tokens):
        >>> tokens
        [('if x', (1, 3)), '\nx\n', ('endif', (3, 3)), '\ny']
        >>> trim_lex(tokens)
+       >>> tokens
        [('if x', (1, 3)), 'x\n', ('endif', (3, 3)), 'y']
     """
+    i: cython.Py_ssize_t
     last_trim = None
     for i, current in enumerate(tokens):
         if isinstance(current, str):
@@ -670,10 +668,9 @@ def trim_lex(tokens):
                     m = lead_whitespace_re.search(next_chunk)
                     next_chunk = next_chunk[m.end():]
                     tokens[i + 1] = next_chunk
-    return tokens
 
 
-def find_position(string, index, last_index, last_pos):
+def find_position(string: str, index, last_index, last_pos) -> tuple:
     """Given a string and index, return (line, column)"""
     lines = string.count('\n', last_index, index)
     if lines > 0:
@@ -733,9 +730,6 @@ def parse(s, name=None, line_offset=0, delimiters=None):
             ...
         TemplateError: Multi-line py blocks must start with a newline at line 1 column 3
     """
-    if delimiters is None:
-        delimiters = ( Template.default_namespace['start_braces'],
-                       Template.default_namespace['end_braces'] )
     tokens = lex(s, name=name, line_offset=line_offset, delimiters=delimiters)
     result = []
     while tokens:
@@ -744,9 +738,10 @@ def parse(s, name=None, line_offset=0, delimiters=None):
     return result
 
 
-def parse_expr(tokens, name, context=()):
+def parse_expr(tokens: list, name, context=()) -> tuple:
     if isinstance(tokens[0], str):
         return tokens[0], tokens[1:]
+    expr: str
     expr, pos = tokens[0]
     expr = expr.strip()
     if expr.startswith('py:'):
@@ -797,7 +792,7 @@ def parse_expr(tokens, name, context=()):
     return ('expr', pos, tokens[0][0]), tokens[1:]
 
 
-def parse_cond(tokens, name, context):
+def parse_cond(tokens: list, name, context) -> tuple:
     start = tokens[0][1]
     pieces = []
     context = context + ('if',)
@@ -813,7 +808,8 @@ def parse_cond(tokens, name, context):
         pieces.append(next_chunk)
 
 
-def parse_one_cond(tokens, name, context):
+def parse_one_cond(tokens: list, name, context) -> tuple:
+    first: str
     (first, pos), tokens = tokens[0], tokens[1:]
     content = []
     if first.endswith(':'):
@@ -840,7 +836,8 @@ def parse_one_cond(tokens, name, context):
         content.append(next_chunk)
 
 
-def parse_for(tokens, name, context):
+def parse_for(tokens: list, name, context) -> tuple:
+    first: str
     first, pos = tokens[0]
     tokens = tokens[1:]
     context = ('for',) + context
@@ -854,14 +851,11 @@ def parse_for(tokens, name, context):
         raise TemplateError(
             'Bad for (no "in") in %r' % first,
             position=pos, name=name)
-    vars = first[:match.start()]
-    if '(' in vars:
+    vars_part: str = first[:match.start()]
+    if '(' in vars_part:
         raise TemplateError(
-            'You cannot have () in the variable section of a for loop (%r)'
-            % vars, position=pos, name=name)
-    vars = tuple([
-        v.strip() for v in first[:match.start()].split(',')
-        if v.strip()])
+            f'You cannot have () in the variable section of a for loop ({vars_part!r})', position=pos, name=name)
+    vars = tuple([v.strip() for v in vars_part.split(',') if v.strip()])
     expr = first[match.end():]
     while 1:
         if not tokens:
@@ -875,7 +869,8 @@ def parse_for(tokens, name, context):
         content.append(next_chunk)
 
 
-def parse_default(tokens, name, context):
+def parse_default(tokens: list, name, context) -> tuple:
+    first: str
     first, pos = tokens[0]
     assert first.startswith('default ')
     first = first.split(None, 1)[1]
@@ -884,7 +879,7 @@ def parse_default(tokens, name, context):
         raise TemplateError(
             "Expression must be {{default var=value}}; no = found in %r" % first,
             position=pos, name=name)
-    var = parts[0].strip()
+    var: str = parts[0].strip()
     if ',' in var:
         raise TemplateError(
             "{{default x, y = ...}} is not supported",
@@ -897,14 +892,16 @@ def parse_default(tokens, name, context):
     return ('default', pos, var, expr), tokens[1:]
 
 
-def parse_inherit(tokens, name, context):
+def parse_inherit(tokens: list, name, context) -> tuple:
+    first: str
     first, pos = tokens[0]
     assert first.startswith('inherit ')
     expr = first.split(None, 1)[1]
     return ('inherit', pos, expr), tokens[1:]
 
 
-def parse_def(tokens, name, context):
+def parse_def(tokens: list, name, context) -> tuple:
+    first: str
     first, start = tokens[0]
     tokens = tokens[1:]
     assert first.startswith('def ')
@@ -935,14 +932,14 @@ def parse_def(tokens, name, context):
         content.append(next_chunk)
 
 
-def parse_signature(sig_text, name, pos):
+def parse_signature(sig_text: str, name, pos) -> tuple:
     tokens = tokenize.generate_tokens(StringIO(sig_text).readline)
     sig_args = []
     var_arg = None
     var_kw = None
     defaults = {}
 
-    def get_token(pos=False):
+    def get_token(pos=False) -> tuple:
         try:
             tok_type, tok_string, (srow, scol), (erow, ecol), line = next(tokens)
         except StopIteration:
@@ -953,6 +950,8 @@ def parse_signature(sig_text, name, pos):
             return tok_type, tok_string
     while 1:
         var_arg_type = None
+        tok_type: int
+        tok_string: str
         tok_type, tok_string = get_token()
         if tok_type == tokenize.ENDMARKER:
             break
@@ -1011,7 +1010,7 @@ def parse_signature(sig_text, name, pos):
     return sig_args, var_arg, var_kw, defaults
 
 
-def isolate_expression(string, start_pos, end_pos):
+def isolate_expression(string: str, start_pos, end_pos) -> str:
     srow, scol = start_pos
     srow -= 1
     erow, ecol = end_pos

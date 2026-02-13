@@ -18,6 +18,8 @@ import warnings
 # from test import support, string_tests
 from contextlib import contextmanager
 
+from Cython.TestUtils import TimedTest
+
 
 class support(object):
     @staticmethod
@@ -78,7 +80,7 @@ class StrSubclass(str):
 class UnicodeTest(CommonTest,
         MixinStrUnicodeUserStringTest,
         MixinStrUnicodeTest,
-        unittest.TestCase):
+        TimedTest):
 
     type2test = str
 
@@ -1446,11 +1448,43 @@ class UnicodeTest(CommonTest,
         self.assertEqual('%X' % letter_m, '6D')
         self.assertEqual('%o' % letter_m, '155')
         self.assertEqual('%c' % letter_m, 'm')
-        self.assertRaisesRegex(TypeError, '%x format: an integer is required, not float', operator.mod, '%x', 3.14),
-        self.assertRaisesRegex(TypeError, '%X format: an integer is required, not float', operator.mod, '%X', 2.11),
-        self.assertRaisesRegex(TypeError, '%o format: an integer is required, not float', operator.mod, '%o', 1.79),
-        self.assertRaisesRegex(TypeError, '%x format: an integer is required, not PseudoFloat', operator.mod, '%x', pi),
-        self.assertRaises(TypeError, operator.mod, '%c', pi),
+        """
+        # Error message differs in Py3.15+
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %x requires an integer, not float'):
+            '%x' % 3.14
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %X requires an integer, not float'):
+            '%X' % 2.11
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %o requires an integer, not float'):
+            '%o' % 1.79
+        with self.assertRaisesRegex(TypeError,
+                r'format argument: %x requires an integer, not .*\.PseudoFloat'):
+            '%x' % pi
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %x requires an integer, not complex'):
+            '%x' % 3j
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %X requires an integer, not complex'):
+            '%X' % 2j
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %o requires an integer, not complex'):
+            '%o' % 1j
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %u requires a real number, not complex'):
+            '%u' % 3j
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %i requires a real number, not complex'):
+            '%i' % 2j
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %d requires a real number, not complex'):
+            '%d' % 1j
+        with self.assertRaisesRegex(TypeError,
+                r'format argument: %c requires an integer or a unicode character, '
+                r'not .*\.PseudoFloat'):
+            '%c' % pi
+        """
 
     def test_formatting_with_enum(self):
         # issue18780
@@ -1661,10 +1695,9 @@ class UnicodeTest(CommonTest,
         for c in set_o:
             self.assertEqual(c.encode('ascii').decode('utf7'), c)
 
-        if sys.version_info >= (3, 8):
-            with self.assertRaisesRegex(UnicodeDecodeError,
-                                        'ill-formed sequence'):
-                b'+@'.decode('utf-7')
+        with self.assertRaisesRegex(UnicodeDecodeError,
+                                    'ill-formed sequence'):
+            b'+@'.decode('utf-7')
 
     def test_codecs_utf8(self):
         self.assertEqual(''.encode('utf-8'), b'')
