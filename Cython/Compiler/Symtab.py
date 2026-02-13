@@ -3030,17 +3030,20 @@ class PropertyScope(Scope):
     def declare_cfunction(self, name, type, pos, *args, **kwargs):
         """Declare a C property function.
         """
-        if name=="__get__" and type.return_type.is_void:
-            error(pos, "C property getter cannot return 'void'")
-        elif name == "__set__" and not type.return_type.is_void:
-            error(pos, "C property setter must return 'void'")
+        if name=="__get__":
+            if type.return_type.is_void:
+                error(pos, "C property getter cannot return 'void'")
+            if len(type.args) != 1:
+                error(pos, "C property getter must have a single (self) argument")
 
-        if name == "__get__" and len(type.args) != 1:
-            error(pos, "C property getter must have a single (self) argument")
-        elif name == "__set__" and len(type.args) != 2:
-            error(pos, "C property setter must have two arguments (self and value)")
-        elif not (type.args[0].type.is_pyobject or type.args[0].type is self.parent_scope.parent_type):
-            error(pos, "C property method must have a single (object) argument")
+        if name=="__set__":
+            if not type.return_type.is_void:
+                error(pos, "C property setter must return 'void'")
+            if len(type.args) != 2:
+                error(pos, "C property setter must have two arguments (self and value)")
+
+        if not (type.args[0].type.is_pyobject or type.args[0].type is self.parent_scope.parent_type):
+            error(pos, "self argument of C property method must be an object")
         if type.args and type.args[0].type is py_object_type:
             # Set 'self' argument type to extension type.
             type.args[0].type = self.parent_scope.parent_type

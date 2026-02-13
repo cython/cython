@@ -6354,7 +6354,7 @@ class SimpleCallNode(CallNode):
         arg_type = setter_entry.type.args[1].type
         arg1 = RawCNameExprNode(pos, type=arg_type)
         node = cls(pos, function=function, args=[obj, arg1])
-        return UtilNodes.CPropertySetNode(pos, func_node=node, type=arg_type, arg1=arg1)
+        return UtilNodes.CPropertySetNode(pos, call_node=node, type=arg_type, arg1=arg1)
 
     def analyse_as_type(self, env):
         attr = self.function.as_cython_attribute()
