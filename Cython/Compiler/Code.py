@@ -3106,8 +3106,8 @@ class CCodeWriter:
         from .PyrexTypes import py_object_type, typecast
         return typecast(py_object_type, type, cname)
 
-    def handle_refnanny(self, type, nanny=True):
-        if type.supports_refnanny and nanny:
+    def handle_refnanny(self, tp, nanny=True):
+        if tp.supports_refnanny and nanny:
             self.funcstate.needs_refnanny = True
 
     def put_gotref(self, cname, type):

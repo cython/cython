@@ -198,7 +198,7 @@ class PyrexType(BaseType):
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
     #  refcounting_needs_gil boolean     Reference counting needs GIL to be acquired.
-    #  supports_refnanny     boolean     Reference counting for can use refnanny
+    #  supports_refnanny     boolean     This type can use refnanny to check its reference counting.
     #  equivalent_type       type        A C or Python type that is equivalent to this Python or C type.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
