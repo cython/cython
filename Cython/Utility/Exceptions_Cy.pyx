@@ -2,6 +2,8 @@
 # I'd really like to use _PyxExc_PrepReraiseStar but it isn't exported publicly
 # so reimplement it here in Cython
 
+cimport cython
+
 cdef extern from *:
     # All these functions can return NULL as a valid outcome, therefore wrap them
     # in something that returns a dummy object in this case
@@ -31,6 +33,7 @@ cdef extern from *:
     object __Pyx_Safe_PyException_GetCause(object, object)
     object __Pyx_Safe_PyException_GetContext(object, object)
 
+@cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
 @cname("__Pyx_exception_get_notes")
 cdef get_notes(exc, dummy_null):
     # Not all exceptions have notes
@@ -39,6 +42,7 @@ cdef get_notes(exc, dummy_null):
     else:
         return dummy_null  # dummy object will always pass the "is" test
 
+@cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
 @cname("__Pyx_split_into_same_metadata")
 cdef split_into_same_metadata(original, list exceptions):
     # returns a list with the same cause and a list with different causes
@@ -65,6 +69,7 @@ cdef split_into_same_metadata(original, list exceptions):
 
     return same, different
 
+@cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
 @cname("__Pyx_except_star_leafs")
 cdef get_leafs(keep):
     # get a set with ids of all the leafs
@@ -77,6 +82,7 @@ cdef get_leafs(keep):
             to_process.extend(e_or_eg.exceptions)
     return leafs
 
+@cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
 @cname("__Pyx_exception_group_projection")
 cdef exception_group_projection(orig, keep):
     leafs = get_leafs(keep)
@@ -85,6 +91,7 @@ cdef exception_group_projection(orig, keep):
     func = eval("lambda x: id(x) in leafs", {'leafs': leafs})
     return orig.split(func)[0]
 
+@cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
 @cname("__Pyx__PyExc_PrepReraiseStar")
 cdef prep_reraise_star(orig, excs):
     cdef list reraised, raised

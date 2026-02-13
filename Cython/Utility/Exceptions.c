@@ -1191,8 +1191,4 @@ static void __Pyx_RaisePreppedException(PyObject *exc) {
     Py_INCREF(exc);
     PyErr_Restore((PyObject*)Py_TYPE(exc), exc, traceback);
 #endif
-#if !CYTHON_USE_OWN_PREP_RERAISE_STAR
-    // Just a convenient place to avoid an "unused" warning
-    (void)&__Pyx__PyExc_PrepReraiseStar;
-#endif
 }
