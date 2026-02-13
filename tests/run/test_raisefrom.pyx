@@ -1,9 +1,8 @@
+from Cython.TestUtils import TimedTest
 
-import sys
-import unittest
 
 # adapted from pyregr
-class TestCause(unittest.TestCase):
+class TestCause(TimedTest):
     def test_invalid_cause(self):
         try:
             raise IndexError from 5

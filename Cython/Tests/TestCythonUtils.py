@@ -1,5 +1,4 @@
 import sys
-import unittest
 from io import StringIO
 
 from Cython.Utils import (
@@ -7,6 +6,7 @@ from Cython.Utils import (
     build_hex_version, cached_method, clear_method_caches, try_finally_contextmanager,
     print_version, normalise_float_repr,
 )
+from Cython.TestUtils import TimedTest
 
 METHOD_NAME = "cached_next"
 CACHE_NAME = _build_cache_name(METHOD_NAME)
@@ -18,7 +18,7 @@ class Cached:
         return next(x)
 
 
-class TestCythonUtils(unittest.TestCase):
+class TestCythonUtils(TimedTest):
     def test_build_hex_version(self):
         self.assertEqual('0x001D00A1', build_hex_version('0.29a1'))
         self.assertEqual('0x001D03C4', build_hex_version('0.29.3rc4'))

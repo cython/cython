@@ -5,7 +5,7 @@ The Limited API and Stable ABI
 ******************************
 
 The Limited API and Stable ABI are `two related features of Python <https://docs.python.org/3/c-api/stable.html>`_.  Extension modules that only use a safe subset of the Python C API (the Limited API)
-get a forward-compatibility guarantee (the Stable ABI) which means that the extension module can 
+get a forward-compatibility guarantee (the Stable ABI) which means that the extension module can
 be used with any future version of Python, without recompilation.
 
 Cython is able to compile extension modules in Limited API mode from Cython 3.1 onwards
@@ -59,9 +59,10 @@ low.  This includes code that makes heavy use of typed memoryviews, or code that
 an external C library.
 
 Where the majority of the work involves interacting with Python objects the cost is likely to
-be more significant.  As an example, compiling the Cython compiler with the regular C API
-gives a ~35% speed-up compared to not compiling the Cython compiler.  Compiling the Cython
-compiler in the Limited API gives a 0-10% speed-up (depending on the exact version used).
+be greater.  As an example, compiling the Cython compiler with the regular C API
+gives a 38% speed-up compared to not compiling the Cython compiler.  Compiling the Cython
+compiler in the Limited API gives a 18-33% speed-up (depending on the exact Limited API
+version used).
 
 If you are prepared to restrict yourself to Python versions 3.12+, then Cython will use
 the "vectorcall" interface in Limited API mode.  This doesn't enable any new functionality,
@@ -75,14 +76,22 @@ Cython's usage of the Limited API is controlled by setting the ``Py_LIMITED_API`
 when running the C compiler.  This macro should be set to the version-hex for the
 minimum Python version that you want to support.  Useful version-hexes are:
 
-* ``0x03070000`` - Python 3.7 - the minimum version that Cython supports.
+* ``0x03080000`` - Python 3.8 - the minimum version that Cython 3.1 supports.
+* ``0x03090000`` - Python 3.9 - the minimum version that Cython 3.3+ supports.
 * ``0x030B0000`` - Python 3.11 - the first version to support typed memoryviews.
 * ``0x030C0000`` - Python 3.12 - the first version to support vectorcall (performance
   improvement).
-  
+
 As well as setting the ``Py_LIMITED_API`` macro, you should also name the compiled
 extension modules to indicate their use of the Stable ABI.  On OS X and Linux, this
 means the extension modules names should end with ``.abi3.so``.
+
+Note that alternative Python implementations like PyPy or GraalPython do not currently
+support the Limited API.  To support them, you should make sure that your build setup
+does not rely on it.  You can detect non-CPython runtimes with::
+
+    import sys
+    print(sys.implementation.name != 'cpython')
 
 A number of examples are shown below for different build systems, but the
 same basic principles apply to any other build system.
@@ -95,19 +104,19 @@ documentation)::
 
     from setuptools import Extension, setup
     from Cython.Build import cythonize
-    
+
     setup(
         ext_modules=cythonize([
             Extension(
                 name="cy_code",
                 sources=["cy_code.pyx"],
                 define_macros=[
-                    ("Py_LIMITED_API", 0x03070000),
+                    ("Py_LIMITED_API", 0x030A0000),
                 ],
-                py_limited_api=True
+                py_limited_api=True,
             ),
         ]))
-        
+
 The key differences are two arguments to ``Extension``:  ``define_macros`` and ``py_limited_api``.
 The ``py_limited_api`` argument controls the naming of the extension module.
 
@@ -125,12 +134,12 @@ Scikit-build
     add_cython_target(cy_code)
     add_library(cy_code MODULE ${cy_code})
     python_extension_module(cy_code)
-    
-    target_compile_definitions(cy_code PUBLIC -DPy_LIMITED_API=0x03070000)
+
+    target_compile_definitions(cy_code PUBLIC -DPy_LIMITED_API=0x030A0000)
     set_target_properties(cy_code PROPERTIES SUFFIX .abi3.so)
-    
+
     install(TARGETS cy_code LIBRARY DESTINATION .)
-    
+
 The majority of this example is a lightly modified version of the example from
 `their own documentation <https://scikit-build.readthedocs.io/en/latest/cmake-modules/Cython.html>`_
 - for full details users should refer to that.
@@ -149,16 +158,16 @@ to generate Python modules::
     project(
         'some_package', 'c', 'cython', meson_version: '>= 1.3.0',
     )
-    
+
     py = import('python').find_installation()
-    
+
     py.extension_module(
         'cy_code',
         'cy_code.pyx',
-        limited_api: '3.7'
+        limited_api: '3.10'
     )
-    
+
 Again, this example is adapted from
 `the Meson documentation <https://mesonbuild.com/Cython.html#cython>`_ and more complete
-details are available there.  The Limited API modification is the argument ``limited_api: '3.7'``,
+details are available there.  The Limited API modification is the argument ``limited_api: '3.10'``,
 which both sets the version hex and names the generated module correctly.

@@ -19,7 +19,7 @@ compiler pipeline.
 
 If you have code that you want to contribute, please make sure that it
 
-* includes tests in the ``tests/`` directory (see the `Hacker Guide on Testing <https://github.com/cython/cython/wiki/HackerGuide#the-test-suite>`_)
+* includes tests in the ``tests/`` directory
 * comes in form of a pull request
 
 We use `github actions <https://github.com/cython/cython/actions>`_ for cross-platform testing, including pull requests.

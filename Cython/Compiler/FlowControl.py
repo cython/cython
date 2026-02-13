@@ -16,6 +16,8 @@ from . import PyrexTypes
 from .Visitor import TreeVisitor, CythonTransform
 from .Errors import error, warning, InternalError
 
+import enum
+
 
 class TypedExprNode(ExprNodes.ExprNode):
     # Used for declaring assignments of a specified type without a known entry.
@@ -171,9 +173,13 @@ class ControlFlow:
         if self.block:
             self.block.positions.add(node.pos[:2])
 
-    def mark_assignment(self, lhs, rhs, entry, rhs_scope=None):
+    def mark_assignment(self, lhs, rhs, entry, rhs_scope=None, assignment_type=None):
         if self.block and self.is_tracked(entry):
-            assignment = NameAssignment(lhs, rhs, entry, rhs_scope=rhs_scope)
+            if assignment_type is None:
+                assignment_type = AssignmentType.Other
+            assignment = NameAssignment(
+                lhs, rhs, entry, rhs_scope=rhs_scope,
+                assignment_type=assignment_type)
             self.block.stats.append(assignment)
             self.block.gen[entry] = assignment
             self.entries.add(entry)
@@ -325,8 +331,14 @@ class ExceptionDescr:
         self.finally_exit = finally_exit
 
 
+class AssignmentType(enum.IntEnum):
+    Other = 0
+    Parallel = 1
+    AssignmentExpression = 2
+
+
 class NameAssignment:
-    def __init__(self, lhs, rhs, entry, rhs_scope=None):
+    def __init__(self, lhs, rhs, entry, rhs_scope=None, assignment_type=AssignmentType.Other):
         if lhs.cf_state is None:
             lhs.cf_state = set()
         self.lhs = lhs
@@ -337,8 +349,10 @@ class NameAssignment:
         self.is_arg = False
         self.is_deletion = False
         self.inferred_type = None
-        # For generator expression targets, the rhs can have a different scope than the lhs.
+        # For generator expression targets in comprehensions (and possibly other things),
+        # the rhs can have a different scope than the lhs.
         self.rhs_scope = rhs_scope
+        self.assignment_type = assignment_type
 
     def __repr__(self):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
@@ -713,6 +727,7 @@ class ControlFlowAnalysis(CythonTransform):
         self.reductions = set()
 
         self.in_inplace_assignment = False
+        self.in_assignment_expression = False
         self.env = node.scope
         self.flow = ControlFlow()
         self.stack = []  # a stack of (env, flow) tuples
@@ -787,7 +802,7 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_CTypeDefNode(self, node):
         return node
 
-    def mark_assignment(self, lhs, rhs=None, rhs_scope=None):
+    def mark_assignment(self, lhs, rhs=None, rhs_scope=None, assignment_type=None):
         if not self.flow.block:
             return
         if self.flow.exceptions:
@@ -804,7 +819,7 @@ class ControlFlowAnalysis(CythonTransform):
                 entry = self.env.lookup(lhs.name)
             if entry is None:  # TODO: This shouldn't happen...
                 return
-            self.flow.mark_assignment(lhs, rhs, entry, rhs_scope=rhs_scope)
+            self.flow.mark_assignment(lhs, rhs, entry, rhs_scope=(rhs_scope or self.env), assignment_type=assignment_type)
         elif lhs.is_sequence_constructor:
             for i, arg in enumerate(lhs.args):
                 if arg.is_starred:
@@ -814,7 +829,7 @@ class ControlFlowAnalysis(CythonTransform):
                     item_node = rhs
                 else:
                     item_node = rhs.inferable_item_node(i)
-                self.mark_assignment(arg, item_node, rhs_scope=rhs_scope)
+                self.mark_assignment(arg, item_node, rhs_scope=rhs_scope, assignment_type=assignment_type)
         else:
             self._visit(lhs)
 
@@ -835,12 +850,21 @@ class ControlFlowAnalysis(CythonTransform):
         self.visitchildren(node)
         return node
 
+    def visit_AssignmentExpressionNode(self, node):
+        in_assignment_expression, self.in_assignment_expression = self.in_assignment_expression, True
+        self.visitchildren(node)
+        self.in_assignment_expression = in_assignment_expression
+        return node
+
     def visit_AssignmentNode(self, node):
         raise InternalError("Unhandled assignment node %s" % type(node))
 
     def visit_SingleAssignmentNode(self, node):
         self._visit(node.rhs)
-        self.mark_assignment(node.lhs, node.rhs)
+        self.mark_assignment(
+            node.lhs, node.rhs,
+            assignment_type=AssignmentType.AssignmentExpression
+                if self.in_assignment_expression else None)
         return node
 
     def visit_CascadedAssignmentNode(self, node):
@@ -855,7 +879,7 @@ class ControlFlowAnalysis(CythonTransform):
         for lhs, rhs in collector.assignments:
             self._visit(rhs)
         for lhs, rhs in collector.assignments:
-            self.mark_assignment(lhs, rhs)
+            self.mark_assignment(lhs, rhs, assignment_type=AssignmentType.Parallel)
         return node
 
     def visit_InPlaceAssignmentNode(self, node):
@@ -944,6 +968,82 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.block = next_block
         else:
             self.flow.block = None
+        return node
+
+    def visit_MatchNode(self, node):
+        # https://peps.python.org/pep-0634/#side-effects-and-undefined-behavior
+        # The specification of structural pattern matching gives
+        # a reasonable amount of freedom about when a binding takes
+        # effect (especially for matches that fail after a few completed
+        # steps).
+        # To make it easier to reason about which variables are bound,
+        # Cython delays the binding until the entire statement has been
+        # evaluated, but before the guard is evaluated.
+        # Therefore an unguarded match statement is equivalent to
+        #
+        #  if case1:
+        #     bound_variable = something
+        #     block
+        #  elif case2...
+        #
+        # while a guarded match statement is equivalent to
+        #
+        #  if case1:
+        #    bound_variable = something
+        #    if guard:
+        #      block
+        #      goto end
+        #  if case2: ...
+        #
+        # Note also that some of the cases may have just been transformed into
+        # if blocks
+        from .MatchCaseNodes import MatchCaseNode, SubstitutedMatchCaseNode
+
+        self._visit(node.subject)
+
+        next_block = self.flow.newblock()
+        orig_parent = self.flow.block
+        guard_block = None
+        for case in node.cases:
+            if isinstance(case, MatchCaseNode):
+                case_block = self.flow.nextblock(orig_parent)
+                if guard_block:
+                    guard_block.add_child(case_block)
+                self._visit(case.pattern)
+                self.flow.nextblock()
+                if case.target_assignments:
+                    self._visit(case.target_assignments)
+                if case.guard:
+                    guard_block = self.flow.nextblock()
+                    self._visit(case.guard)
+                else:
+                    guard_block = None
+                self.flow.nextblock()
+                self._visit(case.body)
+                if self.flow.block:
+                    self.flow.block.add_child(next_block)
+            elif isinstance(case, SubstitutedMatchCaseNode):
+                self.flow.nextblock()
+                if guard_block:
+                    guard_block.add_child(self.flow.block)
+                    guard_block = None
+                self._visit(case.body)
+                orig_parent = self.flow.block
+            else:
+                assert False, case
+
+        if orig_parent is not None:
+            orig_parent.add_child(next_block)
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
+        return node
+
+    def visit_PatternNode(self, node):
+        # avoid visiting anything that might be a target (since they're
+        # handled elsewhere)
+        self.visitchildren(node, attrs=None, exclude=["as_targets", "target"])
         return node
 
     def visit_AssertStatNode(self, node):
@@ -1085,9 +1185,6 @@ class ControlFlowAnalysis(CythonTransform):
             assert False, type(node)
 
         # Body block
-        if isinstance(node, Nodes.ParallelRangeNode):
-            # In case of an invalid
-            self._delete_privates(node, exclude=node.target.entry)
 
         self.flow.nextblock()
         self._visit(node.body)
@@ -1139,8 +1236,8 @@ class ControlFlowAnalysis(CythonTransform):
         for private_node in node.assigned_nodes:
             private_node.entry.error_on_uninitialized = True
 
-        self._delete_privates(node)
         self.visitchildren(node)
+        # lastprivate isn't allowed/doesn't make sense for a parallel (non-for) block
         self._delete_privates(node)
 
         return node
