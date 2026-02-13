@@ -69,6 +69,7 @@ except NameError:
     basestring = str
 
 WITH_CYTHON = True
+WITH_COMPILE = True
 
 try:
     # Py3.12+ doesn't have distutils any more and requires setuptools to provide it.
@@ -850,7 +851,7 @@ class TestBuilder(object):
                 mode = 'pyregr'
 
             if ext == '.srctree':
-                if self.cython_only:
+                if self.cython_only or not WITH_COMPILE:
                     # EndToEnd tests always execute arbitrary build and test code
                     continue
                 if skip_limited(tags):
@@ -1075,6 +1076,9 @@ class CythonCompileTestCase(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
+        if not WITH_COMPILE:
+            return self.description_name()
+
         extra_directives = ''
         if self.extra_directives:
             extra_directives = '/'.join(
@@ -1148,7 +1152,7 @@ class CythonCompileTestCase(unittest.TestCase):
 
         cleanup = self.cleanup_failures or self.success
         cleanup_c_files = WITH_CYTHON and self.cleanup_workdir and cleanup
-        cleanup_lib_files = self.cleanup_sharedlibs and cleanup
+        cleanup_lib_files = WITH_COMPILE and self.cleanup_sharedlibs and cleanup
         is_cygwin = sys.platform == 'cygwin'
 
         if os.path.exists(self.workdir):
@@ -1473,6 +1477,8 @@ class CythonCompileTestCase(unittest.TestCase):
             test_directory = workdir
             module_path = os.path.join(workdir, os.path.basename(module_path))
 
+        tostderr = sys.__stderr__.write
+
         if WITH_CYTHON:
             old_stderr = sys.stderr
             try:
@@ -1503,24 +1509,23 @@ class CythonCompileTestCase(unittest.TestCase):
                 if diffs:
                     self.fail('Nondeterministic file generation: %s' % ', '.join(diffs))
 
-        tostderr = sys.__stderr__.write
-        if 'cerror' in self.tags['tag']:
-            if errors:
-                tostderr("\n=== Expected C compile error ===\n")
-                tostderr("\n=== Got Cython errors: ===\n")
-                tostderr('\n'.join(errors))
-                tostderr('\n\n')
-                raise RuntimeError('should have generated extension code')
-        elif errors or expected_errors:
-            self._match_output(expected_errors, errors, tostderr)
-            return None
-        if expected_warnings or (expect_warnings and warnings):
-            self._match_output(expected_warnings, warnings, tostderr)
-        if expected_perf_hints or (expect_perf_hints and perf_hints):
-            self._match_output(expected_perf_hints, perf_hints, tostderr)
+            if 'cerror' in self.tags['tag']:
+                if errors:
+                    tostderr("\n=== Expected C compile error ===\n")
+                    tostderr("\n=== Got Cython errors: ===\n")
+                    tostderr('\n'.join(errors))
+                    tostderr('\n\n')
+                    raise RuntimeError('should have generated extension code')
+            elif errors or expected_errors:
+                self._match_output(expected_errors, errors, tostderr)
+                return None
+            if expected_warnings or (expect_warnings and warnings):
+                self._match_output(expected_warnings, warnings, tostderr)
+            if expected_perf_hints or (expect_perf_hints and perf_hints):
+                self._match_output(expected_perf_hints, perf_hints, tostderr)
 
         so_path = None
-        if not self.cython_only:
+        if not self.cython_only and WITH_COMPILE:
             from Cython.Utils import captured_fd, print_bytes
             from distutils.errors import CCompilerError
             show_output = True
@@ -1558,6 +1563,23 @@ class CythonCompileTestCase(unittest.TestCase):
                             end=None, file=sys.__stderr__)
                     if stdout or stderr:
                         tostderr("\n====================================\n")
+        elif not WITH_COMPILE and self.__class__ == CythonCompileTestCase:
+            self.skipTest("Compile-only test")
+        elif not WITH_COMPILE:
+            # We do want to run the doctests so we need to find an so path.
+            files = glob.glob(
+                f"{module}.*{sysconfig.get_config_var('SHLIB_SUFFIX')}",
+                root_dir=workdir
+            ) + glob.glob(
+                f"{module}{sysconfig.get_config_var('SHLIB_SUFFIX')}",
+                root_dir=workdir
+            )
+            if len(files) == 1:
+                so_path = os.path.join(workdir, files[0])
+            elif len(files) == 0:
+                self.skipTest(f"No module found for {module}")
+            else:
+                self.skipTest(f"Multiple modules found for {module}")
         return so_path
 
     def _match_output(self, expected_output, actual_output, write):
@@ -1588,7 +1610,8 @@ class CythonRunTestCase(CythonCompileTestCase):
         super().setUp()
 
     def description_name(self):
-        return self.name if self.cython_only else "and running %s" % self.name
+        and_ = "and " if WITH_COMPILE else ""
+        return self.name if self.cython_only else f"{and_}running {self.name}"
 
     def run(self, result=None):
         if result is None:
@@ -2116,7 +2139,8 @@ class EndToEndTest(unittest.TestCase):
 
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
-        _, self.commands = unpack_source_tree(self.treefile, self.workdir, self.cython_root)
+        _, self.commands = unpack_source_tree(
+            self.treefile, self.workdir, self.cython_root)
 
     def tearDown(self):
         if self.cleanup_workdir:
@@ -2436,7 +2460,7 @@ def flush_and_terminate(status):
 
 def main():
 
-    global DISTDIR, WITH_CYTHON
+    global DISTDIR, WITH_CYTHON, WITH_COMPILE
 
     # Set an environment variable to the top directory
     os.environ['CYTHON_PROJECT_DIR'] = os.path.abspath(os.path.dirname(__file__))
@@ -2469,6 +2493,10 @@ def main():
         "--no-cython", dest="with_cython",
         action="store_false", default=True,
         help="do not run the Cython compiler, only the C compiler")
+    parser.add_argument(
+        "--no-compile", dest="with_compile",
+        action="store_false", default=True,
+        help="do not run either either Cython or the C compiler")
     parser.add_argument(
         "--compiler", dest="compiler", default=None,
         help="C compiler type")
@@ -2666,7 +2694,8 @@ def main():
     if cmd_args:
         options.code_style = False
 
-    WITH_CYTHON = options.with_cython
+    WITH_CYTHON = options.with_cython and options.with_compile
+    WITH_COMPILE = options.with_compile
 
     coverage = None
     if options.coverage or options.coverage_formats:
@@ -2867,8 +2896,9 @@ def save_coverage(coverage, options):
 
 def setup_test_directory(options):
     WITH_CYTHON = options.with_cython
+    WITH_COMPILE = options.with_compile
     WORKDIR = os.path.abspath(options.work_dir)
-    if WITH_CYTHON:
+    if WITH_CYTHON and WITH_COMPILE:
         if os.path.exists(WORKDIR):
             for path in os.listdir(WORKDIR):
                 if path in ("support", "Cy3"): continue
@@ -2908,6 +2938,8 @@ def runtests_callback(args):
 
 
 def runtests(options, cmd_args, coverage=None):
+    global WITH_CYTHON, WITH_COMPILE, WORKDIR
+
     # faulthandler should be able to provide a limited traceback
     # in the event of a segmentation fault. Only available on Python 3.3+
     try:
@@ -2917,7 +2949,8 @@ def runtests(options, cmd_args, coverage=None):
     else:
         faulthandler.enable()
 
-    WITH_CYTHON = options.with_cython
+    WITH_CYTHON = options.with_cython and options.with_compile
+    WITH_COMPILE = options.with_compile
     ROOTDIR = os.path.abspath(options.root_dir)
     WORKDIR = os.path.abspath(options.work_dir)
 
@@ -3038,6 +3071,7 @@ def runtests(options, cmd_args, coverage=None):
             ('windows_arm_bugs.txt', sys.platform == 'win32' and platform.machine().lower() == "arm64"),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
+            ('exclude_limited_api_rerun.txt', options.limited_api and not WITH_COMPILE),
         ]
 
         exclude_selectors += [
