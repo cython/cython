@@ -1933,6 +1933,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is None:
                 code.putln("#if CYTHON_USE_TYPE_SPECS")
+                # Reference to tp is owned by the instance o.
                 code.putln("PyObject *tp = (PyObject*)Py_TYPE(o);")
                 code.putln("#endif")
             if tp_dealloc is not None:
