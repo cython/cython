@@ -4,7 +4,7 @@
 
 # new code
 import cython
-from Cython.TestUtils import TimedTest, py_parse_code, parse_python_code
+from Cython.TestUtils import TimedTest, parse_python_code
 
 
 if cython.compiled:
