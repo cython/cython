@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.3.0a1 (202?-??-??)
+3.3.0a1 (2026-??-??)
 ====================
 
 Features added
@@ -16,8 +16,17 @@ Features added
 
 * Extension types can declare themselves explicitly as sequence or mapping with
   ``@cython.collection_type("sequence")`` or ``@cython.collection_type("mapping")``.
-  This has an effect on their behaviour in pattern matching and (possibly) subscripting.
+  This has an effect on their behaviour in pattern matching and subscripting.
   (Github issue :issue:`5027`)
+
+* Sequence types that have their ``Py_TPFLAGS_SEQUENCE`` type flag set can benefit from
+  faster subscripting via the sequence protocol as Cython now bypasses the mapping protocol
+  for them if both protocols are implemented.
+  (Github issue :issue:`7432`)
+
+* The builtin Python types ``int``, ``float``, ``str``, ``bytes`` and ``bytearray``
+  are special cased in comparisons to speed them up.
+  (Github issues :issue:`7452`, :issue:`7474`)
 
 * C arrays may now be declared with (``extern`` or internal) enum values as their size.
   (Github issues :issue:`7401`, :issue:`7406`)
@@ -26,6 +35,9 @@ Features added
   to check if the lock is currently held without blocking. The method works on all Python
   versions using atomic reads on Python 3.13+ and a try-acquire approach on older versions.
   (Github issue :issue:`7275`)
+
+* A simpler mechanism was added for implementing C++ exception handlers in Cython code.
+  (Github issues :issue:`7388`, :issue:`7390`)
 
 * Repeated memoryview slicing inside of loops now avoids redundant reference counting,
   making it substantially faster.
@@ -43,6 +55,12 @@ Features added
 
 * Several C++ exception declarations were added to ``libcpp.exceptions``.
   (Github issue :issue:`7389`)
+
+* Missing Python type flag declarations were added to ``cpython.object``.
+  (Github issue :issue:`7441`)
+
+* Declarations for ``PyType_GetSlot()`` and the corresponding type slot IDs were added
+  to ``cpython.type``.
 
 * Error detection when assigning to ``const`` variables was improved.
   (Github issue :issue:`7359`)
@@ -63,6 +81,10 @@ Bugs fixed
   now use a critical section (on the object itself) as guard for concurrent access.
   (Github issue :issue:`6621`)
 
+* The star-import implementation needlessly rejected several names in internal use.
+  They are now allowed and become regular Python module attributes.
+  (Github issue :issue:`4931`)
+
 * Mixing function signature declarations in Python modules and their ``.pxd`` modules could fail.
   (Github issues :issue:`5970`, :issue:`4388`)
 
@@ -70,16 +92,30 @@ Bugs fixed
   leading to less optimised code in longer expressions.
   (Github issue :issue:`7363`)
 
+* Cython still used ``(type, exc, traceback)`` for saving and restoring exception state,
+  even though modern CPython versions only store the exception object itself internally.
+  This is now modernised in many places to reduce overhead.
+  (Github issue :issue:`7481`)
+
 * The global module state struct now lives in an anonymous namespace in C++ mode to
   allow linking multiple modules together in one shared library file.
   (Github issue :issue:`7159`)
 
+* The floating point parsing code relied on C implementation specific "pointer compare after free" behaviour.
+  Patch by stratakis.  (Github issue :issue:`7463`)
+
 * The ``__signatures__`` dict of fused functions is no longer writable.
   (Github issue :issue:`7386`)
+
+* Error reporting on missing braces in f-strings was misleading.
+  (Github issue :issue:`7436`)
 
 * Cython no longer warns if ``@profile`` or ``@linetrace`` is applied to a function
   without changing the global/outer setting.  This avoids annoyance when users leave
   such redundant decorators in the code for occasional use.
+
+* Spaces in file paths written to the ``depfile`` were not escaped.
+  Patch by Loïc Estève.  (Github issue :issue:`7423`)
 
 * Several C compiler warnings related to mixed signed/unsigned C integer usage were resolved.
 
@@ -97,11 +133,34 @@ Other changes
   (Github issue :issue:`7376`)
 
 
-3.2.4 (2025-12-??)
+3.2.4 (2026-01-04)
 ==================
+
+Features added
+--------------
+
+* In preparation of Cython 3.3, a new decorator ``@collection_type(tname)`` can be used
+  to advertise an extension type as being a ``'sequence'`` or ``'mapping'``.  This currently
+  only has the effect of setting the ``Py_TPFLAGS_SEQUENCE`` flag on the type or not, but
+  is provided for convenience to allow using the new decorator already in Cython 3.2 code.
+
+* Several C++ exception declarations were added to ``libcpp.exceptions``.
+  (Github issue :issue:`7389`)
 
 Bugs fixed
 ----------
+
+* Pseudo-literal default values of function arguments like ``arg=str()`` could generate
+  invalid C code when internally converted into a real literal.
+  (Github issue :issue:`6192`)
+
+* The pickle serialisation of extension types using the ``auto_pickle`` feature was
+  larger than necessary since 3.2.0 for types without Python object attributes.
+  It is now back to the state before 3.2.0 again.
+  (Github issue :issue:`7443`)
+
+* Constants are now only made immortal on freethreading Python if they are not shared.
+  (Github issue :issue:`7439`)
 
 * ``PyDict_SetDefaultRef()`` is now used when available to avoid temporary borrowed references.
   (Github issue :issue:`7347`)
@@ -697,7 +756,7 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.8 (2025-12-??)
+3.1.8 (2026-01-03)
 ==================
 
 Bugs fixed

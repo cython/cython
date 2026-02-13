@@ -5,11 +5,13 @@ on:
     paths:
       - '.github/workflows/coverage.yml'
       - "Cython/**"
+      - '!Cython/Utility/**'
       - "tests/**"
   pull_request:
     paths:
       - '.github/workflows/coverage.yml'
       - "Cython/**"
+      - '!Cython/Utility/**'
       - "tests/**"
   workflow_dispatch:
 
@@ -33,6 +35,7 @@ jobs:
       BACKEND: c,cpp
       OS_NAME: ubuntu-22.04
       PYTHON_VERSION: "3.12"
+      HEAD: "${{ github.head_ref || github.ref_name }}"
 
     steps:
       - name: Checkout repo
@@ -50,8 +53,9 @@ jobs:
       - name: Copy coverage HTML
         run: |
           if [ -d './coverage-report-html' ]; then
+            ESCAPED_HEAD=$(python3 -c "import sys; from urllib.parse import quote; print(quote(sys.argv[1], safe=''))" "$HEAD")
             mkdir -p gh_pages_coverage/coverage/ \
-              && cp -r './coverage-report-html' 'gh_pages_coverage/coverage/${{ github.head_ref || github.ref_name }}';
+              && cp -r './coverage-report-html' "gh_pages_coverage/coverage/$ESCAPED_HEAD";
           fi
 
       - name: Upload Coverage HTML to GH Pages
@@ -66,7 +70,7 @@ jobs:
         id: htmldeploy
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: pycoverage_html
           path: coverage-report-html
@@ -75,7 +79,8 @@ jobs:
         run: |
           echo "## Python coverage results:" >> $GITHUB_STEP_SUMMARY
           PAGES_URL="${{ steps.htmldeploy.outputs.page_url }}"
-          if [ -n "${PAGES_URL}" ]; then echo "[Coverage HTML](${PAGES_URL}/coverage/${{ github.head_ref || github.ref_name }})" >> $GITHUB_STEP_SUMMARY; fi
+          ESCAPED_HEAD=$(python3 -c "import sys; from urllib.parse import quote; print(quote(sys.argv[1], safe=''))" "$HEAD")
+          if [ -n "${PAGES_URL}" ]; then echo "[Coverage HTML](${PAGES_URL}/coverage/$ESCAPED_HEAD)" >> $GITHUB_STEP_SUMMARY; fi
           if [ -f coverage-report.md ]; then { echo; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
   cycoverage:
@@ -107,7 +112,7 @@ jobs:
           if [ -f coverage-report.md ]; then { echo "## Compiled coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: cycoverage_html
           path: coverage-report-html

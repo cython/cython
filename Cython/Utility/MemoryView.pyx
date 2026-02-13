@@ -32,7 +32,6 @@ cdef extern from *:
     void PyBuffer_Release(Py_buffer *)
 
     ctypedef struct PyObject
-    ctypedef Py_ssize_t Py_intptr_t
     void Py_INCREF(PyObject *)
     void Py_DECREF(PyObject *)
 
@@ -40,6 +39,8 @@ cdef extern from *:
     void PyMem_Free(void *p)
     void* PyObject_Malloc(size_t n)
     void PyObject_Free(void *p)
+
+    ctypedef size_t uintptr_t "__pyx_uintptr_t"
 
     cdef struct __pyx_memoryview "__pyx_memoryview_obj":
         Py_buffer view
@@ -81,7 +82,7 @@ cdef extern from *:
     {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
                                  {{memviewslice_name}} *from_mvs,
                                  const char *mode, int ndim,
-                                 size_t sizeof_dtype, int contig_flag,
+                                 Py_ssize_t sizeof_dtype, int contig_flag,
                                  bint dtype_is_object) except * nogil
     bint slice_is_contig "__pyx_memviewslice_is_contig" (
                             {{memviewslice_name}} mvs, char order, int ndim) nogil
@@ -147,7 +148,7 @@ cdef class array:
         self.format = self._format
 
         # use single malloc() for both shape and strides
-        self._shape = <Py_ssize_t *> PyObject_Malloc(sizeof(Py_ssize_t)*self.ndim*2)
+        self._shape = <Py_ssize_t *> PyObject_Malloc(sizeof(Py_ssize_t) * 2 * <size_t> self.ndim)
         self._strides = self._shape + self.ndim
 
         if not self._shape:
@@ -250,7 +251,7 @@ cdef int _allocate_buffer(array self) except -1:
     cdef PyObject **p
 
     self.free_data = True
-    self.data = <char *>malloc(self.len)
+    self.data = <char *>malloc(<size_t> self.len)
     if not self.data:
         raise MemoryError, "unable to allocate array data."
 
@@ -366,7 +367,7 @@ cdef class memoryview:
         else:
             self.dtype_is_object = dtype_is_object
 
-        assert <Py_intptr_t><void*>(&self.acquisition_count) % sizeof(__pyx_atomic_int_type) == 0
+        assert <uintptr_t><void*>(&self.acquisition_count) % sizeof(__pyx_atomic_int_type) == 0
         self.typeinfo = NULL
 
     def __dealloc__(memoryview self):
@@ -456,7 +457,7 @@ cdef class memoryview:
         dst_slice = get_slice_from_memview(dst, &tmp_slice)
 
         if <size_t>self.view.itemsize > sizeof(array):
-            tmp = PyMem_Malloc(self.view.itemsize)
+            tmp = PyMem_Malloc(<size_t> self.view.itemsize)
             if tmp == NULL:
                 raise MemoryError
             item = tmp
@@ -473,7 +474,7 @@ cdef class memoryview:
             # to disallow :)
             if self.view.suboffsets != NULL:
                 assert_direct_dimensions(self.view.suboffsets, self.view.ndim)
-            slice_assign_scalar(dst_slice, dst.view.ndim, self.view.itemsize,
+            slice_assign_scalar(dst_slice, dst.view.ndim, <size_t> self.view.itemsize,
                                 item, self.dtype_is_object)
         finally:
             PyMem_Free(tmp)
@@ -593,11 +594,12 @@ cdef class memoryview:
 
     @property
     def size(self):
+        cdef size_t result
         if self._size is None:
             result = 1
 
             for length in self.view.shape[:self.view.ndim]:
-                result *= length
+                result *= <size_t> length
 
             self._size = result
 
@@ -1035,6 +1037,7 @@ cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
             result.view.suboffsets = <Py_ssize_t *> result.from_slice.suboffsets
             break
 
+    cdef Py_ssize_t length
     result.view.len = result.view.itemsize
     for length in result.view.shape[:ndim]:
         result.view.len *= length
@@ -1145,7 +1148,7 @@ cdef void _copy_strided_to_strided(char *src_data, Py_ssize_t *src_strides,
     if ndim == 1:
         if (src_stride > 0 and dst_stride > 0 and
                 <size_t> src_stride == itemsize == <size_t> dst_stride):
-            memcpy(dst_data, src_data, itemsize * dst_extent)
+            memcpy(dst_data, src_data, itemsize * <size_t> dst_extent)
         else:
             for i in range(dst_extent):
                 memcpy(dst_data, src_data, itemsize)
@@ -1167,12 +1170,13 @@ cdef void copy_strided_to_strided({{memviewslice_name}} *src,
                              src.shape, dst.shape, ndim, itemsize)
 
 @cname('__pyx_memoryview_slice_get_size')
-cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) noexcept nogil:
+cdef size_t slice_get_size({{memviewslice_name}} *src, int ndim) noexcept nogil:
     "Return the size of the memory occupied by the slice in number of bytes"
-    cdef Py_ssize_t shape, size = src.memview.view.itemsize
+    cdef Py_ssize_t shape
+    cdef size_t size = <size_t> src.memview.view.itemsize
 
     for shape in src.shape[:ndim]:
-        size *= shape
+        size *= <size_t> shape
 
     return size
 
@@ -1209,7 +1213,7 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
     cdef int i
     cdef void *result
 
-    cdef size_t itemsize = src.memview.view.itemsize
+    cdef size_t itemsize = <size_t> src.memview.view.itemsize
     cdef size_t size = slice_get_size(src, ndim)
 
     result = malloc(size)
@@ -1223,7 +1227,7 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
         tmpslice.shape[i] = src.shape[i]
         tmpslice.suboffsets[i] = -1
 
-    fill_contig_strides_array(&tmpslice.shape[0], &tmpslice.strides[0], itemsize, ndim, order)
+    fill_contig_strides_array(&tmpslice.shape[0], &tmpslice.strides[0], <Py_ssize_t> itemsize, ndim, order)
 
     # We need to broadcast strides again
     for i in range(ndim):
@@ -1267,7 +1271,7 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
     Check for overlapping memory and verify the shapes.
     """
     cdef void *tmpdata = NULL
-    cdef size_t itemsize = src.memview.view.itemsize
+    cdef size_t itemsize = <size_t> src.memview.view.itemsize
     cdef int i
     cdef char order = get_best_order(&src, src_ndim)
     cdef bint broadcasting = False

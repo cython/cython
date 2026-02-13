@@ -34,6 +34,12 @@
   #endif
 #endif
 
+#ifdef __has_builtin
+  #define __Pyx_has_cbuiltin(name) __has_builtin(name)
+#else
+  #define __Pyx_has_cbuiltin(name) (0)
+#endif
+
 #ifndef DL_IMPORT
   #define DL_IMPORT(t) t
 #endif
@@ -576,8 +582,20 @@ typedef uintptr_t  __pyx_uintptr_t;
   #endif
 #endif
 
+#ifdef Py_UNREACHABLE
+  #define __Pyx_UNREACHABLE() Py_UNREACHABLE()
+#elif __Pyx_has_cbuiltin(__builtin_unreachable)
+  #define __Pyx_UNREACHABLE() __builtin_unreachable()
+#elif defined(__clang__) || defined(__INTEL_COMPILER) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)))
+  #define __Pyx_UNREACHABLE() __builtin_unreachable()
+#elif defined(_MSC_VER)
+  #define __Pyx_UNREACHABLE() __assume(0)
+#else
+  #define __Pyx_UNREACHABLE() Py_FatalError("Unreachable C code path reached")
+#endif
+
 #ifndef Py_UNREACHABLE
-  #define Py_UNREACHABLE()  assert(0); abort()
+  #define Py_UNREACHABLE() __Pyx_UNREACHABLE()
 #endif
 
 #ifdef __cplusplus
@@ -599,6 +617,14 @@ typedef uintptr_t  __pyx_uintptr_t;
 #define __PYX_REINTERPRET_FUNCION(func_pointer, other_pointer) ((func_pointer)(void(*)(void))(other_pointer))
 // #define __PYX_REINTERPRET_POINTER(pointer_type, pointer) ((pointer_type)(void *)(pointer))
 // #define __PYX_RUNTIME_REINTERPRET(type, var) (*(type *)(&var))
+
+#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
+#define __Pyx_PyErr_FetchException(petype, peval, petb) PyErr_Fetch(petype, peval, petb)
+#define __Pyx_PyErr_RestoreException(etype, eval, etb) PyErr_Restore(etype, eval, etb)
+#else
+#define __Pyx_PyErr_FetchException(petype, peval, petb) *(petype)=NULL; *(peval)=PyErr_GetRaisedException(); *(petb)=NULL
+#define __Pyx_PyErr_RestoreException(etype, eval, etb) PyErr_SetRaisedException(eval)
+#endif
 
 
 /////////////// CInitCode ///////////////
@@ -734,23 +760,14 @@ static int __Pyx_init_co_variables(void); /* proto */
   #define __Pyx_PyObject_GC_IsFinalized(o) PyObject_GC_IsFinalized(o)
 #endif
 
-#ifndef Py_TPFLAGS_CHECKTYPES
-  #define Py_TPFLAGS_CHECKTYPES 0
-#endif
-#ifndef Py_TPFLAGS_HAVE_INDEX
-  #define Py_TPFLAGS_HAVE_INDEX 0
-#endif
-#ifndef Py_TPFLAGS_HAVE_NEWBUFFER
-  #define Py_TPFLAGS_HAVE_NEWBUFFER 0
-#endif
 #ifndef Py_TPFLAGS_HAVE_FINALIZE
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
 #ifndef Py_TPFLAGS_SEQUENCE
-  #define Py_TPFLAGS_SEQUENCE 0
+  #define Py_TPFLAGS_SEQUENCE (CYTHON_COMPILING_IN_LIMITED_API ? 0 : 1 << 5)
 #endif
 #ifndef Py_TPFLAGS_MAPPING
-  #define Py_TPFLAGS_MAPPING 0
+  #define Py_TPFLAGS_MAPPING (CYTHON_COMPILING_IN_LIMITED_API ? 0 : 1 << 6)
 #endif
 #ifndef Py_TPFLAGS_IMMUTABLETYPE
   #define Py_TPFLAGS_IMMUTABLETYPE (1UL << 8)
@@ -1010,6 +1027,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_ReadChar(u, i)
   #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((void)u, 1114111U)
   #define __Pyx_PyUnicode_KIND(u)         ((void)u, (0))
+  #define __Pyx_PyUnicode_KIND_04(u)      __Pyx_PyUnicode_KIND(u)
   // __Pyx_PyUnicode_DATA() and __Pyx_PyUnicode_READ() must go together, e.g. for iteration.
   #define __Pyx_PyUnicode_DATA(u)         ((void*)u)
   #define __Pyx_PyUnicode_READ(k, d, i)   ((void)k, PyUnicode_ReadChar((PyObject*)(d), i))
@@ -1041,6 +1059,11 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
     #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != (likely(PyUnicode_IS_READY(u)) ? PyUnicode_GET_LENGTH(u) : PyUnicode_GET_SIZE(u)))
     #endif
   #endif
+
+  static CYTHON_INLINE int __Pyx_PyUnicode_KIND_04(PyObject *o) {
+      // Returns 0 for ASCII strings and KIND (1, 2, 4) otherwise.
+      return __Pyx_PyUnicode_KIND(o) - (int) !!PyUnicode_IS_ASCII(o);
+  }
 #endif
 
 #if CYTHON_COMPILING_IN_PYPY
@@ -1185,6 +1208,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_GET_SIZE(o)
   #define __Pyx_PyList_GET_SIZE(o) PyList_GET_SIZE(o)
   #define __Pyx_PySet_GET_SIZE(o) PySet_GET_SIZE(o)
+  #define __Pyx_PyDict_GET_SIZE(o) PyDict_GET_SIZE(o)
   #define __Pyx_PyBytes_GET_SIZE(o) PyBytes_GET_SIZE(o)
   #define __Pyx_PyByteArray_GET_SIZE(o) PyByteArray_GET_SIZE(o)
   #define __Pyx_PyUnicode_GET_LENGTH(o) PyUnicode_GET_LENGTH(o)
@@ -1193,6 +1217,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_Size(o)
   #define __Pyx_PyList_GET_SIZE(o) PyList_Size(o)
   #define __Pyx_PySet_GET_SIZE(o) PySet_Size(o)
+  #define __Pyx_PyDict_GET_SIZE(o) PyDict_Size(o)
   #define __Pyx_PyBytes_GET_SIZE(o) PyBytes_Size(o)
   #define __Pyx_PyByteArray_GET_SIZE(o) PyByteArray_Size(o)
   #define __Pyx_PyUnicode_GET_LENGTH(o) PyUnicode_GetLength(o)

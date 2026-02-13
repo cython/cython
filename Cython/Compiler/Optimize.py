@@ -2368,7 +2368,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     node.type.is_int and isinstance(arg, ExprNodes.BoolNode)):
                 return arg.coerce_to(node.type, self.current_env())
         elif isinstance(arg, ExprNodes.CoerceToPyTypeNode):
-            if arg.type is PyrexTypes.py_object_type:
+            if arg.type is PyrexTypes.py_object_type or arg.type.is_builtin_type:
                 if node.type.assignable_from(arg.arg.type):
                     # completely redundant C->Py->C coercion
                     return arg.arg.coerce_to(node.type, self.current_env())

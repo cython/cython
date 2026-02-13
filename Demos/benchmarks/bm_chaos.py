@@ -166,25 +166,27 @@ class Chaosgame(object):
     def get_random_trafo(self):
         r = random.randrange(int(self.num_total) + 1)
         l = 0
-        for i in range(len(self.num_trafos)):
-            if l <= r < l + self.num_trafos[i]:
-                return i, random.randrange(self.num_trafos[i])
-            l += self.num_trafos[i]
+        i: cython.Py_ssize_t
+        for i, num in enumerate(self.num_trafos):
+            if l <= r < l + num:
+                return i, random.randrange(num)
+            l += num
         return len(self.num_trafos) - 1, random.randrange(self.num_trafos[-1])
 
-    @cython.locals(neighbour="GVector", basepoint="GVector", derivative="GVector",
-                   seg_length=cython.double, start=cython.double, end=cython.double,
-                   t=cython.double)
     def transform_point(self, point, trafo=None):
-        x = (point.x - self.minx) / self.width
-        y = (point.y - self.miny) / self.height
+        x: float = (point.x - self.minx) / self.width
+        y: float = (point.y - self.miny) / self.height
         if trafo is None:
             trafo = self.get_random_trafo()
+        start: float
+        end: float
         start, end = self.splines[trafo[0]].GetDomain()
         length = end - start
-        seg_length = length / self.num_trafos[trafo[0]]
-        t = start + seg_length * trafo[1] + seg_length * x
-        basepoint = self.splines[trafo[0]](t)
+        seg_length: float = length / self.num_trafos[trafo[0]]
+        t: float = start + seg_length * trafo[1] + seg_length * x
+        basepoint: GVector = self.splines[trafo[0]](t)
+        neighbour: GVector
+        derivative: GVector
         if t + 1/50000 > end:
             neighbour = self.splines[trafo[0]](t - 1/50000)
             derivative = neighbour - basepoint
@@ -211,7 +213,7 @@ class Chaosgame(object):
         if point.y < self.miny:
             point.y = self.miny
 
-    def create_image_chaos(self, timer, w, h, n, count: cython.long = 5000):
+    def create_image_chaos(self, timer, w: cython.long, h: cython.long, n: cython.long, count: cython.long = 5000):
         i: cython.long
         x: cython.long
         y: cython.long

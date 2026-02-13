@@ -977,10 +977,10 @@ cdef class ArgumentTypeConversions:
     >>> obj = ArgumentTypeConversions()
     >>> obj[1]
     1
-    >>> obj["not a number!"]
+    >>> obj["not a number!"]  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: an integer is required
+    TypeError: ...integer...
     >>> obj < obj
     In comparison 0
     True

@@ -4,7 +4,7 @@
 
 # new code
 import cython
-from Cython.TestUtils import py_parse_code
+from Cython.TestUtils import TimedTest, py_parse_code
 
 
 if cython.compiled:
@@ -53,7 +53,7 @@ class TestCompiler(unittest.TestCase):
 
 # TestTracing also mainly removed - doesn't seem like a core test
 #  except for one test that seems misplaced in CPython (which is below)
-class TestTracing(unittest.TestCase):
+class TestTracing(TimedTest):
 
     """
         @staticmethod
@@ -179,7 +179,7 @@ class TestTracing(unittest.TestCase):
 ############## ORIGINAL PART FROM CPYTHON
 
 
-class TestInheritance(unittest.TestCase):
+class TestInheritance(TimedTest):
 
     @staticmethod
     def check_sequence_then_mapping(x):
@@ -290,7 +290,7 @@ class TestInheritance(unittest.TestCase):
         self.assertEqual(self.check_mapping_then_sequence(GrandchildPost()), "seq")
 
 
-class TestPatma(unittest.TestCase):
+class TestPatma(TimedTest):
 
     def test_patma_000(self):
         match 0:
@@ -2911,7 +2911,7 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(Outer().f(c), "spam")
 
 
-class TestSyntaxErrors(unittest.TestCase):
+class TestSyntaxErrors(TimedTest):
 
     def assert_syntax_error(self, code: str):
         with self.assertRaises(SyntaxError):
@@ -3214,7 +3214,7 @@ class TestSyntaxErrors(unittest.TestCase):
                 pass
         """)
 
-class TestTypeErrors(unittest.TestCase):
+class TestTypeErrors(TimedTest):
 
     def test_accepts_positional_subpatterns_0(self):
         return  # disabled
@@ -3326,7 +3326,7 @@ class TestTypeErrors(unittest.TestCase):
         self.assertIs(z, None)
 
 
-class TestValueErrors(unittest.TestCase):
+class TestValueErrors(TimedTest):
 
     def test_mapping_pattern_checks_duplicate_key_1(self):
         return  # disabled

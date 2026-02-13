@@ -46,7 +46,7 @@ class NoGilState(enum.IntEnum):
 
 
 def relative_position(pos):
-    return (pos[0].get_filenametable_entry(), pos[1])
+    return (pos[0].get_relative_path().as_posix(), pos[1])
 
 
 def embed_position(pos, docstring):
@@ -1088,12 +1088,14 @@ class CArgDeclNode(Node):
         if self.default:
             self.default.annotate(code)
 
-    def generate_assignment_code(self, code, target=None, overloaded_assignment=False):
+    def generate_assignment_code(self, code, overloaded_assignment=False,
+                                 cyfunc_struct_target=None):
         default = self.default
-        if default is None or default.is_literal:
+        if default is None or (default.is_literal and cyfunc_struct_target is None):
             return
-        if target is None:
-            target = self.calculate_default_value_code(code)
+        # Note that even if self.is_dynamic, default may be a literal if it's been
+        # optimized into a literal after analyse_expressions
+        target = cyfunc_struct_target or self.calculate_default_value_code(code)
         default.generate_evaluation_code(code)
         default.make_owned_reference(code)
         result = default.result() if overloaded_assignment else default.result_as(self.type)
@@ -3549,10 +3551,22 @@ class DefNode(FuncDefNode):
                 warning(self.pos, "Overriding a c(p)def method with a def method. "
                         "This can lead to different methods being called depending on the "
                         "call context. Consider using a cpdef method for both.", 5)
+
         entry = env.declare_pyfunction(name, self.pos, allow_redefine=not self.is_wrapper)
         self.entry = entry
+
+        if entry.is_special and name in ('__getitem__', '__setitem__', '__delitem__'):
+            # We choose the more generic mapping protocol by default, but prefer the sequence
+            # protocol here if the lookup key argument has a C integer type.
+            if len(self.args) in (2, 3) and self.args[1].type.is_int:
+                if PyrexTypes.c_py_ssize_t_type.rank > self.args[1].type.rank:
+                    warning(self.args[1].pos,
+                        f"Smaller index type '{self.args[1].type}' than 'Py_ssize_t' may get truncated in sequence protocol")
+                entry.signature = TypeSlots.sequence_subscript_signatures[name]
+
         prefix = env.next_id(env.scope_prefix)
         self.entry.pyfunc_cname = punycodify_name(Naming.pyfunc_prefix + prefix + name)
+
         if Options.docstrings:
             entry.doc = embed_position(self.pos, self.doc)
             entry.doc_cname = punycodify_name(Naming.funcdoc_prefix + prefix + name)

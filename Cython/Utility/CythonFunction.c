@@ -1811,6 +1811,35 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     return 0;
 }
 
+
+//////////////////// FusedFunctionArgTypeError.proto ////////////////////
+
+#define __Pyx_RaiseFusedFunctionArgTypeError(arg_name, arg_tuple_idx, min_positional_args, arg_count) \
+    (__Pyx__RaiseFusedFunctionArgTypeError(arg_name, arg_tuple_idx, min_positional_args, arg_count), -1)
+
+static void __Pyx__RaiseFusedFunctionArgTypeError(PyObject *arg_name, Py_ssize_t arg_tuple_idx, Py_ssize_t min_positional_args, Py_ssize_t arg_count); /*proto*/
+
+//////////////////// FusedFunctionArgTypeError ////////////////////
+
+static void __Pyx__RaiseFusedFunctionArgTypeError(PyObject *arg_name, Py_ssize_t arg_tuple_idx, Py_ssize_t min_positional_args, Py_ssize_t arg_count) {
+    if (arg_tuple_idx < min_positional_args) {
+        PyErr_Format(
+            PyExc_TypeError,
+            "Expected at least %zd argument%.1s, got %zd",
+            min_positional_args,
+            (min_positional_args != 1) ? "s" : "",
+            arg_count
+        );
+    } else {
+        PyErr_Format(
+            PyExc_TypeError,
+            "Missing keyword-only argument: '%U'",
+            arg_name
+        );
+    }
+}
+
+
 //////////////////// ClassMethod.proto ////////////////////
 
 #if !CYTHON_COMPILING_IN_LIMITED_API

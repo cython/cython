@@ -1,8 +1,7 @@
-import unittest
-
 from Cython.Compiler import PyrexTypes as pt
 from Cython.Compiler.ExprNodes import NameNode
 from Cython.Compiler.PyrexTypes import CFuncTypeArg
+from ...TestUtils import TimedTest
 
 def cfunctype(*arg_types):
     return pt.CFuncType(pt.c_int_type,
@@ -11,7 +10,8 @@ def cfunctype(*arg_types):
 def cppclasstype(name, base_classes):
     return pt.CppClassType(name, None, 'CPP_'+name, base_classes)
 
-class SignatureMatcherTest(unittest.TestCase):
+
+class SignatureMatcherTest(TimedTest):
     """
     Test the signature matching algorithm for overloaded signatures.
     """

@@ -9,14 +9,19 @@ import time
 
 
 def repeat_to_accuracy(func, *args,
-                       variance_threshold: float = .02,
+                       variance_threshold: float = 5e-5,
+                       outlier_threshold: float = .12,
                        scale=1,
                        repeat=True,
-                       max_iterations: cython.long = 5_000,
+                       max_iterations: cython.long = 1_000,
                        min_iterations: cython.long = 5,
+                       scale_to=None,
                        ):
     """Repeatedly call and time the function
     until the variance of the timings is below 'variance_threshold'.
+
+    Slow runs that are more than a factor of 'outlier_threshold'
+    over the current mean are excluded.
 
     Returns the calculated mean and the list of timings.
     """
@@ -25,6 +30,11 @@ def repeat_to_accuracy(func, *args,
 
     times = []
     call_benchmark = partial(func, *args, scale, time.perf_counter)
+
+    if scale_to is None or scale_to == scale:
+        scale_factor = 1.0
+    else:
+        scale_factor = scale_to / scale
 
     # First counted run.
     execution_time: float = call_benchmark()
@@ -43,9 +53,14 @@ def repeat_to_accuracy(func, *args,
         # Special non-repeat mode for initial auto-scaling.
         max_iterations = min_iterations = 3
         variance_threshold = .1
+        outlier_threshold = 10.  # try to exclude nothing
         min_runtime = 0.
 
+    # Put an upper bound on the wall clock runtime as well.
+    max_runtime = get_wall_time() + 1 * 30
+
     count: cython.long
+    discarded: cython.long = 0
     for count in range(2, max_iterations + 1):
         # Time the function.
         execution_time = call_benchmark()
@@ -53,18 +68,29 @@ def repeat_to_accuracy(func, *args,
 
         # Incrementally calculate mean and sum of squares.
         delta = execution_time - mean
+
+        # Discard extremely slow outliers.
+        if mean and delta / mean > outlier_threshold:
+            discarded += 1
+            continue
+        count -= discarded
+
         mean += delta / count
         delta2 = execution_time - mean
         squares += delta * delta2
 
         # Calculate variance.
         variance = squares / (count - 1)
+        if count < min_iterations:
+            continue
         if variance < variance_threshold:
-            if count < min_iterations:
-                continue
-            elif get_wall_time() < min_runtime:
+            if get_wall_time() < min_runtime:
                 continue
             break
+        if get_wall_time() > max_runtime:
+            break
+
+    times = [t * scale_factor for t in times]
 
     return times, mean, variance
 

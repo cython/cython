@@ -225,7 +225,7 @@ Depending on the application, one way or the other may be better:
 
 * If you use the `functools.total_ordering <https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
   decorator on an extension type/``cdef`` class, Cython replaces it with a low-level reimplementation
-  designed specifically for extension types.  (On a normal Python classes, the ``functools`` 
+  designed specifically for extension types.  (On a normal Python classes, the ``functools``
   decorator continues to work as before.)  As a shortcut you can also use ``cython.total_ordering``, which
   applies the same re-implementation but also transforms the class to an extension type if it
   isn't already.
@@ -379,7 +379,7 @@ used the bidirectional C slot signature for the regular methods, thus making the
 first argument ambiguous (not 'self' typed).
 Since Cython 3.0, the operator calls are passed to the respective special methods.
 See the section on :ref:`Arithmetic methods <arithmetic_methods>` above.
-Cython 0.x also did not support the 2 argument version of ``__pow__`` and 
+Cython 0.x also did not support the 2 argument version of ``__pow__`` and
 ``__rpow__``, or the 3 argument version of ``__ipow__``.
 
 Numeric conversions
@@ -438,6 +438,9 @@ https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 | __ixor__ 	        | self, x 	                        | object      | `^=` operator                                       |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 
+
+.. _sequences_and_mappings:
+
 Sequences and mappings
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -454,13 +457,23 @@ https://docs.python.org/3/reference/datamodel.html#emulating-container-types
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __delitem__ 	        | self, x 	  	                |             | del self[x]                                         |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __getslice__ 	        | self, Py_ssize_t i, Py_ssize_t j 	| object      | self[i:j]                                           |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __setslice__ 	        | self, Py_ssize_t i, Py_ssize_t j, x 	|  	      | self[i:j] = x                                       |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __delslice__ 	        | self, Py_ssize_t i, Py_ssize_t j 	|  	      | del self[i:j]                                       |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __contains__ 	        | self, x 	                        | int 	      | x in self                                           |
++-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
+
+To target specifically the sequence protocol (rather than the more general mapping protocol), use the class decorator
+``@cython.collection_type("sequence")`` (see :ref:`@collection_type() <collection_type>`)
+and implement the signatures as follows.
+This can avoid creating a Python integer object for the index when the indices are needed as C integers
+and happen to be already available as C integers by the callers.
+
++-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
+| Name 	                | Parameters                            | Return type | 	Description                                       |
++=======================+=======================================+=============+=====================================================+
+| __getitem__ 	        | self, Py_ssize_t x                    | object      | self[x]                                             |
++-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
+| __setitem__ 	        | self, Py_ssize_t x, y                 |             | self[x] = y                                         |
++-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
+| __delitem__ 	        | self, Py_ssize_t x                    |             | del self[x]                                         |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 
 Iterators
