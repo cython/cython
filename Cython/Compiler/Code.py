@@ -3152,16 +3152,14 @@ class CCodeWriter:
     def put_decref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
         if nanny:
             self.handle_refnanny(type)
-        self.putln(
-            type.get_decref_clear_code(cname, clear_before_decref=clear_before_decref,
-                              nanny=nanny, have_gil=have_gil))
+        self.putln(type.get_decref_clear_code(
+            cname, clear_before_decref=clear_before_decref, nanny=nanny, have_gil=have_gil))
 
     def put_xdecref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
         if nanny:
             self.handle_refnanny(type)
-        self.putln(
-            type.get_xdecref_clear_code(cname, clear_before_decref=clear_before_decref,
-                              nanny=nanny, have_gil=have_gil))
+        self.putln(type.get_xdecref_clear_code(
+            cname, clear_before_decref=clear_before_decref, nanny=nanny, have_gil=have_gil))
 
     def put_decref_set(self, cname, type, rhs_cname):
         self.handle_refnanny(type)
