@@ -85,6 +85,18 @@ class ControlBlock:
         self.children.add(block)
         block.parents.add(self)
 
+    def print(self, level=0, seen=None):
+        if seen is None:
+            seen = set()
+        print(f"{' '*level}{self} {'*' if self in seen else ''}")
+        if self in seen:
+            return
+        for stat in self.stats:
+            print(f"{' '*(level+1)}-{stat}")
+        seen.add(self)
+        for child in self.children:
+            child.print(level+1, seen)
+
 
 class ExitBlock(ControlBlock):
     """Non-empty exit point block."""
@@ -926,8 +938,9 @@ class ControlFlowAnalysis(CythonTransform):
         parent = self.flow.block
         # If clauses
         for clause in node.if_clauses:
-            parent = self.flow.nextblock(parent)
+            self.flow.nextblock(parent)
             self._visit(clause.condition)
+            parent = self.flow.block
             self.flow.nextblock()
             self._visit(clause.body)
             if self.flow.block:
@@ -974,6 +987,7 @@ class ControlFlowAnalysis(CythonTransform):
         self.flow.loops.append(LoopDescr(next_block, condition_block))
         if node.condition:
             self._visit(node.condition)
+        condition_block_end = self.flow.block
         # Body block
         self.flow.nextblock()
         self._visit(node.body)
@@ -984,12 +998,12 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.block.add_child(next_block)
         # Else clause
         if node.else_clause:
-            self.flow.nextblock(parent=condition_block)
+            self.flow.nextblock(parent=condition_block_end)
             self._visit(node.else_clause)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
         else:
-            condition_block.add_child(next_block)
+            condition_block_end.add_child(next_block)
 
         if next_block.parents:
             self.flow.block = next_block
@@ -1072,6 +1086,7 @@ class ControlFlowAnalysis(CythonTransform):
         # Condition with iterator
         self.flow.loops.append(LoopDescr(next_block, condition_block))
         self._visit(node.iterator)
+        condition_block_end = self.flow.block
         # Target assignment
         self.flow.nextblock()
 
@@ -1096,12 +1111,12 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.block.add_child(condition_block)
         # Else clause
         if node.else_clause:
-            self.flow.nextblock(parent=condition_block)
+            self.flow.nextblock(parent=condition_block_end)
             self._visit(node.else_clause)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
         else:
-            condition_block.add_child(next_block)
+            condition_block_end.add_child(next_block)
 
         if next_block.parents:
             self.flow.block = next_block
@@ -1152,6 +1167,7 @@ class ControlFlowAnalysis(CythonTransform):
         self._visit(node.bound2)
         if node.step is not None:
             self._visit(node.step)
+        condition_block_end = self.flow.block
         # Target assignment
         self.flow.nextblock()
         self.mark_assignment(node.target, node.bound1)
@@ -1167,12 +1183,12 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.block.add_child(condition_block)
         # Else clause
         if node.else_clause:
-            self.flow.nextblock(parent=condition_block)
+            self.flow.nextblock(parent=condition_block_end)
             self._visit(node.else_clause)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
         else:
-            condition_block.add_child(next_block)
+            condition_block_end.add_child(next_block)
 
         if next_block.parents:
             self.flow.block = next_block
