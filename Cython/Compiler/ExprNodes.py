@@ -9,7 +9,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                StringEncoding=object, operator=object, local_errors=object, report_error=object,
                Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
                list_type=object, tuple_type=object, set_type=object, dict_type=object, bool_type=object,
-               unicode_type=object, bytes_type=object, type_type=object, int_type=object,
+               unicode_type=object, bytes_type=object, type_type=object, int_type=object, float_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
                bytearray_type=object, slice_type=object, memoryview_type=object,
@@ -42,7 +42,7 @@ from .PyrexTypes import c_char_ptr_type, py_object_type, typecast, error_type, \
 from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
-    unicode_type, bytes_type, bytearray_type, int_type, bool_type,
+    unicode_type, bytes_type, bytearray_type, int_type, float_type, bool_type,
     slice_type, sequence_types as builtin_sequence_types, memoryview_type,
 )
 from . import Builtin
@@ -12692,9 +12692,27 @@ class NumBinopNode(BinopNode):
 
     def py_operation_function(self, code):
         function_name = self.py_functions[self.operator]
-        if self.inplace:
-            function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
-        return function_name
+        inplace_function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
+
+        if self.operator in self.fast_pyops:
+            type1 = self.operand1.type
+            type2 = self.operand2.type
+            if type1 in self.specialised_binop_types and type2 in self.specialised_binop_types:
+                code.globalstate.use_utility_code(
+                    TempitaUtilityCode.load_cached("PyNumberBinop", "Optimize.c", context={
+                        'op_name': function_name,
+                        'inplace_op_name': inplace_function_name,
+                        'c_op': self.operator,
+                        'type1': type1.name,
+                        'type2': type2.name,
+                    }))
+                return f'__Pyx_{inplace_function_name if self.inplace else function_name}_{type1.name}_{type2.name}'
+
+        return inplace_function_name if self.inplace else function_name
+
+    specialised_binop_types = (py_object_type, int_type, float_type)
+
+    fast_pyops = {'+', '-', '*'}
 
     py_functions = {
         "|":        "PyNumber_Or",
