@@ -506,6 +506,8 @@ VER_DEP_MODULES = {
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
 
+    (3,11): (operator.lt, lambda x: x in ['run.test_except_star',
+                                          ]),
     (3,12): (operator.ge, lambda x: x in [
         'run.py_unicode_strings',  # Py_UNICODE was removed
         'compile.pylong',  # PyLongObject changed its structure

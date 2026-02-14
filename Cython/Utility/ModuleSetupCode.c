@@ -125,6 +125,9 @@
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
+  #ifndef CYTHON_USE_OWN_PREP_RERAISE_STAR
+    #define CYTHON_USE_OWN_PREP_RERAISE_STAR 1
+  #endif
   #undef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 0
   #undef CYTHON_IMMORTAL_CONSTANTS
@@ -195,6 +198,9 @@
   #define CYTHON_USE_EXC_INFO_STACK 0
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC (PYPY_VERSION_NUM >= 0x07031100)
+  #endif
+  #ifndef CYTHON_USE_OWN_PREP_RERAISE_STAR
+    #define CYTHON_USE_OWN_PREP_RERAISE_STAR 1
   #endif
   #undef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 0
@@ -278,6 +284,9 @@
   #define CYTHON_USE_EXC_INFO_STACK 0
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
+  #endif
+  #ifndef CYTHON_USE_OWN_PREP_RERAISE_STAR
+    #define CYTHON_USE_OWN_PREP_RERAISE_STAR 1
   #endif
   #ifndef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 1
@@ -415,6 +424,11 @@
   #endif
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 1
+  #endif
+  #ifndef CYTHON_USE_OWN_PREP_RERAISE_STAR
+    // Allow this to be overridden mainly to aid debugging of our internal
+    // implementation
+    #define CYTHON_USE_OWN_PREP_RERAISE_STAR (PY_VERSION_HEX < 0x030C00B2)
   #endif
   #ifndef CYTHON_USE_FREELISTS
     #define CYTHON_USE_FREELISTS (!CYTHON_COMPILING_IN_CPYTHON_FREETHREADING)
@@ -1455,6 +1469,7 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObj
 #define __Pyx_PyErr_ExceptionMatches2(err1, err2)  __Pyx_PyErr_GivenExceptionMatches2(__Pyx_PyErr_CurrentExceptionType(), err1, err2)
 
 #define __Pyx_PyException_Check(obj) __Pyx_TypeCheck(obj, PyExc_Exception)
+#define __Pyx_PyBaseExceptionGroup_Check(obj) __Pyx_TypeCheck(obj, PyExc_BaseExceptionGroup)
 #ifdef PyExceptionInstance_Check
   #define __Pyx_PyBaseException_Check(obj) PyExceptionInstance_Check(obj)
 #else
