@@ -40,6 +40,9 @@ cdef extern from *:
     void* PyObject_Malloc(size_t n)
     void PyObject_Free(void *p)
 
+    PyObject* PyErr_SetString(PyObject* exc_type, const char* message)  # No 'except NULL', callers must propagate.
+    PyObject* PyErr_Format(PyObject* exc_type, const char* message, ...)  # No 'except NULL', callers must propagate.
+
     ctypedef size_t uintptr_t "__pyx_uintptr_t"
 
     cdef struct __pyx_memoryview "__pyx_memoryview_obj":
@@ -1241,20 +1244,27 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
 
     return result
 
+
 # Use 'with gil' functions and avoid 'with gil' blocks, as the code within the blocks
 # has temporaries that need the GIL to clean up
 @cname('__pyx_memoryview_err_extents')
 cdef int _err_extents(int i, Py_ssize_t extent1,
                              Py_ssize_t extent2) except -1 with gil:
-    raise ValueError, f"got differing extents in dimension {i} (got {extent1} and {extent2})"
+    PyErr_Format(
+        PyExc_ValueError,
+        "got differing extents in dimension %d (got %zd and %zd)",
+        i, extent1, extent2)
+    return -1
 
 @cname('__pyx_memoryview_err_dim')
-cdef int _err_dim(PyObject *error, str msg, int dim) except -1 with gil:
-    raise <object>error, msg % dim
+cdef int _err_dim(PyObject *error, const char* msg, int dim) except -1 with gil:
+    PyErr_Format(error, msg, dim)
+    return -1
 
 @cname('__pyx_memoryview_err')
-cdef int _err(PyObject *error, str msg) except -1 with gil:
-    raise <object>error, msg
+cdef int _err(PyObject *error, const char* msg) except -1 with gil:
+    PyErr_SetString(error, msg)
+    return -1
 
 @cname('__pyx_memoryview_err_no_memory')
 cdef int _err_no_memory() except -1 with gil:
