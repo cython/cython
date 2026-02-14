@@ -375,14 +375,12 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 2)
 
     def test_patma_010(self):
-        return  # disabled
         match ():
             case []:
                 x = 0
         self.assertEqual(x, 0)
 
     def test_patma_011(self):
-        return  # disabled
         match (0, 1, 2):
             case [*x]:
                 y = 0
@@ -390,7 +388,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_012(self):
-        return  # disabled
         match (0, 1, 2):
             case [0, *x]:
                 y = 0
@@ -398,7 +395,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_013(self):
-        return  # disabled
         match (0, 1, 2):
             case [0, 1, *x,]:
                 y = 0
@@ -406,7 +402,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_014(self):
-        return  # disabled
         match (0, 1, 2):
             case [0, 1, 2, *x]:
                 y = 0
@@ -414,7 +409,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_015(self):
-        return  # disabled
         match (0, 1, 2):
             case [*x, 2,]:
                 y = 0
@@ -422,7 +416,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_016(self):
-        return  # disabled
         match (0, 1, 2):
             case [*x, 1, 2]:
                 y = 0
@@ -430,7 +423,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_017(self):
-        return  # disabled
         match (0, 1, 2):
             case [*x, 0, 1, 2,]:
                 y = 0
@@ -438,7 +430,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_018(self):
-        return  # disabled
         match (0, 1, 2):
             case [0, *x, 2]:
                 y = 0
@@ -446,7 +437,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_019(self):
-        return  # disabled
         match (0, 1, 2):
             case [0, 1, *x, 2,]:
                 y = 0
@@ -454,7 +444,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_020(self):
-        return  # disabled
         match (0, 1, 2):
             case [0, *x, 1, 2]:
                 y = 0
@@ -462,7 +451,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_021(self):
-        return  # disabled
         match (0, 1, 2):
             case [*x,]:
                 y = 0
@@ -704,7 +692,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_044(self):
-        return  # disabled
         x = ()
         match x:
             case []:
@@ -713,7 +700,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_045(self):
-        return  # disabled
         x = ()
         match x:
             case ():
@@ -722,7 +708,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_046(self):
-        return  # disabled
         x = (0,)
         match x:
             case [0]:
@@ -731,7 +716,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_047(self):
-        return  # disabled
         x = ((),)
         match x:
             case [[]]:
@@ -782,7 +766,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_052(self):
-        return  # disabled
         x = [1, 0]
         match x:
             case [0]:
@@ -795,7 +778,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 2)
 
     def test_patma_053(self):
-        return  # disabled
         x = {0}
         y = None
         match x:
@@ -805,7 +787,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_054(self):
-        return  # disabled
         x = set()
         y = None
         match x:
@@ -815,7 +796,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_055(self):
-        return  # disabled
         x = iter([1, 2, 3])
         y = None
         match x:
@@ -825,7 +805,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_056(self):
-        return  # disabled
         x = {}
         y = None
         match x:
@@ -835,7 +814,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_057(self):
-        return  # disabled
         x = {0: False, 1: True}
         y = None
         match x:
@@ -1015,7 +993,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_075(self):
-        return  # disabled
         x = "x"
         match x:
             case ["x"]:
@@ -1026,7 +1003,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 1)
 
     def test_patma_076(self):
-        return  # disabled
         x = b"x"
         match x:
             case [b"x"]:
@@ -1041,7 +1017,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 4)
 
     def test_patma_077(self):
-        return  # disabled
         x = bytearray(b"x")
         y = None
         match x:
@@ -1053,7 +1028,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_078(self):
-        return  # disabled
         x = ""
         match x:
             case []:
@@ -1066,7 +1040,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 2)
 
     def test_patma_079(self):
-        return  # disabled
         x = "xxx"
         match x:
             case ["x", "x", "x"]:
@@ -1079,7 +1052,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 2)
 
     def test_patma_080(self):
-        return  # disabled
         x = b"xxx"
         match x:
             case [120, 120, 120]:
@@ -1441,7 +1413,6 @@ class TestPatma(TimedTest):
         self.assertEqual(x, 0)
 
     def test_patma_118(self):
-        return  # disabled
         x = []
         match x:
             case [*_, _]:
@@ -1475,14 +1446,12 @@ class TestPatma(TimedTest):
         self.assertEqual(z, {})
 
     def test_patma_121(self):
-        return  # disabled
         match ():
             case ():
                 x = 0
         self.assertEqual(x, 0)
 
     def test_patma_122(self):
-        return  # disabled
         match (0, 1, 2):
             case (*x,):
                 y = 0
@@ -1490,7 +1459,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_123(self):
-        return  # disabled
         match (0, 1, 2):
             case 0, *x:
                 y = 0
@@ -1498,7 +1466,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_124(self):
-        return  # disabled
         match (0, 1, 2):
             case (0, 1, *x,):
                 y = 0
@@ -1506,7 +1473,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_125(self):
-        return  # disabled
         match (0, 1, 2):
             case 0, 1, 2, *x:
                 y = 0
@@ -1514,7 +1480,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_126(self):
-        return  # disabled
         match (0, 1, 2):
             case *x, 2,:
                 y = 0
@@ -1522,7 +1487,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_127(self):
-        return  # disabled
         match (0, 1, 2):
             case (*x, 1, 2):
                 y = 0
@@ -1530,7 +1494,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_128(self):
-        return  # disabled
         match (0, 1, 2):
             case *x, 0, 1, 2,:
                 y = 0
@@ -1538,7 +1501,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_129(self):
-        return  # disabled
         match (0, 1, 2):
             case (0, *x, 2):
                 y = 0
@@ -1546,7 +1508,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_130(self):
-        return  # disabled
         match (0, 1, 2):
             case 0, 1, *x, 2,:
                 y = 0
@@ -1554,7 +1515,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_131(self):
-        return  # disabled
         match (0, 1, 2):
             case (0, *x, 1, 2):
                 y = 0
@@ -1562,7 +1522,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_132(self):
-        return  # disabled
         match (0, 1, 2):
             case *x,:
                 y = 0
@@ -1772,7 +1731,6 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_151(self):
-        return  # disabled
         x = 0
         match x,:
             case y,:
@@ -1782,7 +1740,6 @@ class TestPatma(TimedTest):
         self.assertIs(z, 0)
 
     def test_patma_152(self):
-        return  # disabled
         w = 0
         x = 0
         match w, x:
@@ -1795,7 +1752,6 @@ class TestPatma(TimedTest):
         self.assertEqual(v, 0)
 
     def test_patma_153(self):
-        return  # disabled
         x = 0
         match w := x,:
             case y as v,:
@@ -2174,7 +2130,6 @@ class TestPatma(TimedTest):
         self.assertEqual(whereis(Point("X", "x")), "Not on the diagonal")
 
     def test_patma_184(self):
-        return  # disabled
         class Seq(collections.abc.Sequence):
             __getitem__ = None
             def __len__(self):
@@ -2185,7 +2140,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_185(self):
-        return  # disabled
         class Seq(collections.abc.Sequence):
             __getitem__ = None
             def __len__(self):
@@ -2196,7 +2150,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_186(self):
-        return  # disabled
         class Seq(collections.abc.Sequence):
             def __getitem__(self, i):
                 return i
@@ -2210,7 +2163,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_187(self):
-        return  # disabled
         w = range(10)
         match w:
             case [x, y, *rest]:
@@ -2222,7 +2174,6 @@ class TestPatma(TimedTest):
         self.assertEqual(rest, list(range(2, 10)))
 
     def test_patma_188(self):
-        return  # disabled
         w = range(100)
         match w:
             case (x, y, *rest):
@@ -2234,7 +2185,6 @@ class TestPatma(TimedTest):
         self.assertEqual(rest, list(range(2, 100)))
 
     def test_patma_189(self):
-        return  # disabled
         w = range(1000)
         match w:
             case x, y, *rest:
@@ -2246,7 +2196,6 @@ class TestPatma(TimedTest):
         self.assertEqual(rest, list(range(2, 1000)))
 
     def test_patma_190(self):
-        return  # disabled
         w = range(1 << 10)
         match w:
             case [x, y, *_]:
@@ -2257,7 +2206,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_191(self):
-        return  # disabled
         w = range(1 << 20)
         match w:
             case (x, y, *_):
@@ -2268,7 +2216,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_192(self):
-        return  # disabled
         w = range(1 << 30)
         match w:
             case x, y, *_:
@@ -2527,7 +2474,6 @@ class TestPatma(TimedTest):
         self.assertEqual(f((1, 2)), {})
 
     def test_patma_210(self):
-        return  # disabled
         def f(w):
             match w:
                 case (x, y, z):
@@ -2568,7 +2514,6 @@ class TestPatma(TimedTest):
         self.assertEqual(f(Point(42, "hello")), {"xx": 42})
 
     def test_patma_213(self):
-        return  # disabled
         def f(w):
             match w:
                 case (p, q) as x:
@@ -2609,7 +2554,6 @@ class TestPatma(TimedTest):
         self.assertEqual(set(f()), {"abc"})
 
     def test_patma_218(self):
-        return  # disabled
         def f():
             match ..., ...:
                 case a, b:
@@ -2712,14 +2656,12 @@ class TestPatma(TimedTest):
         self.assertIs(f(3), None)
 
     def test_patma_228(self):
-        return  # disabled
         match():
             case():
                 x = 0
         self.assertEqual(x, 0)
 
     def test_patma_229(self):
-        return  # disabled
         x = 0
         match(x):
             case(x):
@@ -2804,7 +2746,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_238(self):
-        return  # disabled
         x = ((0, 1), (2, 3))
         match x:
             case ((a as b, c as d) as e) as w, ((f as g, h) as i) as z:
@@ -2853,7 +2794,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_242(self):
-        return  # disabled
         x = range(3)
         match x:
             case [y, *_, z]:
@@ -2864,7 +2804,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 2)
 
     def test_patma_243(self):
-        return  # disabled
         x = range(3)
         match x:
             case [_, *_, y]:
@@ -2874,7 +2813,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_244(self):
-        return  # disabled
         x = range(3)
         match x:
             case [*_, y]:

@@ -146,7 +146,7 @@ jobs:
             extra_hash: "-all"
           # Linting
           - os: ubuntu-22.04
-            python-version: "3.9"
+            python-version: "3.13"
             backend: "c,cpp"
             env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
             extra_hash: "-codestyle"

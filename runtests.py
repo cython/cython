@@ -1992,6 +1992,7 @@ class TestCodeFormat(unittest.TestCase):
             exclude=[
                 "*badindent*",
                 "*tabspace*",
+                "fstring.pyx"
             ],
         )
         print("")  # Fix the first line of the report.
