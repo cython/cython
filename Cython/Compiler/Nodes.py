@@ -528,6 +528,9 @@ class CDeclaratorNode(Node):
     def declared_name(self):
         return None
 
+    def set_declared_name(self, new_name):
+        raise NotImplementedError()
+
     def analyse_templates(self):
         # Only C++ functions have templates.
         return None
@@ -544,6 +547,9 @@ class CNameDeclaratorNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.name
+
+    def set_declared_name(self, new_name):
+        self.name = new_name
 
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if nonempty and self.name == '':
@@ -576,6 +582,9 @@ class CPtrDeclaratorNode(CDeclaratorNode):
     def declared_name(self):
         return self.base.declared_name()
 
+    def set_declared_name(self, new_name):
+        self.base.set_declared_name(new_name)
+
     def analyse_templates(self):
         return self.base.analyse_templates()
 
@@ -591,6 +600,9 @@ class _CReferenceDeclaratorBaseNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.base.declared_name()
+
+    def set_declared_name(self, new_name):
+        self.base.set_declared_name(new_name)
 
     def analyse_templates(self):
         return self.base.analyse_templates()
@@ -684,6 +696,9 @@ class CFuncDeclaratorNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.base.declared_name()
+
+    def set_declared_name(self, new_name):
+        self.base.set_declared_name(new_name)
 
     def analyse_templates(self):
         if isinstance(self.base, CArrayDeclaratorNode):
@@ -6044,17 +6059,37 @@ class CPropertyNode(StatNode):
     is_cproperty = True
 
     @property
-    def cfunc(self):
+    def getter_cfunc(self):
         stats = self.body.stats
-        assert stats and isinstance(stats[0], CFuncDefNode), stats
-        return stats[0]
+        assert stats
+        for stat in stats:
+            if stat.declared_name() == "__get__":
+                assert isinstance(stat, CFuncDefNode), stat
+                return stat
+        assert False, stats  # we should have a getter
+
+    @property
+    def setter_cfunc(self):
+        stats = self.body.stats
+        assert stats
+        for stat in stats:
+            if stat.declared_name() == "__set__":
+                assert isinstance(stat, CFuncDefNode), stat
+                return stat
+        return None  # we may not have a setter
 
     def analyse_declarations(self, env):
         scope = PropertyScope(self.name, class_scope=env)
         self.body.analyse_declarations(scope)
+        getter = self.getter_cfunc
         entry = self.entry = env.declare_property(
-            self.name, self.doc, self.pos, ctype=self.cfunc.return_type, property_scope=scope)
-        entry.getter_cname = self.cfunc.entry.cname
+            self.name, self.doc, self.pos, ctype=getter.return_type, property_scope=scope)
+        entry.getter_cname = getter.entry.cname
+        setter = self.setter_cfunc
+        if setter:
+            entry = self.entry = env.declare_property(
+                self.name, self.doc, self.pos, ctype=setter.return_type, property_scope=scope)
+            entry.setter_cname = setter.entry.cname
 
     def analyse_expressions(self, env):
         self.body = self.body.analyse_expressions(env)
