@@ -5,6 +5,7 @@ Report benchmark results from CSV files in Markdown format.
 import csv
 import itertools
 import operator
+import re
 
 
 def unbreak(s):
@@ -23,7 +24,7 @@ def read_rows(csv_rows):
     # - benchmark, revision_name, pyversion, size, diff
     reader = csv.reader(csv_rows)
 
-    # Sort by benchmark name.
+    # Sort rows by benchmark name.
     rows = sorted(reader, key=operator.itemgetter(0))
     return rows
 
@@ -66,10 +67,17 @@ def format_sizes(size, diff, *, master_data=None, warn_margin=.01):
 
 
 def build_table(rows, title, data_formatter):
-    # Collect all revision names and Python versions, keeping their original order.
+    # Collect all revision names, keeping their original order.
     # (The set may not be the same for all benchmarks.)
     revisions = list({row[1]: 1 for row in rows})
-    python_versions = list({row[2]: 1 for row in rows})
+
+    # Collect all Python versions, newest first.
+    # Relies on sort stability for Limited API / freethreading / etc.
+    find_numbers = re.compile(r"(\d+)").findall
+    python_versions = sorted(
+        {row[2] for row in rows},
+        key=lambda s: tuple([-int(d) for d in find_numbers(s)]),
+    )
 
     # Prepare table column mapping and header.
     pos = itertools.count(1)
