@@ -15,15 +15,18 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                bytearray_type=object, slice_type=object, memoryview_type=object,
                builtin_sequence_types=object, build_line_table=object,
                inspect=object, copy=object, os=object, pathlib=object, re=object, sys=object,
+               itertools=object, defaultdict=object,
 )
 
 import copy
 import inspect
+import itertools
 import operator
 import os.path
 import pathlib
 import re
 import sys
+from collections import defaultdict
 from functools import partial
 from typing import Optional
 
@@ -3793,6 +3796,7 @@ class JoinedStrNode(ExprNode):
         unknown_lengths = []
         unknown_nodes = []
         ustring_kind = 0
+        node_occurrences = defaultdict(int)
 
         for i, node in enumerate(self.values):
             node.generate_evaluation_code(code)
@@ -3801,6 +3805,12 @@ class JoinedStrNode(ExprNode):
                 ustring_kind = max(ustring_kind, node.get_ustring_kind())
                 known_length += len(node.value)
                 continue
+            elif isinstance(node, CloneNode) and node.arg in node_occurrences:
+                # We already know the result but need to add the length.
+                node_occurrences[node.arg] += 1
+                continue
+            else:
+                node_occurrences[node] += 1
 
             unknown_lengths.append(i)
 
@@ -3808,11 +3818,14 @@ class JoinedStrNode(ExprNode):
                     node.c_format_spec != 'c' and node.value.type.is_numeric):
                 # Formatted C numbers are always ASCII.
                 pass
-            elif isinstance(node, CloneNode):
-                # We already know the result, but we still need the length.
-                pass
             else:
                 unknown_nodes.append(i)
+
+        index_repetitions = {
+            i: node_occurrences[node]
+            for i, node in enumerate(self.values)
+            if node_occurrences[node] > 1
+        } or None
 
         if use_stack_memory:
             values_array = code.funcstate.allocate_temp(
@@ -3828,8 +3841,8 @@ class JoinedStrNode(ExprNode):
         for i, node in enumerate(self.values):
             code.putln('%s[%d] = %s;' % (values_array, i, node.py_result()))
 
-        def aggregate(indices, result_temp, initial_value, cfunc_name, operator):
-            assert operator in '+|', operator
+        def aggregate(indices, result_temp, initial_value, cfunc_name, op, factors):
+            assert op in '+|', op
             code.putln(f"{result_temp} = {initial_value};")
             if not indices:
                 return
@@ -3837,7 +3850,9 @@ class JoinedStrNode(ExprNode):
             code.putln("#if __Pyx_PyUnicode_Join_CAN_USE_KIND_AND_LENGTH")
 
             if len(indices) == 1:
-                code.putln(f"{result_temp} {operator}= {cfunc_name}({values_array}[{indices[0]}]);")
+                index = indices[0]
+                factor = f" * {factors[index]}" if factors and index in factors else ''
+                code.putln(f"{result_temp} {op}= {cfunc_name}({values_array}[{index}]){factor};")
                 code.putln("#endif")
                 return
 
@@ -3853,21 +3868,34 @@ class JoinedStrNode(ExprNode):
                     assert indices == list(range(min_index, max_index+1, step)), indices
 
                     code.putln(f"for (Py_ssize_t i={min_index}; i <= {max_index}; i += {step}) ""{")
-                    code.putln(f"{result_temp} {operator}= {cfunc_name}({values_array}[i]);")
+                    code.putln(f"Py_ssize_t l = {cfunc_name}({values_array}[i]);")
+                    if factors:
+                        # Duplicate substrings are rare, so just factor them in conditionally.
+                        code.putln("switch(i) {")
+                        by_count = operator.itemgetter(1)
+                        factors_max_first = sorted(factors.items(), key=by_count, reverse=True)
+                        for factor, groups in itertools.groupby(factors_max_first, key=by_count):
+                            code.put(''.join(f"case {i:d}: " for i, _ in sorted(groups)))
+                            code.putln(f"l *= {factor}; break;")
+                        code.putln("}")
+                    code.putln(f"{result_temp} {op}= l;")
                     code.putln("}")
                     code.putln("#endif")
                     return
 
-            expressions = [f"{cfunc_name}({values_array}[{i}])" for i in indices]
-            result = f' {operator} '.join(expressions)
-            code.putln(f"{result_temp} {operator}= {result};")
+            factor_strings = {index: f" * {factors[index]}" for index in factors} if factors else {}
+            get_factor = factor_strings.get
+
+            expressions = [f"{cfunc_name}({values_array}[{i}]){get_factor(i, '')}" for i in indices]
+            result = f' {op} '.join(expressions)
+            code.putln(f"{result_temp} {op}= {result};")
             code.putln("#endif")
 
         code.mark_pos(self.pos)
 
         # Assume that getting the length of an exact Unicode string object will not fail.
         length_temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
-        aggregate(unknown_lengths, length_temp, known_length, "__Pyx_PyUnicode_GET_LENGTH", '+')
+        aggregate(unknown_lengths, length_temp, known_length, "__Pyx_PyUnicode_GET_LENGTH", '+', index_repetitions)
 
         ukind_temp = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
         if ustring_kind == 4:
@@ -3876,7 +3904,7 @@ class JoinedStrNode(ExprNode):
         else:
             # or-ing isn't entirely correct here since it can produce value 3 from 1|2,
             # but we handle that in __Pyx_PyUnicode_Join().
-            aggregate(unknown_nodes, ukind_temp, ustring_kind, "__Pyx_PyUnicode_KIND_04", '|')
+            aggregate(unknown_nodes, ukind_temp, ustring_kind, "__Pyx_PyUnicode_KIND_04", '|', None)
 
         self.allocate_temp_result(code)
 
