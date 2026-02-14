@@ -198,6 +198,7 @@ class PyrexType(BaseType):
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
     #  refcounting_needs_gil boolean     Reference counting needs GIL to be acquired.
+    #  supports_refnanny     boolean     This type can use refnanny to check its reference counting.
     #  equivalent_type       type        A C or Python type that is equivalent to this Python or C type.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
@@ -271,8 +272,9 @@ class PyrexType(BaseType):
     is_unowned_view = False
     is_cython_lock_type = False
     has_attributes = 0
-    needs_refcounting = 0
+    needs_refcounting = False
     refcounting_needs_gil = True
+    supports_refnanny = False
     equivalent_type = None
     default_value = ""
     declaration_value = ""
@@ -366,23 +368,23 @@ class PyrexType(BaseType):
             convert_call,
             code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
-    def _generate_dummy_refcounting(self, code, *ignored_args, **ignored_kwds):
+    def _get_dummy_refcounting_code(self, *ignored_args, **ignored_kwds):
         if self.needs_refcounting:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
                                       self)
 
-    def _generate_dummy_refcounting_assignment(self, code, cname, rhs_cname, *ignored_args, **ignored_kwds):
+    def _get_dummy_refcounting_assignment_code(self, cname, rhs_cname, *ignored_args, **ignored_kwds):
         if self.needs_refcounting:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
                                       self)
-        code.putln("%s = %s" % (cname, rhs_cname))
+        return f"{cname} = {rhs_cname}"
 
-    generate_incref = generate_xincref = generate_decref = generate_xdecref \
-        = generate_decref_clear = generate_xdecref_clear \
-        = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref \
-            = _generate_dummy_refcounting
+    get_incref_code = get_xincref_code = get_decref_code = get_xdecref_code \
+        = get_decref_clear_code = get_xdecref_clear_code \
+        = get_gotref_code = get_xgotref_code = get_giveref_code = get_xgiveref_code \
+            = _get_dummy_refcounting_code
 
-    generate_decref_set = generate_xdecref_set = _generate_dummy_refcounting_assignment
+    get_decref_set_code = get_xdecref_set_code = _get_dummy_refcounting_assignment_code
 
     def nullcheck_string(self, code, cname):
         if self.needs_refcounting:
@@ -1142,32 +1144,31 @@ class MemoryViewSliceType(PyrexType):
 
     # When memoryviews are increfed currently seems heavily special-cased.
     # Therefore, use our own function for now
-    def generate_incref(self, code, name, **kwds):
+    def get_incref_code(self, name, **kwds):
         pass
 
-    def generate_incref_memoryviewslice(self, code, slice_cname, have_gil):
+    def get_incref_memoryviewslice_code(self, slice_cname, have_gil):
         # TODO ideally would be done separately
-        code.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
+        return f"__PYX_INC_MEMVIEW(&{slice_cname}, {have_gil:d});"
 
     # decref however did look to always apply for memoryview slices
     # with "have_gil" set to True by default
-    def generate_xdecref(self, code, cname, nanny, have_gil):
-        code.putln("__PYX_XCLEAR_MEMVIEW(&%s, %d);" % (cname, int(have_gil)))
+    def get_xdecref_code(self, cname, nanny, have_gil):
+        return f"__PYX_XCLEAR_MEMVIEW(&{cname}, {have_gil:d});"
 
-    def generate_decref(self, code, cname, nanny, have_gil):
+    def get_decref_code(self, cname, nanny, have_gil):
         # Fall back to xdecref since we don't care to have a separate decref version for this.
-        self.generate_xdecref(code, cname, nanny, have_gil)
+        return self.get_xdecref_code(cname, nanny, have_gil)
 
-    def generate_xdecref_clear(self, code, cname, clear_before_decref, **kwds):
-        self.generate_xdecref(code, cname, **kwds)
-        code.putln("%s.memview = NULL; %s.data = NULL;" % (cname, cname))
+    def get_xdecref_clear_code(self, cname, clear_before_decref, **kwds):
+        return f"{self.get_xdecref_code(cname, **kwds)}; {cname}.memview = NULL; {cname}.data = NULL;"
 
-    def generate_decref_clear(self, code, cname, **kwds):
+    def get_decref_clear_code(self, cname, **kwds):
         # memoryviews don't currently distinguish between xdecref and decref
-        self.generate_xdecref_clear(code, cname, **kwds)
+        return self.get_xdecref_clear_code(cname, **kwds)
 
     # memoryviews don't participate in giveref/gotref
-    generate_gotref = generate_xgotref = generate_xgiveref = generate_giveref = lambda *args: None
+    get_gotref_code = get_xgotref_code = get_xgiveref_code = get_giveref_code = lambda *args: None
 
 
 
@@ -1269,6 +1270,7 @@ class PyObjectType(PyrexType):
     is_gc_simple = False
     builtin_trashcan = False  # builtin type using trashcan
     needs_refcounting = True
+    supports_refnanny = True
 
     def __str__(self):
         return "Python object"
@@ -1328,83 +1330,70 @@ class PyObjectType(PyrexType):
     def check_for_null_code(self, cname):
         return cname
 
-    def generate_incref(self, code, cname, nanny):
+    def get_incref_code(self, cname, nanny):
         if nanny:
-            code.funcstate.needs_refnanny = True
-            code.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname))
+            return f"__Pyx_INCREF({self.as_pyobject(cname)});"
         else:
-            code.putln("Py_INCREF(%s);" % self.as_pyobject(cname))
+            return f"Py_INCREF({self.as_pyobject(cname)});"
 
-    def generate_xincref(self, code, cname, nanny):
+    def get_xincref_code(self, cname, nanny):
         if nanny:
-            code.funcstate.needs_refnanny = True
-            code.putln("__Pyx_XINCREF(%s);" % self.as_pyobject(cname))
+            return f"__Pyx_XINCREF({self.as_pyobject(cname)});"
         else:
-            code.putln("Py_XINCREF(%s);" % self.as_pyobject(cname))
+            return f"Py_XINCREF({self.as_pyobject(cname)});"
 
-    def generate_decref(self, code, cname, nanny, have_gil):
+    def get_decref_code(self, cname, nanny, have_gil):
         # have_gil is for the benefit of memoryviewslice - it's ignored here
         assert have_gil
-        self._generate_decref(code, cname, nanny, null_check=False, clear=False)
+        return self._get_decref_code(cname, nanny, null_check=False, clear=False)
 
-    def generate_xdecref(self, code, cname, nanny, have_gil):
+    def get_xdecref_code(self, cname, nanny, have_gil):
         # in this (and other) PyObjectType functions, have_gil is being
         # passed to provide a common interface with MemoryviewSlice.
         # It's ignored here
-        self._generate_decref(code, cname, nanny, null_check=True,
+        return self._get_decref_code(cname, nanny, null_check=True,
                          clear=False)
 
-    def generate_decref_clear(self, code, cname, clear_before_decref, nanny, have_gil):
-        self._generate_decref(code, cname, nanny, null_check=False,
+    def get_decref_clear_code(self, cname, clear_before_decref, nanny, have_gil):
+        return self._get_decref_code(cname, nanny, null_check=False,
                          clear=True, clear_before_decref=clear_before_decref)
 
-    def generate_xdecref_clear(self, code, cname, clear_before_decref=False, nanny=True, have_gil=None):
-        self._generate_decref(code, cname, nanny, null_check=True,
+    def get_xdecref_clear_code(self, cname, clear_before_decref=False, nanny=True, have_gil=None):
+        return self._get_decref_code(cname, nanny, null_check=True,
                          clear=True, clear_before_decref=clear_before_decref)
 
-    def generate_gotref(self, code, cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_GOTREF(%s);" % self.as_pyobject(cname))
+    def get_gotref_code(self, cname):
+        return f"__Pyx_GOTREF({self.as_pyobject(cname)});"
 
-    def generate_xgotref(self, code, cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_XGOTREF(%s);" % self.as_pyobject(cname))
+    def get_xgotref_code(self, cname):
+        return f"__Pyx_XGOTREF({self.as_pyobject(cname)});"
 
-    def generate_giveref(self, code, cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_GIVEREF(%s);" % self.as_pyobject(cname))
+    def get_giveref_code(self, cname):
+        return f"__Pyx_GIVEREF({self.as_pyobject(cname)});"
 
-    def generate_xgiveref(self, code, cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_XGIVEREF(%s);" % self.as_pyobject(cname))
+    def get_xgiveref_code(self, cname):
+        return f"__Pyx_XGIVEREF({self.as_pyobject(cname)});"
 
-    def generate_decref_set(self, code, cname, rhs_cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_DECREF_SET(%s, %s);" % (cname, rhs_cname))
+    def get_decref_set_code(self, cname, rhs_cname):
+        return f"__Pyx_DECREF_SET({cname}, {rhs_cname});"
 
-    def generate_xdecref_set(self, code, cname, rhs_cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_XDECREF_SET(%s, %s);" % (cname, rhs_cname))
+    def get_xdecref_set_code(self, cname, rhs_cname):
+        return f"__Pyx_XDECREF_SET({cname}, {rhs_cname});"
 
-    def _generate_decref(self, code, cname, nanny, null_check=False,
+    def _get_decref_code(self, cname, nanny, null_check=False,
                     clear=False, clear_before_decref=False):
         prefix = '__Pyx' if nanny else 'Py'
         X = 'X' if null_check else ''
-
-        if nanny:
-            code.funcstate.needs_refnanny = True
 
         if clear:
             if clear_before_decref:
                 if not nanny:
                     X = ''  # CPython doesn't have a Py_XCLEAR()
-                code.putln("%s_%sCLEAR(%s);" % (prefix, X, cname))
+                return f"{prefix}_{X}CLEAR({cname});"
             else:
-                code.putln("%s_%sDECREF(%s); %s = 0;" % (
-                    prefix, X, self.as_pyobject(cname), cname))
+                return f"{prefix}_{X}DECREF({self.as_pyobject(cname)}); {cname} = 0;"
         else:
-            code.putln("%s_%sDECREF(%s);" % (
-                prefix, X, self.as_pyobject(cname)))
+            return f"{prefix}_{X}DECREF({self.as_pyobject(cname)});"
 
     def nullcheck_string(self, cname):
         return cname

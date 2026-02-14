@@ -3072,7 +3072,7 @@ class CFuncDefNode(FuncDefNode):
             if entry.in_closure and not arg.default:
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.type.is_memoryviewslice:
-                    entry.type.generate_incref_memoryviewslice(code, entry.cname, True)
+                    code.putln(entry.type.get_incref_memoryviewslice_code(entry.cname, True))
                 else:
                     code.put_var_incref(entry)
                     code.put_var_giveref(entry)
@@ -3747,7 +3747,7 @@ class DefNode(FuncDefNode):
                 if entry.type.is_memoryviewslice:
                     # TODO - at some point reference count of memoryviews should
                     # genuinely be unified with PyObjects
-                    entry.type.generate_incref_memoryviewslice(code, entry.cname, True)
+                    code.putln(entry.type.get_incref_memoryviewslice_code(entry.cname, True))
                 elif entry.xdecref_cleanup:
                     # mostly applies to the starstar arg - this can sometimes be NULL
                     # so must be xincrefed instead
