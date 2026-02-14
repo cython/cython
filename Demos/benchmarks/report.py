@@ -98,7 +98,9 @@ def build_table(rows, title, data_formatter):
             if 'master' in revision_name
         }
 
-        row[0] = benchmark[3:] if benchmark.startswith('bm_') else benchmark
+        if benchmark.startswith('bm_'):
+            benchmark = benchmark[3:]
+        row[0] = benchmark.replace('_', '\N{ZERO WIDTH SPACE}_')  # Allow line breaks in benchmark name.
         for pyversion, revision_name, version_key, data in bm_rows:
             column_index = column_map[(pyversion, revision_name)]
             empty_column_indices.discard(column_index)
