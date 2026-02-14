@@ -140,10 +140,10 @@ cdef class array:
         self.itemsize = itemsize
 
         if not self.ndim:
-            raise ValueError, "Empty shape tuple for cython.array"
+            _err_ValueError("Empty shape tuple for cython.array")
 
         if itemsize <= 0:
-            raise ValueError, "itemsize <= 0 for cython.array"
+            _err_ValueError("itemsize <= 0 for cython.array")
 
         if not isinstance(format, bytes):
             format = format.encode('ASCII')
@@ -190,7 +190,7 @@ cdef class array:
             elif self.mode == u"fortran":
                 bufmode = PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
             if not (flags & bufmode):
-                raise ValueError, "Can only create a buffer that is contiguous in memory."
+                _err_ValueError("Can only create a buffer that is contiguous in memory.")
         info.buf = self.data
         info.len = self.len
 
@@ -496,7 +496,7 @@ cdef class memoryview:
         try:
             result = struct.unpack(self.view.format, bytesitem)
         except struct.error:
-            raise ValueError, "Unable to convert item to object"
+            _err_ValueError("Unable to convert item to object")
         else:
             if len(self.view.format) == 1:
                 return result[0]
@@ -521,7 +521,7 @@ cdef class memoryview:
     @cname('getbuffer')
     def __getbuffer__(self, Py_buffer *info, int flags):
         if flags & PyBUF_WRITABLE and self.view.readonly:
-            raise ValueError, "Cannot create writable memory view from read-only memoryview"
+            _err_ValueError("Cannot create writable memory view from read-only memoryview")
 
         if flags & PyBUF_ND:
             info.shape = self.view.shape
@@ -572,7 +572,7 @@ cdef class memoryview:
     def strides(self):
         if self.view.strides == NULL:
             # Note: we always ask for strides, so if this is not set it's a bug
-            raise ValueError, "Buffer view does not expose strides"
+            _err_ValueError("Buffer view does not expose strides")
 
         return tuple([stride for stride in self.view.strides[:self.view.ndim]])
 
@@ -701,7 +701,7 @@ cdef tuple _unellipsify(object index, int ndim):
 cdef int assert_direct_dimensions(Py_ssize_t *suboffsets, int ndim) except -1:
     for suboffset in suboffsets[:ndim]:
         if suboffset >= 0:
-            raise ValueError, "Indirect dimensions not supported"
+            _err_ValueError("Indirect dimensions not supported")
     return 0  # return type just used as an error flag
 
 #
@@ -912,10 +912,10 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
     if index < 0:
         index += view.shape[dim]
         if index < 0:
-            raise IndexError, f"Out of bounds on buffer access (axis {dim})"
+            _err_IndexError("Out of bounds on buffer access (axis %zd)", dim)
 
     if index >= shape:
-        raise IndexError, f"Out of bounds on buffer access (axis {dim})"
+        _err_IndexError("Out of bounds on buffer access (axis %zd)", dim)
 
     resultp = bufp + index * stride
     if suboffset >= 0:
@@ -1269,6 +1269,18 @@ cdef int _err(PyObject *error, const char* msg) except -1 with gil:
 @cname('__pyx_memoryview_err_no_memory')
 cdef int _err_no_memory() except -1 with gil:
     raise MemoryError
+
+# Simple exception raising functions.
+
+@cname('__pyx_memoryview_err_ValueError')
+cdef int _err_ValueError(const char* msg) except -1:
+    PyErr_SetString(PyExc_ValueError, msg)
+    return -1
+
+@cname('__pyx_memoryview_err_IndexError')
+cdef int _err_IndexError(const char* msg, Py_ssize_t index) except -1:
+    PyErr_Format(PyExc_IndexError, msg, index)
+    return -1
 
 
 @cname('__pyx_memoryview_copy_contents')
