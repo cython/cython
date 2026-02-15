@@ -3841,7 +3841,7 @@ class JoinedStrNode(ExprNode):
         for i, node in enumerate(self.values):
             code.putln('%s[%d] = %s;' % (values_array, i, node.py_result()))
 
-        def aggregate(indices, result_temp, initial_value, cfunc_name, op, factors):
+        def aggregate(indices, result_temp, result_temp_type, initial_value, cfunc_name, op, factors):
             assert op in '+|', op
             code.putln(f"{result_temp} = {initial_value};")
             if not indices:
@@ -3868,7 +3868,7 @@ class JoinedStrNode(ExprNode):
                     assert indices == list(range(min_index, max_index+1, step)), indices
 
                     code.putln(f"for (Py_ssize_t i={min_index}; i <= {max_index}; i += {step}) ""{")
-                    code.putln(f"Py_ssize_t l = {cfunc_name}({values_array}[i]);")
+                    code.putln(f"{result_temp_type} l = {cfunc_name}({values_array}[i]);")
                     if factors:
                         # Duplicate substrings are rare, so just factor them in conditionally.
                         code.putln("switch(i) {")
@@ -3895,7 +3895,7 @@ class JoinedStrNode(ExprNode):
 
         # Assume that getting the length of an exact Unicode string object will not fail.
         length_temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
-        aggregate(unknown_lengths, length_temp, known_length, "__Pyx_PyUnicode_GET_LENGTH", '+', index_repetitions)
+        aggregate(unknown_lengths, length_temp, 'Py_ssize_t', known_length, "__Pyx_PyUnicode_GET_LENGTH", '+', index_repetitions)
 
         ukind_temp = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
         if ustring_kind == 4:
@@ -3904,7 +3904,7 @@ class JoinedStrNode(ExprNode):
         else:
             # or-ing isn't entirely correct here since it can produce value 3 from 1|2,
             # but we handle that in __Pyx_PyUnicode_Join().
-            aggregate(unknown_nodes, ukind_temp, ustring_kind, "__Pyx_PyUnicode_KIND_04", '|', None)
+            aggregate(unknown_nodes, ukind_temp, 'int', ustring_kind, "__Pyx_PyUnicode_KIND_04", '|', None)
 
         self.allocate_temp_result(code)
 
