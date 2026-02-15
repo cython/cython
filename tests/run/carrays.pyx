@@ -77,6 +77,7 @@ cdef extern from *:
 def test_extern_sizeof_array():
     """
     >>> test_extern_sizeof_array()
+    True
     """
     cdef S s
     return sizeof(s.arr) == sizeof(int)
