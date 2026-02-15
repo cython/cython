@@ -100,6 +100,8 @@ cdef extern from "<stdlib.h>":
     void free(void *) nogil
     void *memcpy(void *dest, void *src, size_t n) nogil
 
+ctypedef int (*to_dtype_func_type)(char *, object) except 0
+
 # the sequence abstract base class
 cdef object __pyx_collections_abc_Sequence "__pyx_collections_abc_Sequence"
 try:
@@ -1017,7 +1019,7 @@ cdef class _memoryviewslice(memoryview):
     cdef object from_object
 
     cdef object (*to_object_func)(char *)
-    cdef int (*to_dtype_func)(char *, object) except 0
+    cdef to_dtype_func_type to_dtype_func
 
     def __dealloc__(self):
         __PYX_XCLEAR_MEMVIEW(&self.from_slice, 1)
@@ -1058,7 +1060,7 @@ except:
 cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
                           int ndim,
                           object (*to_object_func)(char *),
-                          int (*to_dtype_func)(char *, object) except 0,
+                          to_dtype_func_type to_dtype_func,
                           bint dtype_is_object):
 
     cdef _memoryviewslice result
@@ -1149,7 +1151,7 @@ cdef memoryview_copy_from_slice(memoryview memview, {{memviewslice_name}} *memvi
     Create a new memoryview object from a given memoryview object and slice.
     """
     cdef object (*to_object_func)(char *)
-    cdef int (*to_dtype_func)(char *, object) except 0
+    cdef to_dtype_func_type to_dtype_func
 
     if isinstance(memview, _memoryviewslice):
         to_object_func = (<_memoryviewslice> memview).to_object_func
