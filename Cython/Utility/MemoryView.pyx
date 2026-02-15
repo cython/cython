@@ -411,6 +411,10 @@ cdef class memoryview:
 
     #@cname('__pyx_memoryview_getitem')
     def __getitem__(memoryview self, object index):
+        if self.view.ndim == 1 and isinstance(index, int):
+            return self.convert_item_to_object(
+                pybuffer_index(&self.view, <char *> self.view.buf, index, 0))
+
         if index is Ellipsis:
             return self
 
@@ -427,10 +431,15 @@ cdef class memoryview:
         if self.view.readonly:
             raise TypeError, "Cannot assign to read-only memoryview"
 
+        if self.view.ndim == 1 and isinstance(index, int):
+            self.setitem_indexed1(index, value)
+            return
+
         have_slices, index = _unellipsify(index, self.view.ndim)
 
         if have_slices:
             obj = self.is_slice(value)
+            # TODO: inline the relevant parts of self[index]
             if obj is not None:
                 self.setitem_slice_assignment(self[index], obj)
             else:
@@ -490,6 +499,10 @@ cdef class memoryview:
 
     cdef setitem_indexed(self, index, value):
         cdef char *itemp = self.get_item_pointer(index)
+        self.assign_item_from_object(itemp, value)
+
+    cdef setitem_indexed1(self, index, value):
+        cdef char *itemp = pybuffer_index(&self.view, <char *> self.view.buf, index, 0)
         self.assign_item_from_object(itemp, value)
 
     cdef convert_item_to_object(self, char *itemp):
