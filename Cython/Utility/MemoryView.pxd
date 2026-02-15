@@ -61,11 +61,11 @@ cdef class memoryview:
     cdef bint dtype_is_object
     cdef const __Pyx_TypeInfo *typeinfo
 
-    cdef char *get_item_pointer(memoryview self, object index) except NULL
+    cdef char *get_item_pointer(memoryview self, tuple index) except NULL
     cdef is_slice(self, obj)
     cdef setitem_slice_assignment(self, dst, src)
     cdef setitem_slice_assign_scalar(self, memoryview dst, value)
-    cdef setitem_indexed(self, index, value)
+    cdef setitem_indexed(self, tuple index, value)
     cdef convert_item_to_object(self, char *itemp)
     cdef assign_item_from_object(self, char *itemp, object value)
     cdef _get_base(self)

@@ -391,7 +391,7 @@ cdef class memoryview:
             else:
                 PyThread_free_lock(self.lock)
 
-    cdef char *get_item_pointer(memoryview self, object index) except NULL:
+    cdef char *get_item_pointer(memoryview self, tuple index) except NULL:
         cdef Py_ssize_t dim
         cdef char *itemp = <char *> self.view.buf
 
@@ -402,6 +402,8 @@ cdef class memoryview:
 
     #@cname('__pyx_memoryview_getitem')
     def __getitem__(memoryview self, object index):
+        cdef tuple indices
+
         if index is Ellipsis:
             return self
 
@@ -415,19 +417,21 @@ cdef class memoryview:
             return self.convert_item_to_object(itemp)
 
     def __setitem__(memoryview self, object index, object value):
+        cdef tuple indices
+
         if self.view.readonly:
             raise TypeError, "Cannot assign to read-only memoryview"
 
-        have_slices, index = _unellipsify(index, self.view.ndim)
+        have_slices, indices = _unellipsify(index, self.view.ndim)
 
         if have_slices:
             obj = self.is_slice(value)
             if obj is not None:
-                self.setitem_slice_assignment(self[index], obj)
+                self.setitem_slice_assignment(self[indices], obj)
             else:
-                self.setitem_slice_assign_scalar(self[index], value)
+                self.setitem_slice_assign_scalar(self[indices], value)
         else:
-            self.setitem_indexed(index, value)
+            self.setitem_indexed(indices, value)
 
     cdef is_slice(self, obj):
         if not isinstance(obj, memoryview):
@@ -479,7 +483,7 @@ cdef class memoryview:
         finally:
             PyMem_Free(tmp)
 
-    cdef setitem_indexed(self, index, value):
+    cdef setitem_indexed(self, tuple index, value):
         cdef char *itemp = self.get_item_pointer(index)
         self.assign_item_from_object(itemp, value)
 
