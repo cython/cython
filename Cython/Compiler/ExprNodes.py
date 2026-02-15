@@ -9,7 +9,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                StringEncoding=object, operator=object, local_errors=object, report_error=object,
                Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
                list_type=object, tuple_type=object, set_type=object, dict_type=object,
-               unicode_type=object, bytes_type=object, type_type=object,
+               unicode_type=object, bytes_type=object, type_type=object, int_type=object, float_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
                bytearray_type=object, slice_type=object, memoryview_type=object,
@@ -42,7 +42,7 @@ from .PyrexTypes import c_char_ptr_type, py_object_type, typecast, error_type, \
 from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
-    unicode_type, bytes_type, bytearray_type,
+    unicode_type, bytes_type, bytearray_type, int_type, float_type,
     slice_type, sequence_types as builtin_sequence_types, memoryview_type,
 )
 from . import Builtin
@@ -6331,14 +6331,30 @@ class SimpleCallNode(CallNode):
                     self.constant_result = method(*args)
 
     @classmethod
-    def for_cproperty(cls, pos, obj, entry):
+    def for_cproperty_get(cls, pos, obj, entry):
         # Create a call node for C property access.
         property_scope = entry.scope
-        getter_entry = property_scope.lookup_here(entry.name)
+        getter_entry = property_scope.lookup_here("__get__")
         assert getter_entry, "Getter not found in scope %s: %s" % (property_scope, property_scope.entries)
         function = NameNode(pos, name=entry.name, entry=getter_entry, type=getter_entry.type)
         node = cls(pos, function=function, args=[obj])
         return node
+
+    @classmethod
+    def for_cproperty_set(cls, pos, obj, entry):
+        # Create a call node for C property access.
+        # This actually returns a utility node that wraps the call node.
+        property_scope = entry.scope
+        setter_entry = property_scope.lookup_here("__set__")
+        if not setter_entry:
+            error(pos, "Assignment to a read-only property")
+            return None
+        from . import UtilNodes
+        function = NameNode(pos, name=entry.name, entry=setter_entry, type=setter_entry.type)
+        arg_type = setter_entry.type.args[1].type
+        arg1 = RawCNameExprNode(pos, type=arg_type)
+        node = cls(pos, function=function, args=[obj, arg1])
+        return UtilNodes.CPropertySetNode(pos, call_node=node, type=arg_type, arg1=arg1)
 
     def analyse_as_type(self, env):
         attr = self.function.as_cython_attribute()
@@ -8047,9 +8063,9 @@ class AttributeNode(ExprNode):
             error(self.pos, "Assignment to an immutable object field")
         elif self.entry and self.entry.is_cproperty:
             if not target:
-                return SimpleCallNode.for_cproperty(self.pos, self.obj, self.entry).analyse_types(env)
-            # TODO: implement writable C-properties?
-            error(self.pos, "Assignment to a read-only property")
+                return SimpleCallNode.for_cproperty_get(self.pos, self.obj, self.entry).analyse_types(env)
+            else:
+                return SimpleCallNode.for_cproperty_set(self.pos, self.obj, self.entry).analyse_types(env)
         #elif self.type.is_memoryviewslice and not target:
         #    self.is_temp = True
         return self
@@ -12681,9 +12697,27 @@ class NumBinopNode(BinopNode):
 
     def py_operation_function(self, code):
         function_name = self.py_functions[self.operator]
-        if self.inplace:
-            function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
-        return function_name
+        inplace_function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
+
+        if self.operator in self.fast_pyops:
+            type1 = self.operand1.type
+            type2 = self.operand2.type
+            if type1 in self.specialised_binop_types and type2 in self.specialised_binop_types:
+                code.globalstate.use_utility_code(
+                    TempitaUtilityCode.load_cached("PyNumberBinop", "Optimize.c", context={
+                        'op_name': function_name,
+                        'inplace_op_name': inplace_function_name,
+                        'c_op': self.operator,
+                        'type1': type1.name,
+                        'type2': type2.name,
+                    }))
+                return f'__Pyx_{inplace_function_name if self.inplace else function_name}_{type1.name}_{type2.name}'
+
+        return inplace_function_name if self.inplace else function_name
+
+    specialised_binop_types = (py_object_type, int_type, float_type)
+
+    fast_pyops = {'+', '-', '*'}
 
     py_functions = {
         "|":        "PyNumber_Or",
@@ -13301,7 +13335,7 @@ class PowNode(NumBinopNode):
         if (self.type.is_pyobject and
                 self.operand1.constant_result == 2 and
                 isinstance(self.operand1.constant_result, int) and
-                self.operand2.type is py_object_type):
+                self.operand2.type in (py_object_type, Builtin.int_type)):
             code.globalstate.use_utility_code(UtilityCode.load_cached('PyNumberPow2', 'Optimize.c'))
             if self.inplace:
                 return '__Pyx_PyNumber_InPlacePowerOf2'
@@ -14835,6 +14869,13 @@ class CoerceToPyTypeNode(CoercionNode):
                 self.type = unicode_type
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
+            elif arg.type.equivalent_type is not None and arg.type.equivalent_type.is_pyobject:
+                # Includes bint.
+                self.type = arg.type.equivalent_type
+            elif arg.type.is_int:
+                self.type = Builtin.int_type
+            elif arg.type.is_float:
+                self.type = Builtin.float_type
             self.target_type = self.type
         elif arg.type.is_string or arg.type.is_cpp_string:
             if (type not in (bytes_type, bytearray_type)
@@ -14994,6 +15035,7 @@ class CoerceToBooleanNode(CoercionNode):
         Builtin.list_type:       '__Pyx_PyList_GET_SIZE',
         Builtin.tuple_type:      '__Pyx_PyTuple_GET_SIZE',
         Builtin.set_type:        '__Pyx_PySet_GET_SIZE',
+        Builtin.dict_type:       '__Pyx_PyDict_GET_SIZE',
         Builtin.frozenset_type:  '__Pyx_PySet_GET_SIZE',
         Builtin.bytes_type:      '__Pyx_PyBytes_GET_SIZE',
         Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',

@@ -30,7 +30,7 @@ cdef extern from *:
     # Try to look up the module name dynamically if possible
 ], module=globals().get("__module__", '{{static_modname}}'))
 
-if (__PYX_LIMITED_VERSION_HEX >= 0x030B0000 or 
+if (__PYX_LIMITED_VERSION_HEX >= 0x030B0000 or
         (CYTHON_COMPILING_IN_LIMITED_API and __Pyx_get_runtime_version() >= 0x030B0000)):
     # Python 3.11 starts making the behaviour of flags stricter
     # (only including powers of 2 when iterating). Since we're using
