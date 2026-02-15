@@ -82,6 +82,9 @@ cdef extern from *:
         pass
 
 cdef extern from *:
+    """
+    typedef int (*__pyx_memoryview_to_dtype_func_type)(char*, PyObject*);
+    """
     ctypedef int __pyx_atomic_int_type
     {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
                                  {{memviewslice_name}} *from_mvs,
@@ -94,13 +97,13 @@ cdef extern from *:
                                                 {{memviewslice_name}} *slice2,
                                                 int ndim, size_t itemsize) nogil
 
+    ctypedef int (*to_dtype_func_type "__pyx_memoryview_to_dtype_func_type")(char *, object) except 0
+
 
 cdef extern from "<stdlib.h>":
     void *malloc(size_t) nogil
     void free(void *) nogil
     void *memcpy(void *dest, void *src, size_t n) nogil
-
-ctypedef int (*to_dtype_func_type)(char *, object) except 0
 
 # the sequence abstract base class
 cdef object __pyx_collections_abc_Sequence "__pyx_collections_abc_Sequence"
