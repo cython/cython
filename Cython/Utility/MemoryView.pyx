@@ -411,9 +411,11 @@ cdef class memoryview:
 
     #@cname('__pyx_memoryview_getitem')
     def __getitem__(memoryview self, object index):
+        cdef char *buffer
         if self.view.ndim == 1 and isinstance(index, int):
+            buffer = <char *> self.view.buf
             return self.convert_item_to_object(
-                pybuffer_index(&self.view, <char *> self.view.buf, index, 0))
+                pybuffer_index(&self.view, buffer, index, 0))
 
         if index is Ellipsis:
             return self
@@ -502,7 +504,8 @@ cdef class memoryview:
         self.assign_item_from_object(itemp, value)
 
     cdef setitem_indexed1(self, index, value):
-        cdef char *itemp = pybuffer_index(&self.view, <char *> self.view.buf, index, 0)
+        cdef char *buffer = <char *> self.view.buf
+        cdef char *itemp = pybuffer_index(&self.view, buffer, index, 0)
         self.assign_item_from_object(itemp, value)
 
     cdef convert_item_to_object(self, char *itemp):
