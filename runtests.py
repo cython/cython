@@ -818,8 +818,7 @@ class TestBuilder(object):
 
     def handle_directory(self, path, context):
         workdir = os.path.join(self.workdir, context)
-        if not os.path.exists(workdir):
-            os.makedirs(workdir)
+        os.makedirs(workdir, exist_ok=True)
 
         suite = unittest.TestSuite()
         filenames = list_unchanging_dir(path)
@@ -958,8 +957,7 @@ class TestBuilder(object):
                    expect_log, warning_errors, preparse, pythran_dir, add_cython_import,
                    extra_directives):
         language_workdir = os.path.join(workdir, language)
-        if not os.path.exists(language_workdir):
-            os.makedirs(language_workdir)
+        os.makedirs(language_workdir, exist_ok=True)
         workdir = os.path.join(language_workdir, module)
         if preparse != 'id':
             workdir += '_%s' % (preparse,)
@@ -1111,8 +1109,7 @@ class CythonCompileTestCase(unittest.TestCase):
         ]
         Options.warning_errors = self.warning_errors
 
-        if not os.path.exists(self.workdir):
-            os.makedirs(self.workdir)
+        os.makedirs(self.workdir, exist_ok=True)
         if self.workdir not in sys.path:
             sys.path.insert(0, self.workdir)
 
@@ -1767,7 +1764,7 @@ class TimedTest(unittest.TestCase):
         sys.stderr.write(f"[{self.id()}:{'' if t < .5 else ' SLOWTEST'} {t * 1000.:.2f} msec] ")
 
 
-class CythonUnitTestCase(TimedTest, CythonRunTestCase):
+class CythonUnitTestCase(CythonRunTestCase):
     def shortDescription(self):
         return "[%d] compiling (%s) tests in %s" % (
             self.shard_num, self.language, self.description_name())
@@ -2694,6 +2691,7 @@ def main():
         keep_alive_interval = 10
     else:
         keep_alive_interval = None
+    setup_test_directory(options)
     if options.shard_count > 1 and options.shard_num == -1:
         if "PYTHONIOENCODING" not in os.environ:
             # Make sure subprocesses can print() Unicode text.
@@ -2867,6 +2865,34 @@ def save_coverage(coverage, options):
         coverage.html_report(directory="coverage-report-html")
 
 
+def setup_test_directory(options):
+    WITH_CYTHON = options.with_cython
+    WORKDIR = os.path.abspath(options.work_dir)
+    if WITH_CYTHON:
+        if os.path.exists(WORKDIR):
+            for path in os.listdir(WORKDIR):
+                if path in ("support", "Cy3"): continue
+                shutil.rmtree(os.path.join(WORKDIR, path), ignore_errors=True)
+    os.makedirs(WORKDIR, exist_ok=True)
+
+    if IS_PYPY or IS_GRAAL:
+        if options.with_refnanny:
+            sys.stderr.write("Disabling refnanny in PyPy/GraalPy\n")
+            options.with_refnanny = False
+
+    if options.with_refnanny:
+        try:
+            import_refnanny()
+        except ImportError:
+            from pyximport.pyxbuild import pyx_to_dll
+            libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
+                                build_in_temp=True,
+                                pyxbuild_dir=os.path.join(WORKDIR, "support"))
+            sys.path.insert(0, os.path.split(libpath)[0])
+            import_refnanny()
+        CDEFS.append(('CYTHON_REFNANNY', '1'))
+
+
 def runtests_callback(args):
     options, cmd_args, shard_num = args
     options.shard_num = shard_num
@@ -2900,20 +2926,12 @@ def runtests(options, cmd_args, coverage=None):
 
     xml_output_dir = options.xml_output_dir
     if options.shard_num > -1:
-        WORKDIR = os.path.join(WORKDIR, str(options.shard_num))
         if xml_output_dir:
             xml_output_dir = os.path.join(xml_output_dir, 'shard-%03d' % options.shard_num)
 
     # RUN ALL TESTS!
     UNITTEST_MODULE = "Cython"
     UNITTEST_ROOT = os.path.join(os.path.dirname(__file__), UNITTEST_MODULE)
-    if WITH_CYTHON:
-        if os.path.exists(WORKDIR):
-            for path in os.listdir(WORKDIR):
-                if path in ("support", "Cy3"): continue
-                shutil.rmtree(os.path.join(WORKDIR, path), ignore_errors=True)
-    if not os.path.exists(WORKDIR):
-        os.makedirs(WORKDIR)
 
     if options.shard_num <= 0:
         sys.stderr.write("Python %s\n" % sys.version)
@@ -2931,23 +2949,9 @@ def runtests(options, cmd_args, coverage=None):
             compiler_default_options['gdb_debug'] = True
             compiler_default_options['output_dir'] = os.getcwd()
 
-    if IS_PYPY or IS_GRAAL:
-        if options.with_refnanny:
-            sys.stderr.write("Disabling refnanny in PyPy/GraalPy\n")
-            options.with_refnanny = False
-
     refnanny = None
     if options.with_refnanny:
-        try:
-            refnanny = import_refnanny()
-        except ImportError:
-            from pyximport.pyxbuild import pyx_to_dll
-            libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
-                                build_in_temp=True,
-                                pyxbuild_dir=os.path.join(WORKDIR, "support"))
-            sys.path.insert(0, os.path.split(libpath)[0])
-            refnanny = import_refnanny()
-        CDEFS.append(('CYTHON_REFNANNY', '1'))
+        refnanny = import_refnanny()
 
     global sys_version_or_limited_version
     sys_version_or_limited_version = sys.version_info
@@ -3098,8 +3102,7 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.use_common_utility_dir:
         common_utility_dir = os.path.join(WORKDIR, 'utility_code')
-        if not os.path.exists(common_utility_dir):
-            os.makedirs(common_utility_dir)
+        os.makedirs(common_utility_dir, exist_ok=True)
     else:
         common_utility_dir = None
 
@@ -3155,11 +3158,7 @@ def runtests(options, cmd_args, coverage=None):
 
     if xml_output_dir:
         from Cython.Tests.xmlrunner import XMLTestRunner
-        if not os.path.exists(xml_output_dir):
-            try:
-                os.makedirs(xml_output_dir)
-            except OSError:
-                pass  # concurrency issue?
+        os.makedirs(xml_output_dir, exist_ok=True)
         test_runner = XMLTestRunner(output=xml_output_dir,
                                     verbose=options.verbosity > 0)
         if options.failfast:

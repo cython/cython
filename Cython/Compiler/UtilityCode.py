@@ -126,7 +126,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         from . import Pipeline, ParseTreeTransforms
         context = CythonUtilityCodeContext(
             self.name, compiler_directives=self.compiler_directives,
-            cpp=cython_scope.is_cpp() if cython_scope else False)
+            cpp=cython_scope.is_cpp() if cython_scope else False,
+            options=cython_scope.context.options if cython_scope else None)
         context.prefix = self.prefix
         context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
@@ -327,6 +328,8 @@ class CythonSharedUtilityCode(Code.AbstractUtilityCode):
             if dep.is_cython_utility:
                 dep.declare_in_scope(scope, cython_scope=cython_scope)
         for e in self._shared_library_scope.c_class_entries:
+            dest_scope.add_imported_entry(e.name, e, e.pos)
+        for e in self._shared_library_scope.var_entries:
             dest_scope.add_imported_entry(e.name, e, e.pos)
         return dest_scope
 

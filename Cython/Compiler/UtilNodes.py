@@ -387,3 +387,27 @@ class HasNoGilNode(AtomicExprNode):
 
     def calculate_result_code(self):
         return str(int(self.in_nogil_context))
+
+
+class CPropertySetNode(ExprNodes.ExprNode):
+    subexprs = ['call_node']
+    arg1 : ExprNodes.RawCNameExprNode
+    call_node : ExprNodes.ExprNode
+
+    def is_lvalue(self):
+        return True
+
+    def analyse_types(self, env):
+        self.call_node = self.call_node.analyse_types(env)
+        return self
+
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False, exception_check=None, exception_value=None):
+        assert not overloaded_assignment
+        assert exception_check is None, exception_check
+        assert exception_value is None, exception_value
+        self.arg1.set_cname(rhs.result())
+
+        self.call_node.generate_evaluation_code(code)
+
+        rhs.generate_disposal_code(code)
+        rhs.free_temps(code)

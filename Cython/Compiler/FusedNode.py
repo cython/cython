@@ -591,11 +591,11 @@ class FusedCFuncDefNode(StatListNode):
 
         return normal_types, buffer_types, pythran_types, has_object_fallback
 
-    def _unpack_argument(self, pyx_code, arg, arg_tuple_idx, min_positional_args, default_idx):
+    def _unpack_argument(self, pyx_code, arg, arg_tuple_idx, min_positional_args, default_idx, env):
         pyx_code.put_chunk(
             f"""
                 # PROCESSING ARGUMENT {arg_tuple_idx}
-                if {arg_tuple_idx} < len(<tuple>args):
+                if {arg_tuple_idx} < arg_count:
                     arg = (<tuple>args)[{arg_tuple_idx}]
                 elif kwargs is not None and '{arg.name}' in <dict>kwargs:
                     arg = (<dict>kwargs)['{arg.name}']
@@ -606,13 +606,12 @@ class FusedCFuncDefNode(StatListNode):
         if arg.default:
             pyx_code.putln(
                 f"arg = (<tuple>defaults)[{default_idx}]")
-        elif arg_tuple_idx < min_positional_args:
-            pyx_code.putln(
-                'raise TypeError("Expected at least %d argument%s, got %d" % ('
-                f'''{min_positional_args}, {'"s"' if min_positional_args != 1 else '""'}, len(<tuple>args)))'''
-            )
         else:
-            pyx_code.putln(f"""raise TypeError("Missing keyword-only argument: '%s'" % "{arg.name}")""")
+            from .Code import UtilityCode
+            env.use_utility_code(
+                UtilityCode.load_cached("FusedFunctionArgTypeError", "CythonFunction.c"))
+            pyx_code.putln(
+                f'__Pyx_RaiseFusedFunctionArgTypeError("{arg.name}", {arg_tuple_idx}, {min_positional_args}, arg_count)')
         pyx_code.dedent()
 
     def make_fused_cpdef(self, orig_py_func, env, is_def):
@@ -641,6 +640,10 @@ class FusedCFuncDefNode(StatListNode):
                     # from FusedFunction utility code
                     object __pyx_ff_match_signatures_single(dict signatures, dest_type)
                     object __pyx_ff_match_signatures(dict signatures, tuple dest_sig, dict sigindex)
+
+                    # always raises:
+                    int __Pyx_RaiseFusedFunctionArgTypeError(
+                        object arg_name, Py_ssize_t arg_tuple_idx, Py_ssize_t min_positional_args, Py_ssize_t arg_count) except -1
             """)
         decl_code.indent()
 
@@ -650,8 +653,10 @@ class FusedCFuncDefNode(StatListNode):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
 
-                    if kwargs is not None and not kwargs:
+                    if kwargs is not None and not <dict> kwargs:
                         kwargs = None
+
+                    arg_count = len(<tuple> args)
 
                     # instance check body
             """)
@@ -675,7 +680,7 @@ class FusedCFuncDefNode(StatListNode):
                 seen_fused_types.add(fused_type)
 
                 normal_types, buffer_types, pythran_types, has_object_fallback = self._split_fused_types(arg)
-                self._unpack_argument(pyx_code, arg, i, min_positional_args, default_idx)
+                self._unpack_argument(pyx_code, arg, i, min_positional_args, default_idx, env)
 
                 mapper_arg_types = ['object', 'type']
                 mapper_arg_names = ['arg']

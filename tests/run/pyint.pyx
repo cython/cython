@@ -15,6 +15,9 @@ bits = {
 }
 
 pylong_constants = [
+    0,
+    -1,
+    1,
     -130,
     126,
     -129,
@@ -149,6 +152,9 @@ pylong_constants = [
 def test_pylong_constants(constants):
     """
     >>> constants = [
+    ... 0,
+    ... -1,
+    ... 1,
     ... -130,
     ... 126,
     ... -129,
