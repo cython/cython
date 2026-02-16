@@ -60,6 +60,14 @@ cdef int _allocate_buffer(array self) except -1
 @cname("__pyx_array_new")
 cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, const char *c_mode, char *buf)
 
+cdef object generic
+cdef object strided
+cdef object indirect
+# Disable generic_contiguous, as it is a troublemaker
+#cdef generic_contiguous = Enum("<contiguous and direct or indirect>")
+cdef object contiguous
+cdef object indirect_contiguous
+
 @cname('__pyx_memoryview')
 cdef class memoryview:
 
