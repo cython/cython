@@ -55,6 +55,7 @@ jobs:
           - "3.15-dev"
           - "3.15t-dev"
         env: [{}]
+        extra_python_versions: [[]]
 
         exclude:
           # Windows and free-threading is difficult to build right now
@@ -154,22 +155,27 @@ jobs:
           - os: ubuntu-22.04
             python-version: "3.9"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
+            env: { LIMITED_API: 1, ABI3AUDIT: 1 }
             extra_hash: "-limited_api"
+            # 3.10 is deliberately skipped here because it somehow ends up deleting most
+            # of the .so files and I don't understand why.
+            extra_python_versions: ["3.11", "3.12", "3.13", "3.14"]
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
+            env: { LIMITED_API: 1, ABI3AUDIT: 1 }
             extra_hash: "-limited_api"
+            extra_python_versions: ["3.12", "3.13", "3.14"]
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
+            env: { LIMITED_API: 1, ABI3AUDIT: 1 }
             extra_hash: "-limited_api"
+            extra_python_versions: ["3.13", "3.14"]
           - os: ubuntu-22.04
             python-version: "3.15-dev"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api" }
+            env: { LIMITED_API: 1, ABI3AUDIT: 1 }
             extra_hash: "-limited_api"
           # Type specs
           - os: ubuntu-22.04
@@ -226,6 +232,18 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Write extra Python versions
+        if: ${{ matrix.extra_python_versions[0] != null }}
+        run: |
+          for py_version in ${{ join(matrix.extra_python_versions, ' ') }}; do
+            echo $py_version >> .python-versions
+          done
+      - name: Setup extra Python versions
+        if: ${{ matrix.extra_python_versions[0] != null }}
+        uses: actions/setup-python@v6.1.0
+        with:
+          python-version-file: .python-versions
+
       - name: Setup python
         uses: actions/setup-python@v6.1.0
         with:
@@ -256,6 +274,15 @@ jobs:
             if [ -s ci-slowtests.txt ]; then echo '| Slow tests | duration |'; echo '|:---|---:|'; sed -e 's/^.*\[/|    / ; s/: SLOWTEST / | / ; s/\].*/ |/' ci-slowtests.txt | sort -nr -k4; echo; fi; \
             if [ -s ci-summary.txt ]; then grep -A20 'Most expensive pipeline stages' ci-summary.txt | sed -e '2,21s/^/    / ; 1,1s/:/:\n\n    /'; fi \
             " >> $GITHUB_STEP_SUMMARY
+
+      - name: Run extra versions
+        continue-on-error: ${{ matrix.allowed_failure || false }}
+        env: ${{ matrix.env }}
+        if: ${{ matrix.extra_python_versions[0] != null }}
+        run: |
+          for py_version in ${{ join(matrix.extra_python_versions, ' ') }}; do
+            PYTHON=python$py_version PYTHON_VERSION=$py_version NO_COMPILE_TESTS=1 NO_CYTHON_COMPILE=1 bash ./Tools/ci-run.sh
+          done
 
       - name: Upload HTML docs
         uses: actions/upload-artifact@v6.0.0

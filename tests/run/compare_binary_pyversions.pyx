@@ -4,7 +4,8 @@
 cdef extern from *:
     int check_binary_version "__Pyx_check_binary_version" (unsigned long ct_version, unsigned long rt_version, int allow_newer) except -1
     unsigned long get_runtime_version "__Pyx_get_runtime_version" ()
-    unsigned long PY_VERSION_HEX
+
+import sys
 
 
 def test_get_runtime_version():
@@ -13,7 +14,8 @@ def test_get_runtime_version():
     True
     """
     cdef unsigned long rt_version = get_runtime_version()
-    return PY_VERSION_HEX & ~0xFF == rt_version or  (hex(PY_VERSION_HEX), hex(rt_version))
+    cdef unsigned long py_rt_version = sys.hexversion
+    return py_rt_version & ~0xFF == rt_version or  (hex(py_rt_version), hex(rt_version))
 
 
 def iter_hex_versions():
