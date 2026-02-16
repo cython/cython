@@ -233,6 +233,10 @@ and arrays as ``cython.int[10]``. A limited attempt is made to emulate these
 more complex types when running in a Python interpreter, but only so much can
 be done from the Python language.
 
+Pure python mode also supports type qualifiers ``const`` and ``volatile``,
+which can be applied using ``cython.const[cython.int]`` and
+``cython.volatile[cython.int]``. For more details see :ref:`type_qualifiers` section.
+
 The Python type annotations ``bool`` and ``float`` are aliases for C ``bint``
 and C ``double`` respectively.
 The Python ``int`` type does not have an equivalent in C and is therefore not aliased
