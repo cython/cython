@@ -56,8 +56,8 @@ typedef struct {
 #if !CYTHON_OPAQUE_OBJECTS
     PyObject_HEAD
 #endif
-    // We can't "inherit" from func, but we can use it as a data store
-    PyObject *func;
+    PyMethodDef *func_methoddef;
+    PyObject *func_module;
 #else
     // PEP-573: PyCFunctionObject + mm_class
     PyCMethodObject func;
@@ -149,8 +149,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunctionNoMethod(PyObject *func, void (*cfunc)(void)) {
     if (__Pyx_CyFunction_Check(func)) {
-        return PyCFunction_GetFunction(
-            __Pyx_as_CyFunctionObject(func)->func) == (PyCFunction) cfunc;
+        return __Pyx_as_CyFunctionObject(func)->func_methoddef->ml_meth == (PyCFunction) cfunc;
     } else if (PyCFunction_Check(func)) {
         return PyCFunction_GetFunction(func) == (PyCFunction) cfunc;
     }
@@ -198,18 +197,18 @@ __Pyx_CyFunction_get_doc_locked(__pyx_CyFunctionObject *op)
 {
     if (unlikely(op->func_doc == NULL)) {
 #if CYTHON_COMPILING_IN_LIMITED_API
-        op->func_doc = PyObject_GetAttrString(op->func, "__doc__");
-        if (unlikely(!op->func_doc)) return NULL;
+        const char *doc = op->func_methoddef->ml_doc;
 #else
-        if (((PyCFunctionObject*)op)->m_ml->ml_doc) {
-            op->func_doc = PyUnicode_FromString(((PyCFunctionObject*)op)->m_ml->ml_doc);
+        const char *doc = ((PyCFunctionObject*)op)->m_ml->ml_doc;
+#endif
+        if (doc) {
+            op->func_doc = PyUnicode_FromString(doc);
             if (unlikely(op->func_doc == NULL))
                 return NULL;
         } else {
             Py_INCREF(Py_None);
             return Py_None;
         }
-#endif   /* CYTHON_COMPILING_IN_LIMITED_API */
     }
     Py_INCREF(op->func_doc);
     return op->func_doc;
@@ -247,10 +246,11 @@ __Pyx_CyFunction_get_name_locked(__pyx_CyFunctionObject *op)
 {
     if (unlikely(op->func_name == NULL)) {
 #if CYTHON_COMPILING_IN_LIMITED_API
-        op->func_name = PyObject_GetAttrString(op->func, "__name__");
+        const char *name = op->func_methoddef->ml_name;
 #else
-        op->func_name = PyUnicode_InternFromString(((PyCFunctionObject*)op)->m_ml->ml_name);
-#endif  /* CYTHON_COMPILING_IN_LIMITED_API */
+        const char *name = ((PyCFunctionObject*)op)->m_ml->ml_name;
+#endif
+        op->func_name = PyUnicode_InternFromString(name);
         if (unlikely(op->func_name == NULL))
             return NULL;
     }
@@ -635,22 +635,33 @@ static void __Pyx_CyFunction_raise_type_error(PyObject *func, const char* messag
 #endif
 }
 
-
 #if CYTHON_COMPILING_IN_LIMITED_API
+// Note - for CyFunction alone it'd be easier to access this as a member
+// rather than a getset. However, that's harder for fused functions
+// where we have to override them again.
 static PyObject *
 __Pyx_CyFunction_get_module(PyObject *op_in, void *context) {
     CYTHON_UNUSED_VAR(context);
     __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
-    return PyObject_GetAttrString(op->func, "__module__");
+    Py_INCREF(op->func_module);
+    return op->func_module;
 }
 
 static int
 __Pyx_CyFunction_set_module(PyObject *op_in, PyObject* value, void *context) {
     CYTHON_UNUSED_VAR(context);
     __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
-    return PyObject_SetAttrString(op->func, "__module__", value);
+    if (value == NULL) {
+        value = Py_None;
+    }
+    Py_INCREF(value);
+    PyObject *old = op->func_module;
+    op->func_module = value;
+    Py_DECREF(old);
+    return 0;
 }
 #endif
+
 
 static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {"func_doc", (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
@@ -743,15 +754,16 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
     if (unlikely(op == NULL))
         return NULL;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    // Note that we end up with a circular reference to op. This isn't
-    // a disaster, but in an ideal world it'd be nice to avoid it.
-    op->func = PyCFunction_NewEx(ml, op_in, module);
-    if (unlikely(!op->func)) return NULL;
+    op->func_methoddef = ml;
+    Py_INCREF(module);
+    op->func_module = module;
 #endif
     op->flags = flags;
     __Pyx_CyFunction_weakreflist(op) = NULL;
 #if !CYTHON_COMPILING_IN_LIMITED_API
     cf->m_ml = ml;
+    // This is set for the benefit of __Pyx_CyOrPyCFunction_GET_SELF. It is never reassigned, so
+    // when we know an object is a CyFunction we don't even need to look it up.__Pyx_CyFunction_set_module
     cf->m_self = (PyObject *) op;
 #endif
     Py_XINCREF(closure);
@@ -815,7 +827,7 @@ static int __Pyx__CyFunction_clear(__pyx_CyFunctionObject *m)
 {
     Py_CLEAR(m->func_closure);
 #if CYTHON_COMPILING_IN_LIMITED_API
-    Py_CLEAR(m->func);
+    Py_CLEAR(m->func_module);
 #else
     Py_CLEAR(((PyCFunctionObject*)m)->m_module);
 #endif
@@ -878,7 +890,7 @@ static int __Pyx_CyFunction_traverse(PyObject *m_in, visitproc visit, void *arg)
     }
     Py_VISIT(m->func_closure);
 #if CYTHON_COMPILING_IN_LIMITED_API
-    Py_VISIT(m->func);
+    Py_VISIT(m->func_module);
 #else
     Py_VISIT(((PyCFunctionObject*)m)->m_module);
 #endif
@@ -929,13 +941,8 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
     // originally copied from PyCFunction_Call() in CPython's Objects/methodobject.c
 #if CYTHON_COMPILING_IN_LIMITED_API
     __pyx_CyFunctionObject *cyfunc = __Pyx_as_CyFunctionObject(func);
-    PyObject *f = cyfunc->func;
-    PyCFunction meth;
-    int flags;
-    meth = PyCFunction_GetFunction(f);
-    if (unlikely(!meth)) return NULL;
-    flags = PyCFunction_GetFlags(f);
-    if (unlikely(flags < 0)) return NULL;
+    PyCFunction meth = cyfunc->func_methoddef->ml_meth;
+    int flags = cyfunc->func_methoddef->ml_flags;
 #else
     PyCFunctionObject* f = (PyCFunctionObject*)func;
     PyCFunction meth = f->m_ml->ml_meth;
@@ -1003,16 +1010,8 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
 }
 
 static CYTHON_INLINE PyObject *__Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
-    PyObject *self, *result;
-#if CYTHON_COMPILING_IN_LIMITED_API
-    __pyx_CyFunctionObject *cyfunc = __Pyx_as_CyFunctionObject(func);
-    // PyCFunction_GetSelf returns a borrowed reference
-    self = PyCFunction_GetSelf((cyfunc)->func);
-    if (unlikely(!self) && PyErr_Occurred()) return NULL;
-#else
-    self = ((PyCFunctionObject*)func)->m_self;
-#endif
-    result = __Pyx_CyFunction_CallMethod(func, self, arg, kw);
+    PyObject *result;
+    result = __Pyx_CyFunction_CallMethod(func, func, arg, kw);
     return result;
 }
 
@@ -1100,7 +1099,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *c
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
     PyObject *self;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    PyCFunction meth = PyCFunction_GetFunction(cyfunc->func);
+    PyCFunction meth = cyfunc->func_methoddef->ml_meth;
     if (unlikely(!meth)) return NULL;
 #else
     PyCFunction meth = ((PyCFunctionObject*)cyfunc)->m_ml->ml_meth;
@@ -1113,13 +1112,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *c
         nargs -= 1;
         break;
     case 0:
-#if CYTHON_COMPILING_IN_LIMITED_API
-        // PyCFunction_GetSelf returns a borrowed reference
-        self = PyCFunction_GetSelf(cyfunc->func);
-        if (unlikely(!self) && PyErr_Occurred()) return NULL;
-#else
-        self = ((PyCFunctionObject*)cyfunc)->m_self;
-#endif
+        self = func;
         break;
     default:
         return NULL;
@@ -1139,7 +1132,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const 
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
     PyObject *self;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    PyCFunction meth = PyCFunction_GetFunction(cyfunc->func);
+    PyCFunction meth = cyfunc->func_methoddef->ml_meth;
     if (unlikely(!meth)) return NULL;
 #else
     PyCFunction meth = ((PyCFunctionObject*)cyfunc)->m_ml->ml_meth;
@@ -1152,13 +1145,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const 
         nargs -= 1;
         break;
     case 0:
-#if CYTHON_COMPILING_IN_LIMITED_API
-        // PyCFunction_GetSelf returns a borrowed reference
-        self = PyCFunction_GetSelf(cyfunc->func);
-        if (unlikely(!self) && PyErr_Occurred()) return NULL;
-#else
-        self = ((PyCFunctionObject*)cyfunc)->m_self;
-#endif
+        self = func;
         break;
     default:
         return NULL;
@@ -1178,7 +1165,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, 
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
     PyObject *self;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    PyCFunction meth = PyCFunction_GetFunction(cyfunc->func);
+    PyCFunction meth = cyfunc->func_methoddef->ml_meth;
     if (unlikely(!meth)) return NULL;
 #else
     PyCFunction meth = ((PyCFunctionObject*)cyfunc)->m_ml->ml_meth;
@@ -1191,13 +1178,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, 
         nargs -= 1;
         break;
     case 0:
-#if CYTHON_COMPILING_IN_LIMITED_API
-        // PyCFunction_GetSelf returns a borrowed reference
-        self = PyCFunction_GetSelf(cyfunc->func);
-        if (unlikely(!self) && PyErr_Occurred()) return NULL;
-#else
-        self = ((PyCFunctionObject*)cyfunc)->m_self;
-#endif
+        self = func;
         break;
     default:
         return NULL;
@@ -1213,7 +1194,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
     PyObject *self;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    PyCFunction meth = PyCFunction_GetFunction(cyfunc->func);
+    PyCFunction meth = cyfunc->func_methoddef->ml_meth;
     if (unlikely(!meth)) return NULL;
 #else
     PyCFunction meth = ((PyCFunctionObject*)cyfunc)->m_ml->ml_meth;
@@ -1225,13 +1206,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
         nargs -= 1;
         break;
     case 0:
-#if CYTHON_COMPILING_IN_LIMITED_API
-        // PyCFunction_GetSelf returns a borrowed reference
-        self = PyCFunction_GetSelf(cyfunc->func);
-        if (unlikely(!self) && PyErr_Occurred()) return NULL;
-#else
-        self = ((PyCFunctionObject*)cyfunc)->m_self;
-#endif
+        self = func;
         break;
     default:
         return NULL;
@@ -1672,9 +1647,9 @@ __pyx_FusedFunction_callfunction(PyObject *func, PyObject *args, PyObject *kw)
 }
 
 // Note: the 'self' from method binding is passed in in the args tuple,
-//       whereas PyCFunctionObject's m_self is passed in as the first
-//       argument to the C function. For extension methods we need
-//       to pass 'self' as 'm_self' and not as the first element of the
+//       whereas the FusedFunction object is passed in as the first
+//       argument to the C function. For extension methods we
+//       don't want to pass 'self' as the first element of the
 //       args tuple.
 
 static PyObject *
@@ -1810,6 +1785,35 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     }
     return 0;
 }
+
+
+//////////////////// FusedFunctionArgTypeError.proto ////////////////////
+
+#define __Pyx_RaiseFusedFunctionArgTypeError(arg_name, arg_tuple_idx, min_positional_args, arg_count) \
+    (__Pyx__RaiseFusedFunctionArgTypeError(arg_name, arg_tuple_idx, min_positional_args, arg_count), -1)
+
+static void __Pyx__RaiseFusedFunctionArgTypeError(PyObject *arg_name, Py_ssize_t arg_tuple_idx, Py_ssize_t min_positional_args, Py_ssize_t arg_count); /*proto*/
+
+//////////////////// FusedFunctionArgTypeError ////////////////////
+
+static void __Pyx__RaiseFusedFunctionArgTypeError(PyObject *arg_name, Py_ssize_t arg_tuple_idx, Py_ssize_t min_positional_args, Py_ssize_t arg_count) {
+    if (arg_tuple_idx < min_positional_args) {
+        PyErr_Format(
+            PyExc_TypeError,
+            "Expected at least %zd argument%.1s, got %zd",
+            min_positional_args,
+            (min_positional_args != 1) ? "s" : "",
+            arg_count
+        );
+    } else {
+        PyErr_Format(
+            PyExc_TypeError,
+            "Missing keyword-only argument: '%U'",
+            arg_name
+        );
+    }
+}
+
 
 //////////////////// ClassMethod.proto ////////////////////
 

@@ -113,6 +113,7 @@ from pkg1.pkg11.add_one import add_one, imported_func
 from array import array
 from pkg1.pkg11.cast import call_cast, call_cast_to_array
 from pkg1.pkg11.copying import copy_contig
+from pkg1.pkg11.cython_features import fstring
 
 a = array('i', [1, 2, 3, 4])
 add_one(a)
@@ -130,7 +131,10 @@ from pkg2 import CythonShared
 assert hasattr(CythonShared, '__pyx_capi__'), dir(CythonShared)
 
 a_wrapped = copy_contig(a)
-assert list(a) == list(a_wrapped)
+assert list(a) == list(a_wrapped), (a, a_wrapped)
+
+s = fstring()
+assert s == ' 5 != 10 ', s
 
 ######## pkg1/__init__.py ########
 
@@ -193,6 +197,14 @@ def call_cast():
 def call_cast_to_array():
     cdef int[4] g = [1, 2, 3, 4]
     return cast_to_array(<void *> g)
+
+######## pkg1/pkg11/cython_features.pyx ########
+
+v = 5
+cdef int iv = 10
+
+def fstring():
+    return f" {v} != {iv} "
 
 ######## pkg1/pkg11/import_from_me.pyx ########
 

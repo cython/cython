@@ -99,7 +99,7 @@ basicsize_builtins_map = {
 }
 
 # Builtins as of Python version ...
-KNOWN_PYTHON_BUILTINS_VERSION = (3, 14, 0, 'beta', 1)
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 15, 0, 'alpha', 6)
 KNOWN_PYTHON_BUILTINS = frozenset([
     'ArithmeticError',
     'AssertionError',
@@ -129,6 +129,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'FutureWarning',
     'GeneratorExit',
     'IOError',
+    'ImportCycleError',
     'ImportError',
     'ImportWarning',
     'IndentationError',
@@ -180,6 +181,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     '_IncompleteInputError',
     '__build_class__',
     '__debug__',
+    '__lazy_import__',
     '__import__',
     'abs',
     'aiter',
@@ -1996,6 +1998,8 @@ class GlobalState:
 
         decl = self.parts['module_state']
         init = self.parts['cached_builtins']
+        traverse = self.parts['module_state_traverse']
+        clear = self.parts['module_state_clear']
 
         init.putln("")
         init.putln("/* Cached unbound methods */")
@@ -2013,6 +2017,9 @@ class GlobalState:
             init.putln(
                 f'{init.name_in_main_c_code_module_state(cname)}.method_name = '
                 f'&{init.name_in_main_c_code_module_state(method_name_cname)};')
+            # method is owned - Other PyObjects in __Pyx_CachedCFunction are borrowed.
+            clear.putln(f'Py_CLEAR(clear_module_state->{cname}.method);')
+            traverse.putln(f'Py_VISIT(traverse_module_state->{cname}.method);')
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
@@ -3106,50 +3113,72 @@ class CCodeWriter:
         from .PyrexTypes import py_object_type, typecast
         return typecast(py_object_type, type, cname)
 
+    def handle_refnanny(self, tp, nanny=True):
+        if tp.supports_refnanny and nanny:
+            self.funcstate.needs_refnanny = True
+
     def put_gotref(self, cname, type):
-        type.generate_gotref(self, cname)
+        self.handle_refnanny(type)
+        self.putln(type.get_gotref_code(cname))
 
     def put_giveref(self, cname, type):
-        type.generate_giveref(self, cname)
+        self.handle_refnanny(type)
+        self.putln(type.get_giveref_code(cname))
 
     def put_xgiveref(self, cname, type):
-        type.generate_xgiveref(self, cname)
+        self.handle_refnanny(type)
+        self.putln(type.get_xgiveref_code(cname))
 
     def put_xgotref(self, cname, type):
-        type.generate_xgotref(self, cname)
+        self.handle_refnanny(type)
+        self.putln(type.get_xgotref_code(cname))
 
     def put_incref(self, cname, type, nanny=True):
         # Note: original put_Memslice_Incref/Decref also added in some utility code
         # this is unnecessary since the relevant utility code is loaded anyway if a memoryview is used
         # and so has been removed. However, it's potentially a feature that might be useful here
-        type.generate_incref(self, cname, nanny=nanny)
+        if nanny:
+            self.handle_refnanny(type)
+        self.putln(type.get_incref_code(cname, nanny=nanny))
 
     def put_xincref(self, cname, type, nanny=True):
-        type.generate_xincref(self, cname, nanny=nanny)
+        if nanny:
+            self.handle_refnanny(type)
+        self.putln(type.get_xincref_code(cname, nanny=nanny))
 
     def put_decref(self, cname, type, nanny=True, have_gil=True):
-        type.generate_decref(self, cname, nanny=nanny, have_gil=have_gil)
+        if nanny:
+            self.handle_refnanny(type)
+        self.putln(type.get_decref_code(cname, nanny=nanny, have_gil=have_gil))
 
     def put_xdecref(self, cname, type, nanny=True, have_gil=True):
-        type.generate_xdecref(self, cname, nanny=nanny, have_gil=have_gil)
+        if nanny:
+            self.handle_refnanny(type)
+        self.putln(type.get_xdecref_code(cname, nanny=nanny, have_gil=have_gil))
 
     def put_decref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
-        type.generate_decref_clear(self, cname, clear_before_decref=clear_before_decref,
-                              nanny=nanny, have_gil=have_gil)
+        if nanny:
+            self.handle_refnanny(type)
+        self.putln(type.get_decref_clear_code(
+            cname, clear_before_decref=clear_before_decref, nanny=nanny, have_gil=have_gil))
 
     def put_xdecref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
-        type.generate_xdecref_clear(self, cname, clear_before_decref=clear_before_decref,
-                              nanny=nanny, have_gil=have_gil)
+        if nanny:
+            self.handle_refnanny(type)
+        self.putln(type.get_xdecref_clear_code(
+            cname, clear_before_decref=clear_before_decref, nanny=nanny, have_gil=have_gil))
 
     def put_decref_set(self, cname, type, rhs_cname):
-        type.generate_decref_set(self, cname, rhs_cname)
+        self.handle_refnanny(type)
+        self.putln(type.get_decref_set_code(cname, rhs_cname))
 
     def put_xdecref_set(self, cname, type, rhs_cname):
-        type.generate_xdecref_set(self, cname, rhs_cname)
+        self.handle_refnanny(type)
+        self.putln(type.get_xdecref_set_code(cname, rhs_cname))
 
     def put_incref_memoryviewslice(self, slice_cname, type, have_gil):
         # TODO ideally this would just be merged into "put_incref"
-        type.generate_incref_memoryviewslice(self, slice_cname, have_gil=have_gil)
+        self.putln(type.get_incref_memoryviewslice_code(slice_cname, have_gil=have_gil))
 
     def put_var_incref_memoryviewslice(self, entry, have_gil):
         self.put_incref_memoryviewslice(entry.cname, entry.type, have_gil=have_gil)

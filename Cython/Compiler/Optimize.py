@@ -2368,7 +2368,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     node.type.is_int and isinstance(arg, ExprNodes.BoolNode)):
                 return arg.coerce_to(node.type, self.current_env())
         elif isinstance(arg, ExprNodes.CoerceToPyTypeNode):
-            if arg.type is PyrexTypes.py_object_type:
+            if arg.type is PyrexTypes.py_object_type or arg.type.is_builtin_type:
                 if node.type.assignable_from(arg.arg.type):
                     # completely redundant C->Py->C coercion
                     return arg.arg.coerce_to(node.type, self.current_env())
@@ -5326,23 +5326,38 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         seen = {}
         values = node.values[:]
         for i, fnode in enumerate(node.values):
-            if not isinstance(fnode, FormattedValueNode):
-                # Unicode string constants are deduplicated already.
-                continue
-            fnode_value_node = fnode.value
-            if isinstance(fnode.value, CoerceToPyTypeNode):
-                # Coerced C values are probably safe.
-                fnode_value_node = fnode_value_node.arg
-            elif fnode.c_format_spec is not None:
-                # Simple formatted C values are safe.
-                pass
-            elif fnode_value_node.type.is_builtin_type:
-                # Most builtin Python types are probably safe as well.
-                # FIXME: Except when a container type formats user defined values...
-                # Thus, we might want to be more specific and allow only simple Python types.
-                pass
+            if isinstance(fnode, FormattedValueNode):
+                fnode_value_node = fnode.value
+                c_format_spec = fnode.c_format_spec
+                format_spec = fnode.format_spec
+                conversion_char = fnode.conversion_char
+
+                if isinstance(fnode.value, CoerceToPyTypeNode):
+                    # Coerced C values are probably safe.
+                    fnode_value_node = fnode_value_node.arg
+                elif fnode.c_format_spec is not None:
+                    # Simple formatted C values are safe.
+                    pass
+                elif fnode_value_node.type.is_builtin_type:
+                    # Most builtin Python types are probably safe as well.
+                    # FIXME: Except when a container type formats user defined values...
+                    # Thus, we might want to be more specific and allow only simple Python types.
+                    pass
+                else:
+                    # Other Python objects are not safe as they can change their formatting on each access.
+                    continue
+
+            elif isinstance(fnode, ExprNodes.PythonCapiCallNode):
+                if fnode.function.name != 'unicode':
+                    continue
+                # f'{s}' formatting for a known str value?
+                fnode_value_node = fnode.args[0]
+                if fnode_value_node.type is not Builtin.unicode_type:
+                    continue
+                format_spec = c_format_spec = conversion_char = None
+
             else:
-                # Other Python objects are not safe as they can change their formatting on each access.
+                # Unicode string constants are deduplicated already.
                 continue
 
             if not (fnode_value_node.is_name and fnode_value_node.is_simple()):
@@ -5352,7 +5367,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                 # Otherwise, we'd have to stop with 'break' instead of allowing 'continue'.
                 continue
 
-            key = (fnode_value_node.name, fnode.c_format_spec, fnode.format_spec, fnode.conversion_char or 's')
+            key = (fnode_value_node.name, c_format_spec, format_spec, conversion_char or 's')
             seen_fnode = seen.setdefault(key, fnode)
             if seen_fnode is fnode:
                 continue

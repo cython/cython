@@ -250,10 +250,18 @@ jobs:
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}
         env: ${{ matrix.env }}
-        run: bash -c "bash ./Tools/ci-run.sh 2> >(tee >(tail -20 > ci-summary.txt) >&2)"
+        run: |
+          bash -c "bash ./Tools/ci-run.sh 2> >(tee  ${{!startsWith(runner.os, 'macOS') && '-p' || ''}} \
+            >( ${{ !startsWith(runner.os, 'macOS') && 'stdbuf -oL -i8M' || ''}}  tail -20 > ci-summary.txt) \
+            >( ${{ !startsWith(runner.os, 'macOS') && 'stdbuf -oL -i8M' || ''}}  fgrep SLOWTEST >ci-slowtests.txt) \
+            >&2)"
 
       - name: Report results
-        run: bash -c "if [ -s ci-summary.txt ]; then grep -A20 'Most expensive pipeline stages' ci-summary.txt | sed -e 's|^|    |'; fi" >> $GITHUB_STEP_SUMMARY
+        run: |
+          bash -c "\
+            if [ -s ci-slowtests.txt ]; then echo '| Slow tests | duration |'; echo '|:---|---:|'; sed -e 's/^.*\[/|    / ; s/: SLOWTEST / | / ; s/\].*/ |/' ci-slowtests.txt | sort -nr -k4; echo; fi; \
+            if [ -s ci-summary.txt ]; then grep -A20 'Most expensive pipeline stages' ci-summary.txt | sed -e '2,21s/^/    / ; 1,1s/:/:\n\n    /'; fi \
+            " >> $GITHUB_STEP_SUMMARY
 
       - name: Upload HTML docs
         uses: actions/upload-artifact@v6.0.0
