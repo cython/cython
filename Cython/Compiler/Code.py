@@ -95,7 +95,7 @@ basicsize_builtins_map = {
 }
 
 # Builtins as of Python version ...
-KNOWN_PYTHON_BUILTINS_VERSION = (3, 15, 0, 'alpha', 6)
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 15, 0, 'alpha', 7)
 KNOWN_PYTHON_BUILTINS = frozenset([
     'ArithmeticError',
     'AssertionError',
@@ -208,6 +208,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'filter',
     'float',
     'format',
+    'frozendict',
     'frozenset',
     'getattr',
     'globals',
