@@ -2,6 +2,25 @@
 Cython Changelog
 ================
 
+3.2.5 (2026-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* Spaces in generated depfiles were not escaped.
+  Patch by Loïc Estève.  (Github issue :issue:`7423`)
+
+* A compile failure was fixed when using the walrus operator inside of try-except.
+  (Github issue :issue:`7462`)
+
+* Several problems generating the shared utility module were resolved.
+  (Github issues :issue:`7487`, :issue:`7497`, :issue:`7504`)
+
+* A problem with cpdef enums in the Limited API of Python 3.11+ was resolved.
+  (Github issue :issue:`7503`)
+
+
 3.2.4 (2026-01-04)
 ==================
 
