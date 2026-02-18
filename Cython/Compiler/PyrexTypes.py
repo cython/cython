@@ -4882,6 +4882,8 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     builtin types like list, dict etc which can be subscripted in annotations
     """
 
+    types_supporting_subscripting = {'dict', 'list', 'set', 'frozenset'}
+
     def __init__(self, name, cname, objstruct_cname=None):
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
@@ -4889,7 +4891,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         self.specializations = {}
 
     def specialize_here(self, pos, env, template_values=None):
-        if self.name not in ['dict', 'list', 'set', 'frozenset']:
+        if self.name not in self.types_supporting_subscripting:
             return self
         if template_values and None not in template_values and len(template_values) <= 2:
             template_values = tuple(template_values)
