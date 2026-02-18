@@ -4893,6 +4893,8 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             setattr(self, arg, kwargs[arg])
 
     def specialize_here(self, pos, env, template_values=None):
+        # For types_supporting_subscripting is the list of types supporting subscripting in Cython.
+        # The other types will just ignore the subscription types.
         if self.name not in self.types_supporting_subscripting:
             return self
         if template_values and None not in template_values and len(template_values) <= 2:
@@ -4908,8 +4910,6 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             env.global_scope().declare_type(name, typ, pos, cname=typ.cname)
             self.specializations[template_values] = typ
             return typ
-        # For a lot of the typing classes it doesn't really matter what the template is
-        # (e.g. typing.List[int] is really just a list).
         return self
 
     def assignable_from(self, src_type):
