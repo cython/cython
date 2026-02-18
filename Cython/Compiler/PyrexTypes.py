@@ -4884,11 +4884,13 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
 
     types_supporting_subscripting = {'dict', 'list', 'set', 'frozenset'}
 
-    def __init__(self, name, cname, objstruct_cname=None):
+    def __init__(self, name, cname, objstruct_cname=None, **kwargs):
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
         self.set_python_type_constructor_name(self.get_container_type().name)
         self.specializations = {}
+        for arg in kwargs:
+            setattr(self, arg, kwargs[arg])
 
     def specialize_here(self, pos, env, template_values=None):
         if self.name not in self.types_supporting_subscripting:
@@ -4900,11 +4902,10 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             subscripted_types = ','.join([str(tv) for tv in template_values])
             name = f'{self.get_container_type().name}[{subscripted_types}]'
 
-            typ = BuiltinTypeConstructorObjectType(name=name, cname=self.cname, objstruct_cname=self.objstruct_cname)
-            typ.base_type = self
-            typ.subscripted_types = tuple(template_values)
+            typ = BuiltinTypeConstructorObjectType(
+                name=name, cname=self.cname, objstruct_cname=self.objstruct_cname,
+                base_type=self, subscripted_types=tuple(template_values), scope=self.scope)
             env.global_scope().declare_type(name, typ, pos, cname=typ.cname)
-            typ.scope = self.scope
             self.specializations[template_values] = typ
             return typ
         # For a lot of the typing classes it doesn't really matter what the template is
