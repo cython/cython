@@ -245,11 +245,11 @@ jobs:
         continue-on-error: ${{ matrix.allowed_failure || false }}
         env: ${{ matrix.env }}
         run: |
-          bash -c "${{ !startsWith(runner.os, 'macOS') && 'stdbuf -e8M' || ''}}  bash ./Tools/ci-run.sh \
+          bash -c "${{ !startsWith(runner.os, 'macOS') && 'stdbuf -e4M' || ''}}  bash ./Tools/ci-run.sh \
             2> >(tee  ${{!startsWith(runner.os, 'macOS') && '-p' || ''}} \
-              >(tail -20 > ci-summary.txt) \
-              >(fgrep SLOWTEST >ci-slowtests.txt) \
-            >&2)"
+              >(${{ !startsWith(runner.os, 'macOS') && 'stdbuf -i4M' || ''}}  tail -20 > ci-summary.txt) \
+              >(${{ !startsWith(runner.os, 'macOS') && 'stdbuf -i4M' || ''}}  grep -F ' SLOWTEST ' >ci-slowtests.txt) \
+              >&2)"
 
       - name: Report results
         run: |
