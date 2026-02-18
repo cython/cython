@@ -9,7 +9,7 @@ Features added
 --------------
 
 * Changes were made to adapt to Python 3.15 and its Limited API.
-  (Github issues :issue:`7358`, :issue:`7347`, :issue:`7348`, :issue:`7190`)
+  (Github issues :issue:`7190`, :issue:`7347`, :issue:`7348`, :issue:`7358`)
 
 * PEP-634 Pattern Matching is being implemented.
   (Github issue :issue:`4029`)
@@ -24,9 +24,22 @@ Features added
   for them if both protocols are implemented.
   (Github issue :issue:`7432`)
 
+* Sequence types marked as ``@cython.collection_type("sequence")`` that use C integers
+  in the subscript special methods now implement only the sequence and not the mapping protocol.
+  This allows subscripting code to avoid creating Python index objects when the index
+  is already available as C integer.
+  (Github issue :issue:`7435`)
+
+* ``cdef`` property methods support setters.
+  (Github issue :issue:`7505`)
+
 * The builtin Python types ``int``, ``float``, ``str``, ``bytes`` and ``bytearray``
   are special cased in comparisons to speed them up.
   (Github issues :issue:`7452`, :issue:`7474`)
+
+* The builtin Python types ``int`` and ``float`` are special cased in ``+``, ``-`` and ``*``
+  operations with (compile-time) unknown Python types in order to speed them up.
+  (Github issue :issue:`7485`)
 
 * C arrays may now be declared with (``extern`` or internal) enum values as their size.
   (Github issues :issue:`7401`, :issue:`7406`)
@@ -50,8 +63,20 @@ Features added
 * Unicode string comparisons to single character literals are faster.
   (Github issue :issue:`7418`)
 
+* F-strings are a little faster in some cases.
+  (Github issues :issue:`7495`, :issue:`7526`)
+
 * The runtime conversion from a Python mapping to a C struct/union uses less code.
   (Github issue :issue:`7343`)
+
+* The error handling of memoryviews uses less code.
+  (Github issue :issue:`7525`)
+
+* The runtime dispatch code of fused types uses less code.
+  (Github issue :issue:`7501`)
+
+* Cython compiled functions have a more efficient memory layout in the Limited API.
+  (Github issue :issue:`7519`)
 
 * Several C++ exception declarations were added to ``libcpp.exceptions``.
   (Github issue :issue:`7389`)
@@ -72,6 +97,8 @@ Features added
   the error reporting.
   (Github issue :issue:`7235`)
 
+* Autoscaling in ``cymeit`` is a little faster.
+
 * Unicode 17.0.0 is used to parse identifiers.
 
 Bugs fixed
@@ -90,7 +117,7 @@ Bugs fixed
 
 * Optimised Python ``int`` and ``float`` operations did not remember their result type,
   leading to less optimised code in longer expressions.
-  (Github issue :issue:`7363`)
+  (Github issues :issue:`7363`, :issue:`7502`)
 
 * Cython still used ``(type, exc, traceback)`` for saving and restoring exception state,
   even though modern CPython versions only store the exception object itself internally.
@@ -107,15 +134,21 @@ Bugs fixed
 * The ``__signatures__`` dict of fused functions is no longer writable.
   (Github issue :issue:`7386`)
 
+* The ``--embed-positions`` option no longer includes absolute file paths in the C code.
+  (Github issue :issue:`6755`)
+
 * Error reporting on missing braces in f-strings was misleading.
   (Github issue :issue:`7436`)
+
+* Cython did not reject code with multiple contradicting type annotations on the same variable.
+  (Github issue :issue:`7246`)
 
 * Cython no longer warns if ``@profile`` or ``@linetrace`` is applied to a function
   without changing the global/outer setting.  This avoids annoyance when users leave
   such redundant decorators in the code for occasional use.
 
-* Spaces in file paths written to the ``depfile`` were not escaped.
-  Patch by Loïc Estève.  (Github issue :issue:`7423`)
+* Cached methods of builtin types were non GC-traversed and cleaned up as part of the module state.
+  Patch by NMaxwell Bernstein.  (Github issue :issue:`7468`)
 
 * Several C compiler warnings related to mixed signed/unsigned C integer usage were resolved.
 
@@ -131,6 +164,25 @@ Other changes
 
 * ``Cython/Shadow.pyi`` has been merged into ``Cython/Shadow.py``.
   (Github issue :issue:`7376`)
+
+
+3.2.5 (2026-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* Spaces in file paths written to the ``depfile`` were not escaped.
+  Patch by Loïc Estève.  (Github issue :issue:`7423`)
+
+* A compile failure was fixed when using the walrus operator inside of try-except.
+  (Github issue :issue:`7462`)
+
+* Several problems generating the shared utility module were resolved.
+  (Github issues :issue:`7487`, :issue:`7497`, :issue:`7504`)
+
+* A problem with cpdef enums in the Limited API of Python 3.11+ was resolved.
+  (Github issue :issue:`7503`)
 
 
 3.2.4 (2026-01-04)
