@@ -659,11 +659,12 @@ class CArrayDeclaratorNode(CDeclaratorNode):
                 error(self.dimension.pos, "Array dimension cannot be const variable")
             size = (self.dimension.constant_result if isinstance(self.dimension.constant_result, int)
                     else self.dimension.get_constant_c_result_code())
-            try:
-                size = int(size)
-            except ValueError:
-                # runtime constant?
-                pass
+            if size is not None:
+                try:
+                    size = int(size)
+                except ValueError:
+                    # runtime constant?
+                    pass
 
         if not base_type.is_complete():
             error(self.pos, "Array element type '%s' is incomplete" % base_type)
