@@ -4920,7 +4920,11 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
                 return True
             if self.subscripted_types and not src_type.subscripted_types:
                 return True
-            if all(dst_sc.assignable_from(src_sc) for dst_sc, src_sc in zip(self.subscripted_types, src_type.subscripted_types)):
+            if (
+                len(self.subscripted_types) == len(src_type.subscripted_types) and
+                all(dst_sc.assignable_from(src_sc)
+                    for dst_sc, src_sc in zip(self.subscripted_types, src_type.subscripted_types))
+            ):
                 return True
             return False
         return super().assignable_from(src_type)
