@@ -109,17 +109,18 @@ def tuple_times_cint(n: cython.int):
     print(d)
 
 
-# TODO: enable in Cython 3.1 when we can infer unsafe C int operations as PyLong
-#@cython.test_fail_if_path_exists("//MulNode")
+@cython.test_fail_if_path_exists("//MulNode")
 def list_times_pyint(n: cython.longlong):
     """
-    >>> list_times_cint(3)
+    >>> list_times_pyint(3)
     []
     [None, None, None]
     [3, 3, 3]
     [1, 2, 3, 1, 2, 3, 1, 2, 3]
     """
     py_n = n + 1  # might overflow => should be inferred as Python long!
+    py_n -= 1
+    assert cython.typeof(py_n) == ('int object' if cython.compiled else 'int'), cython.typeof(py_n)
 
     a = [] * py_n
     b = [None] * py_n

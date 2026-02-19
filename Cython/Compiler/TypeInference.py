@@ -584,6 +584,26 @@ def safe_spanning_type(types, might_overflow, scope):
     elif (not result_type.can_coerce_to_pyobject(scope)
             and not result_type.is_error):
         return result_type
+
+    # We'll treat it as a Python object from this point on, but may be able to infer
+    # something more concrete than 'object'.
+
+    equivalent_type = result_type.equivalent_type
+    if equivalent_type and equivalent_type.is_pyobject:
+        # This is mostly covered by the cases above but still worth a first try
+        # to give the type a chance to speak up.
+        return equivalent_type
+    elif result_type.is_unicode_char:
+        # Unicode characters are ints but are not safe to infer for all operations,
+        # e.g. '+' should probably concatenate and not add the code unit numbers.
+        return Builtin.unicode_type
+    elif result_type.is_int:
+        return Builtin.int_type
+    elif result_type.is_float:
+        return Builtin.float_type
+    elif result_type.is_complex:
+        return Builtin.complex_type
+
     return py_object_type
 
 
