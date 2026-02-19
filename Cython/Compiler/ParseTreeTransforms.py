@@ -968,6 +968,9 @@ class InterpretCompilerDirectives(CythonTransform):
         self.directives = old_directives
         return node
 
+    def visit_CompilerDirectivesExprNode(self, node):
+        return self.visit_CompilerDirectivesNode(node)
+
     # The following four functions track imports and cimports that
     # begin with "cython"
     def is_cython_directive(self, name):
@@ -2099,6 +2102,9 @@ class ForwardDeclareTypes(CythonTransform):
         env.directives = old
         return node
 
+    def visit_CompilerDirectivesExprNode(self, node):
+        return self.visit_CompilerDirectivesNode(node)
+
     def visit_ModuleNode(self, node):
         self.module_scope = node.scope
         self.module_scope.directives = node.directives
@@ -3131,6 +3137,9 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         self.visitchildren(node)
         self.directives = old_directives
         return node
+
+    def visit_CompilerDirectivesExprNode(self, node):
+        return self.visit_CompilerDirectivesNode(node)
 
     def visit_DefNode(self, node):
         modifiers = []
