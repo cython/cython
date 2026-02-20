@@ -12217,7 +12217,7 @@ class TypeidNode(ExprNode):
     #  C++ typeid operator applied to a type or variable
     #
     #  operand       ExprNode
-    #  arg_type      ExprNode
+    #  arg_type      PyrexType
     #  is_variable   boolean
 
     subexprs = ['operand']
@@ -12245,7 +12245,7 @@ class TypeidNode(ExprNode):
             self.error("The 'libcpp.typeinfo' module must be cimported to use the typeid() operator")
             return self
         if self.operand is None:
-            return self  # already analysed, no need to repeat
+            return self  # already analysed to "self.is_type", no need to repeat
         self.type = type_info
         as_type = self.operand.analyse_as_specialized_type(env)
         if as_type:
@@ -12253,16 +12253,15 @@ class TypeidNode(ExprNode):
             self.is_type = True
             self.operand = None  # nothing further uses self.operand - will only cause problems if its used in code generation
         else:
-            self.arg_type = self.operand.analyse_types(env)
+            self.operand = self.operand.analyse_types(env)
             self.is_type = False
-            self.operand = None  # nothing further uses self.operand - will only cause problems if its used in code generation
-            if self.arg_type.type.is_pyobject:
+            if self.operand.type.is_pyobject:
                 self.error("Cannot use typeid on a Python object")
                 return self
-            elif self.arg_type.type.is_void:
+            elif self.operand.type.is_void:
                 self.error("Cannot use typeid on void")
                 return self
-            elif not self.arg_type.type.is_complete():
+            elif not self.operand.type.is_complete():
                 self.error("Cannot use typeid on incomplete type '%s'" % self.arg_type.type)
                 return self
         env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
@@ -12283,7 +12282,7 @@ class TypeidNode(ExprNode):
         if self.is_type:
             arg_code = self.arg_type.empty_declaration_code()
         else:
-            arg_code = self.arg_type.result()
+            arg_code = self.operand.result()
         translate_cpp_exception(code, self.pos,
             "%s = typeid(%s);" % (self.temp_code, arg_code),
             None, None, self.in_nogil_context)
