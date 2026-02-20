@@ -110,7 +110,7 @@ class BaseType:
         # get_fused_types in subclasses.
         return self.get_fused_types()
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
         """
         Deduce any template params in this (argument) type given the actual
         argument type.
@@ -1880,8 +1880,14 @@ class CConstOrVolatileType(BaseType):
         return CConstOrVolatileType(base_type,
                 self.is_const, self.is_volatile)
 
-    def deduce_template_params(self, actual):
-        return self.cv_base_type.deduce_template_params(actual)
+    def deduce_template_params(self, actual, is_value_type=True):
+        if ((actual.is_const and self.is_const)
+                or (actual.is_volatile and self.is_volatile)):
+            # If we're "const T" and actual is "const int" then deduce "T=int".
+            # Also, if the type is being passed by value then deduce a non-const type.
+            return self.cv_base_type.deduce_template_params(actual.cv_base_type, is_value_type=is_value_type)
+        # Otherwise, if we're "const T" and actual is "int" then deduce "T=int"
+        return self.cv_base_type.deduce_template_params(actual, is_value_type=is_value_type)
 
     def can_coerce_to_pyobject(self, env):
         return self.cv_base_type.can_coerce_to_pyobject(env)
@@ -2815,9 +2821,9 @@ class CArrayType(CPointerBaseType):
         else:
             return CArrayType(base_type, self.size)
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
         if isinstance(actual, CArrayType):
-            return self.base_type.deduce_template_params(actual.base_type)
+            return self.base_type.deduce_template_params(actual.base_type, is_value_type=False)
         else:
             return {}
 
@@ -2986,9 +2992,9 @@ class CPtrType(CPointerBaseType):
         else:
             return CPtrType(base_type)
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
         if isinstance(actual, CPtrType):
-            return self.base_type.deduce_template_params(actual.base_type)
+            return self.base_type.deduce_template_params(actual.base_type, is_value_type=False)
         else:
             return {}
 
@@ -3029,8 +3035,8 @@ class CReferenceBaseType(BaseType):
         else:
             return type(self)(base_type)
 
-    def deduce_template_params(self, actual):
-        return self.ref_base_type.deduce_template_params(actual)
+    def deduce_template_params(self, actual, is_value_type=True):
+        return self.ref_base_type.deduce_template_params(actual, is_value_type=False)
 
     def __getattr__(self, name):
         return getattr(self.ref_base_type, name)
@@ -4274,7 +4280,7 @@ class CppClassType(CType):
                         specialized.scope.entries[bit_ref_returner].type.return_type = T
         return specialized
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
         if actual.is_cv_qualified:
             actual = actual.cv_base_type
         if actual.is_reference:
@@ -4570,7 +4576,10 @@ class TemplatePlaceholderType(CType):
         else:
             return self
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
+        if is_value_type and actual.is_cv_qualified:
+            # For value types, there's no reason to preserve const/volatile
+            return {self: actual.cv_base_type}
         return {self: actual}
 
     def same_as_resolved_type(self, other_type):
@@ -5426,7 +5435,13 @@ def merge_template_deductions(a, b):
         return None
     add_if_missing = a.setdefault
     for param, value in b.items():
-        if add_if_missing(param, value) != value:
+        value_in_a = add_if_missing(param, value)
+        if value_in_a != value:
+            if value_in_a.is_cv_qualified and value_in_a.cv_base_type == value:
+                continue  # This is fine
+            if value.is_cv_qualified and value.cv_base_type == value_in_a:
+                a[param] = value  # replace with the more restrictive qualified value
+                continue
             # Found mismatch, cannot merge.
             return None
     return a
