@@ -2413,7 +2413,8 @@ class FuncDefNode(StatNode, BlockNode):
             else:
                 warning(self.entry.pos,
                         "Unraisable exception in function '%s'." %
-                        self.entry.qualified_name, 0)
+                        self.entry.qualified_name,
+                        level=2)
                 assure_gil('error')
                 code.put_unraisable(self.entry.qualified_name)
             default_retval = return_type.default_value
