@@ -994,7 +994,7 @@ class TestBuilder(object):
                           add_cython_import=add_cython_import,
                           extra_directives=extra_directives,
                           abi3audit=self.abi3audit,
-                          shared_utility=self.shared_utility
+                          shared_utility=self.shared_utility,
                           )
 
 
@@ -1490,14 +1490,19 @@ class CythonCompileTestCase(unittest.TestCase):
                 with self.stats.time(self.name, self.language, 'cython'):
                     self.run_cython(
                         test_directory, module, module_path, workdir, incdir, annotate,
-                        evaluate_tree_assertions=evaluate_tree_assertions, extra_compile_options={'shared_utility_qualified_name': self.shared_utility})
+                        evaluate_tree_assertions=evaluate_tree_assertions,
+                        extra_compile_options={'shared_utility_qualified_name': self.shared_utility},
+                    )
                 errors, warnings, perf_hints = sys.stderr.getall()
             finally:
                 sys.stderr = old_stderr
             if self.test_determinism and not expect_errors:
                 workdir2 = workdir + '-again'
                 os.mkdir(workdir2)
-                self.run_cython(test_directory, module, module_path, workdir2, incdir, annotate, extra_compile_options={'shared_utility_qualified_name': self.shared_utility})
+                self.run_cython(
+                    test_directory, module, module_path, workdir2, incdir, annotate,
+                    extra_compile_options={'shared_utility_qualified_name': self.shared_utility},
+                )
                 diffs = []
                 for file in os.listdir(workdir2):
                     with open(os.path.join(workdir, file)) as fid:
@@ -2843,27 +2848,24 @@ def generate_shared_utility(options):
         yield
         return
 
-    workdir = TemporaryDirectory()
-    shared_utility_c_file = os.path.join(workdir.name, f'{SHARED_UTILITY_MODULE_NAME}.c')
-    utility_gen_result = subprocess.run(
-        [
-            'python', 'cython.py', '--generate-shared', shared_utility_c_file
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
-    if utility_gen_result.returncode != 0:
-        raise RuntimeError(f"Shared utility generation failed:\n{utility_gen_result.stdout}")
+    with TemporaryDirectory() as workdir:
+        shared_utility_c_file = os.path.join(workdir.name, f'{SHARED_UTILITY_MODULE_NAME}.c')
+        utility_gen_result = subprocess.run(
+            [
+                'python', 'cython.py', '--generate-shared', shared_utility_c_file
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
+        if utility_gen_result.returncode != 0:
+            raise RuntimeError(f"Shared utility generation failed:\n{utility_gen_result.stdout}")
 
-    compilation_result = subprocess.run(
-        [
-            'python', 'cythonize.py', '-bi', shared_utility_c_file
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
-    if compilation_result.returncode != 0:
-        raise RuntimeError(f"Shared utility compilation failed:\n{compilation_result.stdout}")
+        compilation_result = subprocess.run(
+            [
+                'python', 'cythonize.py', '-bi', shared_utility_c_file
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
+        if compilation_result.returncode != 0:
+            raise RuntimeError(f"Shared utility compilation failed:\n{compilation_result.stdout}")
 
-    sys.path.append(workdir.name)
-    try:
+        sys.path.append(workdir.name)
         yield workdir
-    finally:
-        workdir.cleanup()
 
 def configure_cython(options):
     global CompilationOptions, pyrex_default_options, cython_compile
