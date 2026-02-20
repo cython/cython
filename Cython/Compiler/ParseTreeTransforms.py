@@ -4199,8 +4199,19 @@ class TransformBuiltinMethods(EnvTransform):
         self._do_body_insertion(node)
         return node
 
+    def _create_cython_array_node(self, pos, type, operand, start_node, stop_node, step_node) -> ExprNodes.CythonArrayNode:
+        memslicenode = Nodes.MemoryViewSliceTypeNode(
+            pos,
+            axes=[
+                ExprNodes.SliceNode(
+                    pos, start=start_node, stop=stop_node, step=step_node)
+            ],
+            # We pass array_dtype hence we can set this parameter as None
+            base_type_node=None
+        )
+        return ExprNodes.CythonArrayNode(pos, base_type_node=memslicenode, array_dtype=type, operand=operand)
+
     def visit_SimpleCallNode(self, node):
-        # cython.foo
         function = node.function.as_cython_attribute()
         if function:
             if function in InterpretCompilerDirectives.unop_method_nodes:
@@ -4220,12 +4231,27 @@ class TransformBuiltinMethods(EnvTransform):
                     error(node.function.pos,
                           "cast() takes exactly two arguments and an optional typecheck keyword")
                 else:
-                    type = node.args[0].analyse_as_type(self.current_env())
-                    if type:
-                        node = ExprNodes.TypecastNode(
-                            node.function.pos, type=type, operand=node.args[1], typecheck=False)
+                    cast_target = node.args[0]
+                    operand = node.args[1]
+                    if cast_target.is_subscript and cast_target.index.is_slice and cast_target.index.start.is_none:
+                        type = cast_target.base.analyse_as_type(self.current_env())
+                        start_node = cast_target.index.start
+                        stop_node = cast_target.index.stop
+                        step_node = cast_target.index.step
+                        node = self._create_cython_array_node(node.function.pos, type, operand, start_node, stop_node, step_node)
+                    elif isinstance(cast_target, ExprNodes.SliceIndexNode) and cast_target.start is None:
+                        type = cast_target.base.analyse_as_type(self.current_env())
+                        start_node = ExprNodes.NoneNode(node.function.pos)
+                        stop_node = cast_target.stop
+                        step_node = ExprNodes.NoneNode(node.function.pos)
+                        node = self._create_cython_array_node(node.function.pos, type, operand, start_node, stop_node, step_node)
                     else:
-                        error(node.args[0].pos, "Not a type")
+                        type = cast_target.analyse_as_type(self.current_env())
+                        if type:
+                            node = ExprNodes.TypecastNode(
+                                node.function.pos, type=type, operand=operand, typecheck=False)
+                        else:
+                            error(cast_target.pos, "Not a type")
             elif function == 'sizeof':
                 if len(node.args) != 1:
                     error(node.function.pos, "sizeof() takes exactly one argument")
