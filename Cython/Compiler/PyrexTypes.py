@@ -1438,7 +1438,7 @@ class BuiltinObjectType(PyObjectType):
     is_exception_type = False
 
     # fields that let it look like an extension type
-    vtabslot_cname = None
+    vtabslot_type = None
     vtabstruct_cname = None
     vtabptr_cname = None
     typedef_flag = True
@@ -1586,7 +1586,7 @@ class PyExtensionType(PyObjectType):
     #  objtypedef_cname string           Name of PyObject struct typedef
     #  typeobj_cname    string or None   C code fragment referring to type object
     #  typeptr_cname    string or None   Name of pointer to external type object
-    #  vtabslot_cname   string           Name of C method table member
+    #  vtabslot_type    PyExtensionType or None   Type in the inheritance hierarchy that holds the vtabslot member
     #  vtabstruct_cname string           Name of C method table struct
     #  vtabptr_cname    string           Name of pointer to C method table
     #  vtable_cname     string           Name of C method table definition
@@ -1620,7 +1620,7 @@ class PyExtensionType(PyObjectType):
         self.objstruct_cname = None
         self.typeobj_cname = None
         self.typeptr_cname = None
-        self.vtabslot_cname = None
+        self.vtabslot_type = None
         self.vtabstruct_cname = None
         self.vtabptr_cname = None
         self.vtable_cname = None
