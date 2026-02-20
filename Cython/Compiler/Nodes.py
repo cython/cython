@@ -7078,14 +7078,36 @@ class ReturnStatNode(StatNode):
             return
 
         value = self.value
-        if self.return_type.is_pyobject:
-            code.put_xdecref(Naming.retval_cname, self.return_type)
+        if value:
+            value.generate_evaluation_code(code)
+
+        if self.return_type.needs_refcounting:
+            code.putln("{")
+            code.putln(f"{self.return_type.declaration_code(Naming.quick_temp_cname)};")
+
+        if self.in_parallel:
+            # If we have the GIL we can rely on it for locking (unless in freethreading).
+            # Where we use a critical section, we do our best to keep the contents as
+            # simple as possible.
+            if code.funcstate.gil_owned:
+                code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+            code.putln_openmp(
+                # For scalar types this could be omp atomic (at least on semi-recent versions
+                # of OpenMP). However, MSVC doesn't look to support that.
+                "#pragma omp critical(__pyx_returning)")
+            if code.funcstate.gil_owned:
+                code.putln("#endif")
+        code.putln("{")
+
+        if self.return_type.needs_refcounting:
+            # decref must come after assignment because it can trigger
+            # arbitrary code execution (and thus release the GIL).
+            code.putln(f"{Naming.quick_temp_cname} = {Naming.retval_cname};")
             if value and value.is_none:
                 # Use specialised default handling for "return None".
                 value = None
 
         if value:
-            value.generate_evaluation_code(code)
             if self.return_type.is_memoryviewslice:
                 from . import MemoryView
                 MemoryView.put_acquire_memoryviewslice(
@@ -7094,22 +7116,30 @@ class ReturnStatNode(StatNode):
                     lhs_pos=value.pos,
                     rhs=value,
                     code=code,
-                    have_gil=self.in_nogil_context)
-                value.generate_post_assignment_code(code)
+                    have_gil=code.funcstate.gil_owned)
             else:
                 value.make_owned_reference(code)
                 code.putln("%s = %s;" % (
                     Naming.retval_cname,
                     value.result_as(self.return_type)))
-                value.generate_post_assignment_code(code)
-            value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
                 code.put_init_to_py_none(Naming.retval_cname, self.return_type)
             elif self.return_type.is_returncode:
                 self.put_return(code, self.return_type.default_value)
 
-        if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
+        code.putln("}")  # end of omp critical section
+        if self.return_type.needs_refcounting:
+            code.put_xdecref(
+                Naming.quick_temp_cname, self.return_type, have_gil=code.funcstate.gil_owned)
+            code.putln("}")  # end of quick_temp scope
+
+        if value:
+            value.generate_post_assignment_code(code)
+            value.free_temps(code)
+        if (  # for now, avoid thread-safety issues in parallel blocks by not tracing the return value.
+                not self.in_parallel and
+                (code.globalstate.directives['profile'] or code.globalstate.directives['linetrace'])):
             code.put_trace_return(
                 Naming.retval_cname,
                 self.pos,
@@ -7123,8 +7153,6 @@ class ReturnStatNode(StatNode):
         code.put_goto(code.return_label)
 
     def put_return(self, code, value):
-        if self.in_parallel:
-            code.putln_openmp("#pragma omp critical(__pyx_returning)")
         code.putln("%s = %s;" % (Naming.retval_cname, value))
 
     def generate_function_definitions(self, env, code):
