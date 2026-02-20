@@ -24,6 +24,7 @@ import zlib
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
+from tempfile import TemporaryDirectory
 
 try:
     IS_PYPY = platform.python_implementation() == 'PyPy'
@@ -35,6 +36,8 @@ except (ImportError, AttributeError):
     IS_GRAAL = False
 
 CAN_SYMLINK = sys.platform != 'win32' and hasattr(os, 'symlink')
+
+SHARED_UTILITY_MODULE_NAME = '_cython_shared'
 
 from io import open as io_open
 try:
@@ -794,6 +797,7 @@ class TestBuilder(object):
         self.add_cython_import = add_cython_import
         self.capture = options.capture
         self.add_cpp_locals_extra_tests = add_cpp_locals_extra_tests
+        self.shared_utility = SHARED_UTILITY_MODULE_NAME if options.use_shared_utility else None
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -855,6 +859,9 @@ class TestBuilder(object):
                     continue
                 if skip_limited(tags):
                     continue
+                if self.shared_utility is not None and 'shared_utility' not in tags['tag']:
+                     # EndToEnd tests have their own build setup which doesn't use the shared module unless the tag says so.
+                    continue
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
                     suite.addTest(EndToEndTest(filepath, workdir,
                              self.cleanup_workdir, stats=self.stats,
@@ -880,7 +887,8 @@ class TestBuilder(object):
                                          module, filepath, mode == 'error', tags):
                 suite.addTest(test)
 
-            if mode == 'run' and ext == '.py' and not self.cython_only and not filename.startswith('test_'):
+            if mode == 'run' and ext == '.py' and not filename.startswith('test_') and not (
+                    self.cython_only or self.shared_utility):
                 # additionally test file in real Python
                 min_py_ver = [
                     (int(pyver.group(1)), int(pyver.group(2)))
@@ -985,7 +993,8 @@ class TestBuilder(object):
                           stats=self.stats,
                           add_cython_import=add_cython_import,
                           extra_directives=extra_directives,
-                          abi3audit=self.abi3audit
+                          abi3audit=self.abi3audit,
+                          shared_utility=self.shared_utility,
                           )
 
 
@@ -1045,7 +1054,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
                  extra_directives=None, evaluate_tree_assertions=True,
-                 abi3audit=False):
+                 abi3audit=False, shared_utility=None):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -1072,6 +1081,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.add_cython_import = add_cython_import
         self.extra_directives = extra_directives if extra_directives is not None else {}
         self.abi3audit = abi3audit
+        self.shared_utility = shared_utility
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -1480,14 +1490,19 @@ class CythonCompileTestCase(unittest.TestCase):
                 with self.stats.time(self.name, self.language, 'cython'):
                     self.run_cython(
                         test_directory, module, module_path, workdir, incdir, annotate,
-                        evaluate_tree_assertions=evaluate_tree_assertions)
+                        evaluate_tree_assertions=evaluate_tree_assertions,
+                        extra_compile_options={'shared_utility_qualified_name': self.shared_utility},
+                    )
                 errors, warnings, perf_hints = sys.stderr.getall()
             finally:
                 sys.stderr = old_stderr
             if self.test_determinism and not expect_errors:
                 workdir2 = workdir + '-again'
                 os.mkdir(workdir2)
-                self.run_cython(test_directory, module, module_path, workdir2, incdir, annotate)
+                self.run_cython(
+                    test_directory, module, module_path, workdir2, incdir, annotate,
+                    extra_compile_options={'shared_utility_qualified_name': self.shared_utility},
+                )
                 diffs = []
                 for file in os.listdir(workdir2):
                     with open(os.path.join(workdir, file)) as fid:
@@ -2659,6 +2674,9 @@ def main():
     parser.add_argument(
         "--abi3audit", dest="abi3audit", default=False, action="store_true",
         help="Validate compiled files with ABI3 audit")
+    parser.add_argument(
+        "--shared-utility", dest="use_shared_utility", default=False, action="store_true",
+        help="Compile modules with shared cython utility code")
     parser.add_argument('cmd_args', nargs='*')
 
     options = parser.parse_args(args)
@@ -2828,6 +2846,31 @@ def time_stamper_thread(interval=10, open_shards=None):
         thread.join()
         os.close(stderr)
 
+
+@contextmanager
+def generate_shared_utility(options):
+    if not options.use_shared_utility:
+        yield
+        return
+
+    with TemporaryDirectory() as workdir:
+        shared_utility_c_file = os.path.join(workdir.name, f'{SHARED_UTILITY_MODULE_NAME}.c')
+        utility_gen_result = subprocess.run(
+            [
+                'python', 'cython.py', '--generate-shared', shared_utility_c_file
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
+        if utility_gen_result.returncode != 0:
+            raise RuntimeError(f"Shared utility generation failed:\n{utility_gen_result.stdout}")
+
+        compilation_result = subprocess.run(
+            [
+                'python', 'cythonize.py', '-bi', shared_utility_c_file
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
+        if compilation_result.returncode != 0:
+            raise RuntimeError(f"Shared utility compilation failed:\n{compilation_result.stdout}")
+
+        sys.path.append(workdir.name)
+        yield workdir
 
 def configure_cython(options):
     global CompilationOptions, pyrex_default_options, cython_compile
@@ -3205,7 +3248,8 @@ def runtests(options, cmd_args, coverage=None):
         if options.shard_num > -1:
             thread_id = f" (Thread ID 0x{threading.get_ident():x})" if threading is not None else ""
             sys.stderr.write(f"Tests in shard ({options.shard_num}/{options.shard_count}) starting{thread_id}\n")
-        result = test_runner.run(test_suite)
+        with generate_shared_utility(options):
+            result = test_runner.run(test_suite)
     except Exception as exc:
         # Make sure we print exceptions also from shards.
         if options.shard_num > -1:

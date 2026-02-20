@@ -245,6 +245,7 @@ python $GRAAL_PYTHON_ARGS runtests.py \
   -x Debugger \
   --backends=$BACKEND \
   $LIMITED_API \
+  $SHARED_UTILITY \
   $EXCLUDE \
   $RUNTESTS_ARGS
 
