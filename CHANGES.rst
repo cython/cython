@@ -807,6 +807,15 @@ Other changes
   ``cpython.object`` for legacy reasons.
   (Github issue :issue:`6423`)
 
+Build integration
+-----------------
+
+* Cython's own :pep:`517` configuration is now set up to
+  :external+setuptools:doc:`setuptools' modern build backend <build_meta>`
+  insted of the legacy fallback.
+  Patch by :user:`Sviatoslav Sydorenko <webknjaz>`.
+  (Github PR :pr:`7205`)
+
 
 3.1.8 (2026-01-03)
 ==================
