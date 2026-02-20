@@ -4172,7 +4172,7 @@ class IndexNode(_IndexingBaseNode):
     def analyse_as_type(self, env):
         modifier = self.base.as_cython_attribute()
 
-        if modifier is not None and modifier in ('pointer', 'const', 'volatile'):
+        if modifier is not None and modifier in ('pointer', 'reference', 'rvalue_reference', 'const', 'volatile'):
             base_type = self.index.analyse_as_type(env)
             if base_type is None:
                 error(self.base.pos, f"invalid use of '{modifier}', argument is not a type")
@@ -4180,6 +4180,12 @@ class IndexNode(_IndexingBaseNode):
             if modifier == 'pointer':
                 # pointer[base_type]
                 return PyrexTypes.CPtrType(base_type)
+            if modifier == 'reference':
+                # reference[base_type]
+                return PyrexTypes.CReferenceType(base_type)
+            if modifier == 'rvalue_reference':
+                # rvalue_reference[base_type]
+                return PyrexTypes.CppRvalueReferenceType(base_type)
 
             # const[base_type] or volatile[base_type]
             is_const = modifier == 'const'
@@ -6263,6 +6269,83 @@ class CallNode(ExprNode):
             elif result_type.equivalent_type:
                 self.type = result_type.equivalent_type
 
+    def analyse_as_type(self, env):
+        attr = self.function.as_cython_attribute()
+        if attr == 'function_type':
+            args, kwargs = self.explicit_args_kwds()
+            if len(args) != 2:
+                error(self.args.pos, "function_type requires exactly two positional arguments.")
+                return None
+            func_args, func_return = args
+            if not isinstance(func_args, ListNode):
+                error(func_args.pos, "First argument of function_type must be a list literal with parameter types.")
+                return None
+            if kwargs is not None and not isinstance(kwargs, DictNode):
+                error(kwargs.pos, "function_type kwargs should be in a dictionary.")
+                return None
+            param_types = [arg.analyse_as_type(env) for arg in func_args.args]
+            if None in param_types:
+                error(func_args.args[param_types.index(None)].pos, "Unknown type in parameter types")
+                return None
+            ret_type = func_return.analyse_as_type(env)
+            if ret_type is None:
+                error(func_return.pos, "Unknown return type")
+            exc_value = None
+            noexcept = False
+            exc_check = False
+            exc_clause = False
+            func_type_kwargs = {}
+            if kwargs is not None:
+                for kv_pair in kwargs.key_value_pairs:
+                    if not kv_pair.value.has_constant_result():
+                        error(kv_pair.value.pos, "Value of function_type parameter is not a constant")
+                    k = kv_pair.key.constant_result
+                    v = kv_pair.value.constant_result
+                    if k in ('nogil', 'has_varargs', 'noexcept', 'check_exception'):
+                        if isinstance(v, bool):
+                            if k == 'noexcept':
+                                noexcept = v
+                            elif k == 'check_exception':
+                                exc_clause = True
+                                exc_check = v
+                            else:
+                                func_type_kwargs[k] = v
+                        else:
+                            error(kv_pair.value.pos, f"Value for {k} must be boolean")
+                    elif k == 'exceptval':
+                        converted_value = kv_pair.value.coerce_to(ret_type, env).analyse_const_expression(env)
+                        exc_value = converted_value.as_exception_value(env)
+                        if not ret_type.assignable_from(converted_value.type):
+                            error(converted_value.pos,
+                                "Exception value incompatible with function return type")
+                        exc_clause = True
+                    elif k == 'except_cpp':
+                        exc_clause = True
+                        if v == '*':
+                            exc_check = '+'
+                            exc_value = CharNode(kv_pair.value.pos, value='*')
+                        elif isinstance(v, str):
+                            exc_check = '+'
+                            exc_value = NameNode(kv_pair.value.pos, value=v)
+                        elif isinstance(v, bool):
+                            exc_check = '+' if v else False
+                        else:
+                            error(kv_pair.value.pos, f"Value for {k} must be '*', string or boolean, was {v!r}")
+
+                    else:
+                        error(kv_pair.key.pos, f"Unknown kwarg in function_type: {k}")
+            if noexcept and exc_clause:
+                error(self.pos, "Cannot combine noexcept=True with another exception clause.")
+            if not exc_clause:
+                exc_check = not noexcept  # if nothing specified, default to 'except?'
+            return PyrexTypes.CFuncType(
+                return_type=ret_type,
+                args=[PyrexTypes.CFuncTypeArg('', t) for t in param_types],
+                exception_value=exc_value,
+                exception_check=exc_check,
+                **func_type_kwargs
+            )
+
     def analyse_as_type_constructor(self, env):
         """
         Returns a replacement node or None
@@ -6402,6 +6485,7 @@ class SimpleCallNode(CallNode):
                 error(self.args.pos, "only one type allowed.")
             operand = self.args[0].analyse_types(env)
             return operand.type
+        return super().analyse_as_type(env)
 
     def explicit_args_kwds(self):
         return self.args, None

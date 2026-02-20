@@ -448,6 +448,17 @@ class PointerType(CythonType):
     def __repr__(self):
         return f"{self._basetype} *"
 
+class ReferenceType(PointerType):
+    """C++ lvalue reference type."""
+
+    def __repr__(self):
+        return f"{self._basetype} &"
+
+class RValueReferenceType(ReferenceType):
+    """C++ rvalue reference type."""
+
+    def __repr__(self):
+        return f"{self._basetype} &&"
 
 class ArrayType(PointerType):
 
@@ -542,6 +553,27 @@ class pointer(PointerType):
         class PointerInstance(PointerType):
             _basetype = basetype
         return PointerInstance
+
+    def __class_getitem__(cls, basetype):
+        return cls(basetype)
+
+class reference(ReferenceType):
+    # Implemented as class to support both 'reference(int)' and 'reference[int]'.
+    def __new__(cls, basetype):
+        class ReferenceInstance(ReferenceType):
+            _basetype = basetype
+        return ReferenceInstance
+
+    def __class_getitem__(cls, basetype):
+        return cls(basetype)
+
+
+class rvalue_reference(RValueReferenceType):
+    # Implemented as class to support both 'rvalue_reference(int)' and 'rvalue_reference[int]'.
+    def __new__(cls, basetype):
+        class RReferenceInstance(RValueReferenceType):
+            _basetype = basetype
+        return RReferenceInstance
 
     def __class_getitem__(cls, basetype):
         return cls(basetype)
