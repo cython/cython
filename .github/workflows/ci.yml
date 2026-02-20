@@ -250,18 +250,29 @@ jobs:
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}
         env: ${{ matrix.env }}
-        run: |
-          bash -c "${{ !startsWith(runner.os, 'macOS') && 'stdbuf -e4M' || ''}}  bash ./Tools/ci-run.sh \
-            2> >(tee  ${{!startsWith(runner.os, 'macOS') && '-p' || ''}} \
-              >(${{ !startsWith(runner.os, 'macOS') && 'stdbuf -i4M' || ''}}  tail -20 > ci-summary.txt) \
-              >(${{ !startsWith(runner.os, 'macOS') && 'stdbuf -i4M' || ''}}  grep -F ' SLOWTEST ' >ci-slowtests.txt) \
-              >&2)"
-
-      - name: Report results
+        # Windows does not support job summary reports and has problems with pipes, so keep things simple there.
         run: |
           bash -c "\
-            if [ -s ci-slowtests.txt ]; then echo '| Slow tests | duration |'; echo '|:---|---:|'; sed -e 's/^.*\[/|    / ; s/: SLOWTEST / | / ; s/\].*/ |/' ci-slowtests.txt | sort -nr -k4; echo; fi; \
-            if [ -s ci-summary.txt ]; then grep -A20 'Most expensive pipeline stages' ci-summary.txt | sed -e '2,21s/^/    / ; 1,1s/:/:\n\n    /'; fi \
+            if [[ '${{runner.os}}' == 'Windows' ]]; then \
+              bash ./Tools/ci-run.sh; \
+            else \
+              ${{runner.os == 'Linux' && 'stdbuf -e4M' || ''}}  bash ./Tools/ci-run.sh \
+              2> >(tee  ${{runner.os == 'Linux' && '-p' || ''}} \
+                >(tail -20 > ci-summary.txt) \
+                >(grep -F ' SLOWTEST ' >ci-slowtests.txt) \
+                >&2); \
+            fi"
+
+      - name: Report results
+        if: runner.os != 'Windows'
+        run: |
+          bash -c "\
+            if [[ -s ci-slowtests.txt ]]; then \
+              echo '| Slow tests | duration |'; echo '|:---|---:|'; sed -e 's/^.*\[/|    / ; s/: SLOWTEST / | / ; s/\].*/ |/' ci-slowtests.txt | sort -nr -k4; echo; \
+            fi; \
+            if [[ -s ci-summary.txt ]]; then \
+              grep -A20 'Most expensive pipeline stages' ci-summary.txt | sed -e '2,21s/^/    / ; 1,1s/:/:\n\n    /'; \
+            fi; \
             " >> $GITHUB_STEP_SUMMARY
 
       - name: Upload HTML docs
