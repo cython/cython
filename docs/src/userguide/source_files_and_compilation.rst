@@ -1372,6 +1372,13 @@ most important to least important:
     to force use of the old mechanism. Some tools still require the old mechanism,
     most notably "Coverage" (as of 2025).
 
+``CYTHON_SYS_MONITORING_DISABLE_DEBUGGER``
+    In `sys.monitoring` mode, this prevent any tool using the debugger
+    ID from seeing events from inside Cython functions. This is on by default
+    to work around errors caused when running Cython code while using the
+    default debugger in Visual Studio Code. However, it is our intention to
+    turn it off eventually.
+
 ``CYTHON_EXTERN_C``
     Slightly different to the other macros, this controls how ``cdef public``
     functions appear to C++ code. See :ref:`CYTHON_EXTERN_C` for full details.
