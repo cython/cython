@@ -13,7 +13,7 @@ from typing import (
 if TYPE_CHECKING:
     from builtins import (int as py_int, float as py_float,
                           bool as py_bool, str as py_str, complex as py_complex)
-    from typing import TypeAlias, Annotated, ParamSpec
+    from typing import TypeAlias, Annotated, ParamSpec, Self
     _P = ParamSpec('_P')
 
 # TypeVars need to be defined at runtime for Generic types
@@ -379,18 +379,9 @@ class critical_section:
 
 # Emulated types
 
-if TYPE_CHECKING:
-    class CythonTypeObject(object):
-        ...
-    class CythonType(CythonTypeObject):
-        ...
-
-class CythonMetaType(type):
-
-    def __getitem__(type, ix):
-        return array(type, ix)
-
-CythonTypeObject = CythonMetaType('CythonTypeObject', (object,), {})
+class CythonTypeObject:
+    def __class_getitem__(cls, ix: int) -> Type[ArrayType[Self, int]]:
+        return array(cls, ix)
 
 class CythonType(CythonTypeObject):
 
@@ -557,7 +548,7 @@ class array(ArrayType):
 
     def __class_getitem__(cls, item):
         basetype, n = item
-        return cls(basetype, item)
+        return cls(basetype, n)
 
 
 def struct(**members: type) -> Type[Any]:
