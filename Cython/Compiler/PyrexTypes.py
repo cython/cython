@@ -4767,6 +4767,9 @@ class CTupleType(CType):
         new_entry = self.entry.scope.declare_tuple_type(self.entry.pos, components)
         return new_entry.type
 
+    def index_code(self, expr_code, index):
+        return "%s.f%i" % (expr_code, index)
+
 
 def c_tuple_type(components):
     components = tuple(components)
