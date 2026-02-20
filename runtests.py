@@ -2085,7 +2085,7 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
                         pass
 
 
-class EndToEndTest(unittest.TestCase):
+class EndToEndTest(TimedTest):
     """
     This is a test of build/*.srctree files, where srctree defines a full
     directory structure and its header gives a list of commands to run.
@@ -2114,11 +2114,16 @@ class EndToEndTest(unittest.TestCase):
         return "[%d] End-to-end %s" % (
             self.shard_num, self.name)
 
+    def id(self):
+        return f"etoe.{self.name}"
+
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
         _, self.commands = unpack_source_tree(self.treefile, self.workdir, self.cython_root)
+        super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         if self.cleanup_workdir:
             for trial in range(5):
                 try:
