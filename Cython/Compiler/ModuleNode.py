@@ -3664,14 +3664,43 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             wmain = "wmain"
         else:
             wmain = Options.embed
+        def _sanitise_embed_name(name):
+            # name: EncodedString or str with dotted module name
+            try:
+                is_ascii = name.isascii()
+            except Exception:
+                # fallback if not EncodedString
+                is_ascii = all(ord(c) < 128 for c in name)
+            if is_ascii:
+                cname = name.replace('.', '_')
+            else:
+                puny = name.encode('punycode') if isinstance(name, str) else name.encode('punycode')
+                if isinstance(puny, bytes):
+                    puny = puny.replace(b'-', b'_').decode('ascii')
+                else:
+                    puny = str(puny).replace('-', '_')
+                cname = 'U_' + puny
+            if cname and cname[0].isdigit():
+                cname = '_' + cname
+            return cname
+
+        # Build a structure with import name and C identifier name for each embed module
+        embed_modules_ctx = []
+        for m in Options.embed_modules:
+            embed_modules_ctx.append((m, _sanitise_embed_name(m)))
+
+        # main module also needs a C-name (sanitised) for the PyInit symbol
+        main_cname = _sanitise_embed_name(env.module_name)
+
         main_method = TempitaUtilityCode.load_cached(
-                "MainFunction", "Embed.c",
-                context={
-                    'module_name': env.module_name,
-                    'module_is_main': module_is_main,
-                    'main_method': Options.embed,
-                    'wmain_method': wmain,
-                    'embed_modules': tuple(Options.embed_modules)})
+            "MainFunction", "Embed.c",
+            context={
+                'module_name': env.module_name,
+                'module_cname': main_cname,
+                'module_is_main': module_is_main,
+                'main_method': Options.embed,
+                'wmain_method': wmain,
+                'embed_modules': tuple(embed_modules_ctx)})
         code.globalstate.use_utility_code(main_method)
 
     def punycode_module_name(self, prefix, name):
