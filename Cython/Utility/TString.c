@@ -1,7 +1,7 @@
 //////////////////////////// InitializeTemplateLib.module_state_decls /////////////////////
 //@requires: Synchronization.c::Atomics
 
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+#if (CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING) && CYTHON_ATOMICS
 __pyx_atomic_ptr_type __pyx_templatelib_Template;
 __pyx_atomic_ptr_type __pyx_templatelib_Interpolation;
 #else
@@ -27,7 +27,7 @@ clear_module_state->__pyx_templatelib_Interpolation = 0;
 // Returns Template if template, else Interpolation
 static PyObject* __Pyx__GetObjectFromTemplateLib(int is_template); /* proto */
 
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
+#if (CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING) && !CYTHON_ATOMICS
 static PyObject* __Pyx_GetObjectFromTemplateLib(int is_template); /* proto */
 #else
 #define __Pyx_GetObjectFromTemplateLib __Pyx__GetObjectFromTemplateLib
@@ -171,7 +171,7 @@ static int __Pyx_InitializeTemplateLib(void) {
     interpolation = PyObject_GetAttrString(templatelib, "Interpolation");
     if (unlikely(!interpolation)) goto end;
 
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+#if (CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING) && CYTHON_ATOMICS
     {
         __pyx_nonatomic_ptr_type expected = 0;
         if (!__pyx_atomic_pointer_cmp_exchange(&CGLOBAL(__pyx_templatelib_Template), &expected, (__pyx_nonatomic_ptr_type)template_)) {
@@ -207,20 +207,20 @@ static int __Pyx_InitializeTemplateLib(void) {
 
 static PyObject* __Pyx__GetObjectFromTemplateLib(int is_template) {
     PyObject *lookup;
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+#if (CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING) && CYTHON_ATOMICS
     __pyx_atomic_ptr_type* ptr;
 #else
     PyObject **ptr;
 #endif
     ptr = is_template ? &CGLOBAL(__pyx_templatelib_Template) : &CGLOBAL(__pyx_templatelib_Interpolation);
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+#if (CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING) && CYTHON_ATOMICS
     lookup = (PyObject*)__pyx_atomic_pointer_load_relaxed(ptr);
 #else
     lookup = *ptr;
 #endif
     if (unlikely(!lookup)) {
         if (unlikely(__Pyx_InitializeTemplateLib()) < 0) return NULL;
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+#if (CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING) && CYTHON_ATOMICS
         lookup = (PyObject*)__pyx_atomic_pointer_load_acquire(ptr);
 #else
         lookup = *ptr;
@@ -238,6 +238,8 @@ static PyObject* __Pyx_GetObjectFromTemplateLib(int is_template) {
     PyMutex_Unlock(&mutex);
     return result;
 }
+#elif CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING && !CYTHON_ATOMICS
+#error "For now PyMutex isn't available so Limited API > 3.15 needs atomics. This is expected to change."
 #endif
 
 
