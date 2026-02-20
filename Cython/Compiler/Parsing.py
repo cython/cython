@@ -3770,7 +3770,11 @@ def p_c_func_or_var_declaration(s: PyrexScanner, pos, ctx):
         #if api:
         #    s.error("'api' not allowed with variable declaration")
         if is_const_method:
-            declarator.is_const_method = is_const_method
+            func_declarator = declarator
+            while isinstance(func_declarator, Nodes.CPtrDeclaratorNode):
+                # pointer return type
+                func_declarator = func_declarator.base
+            func_declarator.is_const_method = is_const_method
         declarators = [declarator]
         while s.sy == ',':
             s.next()

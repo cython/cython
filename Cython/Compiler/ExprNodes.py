@@ -4533,11 +4533,34 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_c_function(self, env):
         base_type = self.base.type
+
         if base_type.is_fused:
             self.parse_indexed_fused_cdef(env)
         else:
             self.type_indices = self.parse_index_as_types(env)
             self.index = None  # FIXME: use a dedicated Node class instead of generic IndexNode
+
+            if hasattr(self.base, "entry"):
+                alternatives = self.base.entry.all_alternatives()
+                if len(alternatives) > 1:
+                    alternatives = [
+                        a for a in alternatives
+                        if (a.type.is_cfunction and
+                            a.type.templates is not None and
+                            len(a.type.templates) == len(self.type_indices))
+                    ]
+                    if len(alternatives) >= 1:
+                        self.base.entry  = alternatives[0]
+                        base_type = self.base.type = self.base.entry.type
+                    if len(alternatives) > 1:
+                        # warning rather than error because we used to just pick the first one in all cases.
+                        # TODO - a better lookup might work co-operatively with a surrounding CallNode to further
+                        # reduce the list of viable alternatives.
+                        warning(
+                            self.pos,
+                            "No unambiguous choice when parameterizing template function"
+                        )
+
             if base_type.templates is None:
                 error(self.pos, "Can only parameterize template functions.")
                 self.type = error_type

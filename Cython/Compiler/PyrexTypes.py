@@ -3309,6 +3309,12 @@ class CFuncType(CType):
             return 0
         if not self._is_exception_compatible_with(other_type):
             return 0
+        if self.is_const_method != other_type.is_const_method:
+            return 0
+        len_self_templates = len(self.templates) if self.templates is not None else 0
+        len_other_templates = len(other_type.templates) if other_type.templates is not None else 0
+        if len_self_templates != len_other_templates:
+            return 0
         return 1
 
     def _is_exception_compatible_with(self, other_type):
