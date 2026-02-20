@@ -303,30 +303,76 @@ static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py
 static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
     if (PyUnicode_Check(o)) {
-        return __Pyx_PyUnicode_AsStringAndSize(o, length);
+        const char* result = __Pyx_PyUnicode_AsStringAndSize(o, length);
+        if (unlikely(!result)) goto error;
+        return result;
     } else
 #endif
 
     if (PyByteArray_Check(o)) {
+        int r = PyErr_WarnEx(
+            PyExc_RuntimeWarning,
+            "Cython: Pointer taken from resizable `bytearray` object. "
+            "To restrict resizing instead use a memory view, e.g. `unsigned char[::1]`.",
+            1
+        );
+        if (unlikely(r < 0)) return NULL;
 #if (CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS) || (CYTHON_COMPILING_IN_PYPY && (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE)))
         *length = PyByteArray_GET_SIZE(o);
         return PyByteArray_AS_STRING(o);
 #else
         *length = PyByteArray_Size(o);
-        if (*length == -1) return NULL;
+        if (*length == -1) goto error;
         return PyByteArray_AsString(o);
 #endif
 
-    } else
-    {
+    } else if (PyBytes_Check(o)) {
         char* result;
         int r = PyBytes_AsStringAndSize(o, &result, length);
+        if (unlikely(r < 0)) goto error;
+        return result;
+    } else {
+        char* result;
+        int r;
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030B0000
+        // Check that `o`:
+        // * supports the Python Buffer Protocol
+        // * does not require keeping the buffer around (as we cannot return it)
+        getbufferproc* getbuffer = __Pyx_PyType_GetSlot(o, bf_getbuffer, getbufferproc);
+        releasebufferproc* releasebuffer = __Pyx_PyType_GetSlot(o, bf_releasebuffer, releasebufferproc);
+        if (pb == NULL || getbuffer == NULL || releasebuffer != NULL) goto error;
+
+        // Try to acquire buffer from `o`
+        Py_buffer view;
+        r = PyObject_GetBuffer(o, &view, PyBUF_SIMPLE | PyBUF_FORMAT);
         if (unlikely(r < 0)) {
-            return NULL;
+            goto error;
+        } else if (view.ndim != 1 || (view.format != NULL && view.format[0] != 'B')) {
+            PyBuffer_Release(&view);  // Release to clean up buffer (decref object `o`)
+            goto error;
         } else {
+            result = (char*) view.buf;
+            *length = view.len;
+            PyBuffer_Release(&view);  // Release to clean up buffer (decref object `o`)
             return result;
         }
+#else
+        // Fallback for the Limited API on Python pre-3.11
+        r = PyArg_Parse(o, "y#", &result, &length);
+        if (unlikely(r < 0)) goto error;
+        return result;
+#endif
     }
+
+    error:
+        // Clear existing errors and return our standardized one
+        PyErr_Clear();
+        __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
+        PyErr_Format(PyExc_TypeError,
+            "a bytes-like object is required, not '" __Pyx_FMT_TYPENAME "'",
+            o_type_name);
+        *length = -1;
+        return NULL;
 }
 
 /* Note: __Pyx_PyObject_IsTrue is written to minimize branching. */
