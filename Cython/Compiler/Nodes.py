@@ -4779,7 +4779,7 @@ class GeneratorDefNode(DefNode):
 
         code.putln('{')
         code.putln(
-            f'__pyx_CoroutineObject *gen = __Pyx_{self.gen_type_name}_New('
+            f'PyObject *gen = __Pyx_{self.gen_type_name}_New('
             f'(__pyx_coroutine_body_t) {body_cname},'
             f' {self.code_object.py_result()},'
             f' (PyObject *) {Naming.cur_scope_cname},'
@@ -4789,9 +4789,8 @@ class GeneratorDefNode(DefNode):
 
         code.put_decref(Naming.cur_scope_cname, py_object_type)
         if self.requires_classobj:
-            classobj_cname = 'gen->classobj'
-            code.putln('%s = __Pyx_CyFunction_GetClassObj(%s);' % (
-                classobj_cname, Naming.self_cname))
+            classobj_cname = '__Pyx_as_CoroutineObject(gen)->classobj'
+            code.putln(f'{classobj_cname} = __Pyx_CyFunction_GetClassObj({Naming.self_cname});')
             code.put_incref(classobj_cname, py_object_type)
             code.put_giveref(classobj_cname, py_object_type)
         code.put_finish_refcount_context()
@@ -4856,15 +4855,16 @@ class GeneratorBodyDefNode(DefNode):
         self.declare_generator_body(env)
 
     def generate_function_header(self, code, proto=False):
-        header = "static PyObject *%s(__pyx_CoroutineObject *%s, CYTHON_UNUSED PyThreadState *%s, PyObject *%s)" % (
+        header = "static PyObject *%s(PyObject *%s, CYTHON_UNUSED PyThreadState *%s, PyObject *%s)" % (
             self.entry.func_cname,
-            Naming.generator_cname,
+            Naming.generator_obj_cname,
             Naming.local_tstate_cname,
             Naming.sent_value_cname)
         if proto:
             code.putln('%s; /* proto */' % header)
         else:
             code.putln('%s /* generator body */\n{' % header)
+            code.putln(f'__pyx_CoroutineObject *{Naming.generator_cname} = __Pyx_as_CoroutineObject({Naming.generator_obj_cname});')
 
     def generate_function_definitions(self, env, code):
         lenv = self.local_scope
@@ -5002,7 +5002,7 @@ class GeneratorBodyDefNode(DefNode):
         code.putln("#endif")
         code.putln('%s->resume_label = -1;' % Naming.generator_cname)
         # clean up as early as possible to help breaking any reference cycles
-        code.putln('__Pyx_Coroutine_clear((PyObject*)%s);' % Naming.generator_cname)
+        code.putln('__Pyx_Coroutine_clear(%s);' % Naming.generator_obj_cname)
         code.put_finish_refcount_context()
         code.putln("return %s;" % Naming.retval_cname)
         code.putln("}")
