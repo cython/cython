@@ -2854,7 +2854,7 @@ def generate_shared_utility(options):
         return
 
     with TemporaryDirectory() as workdir:
-        shared_utility_c_file = os.path.join(workdir.name, f'{SHARED_UTILITY_MODULE_NAME}.c')
+        shared_utility_c_file = os.path.join(workdir, f'{SHARED_UTILITY_MODULE_NAME}.c')
         utility_gen_result = subprocess.run(
             [
                 'python', 'cython.py', '--generate-shared', shared_utility_c_file
@@ -2869,7 +2869,7 @@ def generate_shared_utility(options):
         if compilation_result.returncode != 0:
             raise RuntimeError(f"Shared utility compilation failed:\n{compilation_result.stdout}")
 
-        sys.path.append(workdir.name)
+        sys.path.append(workdir)
         yield workdir
 
 def configure_cython(options):
