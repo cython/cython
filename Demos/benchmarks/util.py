@@ -5,11 +5,15 @@
 import cython
 
 from functools import partial
+import sys
 import time
+
+# PyPy's JIT can induce high variance so we basically ignore this measure.
+IS_PYPY = sys.implementation.name == 'pypy'
 
 
 def repeat_to_accuracy(func, *args,
-                       variance_threshold: float = 5e-5,
+                       variance_threshold: float = 1. if IS_PYPY else 5e-5,
                        outlier_threshold: float = .12,
                        scale=1,
                        repeat=True,

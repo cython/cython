@@ -2,7 +2,7 @@
 # cython: language_level=3
 # micro benchmarks for coroutines
 
-COUNT = 100000
+COUNT = 100_000
 
 import cython
 
@@ -57,22 +57,31 @@ def time_bm(fn, *args, scale: cython.long = 1, timer=time.perf_counter):
     return result, end - begin
 
 
-def benchmark(N, count=1_000, scale=1, timer=time.perf_counter):
+_RESULT_BY_COUNT = {
+    1_000: 8221043302,
+    100: 8174538781,
+    10: 7748658728,
+}
+
+def benchmark(N, count=100, scale=1, timer=time.perf_counter):
     times = []
+    expected_result = _RESULT_BY_COUNT[count]
     for _ in range(N):
         result, t = time_bm(bm_await_nested, count, scale=scale, timer=timer)
         times.append(t)
-        assert result == 8221043302, result
+        assert result == expected_result, (expected_result, result)
     return times
 
 
 def run_benchmark(repeat=True, scale=1):
     from util import repeat_to_accuracy
 
+    count = 100
+    expected_result = _RESULT_BY_COUNT[count]
+
     def single_run(scale, timer):
-        N = 1_000
-        result, t = time_bm(bm_await_nested, N, scale=scale, timer=timer)
-        assert result == 8221043302, result
+        result, t = time_bm(bm_await_nested, count, scale=scale, timer=timer)
+        assert result == expected_result, (expected_result, result)
         return t
 
     return repeat_to_accuracy(single_run, scale=scale, repeat=repeat)[0]

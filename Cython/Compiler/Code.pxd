@@ -121,6 +121,8 @@ cdef class CCodeWriter(object):
     cdef public Py_ssize_t call_level  # debug-only, see Nodes.py
     cdef bint bol
 
+    @cython.final
+    cdef void handle_refnanny(self, tp, bint nanny=*)
     cpdef write(self, s)
     cdef _write_lines(self, s)
     cpdef _write_to_buffer(self, s)
