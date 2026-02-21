@@ -1085,6 +1085,13 @@ class CArgDeclNode(Node):
             elif not self.or_none and arg_type.can_be_optional():
                 self.not_none = True
 
+            # Set both .not_none and .or_none to False so that cpdef f(a: T)
+            # and cpdef f(a: T | None) are equivalent to cpdef f(T a) --
+            # cpdef f(T not None a) and cpdef f(T or None a) are currently
+            # not allowed
+            self.not_none = False
+            self.or_none = False
+
         if arg_type:
             self.type_from_annotation = True
         return arg_type
