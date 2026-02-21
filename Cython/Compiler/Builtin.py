@@ -840,7 +840,7 @@ def init_builtins():
     global bytes_type, unicode_type, bytearray_type
     global float_type, int_type, bool_type, complex_type
     global memoryview_type, py_buffer_type
-    global sequence_types
+    global sequence_types, typed_container_types
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -859,6 +859,11 @@ def init_builtins():
     int_type = builtin_scope.lookup('int').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
+
+    typed_container_types = tuple(
+        builtin_scope.lookup(type_name).type
+        for type_name in PyrexTypes.BuiltinTypeConstructorObjectType.types_supporting_subscripting
+    )
 
     sequence_types = (
         list_type,

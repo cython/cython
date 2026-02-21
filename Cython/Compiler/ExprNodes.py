@@ -13,7 +13,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
                bytearray_type=object, slice_type=object, memoryview_type=object,
-               builtin_sequence_types=object, build_line_table=object,
+               builtin_sequence_types=object, typed_container_types=object, build_line_table=object,
                inspect=object, copy=object, os=object, pathlib=object, re=object, sys=object,
                itertools=object, defaultdict=object,
 )
@@ -47,6 +47,7 @@ from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
     unicode_type, bytes_type, bytearray_type, int_type, float_type,
     slice_type, sequence_types as builtin_sequence_types, memoryview_type,
+    typed_container_types
 )
 from . import Builtin
 from . import Symtab
@@ -110,6 +111,15 @@ coercion_error_dict = {
 def find_coercion_error(type_tuple, default, env):
     err = coercion_error_dict.get(type_tuple)
     if err is None:
+        type1, type2 = type_tuple
+        if type1 in typed_container_types and type2 in typed_container_types:
+            # Typed containers. Validate the coercion of their subscripted types.
+            for i in range(max(len(type1.subscripted_types), len(type2.subscripted_types))):
+                subscripted_type1 = type1.get_subscripted_type(i)
+                subscripted_type2 = type2.get_subscripted_type(i)
+                if (ret := find_coercion_error((subscripted_type1, subscripted_type2), default, env)) == default:
+                    continue
+                return ret
         return default
     elif (env.directives['c_string_encoding'] and
               any(t in type_tuple for t in (PyrexTypes.c_char_ptr_type, PyrexTypes.c_uchar_ptr_type,
@@ -152,7 +162,7 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
     if not seq_node.is_sequence_constructor:
         if seq_type is None:
             seq_type = seq_node.infer_type(env)
-        if seq_type is tuple_type:
+        if seq_type == tuple_type:
             # tuples are immutable => we can safely follow assignments
             if seq_node.cf_state and len(seq_node.cf_state) == 1:
                 try:
@@ -3132,6 +3142,8 @@ class IteratorNode(ScopedExprNode):
             self.sequence = self.sequence.coerce_to_pyobject(env)
             if self.sequence.type in (list_type, tuple_type):
                 self.sequence = self.sequence.as_none_safe_node("'NoneType' object is not iterable")
+            if self.sequence.type in typed_container_types:
+                self.type = self.sequence.type
         self.is_temp = 1
         return self
 
@@ -3166,6 +3178,8 @@ class IteratorNode(ScopedExprNode):
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
+        if sequence_type in typed_container_types and (item_type := sequence_type.get_subscripted_type(0)):
+            return item_type
         if sequence_type.is_array or sequence_type.is_ptr:
             return sequence_type
         elif sequence_type.is_cpp_class:
@@ -3203,7 +3217,7 @@ class IteratorNode(ScopedExprNode):
             self.counter_cname = code.funcstate.allocate_temp(
                 PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             if self.reversed:
-                if sequence_type is list_type:
+                if sequence_type == list_type:
                     len_func = '__Pyx_PyList_GET_SIZE'
                 else:
                     len_func = '__Pyx_PyTuple_GET_SIZE'
@@ -3286,12 +3300,12 @@ class IteratorNode(ScopedExprNode):
         sequence_type = self.sequence.type
         if self.reversed:
             code.putln(f"if ({self.counter_cname} < 0) break;")
-        if sequence_type is list_type:
+        if sequence_type == list_type:
             self.generate_next_sequence_item('List', result_name, code)
             code.putln(code.error_goto_if_null(result_name, self.pos))
             code.put_gotref(result_name, py_object_type)
             return
-        elif sequence_type is tuple_type:
+        elif sequence_type == tuple_type:
             self.generate_next_sequence_item('Tuple', result_name, code)
             code.putln(code.error_goto_if_null(result_name, self.pos))
             code.put_gotref(result_name, py_object_type)
@@ -3512,6 +3526,9 @@ class NextNode(AtomicExprNode):
             item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
             item_type = PyrexTypes.remove_cv_ref(item_type, remove_fakeref=True)
             return item_type
+        elif (sequence_type := self.iterator.sequence.infer_type(env)) in typed_container_types and \
+             (iterator_type := sequence_type.infer_iterator_type()):
+            return iterator_type
         else:
             # Avoid duplication of complicated logic.
             fake_index_node = IndexNode(
@@ -4276,6 +4293,9 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
+        if base_type in typed_container_types and (sub_type := base_type.infer_indexed_type()):
+            return sub_type
+
         index_type = self.index.infer_type(env)
         if index_type and index_type.is_int or isinstance(self.index, IntNode):
             # indexing!
@@ -4433,14 +4453,14 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_pyobject(self, env, is_slice, getting, setting):
         base_type = self.base.type
-        if self.index.type.is_unicode_char and base_type is not dict_type:
+        if self.index.type.is_unicode_char and base_type != dict_type:
             # TODO: eventually fold into case below and remove warning, once people have adapted their code
             warning(self.pos,
                     "Item lookup of unicode character codes now always converts to a Unicode string. "
                     "Use an explicit C integer cast to get back the previous integer lookup behaviour.", level=1)
             self.index = self.index.coerce_to_pyobject(env)
             self.is_temp = 1
-        elif self.index.type.is_int and base_type is not dict_type:
+        elif self.index.type.is_int and base_type != dict_type:
             if (getting
                     and not env.directives['boundscheck']
                     and (base_type in (list_type, tuple_type, bytearray_type))
@@ -4492,6 +4512,11 @@ class IndexNode(_IndexingBaseNode):
                 self.type = item_type
 
         self.wrap_in_nonecheck_node(env, getting)
+
+        if base_type in typed_container_types and (sub_type := base_type.infer_indexed_type()):
+            self.type = base_type
+            return self.coerce_to(sub_type, env)
+
         return self
 
     def analyse_as_c_array(self, env, is_slice):
@@ -4741,11 +4766,11 @@ class IndexNode(_IndexingBaseNode):
             # Note - These functions are missing error checks in not CYTHON_ASSUME_SAFE_MACROS.
             # Since they're only used in optimized modes without boundschecking, I think this is
             # a reasonable optimization to make.
-            if self.base.type is list_type:
+            if self.base.type == list_type:
                 index_code = "__Pyx_PyList_GET_ITEM(%s, %s)"
-            elif self.base.type is tuple_type:
+            elif self.base.type == tuple_type:
                 index_code = "__Pyx_PyTuple_GET_ITEM(%s, %s)"
-            elif self.base.type is bytearray_type:
+            elif self.base.type == bytearray_type:
                 index_code = "((unsigned char)(__Pyx_PyByteArray_AsString(%s)[%s]))"
             else:
                 assert False, "unexpected base type in indexing: %s" % self.base.type
@@ -4802,15 +4827,15 @@ class IndexNode(_IndexingBaseNode):
         if self.type.is_pyobject:
             error_value = 'NULL'
             if self.index.type.is_int:
-                if base_type is list_type:
+                if base_type == list_type:
                     function = "__Pyx_GetItemInt_List"
-                elif base_type is tuple_type:
+                elif base_type == tuple_type:
                     function = "__Pyx_GetItemInt_Tuple"
                 else:
                     function = "__Pyx_GetItemInt"
                 utility_code = TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c")
             else:
-                if base_type is dict_type:
+                if base_type == dict_type:
                     function = "__Pyx_PyDict_GetItem"
                     utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
                 elif base_type is py_object_type and self.index.type is unicode_type:
@@ -4883,7 +4908,7 @@ class IndexNode(_IndexingBaseNode):
             index_code = self.index.result()
         else:
             index_code = self.index.py_result()
-            if self.base.type is dict_type:
+            if self.base.type == dict_type:
                 function = "PyDict_SetItem"
             # It would seem that we could specialized lists/tuples, but that
             # shouldn't happen here.
@@ -4982,7 +5007,7 @@ class IndexNode(_IndexingBaseNode):
                 UtilityCode.load_cached("DelItemInt", "ObjectHandling.c"))
         else:
             index_code = self.index.py_result()
-            if self.base.type is dict_type:
+            if self.base.type == dict_type:
                 function = "PyDict_DelItem"
             else:
                 function = "PyObject_DelItem"
@@ -5842,11 +5867,11 @@ class SliceIndexNode(ExprNode):
 
         else:
             base_result = self.base.py_result()
-            if base_type is list_type:
+            if base_type == list_type:
                 code.globalstate.use_utility_code(
                     TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
                 cfunc = '__Pyx_PyList_GetSlice'
-            elif base_type is tuple_type:
+            elif base_type == tuple_type:
                 code.globalstate.use_utility_code(
                     TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
                 cfunc = '__Pyx_PyTuple_GetSlice'
@@ -7612,7 +7637,7 @@ class AsTupleNode(ExprNode):
 
     def analyse_types(self, env):
         self.arg = self.arg.analyse_types(env).coerce_to_pyobject(env)
-        if self.arg.type is tuple_type:
+        if self.arg.type == tuple_type:
             return self.arg.as_none_safe_node("'NoneType' object is not iterable")
         self.type = tuple_type
         return self
@@ -7709,7 +7734,7 @@ class MergedDictNode(ExprNode):
         args = iter(self.keyword_args)
         item = next(args)
         item.generate_evaluation_code(code)
-        if item.type is not dict_type:
+        if item.type != dict_type:
             # CPython supports calling functions with non-dicts, so do we
             code.putln('if (likely(PyDict_CheckExact(%s))) {' %
                        item.py_result())
@@ -7739,7 +7764,7 @@ class MergedDictNode(ExprNode):
             if item.result_in_temp():
                 code.putln("}")
 
-        if item.type is not dict_type:
+        if item.type != dict_type:
             code.putln('} else {')
             code.globalstate.use_utility_code(UtilityCode.load_cached(
                 "PyObjectCallOneArg", "ObjectHandling.c"))
@@ -8639,12 +8664,12 @@ class SequenceNode(ExprNode):
                 else:
                     size_factor = ' * (%s)' % (c_mult,)
 
-        if ((self.type is tuple_type or self.type is list_type) and
+        if ((self.type == tuple_type or self.type == list_type) and
                 (self.is_literal or self.slow) and
                 not c_mult and
                 len(self.args) > 0):
             # use PyTuple_Pack() to avoid generating huge amounts of one-time code
-            if self.type is list_type:
+            if self.type == list_type:
                 pack_name = '__Pyx_PyList_Pack'
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('ListPack', 'ObjectHandling.c')
@@ -8665,9 +8690,9 @@ class SequenceNode(ExprNode):
                     target, i, arg.result()))
         else:
             # build the tuple/list step by step, potentially multiplying it as we go
-            if self.type is list_type:
+            if self.type == list_type:
                 create_func, set_item_func = 'PyList_New', '__Pyx_PyList_SET_ITEM'
-            elif self.type is tuple_type:
+            elif self.type == tuple_type:
                 create_func, set_item_func = 'PyTuple_New', '__Pyx_PyTuple_SET_ITEM'
             else:
                 raise InternalError("sequence packing for unexpected type %s" % self.type)
@@ -8782,12 +8807,12 @@ class SequenceNode(ExprNode):
     def generate_special_parallel_unpacking_code(self, code, rhs, use_loop):
         sequence_type_test = '1'
         none_check = "likely(%s != Py_None)" % rhs.py_result()
-        if rhs.type is list_type:
+        if rhs.type == list_type:
             sequence_types = ['List']
             get_size_func = "__Pyx_PyList_GET_SIZE"
             if rhs.may_be_none():
                 sequence_type_test = none_check
-        elif rhs.type is tuple_type:
+        elif rhs.type == tuple_type:
             sequence_types = ['Tuple']
             get_size_func = "__Pyx_PyTuple_GET_SIZE"
             if rhs.may_be_none():
@@ -9122,7 +9147,7 @@ class TupleNode(SequenceNode):
         if self.type.is_ctuple:
             if dst_type.is_ctuple and self.type.size == dst_type.size:
                 return self.coerce_to_ctuple(dst_type, env)
-            elif dst_type is tuple_type or dst_type is py_object_type:
+            elif dst_type == tuple_type or dst_type is py_object_type:
                 coerced_args = [arg.coerce_to_pyobject(env) for arg in self.args]
                 return TupleNode(
                     self.pos,
@@ -9211,7 +9236,7 @@ class ListNode(SequenceNode):
     #  List constructor.
 
     # obj_conversion_errors    [PyrexError]   used internally
-    # orignial_args            [ExprNode]     used internally
+    # original_args            [ExprNode]     used internally
 
     obj_conversion_errors = []
     type = list_type
@@ -9484,11 +9509,11 @@ class ComprehensionNode(ScopedExprNode):
         self.generate_operation_code(code)
 
     def generate_operation_code(self, code):
-        if self.type is Builtin.list_type:
+        if self.type == Builtin.list_type:
             create_code = 'PyList_New(0)'
         elif self.type is Builtin.set_type:
             create_code = 'PySet_New(NULL)'
-        elif self.type is Builtin.dict_type:
+        elif self.type == Builtin.dict_type:
             create_code = 'PyDict_New()'
         else:
             raise InternalError("illegal type for comprehension: %s" % self.type)
@@ -9519,11 +9544,11 @@ class ComprehensionAppendNode(Node):
         return self
 
     def generate_execution_code(self, code):
-        if self.target.type is list_type:
+        if self.target.type == list_type:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ListCompAppend", "Optimize.c"))
             function = "__Pyx_ListComp_Append"
-        elif self.target.type is set_type:
+        elif self.target.type == set_type:
             function = "PySet_Add"
         else:
             raise InternalError(
@@ -9656,12 +9681,12 @@ class MergedSequenceNode(ExprNode):
             else:
                 items = item.constant_result
             result.extend(items)
-        if self.type is set_type:
+        if self.type == set_type:
             result = set(result)
-        elif self.type is tuple_type:
+        elif self.type == tuple_type:
             result = tuple(result)
         else:
-            assert self.type is list_type
+            assert self.type == list_type
         self.constant_result = result
 
     def compile_time_value(self, denv):
@@ -9676,15 +9701,15 @@ class MergedSequenceNode(ExprNode):
             else:
                 items = item.compile_time_value(denv)
             result.extend(items)
-        if self.type is set_type:
+        if self.type == set_type:
             try:
                 result = set(result)
             except Exception as e:
                 self.compile_time_value_error(e)
-        elif self.type is tuple_type:
+        elif self.type == tuple_type:
             result = tuple(result)
         else:
-            assert self.type is list_type
+            assert self.type == list_type
         return result
 
     def type_dependencies(self, env):
@@ -9717,13 +9742,13 @@ class MergedSequenceNode(ExprNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
 
-        is_set = self.type is set_type
+        is_set = self.type == set_type
 
         args = iter(self.args)
         item = next(args)
         item.generate_evaluation_code(code)
         if (is_set and item.is_set_literal or
-                not is_set and item.is_sequence_constructor and item.type is list_type):
+                not is_set and item.is_sequence_constructor and item.type == list_type):
             code.putln("%s = %s;" % (self.result(), item.py_result()))
             item.generate_post_assignment_code(code)
         else:
@@ -9774,7 +9799,7 @@ class MergedSequenceNode(ExprNode):
             item.generate_disposal_code(code)
             item.free_temps(code)
 
-        if self.type is tuple_type:
+        if self.type == tuple_type:
             code.putln("{")
             code.putln("PyObject *%s = PyList_AsTuple(%s);" % (
                 Naming.quick_temp_cname,
@@ -10082,7 +10107,7 @@ class SortedDictKeysNode(ExprNode):
 
     def analyse_types(self, env):
         arg = self.arg.analyse_types(env)
-        if arg.type is Builtin.dict_type:
+        if arg.type == Builtin.dict_type:
             arg = arg.as_none_safe_node(
                 "'NoneType' object is not iterable")
         self.arg = arg
@@ -10093,7 +10118,7 @@ class SortedDictKeysNode(ExprNode):
 
     def generate_result_code(self, code):
         dict_result = self.arg.py_result()
-        if self.arg.type is Builtin.dict_type:
+        if self.arg.type == Builtin.dict_type:
             code.putln('%s = PyDict_Keys(%s); %s' % (
                 self.result(), dict_result,
                 code.error_goto_if_null(self.result(), self.pos)))
@@ -14052,7 +14077,7 @@ class CmpNode:
                          _) = result
                         return True
         elif self.operator in ('in', 'not_in'):
-            if self.operand2.type is Builtin.dict_type:
+            if self.operand2.type == Builtin.dict_type:
                 self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyDictContains", "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_PyDict_ContainsTF"
@@ -14532,7 +14557,7 @@ class CascadedCmpNode(Node, CmpNode):
 
     def coerce_operands_to_pyobjects(self, env):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
-        if self.operand2.type is dict_type and self.operator in ('in', 'not_in'):
+        if self.operand2.type == dict_type and self.operator in ('in', 'not_in'):
             self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
         if self.cascade:
             self.cascade.coerce_operands_to_pyobjects(env)
