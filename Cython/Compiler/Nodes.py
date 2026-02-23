@@ -10850,7 +10850,7 @@ class TypeAliasNode(Node):
     node is only a placeholder to have something to construct.
     """
     name: str
-    type_params: None | TypeParameterListNode
+    # type_params: None | TypeParameterListNode  # commented out for Python 3.9 reasons
     value: 'ExprNodes.ExprNode'
 
     child_attrs = ['type_params', 'value']
