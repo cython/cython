@@ -16,8 +16,14 @@ def check_syntax_error(testcase, code, errtext=''):
         py_parse_code(code)
 
 from typing import (
-    Callable, TypeAliasType, TypeVar, TypeVarTuple, ParamSpec, Unpack, get_args,
+    Callable, TypeVar, get_args,
 )
+try:
+    from typing import ParamSpec  # 3.10
+    from typing import TypeVarTuple, Unpack  # 3.11
+    from typing import TypeAliasType  # 3.14
+except ImportError:
+    pass
 
 type GlobalTypeAlias = int
 

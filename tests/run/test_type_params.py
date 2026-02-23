@@ -7,7 +7,7 @@
 
 try:
     import annotationlib
-except:
+except ImportError:
     pass
 import textwrap
 import types
@@ -22,7 +22,14 @@ def check_syntax_error(testcase, code, errtext=''):
     with testcase.assertRaises(SyntaxError):
         py_parse_code(code)
 
-from typing import Generic, NoDefault, Sequence, TypeAliasType, TypeVar, TypeVarTuple, ParamSpec, get_args
+from typing import Generic, Sequence, TypeVar, get_args
+try:
+    from typing import ParamSpec  # 3.10
+    from typing import TypeVarTuple  # 3.11
+    from typing import NoDefault  # 3.13
+    from typing import TypeAliasType  # 3.14
+except ImportError:
+    pass
 
 
 class TypeParamsInvalidTest(unittest.TestCase):
