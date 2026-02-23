@@ -425,8 +425,11 @@ def py_parse_code(code):
     context = StringParseContext("test")
     # all the errors we care about are in the parsing or postparse stage
     try:
+        post_parse = PostParse(context)
+        post_parse.scope_type = "module"
+        post_parse.scope_node = None
         with Errors.local_errors() as errors:
-            result = TreeFragment(code, pipeline=[PostParse(context)])
+            result = TreeFragment(code, pipeline=[post_parse])
             result = result.substitute()
         if errors:
             raise errors[0]  # compile error, which should get caught below
