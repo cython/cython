@@ -420,11 +420,11 @@ class PostParse(ScopeTrackingTransform):
             return None  # drop the node - the arguments are invalid for a def node
         self._validate_type_params(node)
         return self.visit_FuncDefNode(node)
-    
+
     def visit_PyClassDefNode(self, node):
         self._validate_type_params(node)
         return super().visit_PyClassDefNode(node)
-    
+
     def visit_TypeAliasNode(self, node):
         self._validate_type_params(node)
         self.visitchildren(node)
@@ -1474,7 +1474,7 @@ class InterpretCompilerDirectives(CythonTransform):
             node.pos, args=args, body=node.body
         )
         return self.visit_Node(node)
-    
+
     def visit_TypeParameterListNode(self, node):
         # This node is warned about then dropped here simply because
         # it's the earliest time we know the directives well enough to

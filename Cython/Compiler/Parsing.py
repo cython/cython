@@ -3948,7 +3948,7 @@ def p_class_statement(s: PyrexScanner, decorators):
     keyword_dict = None
     type_params = None
     if s.sy == '[':
-        type_params = p_type_params(s);
+        type_params = p_type_params(s)
     if s.sy == '(':
         positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
         arg_tuple, keyword_dict = p_call_build_packed_args(pos, positional_args, keyword_args)
