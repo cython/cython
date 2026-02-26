@@ -144,7 +144,7 @@ def test_try_except_regression(c):
         a = (123,)
     try:
         return a
-    except:
+    except Exception:
         return a
 
 

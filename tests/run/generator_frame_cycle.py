@@ -14,7 +14,7 @@ def test_generator_frame_cycle():
     def whoo():
         try:
             yield
-        except:
+        except Exception:
             yield
         finally:
             testit.append("I'm done")
@@ -37,7 +37,7 @@ def test_generator_frame_cycle_with_outer_exc():
     def whoo():
         try:
             yield
-        except:
+        except Exception:
             yield
         finally:
             testit.append("I'm done")

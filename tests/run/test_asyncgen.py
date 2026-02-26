@@ -646,7 +646,7 @@ class AsyncGenAsyncioTest(TimedTest):
         def foo():
             try:
                 yield
-            except:
+            except Exception:
                 pass
         g = foo()
         g.send(None)
@@ -659,7 +659,7 @@ class AsyncGenAsyncioTest(TimedTest):
             nonlocal DONE
             try:
                 yield
-            except:
+            except Exception:
                 pass
             DONE = 1
 
@@ -823,7 +823,7 @@ class AsyncGenAsyncioTest(TimedTest):
         def foo():
             try:
                 yield
-            except:
+            except Exception:
                 pass
         g = foo()
         g.send(None)
@@ -835,7 +835,7 @@ class AsyncGenAsyncioTest(TimedTest):
             nonlocal DONE
             try:
                 yield
-            except:
+            except Exception:
                 pass
             DONE = 1
 
@@ -856,7 +856,7 @@ class AsyncGenAsyncioTest(TimedTest):
         def foo():
             try:
                 yield
-            except:
+            except Exception:
                 pass
             yield
         g = foo()
@@ -870,7 +870,7 @@ class AsyncGenAsyncioTest(TimedTest):
             nonlocal DONE
             try:
                 yield
-            except:
+            except Exception:
                 pass
             yield
             DONE += 1
@@ -1128,7 +1128,7 @@ class AsyncGenAsyncioTest(TimedTest):
         def foo():
             try:
                 yield
-            except:
+            except Exception:
                 pass
         g = foo()
         g.send(None)
@@ -1141,7 +1141,7 @@ class AsyncGenAsyncioTest(TimedTest):
             nonlocal DONE
             try:
                 yield
-            except:
+            except Exception:
                 pass
             DONE = 1
 

@@ -131,7 +131,7 @@ class NestedWith(TimedTest):
         try:
             with Dummy() as a, InitRaises():
                 pass
-        except:
+        except Exception:
             pass
         self.assertTrue(a.enter_called)
         self.assertTrue(a.exit_called)

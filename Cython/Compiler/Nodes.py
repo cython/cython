@@ -8129,7 +8129,7 @@ class WithStatNode(StatNode):
             try:
                 TARGET = VALUE  # optional
                 BODY
-            except:
+            except Exception:
                 EXC = False
                 if not EXIT(*EXCINFO):
                     raise

@@ -146,7 +146,7 @@ class StringIOTree:
             reprstr += "allmarkers is empty\n"
         try:
             sorted(totmap.items())
-        except:
+        except Exception:
             print(totmap)
             print(totmap.items())
         for cython_path, filemap in sorted(totmap.items()):

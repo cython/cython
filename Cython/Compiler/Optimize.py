@@ -3950,7 +3950,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             # constant, so try to do the encoding at compile time
             try:
                 value = string_node.constant_result.encode(encoding, error_handling)
-            except:
+            except Exception:
                 # well, looks like we can't
                 pass
             else:

@@ -975,7 +975,7 @@ class GrammarTests(TimedTest):
             try:
                 continue
                 msg = "continue failed to continue inside try"
-            except:
+            except Exception:
                 msg = "continue inside try called except block"
         if msg != "ok":
             self.fail(msg)
@@ -1010,7 +1010,7 @@ class GrammarTests(TimedTest):
                         break
                     big_hippo -= 1
                     continue
-                except:
+                except Exception:
                     raise
             if count > 2 or big_hippo != 1:
                 self.fail("continue then break in try/except in loop broken!")

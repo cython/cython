@@ -114,7 +114,7 @@ def with_exception(exit_ret):
         with ContextManager("value", exit_ret=exit_ret) as value:
             print(value)
             raise MyException()
-    except:
+    except Exception:
         print("outer except")
 
 
@@ -152,7 +152,7 @@ def functions_in_with():
             def f(x): return x, value
             make = lambda x:x()
             raise make(MyException)
-    except:
+    except Exception:
         print("outer except")
     return f
 

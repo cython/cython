@@ -105,7 +105,7 @@ class TestWithTransform:  # (TransformTest): # Disabled!
             try:
                 $1_0 = None
                 y = z ** 3
-            except:
+            except Exception:
                 $0_1 = False
                 if (not $0_2($1_0)):
                     raise
@@ -131,7 +131,7 @@ class TestWithTransform:  # (TransformTest): # Disabled!
                 $1_0 = None
                 y = $0_3
                 y = z ** 3
-            except:
+            except Exception:
                 $0_1 = False
                 if (not $0_2($1_0)):
                     raise
@@ -265,7 +265,7 @@ class TestDebugTransform(DebuggerTestCase):
             self.assertEqual(2, len(spam_stepinto))
             assert 'puts' in spam_stepinto
             assert 'some_c_function' in spam_stepinto
-        except:
+        except Exception:
             f = open(self.debug_dest)
             try:
                 print(f.read())

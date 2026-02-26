@@ -118,7 +118,7 @@ def build(extensions):
     try:
         setup(ext_modules=extensions)
         result = True
-    except:
+    except Exception:
         import traceback
         print('error building extensions %s' % (
             [ext.name for ext in extensions],))

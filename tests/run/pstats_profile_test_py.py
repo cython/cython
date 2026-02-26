@@ -58,7 +58,7 @@ u"""
 
     >>> try:
     ...    os.unlink(statsfile)
-    ... except:
+    ... except Exception:
     ...    pass
 
     >>> sorted(list(callees(s, 'test_profile')) + (
@@ -112,7 +112,7 @@ u"""
 
     >>> try:
     ...    os.unlink(statsfile)
-    ... except:
+    ... except Exception:
     ...    pass
 """
 

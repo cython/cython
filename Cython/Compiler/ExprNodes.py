@@ -3723,7 +3723,7 @@ class TempNode(ExprNode):
     def result(self):
         try:
             return self.temp_cname
-        except:
+        except Exception:
             assert False, "Remember to call allocate/release on TempNode"
             raise
 

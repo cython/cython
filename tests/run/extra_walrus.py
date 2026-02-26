@@ -368,7 +368,7 @@ def in_try_block_1(x):
         if (a := return_x(x)):
             raise RuntimeError
         return f'Normal return {a}'
-    except:
+    except Exception:
         return f'Except return {a}'
 
 
@@ -388,7 +388,7 @@ def if_in_try_block_2(x):
         elif (a := return_x(x)):
             raise RuntimeError
         return f'Normal return {a}'
-    except:
+    except Exception:
         return f'Except return {a}'
 
 def if_in_try_block_3(x):
@@ -404,7 +404,7 @@ def if_in_try_block_3(x):
         else:
             pass
         return f'Normal return {a}'
-    except:
+    except Exception:
         return f'Except return {a}'
 
 def if_in_try_block_4(x):
@@ -420,7 +420,7 @@ def if_in_try_block_4(x):
         else:
             raise RuntimeError
         return f'Normal return {a}'
-    except:
+    except Exception:
         return f'Except return {a}'
 
 def case_in_try_block_1(x):
@@ -435,7 +435,7 @@ def case_in_try_block_1(x):
             case _ if (a := return_x(x)):
                 raise RuntimeError
         return f'Normal return {a}'
-    except:
+    except Exception:
         return f'Except return {a}'
 
 def case_in_try_block_2(x):
@@ -452,7 +452,7 @@ def case_in_try_block_2(x):
             case _:
                 pass
         return f'Normal return {a}'
-    except:
+    except Exception:
         return f'Except return {a}'
 
 def match_in_try_block_2(x):
@@ -470,7 +470,7 @@ def match_in_try_block_2(x):
             case True:
                 raise RuntimeError
         return f'Normal return {a}'
-    except:
+    except Exception:
         return f'Except return {a}'
 
 def while_in_try_block(x):
@@ -484,7 +484,7 @@ def while_in_try_block(x):
         while (a := return_x(x)):
             raise ValueError("Not found")
         return f'Normal return {a}'
-    except:
+    except Exception:
         return f'Except return {a}'
 
 def raise_something():
@@ -502,7 +502,7 @@ def except_in_try_block(x):
             raise_something()
         except (a := return_x(ValueError if x else RuntimeError)):
             raise RuntimeError()
-        except:
+        except Exception:
             pass
 
         return f'Normal return {a.__name__}'

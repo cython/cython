@@ -41,7 +41,7 @@ try:
         else:
             print("FAILED TO PARSE PROJECT VERSION !")
             release = "VERSION PARSE FAILED"
-except:
+except Exception:
     pass
 
 # The short X.Y version.
