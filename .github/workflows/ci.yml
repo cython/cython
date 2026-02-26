@@ -233,7 +233,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v6.1.0
+        uses: actions/setup-python@v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -268,10 +268,14 @@ jobs:
         run: |
           bash -c "\
             if [[ -s ci-slowtests.txt ]]; then \
-              echo '| Slow tests | duration |'; echo '|:---|---:|'; sed -e 's/^.*\[/|    / ; s/: SLOWTEST / | / ; s/\].*/ |/' ci-slowtests.txt | sort -nr -k4; echo; \
+              echo '| Slow tests | duration |'; \
+              echo '|:---|---:|'; \
+              sed -e 's/^.*\[/|    / ; s/: SLOWTEST / | / ; s/\].*/ |/ ; s/_/\\\\_/g' ci-slowtests.txt | sort -nr -k4; \
+              echo; \
             fi; \
             if [[ -s ci-summary.txt ]]; then \
-              grep -A20 'Most expensive pipeline stages' ci-summary.txt | sed -e '2,21s/^/    / ; 1,1s/:/:\n\n    /'; \
+              grep -A20 'Most expensive pipeline stages' ci-summary.txt | \
+                sed -e '2,21s/^\(.*[^:]\)$/    \1/ ; s/^\(.*:\)$/\n\1\n/ ; 1,1s/: /:\n\n    / ; 1,1s/), /)\n    /g' ; \
             fi; \
             " >> $GITHUB_STEP_SUMMARY
 

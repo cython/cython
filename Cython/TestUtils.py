@@ -50,6 +50,7 @@ def treetypes(root):
 
 
 class TimedTest(unittest.TestCase):
+    # See copy in runtests.py
     def setUp(self):
         super().setUp()
         self._start_time = time.time()
@@ -57,7 +58,7 @@ class TimedTest(unittest.TestCase):
     def tearDown(self):
         t = time.time() - self._start_time
         super().tearDown()
-        sys.stderr.write(f"[{self.id()}:{'' if t < .5 else ' SLOWTEST'} {t * 1000.:.2f} msec] ")
+        sys.stderr.write(f"[{self.id()}:{'' if t < .5 else ' SLOWTEST'} {t:.2f} sec] ")
 
 
 class CythonTest(TimedTest):
@@ -115,7 +116,13 @@ class CythonTest(TimedTest):
         if name.startswith("__main__."):
             name = name[len("__main__."):]
         name = name.replace(".", "_")
-        return TreeFragment(code, name, pxds, pipeline=pipeline)
+
+        with Errors.local_errors() as errors:
+            fragment = TreeFragment(code, name, pxds, pipeline=pipeline)
+
+        if errors:
+            raise errors[0]
+        return fragment
 
     def treetypes(self, root):
         return treetypes(root)

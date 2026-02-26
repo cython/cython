@@ -1199,7 +1199,7 @@ def p_ft_string_replacement_field(s: PyrexScanner,
             # validate the conversion char
             if conversion_char in ['}', ':', '']:
                 error(s.position(), "missing conversion character")
-            elif not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
+            elif ExprNodes.FormattedValueNode.find_conversion_func(conversion_char) is None:
                 error(s.position(), "invalid conversion character '%s'" % conversion_char)
                 s.next()
             elif s.position()[2] != (previous_pos[2] + 1):
