@@ -1515,9 +1515,16 @@ class InterpretCompilerDirectives(CythonTransform):
         # it's the earliest time we know the directives well enough to
         # know whether to generate the warning.
         if self.directives['warn.pep695']:
+            extra = ''
+            if 'cfunc' in self.directives:
+                extra = " 'cfunc' functions are unlikely to use them meaningfully in future."
+            elif 'ccall' in self.directives:
+                extra = " 'ccall' functions are unlikely to use them meaningfully in future."
+            elif 'cclass' in self.directives:
+                extra = " 'cclass' extension types are unlikely to use them meaningfully in future."
             warning(
                 node.pos,
-                "Type parameters are currently completely ignored by Cython. "
+                f"Type parameters are currently completely ignored by Cython.{extra}\n"
                 "This warning can be disabled with the warn.pep695 directive.",
                 2
             )
@@ -1531,7 +1538,7 @@ class InterpretCompilerDirectives(CythonTransform):
             warning(
                 node.pos,
                 "Type aliases are currently ignored by Cython. "
-                f"This will be replaced with '{node.name} = None'. "
+                f"This will be replaced with '{node.name} = None'.\n"
                 "This warning can be disabled with the warn.pep695 directive.",
                 2
             )
