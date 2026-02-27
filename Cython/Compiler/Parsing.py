@@ -4762,9 +4762,13 @@ def p_type_params(s: PyrexScanner):
         name = p_ident(s)
         annotation = None
         default_value = None
-        if not (is_star or is_starstar) and s.sy == ":":
-            s.next()
-            annotation = p_annotation(s)
+        if s.sy == ":":
+            if is_star or is_starstar:
+                s.error(
+                    f"Cannot use bound or constraints with {'TypeVarTuple' if is_star else 'ParamSpec'}")
+            else:
+                s.next()
+                annotation = p_annotation(s)
         if s.sy == '=':
             s.next()
             if is_star:

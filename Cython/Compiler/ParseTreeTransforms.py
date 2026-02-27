@@ -184,6 +184,7 @@ class PostParse(ScopeTrackingTransform):
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
         self.in_pattern_node = False
+        self.in_type_param = ""
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
@@ -403,31 +404,65 @@ class PostParse(ScopeTrackingTransform):
         self.visitchildren(node)
         return node
 
-    def _validate_type_params(self, node):
-        if not node.type_params:
-            return
-        seen = set()
-        for p in node.type_params.params:
-            if p.name in seen:
-                error(p.pos, f"duplicate type parameter '{p.name}'")
-            seen.add(p.name)
-
     def visit_DefNode(self, node):
         if (self.scope_type == "cclass" and
                 node.name in ["__getreadbuffer__", "__getwritebuffer__", "__getsegcount__", "__getcharbuffer__"]):
             warning(node.pos, f"'{node.name}' relates to the old Python 2 buffer protocol "
                     "and is no longer used.", 2)
             return None  # drop the node - the arguments are invalid for a def node
-        self._validate_type_params(node)
+        if node.type_params and node.args:
+            in_type_param, self.in_type_param = self.in_type_param, "the definition of a generic"
+            # Visit these individually just to find out if anything disallowed is used
+            # (accepting that it gets visited twice).
+            for a in node.args:
+                self.visit(a)
+            self.in_type_param = in_type_param
         return self.visit_FuncDefNode(node)
 
     def visit_PyClassDefNode(self, node):
-        self._validate_type_params(node)
+        if node.type_params and node.bases:
+            in_type_param, self.in_type_param = self.in_type_param, "the definition of a generic"
+            # Visit this individually just to find out if anything disallowed is used
+            # (accepting that it gets visited twice).
+            self.visit(node.bases)
+            self.in_type_param = in_type_param
         return super().visit_PyClassDefNode(node)
 
     def visit_TypeAliasNode(self, node):
-        self._validate_type_params(node)
+        in_type_param, self.in_type_param = self.in_type_param, "a type alias"
         self.visitchildren(node)
+        self.in_type_param = in_type_param
+        return node
+
+    def visit_TypeParameterListNode(self, node):
+        in_type_param = self.in_type_param
+        if not in_type_param:
+            self.in_type_param = "a TypeVar bound"
+        seen = set()
+        for p in node.params:
+            if p.name in seen:
+                error(p.pos, f"duplicate type parameter '{p.name}'")
+            seen.add(p.name)
+        self.visitchildren(node)
+        self.in_type_param = in_type_param
+        return node
+
+    def visit_YieldExprNode(self, node):
+        if self.in_type_param:
+            error(node.pos,
+                  f"{node.expr_keyword} expression cannot be used within {self.in_type_param}")
+        return self.visit_Node(node)
+
+    def visit_AssignmentExpressionNode(self, node):
+        if self.in_type_param:
+            error(node.pos,
+                  f"named expression cannot be used within {self.in_type_param}")
+        return self.visit_Node(node)
+
+    def visit_AnnotationNode(self, node):
+        if self.in_type_param:
+            # So we can catch any of the banned syntax in type params here
+            self.visit(node.expr)
         return node
 
 

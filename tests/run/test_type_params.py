@@ -155,14 +155,7 @@ class TypeParamsInvalidTest(unittest.TestCase):
         outer()()
         self.assertEqual(ns["X"], 2)
 
-    def _test_disallowed_expressions(self):
-        # The issue with yield/await in these is to do the scope which is
-        # evaluated too late to be seen by check_syntax_error in Cython
-        # (and actually, we've already dropped the type alias entirely
-        # by the time it is evaluated).
-        # Named expressions should also be disallowed by post-parse
-        # but this doesn't currently seem worth the effort.
-
+    def test_disallowed_expressions(self):
         check_syntax_error(self, "type X = (yield)")
         check_syntax_error(self, "type X = (yield from x)")
         check_syntax_error(self, "type X = (await 42)")
