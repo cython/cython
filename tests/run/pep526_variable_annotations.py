@@ -101,12 +101,11 @@ class BasicStarshipExt(object):
 T = TypeVar('T')
 
 
-# FIXME: this fails in Py3.7 now
-#class Box(Generic[T]):
-#    def __init__(self, content):
-#        self.content: T = content
-#
-#box = Box(content=5)
+class Box(Generic[T]):
+    def __init__(self, content):
+        self.content: T = content
+
+box = Box(content=5)
 
 
 class Cls(object):

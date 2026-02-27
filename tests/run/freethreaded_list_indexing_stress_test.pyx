@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp11, no-cpp-locals
+# tag: cpp, cpp11, no-cpp-locals, threads
 
 # cython: freethreading_compatible=True
 

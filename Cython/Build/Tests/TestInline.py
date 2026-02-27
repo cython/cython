@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from Cython.Shadow import inline
 from Cython.Build.Inline import safe_type, cymeit
-from Cython.TestUtils import CythonTest
+from Cython.TestUtils import CythonTest, TimedTest
 
 try:
     import numpy
@@ -17,13 +17,13 @@ global_value = 100
 
 class TestInline(CythonTest):
     def setUp(self):
-        CythonTest.setUp(self)
         self._call_kwds = dict(test_kwds)
         if os.path.isdir('TEST_TMP'):
             lib_dir = os.path.join('TEST_TMP','inline')
         else:
             lib_dir = tempfile.mkdtemp(prefix='cython_inline_')
         self._call_kwds['lib_dir'] = lib_dir
+        super().setUp()
 
     def test_simple(self):
         self.assertEqual(inline("return 1+2", **self._call_kwds), 3)
@@ -112,7 +112,7 @@ class TestInline(CythonTest):
         self.assertEqual(inline("return a[0,0]", a=a, **self._call_kwds), 10.0)
 
 
-class TestCymeit(unittest.TestCase):
+class TestCymeit(TimedTest):
     def _run(self, code, setup_code=None, **kwargs):
         timings, number = cymeit(code, setup_code=setup_code, **kwargs)
 

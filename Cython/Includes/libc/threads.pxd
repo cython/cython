@@ -139,51 +139,34 @@ cdef extern from *:
             return 1;
         #elif PY_VERSION_HEX >= 0x030d0000
             return PyThreadState_GetUnchecked() != NULL;
-        #elif PY_VERSION_HEX >= 0x030b0000
+        #elif PY_VERSION_HEX >= 0x030C0000
             return _PyThreadState_UncheckedGet() != NULL;
         #else
             return PyGILState_Check();
         #endif
     }
 
-    static int __pyx_py_safe_mtx_lock_slow_spin(mtx_t* mutex) {
-        while (1) {
-            int lock_result;
-            Py_BEGIN_ALLOW_THREADS
-            lock_result = mtx_lock(mutex);
-            if (lock_result != thrd_success)
-                return lock_result;
-            lock_result = mtx_unlock(mutex);
-            if (lock_result != thrd_success) return lock_result;
-            Py_END_ALLOW_THREADS
-            lock_result = mtx_trylock(mutex);
-            if (lock_result != thrd_busy) {
-                return lock_result;
-            }
-        }
-    }
-
-    static int __pyx_py_safe_mtx_lock_quick_spin(mtx_t* mutex) {
-        for (int i=0; i<100; ++i) {
-            Py_BEGIN_ALLOW_THREADS
-            Py_END_ALLOW_THREADS
-            int lock_result = mtx_trylock(mutex);
-            if (lock_result != thrd_busy) {
-                return lock_result;
-            }
-        }
-        return __pyx_py_safe_mtx_lock_slow_spin(mutex);
+    static int __pyx_py_safe_mtx_lock_release_lock_reacquire(mtx_t* mutex) {
+        // Release the GIL, acquire the lock, then reacquire the GIL.
+        // This is safe provided the user never holds the GIL while trying
+        // to reacquire the lock (i.e. it's safe provided they always use
+        // the py-safe wrappers).
+        int result;
+        Py_BEGIN_ALLOW_THREADS
+        result = mtx_lock(mutex);
+        Py_END_ALLOW_THREADS
+        return result;
     }
 
     static int __pyx_py_safe_mtx_lock_impl(mtx_t* mutex) {
         int lock_result = mtx_trylock(mutex);
         if (lock_result == thrd_busy) {
-            return __pyx_py_safe_mtx_lock_quick_spin(mutex);
+            return __pyx_py_safe_mtx_lock_release_lock_reacquire(mutex);
         }
         return lock_result;
     }
 
-    static CYTHON_UNUSED int __pyx_py_safe_mtx_lock(mtx_t* mutex) {
+    CYTHON_UNUSED static int __pyx_py_safe_mtx_lock(mtx_t* mutex) {
         PyGILState_STATE gil_state = __pyx_libc_threads_limited_api_ensure_gil();
         if (!__pyx_libc_threads_has_gil())
             return mtx_lock(mutex); /* No GIL, no problem */
@@ -192,7 +175,7 @@ cdef extern from *:
         return result;
     }
 
-    static CYTHON_UNUSED int __pyx_py_safe_cnd_wait( cnd_t* cond, mtx_t* mutex) {
+    CYTHON_UNUSED static int __pyx_py_safe_cnd_wait( cnd_t* cond, mtx_t* mutex) {
         __Pyx_UnknownThreadState thread_state = __Pyx_SaveUnknownThread();
         int result = cnd_wait(cond, mutex);
         if (__Pyx_UnknownThreadStateMayHaveHadGil(thread_state)) {
@@ -211,7 +194,7 @@ cdef extern from *:
         }
     }
 
-    static CYTHON_UNUSED int __pyx_py_safe_cnd_timedwait(cnd_t* cond, mtx_t* mutex, const struct timespec* time_point) {
+    CYTHON_UNUSED static int __pyx_py_safe_cnd_timedwait(cnd_t* cond, mtx_t* mutex, const struct timespec* time_point) {
         __Pyx_UnknownThreadState thread_state = __Pyx_SaveUnknownThread();
         int result = cnd_timedwait(cond, mutex, time_point);
         if (__Pyx_UnknownThreadStateMayHaveHadGil(thread_state)) {
@@ -230,7 +213,7 @@ cdef extern from *:
         }
     }
 
-    static CYTHON_UNUSED void __pyx_libc_threads_py_safe_call_once(once_flag* flag, void (*func)(void)) {
+    CYTHON_UNUSED static void __pyx_libc_threads_py_safe_call_once(once_flag* flag, void (*func)(void)) {
         __Pyx_UnknownThreadState thread_state = __Pyx_SaveUnknownThread();
         call_once(flag, func);
         __Pyx_RestoreUnknownThread(thread_state);

@@ -1,0 +1,53 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import b; b.run()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from setuptools import setup
+
+setup(
+    ext_modules = cythonize("*.pyx"),
+)
+
+####### a.pxd ########
+
+cdef class BaseClass:
+    pass
+
+####### a.pyx ########
+
+BaseClass_dealloc_calls = 0
+
+cdef class BaseClass:
+    def __dealloc__(self):
+        global BaseClass_dealloc_calls
+        BaseClass_dealloc_calls += 1
+
+####### b.pyx #########
+
+import sys
+
+cimport a
+import a
+
+cdef class InheritsFromPxd(a.BaseClass):
+    pass  # no dealloc
+
+derived_class_dealloc_calls = 0
+
+cdef class InheritsFromInheritsFromPxd(InheritsFromPxd):
+    def __dealloc__(self):
+        global derived_class_dealloc_calls
+        derived_class_dealloc_calls += 1
+
+def run():
+    # This is mostly a "no-crash" test, but we do some validation
+    # (on CPython only, because this won't be reliable with a GC)
+    x = a.BaseClass()
+    x = InheritsFromPxd()
+    x = InheritsFromInheritsFromPxd()
+    del x
+    if sys.implementation.name == "cpython":
+        assert a.BaseClass_dealloc_calls == 3
+        assert derived_class_dealloc_calls == 1

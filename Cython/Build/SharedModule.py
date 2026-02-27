@@ -1,6 +1,7 @@
-import tempfile
 import os
+import re
 import shutil
+import tempfile
 
 from Cython.Compiler import (
     MemoryView, Code, Options, Pipeline, Errors, Main, Symtab
@@ -27,6 +28,22 @@ def create_shared_library_pipeline(context, scope, options, result):
 
         return generate_tree
 
+    def generate_c_utilities(module_node):
+        UtilityCode = Code.UtilityCode
+        match_special = UtilityCode.get_special_comment_matcher('/')
+        for c_utility_file in os.listdir(Code.get_utility_dir()):
+            if not c_utility_file.endswith('.c'):
+                continue
+            for line in Code.read_utilities_hook(c_utility_file):
+                if not ((m := match_special(line)) and (name := m.group('name'))):
+                    continue
+                if not (section_title := UtilityCode.match_section_title(name)):
+                    continue
+                name, section_type = section_title.groups()
+                if section_type == 'export':
+                    module_node.scope.use_utility_code(UtilityCode.load_cached(name, c_utility_file))
+        return module_node
+
     orig_cimport_from_pyx = Options.cimport_from_pyx
 
     def set_cimport_from_pyx(cimport_from_pyx):
@@ -40,6 +57,7 @@ def create_shared_library_pipeline(context, scope, options, result):
         set_cimport_from_pyx(True),
         generate_tree_factory(context),
         *Pipeline.create_pipeline(context, 'pyx', exclude_classes=()),
+        generate_c_utilities,
         Pipeline.inject_pxd_code_stage_factory(context),
         Pipeline.inject_utility_code_stage_factory(context, internalise_c_class_entries=False),
         Pipeline.inject_utility_pxd_code_stage_factory(context),
@@ -50,8 +68,7 @@ def create_shared_library_pipeline(context, scope, options, result):
 
 
 def generate_shared_module(options):
-    Errors.init_thread()
-    Errors.open_listing_file(None)
+    Errors.reset()
 
     dest_c_file = options.shared_c_file_path
     module_name = os.path.splitext(os.path.basename(dest_c_file))[0]

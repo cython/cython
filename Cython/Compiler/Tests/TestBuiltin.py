@@ -13,7 +13,10 @@ from ..Code import (
     KNOWN_PYTHON_BUILTINS_VERSION, KNOWN_PYTHON_BUILTINS,
 )
 
-class TestBuiltinReturnTypes(unittest.TestCase):
+from ...TestUtils import TimedTest
+
+
+class TestBuiltinReturnTypes(TimedTest):
     def test_find_return_type_of_builtin_method(self):
         # It's enough to test the method existence in a recent Python that likely has them.
         look_up_methods = sys.version_info >= (3,10)
@@ -43,7 +46,7 @@ def run_builtin_compatibility_test():
     runner = unittest.TextTestRunner()
     runner.run(suite)
 
-class TestBuiltinCompatibility(unittest.TestCase):
+class TestBuiltinCompatibility(TimedTest):
     def test_python_builtin_compatibility(self):
         # Things like IPython can inject additional entries into builtins.
         # Therefore intentionally run this test in a fresh process for a clean

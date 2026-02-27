@@ -16,7 +16,9 @@ cdef extern from *:
                                                 int wraparound, int boundscheck, int unsafe_shared);
     static PyObject *Call_GetItemInt_List_Fast(PyObject *o, Py_ssize_t i,
                                                 int wraparound, int boundscheck, int unsafe_shared) {
-        unsafe_shared_set = unsafe_shared;
+        int unique = (unsafe_shared == __Pyx_ReferenceSharing_DefinitelyUnique) || 
+                     (unsafe_shared == __Pyx_ReferenceSharing_OwnStrongReference);
+        unsafe_shared_set = !unique;
         return __Pyx_GetItemInt_List_Fast(o, i, wraparound, boundscheck, unsafe_shared);
     }
 

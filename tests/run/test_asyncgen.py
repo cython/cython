@@ -6,6 +6,8 @@ from __future__ import generator_stop
 
 import cython
 
+from Cython.TestUtils import TimedTest
+
 import os
 import sys
 #import inspect
@@ -178,7 +180,7 @@ def to_list(gen):
     return run_until_complete(iterate())
 
 
-class AsyncGenSyntaxTest(unittest.TestCase):
+class AsyncGenSyntaxTest(TimedTest):
 
     @contextlib.contextmanager
     def assertRaisesRegex(self, exc_type, regex):
@@ -237,7 +239,7 @@ class AsyncGenSyntaxTest(unittest.TestCase):
             exec(code, {}, {})
 
 
-class AsyncGenTest(unittest.TestCase):
+class AsyncGenTest(TimedTest):
 
     def compare_generators(self, sync_gen, async_gen):
         def sync_iterate(g):
@@ -507,15 +509,17 @@ class AsyncGenTest(unittest.TestCase):
 
 
 @requires_asyncio
-class AsyncGenAsyncioTest(unittest.TestCase):
+class AsyncGenAsyncioTest(TimedTest):
 
     def setUp(self):
+        super().setUp()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(None)
 
     def tearDown(self):
         self.loop.close()
         self.loop = None
+        super().tearDown()
 
     async def to_list(self, gen):
         res = []

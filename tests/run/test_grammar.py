@@ -6,6 +6,7 @@ import contextlib
 from tempfile import NamedTemporaryFile
 from Cython.Compiler.Main import compile as cython_compile, CompileError
 from Cython.Build.Inline import cython_inline
+from Cython.TestUtils import TimedTest
 
 
 @contextlib.contextmanager
@@ -194,7 +195,7 @@ INVALID_UNDERSCORE_LITERALS = [
 ]
 
 
-class TokenTests(unittest.TestCase):
+class TokenTests(TimedTest):
 
     #from test.support import check_syntax_error
     check_syntax_error = check_syntax_error
@@ -375,19 +376,10 @@ class CNS:
         return self._dct[item]
 
 
-class GrammarTests(unittest.TestCase):
+class GrammarTests(TimedTest):
 
     #from test.support import check_syntax_error, check_syntax_warning
     check_syntax_error, check_syntax_warning = check_syntax_error, check_syntax_warning
-
-    if not hasattr(unittest.TestCase, 'subTest'):
-        @contextlib.contextmanager
-        def subTest(self, source=None, case=None, **kwargs):
-            try:
-                yield
-            except Exception:
-                print(source or case)
-                raise
 
     # single_input: NEWLINE | simple_stmt | compound_stmt NEWLINE
     # XXX can't test in a script -- this rule is only used when interactive

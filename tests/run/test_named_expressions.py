@@ -9,6 +9,7 @@ import unittest
 import cython
 from Cython.Compiler.Main import CompileError
 from Cython.Build.Inline import cython_inline
+from Cython.TestUtils import TimedTest
 import re
 import sys
 
@@ -69,7 +70,7 @@ if cython.compiled:
             raise SyntaxError(raised_message) from None
 
 
-class NamedExpressionInvalidTest(unittest.TestCase):
+class NamedExpressionInvalidTest(TimedTest):
 
     def test_named_expression_invalid_01(self):
         code = """x := 0"""
@@ -239,7 +240,7 @@ class NamedExpressionInvalidTest(unittest.TestCase):
                     exec(f"lambda: {code}", {}) # Function scope
 
 
-class NamedExpressionAssignmentTest(unittest.TestCase):
+class NamedExpressionAssignmentTest(TimedTest):
 
     def test_named_expression_assignment_01(self):
         (a := 10)
@@ -343,7 +344,7 @@ class NamedExpressionAssignmentTest(unittest.TestCase):
         self.assertEqual(fib, {1: 2, 2: 3, 3: 5, 5: 8, 8: 13, 13: 21})
 
 
-class NamedExpressionScopeTest(unittest.TestCase):
+class NamedExpressionScopeTest(TimedTest):
 
     def test_named_expression_scope_01(self):
         code = """def spam():

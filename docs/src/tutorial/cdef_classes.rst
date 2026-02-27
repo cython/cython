@@ -154,3 +154,11 @@ Attributes in cdef classes behave differently from attributes in regular classes
 
         .. literalinclude:: ../../examples/tutorial/cdef_classes/wave_function.pyx
             :caption: wave_function.pyx
+
+.. note::
+
+    By default, cdef classes are defined as "static types". This means that in
+    particular, setting the ``__module__`` attribute on the class will have no
+    effect when used in Python. If you wish to override this attribute, you
+    must add the compilation argument ``CYTHON_USE_TYPE_SPECS=1``. See
+    :ref:`C_macro_defines` for more details.
