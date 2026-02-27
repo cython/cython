@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from unittest import skipIf
 
 from Cython.Build import IpythonMagic
-from Cython.TestUtils import CythonTest
+from Cython.TestUtils import CythonTest, load_tests_isolated
 from Cython.Compiler.Annotate import AnnotationCCodeWriter
 
 try:
@@ -94,6 +94,8 @@ def doit():
 '''
 
 
+# "Isolated" because IPython messes with builtins which can affect
+# other tests. load_tests (below) ensures this.
 @skip_if_not_installed
 class TestIPythonMagic(CythonTest):
 
@@ -285,3 +287,6 @@ x = sin(0.0)
         # somewhat brittle way to differentiate between annotated htmls
         # with/without complete source code:
         self.assertTrue(AnnotationCCodeWriter.COMPLETE_CODE_TITLE in html.data)
+
+def load_tests(loader, standard_tests, pattern):
+    return load_tests_isolated(standard_tests, TestIPythonMagic)

@@ -434,3 +434,59 @@ def py_parse_code(code):
             return result
     except Errors.CompileError as e:
         raise SyntaxError(e.message_only)
+
+
+# Utilities to run unitest classes in an isolated process.
+def _run_isolated_tests(suite, result_queue):
+    runner = unittest.TextTestRunner(resultclass=unittest.TestResult)
+    result = runner.run(suite)
+    # Clean up various redirected stdout streams to let us pickle it
+    for k in list(result.__dict__.keys()):
+        if k.startswith("_") and not k.startswith("__"):
+            delattr(result, k)
+    result_queue.put(result)
+
+class IsolatedTestSuite(unittest.TestSuite):
+    in_isolated_subprocess = False
+    def run(self, result):
+        if self.in_isolated_subprocess:
+            return super().run(result)
+        import multiprocessing
+        self.in_isolated_subprocess = True
+        ctx = multiprocessing.get_context('spawn')
+        result_queue = ctx.Queue()
+        process = ctx.Process(
+            target=_run_isolated_tests,
+            args=(self, result_queue)
+        )
+        process.start()
+        process.join()
+        subprocess_result = result_queue.get_nowait()
+
+        # Now merge everything from the subprocess result.
+        for k, v in subprocess_result.__dict__.items():
+            if isinstance(v, (int, list)):
+                setattr(
+                    result,
+                    k,
+                    getattr(result, k) + v)
+        return result
+
+
+def load_tests_isolated(tests, test_case_classes_to_isolate):
+    replace_suite = False
+    if any(isinstance(test, test_case_classes_to_isolate)
+           for test in tests):
+        return IsolatedTestSuite(tests)
+    # Otherwise recurse into test suites
+    new_tests = []
+    any_replacements = False
+    for test in tests:
+        if isinstance(test, unittest.TestSuite):
+            new_test = load_tests_isolated(test, test_case_classes_to_isolate)
+            any_replacements = any_replacements or (new_test is not test)
+            test = new_test
+        new_tests.append(test)
+    if any_replacements:
+        return unittest.TestSuite(new_tests)
+    return tests
