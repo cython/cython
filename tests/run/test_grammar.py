@@ -2,10 +2,13 @@
 # cython: language_level=3
 
 import cython
+
 import contextlib
 from tempfile import NamedTemporaryFile
+
 from Cython.Compiler.Main import compile as cython_compile, CompileError
 from Cython.Build.Inline import cython_inline
+from Cython.TestUtils import TimedTest, compiled_eval
 
 
 @contextlib.contextmanager
@@ -56,6 +59,14 @@ if cython.compiled:
             raise SyntaxError('unexpected EOF')  # see usage of compile() below
 
     def eval(code):
+        try:
+            with hidden_stderr():
+                # Fast track for simple constants.
+                return compiled_eval(code)
+        except CompileError as exc:
+            raise SyntaxError(str(exc))
+
+    def rt_eval(code):
         try:
             with hidden_stderr():
                 return cython_inline(code)
@@ -194,7 +205,7 @@ INVALID_UNDERSCORE_LITERALS = [
 ]
 
 
-class TokenTests(unittest.TestCase):
+class TokenTests(TimedTest):
 
     #from test.support import check_syntax_error
     check_syntax_error = check_syntax_error
@@ -375,19 +386,10 @@ class CNS:
         return self._dct[item]
 
 
-class GrammarTests(unittest.TestCase):
+class GrammarTests(TimedTest):
 
     #from test.support import check_syntax_error, check_syntax_warning
     check_syntax_error, check_syntax_warning = check_syntax_error, check_syntax_warning
-
-    if not hasattr(unittest.TestCase, 'subTest'):
-        @contextlib.contextmanager
-        def subTest(self, source=None, case=None, **kwargs):
-            try:
-                yield
-            except Exception:
-                print(source or case)
-                raise
 
     # single_input: NEWLINE | simple_stmt | compound_stmt NEWLINE
     # XXX can't test in a script -- this rule is only used when interactive
@@ -733,7 +735,7 @@ class GrammarTests(unittest.TestCase):
         self.assertEqual(f(1, x=2, *[3, 4], y=5), ((1, 3, 4),
                                                     {'x':2, 'y':5}))
         self.assertEqual(f(1, *(2,3), 4), ((1, 2, 3, 4), {}))
-        self.assertRaises(SyntaxError, eval, "f(1, x=2, *(3,4), x=5)")
+        self.assertRaises(SyntaxError, rt_eval, "f(1, x=2, *(3,4), x=5)")
         self.assertEqual(f(**{'eggs':'scrambled', 'spam':'fried'}),
                          ((), {'eggs':'scrambled', 'spam':'fried'}))
         self.assertEqual(f(spam='fried', **{'eggs':'scrambled'}),

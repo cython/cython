@@ -2,7 +2,7 @@
 # cython: language_level=3
 # micro benchmarks for coroutines
 
-COUNT = 100000
+COUNT = 100_000
 
 import cython
 
@@ -44,8 +44,6 @@ def await_one(coro):
             await_one(next(a))
     except StopIteration as exc:
         result = exc.args[0] if exc.args else None
-    else:
-        result = 0
     return result
 
 
@@ -56,33 +54,34 @@ def time_bm(fn, *args, scale: cython.long = 1, timer=time.perf_counter):
     for s in range(scale):
         result = await_one(fn(*args))
     end = timer()
-    return result, end-begin
+    return result, end - begin
 
 
-def benchmark(N, count=1_000, scale=1, timer=time.perf_counter):
+_RESULT_BY_COUNT = {
+    1_000: 8221043302,
+    100: 8174538781,
+    10: 7748658728,
+}
+
+def benchmark(N, count=100, scale=1, timer=time.perf_counter):
     times = []
+    expected_result = _RESULT_BY_COUNT[count]
     for _ in range(N):
         result, t = time_bm(bm_await_nested, count, scale=scale, timer=timer)
         times.append(t)
-        assert result == 8221043302, result
+        assert result == expected_result, (expected_result, result)
     return times
 
 
-main = benchmark
+def run_benchmark(repeat=True, scale=1):
+    from util import repeat_to_accuracy
 
+    count = 10
+    expected_result = _RESULT_BY_COUNT[count]
 
-def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
-    return benchmark(repeat, scale=scale, timer=timer)
+    def single_run(scale, timer):
+        result, t = time_bm(bm_await_nested, count, scale=scale, timer=timer)
+        assert result == expected_result, (expected_result, result)
+        return t
 
-
-if __name__ == "__main__":
-    import optparse
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description="Micro benchmarks for generators.")
-
-    import util
-    util.add_standard_options_to(parser)
-    options, args = parser.parse_args()
-
-    util.run_benchmark(options, options.num_runs, benchmark)
+    return repeat_to_accuracy(single_run, scale=scale, repeat=repeat)[0]

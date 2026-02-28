@@ -119,7 +119,8 @@ Cython provides ``cython.pymutex`` as a more robust lock type.  Unlike
 ask it to (at the cost of losing ``critical_section``'s inbuilt protection against
 deadlocks).
 
-``cython.pymutex`` supports two operations: ``acquire`` and ``release``.
+``cython.pymutex`` supports three operations: ``acquire``, ``release``,
+and the predicate ``locked``.
 ``cython.pymutex`` can also be used in a ``with`` statement::
 
   cdef cython.pymutex l
@@ -130,6 +131,15 @@ deadlocks).
   l.acquire()
   ...  # perform operations with the lock
   l.release()
+  
+  # check if the lock is currently held
+  if l.locked():
+      ...  # lock is held
+
+The ``locked()`` method returns ``True`` if the lock is currently held, ``False`` otherwise.
+It can be called with or without the GIL and is available on all Python versions. On Python 3.13+,
+it uses the native PyMutex API for efficient atomic reads. On older Python versions, it uses a
+try-acquire approach that temporarily acquires and releases the lock if it's available.
 
 ``acquire`` will avoid deadlocks if the GIL is held (only relevant in
 non-freethreading versions of Python).  However, you are at risk of deadlock
@@ -148,6 +158,21 @@ modules with the Limited API (since ``PyMutex`` is unavailable in the
 Limited API).  Note that unlike the "raw" ``PyThread_type_lock`` our
 wrapping will avoid deadlocks with the GIL.
 
+
+Automatically applied critical sections
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+From Cython 3.3, Cython adds critical sections to automatically generated functions.
+This includes properties on extension types (e.g. ``cdef public int x`` or
+``cdef readonly int x``), the auto-generated pickle functions of
+extension types, and functions of ``cython.dataclasses.dataclass`` class.
+The thread-safety here is achieved by adding ``with cython.critical_section(self[, other]):``
+where ``self`` is the instance of the extension type and ``other`` is the second argument
+for dataclass comparison functions only.  Therefore, if you are writing
+your own code interacting with the underlying data then you can use the same
+lock.  Remember that critical sections can be interrupted so this is mostly
+a no-crash guarantee - the auto-generated pickle function won't necessary be
+an atomic snapshot for example.
 
 Pitfalls
 ========
@@ -413,14 +438,28 @@ This list of non-exhaustive. And you can also use third-party libraries outside
 the language standard libraries for more options.
 
 In addition to the plain standard library features, Cython (3.2) also produces "py_safe" versions
-of some of these features (e.g. ``call_once``, mutex ``lock``).  
-These ensure that the Python thread-state is released (if held) while blocking and then restored
-to its initial state after the call.  The "py_safe" functions are only effective if you use
+of some of these features (e.g. ``call_once``, mutex, ``lock``, ``condition_variable``).
+These ensure
+
+* The Python thread-state is released (if held) while blocking and then restored
+  to its initial state after the call.
+
+* Acquiring and releasing the Python thread-state does not deadlock with any C/C++ locks
+  used in the operation.
+
+* Any callbacks (e.g. the functions passed to ``call_once`` or the predicates passed to
+  ``condition_variable``) are called with the Python thread-state held).
+
+* Python exceptions from callbacks are handled.
+
+* For the C++ versions, you can use a callable Python object as a callback (where
+  applicable).  
+
+The "py_safe" functions are only effective if you use
 them consistently every time you try to acquire the lock while you might be holding the Python
 thread-state.  This means you should use the "py_safe" versions even in a function labelled
 as ``nogil`` - remember that this says that a function *may* be called without an attached
 Python thread-state rather than ensuring that it definitely is.
-The C++ version of ``py_safe_call_once`` also allows you to pass a Python callable.
 
 ``cython.critical_section`` vs GIL
 ----------------------------------

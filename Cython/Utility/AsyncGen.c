@@ -53,11 +53,11 @@ typedef struct {
     int ag_running_async;
 } __pyx_PyAsyncGenObject;
 
-#define __Pyx_AsyncGen_CheckExact(obj) __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_AsyncGenType))
+#define __Pyx_AsyncGen_CheckExact(obj) Py_IS_TYPE(obj, CGLOBAL(__pyx_AsyncGenType))
 #define __pyx_PyAsyncGenASend_CheckExact(o) \
-                    __Pyx_IS_TYPE(o, CGLOBAL(__pyx__PyAsyncGenASendType))
+                    Py_IS_TYPE(o, CGLOBAL(__pyx__PyAsyncGenASendType))
 #define __pyx_PyAsyncGenAThrow_CheckExact(o) \
-                    __Pyx_IS_TYPE(o, CGLOBAL(__pyx__PyAsyncGenAThrowType))
+                    Py_IS_TYPE(o, CGLOBAL(__pyx__PyAsyncGenAThrowType))
 
 static PyObject *__Pyx_async_gen_anext(PyObject *o);
 static CYTHON_INLINE PyObject *__Pyx_async_gen_asend_iternext(PyObject *o);
@@ -164,7 +164,7 @@ typedef struct __pyx__PyAsyncGenWrappedValue {
 } __pyx__PyAsyncGenWrappedValue;
 
 #define __pyx__PyAsyncGenWrappedValue_CheckExact(o) \
-                    __Pyx_IS_TYPE(o, CGLOBAL(__pyx__PyAsyncGenWrappedValueType))
+                    Py_IS_TYPE(o, CGLOBAL(__pyx__PyAsyncGenWrappedValueType))
 
 
 static int
@@ -416,12 +416,10 @@ static PyType_Spec __pyx_AsyncGenType_spec = {
     __PYX_TYPE_MODULE_PREFIX "async_generator",
     sizeof(__pyx_PyAsyncGenObject),
     0,
-#if PY_VERSION_HEX >= 0x030A0000
-    Py_TPFLAGS_IMMUTABLETYPE |
-#endif
 #if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_TPFLAGS_MANAGED_WEAKREF |
 #endif
+    Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION |
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     __pyx_AsyncGenType_slots
 };
@@ -435,7 +433,7 @@ __Pyx_PyAsyncGen_ClearFreeLists(void)
 
     while (CGLOBAL(__Pyx_ag_value_freelist_free)) {
         __pyx__PyAsyncGenWrappedValue *o;
-        o = CGLOBAL(__Pyx_ag_value_freelist)[--CGLOBAL(__Pyx_ag_value_freelist_free]);
+        o = CGLOBAL(__Pyx_ag_value_freelist)[--CGLOBAL(__Pyx_ag_value_freelist_free)];
         assert(__pyx__PyAsyncGenWrappedValue_CheckExact((PyObject*)o));
         __Pyx_PyHeapTypeObject_GC_Del(o);
     }
@@ -443,7 +441,7 @@ __Pyx_PyAsyncGen_ClearFreeLists(void)
     while (CGLOBAL(__Pyx_ag_asend_freelist_free)) {
         __pyx_PyAsyncGenASend *o;
         o = CGLOBAL(__Pyx_ag_asend_freelist)[--CGLOBAL(__Pyx_ag_asend_freelist_free)];
-        assert(__Pyx_IS_TYPE((PyObject*)o, CGLOBAL(__pyx__PyAsyncGenASendType)));
+        assert(Py_IS_TYPE((PyObject*)o, CGLOBAL(__pyx__PyAsyncGenASendType)));
         __Pyx_PyHeapTypeObject_GC_Del(o);
     }
 
@@ -624,9 +622,7 @@ static PyType_Spec __pyx__PyAsyncGenASendType_spec = {
     __PYX_TYPE_MODULE_PREFIX "async_generator_asend",
     sizeof(__pyx_PyAsyncGenASend),
     0,
-#if PY_VERSION_HEX >= 0x030A0000
-    Py_TPFLAGS_IMMUTABLETYPE |
-#endif
+    Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION |
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     __pyx__PyAsyncGenASendType_slots
 };
@@ -711,9 +707,7 @@ static PyType_Spec __pyx__PyAsyncGenWrappedValueType_spec = {
     __PYX_TYPE_MODULE_PREFIX "async_generator_wrapped_value",
     sizeof(__pyx__PyAsyncGenWrappedValue),
     0,
-#if PY_VERSION_HEX >= 0x030A0000
-    Py_TPFLAGS_IMMUTABLETYPE |
-#endif
+    Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION |
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     __pyx__PyAsyncGenWrappedValueType_slots
 };
@@ -988,9 +982,7 @@ static PyType_Spec __pyx__PyAsyncGenAThrowType_spec = {
     __PYX_TYPE_MODULE_PREFIX "async_generator_athrow",
     sizeof(__pyx_PyAsyncGenAThrow),
     0,
-#if PY_VERSION_HEX >= 0x030A0000
-    Py_TPFLAGS_IMMUTABLETYPE |
-#endif
+    Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION |
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     __pyx__PyAsyncGenAThrowType_slots
 };

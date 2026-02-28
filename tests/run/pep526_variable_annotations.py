@@ -20,7 +20,7 @@ except ImportError:
     pass  # this should allow Cython to interpret the directives even when the module doesn't exist
 
 
-var = 1  # type: annotation
+pyobj_var = 1  # type: annotation
 var: cython.int = 2
 fvar: cython.float = 1.2
 some_number: cython.int    # variable without initial value
@@ -44,7 +44,7 @@ def f():
     >>> f()
     (2, 1.5, [], (1, 2, 3))
     """
-    var = 1  # type: annotation
+    pyobj_var = 1  # type: annotation
     var: cython.int = 2
     fvar: cython.float = 1.5
     some_number: cython.int    # variable without initial value
@@ -101,12 +101,11 @@ class BasicStarshipExt(object):
 T = TypeVar('T')
 
 
-# FIXME: this fails in Py3.7 now
-#class Box(Generic[T]):
-#    def __init__(self, content):
-#        self.content: T = content
-#
-#box = Box(content=5)
+class Box(Generic[T]):
+    def __init__(self, content):
+        self.content: T = content
+
+box = Box(content=5)
 
 
 class Cls(object):

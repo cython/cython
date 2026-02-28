@@ -404,11 +404,15 @@ def entry_point(iterations, timer=time.perf_counter):
     return result, endTime - startTime
 
 
-def run_benchmark(repeat: cython.long = 10, scale=10, timer=time.perf_counter):
-    return [
-        entry_point(scale, timer)[1]
-        for _ in range(repeat)
-    ]
+def run_benchmark(repeat=True, scale: cython.long = 1):
+    from util import repeat_to_accuracy
+
+    def single_run(scale, timer):
+        result, t = entry_point(scale, timer)
+        assert result, "Incorrect result!"
+        return t
+
+    return repeat_to_accuracy(single_run, scale=scale, repeat=repeat)[0]
 
 
 def main(iterations = 10, entry_point = entry_point):

@@ -1281,7 +1281,7 @@ class Scope:
         # e.g. slot, function, method
         return f"{Naming.modulestateglobal_cname}->{cname}"
 
-    def find_shared_usages_of_type(self, type_check_predicate, _seen_scopes=None):
+    def find_shared_usages_of_type(self, type_to_find, _seen_scopes=None):
         if _seen_scopes is None:
             _seen_scopes = set()
         include_all_entries = not self.is_module_scope
@@ -1289,15 +1289,29 @@ class Scope:
             if not (include_all_entries or entry.defined_in_pxd or entry.visibility == "public" or entry.api):
                 continue
             entry_subtypes = PyrexTypes.get_all_subtypes(entry.type)
-            if any(type_check_predicate(sub_tp) for sub_tp in entry_subtypes):
+            if any(type_to_find == sub_tp for sub_tp in entry_subtypes):
                 return True
             type_scope = getattr(entry.type, "scope", None)
             if type_scope is None or type_scope in _seen_scopes:
                 continue
             _seen_scopes.add(type_scope)
-            if type_scope.find_shared_usages_of_type(type_check_predicate, _seen_scopes):
+            if type_scope.find_shared_usages_of_type(type_to_find, _seen_scopes):
                 return True
         return False
+
+
+class PreImportScope(Scope):
+
+    namespace_cname = Naming.preimport_cname
+
+    def __init__(self):
+        Scope.__init__(self, Options.pre_import, None, None)
+
+    def declare_builtin(self, name, pos):
+        entry = self.declare(name, name, py_object_type, pos, 'private')
+        entry.is_variable = True
+        entry.is_pyglobal = True
+        return entry
 
 
 class BuiltinScope(Scope):
@@ -1822,6 +1836,9 @@ class ModuleScope(Scope):
             self.utility_code_list.append(entry.utility_code)
         if entry.utility_code_definition:
             self.utility_code_list.append(entry.utility_code_definition)
+        for tp in PyrexTypes.get_all_subtypes(entry.type):
+            if hasattr(tp, "entry") and tp.entry is not entry:
+                self.use_entry_utility_code(tp.entry)
 
     def declare_c_class(self, name, pos, defining=0, implementing=0,
             module_name=None, base_type=None, objstruct_cname=None,
@@ -1927,14 +1944,10 @@ class ModuleScope(Scope):
         if self.directives.get('final'):
             entry.type.is_final_type = True
         collection_type = self.directives.get('collection_type')
-        if collection_type:
-            from .UtilityCode import NonManglingModuleScope
-            if not isinstance(self, NonManglingModuleScope):
-                # TODO - DW would like to make it public, but I'm making it internal-only
-                # for now to avoid adding new features without consensus
-                error(pos, "'collection_type' is not a public cython directive")
         if collection_type == 'sequence':
             entry.type.has_sequence_flag = True
+        elif collection_type == 'mapping':
+            entry.type.has_mapping_flag = True
 
         # cdef classes are always exported, but we need to set it to
         # distinguish between unused Cython utility code extension classes
@@ -2260,9 +2273,12 @@ class ComprehensionScope(Scope):
 class ClosureScope(LocalScope):
 
     is_closure_scope = True
+    is_pure_generator_scope = False
 
-    def __init__(self, name, scope_name, outer_scope, parent_scope=None):
+    def __init__(self, name, scope_name, outer_scope, parent_scope=None,
+                 is_pure_generator_scope=False):
         LocalScope.__init__(self, name, outer_scope, parent_scope)
+        self.is_pure_generator_scope = is_pure_generator_scope
         self.closure_cname = "%s%s" % (Naming.closure_scope_prefix, scope_name)
 
 #    def mangle_closure_cnames(self, scope_var):
@@ -2794,7 +2810,7 @@ class CClassScope(ClassScope):
         """
         property_entry = self.declare_property(name, doc=doc, ctype=type, pos=pos)
         cfunc_entry = property_entry.scope.declare_cfunction(
-            name=name,
+            name="__get__",
             type=PyrexTypes.CFuncType(
                 type,
                 [PyrexTypes.CFuncTypeArg("self", self.parent_type, pos=None)],
@@ -3059,16 +3075,23 @@ class PropertyScope(Scope):
     def declare_cfunction(self, name, type, pos, *args, **kwargs):
         """Declare a C property function.
         """
-        if type.return_type.is_void:
-            error(pos, "C property method cannot return 'void'")
+        if name=="__get__":
+            if type.return_type.is_void:
+                error(pos, "C property getter cannot return 'void'")
+            if len(type.args) != 1:
+                error(pos, "C property getter must have a single (self) argument")
 
+        if name=="__set__":
+            if not type.return_type.is_void:
+                error(pos, "C property setter must return 'void'")
+            if len(type.args) != 2:
+                error(pos, "C property setter must have two arguments (self and value)")
+
+        if not (type.args[0].type.is_pyobject or type.args[0].type is self.parent_scope.parent_type):
+            error(pos, "self argument of C property method must be an object")
         if type.args and type.args[0].type is py_object_type:
             # Set 'self' argument type to extension type.
             type.args[0].type = self.parent_scope.parent_type
-        elif len(type.args) != 1:
-            error(pos, "C property method must have a single (self) argument")
-        elif not (type.args[0].type.is_pyobject or type.args[0].type is self.parent_scope.parent_type):
-            error(pos, "C property method must have a single (object) argument")
 
         entry = Scope.declare_cfunction(self, name, type, pos, *args, **kwargs)
         entry.is_cproperty = True

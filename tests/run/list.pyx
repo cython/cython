@@ -307,3 +307,18 @@ def test_none_list_extend(list l):
     except AttributeError:
         return 123
     return l
+
+
+class MyMultipliableList(list):
+    """
+    >>> l = MyMultipliableList([1, 2, 3])
+    >>> l * None
+    [1, 2, 3]
+    >>> l * 3
+    [1, 2, 3, 1, 2, 3, 1, 2, 3]
+    """
+
+    def __mul__(self, value):
+        if value is None:
+            return self
+        return list.__mul__(self, value)
