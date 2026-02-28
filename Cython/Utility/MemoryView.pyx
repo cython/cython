@@ -15,6 +15,7 @@ cdef extern from "Python.h":
     int PyIndex_Check(object)
     PyObject *PyExc_IndexError
     PyObject *PyExc_ValueError
+    PyObject *PyExc_TypeError
 
 cdef extern from "pythread.h":
     ctypedef void *PyThread_type_lock
@@ -81,6 +82,9 @@ cdef extern from *:
         pass
 
 cdef extern from *:
+    """
+    typedef int (*__pyx_memoryview_to_dtype_func_type)(char*, PyObject*);
+    """
     ctypedef int __pyx_atomic_int_type
     {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
                                  {{memviewslice_name}} *from_mvs,
@@ -92,6 +96,8 @@ cdef extern from *:
     bint slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
                                                 {{memviewslice_name}} *slice2,
                                                 int ndim, size_t itemsize) nogil
+
+    ctypedef int (*to_dtype_func_type "__pyx_memoryview_to_dtype_func_type")(char *, object) except 0
 
 
 cdef extern from "<stdlib.h>":
@@ -394,7 +400,7 @@ cdef class memoryview:
             else:
                 PyThread_free_lock(self.lock)
 
-    cdef char *get_item_pointer(memoryview self, object index) except NULL:
+    cdef char *get_item_pointer(memoryview self, index: tuple) except NULL:
         cdef Py_ssize_t dim
         cdef char *itemp = <char *> self.view.buf
 
@@ -405,6 +411,12 @@ cdef class memoryview:
 
     #@cname('__pyx_memoryview_getitem')
     def __getitem__(memoryview self, object index):
+        cdef char *buffer
+        if self.view.ndim == 1 and isinstance(index, int):
+            buffer = <char *> self.view.buf
+            return self.convert_item_to_object(
+                pybuffer_index(&self.view, buffer, index, 0))
+
         if index is Ellipsis:
             return self
 
@@ -414,23 +426,28 @@ cdef class memoryview:
         if have_slices:
             return memview_slice(self, indices)
         else:
-            itemp = self.get_item_pointer(indices)
+            itemp = self.get_item_pointer(<tuple> indices)
             return self.convert_item_to_object(itemp)
 
     def __setitem__(memoryview self, object index, object value):
         if self.view.readonly:
             raise TypeError, "Cannot assign to read-only memoryview"
 
-        have_slices, index = _unellipsify(index, self.view.ndim)
+        if self.view.ndim == 1 and isinstance(index, int):
+            self.setitem_indexed1(index, value)
+            return
+
+        have_slices, indices = _unellipsify(index, self.view.ndim)
 
         if have_slices:
             obj = self.is_slice(value)
+            target_slice = memview_slice(self, indices)
             if obj is not None:
-                self.setitem_slice_assignment(self[index], obj)
+                self.setitem_slice_assignment(target_slice, obj)
             else:
-                self.setitem_slice_assign_scalar(self[index], value)
+                self.setitem_slice_assign_scalar(target_slice, value)
         else:
-            self.setitem_indexed(index, value)
+            self.setitem_indexed(<tuple> indices, value)
 
     cdef is_slice(self, obj):
         if not isinstance(obj, memoryview):
@@ -482,8 +499,13 @@ cdef class memoryview:
         finally:
             PyMem_Free(tmp)
 
-    cdef setitem_indexed(self, index, value):
-        cdef char *itemp = self.get_item_pointer(index)
+    cdef setitem_indexed(self, indices: tuple, value):
+        cdef char *itemp = self.get_item_pointer(indices)
+        self.assign_item_from_object(itemp, value)
+
+    cdef setitem_indexed1(self, index, value):
+        cdef char *buffer = <char *> self.view.buf
+        cdef char *itemp = pybuffer_index(&self.view, buffer, index, 0)
         self.assign_item_from_object(itemp, value)
 
     cdef convert_item_to_object(self, char *itemp):
@@ -669,34 +691,91 @@ cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, const __Pyx_
 cdef inline bint memoryview_check(object o) noexcept:
     return isinstance(o, memoryview)
 
-cdef tuple _unellipsify(object index, int ndim):
-    """
-    Replace all ellipses with full slices and fill incomplete indices with
-    full slices.
-    """
-    cdef Py_ssize_t idx
-    tup = <tuple>index if isinstance(index, tuple) else (index,)
 
-    result = [slice(None)] * ndim
+@cname('__pyx_memoryview_err_invalid_index')
+cdef int _err_invalid_index(item) except -1:
+    type_name = str(type(item))
+    PyErr_Format(PyExc_TypeError, "Cannot index with type '%.200U'", <PyObject*> type_name)
+    return -1
+
+
+cdef tuple _unellipsify_index_tuple(index_tuple: tuple, int ndim):
+    """
+    Replace all ellipses with full slices and fill incomplete indices with full slices.
+    """
+    cdef Py_ssize_t first_ellipsis_index = -1
+    cdef Py_ssize_t idx, ellipsis_end, indices_from_ellipsis
+
     have_slices = False
-    seen_ellipsis = False
+
     idx = 0
-    for item in tup:
+    for item in index_tuple:
         if item is Ellipsis:
-            if not seen_ellipsis:
-                idx += ndim - len(tup)
-                seen_ellipsis = True
             have_slices = True
-        else:
-            if isinstance(item, slice):
-                have_slices = True
-            elif not PyIndex_Check(item):
-                raise TypeError, f"Cannot index with type '{type(item)}'"
-            result[idx] = item
+            if first_ellipsis_index == -1:
+                first_ellipsis_index = idx
+        elif isinstance(item, slice):
+            have_slices = True
+        elif not PyIndex_Check(item):
+            _err_invalid_index(item)
         idx += 1
 
-    nslices = ndim - idx
-    return have_slices or nslices, tuple(result)
+    if first_ellipsis_index >= 0:
+        result = [slice(None)] * ndim
+
+        for idx in range(first_ellipsis_index):
+            result[idx] = index_tuple[idx]
+
+        indices_from_ellipsis = len(index_tuple) - first_ellipsis_index
+        ellipsis_end = ndim - indices_from_ellipsis
+
+        for idx in range(1, indices_from_ellipsis):
+            item = index_tuple[first_ellipsis_index + idx]
+            if item is not Ellipsis:
+                result[ellipsis_end + idx] = item
+
+        index_tuple = tuple(result)
+
+    elif ndim > idx:
+        # Fill missing indices at the end with full slice.
+        have_slices = True
+        index_tuple += (slice(None),) * (ndim - idx)
+
+    return have_slices, index_tuple
+
+
+cdef tuple _unellipsify(object index, int ndim):
+    """
+    Replace all ellipses with full slices and fill incomplete indices with full slices.
+    """
+    result: tuple
+    have_slices = False
+
+    if index is Ellipsis:
+        have_slices = True
+        result = (slice(None),) * ndim
+
+    elif isinstance(index, tuple):
+        return _unellipsify_index_tuple(<tuple> index, ndim)
+
+    else:
+        if isinstance(index, slice):
+            have_slices = True
+        elif not PyIndex_Check(index):
+            _err_invalid_index(index)
+
+        # 1-2 dim are so common that they merit a special case.
+        if ndim == 1:
+            result = (index,)
+        elif ndim == 2:
+            have_slices = True
+            result = (index, slice(None))
+        else:
+            have_slices = True
+            result = (index,) + (slice(None),) * (ndim - 1)
+
+    return have_slices, result
+
 
 cdef int assert_direct_dimensions(Py_ssize_t *suboffsets, int ndim) except -1:
     for suboffset in suboffsets[:ndim]:
@@ -959,7 +1038,7 @@ cdef class _memoryviewslice(memoryview):
     cdef object from_object
 
     cdef object (*to_object_func)(char *)
-    cdef int (*to_dtype_func)(char *, object) except 0
+    cdef to_dtype_func_type to_dtype_func
 
     def __dealloc__(self):
         __PYX_XCLEAR_MEMVIEW(&self.from_slice, 1)
@@ -1000,7 +1079,7 @@ except:
 cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
                           int ndim,
                           object (*to_object_func)(char *),
-                          int (*to_dtype_func)(char *, object) except 0,
+                          to_dtype_func_type to_dtype_func,
                           bint dtype_is_object):
 
     cdef _memoryviewslice result
@@ -1091,7 +1170,7 @@ cdef memoryview_copy_from_slice(memoryview memview, {{memviewslice_name}} *memvi
     Create a new memoryview object from a given memoryview object and slice.
     """
     cdef object (*to_object_func)(char *)
-    cdef int (*to_dtype_func)(char *, object) except 0
+    cdef to_dtype_func_type to_dtype_func
 
     if isinstance(memview, _memoryviewslice):
         to_object_func = (<_memoryviewslice> memview).to_object_func

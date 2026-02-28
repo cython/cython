@@ -2150,10 +2150,11 @@ static int __Pyx_RegisterCleanup(void) {
     if (reg && PyList_Check(reg)) {
         PyObject *a, *kw;
         a = PyTuple_New(0);
+        if (!a)
+            goto bad;
         kw = PyDict_New();
-        if (!a || !kw) {
-            Py_XDECREF(a);
-            Py_XDECREF(kw);
+        if (!kw) {
+            Py_DECREF(a);
             goto bad;
         }
         args = PyTuple_Pack(3, cleanup_func, a, kw);

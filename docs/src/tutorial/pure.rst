@@ -230,13 +230,23 @@ three levels deep in interpreted mode, and infinitely deep in compiled mode.
 Further pointer types can be constructed with ``cython.pointer[cython.int]``
 (or ``cython.pointer(cython.int)`` for compatibility with Cython versions before 3.1),
 and arrays as ``cython.int[10]``. A limited attempt is made to emulate these
-more complex types, but only so much can be done from the Python language.
+more complex types when running in a Python interpreter, but only so much can
+be done from the Python language.
 
-The Python types int, long and bool are interpreted as C ``int``, ``long``
-and ``bint`` respectively. Also, the Python builtin types ``list``, ``dict``,
-``tuple``, etc. may be used, as well as any user defined types.
+Pure python mode also supports type qualifiers ``const`` and ``volatile``,
+which can be applied using ``cython.const[cython.int]`` and
+``cython.volatile[cython.int]``. For more details see :ref:`type_qualifiers` section.
 
-Typed C-tuples can be declared as a tuple of C types.
+The Python type annotations ``bool`` and ``float`` are aliases for C ``bint``
+and C ``double`` respectively.
+The Python ``int`` type does not have an equivalent in C and is therefore not aliased
+to any C type but means the builtin Python type in annotations.
+Also, the Python builtin types ``list``, ``dict``, ``tuple``, etc.
+may be used, as well as any user defined types.
+
+Typed C-tuples can be declared as a a bare tuple of C types
+or as ``tuple[...]`` or ``typing.Tuple[...]``
+with the respective item types listed in the brackets.
 
 
 Extension types and cdef functions
