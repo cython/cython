@@ -5,21 +5,24 @@
 
 
 import cython
+
 cython.declare(make_lexicon=object, lexicon=object,
                print_function=object, error=object, warning=object,
-               os=object, platform=object)
+               os=object, platform=object, Path=object)
 
 import os
 import platform
-from unicodedata import normalize
 from contextlib import contextmanager
+from pathlib import Path
+from unicodedata import normalize
 
 from .. import Utils
-from ..Plex.Scanners import Scanner
 from ..Plex.Errors import UnrecognizedInput
+from ..Plex.Scanners import Scanner
 from .Errors import error, warning, hold_errors, release_errors, CompileError
 from .Lexicon import any_string_prefix, ft_string_prefixes, make_lexicon, IDENT
 from .Future import print_function
+from .Lexicon import IDENT, any_string_prefix, make_lexicon
 
 debug_scanner = 0
 trace_scanner = 0
@@ -222,6 +225,13 @@ class FileSourceDescriptor(SourceDescriptor):
     def get_description(self):
         return self._short_path_description
 
+    def get_relative_path(self) -> Path:
+        file_path = Path(self.file_path)
+        if file_path.is_absolute():
+            return Path(self.get_description())
+        else:
+            return file_path
+
     def get_error_description(self):
         path = self.filename
         cwd = Utils.decode_filename(os.getcwd() + os.path.sep)
@@ -262,6 +272,9 @@ class StringSourceDescriptor(SourceDescriptor):
 
     def get_description(self):
         return self.name
+
+    def get_relative_path(self):
+        return Path(self.get_description())
 
     get_error_description = get_description
 
@@ -360,6 +373,9 @@ class PyrexScanner(Scanner):
 
     def close_bracket_action(self, text):
         self.bracket_nesting_level -= 1
+        if (self.ft_string_state_stack and
+                self.ft_string_state_stack[-1].bracket_nesting_level() > self.bracket_nesting_level):
+            self.error_at_scanpos(f"Unmatched '{text}'")
         return text
 
     def open_brace_action(self, text):
@@ -531,7 +547,7 @@ class PyrexScanner(Scanner):
             sy, systring = self.read()
         except UnrecognizedInput:
             self.error_at_scanpos("Unrecognized character")
-            return  # just a marker, error() always raises
+            return -1  # just a marker, error() always raises
         if sy == IDENT:
             if systring in self.keywords:
                 if systring == 'print' and print_function in self.context.future_directives:
@@ -568,7 +584,6 @@ class PyrexScanner(Scanner):
         self.sy = sy
         self.systring = systring
         self.last_token_position_tuple = pos
-
 
     def error(self, message, pos=None, fatal=True):
         if pos is None:
@@ -612,7 +627,7 @@ class PyrexScanner(Scanner):
     def expect_dedent(self):
         self.expect('DEDENT', "Expected a decrease in indentation level")
 
-    def expect_newline(self, message="Expected a newline", ignore_semicolon: cython.bint = False):
+    def expect_newline(self, message="Expected a newline", ignore_semicolon=False):
         # Expect either a newline or end of file
         useless_trailing_semicolon = None
         if ignore_semicolon and self.sy == ';':
@@ -647,7 +662,7 @@ def tentatively_scan(scanner: PyrexScanner):
         initial_state = (scanner.sy, scanner.systring, scanner.position())
         try:
             yield errors
-        except CompileError as e:
+        except CompileError:
             pass
         finally:
             if errors:

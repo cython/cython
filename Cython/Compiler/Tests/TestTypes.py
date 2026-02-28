@@ -1,9 +1,8 @@
-import unittest
-
 import Cython.Compiler.PyrexTypes as PT
+from ...TestUtils import TimedTest
 
 
-class TestMethodDispatcherTransform(unittest.TestCase):
+class TestMethodDispatcherTransform(TimedTest):
 
     def test_widest_numeric_type(self):
         def assert_widest(type1, type2, widest):
@@ -17,7 +16,7 @@ class TestMethodDispatcherTransform(unittest.TestCase):
         assert_widest(PT.c_int_type, cenum, PT.c_int_type)
 
 
-class TestTypeIdentifiers(unittest.TestCase):
+class TestTypeIdentifiers(TimedTest):
 
     TEST_DATA = [
         ("char*", "char__ptr"),

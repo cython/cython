@@ -14,7 +14,7 @@ ustring2 = u"1234567"
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def unicode_eq(unicode s1, unicode s2):
     """
@@ -29,7 +29,7 @@ def unicode_eq(unicode s1, unicode s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def unicode_neq(unicode s1, unicode s2):
     """
@@ -44,7 +44,7 @@ def unicode_neq(unicode s1, unicode s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def unicode_literal_eq(unicode s):
     """
@@ -59,7 +59,7 @@ def unicode_literal_eq(unicode s):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def unicode_literal_neq(unicode s):
     """
@@ -74,12 +74,12 @@ def unicode_literal_neq(unicode s):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
     "//CascadedCmpNode"
 )
 @cython.test_fail_if_path_exists(
-    "//CascadedCmpNode[@is_pycmp = True]",
-    "//PrimaryCmpNode[@is_pycmp = True]",
+    "//CascadedCmpNode[not(@type.is_int)]",
+    "//PrimaryCmpNode[not(@type.is_int)]",
 )
 def unicode_cascade(unicode s1, unicode s2):
     """
@@ -94,7 +94,7 @@ def unicode_cascade(unicode s1, unicode s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def unicode_cascade_untyped_end(unicode s1, unicode s2):
     """
@@ -109,7 +109,7 @@ def unicode_cascade_untyped_end(unicode s1, unicode s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def unicode_cascade_untyped_end_bool(unicode s1, unicode s2):
     """
@@ -130,7 +130,7 @@ def unicode_cascade_untyped_end_bool(unicode s1, unicode s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def str_eq(str s1, str s2):
     """
@@ -145,7 +145,7 @@ def str_eq(str s1, str s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def str_neq(str s1, str s2):
     """
@@ -160,7 +160,7 @@ def str_neq(str s1, str s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def str_literal_eq(str s):
     """
@@ -175,7 +175,7 @@ def str_literal_eq(str s):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def str_literal_neq(str s):
     """
@@ -190,11 +190,11 @@ def str_literal_neq(str s):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 @cython.test_fail_if_path_exists(
-    "//CascadedCmpNode[@is_pycmp = True]",
-    "//PrimaryCmpNode[@is_pycmp = True]",
+    "//CascadedCmpNode[not(@type.is_int)]",
+    "//PrimaryCmpNode[not(@type.is_int)]",
 )
 def str_cascade(str s1, str s2):
     """
@@ -209,7 +209,7 @@ def str_cascade(str s1, str s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def str_cascade_untyped_end(str s1, str s2):
     """
@@ -226,7 +226,7 @@ def str_cascade_untyped_end(str s1, str s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def bytes_eq(bytes s1, bytes s2):
     """
@@ -241,7 +241,7 @@ def bytes_eq(bytes s1, bytes s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def bytes_neq(bytes s1, bytes s2):
     """
@@ -256,7 +256,7 @@ def bytes_neq(bytes s1, bytes s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def bytes_literal_eq(bytes s):
     """
@@ -271,7 +271,7 @@ def bytes_literal_eq(bytes s):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def bytes_literal_neq(bytes s):
     """
@@ -286,11 +286,11 @@ def bytes_literal_neq(bytes s):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 @cython.test_fail_if_path_exists(
-    "//CascadedCmpNode[@is_pycmp = True]",
-    "//PrimaryCmpNode[@is_pycmp = True]",
+    "//CascadedCmpNode[not(@type.is_int)]",
+    "//PrimaryCmpNode[not(@type.is_int)]",
 )
 def bytes_cascade(bytes s1, bytes s2):
     """
@@ -305,7 +305,7 @@ def bytes_cascade(bytes s1, bytes s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def bytes_cascade_untyped_end(bytes s1, bytes s2):
     """
@@ -323,7 +323,7 @@ def bytes_cascade_untyped_end(bytes s1, bytes s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def basestring_eq(basestring s1, basestring s2):
     """
@@ -346,7 +346,7 @@ def basestring_eq(basestring s1, basestring s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def basestring_neq(basestring s1, basestring s2):
     """
@@ -367,7 +367,7 @@ def basestring_neq(basestring s1, basestring s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def basestring_str_literal_eq(basestring s):
     """
@@ -382,7 +382,7 @@ def basestring_str_literal_eq(basestring s):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def basestring_unicode_literal_eq(basestring s):
     """
@@ -397,7 +397,7 @@ def basestring_unicode_literal_eq(basestring s):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def basestring_str_literal_neq(basestring s):
     """
@@ -412,7 +412,7 @@ def basestring_str_literal_neq(basestring s):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def basestring_unicode_literal_neq(basestring s):
     """
@@ -427,12 +427,12 @@ def basestring_unicode_literal_neq(basestring s):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
-    "//CascadedCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
+    "//CascadedCmpNode[@type.is_int]",
 )
 @cython.test_fail_if_path_exists(
-    "//CascadedCmpNode[@is_pycmp = True]",
-    "//PrimaryCmpNode[@is_pycmp = True]",
+    "//CascadedCmpNode[not(@type.is_int)]",
+    "//PrimaryCmpNode[not(@type.is_int)]",
 )
 def basestring_cascade_str(basestring s1, basestring s2):
     """
@@ -447,12 +447,12 @@ def basestring_cascade_str(basestring s1, basestring s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
-    "//CascadedCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
+    "//CascadedCmpNode[@type.is_int]",
 )
 @cython.test_fail_if_path_exists(
-    "//CascadedCmpNode[@is_pycmp = True]",
-    "//PrimaryCmpNode[@is_pycmp = True]",
+    "//CascadedCmpNode[not(@type.is_int)]",
+    "//PrimaryCmpNode[not(@type.is_int)]",
 )
 def basestring_cascade_unicode(basestring s1, basestring s2):
     """
@@ -475,7 +475,7 @@ def basestring_cascade_unicode(basestring s1, basestring s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def basestring_cascade_untyped_end(basestring s1, basestring s2):
     """
@@ -493,7 +493,7 @@ def basestring_cascade_untyped_end(basestring s1, basestring s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def untyped_unicode_literal_eq_bool(s):
     """
@@ -512,7 +512,7 @@ def untyped_unicode_literal_eq_bool(s):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
 )
 def untyped_str_literal_eq_bool(s):
     """
@@ -531,13 +531,13 @@ def untyped_str_literal_eq_bool(s):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = True]",
+    "//PrimaryCmpNode[@type.is_int]",
     "//CascadedCmpNode",
-    "//CascadedCmpNode[@is_pycmp = False]",
+    "//CascadedCmpNode[@type.is_int]",
 )
 @cython.test_fail_if_path_exists(
-    "//CascadedCmpNode[@is_pycmp = True]",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//CascadedCmpNode[not(@type.is_int)]",
+    "//PrimaryCmpNode[not(@type.is_int)]",
 )
 def untyped_unicode_cascade(s1, unicode s2):
     """
@@ -552,13 +552,13 @@ def untyped_unicode_cascade(s1, unicode s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//PrimaryCmpNode[@type.is_int]",
     "//CascadedCmpNode",
-    "//CascadedCmpNode[@is_pycmp = False]",
+    "//CascadedCmpNode[@type.is_int]",
 )
 @cython.test_fail_if_path_exists(
-    "//CascadedCmpNode[@is_pycmp = True]",
-    "//PrimaryCmpNode[@is_pycmp = True]",
+    "//CascadedCmpNode[not(@type.is_int)]",
+    "//PrimaryCmpNode[not(@type.is_int)]",
 )
 def untyped_unicode_cascade_bool(s1, unicode s2):
     """
@@ -573,13 +573,13 @@ def untyped_unicode_cascade_bool(s1, unicode s2):
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
-    "//PrimaryCmpNode[@is_pycmp = True]",
+    "//PrimaryCmpNode[@type.is_int]",
     "//CascadedCmpNode",
-#    "//CascadedCmpNode[@is_pycmp = False]",
+#    "//CascadedCmpNode[@type.is_int]",
 )
 @cython.test_fail_if_path_exists(
-    "//CascadedCmpNode[@is_pycmp = True]",
-    "//PrimaryCmpNode[@is_pycmp = False]",
+    "//CascadedCmpNode[not(@type.is_int)]",
+    "//PrimaryCmpNode[not(@type.is_int)]",
 )
 def untyped_untyped_unicode_cascade_bool(s1, s2):
     """
@@ -612,3 +612,135 @@ def literal_compare_bytes_str():
     """
     # we must not constant fold the subexpressions as the result is Py2/3 sensitive
     return b'abc' != 'abc'
+
+
+# Py_UCS4 comparison
+
+@cython.test_assert_path_exists(
+    '//PrimaryCmpNode',
+    '//PrimaryCmpNode[@operator = "=="]',
+    "//PrimaryCmpNode[@type.is_int]",
+    "//CascadedCmpNode[@type.is_int]",
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch97"]',
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_ch99_str"]',
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch98"]',
+)
+@cython.test_fail_if_path_exists(
+    "//CascadedCmpNode[not(@type.is_int)]",
+    "//PrimaryCmpNode[not(@type.is_int)]",
+)
+def eq_char(str s):
+    """
+    >>> eq_char('a')
+    (True, False, False)
+    >>> eq_char('b')
+    (False, False, True)
+    >>> eq_char('c')
+    (False, True, False)
+    >>> eq_char('ab')
+    (False, False, False)
+    >>> eq_char('bcda')
+    (False, False, False)
+    """
+    return s == 'a', 'c' == s, s == 'b' == s
+
+@cython.test_assert_path_exists(
+    '//PrimaryCmpNode',
+    '//PrimaryCmpNode[@operator = "!="]',
+    "//PrimaryCmpNode[@type.is_int]",
+    "//CascadedCmpNode[@type.is_int]",
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch97"]',
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_ch99_str"]',
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch98"]',
+)
+@cython.test_fail_if_path_exists(
+    "//CascadedCmpNode[not(@type.is_int)]",
+    "//PrimaryCmpNode[not(@type.is_int)]",
+)
+def neq_char(str s):
+    """
+    >>> neq_char('a')
+    (False, True, True)
+    >>> neq_char('b')
+    (True, True, False)
+    >>> neq_char('c')
+    (True, False, True)
+    >>> neq_char('ab')
+    (True, True, True)
+    >>> neq_char('bcda')
+    (True, True, True)
+    """
+    return s != 'a', 'c' != s, s != 'b' != s
+
+
+@cython.test_assert_path_exists(
+    '//PrimaryCmpNode',
+    '//PrimaryCmpNode[@operator = "=="]',
+    "//PrimaryCmpNode[@type.is_int]",
+    "//CascadedCmpNode[@type.is_int]",
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch128521"]',  # Emoji Winking Face
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_ch9731_str"]',    # SNOWMAN
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch246"]',     # ö
+)
+@cython.test_fail_if_path_exists(
+    "//CascadedCmpNode[not(@type.is_int)]",
+    "//PrimaryCmpNode[not(@type.is_int)]",
+)
+def eq_uchar(str s):
+    """
+    >>> eq_uchar(None)
+    (False, False, False)
+    >>> eq_uchar('a')
+    (False, False, False)
+    >>> eq_uchar('\N{Winking Face}')
+    (True, False, False)
+    >>> eq_uchar('\N{SNOWMAN}')
+    (False, True, False)
+    >>> eq_uchar('ö')
+    (False, False, True)
+    >>> eq_uchar('ä')
+    (False, False, False)
+    >>> eq_uchar('\N{Winking Face}ö')
+    (False, False, False)
+    >>> eq_uchar('ö\N{Winking Face}')
+    (False, False, False)
+    >>> eq_uchar('\N{SNOWMAN}ö')
+    (False, False, False)
+    """
+    return s == '\N{Winking Face}', '\N{SNOWMAN}' == s, s == 'ö' == s
+
+@cython.test_assert_path_exists(
+    '//PrimaryCmpNode',
+    '//PrimaryCmpNode[@operator = "!="]',
+    "//PrimaryCmpNode[@type.is_int]",
+    "//CascadedCmpNode[@type.is_int]",
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch128521"]',  # Emoji Winking Face
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_ch9731_str"]',    # SNOWMAN
+    '//PrimaryCmpNode[@special_bool_cmp_function = "__Pyx_PyObject_Equals_str_ch246"]',     # ö
+)
+@cython.test_fail_if_path_exists(
+    "//CascadedCmpNode[not(@type.is_int)]",
+    "//PrimaryCmpNode[not(@type.is_int)]",
+)
+def neq_uchar(str s):
+    """
+    >>> neq_uchar(None)
+    (True, True, True)
+    >>> neq_uchar('a')
+    (True, True, True)
+    >>> neq_uchar('\N{Winking Face}')
+    (False, True, True)
+    >>> neq_uchar('\N{SNOWMAN}')
+    (True, False, True)
+    >>> neq_uchar('ö')
+    (True, True, False)
+    >>> neq_uchar('ä')
+    (True, True, True)
+    >>> neq_uchar('\N{Winking Face}ö')
+    (True, True, True)
+    >>> neq_uchar('ö\N{Winking Face}')
+    (True, True, True)
+    >>> neq_uchar('\N{SNOWMAN}ö')
+    (True, True, True)
+    """
+    return s != '\N{Winking Face}', '\N{SNOWMAN}' != s, s != 'ö' != s

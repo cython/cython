@@ -4,7 +4,8 @@
 
 
 import cython
-cython.declare(os=object, re=object, operator=object, textwrap=object,
+cython.declare(hashlib=object, json=object, operator=object, os=object, re=object,
+               shutil=object, textwrap=object,
                Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, defaultdict=object,
@@ -12,6 +13,7 @@ cython.declare(os=object, re=object, operator=object, textwrap=object,
                zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object)
 
 import hashlib
+import json
 import operator
 import os
 import re
@@ -34,6 +36,7 @@ from ..StringIOTree import StringIOTree
 
 # Set up available compression algorithms for maximum compression.
 from zlib import compress as zlib_compress
+zlib_compress = partial(zlib_compress, level=9)
 try:
     from bz2 import compress as bz2_compress
 except ImportError:
@@ -62,7 +65,8 @@ else:
 
 compression_algorithms = [
     # Note: order is important and defines values for "CYTHON_COMPRESS_STRINGS" !
-    (1, 'zlib', partial(zlib_compress, level=9)),
+    # Later algorithms are excluded if prior ones beat them.
+    (1, 'zlib', zlib_compress),
     (2, 'bz2', bz2_compress),
     (3, 'zstd', zstd_compress),
     # LZMA is difficult to configure for efficient output from C code
@@ -95,7 +99,7 @@ basicsize_builtins_map = {
 }
 
 # Builtins as of Python version ...
-KNOWN_PYTHON_BUILTINS_VERSION = (3, 14, 0, 'beta', 1)
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 15, 0, 'alpha', 7)
 KNOWN_PYTHON_BUILTINS = frozenset([
     'ArithmeticError',
     'AssertionError',
@@ -125,6 +129,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'FutureWarning',
     'GeneratorExit',
     'IOError',
+    'ImportCycleError',
     'ImportError',
     'ImportWarning',
     'IndentationError',
@@ -176,6 +181,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     '_IncompleteInputError',
     '__build_class__',
     '__debug__',
+    '__lazy_import__',
     '__import__',
     'abs',
     'aiter',
@@ -206,6 +212,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'filter',
     'float',
     'format',
+    'frozendict',
     'frozenset',
     'getattr',
     'globals',
@@ -402,7 +409,7 @@ class AbstractUtilityCode:
 
     requires = None
 
-    def put_code(self, output):
+    def put_code(self, globalstate: "GlobalState", used_by=None) -> None:
         pass
 
     def get_tree(self, **kwargs):
@@ -463,7 +470,7 @@ class UtilityCodeBase(AbstractUtilityCode):
             # section title
             r'^%(C)s{5,30}  \s*  (?P<name> (?:\w|\.)+ )  \s*  %(C)s{5,30} |'
             # section tags and dependencies
-            r'^%(C)s+  @(?P<tag> \w+)  \s*  :  \s*  (?P<value> (?: \w|[.:] )+ )'
+            r'^%(C)s+  @(?P<tag> .+)'
         ) % {'C': re.escape(line_comment_char)}, re.VERBOSE).match
 
     @classmethod
@@ -496,8 +503,8 @@ class UtilityCodeBase(AbstractUtilityCode):
 
         if tags:
             all_tags = utility[2]
-            for name, values in tags.items():
-                all_tags.setdefault(name, set()).update(values)
+            for tag_name, tag_values in tags.items():
+                all_tags.setdefault(tag_name, set()).update(tag_values)
 
     @classmethod
     def load_utilities_from_file(cls, path):
@@ -528,26 +535,38 @@ class UtilityCodeBase(AbstractUtilityCode):
 
         for lineno, line in enumerate(all_lines):
             m = match_special(line)
-            if m:
-                if m.group('name'):
-                    cls._add_utility(utility, name, type, lines, begin_lineno, tags)
-
-                    begin_lineno = lineno + 1
-                    del lines[:]
-                    tags.clear()
-
-                    name = m.group('name')
-                    mtype = match_type(name)
-                    if mtype:
-                        name, type = mtype.groups()
-                    else:
-                        type = 'impl'
-                    utility = utilities[name]
-                else:
-                    tags[m.group('tag')].add(m.group('value'))
-                    lines.append('')  # keep line number correct
-            else:
+            if m is None:
                 lines.append(rstrip(strip_comments(line)))
+            elif m.group('name'):
+                cls._add_utility(utility, name, type, lines, begin_lineno, tags)
+
+                begin_lineno = lineno + 1
+                del lines[:]
+                tags.clear()
+
+                name = m.group('name')
+                mtype = match_type(name)
+                if mtype:
+                    name, type = mtype.groups()
+                else:
+                    type = 'impl'
+                utility = utilities[name]
+            else:
+                tag_value = m.group('tag')
+                if ':' not in tag_value:
+                    raise RuntimeError(f"Found invalid tag '{tag_value}' in utility section {name}.{type}")
+
+                tag_name, _, tag_value = tag_value.partition(':')
+                tag_name = tag_name.rstrip()
+                tag_value = tag_value.strip()
+
+                if tag_name not in ('requires', 'substitute', 'proto_block'):
+                    raise RuntimeError(f"Found unknown tag name '{tag_name}' in utility section {name}.{type}")
+                if not re.match(r'\S+(\{[^\}]*\})?$', tag_value):
+                    raise RuntimeError(f"Found invalid tag value '{tag_value}' in utility section {name}.{type}")
+
+                tags[tag_name].add(tag_value)
+                lines.append('')  # keep line number correct
 
         if utility is None:
             raise ValueError("Empty utility code file")
@@ -582,13 +601,20 @@ class UtilityCodeBase(AbstractUtilityCode):
                     continue
                 # only pass lists when we have to: most argument expect one value or None
                 if name == 'requires':
-                    if orig_kwargs:
-                        values = [cls.load(dep, from_file, **orig_kwargs)
-                                  for dep in sorted(values)]
-                    else:
-                        # dependencies are rarely unique, so use load_cached() when we can
-                        values = [cls.load_cached(dep, from_file)
-                                  for dep in sorted(values)]
+                    dependencies = []
+                    for dep in sorted(values):
+                        if '{' in dep:
+                            split_pos = dep.index('{')
+                            tempita_context = json.loads(dep[split_pos:])
+                            dependency = TempitaUtilityCode.load_cached(
+                                dep[:split_pos], from_file, context=tempita_context, **kwargs)
+                        elif orig_kwargs:
+                            dependency = cls.load(dep, from_file, **orig_kwargs)
+                        else:
+                            # dependencies are rarely unique, so use load_cached() when we can
+                            dependency = cls.load_cached(dep, from_file)
+                        dependencies.append(dependency)
+                    values = dependencies
                 elif name == 'substitute':
                     # don't want to pass "naming" or "tempita" to the constructor
                     # since these will have been handled
@@ -726,6 +752,8 @@ class UtilityCode(UtilityCodeBase):
         self.file = file
         self.export = export
         self.shared_utility_functions = self.parse_export_functions(export) if export else []
+        if export:
+            self._validate_suitable_for_sharing()
 
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
@@ -812,8 +840,14 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
 
+    def _validate_suitable_for_sharing(self):
+        code_string = getattr(self, "impl")
+        if not code_string: return
+        assert "NAMED_CGLOBAL(moddict_cname)" not in code_string, \
+            f"moddict_cname should not be shared: {self}"
+
     @cython.final
-    def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str):
+    def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str, used_by=None):
         code_string = getattr(self, code_type)
         if not code_string:
             return
@@ -822,8 +856,10 @@ class UtilityCode(UtilityCodeBase):
 
         code_string, result_is_module_specific = process_utility_ccode(self, output, code_string)
 
-        code_type_name = code_type if code_type != 'impl' else ''
-        writer.putln(f"/* {self.name}{'.' if code_type_name else ''}{code_type_name} */")
+        used_by = f" (used by {used_by})" if used_by else ''
+        name = f"{self.name}.{code_type}" if code_type != 'impl' else self.name
+
+        writer.putln(f"/* {name}{used_by} */")
 
         if can_be_reused and not result_is_module_specific:
             # can be reused across modules
@@ -848,36 +884,36 @@ class UtilityCode(UtilityCodeBase):
             code.putln(f'static {shared.ret}(*{shared.name})({shared.params}); /*proto*/')
         code.putln()
 
-    def put_code(self, output: "GlobalState") -> None:
+    def put_code(self, globalstate: "GlobalState", used_by=None) -> None:
         has_shared_utility_code = bool(
-            self.shared_utility_functions and output.module_node.scope.context.shared_utility_qualified_name
+            self.shared_utility_functions and globalstate.module_node.scope.context.shared_utility_qualified_name
         )
 
         if self.requires and not has_shared_utility_code:
             for dependency in self.requires:
-                output.use_utility_code(dependency)
+                globalstate.use_utility_code(dependency, used_by=self.name)
 
         if has_shared_utility_code:
-            self._put_shared_function_declarations(output[self.proto_block])
-        output.shared_utility_functions.extend(self.shared_utility_functions)
+            self._put_shared_function_declarations(globalstate[self.proto_block])
+        globalstate.shared_utility_functions.extend(self.shared_utility_functions)
 
         if self.proto:
-            self._put_code_section(output[self.proto_block], output, 'proto')
+            self._put_code_section(globalstate[self.proto_block], globalstate, 'proto', used_by=used_by)
         if not has_shared_utility_code:
-            self._put_code_section(output[self.proto_block], output, 'export')
+            self._put_code_section(globalstate[self.proto_block], globalstate, 'export')
         if self.impl and not has_shared_utility_code:
-            self._put_code_section(output['utility_code_def'], output, 'impl')
+            self._put_code_section(globalstate['utility_code_def'], globalstate, 'impl', used_by=used_by)
         if self.cleanup and Options.generate_cleanup_code:
-            self._put_code_section(output['cleanup_globals'], output, 'cleanup')
+            self._put_code_section(globalstate['cleanup_globals'], globalstate, 'cleanup')
         if self.module_state_decls:
-            self._put_code_section(output['module_state_contents'], output, 'module_state_decls')
+            self._put_code_section(globalstate['module_state_contents'], globalstate, 'module_state_decls')
         if self.module_state_traverse:
-            self._put_code_section(output['module_state_traverse_contents'], output, 'module_state_traverse')
+            self._put_code_section(globalstate['module_state_traverse_contents'], globalstate, 'module_state_traverse')
         if self.module_state_clear:
-            self._put_code_section(output['module_state_clear_contents'], output, 'module_state_clear')
+            self._put_code_section(globalstate['module_state_clear_contents'], globalstate, 'module_state_clear')
 
         if self.init:
-            self._put_init_code_section(output)
+            self._put_init_code_section(globalstate)
 
 
 def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _last_macro_processor = [None]):
@@ -1002,6 +1038,8 @@ def _inject_cglobal(output, matchobj):
     is_named, name = matchobj.groups()
     if is_named:
         name = getattr(Naming, name)
+    else:
+        assert re.match(r'\w+', name), repr(name)  # Detect simple typos.
     return f"{Naming.modulestateglobal_cname}->{name}"
 
 
@@ -1076,9 +1114,9 @@ class LazyUtilityCode(UtilityCodeBase):
     def __init__(self, callback):
         self.callback = callback
 
-    def put_code(self, globalstate):
+    def put_code(self, globalstate: "GlobalState", used_by=None) -> None:
         utility = self.callback(globalstate.rootwriter)
-        globalstate.use_utility_code(utility)
+        globalstate.use_utility_code(utility, used_by=used_by)
 
 
 class FunctionState:
@@ -1961,6 +1999,8 @@ class GlobalState:
 
         decl = self.parts['module_state']
         init = self.parts['cached_builtins']
+        traverse = self.parts['module_state_traverse']
+        clear = self.parts['module_state_clear']
 
         init.putln("")
         init.putln("/* Cached unbound methods */")
@@ -1978,6 +2018,9 @@ class GlobalState:
             init.putln(
                 f'{init.name_in_main_c_code_module_state(cname)}.method_name = '
                 f'&{init.name_in_main_c_code_module_state(method_name_cname)};')
+            # method is owned - Other PyObjects in __Pyx_CachedCFunction are borrowed.
+            clear.putln(f'Py_CLEAR(clear_module_state->{cname}.method);')
+            traverse.putln(f'Py_VISIT(traverse_module_state->{cname}.method);')
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
@@ -2005,11 +2048,8 @@ class GlobalState:
                         text,
                     ))
 
-        c_consts.sort()
-        py_bytes_consts.sort()
-        py_unicode_consts.sort()
-
         # Generate C string constants.
+        c_consts.sort()
         decls_writer = self.parts['string_decls']
         for _, cname, escaped_value in c_consts:
             cliteral = StringEncoding.split_string_literal(escaped_value)
@@ -2045,47 +2085,76 @@ class GlobalState:
         first_interned: cython.Py_ssize_t = -1
         stringtab_pos: cython.Py_ssize_t = 0
 
-        # For (Unicode) text strings, the index stores the character lengths after UTF8 decoding.
-        for i, (is_interned, cname, text) in enumerate(text_strings):
+        # For (Unicode) text strings, the length index stores the byte lengths after UTF8 decoding.
+        text_strings.sort(key=operator.itemgetter(0, 2))
+        for is_interned, cname, text in text_strings:
             bytes_values.append(text.encode('utf-8'))
-            if first_interned == -1 and is_interned:
-                first_interned = i
+            if first_interned == -1:
+                if is_interned:
+                    first_interned = stringtab_pos
+            else:
+                assert is_interned, (
+                    f"All string entries after {first_interned} must be interned, but {stringtab_pos} is not: {text!r}")
             defines.putln(f"#define {cname} {Naming.stringtab_cname}[{stringtab_pos}]")
             stringtab_pos += 1
+
+        str_index = list(map(len, bytes_values))
 
         stringtab_bytes_start: cython.Py_ssize_t = len(text_strings)
 
-        # For bytes objects, the index stores the byte lengths, ignoring the initial Unicode string.
-        for _, cname, text in byte_strings:
-            bytes_values.append(text.byteencode() if text.encoding else text.utf8encode())
+        # For bytes objects, the length index stores the encoded byte lengths.
+        byte_strings = [
+            ((text.byteencode() if text.encoding else text.utf8encode()), cname)
+            for _, cname, text in byte_strings
+        ]
+        byte_strings.sort()
+        for text, cname in byte_strings:
+            bytes_values.append(text)
             defines.putln(f"#define {cname} {Naming.stringtab_cname}[{stringtab_pos}]")
             stringtab_pos += 1
 
-        index = list(map(len, bytes_values))
+        bytes_index = list(map(len, bytes_values[stringtab_bytes_start:]))
         concat_bytes = b''.join(bytes_values)
 
         w = self.parts['init_constants']
         w.putln("{")  # Start code block.
 
         # Store the index of string lengths.
-        w.putln(
-            "const struct { "
-            f"const unsigned int length: {max(index).bit_length()}; "
-            "} "
-            f"index[] = {{{','.join(['{%d}' % length for length in index])}}};",
-        )
+        for stype, index in [('str', str_index), ('bytes', bytes_index)]:
+            if not index:
+                continue
+            w.putln(
+                "const struct { "
+                f"const unsigned int length: {max(index).bit_length()}; "
+                "} "
+                f"{stype}_length_index[] = {{{','.join(['{%d}' % length for length in index])}}};",
+            )
 
         # Store and decompress the string data.
         self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
 
-        has_if = False
-        for algo_number, algo_name, compress in reversed(compression_algorithms):
+        min_size_seen = None
+        compressions = []
+        for algo_number, algo_name, compress in compression_algorithms:
             if compress is None:
                 continue
+
             compressed_bytes = compress(concat_bytes)
-            if len(compressed_bytes) >= len(concat_bytes) - 10:
+            compressed_size = len(compressed_bytes)
+            if compressed_size >= len(concat_bytes) - 15:
                 continue
 
+            if min_size_seen is None or compressed_size < min_size_seen:
+                min_size_seen = compressed_size
+            else:
+                # Avoid less widely used algorithms if they don't beat common ones
+                # (especially zlib) on the data at hand.
+                continue
+
+            compressions.append((algo_number, algo_name, compressed_bytes))
+
+        has_if = False
+        for algo_number, algo_name, compressed_bytes in reversed(compressions):
             if algo_name == 'zlib':
                 # Use zlib as fallback if the selected compression module is not available.
                 assert algo_number == 1, f"Compression algorithm no. 1 must be 'zlib' to be used as fallback."
@@ -2109,8 +2178,7 @@ class GlobalState:
             w.putln(f'if (likely(bytes)); else {{ Py_DECREF(data); {w.error_goto(self.module_pos)} }}')
             w.putln('#endif')
 
-        if has_if:
-            w.putln(f"#else /* compression: none ({len(concat_bytes)} bytes) */")
+        w.putln(f"{'#else ' if has_if else ''}/* compression: none ({len(concat_bytes)} bytes) */")
         escaped_bytes = StringEncoding.split_string_literal(
             StringEncoding.escape_byte_string(concat_bytes))
         w.putln(f'const char* const bytes = "{escaped_bytes}";', safe=True)
@@ -2132,7 +2200,7 @@ class GlobalState:
             # because it must copy Unicode slices between different character sizes.
             # We avoid this by repeatedly calling PyUnicode_DecodeUTF8() for each substring.
             w.putln(f"for ({'int' if stringtab_bytes_start < 2**15 else 'Py_ssize_t'} i = 0; i < {stringtab_bytes_start}; i++) {{")
-            w.putln("Py_ssize_t bytes_length = index[i].length;")
+            w.putln("Py_ssize_t bytes_length = str_length_index[i].length;")
 
             w.putln("PyObject *string = PyUnicode_DecodeUTF8(bytes + pos, bytes_length, NULL);")
             if first_interned >= 0:
@@ -2147,9 +2215,9 @@ class GlobalState:
             w.putln("}")  # for()
 
         # Unpack byte strings.
-        if stringtab_bytes_start < len(index):
-            w.putln(f"for ({'int' if len(index) < 2**15 else 'Py_ssize_t'} i = {stringtab_bytes_start}; i < {len(index)}; i++) {{")
-            w.putln("Py_ssize_t bytes_length = index[i].length;")
+        if stringtab_bytes_start < len(bytes_values):
+            w.putln(f"for ({'int' if len(bytes_values) < 2**15 else 'Py_ssize_t'} i = {stringtab_bytes_start}; i < {len(bytes_values)}; i++) {{")
+            w.putln(f"Py_ssize_t bytes_length = bytes_length_index[i-{stringtab_bytes_start}].length;")
 
             w.putln("PyObject *string = PyBytes_FromStringAndSize(bytes + pos, bytes_length);")
             w.putln("stringtab[i] = string;")
@@ -2165,13 +2233,17 @@ class GlobalState:
         w.putln("Py_XDECREF(data);")
 
         # Set up hash values.
-        w.putln(f"for (Py_ssize_t i = 0; i < {len(index)}; i++) {{")
+        w.putln(f"for (Py_ssize_t i = 0; i < {len(bytes_values)}; i++) {{")
         w.putln("if (unlikely(PyObject_Hash(stringtab[i]) == -1)) {")
         w.putln(w.error_goto(self.module_pos))
         w.putln('}')
         w.putln('}')
 
-        self.immortalize_constants("stringtab", len(index), w)
+        # Unicode strings are not trivially immortal but require certain rules.
+        # See https://github.com/python/cpython/blob/920de7ccdcfa7284b6d23a124771b17c66dd3e4f/Objects/unicodeobject.c#L713-L739
+        # But we can make bytes strings immortal.
+        if stringtab_bytes_start < len(bytes_values):
+            self.immortalize_constants(f"stringtab + {stringtab_bytes_start}", len(bytes_values) - stringtab_bytes_start, w)
 
         w.putln("}")  # close block
 
@@ -2206,6 +2278,9 @@ class GlobalState:
             max_line = max(max_line, def_node.pos[1])
 
         w.put(textwrap.dedent(f"""\
+        #ifdef __cplusplus
+        namespace {{
+        #endif
         typedef struct {{
             unsigned int argcount : {max_func_args.bit_length()};
             unsigned int num_posonly_args : {max_posonly_args.bit_length()};
@@ -2214,6 +2289,9 @@ class GlobalState:
             unsigned int flags : {max_flags.bit_length()};
             unsigned int first_line : {max_line.bit_length()};
         }} __Pyx_PyCode_New_function_description;
+        #ifdef __cplusplus
+        }} /* anonymous namespace */
+        #endif
         """))
 
         self.use_utility_code(UtilityCode.load_cached("NewCodeObj", "ModuleSetupCode.c"))
@@ -2396,7 +2474,17 @@ class GlobalState:
         writer.putln(f"PyObject **table = {array_cname};")
         writer.putln(f"for (Py_ssize_t i=0; i<{constant_count}; ++i) {{")
         writer.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        # We don't want to set the refcount on shared constants (e.g. cached integers)
+        # because setting the refcount isn't thread-safe. The chances are that most of the constants
+        # that this applies to are already immortal though so that isn't a great loss.
+        writer.putln("#if PY_VERSION_HEX < 0x030E0000")
+        writer.putln("if (_Py_IsOwnedByCurrentThread(table[i]) && Py_REFCNT(table[i]) == 1)")
+        writer.putln("#else")
+        writer.putln("if (PyUnstable_Object_IsUniquelyReferenced(table[i]))")
+        writer.putln("#endif")
+        writer.putln("{")
         writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_REFCNT_LOCAL);")
+        writer.putln("}")
         writer.putln("#else")
         writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_INITIAL_REFCNT);")
         writer.putln("#endif")
@@ -2455,7 +2543,7 @@ class GlobalState:
     # Utility code state
     #
 
-    def use_utility_code(self, utility_code):
+    def use_utility_code(self, utility_code, used_by=None):
         """
         Adds code to the C file. utility_code should
         a) implement __eq__/__hash__ for the purpose of knowing whether the same
@@ -2466,7 +2554,7 @@ class GlobalState:
         """
         if utility_code and utility_code not in self.utility_codes:
             self.utility_codes.add(utility_code)
-            utility_code.put_code(self)
+            utility_code.put_code(self, used_by=used_by)
 
     def use_entry_utility_code(self, entry):
         if entry is None:
@@ -2475,6 +2563,10 @@ class GlobalState:
             self.use_utility_code(entry.utility_code)
         if entry.utility_code_definition:
             self.use_utility_code(entry.utility_code_definition)
+        from . import PyrexTypes
+        for tp in PyrexTypes.get_all_subtypes(entry.type):
+            if hasattr(tp, "entry") and tp.entry is not entry:
+                self.use_entry_utility_code(tp.entry)
 
 
 def funccontext_property(func):
@@ -2964,7 +3056,7 @@ class CCodeWriter:
         elif entry.type.is_pyobject:
             self.put(" = NULL")
         self.putln(";")
-        self.funcstate.scope.use_entry_utility_code(entry)
+        self.globalstate.use_entry_utility_code(entry)
 
     def put_temp_declarations(self, func_context: FunctionState):
         for name, type, manage_ref, static in func_context.temps_allocated:
@@ -3022,50 +3114,72 @@ class CCodeWriter:
         from .PyrexTypes import py_object_type, typecast
         return typecast(py_object_type, type, cname)
 
+    def handle_refnanny(self, tp, nanny=True):
+        if tp.supports_refnanny and nanny:
+            self.funcstate.needs_refnanny = True
+
     def put_gotref(self, cname, type):
-        type.generate_gotref(self, cname)
+        self.handle_refnanny(type)
+        self.putln(type.get_gotref_code(cname))
 
     def put_giveref(self, cname, type):
-        type.generate_giveref(self, cname)
+        self.handle_refnanny(type)
+        self.putln(type.get_giveref_code(cname))
 
     def put_xgiveref(self, cname, type):
-        type.generate_xgiveref(self, cname)
+        self.handle_refnanny(type)
+        self.putln(type.get_xgiveref_code(cname))
 
     def put_xgotref(self, cname, type):
-        type.generate_xgotref(self, cname)
+        self.handle_refnanny(type)
+        self.putln(type.get_xgotref_code(cname))
 
     def put_incref(self, cname, type, nanny=True):
         # Note: original put_Memslice_Incref/Decref also added in some utility code
         # this is unnecessary since the relevant utility code is loaded anyway if a memoryview is used
         # and so has been removed. However, it's potentially a feature that might be useful here
-        type.generate_incref(self, cname, nanny=nanny)
+        if nanny:
+            self.handle_refnanny(type)
+        self.putln(type.get_incref_code(cname, nanny=nanny))
 
     def put_xincref(self, cname, type, nanny=True):
-        type.generate_xincref(self, cname, nanny=nanny)
+        if nanny:
+            self.handle_refnanny(type)
+        self.putln(type.get_xincref_code(cname, nanny=nanny))
 
     def put_decref(self, cname, type, nanny=True, have_gil=True):
-        type.generate_decref(self, cname, nanny=nanny, have_gil=have_gil)
+        if nanny:
+            self.handle_refnanny(type)
+        self.putln(type.get_decref_code(cname, nanny=nanny, have_gil=have_gil))
 
     def put_xdecref(self, cname, type, nanny=True, have_gil=True):
-        type.generate_xdecref(self, cname, nanny=nanny, have_gil=have_gil)
+        if nanny:
+            self.handle_refnanny(type)
+        self.putln(type.get_xdecref_code(cname, nanny=nanny, have_gil=have_gil))
 
     def put_decref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
-        type.generate_decref_clear(self, cname, clear_before_decref=clear_before_decref,
-                              nanny=nanny, have_gil=have_gil)
+        if nanny:
+            self.handle_refnanny(type)
+        self.putln(type.get_decref_clear_code(
+            cname, clear_before_decref=clear_before_decref, nanny=nanny, have_gil=have_gil))
 
     def put_xdecref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
-        type.generate_xdecref_clear(self, cname, clear_before_decref=clear_before_decref,
-                              nanny=nanny, have_gil=have_gil)
+        if nanny:
+            self.handle_refnanny(type)
+        self.putln(type.get_xdecref_clear_code(
+            cname, clear_before_decref=clear_before_decref, nanny=nanny, have_gil=have_gil))
 
     def put_decref_set(self, cname, type, rhs_cname):
-        type.generate_decref_set(self, cname, rhs_cname)
+        self.handle_refnanny(type)
+        self.putln(type.get_decref_set_code(cname, rhs_cname))
 
     def put_xdecref_set(self, cname, type, rhs_cname):
-        type.generate_xdecref_set(self, cname, rhs_cname)
+        self.handle_refnanny(type)
+        self.putln(type.get_xdecref_set_code(cname, rhs_cname))
 
     def put_incref_memoryviewslice(self, slice_cname, type, have_gil):
         # TODO ideally this would just be merged into "put_incref"
-        type.generate_incref_memoryviewslice(self, slice_cname, have_gil=have_gil)
+        self.putln(type.get_incref_memoryviewslice_code(slice_cname, have_gil=have_gil))
 
     def put_var_incref_memoryviewslice(self, entry, have_gil):
         self.put_incref_memoryviewslice(entry.cname, entry.type, have_gil=have_gil)
@@ -3708,6 +3822,7 @@ class ClosureTempAllocator:
         self.temps_allocated = {}
         self.temps_free = {}
         self.temps_count = 0
+        self.carray_count = 0
 
     def reset(self):
         for type, cnames in self.temps_allocated.items():
@@ -3724,3 +3839,9 @@ class ClosureTempAllocator:
         self.temps_allocated[type].append(cname)
         self.temps_count += 1
         return cname
+
+    def allocate_carray(self, array_type, pos):
+        cname = f'{Naming.carray_literal_prefix}{self.carray_count:d}'
+        self.klass.declare_var(pos=pos, name=cname, cname=cname, type=array_type, is_cdef=True)
+        self.carray_count += 1
+        return f"{Naming.cur_scope_cname}->{cname}"

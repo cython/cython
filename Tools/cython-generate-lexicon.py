@@ -72,11 +72,11 @@ def main():
 # An alternative approach for getting character sets is at https://stackoverflow.com/a/49332214/4657412
 @functools.lru_cache()
 def get_start_characters_as_number():
-    return [ i for i in range(sys.maxunicode) if str.isidentifier(chr(i)) ]
+    return [ i for i in range(sys.maxunicode + 1) if str.isidentifier(chr(i)) ]
 
 
 def get_continue_characters_as_number():
-    return [ i for i in range(sys.maxunicode) if str.isidentifier('a'+chr(i)) ]
+    return [ i for i in range(sys.maxunicode + 1) if str.isidentifier('a'+chr(i)) ]
 
 
 def get_continue_not_start_as_number():

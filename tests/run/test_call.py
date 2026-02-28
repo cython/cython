@@ -1,11 +1,14 @@
 import unittest
 
+from Cython.TestUtils import TimedTest
+
+
 # The test cases here cover several paths through the function calling
 # code.  They depend on the METH_XXX flag that is used to define a C
 # function, which can't be verified from Python.  If the METH_XXX decl
 # for a C function changes, these tests may not cover the right paths.
 
-class CFunctionCalls(unittest.TestCase):
+class CFunctionCalls(TimedTest):
 
     def test_varargs0(self):
         self.assertRaises(TypeError, {}.__contains__)

@@ -2,7 +2,6 @@ import os
 import re
 import shutil
 import tempfile
-from glob import glob
 
 from Cython.Compiler import (
     MemoryView, Code, Options, Pipeline, Errors, Main, Symtab
@@ -69,8 +68,7 @@ def create_shared_library_pipeline(context, scope, options, result):
 
 
 def generate_shared_module(options):
-    Errors.init_thread()
-    Errors.open_listing_file(None)
+    Errors.reset()
 
     dest_c_file = options.shared_c_file_path
     module_name = os.path.splitext(os.path.basename(dest_c_file))[0]

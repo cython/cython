@@ -101,7 +101,7 @@ cdef extern from *:  # Hard-coded utility code hack.
             arraydescr* ob_descr    # struct arraydescr *ob_descr;
 
         @property
-        cdef inline __data_union data(self) nogil:
+        cdef inline __data_union data(self) noexcept nogil:
             return __Pyx_PyArray_Data(self)
 
         def __getbuffer__(self, Py_buffer* info, int flags):
@@ -134,7 +134,7 @@ cdef extern from *:  # Hard-coded utility code hack.
 
     array newarrayobject(PyTypeObject* type, Py_ssize_t size, arraydescr *descr)
 
-    __data_union __Pyx_PyArray_Data(array self) nogil
+    __data_union __Pyx_PyArray_Data(array self) noexcept nogil
     # fast resize/realloc
     # not suitable for small increments; reallocation 'to the point'
     int resize(array self, Py_ssize_t n) except -1

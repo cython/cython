@@ -46,7 +46,7 @@ class NoGilState(enum.IntEnum):
 
 
 def relative_position(pos):
-    return (pos[0].get_filenametable_entry(), pos[1])
+    return (pos[0].get_relative_path().as_posix(), pos[1])
 
 
 def embed_position(pos, docstring):
@@ -528,6 +528,9 @@ class CDeclaratorNode(Node):
     def declared_name(self):
         return None
 
+    def set_declared_name(self, new_name):
+        raise NotImplementedError()
+
     def analyse_templates(self):
         # Only C++ functions have templates.
         return None
@@ -544,6 +547,9 @@ class CNameDeclaratorNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.name
+
+    def set_declared_name(self, new_name):
+        self.name = new_name
 
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if nonempty and self.name == '':
@@ -576,6 +582,9 @@ class CPtrDeclaratorNode(CDeclaratorNode):
     def declared_name(self):
         return self.base.declared_name()
 
+    def set_declared_name(self, new_name):
+        self.base.set_declared_name(new_name)
+
     def analyse_templates(self):
         return self.base.analyse_templates()
 
@@ -591,6 +600,9 @@ class _CReferenceDeclaratorBaseNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.base.declared_name()
+
+    def set_declared_name(self, new_name):
+        self.base.set_declared_name(new_name)
 
     def analyse_templates(self):
         return self.base.analyse_templates()
@@ -639,9 +651,10 @@ class CArrayDeclaratorNode(CDeclaratorNode):
         size = None
         if self.dimension:
             self.dimension = self.dimension.analyse_const_expression(env)
-            if not self.dimension.type.is_int:
-                error(self.dimension.pos, "Array dimension not integer")
-            if self.dimension.type.is_const and self.dimension.entry.visibility != 'extern':
+            dimension_type = self.dimension.type
+            if not (dimension_type.is_int or dimension_type.is_enum):
+                error(self.dimension.pos, f"Array dimension not integer, got '{dimension_type}'")
+            if dimension_type.is_const and self.dimension.entry.visibility != 'extern':
                 # extern const variables declaring C constants are allowed
                 error(self.dimension.pos, "Array dimension cannot be const variable")
             size = (self.dimension.constant_result if isinstance(self.dimension.constant_result, int)
@@ -683,6 +696,9 @@ class CFuncDeclaratorNode(CDeclaratorNode):
 
     def declared_name(self):
         return self.base.declared_name()
+
+    def set_declared_name(self, new_name):
+        self.base.set_declared_name(new_name)
 
     def analyse_templates(self):
         if isinstance(self.base, CArrayDeclaratorNode):
@@ -766,6 +782,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     level=2)
 
         if self.exception_check == '+':
+            self.cpp_check(env)
             env.add_include_file('ios')         # for std::ios_base::failure
             env.add_include_file('new')         # for std::bad_alloc
             env.add_include_file('stdexcept')
@@ -935,6 +952,7 @@ class CArgDeclNode(Node):
     # is_dynamic     boolean            Non-literal arg stored inside CyFunction
     # pos_only       boolean            Is a positional-only argument
     # type_from_annotation boolean      Was the type deduced from an annotation
+    # type_according_to_pyx  PyrexType or None  The type assigned by the pxd file
     #
     # name_cstring                         property that converts the name to a cstring taking care of unicode
     #                                      and quoting it
@@ -958,6 +976,7 @@ class CArgDeclNode(Node):
     is_dynamic = 0
     defaults_class_key = None
     type_from_annotation = False
+    type_according_to_pxd = None
 
     def declared_name(self):
         return self.declarator.declared_name()
@@ -1024,7 +1043,14 @@ class CArgDeclNode(Node):
             arg_type = self.inject_type_from_annotations(env)
             if arg_type is not None:
                 base_type = arg_type
-        return self.declarator.analyse(base_type, env, nonempty=nonempty)
+        name, type_ = self.declarator.analyse(base_type, env, nonempty=nonempty)
+        if type_ is None or type_ is py_object_type and self.type_according_to_pxd is not None:
+            # Use an overridden type from the pxd if available.
+            # If the type is resolved to something else, and contradicts
+            # the type from the pxd this is likely an error (but generated elsewhere)
+            type_ = self.type_according_to_pxd
+        return name, type_
+
 
     def inject_type_from_annotations(self, env):
         annotation = self.annotation
@@ -1077,12 +1103,14 @@ class CArgDeclNode(Node):
         if self.default:
             self.default.annotate(code)
 
-    def generate_assignment_code(self, code, target=None, overloaded_assignment=False):
+    def generate_assignment_code(self, code, overloaded_assignment=False,
+                                 cyfunc_struct_target=None):
         default = self.default
-        if default is None or default.is_literal:
+        if default is None or (default.is_literal and cyfunc_struct_target is None):
             return
-        if target is None:
-            target = self.calculate_default_value_code(code)
+        # Note that even if self.is_dynamic, default may be a literal if it's been
+        # optimized into a literal after analyse_expressions
+        target = cyfunc_struct_target or self.calculate_default_value_code(code)
         default.generate_evaluation_code(code)
         default.make_owned_reference(code)
         result = default.result() if overloaded_assignment else default.result_as(self.type)
@@ -1596,7 +1624,11 @@ class CVarDefNode(StatNode):
                     self.entry.create_wrapper = True
             else:
                 if self.overridable:
-                    error(self.pos, "Variables cannot be declared with 'cpdef'. Use 'cdef' instead.")
+                    if env.is_c_class_scope:
+                        error(self.pos,
+                            "Variables cannot be declared with 'cpdef'. Use 'cdef', 'cdef public' or 'cdef readonly' instead.")
+                    else:
+                        error(self.pos, "Variables cannot be declared with 'cpdef'. Use 'cdef' instead.")
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
                 self.entry = dest_scope.declare_var(
@@ -1918,7 +1950,7 @@ class FuncDefNode(StatNode, BlockNode):
     #  return_type     PyrexType
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
-    #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
+    #  needs_closure   FuncDefNode.NeedsClosure enum        Whether or not this function has inner functions/classes/yield
     #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  pymethdef_required boolean     Force Python method struct generation
     #  directive_locals { string : ExprNode } locals defined by cython.locals(...)
@@ -1933,8 +1965,13 @@ class FuncDefNode(StatNode, BlockNode):
     #       by AnalyseDeclarationsTransform, so it can replace CFuncDefNodes
     #       with fused argument types with a FusedCFuncDefNode
 
+    class NeedsClosure(enum.IntEnum):
+        NO_CLOSURE = 0
+        GENERATOR_ONLY = 1
+        FULL_CLOSURE = 2
+
     py_func = None
-    needs_closure = False
+    needs_closure = NeedsClosure.NO_CLOSURE
     needs_outer_scope = False
     pymethdef_required = False
     is_generator = False
@@ -2018,7 +2055,8 @@ class FuncDefNode(StatNode, BlockNode):
             lenv = cls(name=self.entry.name,
                                 outer_scope=genv,
                                 parent_scope=env,
-                                scope_name=self.entry.cname)
+                                scope_name=self.entry.cname,
+                                is_pure_generator_scope=self.needs_closure != self.NeedsClosure.FULL_CLOSURE)
         else:
             lenv = LocalScope(name=self.entry.name,
                               outer_scope=genv,
@@ -2989,6 +3027,7 @@ class CFuncDefNode(FuncDefNode):
             if preprocessor_guard:
                 code.globalstate.parts['module_declarations'].putln("#endif")
         code.putln("%s%s%s {" % (storage_class, modifiers, header))
+        code.globalstate.use_entry_utility_code(self.entry)
 
     def generate_argument_declarations(self, env, code):
         scope = self.local_scope
@@ -3033,7 +3072,7 @@ class CFuncDefNode(FuncDefNode):
             if entry.in_closure and not arg.default:
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.type.is_memoryviewslice:
-                    entry.type.generate_incref_memoryviewslice(code, entry.cname, True)
+                    code.putln(entry.type.get_incref_memoryviewslice_code(entry.cname, True))
                 else:
                     code.put_var_incref(entry)
                     code.put_var_giveref(entry)
@@ -3209,23 +3248,8 @@ class DefNode(FuncDefNode):
         nogil = nogil or with_gil
 
         if cfunc is None:
-            cfunc_args = []
-            for formal_arg in self.args:
-                name_declarator, type = formal_arg.analyse(scope, nonempty=1)
-                cfunc_args.append(PyrexTypes.CFuncTypeArg(name=name_declarator.name,
-                                                          cname=None,
-                                                          annotation=formal_arg.annotation,
-                                                          type=py_object_type,
-                                                          pos=formal_arg.pos))
-            cfunc_type = PyrexTypes.CFuncType(return_type=py_object_type,
-                                              args=cfunc_args,
-                                              has_varargs=False,
-                                              exception_value=None,
-                                              exception_check=exception_check,
-                                              nogil=nogil,
-                                              with_gil=with_gil,
-                                              is_overridable=overridable)
-            cfunc = CVarDefNode(self.pos, type=cfunc_type)
+            cfunc_type = None
+            cfunc = CVarDefNode(self.pos)
         else:
             if scope is None:
                 scope = cfunc.scope
@@ -3239,40 +3263,49 @@ class DefNode(FuncDefNode):
                 error(self.pos, "wrong number of arguments")
                 error(cfunc.pos, "previous declaration here")
             for i, (formal_arg, type_arg) in enumerate(zip(self.args, cfunc_type.args)):
-                name_declarator, type = formal_arg.analyse(scope, nonempty=1,
-                                                           is_self_arg=(i == 0 and scope.is_c_class_scope))
-                if type is None or type is PyrexTypes.py_object_type:
-                    formal_arg.type = type_arg.type
-                    formal_arg.name_declarator = name_declarator
+                formal_arg.type_according_to_pxd = type_arg.type
 
-        if exception_value is None and cfunc_type.exception_value is not None:
+        if exception_value is None and cfunc_type and cfunc_type.exception_value is not None:
             from .ExprNodes import ConstNode
             exception_value = ConstNode.for_type(
                 self.pos, value=str(cfunc_type.exception_value), type=cfunc_type.return_type,
-                constant_result=cfunc_type.exception_value)
+                constant_result=cfunc_type.exception_value.python_value)
+
+        if cfunc_type is not None:
+            # If we have cfunc_type (i.e. it's come from a pxdfile)
+            # we can fill in a lot more information than if we don't
+            exception_check = cfunc_type.exception_check
+            with_gil = cfunc_type.with_gil
+            nogil = cfunc_type.nogil
+            overridable = cfunc_type.is_overridable
+            def_node_kwds = { 'type': cfunc_type }
+            base_type = CAnalysedBaseTypeNode(self.pos, type=cfunc_type.return_type)
+        else:
+            def_node_kwds = {}
+            base_type = CAnalysedBaseTypeNode(self.pos, type=py_object_type)
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),
                                          args=self.args,
                                          has_varargs=False,
-                                         exception_check=cfunc_type.exception_check,
+                                         exception_check=exception_check,
                                          exception_value=exception_value,
                                          has_explicit_exc_clause = has_explicit_exc_clause,
-                                         with_gil=cfunc_type.with_gil,
-                                         nogil=cfunc_type.nogil)
+                                         with_gil=with_gil,
+                                         nogil=nogil)
         return CFuncDefNode(self.pos,
                             modifiers=modifiers or [],
-                            base_type=CAnalysedBaseTypeNode(self.pos, type=cfunc_type.return_type),
+                            base_type = base_type,
                             declarator=declarator,
                             body=self.body,
                             doc=self.doc,
-                            overridable=cfunc_type.is_overridable,
-                            type=cfunc_type,
-                            with_gil=cfunc_type.with_gil,
-                            nogil=cfunc_type.nogil,
+                            overridable=overridable,
+                            with_gil=with_gil,
+                            nogil=nogil,
                             visibility='private',
                             api=False,
                             directive_locals=getattr(cfunc, 'directive_locals', {}),
-                            directive_returns=returns)
+                            directive_returns=returns,
+                            **def_node_kwds)
 
     def is_cdef_func_compatible(self):
         """Determines if the function's signature is compatible with a
@@ -3533,10 +3566,22 @@ class DefNode(FuncDefNode):
                 warning(self.pos, "Overriding a c(p)def method with a def method. "
                         "This can lead to different methods being called depending on the "
                         "call context. Consider using a cpdef method for both.", 5)
+
         entry = env.declare_pyfunction(name, self.pos, allow_redefine=not self.is_wrapper)
         self.entry = entry
+
+        if entry.is_special and name in ('__getitem__', '__setitem__', '__delitem__'):
+            # We choose the more generic mapping protocol by default, but prefer the sequence
+            # protocol here if the lookup key argument has a C integer type.
+            if len(self.args) in (2, 3) and self.args[1].type.is_int:
+                if PyrexTypes.c_py_ssize_t_type.rank > self.args[1].type.rank:
+                    warning(self.args[1].pos,
+                        f"Smaller index type '{self.args[1].type}' than 'Py_ssize_t' may get truncated in sequence protocol")
+                entry.signature = TypeSlots.sequence_subscript_signatures[name]
+
         prefix = env.next_id(env.scope_prefix)
         self.entry.pyfunc_cname = punycodify_name(Naming.pyfunc_prefix + prefix + name)
+
         if Options.docstrings:
             entry.doc = embed_position(self.pos, self.doc)
             entry.doc_cname = punycodify_name(Naming.funcdoc_prefix + prefix + name)
@@ -3702,7 +3747,7 @@ class DefNode(FuncDefNode):
                 if entry.type.is_memoryviewslice:
                     # TODO - at some point reference count of memoryviews should
                     # genuinely be unified with PyObjects
-                    entry.type.generate_incref_memoryviewslice(code, entry.cname, True)
+                    code.putln(entry.type.get_incref_memoryviewslice_code(entry.cname, True))
                 elif entry.xdecref_cleanup:
                     # mostly applies to the starstar arg - this can sometimes be NULL
                     # so must be xincrefed instead
@@ -4119,7 +4164,7 @@ class DefNodeWrapper(FuncDefNode):
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("KeywordStringCheck", "FunctionArguments.c"))
             code.putln(
-                f"if (unlikely(__Pyx_CheckKeywordStrings({function_name}, {Naming.kwds_cname}) == -1)) {goto_error}"
+                f"if (unlikely(__Pyx_CheckKeywordStrings({Naming.kwds_cname}) == -1)) {goto_error}"
             )
 
             # If the **kwargs parameter is unused, we leave it NULL.
@@ -4710,7 +4755,7 @@ class GeneratorDefNode(DefNode):
     is_generator = True
     is_iterable_coroutine = False
     gen_type_name = 'Generator'
-    needs_closure = True
+    needs_closure = FuncDefNode.NeedsClosure.GENERATOR_ONLY
 
     child_attrs = DefNode.child_attrs + ["gbody"]
 
@@ -5767,9 +5812,9 @@ class CClassDefNode(ClassDefNode):
                 if check_heap_type_bases:
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached('ValidateBasesTuple', 'ExtensionTypes.c'))
-                    code.put_error_if_neg(entry.pos, "__Pyx_validate_bases_tuple(%s.name, %s, %s)" % (
+                    code.put_error_if_neg(entry.pos, "__Pyx_validate_bases_tuple(%s.name, %d, %s)" % (
                         typespec_cname,
-                        TypeSlots.get_slot_by_name("tp_dictoffset", scope.directives).slot_code(scope),
+                        TypeSlots.get_slot_by_name("tp_dictoffset", scope.directives).slot_code(scope) != "0",
                         bases_tuple_cname or tuple_temp,
                     ))
 
@@ -5826,11 +5871,6 @@ class CClassDefNode(ClassDefNode):
                 code.putln("#warning \"The buffer protocol is not supported in the Limited C-API < 3.11.\"")
                 code.putln("#endif")
 
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("FixUpExtensionType", "ExtensionTypes.c"))
-            code.put_error_if_neg(entry.pos, "__Pyx_fix_up_extension_type_from_spec(&%s, %s)" % (
-                typespec_cname, typeptr_cname))
-
             code.putln("#else")
             if bases_tuple_cname:
                 code.put_incref(bases_tuple_cname, py_object_type)
@@ -5859,6 +5899,11 @@ class CClassDefNode(ClassDefNode):
                     break
                 base_type = base_type.base_type
 
+            if type.has_sequence_flag or type.has_mapping_flag:
+                code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("ApplySequenceOrMappingFlag", "ExtensionTypes.c"))
+                code.put_error_if_neg(
+                    entry.pos, f"__Pyx_ApplySequenceOrMappingFlag({typeptr_cname}, {type.has_sequence_flag:d})")
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
             for slot in TypeSlots.get_slot_table(code.globalstate.directives):
@@ -5906,7 +5951,7 @@ class CClassDefNode(ClassDefNode):
                             func.name,
                             code.error_goto_if_null('wrapper', entry.pos)))
                     code.putln(
-                        "if (__Pyx_IS_TYPE(wrapper, &PyWrapperDescr_Type)) {")
+                        "if (Py_IS_TYPE(wrapper, &PyWrapperDescr_Type)) {")
                     code.putln(
                         "%s = *((PyWrapperDescrObject *)wrapper)->d_base;" % (
                             func.wrapperbase_cname))
@@ -6014,17 +6059,37 @@ class CPropertyNode(StatNode):
     is_cproperty = True
 
     @property
-    def cfunc(self):
+    def getter_cfunc(self):
         stats = self.body.stats
-        assert stats and isinstance(stats[0], CFuncDefNode), stats
-        return stats[0]
+        assert stats
+        for stat in stats:
+            if stat.declared_name() == "__get__":
+                assert isinstance(stat, CFuncDefNode), stat
+                return stat
+        assert False, stats  # we should have a getter
+
+    @property
+    def setter_cfunc(self):
+        stats = self.body.stats
+        assert stats
+        for stat in stats:
+            if stat.declared_name() == "__set__":
+                assert isinstance(stat, CFuncDefNode), stat
+                return stat
+        return None  # we may not have a setter
 
     def analyse_declarations(self, env):
         scope = PropertyScope(self.name, class_scope=env)
         self.body.analyse_declarations(scope)
+        getter = self.getter_cfunc
         entry = self.entry = env.declare_property(
-            self.name, self.doc, self.pos, ctype=self.cfunc.return_type, property_scope=scope)
-        entry.getter_cname = self.cfunc.entry.cname
+            self.name, self.doc, self.pos, ctype=getter.return_type, property_scope=scope)
+        entry.getter_cname = getter.entry.cname
+        setter = self.setter_cfunc
+        if setter:
+            entry = self.entry = env.declare_property(
+                self.name, self.doc, self.pos, ctype=setter.return_type, property_scope=scope)
+            entry.setter_cname = setter.entry.cname
 
     def analyse_expressions(self, env):
         self.body = self.body.analyse_expressions(env)
@@ -6298,8 +6363,13 @@ class SingleAssignmentNode(AssignmentNode):
         self.rhs = self.rhs.analyse_types(env)
 
         if self.lhs.is_name and self.lhs.entry.type.is_const:
-            if env.is_module_scope and self.lhs.entry.init is None and self.rhs.has_constant_result():
-                self.lhs.entry.init = self.rhs.constant_result
+            if self.lhs.entry.type.is_array:
+                error(self.pos, f"Assignment to const array '{self.lhs.name}'. Assign to a pointer variable instead.")
+            elif env.is_module_scope and self.lhs.entry.init is None and self.rhs.has_constant_result():
+                if isinstance(self.rhs.constant_result, (list, tuple, set, dict, frozenset)):
+                    error(self.pos, f"Non-const assignment to const '{self.lhs.name}'")
+                else:
+                    self.lhs.entry.init = self.rhs.constant_result
             else:
                 error(self.pos, f"Assignment to const '{self.lhs.name}'")
 
@@ -8673,8 +8743,7 @@ class TryFinallyStatNode(StatNode):
                     code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
                     for _ in range(2)])
                 exc_filename_cname = code.funcstate.allocate_temp(
-                    PyrexTypes.CPtrType(PyrexTypes.c_const_type(PyrexTypes.c_char_type)),
-                    manage_ref=False)
+                    PyrexTypes.c_const_char_ptr_type, manage_ref=False)
             else:
                 exc_lineno_cnames = exc_filename_cname = None
             exc_vars = tuple([
@@ -8991,7 +9060,6 @@ class CriticalSectionStatNode(TryFinallyStatNode):
     child_attrs = ["args"] + TryFinallyStatNode.child_attrs
 
     var_type = None
-    state_temp = None
     preserve_exception = False
     is_pymutex_critical_section = False
 
@@ -9001,8 +9069,6 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         else:
             self.var_type = PyrexTypes.c_py_critical_section_type
 
-        self.create_state_temp_if_needed(pos, body)
-
         self.length_tag = str(len(args)) if len(args) > 1 else ""
 
         super().__init__(
@@ -9010,19 +9076,16 @@ class CriticalSectionStatNode(TryFinallyStatNode):
             args=args,
             body=body,
             finally_clause=CriticalSectionExitNode(
-                pos, length_tag=self.length_tag, critical_section=self),
+                pos, length_tag=self.length_tag),
             **kwds,
         )
 
-    def create_state_temp_if_needed(self, pos, body):
+    def check_for_yields(self):
         from .ParseTreeTransforms import YieldNodeCollector
         collector = YieldNodeCollector()
-        collector.visitchildren(body)
-        if not collector.yields:
-            return
-
-        from . import ExprNodes
-        self.state_temp = ExprNodes.TempNode(pos, self.var_type)
+        collector.visitchildren(self.body)
+        if collector.yields:
+            error(self.pos, f"Cannot yield while in a cython.critical_section.")
 
     def analyse_declarations(self, env):
         for arg in self.args:
@@ -9030,11 +9093,13 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         return super().analyse_declarations(env)
 
     def analyse_expressions(self, env):
+        self.check_for_yields()
+        cy_pymutex_type = PyrexTypes.get_cy_pymutex_type()
         mutex_count = 0
         for i, arg in enumerate(self.args):
             arg = arg.analyse_expressions(env)
-            if (arg.type is PyrexTypes.cy_pymutex_type or (
-                    arg.type.is_ptr and arg.type.base_type is PyrexTypes.cy_pymutex_type)):
+            if (arg.type == cy_pymutex_type or (
+                    arg.type.is_ptr and arg.type.base_type == cy_pymutex_type)):
                 mutex_count += 1
                 self.is_pymutex_critical_section = True
             elif arg.type.is_pyobject:
@@ -9072,12 +9137,8 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
         code.mark_pos(self.pos)
         code.begin_block()
-        if self.state_temp:
-            self.state_temp.allocate(code)
-            variable = self.state_temp.result()
-        else:
-            variable = Naming.critical_section_variable
-            code.putln(f"{self.var_type.declaration_code(variable)};")
+        variable = Naming.critical_section_variable
+        code.putln(f"{self.var_type.declaration_code(variable)};")
 
         for arg in self.args:
             arg.generate_evaluation_code(code)
@@ -9095,16 +9156,13 @@ class CriticalSectionStatNode(TryFinallyStatNode):
             arg.generate_disposal_code(code)
             arg.free_temps(code)
 
-        if self.state_temp:
-            self.state_temp.release(code)
-
         code.end_block()
 
     def nogil_check(self, env):
         error(self.pos, "Critical sections require the GIL")
 
 
-class CriticalSectionExitNode(StatNode, CopyWithUpTreeRefsMixin):
+class CriticalSectionExitNode(StatNode):
     """
     critical_section - the CriticalSectionStatNode that owns this
     """
@@ -9115,13 +9173,8 @@ class CriticalSectionExitNode(StatNode, CopyWithUpTreeRefsMixin):
         return self
 
     def generate_execution_code(self, code):
-        if self.critical_section.state_temp:
-            variable_name = self.critical_section.state_temp.result()
-        else:
-            variable_name =  Naming.critical_section_variable
-
         code.putln(
-            f"__Pyx_PyCriticalSection{self.length_tag}_End(&{variable_name});"
+            f"__Pyx_PyCriticalSection{self.length_tag}_End(&{ Naming.critical_section_variable});"
         )
 
 class CythonLockStatNode(TryFinallyStatNode):
@@ -9160,36 +9213,19 @@ class CythonLockStatNode(TryFinallyStatNode):
         result.finally_except_clause = result.finally_clause
         return result
 
-    def check_for_yields(self):
-        from .ParseTreeTransforms import YieldNodeCollector
-        collector = YieldNodeCollector()
-        collector.visitchildren(self.body)
-        if collector.yields:
-            # DW - I've disallowed this because it seems like a deadlock disaster waiting to happen.
-            # I'm sure it's technically possible, and we can revise it if people have legitimate
-            # uses.
-            typename = self.arg.type.empty_declaration_code(pyrex=True).strip()
-            error(
-                self.pos,
-                f"Cannot use a 'with' statement with a '{typename}' in a generator. "
-                "If you really want to do this (and you are confident that there are no deadlocks) "
-                "then use try-finally."
-            )
-
     def analyse_declarations(self, env):
         self.arg.analyse_declarations(env)
         return super().analyse_declarations(env)
 
     def analyse_expressions(self, env):
         self.arg = self.arg.analyse_expressions(env)
-        self.check_for_yields()
         body = self.body
         if isinstance(body, StatListNode) and len(body.stats) >= 1:
             body = body.stats[0]
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
-        code.globalstate.use_utility_code(self.arg.type.get_utility_code())
+        code.globalstate.use_utility_code(self.arg.type.get_usage_utility_code())
 
         code.mark_pos(self.pos)
         code.begin_block()
@@ -9505,33 +9541,45 @@ class FromImportStatNode(StatNode):
                         continue
                 direct_assignments.append((i, name, target))
 
-            code.putln(f"for ({counter_var}=0; {counter_var} < {len(imported_names)}; {counter_var}++) {{")
+            needs_specific_assignments = bool(direct_assignments or coerced_assignments)
+
+            if len(imported_names) > 1:
+                code.putln(f"for ({counter_var}=0; {counter_var} < {len(imported_names)}; {counter_var}++) {{")
+            else:
+                # Avoid the for-loop code if we have only one name to import.
+                code.putln(f"{counter_var} = 0; {{")
+
             code.putln(
                 f'{item_temp} = __Pyx_ImportFrom({self.module.py_result()}, __pyx_imported_names[{counter_var}]); '
                 f'{code.error_goto_if_null(item_temp, self.pos)}'
             )
             code.put_gotref(item_temp, py_object_type)
-            code.putln(f"switch ({counter_var}) {{")
+
+            # Put specific (C-)assignments into switch-cases (if any) and leave generic Python globals as default.
+            if needs_specific_assignments:
+                code.putln(f"switch ({counter_var}) {{")
+
+                for i, name, target in direct_assignments:
+                    code.putln(f"case {i}:")
+                    target.generate_assignment_code(self.item, code)
+                    code.putln("break;")
+
+                for i, name, target, coerced_item in coerced_assignments:
+                    code.putln(f"case {i}:")
+                    coerced_item.generate_evaluation_code(code)
+                    target.generate_assignment_code(coerced_item, code)
+                    code.putln("break;")
+
+                code.putln("default:;")
 
             if simple_pyglobals:
-                code.putln(' '.join(f"case {i}:" for i in simple_pyglobals))
+                module_dict = code.name_in_module_state(Naming.moddict_cname)
                 code.put_error_if_neg(
                     self.pos,
-                    f"PyDict_SetItem({code.name_in_module_state(Naming.moddict_cname)}, __pyx_imported_names[{counter_var}], {item_temp})")
-                code.putln("break;")
+                    f"PyDict_SetItem({module_dict}, __pyx_imported_names[{counter_var}], {item_temp})")
 
-            for i, name, target in direct_assignments:
-                code.putln(f"case {i}:")
-                target.generate_assignment_code(self.item, code)
-                code.putln("break;")
-
-            for i, name, target, coerced_item in coerced_assignments:
-                code.putln(f"case {i}:")
-                coerced_item.generate_evaluation_code(code)
-                target.generate_assignment_code(coerced_item, code)
-                code.putln("break;")
-
-            code.putln("}")  # switch
+            if needs_specific_assignments:
+                code.putln("}")  # switch
 
             code.put_decref_clear(item_temp, py_object_type)
             code.putln("}")  # for

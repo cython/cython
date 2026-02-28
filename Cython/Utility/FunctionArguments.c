@@ -1,14 +1,18 @@
 //////////////////// ArgTypeTest.proto ////////////////////
+//@requires: ArgTypeTestFunc
 
 // Exact is 0 (False), 1 (True) or 2 (True and from annotation)
 // The latter gives a small amount of extra error diagnostics
 #define __Pyx_ArgTypeTest(obj, type, none_allowed, name, exact) \
-    ((likely(__Pyx_IS_TYPE(obj, type) | (none_allowed && (obj == Py_None)))) ? 1 : \
+    ((likely(Py_IS_TYPE(obj, type) | (none_allowed && (obj == Py_None)))) ? 1 : \
         __Pyx__ArgTypeTest(obj, type, name, exact))
+
+
+//////////////////// ArgTypeTestFunc.export ////////////////////
 
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact); /*proto*/
 
-//////////////////// ArgTypeTest ////////////////////
+//////////////////// ArgTypeTestFunc ////////////////////
 
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact)
 {
@@ -143,7 +147,7 @@ static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
 
 //////////////////// KeywordStringCheck.proto ////////////////////
 
-static CYTHON_INLINE int __Pyx_CheckKeywordStrings(const char* function_name, PyObject *kw); /*proto*/
+static CYTHON_INLINE int __Pyx_CheckKeywordStrings(PyObject *kw); /*proto*/
 
 //////////////////// KeywordStringCheck ////////////////////
 
@@ -153,13 +157,9 @@ static CYTHON_INLINE int __Pyx_CheckKeywordStrings(const char* function_name, Py
 // The "kw" argument is either a dict (for METH_VARARGS) or a tuple
 // (for METH_FASTCALL), both non-empty.
 
-static int __Pyx_CheckKeywordStrings(
-    const char* function_name,
-    PyObject *kw)
-{
+static int __Pyx_CheckKeywordStrings(PyObject *kw) {
     // PyPy appears to check keyword types at call time, not at unpacking time.
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyArg_ValidateKeywordArguments)
-    CYTHON_UNUSED_VAR(function_name);
     CYTHON_UNUSED_VAR(kw);
     return 0;
 #else
@@ -168,34 +168,6 @@ static int __Pyx_CheckKeywordStrings(
     if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kw))) {
         // On CPython >= 3.9, the FASTCALL protocol guarantees that keyword
         // names are strings (see https://github.com/python/cpython/issues/81721)
-#if PY_VERSION_HEX >= 0x03090000
-        CYTHON_UNUSED_VAR(function_name);
-#else
-
-        Py_ssize_t kwsize;
-        #if CYTHON_ASSUME_SAFE_SIZE
-        kwsize = PyTuple_GET_SIZE(kw);
-        #else
-        kwsize = PyTuple_Size(kw);
-        if (unlikely(kwsize < 0)) return -1;
-        #endif
-
-        for (Py_ssize_t pos = 0; pos < kwsize; pos++) {
-            PyObject* key = NULL;
-            #if CYTHON_ASSUME_SAFE_MACROS
-            key = PyTuple_GET_ITEM(kw, pos);
-            #else
-            key = PyTuple_GetItem(kw, pos);
-            if (unlikely(!key)) return -1;
-            #endif
-
-            if (unlikely(!PyUnicode_Check(key))) {
-                PyErr_Format(PyExc_TypeError,
-                    "%.200s() keywords must be strings", function_name);
-                return -1;
-            }
-        }
-#endif
     } else {
         // Otherwise, 'kw' is a dict: check if it's unicode-keys-only and let Python set the error otherwise.
         if (unlikely(!PyArg_ValidateKeywordArguments(kw))) return -1;
@@ -206,7 +178,7 @@ static int __Pyx_CheckKeywordStrings(
 }
 
 
-//////////////////// RejectKeywords.proto ////////////////////
+//////////////////// RejectKeywords.export ////////////////////
 
 static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds); /*proto*/
 
@@ -245,6 +217,7 @@ static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds) {
 
 
 //////////////////// ParseKeywords.proto ////////////////////
+//@requires: ParseKeywordsImpl
 
 static CYTHON_INLINE int __Pyx_ParseKeywords(
     PyObject *kwds, PyObject *const *kwvalues, PyObject ** const argnames[],
@@ -255,10 +228,6 @@ static CYTHON_INLINE int __Pyx_ParseKeywords(
 ); /*proto*/
 
 //////////////////// ParseKeywords ////////////////////
-//@requires: RaiseDoubleKeywords
-//@requires: Synchronization.c::CriticalSections
-//@requires: ObjectHandling.c::OwnedDictNext
-
 //  __Pyx_ParseOptionalKeywords copies the optional/unknown keyword
 //  arguments from kwds into the dict kwds2.  If kwds2 is NULL, unknown
 //  keywords will raise an invalid keyword error.
@@ -275,6 +244,66 @@ static CYTHON_INLINE int __Pyx_ParseKeywords(
 //  amongst the keywords as well.
 //
 //  This method does not check for required keyword arguments.
+
+static int __Pyx_ParseKeywords(
+    PyObject *kwds,
+    PyObject * const *kwvalues,
+    PyObject ** const argnames[],
+    PyObject *kwds2,
+    PyObject *values[],
+    Py_ssize_t num_pos_args,
+    Py_ssize_t num_kwargs,
+    const char* function_name,
+    int ignore_unknown_kwargs)
+{
+    // Only called if kwds contains at least one optional keyword argument.
+    if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds)))
+        return __Pyx_ParseKeywordsTuple(kwds, kwvalues, argnames, kwds2, values, num_pos_args, num_kwargs, function_name, ignore_unknown_kwargs);
+    else if (kwds2)
+        return __Pyx_ParseKeywordDictToDict(kwds, argnames, kwds2, values, num_pos_args, function_name);
+    else
+        return __Pyx_ParseKeywordDict(kwds, argnames, values, num_pos_args, num_kwargs, function_name, ignore_unknown_kwargs);
+}
+
+
+//////////////////// ParseKeywordsImpl.export ////////////////////
+//@requires: RaiseDoubleKeywords
+//@requires: Synchronization.c::CriticalSections
+//@requires: ObjectHandling.c::OwnedDictNext
+
+
+static int __Pyx_ParseKeywordsTuple(
+    PyObject *kwds,
+    PyObject * const *kwvalues,
+    PyObject ** const argnames[],
+    PyObject *kwds2,
+    PyObject *values[],
+    Py_ssize_t num_pos_args,
+    Py_ssize_t num_kwargs,
+    const char* function_name,
+    int ignore_unknown_kwargs
+);
+
+static int __Pyx_ParseKeywordDictToDict(
+    PyObject *kwds,
+    PyObject ** const argnames[],
+    PyObject *kwds2,
+    PyObject *values[],
+    Py_ssize_t num_pos_args,
+    const char* function_name
+);
+
+static int __Pyx_ParseKeywordDict(
+    PyObject *kwds,
+    PyObject ** const argnames[],
+    PyObject *values[],
+    Py_ssize_t num_pos_args,
+    Py_ssize_t num_kwargs,
+    const char* function_name,
+    int ignore_unknown_kwargs
+);
+
+//////////////////// ParseKeywordsImpl ////////////////////
 
 static int __Pyx_ValidateDuplicatePosArgs(
     PyObject *kwds,
@@ -470,13 +499,13 @@ static void __Pyx_RejectUnknownKeyword(
     PyObject *key = NULL;
 
     __Pyx_BEGIN_CRITICAL_SECTION(kwds);
-    while (
-        #if CYTHON_AVOID_BORROWED_REFS
-        __Pyx_PyDict_NextRef(kwds, &pos, &key, NULL)
-        #else
-        PyDict_Next(kwds, &pos, &key, NULL)
-        #endif
-    ) {
+    #if CYTHON_AVOID_BORROWED_REFS
+    while (__Pyx_PyDict_NextRef(kwds, &pos, &key, NULL))
+    #else
+    (void) __Pyx_PyDict_NextRef;
+    while (PyDict_Next(kwds, &pos, &key, NULL))
+    #endif
+    {
         // Quickly exclude the 'obviously' valid/known keyword arguments (exact pointer match).
         PyObject** const *name = first_kw_arg;
         while (*name && (**name != key)) name++;
@@ -717,26 +746,6 @@ bad:
     return -1;
 }
 
-static int __Pyx_ParseKeywords(
-    PyObject *kwds,
-    PyObject * const *kwvalues,
-    PyObject ** const argnames[],
-    PyObject *kwds2,
-    PyObject *values[],
-    Py_ssize_t num_pos_args,
-    Py_ssize_t num_kwargs,
-    const char* function_name,
-    int ignore_unknown_kwargs)
-{
-    // Only called if kwds contains at least one optional keyword argument.
-    if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds)))
-        return __Pyx_ParseKeywordsTuple(kwds, kwvalues, argnames, kwds2, values, num_pos_args, num_kwargs, function_name, ignore_unknown_kwargs);
-    else if (kwds2)
-        return __Pyx_ParseKeywordDictToDict(kwds, argnames, kwds2, values, num_pos_args, function_name);
-    else
-        return __Pyx_ParseKeywordDict(kwds, argnames, values, num_pos_args, num_kwargs, function_name, ignore_unknown_kwargs);
-}
-
 
 //////////////////// MergeKeywords.proto ////////////////////
 
@@ -778,13 +787,13 @@ static int __Pyx_MergeKeywords_dict(PyObject *kwdict, PyObject *source_dict) {
         }
 
         __Pyx_BEGIN_CRITICAL_SECTION(smaller_dict);
-        while (
-            #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-            __Pyx_PyDict_NextRef(smaller_dict, &ppos, &key, NULL)
-            #else
-            PyDict_Next(smaller_dict, &ppos, &key, NULL)
-            #endif
-        ) {
+        #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+        while (__Pyx_PyDict_NextRef(smaller_dict, &ppos, &key, NULL))
+        #else
+        (void) __Pyx_PyDict_NextRef;
+        while (PyDict_Next(smaller_dict, &ppos, &key, NULL))
+        #endif
+        {
             if (unlikely(PyDict_Contains(larger_dict, key))) {
                 __Pyx_RaiseDoubleKeywordsError("function", key);
                 #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
@@ -927,7 +936,7 @@ static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_
 
 /////////////// fastcall ///////////////
 //@requires: ObjectHandling.c::TupleAndListFromArray
-//@requires: StringTools.c::UnicodeEquals
+//@requires: Optimize.c::UnicodeEquals
 
 #if CYTHON_METH_FASTCALL
 // kwnames: tuple with names of keyword arguments
@@ -957,7 +966,7 @@ static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyO
         #if !CYTHON_ASSUME_SAFE_MACROS
         if (unlikely(!namei)) return NULL;
         #endif
-        int eq = __Pyx_PyUnicode_Equals(s, namei, Py_EQ);
+        int eq = __Pyx_PyUnicode_Equals(s, namei);
         if (unlikely(eq != 0)) {
             if (unlikely(eq < 0)) return NULL;  /* error */
             return kwvalues[i];

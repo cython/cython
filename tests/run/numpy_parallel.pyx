@@ -1,5 +1,4 @@
-# tag: numpy
-# tag: openmp
+# tag: numpy, openmp, threads
 
 cimport cython
 from cython.parallel import prange

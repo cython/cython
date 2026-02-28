@@ -51,7 +51,7 @@ cdef class YieldNodeCollector(TreeVisitor):
 
 @cython.final
 cdef class MarkClosureVisitor(CythonTransform):
-    cdef bint needs_closure
+    cdef int needs_closure  # actually enum
     cdef list excludes
 
 @cython.final
@@ -72,6 +72,7 @@ cdef class GilCheck(VisitorTransform):
     cdef int nogil_state
     cdef int nogil_state_at_current_gilstatnode
     cdef object in_lock_block
+    cdef bint in_critical_section
 
 cdef class TransformBuiltinMethods(EnvTransform):
     cdef dict def_node_body_insertions

@@ -12,7 +12,6 @@ tss
 sys_monitoring
 special_method_docstrings
 verbatiminclude
-test_coroutines_pep492
 coverage
 line_profile_test
 cdef_multiple_inheritance_errors
@@ -77,7 +76,7 @@ unicode_formatting
 # Py_UNICODE
 builtin_ord
 for_in_string
-fstring
+run[.]fstring$
 run[.]inop
 run[.]notinop
 py_unicode_strings

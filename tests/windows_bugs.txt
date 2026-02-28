@@ -17,6 +17,9 @@ py_unicode_type
 
 test_grammar
 
+# Cross-platform embedding of Python is harder than you think.
+embed_modules
+
 # Those tests don't work because MSVC wants to link to the c-algorithms library
 # when compiling and we don't want to download c-algorithms just for those tests.
 queue

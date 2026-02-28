@@ -1,6 +1,5 @@
 import cython
 
-import collections
 import time
 
 
@@ -37,20 +36,15 @@ def _fused_func_args_1(o: builtin_collections):
     assert o is not None
 
 
-def _call_fused_func_args_1(ordered: cython.bint, number: cython.int, timer):
+def _call_fused_func_args_1(number: cython.int, timer):
     func = _fused_func_args_1
     args = [[], (), set(), {}, 5]
-    number //= len(args)
+    number = max(1, number // len(args))
 
     t = timer()
-    if ordered:
+    for _ in range(number):
         for arg in args:
-            for _ in range(number):
-                func(arg)
-    else:
-        for _ in range(number):
-            for arg in args:
-                func(arg)
+            func(arg)
     t = timer() - t
     return t
 
@@ -60,22 +54,16 @@ def _fused_func_args_2(o1: builtin_collections, o2: builtin_collections2):
     assert o2 is not None
 
 
-def _call_fused_func_args_2(ordered: cython.bint, number: cython.int, timer):
+def _call_fused_func_args_2(number: cython.int, timer):
     func = _fused_func_args_2
     args = [[], (), set(), {}, 5]
-    number //= len(args) ** 2
+    number = max(1, number // (len(args) ** 2))
 
     t = timer()
-    if ordered:
+    for _ in range(number):
         for arg1 in args:
             for arg2 in args:
-                for _ in range(number):
-                    func(arg1, arg2)
-    else:
-        for _ in range(number):
-            for arg1 in args:
-                for arg2 in args:
-                    func(arg1, arg2)
+                func(arg1, arg2)
     t = timer() - t
     return t
 
@@ -86,52 +74,45 @@ def _fused_func_args_3(o1: builtin_collections, o2: builtin_collections2, o3: bu
     assert o3 is not None
 
 
-def _call_fused_func_args_3(ordered: cython.bint, number: cython.int, timer):
+def _call_fused_func_args_3(number: cython.int, timer):
     func = _fused_func_args_3
     args = [[], (), set(), {}, 5]
-    number //= len(args) ** 3
+    number = max(1, number // (len(args) ** 3))
 
     t = timer()
-    if ordered:
+    for _ in range(number):
         for arg1 in args:
             for arg2 in args:
                 for arg3 in args:
-                    for _ in range(number):
-                        func(arg1, arg2, arg3)
-    else:
-        for _ in range(number):
-            for arg1 in args:
-                for arg2 in args:
-                    for arg3 in args:
-                        func(arg1, arg2, arg3)
+                    func(arg1, arg2, arg3)
     t = timer() - t
     return t
 
 
-def bm_fused_args(number, timer=time.perf_counter):
+def get_benchmarks():
     return {
-        'fused_args_1_ordered': _call_fused_func_args_1(True, number, timer),
-        'fused_args_1_unordered': _call_fused_func_args_1(False, number, timer),
-        'fused_args_2_ordered': _call_fused_func_args_2(True, number, timer),
-        'fused_args_2_unordered': _call_fused_func_args_2(False, number, timer),
-        'fused_args_3_ordered': _call_fused_func_args_3(True, number, timer),
-        'fused_args_3_unordered': _call_fused_func_args_3(False, number, timer),
+        'fused_args_1': _call_fused_func_args_1,
+        'fused_args_2': _call_fused_func_args_2,
+        'fused_args_3': _call_fused_func_args_3,
     }
 
 
-def run_benchmark(repeat: cython.int = 10, number=100, timer=time.perf_counter):
-    i: cython.int
+def run_benchmark(repeat=True, scale=100):
+    from util import repeat_to_accuracy, scale_subbenchmarks
 
-    collected_timings = collections.defaultdict(list)
+    benchmarks = get_benchmarks()
 
-    for name, func in globals().items():
-        if not name.startswith('bm_'):
-            continue
+    timings = {
+        name: func(1000, time.perf_counter)
+        for name, func in benchmarks.items()
+    }
+    scales = scale_subbenchmarks(timings, scale)
 
-        for i in range(repeat):
-            timings = func(number, timer)
-            for name, t in timings.items():
-                collected_timings[name].append(t)
+    collected_timings = {}
+
+    for name, func in benchmarks.items():
+        collected_timings[name] = repeat_to_accuracy(
+            func, scale=scales[name], repeat=repeat)[0]
 
     for name, timings in collected_timings.items():
         print(f"{name}: {timings}")
