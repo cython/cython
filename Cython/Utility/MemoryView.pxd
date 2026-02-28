@@ -6,6 +6,9 @@ cdef extern from "Python.h":
     ctypedef void *PyThread_type_lock
 
 cdef extern from *:
+    """
+    typedef int (*__pyx_memoryview_to_dtype_func_type)(char*, PyObject*);
+    """
     ctypedef struct {{memviewslice_name}}:
         pass
 
@@ -21,6 +24,8 @@ cdef extern from *:
         const __Pyx_TypeInfo *typeinfo
 
     ctypedef int __pyx_atomic_int_type
+
+    ctypedef int (*to_dtype_func_type "__pyx_memoryview_to_dtype_func_type")(char *, object) except 0
 
 
 @cname("__pyx_array")
@@ -47,6 +52,14 @@ cdef class array:
 @cname("__pyx_array_new")
 cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, const char *c_mode, char *buf)
 
+cdef object generic
+cdef object strided
+cdef object indirect
+# Disable generic_contiguous, as it is a troublemaker
+#cdef generic_contiguous = Enum("<contiguous and direct or indirect>")
+cdef object contiguous
+cdef object indirect_contiguous
+
 @cname('__pyx_memoryview')
 cdef class memoryview:
 
@@ -61,11 +74,12 @@ cdef class memoryview:
     cdef bint dtype_is_object
     cdef const __Pyx_TypeInfo *typeinfo
 
-    cdef char *get_item_pointer(memoryview self, object index) except NULL
+    cdef char *get_item_pointer(memoryview self, index: tuple) except NULL
     cdef is_slice(self, obj)
     cdef setitem_slice_assignment(self, dst, src)
     cdef setitem_slice_assign_scalar(self, memoryview dst, value)
-    cdef setitem_indexed(self, index, value)
+    cdef setitem_indexed(self, indices: tuple, value)
+    cdef setitem_indexed1(self, index, value)
     cdef convert_item_to_object(self, char *itemp)
     cdef assign_item_from_object(self, char *itemp, object value)
     cdef _get_base(self)
@@ -93,7 +107,7 @@ cdef int transpose_memslice({{memviewslice_name}} *memslice) except -1 nogil
 cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
                           int ndim,
                           object (*to_object_func)(char *),
-                          int (*to_dtype_func)(char *, object) except 0,
+                          to_dtype_func_type to_dtype_func,
                           bint dtype_is_object)
 
 @cname('__pyx_memoryview_copy_contents')

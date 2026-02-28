@@ -2,21 +2,19 @@ from Cython.Build.Cythonize import (
     create_args_parser, parse_args_raw, parse_args,
 )
 
+from Cython.TestUtils import TimedTest
 from Cython.Compiler import Options
 from Cython.Compiler.Tests.Utils import backup_Options, restore_Options, check_global_options
-
-from unittest import TestCase
 
 import sys
 from io import StringIO
 
 
-class TestCythonizeArgsParser(TestCase):
+class TestCythonizeArgsParser(TimedTest):
 
     def setUp(self):
-        TestCase.setUp(self)
         self.parse_args = lambda x, parser=create_args_parser() : parse_args_raw(parser, x)
-
+        super().setUp()
 
     def are_default(self, options, skip):
         # empty containers
@@ -439,12 +437,14 @@ class TestCythonizeArgsParser(TestCase):
         self.assertTrue(stderr.getvalue())
 
 
-class TestParseArgs(TestCase):
+class TestParseArgs(TimedTest):
     def setUp(self):
+        super().setUp()
         self._options_backup = backup_Options()
 
     def tearDown(self):
         restore_Options(self._options_backup)
+        super().tearDown()
 
     def check_default_global_options(self, white_list=[]):
         self.assertEqual(check_global_options(self._options_backup, white_list), "")

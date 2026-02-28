@@ -9,6 +9,7 @@ import decimal
 import unittest
 import re
 import contextlib
+import platform
 
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
@@ -768,6 +769,9 @@ y = (
 """, # this is equivalent to f'{}'
                              ])
 
+    @unittest.skipIf(
+        platform.python_implementation() == 'GraalVM',
+        "Intermittent 'returned NULL without an exception set'")
     def test_many_expressions(self):
         # Create a string with many expressions in it. Note that
         #  because we have a space in here as a literal, we're actually

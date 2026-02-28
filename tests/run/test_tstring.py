@@ -217,7 +217,7 @@ class TestTString(TestCase, TStringBaseCase):
         # Test !z conversion (error)
         num = 1
         with self.assertRaises((SyntaxError, CompileError)):
-            cy_eval("t'{num!z}'")
+            self.fragment("t'{num!z}'")
 
     def test_debug_specifier(self):
         # Test debug specifier
@@ -337,7 +337,7 @@ class TestTString(TestCase, TStringBaseCase):
             ("t'{1:d\n}'", "t-string: newlines are not allowed in format specifiers")
         ):
             with self.subTest(case), self.assertRaisesRegex(SyntaxError, err):
-                cy_eval(case)
+                self.fragment(case)
 
     def test_runtime_errors(self):
         # Test missing variables
@@ -377,7 +377,7 @@ class TestTString(TestCase, TStringBaseCase):
         ):
             with self.subTest(case):
                 with self.assertRaisesRegex(SyntaxError, expected_msg):
-                    cy_eval(case)
+                    self.fragment(case)
 
     def test_triple_quoted(self):
         # Test triple-quoted t-strings

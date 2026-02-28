@@ -1076,17 +1076,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln_openmp("#include <omp.h>")
 
     def generate_filename_table(self, code):
-        from os.path import isabs, basename
         code.putln("")
         code.putln("static const char* const %s[] = {" % Naming.filetable_cname)
         if code.globalstate.filename_list:
             for source_desc in code.globalstate.filename_list:
-                file_path = source_desc.get_filenametable_entry()
-                if isabs(file_path):
-                    # never include absolute paths
-                    file_path = source_desc.get_description()
                 # Always use / as separator
-                file_path = pathlib.Path(file_path).as_posix()
+                file_path = source_desc.get_relative_path().as_posix()
                 escaped_filename = as_encoded_filename(file_path)
                 code.putln('%s,' % escaped_filename.as_c_string_literal())
         else:
@@ -1588,8 +1583,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_traverse_function(scope, code, entry)
                         if scope.needs_tp_clear():
                             self.generate_clear_function(scope, code, entry)
+
                     if scope.defines_any_special(["__getitem__"]):
-                        self.generate_getitem_int_function(scope, code)
+                        self.generate_getitem_function(scope, code)
                     if scope.defines_any_special(["__setitem__", "__delitem__"]):
                         self.generate_ass_subscript_function(scope, code)
                     if scope.defines_any_special(["__getslice__", "__setslice__", "__delslice__"]):
@@ -1597,8 +1593,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                 "__getslice__, __setslice__, and __delslice__ are not supported by Python 3, "
                                 "use __getitem__, __setitem__, and __delitem__ instead", 1)
                         code.putln("#error __getslice__, __setslice__, and __delslice__ not supported in Python 3.")
-                    if scope.defines_any_special(["__setslice__", "__delslice__"]):
-                        self.generate_ass_slice_function(scope, code)
+
                     if scope.defines_any_special(["__getattr__", "__getattribute__"]):
                         self.generate_getattro_function(scope, code)
                     if scope.defines_any_special(["__setattr__", "__delattr__"]):
@@ -1837,9 +1832,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.start_slotfunc(scope, PyrexTypes.c_void_type, "tp_finalize", "PyObject *o", needs_funcstate=False)
         code.putln("PyObject *etype, *eval, *etb;")
-        code.putln("PyErr_Fetch(&etype, &eval, &etb);")
+        code.putln("__Pyx_PyErr_FetchException(&etype, &eval, &etb);")
         code.putln("%s(o);" % entry.func_cname)
-        code.putln("PyErr_Restore(etype, eval, etb);")
+        code.putln("__Pyx_PyErr_RestoreException(etype, eval, etb);")
         code.putln("}")
         code.exit_cfunc_scope()
 
@@ -2033,13 +2028,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("{")
         code.putln("PyObject *etype, *eval, *etb;")
-        code.putln("PyErr_Fetch(&etype, &eval, &etb);")
+        code.putln("__Pyx_PyErr_FetchException(&etype, &eval, &etb);")
         # increase the refcount while we are calling into user code
         # to prevent recursive deallocation
         code.putln("Py_SET_REFCNT(o, Py_REFCNT(o) + 1);")
         code.putln("%s(o);" % entry.func_cname)
         code.putln("Py_SET_REFCNT(o, Py_REFCNT(o) - 1);")
-        code.putln("PyErr_Restore(etype, eval, etb);")
+        code.putln("__Pyx_PyErr_RestoreException(etype, eval, etb);")
         code.putln("}")
 
     def generate_traverse_function(self, scope, code, cclass_entry):
@@ -2207,86 +2202,133 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("}")
         code.exit_cfunc_scope()
 
-    def generate_getitem_int_function(self, scope, code):
-        # This function is put into the sq_item slot when
-        # a __getitem__ method is present. It converts its
-        # argument to a Python integer and calls mp_subscript.
-        code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "sq_item", "PyObject *o, Py_ssize_t i", needs_funcstate=False)
-        code.putln(
-            "PyObject *r;")
-        code.putln(
-            "PyObject *x = PyLong_FromSsize_t(i); if(!x) return 0;")
-        # Note that PyType_GetSlot only works on heap-types before 3.10, so not using type slots
-        # and defining cdef classes as non-heap types is probably impossible
-        code.putln("#if CYTHON_USE_TYPE_SLOTS || (!CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX < 0x030A0000)")
-        code.putln(
-            "r = Py_TYPE(o)->tp_as_mapping->mp_subscript(o, x);")
-        code.putln("#else")
-        code.putln("r = ((binaryfunc)PyType_GetSlot(Py_TYPE(o), Py_mp_subscript))(o, x);")
-        code.putln("#endif")
-        code.putln(
-            "Py_DECREF(x);")
-        code.putln(
-            "return r;")
-        code.putln(
-            "}")
-        code.exit_cfunc_scope()
+    def generate_getitem_function(self, scope, code):
+        # Implement 'sq_item()' and/or 'mp_subscript()', whichever is more suitable.
+        get_entry = scope.lookup_here("__getitem__")
+        is_sequence_get = get_entry.signature == TypeSlots.sequence_subscript_signatures['__getitem__']
+        implements_mapping_get = TypeSlots.SubscriptSlot.implements_slot(scope, 'mp_subscript')
+
+        # Sequence protocol
+        if TypeSlots.SubscriptSlot.implements_slot(scope, 'sq_item'):
+            code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "sq_item", "PyObject *o, Py_ssize_t i", needs_funcstate=False)
+            if is_sequence_get:
+                code.putln(f"return {get_entry.func_cname}(o, i);")
+            else:
+                code.putln("PyObject *r;")
+                code.putln("PyObject *x = PyLong_FromSsize_t(i); if (unlikely(!x)) return NULL;")
+                # Note that PyType_GetSlot() only works on heap-types before 3.10, so not using type slots
+                # and defining cdef classes as non-heap types is probably impossible.
+                code.putln("#if CYTHON_USE_TYPE_SLOTS || (!CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX < 0x030A0000)")
+                if implements_mapping_get:
+                    code.putln("binaryfunc f = Py_TYPE(o)->tp_as_mapping->mp_subscript;")
+                else:
+                    code.putln("PyMappingMethods *mapping_methods = Py_TYPE(o)->tp_as_mapping;")
+                    code.putln("binaryfunc f = mapping_methods ? mapping_methods->mp_subscript : NULL;")
+                code.putln("#else")
+                code.putln("binaryfunc f = ((binaryfunc)PyType_GetSlot(Py_TYPE(o), Py_mp_subscript));")
+                code.putln("#endif")
+                if not implements_mapping_get:
+                    code.putln(f"if (unlikely(!f)) f = (binaryfunc) {get_entry.func_cname};")
+                code.putln("r = f(o, x);")
+                code.putln("Py_DECREF(x);")
+                code.putln("return r;")
+
+            code.putln("}")
+            code.exit_cfunc_scope()
+
+        # Mapping protocol.
+        if implements_mapping_get:
+            code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "mp_subscript", "PyObject *o, PyObject *i", needs_funcstate=False)
+            if is_sequence_get:
+                code.putln("Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); if (unlikely(x == -1 && PyErr_Occurred())) return NULL;")
+                code.putln(f"return {get_entry.func_cname}(o, x);")
+            else:
+                code.putln(f"return {get_entry.func_cname}(o, i);")
+            code.putln("}")
+            code.exit_cfunc_scope()
 
     def generate_ass_subscript_function(self, scope, code):
-        # Setting and deleting an item are both done through
-        # the ass_subscript method, so we dispatch to user's __setitem__
-        # or __delitem__, or raise an exception.
+        # Setting and deleting an item are both done through the ass_item/ass_subscript slots,
+        # so we dispatch to user's __setitem__ or __delitem__, or raise an exception.
+        set_entry = TypeSlots.SubscriptSlot.find_special_method(scope, '__setitem__')
+        del_entry = TypeSlots.SubscriptSlot.find_special_method(scope, '__delitem__')
         base_type = scope.parent_type.base_type
-        set_entry = scope.lookup_here("__setitem__")
-        del_entry = scope.lookup_here("__delitem__")
-        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "mp_ass_subscript", "PyObject *o, PyObject *i, PyObject *v")
-        code.putln(
-            "if (v) {")
-        if set_entry:
-            code.putln("return %s(o, i, v);" % set_entry.func_cname)
-        else:
-            code.putln(
-                "__Pyx_TypeName o_type_name;")
-            self.generate_guarded_basetype_call(
-                base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
-            code.putln(
-                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
-            code.putln(
-                "PyErr_Format(PyExc_NotImplementedError,")
-            code.putln(
-                '  "Subscript assignment not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
-            code.putln(
-                "__Pyx_DECREF_TypeName(o_type_name);")
-            code.putln(
-                "return -1;")
-        code.putln(
-            "}")
-        code.putln(
-            "else {")
-        if del_entry:
-            code.putln(
-                "return %s(o, i);" % (
-                    del_entry.func_cname))
-        else:
-            code.putln(
-                "__Pyx_TypeName o_type_name;")
-            self.generate_guarded_basetype_call(
-                base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
-            code.putln(
-                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
-            code.putln(
-                "PyErr_Format(PyExc_NotImplementedError,")
-            code.putln(
-                '  "Subscript deletion not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
-            code.putln(
-                "__Pyx_DECREF_TypeName(o_type_name);")
-            code.putln(
-                "return -1;")
-        code.putln(
-            "}")
-        code.putln(
-            "}")
-        code.exit_cfunc_scope()
+
+        is_sequence_set = set_entry and set_entry.signature == TypeSlots.sequence_subscript_signatures['__setitem__']
+        is_sequence_del = del_entry and del_entry.signature == TypeSlots.sequence_subscript_signatures['__delitem__']
+
+        def handle_not_supported(op_name):
+            code.putln("__Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
+            code.putln("PyErr_Format(PyExc_NotImplementedError,")
+            code.putln(f'  "Subscript %.10s not supported by " __Pyx_FMT_TYPENAME, "{op_name}", o_type_name);')
+            code.putln("__Pyx_DECREF_TypeName(o_type_name);")
+            code.putln("return -1;")
+
+        set_or_del = "likely(v)" if not del_entry else "unlikely(v)" if not set_entry else "v"
+
+        # Sequence protocol.
+        if TypeSlots.SubscriptSlot.implements_slot(scope, 'sq_ass_item'):
+            code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "sq_ass_item", "PyObject *o, Py_ssize_t i, PyObject *v")
+            code.putln("if (%s) {" % set_or_del)
+
+            if is_sequence_set:
+                code.putln(f"return {set_entry.func_cname}(o, i, v);")
+            elif set_entry:
+                code.putln("PyObject *x = PyLong_FromSsize_t(i); if (unlikely(!x)) return -1;")
+                code.putln(f"int r = {set_entry.func_cname}(o, x, v);")
+                code.putln("Py_DECREF(x);")
+                code.putln("return r;")
+            else:
+                self.generate_guarded_basetype_call(
+                    base_type, "tp_as_sequence", "sq_ass_item", "ssizeobjargproc", "o, i, v", code)
+                handle_not_supported("assignment")
+
+            code.putln("} else {")
+            if is_sequence_del:
+                code.putln(f"return {del_entry.func_cname}(o, i);")
+            elif del_entry:
+                code.putln("PyObject *x = PyLong_FromSsize_t(i); if (unlikely(!x)) return -1;")
+                code.putln(f"int r = {del_entry.func_cname}(o, x);")
+                code.putln("Py_DECREF(x);")
+                code.putln("return r;")
+            else:
+                self.generate_guarded_basetype_call(
+                    base_type, "tp_as_sequence", "sq_ass_item", "ssizeobjargproc", "o, i, v", code)
+                handle_not_supported("deletion")
+
+            code.putln("}")
+            code.putln("}")
+            code.exit_cfunc_scope()
+
+        # Mapping protocol.
+        if TypeSlots.SubscriptSlot.implements_slot(scope, 'mp_ass_subscript'):
+            code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "mp_ass_subscript", "PyObject *o, PyObject *i, PyObject *v")
+            code.putln("if (%s) {" % set_or_del)
+
+            if is_sequence_set:
+                code.putln("Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); if (unlikely(x == -1 && PyErr_Occurred())) return -1;")
+                code.putln(f"return {set_entry.func_cname}(o, x, v);")
+            elif set_entry:
+                code.putln(f"return {set_entry.func_cname}(o, i, v);")
+            else:
+                self.generate_guarded_basetype_call(
+                    base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
+                handle_not_supported("assignment")
+
+            code.putln("} else {")
+            if is_sequence_del:
+                code.putln("Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); if (unlikely(x == -1 && PyErr_Occurred())) return -1;")
+                code.putln(f"return {del_entry.func_cname}(o, x);")
+            elif del_entry:
+                code.putln(f"return {del_entry.func_cname}(o, i);")
+            else:
+                self.generate_guarded_basetype_call(
+                    base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
+                handle_not_supported("deletion")
+
+            code.putln("}")
+            code.putln("}")
+            code.exit_cfunc_scope()
 
     def generate_guarded_basetype_call(
             self, base_type, substructure, slot, functype, args, code):
@@ -3303,8 +3345,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         shared_utility_exporter.call_export_code(code)
 
-        with subfunction("Type init code") as inner_code:
-            self.generate_type_init_code(env, inner_code)
+        code.putln("/*--- Type init code ---*/")
+        self.generate_type_init_code(env, subfunction, code)
 
         with subfunction("Type import code") as inner_code:
             for module in imported_modules:
@@ -3381,9 +3423,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # fetch/restore the error indicator because PyState_RemoveModule might fail itself
         code.putln("if (pystate_addmodule_run) {")
         code.putln("PyObject *tp, *value, *tb;")
-        code.putln("PyErr_Fetch(&tp, &value, &tb);")
+        code.putln("__Pyx_PyErr_FetchException(&tp, &value, &tb);")
         code.putln("PyState_RemoveModule(&%s);" % Naming.pymoduledef_cname)
-        code.putln("PyErr_Restore(tp, value, tb);")
+        code.putln("__Pyx_PyErr_RestoreException(tp, value, tb);")
         code.putln("}")
         code.putln("#endif")
         code.putln('} else if (!PyErr_Occurred()) {')
@@ -3418,8 +3460,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         class ModInitSubfunction:
             def __init__(self, code_type):
-                cname = '_'.join(code_type.lower().split())
-                assert re.match("^[a-z0-9_]+$", cname)
+                cname = '_'.join(code_type.split())
+                assert re.match("^[a-zA-Z0-9_]+$", cname)
                 self.cfunc_name = "__Pyx_modinit_%s" % cname
                 self.description = code_type
                 self.tempdecl_code = None
@@ -3604,23 +3646,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     scope.mangle_internal(Naming.freelist_name))
                 freecount_name = code.name_in_main_c_code_module_state(
                     scope.mangle_internal(Naming.freecount_name))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("ClearFreelist", "ExtensionTypes.c"))
                 code.putln('#if CYTHON_USE_FREELISTS')
-                code.putln("while (%s > 0) {" % freecount_name)
-                code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
-                    freelist_name, freecount_name))
-                code.putln("PyTypeObject *tp = Py_TYPE(o);")
-                code.putln("#if CYTHON_USE_TYPE_SLOTS")
-                code.putln("(*tp->tp_free)(o);")
-                code.putln("#else")
-                # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
-                code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(tp, Py_tp_free);")
-                code.putln("if (tp_free) tp_free(o);")
-                code.putln("#endif")
-                code.putln("#if CYTHON_USE_TYPE_SPECS")
-                # Release the reference that "o" owned for its type.
-                code.putln("Py_DECREF(tp);")
-                code.putln("#endif")
-                code.putln("}")
+                code.putln(f"__Pyx_ClearFreelist((PyObject **)&{freelist_name}, &{freecount_name});")
                 code.putln('#endif')  # CYTHON_USE_FREELISTS
 #        for entry in env.pynum_entries:
 #            code.put_decref_clear(entry.cname,
@@ -3979,7 +4008,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         _generate_import_code(
             code, self.pos, imports, module.qualified_name, f"__Pyx_ImportFunction_{Naming.cyversion}", "void (**{name})(void)")
 
-    def generate_type_init_code(self, env, code):
+    def generate_type_init_code(self, env, subfunction, code):
         # Generate type import code for extern extension types
         # and type ready code for non-extern ones.
         with ModuleImportGenerator(code) as import_generator:
@@ -3988,9 +4017,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_type_import_code(env, entry.type, entry.pos, code, import_generator)
                 else:
                     self.generate_base_type_import_code(env, entry, code, import_generator)
-                    self.generate_exttype_vtable_init_code(entry, code)
-                    if entry.type.early_init:
-                        self.generate_type_ready_code(entry, code)
+                    with subfunction("Exttype " + entry.type.objstruct_cname) as inner_code:
+                        self.generate_exttype_vtable_init_code(entry, inner_code)
+                        if entry.type.early_init:
+                            self.generate_type_ready_code(entry, inner_code)
 
     def generate_base_type_import_code(self, env, entry, code, import_generator):
         base_type = entry.type.base_type
@@ -4081,6 +4111,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
         code.putln(f' if (!{typeptr_cname}) {error_code}')
+
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)
 

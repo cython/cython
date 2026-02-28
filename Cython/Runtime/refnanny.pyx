@@ -139,7 +139,7 @@ cdef PyObject* SetupContext(char* funcname, Py_ssize_t lineno, char* filename) e
     PyErr_Restore(type, value, tb)
     return result
 
-cdef void GOTREF(PyObject* _ctx, PyObject* p_obj, Py_ssize_t lineno):
+cdef void GOTREF(PyObject* _ctx, PyObject* p_obj, Py_ssize_t lineno) noexcept:
     if _ctx == NULL: return
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     cdef Context ctx = <Context> _ctx
@@ -158,7 +158,7 @@ cdef void GOTREF(PyObject* _ctx, PyObject* p_obj, Py_ssize_t lineno):
         ctx.release_lock()
         return  # swallow any exceptions
 
-cdef bint GIVEREF_and_report(PyObject* _ctx, PyObject* p_obj, Py_ssize_t lineno):
+cdef bint GIVEREF_and_report(PyObject* _ctx, PyObject* p_obj, Py_ssize_t lineno) noexcept:
     if _ctx == NULL: return 1
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     cdef bint decref_ok = False
@@ -178,20 +178,20 @@ cdef bint GIVEREF_and_report(PyObject* _ctx, PyObject* p_obj, Py_ssize_t lineno)
         ctx.release_lock()
         return decref_ok  # swallow any exceptions
 
-cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
+cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno) noexcept:
     GIVEREF_and_report(ctx, p_obj, lineno)
 
-cdef void INCREF(PyObject* ctx, PyObject* obj, Py_ssize_t lineno):
+cdef void INCREF(PyObject* ctx, PyObject* obj, Py_ssize_t lineno) noexcept:
     Py_XINCREF(obj)
     PyThreadState_Get()  # Check that we hold the GIL
     GOTREF(ctx, obj, lineno)
 
-cdef void DECREF(PyObject* ctx, PyObject* obj, Py_ssize_t lineno):
+cdef void DECREF(PyObject* ctx, PyObject* obj, Py_ssize_t lineno) noexcept:
     if GIVEREF_and_report(ctx, obj, lineno):
         Py_XDECREF(obj)
     PyThreadState_Get()  # Check that we hold the GIL
 
-cdef void FinishContext(PyObject** ctx):
+cdef void FinishContext(PyObject** ctx) noexcept:
     if ctx == NULL or ctx[0] == NULL: return
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     cdef object errors = None

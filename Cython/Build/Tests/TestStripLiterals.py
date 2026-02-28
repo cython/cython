@@ -1,12 +1,12 @@
 import pathlib
 import re
-import unittest
 
+from ...TestUtils import TimedTest
 from ...Utils import open_source_file
 from ..Dependencies import strip_string_literals
 
 
-class TestStripLiterals(unittest.TestCase):
+class TestStripLiterals(TimedTest):
     maxDiff = None
 
     @staticmethod

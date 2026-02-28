@@ -763,19 +763,19 @@ def safe_only():
     # potentially overflowing arithmetic
     e = 1
     e += 1
-    assert typeof(e) == "Python object", typeof(e)
+    assert typeof(e) == "int object", typeof(e)
     f = 1
     res = f * 10
-    assert typeof(f) == "Python object", typeof(f)
+    assert typeof(f) == "int object", typeof(f)
     g = 1
     res = 10*(~g)
-    assert typeof(g) == "Python object", typeof(g)
+    assert typeof(g) == "int object", typeof(g)
     for j in range(10):
         res = -j
-    assert typeof(j) == "Python object", typeof(j)
+    assert typeof(j) == "int object", typeof(j)
     h = 1
     res = abs(h)
-    assert typeof(h) == "Python object", typeof(h)
+    assert typeof(h) == "int object", typeof(h)
     cdef int c_int = 1
     assert typeof(abs(c_int)) == "int", typeof(abs(c_int))
 

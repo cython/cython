@@ -23,6 +23,8 @@ import warnings
 import zlib
 from collections import defaultdict
 from contextlib import contextmanager
+from functools import partial
+from tempfile import TemporaryDirectory
 
 try:
     IS_PYPY = platform.python_implementation() == 'PyPy'
@@ -34,6 +36,8 @@ except (ImportError, AttributeError):
     IS_GRAAL = False
 
 CAN_SYMLINK = sys.platform != 'win32' and hasattr(os, 'symlink')
+
+SHARED_UTILITY_MODULE_NAME = '_cython_shared'
 
 from io import open as io_open
 try:
@@ -653,20 +657,48 @@ class ErrorWriter(object):
         pass  # ignore, only to match file-like interface
 
 
+class Heap:
+    def __init__(self, max_length=8):
+        assert max_length > 0, max_length
+        self._heap = []
+        self._max_length = max_length
+        self._push = heapq.heappush
+        self.push = self._push_growing
+
+    def _push_growing(self, item):
+        heapq.heappush(self._heap, item)
+        if len(self._heap) >= self._max_length:
+            self.push = partial(heapq.heappushpop, self._heap)
+
+    def push_all(self, items):
+        for item in (items._heap if isinstance(items, Heap) else items):
+            self.push(item)
+
+    def max(self):
+        return max(self._heap)
+
+    def __iter__(self):
+        return iter(sorted(self._heap, reverse=True))
+
+
 class Stats(object):
+    can_count_module_sizes = (
+        sys.platform == "darwin" or sys.platform == 'linux'
+        and shutil.which('strip')
+    )
+
     def __init__(self, top_n=8):
         self.top_n = top_n
         self.test_counts = defaultdict(int)
         self.test_times = defaultdict(float)
-        self.top_tests = defaultdict(list)
+        self.top_tests = defaultdict(partial(Heap, top_n))
+        self.module_sizes = {'count': 0, 'total': 0, 'largest': Heap(top_n), 'smallest': Heap(top_n)}
 
     def add_time(self, name, language, metric, t, count=1):
         self.test_counts[metric] += count
         self.test_times[metric] += t
-        top = self.top_tests[metric]
-        push = heapq.heappushpop if len(top) >= self.top_n else heapq.heappush
         # min-heap => pop smallest/shortest until longest times remain
-        push(top, (t, name, language))
+        self.top_tests[metric].push((t, name, language))
 
     @contextmanager
     def time(self, name, language, metric):
@@ -680,10 +712,34 @@ class Stats(object):
         for metric, t in stats.test_times.items():
             self.test_times[metric] += t
             self.test_counts[metric] += stats.test_counts[metric]
-            top = self.top_tests[metric]
-            for entry in stats.top_tests[metric]:
-                push = heapq.heappushpop if len(top) >= self.top_n else heapq.heappush
-                push(top, entry)
+            self.top_tests[metric].push_all(stats.top_tests[metric])
+
+        for heap in ('largest', 'smallest'):
+            self.module_sizes[heap].push_all(stats.module_sizes[heap])
+
+        self.module_sizes['total'] += stats.module_sizes['total']
+        self.module_sizes['count'] += stats.module_sizes['count']
+
+    def update_module_size(self, base_dir, test_module_dll):
+        if not self.can_count_module_sizes:
+            return
+        stripped_path = test_module_dll + ".stripped"
+        subprocess.run(['strip', '-S', test_module_dll, "-o" , stripped_path])
+        if os.path.isfile(stripped_path):
+            module_size = os.path.getsize(stripped_path)
+            os.unlink(stripped_path)
+
+            relative_module_path = os.path.relpath(test_module_dll, os.path.dirname(base_dir))
+            self.module_sizes['largest'].push((module_size, relative_module_path))
+            self.module_sizes['smallest'].push((-module_size, relative_module_path))
+            self.module_sizes['total'] += module_size
+            self.module_sizes['count'] += 1
+
+    def update_module_sizes(self, test_dir):
+        if not self.can_count_module_sizes:
+            return
+        for module in glob.glob(os.path.join(test_dir, "**", "*.so")):
+            self.update_module_size(test_dir, module)
 
     def print_stats(self, out=sys.stderr):
         if not self.test_times:
@@ -695,6 +751,16 @@ class Stats(object):
             lines.append("%-12s: %8.2f sec  (%4d, %6.3f / run) - slowest: %s\n" % (
                 metric, t, count, t / count,
                 ', '.join("'{2}:{1}' ({0:.2f}s)".format(*item) for item in heapq.nlargest(self.top_n, top))))
+
+        if self.module_sizes['count']:
+            lines.append('Test module binary sizes (stripped):\n')
+            avg_size = self.module_sizes['total'] / self.module_sizes['count']
+            lines.append(f"Total: {self.module_sizes['total']:_d} bytes / {self.module_sizes['count']:_d} modules = {avg_size:_.2f} bytes/module\n")
+            modules = ', '.join([f"{name} ({-neg_size:_d})" for neg_size, name in self.module_sizes['smallest']])
+            lines.append(f"Smallest modules: {-self.module_sizes['smallest'].max()[0]:12_d} bytes - {modules}\n")
+            modules = ', '.join([f"{name} ({size:_d})" for size, name in self.module_sizes['largest']])
+            lines.append(f"Largest modules:  {self.module_sizes['largest'].max()[0]:12_d} bytes - {modules}\n")
+
         out.write(''.join(lines))
 
 
@@ -731,6 +797,7 @@ class TestBuilder(object):
         self.add_cython_import = add_cython_import
         self.capture = options.capture
         self.add_cpp_locals_extra_tests = add_cpp_locals_extra_tests
+        self.shared_utility = SHARED_UTILITY_MODULE_NAME if options.use_shared_utility else None
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -755,8 +822,7 @@ class TestBuilder(object):
 
     def handle_directory(self, path, context):
         workdir = os.path.join(self.workdir, context)
-        if not os.path.exists(workdir):
-            os.makedirs(workdir)
+        os.makedirs(workdir, exist_ok=True)
 
         suite = unittest.TestSuite()
         filenames = list_unchanging_dir(path)
@@ -793,6 +859,9 @@ class TestBuilder(object):
                     continue
                 if skip_limited(tags):
                     continue
+                if self.shared_utility is not None and 'shared_utility' not in tags['tag']:
+                     # EndToEnd tests have their own build setup which doesn't use the shared module unless the tag says so.
+                    continue
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
                     suite.addTest(EndToEndTest(filepath, workdir,
                              self.cleanup_workdir, stats=self.stats,
@@ -818,7 +887,8 @@ class TestBuilder(object):
                                          module, filepath, mode == 'error', tags):
                 suite.addTest(test)
 
-            if mode == 'run' and ext == '.py' and not self.cython_only and not filename.startswith('test_'):
+            if mode == 'run' and ext == '.py' and not filename.startswith('test_') and not (
+                    self.cython_only or self.shared_utility):
                 # additionally test file in real Python
                 min_py_ver = [
                     (int(pyver.group(1)), int(pyver.group(2)))
@@ -895,8 +965,7 @@ class TestBuilder(object):
                    expect_log, warning_errors, preparse, pythran_dir, add_cython_import,
                    extra_directives):
         language_workdir = os.path.join(workdir, language)
-        if not os.path.exists(language_workdir):
-            os.makedirs(language_workdir)
+        os.makedirs(language_workdir, exist_ok=True)
         workdir = os.path.join(language_workdir, module)
         if preparse != 'id':
             workdir += '_%s' % (preparse,)
@@ -924,7 +993,8 @@ class TestBuilder(object):
                           stats=self.stats,
                           add_cython_import=add_cython_import,
                           extra_directives=extra_directives,
-                          abi3audit=self.abi3audit
+                          abi3audit=self.abi3audit,
+                          shared_utility=self.shared_utility,
                           )
 
 
@@ -984,7 +1054,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
                  extra_directives=None, evaluate_tree_assertions=True,
-                 abi3audit=False):
+                 abi3audit=False, shared_utility=None):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -1011,6 +1081,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.add_cython_import = add_cython_import
         self.extra_directives = extra_directives if extra_directives is not None else {}
         self.abi3audit = abi3audit
+        self.shared_utility = shared_utility
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -1048,8 +1119,7 @@ class CythonCompileTestCase(unittest.TestCase):
         ]
         Options.warning_errors = self.warning_errors
 
-        if not os.path.exists(self.workdir):
-            os.makedirs(self.workdir)
+        os.makedirs(self.workdir, exist_ok=True)
         if self.workdir not in sys.path:
             sys.path.insert(0, self.workdir)
 
@@ -1062,7 +1132,10 @@ class CythonCompileTestCase(unittest.TestCase):
                         name = name.decode()
                         sys.modules[name] = CythonCImports(name)
 
+        super().setUp()
+
     def tearDown(self):
+        super().tearDown()
         from Cython.Compiler import Options
         for name, value in self._saved_options:
             setattr(Options, name, value)
@@ -1417,14 +1490,19 @@ class CythonCompileTestCase(unittest.TestCase):
                 with self.stats.time(self.name, self.language, 'cython'):
                     self.run_cython(
                         test_directory, module, module_path, workdir, incdir, annotate,
-                        evaluate_tree_assertions=evaluate_tree_assertions)
+                        evaluate_tree_assertions=evaluate_tree_assertions,
+                        extra_compile_options={'shared_utility_qualified_name': self.shared_utility},
+                    )
                 errors, warnings, perf_hints = sys.stderr.getall()
             finally:
                 sys.stderr = old_stderr
             if self.test_determinism and not expect_errors:
                 workdir2 = workdir + '-again'
                 os.mkdir(workdir2)
-                self.run_cython(test_directory, module, module_path, workdir2, incdir, annotate)
+                self.run_cython(
+                    test_directory, module, module_path, workdir2, incdir, annotate,
+                    extra_compile_options={'shared_utility_qualified_name': self.shared_utility},
+                )
                 diffs = []
                 for file in os.listdir(workdir2):
                     with open(os.path.join(workdir, file)) as fid:
@@ -1477,6 +1555,7 @@ class CythonCompileTestCase(unittest.TestCase):
             else:
                 if 'cerror' in self.tags['tag']:
                     raise RuntimeError('should have failed C compile')
+                self.stats.update_module_size(workdir, so_path)
             finally:
                 if show_output:
                     stdout = get_stdout and get_stdout().strip()
@@ -1519,9 +1598,9 @@ class CythonCompileTestCase(unittest.TestCase):
 
 class CythonRunTestCase(CythonCompileTestCase):
     def setUp(self):
-        CythonCompileTestCase.setUp(self)
         from Cython.Compiler import Options
         Options.clear_to_none = False
+        super().setUp()
 
     def description_name(self):
         return self.name if self.cython_only else "and running %s" % self.name
@@ -1688,6 +1767,18 @@ class PartialTestResult(TextTestResult):
             self.write("%s\n" % line)
 
 
+class TimedTest(unittest.TestCase):
+    # Copied here from Cython/TestUtils.py to avoid import time dependency on Cython.
+    def setUp(self):
+        super().setUp()
+        self._start_time = time.time()
+
+    def tearDown(self):
+        t = time.time() - self._start_time
+        super().tearDown()
+        sys.stderr.write(f"[{self.id()}:{'' if t < .5 else ' SLOWTEST'} {t:.2f} sec] ")
+
+
 class CythonUnitTestCase(CythonRunTestCase):
     def shortDescription(self):
         return "[%d] compiling (%s) tests in %s" % (
@@ -1703,16 +1794,15 @@ class CythonUnitTestCase(CythonRunTestCase):
             tests.run(result)
 
 
-class CythonPyregrTestCase(CythonRunTestCase):
+class CythonPyregrTestCase(TimedTest, CythonRunTestCase):
     def setUp(self):
-        CythonRunTestCase.setUp(self)
         from Cython.Compiler import Options
         Options.error_on_unknown_names = False
         Options.error_on_uninitialized = False
         Options._directive_defaults.update(dict(
             binding=True, always_allow_keywords=True,
             set_initial_path="SOURCEFILE"))
-        patch_inspect_isfunction()
+        super().setUp()
 
     def related_files(self, test_directory, module_name):
         return _list_pyregr_data_files(test_directory)
@@ -2010,7 +2100,7 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
                         pass
 
 
-class EndToEndTest(unittest.TestCase):
+class EndToEndTest(TimedTest):
     """
     This is a test of build/*.srctree files, where srctree defines a full
     directory structure and its header gives a list of commands to run.
@@ -2039,11 +2129,16 @@ class EndToEndTest(unittest.TestCase):
         return "[%d] End-to-end %s" % (
             self.shard_num, self.name)
 
+    def id(self):
+        return f"etoe.{self.name}"
+
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
         _, self.commands = unpack_source_tree(self.treefile, self.workdir, self.cython_root)
+        super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         if self.cleanup_workdir:
             for trial in range(5):
                 try:
@@ -2108,6 +2203,8 @@ class EndToEndTest(unittest.TestCase):
                 ))
                 self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
                     ' '.join(command), out[-1], err[-1]))
+
+        self.stats.update_module_sizes(workdir)
         self.success = True
 
 
@@ -2577,6 +2674,9 @@ def main():
     parser.add_argument(
         "--abi3audit", dest="abi3audit", default=False, action="store_true",
         help="Validate compiled files with ABI3 audit")
+    parser.add_argument(
+        "--shared-utility", dest="use_shared_utility", default=False, action="store_true",
+        help="Compile modules with shared cython utility code")
     parser.add_argument('cmd_args', nargs='*')
 
     options = parser.parse_args(args)
@@ -2614,6 +2714,7 @@ def main():
         keep_alive_interval = 10
     else:
         keep_alive_interval = None
+    setup_test_directory(options)
     if options.shard_count > 1 and options.shard_num == -1:
         if "PYTHONIOENCODING" not in os.environ:
             # Make sure subprocesses can print() Unicode text.
@@ -2746,6 +2847,31 @@ def time_stamper_thread(interval=10, open_shards=None):
         os.close(stderr)
 
 
+@contextmanager
+def generate_shared_utility(options):
+    if not options.use_shared_utility:
+        yield
+        return
+
+    with TemporaryDirectory() as workdir:
+        shared_utility_c_file = os.path.join(workdir, f'{SHARED_UTILITY_MODULE_NAME}.c')
+        utility_gen_result = subprocess.run(
+            [
+                'python', 'cython.py', '--generate-shared', shared_utility_c_file
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
+        if utility_gen_result.returncode != 0:
+            raise RuntimeError(f"Shared utility generation failed:\n{utility_gen_result.stdout}")
+
+        compilation_result = subprocess.run(
+            [
+                'python', 'cythonize.py', '-bi', shared_utility_c_file
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
+        if compilation_result.returncode != 0:
+            raise RuntimeError(f"Shared utility compilation failed:\n{compilation_result.stdout}")
+
+        sys.path.append(workdir)
+        yield workdir
+
 def configure_cython(options):
     global CompilationOptions, pyrex_default_options, cython_compile
     from Cython.Compiler.Options import \
@@ -2787,6 +2913,34 @@ def save_coverage(coverage, options):
         coverage.html_report(directory="coverage-report-html")
 
 
+def setup_test_directory(options):
+    WITH_CYTHON = options.with_cython
+    WORKDIR = os.path.abspath(options.work_dir)
+    if WITH_CYTHON:
+        if os.path.exists(WORKDIR):
+            for path in os.listdir(WORKDIR):
+                if path in ("support", "Cy3"): continue
+                shutil.rmtree(os.path.join(WORKDIR, path), ignore_errors=True)
+    os.makedirs(WORKDIR, exist_ok=True)
+
+    if IS_PYPY or IS_GRAAL:
+        if options.with_refnanny:
+            sys.stderr.write("Disabling refnanny in PyPy/GraalPy\n")
+            options.with_refnanny = False
+
+    if options.with_refnanny:
+        try:
+            import_refnanny()
+        except ImportError:
+            from pyximport.pyxbuild import pyx_to_dll
+            libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
+                                build_in_temp=True,
+                                pyxbuild_dir=os.path.join(WORKDIR, "support"))
+            sys.path.insert(0, os.path.split(libpath)[0])
+            import_refnanny()
+        CDEFS.append(('CYTHON_REFNANNY', '1'))
+
+
 def runtests_callback(args):
     options, cmd_args, shard_num = args
     options.shard_num = shard_num
@@ -2820,20 +2974,12 @@ def runtests(options, cmd_args, coverage=None):
 
     xml_output_dir = options.xml_output_dir
     if options.shard_num > -1:
-        WORKDIR = os.path.join(WORKDIR, str(options.shard_num))
         if xml_output_dir:
             xml_output_dir = os.path.join(xml_output_dir, 'shard-%03d' % options.shard_num)
 
     # RUN ALL TESTS!
     UNITTEST_MODULE = "Cython"
     UNITTEST_ROOT = os.path.join(os.path.dirname(__file__), UNITTEST_MODULE)
-    if WITH_CYTHON:
-        if os.path.exists(WORKDIR):
-            for path in os.listdir(WORKDIR):
-                if path in ("support", "Cy3"): continue
-                shutil.rmtree(os.path.join(WORKDIR, path), ignore_errors=True)
-    if not os.path.exists(WORKDIR):
-        os.makedirs(WORKDIR)
 
     if options.shard_num <= 0:
         sys.stderr.write("Python %s\n" % sys.version)
@@ -2851,23 +2997,9 @@ def runtests(options, cmd_args, coverage=None):
             compiler_default_options['gdb_debug'] = True
             compiler_default_options['output_dir'] = os.getcwd()
 
-    if IS_PYPY or IS_GRAAL:
-        if options.with_refnanny:
-            sys.stderr.write("Disabling refnanny in PyPy/GraalPy\n")
-            options.with_refnanny = False
-
     refnanny = None
     if options.with_refnanny:
-        try:
-            refnanny = import_refnanny()
-        except ImportError:
-            from pyximport.pyxbuild import pyx_to_dll
-            libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
-                                build_in_temp=True,
-                                pyxbuild_dir=os.path.join(WORKDIR, "support"))
-            sys.path.insert(0, os.path.split(libpath)[0])
-            refnanny = import_refnanny()
-        CDEFS.append(('CYTHON_REFNANNY', '1'))
+        refnanny = import_refnanny()
 
     global sys_version_or_limited_version
     sys_version_or_limited_version = sys.version_info
@@ -3018,8 +3150,7 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.use_common_utility_dir:
         common_utility_dir = os.path.join(WORKDIR, 'utility_code')
-        if not os.path.exists(common_utility_dir):
-            os.makedirs(common_utility_dir)
+        os.makedirs(common_utility_dir, exist_ok=True)
     else:
         common_utility_dir = None
 
@@ -3075,11 +3206,7 @@ def runtests(options, cmd_args, coverage=None):
 
     if xml_output_dir:
         from Cython.Tests.xmlrunner import XMLTestRunner
-        if not os.path.exists(xml_output_dir):
-            try:
-                os.makedirs(xml_output_dir)
-            except OSError:
-                pass  # concurrency issue?
+        os.makedirs(xml_output_dir, exist_ok=True)
         test_runner = XMLTestRunner(output=xml_output_dir,
                                     verbose=options.verbosity > 0)
         if options.failfast:
@@ -3121,7 +3248,8 @@ def runtests(options, cmd_args, coverage=None):
         if options.shard_num > -1:
             thread_id = f" (Thread ID 0x{threading.get_ident():x})" if threading is not None else ""
             sys.stderr.write(f"Tests in shard ({options.shard_num}/{options.shard_count}) starting{thread_id}\n")
-        result = test_runner.run(test_suite)
+        with generate_shared_utility(options):
+            result = test_runner.run(test_suite)
     except Exception as exc:
         # Make sure we print exceptions also from shards.
         if options.shard_num > -1:
