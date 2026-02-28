@@ -1,9 +1,9 @@
-import unittest
-
 from Cython import Shadow
 from Cython.Compiler import Options, CythonScope, PyrexTypes, Errors
+from Cython.TestUtils import TimedTest
 
-class TestShadow(unittest.TestCase):
+
+class TestShadow(TimedTest):
     def tearDown(self):
         Errors.reset()  # help out any future tests
 

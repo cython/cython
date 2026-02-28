@@ -499,13 +499,13 @@ static void __Pyx_RejectUnknownKeyword(
     PyObject *key = NULL;
 
     __Pyx_BEGIN_CRITICAL_SECTION(kwds);
-    while (
-        #if CYTHON_AVOID_BORROWED_REFS
-        __Pyx_PyDict_NextRef(kwds, &pos, &key, NULL)
-        #else
-        PyDict_Next(kwds, &pos, &key, NULL)
-        #endif
-    ) {
+    #if CYTHON_AVOID_BORROWED_REFS
+    while (__Pyx_PyDict_NextRef(kwds, &pos, &key, NULL))
+    #else
+    (void) __Pyx_PyDict_NextRef;
+    while (PyDict_Next(kwds, &pos, &key, NULL))
+    #endif
+    {
         // Quickly exclude the 'obviously' valid/known keyword arguments (exact pointer match).
         PyObject** const *name = first_kw_arg;
         while (*name && (**name != key)) name++;
@@ -787,13 +787,13 @@ static int __Pyx_MergeKeywords_dict(PyObject *kwdict, PyObject *source_dict) {
         }
 
         __Pyx_BEGIN_CRITICAL_SECTION(smaller_dict);
-        while (
-            #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-            __Pyx_PyDict_NextRef(smaller_dict, &ppos, &key, NULL)
-            #else
-            PyDict_Next(smaller_dict, &ppos, &key, NULL)
-            #endif
-        ) {
+        #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+        while (__Pyx_PyDict_NextRef(smaller_dict, &ppos, &key, NULL))
+        #else
+        (void) __Pyx_PyDict_NextRef;
+        while (PyDict_Next(smaller_dict, &ppos, &key, NULL))
+        #endif
+        {
             if (unlikely(PyDict_Contains(larger_dict, key))) {
                 __Pyx_RaiseDoubleKeywordsError("function", key);
                 #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
@@ -936,7 +936,7 @@ static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_
 
 /////////////// fastcall ///////////////
 //@requires: ObjectHandling.c::TupleAndListFromArray
-//@requires: StringTools.c::UnicodeEquals
+//@requires: Optimize.c::UnicodeEquals
 
 #if CYTHON_METH_FASTCALL
 // kwnames: tuple with names of keyword arguments
@@ -966,7 +966,7 @@ static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyO
         #if !CYTHON_ASSUME_SAFE_MACROS
         if (unlikely(!namei)) return NULL;
         #endif
-        int eq = __Pyx_PyUnicode_Equals(s, namei, Py_EQ);
+        int eq = __Pyx_PyUnicode_Equals(s, namei);
         if (unlikely(eq != 0)) {
             if (unlikely(eq < 0)) return NULL;  /* error */
             return kwvalues[i];

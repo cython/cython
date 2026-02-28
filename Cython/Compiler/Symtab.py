@@ -2765,7 +2765,7 @@ class CClassScope(ClassScope):
         """
         property_entry = self.declare_property(name, doc=doc, ctype=type, pos=pos)
         cfunc_entry = property_entry.scope.declare_cfunction(
-            name=name,
+            name="__get__",
             type=PyrexTypes.CFuncType(
                 type,
                 [PyrexTypes.CFuncTypeArg("self", self.parent_type, pos=None)],
@@ -3030,16 +3030,23 @@ class PropertyScope(Scope):
     def declare_cfunction(self, name, type, pos, *args, **kwargs):
         """Declare a C property function.
         """
-        if type.return_type.is_void:
-            error(pos, "C property method cannot return 'void'")
+        if name=="__get__":
+            if type.return_type.is_void:
+                error(pos, "C property getter cannot return 'void'")
+            if len(type.args) != 1:
+                error(pos, "C property getter must have a single (self) argument")
 
+        if name=="__set__":
+            if not type.return_type.is_void:
+                error(pos, "C property setter must return 'void'")
+            if len(type.args) != 2:
+                error(pos, "C property setter must have two arguments (self and value)")
+
+        if not (type.args[0].type.is_pyobject or type.args[0].type is self.parent_scope.parent_type):
+            error(pos, "self argument of C property method must be an object")
         if type.args and type.args[0].type is py_object_type:
             # Set 'self' argument type to extension type.
             type.args[0].type = self.parent_scope.parent_type
-        elif len(type.args) != 1:
-            error(pos, "C property method must have a single (self) argument")
-        elif not (type.args[0].type.is_pyobject or type.args[0].type is self.parent_scope.parent_type):
-            error(pos, "C property method must have a single (object) argument")
 
         entry = Scope.declare_cfunction(self, name, type, pos, *args, **kwargs)
         entry.is_cproperty = True

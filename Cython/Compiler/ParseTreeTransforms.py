@@ -1869,13 +1869,24 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
 
         ret_node = node
         decorator_node = self._find_property_decorator(node)
-        if decorator_node:
+        if decorator_node and (name := node.declared_name()):
             if decorator_node.decorator.is_name:
-                name = node.declared_name()
-                if name:
-                    ret_node = self._add_property(node, name, decorator_node)
+                ret_node = self._add_property(node, name, decorator_node)
             else:
-                error(decorator_node.pos, "C property decorator can only be @property")
+                handler_name = self._map_property_attribute(decorator_node.decorator.attribute)
+                if handler_name:
+                    if handler_name == "__del__":
+                        error(decorator_node.pos,
+                              "Cannot have deleter for C property")
+                        ret_node = None
+                    elif decorator_node.decorator.obj.name != name:
+                        # CPython does not generate an error or warning, but not something useful either.
+                        error(decorator_node.pos,
+                            "Mismatching C property names, expected '%s', got '%s'" % (
+                                decorator_node.decorator.obj.name, name))
+                        ret_node = None
+                    else:
+                        ret_node = self._add_to_property(node, handler_name, decorator_node)
 
         if node.decorators:
             return self._reject_decorated_property(node, node.decorators[0])
@@ -1939,6 +1950,17 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
                 error(deco.pos, "Property methods with additional decorators are not supported")
         return node
 
+    def _get_property_function_name(self, node):
+        if isinstance(node, Nodes.CFuncDefNode):
+            return node.declared_name()
+        return node.name
+
+    def _rename_property_function(self, node, name):
+        if isinstance(node, Nodes.CFuncDefNode):
+            node.declarator.set_declared_name(name)
+        else:
+            node.name = name
+
     def _add_property(self, node, name, decorator_node):
         if len(node.decorators) > 1:
             return self._reject_decorated_property(node, decorator_node)
@@ -1946,40 +1968,42 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         properties = self._properties[-1]
         is_cproperty = isinstance(node, Nodes.CFuncDefNode)
         body = Nodes.StatListNode(node.pos, stats=[node])
+        node_type = Nodes.PropertyNode
         if is_cproperty:
-            if name in properties:
-                error(node.pos, "C property redeclared")
             if 'inline' not in node.modifiers:
                 error(node.pos, "C property method must be declared 'inline'")
-            prop = Nodes.CPropertyNode(node.pos, doc=node.doc, name=name, body=body)
-        elif name in properties:
+            node_type = Nodes.CPropertyNode
+        if name in properties:
             prop = properties[name]
             if prop.is_cproperty:
                 error(node.pos, "C property redeclared")
             else:
-                node.name = EncodedString("__get__")
+                self._rename_property_function(node, EncodedString("__get__"))
                 prop.pos = node.pos
                 prop.doc = node.doc
                 prop.body.stats = [node]
             return None
         else:
-            node.name = EncodedString("__get__")
-            prop = Nodes.PropertyNode(
+            self._rename_property_function(node, EncodedString("__get__"))
+            prop = node_type(
                 node.pos, name=name, doc=node.doc, body=body)
         properties[name] = prop
         return prop
 
     def _add_to_property(self, node, name, decorator):
         properties = self._properties[-1]
-        prop = properties[node.name]
-        if prop.is_cproperty:
-            error(node.pos, "C property redeclared")
-            return None
-        node.name = name
+        prop = properties[self._get_property_function_name(node)]
+        self._rename_property_function(node, name)
+        if isinstance(node, Nodes.CFuncDefNode):
+            if 'inline' not in node.modifiers:
+                error(node.pos, "C property method must be declared 'inline'")
         node.decorators.remove(decorator)
         stats = prop.body.stats
         for i, stat in enumerate(stats):
-            if stat.name == name:
+            if self._get_property_function_name(stat) == name:
+                if prop.is_cproperty:
+                    error(node.pos, "C property redeclared")
+                    return None
                 stats[i] = node
                 break
         else:

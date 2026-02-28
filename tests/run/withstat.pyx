@@ -2,6 +2,8 @@
 
 from __future__ import with_statement
 
+from Cython.TestUtils import TimedTest
+
 def typename(t):
     name = type(t).__name__
     return u"<type '%s'>" % name
@@ -165,7 +167,7 @@ class ExitRaises(object):
     def __enter__(self): pass
     def __exit__(self, *exc_info): raise RuntimeError()
 
-class NestedWith(unittest.TestCase):
+class NestedWith(TimedTest):
     """
     >>> NestedWith().runTest()
     """
