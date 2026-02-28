@@ -1,5 +1,5 @@
 # mode: run
-# tag: pure312, warnings
+# tag: pure3.12, warnings
 
 # This is just to check that our minimal implementation of typeparams
 # produces usable functions and classes.  Beyond that, they don't do
