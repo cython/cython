@@ -10,7 +10,6 @@
 # Unset any global override of Py_LIMITED_API and any CYTHON_ defines
 UNSET CFLAGS -DPy_LIMITED_API -DCYTHON_
 PYTHON setup.py build_ext --inplace -j3
->>>>>>> 2e745ee98 (Speed up isolated_limited test)
 PYTHON run.py limited_single_phase
 PYTHON run.py limited_single_phase_modstate
 PYTHON run.py limited_multi_phase
