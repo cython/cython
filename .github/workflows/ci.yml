@@ -85,26 +85,26 @@ jobs:
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
             allowed_failure: false
-          # GCC 15 (with broad language standards)
+          # GCC 14 (with broad language standards)
           - os: ubuntu-24.04
             python-version: "3.9"
             backend: c
-            env: { GCC_VERSION: 15, EXTRA_CFLAGS: "-std=c99" }
+            env: { GCC_VERSION: 14, EXTRA_CFLAGS: "-std=c99" }
             extra_hash: "-c99"
           - os: ubuntu-24.04
             python-version: "3.10"
             backend: c
-            env: { GCC_VERSION: 15, EXTRA_CFLAGS: "-std=c17" }
+            env: { GCC_VERSION: 14, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-c17"
           - os: ubuntu-24.04
             python-version: "3.12"
             backend: c
-            env: { GCC_VERSION: 15, EXTRA_CFLAGS: "-std=c17" }
+            env: { GCC_VERSION: 14, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-c17"
           - os: ubuntu-24.04
             python-version: "3.13"
             backend: cpp
-            env: { GCC_VERSION: 15, EXTRA_CFLAGS: "-std=c++20" }
+            env: { GCC_VERSION: 14, EXTRA_CFLAGS: "-std=c++20" }
             extra_hash: "-cpp20"
           # Arm64
           - os: ubuntu-22.04-arm
