@@ -10,7 +10,6 @@ if [[ $TEST_CODE_STYLE == "1" ]]; then
 elif [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
-  sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt-get update -y -q
   sudo apt-get install -y -q gdb python3-dbg gcc-$GCC_VERSION || exit 1
 
