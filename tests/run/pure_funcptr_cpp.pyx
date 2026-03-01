@@ -24,9 +24,20 @@ def test_references():
     print(cython.typeof(takes_const_reference))
 
 
-cdef int raise_py_error() except *:
+cdef int raise_py_error():
     raise TypeError("custom")
 
+def test_catch_exception_raised_by_function_pointer():
+    """
+    >>> test_catch_exception_raised_by_function_pointer()
+    Caught exception: custom
+    """
+    f: cython.pointer[cython.function_type([], cython.int)]
+    f = raise_py_error
+    try:
+        f()
+    except Exception as e:
+        print(f"Caught exception: {e}")
 
 def test_fn_pointer_type():
     """
@@ -57,6 +68,15 @@ def test_fn_pointer_type():
     print(cython.typeof(f4a))
     print(cython.typeof(f4b))
 
+
+def test_fn_pointer_type_example():
+    """
+    >>> test_fn_pointer_type_example()
+    void (*)(int) except *
+    """
+    # This is the example in the documentation.
+    f1: cython.pointer[cython.function_type([cython.int], cython.void)]
+    print(cython.typeof(f1))
 
 def test_fn_pointer_type_exceptions():
     """
