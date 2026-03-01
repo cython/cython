@@ -11,14 +11,16 @@ elif [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
-  sudo apt update -y -q
-  sudo apt install -y -q gdb python3-dbg gcc-$GCC_VERSION || exit 1
+  sudo apt-get update -y -q
+  sudo apt-get install -y -q gdb python3-dbg gcc-$GCC_VERSION || exit 1
 
   ALTERNATIVE_ARGS=""
   if [[ $BACKEND == *"cpp"* ]]; then
-    sudo apt install -y -q g++-$GCC_VERSION || exit 1
+    sudo apt-get install -y -q g++-$GCC_VERSION || exit 1
     ALTERNATIVE_ARGS="--slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"
   fi
+
+  sudo apt-get clean
 
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
@@ -78,47 +80,50 @@ echo "===================="
 # Install python requirements
 echo "Installing requirements [python]"
 if [[ $PYTHON_VERSION == "3.1"[2-9]* || $PYTHON_VERSION == *"-dev" || $PYTHON_VERSION == "pypy-3.11" || $PYTHON_VERSION == "graalpy"* ]]; then
-  python -m pip install -U pip wheel setuptools || exit 1
+  python -m pip install --no-cache-dir -U pip wheel setuptools || exit 1
 else
   # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.10.
-  python -m pip install -U pip "setuptools<60" "wheel<0.46" "twine" "cryptography<42" "nh3<0.2.19" || exit 1
+  python -m pip install --no-cache-dir -U pip "setuptools<60" "wheel<0.46" "twine" "cryptography<42" "nh3<0.2.19" || exit 1
 fi
 if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" && $PYTHON_VERSION != "graalpy"* ]]; then
   # twine is not installable on freethreaded Python due to cryptography requirement
   # On GraalPython, it is useless and takes long to install due to its binary dependencies.
-  python -m pip install -U twine || exit 1
+  python -m pip install --no-cache-dir -U twine || exit 1
 fi
 if [[ $PYTHON_VERSION != *"-dev" ]]; then
-  python -m pip install --pre -r test-requirements.txt || exit 1
+  python -m pip install --no-cache-dir --pre -r test-requirements.txt || exit 1
 elif [[ ! "$SANITIZER_CFLAGS" ]]; then
   # Install packages one by one, allowing failures due to missing recent wheels.
-  cat test-requirements.txt | while read package; do python -m pip install --pre --only-binary ":all:" "$package" || true; done
+  cat test-requirements.txt | while read package; do python -m pip install --no-cache-dir --pre --only-binary ":all:" "$package" || true; done
 fi
 if [[ $PYTHON_VERSION == "3.13"* ]]; then
-  python -m pip install --pre -r test-requirements-313.txt || exit 1
+  python -m pip install --no-cache-dir --pre -r test-requirements-313.txt || exit 1
 fi
 if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VERSION != *"-dev" ]]; then
-  python -m pip install -r test-requirements-cpython.txt || exit 1
+  python -m pip install --no-cache-dir -r test-requirements-cpython.txt || exit 1
 fi
 
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   STYLE_ARGS="--no-unit --no-doctest --no-file --no-pyregr --no-examples"
-  python -m pip install -r doc-requirements.txt || exit 1
+  python -m pip install --no-cache-dir -r doc-requirements.txt || exit 1
 else
   STYLE_ARGS="--no-code-style"
 
   # Install more requirements
   if [[ $PYTHON_VERSION != *"-dev" ]]; then
     if [[ $BACKEND == *"cpp"* && $OSTYPE != "msys" ]]; then
-      python -m pip install pythran || exit 1
+      python -m pip install --no-cache-dir pythran || exit 1
     fi
 
     if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
-      python -m pip install mypy || exit 1
+      python -m pip install --no-cache-dir mypy || exit 1
     fi
 
   fi
 fi
+
+echo "==== Runner resources ===="
+df -h
 
 # Run tests
 echo "==== Running tests ===="
@@ -240,6 +245,7 @@ python $GRAAL_PYTHON_ARGS runtests.py \
   -x Debugger \
   --backends=$BACKEND \
   $LIMITED_API \
+  $SHARED_UTILITY \
   $EXCLUDE \
   $RUNTESTS_ARGS
 

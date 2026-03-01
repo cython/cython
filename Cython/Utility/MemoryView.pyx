@@ -15,6 +15,7 @@ cdef extern from "Python.h":
     int PyIndex_Check(object)
     PyObject *PyExc_IndexError
     PyObject *PyExc_ValueError
+    PyObject *PyExc_TypeError
 
 cdef extern from "pythread.h":
     ctypedef void *PyThread_type_lock
@@ -39,6 +40,9 @@ cdef extern from *:
     void PyMem_Free(void *p)
     void* PyObject_Malloc(size_t n)
     void PyObject_Free(void *p)
+
+    PyObject* PyErr_SetString(PyObject* exc_type, const char* message)  # No 'except NULL', callers must propagate.
+    PyObject* PyErr_Format(PyObject* exc_type, const char* message, ...)  # No 'except NULL', callers must propagate.
 
     ctypedef size_t uintptr_t "__pyx_uintptr_t"
 
@@ -78,6 +82,9 @@ cdef extern from *:
         pass
 
 cdef extern from *:
+    """
+    typedef int (*__pyx_memoryview_to_dtype_func_type)(char*, PyObject*);
+    """
     ctypedef int __pyx_atomic_int_type
     {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
                                  {{memviewslice_name}} *from_mvs,
@@ -89,6 +96,8 @@ cdef extern from *:
     bint slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
                                                 {{memviewslice_name}} *slice2,
                                                 int ndim, size_t itemsize) nogil
+
+    ctypedef int (*to_dtype_func_type "__pyx_memoryview_to_dtype_func_type")(char *, object) except 0
 
 
 cdef extern from "<stdlib.h>":
@@ -137,10 +146,10 @@ cdef class array:
         self.itemsize = itemsize
 
         if not self.ndim:
-            raise ValueError, "Empty shape tuple for cython.array"
+            _err_ValueError("Empty shape tuple for cython.array")
 
         if itemsize <= 0:
-            raise ValueError, "itemsize <= 0 for cython.array"
+            _err_ValueError("itemsize <= 0 for cython.array")
 
         if not isinstance(format, bytes):
             format = format.encode('ASCII')
@@ -187,7 +196,7 @@ cdef class array:
             elif self.mode == u"fortran":
                 bufmode = PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
             if not (flags & bufmode):
-                raise ValueError, "Can only create a buffer that is contiguous in memory."
+                _err_ValueError("Can only create a buffer that is contiguous in memory.")
         info.buf = self.data
         info.len = self.len
 
@@ -391,7 +400,7 @@ cdef class memoryview:
             else:
                 PyThread_free_lock(self.lock)
 
-    cdef char *get_item_pointer(memoryview self, object index) except NULL:
+    cdef char *get_item_pointer(memoryview self, index: tuple) except NULL:
         cdef Py_ssize_t dim
         cdef char *itemp = <char *> self.view.buf
 
@@ -402,6 +411,12 @@ cdef class memoryview:
 
     #@cname('__pyx_memoryview_getitem')
     def __getitem__(memoryview self, object index):
+        cdef char *buffer
+        if self.view.ndim == 1 and isinstance(index, int):
+            buffer = <char *> self.view.buf
+            return self.convert_item_to_object(
+                pybuffer_index(&self.view, buffer, index, 0))
+
         if index is Ellipsis:
             return self
 
@@ -411,23 +426,28 @@ cdef class memoryview:
         if have_slices:
             return memview_slice(self, indices)
         else:
-            itemp = self.get_item_pointer(indices)
+            itemp = self.get_item_pointer(<tuple> indices)
             return self.convert_item_to_object(itemp)
 
     def __setitem__(memoryview self, object index, object value):
         if self.view.readonly:
             raise TypeError, "Cannot assign to read-only memoryview"
 
-        have_slices, index = _unellipsify(index, self.view.ndim)
+        if self.view.ndim == 1 and isinstance(index, int):
+            self.setitem_indexed1(index, value)
+            return
+
+        have_slices, indices = _unellipsify(index, self.view.ndim)
 
         if have_slices:
             obj = self.is_slice(value)
+            target_slice = memview_slice(self, indices)
             if obj is not None:
-                self.setitem_slice_assignment(self[index], obj)
+                self.setitem_slice_assignment(target_slice, obj)
             else:
-                self.setitem_slice_assign_scalar(self[index], value)
+                self.setitem_slice_assign_scalar(target_slice, value)
         else:
-            self.setitem_indexed(index, value)
+            self.setitem_indexed(<tuple> indices, value)
 
     cdef is_slice(self, obj):
         if not isinstance(obj, memoryview):
@@ -479,8 +499,13 @@ cdef class memoryview:
         finally:
             PyMem_Free(tmp)
 
-    cdef setitem_indexed(self, index, value):
-        cdef char *itemp = self.get_item_pointer(index)
+    cdef setitem_indexed(self, indices: tuple, value):
+        cdef char *itemp = self.get_item_pointer(indices)
+        self.assign_item_from_object(itemp, value)
+
+    cdef setitem_indexed1(self, index, value):
+        cdef char *buffer = <char *> self.view.buf
+        cdef char *itemp = pybuffer_index(&self.view, buffer, index, 0)
         self.assign_item_from_object(itemp, value)
 
     cdef convert_item_to_object(self, char *itemp):
@@ -493,7 +518,7 @@ cdef class memoryview:
         try:
             result = struct.unpack(self.view.format, bytesitem)
         except struct.error:
-            raise ValueError, "Unable to convert item to object"
+            _err_ValueError("Unable to convert item to object")
         else:
             if len(self.view.format) == 1:
                 return result[0]
@@ -518,7 +543,7 @@ cdef class memoryview:
     @cname('getbuffer')
     def __getbuffer__(self, Py_buffer *info, int flags):
         if flags & PyBUF_WRITABLE and self.view.readonly:
-            raise ValueError, "Cannot create writable memory view from read-only memoryview"
+            _err_ValueError("Cannot create writable memory view from read-only memoryview")
 
         if flags & PyBUF_ND:
             info.shape = self.view.shape
@@ -569,7 +594,7 @@ cdef class memoryview:
     def strides(self):
         if self.view.strides == NULL:
             # Note: we always ask for strides, so if this is not set it's a bug
-            raise ValueError, "Buffer view does not expose strides"
+            _err_ValueError("Buffer view does not expose strides")
 
         return tuple([stride for stride in self.view.strides[:self.view.ndim]])
 
@@ -666,39 +691,96 @@ cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, const __Pyx_
 cdef inline bint memoryview_check(object o) noexcept:
     return isinstance(o, memoryview)
 
-cdef tuple _unellipsify(object index, int ndim):
-    """
-    Replace all ellipses with full slices and fill incomplete indices with
-    full slices.
-    """
-    cdef Py_ssize_t idx
-    tup = <tuple>index if isinstance(index, tuple) else (index,)
 
-    result = [slice(None)] * ndim
+@cname('__pyx_memoryview_err_invalid_index')
+cdef int _err_invalid_index(item) except -1:
+    type_name = str(type(item))
+    PyErr_Format(PyExc_TypeError, "Cannot index with type '%.200U'", <PyObject*> type_name)
+    return -1
+
+
+cdef tuple _unellipsify_index_tuple(index_tuple: tuple, int ndim):
+    """
+    Replace all ellipses with full slices and fill incomplete indices with full slices.
+    """
+    cdef Py_ssize_t first_ellipsis_index = -1
+    cdef Py_ssize_t idx, ellipsis_end, indices_from_ellipsis
+
     have_slices = False
-    seen_ellipsis = False
+
     idx = 0
-    for item in tup:
+    for item in index_tuple:
         if item is Ellipsis:
-            if not seen_ellipsis:
-                idx += ndim - len(tup)
-                seen_ellipsis = True
             have_slices = True
-        else:
-            if isinstance(item, slice):
-                have_slices = True
-            elif not PyIndex_Check(item):
-                raise TypeError, f"Cannot index with type '{type(item)}'"
-            result[idx] = item
+            if first_ellipsis_index == -1:
+                first_ellipsis_index = idx
+        elif isinstance(item, slice):
+            have_slices = True
+        elif not PyIndex_Check(item):
+            _err_invalid_index(item)
         idx += 1
 
-    nslices = ndim - idx
-    return have_slices or nslices, tuple(result)
+    if first_ellipsis_index >= 0:
+        result = [slice(None)] * ndim
+
+        for idx in range(first_ellipsis_index):
+            result[idx] = index_tuple[idx]
+
+        indices_from_ellipsis = len(index_tuple) - first_ellipsis_index
+        ellipsis_end = ndim - indices_from_ellipsis
+
+        for idx in range(1, indices_from_ellipsis):
+            item = index_tuple[first_ellipsis_index + idx]
+            if item is not Ellipsis:
+                result[ellipsis_end + idx] = item
+
+        index_tuple = tuple(result)
+
+    elif ndim > idx:
+        # Fill missing indices at the end with full slice.
+        have_slices = True
+        index_tuple += (slice(None),) * (ndim - idx)
+
+    return have_slices, index_tuple
+
+
+cdef tuple _unellipsify(object index, int ndim):
+    """
+    Replace all ellipses with full slices and fill incomplete indices with full slices.
+    """
+    result: tuple
+    have_slices = False
+
+    if index is Ellipsis:
+        have_slices = True
+        result = (slice(None),) * ndim
+
+    elif isinstance(index, tuple):
+        return _unellipsify_index_tuple(<tuple> index, ndim)
+
+    else:
+        if isinstance(index, slice):
+            have_slices = True
+        elif not PyIndex_Check(index):
+            _err_invalid_index(index)
+
+        # 1-2 dim are so common that they merit a special case.
+        if ndim == 1:
+            result = (index,)
+        elif ndim == 2:
+            have_slices = True
+            result = (index, slice(None))
+        else:
+            have_slices = True
+            result = (index,) + (slice(None),) * (ndim - 1)
+
+    return have_slices, result
+
 
 cdef int assert_direct_dimensions(Py_ssize_t *suboffsets, int ndim) except -1:
     for suboffset in suboffsets[:ndim]:
         if suboffset >= 0:
-            raise ValueError, "Indirect dimensions not supported"
+            _err_ValueError("Indirect dimensions not supported")
     return 0  # return type just used as an error flag
 
 #
@@ -909,10 +991,10 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
     if index < 0:
         index += view.shape[dim]
         if index < 0:
-            raise IndexError, f"Out of bounds on buffer access (axis {dim})"
+            _err_IndexError("Out of bounds on buffer access (axis %zd)", dim)
 
     if index >= shape:
-        raise IndexError, f"Out of bounds on buffer access (axis {dim})"
+        _err_IndexError("Out of bounds on buffer access (axis %zd)", dim)
 
     resultp = bufp + index * stride
     if suboffset >= 0:
@@ -956,7 +1038,7 @@ cdef class _memoryviewslice(memoryview):
     cdef object from_object
 
     cdef object (*to_object_func)(char *)
-    cdef int (*to_dtype_func)(char *, object) except 0
+    cdef to_dtype_func_type to_dtype_func
 
     def __dealloc__(self):
         __PYX_XCLEAR_MEMVIEW(&self.from_slice, 1)
@@ -997,7 +1079,7 @@ except:
 cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
                           int ndim,
                           object (*to_object_func)(char *),
-                          int (*to_dtype_func)(char *, object) except 0,
+                          to_dtype_func_type to_dtype_func,
                           bint dtype_is_object):
 
     cdef _memoryviewslice result
@@ -1088,7 +1170,7 @@ cdef memoryview_copy_from_slice(memoryview memview, {{memviewslice_name}} *memvi
     Create a new memoryview object from a given memoryview object and slice.
     """
     cdef object (*to_object_func)(char *)
-    cdef int (*to_dtype_func)(char *, object) except 0
+    cdef to_dtype_func_type to_dtype_func
 
     if isinstance(memview, _memoryviewslice):
         to_object_func = (<_memoryviewslice> memview).to_object_func
@@ -1241,24 +1323,43 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
 
     return result
 
+
 # Use 'with gil' functions and avoid 'with gil' blocks, as the code within the blocks
 # has temporaries that need the GIL to clean up
 @cname('__pyx_memoryview_err_extents')
 cdef int _err_extents(int i, Py_ssize_t extent1,
                              Py_ssize_t extent2) except -1 with gil:
-    raise ValueError, f"got differing extents in dimension {i} (got {extent1} and {extent2})"
+    PyErr_Format(
+        PyExc_ValueError,
+        "got differing extents in dimension %d (got %zd and %zd)",
+        i, extent1, extent2)
+    return -1
 
 @cname('__pyx_memoryview_err_dim')
-cdef int _err_dim(PyObject *error, str msg, int dim) except -1 with gil:
-    raise <object>error, msg % dim
+cdef int _err_dim(PyObject *error, const char* msg, int dim) except -1 with gil:
+    PyErr_Format(error, msg, dim)
+    return -1
 
 @cname('__pyx_memoryview_err')
-cdef int _err(PyObject *error, str msg) except -1 with gil:
-    raise <object>error, msg
+cdef int _err(PyObject *error, const char* msg) except -1 with gil:
+    PyErr_SetString(error, msg)
+    return -1
 
 @cname('__pyx_memoryview_err_no_memory')
 cdef int _err_no_memory() except -1 with gil:
     raise MemoryError
+
+# Simple exception raising functions.
+
+@cname('__pyx_memoryview_err_ValueError')
+cdef int _err_ValueError(const char* msg) except -1:
+    PyErr_SetString(PyExc_ValueError, msg)
+    return -1
+
+@cname('__pyx_memoryview_err_IndexError')
+cdef int _err_IndexError(const char* msg, Py_ssize_t index) except -1:
+    PyErr_Format(PyExc_IndexError, msg, index)
+    return -1
 
 
 @cname('__pyx_memoryview_copy_contents')

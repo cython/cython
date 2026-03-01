@@ -6,20 +6,24 @@
 # known and working. It should be dropped once the limited API is
 # better tested
 
+"""
 UNSET CFLAGS
-PYTHON setup.py build_ext --inplace
+PYTHON setup.py build_ext --inplace -j3
 PYTHON run.py limited_single_phase
 PYTHON run.py limited_single_phase_modstate
 PYTHON run.py limited_multi_phase
+"""
 
 
 ##################### setup.py ################################
 
-import sysconfig
-from setuptools import setup, Extension
-from Cython.Build import cythonize
-import os
+import pathlib
 import sys
+import sysconfig
+
+from setuptools import setup, Extension
+
+from Cython.Build import cythonize
 
 if sysconfig.get_config_var("Py_GIL_DISABLED"):
     print("Skipping isolated_limited_api tests on free-threading build")
@@ -28,24 +32,32 @@ if sysconfig.get_config_var("Py_GIL_DISABLED"):
 modules = [
     "limited_single_phase",
     "limited_single_phase_modstate",
-    "limited_multi_phase"
+    "limited_multi_phase",
 ]
 
+cwd = pathlib.Path.cwd()
+all_extensions = []
+
 for version in range(9, sys.version_info[1]+1):
-    all_extensions = []
+    version_hex = f"0x03{version:02x}0000"
+    extensions = []
+
     for module in modules:
-        version_hex = f"0x03{version:02x}0000"
         ext = Extension(
             f"{module}_{version}",
             sources=[f"{module}.pyx"],
             define_macros=[('Py_LIMITED_API', version_hex)],
-            py_limited_api=True)
-        all_extensions.append(ext)
-    setup(
-        ext_modules = cythonize(all_extensions),
-    )
-    for module in modules:
-        os.remove(f"{module}.c")  # make sure it's rebuilt on the next version loop
+            py_limited_api=True,
+        )
+        extensions.append(ext)
+
+    build_dir = cwd / f"py3{version}"
+    all_extensions.extend(
+        cythonize(extensions, build_dir=build_dir))
+
+setup(
+    ext_modules = all_extensions,
+)
 
 ##################### run.py ##################################
 

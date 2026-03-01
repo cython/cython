@@ -15,15 +15,18 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                bytearray_type=object, slice_type=object, memoryview_type=object,
                builtin_sequence_types=object, build_line_table=object,
                inspect=object, copy=object, os=object, pathlib=object, re=object, sys=object,
+               itertools=object, defaultdict=object,
 )
 
 import copy
 import inspect
+import itertools
 import operator
 import os.path
 import pathlib
 import re
 import sys
+from collections import defaultdict
 from functools import partial
 from typing import Optional
 
@@ -2340,6 +2343,8 @@ class NameNode(AtomicExprNode):
         elif (self.entry and self.entry.is_inherited and
                 self.annotation and env.is_c_dataclass_scope):
             error(self.pos, "Cannot redeclare inherited fields in Cython dataclasses")
+        elif self.entry and self.annotation and env.directives['annotation_typing']:
+            error(self.pos, f"'{self.name}' redeclared")
         if not self.entry:
             if env.directives['warn.undeclared']:
                 warning(self.pos, "implicit declaration of '%s'" % self.name, 1)
@@ -3793,6 +3798,7 @@ class JoinedStrNode(ExprNode):
         unknown_lengths = []
         unknown_nodes = []
         ustring_kind = 0
+        node_occurrences = defaultdict(int)
 
         for i, node in enumerate(self.values):
             node.generate_evaluation_code(code)
@@ -3801,6 +3807,12 @@ class JoinedStrNode(ExprNode):
                 ustring_kind = max(ustring_kind, node.get_ustring_kind())
                 known_length += len(node.value)
                 continue
+            elif isinstance(node, CloneNode) and node.arg in node_occurrences:
+                # We already know the result but need to add the length.
+                node_occurrences[node.arg] += 1
+                continue
+            else:
+                node_occurrences[node] += 1
 
             unknown_lengths.append(i)
 
@@ -3808,11 +3820,14 @@ class JoinedStrNode(ExprNode):
                     node.c_format_spec != 'c' and node.value.type.is_numeric):
                 # Formatted C numbers are always ASCII.
                 pass
-            elif isinstance(node, CloneNode):
-                # We already know the result, but we still need the length.
-                pass
             else:
                 unknown_nodes.append(i)
+
+        index_repetitions = {
+            i: node_occurrences[node]
+            for i, node in enumerate(self.values)
+            if node_occurrences[node] > 1
+        } or None
 
         if use_stack_memory:
             values_array = code.funcstate.allocate_temp(
@@ -3828,8 +3843,8 @@ class JoinedStrNode(ExprNode):
         for i, node in enumerate(self.values):
             code.putln('%s[%d] = %s;' % (values_array, i, node.py_result()))
 
-        def aggregate(indices, result_temp, initial_value, cfunc_name, operator):
-            assert operator in '+|', operator
+        def aggregate(indices, result_temp, result_temp_type, initial_value, cfunc_name, op, factors):
+            assert op in '+|', op
             code.putln(f"{result_temp} = {initial_value};")
             if not indices:
                 return
@@ -3837,7 +3852,9 @@ class JoinedStrNode(ExprNode):
             code.putln("#if __Pyx_PyUnicode_Join_CAN_USE_KIND_AND_LENGTH")
 
             if len(indices) == 1:
-                code.putln(f"{result_temp} {operator}= {cfunc_name}({values_array}[{indices[0]}]);")
+                index = indices[0]
+                factor = f" * {factors[index]}" if factors and index in factors else ''
+                code.putln(f"{result_temp} {op}= {cfunc_name}({values_array}[{index}]){factor};")
                 code.putln("#endif")
                 return
 
@@ -3853,21 +3870,34 @@ class JoinedStrNode(ExprNode):
                     assert indices == list(range(min_index, max_index+1, step)), indices
 
                     code.putln(f"for (Py_ssize_t i={min_index}; i <= {max_index}; i += {step}) ""{")
-                    code.putln(f"{result_temp} {operator}= {cfunc_name}({values_array}[i]);")
+                    code.putln(f"{result_temp_type} l = {cfunc_name}({values_array}[i]);")
+                    if factors:
+                        # Duplicate substrings are rare, so just factor them in conditionally.
+                        code.putln("switch(i) {")
+                        by_count = operator.itemgetter(1)
+                        factors_max_first = sorted(factors.items(), key=by_count, reverse=True)
+                        for factor, groups in itertools.groupby(factors_max_first, key=by_count):
+                            code.put(''.join(f"case {i:d}: " for i, _ in sorted(groups)))
+                            code.putln(f"l *= {factor}; break;")
+                        code.putln("}")
+                    code.putln(f"{result_temp} {op}= l;")
                     code.putln("}")
                     code.putln("#endif")
                     return
 
-            expressions = [f"{cfunc_name}({values_array}[{i}])" for i in indices]
-            result = f' {operator} '.join(expressions)
-            code.putln(f"{result_temp} {operator}= {result};")
+            factor_strings = {index: f" * {factors[index]}" for index in factors} if factors else {}
+            get_factor = factor_strings.get
+
+            expressions = [f"{cfunc_name}({values_array}[{i}]){get_factor(i, '')}" for i in indices]
+            result = f' {op} '.join(expressions)
+            code.putln(f"{result_temp} {op}= {result};")
             code.putln("#endif")
 
         code.mark_pos(self.pos)
 
         # Assume that getting the length of an exact Unicode string object will not fail.
         length_temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
-        aggregate(unknown_lengths, length_temp, known_length, "__Pyx_PyUnicode_GET_LENGTH", '+')
+        aggregate(unknown_lengths, length_temp, 'Py_ssize_t', known_length, "__Pyx_PyUnicode_GET_LENGTH", '+', index_repetitions)
 
         ukind_temp = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
         if ustring_kind == 4:
@@ -3876,7 +3906,7 @@ class JoinedStrNode(ExprNode):
         else:
             # or-ing isn't entirely correct here since it can produce value 3 from 1|2,
             # but we handle that in __Pyx_PyUnicode_Join().
-            aggregate(unknown_nodes, ukind_temp, ustring_kind, "__Pyx_PyUnicode_KIND_04", '|')
+            aggregate(unknown_nodes, ukind_temp, 'int', ustring_kind, "__Pyx_PyUnicode_KIND_04", '|', None)
 
         self.allocate_temp_result(code)
 
@@ -6331,14 +6361,30 @@ class SimpleCallNode(CallNode):
                     self.constant_result = method(*args)
 
     @classmethod
-    def for_cproperty(cls, pos, obj, entry):
+    def for_cproperty_get(cls, pos, obj, entry):
         # Create a call node for C property access.
         property_scope = entry.scope
-        getter_entry = property_scope.lookup_here(entry.name)
+        getter_entry = property_scope.lookup_here("__get__")
         assert getter_entry, "Getter not found in scope %s: %s" % (property_scope, property_scope.entries)
         function = NameNode(pos, name=entry.name, entry=getter_entry, type=getter_entry.type)
         node = cls(pos, function=function, args=[obj])
         return node
+
+    @classmethod
+    def for_cproperty_set(cls, pos, obj, entry):
+        # Create a call node for C property access.
+        # This actually returns a utility node that wraps the call node.
+        property_scope = entry.scope
+        setter_entry = property_scope.lookup_here("__set__")
+        if not setter_entry:
+            error(pos, "Assignment to a read-only property")
+            return None
+        from . import UtilNodes
+        function = NameNode(pos, name=entry.name, entry=setter_entry, type=setter_entry.type)
+        arg_type = setter_entry.type.args[1].type
+        arg1 = RawCNameExprNode(pos, type=arg_type)
+        node = cls(pos, function=function, args=[obj, arg1])
+        return UtilNodes.CPropertySetNode(pos, call_node=node, type=arg_type, arg1=arg1)
 
     def analyse_as_type(self, env):
         attr = self.function.as_cython_attribute()
@@ -8047,9 +8093,9 @@ class AttributeNode(ExprNode):
             error(self.pos, "Assignment to an immutable object field")
         elif self.entry and self.entry.is_cproperty:
             if not target:
-                return SimpleCallNode.for_cproperty(self.pos, self.obj, self.entry).analyse_types(env)
-            # TODO: implement writable C-properties?
-            error(self.pos, "Assignment to a read-only property")
+                return SimpleCallNode.for_cproperty_get(self.pos, self.obj, self.entry).analyse_types(env)
+            else:
+                return SimpleCallNode.for_cproperty_set(self.pos, self.obj, self.entry).analyse_types(env)
         #elif self.type.is_memoryviewslice and not target:
         #    self.is_temp = True
         return self

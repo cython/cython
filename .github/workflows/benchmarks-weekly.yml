@@ -59,7 +59,7 @@ jobs:
           max-size: 250M
 
       - name: Setup python
-        uses: actions/setup-python@v6.1.0
+        uses: actions/setup-python@v6.2.0
         with:
           # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
           python-version: |
