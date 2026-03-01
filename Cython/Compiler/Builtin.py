@@ -438,12 +438,12 @@ builtin_types_table = [
     ("frozendict", "&__Pyx_PyFrozenDict_Type", [
                                     BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
                                     BuiltinMethod("has_key",       "TO",   "b", "PyDict_Contains"),
-                                    BuiltinMethod("items",  "T",   "O", "__Pyx_PyDict_Items",
-                                                  utility_code=UtilityCode.load("py_dict_items", "Builtins.c")),
-                                    BuiltinMethod("keys",   "T",   "O", "__Pyx_PyDict_Keys",
-                                                  utility_code=UtilityCode.load("py_dict_keys", "Builtins.c")),
-                                    BuiltinMethod("values", "T",   "O", "__Pyx_PyDict_Values",
-                                                  utility_code=UtilityCode.load("py_dict_values", "Builtins.c")),
+                                    BuiltinMethod("items",  "T",   "O", "__Pyx_PyFrozenDict_Items",
+                                                  utility_code=UtilityCode.load("py_frozendict_items", "Builtins.c")),
+                                    BuiltinMethod("keys",   "T",   "O", "__Pyx_PyFrozenDict_Keys",
+                                                  utility_code=UtilityCode.load("py_frozendict_keys", "Builtins.c")),
+                                    BuiltinMethod("values", "T",   "O", "__Pyx_PyFrozenDict_Values",
+                                                  utility_code=UtilityCode.load("py_frozendict_values", "Builtins.c")),
                                     BuiltinMethod("copy",   "T",   "T", "PyDict_Copy"),  # Returns frozendict in Py3.15.
                                     ]),
 

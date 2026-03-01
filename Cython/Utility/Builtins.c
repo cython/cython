@@ -542,6 +542,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d) {
     return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
 }
 
+//////////////////// py_frozendict_keys.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Keys(PyObject* d); /*proto*/
+
+//////////////////// py_frozendict_keys ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Keys(PyObject* d) {
+    return CALL_UNBOUND_METHOD(__Pyx_PyFrozenDict_Type, "keys", d);
+}
+
 //////////////////// py_dict_values.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d); /*proto*/
@@ -552,6 +562,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d) {
     return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
 }
 
+//////////////////// py_frozendict_values.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Values(PyObject* d); /*proto*/
+
+//////////////////// py_frozendict_values ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Values(PyObject* d) {
+    return CALL_UNBOUND_METHOD(__Pyx_PyFrozenDict_Type, "values", d);
+}
+
 //////////////////// py_dict_items.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
@@ -560,6 +580,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d) {
     return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
+}
+
+//////////////////// py_frozendict_items.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Items(PyObject* d); /*proto*/
+
+//////////////////// py_frozendict_items ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Items(PyObject* d) {
+    return CALL_UNBOUND_METHOD(__Pyx_PyFrozenDict_Type, "items", d);
 }
 
 //////////////////// py_dict_iterkeys.proto ////////////////////
