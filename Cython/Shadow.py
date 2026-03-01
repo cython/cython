@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from builtins import (int as py_int, float as py_float,
                           bool as py_bool, str as py_str, complex as py_complex)
     from typing import TypeAlias, Annotated, ParamSpec
+    from types import EllipsisType
     _P = ParamSpec('_P')
 
 # TypeVars need to be defined at runtime for Generic types
@@ -607,7 +608,7 @@ def union(**members: type) -> Type[Any]:
     return UnionInstance
 
 
-def function_type(params: list[type], return_type: type,
+def function_type(params: list[type | EllipsisType], return_type: type,
                   exceptval: Any = None, check_exceptions: bool = False,
                   noexcept: bool = False, except_cpp: bool = False,
                   nogil: bool = False) -> type[Any]:

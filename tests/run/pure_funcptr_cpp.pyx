@@ -58,7 +58,7 @@ def test_fn_pointer_type():
     cdef double (*f3a)(int)
     f3b: cython.pointer[cython.function_type([cython.int], cython.double, nogil=False)]
     cdef double (*f4a)(int, ...)
-    f4b: cython.pointer[cython.function_type([cython.int], cython.double, has_varargs=True)]
+    f4b: cython.pointer[cython.function_type([cython.int, ...], cython.double)]
     print(cython.typeof(f1a))
     print(cython.typeof(f1b))
     print(cython.typeof(f2a))

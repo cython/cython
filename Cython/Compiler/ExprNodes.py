@@ -6283,13 +6283,19 @@ class CallNode(ExprNode):
             if kwargs is not None and not isinstance(kwargs, DictNode):
                 error(kwargs.pos, "function_type kwargs should be in a dictionary.")
                 return None
-            param_types = [arg.analyse_as_type(env) for arg in func_args.args]
+            param_nodes = func_args.args
+            has_varargs = False
+            if param_nodes and isinstance(param_nodes[-1], EllipsisNode):
+                has_varargs = True
+                param_nodes.pop()
+            param_types = [arg.analyse_as_type(env) for arg in param_nodes]
             if None in param_types:
                 error(func_args.args[param_types.index(None)].pos, "Unknown type in parameter types")
                 return None
             ret_type = func_return.analyse_as_type(env)
             if ret_type is None:
                 error(func_return.pos, "Unknown return type")
+                return None
             exc_value = None
             noexcept = False
             exc_check = False
@@ -6301,7 +6307,7 @@ class CallNode(ExprNode):
                         error(kv_pair.value.pos, "Value of function_type parameter is not a constant")
                     k = kv_pair.key.constant_result
                     v = kv_pair.value.constant_result
-                    if k in ('nogil', 'has_varargs', 'noexcept', 'check_exception'):
+                    if k in ('nogil', 'noexcept', 'check_exception'):
                         if isinstance(v, bool):
                             if k == 'noexcept':
                                 noexcept = v
@@ -6343,6 +6349,7 @@ class CallNode(ExprNode):
                 args=[PyrexTypes.CFuncTypeArg('', t) for t in param_types],
                 exception_value=exc_value,
                 exception_check=exc_check,
+                has_varargs=has_varargs,
                 **func_type_kwargs
             )
 
