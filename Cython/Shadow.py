@@ -607,16 +607,15 @@ def union(**members: type) -> Type[Any]:
     return UnionInstance
 
 
-if TYPE_CHECKING:
-    class typedef(CythonType, Generic[_T]):
-        name: str
+def function_type(params: list[type], return_type: type,
+                  exceptval: Any = None, check_exceptions: bool = False,
+                  noexcept: bool = False, except_cpp: bool = False,
+                  nogil: bool = False) -> type[Any]:
+    class FunctionTypeInstance:
+        pass
+    return FunctionTypeInstance
 
-        def __init__(self, type: _T, name: Optional[str] = ...) -> None: ...
-        def __call__(self, *arg: Any) -> _T: ...
-        def __repr__(self) -> str: ...
-        __getitem__ = index_type
-
-class typedef(CythonType):
+class typedef(CythonType, Generic[_T]):
     name: str
 
     def __init__(self, type: _T, name: Optional[str] = None) -> None:
@@ -636,23 +635,23 @@ class typedef(CythonType):
 if TYPE_CHECKING:
     const: TypeAlias = Annotated[_T, "cython.const"]
     volatile: TypeAlias = Annotated[_T, "cython.volatile"]
+else:
+    class const(typedef):
+        def __init__(self, type, name=None):
+            name = f"const {name or repr(type)}"
+            super().__init__(type, name)
 
-class const(typedef):
-    def __init__(self, type, name=None):
-        name = f"const {name or repr(type)}"
-        super().__init__(type, name)
-
-    def __class_getitem__(cls, base_type):
-        return const(base_type)
+        def __class_getitem__(cls, base_type):
+            return const(base_type)
 
 
-class volatile(typedef):
-    def __init__(self, type, name=None):
-        name = f"volatile {name or repr(type)}"
-        super().__init__(type, name)
+    class volatile(typedef):
+        def __init__(self, type, name=None):
+            name = f"volatile {name or repr(type)}"
+            super().__init__(type, name)
 
-    def __class_getitem__(cls, base_type):
-        return volatile(base_type)
+        def __class_getitem__(cls, base_type):
+            return volatile(base_type)
 
 
 class _FusedType(CythonType):
@@ -746,6 +745,10 @@ for name in complex_types:
 
 del name, reprname
 
+bint = typedef(bool, "bint")
+void = typedef(None, "void")
+Py_tss_t = typedef(None, "Py_tss_t")
+
 if TYPE_CHECKING:
     Py_UCS4 = py_int | str
     Py_UNICODE = py_int | str
@@ -754,10 +757,6 @@ if TYPE_CHECKING:
     void = Type[None]
     basestring = py_str
     unicode = py_str
-
-bint = typedef(bool, "bint")
-void = typedef(None, "void")
-Py_tss_t = typedef(None, "Py_tss_t")
 
 # Generate const types.
 for t in int_types + float_types + complex_types + other_types:
