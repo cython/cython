@@ -672,6 +672,10 @@ inferred_method_return_types = {
         fromkeys='T',  # classmethod
         popitem='tuple',
     ),
+    'frozendict': dict(
+        copy='T',
+        fromkeys='T',  # classmethod
+    ),
 }
 
 inferred_method_return_types['bytearray'].update(inferred_method_return_types['bytes'])
