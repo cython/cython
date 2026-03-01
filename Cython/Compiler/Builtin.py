@@ -505,10 +505,18 @@ types_that_construct_their_instance = frozenset({
     # themselves - these do:
     'type', 'bool', 'int', 'float', 'complex',
     'bytes', 'unicode', 'bytearray', 'str',
-    'tuple', 'list', 'dict', 'set', 'frozenset',
-    'memoryview', 'range',
+    'tuple', 'list', 'dict', 'frozendict', 'set', 'frozenset',
+    'memoryview', 'range', 'slice',
     # All builtin exception types create their own instance.
     *filter(PyrexTypes.is_exception_type_name, KNOWN_PYTHON_BUILTINS),
+
+    # These types don't currently have a purpose and might become restrictive:
+    #'object',
+    #'property',
+    #'classmethod',
+    #'staticmethod',
+    #'super',
+    #'zip',
 })
 
 
