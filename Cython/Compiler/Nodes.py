@@ -4927,11 +4927,11 @@ class GeneratorBodyDefNode(DefNode):
         # ----- prepare target container for inlined comprehension
         if self.is_inlined and self.inlined_comprehension_type is not None:
             target_type = self.inlined_comprehension_type
-            if target_type.is_pylist:
+            if target_type.is_pylist_type:
                 comp_init = 'PyList_New(0)'
-            elif target_type.is_pyset:
+            elif target_type.is_pyset_type:
                 comp_init = 'PySet_New(NULL)'
-            elif target_type.is_pydict:
+            elif target_type.is_pydict_type:
                 comp_init = 'PyDict_New()'
             else:
                 raise InternalError(
@@ -6936,7 +6936,7 @@ class DelStatNode(StatNode):
                 self.cpp_check(env)
             elif arg.type.is_cpp_class:
                 error(arg.pos, "Deletion of non-heap C++ object")
-            elif arg.is_subscript and arg.base.type.is_pybytearray:
+            elif arg.is_subscript and arg.base.type.is_pybytearray_type:
                 pass  # del ba[i]
             else:
                 error(arg.pos, "Deletion of non-Python, non-C++ object")
@@ -6955,7 +6955,7 @@ class DelStatNode(StatNode):
         for arg in self.args:
             if (arg.type.is_pyobject or
                     arg.type.is_memoryviewslice or
-                    arg.is_subscript and arg.base.type.is_pybytearray):
+                    arg.is_subscript and arg.base.type.is_pybytearray_type):
                 arg.generate_deletion_code(
                     code, ignore_nonexisting=self.ignore_nonexisting)
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
@@ -7160,7 +7160,7 @@ class RaiseStatNode(StatNode):
         if self.exc_value:
             exc_value = self.exc_value.analyse_types(env)
             if self.wrap_tuple_value:
-                if exc_value.type.is_pytuple or not exc_value.type.is_builtin_type:
+                if exc_value.type.is_pytuple_type or not exc_value.type.is_builtin_type:
                     # prevent tuple values from being interpreted as argument value tuples
                     from .ExprNodes import TupleNode
                     exc_value = TupleNode(exc_value.pos, args=[exc_value.coerce_to_pyobject(env)], slow=True)
