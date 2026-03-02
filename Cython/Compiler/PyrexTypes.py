@@ -322,7 +322,10 @@ class PyrexType(BaseType):
 
     @property
     def is_sequence(self) -> bool:
-        return self.is_pybytes_type or self.is_pystr_type or self.is_pybytearray_type or self.is_memoryview_type or self.is_pylist_type or self.is_pytuple_type
+        return (
+            self.is_pybytes_type or self.is_pystr_type or self.is_pybytearray_type or
+            self.is_memoryview_type or self.is_pylist_type or self.is_pytuple_type
+        )
 
     def resolve(self):
         # If a typedef, returns the base type.
@@ -1520,10 +1523,10 @@ class BuiltinObjectType(PyObjectType):
             self.is_exception_type = True
             self.require_exact = False
         self._init_builtin_type_flags(name)
-    
+
     def _init_builtin_type_flags(self, type_name: str) -> None:
-            if type_name in self._builtin_type_flag_mapping:
-                setattr(self, self._builtin_type_flag_mapping[type_name], True)
+        if type_name in self._builtin_type_flag_mapping:
+            setattr(self, self._builtin_type_flag_mapping[type_name], True)
 
     def set_scope(self, scope):
         self.scope = scope
