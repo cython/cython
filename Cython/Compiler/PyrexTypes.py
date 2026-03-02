@@ -1499,7 +1499,7 @@ class BuiltinObjectType(PyObjectType):
         'dict': 'is_pydict_type',
         'set': 'is_pyset_type',
         'tuple': 'is_pytuple_type',
-        'frozenset': 'is_pyfrozenset_types',
+        'frozenset': 'is_pyfrozenset_type',
         'bytes': 'is_pybytes_type',
         'str': 'is_pystr_type',
         'bytearray': 'is_pybytearray_type',
