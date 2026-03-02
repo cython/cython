@@ -18,9 +18,18 @@ class TestBuiltinReturnTypes(TimedTest):
     def test_find_return_type_of_builtin_method(self):
         # It's enough to test the method existence in a recent Python that likely has them.
         look_up_methods = sys.version_info >= (3,10)
+        min_versions = {
+            'frozendict': (3, 15, 0, 'alpha', 6),
+        }
 
         for type_name, methods in inferred_method_return_types.items():
-            py_type = getattr(builtins, type_name if type_name != 'unicode' else 'str')
+            try:
+                py_type = getattr(builtins, type_name if type_name != 'unicode' else 'str')
+            except AttributeError:
+                if sys.version_info >= min_versions.get(type_name, ()):
+                    raise
+                print(f"Skipping builtin type '{type_name}' as it is not in 'builtins'")
+                continue
 
             for method_name, return_type_name in methods.items():
                 builtin_type = builtin_scope.lookup(type_name).type
