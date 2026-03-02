@@ -12915,7 +12915,7 @@ class MulNode(NumBinopNode):
             # normalise to (X * int)
             type1, type2 = type2, type1
         if type2.is_pyint_type or type2.is_int:
-            if type1.is_string_type or type1.is_ctuple:
+            if type1.is_string or type1.is_ctuple:
                 return True
             if self.is_builtin_seqmul_type(type1):
                 return True
@@ -14002,7 +14002,7 @@ class CmpNode:
     def is_c_string_contains(self):
         return self.operator in ('in', 'not_in') and \
                ((self.operand1.type.is_int
-                 and (self.operand2.type.is_string_type or self.operand2.type.is_pybytes_type)) or
+                 and (self.operand2.type.is_string or self.operand2.type.is_pybytes_type)) or
                 (self.operand1.type.is_unicode_char
                  and self.operand2.type.is_pystr_type))
 
