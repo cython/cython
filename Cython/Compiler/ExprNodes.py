@@ -12742,7 +12742,7 @@ class NumBinopNode(BinopNode):
 
     @staticmethod
     def is_specialised_binop_type(typ):
-        return typ is py_object_type or typ.is_int_type or typ.is_float_type
+        return typ is py_object_type or typ.is_pyint_type or typ.is_pyfloat_type
 
     fast_pyops = {'+', '-', '*'}
 
