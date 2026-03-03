@@ -200,7 +200,7 @@ class PyrexType(BaseType):
     #  is_pybytes_type       boolean     Is a Python bytes type
     #  is_pystr_type         boolean     Is a Python str type
     #  is_pybytearray_type   boolean     Is a Python bytearray type
-    #  is_memoryview_type    boolean     Is a Python memoryview type
+    #  is_pymemoryview_type  boolean     Is a Python memoryview type
     #  is_memoryviewslice    boolean     Is a Cython memoryview slice type
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
@@ -293,7 +293,7 @@ class PyrexType(BaseType):
     is_pybytes_type = False
     is_pystr_type = False
     is_pybytearray_type = False
-    is_memoryview_type = False
+    is_pymemoryview_type = False
 
     is_memoryviewslice = 0
     is_pythran_expr = 0
@@ -324,7 +324,7 @@ class PyrexType(BaseType):
     def is_sequence(self) -> bool:
         return (
             self.is_pybytes_type or self.is_pystr_type or self.is_pybytearray_type or
-            self.is_memoryview_type or self.is_pylist_type or self.is_pytuple_type
+            self.is_pymemoryview_type or self.is_pylist_type or self.is_pytuple_type
         )
 
     def resolve(self):
@@ -1506,7 +1506,7 @@ class BuiltinObjectType(PyObjectType):
         'bytes': 'is_pybytes_type',
         'str': 'is_pystr_type',
         'bytearray': 'is_pybytearray_type',
-        'memoryview': 'is_memoryview_type',
+        'memoryview': 'is_pymemoryview_type',
     }
 
     def __init__(self, name, cname, objstruct_cname=None):
