@@ -12821,10 +12821,14 @@ class AddNode(NumBinopNode):
     def infer_builtin_types_operation(self, type1, type2):
         # b'abc' + 'abc' raises an exception in Py3,
         # so we can safely infer a mix here.
-        if type1.is_bytes_or_str_or_bytearray and type2.is_bytes_or_str_or_bytearray:
-            string_types = (bytes_type, bytearray_type, unicode_type)
-            return string_types[max(string_types.index(type1),
-                                    string_types.index(type2))]
+        if type1.is_pybytes_type:
+            if type2.is_pybytes_type or type2.is_pybytearray_type:
+                return type2  # bytes or bytearray
+        elif type1.is_pybytearray_type:
+            if type2.is_pybytes_type or type2.is_pybytearray_type:
+                return type1  # bytearray
+        elif type1.is_pystr_type and type2.is_pystr_type:
+            return type1
         return super().infer_builtin_types_operation(type1, type2)
 
     def compute_c_result_type(self, type1, type2):
