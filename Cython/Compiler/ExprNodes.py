@@ -4734,29 +4734,30 @@ class IndexNode(_IndexingBaseNode):
     gil_message = "Indexing Python object"
 
     def calculate_result_code(self):
-        if self.base.type.is_pylist_type or self.base.type.is_pytuple_type or self.base.type.is_pybytearray_type:
+        base_type = self.base.type
+        if base_type.is_pylist_type or base_type.is_pytuple_type or base_type.is_pybytearray_type:
             # Note - These functions are missing error checks in not CYTHON_ASSUME_SAFE_MACROS.
             # Since they're only used in optimized modes without boundschecking, I think this is
             # a reasonable optimization to make.
-            if self.base.type.is_pylist_type:
+            if base_type.is_pylist_type:
                 index_code = "__Pyx_PyList_GET_ITEM(%s, %s)"
-            elif self.base.type.is_pytuple_type:
+            elif base_type.is_pytuple_type:
                 index_code = "__Pyx_PyTuple_GET_ITEM(%s, %s)"
-            elif self.base.type.is_pybytearray_type:
+            elif base_type.is_pybytearray_type:
                 index_code = "((unsigned char)(__Pyx_PyByteArray_AsString(%s)[%s]))"
             else:
-                assert False, "unexpected base type in indexing: %s" % self.base.type
-        elif self.base.type.is_cfunction:
+                assert False, "unexpected base type in indexing: %s" % base_type
+        elif base_type.is_cfunction:
             return "%s<%s>" % (
                 self.base.result(),
                 ",".join([param.empty_declaration_code() for param in self.type_indices]))
-        elif self.base.type.is_ctuple:
+        elif base_type.is_ctuple:
             index = self.index.constant_result
             if index < 0:
-                index += self.base.type.size
+                index += base_type.size
             return "%s.f%s" % (self.base.result(), index)
         else:
-            if (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
+            if (self.type.is_ptr or self.type.is_array) and self.type == base_type:
                 error(self.pos, "Invalid use of pointer slice")
                 return
             index_code = "(%s[%s])"
