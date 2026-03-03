@@ -9656,7 +9656,7 @@ class MergedSequenceNode(ExprNode):
         elif self.type.is_pytuple_type:
             result = tuple(result)
         else:
-            assert self.type.is_pylist_type
+            assert self.type.is_pylist_type, self.type
         self.constant_result = result
 
     def compile_time_value(self, denv):
@@ -9679,7 +9679,7 @@ class MergedSequenceNode(ExprNode):
         elif self.type.is_pytuple_type:
             result = tuple(result)
         else:
-            assert self.type.is_pylist_type
+            assert self.type.is_pylist_type, self.type
         return result
 
     def type_dependencies(self, env):
@@ -9700,7 +9700,7 @@ class MergedSequenceNode(ExprNode):
             # strip this intermediate node and use the bare collection
             return args[0]
 
-        assert self.type.is_pyset_type or self.type.is_pylist_type or self.type.is_pytuple_type
+        assert self.type.is_pyset_type or self.type.is_pylist_type or self.type.is_pytuple_type, self.type
 
         self.args = args
         return self
@@ -12742,7 +12742,7 @@ class NumBinopNode(BinopNode):
 
     @staticmethod
     def is_specialised_binop_type(typ):
-        return typ is py_object_type or typ.is_int or typ.is_float
+        return typ is py_object_type or typ.is_int_type or typ.is_float_type
 
     fast_pyops = {'+', '-', '*'}
 
@@ -14907,7 +14907,7 @@ class CoerceToPyTypeNode(CoercionNode):
                 self.type = Builtin.float_type
             self.target_type = self.type
         elif arg.type.is_string or arg.type.is_cpp_string:
-            if (not (type.is_pybytes_type or type.is_pybytearray_type)
+            if (not type.is_pybytes_type and not type.is_pybytearray_type
                     and not env.directives['c_string_encoding']):
                 error(arg.pos,
                     "default encoding required for conversion from '%s' to '%s'" %

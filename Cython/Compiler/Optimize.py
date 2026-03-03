@@ -225,7 +225,7 @@ class IterationTransform(Visitor.EnvTransform):
             if annotation.is_subscript:
                 annotation = annotation.base  # container base type
 
-        if (iterable.type and iterable.type.is_pydict_type) or (annotation_type and annotation_type.is_pydict_type):
+        if iterable.type.is_pydict_type or (annotation_type and annotation_type.is_pydict_type):
             # like iterating over dict.keys()
             if reversed:
                 # CPython raises an error here: not a sequence
