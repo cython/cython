@@ -653,6 +653,7 @@ inferred_method_return_types = {
         fromkeys='T',  # classmethod
         popitem='tuple',
         pop='I',
+        get='I',
     ),
 }
 
