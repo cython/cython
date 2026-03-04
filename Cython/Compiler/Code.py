@@ -2156,6 +2156,10 @@ class GlobalState:
 
         has_if = False
         for algo_number, algo_name, compressed_bytes in reversed(compressions):
+            if not has_if:
+                w.putln('#ifndef CYTHON_COMPRESS_STRINGS')
+                w.putln('#define CYTHON_COMPRESS_STRINGS 1')
+                w.putln('#endif')
             if algo_name == 'zlib':
                 # Use zlib as fallback if the selected compression module is not available.
                 assert algo_number == 1, f"Compression algorithm no. 1 must be 'zlib' to be used as fallback."
