@@ -307,34 +307,9 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
     } else {
         char* result;
         int r;
-#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030B0000
-        // Check that `o`:
-        // * supports the Python Buffer Protocol
-        // * does not require keeping the buffer around (as we cannot return it)
-        getbufferproc* getbuffer = __Pyx_PyType_GetSlot(o, bf_getbuffer, getbufferproc);
-        releasebufferproc* releasebuffer = __Pyx_PyType_GetSlot(o, bf_releasebuffer, releasebufferproc);
-        if (pb == NULL || getbuffer == NULL || releasebuffer != NULL) goto error;
-
-        // Try to acquire buffer from `o`
-        Py_buffer view;
-        r = PyObject_GetBuffer(o, &view, PyBUF_SIMPLE | PyBUF_FORMAT);
-        if (unlikely(r < 0)) {
-            goto error;
-        } else if (view.ndim != 1 || (view.format != NULL && view.format[0] != 'B')) {
-            PyBuffer_Release(&view);  // Release to clean up buffer (decref object `o`)
-            goto error;
-        } else {
-            result = (char*) view.buf;
-            *length = view.len;
-            PyBuffer_Release(&view);  // Release to clean up buffer (decref object `o`)
-            return result;
-        }
-#else
-        // Fallback for the Limited API on Python pre-3.11
         r = PyArg_Parse(o, "y#", &result, &length);
         if (unlikely(r < 0)) goto error;
         return result;
-#endif
     }
 
     error:
