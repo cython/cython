@@ -2131,7 +2131,6 @@ class GlobalState:
             )
 
         # Store and decompress the string data.
-        self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
 
         min_size_seen = None
         compressions = []
@@ -2177,14 +2176,15 @@ class GlobalState:
             w.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
             w.putln(f'if (likely(bytes)); else {{ Py_DECREF(data); {w.error_goto(self.module_pos)} }}')
             w.putln('#endif')
-
-        w.putln(f"{'#else ' if has_if else ''}/* compression: none ({len(concat_bytes)} bytes) */")
+        if has_if:
+            self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
+            w.putln(f"#else /* compression: none ({len(concat_bytes)} bytes) */")
         escaped_bytes = StringEncoding.split_string_literal(
             StringEncoding.escape_byte_string(concat_bytes))
         w.putln(f'const char* const bytes = "{escaped_bytes}";', safe=True)
         w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
-        w.putln("CYTHON_UNUSED_VAR(__Pyx_DecompressString);")
         if has_if:
+            w.putln("CYTHON_UNUSED_VAR(__Pyx_DecompressString);")
             w.putln("#endif")
 
         # Populate stringtab.
