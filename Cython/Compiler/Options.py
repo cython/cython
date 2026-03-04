@@ -258,6 +258,7 @@ _directive_defaults = {
     'optimize.unpack_method_calls': True,  # increases code size when True
     'optimize.unpack_method_calls_in_pyinit': False,  # uselessly increases code size when True
     'optimize.use_switch': True,
+    'optimize.compress_strings': True,
 
 # remove unreachable code
     'remove_unreachable': True,
@@ -444,6 +445,7 @@ directive_scopes = {  # defaults to available everywhere
     'control_flow.dot_annotate_defs': ('module',),
     'freethreading_compatible': ('module',),
     'subinterpreters_compatible': ('module',),
+    'optimize.compress_strings': ('module',),
 }
 
 

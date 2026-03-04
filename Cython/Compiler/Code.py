@@ -2132,9 +2132,11 @@ class GlobalState:
 
         # Store and decompress the string data.
 
+        compress_strings = self.directives["optimize.compress_strings"]
+        algorithms = compression_algorithms if compress_strings else []
         min_size_seen = None
         compressions = []
-        for algo_number, algo_name, compress in compression_algorithms:
+        for algo_number, algo_name, compress in algorithms:
             if compress is None:
                 continue
 
