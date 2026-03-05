@@ -7,7 +7,8 @@
 # better tested
 
 """
-UNSET CFLAGS
+# Unset any global override of Py_LIMITED_API and any CYTHON_ defines
+UNSET CFLAGS -DPy_LIMITED_API -DCYTHON_
 PYTHON setup.py build_ext --inplace -j3
 PYTHON run.py limited_single_phase
 PYTHON run.py limited_single_phase_modstate
