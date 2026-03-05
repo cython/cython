@@ -243,6 +243,14 @@ jobs:
       extra_hash: ${{ matrix.extra_hash }}
 
 
+  ci-success:
+    needs: ci-all
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
+
+
   codespell:
     name: Check for spelling errors
     runs-on: ubuntu-latest
