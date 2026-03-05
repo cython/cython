@@ -440,9 +440,10 @@ def py_parse_code(code):
 def _run_isolated_tests(suite, result_queue):
     runner = unittest.TextTestRunner(resultclass=unittest.TestResult)
     result = runner.run(suite)
-    # Clean up various redirected stdout streams to let us pickle it
+    # Remove all attributes except the public ones. This is
+    # mainly to eliminate redirected stdout streams to let us pickle it.
     for k in list(result.__dict__.keys()):
-        if k.startswith("_") and not k.startswith("__"):
+        if not k[0].isalnum():
             delattr(result, k)
     result_queue.put(result)
 
