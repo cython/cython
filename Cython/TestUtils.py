@@ -446,6 +446,7 @@ def _run_isolated_tests(suite, result_queue):
             delattr(result, k)
     result_queue.put(result)
 
+
 class IsolatedTestSuite(unittest.TestSuite):
     in_isolated_subprocess = False
     def run(self, result):
