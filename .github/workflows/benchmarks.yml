@@ -102,6 +102,12 @@ jobs:
             echo; python Demos/benchmarks/report.py -t sizes benchmark_sizes_*.csv;
           } >> $GITHUB_STEP_SUMMARY
 
+      - name: Upload CSV results
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: benchmark_*.csv
+          path: benchmark_results_csv
+
       - name: Upload results
         uses: actions/upload-artifact@v6.0.0
         with:
