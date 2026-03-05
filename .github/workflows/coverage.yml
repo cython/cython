@@ -70,7 +70,7 @@ jobs:
         id: htmldeploy
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: pycoverage_html
           path: coverage-report-html
@@ -112,7 +112,7 @@ jobs:
           if [ -f coverage-report.md ]; then { echo "## Compiled coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: cycoverage_html
           path: coverage-report-html
