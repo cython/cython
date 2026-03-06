@@ -42,7 +42,7 @@ def _slice_memoryview(data, number: cython.long, timer=time.perf_counter):
     cdef const unsigned char[:] view = data
     cdef const unsigned char[:] view2
     cdef long dummy = 0
-    cdef Py_ssize_t i, max_index = len(view) - 1
+    cdef Py_ssize_t i, index, max_index = len(view) - 1
 
     t = timer()
 
@@ -78,6 +78,39 @@ def _slice_memoryview(data, number: cython.long, timer=time.perf_counter):
 
 
 bm_slice_memoryview = partial(_slice_memoryview, bytes([i % 256 for i in range(100)]))
+
+
+def _slice_memoryview_py(data, number: cython.long, timer=time.perf_counter):
+    view = <object> _pass_slice(data)
+
+    cdef long dummy = 0
+    cdef Py_ssize_t i, index, max_index = len(view) - 1
+
+    t = timer()
+
+    index = 0
+    for i in range(number):
+        index += 1
+        if index >= max_index:
+            index = 0
+
+        view2 = view[index:]
+        dummy += view2[0]
+
+        view2 = view[:index+1]
+        dummy -= view2[index // 2]
+
+        view2 = view[:index+1:2]
+        dummy -= view2[0]
+
+    t = timer() - t
+
+    if dummy == 0:
+        raise RuntimeError("did it calculate?")
+    return t
+
+
+bm_slice_memoryview_py = partial(_slice_memoryview_py, bytes([i % 256 for i in range(100)]))
 
 
 # With statement.

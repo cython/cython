@@ -3,7 +3,10 @@
 cimport cython
 
 cdef extern from *:
-    int PY_VERSION_HEX
+    cdef enum:
+        __PYX_LIMITED_VERSION_HEX
+        CYTHON_COMPILING_IN_LIMITED_API
+    int __Pyx_get_runtime_version()
 
 # @cython.internal
 cdef object __Pyx_EnumBase
@@ -27,7 +30,8 @@ cdef extern from *:
     # Try to look up the module name dynamically if possible
 ], module=globals().get("__module__", '{{static_modname}}'))
 
-if PY_VERSION_HEX >= 0x030B0000:
+if (__PYX_LIMITED_VERSION_HEX >= 0x030B0000 or
+        (CYTHON_COMPILING_IN_LIMITED_API and __Pyx_get_runtime_version() >= 0x030B0000)):
     # Python 3.11 starts making the behaviour of flags stricter
     # (only including powers of 2 when iterating). Since we're using
     # "flag" because C enums *might* be used as flags, not because

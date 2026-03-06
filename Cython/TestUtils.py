@@ -12,7 +12,7 @@ from .Compiler import Errors
 from .CodeWriter import CodeWriter
 from .Compiler.TreeFragment import TreeFragment, strip_common_indent, StringParseContext
 from .Compiler.Visitor import TreeVisitor, VisitorTransform
-from .Compiler import TreePath
+from .Compiler import Nodes, TreePath
 from .Compiler.ParseTreeTransforms import PostParse
 
 
@@ -50,6 +50,7 @@ def treetypes(root):
 
 
 class TimedTest(unittest.TestCase):
+    # See copy in runtests.py
     def setUp(self):
         super().setUp()
         self._start_time = time.time()
@@ -57,7 +58,7 @@ class TimedTest(unittest.TestCase):
     def tearDown(self):
         t = time.time() - self._start_time
         super().tearDown()
-        sys.stderr.write(f"[{self.id()}:{'' if t < .5 else ' SLOWTEST'} {t * 1000.:.2f} msec] ")
+        sys.stderr.write(f"[{self.id()}:{'' if t < .5 else ' SLOWTEST'} {t:.2f} sec] ")
 
 
 class CythonTest(TimedTest):
@@ -115,7 +116,13 @@ class CythonTest(TimedTest):
         if name.startswith("__main__."):
             name = name[len("__main__."):]
         name = name.replace(".", "_")
-        return TreeFragment(code, name, pxds, pipeline=pipeline)
+
+        with Errors.local_errors() as errors:
+            fragment = TreeFragment(code, name, pxds, pipeline=pipeline)
+
+        if errors:
+            raise errors[0]
+        return fragment
 
     def treetypes(self, root):
         return treetypes(root)
@@ -415,12 +422,33 @@ def write_newer_file(file_path, newer_than, content, dedent=False, encoding=None
         write_file(file_path, content, dedent=dedent, encoding=encoding)
 
 
+class DictEvalScope:
+    def __init__(self, namespace):
+        self.lookup = namespace.get
+
+empty_eval_scope = DictEvalScope({})
+
+
+def compiled_eval(code, namespace=None):
+    """
+    Parse code and evaluate it in a compile time env.
+    """
+    node = py_parse_code(code)
+
+    if isinstance(node, Nodes.StatListNode):
+        assert len(node.stats) == 1, node.stats
+        node = node.stats[0]
+    if isinstance(node, Nodes.ExprStatNode):
+        node = node.expr
+
+    return node.compile_time_value(DictEvalScope(namespace) if namespace else empty_eval_scope)
+
+
 def py_parse_code(code):
     """
     Compiles code far enough to get errors from the parser and post-parse stage.
 
-    Is useful for checking for syntax errors, however it doesn't generate runable
-    code.
+    Is useful for checking for syntax errors, however it doesn't generate runable code.
     """
     context = StringParseContext("test")
     # all the errors we care about are in the parsing or postparse stage
