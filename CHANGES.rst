@@ -23,6 +23,12 @@ Bugs fixed
 * Conditional expressions mixing Python float and int object types could accidentally
   infer float as the common result type, instead of treating both independently.
 
+* Using ``sizeof()`` in the size declarations of ``extern`` arrays failed.
+  (Github issue :issue:`7451`)
+
+Other changes
+-------------
+
 * The known builtin types were updated for Py3.15.
 
 
