@@ -52,9 +52,15 @@ Features added
 * A simpler mechanism was added for implementing C++ exception handlers in Cython code.
   (Github issues :issue:`7388`, :issue:`7390`)
 
+* Type inference was improved for builtin Python types.
+  (Github issue :issue:`7536`)
+
 * Repeated memoryview slicing inside of loops now avoids redundant reference counting,
   making it substantially faster.
   (Github issue :issue:`5507`)
+
+* Indexing into Cython memoryview objects from Python is faster.
+  (Github issue :issue:`7529`)
 
 * C arrays are substituted for sequence iteration in more cases, also inside of generators.
   Ad-hoc C array storage on the stack and in closures was reworked along the way.
@@ -130,6 +136,10 @@ Bugs fixed
 
 * The floating point parsing code relied on C implementation specific "pointer compare after free" behaviour.
   Patch by stratakis.  (Github issue :issue:`7463`)
+
+* When non-heap types were used as base classes of extension heap types, the heap types
+  were not correctly reference counted by their instances.
+  (Github issue :issue:`7483`)
 
 * The ``__signatures__`` dict of fused functions is no longer writable.
   (Github issue :issue:`7386`)
