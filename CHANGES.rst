@@ -121,6 +121,12 @@ Bugs fixed
 * Mixing function signature declarations in Python modules and their ``.pxd`` modules could fail.
   (Github issues :issue:`5970`, :issue:`4388`)
 
+* C array declarations with type and size could fail with an exception in pure Python code.
+  (Github issue :issue:`7372`)
+
+* A ``const`` modifier in C++ template type arguments could be mapped incorrectly.
+  (Github issue :issue:`6294`)
+
 * Optimised Python ``int`` and ``float`` operations did not remember their result type,
   leading to less optimised code in longer expressions.
   (Github issues :issue:`7363`, :issue:`7502`)
