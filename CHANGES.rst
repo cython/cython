@@ -20,6 +20,11 @@ Bugs fixed
 * A problem with cpdef enums in the Limited API of Python 3.11+ was resolved.
   (Github issue :issue:`7503`)
 
+* Conditional expressions mixing Python float and int object types could accidentally
+  infer float as the common result type, instead of treating both independently.
+
+* The known builtin types were updated for Py3.15.
+
 
 3.2.4 (2026-01-04)
 ==================
