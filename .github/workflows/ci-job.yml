@@ -39,7 +39,7 @@ jobs:
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~10-15 minutes for ubuntu / macos and ~25 for windows,
     # so a limit of 80 minutes should be enough. This can always be changed in the future if needed.
-    timeout-minutes: 80
+    timeout-minutes: ${{ startsWith(inputs.python-version, 'graalpy') && 150 || 80 }}
     runs-on: ${{ inputs.os }}
 
     steps:
