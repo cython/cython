@@ -437,7 +437,6 @@ builtin_types_table = [
 
     ("frozendict", "&__Pyx_PyFrozenDict_Type", [
                                     BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
-                                    BuiltinMethod("has_key",       "TO",   "b", "PyDict_Contains"),
                                     BuiltinMethod("items",  "T",   "O", "__Pyx_PyFrozenDict_Items",
                                                   utility_code=UtilityCode.load("py_frozendict_items", "Builtins.c")),
                                     BuiltinMethod("keys",   "T",   "O", "__Pyx_PyFrozenDict_Keys",
