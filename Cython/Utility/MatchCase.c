@@ -124,7 +124,7 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
         }
     }
     if (!sequence_first) {
-        // here we know mapping_result is true because we'd have returned otherwise
+        // Here we know mapping_result is true because we'd have returned otherwise.
         assert(mapping_result);
         if (!definitely_not_sequence) {
             if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &sequence_type, PYIDENT("Sequence")) == -1)) {
