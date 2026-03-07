@@ -350,8 +350,8 @@ static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start,
 //@requires: OtherSequenceSliceToList
 //@requires: ObjectHandling.c::TupleAndListFromArray
 
-// Note that this should also work fine on lists (if needed)
-// Indices must be positive - there's no wraparound or boundschecking
+// Note that this should also work fine on lists (if needed).
+// Indices must be positive - there's no wraparound or boundschecking.
 
 static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
 #if !CYTHON_COMPILING_IN_CPYTHON
