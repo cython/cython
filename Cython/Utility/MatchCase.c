@@ -253,9 +253,9 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
 
     // array.array is a more complicated check (and unfortunately isn't covered by
     // collections.abc.Sequence on Python <3.10).
-    // Do the test by checking the module name, and then importing/testing the class
+    // Do the test by checking the module name, and then importing/testing the class.
     // It also doesn't give perfect results for classes that inherit from both array.array
-    // and a mapping
+    // and a mapping.
 #if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX < 0x030A0000
 #if CYTHON_COMPILING_IN_LIMITED_API
     if (__Pyx_get_runtime_version() < 0x030A0000)
