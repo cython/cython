@@ -324,8 +324,8 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
     slot = __Pyx_PyObject_TryGetSubSlot(x, tp_as_sequence, sq_item, ssizeargfunc);
     if (!slot) {
         #if !defined(Py_LIMITED_API) && !defined(PySequence_ITEM)
-        // PyPy (and maybe others?) implements PySequence_ITEM as a function. In this case
-        // it's slightly more efficient than using PySequence_GetItem since it skips negative indices
+        // PyPy (and maybe others?) implements PySequence_ITEM as a function. In this case.
+        // it's slightly more efficient than using PySequence_GetItem since it skips negative indices.
         slot = PySequence_ITEM;
         #else
         slot = PySequence_GetItem;
