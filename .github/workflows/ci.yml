@@ -288,6 +288,7 @@ jobs:
           bash -c "\
             python -m pip install --no-cache-dir -U pip || exit 1 ; \
             python -m pip install --no-cache-dir -r doc-requirements.txt || exit 1 ; \
+            python -m pip install setuptools || exit 1 ;
             python runtests.py --no-unit --no-doctest --no-file --no-pyregr --no-examples \
               2> >(tee >(egrep '.+:[0-9]+: ' | sed -e 's/^/    /' >> $GITHUB_STEP_SUMMARY) >&2) \
             "
