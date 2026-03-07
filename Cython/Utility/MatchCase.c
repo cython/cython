@@ -181,7 +181,7 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     }
     // If we get to the end of the loop without breaking then neither type is in
     // the MRO, so they've both been registered manually. We don't know which was
-    // registered first so accept the object as either as a compromise
+    // registered first so accept the object as either as a compromise.
     if (0) {
         loop_error:
         PyErr_Clear();
