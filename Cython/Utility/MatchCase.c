@@ -13,9 +13,9 @@ static CYTHON_INLINE int __Pyx_MatchCase_IsExactSequence(PyObject *o) {
 }
 
 static CYTHON_INLINE int __Pyx_MatchCase_IsExactMapping(PyObject *o) {
-    // Py_Dict is the only regularly used mapping type
+    // Py_Dict is the only regularly used mapping type.
     // "types.MappingProxyType" also exists but is correctly covered by
-    // the isinstance(o, Mapping) check
+    // the isinstance(o, Mapping) check.
     return PyDict_CheckExact(o);
 }
 
