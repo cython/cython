@@ -224,7 +224,7 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
         sequence_mapping_temp = &dummy;
     }
 
-    // Start by check a known list of types
+    // Start by checking a known list of types.
     if (__Pyx_MatchCase_IsExactSequence(o)) {
         *sequence_mapping_temp |= (__PYX_DEFINITELY_SEQUENCE_FLAG | __PYX_DEFINITELY_NOT_MAPPING_FLAG);
         return 1;
