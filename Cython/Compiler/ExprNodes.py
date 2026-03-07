@@ -12747,7 +12747,7 @@ class NumBinopNode(BinopNode):
 
     specialised_binop_types = (py_object_type, int_type, float_type)
 
-    fast_pyops = {'+', '-', '*'}
+    fast_pyops = {'+', '-', '*', '^', '&', '|'}
 
     py_functions = {
         "|":        "PyNumber_Or",
