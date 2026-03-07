@@ -28,7 +28,10 @@ static int __Pyx_MatchCase_IsExactNeitherSequenceNorMapping(PyObject *o) {
         // reason about their subclasses.
         return 1;
     }
-    if (o == Py_None || PyLong_CheckExact(o) || PyFloat_CheckExact(o)) {
+    // No-exhaustive list of other common builtin types as an optimization.
+    if (o == Py_None || PyLong_CheckExact(o) || PyFloat_CheckExact(o) ||
+        Py_TYPE(o) == &PyBool_Type || Py_TYPE(o) == &PySlice_Type ||
+        PyAnySet_CheckExact(o) || PyComplex_CheckExact(o)) {
         return 1;
     }
 
@@ -182,10 +185,7 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     // If we get to the end of the loop without breaking then neither type is in
     // the MRO, so they've both been registered manually. We don't know which was
     // registered first so accept the object as either as a compromise.
-    if (0) {
-        loop_error:
-        PyErr_Clear();
-    }
+    loop_error_recovery:
     Py_DECREF(mro);
 
     end:
@@ -193,6 +193,10 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     Py_XDECREF(sequence_type);
     Py_XDECREF(mapping_type);
     return result;
+
+    loop_error:
+    PyErr_Clear();
+    goto loop_error_recovery;
 }
 #endif
 
@@ -361,7 +365,7 @@ static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start,
 
     (void)__Pyx_MatchCase_OtherSequenceSliceToList; // clear unused warning
 
-    array = PySequence_Fast_ITEMS(x);
+    array = &PyTuple_GET_ITEM(x, 0);
     return __Pyx_PyList_FromArray(array+start, end-start);
 #endif
 }
