@@ -67,14 +67,11 @@ static int __Pyx_MatchCase_InitAbcType(PyObject *abc_module, PyObject **abc_type
 // The result is defined using the specification for sequence_mapping_temp
 // (detailed in "is_sequence").
 static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, int definitely_not_sequence, int definitely_not_mapping) {
-    // in Python 3.10 objects can have their sequence bit set or their mapping bit set
-    // but not both. Practically this translates to "which type is registered first".
-    // In Python < 3.10 we can only determine this if they're direct bases (by looking
-    // at the MRO order). If they're registered manually then we can't tell
     // In Python 3.10+, objects can have their sequence bit set or their mapping bit set
     // but not both. Practically, this translates to "which type is registered first".
     // In Python < 3.10 we can only determine this if they're direct bases (by looking
     // at the MRO order). If they're registered manually then we can't tell.
+
     PyObject *abc_module=NULL, *sequence_type=NULL, *mapping_type=NULL;
     PyObject *mro;
     int sequence_result=0, mapping_result=0;
