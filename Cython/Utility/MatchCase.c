@@ -2,7 +2,7 @@
 
 #if PY_VERSION_HEX < 0x030A0000 || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
 static CYTHON_INLINE int __Pyx_MatchCase_IsExactSequence(PyObject *o) {
-    // is one of the small list of builtin types known to be a sequence
+    // Is one of the small list of builtin types known to be a sequence.
     if (PyList_CheckExact(o) || PyTuple_CheckExact(o) ||
             Py_IS_TYPE(o, &PyRange_Type) || Py_IS_TYPE(o, &PyMemoryView_Type)) {
         // Use exact type match for these checks. In in the event of inheritance we need to make sure
