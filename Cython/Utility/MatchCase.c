@@ -208,9 +208,23 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
 //@requires: ABCCheck
 
 static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mapping_temp) {
-#if PY_VERSION_HEX >= 0x030A0000 && !(CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY)
+#if PY_VERSION_HEX >= 0x030A0000 && !CYTHON_COMPILING_IN_LIMITED_API
     return __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_SEQUENCE);
 #else
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // In the Limited API we have runtime access to Py_TPFLAGS_SEQUENCE
+    // by looking it up on module init so it's still worth attempting
+    // the fast path.
+    if (__Pyx_Runtime_TPFLAGS_SEQUENCE) {
+        return __Pyx_PyType_HasFeature(Py_TYPE(o), __Pyx_Runtime_TPFLAGS_SEQUENCE);
+    }
+#elif defined(Py_TPFLAGS_SEQUENCE)
+    // Elsewhere *we* define Py_TPFLAGS_SEQUENCE but that doesn't necessarily
+    // mean other types use it, so only success is meaningful.
+    if (__Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_SEQUENCE)) {
+        return 1;
+    }
+#endif
     // Py_TPFLAGS_SEQUENCE doesn't exit.
     PyObject *o_module_name;
     unsigned int abc_result, dummy=0;
