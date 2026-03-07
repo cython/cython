@@ -45,7 +45,7 @@ static int __Pyx_MatchCase_IsExactNeitherSequenceNorMapping(PyObject *o) {
 // The bits of it in order are:
 //  0. definitely a sequence
 //  1. definitely a mapping
-//     - note that both of the above and be true when
+//     - note that both of the above can be true when
 //        the type is registered with both abc types (not via inheritance)
 //       and in this case we return true for both IsSequence or IsMapping
 //       (which seems like the best handling of an ambiguous situation)
