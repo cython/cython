@@ -21,11 +21,12 @@ static CYTHON_INLINE int __Pyx_MatchCase_IsExactMapping(PyObject *o) {
 
 static int __Pyx_MatchCase_IsExactNeitherSequenceNorMapping(PyObject *o) {
     if (PyByteArray_Check(o) || PyBytes_Check(o) || PyUnicode_Check(o)) {
-        return 1;  // these types are deliberately excluded from the sequence test
-            // even though they look like sequences for most other purposes.
-            // Leave them as inexact checks since they do pass
-            // "isinstance(o, collections.abc.Sequence)" so it's very hard to
-            // reason about their subclasses
+        // These types are deliberately excluded from the sequence test
+        // even though they look like sequences for most other purposes.
+        // Leaving them as inexact checks since they do pass
+        // "isinstance(o, collections.abc.Sequence)" so it's very hard to
+        // reason about their subclasses.
+        return 1;
     }
     if (o == Py_None || PyLong_CheckExact(o) || PyFloat_CheckExact(o)) {
         return 1;
