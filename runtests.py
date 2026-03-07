@@ -2166,9 +2166,15 @@ class EndToEndTest(TimedTest):
             if command[0] == "UNSET":
                 try:
                     envvar = command[1]
-                except KeyError:
-                    envvar = None
-                env.pop(envvar, None)
+                except IndexError:
+                    continue
+                old_value = env.pop(envvar, None)
+                if len(command) > 2:
+                    # Unset specific flags only
+                    old_value = old_value.split()
+                    for flag in command[2:]:
+                        old_value = [part for part in old_value if not part.startswith(flag)]
+                    env[envvar] = " ".join(old_value)
                 continue
             elif command[0] == "CD":
                 if len(command) == 1:

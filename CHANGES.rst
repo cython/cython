@@ -52,9 +52,15 @@ Features added
 * A simpler mechanism was added for implementing C++ exception handlers in Cython code.
   (Github issues :issue:`7388`, :issue:`7390`)
 
+* Type inference was improved for builtin Python types.
+  (Github issue :issue:`7536`)
+
 * Repeated memoryview slicing inside of loops now avoids redundant reference counting,
   making it substantially faster.
   (Github issue :issue:`5507`)
+
+* Indexing into Cython memoryview objects from Python is faster.
+  (Github issue :issue:`7529`)
 
 * C arrays are substituted for sequence iteration in more cases, also inside of generators.
   Ad-hoc C array storage on the stack and in closures was reworked along the way.
@@ -115,6 +121,12 @@ Bugs fixed
 * Mixing function signature declarations in Python modules and their ``.pxd`` modules could fail.
   (Github issues :issue:`5970`, :issue:`4388`)
 
+* C array declarations with type and size could fail with an exception in pure Python code.
+  (Github issue :issue:`7372`)
+
+* A ``const`` modifier in C++ template type arguments could be mapped incorrectly.
+  (Github issue :issue:`6294`)
+
 * Optimised Python ``int`` and ``float`` operations did not remember their result type,
   leading to less optimised code in longer expressions.
   (Github issues :issue:`7363`, :issue:`7502`)
@@ -130,6 +142,10 @@ Bugs fixed
 
 * The floating point parsing code relied on C implementation specific "pointer compare after free" behaviour.
   Patch by stratakis.  (Github issue :issue:`7463`)
+
+* When non-heap types were used as base classes of extension heap types, the heap types
+  were not correctly reference counted by their instances.
+  (Github issue :issue:`7483`)
 
 * The ``__signatures__`` dict of fused functions is no longer writable.
   (Github issue :issue:`7386`)
@@ -183,6 +199,17 @@ Bugs fixed
 
 * A problem with cpdef enums in the Limited API of Python 3.11+ was resolved.
   (Github issue :issue:`7503`)
+
+* Conditional expressions mixing Python float and int object types could accidentally
+  infer float as the common result type, instead of treating both independently.
+
+* Using ``sizeof()`` in the size declarations of ``extern`` arrays failed.
+  (Github issue :issue:`7451`)
+
+Other changes
+-------------
+
+* The known builtin types were updated for Py3.15.
 
 
 3.2.4 (2026-01-04)
