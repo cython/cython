@@ -220,7 +220,7 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
             return 0;
         }
     } else {
-        // Probably quicker to just assign it and not check from here
+        // Probably quicker to just assign it and not check from here.
         sequence_mapping_temp = &dummy;
     }
 
