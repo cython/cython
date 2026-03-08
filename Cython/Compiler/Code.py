@@ -560,7 +560,7 @@ class UtilityCodeBase(AbstractUtilityCode):
                 tag_name = tag_name.rstrip()
                 tag_value = tag_value.strip()
 
-                if tag_name not in ('requires', 'substitute', 'proto_block'):
+                if tag_name not in ('requires', 'substitute', 'proto_block', 'init_block'):
                     raise RuntimeError(f"Found unknown tag name '{tag_name}' in utility section {name}.{type}")
                 if not re.match(r'\S+(\{[^\}]*\})?$', tag_value):
                     raise RuntimeError(f"Found invalid tag value '{tag_value}' in utility section {name}.{type}")
@@ -725,6 +725,8 @@ class UtilityCode(UtilityCodeBase):
     requires        utility code dependencies
     proto_block     the place in the resulting file where the prototype should
                     end up
+    init_block      the place in the resulting file where the init function should
+                    end up
     name            name of the utility code (or None)
     file            filename of the utility code file this utility was loaded
                     from (or None)
@@ -735,7 +737,8 @@ class UtilityCode(UtilityCodeBase):
     def __init__(self, proto=None, impl=None, init=None, cleanup=None,
                  module_state_decls=None, module_state_traverse=None,
                  module_state_clear=None, requires=None,
-                 proto_block='utility_code_proto', name=None, file=None, export=None):
+                 proto_block='utility_code_proto', init_block='init_globals',
+                 name=None, file=None, export=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
@@ -748,6 +751,7 @@ class UtilityCode(UtilityCodeBase):
         self._cache = {}
         self.specialize_list = []
         self.proto_block = proto_block
+        self.init_block = init_block
         self.name = name
         self.file = file
         self.export = export
@@ -834,6 +838,7 @@ class UtilityCode(UtilityCodeBase):
                 self.none_or_sub(self.module_state_clear, data),
                 requires,
                 self.proto_block,
+                self.init_block,
                 name,
             )
 
@@ -867,10 +872,10 @@ class UtilityCode(UtilityCodeBase):
         else:
             writer.put_multilines(code_string)
 
-    def _put_init_code_section(self, output):
+    def _put_init_code_section(self, output, *, init_block="init_globals"):
         if not self.init:
             return
-        writer = output['init_globals']
+        writer = output[init_block]
         self._put_code_section(writer, output, 'init')
         # 'init' code can end with an 'if' statement for an error condition like:
         # if (check_ok()) ; else
@@ -913,7 +918,7 @@ class UtilityCode(UtilityCodeBase):
             self._put_code_section(globalstate['module_state_clear_contents'], globalstate, 'module_state_clear')
 
         if self.init:
-            self._put_init_code_section(globalstate)
+            self._put_init_code_section(globalstate, init_block=self.init_block)
 
 
 def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _last_macro_processor = [None]):
@@ -1569,6 +1574,7 @@ class GlobalState:
         'init_constants',
         'init_codeobjects',
         'init_globals',  # (utility code called at init-time)
+        'init_after_shared_utility',
         'cleanup_globals',
         'cleanup_module',
         'main_method',
@@ -1638,6 +1644,9 @@ class GlobalState:
 
         w = self.parts['init_globals']
         w.start_initcfunc("int __Pyx_InitGlobals(void)")
+
+        w = self.parts['init_after_shared_utility']
+        w.start_initcfunc("int __Pyx_InitAfterSharedUtility(void)")
 
         w = self.parts['init_constants']
         w.start_initcfunc(
@@ -1727,7 +1736,7 @@ class GlobalState:
         w.putln("}")
         w.exit_cfunc_scope()
 
-        for part in ['init_globals', 'init_constants']:
+        for part in ['init_globals', 'init_constants', 'init_after_shared_utility']:
             w = self.parts[part]
             w.putln("return 0;")
             if w.label_used(w.error_label):

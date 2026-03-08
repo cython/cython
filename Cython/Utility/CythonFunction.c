@@ -1,21 +1,24 @@
-//////////////////// CythonFunctionShared.module_state_decls ////////////////////
+//////////////////// CythonFunctionAlways.module_state_decls ////////////////////
 
 PyTypeObject *__pyx_CyFunctionType;
 
-//////////////////// CythonFunctionShared.module_state_traverse ///////////////////
+//////////////////// CythonFunctionAlways.module_state_traverse ///////////////////
 
 Py_VISIT(traverse_module_state->__pyx_CyFunctionType);
 
-//////////////////// CythonFunctionShared.module_state_clear ///////////////////
+//////////////////// CythonFunctionAlways.module_state_clear ///////////////////
 
 Py_CLEAR(clear_module_state->__pyx_CyFunctionType);
 
-//////////////////// CythonFunctionShared.init //////////////////
+//////////////////// CythonFunctionAlways.init //////////////////
 //@substitute: naming
+//@init_block: init_after_shared_utility
 
 if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 
-//////////////////// CythonFunctionShared.proto ////////////////////
+//////////////////// CythonFunctionAlways.proto //////////////////////////
+// This section always gets included whether we're using CythonFunction through
+// shared utility code or not.
 
 #define __Pyx_CyFunction_USED
 
@@ -24,11 +27,6 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 #else
 #define __Pyx_as_CyFunctionObject(o) ((__pyx_CyFunctionObject *)o)
 #endif
-
-#define __Pyx_CYFUNCTION_STATICMETHOD  0x01
-#define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
-#define __Pyx_CYFUNCTION_CCLASS        0x04
-#define __Pyx_CYFUNCTION_COROUTINE     0x08
 
 #define __Pyx_CyFunction_GetClosure(f) \
     ((__Pyx_as_CyFunctionObject(f))->func_closure)
@@ -49,7 +47,6 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
     ((type *)((__Pyx_as_CyFunctionObject(f))->defaults))
 #define __Pyx_CyFunction_SetDefaultsGetter(f, g) \
     (__Pyx_as_CyFunctionObject(f))->defaults_getter = (g)
-
 
 typedef struct {
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -103,12 +100,6 @@ static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void (*cfunc
 #undef __Pyx_IsSameCFunction
 #define __Pyx_IsSameCFunction(func, cfunc)   __Pyx__IsSameCyOrCFunction(func, cfunc)
 
-static PyObject *__Pyx_CyFunction_Init(PyObject *op_in, PyMethodDef *ml,
-                                      int flags, PyObject* qualname,
-                                      PyObject *closure,
-                                      PyObject *module, PyObject *globals,
-                                      PyObject* code);
-
 static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* f, PyObject* classobj);
 static CYTHON_INLINE PyObject *__Pyx_CyFunction_InitDefaults(PyObject *func,
                                                          PyTypeObject *defaults_type);
@@ -119,14 +110,12 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsKwDict(PyObject *m,
 static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *m,
                                                               PyObject *dict);
 
-
+// Note that the actual definition of __pyx_CyFunction_init is in a different
+// utility code section and depends on if the utility code comes from a
+// shared module.
 static int __pyx_CyFunction_init(PyObject *module);
 
 #if CYTHON_METH_FASTCALL
-static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
-static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
-static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
-static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
 #if CYTHON_COMPILING_IN_LIMITED_API
 #define __Pyx_CyFunction_func_vectorcall(f) ((f)->func_vectorcall)
 #else
@@ -134,17 +123,8 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 #endif
 #endif
 
-//////////////////// CythonFunctionShared ////////////////////
-//@requires: CommonStructures.c::FetchCommonType
-//@requires: CommonStructures.c::CommonTypesMetaclass
-//@requires: ObjectHandling.c::PyMethodNew
-//@requires: ObjectHandling.c::PyVectorcallFastCallDict
-//@requires: ModuleSetupCode.c::IncludeStructmemberH
-//@requires: ObjectHandling.c::PyObjectGetAttrStr
+//////////////////// CythonFunctionAlways /////////////////////
 //@requires: ObjectHandling.c::CachedMethodType
-//@requires: ExtensionTypes.c::CallTypeTraverse
-//@requires: Synchronization.c::CriticalSections
-//@substitute: naming
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunctionNoMethod(PyObject *func, void (*cfunc)(void)) {
@@ -191,6 +171,87 @@ static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* 
         (PyTypeObject*)((classobj) ? __Pyx_NewRef(classobj) : NULL));
 #endif
 }
+
+static CYTHON_INLINE PyObject *__Pyx_CyFunction_InitDefaults(PyObject *func, PyTypeObject *defaults_type) {
+    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject(func);
+
+    m->defaults = PyObject_CallObject((PyObject*)defaults_type, NULL); // _PyObject_New(defaults_type);
+    if (unlikely(!m->defaults))
+        return NULL;
+    return m->defaults;
+}
+
+static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(PyObject *func, PyObject *tuple) {
+    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject(func);
+    m->defaults_tuple = tuple;
+    Py_INCREF(tuple);
+}
+
+static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsKwDict(PyObject *func, PyObject *dict) {
+    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject(func);
+    m->defaults_kwdict = dict;
+    Py_INCREF(dict);
+}
+
+static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *func, PyObject *dict) {
+    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject(func);
+    m->func_annotations = dict;
+    Py_INCREF(dict);
+}
+
+//////////////////// CythonFunctionFromSharedModule /////////////////
+//@requires: CythonFunctionAlways
+//@requires: CommonStructures.c::VerifyCachedType
+//@substitute: naming
+
+static int __pyx_CyFunction_init(PyObject *module) {
+    $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
+
+    PyTypeObject *tp = __Pyx_Get_CyFunction_Type();
+    if (!tp) return -1;
+
+    if (__Pyx_VerifyCachedType((PyObject*)tp,
+            __PYX_TYPE_MODULE_PREFIX "cython_function_or_method",
+            __PYX_SHARED_SIZEOF(__pyx_CyFunctionObject)) != 0) {
+        Py_DECREF(tp);
+        return -1;
+    }
+
+    mstate->__pyx_CyFunctionType = tp;
+    return 0;
+}
+
+//////////////////// CythonFunctionShared.proto ////////////////////
+//@requires: CythonFunctionAlways
+
+#define __Pyx_CYFUNCTION_STATICMETHOD  0x01
+#define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
+#define __Pyx_CYFUNCTION_CCLASS        0x04
+#define __Pyx_CYFUNCTION_COROUTINE     0x08
+
+static PyObject *__Pyx_CyFunction_Init(PyObject *op_in, PyMethodDef *ml,
+                                      int flags, PyObject* qualname,
+                                      PyObject *closure,
+                                      PyObject *module, PyObject *globals,
+                                      PyObject* code);
+
+#if CYTHON_METH_FASTCALL
+static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
+static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
+static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
+static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
+#endif
+
+//////////////////// CythonFunctionShared ////////////////////
+//@requires: CommonStructures.c::FetchCommonType
+//@requires: CommonStructures.c::CommonTypesMetaclass
+//@requires: ObjectHandling.c::PyMethodNew
+//@requires: ObjectHandling.c::PyVectorcallFastCallDict
+//@requires: ModuleSetupCode.c::IncludeStructmemberH
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: ExtensionTypes.c::CallTypeTraverse
+//@requires: Synchronization.c::CriticalSections
+//@substitute: naming
 
 static PyObject *
 __Pyx_CyFunction_get_doc_locked(__pyx_CyFunctionObject *op)
@@ -1268,35 +1329,7 @@ static int __pyx_CyFunction_init(PyObject *module) {
     return 0;
 }
 
-static CYTHON_INLINE PyObject *__Pyx_CyFunction_InitDefaults(PyObject *func, PyTypeObject *defaults_type) {
-    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject(func);
-
-    m->defaults = PyObject_CallObject((PyObject*)defaults_type, NULL); // _PyObject_New(defaults_type);
-    if (unlikely(!m->defaults))
-        return NULL;
-    return m->defaults;
-}
-
-static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(PyObject *func, PyObject *tuple) {
-    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject(func);
-    m->defaults_tuple = tuple;
-    Py_INCREF(tuple);
-}
-
-static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsKwDict(PyObject *func, PyObject *dict) {
-    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject(func);
-    m->defaults_kwdict = dict;
-    Py_INCREF(dict);
-}
-
-static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *func, PyObject *dict) {
-    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject(func);
-    m->func_annotations = dict;
-    Py_INCREF(dict);
-}
-
-
-//////////////////// CythonFunction.proto ////////////////////
+//////////////////// CythonFunction.export ////////////////////
 
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
                                       int flags, PyObject* qualname,
@@ -1304,11 +1337,16 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
                                       PyObject *module, PyObject *globals,
                                       PyObject* code);
 
+static PyTypeObject *__Pyx_Get_CyFunction_Type(void);
+
 //////////////////// CythonFunction ////////////////////
 //@requires: CythonFunctionShared
 
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,
                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
+    // Only used when using shared utility module
+    (void)&__Pyx_Get_CyFunction_Type;
+
     PyObject *op = __Pyx_CyFunction_Init(
         PyObject_GC_New(PyObject, CGLOBAL(__pyx_CyFunctionType)),
         ml, flags, qualname, closure, module, globals, code
@@ -1319,11 +1357,17 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qual
     return op;
 }
 
+static PyTypeObject *__Pyx_Get_CyFunction_Type(void) {
+    PyTypeObject *tp = CGLOBAL(__pyx_CyFunctionType);
+    Py_INCREF((PyObject*)tp);
+    return tp;
+}
+
 //////////////////// CyFunctionClassCell.proto ////////////////////
 static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj);/*proto*/
 
 //////////////////// CyFunctionClassCell ////////////////////
-//@requires: CythonFunctionShared
+//@requires: CythonFunctionAlways
 
 static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj) {
     Py_ssize_t i, count = __Pyx_PyList_GET_SIZE(cyfunctions);
@@ -1362,6 +1406,7 @@ Py_CLEAR(clear_module_state->__pyx_FusedFunctionType);
 
 //////////////////// FusedFunction.init //////////////////
 //@substitute: naming
+//@init_block: init_after_shared_utility
 
 if (likely(__pyx_FusedFunction_init($module_cname) == 0)); else
 
@@ -1372,6 +1417,7 @@ if (likely(__pyx_FusedFunction_init($module_cname) == 0)); else
 #else
 #define __Pyx_as_FusedFunctionObject(o) ((__pyx_FusedFunctionObject*)o)
 #endif
+
 
 typedef struct {
 #if !(CYTHON_COMPILING_IN_LIMITED_API && CYTHON_OPAQUE_OBJECTS)

@@ -3363,6 +3363,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         shared_utility_exporter.call_import_code(code)
 
+        code.put_error_if_neg(self.pos, "__Pyx_InitAfterSharedUtility()")
+
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
 
