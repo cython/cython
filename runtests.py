@@ -2863,14 +2863,14 @@ def generate_shared_utility(options):
         shared_utility_c_file = os.path.join(workdir, f'{SHARED_UTILITY_MODULE_NAME}.c')
         utility_gen_result = subprocess.run(
             [
-                'python', 'cython.py', '--generate-shared', shared_utility_c_file
+                sys.executable, 'cython.py', '--generate-shared', shared_utility_c_file
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
         if utility_gen_result.returncode != 0:
             raise RuntimeError(f"Shared utility generation failed:\n{utility_gen_result.stdout}")
 
         compilation_result = subprocess.run(
             [
-                'python', 'cythonize.py', '-bi', shared_utility_c_file
+                sys.executable, 'cythonize.py', '-bi', shared_utility_c_file
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
         if compilation_result.returncode != 0:
             raise RuntimeError(f"Shared utility compilation failed:\n{compilation_result.stdout}")

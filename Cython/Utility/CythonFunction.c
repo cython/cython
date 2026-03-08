@@ -28,6 +28,11 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 #define __Pyx_as_CyFunctionObject(o) ((__pyx_CyFunctionObject *)o)
 #endif
 
+#define __Pyx_CYFUNCTION_STATICMETHOD  0x01
+#define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
+#define __Pyx_CYFUNCTION_CCLASS        0x04
+#define __Pyx_CYFUNCTION_COROUTINE     0x08
+
 #define __Pyx_CyFunction_GetClosure(f) \
     ((__Pyx_as_CyFunctionObject(f))->func_closure)
 
@@ -201,9 +206,11 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *func, Py
 
 //////////////////// CythonFunctionFromSharedModule /////////////////
 //@requires: CythonFunctionAlways
+//@requires: CythonFunction
 //@requires: CommonStructures.c::VerifyCachedType
 //@substitute: naming
 
+// Cutdown version that's only used when importing from shared utility code
 static int __pyx_CyFunction_init(PyObject *module) {
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
 
@@ -223,11 +230,6 @@ static int __pyx_CyFunction_init(PyObject *module) {
 
 //////////////////// CythonFunctionShared.proto ////////////////////
 //@requires: CythonFunctionAlways
-
-#define __Pyx_CYFUNCTION_STATICMETHOD  0x01
-#define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
-#define __Pyx_CYFUNCTION_CCLASS        0x04
-#define __Pyx_CYFUNCTION_COROUTINE     0x08
 
 static PyObject *__Pyx_CyFunction_Init(PyObject *op_in, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
@@ -1392,25 +1394,26 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
     return 0;
 }
 
-//////////////////// FusedFunction.module_state_decls ////////////////////
+//////////////////// FusedFunctionAlways.module_state_decls ////////////////////
 
 PyTypeObject *__pyx_FusedFunctionType;
 
-//////////////////// FusedFunction.module_state_traverse ///////////////////
+//////////////////// FusedFunctionAlways.module_state_traverse ///////////////////
 
 Py_VISIT(traverse_module_state->__pyx_FusedFunctionType);
 
-//////////////////// FusedFunction.module_state_clear ///////////////////
+//////////////////// FusedFunctionAlways.module_state_clear ///////////////////
 
 Py_CLEAR(clear_module_state->__pyx_FusedFunctionType);
 
-//////////////////// FusedFunction.init //////////////////
+//////////////////// FusedFunctionAlways.init //////////////////
 //@substitute: naming
 //@init_block: init_after_shared_utility
 
 if (likely(__pyx_FusedFunction_init($module_cname) == 0)); else
 
-//////////////////// FusedFunction.proto ////////////////////
+//////////////////// FusedFunctionAlways.proto ////////////////
+//@requires: CythonFunctionAlways
 
 #if CYTHON_OPAQUE_SHARED_TYPES
 #define __Pyx_as_FusedFunctionObject(o) ((__pyx_FusedFunctionObject *)PyObject_GetTypeData((o), CGLOBAL(__pyx_FusedFunctionType)))
@@ -1430,18 +1433,48 @@ typedef struct {
 #endif
 } __pyx_FusedFunctionObject;
 
+// Definition depends on whether we're using shared utility code or not
+static int __pyx_FusedFunction_init(PyObject *module);
+
+#define __Pyx_FusedFunction_USED
+
+//////////////////// FusedFunctionFromSharedModule /////////////////////
+//@requires: FusedFunctionAlways
+//@requires: CythonFunctionFromSharedModule
+//@requires: CommonStructures.c::VerifyCachedType
+//@requires: FusedFunction
+//@substitute: naming
+
+// Cutdown version that's only used when importing from shared utility code
+static int __pyx_FusedFunction_init(PyObject *module) {
+    $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
+
+    PyTypeObject *tp = __Pyx_Get_FusedFunction_Type();
+    if (!tp) return -1;
+
+    if (__Pyx_VerifyCachedType((PyObject*)tp,
+            __PYX_TYPE_MODULE_PREFIX "fused_cython_function",
+            __PYX_SHARED_SIZEOF(__pyx_FusedFunctionObject)) != 0) {
+        Py_DECREF(tp);
+        return -1;
+    }
+
+    mstate->__pyx_CyFunctionType = tp;
+    return 0;
+}
+
+//////////////////// FusedFunction.export ////////////////////
+
 static PyObject *__pyx_FusedFunction_New(PyMethodDef *ml, int flags,
                                          PyObject *qualname, PyObject *closure,
                                          PyObject *module, PyObject *globals,
                                          PyObject *code);
 
-static int __pyx_FusedFunction_clear(PyObject *self);
-static int __pyx_FusedFunction_init(PyObject *module);
-
-#define __Pyx_FusedFunction_USED
+static PyTypeObject *__Pyx_Get_FusedFunction_Type(void);
 
 //////////////////// FusedFunction ////////////////////
 //@requires: CythonFunctionShared
+//@requires: FusedFunctionAlways
 //@substitute: naming
 
 static PyObject *
@@ -1818,6 +1851,9 @@ static PyType_Spec __pyx_FusedFunctionType_spec = {
 };
 
 static int __pyx_FusedFunction_init(PyObject *module) {
+    // Silence unused warning when not in shared module.
+    (void)__Pyx_Get_FusedFunction_Type;
+
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
     PyObject *bases = PyTuple_Pack(1, mstate->__pyx_CyFunctionType);
     if (unlikely(!bases)) {
@@ -1830,6 +1866,12 @@ static int __pyx_FusedFunction_init(PyObject *module) {
         return -1;
     }
     return 0;
+}
+
+static PyTypeObject *__Pyx_Get_FusedFunction_Type(void) {
+    PyTypeObject *tp = CGLOBAL(__pyx_FusedFunctionType);
+    Py_INCREF(tp);
+    return tp;
 }
 
 
