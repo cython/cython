@@ -867,7 +867,7 @@ cdef memoryview memview_slice(memoryview memview, object indices):
 
 #
 ### Slicing in a single dimension of a memoryviewslice
-#
+# Note - keep in sync with copied inline version in pxd file
 
 @cname('__pyx_memoryview_slice_memviewslice')
 cdef int slice_memviewslice(
