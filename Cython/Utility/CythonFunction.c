@@ -1,22 +1,22 @@
-//////////////////// CythonFunctionAlways.module_state_decls ////////////////////
+//////////////////// CythonFunctionPerModule.module_state_decls ////////////////////
 
 PyTypeObject *__pyx_CyFunctionType;
 
-//////////////////// CythonFunctionAlways.module_state_traverse ///////////////////
+//////////////////// CythonFunctionPerModule.module_state_traverse ///////////////////
 
 Py_VISIT(traverse_module_state->__pyx_CyFunctionType);
 
-//////////////////// CythonFunctionAlways.module_state_clear ///////////////////
+//////////////////// CythonFunctionPerModule.module_state_clear ///////////////////
 
 Py_CLEAR(clear_module_state->__pyx_CyFunctionType);
 
-//////////////////// CythonFunctionAlways.init //////////////////
+//////////////////// CythonFunctionPerModule.init //////////////////
 //@substitute: naming
 //@init_block: init_after_shared_utility
 
 if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 
-//////////////////// CythonFunctionAlways.proto //////////////////////////
+//////////////////// CythonFunctionPerModule.proto //////////////////////////
 // This section always gets included whether we're using CythonFunction through
 // shared utility code or not.
 
@@ -128,7 +128,7 @@ static int __pyx_CyFunction_init(PyObject *module);
 #endif
 #endif
 
-//////////////////// CythonFunctionAlways /////////////////////
+//////////////////// CythonFunctionPerModule /////////////////////
 //@requires: ObjectHandling.c::CachedMethodType
 
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -205,7 +205,7 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *func, Py
 }
 
 //////////////////// CythonFunctionFromSharedModule /////////////////
-//@requires: CythonFunctionAlways
+//@requires: CythonFunctionPerModule
 //@requires: CythonFunction
 //@requires: CommonStructures.c::VerifyCachedType
 //@substitute: naming
@@ -229,7 +229,7 @@ static int __pyx_CyFunction_init(PyObject *module) {
 }
 
 //////////////////// CythonFunctionShared.proto ////////////////////
-//@requires: CythonFunctionAlways
+//@requires: CythonFunctionPerModule
 
 static PyObject *__Pyx_CyFunction_Init(PyObject *op_in, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
@@ -1369,7 +1369,7 @@ static PyTypeObject *__Pyx_Get_CyFunction_Type(void) {
 static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj);/*proto*/
 
 //////////////////// CyFunctionClassCell ////////////////////
-//@requires: CythonFunctionAlways
+//@requires: CythonFunctionPerModule
 
 static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj) {
     Py_ssize_t i, count = __Pyx_PyList_GET_SIZE(cyfunctions);
@@ -1394,26 +1394,26 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
     return 0;
 }
 
-//////////////////// FusedFunctionAlways.module_state_decls ////////////////////
+//////////////////// FusedFunctionPerModule.module_state_decls ////////////////////
 
 PyTypeObject *__pyx_FusedFunctionType;
 
-//////////////////// FusedFunctionAlways.module_state_traverse ///////////////////
+//////////////////// FusedFunctionPerModule.module_state_traverse ///////////////////
 
 Py_VISIT(traverse_module_state->__pyx_FusedFunctionType);
 
-//////////////////// FusedFunctionAlways.module_state_clear ///////////////////
+//////////////////// FusedFunctionPerModule.module_state_clear ///////////////////
 
 Py_CLEAR(clear_module_state->__pyx_FusedFunctionType);
 
-//////////////////// FusedFunctionAlways.init //////////////////
+//////////////////// FusedFunctionPerModule.init //////////////////
 //@substitute: naming
 //@init_block: init_after_shared_utility
 
 if (likely(__pyx_FusedFunction_init($module_cname) == 0)); else
 
-//////////////////// FusedFunctionAlways.proto ////////////////
-//@requires: CythonFunctionAlways
+//////////////////// FusedFunctionPerModule.proto ////////////////
+//@requires: CythonFunctionPerModule
 
 #if CYTHON_OPAQUE_SHARED_TYPES
 #define __Pyx_as_FusedFunctionObject(o) ((__pyx_FusedFunctionObject *)PyObject_GetTypeData((o), CGLOBAL(__pyx_FusedFunctionType)))
@@ -1439,7 +1439,7 @@ static int __pyx_FusedFunction_init(PyObject *module);
 #define __Pyx_FusedFunction_USED
 
 //////////////////// FusedFunctionFromSharedModule /////////////////////
-//@requires: FusedFunctionAlways
+//@requires: FusedFunctionPerModule
 //@requires: CythonFunctionFromSharedModule
 //@requires: CommonStructures.c::VerifyCachedType
 //@requires: FusedFunction
@@ -1474,7 +1474,7 @@ static PyTypeObject *__Pyx_Get_FusedFunction_Type(void);
 
 //////////////////// FusedFunction ////////////////////
 //@requires: CythonFunctionShared
-//@requires: FusedFunctionAlways
+//@requires: FusedFunctionPerModule
 //@substitute: naming
 
 static PyObject *
