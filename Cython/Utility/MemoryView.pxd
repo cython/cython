@@ -101,15 +101,6 @@ cdef inline bint memoryview_check(object o) noexcept:
 @cname('__pyx_memview_slice')
 cdef memoryview memview_slice(memoryview memview, object indices)
 
-@cname('__pyx_memoryview_slice_memviewslice')
-cdef int slice_memviewslice(
-        {{memviewslice_name}} *dst,
-        Py_ssize_t shape, Py_ssize_t stride, Py_ssize_t suboffset,
-        int dim, int new_ndim, int *suboffset_dim,
-        Py_ssize_t start, Py_ssize_t stop, Py_ssize_t step,
-        int have_start, int have_stop, int have_step,
-        bint is_slice) except -1 nogil
-
 @cname('__pyx_pybuffer_index')
 cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
                           Py_ssize_t dim) except NULL
