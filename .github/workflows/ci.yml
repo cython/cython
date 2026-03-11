@@ -293,7 +293,7 @@ jobs:
             "
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: htmldocs
           path: docs/build/html
