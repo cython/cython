@@ -25,7 +25,7 @@ from .PyrexTypes import py_object_type, error_type
 from .Symtab import (ModuleScope, LocalScope, ClosureScope, PropertyScope,
                      StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope, GeneratorExpressionScope,
                      CppScopedEnumScope, punycodify_name)
-from .Code import UtilityCode
+from .Code import UtilityCode, CCodeWriter
 from .StringEncoding import EncodedString
 from . import Future
 from . import Options
@@ -923,8 +923,10 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         func_type.op_arg_struct = PyrexTypes.c_ptr_type(op_args_struct.type)
 
 
-class CConstDeclaratorNode(CDeclaratorNode):
+class CQualifierDeclaratorNode(CDeclaratorNode):
     # base     CDeclaratorNode
+    # is_const      boolean
+    # is_restrict   boolean
 
     child_attrs = ["base"]
 
@@ -932,7 +934,7 @@ class CConstDeclaratorNode(CDeclaratorNode):
         if base_type.is_pyobject:
             error(self.pos,
                   "Const base type cannot be a Python object")
-        const = PyrexTypes.c_const_type(base_type)
+        const = PyrexTypes.c_qualifier_type(base_type, is_const=self.is_const, is_restrict=self.is_restrict)
         return self.base.analyse(const, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
@@ -1506,10 +1508,11 @@ class FusedTypeNode(CBaseTypeNode):
         return PyrexTypes.FusedType(types, name=self.name)
 
 
-class CConstOrVolatileTypeNode(CBaseTypeNode):
+class CQualifierTypeNode(CBaseTypeNode):
     # base_type     CBaseTypeNode
     # is_const      boolean
     # is_volatile   boolean
+    # is_restrict   boolean
 
     child_attrs = ["base_type"]
 
@@ -1518,7 +1521,7 @@ class CConstOrVolatileTypeNode(CBaseTypeNode):
         if base.is_pyobject:
             error(self.pos,
                   "Const/volatile base type cannot be a Python object")
-        return PyrexTypes.c_const_or_volatile_type(base, self.is_const, self.is_volatile)
+        return PyrexTypes.c_qualifier_type(base, self.is_const, self.is_volatile, self.is_restrict)
 
 
 class CVarDefNode(StatNode):

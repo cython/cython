@@ -4196,7 +4196,7 @@ class IndexNode(_IndexingBaseNode):
             if base_type.is_memoryviewslice:
                 error(self.base.pos,
                       f"Cannot declare memory view variable as '{modifier}'. Did you mean '{modifier}[item_type][:]' ?")
-            return PyrexTypes.c_const_or_volatile_type(
+            return PyrexTypes.c_qualifier_type(
                 base_type, is_const=is_const, is_volatile=not is_const)
 
         base_type = self.base.analyse_as_type(env)
@@ -12237,7 +12237,7 @@ class TypeidNode(ExprNode):
             env_module = env_module.outer_scope
         typeinfo_module = env_module.find_module('libcpp.typeinfo', self.pos)
         typeinfo_entry = typeinfo_module.lookup('type_info')
-        return PyrexTypes.CFakeReferenceType(PyrexTypes.c_const_or_volatile_type(typeinfo_entry.type, is_const=True))
+        return PyrexTypes.CFakeReferenceType(PyrexTypes.c_qualifier_type(typeinfo_entry.type, is_const=True))
 
     cpp_message = 'typeid operator'
 

@@ -3128,7 +3128,7 @@ class CCodeWriter:
         else:
             return cond
 
-    def build_function_modifiers(self, modifiers, mapper=modifier_output_mapper):
+    def build_function_modifiers(self, modifiers: list[str], mapper=modifier_output_mapper) -> str:
         if not modifiers:
             return ''
         return '%s ' % ' '.join([mapper(m,m) for m in modifiers])
