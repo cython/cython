@@ -3182,6 +3182,7 @@ class DefNode(FuncDefNode):
     # body          StatListNode
     # return_type_annotation
     #               ExprNode or None       the Py3 return type annotation
+    # type_params   TypeParameterListNode or None  PEP695 type parameters
     #
     #  The following subnode is constructed internally
     #  when the def statement is inside a Python class definition.
@@ -3193,8 +3194,8 @@ class DefNode(FuncDefNode):
     #
     # decorator_indirection IndirectionNode Used to remove __Pyx_Method_ClassMethod for fused functions
 
-    child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators", "return_type_annotation"]
-    outer_attrs = ["decorators", "return_type_annotation"]
+    child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators", "return_type_annotation", "type_params"]
+    outer_attrs = ["decorators", "return_type_annotation", "type_params"]
 
     is_staticmethod = False
     is_classmethod = False
@@ -3212,6 +3213,7 @@ class DefNode(FuncDefNode):
     requires_classobj = False
     defaults_struct = None  # Dynamic kwrds structure name
     doc = None
+    type_params = None
 
     fused_py_func = False
     specialized_cpdefs = None
@@ -5169,6 +5171,7 @@ class PyClassDefNode(ClassDefNode):
     #  scope    PyClassScope
     #  decorators    [DecoratorNode]        list of decorators or None
     #  bases    ExprNode        Expression that evaluates to a tuple of base classes
+    #  type_params TypeParameterListNode or None   PEP 695 type parameters
     #
     #  The following subnodes are constructed internally:
     #
@@ -5180,7 +5183,7 @@ class PyClassDefNode(ClassDefNode):
     #                                used to create the __orig_bases__ attribute
 
     child_attrs = ["doc_node", "body", "dict", "metaclass", "mkw", "bases", "class_result",
-                   "target", "class_cell", "decorators", "orig_bases"]
+                   "target", "class_cell", "decorators", "orig_bases", "type_params"]
     decorators = None
     class_result = None
     is_py3_style_class = False  # Python3 style class (kwargs)
@@ -5188,15 +5191,17 @@ class PyClassDefNode(ClassDefNode):
     mkw = None
     doc_node = None
     orig_bases = None
+    type_params = None
 
     def __init__(self, pos, name, bases, doc, body, decorators=None,
-                 keyword_args=None, force_py3_semantics=False):
+                 keyword_args=None, type_params=None, force_py3_semantics=False):
         StatNode.__init__(self, pos)
         self.name = name
         self.doc = doc
         self.body = body
         self.decorators = decorators
         self.bases = bases
+        self.type_params = type_params
         from . import ExprNodes
         if self.doc and Options.docstrings:
             doc = embed_position(self.pos, self.doc)
@@ -10807,6 +10812,49 @@ class CnameDecoratorNode(StatNode):
 
     def generate_execution_code(self, code):
         self.node.generate_execution_code(code)
+
+
+class TypeParameterNode(Node):
+    """
+    A PEP-695 type parameter.
+
+    Currently we don't do anything with these and so this
+    node is only a placeholder to have something to construct.
+    """
+    is_star: cython.bint
+    is_starstar: cython.bint
+    name: str
+    annotation: 'ExprNodes.AnnotationNode'
+    default_value: 'ExprNodes.ExprNode'
+
+    child_attrs = ['annotation', 'default_value']
+
+
+class TypeParameterListNode(Node):
+    """
+    A list of PEP695 type parameters
+
+    This only makes sense as a separate node because it's a convenient
+    unit to drop all at once.  In a future where we handle these it's
+    probably easiest just to use a regular list.
+    """
+    params: list[TypeParameterNode]
+
+    child_attrs = ['params']
+
+
+class TypeAliasNode(Node):
+    """
+    A PEP-695 type alias
+
+    Currently we don't do anything with these and so this
+    node is only a placeholder to have something to construct.
+    """
+    name: str
+    # type_params: None | TypeParameterListNode  # commented out for Python 3.9 reasons
+    value: 'ExprNodes.ExprNode'
+
+    child_attrs = ['type_params', 'value']
 
 
 class ErrorNode(Node):

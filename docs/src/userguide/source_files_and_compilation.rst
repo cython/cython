@@ -1198,6 +1198,12 @@ to turn the warning on / off.
    For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
    a value type, but could be mininterpreted as declaring two pointers.
 
+``warn.pep695`` (default True)
+  Warns about usage of PEP 695 type parameters and type aliases.
+  Currently Cython accepts the PEP 695 syntax but then ignores it.  This allows you to include
+  the syntax for the benefit of tools like external type-checkers to use the syntax.
+  By default Cython generates a warning to ensure that users understand that it is unused.
+
 ``warn.deprecated.DEF`` (default False)
   Warns about use of the deprecated ``DEF`` statement in Cython code, see
   :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
