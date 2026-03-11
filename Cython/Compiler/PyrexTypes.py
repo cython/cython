@@ -1421,6 +1421,7 @@ _special_type_check_functions = {
     'str': 'PyUnicode_Check',
     'bytearray': 'PyByteArray_Check',
     'frozenset': 'PyFrozenSet_Check',
+    'frozendict': '__Pyx_PyFrozenDict_Check',
     'memoryview': 'PyMemoryView_Check',
     'Exception': '__Pyx_PyException_Check',
     'BaseException': '__Pyx_PyBaseException_Check',

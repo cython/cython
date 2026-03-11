@@ -17,6 +17,7 @@ static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, 
 /////////////// ImportImpl ///////////////
 //@requires: StringTools.c::IncludeStringH
 //@requires: Builtins.c::HasAttr
+//@requires: Builtins.c::PyFrozenDict
 //@requires: ObjectHandling.c::TupleAndListFromArray
 //@requires: ObjectHandling.c::PyObjectCallOneArg
 
@@ -106,7 +107,7 @@ static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, 
     } else if (unlikely(module_found == -1)) {
         return NULL;
     }
-    empty_dict = PyDict_New();
+    empty_dict = __Pyx_PyFrozenDict_NewEmpty();
     if (unlikely(!empty_dict))
         goto bad;
     if (imported_names) {
