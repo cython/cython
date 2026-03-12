@@ -1,6 +1,12 @@
 .sphinx-tabs {
     margin-bottom: 1rem;
 }
+
+.sphinx-tabs .code-block-caption {
+    background-color: var(--color-base-100) !important;
+    color: var(--color-base-content) !important;
+}
+
   
 [role="tablist"] {
     border-bottom: 0px solid #a0b3bf;
@@ -26,7 +32,6 @@
     border-bottom: 2px solid gray;
     margin: -2px;
     background-color: #efefef;
-    z-index: 999;  /* render on top*/
 }
 
 .sphinx-tabs-tab[aria-selected="false"] {
@@ -48,7 +53,6 @@
     margin: 0px 0px 0px 0px;
     border-radius: 0 0 5px 5px;
     border-top: 0;
-    background: white;
 }
   
 .sphinx-tabs-panel.code-tab {
