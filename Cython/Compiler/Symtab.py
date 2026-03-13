@@ -2868,8 +2868,6 @@ class CppClassScope(Scope):
                 error(pos, "Function signature does not match previous declaration")
         else:
             entry = self.declare(name, cname, type, pos, visibility)
-            if type.is_cfunction and not defining:
-                entry.is_inherited = 1
         entry.is_variable = 1
         if type.is_cfunction:
             entry.is_cfunction = 1
