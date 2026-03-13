@@ -4395,6 +4395,8 @@ class IndexNode(_IndexingBaseNode):
             return replacement_node
 
         self.nogil = env.nogil
+        base = self.base
+
         base_type = self.base.type
 
         if not base_type.is_cfunction:
@@ -4423,6 +4425,7 @@ class IndexNode(_IndexingBaseNode):
         elif base_type.is_cfunction:
             return self.analyse_as_c_function(env)
         elif base_type.is_ctuple:
+            self.base = base
             return self.analyse_as_c_tuple(env, getting, setting)
         else:
             error(self.pos,
@@ -4566,6 +4569,10 @@ class IndexNode(_IndexingBaseNode):
                       "Index %s out of bounds for '%s'" %
                       (index, base_type))
                 self.type = PyrexTypes.error_type
+            return self
+        elif len(set(base_type.components)) == 1:
+            self.type = base_type.components[0]
+            self.index = self.index.coerce_to_index(env)
             return self
         else:
             self.base = self.base.coerce_to_pyobject(env)
@@ -4754,10 +4761,16 @@ class IndexNode(_IndexingBaseNode):
                 self.base.result(),
                 ",".join([param.empty_declaration_code() for param in self.type_indices]))
         elif self.base.type.is_ctuple:
-            index = self.index.constant_result
-            if index < 0:
-                index += self.base.type.size
-            return "%s.f%s" % (self.base.result(), index)
+            if isinstance(self.index, IntNode) and self.index.has_constant_result():
+                # TODO: Constant index folding should probably be in Optimize.py
+
+                index = self.index.constant_result
+                if index < 0:
+                    index += self.base.type.size
+
+                return self.base.type.index_code(self.base.result(), index)
+            else:
+                return "(*%s)" % self.ctuple_var
         else:
             if (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
                 error(self.pos, "Invalid use of pointer slice")
@@ -4792,7 +4805,7 @@ class IndexNode(_IndexingBaseNode):
             return ""
 
     def generate_result_code(self, code):
-        if not self.is_temp:
+        if not self.is_temp and (not self.base.type.is_ctuple or (isinstance(self.index, IntNode) and self.index.has_constant_result())):
             # all handled in self.calculate_result_code()
             return
 
@@ -4839,7 +4852,7 @@ class IndexNode(_IndexingBaseNode):
             function = "__Pyx_GetItemInt_ByteArray"
             error_value = '-1'
             utility_code = UtilityCode.load_cached("GetItemIntByteArray", "StringTools.c")
-        elif not (base_type.is_cpp_class and self.exception_check):
+        elif not (base_type.is_cpp_class and self.exception_check) and not self.base.type.is_ctuple:
             assert False, "unexpected type %s and base type %s for indexing (%s)" % (
                 self.type, base_type, self.pos)
 
@@ -4857,6 +4870,20 @@ class IndexNode(_IndexingBaseNode):
                                   self.index.result()),
                 self.result() if self.type.is_pyobject else None,
                 self.exception_value, self.in_nogil_context)
+        elif self.base.type.is_ctuple:
+            base_code = self.base.result()
+            self.ctuple_var = code.funcstate.allocate_temp(PyrexTypes.CPtrType(self.type), manage_ref=False)
+
+            code.putln("switch (%s) {" % index_code)
+
+            for itr in range(-len(self.base.type.components) if code.globalstate.directives['wraparound'] else 0, len(self.base.type.components)):
+                index = itr % len(self.base.type.components)
+                code.putln(f"case {itr}: {self.ctuple_var} = &{self.base.type.index_code(base_code, index)}; break;")
+
+            if code.globalstate.directives['boundscheck']:
+                code.putln("default: PyErr_SetString(PyExc_IndexError, \"ctuple index out of range\"); " + code.error_goto(self.pos))
+
+            code.putln("}")
         else:
             error_check = '!%s' if error_value == 'NULL' else '%%s == %s' % error_value
             code.putln(
@@ -4869,6 +4896,12 @@ class IndexNode(_IndexingBaseNode):
                     code.error_goto_if(error_check % self.result(), self.pos)))
         if self.type.is_pyobject:
             self.generate_gotref(code)
+
+    def free_temps(self, code):
+        if self.base.type.is_ctuple and not (isinstance(self.index, IntNode) and self.index.has_constant_result()):
+            code.funcstate.release_temp(self.ctuple_var)
+
+        ExprNode.free_temps(self, code)
 
     def generate_setitem_code(self, value_code, code):
         if self.index.type.is_int:
@@ -4927,6 +4960,20 @@ class IndexNode(_IndexingBaseNode):
                     "%s = %s;" % (self.result(), rhs.result()),
                     self.result() if self.type.is_pyobject else None,
                     self.exception_value, self.in_nogil_context)
+        elif self.base.type.is_ctuple:
+            base_code = self.base.result()
+            rvalue_code = rhs.result()
+
+            code.putln("switch (%s) {" % self.index.result())
+
+            for itr in range(-len(self.base.type.components) if code.globalstate.directives['wraparound'] else 0, len(self.base.type.components)):
+                index = itr % len(self.base.type.components)
+                code.putln(f"case {itr}: {self.base.type.index_code(base_code, index)} = {rvalue_code}; break;")
+
+            if code.globalstate.directives['boundscheck']:
+                code.putln("default: PyErr_SetString(PyExc_IndexError, \"ctuple index out of range\"); " + code.error_goto(self.pos))
+
+            code.putln("}")
         else:
             code.putln(
                 "%s = %s;" % (self.result(), rhs.result()))
