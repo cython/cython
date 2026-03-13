@@ -1,3 +1,4 @@
+import operator
 from Cython import Shadow
 from Cython.Compiler import Options, CythonScope, PyrexTypes, Errors
 from Cython.TestUtils import TimedTest
@@ -16,7 +17,11 @@ class TestShadow(TimedTest):
             scope = Options.directive_scopes.get(full_directive)
             if scope and len(scope) == 1 and scope[0] == "module":
                 # module-scoped things can't be used from Cython
-                if hasattr(Shadow, directive):
+                try:
+                    operator.attrgetter(full_directive)(Shadow)
+                except AttributeError:
+                    pass
+                else:
                     extra_directives.append(full_directive)
                 continue
             if full_directive == "staticmethod":

@@ -2140,11 +2140,12 @@ class GlobalState:
             )
 
         # Store and decompress the string data.
-        self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
 
+        compress_strings = self.directives["optimize.compress_strings"]
+        algorithms = compression_algorithms if compress_strings else []
         min_size_seen = None
         compressions = []
-        for algo_number, algo_name, compress in compression_algorithms:
+        for algo_number, algo_name, compress in algorithms:
             if compress is None:
                 continue
 
@@ -2164,6 +2165,10 @@ class GlobalState:
 
         has_if = False
         for algo_number, algo_name, compressed_bytes in reversed(compressions):
+            if not has_if:
+                w.putln('#ifndef CYTHON_COMPRESS_STRINGS')
+                w.putln('#define CYTHON_COMPRESS_STRINGS 1')
+                w.putln('#endif')
             if algo_name == 'zlib':
                 # Use zlib as fallback if the selected compression module is not available.
                 assert algo_number == 1, f"Compression algorithm no. 1 must be 'zlib' to be used as fallback."
@@ -2186,14 +2191,15 @@ class GlobalState:
             w.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
             w.putln(f'if (likely(bytes)); else {{ Py_DECREF(data); {w.error_goto(self.module_pos)} }}')
             w.putln('#endif')
-
-        w.putln(f"{'#else ' if has_if else ''}/* compression: none ({len(concat_bytes)} bytes) */")
+        if has_if:
+            self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
+            w.putln(f"#else /* compression: none ({len(concat_bytes)} bytes) */")
         escaped_bytes = StringEncoding.split_string_literal(
             StringEncoding.escape_byte_string(concat_bytes))
         w.putln(f'const char* const bytes = "{escaped_bytes}";', safe=True)
         w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
-        w.putln("CYTHON_UNUSED_VAR(__Pyx_DecompressString);")
         if has_if:
+            w.putln("CYTHON_UNUSED_VAR(__Pyx_DecompressString);")
             w.putln("#endif")
 
         # Populate stringtab.
