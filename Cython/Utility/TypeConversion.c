@@ -303,30 +303,51 @@ static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py
 static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
     if (PyUnicode_Check(o)) {
-        return __Pyx_PyUnicode_AsStringAndSize(o, length);
+        const char* result = __Pyx_PyUnicode_AsStringAndSize(o, length);
+        if (unlikely(!result)) goto error;
+        return result;
     } else
 #endif
 
     if (PyByteArray_Check(o)) {
+        int r = PyErr_WarnEx(
+            PyExc_RuntimeWarning,
+            "Cython: Pointer taken from resizable `bytearray` object. "
+            "To restrict resizing instead use a memory view, e.g. `unsigned char[::1]`.",
+            1
+        );
+        if (unlikely(r < 0)) return NULL;
 #if (CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS) || (CYTHON_COMPILING_IN_PYPY && (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE)))
         *length = PyByteArray_GET_SIZE(o);
         return PyByteArray_AS_STRING(o);
 #else
         *length = PyByteArray_Size(o);
-        if (*length == -1) return NULL;
+        if (*length == -1) goto error;
         return PyByteArray_AsString(o);
 #endif
 
-    } else
-    {
+    } else if (PyBytes_Check(o)) {
         char* result;
         int r = PyBytes_AsStringAndSize(o, &result, length);
-        if (unlikely(r < 0)) {
-            return NULL;
-        } else {
-            return result;
-        }
+        if (unlikely(r < 0)) goto error;
+        return result;
+    } else {
+        char* result;
+        int r;
+        r = PyArg_Parse(o, "y#", &result, &length);
+        if (unlikely(r < 0)) goto error;
+        return result;
     }
+
+    error:
+        // Clear existing errors and return our standardized one
+        PyErr_Clear();
+        __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
+        PyErr_Format(PyExc_TypeError,
+            "a bytes-like object is required, not '" __Pyx_FMT_TYPENAME "'",
+            o_type_name);
+        *length = -1;
+        return NULL;
 }
 
 /* Note: __Pyx_PyObject_IsTrue is written to minimize branching. */
