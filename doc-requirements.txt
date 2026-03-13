@@ -75,7 +75,7 @@ Pygments==2.17.2
 python-dateutil==2.8.2
 python-json-logger==2.0.7
 PyYAML==6.0.1
-pyzmq==25.1.2
+pyzmq==27.1.0
 qtconsole==5.5.1
 QtPy==2.4.1
 referencing==0.32.1
