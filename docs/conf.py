@@ -57,6 +57,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 html_theme = "sphinx_clarity_theme"
 
 html_theme_options: ThemeOptions = {
+    "logo_dark": "_static/cython-logo-light.png",
     # Set both to enable "Edit page source"
     "edit_page_label": "Edit on GitHub",
     # $FILENAME$ will be replaced by actual source filename
@@ -88,7 +89,7 @@ html_favicon = "_static/favicon.ico"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-html_css_files = ["css/tabs.css"]
+html_css_files = []
 
 # If false, no module index is generated.
 html_domain_indices = False
