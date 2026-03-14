@@ -454,10 +454,10 @@ def run_build():
 
         """) + collect_changelog(version),
         license='Apache-2.0',
+        license_files=["LICENSE.txt"],
         classifiers=[
             dev_status(version),
             "Intended Audience :: Developers",
-            "License :: OSI Approved :: Apache Software License",
             "Operating System :: OS Independent",
             "Programming Language :: Python",
             "Programming Language :: Python :: 3",
