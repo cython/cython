@@ -496,6 +496,8 @@
         #define CYTHON_UNUSED [[maybe_unused]]
       #endif
     #endif
+  #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+    #define CYTHON_UNUSED [[maybe_unused]]
   #endif
 #endif
 #ifndef CYTHON_UNUSED
