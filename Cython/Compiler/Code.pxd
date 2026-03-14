@@ -18,6 +18,7 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object init
     cdef public object cleanup
     cdef object proto_block
+    cdef object init_block
     cdef readonly object module_state_decls
     cdef readonly object module_state_traverse
     cdef readonly object module_state_clear

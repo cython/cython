@@ -10607,10 +10607,16 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             def_node = self.def_node
 
         if self.specialized_cpdefs or self.is_specialization:
+            if code.funcstate.scope.context.shared_utility_qualified_name:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("FusedFunctionFromSharedModule", "CythonFunction.c"))
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("FusedFunction", "CythonFunction.c"))
             constructor = "__pyx_FusedFunction_New"
         else:
+            if code.funcstate.scope.context.shared_utility_qualified_name:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("CythonFunctionFromSharedModule", "CythonFunction.c"))
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
             constructor = "__Pyx_CyFunction_New"
@@ -12747,7 +12753,7 @@ class NumBinopNode(BinopNode):
 
     specialised_binop_types = (py_object_type, int_type, float_type)
 
-    fast_pyops = {'+', '-', '*'}
+    fast_pyops = {'+', '-', '*', '^', '&', '|'}
 
     py_functions = {
         "|":        "PyNumber_Or",
