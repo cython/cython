@@ -2878,7 +2878,6 @@ def generate_shared_utility(options):
         sys.path.append(workdir)
         yield workdir
 
-
 def configure_cython(options):
     global CompilationOptions, pyrex_default_options, cython_compile
     from Cython.Compiler.Options import \
