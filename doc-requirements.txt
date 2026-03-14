@@ -1,5 +1,5 @@
 sphinx==9.1.0
 sphinx-issues==5.0.1
 sphinx-tabs==3.5.0
-sphinx-clarity-theme==2.0.0
+sphinx-clarity-theme==2.1.0
 ipython_pygments_lexers==1.1.1
