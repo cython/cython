@@ -17,7 +17,7 @@ may be worth reading are:
 
 You need two files (plus your Cython source).
 First is :file:`pyproject.toml` which specifies the build
-backend and dependences as well as giving details of your project::
+backend and dependencies, and contains the your project-level metadata::
 
     [build-system]
     build-backend = 'mesonpy'
@@ -44,7 +44,7 @@ Additional Cython arguments can be passed to ``py.extension_module`` e.g.::
 
     cython_args : ['-Xboundscheck=False'],
 
-(these are essentially command-line arguments to the `cython` executable).
+(these are essentially command-line arguments to the ``cython`` executable).
 Arguments to the C compiler are passed as::
 
     c_args: ['-DCYTHON_USE_TYPE_SPECS=1'],
