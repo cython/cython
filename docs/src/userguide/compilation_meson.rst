@@ -30,7 +30,7 @@ backend and dependencies, and contains the your project-level metadata::
 Secondly you need a :file:`meson.build`, which describes how your module will be
 built::
 
-    project('my project', 'cython')
+    project('my project', 'cython', 'c')
 
     py = import('python').find_installation(pure: false)
 
@@ -48,3 +48,6 @@ Additional Cython arguments can be passed to ``py.extension_module`` e.g.::
 Arguments to the C compiler are passed as::
 
     c_args: ['-DCYTHON_USE_TYPE_SPECS=1'],
+
+To use C++ as an intermediate language instead of C, change the ``"c"`` in
+the ``project`` line at the start of the file to ``"cpp"``.

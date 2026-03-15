@@ -59,10 +59,12 @@ platform for generating an extension module. For these options look at the
 official Python documentation.
 
 If you want to compile Cython modules in an automated, reproducible way,
-especially as part of a largely package, it is usually better to use one
-of the Python build backends to compile your modules.  The benefit of this
-method is that it will give the platform specific compilation options,
-acting like a stripped down autotools.  To compile a single module for
+especially as part of larger package, it is usually better to use one
+of the Python :ref:`build backends <backends>` to compile your modules.  These handle
+both platform specific compilation options and the work of building
+your package into an installable and correctly labelled wheel..
+
+To compile a single module for
 testing the :program:`cythonize` command detailed in the next section
 is a convenient tool.
 
@@ -113,16 +115,19 @@ that CPython generates for disambiguation, such as
 of CPython 3.5.
 
 
+.. _backends:
+
 Compiling with a build backend
 ==============================
 
 If you are building a larger package that includes Cython modules then it is
 recommended to use a "build backend" which can take care of all stages of
 the compilation and packaging.  Historically that has mostly meant
-:mod:`setuptools`, however other options are increasingly popular: a lot
+:mod:`setuptools`, however other options are increasingly popular and
+should be strongly recommended when starting new projects: a lot
 of the Scientific Python ecosystem uses `meson` as their first choice.
 Most of the Cython documentation assumes :mod:`setuptools` however we
-have tried to provide simple examples for other popular options.
+have tried to provide simple examples for other more modern options.
 
 .. toctree::
     :maxdepth: 1
