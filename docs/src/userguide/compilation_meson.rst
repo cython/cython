@@ -3,8 +3,8 @@ Compiling with Meson
 ********************
 
 Meson is a build system mainly focused on building compiled languages
-such as C and C++.  However the `meson-python` package
-allows it to work as a PEP517 backend to build Python wheels.
+such as C and C++. The `meson-python` package
+allows it to work as a build backend to build Python wheels.
 
 Some relevant links to official and unofficial documentation that
 may be worth reading are:
