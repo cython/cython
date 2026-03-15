@@ -27,5 +27,5 @@ customize this behaviour then use ``[build.targets.wheel.hooks.cython.options.fi
 
 :mod:``hatch-cython`` also allows control of things like Cython compiler directives
 and C compiler macros.  Additionally it can invoke the
-:ref:`Tempita templating language <tempita>` for you if you want to programatically
+:ref:`Tempita templating language <tempita>` for you if you want to programmatically
 generate your Cython source code.
