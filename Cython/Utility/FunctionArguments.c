@@ -755,6 +755,7 @@ static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping); /*pr
 //@requires: RaiseDoubleKeywords
 //@requires: Optimize.c::dict_iter
 //@requires: ObjectHandling.c::OwnedDictNext
+//@requires: Synchronization.c::CriticalSections
 
 static int __Pyx_MergeKeywords_dict(PyObject *kwdict, PyObject *source_dict) {
     Py_ssize_t len1, len2;
