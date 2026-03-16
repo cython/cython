@@ -304,6 +304,14 @@ reference the type of a default template parameter for an incomplete template
 instantiation, it will write ``MyClass<T, U>::V``, so if the class provides
 a typedef for its template parameters it is preferable to use that name here.
 
+On assignments, Cython does not try to infer the template type of the
+newly created C++ object from a variable that it gets assigned to.
+The template type must be supplied  to both the constructor and the
+variable declaration, even when both occur in the same statement::
+
+    cdef vector[int] v = vector[int]()
+    cdef vector[int] *v_ptr = new vector[int]()
+
 
 Template functions are defined similarly to class templates, with
 the template parameter list following the function name:
