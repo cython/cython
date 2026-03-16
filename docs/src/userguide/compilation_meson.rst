@@ -51,3 +51,7 @@ Arguments to the C compiler are passed as::
 
 To use C++ as an intermediate language instead of C, change the ``"c"`` in
 the ``project`` line at the start of the file to ``"cpp"``.
+
+`The Numpy documentation <https://numpy.org/devdocs/user/c-info.python-as-glue.html#cython>`_
+covers details of how to use Meson to link Cython modules that do ``cimport numpy``
+with Numpy.
