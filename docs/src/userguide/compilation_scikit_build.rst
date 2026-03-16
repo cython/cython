@@ -1,28 +1,26 @@
-********************************
-Compiling with scikit-build-core
-********************************
+******************************************
+Compiling with CMake and scikit-build-core
+******************************************
 
-Two related projects are :mod:`scikit-build` and :mod:`scikit-build-core`.
-:mod:`scikit-build` should be considered a legacy project while
-:mod:`scikit-build-core` is a modern and more fully-featured replacement.
+CMake is a popular build system, with support for multiple languages,
+including C, C++, and Cuda.  :mod:`scikit-build-core` is the official adaptor
+for using CMake for a Python package.
 
-Both are based around CMake and so are a good choice if you're wrapping
-or using a C/C++ library that uses CMake heavily.
-
-If you want to use one of these build backends, our recommendation is
-to use :mod:`scikit-build-core`.  However, the main remaining advantage
-of :mod:`scikit-build` is that it comes with builtin utilities to
-handle invoke Cython while for :mod:`scikit-build-core` you must
-invoke Cython manually through CMake.  
+Therefore the combination of CMake and :mod:`scikit-build-core` is a good
+choice if you're wrapping or using a C/C++ library that uses CMake heavily.
+But equally they can be used in their own right, independent of any
+external dependencies.  
 
 :mod:`scikit-build-core`
 ========================
 
 If you want to use `scikit-build-core` then
 `their docs <https://scikit-build-core.readthedocs.io/en/latest/guide/getting_started.html>`_
-provides a simple, minimal example of how to build a Cython module. There is an official Cython plugin, `cython-cmake <https://github.com/scikit-build/cython-cmake>`_.
+provides a simple, minimal example of how to build a Cython module. There is an official Cython plugin,
+`cython-cmake <https://github.com/scikit-build/cython-cmake>`_.
 
-Like most Python build backends, you need a :file:`pyproject.toml`::
+Like most Python build backends, you need a :file:`pyproject.toml` file
+to define the project metadata and set up the build backend::
 
     [build-system]
     requires = ["scikit-build-core", "cython", "cython-cmake"]
@@ -32,7 +30,8 @@ Like most Python build backends, you need a :file:`pyproject.toml`::
     name = "example"
     version = "1.0.0"
 
-Then you need a :file:`CMakeLists.txt`:
+The majority of the logic to build your package is in
+:file:`CMakeLists.txt`:
 
 .. code-block:: cmake
 
