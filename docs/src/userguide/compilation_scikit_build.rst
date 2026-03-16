@@ -20,12 +20,12 @@ invoke Cython manually through CMake.
 
 If you want to use `scikit-build-core` then
 `their docs <https://scikit-build-core.readthedocs.io/en/latest/guide/getting_started.html>`_
-provides a simple, minimal example of how to build a Cython module that has been adapted here.
+provides a simple, minimal example of how to build a Cython module. There is an official Cython plugin, `cython-cmake <https://github.com/scikit-build/cython-cmake>`_.
 
 Like most Python build backends, you need a :file:`pyproject.toml`::
 
     [build-system]
-    requires = ["scikit-build-core", "cython"]
+    requires = ["scikit-build-core", "cython", "cython-cmake"]
     build-backend = "scikit_build_core.build"
 
     [project]
@@ -36,35 +36,19 @@ Then you need a :file:`CMakeLists.txt`:
 
 .. code-block:: cmake
 
-    cmake_minimum_required(VERSION 3.15...3.26)
+    cmake_minimum_required(VERSION 3.21...4.0)
     project(${SKBUILD_PROJECT_NAME} LANGUAGES C)
 
     find_package(
-    Python
-    COMPONENTS Interpreter Development.Module
-    REQUIRED)
+      Python
+      COMPONENTS Interpreter Development.Module
+      REQUIRED)
+    include(UseCython)
+    
+    cython_transpile(example.pyx LANGUAGE C OUTPUT_VARIABLE example_c)
 
-    add_custom_command(
-    OUTPUT example.c
-    COMMENT
-        "Making ${CMAKE_CURRENT_BINARY_DIR}/example.c from ${CMAKE_CURRENT_SOURCE_DIR}/example.pyx"
-    COMMAND Python::Interpreter -m cython
-            "${CMAKE_CURRENT_SOURCE_DIR}/example.pyx" --output-file example.c
-    DEPENDS example.pyx
-    VERBATIM)
-
-    python_add_library(example MODULE example.c WITH_SOABI)
-
+    python_add_library(example MODULE ${example_c} WITH_SOABI)
     install(TARGETS example DESTINATION .)
-
-Currently the Cython command is invoked manually as a custom CMake command,
-which is a bit verbose but fairly simple.
 
 Install your package by running ``pip install .``.
 
-:mod:`scikit-build`
-===================
-
-If you do want to use the legacy :mod:`scikit-build` then
-A good place to learn from is
-`the minimal Cython example in their tests <https://github.com/scikit-build/scikit-build/tree/main/tests/samples/hello-cython>`_.

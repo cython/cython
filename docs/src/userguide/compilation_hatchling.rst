@@ -2,8 +2,8 @@
 Compiling with hatchling
 ************************
 
-Hatchling is a Python build backend. It does not
-appear to focus much of extension modules, however the
+Hatchling is a Python build backend. It does not natively
+build extension modules, however it supports plugins, and the
 `hatch-cython plugin <https://github.com/joshua-auchincloss/hatch-cython>`_
 does provide Cython support.
 
