@@ -220,7 +220,7 @@ static int __pyx_CyFunction_init(PyObject *module) {
     if (__Pyx_VerifyCachedType((PyObject*)tp,
             __PYX_TYPE_MODULE_PREFIX "cython_function_or_method",
             __PYX_SHARED_SIZEOF(__pyx_CyFunctionObject)) != 0) {
-        Py_DECREF(tp);
+        Py_DECREF((PyObject*)tp);
         return -1;
     }
 
@@ -1455,7 +1455,7 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     if (__Pyx_VerifyCachedType((PyObject*)tp,
             __PYX_TYPE_MODULE_PREFIX "fused_cython_function",
             __PYX_SHARED_SIZEOF(__pyx_FusedFunctionObject)) != 0) {
-        Py_DECREF(tp);
+        Py_DECREF((PyObject*)tp);
         return -1;
     }
 
@@ -1870,7 +1870,7 @@ static int __pyx_FusedFunction_init(PyObject *module) {
 
 static PyTypeObject *__Pyx_Get_FusedFunction_Type(void) {
     PyTypeObject *tp = CGLOBAL(__pyx_FusedFunctionType);
-    Py_INCREF(tp);
+    Py_INCREF((PyObject*)tp);
     return tp;
 }
 
