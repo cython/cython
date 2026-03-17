@@ -3,22 +3,28 @@
 """
 PYTHON -c "'py'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
 
-PYTHON setup_zlib.py build_ext --inplace --force
+PYTHON setup.py build_ext --inplace --force CYTHON_COMPRESS_STRINGS=90
+PYTHON -c "'lzss'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
+
+PYTHON setup.py build_ext --inplace --force  CYTHON_COMPRESS_STRINGS=1
 PYTHON -c "'zlib'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
 
-PYTHON setup_bz2.py build_ext --inplace --force
+PYTHON setup.py build_ext --inplace --force  CYTHON_COMPRESS_STRINGS=2
 PYTHON -c "'bz2'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
 
-PYTHON setup_zstd.py build_ext --inplace --force
+PYTHON setup.py build_ext --inplace --force  CYTHON_COMPRESS_STRINGS=3
 PYTHON -c "'zstd'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
 
-PYTHON setup_uncompressed.py build_ext --inplace --force
+PYTHON setup.py build_ext --inplace --force  CYTHON_COMPRESS_STRINGS=0
 PYTHON -c "'uncompressed'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
 
-PYTHON setup_default.py build_ext --inplace --force
+PYTHON setup.py build_ext --inplace --force
 PYTHON -c "'default'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
 
 PYTHON check_source.py
+
+PYTHON setup.py build_ext --inplace --force  CYTHON_COMPRESS_STRINGS=90
+PYTHON -c "'lzss'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
 """
 
 ######## check_source.py ########
@@ -46,17 +52,20 @@ with open("module.c") as f:
             algorithms.append(entry)
 
 print(algorithms)
-assert 1 <= len(algorithms) <= 3, algorithms
+assert 1 <= len(algorithms) <= 4, algorithms
 
 i = len(algorithms) - 1
 if i >= 0 and algorithms[i][1] == 'zlib':
-    assert algorithms[i][0] == '!= 0', algorithms
+    assert algorithms[i][0] == '== 1', algorithms
     i -= 1
 if i >= 0 and algorithms[i][1] == 'bz2':
     assert algorithms[i][0] == '== 2', algorithms
     i -= 1
 if i >= 0 and algorithms[i][1] == 'zstd':
     assert algorithms[i][0] == '== 3', algorithms
+    i -= 1
+if i >= 0 and algorithms[i][1] == 'lzss':
+    assert algorithms[i][0] == '== 90', algorithms
     i -= 1
 assert i == -1, (i, algorithms)
 
@@ -72,57 +81,23 @@ with open("short_text.c") as f:
 assert macro_usage_count > 0
 
 
-######## setup_default.py ########
+######## setup.py ########
 
 from Cython.Build.Dependencies import cythonize
 from setuptools import setup, Extension
 
-setup(
-    ext_modules=cythonize(["module.py", "short_text.py"]),
-)
+import Cython.LZSS
+Cython.LZSS.PRINT_STATS = True
 
-
-######## setup_uncompressed.py ########
-
-from Cython.Build.Dependencies import cythonize
-from setuptools import setup, Extension
+import sys
+if sys.argv[-1].startswith('CYTHON_'):
+    macros = [tuple(sys.argv.pop().split('='))]
+else:
+    macros = None
 
 setup(ext_modules=cythonize([
-    Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '0')]),
-    Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '0')]),
-]))
-
-
-######## setup_zlib.py ########
-
-from Cython.Build.Dependencies import cythonize
-from setuptools import setup, Extension
-
-setup(ext_modules=cythonize([
-    Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '1')]),
-    Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '1')]),
-]))
-
-
-######## setup_bz2.py ########
-
-from Cython.Build.Dependencies import cythonize
-from setuptools import setup, Extension
-
-setup(ext_modules=cythonize([
-    Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '2')]),
-    Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '2')]),
-]))
-
-
-######## setup_zstd.py ########
-
-from Cython.Build.Dependencies import cythonize
-from setuptools import setup, Extension
-
-setup(ext_modules=cythonize([
-    Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '3')]),
-    Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '3')]),
+    Extension("*", sources=["module.py"], define_macros=macros),
+    Extension("*", sources=["short_text.py"], define_macros=macros),
 ]))
 
 
@@ -157,6 +132,7 @@ oscuri. Fra le luci tremolanti, i glimbris si intrecciano in una
 melodia senza tempo.
 """
 
+import hashlib
 
 short_string = "21äö34l"
 
@@ -194,6 +170,7 @@ long_string = """
 
 assert len(long_string) == 2021, len(long_string)
 assert long_string[:3] == '\n77', long_string[:5]
+assert hashlib.sha256(long_string.encode()).hexdigest() == '8bc6168e5e6cb131361d6b59490b8170f46ab04f4e4fbdd784269d7542f713db', long_string
 
 long_bytes = b"""
 7752834791315155748572424541506959508295331168617278558890750983817546374649393192550604009277016711
@@ -220,6 +197,7 @@ long_bytes = b"""
 
 assert len(long_bytes) == 2021, len(long_bytes)
 assert long_bytes[:3] == b"\n77", long_bytes[:5]
+assert hashlib.sha256(long_bytes).hexdigest() == '8bc6168e5e6cb131361d6b59490b8170f46ab04f4e4fbdd784269d7542f713db', long_bytes
 
 
 def short_docstring():
@@ -259,8 +237,9 @@ def long_docstring():
 # Python 3.13+ strips leading whitespace from docstrings.
 assert len(long_docstring.__doc__) in (1486, 1398), len(long_docstring.__doc__)
 assert long_docstring.__doc__[:4] == 'Arc-', long_docstring.__doc__[:10]
+assert hashlib.sha256(long_docstring.__doc__.encode()).hexdigest() == 'e976123128b6ff462424d6d152ef26a57145debc6bcaed05ac450c692c024153', long_docstring
 
 
 import short_text
-assert short_text.a == 'a'
-assert short_text.b == b'b'
+assert short_text.a == 'a', short_text.a
+assert short_text.b == b'b', short_text.b
