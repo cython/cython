@@ -292,6 +292,11 @@ jobs:
               2> >(tee >(egrep '.+:[0-9]+: ' | sed -e 's/^/    /' >> $GITHUB_STEP_SUMMARY) >&2) \
             "
 
+      - name: Build HTML docs
+        run: |
+          python -m pip install --no-cache-dir -r doc-requirements.txt
+          make -C docs html
+
       - name: Upload HTML docs
         uses: actions/upload-artifact@v6.0.0
         with:
