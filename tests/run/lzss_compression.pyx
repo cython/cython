@@ -117,7 +117,7 @@ def test(data: bytes) -> None:
 
     assert compressed if data else not compressed
 
-    py_decomp = bytes(decompress_py(compressed))
+    py_decomp = bytes(list(decompress_py(compressed)))  # GraalPy can't construct bytes from generators.
 
     if py_decomp != data:
         _print_start('I', data)
