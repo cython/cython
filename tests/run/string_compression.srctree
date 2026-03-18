@@ -134,6 +134,9 @@ melodia senza tempo.
 
 import hashlib
 
+def sha256(s):
+    return hashlib.sha256(s if isinstance(s, bytes) else s.encode('utf8')).hexdigest()
+
 short_string = "21äö34l"
 
 assert len(short_string) == 7, len(short_string)
@@ -170,7 +173,7 @@ long_string = """
 
 assert len(long_string) == 2021, len(long_string)
 assert long_string[:3] == '\n77', long_string[:5]
-assert hashlib.sha256(long_string.encode()).hexdigest() == '8bc6168e5e6cb131361d6b59490b8170f46ab04f4e4fbdd784269d7542f713db', long_string
+assert sha256(long_string) == '8bc6168e5e6cb131361d6b59490b8170f46ab04f4e4fbdd784269d7542f713db', long_string
 
 long_bytes = b"""
 7752834791315155748572424541506959508295331168617278558890750983817546374649393192550604009277016711
@@ -197,7 +200,7 @@ long_bytes = b"""
 
 assert len(long_bytes) == 2021, len(long_bytes)
 assert long_bytes[:3] == b"\n77", long_bytes[:5]
-assert hashlib.sha256(long_bytes).hexdigest() == '8bc6168e5e6cb131361d6b59490b8170f46ab04f4e4fbdd784269d7542f713db', long_bytes
+assert sha256(long_bytes) == '8bc6168e5e6cb131361d6b59490b8170f46ab04f4e4fbdd784269d7542f713db', long_bytes
 
 
 def short_docstring():
@@ -237,7 +240,7 @@ def long_docstring():
 # Python 3.13+ strips leading whitespace from docstrings.
 assert len(long_docstring.__doc__) in (1486, 1398), len(long_docstring.__doc__)
 assert long_docstring.__doc__[:4] == 'Arc-', long_docstring.__doc__[:10]
-assert hashlib.sha256(long_docstring.__doc__.encode()).hexdigest() == 'e976123128b6ff462424d6d152ef26a57145debc6bcaed05ac450c692c024153', long_docstring.__doc__
+assert sha256(long_docstring.__doc__) == 'e976123128b6ff462424d6d152ef26a57145debc6bcaed05ac450c692c024153', repr(long_docstring.__doc__)
 
 
 import short_text
