@@ -37,9 +37,10 @@ def lzss_compress(data: bytes) -> bytes:
         if pos + 3 > len(data):
             return (0, 0)
 
-        # LZSS parameters optimized for compression.
-        WINDOW_SIZE: cython.long = 1 << 14    # 14-bit offset (max 16KiB lookback)
-        MAX_MATCH: cython.long = 255 + 3      # 8-bit length + 3 (allows up to 258 bytes)
+        # 14-bit offset (max 16KiB lookback)
+        WINDOW_SIZE: cython.long = 1 << 14
+        # 8-bit length + 3, allowing up to 258 bytes.
+        MAX_MATCH: cython.long = min(255 + 3, len(data) - pos)
 
         best_len: cython.Py_ssize_t = 0
         best_offset: cython.Py_ssize_t = 0
@@ -60,7 +61,7 @@ def lzss_compress(data: bytes) -> bytes:
 
             # Extend match as far as possible.
             match_len = 3
-            max_len = min(MAX_MATCH, len(data) - pos)
+            max_len = min(MAX_MATCH, pos - prev_pos)
             while match_len < max_len and data[prev_pos + match_len] == data[pos + match_len]:
                 match_len += 1
 
@@ -129,7 +130,7 @@ def lzss_compress(data: bytes) -> bytes:
             output.append(((offset & 0x180) >> 2) | (length - 3))
             #assert output[-1] & 0x80 == 0
             stats[2] += 1
-        elif length > 3:
+        elif length > 3 and 0 <= offset < (1 << 14):
             # Store a 7+7 bit offset with a separate 8 bit length.
             output.append(offset & 0x7F | 0x80)
             output.append((offset >> 7) & 0x7F | 0x80)
