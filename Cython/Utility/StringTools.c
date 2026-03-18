@@ -59,7 +59,8 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
 //////////////////// DecompressString ////////////////////
 //@requires: TypeConversion.c::GCCDiagnostics
 
-static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
+CYTHON_UNUSED
+static CYTHON_SMALL_CODE PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
 #ifdef __Pyx_DecompressString_UNUSED
     CYTHON_UNUSED_VAR(s);
     CYTHON_UNUSED_VAR(length);
@@ -154,7 +155,8 @@ static PyObject *__Pyx_DecompressString_LZSS(const char *s, size_t compressed_le
 //////////////////// DecompressString_LZSS ////////////////////
 
 #ifndef __Pyx_DecompressString_LZSS_UNUSED
-static size_t __pyx_lzss_decompress(const uint8_t *src, uint8_t *dst, size_t dst_len) {
+CYTHON_UNUSED
+static CYTHON_SMALL_CODE size_t __pyx_lzss_decompress(const uint8_t *src, uint8_t *dst, size_t dst_len) {
     size_t pos = 0, out_pos = 0;
 
     while (1) {
@@ -190,7 +192,7 @@ static size_t __pyx_lzss_decompress(const uint8_t *src, uint8_t *dst, size_t dst
 }
 #endif
 
-static PyObject *__Pyx_DecompressString_LZSS(const char *s, size_t compressed_length, size_t uncompressed_length) {
+static CYTHON_SMALL_CODE PyObject *__Pyx_DecompressString_LZSS(const char *s, size_t compressed_length, size_t uncompressed_length) {
 #ifdef __Pyx_DecompressString_LZSS_UNUSED
     CYTHON_UNUSED_VAR(s);
     CYTHON_UNUSED_VAR(compressed_length);
