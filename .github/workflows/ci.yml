@@ -63,7 +63,7 @@ jobs:
 
 
   ci-all:
-    needs: [codespell, codestyle, ci-early]
+    needs: [codespell, codestyle, ci-early, build_docs]
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -287,10 +287,36 @@ jobs:
         run: |
           bash -c "\
             python -m pip install --no-cache-dir -U pip || exit 1 ; \
-            python -m pip install --no-cache-dir -r doc-requirements.txt || exit 1 ; \
-            python runtests.py --no-unit --no-doctest --no-file --no-pyregr --no-examples \
+            python -m pip install --no-cache-dir -r test-requirements.txt || exit 1 ; \
+            python runcodestyle.py \
               2> >(tee >(egrep '.+:[0-9]+: ' | sed -e 's/^/    /' >> $GITHUB_STEP_SUMMARY) >&2) \
             "
+
+  build_docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      PYTHON_VERSION: "3.9"
+      BACKEND: "c,cpp"
+      TEST_CODE_STYLE: "1"
+      NO_CYTHON_COMPILE: "1"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup python
+        uses: actions/setup-python@v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Build HTML docs
+        run: |
+          python -m pip install --no-cache-dir -r doc-requirements.txt
+          make -C docs html
 
       - name: Upload HTML docs
         uses: actions/upload-artifact@v6.0.0
