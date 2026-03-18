@@ -54,7 +54,7 @@ jobs:
           python-version: ${{ inputs.python-version }}
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@v1.2.20
+        uses: hendrikmuhs/ccache-action@v1.2.21
         if: runner.os != 'Windows'  # There is currently no working sccache setup for Windows.
         with:
           variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
@@ -96,7 +96,7 @@ jobs:
             " >> $GITHUB_STEP_SUMMARY
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: wheels-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}${{ inputs.extra_hash }}
           path: dist/*.whl
