@@ -237,7 +237,7 @@ def long_docstring():
 # Python 3.13+ strips leading whitespace from docstrings.
 assert len(long_docstring.__doc__) in (1486, 1398), len(long_docstring.__doc__)
 assert long_docstring.__doc__[:4] == 'Arc-', long_docstring.__doc__[:10]
-assert hashlib.sha256(long_docstring.__doc__.encode()).hexdigest() == 'e976123128b6ff462424d6d152ef26a57145debc6bcaed05ac450c692c024153', long_docstring
+assert hashlib.sha256(long_docstring.__doc__.encode()).hexdigest() == 'e976123128b6ff462424d6d152ef26a57145debc6bcaed05ac450c692c024153', long_docstring.__doc__
 
 
 import short_text
