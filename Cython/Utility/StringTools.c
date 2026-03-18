@@ -199,13 +199,17 @@ static CYTHON_SMALL_CODE PyObject *__Pyx_DecompressString_LZSS(const char *s, si
     CYTHON_UNUSED_VAR(uncompressed_length);
     return NULL;
 #else
-    PyObject *result = PyBytes_FromStringAndSize(NULL, (Py_ssize_t) uncompressed_length);
+    PyObject *result;
+    unsigned char *result_data;
+    size_t src_length;
+
+    result = PyBytes_FromStringAndSize(NULL, (Py_ssize_t) uncompressed_length);
     if (unlikely(!result)) return NULL;
 
-    unsigned char *result_data = __Pyx_PyBytes_AsWritableUString(result);
+    result_data = __Pyx_PyBytes_AsWritableUString(result);
     if (unlikely(!result_data)) goto bad;
 
-    size_t src_length = __pyx_lzss_decompress((const uint8_t*) s, result_data, uncompressed_length);
+    src_length = __pyx_lzss_decompress((const uint8_t*) s, result_data, uncompressed_length);
     if (unlikely(src_length != compressed_length)) goto decompression_failed;
 
     return result;
