@@ -63,7 +63,7 @@ jobs:
 
 
   ci-all:
-    needs: [codespell, codestyle, ci-early]
+    needs: [codespell, codestyle, ci-early, build_docs]
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
