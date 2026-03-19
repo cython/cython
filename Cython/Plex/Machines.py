@@ -212,8 +212,8 @@ class FastMachine:
     def chars_to_ranges(self, char_list: list) -> tuple:
         char_list.sort()
 
-        c1: cython.Py_ssize_t
-        c2: cython.Py_ssize_t
+        c1: cython.Py_UCS4
+        c2: cython.Py_UCS4
         i: cython.Py_ssize_t = 0
         n: cython.Py_ssize_t = len(char_list)
         result = []

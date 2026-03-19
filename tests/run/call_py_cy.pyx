@@ -3,8 +3,8 @@
 # cython: binding=True
 
 #######
-# Test that Cython and Python functions can call each other in various signature combinations.
-# and check that the right calls use vectorcall (PyMethodCallNode)
+# Test that Cython and Python functions can call each other in various signature combinations
+# and check that the right calls use vectorcall (PyMethodCallNode).
 #######
 
 cimport cython
@@ -18,7 +18,7 @@ py_call_starstarargs = eval("lambda **kw: sorted(kw.items())")
 py_call_args_and_starstarargs = eval("lambda *args, **kw: (args, sorted(kw.items()))")
 
 
-#@cython.test_fail_if_path_exists("//PyMethodCallNode")
+@cython.test_assert_path_exists("//PyMethodCallNode")
 def cy_call_noargs():
     """
     >>> cy_call_noargs()
@@ -156,7 +156,7 @@ def cy_call_pos_and_starargs(f, *args):
 
 # Choice of whether to use PyMethodCallNode here is pretty arbitrary -
 # vectorcall_dict or PyObject_Call are likely to be fairly similar cost.
-# The test is for the current behaviour but it isn't a big issue if it changes
+# The test is for the current behaviour but it isn't a big issue if it changes.
 @cython.test_fail_if_path_exists("//PyMethodCallNode")
 def cy_call_starstarargs(**kw):
     """
@@ -175,7 +175,7 @@ def cy_call_starstarargs(**kw):
 
 # Choice of whether to use PyMethodCallNode here is pretty arbitrary -
 # vectorcall_dict or PyObject_Call are likely to be fairly similar cost.
-# The test is for the current behaviour but it isn't a big issue if it changes
+# The test is for the current behaviour but it isn't a big issue if it changes.
 @cython.test_fail_if_path_exists("//PyMethodCallNode")
 def cy_call_kw_and_starstarargs(f=None, arg1=None, **kw):
     """

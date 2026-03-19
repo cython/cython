@@ -17,104 +17,121 @@
 #
 # Author: Lars Buitinck
 
+
+# NOTE: Deprecated since Cython 3.1.
+#
+# This file is mostly redundant with "libc.math" which should be used instead.
+
+
+from libc.math cimport (
+    NAN,
+    INFINITY,
+
+    isinf,
+    isfinite,
+    isnan,
+    signbit,
+
+    M_E as E,
+    M_LOG2E as LOG2E,
+    M_LOG10E as LOG10E,
+    M_PI as PI,
+    M_PI_2 as PI_2,
+    M_PI_4 as PI_4,
+    M_1_PI as NPY_1_PI,
+    M_2_PI as NPY_2_PI,
+    M_LN2 as LOGE2,
+    M_LN10 as LOGE10,
+
+    copysignf,
+    nextafterf,
+    copysign,
+    nextafter,
+    copysignl,
+    nextafterl,
+
+    sinf,
+    cosf,
+    tanf,
+    sinhf,
+    coshf,
+    tanhf,
+    fabsf,
+    floorf,
+    ceilf,
+    rintf,
+    sqrtf,
+    log10f,
+    logf,
+    expf,
+    expm1f,
+    asinf,
+    acosf,
+    atanf,
+    asinhf,
+    acoshf,
+    atanhf,
+    log1pf,
+    exp2f,
+    log2f,
+    atan2f,
+    hypotf,
+    powf,
+    fmodf,
+    modff,
+
+    sinl,
+    cosl,
+    tanl,
+    sinhl,
+    coshl,
+    tanhl,
+    fabsl,
+    floorl,
+    ceill,
+    rintl,
+    sqrtl,
+    log10l,
+    logl,
+    expl,
+    expm1l,
+    asinl,
+    acosl,
+    atanl,
+    asinhl,
+    acoshl,
+    atanhl,
+    log1pl,
+    exp2l,
+    log2l,
+    atan2l,
+    hypotl,
+    powl,
+    fmodl,
+    modfl,
+)
+
+
 cdef extern from "numpy/npy_math.h" nogil:
+    """
+    #ifdef _MSC_VER
+    #pragma message ("The 'numpy.math' import is outdated and deprecated. Use the standard 'libc.math' instead.")
+    #else
+    #warning The 'numpy.math' import is outdated and deprecated. Use the standard 'libc.math' instead.
+    #endif
+    """
+
     # Floating-point classification
-    long double NAN "NPY_NAN"
-    long double INFINITY "NPY_INFINITY"
     long double PZERO "NPY_PZERO"        # positive zero
     long double NZERO "NPY_NZERO"        # negative zero
 
-    # These four are actually macros and work on any floating-point type.
-    int isinf "npy_isinf"(long double)  # -1 / 0 / 1
-    bint isfinite "npy_isfinite"(long double)
-    bint isnan "npy_isnan"(long double)
-    bint signbit "npy_signbit"(long double)
-
     # Math constants
-    long double E "NPY_E"
-    long double LOG2E "NPY_LOG2E"       # ln(e) / ln(2)
-    long double LOG10E "NPY_LOG10E"     # ln(e) / ln(10)
-    long double LOGE2 "NPY_LOGE2"       # ln(2)
-    long double LOGE10 "NPY_LOGE10"     # ln(10)
-    long double PI "NPY_PI"
-    long double PI_2 "NPY_PI_2"         # pi / 2
-    long double PI_4 "NPY_PI_4"         # pi / 4
-    long double NPY_1_PI                # 1 / pi; NPY_ because of ident syntax
-    long double NPY_2_PI                # 2 / pi
     long double EULER "NPY_EULER"       # Euler constant (gamma, 0.57721)
 
     # Low-level floating point manipulation (NumPy >=1.4)
-    float copysignf "npy_copysignf"(float, float)
-    float nextafterf "npy_nextafterf"(float x, float y)
     float spacingf "npy_spacingf"(float x)
-    double copysign "npy_copysign"(double, double)
-    double nextafter "npy_nextafter"(double x, double y)
     double spacing "npy_spacing"(double x)
-    long double copysignl "npy_copysignl"(long double, long double)
-    long double nextafterl "npy_nextafterl"(long double x, long double y)
     long double spacingl "npy_spacingl"(long double x)
-
-    # Float C99 functions
-    float sinf "npy_sinf"(float x)
-    float cosf "npy_cosf"(float x)
-    float tanf "npy_tanf"(float x)
-    float sinhf "npy_sinhf"(float x)
-    float coshf "npy_coshf"(float x)
-    float tanhf "npy_tanhf"(float x)
-    float fabsf "npy_fabsf"(float x)
-    float floorf "npy_floorf"(float x)
-    float ceilf "npy_ceilf"(float x)
-    float rintf "npy_rintf"(float x)
-    float sqrtf "npy_sqrtf"(float x)
-    float log10f "npy_log10f"(float x)
-    float logf "npy_logf"(float x)
-    float expf "npy_expf"(float x)
-    float expm1f "npy_expm1f"(float x)
-    float asinf "npy_asinf"(float x)
-    float acosf "npy_acosf"(float x)
-    float atanf "npy_atanf"(float x)
-    float asinhf "npy_asinhf"(float x)
-    float acoshf "npy_acoshf"(float x)
-    float atanhf "npy_atanhf"(float x)
-    float log1pf "npy_log1pf"(float x)
-    float exp2f "npy_exp2f"(float x)
-    float log2f "npy_log2f"(float x)
-    float atan2f "npy_atan2f"(float x, float y)
-    float hypotf "npy_hypotf"(float x, float y)
-    float powf "npy_powf"(float x, float y)
-    float fmodf "npy_fmodf"(float x, float y)
-    float modff "npy_modff"(float x, float* y)
-
-    # Long double C99 functions
-    long double sinl "npy_sinl"(long double x)
-    long double cosl "npy_cosl"(long double x)
-    long double tanl "npy_tanl"(long double x)
-    long double sinhl "npy_sinhl"(long double x)
-    long double coshl "npy_coshl"(long double x)
-    long double tanhl "npy_tanhl"(long double x)
-    long double fabsl "npy_fabsl"(long double x)
-    long double floorl "npy_floorl"(long double x)
-    long double ceill "npy_ceill"(long double x)
-    long double rintl "npy_rintl"(long double x)
-    long double sqrtl "npy_sqrtl"(long double x)
-    long double log10l "npy_log10l"(long double x)
-    long double logl "npy_logl"(long double x)
-    long double expl "npy_expl"(long double x)
-    long double expm1l "npy_expm1l"(long double x)
-    long double asinl "npy_asinl"(long double x)
-    long double acosl "npy_acosl"(long double x)
-    long double atanl "npy_atanl"(long double x)
-    long double asinhl "npy_asinhl"(long double x)
-    long double acoshl "npy_acoshl"(long double x)
-    long double atanhl "npy_atanhl"(long double x)
-    long double log1pl "npy_log1pl"(long double x)
-    long double exp2l "npy_exp2l"(long double x)
-    long double log2l "npy_log2l"(long double x)
-    long double atan2l "npy_atan2l"(long double x, long double y)
-    long double hypotl "npy_hypotl"(long double x, long double y)
-    long double powl "npy_powl"(long double x, long double y)
-    long double fmodl "npy_fmodl"(long double x, long double y)
-    long double modfl "npy_modfl"(long double x, long double* y)
 
     # NumPy extensions
     float deg2radf "npy_deg2radf"(float x)

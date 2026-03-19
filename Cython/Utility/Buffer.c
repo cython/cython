@@ -292,9 +292,7 @@ static size_t __Pyx_BufFmt_TypeCharToNativeSize(char ch, int is_complex) {
     case 'h': case 'H': return sizeof(short);
     case 'i': case 'I': return sizeof(int);
     case 'l': case 'L': return sizeof(long);
-    #ifdef HAVE_LONG_LONG
     case 'q': case 'Q': return sizeof(PY_LONG_LONG);
-    #endif
     case 'f': return sizeof(float) * (is_complex ? 2 : 1);
     case 'd': return sizeof(double) * (is_complex ? 2 : 1);
     case 'g': return sizeof(long double) * (is_complex ? 2 : 1);
@@ -313,9 +311,7 @@ typedef struct { char c; float x; } __Pyx_st_float;
 typedef struct { char c; double x; } __Pyx_st_double;
 typedef struct { char c; long double x; } __Pyx_st_longdouble;
 typedef struct { char c; void *x; } __Pyx_st_void_p;
-#ifdef HAVE_LONG_LONG
 typedef struct { char c; PY_LONG_LONG x; } __Pyx_st_longlong;
-#endif
 
 static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
   CYTHON_UNUSED_VAR(is_complex);
@@ -324,9 +320,7 @@ static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
     case 'h': case 'H': return sizeof(__Pyx_st_short) - sizeof(short);
     case 'i': case 'I': return sizeof(__Pyx_st_int) - sizeof(int);
     case 'l': case 'L': return sizeof(__Pyx_st_long) - sizeof(long);
-#ifdef HAVE_LONG_LONG
     case 'q': case 'Q': return sizeof(__Pyx_st_longlong) - sizeof(PY_LONG_LONG);
-#endif
     case 'f': return sizeof(__Pyx_st_float) - sizeof(float);
     case 'd': return sizeof(__Pyx_st_double) - sizeof(double);
     case 'g': return sizeof(__Pyx_st_longdouble) - sizeof(long double);
@@ -348,9 +342,7 @@ typedef struct { float x; char c; } __Pyx_pad_float;
 typedef struct { double x; char c; } __Pyx_pad_double;
 typedef struct { long double x; char c; } __Pyx_pad_longdouble;
 typedef struct { void *x; char c; } __Pyx_pad_void_p;
-#ifdef HAVE_LONG_LONG
 typedef struct { PY_LONG_LONG x; char c; } __Pyx_pad_longlong;
-#endif
 
 static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, int is_complex) {
   CYTHON_UNUSED_VAR(is_complex);
@@ -359,9 +351,7 @@ static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, int is_complex) {
     case 'h': case 'H': return sizeof(__Pyx_pad_short) - sizeof(short);
     case 'i': case 'I': return sizeof(__Pyx_pad_int) - sizeof(int);
     case 'l': case 'L': return sizeof(__Pyx_pad_long) - sizeof(long);
-#ifdef HAVE_LONG_LONG
     case 'q': case 'Q': return sizeof(__Pyx_pad_longlong) - sizeof(PY_LONG_LONG);
-#endif
     case 'f': return sizeof(__Pyx_pad_float) - sizeof(float);
     case 'd': return sizeof(__Pyx_pad_double) - sizeof(double);
     case 'g': return sizeof(__Pyx_pad_longdouble) - sizeof(long double);
@@ -662,8 +652,9 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           size_t struct_alignment = ctx->struct_alignment;
           ctx->new_count = 1;
           ++ts;
-          if (*ts != '{') {
-            PyErr_SetString(PyExc_ValueError, "Buffer acquisition: Expected '{' after 'T'");
+          if (*ts != '\x7B') {
+            // opening brace
+            PyErr_SetString(PyExc_ValueError, "Buffer acquisition: Expected '\x7B' after 'T'");
             return NULL;
           }
           if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
@@ -680,7 +671,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           if (struct_alignment) ctx->struct_alignment = struct_alignment;
         }
         break;
-      case '}': /* end of substruct; either repeat or move on */
+      case '\x7D': /* closing brace, end of substruct; either repeat or move on */
         {
           size_t alignment = ctx->struct_alignment;
           ++ts;

@@ -1,6 +1,7 @@
 import builtins
+import json
+import subprocess
 import sys
-import unittest
 
 from ..Builtin import (
     inferred_method_return_types, find_return_type_of_builtin_method,
@@ -12,7 +13,10 @@ from ..Code import (
     KNOWN_PYTHON_BUILTINS_VERSION, KNOWN_PYTHON_BUILTINS,
 )
 
-class TestBuiltinReturnTypes(unittest.TestCase):
+from ...TestUtils import TimedTest
+
+
+class TestBuiltinReturnTypes(TimedTest):
     def test_find_return_type_of_builtin_method(self):
         # It's enough to test the method existence in a recent Python that likely has them.
         look_up_methods = sys.version_info >= (3,10)
@@ -36,14 +40,22 @@ class TestBuiltinReturnTypes(unittest.TestCase):
                     self.assertEqual(return_type.empty_declaration_code(pyrex=True), return_type_name)
 
 
-class TestBuiltinCompatibility(unittest.TestCase):
+class TestBuiltinCompatibility(TimedTest):
     def test_python_builtin_compatibility(self):
         expected_builtins = set(KNOWN_PYTHON_BUILTINS)
         if sys.platform != 'win32':
             expected_builtins.discard("WindowsError")
+
+        # Read builtins from fresh Python process to prevent modifications by test dependencies.
+        output = subprocess.run(
+            [sys.executable, '-c', 'import builtins, json, sys; sys.stdout.write(json.dumps(dir(builtins)))'],
+            capture_output=True,
+            encoding='utf8',
+        )
         runtime_builtins = frozenset(
-            name for name in dir(builtins)
+            name for name in json.loads(output.stdout)
             if name not in ('__doc__', '__loader__', '__name__', '__package__', '__spec__'))
+
         if sys.version_info < KNOWN_PYTHON_BUILTINS_VERSION:
             missing_builtins = expected_builtins - runtime_builtins
             if missing_builtins:

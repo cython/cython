@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Compile a Python script into an executable that embeds CPython and run it.

@@ -180,3 +180,19 @@ def nogil_assignment(bytearray x, int value):
     with nogil:
         x[0] = 'x'
         x[1] = value
+
+def nogil_indexing(bytearray x, int idx):
+    """
+    >>> b = bytearray(b'abc')
+    >>> nogil_indexing(b, 0)
+    'a'
+    >>> nogil_indexing(b, -1)
+    'c'
+    >>> nogil_indexing(b, 100)  # even though it's nogil, it should be able to fail
+    Traceback (most recent call last):
+        ...
+    IndexError: bytearray index out of range
+    """
+    with nogil:
+        xi = x[idx]
+    return chr(xi)

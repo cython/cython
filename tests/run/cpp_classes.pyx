@@ -267,3 +267,31 @@ def test_nested_del_repeat():
     del create_to_delete()[f(f(0))]
     del create_to_delete()[f(f(0))]
     del create_to_delete()[f(f(0))]
+
+cdef extern from *:
+    """
+    class SomeClass {
+      public:
+        int some_value;
+        SomeClass()
+            : some_value(10101)
+        {
+        }
+    };
+    """
+    cdef cppclass ThisClassDoesntExist:
+        int some_value
+    ctypedef ThisClassDoesntExist SomeClass
+
+cdef class TestMisleadingName:
+    """
+    The code must be generated using SomeClass rather than ThisClassDoesntExist
+
+    >>> x = TestMisleadingName()
+    >>> x.get_some_value()
+    10101
+    >>> del x
+    """
+    cdef SomeClass a
+    def get_some_value(self):
+        return self.a.some_value

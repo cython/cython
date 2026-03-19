@@ -1,10 +1,8 @@
-import sys
-import unittest
-
 import Cython.Compiler.StringEncoding as StringEncoding
+from ...TestUtils import TimedTest
 
 
-class StringEncodingTest(unittest.TestCase):
+class StringEncodingTest(TimedTest):
     """
     Test the StringEncoding module.
     """
@@ -20,14 +18,3 @@ class StringEncodingTest(unittest.TestCase):
         self.assertTrue(StringEncoding.string_contains_lone_surrogates("\uDFFF"))
         self.assertTrue(StringEncoding.string_contains_lone_surrogates("\uDFFF\uD800"))
         self.assertTrue(StringEncoding.string_contains_lone_surrogates("\uD800x\uDFFF"))
-
-    def test_string_contains_surrogates(self):
-        self.assertFalse(StringEncoding.string_contains_surrogates("abc"))
-        self.assertFalse(StringEncoding.string_contains_surrogates("\uABCD"))
-        self.assertFalse(StringEncoding.string_contains_surrogates("\N{SNOWMAN}"))
-
-        self.assertTrue(StringEncoding.string_contains_surrogates("\uD800"))
-        self.assertTrue(StringEncoding.string_contains_surrogates("\uDFFF"))
-        self.assertTrue(StringEncoding.string_contains_surrogates("\uD800\uDFFF"))
-        self.assertTrue(StringEncoding.string_contains_surrogates("\uDFFF\uD800"))
-        self.assertTrue(StringEncoding.string_contains_surrogates("\uD800x\uDFFF"))

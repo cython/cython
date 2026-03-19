@@ -5,11 +5,9 @@
 
 import cython
 
-import optparse
 import time
 from bisect import bisect
 
-import util
 
 w, h = 5, 10
 dir_no = 6
@@ -30,6 +28,7 @@ def flip(ido: list, fd: dict = {E: E, NE: SE, NW: SW, W: W, SW: NW, SE: NE}) -> 
 
 @cython.cfunc
 def permute(ido: list, r_ido: list) -> list:
+    r: cython.int
     ps = [ido]
     for r in range(dir_no - 1):
         ps.append(rotate(ps[-1]))
@@ -135,12 +134,15 @@ def solve(n: cython.long, i_min: cython.long, free, curr_board: list, pieces_lef
             return
     return
 
+
 SOLVE_ARG = 60
 
-def main(n, solve_arg=SOLVE_ARG, timer=time.perf_counter):
-    times = []
-    for i in range(n):
-        t0 = timer()
+
+def single_run(scale: cython.int, timer, solve_arg=SOLVE_ARG):
+    s: cython.long
+
+    t0 = timer()
+    for s in range(scale):
         free = frozenset(range(len(board)))
         curr_board = [-1] * len(board)
         pieces_left = list(range(len(pieces)))
@@ -148,20 +150,18 @@ def main(n, solve_arg=SOLVE_ARG, timer=time.perf_counter):
         solve(solve_arg, 0, free, curr_board, pieces_left, solutions)
         #print len(solutions),  'solutions found\n'
         #for i in (0, -1): print_board(solutions[i])
-        tk = timer()
-        times.append(tk - t0)
+    tk = timer()
+    return tk - t0
+
+
+def main(n, solve_arg=SOLVE_ARG, scale: cython.int = 1, timer=time.perf_counter):
+    times = [
+        single_run(scale, timer, solve_arg)
+        for i in range(n)
+    ]
     return times
 
 
-def run_benchmark(repeat=10, count=SOLVE_ARG, timer=time.perf_counter):
-    return main(repeat, count // 2, timer=timer)
-
-
-if __name__ == "__main__":
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description="Test the performance of the Float benchmark")
-    util.add_standard_options_to(parser)
-    options, args = parser.parse_args()
-
-    util.run_benchmark(options, options.num_runs, main)
+def run_benchmark(repeat=True, scale=1):
+    from util import repeat_to_accuracy
+    return repeat_to_accuracy(single_run, scale=scale, repeat=repeat)[0]

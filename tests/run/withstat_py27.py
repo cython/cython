@@ -1,5 +1,7 @@
 # mode: run
 
+from Cython.TestUtils import TimedTest
+
 def typename(t):
     name = type(t).__name__
     return "<type '%s'>" % name
@@ -75,7 +77,6 @@ def manager_from_expression():
 
 # Tests borrowed from pyregr test_with.py,
 # modified to follow the constraints of Cython.
-import unittest
 
 class Dummy(object):
     def __init__(self, value=None, gobble=False):
@@ -107,7 +108,7 @@ class ExitRaises(object):
     def __enter__(self): pass
     def __exit__(self, *exc_info): raise RuntimeError()
 
-class NestedWith(unittest.TestCase):
+class NestedWith(TimedTest):
     """
     >>> NestedWith().runTest()
     """

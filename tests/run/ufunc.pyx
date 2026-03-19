@@ -7,13 +7,13 @@ cimport numpy as cnp
 import numpy as np
 
 # I'm making these arrays have slightly irregular strides deliberately
-int_arr_1d = np.arange(20, dtype=int)[::4]
-int_arr_2d = np.arange(500, dtype=int).reshape((50, -1))[5:8, 6:8]
+int_arr_1d = np.arange(20, dtype=np.intc)[::4]
+int_arr_2d = np.arange(500, dtype=np.intc).reshape((50, -1))[5:8, 6:8]
 double_arr_1d = int_arr_1d.astype(np.double)
 double_arr_2d = int_arr_2d.astype(np.double)
 # Numpy has a cutoff at about 500 where it releases the GIL, so test some large arrays
-large_int_arr_1d = np.arange(1500, dtype=int)
-large_int_arr_2d = np.arange(1500*600, dtype=int).reshape((1500, -1))
+large_int_arr_1d = np.arange(1500, dtype=np.intc)
+large_int_arr_2d = np.arange(1500*600, dtype=np.intc).reshape((1500, -1))
 large_double_arr_1d = large_int_arr_1d.astype(np.double)
 large_double_arr_2d = large_int_arr_2d.astype(np.double)
 
@@ -40,7 +40,7 @@ cdef extern from *:
 # it's fairly hard to test that nogil results in the GIL actually
 # being released unfortunately
 @cython.ufunc
-cdef double triple_it(long x) nogil:
+cdef double triple_it(int x) nogil:
     """triple_it doc"""
     return x*3.
 
@@ -103,20 +103,21 @@ def test_py_arg():
     """
 
 @cython.ufunc
-cdef (double, long) multiple_return_values(long x):
+cdef (double, int) multiple_return_values(int x):
     return x*1.5, x*2
 
 @cython.ufunc
-cdef (double, long) multiple_return_values2(long x):
+cdef (double, int) multiple_return_values2(int x):
     inefficient_tuple_intermediate = (x*1.5, x*2)
     return inefficient_tuple_intermediate
 
 def test_multiple_return_values():
     """
-    >>> multiple_return_values(int_arr_1d)
-    (array([ 0.,  6., 12., 18., 24.]), array([ 0,  8, 16, 24, 32]))
-    >>> multiple_return_values2(int_arr_1d)
-    (array([ 0.,  6., 12., 18., 24.]), array([ 0,  8, 16, 24, 32]))
+    (Ellipsis because format of np.intc arrays is different on Windows)
+    >>> multiple_return_values(int_arr_1d)  # doctest: +ELLIPSIS
+    (array([ 0.,  6., 12., 18., 24.]), array([ 0,  8, 16, 24, 32]...))
+    >>> multiple_return_values2(int_arr_1d)  # doctest: +ELLIPSIS
+    (array([ 0.,  6., 12., 18., 24.]), array([ 0,  8, 16, 24, 32]...))
     """
 
 @cython.ufunc

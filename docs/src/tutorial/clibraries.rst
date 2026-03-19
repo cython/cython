@@ -616,7 +616,7 @@ item value, so there is no way to explicitly signal an error to the
 calling code.
 
 The only way calling code can deal with this situation is to call
-:c:function:`PyErr_Occurred()` when returning from a function to check if an
+:c:func:`PyErr_Occurred()` when returning from a function to check if an
 exception was raised, and if so, propagate the exception.  This
 obviously has a performance penalty.  Cython therefore uses a dedicated value
 that it implicitly returns in the case of an
