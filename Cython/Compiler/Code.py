@@ -2143,8 +2143,6 @@ class GlobalState:
             )
 
         # Store and decompress the string data.
-        decompress_stdlib_utility_code = UtilityCode.load_cached("DecompressString", "StringTools.c")
-        decompress_lzss_utility_code = UtilityCode.load_cached("DecompressString_LZSS", "StringTools.c")
 
         compressions = []
         default_compression = 0  # no compression
@@ -2193,11 +2191,11 @@ class GlobalState:
                 StringEncoding.escape_byte_string(compressed_bytes))
             w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
             if algo_name == 'lzss':
-                self.use_utility_code(decompress_lzss_utility_code)
+                self.use_utility_code(UtilityCode.load_cached("DecompressString_LZSS", "StringTools.c"))
                 w.putln(f'PyObject *data = __Pyx_DecompressString_LZSS(cstring, {len(compressed_bytes)}, {len(concat_bytes)});')
                 w.putln("#define __Pyx_DecompressString_UNUSED")
             else:
-                self.use_utility_code(decompress_stdlib_utility_code)
+                self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
                 w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {algo_number});')
                 w.putln("#define __Pyx_DecompressString_LZSS_UNUSED")
 
