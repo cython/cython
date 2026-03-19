@@ -192,11 +192,11 @@ Consider the following code::
             self.key = key
             self._py_obj = None
 
-        property obj:
-            def __get__(B self):
-                if not self._py_obj:
-                    self._py_obj = A(create_c_object(self.key))
-                return self._py_obj
+        @property
+        def obj(self):
+            if not self._py_obj:
+                self._py_obj = A(create_c_object(self.key))
+            return self._py_obj
 
 Concurrently accessing the ``obj`` property of the ``A`` class from multiple
 threads could cause data races when one thread does ``if not self._py_obj``
@@ -219,13 +219,12 @@ A safe version of the above code might look like::
               self.key = key
               self._py_obj = None
 
-          property obj:
-              def __get__(B self):
-                  def closure():
-                      self._py_obj = A(create_c_object(self.key))
-                      self.cache_flag.store(True)
-                  py_safe_call_object_once(self.flag, closure)
-                  return self._py_obj
+          @property
+          def obj(self):
+              def closure():
+                  self._py_obj = A(create_c_object(self.key))
+              py_safe_call_object_once(self.flag, closure)
+              return self._py_obj
 
 If you want to avoid the need to define a closure or wrapper object in every
 call to ``__get__``, you can also use an atomic boolean flag to indicate whether
@@ -245,15 +244,14 @@ the cache has been filled::
               self._py_obj = None
               self.cache_flag.store(0)
 
-          property obj:
-              def __get__(B self):
-                  cdef call_once_wrapper wrapper
-                  if not self.cache_flag.load():
-                      def closure():
-                          self._py_obj = A(create_c_object(self.key))
-                          self.cache_flag.store(True)
-                      py_safe_call_object_once(self.flag, closure)
-                  return self._py_obj
+          @property
+          def obj(self):
+              if not self.cache_flag.load():
+                  def closure():
+                      self._py_obj = A(create_c_object(self.key))
+                      self.cache_flag.store(True)
+                  py_safe_call_object_once(self.flag, closure)
+              return self._py_obj
 
 If more than one thread observes the atomic ``cache_flag`` to be unset, then
 each thread that observes this state will define a closure but only one thread
