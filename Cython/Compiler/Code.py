@@ -2146,8 +2146,9 @@ class GlobalState:
         decompress_stdlib_utility_code = UtilityCode.load_cached("DecompressString", "StringTools.c")
         decompress_lzss_utility_code = UtilityCode.load_cached("DecompressString_LZSS", "StringTools.c")
 
-        min_size_seen = None
         compressions = []
+        default_compression = 0  # no compression
+        min_size_seen = None
         for algo_number, algo_name, compress in compression_algorithms:
             if compress is None:
                 continue
@@ -2159,8 +2160,8 @@ class GlobalState:
                 continue
 
             if algo_number == 90:
-                # Always include the default LZSS compression.
-                pass
+                # Include the default LZSS compression if it saves any space at all.
+                default_compression = 90
             elif min_size_seen is None or compressed_size < min_size_seen:
                 min_size_seen = compressed_size
             else:
@@ -2169,6 +2170,11 @@ class GlobalState:
                 continue
 
             compressions.append((algo_number, algo_name, compressed_bytes))
+
+        if compressions:
+            w.putln("#ifndef CYTHON_COMPRESS_STRINGS")
+            w.putln(f"  #define CYTHON_COMPRESS_STRINGS {default_compression}")
+            w.putln("#endif")
 
         has_if = False
         for algo_number, algo_name, compressed_bytes in reversed(compressions):
@@ -2207,9 +2213,12 @@ class GlobalState:
             StringEncoding.escape_byte_string(concat_bytes))
         w.putln(f'const char* const bytes = "{escaped_bytes}";', safe=True)
         w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
-        if has_if:
+
+        if compressions:
             w.putln("#define __Pyx_DecompressString_UNUSED")
             w.putln("#define __Pyx_DecompressString_LZSS_UNUSED")
+
+        if has_if:
             w.putln("#endif")
 
         # Populate stringtab.
