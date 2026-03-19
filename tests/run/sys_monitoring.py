@@ -346,8 +346,7 @@ else:
     ...     # monitored
     ...     trace_return_neg_1()
     ...     trace_return_charptr()
-    ...     if COMPILED:
-    ...         trace_return_ctuple()
+    ...     trace_return_ctuple()
     ... finally:
     ...     _ = smon.register_callback(TOOL_ID, E.PY_RETURN, None)
     ...     smon.free_tool_id(TOOL_ID)
@@ -713,5 +712,8 @@ def c_return_ctuple() -> tuple[cython.pointer[cython.int]]:
     return (cython.NULL,)
 
 def trace_return_ctuple():
-    result = c_return_ctuple()
-    return result[0] is cython.NULL
+    if COMPILED:
+        result = c_return_ctuple()
+        return result[0] is cython.NULL
+    # Otherwise pure-py test complains about how Cython.PointerType is unhashable.
+    return True

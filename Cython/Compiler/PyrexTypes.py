@@ -4689,6 +4689,8 @@ class CTupleType(CType):
 
     _convert_to_py_code = None
     _convert_from_py_code = None
+    to_py_function = None
+    from_py_function = None
 
     def __init__(self, cname, components):
         from .Builtin import tuple_type
@@ -4696,8 +4698,6 @@ class CTupleType(CType):
         self.components = components
         self.equivalent_type = tuple_type
         self.size = len(components)
-        self.to_py_function = None
-        self.from_py_function = None
 
     def __str__(self):
         return "(%s)" % ", ".join(str(c) for c in self.components)
