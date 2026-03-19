@@ -2160,13 +2160,13 @@ class GlobalState:
                 continue
 
             if algo_number == 90:
-                # Include the default LZSS compression if it saves any space at all.
                 default_compression = 90
-            elif min_size_seen is None or compressed_size < min_size_seen:
+
+            if min_size_seen is None or compressed_size < min_size_seen:
                 min_size_seen = compressed_size
-            else:
-                # Avoid less widely used algorithms if they don't beat common ones
-                # (especially zlib) on the data at hand.
+            elif algo_number != 90:
+                # Avoid less widely used algorithms if they don't beat more common ones
+                # on the data at hand, including the default compression.
                 continue
 
             compressions.append((algo_number, algo_name, compressed_bytes))
