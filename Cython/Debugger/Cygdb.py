@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 The Cython debugger
@@ -50,9 +50,11 @@ def make_command_file(path_to_debug_info, prefix_code='',
             try:
                 # Activate virtualenv, if we were launched from one
                 import os
+                import sys
                 virtualenv = os.getenv('VIRTUAL_ENV')
                 if virtualenv:
-                    path_to_activate_this_py = os.path.join(virtualenv, 'bin', 'activate_this.py')
+                    scripts_dir = 'Scripts' if sys.platform == "win32" else 'bin'
+                    path_to_activate_this_py = os.path.join(virtualenv, scripts_dir, 'activate_this.py')
                     print("gdb command file: Activating virtualenv: %s; path_to_activate_this_py: %s" % (
                         virtualenv, path_to_activate_this_py))
                     with open(path_to_activate_this_py) as f:
@@ -60,7 +62,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
                 from Cython.Debugger import libcython, libpython
             except Exception as ex:
                 from traceback import print_exc
-                print("There was an error in Python code originating from the file ''' + str(__file__) + '''")
+                print("There was an error in Python code originating from the file " + ''' + repr(__file__) + ''')
                 print("It used the Python interpreter " + str(sys.executable))
                 print_exc()
                 exit(1)

@@ -235,17 +235,11 @@ def main(n: cython.int, scale: cython.int = 10, timer=time.perf_counter):
     return times
 
 
-def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
-    return main(repeat, scale, timer)
+def run_benchmark(repeat=True, scale=1):
+    from util import repeat_to_accuracy
 
+    def single_run(scale: cython.long, timer):
+        s: cython.long
+        return fsum(run(timer) for s in range(scale))
 
-if __name__ == "__main__":
-    import optparse
-    import util
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description="Test the performance of fstring literal formatting")
-    util.add_standard_options_to(parser)
-    options, args = parser.parse_args()
-
-    util.run_benchmark(options, options.num_runs, main)
+    return repeat_to_accuracy(single_run, scale=scale, repeat=repeat)[0]

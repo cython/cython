@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # micro benchmarks for generators
 
 COUNT = 20_000
@@ -82,18 +82,12 @@ def benchmark(N, count=10, scale=1, timer=time.perf_counter):
 main = benchmark
 
 
-def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
-    return benchmark(repeat, count=200, scale=scale, timer=timer)
+def run_benchmark(repeat=True, scale=1):
+    from util import repeat_to_accuracy
 
+    def single_run(scale, timer):
+        N = 200
+        result, t = time_func(bm_yield_from_nested, N, scale, timer)
+        return t
 
-if __name__ == "__main__":
-    import optparse
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description=("Micro benchmarks for generators."))
-
-    import util
-    util.add_standard_options_to(parser)
-    options, args = parser.parse_args()
-
-    util.run_benchmark(options, options.num_runs, benchmark)
+    return repeat_to_accuracy(single_run, scale=scale, repeat=repeat)[0]

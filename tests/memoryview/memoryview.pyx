@@ -456,6 +456,117 @@ def memview_iter(double[:, :] arg):
     if total == 15:
         return True
 
+# TODO - check that we can optimize this directly to reversed iteration
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def memview_backwards_iter1(double[:] arg):
+    """
+    >>> memview_backwards_iter1(DoubleMockBuffer("C", range(6), (6,)))
+    acquired C
+    released C
+    True
+    """
+    cdef double total = 0
+    cdef double first = 0
+    cdef double first_set = False
+    for val in arg[::-1]:
+        if not first_set:
+            first = val
+            first_set = True
+        total += val
+    if total == 15 and first == 5:
+        return True
+
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def memview_backwards_iter2(double[:] arg):
+    """
+    >>> memview_backwards_iter2(DoubleMockBuffer("C", range(6), (6,)))
+    acquired C
+    released C
+    True
+    """
+    cdef double total = 0
+    cdef double first = 0
+    cdef double first_set = False
+    cdef double val  # TODO - this should be inferred
+    for val in reversed(arg):
+        if not first_set:
+            first = val
+            first_set = True
+        total += val
+    if total == 15 and first == 5:
+        return True
+
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def memview_skip_iter(double[:] arg):
+    """
+    >>> memview_skip_iter(DoubleMockBuffer("C", range(6), (6,)))
+    acquired C
+    released C
+    True
+    """
+    cdef double total = 0
+    for val in arg[::2]:
+        total += val
+    if total == 6:
+        return True
+
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def memview_iter_continue(double[:] arg):
+    """
+    >>> memview_iter_continue(DoubleMockBuffer("C", range(6), (6,)))
+    acquired C
+    released C
+    True
+    """
+    cdef double total = 0
+    for val in arg:
+        if val == 3:
+            continue
+        total += val
+    if total == 12:
+        return True
+
+# TODO - optimization to avoid slicing before loop
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def memview_iter_reversed_continue1(double[:] arg):
+    """
+    >>> memview_iter_reversed_continue1(DoubleMockBuffer("C", range(6), (6,)))
+    acquired C
+    released C
+    True
+    """
+    cdef double total = 0
+    cdef double first = -1
+    for val in arg[::-1]:
+        if first == -1:
+            first = val
+        if val == 3:
+            continue
+        total += val
+    if total == 12 and first == 5:
+        return True
+
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def memview_iter_reversed_continue2(double[:] arg):
+    """
+    >>> memview_iter_reversed_continue2(DoubleMockBuffer("C", range(6), (6,)))
+    acquired C
+    released C
+    True
+    """
+    cdef double total = 0
+    cdef double first = -1
+    cdef double val  # TODO - this should be inferred
+    for val in reversed(arg):
+        if first == -1:
+            first = val
+        if val == 3:
+            continue
+        total += val
+    if total == 12 and first == 5:
+        return True
+
+
 #
 # Test all kinds of indexing and flags
 #
@@ -1326,5 +1437,5 @@ def test_untyped_index(i):
 
 _PERFORMANCE_HINTS = """
 243:9: Use boundscheck(False) for faster access
-1325:21: Index should be typed for more efficient access
+1436:21: Index should be typed for more efficient access
 """

@@ -3,7 +3,7 @@
 
 import cython
 
-@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_assert_path_exists("//WhileStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 @cython.locals(x=bytearray)
 def basic_bytearray_iter(x):
@@ -18,7 +18,7 @@ def basic_bytearray_iter(x):
     for a in x:
         print(chr(a))
 
-@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_assert_path_exists("//WhileStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 @cython.locals(x=bytearray)
 def reversed_bytearray_iter(x):
@@ -33,7 +33,7 @@ def reversed_bytearray_iter(x):
     for a in reversed(x):
         print(chr(a))
 
-@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_assert_path_exists("//WhileStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 @cython.locals(x=bytearray)
 def modifying_bytearray_iter1(x):
@@ -51,7 +51,7 @@ def modifying_bytearray_iter1(x):
         count += 1
     print(count)
 
-@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_assert_path_exists("//WhileStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 @cython.locals(x=bytearray)
 def modifying_bytearray_iter2(x):
@@ -69,7 +69,7 @@ def modifying_bytearray_iter2(x):
         count += 1
     print(count)
 
-@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_assert_path_exists("//WhileStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 @cython.locals(x=bytearray)
 def modifying_reversed_bytearray_iter(x):
@@ -103,3 +103,43 @@ def test_bytearray_iteration(src):
     data = bytearray(src)
     for elem in data:
         print(elem)
+
+def test_bytearray_iter_with_continue(x: bytearray):
+    r"""
+    >>> test_bytearray_iter_with_continue(bytearray(b"ab\0cd"))
+    a
+    b
+    c
+    d
+    """
+    for elem in x:
+        if elem == 0:
+            continue
+        print(chr(elem))
+
+# TODO - this should be transformed into efficient reversed iteration
+def test_bytearray_reverse_iter_with_continue1(x: bytearray):
+    r"""
+    >>> test_bytearray_reverse_iter_with_continue1(bytearray(b"ab\0cd"))
+    d
+    c
+    b
+    a
+    """
+    for elem in x[::-1]:
+        if elem == 0:
+            continue
+        print(chr(elem))
+
+def test_bytearray_reverse_iter_with_continue2(x: bytearray):
+    r"""
+    >>> test_bytearray_reverse_iter_with_continue1(bytearray(b"ab\0cd"))
+    d
+    c
+    b
+    a
+    """
+    for elem in reversed(x):
+        if elem == 0:
+            continue
+        print(chr(elem))

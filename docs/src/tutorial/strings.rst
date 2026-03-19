@@ -940,7 +940,7 @@ Windows and wide character APIs
 
 .. Warning::
 
-    The use of :c:type:`Py_UNICODE*` strings outside of Windows is
+    The use of :c:type:`Py_UNICODE` strings outside of Windows is
     strongly discouraged. :c:type:`Py_UNICODE` is inherently not
     portable between different platforms and Python versions.
 

@@ -224,3 +224,24 @@ def for_pyucs4_in_enumerate_unicode(unicode s):
             return i
     else:
         return 'X'
+
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def for_in_str_literal():
+    """
+    >>> for_in_str_literal()
+    ['i', 'k', 'm', 'u', 'e', 'o', 'w', 'a', 'c', 'g', 'q', 's', 'y']
+    """
+    l1 = []
+    l2 = []
+    l3 = []
+    for ch in "acegikmoqsuwy":
+        if ch in 'umik':
+            l1.append(ch)
+        elif ch in 'woe':
+            l2.append(ch)
+        else:
+            l3.append(ch)
+
+    return l1 + l2 + l3

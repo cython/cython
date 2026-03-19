@@ -179,3 +179,129 @@ def test_nested(x):
     if isinstance(a[0], (int, float)):
         return True
     return False
+
+
+def test_exceptions(exc):
+    """
+    >>> test_exceptions(AttributeError('aha'))
+    'A:AttributeError'
+    >>> test_exceptions(ValueError(123))
+    'ValueError'
+    >>> test_exceptions(IndexError(321))
+    'IndexError'
+    >>> test_exceptions(RuntimeError("message"))
+    'RuntimeError'
+    >>> test_exceptions(OSError("eye oh"))
+    'OSError'
+    >>> test_exceptions(TypeError("message"))
+    'E:TypeError'
+    """
+    try:
+        if exc is not None:
+            raise exc
+    except ValueError:
+        return "ValueError"
+    except AttributeError as e:
+        return f"A:{type(e).__name__}"
+    except Exception as e:
+        if isinstance(e, IndexError):
+            return "IndexError"
+        if isinstance(e, RuntimeError):
+            return "RuntimeError"
+        if type(e) is OSError:
+            return "OSError"
+        return f"E:{type(e).__name__}"
+
+
+def skip_if_less_than_310(f):
+    import sys
+    if sys.version_info < (3, 10):
+        return None
+    else:
+        return f
+
+
+@cython.test_fail_if_path_exists(
+    "//BitwiseOrNode",
+)
+def test_union(obj):
+    """
+    >>> test_union([])
+    True
+    >>> test_union(())
+    True
+    >>> test_union(b'hello')
+    True
+    >>> test_union(None)
+    True
+    >>> test_union(list)
+    False
+    >>> test_union(1)
+    False
+    """
+    return isinstance(obj, (list | bytes, tuple, list | None | tuple | bytes, bytes))
+
+
+cdef object py_bytes = bytes
+
+@cython.test_assert_path_exists(
+    "//BitwiseOrNode",
+)
+@skip_if_less_than_310
+def test_union_non_type(obj):
+    """
+    >>> test_union_non_type([])
+    True
+    >>> test_union_non_type(())
+    True
+    >>> test_union_non_type(b'hello')
+    True
+    >>> test_union_non_type(list)
+    False
+    >>> test_union_non_type(1)
+    False
+    """
+    return isinstance(obj, (list | py_bytes, tuple))
+
+
+@cython.test_assert_path_exists(
+    "//BitwiseOrNode",
+)
+def test_initial_double_none(obj):
+    """
+    >>> test_initial_double_none(1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: unsupported operand type...
+    """
+    return isinstance(obj, None | None | int)
+
+
+@cython.test_fail_if_path_exists(
+    "//BitwiseOrNode",
+)
+def test_double_none_ok(obj):
+    """
+    >>> test_double_none_ok(1)
+    True
+    >>> test_double_none_ok(None)
+    True
+    """
+    return isinstance(obj, int | None | None)
+
+
+@cython.test_fail_if_path_exists(
+    "//BitwiseOrNode",
+)
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode//ResultRefNode",
+)
+def test_exttype_or_none(get_obj):
+    """
+    >>> test_exttype_or_none(A)
+    True
+    >>> test_exttype_or_none(lambda: None)
+    True
+    >>> test_exttype_or_none(list)
+    False
+    """
+    return isinstance(get_obj(), A | None)
