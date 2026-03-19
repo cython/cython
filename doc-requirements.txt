@@ -1,3 +1,4 @@
+# Direct dependencies for building the documentation
 sphinx==9.1.0
 sphinx-issues==5.0.1
 sphinx-tabs==3.5.0
@@ -5,3 +6,30 @@ sphinx-clarity-theme==2.1.0
 ipython_pygments_lexers==1.1.1
 # Dependencies for `runtests.py` not needed for building the documentation, but required for running the codestyle job in .github/workflows/ci.yml
 setuptools==82.0.1
+# Freezed dependencies for reproducibility
+alabaster==1.0.0
+babel==2.18.0
+beautifulsoup4==4.13.3
+certifi==2026.2.25
+charset-normalizer==3.4.6
+docutils==0.22.4
+idna==3.11
+imagesize==2.0.0
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+packaging==26.0
+Pygments==2.19.2
+requests==2.32.5
+roman-numerals==4.1.0
+setuptools==82.0.1
+snowballstemmer==3.0.1
+soupsieve==2.8.3
+sphinx_null_theme==1.0.0
+sphinxcontrib-applehelp==2.0.0
+sphinxcontrib-devhelp==2.0.0
+sphinxcontrib-htmlhelp==2.1.0
+sphinxcontrib-jsmath==1.0.1
+sphinxcontrib-qthelp==2.0.0
+sphinxcontrib-serializinghtml==2.0.0
+typing_extensions==4.15.0
+urllib3==2.6.3
