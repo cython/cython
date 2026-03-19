@@ -313,7 +313,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         // * does not require keeping the buffer around (as we cannot return it)
         getbufferproc* getbuffer = __Pyx_PyType_GetSlot(o, bf_getbuffer, getbufferproc);
         releasebufferproc* releasebuffer = __Pyx_PyType_GetSlot(o, bf_releasebuffer, releasebufferproc);
-        if (pb == NULL || getbuffer == NULL || releasebuffer != NULL) goto error;
+        if (getbuffer == NULL || releasebuffer != NULL) goto error;
 
         // Try to acquire buffer from `o`
         Py_buffer view;
