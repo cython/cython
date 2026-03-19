@@ -471,8 +471,9 @@ There are a few things to bear in mind when deciding whether to use the shared u
   module rather than using a global system module.
 * The shared utility module should be compiled with the same
   :ref:`C macro defines<C_macro_defines>`  as the rest of your Cython modules
-  (essentially, any macro that starts with ``CYTHON`` or the ``Py_LIMITED_API``
-  macro). This is likely to be correct provided you use a shared utility module
+  (``CYTHON_USE_TYPE_SPECS`` and ``Py_LIMITED_API`` are known to be an issue but
+  you should ideally keep all macros starting with ``CYTHON`` consistent).
+  This is likely to be correct provided you use a shared utility module
   shipped within your own package.
 
 Consider the following example package::
