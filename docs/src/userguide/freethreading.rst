@@ -21,7 +21,7 @@ Useful links
 * `PEP 703 <https://peps.python.org/pep-0703/>`_ - the initial proposal that lead
   to this feature existing in Python.
 * `Python documentation for free-threaded extensions <https://docs.python.org/3.13/howto/free-threading-extensions.html>`_.
-* `Quansight labs' documentation of the status of free-threading <https://py-free-threading.github.io/>`_.
+* `Python Free-Threading Guide <https://py-free-threading.github.io/>`_.
 
 Status
 ======
@@ -157,6 +157,109 @@ uses ``PyThread_type_lock``.  It is intended for sharing locks between
 modules with the Limited API (since ``PyMutex`` is unavailable in the
 Limited API).  Note that unlike the "raw" ``PyThread_type_lock`` our
 wrapping will avoid deadlocks with the GIL.
+
+Thread-safe initialization of caches
+------------------------------------
+
+.. Note::
+
+   This relies on features that depend on the C++ standard library and will not
+   work if Cython is configured to generate C code. See :ref:`use_cpp` for why
+   this feature can only work in C++ extensions.
+
+Cython 3.2 and upwards has support for using C++ standard library
+atomics and synchronization primitives. This is very useful for a number of
+use-cases, but here we will focus on using Cython's synchronization tools
+to initialize a cache that hangs off a cdef class.
+
+Consider the following code::
+
+    from mylib cimport c_object, create_c_object
+
+    class A:
+        cdef c_object *obj
+        cdef public int count
+
+        def __init__(A self, c_object *obj):
+            self.obj = c_object
+
+
+    cdef class B:
+        cdef:
+            int key
+
+        def __init__(self, int key):
+            self.key = key
+            self._py_obj = None
+
+        property obj:
+            def __get__(B self):
+                if not self._py_obj:
+                    self._py_obj = A(create_c_object(self.key))
+                return self._py_obj
+
+Concurrently accessing the ``obj`` property of the ``A`` class from multiple
+threads could cause data races when one thread does ``if not self._py_obj``
+and another thread assigns to ``self._py_obj`` in the if statement. This also
+wastes resources and could possibly cause a resource leak if more than one
+thread simultaneously calls ``create_c_object``, since only one ``c_object *``
+pointer is ever preserved after the threads finish initializing
+``self._py_obj``.
+
+A safe version of the above code might look like::
+
+      from libcpp.mutex cimport py_safe_call_object_once, py_safe_once_flag
+
+      cdef class B:
+          cdef:
+              int key
+              py_safe_once_flag flag
+
+          def __init__(self, int key):
+              self.key = key
+              self._py_obj = None
+
+          property obj:
+              def __get__(B self):
+                  def closure():
+                      self._py_obj = A(create_c_object(self.key))
+                      self.cache_flag.store(True)
+                  py_safe_call_object_once(self.flag, closure)
+                  return self._py_obj
+
+If you want to avoid the need to define a closure or wrapper object in every
+call to ``__get__``, you can also use an atomic boolean flag to indicate whether
+the cache has been filled::
+
+      from libcpp.atomic cimport atomic
+
+      cdef class B:
+          cdef:
+              int key
+              py_safe_once_flag flag
+              atomic[int] cache_flag
+              public object _py_obj
+
+          def __init__(self, int key):
+              self.key = key
+              self._py_obj = None
+              self.cache_flag.store(0)
+
+          property obj:
+              def __get__(B self):
+                  cdef call_once_wrapper wrapper
+                  if not self.cache_flag.load():
+                      def closure():
+                          self._py_obj = A(create_c_object(self.key))
+                          self.cache_flag.store(True)
+                      py_safe_call_object_once(self.flag, closure)
+                  return self._py_obj
+
+If more than one thread observes the atomic ``cache_flag`` to be unset, then
+each thread that observes this state will define a closure but only one thread
+will ever call the closure due to the guarantees provided by the C++ standard
+library ``call_once`` function. After the flag is set, then thereafter no thread
+will pay the cost of defining the closure.
 
 
 Automatically applied critical sections
@@ -355,6 +458,8 @@ a function and just have the loop call the function::
 
 Since ``tmp`` is now local to the function scope, each function call has its own copy
 and thus there is no conflict of Python objects between threads.
+
+.. _use_cpp:
 
 Use C++ for low-level synchronization primitives
 ------------------------------------------------
