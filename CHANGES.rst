@@ -197,6 +197,11 @@ Bugs fixed
 * Several problems generating the shared utility module were resolved.
   (Github issues :issue:`7487`, :issue:`7497`, :issue:`7504`)
 
+* Using ``cython.pymutex`` in an extension type declared as ``public`` or ``api``
+  that has ``cdef`` methods, generated invalid C code missing the required
+  ``PyMutex`` declarations.
+  (Github issue :issue:`6995`)
+
 * A problem with cpdef enums in the Limited API of Python 3.11+ was resolved.
   (Github issue :issue:`7503`)
 
@@ -205,6 +210,18 @@ Bugs fixed
 
 * Using ``sizeof()`` in the size declarations of ``extern`` arrays failed.
   (Github issue :issue:`7451`)
+
+* Enabling profiling generated invalid C code for non-Python return tuples.
+  (Github issue :issue:`7580`)
+
+* A C compiler warning about unused functions was resolved.
+  (Github issue :issue:`7560`)
+
+* Using Tempita from its command line failed with a name error.
+  (Github issue :issue:`7567`)
+
+* Cython's cache failed to restore multi-file results.
+  (Github issue :issue:`7559`)
 
 Other changes
 -------------
