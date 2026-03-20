@@ -75,13 +75,13 @@ def lzss_compress(data: bytes) -> bytes:
         if 0 < best_len < MAX_MATCH and next_key in hash_table and pos + best_len + 1 < len(data):
             next_best_len: cython.Py_ssize_t = 0
             window_start = max(0, pos + 1 - WINDOW_SIZE - MAX_MATCH)
-            max_len = min(MAX_MATCH, len(data) - pos - 1)
 
             for prev_pos in hash_table[next_key]:
                 if prev_pos < window_start:
                     continue
 
                 match_len = 3
+                max_len = min(MAX_MATCH, pos - prev_pos)
                 while match_len < max_len and data[prev_pos + match_len] == data[pos + 1 + match_len]:
                     match_len += 1
 
