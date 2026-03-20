@@ -270,6 +270,39 @@ def test_py_safe_once_cdef_nogil():
     print(global_value)
 
 
+cdef void _do_lazy_init(void *o):
+    as_py = <SomeCdefClass>o
+    as_py._lazy_init_value = as_py.initial_value * 2
+    as_py.initial_value = -1  # change it so it doesn't work a second time
+
+cdef class SomeCdefClass:
+    cdef py_safe_once_flag flag
+    cdef double initial_value
+    cdef double _lazy_init_value
+
+    def __cinit__(self, initial_value):
+        self.initial_value = initial_value
+
+    @property
+    def lazy_init_value(self):
+        # Pass as void* because we can't pass object to variadic functions
+        py_safe_call_once(self.flag, _do_lazy_init, <void*>self)
+        return self._lazy_init_value
+
+def test_py_safe_call_once_with_arg_passing(v):
+    """
+    >>> test_py_safe_call_once_with_arg_passing(20)
+    40.0
+    >>> test_py_safe_call_once_with_arg_passing(1)
+    2.0
+    """
+    inst = SomeCdefClass(v)
+    v1 = inst.lazy_init_value
+    v2 = inst.lazy_init_value
+    assert v1 == v2
+    return v1
+
+
 def test_scoped_lock():
     """
     >>> test_scoped_lock()
