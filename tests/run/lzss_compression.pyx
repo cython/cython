@@ -91,20 +91,41 @@ def test(data: bytes) -> None:
     """
     # Decompressing very short or empty bytes is deliberately undefined behaviour.
     >>> test(b'a' * 3)
+    SIZE: 3 -> 4
     >>> test(b'a' * 4)
+    SIZE: 4 -> 5
     >>> test(b'a' * 5)
+    SIZE: 5 -> 6
     >>> test(b'a' * 6)
+    SIZE: 6 -> 6
     >>> test(b'a' * 7)
+    SIZE: 7 -> 7
     >>> test(b'a' * 20)
+    SIZE: 20 -> 10
     >>> test(b'a' * 197)
+    SIZE: 197 -> 19
     >>> test(b'a' * 317)
+    SIZE: 317 -> 19
     >>> test(b'avx' * 317)
+    SIZE: 951 -> 27
     >>> test(b'\\0')
+    SIZE: 1 -> 2
     >>> test(b'\\0' * 21)
+    SIZE: 21 -> 10
     >>> test(b'\\0' * 463)
+    SIZE: 463 -> 22
     >>> test(b'0123456789')
+    SIZE: 10 -> 12
     >>> test(b'0123456789' * 21)
+    SIZE: 210 -> 22
     >>> test(b'0123456789' * 463)
+    SIZE: 4630 -> 74
+
+    # Test cutoff at max offset (7+7 bits):
+    >>> test(b'0123456789' + b'x' * ((1 << 14) - 4) + b'234569')
+    SIZE: 16396 -> 227
+    >>> test(b'0123456789' + b'x' * ((1 << 14) - 3) + b'234569')
+    SIZE: 16397 -> 231
 
     >>> len(MAKE_SURE_THERE_IS_SOMETHING_TO_COMPRESS)
     1717
@@ -141,3 +162,5 @@ def test(data: bytes) -> None:
         _print_start('C', compressed)
         _print_start('O', output)
         print(_compare(data, output))
+
+    print(f"SIZE: {uncompressed_length} -> {compressed_length}")
