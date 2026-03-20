@@ -157,7 +157,7 @@ static PyObject *__Pyx_DecompressString_LZSS(const char *s, size_t compressed_le
 #ifndef __Pyx_DecompressString_LZSS_UNUSED
 // Depends on <stdint.h>, which is globally included in the module preamble.
 CYTHON_UNUSED
-static CYTHON_SMALL_CODE size_t __pyx_lzss_decompress(const uint8_t *src, uint8_t *dst, size_t dst_len) {
+static CYTHON_SMALL_CODE size_t __pyx_lzss_decompress(const uint8_t* restrict src, uint8_t* restrict dst, size_t dst_len) {
     size_t pos = 0, out_pos = 0;
 
     while (1) {
@@ -188,9 +188,8 @@ static CYTHON_SMALL_CODE size_t __pyx_lzss_decompress(const uint8_t *src, uint8_
                 match_length += 3;
                 size_t ref_pos = out_pos - end_offset_of_last_occurrence - match_length;
 
-                for (uint32_t i = 0; i < match_length; ++i) {
-                    dst[out_pos++] = dst[ref_pos + i];
-                }
+                memcpy(dst + out_pos, dst + ref_pos, match_length);
+                out_pos += match_length;
             }
 
             if (out_pos >= dst_len) return pos;
