@@ -161,31 +161,38 @@ static CYTHON_SMALL_CODE size_t __pyx_lzss_decompress(const uint8_t *src, uint8_
     size_t pos = 0, out_pos = 0;
 
     while (1) {
+        // Process 8 bytes/backreferences at a time.
         uint32_t flags = src[pos++] | 0xFF00;
         while (flags & 0x100) {
             if (flags & 1) {
+                // plain byte
                 dst[out_pos++] = src[pos++];
             } else {
+                // back reference, 2 or 3 bytes
                 uint32_t lo = src[pos++], hi = src[pos++];
-                uint32_t p, ml;
+                uint32_t end_offset_of_last_occurrence, match_length;
                 if (!(lo & 0x80)) {
-                    p = lo;
-                    ml = hi;
+                    // 7 bit offset + 8 bit length
+                    end_offset_of_last_occurrence = lo;
+                    match_length = hi;
                 } else if (!(hi & 0x80)) {
-                    p = ((hi << 2) & 0x180) | (lo & 0x7F);
-                    ml = hi & 0x1F;
+                    // 2+7 bit offset + 5 bit length
+                    end_offset_of_last_occurrence = ((hi << 2) & 0x180) | (lo & 0x7F);
+                    match_length = hi & 0x1F;
                 } else {
-                    p = (hi & 0x7F) << 7 | (lo & 0x7F);
-                    ml = src[pos++];
+                    // 7+7 bit offset + 8 bit length
+                    end_offset_of_last_occurrence = (hi & 0x7F) << 7 | (lo & 0x7F);
+                    match_length = src[pos++];
                 }
 
-                ml += 3;
-                size_t ref = out_pos - p - ml;
+                match_length += 3;
+                size_t ref_pos = out_pos - end_offset_of_last_occurrence - match_length;
 
-                for (uint32_t k = 0; k < ml; ++k) {
-                    dst[out_pos++] = dst[ref + k];
+                for (uint32_t i = 0; i < match_length; ++i) {
+                    dst[out_pos++] = dst[ref_pos + i];
                 }
             }
+
             if (out_pos >= dst_len) return pos;
             flags >>= 1;
         }
