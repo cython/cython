@@ -147,7 +147,7 @@ bad:
 }
 
 
-/////////////// ImportFrom.proto ///////////////
+/////////////// ImportFrom.export ///////////////
 
 static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name); /*proto*/
 
