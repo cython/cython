@@ -29,18 +29,20 @@ def lzss_compress(data: bytes) -> bytes:
     if not data:
         return b''
 
+    input_size = len(data)
+
     # Hash table: maps 3-byte sequences to a list of positions starting with that sequence.
     hash_table = defaultdict(list)
 
     def find_longest_match(pos: cython.Py_ssize_t) -> tuple[cython.Py_ssize_t, cython.Py_ssize_t]:
         """Find longest match in sliding window. Returns (offset, length)."""
-        if pos + 3 > len(data):
+        if pos + 3 > input_size:
             return (0, 0)
 
         # 14-bit offset (max 16KiB lookback)
         WINDOW_SIZE: cython.long = 1 << 14
         # 8-bit length + 3, allowing up to 258 bytes.
-        MAX_MATCH: cython.long = min(255 + 3, len(data) - pos)
+        MAX_MATCH: cython.long = min(255 + 3, input_size - pos)
 
         best_len: cython.Py_ssize_t = 0
         best_offset: cython.Py_ssize_t = 0
@@ -72,7 +74,7 @@ def lzss_compress(data: bytes) -> bytes:
 
         # Lazy matching: check if next position has a better match.
         next_key = data[pos + 1:pos + 4]
-        if 0 < best_len < MAX_MATCH and next_key in hash_table and pos + best_len + 1 < len(data):
+        if 0 < best_len < MAX_MATCH and next_key in hash_table and pos + best_len + 1 < input_size:
             next_best_len: cython.Py_ssize_t = 0
             window_start = max(0, pos + 1 - WINDOW_SIZE - MAX_MATCH)
 
@@ -81,7 +83,7 @@ def lzss_compress(data: bytes) -> bytes:
                     continue
 
                 match_len = 3
-                max_len = min(MAX_MATCH, pos - prev_pos)
+                max_len = min(MAX_MATCH, pos - prev_pos, input_size - pos - 1)
                 while match_len < max_len and data[prev_pos + match_len] == data[pos + 1 + match_len]:
                     match_len += 1
 
@@ -102,7 +104,7 @@ def lzss_compress(data: bytes) -> bytes:
 
     stats = [0, 0, 0, 0]
 
-    while pos < len(data):
+    while pos < input_size:
         offset, length = find_longest_match(pos)
 
         #if offset > 0:
@@ -162,7 +164,7 @@ def lzss_compress(data: bytes) -> bytes:
         output[flags_pos] = flags & 0xFF
 
     if PRINT_STATS:
-        print("BYTES:", len(data), "->", len(output))
+        print("BYTES:", input_size, "->", len(output))
         print("ENCODINGS:", stats)
 
     return bytes(output)
