@@ -155,6 +155,7 @@ static PyObject *__Pyx_DecompressString_LZSS(const char *s, size_t compressed_le
 //////////////////// DecompressString_LZSS ////////////////////
 
 #ifndef __Pyx_DecompressString_LZSS_UNUSED
+// Depends on <stdint.h>, which is globally included in the module preamble.
 CYTHON_UNUSED
 static CYTHON_SMALL_CODE size_t __pyx_lzss_decompress(const uint8_t *src, uint8_t *dst, size_t dst_len) {
     size_t pos = 0, out_pos = 0;
