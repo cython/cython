@@ -153,6 +153,7 @@ bad:
 static PyObject *__Pyx_DecompressString_LZSS(const char *s, size_t compressed_length, size_t uncompressed_length); /*proto*/
 
 //////////////////// DecompressString_LZSS ////////////////////
+//@requires: IncludeStringH
 
 #ifndef __Pyx_DecompressString_LZSS_UNUSED
 // Depends on <stdint.h>, which is globally included in the module preamble.
