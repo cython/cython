@@ -1401,6 +1401,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for method_entry in scope.cfunc_entries:
                 if not method_entry.is_inherited:
                     code.putln("%s;" % method_entry.type.declaration_code("(*%s)" % method_entry.cname))
+                    code.globalstate.use_entry_utility_code(method_entry)
             code.putln("};")
 
     def generate_exttype_vtabptr_declaration(self, entry, code):
