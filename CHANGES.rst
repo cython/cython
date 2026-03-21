@@ -39,7 +39,8 @@ Features added
 
 * The builtin Python types ``int`` and ``float`` are special cased in ``+``, ``-`` and ``*``
   operations with (compile-time) unknown Python types in order to speed them up.
-  (Github issue :issue:`7485`)
+  The bit operations ``^``, ``|`` and ``&`` are additionally special cased for ``int``.
+  (Github issues :issue:`7485`, :issue:`7541`)
 
 * C arrays may now be declared with (``extern`` or internal) enum values as their size.
   (Github issues :issue:`7401`, :issue:`7406`)
@@ -80,6 +81,9 @@ Features added
 
 * The runtime dispatch code of fused types uses less code.
   (Github issue :issue:`7501`)
+
+* More code is extracted to the shared utility code module.
+  (Github issues :issue:`7556`, :issue:`7570`)
 
 * Cython compiled functions have a more efficient memory layout in the Limited API.
   (Github issue :issue:`7519`)
