@@ -16,6 +16,30 @@ on:
         required: false
         default:
         type: string
+      limited_api:
+        required: false
+        default: ""
+        type: string
+      shared_utility:
+        required: false
+        default: ""
+        type: string
+      cython_compile_all:
+        required: false
+        default: "0"
+        type: string
+      no_cython_compile:
+        required: false
+        default: "0"
+        type: string
+      gcc_version:
+        required: false
+        default: "10"
+        type: string
+      extra_cflags:
+        required: false
+        default: ""
+        type: string
 
 
 permissions:
@@ -24,10 +48,15 @@ permissions:
 jobs:
   build-and-test:
     env:
+      LIMITED_API: ${{ inputs.limited_api }}
+      SHARED_UTILITY: ${{ inputs.shared_utility }}
       BACKEND: ${{ inputs.backend }}
       PYTHON_VERSION: ${{ inputs.python-version }}
+      EXTRA_CFLAGS: ${{ inputs.extra_cflags }}
+      CYTHON_COMPILE_ALL: ${{ inputs.cython_compile_all }}
+      NO_CYTHON_COMPILE: ${{ inputs.no_cython_compile }}
       MACOSX_DEPLOYMENT_TARGET: "11.0"
-      GCC_VERSION: 10
+      GCC_VERSION: ${{ inputs.gcc_version }}
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1

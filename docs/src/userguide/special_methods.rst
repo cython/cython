@@ -467,7 +467,7 @@ This can avoid creating a Python integer object for the index when the indices a
 and happen to be already available as C integers by the callers.
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| Name 	                | Parameters                            | Return type | 	Description                                       |
+| Name 	                | Parameters                            | Return type | Description                                         |
 +=======================+=======================================+=============+=====================================================+
 | __getitem__ 	        | self, Py_ssize_t x                    | object      | self[x]                                             |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
