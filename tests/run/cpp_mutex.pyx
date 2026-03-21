@@ -289,6 +289,13 @@ cdef class SomeCdefClass:
         py_safe_call_once(self.flag, _do_lazy_init, <void*>self)
         return self._lazy_init_value
 
+    @property
+    def lazy_init_lvalue(self):
+        # Pass as void* because we can't pass object to variadic functions
+        cdef void* self_v = <void*>self
+        py_safe_call_once(self.flag, _do_lazy_init, self_v)
+        return self._lazy_init_value
+
 def test_py_safe_call_once_with_arg_passing(v):
     """
     >>> test_py_safe_call_once_with_arg_passing(20)
@@ -301,6 +308,39 @@ def test_py_safe_call_once_with_arg_passing(v):
     v2 = inst.lazy_init_value
     assert v1 == v2
     return v1
+
+def test_py_safe_call_once_with_lvalue_arg_passing(v):
+    """
+    >>> test_py_safe_call_once_with_lvalue_arg_passing(20)
+    40.0
+    >>> test_py_safe_call_once_with_lvalue_arg_passing(1)
+    2.0
+    """
+    inst = SomeCdefClass(v)
+    v1 = inst.lazy_init_lvalue
+    v2 = inst.lazy_init_lvalue
+    assert v1 == v2
+    return v1
+
+
+cdef void print_arg(int arg) noexcept:
+    print(arg)
+
+ctypedef void (*void_int_func)(int) noexcept
+
+cdef void_int_func get_print_arg() noexcept:
+    return print_arg
+
+def test_py_safe_call_once_rvalue_func(int arg):
+    """
+    >>> test_py_safe_call_once_rvalue_func(5)
+    5
+    >>> test_py_safe_call_once_rvalue_func(0)
+    0
+    """
+    cdef py_safe_once_flag flag
+    py_safe_call_once(flag, get_print_arg(), arg)
+    py_safe_call_once(flag, get_print_arg(), arg)
 
 
 def test_scoped_lock():
