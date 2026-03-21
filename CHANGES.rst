@@ -194,8 +194,9 @@ Bugs fixed
 * A compile failure was fixed when using the walrus operator inside of try-except.
   (Github issue :issue:`7462`)
 
-* Several problems generating the shared utility module were resolved.
-  (Github issues :issue:`7487`, :issue:`7497`, :issue:`7504`)
+* Several problems generating the shared utility module were resolved, including
+  a performance regression with memory views.
+  (Github issues :issue:`7487`, :issue:`7497`, :issue:`7504`, :issue:`7558`)
 
 * Using ``cython.pymutex`` in an extension type declared as ``public`` or ``api``
   that has ``cdef`` methods, generated invalid C code missing the required
