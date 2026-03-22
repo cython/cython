@@ -202,9 +202,8 @@ Bugs fixed
   a performance regression with memory views.
   (Github issues :issue:`7487`, :issue:`7497`, :issue:`7504`, :issue:`7558`)
 
-* Using ``cython.pymutex`` in an extension type declared as ``public`` or ``api``
-  that has ``cdef`` methods, generated invalid C code missing the required
-  ``PyMutex`` declarations.
+* Using ``cython.pymutex`` in an extension type with ``cdef`` methods generated
+  invalid C code missing the required ``PyMutex`` declarations.
   (Github issue :issue:`6995`)
 
 * A problem with cpdef enums in the Limited API of Python 3.11+ was resolved.
