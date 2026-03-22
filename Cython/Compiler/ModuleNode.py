@@ -4059,7 +4059,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         type_name = type.name
         is_builtin = module_name in ('__builtin__', 'builtins')
         if not is_builtin:
-            module_name = f'"{module_name}"'
+            # As UTF-8 since this is what PyImport_ImportModule wants
+            module_name = module_name.as_utf8_string().as_c_string_literal()
         elif type_name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
             code.putln(
@@ -4084,7 +4085,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln(
             f"{typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
-            f"{module}, {module_name}, {type.name.as_c_string_literal()},"
+            f"{module}, {module_name}, {type.name.as_utf8_string().as_c_string_literal()},"
         )
 
         alignment_func = f"__PYX_GET_STRUCT_ALIGNMENT_{Naming.cyversion}"
