@@ -4,6 +4,8 @@
 # cython: profile=True, linetrace=True
 # distutils: define_macros = CYTHON_TRACE_NOGIL=1
 
+from __future__ import annotations
+
 import cython
 
 import operator
