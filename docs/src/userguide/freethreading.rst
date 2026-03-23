@@ -172,126 +172,46 @@ synchronization primitives. This is very useful for a number of use-cases, but
 here we will focus on using Cython's wrappers for C++ synchronization primitives
 to initialize a cache that hangs off a cdef class.
 
-Consider the following code::
+Consider the following code:
 
-    from mylib cimport c_object, create_c_object
-
-    class A:
-        cdef c_object *obj
-        cdef public int count
-
-        def __init__(A self, c_object *obj):
-            self.obj = c_object
-
-
-    cdef class B:
-        cdef:
-            int key
-
-        def __init__(self, int key):
-            self.key = key
-            self._py_obj = None
-
-        @property
-        def obj(self):
-            if not self._py_obj:
-                self._py_obj = A(create_c_object(self.key))
-            return self._py_obj
+.. literalinclude:: ../../examples/userguide/freethreading/buggy_init.pyx
 
 This pattern comes up often when caches or other kinds of expensive data are
 calculated lazily on first use. The ``obj`` property is backed by a private
-``_py_obj`` attribute, which is an instance of the ``A``. The ``A`` class itself
-wraps a pointer to a c object, which in this example takes some time to set
-up.
+``_py_obj`` attribute. The ``expensive_function`` in this example calls Python
+code, but this pattern also comes up if an expensive native calculation needs
+to happen.
 
 Concurrently accessing the ``obj`` property of the ``A`` class from multiple
-threads could cause data races when one thread does ``if not self._py_obj``
-and another thread assigns to ``self._py_obj`` in the if statement. This also
-wastes resources and could possibly cause a resource leak if more than one
-thread simultaneously calls ``create_c_object``, since only one ``c_object *``
-pointer is ever preserved after the threads finish initializing
-``self._py_obj``.
+threads could cause data races when one thread does ``if not self._py_obj`` and
+another thread assigns to ``self._py_obj`` in the if statement. This also wastes
+resources and could possibly cause a resource leak if more than one thread
+simultaneously tries to lazily-initialize the cache.
 
-A safe version of the above code might look like::
+A safe version of the above code might look like:
 
-      from libcpp.mutex cimport py_safe_call_once, py_safe_once_flag
+.. literalinclude:: ../../examples/userguide/freethreading/correct_init.pyx
 
-      cdef void init_py_obj(void *void_instance):
-          cdef B instance = <B>void_instance
-          instance._py_obj = A(create_c_object(instance.key))
-
-      cdef class B:
-          cdef:
-              int key
-              py_safe_once_flag flag
-
-          def __init__(self, int key):
-              self.key = key
-              self._py_obj = None
-
-          @property
-          def obj(self):
-              cdef void *void_self = <void *>self
-              py_safe_call_once(self.flag, init_py_obj, void_self)
-              return self._py_obj
+This uses the ``py_safe_call_once`` function, which Cython provides as a wrapper
+around the C++ standard library ``call_once`` function. We're using the
+``py_safe`` variants to avoid explicitly writing code to handle possible
+deadlocks with the interpreter -- ``py_safe_call_once`` handles that possibility
+for us.
 
 Since ``py_safe_call_once`` cannot accept a Python object as an argument, this
-example casts to ``void *`` to work around that. This is safe so long as the
-``cdef`` initialization function doesn't need any data managed by Python objects.
+example casts to ``void *`` to work around that. This is safe because the
+calling function holds a reference to ``self`` for the entire duration of the
+``py_safe_call_once`` call.
 
 In cases where the expensive calculation happens in Python, or where you need to
-initialize a Python singleton, you can use ``py_safe_call_object_once``::
+initialize a Python singleton, you can use ``py_safe_call_object_once``:
 
-
-  from libcpp.mutex cimport py_safe_call_object_once, py_safe_once_flag
-
-      cdef class B:
-          cdef:
-              int key
-              py_safe_once_flag flag
-
-          def __init__(self, int key):
-              self.key = key
-              self._py_obj = None
-
-          @property
-          def obj(self):
-              def closure():
-                  self._py_obj = expensive_python_calculation(self.key)
-              py_safe_call_object_once(self.flag, closure)
-              return self._py_obj
+.. literalinclude:: ../../examples/userguide/freethreading/correct_py_init.pyx
 
 The ``py_safe_call_object_once`` function accepts a Python object and no
 additional arguments and ensures the ``__call__`` method is invoked exactly
 once, so a closure or wrapper object with a ``__call__`` implementation is
 necessary to pass state to the initialization function.
-
-If you want to avoid the need to define a closure or wrapper object in every
-access of ``obj``, you can also use an atomic boolean flag to indicate whether
-the cache has been filled::
-
-      from libcpp.atomic cimport atomic
-
-      cdef class B:
-          cdef:
-              int key
-              py_safe_once_flag flag
-              atomic[int] cache_flag
-              public object _py_obj
-
-          def __init__(self, int key):
-              self.key = key
-              self._py_obj = None
-              self.cache_flag.store(0)
-
-          @property
-          def obj(self):
-              if not self.cache_flag.load():
-                  def closure():
-                      self._py_obj = A(create_c_object(self.key))
-                      self.cache_flag.store(True)
-                  py_safe_call_object_once(self.flag, closure)
-              return self._py_obj
 
 If more than one thread observes the atomic ``cache_flag`` to be unset, then
 each thread that observes this state will define a closure but only one thread
@@ -299,9 +219,8 @@ will ever call the closure due to the guarantees provided by the C++ standard
 library ``call_once`` function. After the flag is set, then thereafter no thread
 will pay the cost of defining the closure.
 
-
 Automatically applied critical sections
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------------
 
 From Cython 3.3, Cython adds critical sections to automatically generated functions.
 This includes properties on extension types (e.g. ``cdef public int x`` or
