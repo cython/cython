@@ -1,3 +1,5 @@
+# distutils: language=c++
+
 from libcpp.mutex cimport py_safe_call_once, py_safe_once_flag
 
 import time
@@ -11,6 +13,7 @@ def expensive_function():
     return {"hello": "world"}
 
 cdef class A:
+    cdef object _py_obj
     cdef py_safe_once_flag flag
 
     def __init__(self):

@@ -1,3 +1,5 @@
+# distutils: language=c++
+
 from libcpp.atomic cimport atomic
 from libcpp.mutex cimport py_safe_call_object_once, py_safe_once_flag
 
@@ -8,6 +10,7 @@ def expensive_function():
     return {"hello": "world"}
 
 cdef class A:
+    cdef object _py_obj
     cdef py_safe_once_flag flag
     cdef atomic[int] cache_flag
 
