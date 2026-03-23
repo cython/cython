@@ -167,9 +167,9 @@ Thread-safe initialization of caches
    work if Cython is configured to generate C code. See :ref:`use_cpp` for why
    this feature can only work in C++ extensions.
 
-Cython 3.2 and upwards has support for using C++ standard library
-atomics and synchronization primitives. This is very useful for a number of
-use-cases, but here we will focus on using Cython's synchronization tools
+Cython 3.2 and upwards has support for using C++ standard library atomics and
+synchronization primitives. This is very useful for a number of use-cases, but
+here we will focus on using Cython's wrappers for C++ synchronization primitives
 to initialize a cache that hangs off a cdef class.
 
 Consider the following code::
@@ -198,6 +198,12 @@ Consider the following code::
                 self._py_obj = A(create_c_object(self.key))
             return self._py_obj
 
+This pattern comes up often when caches or other kinds of expensive data are
+calculated lazily on first use. The ``obj`` property is backed by a private
+``_py_obj`` attribute, which is an instance of the ``A``. The ``A`` class itself
+wraps a pointer to a c object, which in this example takes some time to set
+up.
+
 Concurrently accessing the ``obj`` property of the ``A`` class from multiple
 threads could cause data races when one thread does ``if not self._py_obj``
 and another thread assigns to ``self._py_obj`` in the if statement. This also
@@ -208,7 +214,36 @@ pointer is ever preserved after the threads finish initializing
 
 A safe version of the above code might look like::
 
-      from libcpp.mutex cimport py_safe_call_object_once, py_safe_once_flag
+      from libcpp.mutex cimport py_safe_call_once, py_safe_once_flag
+
+      cdef void init_py_obj(void *void_instance):
+          cdef B instance = <B>void_instance
+          instance._py_obj = A(create_c_object(instance.key))
+
+      cdef class B:
+          cdef:
+              int key
+              py_safe_once_flag flag
+
+          def __init__(self, int key):
+              self.key = key
+              self._py_obj = None
+
+          @property
+          def obj(self):
+              cdef void *void_self = <void *>self
+              py_safe_call_once(self.flag, init_py_obj, void_self)
+              return self._py_obj
+
+Since ``py_safe_call_once`` cannot accept a Python object as an argument, this
+example casts to ``void *`` to work around that. This is safe so long as the
+``cdef`` initialization function doesn't need any data managed by Python objects.
+
+In cases where the expensive calculation happens in Python, or where you need to
+initialize a Python singleton, you can use ``py_safe_call_object_once``::
+
+
+  from libcpp.mutex cimport py_safe_call_object_once, py_safe_once_flag
 
       cdef class B:
           cdef:
@@ -222,12 +257,17 @@ A safe version of the above code might look like::
           @property
           def obj(self):
               def closure():
-                  self._py_obj = A(create_c_object(self.key))
+                  self._py_obj = expensive_python_calculation(self.key)
               py_safe_call_object_once(self.flag, closure)
               return self._py_obj
 
+The ``py_safe_call_object_once`` function accepts a Python object and no
+additional arguments and ensures the ``__call__`` method is invoked exactly
+once, so a closure or wrapper object with a ``__call__`` implementation is
+necessary to pass state to the initialization function.
+
 If you want to avoid the need to define a closure or wrapper object in every
-call to ``__get__``, you can also use an atomic boolean flag to indicate whether
+access of ``obj``, you can also use an atomic boolean flag to indicate whether
 the cache has been filled::
 
       from libcpp.atomic cimport atomic
