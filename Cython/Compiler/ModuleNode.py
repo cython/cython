@@ -513,7 +513,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_code.putln("static int %s(void) {" % self.api_name("import", env))
         h_code.putln("PyObject *module = 0;")
         h_code.putln(
-            'module = PyImport_ImportModule(%s);' % env.qualified_name.as_utf8_string().as_c_string_literal())
+            'module = PyImport_ImportModule(%s);' % env.qualified_name.as_c_string_literal())
         h_code.putln("if (!module) goto bad;")
         for entry in api_funcs:
             cname = env.mangle(Naming.func_prefix_api, entry.name)
@@ -4060,8 +4060,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         type_name = type.name
         is_builtin = module_name in ('__builtin__', 'builtins')
         if not is_builtin:
-            # As UTF-8 since this is what PyImport_ImportModule wants
-            module_name = module_name.as_utf8_string().as_c_string_literal()
+            module_name = module_name.as_c_string_literal()
         elif type_name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
             code.putln(
@@ -4086,7 +4085,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln(
             f"{typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
-            f"{module}, {module_name}, {type.name.as_utf8_string().as_c_string_literal()},"
+            f"{module}, {module_name}, {type.name.as_c_string_literal()},"
         )
 
         alignment_func = f"__PYX_GET_STRUCT_ALIGNMENT_{Naming.cyversion}"
@@ -4248,7 +4247,7 @@ def _generate_import_code(code, pos, imports, qualified_module_name, import_func
 
     module_ref = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
     code.putln(
-        f'{module_ref} = PyImport_ImportModule({qualified_module_name.as_utf8_string().as_c_string_literal()}); '
+        f'{module_ref} = PyImport_ImportModule({qualified_module_name.as_c_string_literal()}); '
         f'{code.error_goto_if_null(module_ref, pos)}'
     )
     code.put_gotref(module_ref, py_object_type)
