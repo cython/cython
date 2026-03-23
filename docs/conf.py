@@ -8,6 +8,8 @@ import re
 import sys
 import datetime
 
+from sphinx_clarity_theme import ThemeOptions
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
@@ -52,7 +54,31 @@ sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
 
 ## HTML
-html_theme = "nature"
+html_theme = "sphinx_clarity_theme"
+
+html_theme_options: ThemeOptions = {
+    "logo_dark": "_static/cython-logo-light.png",
+    # Set both to enable "Edit page source"
+    "edit_page_label": "Edit on GitHub",
+    # $FILENAME$ will be replaced by actual source filename
+    "edit_page_url": "https://github.com/cython/cython/edit/master/docs/src/$FILENAME$",
+    "header_title": "Cython Documentation",
+    "header_menu": [
+        {
+            "content": """<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg> Donate""",  # noqa: E501
+            "url": "src/donating",
+            "tooltip": "Like the tool? Help make it better"
+        },
+    ],
+}
+
+# "dev version" warning banner
+if "a" in release or "b" in release:
+    html_theme_options["announcement"] = (
+        "You are viewing the development version. See this page in "
+        "latest <a href='/en/stable/$PAGE$'>stable version</a>."
+    )
+
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 html_logo = "_static/cythonlogo.png"
@@ -66,18 +92,19 @@ html_favicon = "_static/favicon.ico"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-html_css_files = ["css/tabs.css"]
-html_context = {
-    # "dev version" warning banner
-    "development": "a" in release
-    or "b" in release,
-}
+html_css_files = []
 
 # If false, no module index is generated.
 html_domain_indices = False
 
 # If false, no index is generated.
 html_use_index = False
+
+# Disable "Show page source"
+html_show_sourcelink = False
+html_copy_source = False
+
+html_permalinks_icon = "#"
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = "Cythondoc"
@@ -88,7 +115,6 @@ intersphinx_mapping = {
     "wheel": ("https://wheel.readthedocs.io/en/latest/", None),
 }
 extensions = [
-    "sphinx.ext.imgmath",
     "sphinx.ext.todo",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autodoc",

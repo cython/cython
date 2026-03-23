@@ -273,7 +273,7 @@ jobs:
     timeout-minutes: 15
 
     env:
-      PYTHON_VERSION: "3.9"
+      PYTHON_VERSION: "3.13"
       BACKEND: "c,cpp"
       TEST_CODE_STYLE: "1"
       NO_CYTHON_COMPILE: "1"
@@ -303,7 +303,7 @@ jobs:
     timeout-minutes: 15
 
     env:
-      PYTHON_VERSION: "3.9"
+      PYTHON_VERSION: "3.13"
       BACKEND: "c,cpp"
       TEST_CODE_STYLE: "1"
       NO_CYTHON_COMPILE: "1"
