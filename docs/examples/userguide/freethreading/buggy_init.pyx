@@ -7,7 +7,6 @@ def expensive_function():
     return {"hello": "world"}
 
 cdef class A:
-cdef class A:
     cdef object _py_obj
     def __init__(self):
         self._py_obj = None
