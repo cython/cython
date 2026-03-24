@@ -512,8 +512,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_code.putln("")
         h_code.putln("static int %s(void) {" % self.api_name("import", env))
         h_code.putln("PyObject *module = 0;")
-        h_code.putln(
-            'module = PyImport_ImportModule(%s);' % env.qualified_name.as_c_string_literal())
+        h_code.putln('module = PyImport_ImportModule(%s);' % env.qualified_name.as_c_string_literal())
         h_code.putln("if (!module) goto bad;")
         for entry in api_funcs:
             cname = env.mangle(Naming.func_prefix_api, entry.name)
