@@ -23,5 +23,6 @@ cdef class A:
         if not self.cache_flag.load():
             def closure():
                 self._py_obj = expensive_function()
+                self.cache_flag.store(True)
             py_safe_call_object_once(self.flag, closure)
         return self._py_obj
