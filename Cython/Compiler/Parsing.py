@@ -4018,7 +4018,7 @@ def p_c_class_definition(s: PyrexScanner, pos,  ctx):
         visibility = ctx.visibility,
         typedef_flag = ctx.typedef_flag,
         api = ctx.api,
-        module_name = ".".join(module_path),
+        module_name = EncodedString(".".join(module_path)),
         class_name = class_name,
         as_name = as_name,
         bases = bases,
