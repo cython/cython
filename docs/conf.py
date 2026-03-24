@@ -61,7 +61,7 @@ html_theme_options: ThemeOptions = {
     # Set both to enable "Edit page source"
     "edit_page_label": "Edit on GitHub",
     # $FILENAME$ will be replaced by actual source filename
-    "edit_page_url": "https://github.com/cython/cython/edit/master/docs/src/$FILENAME$",
+    "edit_page_url": "https://github.com/cython/cython/edit/master/docs/$FILENAME$",
     "header_title": "Cython Documentation",
     "header_menu": [
         {
