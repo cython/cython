@@ -46,12 +46,12 @@ jobs:
           # Limited API
           - os: ubuntu-22.04
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
+            limited_api: "--limited-api --abi3audit"
             extra_hash: "-limited_api"
           # Cython Shared Module
           - os: ubuntu-22.04
             backend: "c,cpp"
-            env: { SHARED_UTILITY: "--shared-utility" }
+            shared_utility: "--shared-utility"
             extra_hash: "--shared-utility"
 
     uses: ./.github/workflows/ci-job.yml
@@ -59,11 +59,13 @@ jobs:
       python-version: "3.14"
       os: ${{ matrix.os }}
       backend: ${{ matrix.backend }}
+      limited_api: ${{ matrix.limited_api }}
+      shared_utility: ${{ matrix.shared_utility }}
       extra_hash: ${{ matrix.extra_hash }}
 
 
   ci-all:
-    needs: [codespell, codestyle, ci-early]
+    needs: [codespell, codestyle, ci-early, build_docs]
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -75,8 +77,13 @@ jobs:
       #  os                  the os to run on
       #  python-version      the python version to use
       #  backend             the backend to use
-      #  env                 any additional env variables. Set to '{}' for none
       # Optional parameters:
+      #  limited_api         extra flags related to the limited api
+      #  shared_utility      extra flags relating to the shared utility
+      #  gcc_version
+      #  extra_cflags
+      #  cython_compile_all  '1' to build cython with "compile all"
+      #  no_cython_compile   '1' to not compile cython itself
       #  extra_hash          extra hash str to differentiate from other caches with similar name (must always start with '-')
       matrix:
         # Tests [amd64]
@@ -94,7 +101,6 @@ jobs:
           - "3.14t"
           - "3.15-dev"
           - "3.15t-dev"
-        env: [{}]
 
         exclude:
           # Windows and free-threading is difficult to build right now
@@ -118,122 +124,122 @@ jobs:
           - os: ubuntu-22.04
             python-version: "3.9"
             backend: c
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c99" }
+            gcc_version: 13
+            extra_cflags: "-std=c99"
             extra_hash: "-c99"
           - os: ubuntu-22.04
             python-version: "3.10"
             backend: c
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
-            extra_hash: "-gcc11"
+            gcc_version: 13
+            extra_cflags: "-std=c17"
+            extra_hash: "-c17"
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: c
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
-            extra_hash: "-gcc11"
+            gcc_version: 13
+            extra_cflags: "-std=c17"
+            extra_hash: "-c17"
           - os: ubuntu-22.04
             python-version: "3.13"
             backend: cpp
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c++20" }
-            extra_hash: "-gcc11"
+            gcc_version: 13
+            extra_cflags: "-std=c++20"
+            extra_hash: "-cpp20"
           # Arm64
           - os: ubuntu-22.04-arm
             python-version: "3.13"
             backend: c
-            env: {}
           - os: ubuntu-22.04-arm
             python-version: "3.13"
             backend: cpp
-            env: {}
           - os:  windows-11-arm
             python-version: "3.13"
             backend: "c"
-            env: {}
           - os:  windows-11-arm
             python-version: "3.13"
             backend: "cpp"
-            env: {}
           # compile all modules
           - os: ubuntu-22.04
             python-version: "3.9"
             backend: c
-            env: { CYTHON_COMPILE_ALL: 1 }
+            cython_compile_all: 1
             extra_hash: "-all"
           - os: ubuntu-22.04
             python-version: "3.9"
             backend: cpp
-            env: { CYTHON_COMPILE_ALL: 1 }
+            cython_compile_all: 1
             extra_hash: "-all"
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: c
-            env: { CYTHON_COMPILE_ALL: 1 }
+            cython_compile_all: 1
             extra_hash: "-all"
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: cpp
-            env: { CYTHON_COMPILE_ALL: 1 }
+            cython_compile_all: 1
             extra_hash: "-all"
           # Limited API
           - os: ubuntu-22.04
             python-version: "3.9"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
+            limited_api: "--limited-api --abi3audit"
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
+            limited_api: "--limited-api --abi3audit"
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
+            limited_api: "--limited-api --abi3audit"
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.15-dev"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api" }
+            limited_api: "--limited-api"
             extra_hash: "-limited_api"
           # Cython Shared Module
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: "c,cpp"
-            env: { SHARED_UTILITY: "--shared-utility" }
+            shared_utility: "--shared-utility"
             extra_hash: "--shared-utility"
           # Type specs
           - os: ubuntu-22.04
             python-version: "3.14"
             backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_cflags: "-DCYTHON_USE_TYPE_SPECS=1"
             extra_hash: "-typespecs"
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_cflags: "-DCYTHON_USE_TYPE_SPECS=1"
             extra_hash: "-typespecs"
           - os: ubuntu-22.04
             python-version: "3.9"
             backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_cflags: "-DCYTHON_USE_TYPE_SPECS=1"
             extra_hash: "-typespecs"
           # Pypy
           - os: ubuntu-22.04
             python-version: pypy-3.9
             backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
+            no_cython_compile: 1
           - os: ubuntu-22.04
             python-version: pypy-3.10
             backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
+            no_cython_compile: 1
           - os: ubuntu-22.04
             python-version: pypy-3.11
             backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
+            no_cython_compile: 1
           # GraalPy
           - os: ubuntu-22.04
             python-version: graalpy25
             backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
+            no_cython_compile: 1
 
     uses: ./.github/workflows/ci-job.yml
     with:
@@ -267,7 +273,7 @@ jobs:
     timeout-minutes: 15
 
     env:
-      PYTHON_VERSION: "3.9"
+      PYTHON_VERSION: "3.13"
       BACKEND: "c,cpp"
       TEST_CODE_STYLE: "1"
       NO_CYTHON_COMPILE: "1"
@@ -287,10 +293,36 @@ jobs:
         run: |
           bash -c "\
             python -m pip install --no-cache-dir -U pip || exit 1 ; \
-            python -m pip install --no-cache-dir -r doc-requirements.txt || exit 1 ; \
-            python runtests.py --no-unit --no-doctest --no-file --no-pyregr --no-examples \
+            python -m pip install --no-cache-dir -r test-requirements.txt || exit 1 ; \
+            python runcodestyle.py \
               2> >(tee >(egrep '.+:[0-9]+: ' | sed -e 's/^/    /' >> $GITHUB_STEP_SUMMARY) >&2) \
             "
+
+  build_docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      PYTHON_VERSION: "3.13"
+      BACKEND: "c,cpp"
+      TEST_CODE_STYLE: "1"
+      NO_CYTHON_COMPILE: "1"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup python
+        uses: actions/setup-python@v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Build HTML docs
+        run: |
+          python -m pip install --no-cache-dir -r doc-requirements.txt
+          make -C docs html
 
       - name: Upload HTML docs
         uses: actions/upload-artifact@v6.0.0

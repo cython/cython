@@ -39,7 +39,8 @@ Features added
 
 * The builtin Python types ``int`` and ``float`` are special cased in ``+``, ``-`` and ``*``
   operations with (compile-time) unknown Python types in order to speed them up.
-  (Github issue :issue:`7485`)
+  The bit operations ``^``, ``|`` and ``&`` are additionally special cased for ``int``.
+  (Github issues :issue:`7485`, :issue:`7541`)
 
 * C arrays may now be declared with (``extern`` or internal) enum values as their size.
   (Github issues :issue:`7401`, :issue:`7406`)
@@ -80,6 +81,9 @@ Features added
 
 * The runtime dispatch code of fused types uses less code.
   (Github issue :issue:`7501`)
+
+* More code is extracted to the shared utility code module.
+  (Github issues :issue:`7556`, :issue:`7570`)
 
 * Cython compiled functions have a more efficient memory layout in the Limited API.
   (Github issue :issue:`7519`)
@@ -194,8 +198,13 @@ Bugs fixed
 * A compile failure was fixed when using the walrus operator inside of try-except.
   (Github issue :issue:`7462`)
 
-* Several problems generating the shared utility module were resolved.
-  (Github issues :issue:`7487`, :issue:`7497`, :issue:`7504`)
+* Several problems generating the shared utility module were resolved, including
+  a performance regression with memory views.
+  (Github issues :issue:`7487`, :issue:`7497`, :issue:`7504`, :issue:`7558`)
+
+* Using ``cython.pymutex`` in an extension type with ``cdef`` methods generated
+  invalid C code missing the required ``PyMutex`` declarations.
+  (Github issue :issue:`6995`)
 
 * A problem with cpdef enums in the Limited API of Python 3.11+ was resolved.
   (Github issue :issue:`7503`)
@@ -205,6 +214,18 @@ Bugs fixed
 
 * Using ``sizeof()`` in the size declarations of ``extern`` arrays failed.
   (Github issue :issue:`7451`)
+
+* Enabling profiling generated invalid C code for non-Python return tuples.
+  (Github issue :issue:`7580`)
+
+* A C compiler warning about unused functions was resolved.
+  (Github issue :issue:`7560`)
+
+* Using Tempita from its command line failed with a name error.
+  (Github issue :issue:`7567`)
+
+* Cython's cache failed to restore multi-file results.
+  (Github issue :issue:`7559`)
 
 Other changes
 -------------

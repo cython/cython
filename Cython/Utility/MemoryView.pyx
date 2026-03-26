@@ -99,6 +99,14 @@ cdef extern from *:
 
     ctypedef int (*to_dtype_func_type "__pyx_memoryview_to_dtype_func_type")(char *, object) except 0
 
+    int slice_memviewslice "__pyx_memoryview_slice_memviewslice" (
+        {{memviewslice_name}} *dst,
+        Py_ssize_t shape, Py_ssize_t stride, Py_ssize_t suboffset,
+        int dim, int new_ndim, int *suboffset_dim,
+        Py_ssize_t start, Py_ssize_t stop, Py_ssize_t step,
+        int have_start, int have_stop, int have_step,
+        bint is_slice) except -1 nogil
+
 
 cdef extern from "<stdlib.h>":
     void *malloc(size_t) nogil
@@ -864,110 +872,6 @@ cdef memoryview memview_slice(memoryview memview, object indices):
         return memoryview_fromslice(dst, new_ndim, NULL, NULL,
                                     memview.dtype_is_object)
 
-
-#
-### Slicing in a single dimension of a memoryviewslice
-#
-
-@cname('__pyx_memoryview_slice_memviewslice')
-cdef int slice_memviewslice(
-        {{memviewslice_name}} *dst,
-        Py_ssize_t shape, Py_ssize_t stride, Py_ssize_t suboffset,
-        int dim, int new_ndim, int *suboffset_dim,
-        Py_ssize_t start, Py_ssize_t stop, Py_ssize_t step,
-        int have_start, int have_stop, int have_step,
-        bint is_slice) except -1 nogil:
-    """
-    Create a new slice dst given slice src.
-
-    dim             - the current src dimension (indexing will make dimensions
-                                                 disappear)
-    new_dim         - the new dst dimension
-    suboffset_dim   - pointer to a single int initialized to -1 to keep track of
-                      where slicing offsets should be added
-    """
-
-    cdef Py_ssize_t new_shape
-    cdef bint negative_step
-
-    if not is_slice:
-        # index is a normal integer-like index
-        if start < 0:
-            start += shape
-        if not 0 <= start < shape:
-            _err_dim(PyExc_IndexError, "Index out of bounds (axis %d)", dim)
-    else:
-        # index is a slice
-        if have_step:
-            negative_step = step < 0
-            if step == 0:
-                _err_dim(PyExc_ValueError, "Step may not be zero (axis %d)", dim)
-        else:
-            negative_step = False
-            step = 1
-
-        # check our bounds and set defaults
-        if have_start:
-            if start < 0:
-                start += shape
-                if start < 0:
-                    start = 0
-            elif start >= shape:
-                if negative_step:
-                    start = shape - 1
-                else:
-                    start = shape
-        else:
-            if negative_step:
-                start = shape - 1
-            else:
-                start = 0
-
-        if have_stop:
-            if stop < 0:
-                stop += shape
-                if stop < 0:
-                    stop = 0
-            elif stop > shape:
-                stop = shape
-        else:
-            if negative_step:
-                stop = -1
-            else:
-                stop = shape
-
-        # len = ceil( (stop - start) / step )
-        with cython.cdivision(True):
-            new_shape = (stop - start) // step
-
-            if (stop - start) - step * new_shape:
-                new_shape += 1
-
-        if new_shape < 0:
-            new_shape = 0
-
-        # shape/strides/suboffsets
-        dst.strides[new_ndim] = stride * step
-        dst.shape[new_ndim] = new_shape
-        dst.suboffsets[new_ndim] = suboffset
-
-    # Add the slicing or indexing offsets to the right suboffset or base data *
-    if suboffset_dim[0] < 0:
-        dst.data += start * stride
-    else:
-        dst.suboffsets[suboffset_dim[0]] += start * stride
-
-    if suboffset >= 0:
-        if not is_slice:
-            if new_ndim == 0:
-                dst.data = (<char **> dst.data)[0] + suboffset
-            else:
-                _err_dim(PyExc_IndexError, "All dimensions preceding dimension %d "
-                                     "must be indexed and not sliced", dim)
-        else:
-            suboffset_dim[0] = new_ndim
-
-    return 0
 
 #
 ### Index a memoryview

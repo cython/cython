@@ -149,7 +149,22 @@ Cython modules, this can result in a larger total size of compiled extensions.
 To avoid redundant code, the common utility code can be extracted into a separate extension
 module which is automatically cimported and used by the user-written extension modules.
 
-.. note:: Currently, only memoryview utility code can be moved to the shared utility module.
+There are a few things to bear in mind when deciding whether to use the shared utility module:
+
+* The bulk of the shared utility module is the memoryview utility code, with some
+  additional frequently-needed code as bonus.  Using the shared utility module is only
+  likely to be worthwhile if you use :ref:`typed memoryviews<memoryviews>`.
+* The contents and interfaces of the shared utility module are not designed to be
+  stable across Python versions.  That means that you must build the shared utility
+  module with the same version of Cython as you build you extension modules.
+  In practice that means that each package will ship its own shared utility
+  module rather than using a global system module.
+* The shared utility module should be compiled with the same
+  :ref:`C macro defines<C_macro_defines>`  as the rest of your Cython modules
+  (``CYTHON_USE_TYPE_SPECS`` and ``Py_LIMITED_API`` are known to be an issue but
+  you should ideally keep all macros starting with ``CYTHON`` consistent).
+  This is likely to be correct provided you use a shared utility module
+  shipped within your own package.
 
 Consider the following example package::
 
