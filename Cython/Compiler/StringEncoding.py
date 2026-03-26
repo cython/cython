@@ -98,7 +98,7 @@ class EncodedString(str):
         return self.encode(self.encoding)
 
     def utf8encode(self):
-        assert self.encoding is None
+        assert self.encoding is None, self.encoding
         return self.encode("UTF-8")
 
     @property

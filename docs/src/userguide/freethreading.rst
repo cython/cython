@@ -21,7 +21,7 @@ Useful links
 * `PEP 703 <https://peps.python.org/pep-0703/>`_ - the initial proposal that lead
   to this feature existing in Python.
 * `Python documentation for free-threaded extensions <https://docs.python.org/3.13/howto/free-threading-extensions.html>`_.
-* `Quansight labs' documentation of the status of free-threading <https://py-free-threading.github.io/>`_.
+* `Python Free-Threading Guide <https://py-free-threading.github.io/>`_.
 
 Status
 ======
@@ -158,9 +158,69 @@ modules with the Limited API (since ``PyMutex`` is unavailable in the
 Limited API).  Note that unlike the "raw" ``PyThread_type_lock`` our
 wrapping will avoid deadlocks with the GIL.
 
+Thread-safe initialization of caches
+------------------------------------
+
+.. Note::
+
+   This relies on features that depend on the C++ standard library and will not
+   work if Cython is configured to generate C code. See :ref:`use_cpp` for why
+   this feature can only work in C++ extensions.
+
+Cython 3.2 and upwards has support for using C++ standard library atomics and
+synchronization primitives. This is very useful for a number of use-cases, but
+here we will focus on using Cython's wrappers for C++ synchronization primitives
+to initialize a cache that hangs off a cdef class.
+
+Consider the following code:
+
+.. literalinclude:: ../../examples/userguide/freethreading/buggy_init.pyx
+
+This pattern comes up often when caches or other kinds of expensive data are
+calculated lazily on first use. The ``obj`` property is backed by a private
+``_py_obj`` attribute. The ``expensive_function`` in this example calls Python
+code, but this pattern also comes up if an expensive native calculation needs
+to happen.
+
+Concurrently accessing the ``obj`` property of the ``A`` class from multiple
+threads could cause data races when one thread does ``if not self._py_obj`` and
+another thread assigns to ``self._py_obj`` in the if statement. This also wastes
+resources and could possibly cause a resource leak if more than one thread
+simultaneously tries to lazily-initialize the cache.
+
+A safe version of the above code might look like:
+
+.. literalinclude:: ../../examples/userguide/freethreading/correct_init.pyx
+
+This uses the ``py_safe_call_once`` function, which Cython provides as a wrapper
+around the C++ standard library ``call_once`` function. We're using the
+``py_safe`` variants to avoid explicitly writing code to handle possible
+deadlocks with the interpreter -- ``py_safe_call_once`` handles that possibility
+for us.
+
+Since ``py_safe_call_once`` cannot accept a Python object as an argument, this
+example casts to ``void *`` to work around that. This is safe because the
+calling function holds a reference to ``self`` for the entire duration of the
+``py_safe_call_once`` call.
+
+In cases where the expensive calculation happens in Python, or where you need to
+initialize a Python singleton, you can use ``py_safe_call_object_once``:
+
+.. literalinclude:: ../../examples/userguide/freethreading/correct_py_init.pyx
+
+The ``py_safe_call_object_once`` function accepts a Python object and no
+additional arguments and ensures the ``__call__`` method is invoked exactly
+once, so a closure or wrapper object with a ``__call__`` implementation is
+necessary to pass state to the initialization function.
+
+If more than one thread observes the atomic ``cache_flag`` to be unset, then
+each thread that observes this state will define a closure but only one thread
+will ever call the closure due to the guarantees provided by the C++ standard
+library ``call_once`` function. After the flag is set, then thereafter no thread
+will pay the cost of defining the closure.
 
 Automatically applied critical sections
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------------
 
 From Cython 3.3, Cython adds critical sections to automatically generated functions.
 This includes properties on extension types (e.g. ``cdef public int x`` or
@@ -355,6 +415,8 @@ a function and just have the loop call the function::
 
 Since ``tmp`` is now local to the function scope, each function call has its own copy
 and thus there is no conflict of Python objects between threads.
+
+.. _use_cpp:
 
 Use C++ for low-level synchronization primitives
 ------------------------------------------------
