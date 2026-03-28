@@ -801,8 +801,7 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->func_doc);
     Py_CLEAR(m->func_globals);
     Py_CLEAR(m->func_code);
-#if !CYTHON_COMPILING_IN_LIMITED_API
-#if PY_VERSION_HEX < 0x030900B1
+#if PY_VERSION_HEX < 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
     Py_CLEAR(__Pyx_CyFunction_GetClassObj(m));
 #else
     {
@@ -810,7 +809,6 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
         ((PyCMethodObject *) (m))->mm_class = NULL;
         Py_XDECREF(cls);
     }
-#endif
 #endif
     Py_CLEAR(m->defaults_tuple);
     Py_CLEAR(m->defaults_kwdict);
@@ -868,11 +866,10 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(m->func_globals);
     // The code objects that we generate only contain plain constants and can never participate in reference cycles.
     __Pyx_VISIT_CONST(m->func_code);
-#if !CYTHON_COMPILING_IN_LIMITED_API
     Py_VISIT(__Pyx_CyFunction_GetClassObj(m));
-#endif
     Py_VISIT(m->defaults_tuple);
     Py_VISIT(m->defaults_kwdict);
+    Py_VISIT(m->func_annotations);
     Py_VISIT(m->func_is_coroutine);
     Py_VISIT(m->defaults);
 
