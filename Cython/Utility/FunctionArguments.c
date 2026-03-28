@@ -871,7 +871,7 @@ static int __Pyx_MergeKeywords_any(PyObject *kwdict, PyObject *source_mapping) {
                 return result;
             }
         }
-        if (unlikely(!iter)) goto bad;
+        goto bad;
     }
 
     while (1) {
