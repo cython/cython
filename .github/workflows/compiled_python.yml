@@ -49,7 +49,7 @@ jobs:
           fi
           echo "CC=$CC" >> $GITHUB_ENV
           echo "CXX=$CXX" >> $GITHUB_ENV
-              
+
 
       - name: Set up sanitizer args
         if: ${{inputs.sanitize}}
@@ -89,7 +89,7 @@ jobs:
             else
               TSAN_SUPPRESSIONS="${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
             fi
-            if [[ "${{github.event.label.name}}" != "full_sanitizers" ]]; then
+            if [[ "${GITHUB_LABEL_NAME}" != "full_sanitizers" ]]; then
               # For thread sanitizer run on a much smaller list of tests
               EXCLUDE="tag:threads"
             fi
@@ -105,7 +105,9 @@ jobs:
           echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libstdc++.so)")" >> $GITHUB_ENV
           echo "CONFIGURE_ARGS=$CONFIGURE_ARGS" >> $GITHUB_ENV
           echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS" >> $GITHUB_ENV
-          echo "EXTRA_CONFIGURE_CFLAGS=$EXTRA_CONFIGURE_CFLAGS" >> $GITHUB_ENV 
+          echo "EXTRA_CONFIGURE_CFLAGS=$EXTRA_CONFIGURE_CFLAGS" >> $GITHUB_ENV
+        env:
+          GITHUB_LABEL_NAME: ${{ github.event.label.name }}
 
       - name: Install build dependencies
         run: |
