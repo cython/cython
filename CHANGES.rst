@@ -8,15 +8,15 @@ Cython Changelog
 Bugs fixed
 ----------
 
-* Spaces in generated depfiles were not escaped.
-  Patch by Loïc Estève.  (Github issue :issue:`7423`)
-
 * A compile failure was fixed when using the walrus operator inside of try-except.
   (Github issue :issue:`7462`)
 
 * Several problems generating the shared utility module were resolved, including
   a performance regression with memory views.
   (Github issues :issue:`7487`, :issue:`7497`, :issue:`7504`, :issue:`7558`)
+
+* Some GC and refcounting issues were resolved for Cython functions in the Limited API.
+  (Github issue :issue:`7594`)
 
 * Using ``cython.pymutex`` in an extension type with ``cdef`` methods generated
   invalid C code missing the required ``PyMutex`` declarations.
@@ -37,11 +37,14 @@ Bugs fixed
 * A C compiler warning about unused functions was resolved.
   (Github issue :issue:`7560`)
 
-* Using Tempita from its command line failed with a name error.
-  (Github issue :issue:`7567`)
+* Spaces in generated depfiles were not escaped.
+  Patch by Loïc Estève.  (Github issue :issue:`7423`)
 
 * Cython's cache failed to restore multi-file results.
   (Github issue :issue:`7559`)
+
+* Using Tempita from its command line failed with a name error.
+  (Github issue :issue:`7567`)
 
 Other changes
 -------------
