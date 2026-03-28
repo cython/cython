@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=77.0.1"]
 
 [tool.cibuildwheel]
 build-verbosity = 2
