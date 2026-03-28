@@ -797,7 +797,8 @@ static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar) {
     return Py_UNICODE_ISTITLE(uchar) || Py_UNICODE_ISUPPER(uchar);
 }
 {{else}}
-#define __Pyx_Py_UNICODE_{{method_name.upper()}}(u)  Py_UNICODE_{{method_name.upper()}}(u)
+// Use bitwise and to try to make it clear to the compiler that -1 error code will never be seen.
+#define __Pyx_Py_UNICODE_{{method_name.upper()}}(u)  (Py_UNICODE_{{method_name.upper()}}(u) & 1)
 {{endif}}
 #endif
 
@@ -845,18 +846,14 @@ static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar) {
         return 0;
     }
     ustring = PyUnicode_FromOrdinal(uchar);
-    if (!ustring) goto bad;
+    if (!ustring) return -1;
     py_result = PyObject_CallMethod(ustring, "{{method_name}}", NULL);
     Py_DECREF(ustring);
-    if (!py_result) goto bad;
+    if (!py_result) return -1;
     result = PyObject_IsTrue(py_result);
     Py_DECREF(py_result);
-    if (result == -1) goto bad;
+    if (result == -1) return -1;
     return result != 0;
-
-bad:
-    PyErr_Clear();
-    return 0; /* cannot fail */
 }
 #endif
 
