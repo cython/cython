@@ -10,7 +10,9 @@ cython.declare(hashlib=object, json=object, operator=object, os=object, re=objec
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, defaultdict=object,
                closing=object, partial=object, wraps=object,
-               zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object)
+               zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object,
+               lzss_compress=object,
+)
 
 import hashlib
 import json
@@ -32,7 +34,7 @@ from . import StringEncoding
 from .. import Utils
 from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
-
+from ..LZSS import lzss_compress
 
 # Set up available compression algorithms for maximum compression.
 from zlib import compress as zlib_compress
@@ -66,6 +68,7 @@ else:
 compression_algorithms = [
     # Note: order is important and defines values for "CYTHON_COMPRESS_STRINGS" !
     # Later algorithms are excluded if prior ones beat them.
+    (90, 'lzss', lzss_compress),  # default compression
     (1, 'zlib', zlib_compress),
     (2, 'bz2', bz2_compress),
     (3, 'zstd', zstd_compress),
@@ -2141,37 +2144,45 @@ class GlobalState:
             )
 
         # Store and decompress the string data.
-        self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
 
-        min_size_seen = None
         compressions = []
+        default_compression = 0  # no compression
+        min_size_seen = None
         for algo_number, algo_name, compress in compression_algorithms:
             if compress is None:
                 continue
 
             compressed_bytes = compress(concat_bytes)
             compressed_size = len(compressed_bytes)
-            if compressed_size >= len(concat_bytes) - 15:
+            # The decompression function adds its size, so be conservative about the gains.
+            if compressed_size > len(concat_bytes) - 200:
                 continue
+
+            if algo_number == 90:
+                default_compression = 90
 
             if min_size_seen is None or compressed_size < min_size_seen:
                 min_size_seen = compressed_size
-            else:
-                # Avoid less widely used algorithms if they don't beat common ones
-                # (especially zlib) on the data at hand.
+            elif algo_number != 90:
+                # Avoid less widely used algorithms if they don't beat more common ones
+                # on the data at hand, including the default compression.
                 continue
 
             compressions.append((algo_number, algo_name, compressed_bytes))
 
+        if compressions:
+            w.putln("#ifndef CYTHON_COMPRESS_STRINGS")
+            w.putln(f"  #define CYTHON_COMPRESS_STRINGS {default_compression}")
+            w.putln("#endif")
+
         has_if = False
         for algo_number, algo_name, compressed_bytes in reversed(compressions):
-            if algo_name == 'zlib':
-                # Use zlib as fallback if the selected compression module is not available.
-                assert algo_number == 1, f"Compression algorithm no. 1 must be 'zlib' to be used as fallback."
-                guard = "(CYTHON_COMPRESS_STRINGS) != 0"
-            elif algo_name == 'zstd':
+            if algo_name == 'zstd':
                 # 'compression.zstd' was added in Python 3.14.
                 guard = f"(CYTHON_COMPRESS_STRINGS) == {algo_number} && __PYX_LIMITED_VERSION_HEX >= 0x030e0000"
+            elif algo_name == 'lzss':
+                # We use this as default if compression is requested but the selected compression isn't available.
+                guard = f"(CYTHON_COMPRESS_STRINGS) > 0 && (CYTHON_COMPRESS_STRINGS) <= {algo_number}"
             else:
                 guard = f"(CYTHON_COMPRESS_STRINGS) == {algo_number}"
 
@@ -2180,7 +2191,15 @@ class GlobalState:
             escaped_bytes = StringEncoding.split_string_literal(
                 StringEncoding.escape_byte_string(compressed_bytes))
             w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
-            w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {algo_number});')
+            if algo_name == 'lzss':
+                self.use_utility_code(UtilityCode.load_cached("DecompressString_LZSS", "StringTools.c"))
+                w.putln(f'PyObject *data = __Pyx_DecompressString_LZSS(cstring, {len(compressed_bytes)}, {len(concat_bytes)});')
+                w.putln("#define __Pyx_DecompressString_UNUSED")
+            else:
+                self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
+                w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {algo_number});')
+                w.putln("#define __Pyx_DecompressString_LZSS_UNUSED")
+
             w.putln(w.error_goto_if_null('data', self.module_pos))
 
             w.putln('const char* const bytes = __Pyx_PyBytes_AsString(data);')
@@ -2193,7 +2212,11 @@ class GlobalState:
             StringEncoding.escape_byte_string(concat_bytes))
         w.putln(f'const char* const bytes = "{escaped_bytes}";', safe=True)
         w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
-        w.putln("CYTHON_UNUSED_VAR(__Pyx_DecompressString);")
+
+        if compressions:
+            w.putln("#define __Pyx_DecompressString_UNUSED")
+            w.putln("#define __Pyx_DecompressString_LZSS_UNUSED")
+
         if has_if:
             w.putln("#endif")
 

@@ -1094,14 +1094,16 @@ most important to least important:
     where we think it's likely to work.
 
 ``CYTHON_COMPRESS_STRINGS``
-    Store Python strings in the binary module as compressed data, decompressing them
-    at import time.  By default, ``zlib`` compression is used (``CYTHON_COMPRESS_STRINGS=1``).
-    Set to ``0`` to disable compression or to ``2`` to select ``bzip2`` compression.
+    Store Python strings in the binary module as compressed data, decompressing them at
+    import time.  By default, ``LZSS`` compression is used (``CYTHON_COMPRESS_STRINGS=90``)
+    and the tiny decompressor embedded in the module.
+    Set to ``0`` to disable compression, ``1`` for ``zlib`` or ``2`` for ``bzip2`` compression.
     Note that the respective standard library decompression module must be available
     at module import time, or the import will fail.
     ``compression.zstd`` can be selected with ``CYTHON_COMPRESS_STRINGS=3`` but is only
     available in the standard library in Python 3.14 and later.  Cython will then
-    fall back to ``zlib`` when compiling in older Python versions.
+    fall back to its default compression when compiling in older Python versions.
+    Cython 3.2.x used ``zlib`` as the default, which may not be available on some systems.
 
 ``CYTHON_IMMORTAL_CONSTANTS``
     Makes cached constants (e.g. strings, tuples, ints, floats, slices) immortal,
