@@ -1068,7 +1068,8 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
             return result;
         }
     } else if (shiftby == -1) {
-        if (PyObject *err = PyErr_Occurred()) {
+        PyObject *err = PyErr_Occurred();
+        if (err) {
             if (PyErr_GivenExceptionMatches(err, PyExc_Exception)) {
                 PyErr_Clear();
             } else {

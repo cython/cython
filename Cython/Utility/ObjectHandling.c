@@ -1616,7 +1616,8 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     if (likely(result)) {
         return __Pyx_NewRef(result);
     }
-    if (PyObject *exc = PyErr_Occurred()) {
+    PyObject *exc = PyErr_Occurred();
+    if (unlikely(exc)) {
         if (PyErr_GivenExceptionMatches(exc, PyExc_Exception)) {
             PyErr_Clear();
         } else {
