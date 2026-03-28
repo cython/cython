@@ -19,6 +19,7 @@ from ...TestUtils import TimedTest
 
 root = os.path.dirname(os.path.abspath(__file__))
 codefile = os.path.join(root, 'codefile')
+included_file = os.path.join(root, 'included.pxi')
 cfuncs_file = os.path.join(root, 'cfuncs.c')
 
 with open(codefile) as f:
@@ -89,6 +90,7 @@ class DebuggerTestCase(TimedTest):
             os.chdir(self.tempdir)
 
             shutil.copy(codefile, self.destfile)
+            shutil.copy(included_file, os.path.join(self.tempdir, 'included.pxi'))
             shutil.copy(cfuncs_file, self.cfuncs_destfile + '.c')
             shutil.copy(cfuncs_file.replace('.c', '.h'),
                         self.cfuncs_destfile + '.h')
