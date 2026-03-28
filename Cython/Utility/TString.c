@@ -35,12 +35,11 @@ static PyObject* __Pyx_GetObjectFromTemplateLib(int is_template); /* proto */
 
 
 //////////////////////////// InitializeTemplateLib ///////////////////////////
+//@requires: Exceptions.c::IgnoreException
 
 #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
 static PyObject *__Pyx_TemplateLibFallback(void) {
-    if (PyErr_ExceptionMatches(PyExc_Exception)) {
-        PyErr_Clear();
-    } else {
+    if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
         return NULL; // BaseException
     }
 
@@ -313,10 +312,9 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
 
       failed_shortcut:
         Py_CLEAR(kwargs_builder);
-        if (!PyErr_ExceptionMatches(PyExc_Exception)) {
+        if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
             return NULL; // BaseException
         }
-        PyErr_Clear();
     }
 #endif
 

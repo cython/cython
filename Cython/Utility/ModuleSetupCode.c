@@ -960,7 +960,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject
     if (res == NULL) {
         // Like PyDict_GetItem, this is a bit indiscriminate about catching *all* errors.
         PyErr_WriteUnraisable(NULL);
-        PyErr_Clear();
     }
     return res;
 }
@@ -2118,6 +2117,7 @@ static int __Pyx_RegisterCleanup(void); /*proto*/
 
 /////////////// RegisterModuleCleanup ///////////////
 //@substitute: naming
+//@requires: Exceptions.c::IgnoreException
 
 #if CYTHON_COMPILING_IN_PYPY
 static PyObject* ${cleanup_cname}_atexit(PyObject *module, PyObject *unused) {
@@ -2170,10 +2170,8 @@ static int __Pyx_RegisterCleanup(void) {
         ret = PyList_Insert(reg, 0, args);
     } else {
         if (!reg) {
-            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
-                PyErr_Clear();
-            } else {
-                goto bad;
+            if (!__Pyx_IgnoreException(NULL, PyExc_AttributeError)) {
+              goto bad;
             }
         } else {
             Py_DECREF(reg);
@@ -2260,6 +2258,7 @@ static void __Pyx_FastGilFuncInit(void);
 
 /////////////// FastGil ///////////////
 //@requires: AddModuleRef
+//@requires: Exceptions.c::IgnoreException
 // The implementations of PyGILState_Ensure/Release calls PyThread_get_key_value
 // several times which is turns out to be quite slow (slower in fact than
 // acquiring the GIL itself).  Simply storing it in a thread local for the
@@ -2372,8 +2371,7 @@ static void __Pyx_FastGilFuncInit(void) {
   struct __Pyx_FastGilVtab* shared = (struct __Pyx_FastGilVtab*)PyCapsule_Import(__Pyx_FastGIL_PyCapsule, 1);
   if (shared) {
     __Pyx_FastGilFuncs = *shared;
-  } else if (PyErr_ExceptionMatches(PyExc_Exception)) {
-    PyErr_Clear();
+  } else if (__Pyx_IgnoreException(NULL, PyExc_Exception)) {
     return __Pyx_FastGilFuncInit0();
   }
 }

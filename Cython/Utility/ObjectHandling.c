@@ -1467,6 +1467,7 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name); /*pro
 
 /////////////// GetNameInClass ///////////////
 //@requires: GetModuleGlobalName
+//@requires: Exceptions.c::IgnoreException
 
 static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
     PyObject *result;
@@ -1485,10 +1486,8 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
             return result;
         }
     }
-    if (likely(PyErr_ExceptionMatches(PyExc_Exception))) {
-        PyErr_Clear();
-    } else {
-        return NULL;  // BaseException
+    if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+        return NULL; // BaseException
     }
     __Pyx_GetModuleGlobalNameUncached(result, name);
     return result;
@@ -1573,6 +1572,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name); /*pro
 
 /////////////// GetModuleGlobalName ///////////////
 //@requires: GetBuiltinName
+//@requires: Exceptions.c::IgnoreException
 //@substitute: naming
 
 #if CYTHON_USE_DICT_VERSIONS
@@ -1592,17 +1592,13 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     if (likely(result)) {
         return result;
     }
-    if (likely(PyErr_ExceptionMatches(PyExc_Exception))) {
-        PyErr_Clear();
-    } else {
-        return NULL;  // BaseException
+    if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+        return NULL; // BaseException
     }
 #elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
     if (unlikely(__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), name, &result) == -1)) {
-        if (likely(PyErr_ExceptionMatches(PyExc_Exception))) {
-            PyErr_Clear();
-        } else {
-            return NULL;  // BaseException
+        if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+            return NULL; // BaseException
         }
     }
     __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
@@ -1617,12 +1613,8 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
         return __Pyx_NewRef(result);
     }
     PyObject *exc = PyErr_Occurred();
-    if (unlikely(exc)) {
-        if (PyErr_GivenExceptionMatches(exc, PyExc_Exception)) {
-            PyErr_Clear();
-        } else {
-            return NULL;  // BaseException
-        }
+    if (unlikely(exc) && !__Pyx_IgnoreException(exc, PyExc_Exception)) {
+        return NULL; // BaseException
     }
 #endif
     return __Pyx_GetBuiltinName(name);
@@ -1933,6 +1925,7 @@ static CYTHON_INLINE void __Pyx_CachedCFunction_SetFinishedInitializing(__Pyx_Ca
 
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
+//@requires: Exceptions.c::IgnoreException
 
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030C0000
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
@@ -1987,12 +1980,8 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
         int self_found;
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
         self = PyObject_GetAttrString(method, "__self__");
-        if (!self) {
-            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
-                PyErr_Clear();
-            } else {
-                return -1;
-            }
+        if (!self && !__Pyx_IgnoreException(NULL, PyExc_AttributeError)) {
+            return -1;
         }
 #else
         self = PyCFunction_GET_SELF(method);

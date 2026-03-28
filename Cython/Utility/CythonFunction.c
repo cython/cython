@@ -249,6 +249,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: CommonStructures.c::CommonTypesMetaclass
 //@requires: ObjectHandling.c::PyMethodNew
 //@requires: ObjectHandling.c::PyVectorcallFastCallDict
+//@requires: Exceptions.c::IgnoreException
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ExtensionTypes.c::CallTypeTraverse
@@ -613,10 +614,8 @@ __Pyx_CyFunction_get_is_coroutine_value(__pyx_CyFunctionObject *op) {
             return is_coroutine_value;
         }
 ignore_or_error:
-        if (PyErr_ExceptionMatches(PyExc_Exception)) {
-            PyErr_Clear();
-        } else {
-            return NULL; // BaseException - don't ignore.
+        if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+            return NULL;
         }
     }
 
