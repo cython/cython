@@ -847,6 +847,7 @@ Py_CLEAR(CGLOBAL(__pyx_numpy_ndarray));
 
 /////////////// ImportNumPyArray ///////////////
 //@requires: ImportExport.c::Import
+//@requires: Exceptions.c::IgnoreException
 
 static PyObject* __Pyx__ImportNumPyArray(void) {
     PyObject *numpy_module, *ndarray_object = NULL;
@@ -856,8 +857,9 @@ static PyObject* __Pyx__ImportNumPyArray(void) {
         Py_DECREF(numpy_module);
     }
     if (unlikely(!ndarray_object)) {
-        // ImportError, AttributeError, ...
-        PyErr_Clear();
+        if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+            return NULL;
+        }
     }
     if (unlikely(!ndarray_object || !PyObject_TypeCheck(ndarray_object, &PyType_Type))) {
         Py_XDECREF(ndarray_object);
@@ -903,6 +905,6 @@ static CYTHON_INLINE PyObject* __Pyx__ImportNumPyArrayTypeIfAvailable(void) {
 
 static CYTHON_INLINE PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void) {
     PyObject *result = __Pyx__ImportNumPyArrayTypeIfAvailable();
-    Py_INCREF(result);
+    Py_XINCREF(result);
     return result;
 }

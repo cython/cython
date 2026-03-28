@@ -249,6 +249,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: CommonStructures.c::CommonTypesMetaclass
 //@requires: ObjectHandling.c::PyMethodNew
 //@requires: ObjectHandling.c::PyVectorcallFastCallDict
+//@requires: Exceptions.c::IgnoreException
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ExtensionTypes.c::CallTypeTraverse
@@ -604,14 +605,18 @@ __Pyx_CyFunction_get_is_coroutine_value(__pyx_CyFunctionObject *op) {
 #endif
         module = PyImport_ImportModuleLevelObject(PYIDENT("asyncio.coroutines"), NULL, NULL, fromlist, 0);
         Py_DECREF(fromlist);
-        if (unlikely(!module)) goto ignore;
+        if (unlikely(!module)) {
+            goto ignore_or_error;
+        }
         is_coroutine_value = __Pyx_PyObject_GetAttrStr(module, marker);
         Py_DECREF(module);
         if (likely(is_coroutine_value)) {
             return is_coroutine_value;
         }
-ignore:
-        PyErr_Clear();
+ignore_or_error:
+        if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+            return NULL;
+        }
     }
 
     return __Pyx_PyBool_FromLong(is_coroutine);

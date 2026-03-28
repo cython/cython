@@ -957,7 +957,10 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
 #define __Pyx_PyDict_GetItemStrWithError(dict, name)  _PyDict_GetItem_KnownHash(dict, name, ((PyASCIIObject *) name)->hash)
 static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject *name) {
     PyObject *res = __Pyx_PyDict_GetItemStrWithError(dict, name);
-    if (res == NULL) PyErr_Clear();
+    if (res == NULL) {
+        // Like PyDict_GetItem, this is a bit indiscriminate about catching *all* errors.
+        PyErr_WriteUnraisable(NULL);
+    }
     return res;
 }
 #elif !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07020000
@@ -1598,6 +1601,9 @@ static PY_INT64_T __Pyx_GetCurrentInterpreterId(void) {
     {
         PyObject *module = PyImport_ImportModule("_interpreters"); // 3.13+ I think
         if (!module) {
+            if (!PyErr_ExceptionMatches(PyExc_Exception)) {
+                goto bad; // BaseException
+            }
             PyErr_Clear(); // just try the 3.8-3.12 version
             module = PyImport_ImportModule("_xxsubinterpreters");
             if (!module) goto bad;
@@ -2088,8 +2094,10 @@ end:
 #if CYTHON_REFNANNY
 __Pyx_RefNanny = __Pyx_RefNannyImportAPI("refnanny");
 if (!__Pyx_RefNanny) {
-  PyErr_Clear();
-  __Pyx_RefNanny = __Pyx_RefNannyImportAPI("Cython.Runtime.refnanny");
+  if (PyErr_ExceptionMatches(PyExc_Exception)) {
+    PyErr_Clear();
+    __Pyx_RefNanny = __Pyx_RefNannyImportAPI("Cython.Runtime.refnanny");
+  }
   if (!__Pyx_RefNanny)
       Py_FatalError("failed to import 'refnanny' module");
 }
@@ -2109,6 +2117,7 @@ static int __Pyx_RegisterCleanup(void); /*proto*/
 
 /////////////// RegisterModuleCleanup ///////////////
 //@substitute: naming
+//@requires: Exceptions.c::IgnoreException
 
 #if CYTHON_COMPILING_IN_PYPY
 static PyObject* ${cleanup_cname}_atexit(PyObject *module, PyObject *unused) {
@@ -2160,9 +2169,13 @@ static int __Pyx_RegisterCleanup(void) {
             goto bad;
         ret = PyList_Insert(reg, 0, args);
     } else {
-        if (!reg)
-            PyErr_Clear();
-        Py_XDECREF(reg);
+        if (!reg) {
+            if (!__Pyx_IgnoreException(NULL, PyExc_AttributeError)) {
+              goto bad;
+            }
+        } else {
+            Py_DECREF(reg);
+        }
         reg = PyObject_GetAttrString(atexit, "register");
         if (!reg)
             goto bad;
@@ -2245,6 +2258,7 @@ static void __Pyx_FastGilFuncInit(void);
 
 /////////////// FastGil ///////////////
 //@requires: AddModuleRef
+//@requires: Exceptions.c::IgnoreException
 // The implementations of PyGILState_Ensure/Release calls PyThread_get_key_value
 // several times which is turns out to be quite slow (slower in fact than
 // acquiring the GIL itself).  Simply storing it in a thread local for the
@@ -2357,9 +2371,8 @@ static void __Pyx_FastGilFuncInit(void) {
   struct __Pyx_FastGilVtab* shared = (struct __Pyx_FastGilVtab*)PyCapsule_Import(__Pyx_FastGIL_PyCapsule, 1);
   if (shared) {
     __Pyx_FastGilFuncs = *shared;
-  } else {
-   PyErr_Clear();
-    __Pyx_FastGilFuncInit0();
+  } else if (__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+    return __Pyx_FastGilFuncInit0();
   }
 }
 

@@ -35,10 +35,13 @@ static PyObject* __Pyx_GetObjectFromTemplateLib(int is_template); /* proto */
 
 
 //////////////////////////// InitializeTemplateLib ///////////////////////////
+//@requires: Exceptions.c::IgnoreException
 
 #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
 static PyObject *__Pyx_TemplateLibFallback(void) {
-    PyErr_Clear();
+    if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+        return NULL; // BaseException
+    }
 
     // The assumption here is that Interpolation and Template are fairly simple classes
     // and the cost of compiling them with Cython (for all Python versions) is probably
@@ -309,7 +312,9 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
 
       failed_shortcut:
         Py_CLEAR(kwargs_builder);
-        PyErr_Clear();
+        if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+            return NULL; // BaseException
+        }
     }
 #endif
 
