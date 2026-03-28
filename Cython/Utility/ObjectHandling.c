@@ -255,9 +255,11 @@ static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
 
 static void __Pyx_PyIter_Next_ErrorNoIterator(PyObject *iterator) {
     __Pyx_TypeName iterator_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(iterator));
-    PyErr_Format(PyExc_TypeError,
-        __Pyx_FMT_TYPENAME " object is not an iterator", iterator_type_name);
-    __Pyx_DECREF_TypeName(iterator_type_name);
+    if (likely(!__Pyx_Typename_ErrorCheck(iterator_type_name))) {
+        PyErr_Format(PyExc_TypeError,
+            __Pyx_FMT_TYPENAME " object is not an iterator", iterator_type_name);
+        __Pyx_DECREF_TypeName(iterator_type_name);
+    }
 }
 
 // originally copied from Py3's builtin_next()
@@ -348,11 +350,13 @@ static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject *index) {
 
     // Error handling code -- only manage OverflowError differently.
     if (PyErr_GivenExceptionMatches(runerr, PyExc_OverflowError)) {
-        __Pyx_TypeName index_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(index));
         PyErr_Clear();
-        PyErr_Format(PyExc_IndexError,
-            "cannot fit '" __Pyx_FMT_TYPENAME "' into an index-sized integer", index_type_name);
-        __Pyx_DECREF_TypeName(index_type_name);
+        __Pyx_TypeName index_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(index));
+        if (likely(__Pyx_Typename_ErrorCheck(index_type_name))) {
+            PyErr_Format(PyExc_IndexError,
+                "cannot fit '" __Pyx_FMT_TYPENAME "' into an index-sized integer", index_type_name);
+            __Pyx_DECREF_TypeName(index_type_name);
+        }
     }
     return NULL;
 }
@@ -372,9 +376,11 @@ static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
     }
 
     obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
-        "'" __Pyx_FMT_TYPENAME "' object is not subscriptable", obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
+    if (likely(!__Pyx_Typename_ErrorCheck(obj_type_name))) {
+        PyErr_Format(PyExc_TypeError,
+            "'" __Pyx_FMT_TYPENAME "' object is not subscriptable", obj_type_name);
+        __Pyx_DECREF_TypeName(obj_type_name);
+    }
     return NULL;
 }
 
@@ -859,14 +865,16 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
         return result;
     } else {
         obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-        PyErr_Format(PyExc_TypeError,
+        if (likely(!__Pyx_Typename_ErrorCheck(obj_type_name))) {
+            PyErr_Format(PyExc_TypeError,
 {{if access == 'Get'}}
-            "'" __Pyx_FMT_TYPENAME "' object is unsliceable", obj_type_name);
+                "'" __Pyx_FMT_TYPENAME "' object is unsliceable", obj_type_name);
 {{else}}
-            "'" __Pyx_FMT_TYPENAME "' object does not support slice %.10s",
-            obj_type_name, value ? "assignment" : "deletion");
+                "'" __Pyx_FMT_TYPENAME "' object does not support slice %.10s",
+                obj_type_name, value ? "assignment" : "deletion");
 {{endif}}
-        __Pyx_DECREF_TypeName(obj_type_name);
+            __Pyx_DECREF_TypeName(obj_type_name);
+        }
     }
 
 bad:
@@ -1372,12 +1380,15 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
     if (likely(__Pyx_TypeCheck(obj, type)))
         return 1;
     obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
+    if (unlikely(__Pyx_Typename_ErrorCheck(obj_type_name))) return 0;
     type_name = __Pyx_PyType_GetFullyQualifiedName(type);
-    PyErr_Format(PyExc_TypeError,
-                 "Cannot convert " __Pyx_FMT_TYPENAME " to " __Pyx_FMT_TYPENAME,
-                 obj_type_name, type_name);
+    if (likely(!__Pyx_Typename_ErrorCheck(type_name))) {
+        PyErr_Format(PyExc_TypeError,
+                    "Cannot convert " __Pyx_FMT_TYPENAME " to " __Pyx_FMT_TYPENAME,
+                    obj_type_name, type_name);
+        __Pyx_DECREF_TypeName(type_name);
+    }
     __Pyx_DECREF_TypeName(obj_type_name);
-    __Pyx_DECREF_TypeName(type_name);
     return 0;
 }
 
@@ -1836,10 +1847,12 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
     }
 
     type_name = __Pyx_PyType_GetFullyQualifiedName(tp);
-    PyErr_Format(PyExc_AttributeError,
-                 "'" __Pyx_FMT_TYPENAME "' object has no attribute '%U'",
-                 type_name, name);
-    __Pyx_DECREF_TypeName(type_name);
+    if (likely(!__Pyx_Typename_ErrorCheck(type_name))) {
+        PyErr_Format(PyExc_AttributeError,
+                    "'" __Pyx_FMT_TYPENAME "' object has no attribute '%U'",
+                    type_name, name);
+        __Pyx_DECREF_TypeName(type_name);
+    }
     return 0;
 
 // Generic fallback implementation using normal attribute lookup.
@@ -3075,21 +3088,28 @@ static CYTHON_INLINE PyObject* __Pyx_{{typeobj}}_Multiply(PyObject *seq, Py_ssiz
 
 /////////////// FormatTypeName.proto ///////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+// For these versions we can just pass the type, use the %N format code and
+// Python handles the whole thing internally
+typedef PyObject *__Pyx_TypeName;
+#define __Pyx_FMT_TYPENAME "%N"
+#define __Pyx_DECREF_TypeName(obj) Py_XDECREF(obj)
+#define __Pyx_PyType_GetFullyQualifiedName(tp) Py_NewRef((PyObject*)tp)
+#define __Pyx_Typename_ErrorCheck(obj) (0)
+
+#elif CYTHON_COMPILING_IN_LIMITED_API
 typedef PyObject *__Pyx_TypeName;
 #define __Pyx_FMT_TYPENAME "%U"
 #define __Pyx_DECREF_TypeName(obj) Py_XDECREF(obj)
-
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
-#define __Pyx_PyType_GetFullyQualifiedName PyType_GetFullyQualifiedName
-#else
 static __Pyx_TypeName __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp); /*proto*/
-#endif
+#define __Pyx_Typename_ErrorCheck(obj) (obj == NULL)
+
 #else  // !LIMITED_API
 typedef const char *__Pyx_TypeName;
 #define __Pyx_FMT_TYPENAME "%.200s"
 #define __Pyx_PyType_GetFullyQualifiedName(tp) ((tp)->tp_name)
 #define __Pyx_DECREF_TypeName(obj)
+#define __Pyx_Typename_ErrorCheck(obj) (0)
 #endif
 
 /////////////// FormatTypeName ///////////////
@@ -3099,6 +3119,8 @@ static __Pyx_TypeName
 __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp)
 {
     PyObject *module = NULL, *name = NULL, *result = NULL;
+    PyObject *current_exc_tp, *current_exc, *current_tb;
+    __Pyx_PyErr_FetchException(&current_exc_tp, &current_exc, &current_tb);
 
     #if __PYX_LIMITED_VERSION_HEX < 0x030b0000
     name = __Pyx_PyObject_GetAttrStr((PyObject *)tp,
@@ -3120,19 +3142,25 @@ __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp)
     result = PyUnicode_FromFormat("%U.%U", module, name);
     if (unlikely(result == NULL)) goto bad;
 
-  done:
+  done:       
+    __Pyx_PyErr_RestoreException(current_exc_tp, current_exc, current_tb);
+  done_no_restore:
     Py_XDECREF(name);
     Py_XDECREF(module);
     return result;
 
   bad:
+    if (unlikely(!PyErr_ExceptionMatches(PyExc_Exception))) {
+        goto done_no_restore; // BaseException, fail and raise this
+    }
     PyErr_Clear();
     if (name) {
         // Use this as second-best fallback
         result = name;
         name = NULL;
     } else {
-        result = __Pyx_NewRef(PYUNICODE("?"));
+        result = PyUnicode_FromString("?");
+        if (unlikely(!result)) goto done_no_restore; 
     }
     goto done;
 }
@@ -3149,9 +3177,11 @@ static int
 __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj)
 {
     __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError, "Expected %s, got " __Pyx_FMT_TYPENAME,
-                 expected, obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
+    if (likely(!__Pyx_Typename_ErrorCheck(obj_type_name))) {
+        PyErr_Format(PyExc_TypeError, "Expected %s, got " __Pyx_FMT_TYPENAME,
+                    expected, obj_type_name);
+        __Pyx_DECREF_TypeName(obj_type_name);
+    }
     return 0;
 }
 

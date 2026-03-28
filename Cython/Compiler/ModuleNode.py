@@ -2260,9 +2260,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         def handle_not_supported(op_name):
             code.putln("__Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
+            code.putln("if (!__Pyx_Typename_ErrorCheck(o_type_name)) {")
             code.putln("PyErr_Format(PyExc_NotImplementedError,")
             code.putln(f'  "Subscript %.10s not supported by " __Pyx_FMT_TYPENAME, "{op_name}", o_type_name);')
             code.putln("__Pyx_DECREF_TypeName(o_type_name);")
+            code.putln("}")
             code.putln("return -1;")
 
         set_or_del = "likely(v)" if not del_entry else "unlikely(v)" if not set_entry else "v"

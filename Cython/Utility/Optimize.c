@@ -678,10 +678,12 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
             float_value = nb->nb_float(obj);
             if (likely(float_value) && unlikely(!PyFloat_Check(float_value))) {
                 __Pyx_TypeName float_value_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(float_value));
-                PyErr_Format(PyExc_TypeError,
-                    "__float__ returned non-float (type " __Pyx_FMT_TYPENAME ")",
-                    float_value_type_name);
-                __Pyx_DECREF_TypeName(float_value_type_name);
+                if (likely(!__Pyx_Typename_ErrorCheck(float_value_type_name))) {
+                    PyErr_Format(PyExc_TypeError,
+                        "__float__ returned non-float (type " __Pyx_FMT_TYPENAME ")",
+                        float_value_type_name);
+                    __Pyx_DECREF_TypeName(float_value_type_name);
+                }
                 Py_DECREF(float_value);
                 goto bad;
             }
@@ -1123,15 +1125,18 @@ def is_type(operand, expected, type1=type1, type2=type2):
 static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op, int inplace) {
     // op1 is either 'int' or 'float', op2 is unknown.
     __Pyx_TypeName type_name_op1 = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(op1));
+    if (unlikely(__Pyx_Typename_ErrorCheck(type_name_op1))) return;
     __Pyx_TypeName type_name_op2 = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(op2));
-    PyErr_Format(PyExc_TypeError,
-        "unsupported operand type(s) for %.2s%.1s: '%.5s' and '%.200s'",
-        op,
-        inplace ? "=" : "",
-        type_name_op1,
-        type_name_op2);
+    if (likely(!__Pyx_Typename_ErrorCheck(type_name_op2))) {
+        PyErr_Format(PyExc_TypeError,
+            "unsupported operand type(s) for %.2s%.1s: '%.5s' and '%.200s'",
+            op,
+            inplace ? "=" : "",
+            type_name_op1,
+            type_name_op2);
+        __Pyx_DECREF_TypeName(type_name_op2);
+    }
     __Pyx_DECREF_TypeName(type_name_op1);
-    __Pyx_DECREF_TypeName(type_name_op2);
 }
 #endif
 #endif

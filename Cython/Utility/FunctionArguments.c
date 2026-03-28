@@ -34,18 +34,24 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
         }
     }
     type_name = __Pyx_PyType_GetFullyQualifiedName(type);
-    obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
-        "Argument '%.200s' has incorrect type (expected " __Pyx_FMT_TYPENAME
-        ", got " __Pyx_FMT_TYPENAME ")"
+    if (likely(!__Pyx_Typename_ErrorCheck(type_name))) {
+        obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
+        if (likely(!__Pyx_Typename_ErrorCheck(obj_type_name))) {
+            PyErr_Format(PyExc_TypeError,
+                "Argument '%.200s' has incorrect type (expected " __Pyx_FMT_TYPENAME
+                ", got " __Pyx_FMT_TYPENAME ")"
 #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
-        "%s%U"
+                "%s%U"
 #endif
-        , name, type_name, obj_type_name
+                , name, type_name, obj_type_name
 #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
-        , (from_annotation_subclass ? ". " : ""), extra_info
+                , (from_annotation_subclass ? ". " : ""), extra_info
 #endif
-        );
+                );
+            __Pyx_DECREF_TypeName(obj_type_name);
+        }
+        __Pyx_DECREF_TypeName(type_name);
+    }
 #if __PYX_LIMITED_VERSION_HEX >= 0x030C0000
     // Set the extra_info as a note instead. In principle it'd be possible to do this
     // from Python 3.11 up, but PyErr_GetRaisedException makes it much easier so do it
@@ -60,8 +66,6 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
         PyErr_SetRaisedException(vargs[0]);
     }
 #endif
-    __Pyx_DECREF_TypeName(type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
     return 0;
 }
 
@@ -139,9 +143,11 @@ static void __Pyx_RaiseMappingExpectedError(PyObject* arg); /*proto*/
 
 static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
     __Pyx_TypeName arg_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(arg));
-    PyErr_Format(PyExc_TypeError,
-        "'" __Pyx_FMT_TYPENAME "' object is not a mapping", arg_type_name);
-    __Pyx_DECREF_TypeName(arg_type_name);
+    if (likely(!__Pyx_Typename_ErrorCheck(arg_type_name))) {
+        PyErr_Format(PyExc_TypeError,
+            "'" __Pyx_FMT_TYPENAME "' object is not a mapping", arg_type_name);
+        __Pyx_DECREF_TypeName(arg_type_name);
+    }
 }
 
 
