@@ -789,6 +789,7 @@ bad:
         PyTypeObject* basei = NULL;
         PyTypeObject* tp_base = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
         tp_base_name = __Pyx_PyType_GetFullyQualifiedName(tp_base);
+        if (unlikely(__Pyx_Typename_ErrorCheck(tp_base_name))) goto really_bad;
 #if CYTHON_AVOID_BORROWED_REFS
         basei = (PyTypeObject*)PySequence_GetItem(bases, i);
         if (unlikely(!basei)) goto really_bad;
@@ -799,15 +800,14 @@ bad:
         basei = (PyTypeObject*)PyTuple_GET_ITEM(bases, i);
 #endif
         base_name = __Pyx_PyType_GetFullyQualifiedName(basei);
+        if (unlikely(__Pyx_Typename_ErrorCheck(base_name))) goto really_bad;
 #if CYTHON_AVOID_BORROWED_REFS
         Py_DECREF(basei);
 #endif
     }
     PyErr_Format(PyExc_TypeError,
         "multiple bases have vtable conflict: '" __Pyx_FMT_TYPENAME "' and '" __Pyx_FMT_TYPENAME "'", tp_base_name, base_name);
-#if CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
 really_bad: // bad has failed!
-#endif
     __Pyx_DECREF_TypeName(tp_base_name);
     __Pyx_DECREF_TypeName(base_name);
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS

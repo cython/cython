@@ -63,9 +63,11 @@ static CYTHON_INLINE __Pyx_PySendResult __Pyx_Generator_Yield_From(__pyx_Corouti
 #if CYTHON_USE_TYPE_SLOTS
 static void __Pyx_PyIter_CheckErrorAndDecref(PyObject *source) {
     __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
-    PyErr_Format(PyExc_TypeError,
-        "iter() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", source_type_name);
-    __Pyx_DECREF_TypeName(source_type_name);
+    if (likely(!__Pyx_Typename_ErrorCheck(source_type_name))) {
+        PyErr_Format(PyExc_TypeError,
+            "iter() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", source_type_name);
+        __Pyx_DECREF_TypeName(source_type_name);
+    }
     Py_DECREF(source);
 }
 #endif
@@ -214,12 +216,13 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
 #if (PY_VERSION_HEX < 0x030d0000 || defined(_PyErr_FormatFromCause)) && !CYTHON_COMPILING_IN_LIMITED_API
     __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
-    _PyErr_FormatFromCause(PyExc_TypeError,
-        "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
-    __Pyx_DECREF_TypeName(source_type_name);
+    if (likely(!__Pyx_Typename_ErrorCheck(source_type_name))) {
+        _PyErr_FormatFromCause(PyExc_TypeError,
+            "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
+        __Pyx_DECREF_TypeName(source_type_name);
+    }
 #else
     PyObject *exc, *val, *val2, *tb;
-    __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
     assert(PyErr_Occurred());
     __Pyx_PyErr_FetchException(&exc, &val, &tb);
 #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
@@ -231,9 +234,12 @@ static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
     Py_DECREF(exc);
 #endif
     assert(!PyErr_Occurred());
-    PyErr_Format(PyExc_TypeError,
-        "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
-    __Pyx_DECREF_TypeName(source_type_name);
+    __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
+    if (likely(!__Pyx_Typename_ErrorCheck(source_type_name))) {
+        PyErr_Format(PyExc_TypeError,
+            "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
+        __Pyx_DECREF_TypeName(source_type_name);
+    }
 
     __Pyx_PyErr_FetchException(&exc, &val2, &tb);
 #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
@@ -298,9 +304,11 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     }
     if (unlikely(!PyIter_Check(res))) {
         __Pyx_TypeName res_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(res));
-        PyErr_Format(PyExc_TypeError,
-            "__await__() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", res_type_name);
-        __Pyx_DECREF_TypeName(res_type_name);
+        if (likely(!__Pyx_Typename_ErrorCheck(res_type_name))) {
+            PyErr_Format(PyExc_TypeError,
+                "__await__() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", res_type_name);
+            __Pyx_DECREF_TypeName(res_type_name);
+        }
         Py_CLEAR(res);
     } else {
         int is_coroutine = 0;
@@ -320,9 +328,11 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
 slot_error:
     {
         __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-        PyErr_Format(PyExc_TypeError,
-            "object " __Pyx_FMT_TYPENAME " can't be used in 'await' expression", obj_type_name);
-        __Pyx_DECREF_TypeName(obj_type_name);
+        if (likely(!__Pyx_Typename_ErrorCheck(obj_type_name))) {
+            PyErr_Format(PyExc_TypeError,
+                "object " __Pyx_FMT_TYPENAME " can't be used in 'await' expression", obj_type_name);
+            __Pyx_DECREF_TypeName(obj_type_name);
+        }
     }
 bad:
     return NULL;
@@ -339,9 +349,11 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*pro
 
 static PyObject *__Pyx_Coroutine_GetAsyncIter_Fail(PyObject *obj) {
     __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
-                 "'async for' requires an object with __aiter__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
+    if (likely(!__Pyx_Typename_ErrorCheck(obj_type_name))) {
+        PyErr_Format(PyExc_TypeError,
+                    "'async for' requires an object with __aiter__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
+        __Pyx_DECREF_TypeName(obj_type_name);
+    }
     return NULL;
 }
 
@@ -364,9 +376,11 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
 
 static PyObject *__Pyx_Coroutine_AsyncIterNext_Fail(PyObject *obj) {
     __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
-        "'async for' requires an object with __anext__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
+    if (likely(!__Pyx_Typename_ErrorCheck(obj_type_name))) {
+        PyErr_Format(PyExc_TypeError,
+            "'async for' requires an object with __anext__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
+        __Pyx_DECREF_TypeName(obj_type_name);
+    }
     return NULL;
 }
 
@@ -1729,9 +1743,11 @@ static PyObject *__Pyx_Coroutine_fail_reduce_ex(PyObject *self, PyObject *arg) {
     CYTHON_UNUSED_VAR(arg);
 
     __Pyx_TypeName self_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE((PyObject*)self));
-    PyErr_Format(PyExc_TypeError, "cannot pickle '" __Pyx_FMT_TYPENAME "' object",
-                         self_type_name);
-    __Pyx_DECREF_TypeName(self_type_name);
+    if (likely(!__Pyx_Typename_ErrorCheck(self_type_name))) {
+        PyErr_Format(PyExc_TypeError, "cannot pickle '" __Pyx_FMT_TYPENAME "' object",
+                            self_type_name);
+        __Pyx_DECREF_TypeName(self_type_name);
+    }
     return NULL;
 }
 // #endif
