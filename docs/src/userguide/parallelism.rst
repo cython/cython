@@ -115,7 +115,9 @@ It currently supports OpenMP, but later on more backends might be supported.
         The ``num_threads`` argument indicates how many threads the team should consist of. If not given,
         OpenMP will decide how many threads to use. Typically this is the number of cores available on
         the machine. However, this may be controlled through the ``omp_set_num_threads()`` function, or
-        through the ``OMP_NUM_THREADS`` environment variable.
+        through the ``OMP_NUM_THREADS`` environment variable.  From Cython 3.3 onwards, setting ``num_threads``
+        to 0 is equivalent to setting it to ``omp_get_max_threads()`` (which is what OpenMP does if you
+        omit the parameter); prior to that setting ``num_threads`` to 0 is invalid.
 
     :param chunksize: 
         The ``chunksize`` argument indicates the chunksize to be used for dividing the iterations among threads.
