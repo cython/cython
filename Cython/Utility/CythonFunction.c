@@ -604,14 +604,20 @@ __Pyx_CyFunction_get_is_coroutine_value(__pyx_CyFunctionObject *op) {
 #endif
         module = PyImport_ImportModuleLevelObject(PYIDENT("asyncio.coroutines"), NULL, NULL, fromlist, 0);
         Py_DECREF(fromlist);
-        if (unlikely(!module)) goto ignore;
+        if (unlikely(!module)) {
+            goto ignore_or_error;
+        }
         is_coroutine_value = __Pyx_PyObject_GetAttrStr(module, marker);
         Py_DECREF(module);
         if (likely(is_coroutine_value)) {
             return is_coroutine_value;
         }
-ignore:
-        PyErr_Clear();
+ignore_or_error:
+        if (PyErr_ExceptionMatches(PyExc_Exception)) {
+            PyErr_Clear();
+        } else {
+            return NULL; // BaseException - don't ignore.
+        }
     }
 
     return __Pyx_PyBool_FromLong(is_coroutine);

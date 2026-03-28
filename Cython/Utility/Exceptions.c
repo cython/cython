@@ -868,7 +868,6 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
         Py_DECREF(replace);
         return result;
     }
-    PyErr_Clear();
 
     return NULL;
 }
