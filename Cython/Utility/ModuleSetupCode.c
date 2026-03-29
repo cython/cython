@@ -957,8 +957,9 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
 #define __Pyx_PyDict_GetItemStrWithError(dict, name)  _PyDict_GetItem_KnownHash(dict, name, ((PyASCIIObject *) name)->hash)
 static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject *name) {
     PyObject *res = __Pyx_PyDict_GetItemStrWithError(dict, name);
-    if (res == NULL) {
+    if (res == NULL && PyErr_Occurred()) {
         // Like PyDict_GetItem, this is a bit indiscriminate about catching *all* errors.
+        // Recent versions of Python format any unraised exception so do that too here. 
         PyErr_WriteUnraisable(NULL);
     }
     return res;
