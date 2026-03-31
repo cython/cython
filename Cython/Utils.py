@@ -635,6 +635,8 @@ def write_depfile(target, source, dependencies):
             # if they are on different Windows drives, absolute is fine
             newpath = os.path.abspath(fname)
 
+        # Escape spaces
+        newpath = newpath.replace(" ", "\\ ")
         paths.append(newpath)
 
     depline = os.path.relpath(target, cwd) + ": \\\n  "

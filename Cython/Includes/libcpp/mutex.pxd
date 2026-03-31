@@ -158,7 +158,7 @@ cdef extern from *:
 
     namespace {
 
-    static PyGILState_STATE __pyx_libcpp_mutex_limited_api_ensure_gil() {
+    CYTHON_UNUSED PyGILState_STATE __pyx_libcpp_mutex_limited_api_ensure_gil() {
         #if CYTHON_COMPILING_IN_LIMITED_API
         if ((__PYX_LIMITED_VERSION_HEX < 0x030d0000) && __Pyx_get_runtime_version() < 0x030d0000) {
             return PyGILState_Ensure();
@@ -168,7 +168,7 @@ cdef extern from *:
     }
 
     #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
-    static void __pyx_libcpp_mutex_limited_api_release_gil(PyGILState_STATE gil_state) {
+    CYTHON_UNUSED void __pyx_libcpp_mutex_limited_api_release_gil(PyGILState_STATE gil_state) {
         if (__Pyx_get_runtime_version() < 0x030d0000)
             PyGILState_Release(gil_state);
     }
@@ -176,7 +176,7 @@ cdef extern from *:
     #define __pyx_libcpp_mutex_limited_api_release_gil(ignore) (void)ignore
     #endif
 
-    static int __pyx_libcpp_mutex_has_gil() {
+    CYTHON_UNUSED int __pyx_libcpp_mutex_has_gil() {
         #if CYTHON_COMPILING_IN_LIMITED_API
             if ((__PYX_LIMITED_VERSION_HEX >= 0x030d0000) || __Pyx_get_runtime_version() >= 0x030d0000) {
                 // In 3.13+ we can temporarily give up the GIL to find out what the thread state was
@@ -194,7 +194,7 @@ cdef extern from *:
             return 1;
         #elif PY_VERSION_HEX >= 0x030d0000
             return PyThreadState_GetUnchecked() != NULL;
-        #elif PY_VERSION_HEX >= 0x030b0000
+        #elif PY_VERSION_HEX >= 0x030C0000
             return _PyThreadState_UncheckedGet() != NULL;
         #else
             return PyGILState_Check();
@@ -296,7 +296,7 @@ cdef extern from *:
         std::lock(arg0, arg1, args...);
     }
 
-    inline void __pyx_libcpp_mutex_unlock() {} // no-op
+    CYTHON_UNUSED inline void __pyx_libcpp_mutex_unlock() {} // no-op
 
     template <typename Lockable0T, typename ... Lockables>
     void __pyx_libcpp_mutex_unlock(Lockable0T& arg0, Lockables&... locks) {

@@ -95,7 +95,7 @@ basicsize_builtins_map = {
 }
 
 # Builtins as of Python version ...
-KNOWN_PYTHON_BUILTINS_VERSION = (3, 14, 0, 'beta', 1)
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 15, 0, 'alpha', 7)
 KNOWN_PYTHON_BUILTINS = frozenset([
     'ArithmeticError',
     'AssertionError',
@@ -125,6 +125,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'FutureWarning',
     'GeneratorExit',
     'IOError',
+    'ImportCycleError',
     'ImportError',
     'ImportWarning',
     'IndentationError',
@@ -176,6 +177,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     '_IncompleteInputError',
     '__build_class__',
     '__debug__',
+    '__lazy_import__',
     '__import__',
     'abs',
     'aiter',
@@ -206,6 +208,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'filter',
     'float',
     'format',
+    'frozendict',
     'frozenset',
     'getattr',
     'globals',
@@ -402,7 +405,7 @@ class AbstractUtilityCode:
 
     requires = None
 
-    def put_code(self, output):
+    def put_code(self, globalstate: "GlobalState", used_by=None) -> None:
         pass
 
     def get_tree(self, **kwargs):
@@ -738,6 +741,8 @@ class UtilityCode(UtilityCodeBase):
         self.file = file
         self.export = export
         self.shared_utility_functions = self.parse_export_functions(export) if export else []
+        if export:
+            self._validate_suitable_for_sharing()
 
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
@@ -824,8 +829,14 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
 
+    def _validate_suitable_for_sharing(self):
+        code_string = getattr(self, "impl")
+        if not code_string: return
+        assert "NAMED_CGLOBAL(moddict_cname)" not in code_string, \
+            f"moddict_cname should not be shared: {self}"
+
     @cython.final
-    def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str):
+    def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str, used_by=None):
         code_string = getattr(self, code_type)
         if not code_string:
             return
@@ -834,8 +845,10 @@ class UtilityCode(UtilityCodeBase):
 
         code_string, result_is_module_specific = process_utility_ccode(self, output, code_string)
 
-        code_type_name = code_type if code_type != 'impl' else ''
-        writer.putln(f"/* {self.name}{'.' if code_type_name else ''}{code_type_name} */")
+        used_by = f" (used by {used_by})" if used_by else ''
+        name = f"{self.name}.{code_type}" if code_type != 'impl' else self.name
+
+        writer.putln(f"/* {name}{used_by} */")
 
         if can_be_reused and not result_is_module_specific:
             # can be reused across modules
@@ -860,36 +873,36 @@ class UtilityCode(UtilityCodeBase):
             code.putln(f'static {shared.ret}(*{shared.name})({shared.params}); /*proto*/')
         code.putln()
 
-    def put_code(self, output: "GlobalState") -> None:
+    def put_code(self, globalstate: "GlobalState", used_by=None) -> None:
         has_shared_utility_code = bool(
-            self.shared_utility_functions and output.module_node.scope.context.shared_utility_qualified_name
+            self.shared_utility_functions and globalstate.module_node.scope.context.shared_utility_qualified_name
         )
 
         if self.requires and not has_shared_utility_code:
             for dependency in self.requires:
-                output.use_utility_code(dependency)
+                globalstate.use_utility_code(dependency, used_by=self.name)
 
         if has_shared_utility_code:
-            self._put_shared_function_declarations(output[self.proto_block])
-        output.shared_utility_functions.extend(self.shared_utility_functions)
+            self._put_shared_function_declarations(globalstate[self.proto_block])
+        globalstate.shared_utility_functions.extend(self.shared_utility_functions)
 
         if self.proto:
-            self._put_code_section(output[self.proto_block], output, 'proto')
+            self._put_code_section(globalstate[self.proto_block], globalstate, 'proto', used_by=used_by)
         if not has_shared_utility_code:
-            self._put_code_section(output[self.proto_block], output, 'export')
+            self._put_code_section(globalstate[self.proto_block], globalstate, 'export')
         if self.impl and not has_shared_utility_code:
-            self._put_code_section(output['utility_code_def'], output, 'impl')
+            self._put_code_section(globalstate['utility_code_def'], globalstate, 'impl', used_by=used_by)
         if self.cleanup and Options.generate_cleanup_code:
-            self._put_code_section(output['cleanup_globals'], output, 'cleanup')
+            self._put_code_section(globalstate['cleanup_globals'], globalstate, 'cleanup')
         if self.module_state_decls:
-            self._put_code_section(output['module_state_contents'], output, 'module_state_decls')
+            self._put_code_section(globalstate['module_state_contents'], globalstate, 'module_state_decls')
         if self.module_state_traverse:
-            self._put_code_section(output['module_state_traverse_contents'], output, 'module_state_traverse')
+            self._put_code_section(globalstate['module_state_traverse_contents'], globalstate, 'module_state_traverse')
         if self.module_state_clear:
-            self._put_code_section(output['module_state_clear_contents'], output, 'module_state_clear')
+            self._put_code_section(globalstate['module_state_clear_contents'], globalstate, 'module_state_clear')
 
         if self.init:
-            self._put_init_code_section(output)
+            self._put_init_code_section(globalstate)
 
 
 def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _last_macro_processor = [None]):
@@ -1088,9 +1101,9 @@ class LazyUtilityCode(UtilityCodeBase):
     def __init__(self, callback):
         self.callback = callback
 
-    def put_code(self, globalstate):
+    def put_code(self, globalstate: "GlobalState", used_by=None) -> None:
         utility = self.callback(globalstate.rootwriter)
-        globalstate.use_utility_code(utility)
+        globalstate.use_utility_code(utility, used_by=used_by)
 
 
 class FunctionState:
@@ -2412,7 +2425,17 @@ class GlobalState:
         writer.putln(f"PyObject **table = {array_cname};")
         writer.putln(f"for (Py_ssize_t i=0; i<{constant_count}; ++i) {{")
         writer.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        # We don't want to set the refcount on shared constants (e.g. cached integers)
+        # because setting the refcount isn't thread-safe. The chances are that most of the constants
+        # that this applies to are already immortal though so that isn't a great loss.
+        writer.putln("#if PY_VERSION_HEX < 0x030E0000")
+        writer.putln("if (_Py_IsOwnedByCurrentThread(table[i]) && Py_REFCNT(table[i]) == 1)")
+        writer.putln("#else")
+        writer.putln("if (PyUnstable_Object_IsUniquelyReferenced(table[i]))")
+        writer.putln("#endif")
+        writer.putln("{")
         writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_REFCNT_LOCAL);")
+        writer.putln("}")
         writer.putln("#else")
         writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_INITIAL_REFCNT);")
         writer.putln("#endif")
@@ -2471,7 +2494,7 @@ class GlobalState:
     # Utility code state
     #
 
-    def use_utility_code(self, utility_code):
+    def use_utility_code(self, utility_code, used_by=None):
         """
         Adds code to the C file. utility_code should
         a) implement __eq__/__hash__ for the purpose of knowing whether the same
@@ -2482,7 +2505,7 @@ class GlobalState:
         """
         if utility_code and utility_code not in self.utility_codes:
             self.utility_codes.add(utility_code)
-            utility_code.put_code(self)
+            utility_code.put_code(self, used_by=used_by)
 
     def use_entry_utility_code(self, entry):
         if entry is None:

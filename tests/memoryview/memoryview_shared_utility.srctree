@@ -101,13 +101,14 @@ assert not pathlib.Path("build/pkg2/CythonShared.c").exists()
 
 ######## test_shared_utility.py ########
 
-from pkg1.pkg11.add_one import add_one
+from pkg1.pkg11.add_one import add_one, imported_func
 from array import array
 from pkg1.pkg11.cast import call_cast, call_cast_to_array
 
 a = array('i', [1, 2, 3, 4])
 add_one(a)
 assert a.tolist() == [2, 3, 4, 5]
+assert imported_func() == 1
 
 import numpy as np
 from pkg1.pkg11.dependency import f
@@ -130,6 +131,8 @@ assert hasattr(CythonShared, '__pyx_capi__'), dir(CythonShared)
 
 import sys
 from pkg2 import CythonShared
+# relative import bug https://github.com/cython/cython/issues/7290
+from .import_from_me import imported_func
 
 assert CythonShared in sys.modules.values(), list(sys.modules)
 assert sys.modules['pkg2.CythonShared'] is CythonShared, list(sys.modules)
@@ -180,5 +183,9 @@ def call_cast_to_array():
     cdef int[4] g = [1, 2, 3, 4]
     return cast_to_array(<void *> g)
 
+######## pkg1/pkg11/import_from_me.pyx ########
+
+def imported_func():
+    return 1
 
 ######## pkg2/__init__.py ########

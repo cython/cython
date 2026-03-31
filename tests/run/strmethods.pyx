@@ -152,9 +152,9 @@ def mod_format_tuple(*values):
     """
     >>> mod_format_tuple('sa') == 'abcsadef'  or  mod_format(format1, 'sa')
     True
-    >>> mod_format_tuple()
+    >>> mod_format_tuple()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: not enough arguments for format string
+    TypeError: not enough arguments for format string...
     """
     assert cython.typeof('abc%sdef' % values) == "str object", cython.typeof('abc%sdef' % values)
     return 'abc%sdef' % values

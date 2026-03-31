@@ -1191,6 +1191,13 @@ static {{c_ret_type}} __Pyx_Fallback_{{cfunc_name}}(PyObject *op1, PyObject *op2
 }
 
 #if CYTHON_USE_PYLONG_INTERNALS
+{{if op == 'Lshift'}}
+#if __clang__ || __GNUC__
+// left-shift by more than the width of the number is undefined behaviour.
+// We do check it (and test that it gives the right answer though).
+__attribute__((no_sanitize("shift")))
+#endif
+{{endif}}
 static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check) {
     CYTHON_MAYBE_UNUSED_VAR(inplace);
     CYTHON_UNUSED_VAR(zerodivision_check);

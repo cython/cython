@@ -1037,13 +1037,10 @@ strings.
 def fill_command(args=None):
     import sys
     import optparse
-    import pkg_resources
     import os
     if args is None:
         args = sys.argv[1:]
-    dist = pkg_resources.get_distribution('Paste')
     parser = optparse.OptionParser(
-        version=coerce_text(dist),
         usage=_fill_command_usage)
     parser.add_option(
         '-o', '--output',

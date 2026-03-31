@@ -60,6 +60,14 @@ cdef int _allocate_buffer(array self) except -1
 @cname("__pyx_array_new")
 cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, const char *c_mode, char *buf)
 
+cdef object generic
+cdef object strided
+cdef object indirect
+# Disable generic_contiguous, as it is a troublemaker
+#cdef generic_contiguous = Enum("<contiguous and direct or indirect>")
+cdef object contiguous
+cdef object indirect_contiguous
+
 @cname('__pyx_memoryview')
 cdef class memoryview:
 
@@ -92,15 +100,6 @@ cdef inline bint memoryview_check(object o) noexcept:
 
 @cname('__pyx_memview_slice')
 cdef memoryview memview_slice(memoryview memview, object indices)
-
-@cname('__pyx_memoryview_slice_memviewslice')
-cdef int slice_memviewslice(
-        {{memviewslice_name}} *dst,
-        Py_ssize_t shape, Py_ssize_t stride, Py_ssize_t suboffset,
-        int dim, int new_ndim, int *suboffset_dim,
-        Py_ssize_t start, Py_ssize_t stop, Py_ssize_t step,
-        int have_start, int have_stop, int have_step,
-        bint is_slice) except -1 nogil
 
 @cname('__pyx_pybuffer_index')
 cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,

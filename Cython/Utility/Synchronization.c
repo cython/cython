@@ -300,7 +300,7 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
         PyGILState_Release(state);
         return;
     }
-#elif CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030B0000
+#elif CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030C0000
     has_gil = PyGILState_Check();
 #elif PY_VERSION_HEX < 0x030d0000
     has_gil = _PyThreadState_UncheckedGet() != NULL;

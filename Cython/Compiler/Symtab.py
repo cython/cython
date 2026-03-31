@@ -364,6 +364,7 @@ class Scope:
     # is_c_class_scope  boolean            Is an extension type scope
     # is_local_scope    boolean            Is a local (i.e. function/method/generator) scope
     # is_closure_scope  boolean            Is a closure scope
+    # is_generator_scope  boolean          Is a closure scope of a generator
     # is_generator_expression_scope boolean   A subset of closure scope used for generator expressions
     # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
@@ -386,6 +387,7 @@ class Scope:
     is_c_class_scope = 0
     is_closure_scope = 0
     is_local_scope = False
+    is_generator_scope = False
     is_generator_expression_scope = 0
     is_comprehension_scope = 0
     is_passthrough = 0
@@ -1255,6 +1257,20 @@ class Scope:
         return False
 
 
+class PreImportScope(Scope):
+
+    namespace_cname = Naming.preimport_cname
+
+    def __init__(self):
+        Scope.__init__(self, Options.pre_import, None, None)
+
+    def declare_builtin(self, name, pos):
+        entry = self.declare(name, name, py_object_type, pos, 'private')
+        entry.is_variable = True
+        entry.is_pyglobal = True
+        return entry
+
+
 class BuiltinScope(Scope):
     #  The builtin namespace.
 
@@ -1885,12 +1901,6 @@ class ModuleScope(Scope):
         if self.directives.get('final'):
             entry.type.is_final_type = True
         collection_type = self.directives.get('collection_type')
-        if collection_type:
-            from .UtilityCode import NonManglingModuleScope
-            if not isinstance(self, NonManglingModuleScope):
-                # TODO - DW would like to make it public, but I'm making it internal-only
-                # for now to avoid adding new features without consensus
-                error(pos, "'collection_type' is not a public cython directive")
         if collection_type == 'sequence':
             entry.type.has_sequence_flag = True
 
@@ -2240,6 +2250,7 @@ class ClosureScope(LocalScope):
 
 
 class GeneratorExpressionScope(ClosureScope):
+    is_generator_scope = True
     is_generator_expression_scope = True
 
     def declare_assignment_expression_target(self, name, type, pos):

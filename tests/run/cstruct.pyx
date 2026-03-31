@@ -105,3 +105,53 @@ def reserved_names():
     s2.new = s1.new
     s2.case, s2.do = s1.case, s1.do
     return (s2.new, s2.case, s2.do)
+
+
+cdef struct Point:
+    double x,y
+    int colour
+
+cdef union int_or_float:
+    int i
+    float f
+
+cdef struct NestedStruct:
+    Point p
+    int_or_float x
+
+
+def struct_union_assignments():
+    """
+    >>> struct_union_assignments()
+    """
+    cdef NestedStruct ns
+
+    ns = [Point(1.0, 2.0, 42), int_or_float(i=1)]
+    assert ns.p.colour == 42, ns.p.colour
+    assert ns.p.x == 1.0, ns.p.x
+    assert ns.p.y == 2.0, ns.p.y
+    assert ns.x.i == 1, ns.x.i
+
+    ns = NestedStruct(Point(x=2.0, y=3.0, colour=43), int_or_float(i=2))
+    assert ns.p.colour == 43, ns.p.colour
+    assert ns.p.x == 2.0, ns.p.x
+    assert ns.p.y == 3.0, ns.p.y
+    assert ns.x.i == 2, ns.x.i
+
+    ns = NestedStruct(x=int_or_float(i=3), p=Point(colour=44, y=4.0, x=3.0))
+    assert ns.p.colour == 44, ns.p.colour
+    assert ns.p.x == 3.0, ns.p.x
+    assert ns.p.y == 4.0, ns.p.y
+    assert ns.x.i == 3, ns.x.i
+
+    ns = NestedStruct([4.0, 5.0, 45], x=int_or_float(i=4))
+    assert ns.p.colour == 45, ns.p.colour
+    assert ns.p.x == 4.0, ns.p.x
+    assert ns.p.y == 5.0, ns.p.y
+    assert ns.x.i == 4, ns.x.i
+
+    ns = [[4.0, 5.0, 46], int_or_float(i=5)]
+    assert ns.p.colour == 46, ns.p.colour
+    assert ns.p.x == 4.0, ns.p.x
+    assert ns.p.y == 5.0, ns.p.y
+    assert ns.x.i == 5, ns.x.i

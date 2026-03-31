@@ -59,7 +59,7 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
 //@requires: TypeConversion.c::GCCDiagnostics
 
 static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
-    PyObject *module, *decompress, *compressed_bytes, *decompressed;
+    PyObject *module = NULL, *decompress, *compressed_bytes, *decompressed;
 
     const char* module_name = algo == 3 ? "compression.zstd" : algo == 2 ? "bz2" : "zlib";
 
@@ -69,7 +69,7 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
     #if __PYX_LIMITED_VERSION_HEX >= 0x030e0000
     if (algo == 3) {
         PyObject *fromlist = Py_BuildValue("[O]", methodname);
-        if (unlikely(!fromlist)) return NULL;
+        if (unlikely(!fromlist)) goto bad;
         module = PyImport_ImportModuleLevel("compression.zstd", NULL, NULL, fromlist, 0);
         Py_DECREF(fromlist);
     } else

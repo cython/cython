@@ -89,9 +89,9 @@ int
     }
     else {
         int i, res;
-        wchar_t **argv_copy = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
+        wchar_t **argv_copy = (wchar_t **)malloc(sizeof(wchar_t*) * (size_t) argc);
         /* We need a second copy, as Python might modify the first one. */
-        wchar_t **argv_copy2 = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
+        wchar_t **argv_copy2 = (wchar_t **)malloc(sizeof(wchar_t*) * (size_t) argc);
         char *oldloc = strdup(setlocale(LC_ALL, NULL));
         if (!argv_copy || !argv_copy2 || !oldloc) {
             fprintf(stderr, "out of memory\\n");

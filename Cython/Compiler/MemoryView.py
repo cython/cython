@@ -301,6 +301,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                     util_name = "SimpleSlice"
                 else:
                     util_name = "ToughSlice"
+                    code.globalstate.use_utility_code(slice_memviewslice_utility)
                     d['error_goto'] = code.error_goto(index.pos)
 
                 new_ndim += 1
@@ -518,7 +519,6 @@ def get_copy_new_utility(pos, from_memview, to_memview):
             func_cname=copy_c_or_fortran_cname(to_memview),
             dtype_is_object=int(to_memview.dtype.is_pyobject),
         ),
-        requires=[copy_contents_new_utility],
     )
 
 
@@ -847,12 +847,8 @@ overlapping_utility = load_memview_c_utility("OverlappingSlices")
 refcount_utility = load_memview_c_utility("MemviewRefcount")
 slice_init_utility = load_memview_c_utility("MemviewSliceInit")
 memviewslice_declare_code = load_memview_c_utility("MemviewSliceStruct", context=template_context)
-
-copy_contents_new_utility = load_memview_c_utility(
-    "MemviewSliceCopyTemplate",
-    context=template_context,
-    # Requires general memoryview code - dependency is added below.
-)
+copy_contents_new_utility = load_memview_c_utility("MemviewSliceCopy")
+slice_memviewslice_utility = load_memview_c_utility("SliceMemoryviewSlice")
 
 
 @Utils.cached_function
@@ -869,6 +865,7 @@ def _get_memoryview_utility_code():
                     is_contig_utility,
                     overlapping_utility,
                     copy_contents_new_utility,
+                    slice_memviewslice_utility,
                     ],
     )
 
@@ -887,7 +884,6 @@ def _get_memoryview_shared_utility_code(shared_utility_qualified_name):
                 memviewslice_declare_code,
                 refcount_utility,
                 atomic_utility,
-                copy_contents_new_utility,
                 ],
     )
 

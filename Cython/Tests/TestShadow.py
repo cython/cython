@@ -8,19 +8,13 @@ class TestShadow(unittest.TestCase):
         missing_directives = []
         extra_directives = []
         for full_directive in Options.directive_types.keys():
-            # Python 2 doesn't support "directive, *rest = full_directive.split('.')"
-            split_directive = full_directive.split('.')
-            directive, rest = split_directive[0], split_directive[1:]
+            directive, *rest = full_directive.split('.')
 
             scope = Options.directive_scopes.get(full_directive)
             if scope and len(scope) == 1 and scope[0] == "module":
                 # module-scoped things can't be used from Cython
                 if hasattr(Shadow, directive):
                     extra_directives.append(full_directive)
-                continue
-            if full_directive == "collection_type":
-                # collection_type is current restricted to utility code only
-                # so doesn't need to be in Shadow
                 continue
             if full_directive == "staticmethod":
                 # staticmethod is a weird special-case and not really intended to be

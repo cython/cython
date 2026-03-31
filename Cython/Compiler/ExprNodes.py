@@ -1813,7 +1813,7 @@ class BytesNode(ConstNode):
             node.type = dst_type
             return node
         elif dst_type in (PyrexTypes.c_uchar_ptr_type, PyrexTypes.c_const_uchar_ptr_type, PyrexTypes.c_void_ptr_type):
-            node.type = (PyrexTypes.c_const_char_ptr_type if dst_type == PyrexTypes.c_const_uchar_ptr_type
+            node.type = (PyrexTypes.c_const_char_ptr_type if dst_type.base_type.is_const
                          else PyrexTypes.c_char_ptr_type)
             return CastNode(node, dst_type)
         elif dst_type.assignable_from(PyrexTypes.c_char_ptr_type):
@@ -1830,7 +1830,7 @@ class BytesNode(ConstNode):
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
             result = code.get_py_string_const(self.value)
-        elif self.type.is_const:
+        elif (self.type.is_ptr or self.type.is_array) and self.type.base_type.is_const:
             result = code.get_string_const(self.value)
         else:
             # not const => use plain C string literal and cast to mutable type
@@ -1900,6 +1900,9 @@ class UnicodeNode(ConstNode):
                     dst_type.is_ptr and dst_type.base_type.is_void):
                 # Allow using '-3' enforced unicode literals in a C char/char*/void* context.
                 if self.bytes_value is not None:
+                    if dst_type.is_array:
+                        # Prevent an invalid assignment from a C string array and use a pointer instead.
+                        dst_type = dst_type.element_ptr_type()
                     return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
                 if env.directives['c_string_encoding']:
                     try:
@@ -9052,11 +9055,14 @@ class TupleNode(SequenceNode):
         return self.result_code
 
     def calculate_constant_result(self):
+        if self.mult_factor:
+            raise ValueError()  # may exceed the compile time memory
         self.constant_result = tuple([
                 arg.constant_result for arg in self.args])
 
     def compile_time_value(self, denv):
         values = self.compile_time_value_list(denv)
+        assert self.mult_factor is None, self.mult_factor  # set only after parsing
         try:
             return tuple(values)
         except Exception as e:
@@ -9170,9 +9176,12 @@ class ListNode(SequenceNode):
             else:
                 if len(self.args) < len(dst_type.scope.var_entries):
                     warning(self.pos, "Too few members for '%s'" % dst_type, 1)
-                for i, (arg, member) in enumerate(zip(self.original_args, dst_type.scope.var_entries)):
+                for i, (arg, coerced_arg, member) in enumerate(zip(self.original_args, self.args, dst_type.scope.var_entries)):
                     if isinstance(arg, CoerceToPyTypeNode):
                         arg = arg.arg
+                    elif member.type.is_struct_or_union and coerced_arg.is_dict_literal:
+                        # For struct assignments, use the coerced dict directly, not a struct type call etc.
+                        arg = coerced_arg
                     self.args[i] = arg.coerce_to(member.type, env)
             self.type = dst_type
         elif dst_type.is_ctuple:
@@ -10482,8 +10491,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             defaults = '__Pyx_CyFunction_Defaults(struct %s, %s)' % (
                 self.defaults_entry.type.objstruct_cname, self.result())
             for arg, entry in self.defaults:
-                arg.generate_assignment_code(code, target='%s->%s' % (
-                    defaults, entry.cname))
+                if arg.is_dynamic:
+                    arg.generate_assignment_code(code, cyfunc_struct_target=f'{defaults}->{entry.cname}')
 
         if self.defaults_tuple:
             code.putln('__Pyx_CyFunction_SetDefaultsTuple(%s, %s);' % (
