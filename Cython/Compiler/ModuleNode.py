@@ -13,7 +13,6 @@ import itertools
 import json
 import operator
 import os
-import pathlib
 import re
 import sys
 from typing import Sequence

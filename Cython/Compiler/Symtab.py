@@ -6,7 +6,6 @@
 import re
 import copy
 import operator
-import math
 
 from ..Utils import try_finally_contextmanager
 from .Errors import warning, error, InternalError, performance_hint

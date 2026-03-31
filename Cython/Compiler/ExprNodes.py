@@ -14,7 +14,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
                bytearray_type=object, slice_type=object, memoryview_type=object,
                builtin_sequence_types=object, build_line_table=object,
-               inspect=object, copy=object, os=object, pathlib=object, re=object, sys=object,
+               inspect=object, copy=object, os=object, re=object, sys=object,
                itertools=object, defaultdict=object,
 )
 
@@ -23,7 +23,6 @@ import inspect
 import itertools
 import operator
 import os.path
-import pathlib
 import re
 import sys
 from collections import defaultdict

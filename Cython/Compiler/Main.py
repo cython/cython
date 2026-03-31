@@ -6,7 +6,6 @@
 import os
 import re
 import sys
-import io
 
 if sys.version_info[:2] < (3, 9):
     sys.stderr.write("Sorry, Cython requires Python 3.9+, found %d.%d\n" % tuple(sys.version_info[:2]))
