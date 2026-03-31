@@ -424,6 +424,7 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
     }
     PyException_SetCause(new_exc, val); // steals ref to val
     PyErr_SetObject(PyExc_RuntimeError, new_exc);
+    Py_DECREF(new_exc);
 }
 
 
