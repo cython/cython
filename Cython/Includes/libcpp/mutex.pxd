@@ -232,7 +232,7 @@ cdef extern from *:
     }
 
     template <typename Callable, typename ... Args>
-    void __pyx_cpp_py_safe_call_once(std::once_flag& flag, Callable& callable, Args&&... args) {
+    void __pyx_cpp_py_safe_call_once(std::once_flag& flag, Callable&& callable, Args&&... args) {
         class PyException : public std::exception {
         public:
             using std::exception::exception;
@@ -246,7 +246,7 @@ cdef extern from *:
 
         try {
             std::call_once(flag,
-                [&](Args& ...args) {
+                [&](Args&& ...args) {
                     // Make sure we have the GIL
                     PyGILState_STATE gil_state;
                     int had_gil_on_call = __Pyx_UnknownThreadStateDefinitelyHadGil(thread_state);
