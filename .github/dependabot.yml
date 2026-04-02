@@ -10,6 +10,8 @@ updates:
       github-actions:
         patterns:
           - "*"
+    cooldown:
+      default-days: 7
   # The following is designed to update only cibuildwheel, and is here so that
   # it's kept in sync with github actions above.
   - package-ecosystem: "pip"
@@ -18,3 +20,5 @@ updates:
       interval: "monthly"
     allow:
       - dependency-name: "cibuildwheel"
+    cooldown:
+      default-days: 7
