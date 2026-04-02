@@ -17,4 +17,4 @@ updates:
     schedule:
       interval: "monthly"
     allow:
-      dependency-name: "cibuildwheel"
+      - dependency-name: "cibuildwheel"

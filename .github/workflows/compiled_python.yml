@@ -1,0 +1,144 @@
+name: Run with compiled Python
+
+on:
+  workflow_call:
+    inputs:
+      sanitize:
+        required: false
+        default:
+        type: string
+      compiler:
+        required: false
+        default:
+        type: string
+      cpp_compiler:
+        required: false
+        default:
+        type: string
+      name:
+        required: true
+        type: string
+
+jobs:
+  do_run:
+    name: ${{inputs.name}}
+    runs-on: ubuntu-latest
+
+    env:
+      BACKEND: c,cpp
+      PYTHON_VERSION: 3.x-dev
+      CONFIGURE_ARGS: --with-pydebug
+      SANITIZER_CFLAGS: ""
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set compiler
+        if: ${{inputs.compiler}}
+        run: |
+          CC=${{inputs.compiler}}
+          CXX=${{inputs.cpp_compiler}}
+          echo EXTERNAL_OVERRIDE_CC=1 >> $GITHUB_ENV
+          clangv=$($CC -v 2> >(grep "clang version"))
+          echo $clangv
+          if [[ $clangv == *"version 18"* && "${{inputs.sanitize}}" == *"thread"* ]]; then
+              # Python uses clang-17 instead of 18 because of bugs so do the same
+              CC=clang-17
+              CXX=clang-17
+          fi
+          echo "CC=$CC" >> $GITHUB_ENV
+          echo "CXX=$CXX" >> $GITHUB_ENV
+
+      - name: Set up sanitizer args
+        if: ${{inputs.sanitize}}
+        run: |
+          SANITIZER_CFLAGS=""
+          CONFIGURE_ARGS=""
+          EXTRA_CONFIGURE_CFLAGS=""
+          EXCLUDE="run[.] memoryview[.] --no-examples"
+          if [[ "${{inputs.sanitize}}" == *"address"* ]]; then
+            CONFIGURE_ARGS="$CONFIGURE_ARGS --with-address-sanitizer --without-pymalloc"
+            SANITIZER_CFLAGS="$SANITIZER_CFLAGS -fsanitize=address"
+            echo "ASAN_OPTIONS=detect_leaks=false log_path=${{ github.workspace }}/san_log" >> $GITHUB_ENV
+          fi
+          # TODO - memory sanitizer requires rebuilding almost all of CPython's dependencies
+          # with memory sanitizer too, so isn't really usable for us.
+          if [[ "${{inputs.sanitize}}" == *"memory"* ]]; then
+            CONFIGURE_ARGS="$CONFIGURE_ARGS --with-memory-sanitizer"
+            SANITIZER_CFLAGS="$SANITIZER_CFLAGS -fsanitize=memory"
+          fi
+          if [[ "${{inputs.sanitize}}" == *"undefined"* ]]; then
+            CONFIGURE_ARGS="$CONFIGURE_ARGS --with-undefined-behavior-sanitizer"
+            # We call functions through slightly incorrect pointer types a lot so disable this check for now for now
+            EXTRA_CONFIGURE_CFLAGS="$EXTRA_CONFIGURE_CFLAGS -fno-sanitize=function"
+            # omit vptr because it's largely C++-only and requires linking with clang++ (which breaks other things)
+            SANITIZER_CFLAGS="$SANITIZER_CFLAGS -fsanitize=undefined -fno-sanitize=function -fno-sanitize=vptr -fno-omit-frame-pointer"
+            echo "print_stacktrace=1" >> $GITHUB_ENV
+            EXCLUDE="$EXCLUDE --excludefile tests/ubsan_bugs.txt"
+            echo "UBSAN_OPTIONS=log_path=${{ github.workspace }}/san_log" >> $GITHUB_ENV
+          fi
+          if [[ "${{inputs.sanitize}}" == *"thread"* ]]; then
+            CONFIGURE_ARGS="$CONFIGURE_ARGS --with-thread-sanitizer"
+            SANITIZER_CFLAGS="$SANITIZER_CFLAGS -fsanitize=thread"
+            if [[ "${{inputs.sanitize}}" == *"ft"* ]]; then
+              echo "PYTHON_VERSION=3.xt-dev" >> $GITHUB_ENV
+              CONFIGURE_ARGS="$CONFIGURE_ARGS --disable-gil"
+              TSAN_SUPPRESSIONS="${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions_free_threading.txt"
+            else
+              TSAN_SUPPRESSIONS="${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
+            fi
+            if [[ "${{github.event.label.name}}" != "full_sanitizers" ]]; then
+              # For thread sanitizer run on a much smaller list of tests
+              EXCLUDE="tag:threads"
+            fi
+            EXCLUDE="$EXCLUDE --excludefile tests/tsan_bugs.txt"
+            echo "TSAN_OPTIONS=suppressions=$TSAN_SUPPRESSIONS log_path=${{ github.workspace }}/san_log" >> $GITHUB_ENV
+            # Having too many workers seems to lead to an exit without a diagnostic message - possibly memory?
+            echo "TEST_PARALLELISM=-j3" >> $GITHUB_ENV
+          fi
+          # Even running Python like this is slow, so only run a subset of tests
+          # (i.e. compile-only tests tell us nothing)
+          echo "EXCLUDE=$EXCLUDE --no-refnanny" >> $GITHUB_ENV
+          # https://github.com/google/sanitizers/issues/934
+          echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libstdc++.so)")" >> $GITHUB_ENV
+          echo "CONFIGURE_ARGS=$CONFIGURE_ARGS" >> $GITHUB_ENV
+          echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS" >> $GITHUB_ENV
+          echo "EXTRA_CONFIGURE_CFLAGS=$EXTRA_CONFIGURE_CFLAGS" >> $GITHUB_ENV
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -y -q
+          sudo apt-get install -y -q libbz2-dev liblzma-dev libreadline-dev libgmp-dev
+
+      - name: Build Python
+        run: |
+          git clone --branch main --depth 1 https://github.com/python/cpython/ cpython_main
+          cd cpython_main
+          ./configure ${CONFIGURE_ARGS} --prefix=${GITHUB_WORKSPACE}/cpython_install CFLAGS="-O2 $EXTRA_CONFIGURE_CFLAGS"
+          make -j8
+          make install
+          ${GITHUB_WORKSPACE}/cpython_install/bin/python3 -m venv ${GITHUB_WORKSPACE}/venv_pydebug
+
+      - name: Run CI
+        run: |
+          cd "${GITHUB_WORKSPACE}/"
+          source venv_pydebug/bin/activate
+          bash ./Tools/ci-run.sh
+
+      - name: Archive logs
+        if: ${{ inputs.sanitize && always() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{inputs.sanitize}}-logs
+          path: san_log.*
+          if-no-files-found: ignore
+
+      # The check of the sanitizer logs does a bit of filtering of unwanted diagnostics
+      # and finishes with an error code if anything bad is found.
+      - name: Check logs
+        if:  ${{ inputs.sanitize && always() }}
+        run: |
+          cd "${GITHUB_WORKSPACE}/"
+          source venv_pydebug/bin/activate
+          python Tools/examine_sanitizer_logs.py san_log.*

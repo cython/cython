@@ -468,11 +468,6 @@ def fused_type(*args):
     return _FusedType()
 
 
-def _specialized_from_args(signatures, args, kwargs):
-    "Perhaps this should be implemented in a TreeFragment in Cython code"
-    raise Exception("yet to be implemented")
-
-
 py_int = typedef(int, "int")
 py_long = typedef(int, "long")  # for legacy Py2 code only
 py_float = typedef(float, "float")
@@ -680,6 +675,13 @@ class pymutex:
 
     def release(self):
         return self._l.release()
+
+    def locked(self):
+        return self._l.locked()
+
+    def can_check_locked(self):
+        """Check if locked() is available. Always True in pure Python mode."""
+        return True
 
     def __enter__(self):
         return self._l.__enter__()

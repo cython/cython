@@ -236,7 +236,7 @@ class Chaosgame(object):
         return times
 
 
-def main(n, count=5000, timer=time.perf_counter):
+def run_benchmark(repeat=True, scale=5000):
     splines = [
         Spline([
             GVector(1.597350, 3.304460, 0.000000),
@@ -261,8 +261,12 @@ def main(n, count=5000, timer=time.perf_counter):
             3, [0, 0, 0, 1, 1, 1])
         ]
     c = Chaosgame(splines, 0.25)
-    return c.create_image_chaos(timer, 1000, 1200, n, count)
+
+    def single_run(scale, timer):
+        return c.create_image_chaos(timer, 1000, 1200, 1, scale)[0]
+
+    from util import repeat_to_accuracy
+    return repeat_to_accuracy(single_run, scale=scale, repeat=repeat)[0]
 
 
-def run_benchmark(repeat=10, count=5000, timer=time.perf_counter):
-    return main(repeat, count, timer)
+main = run_benchmark

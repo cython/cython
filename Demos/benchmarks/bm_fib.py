@@ -1,6 +1,5 @@
 import cython
 import time
-import util
 
 
 @cython.ccall
@@ -8,31 +7,20 @@ def fib(x: float) -> float:
     return 1 if x < 2 else fib(x-2) + fib(x-1)
 
 
-def test_fib(iterations, N=30, scale: cython.long = 1, timer=time.perf_counter):
-    s: cython.long
-    scale_loops = range(scale)
-    times = []
-    for _ in range(iterations):
-        t = timer()
-        for s in range(scale):
-            result = fib(N)
-        t = timer() - t
-        times.append(t)
-    return times
+def run_fib(N, scale: cython.int, timer=time.perf_counter):
+    fake_result = 0.
 
-main = test_fib
+    t = timer()
+    for _ in range(scale):
+        fake_result += fib(N)
+    t = timer() - t
 
-
-def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
-    return test_fib(repeat, 28, scale=scale, timer=timer)
+    if fake_result < 1.:
+        # Unreachable, but hopefully difficult to detect. :)
+        return 0.0
+    return t
 
 
-if __name__ == "__main__":
-    import optparse
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description=("Test the performance of a recursive fibonacci implementation."))
-    util.add_standard_options_to(parser)
-    options, args = parser.parse_args()
-
-    util.run_benchmark(options, options.num_runs, test_fib)
+def run_benchmark(repeat=True, scale=1):
+    from util import repeat_to_accuracy
+    return repeat_to_accuracy(run_fib, 28, scale=scale, repeat=repeat)[0]

@@ -71,7 +71,7 @@ def benchmark_compare(points: list[Point]):
     return all_results
 
 
-def benchmark(n, timer=time.perf_counter):
+def time_benchmarks(n, timer=time.perf_counter):
     t0 = timer()
     points = benchmark_create(n)
     t1 = timer()
@@ -91,11 +91,35 @@ def benchmark(n, timer=time.perf_counter):
 
 POINTS = 10_000
 
-def run_benchmark(repeat: int = 9, scale=POINTS, timer=time.perf_counter):
-    timings = defaultdict(list)
-    for _ in range(repeat):
-        for name, timing in benchmark(scale, timer).items():
-            timings[name].append(timing)
 
-    for name, times in timings.items():
-        print(f"dataclasses[{name}]: {times}")
+def run_benchmark(repeat=True, scale=10):
+    from util import repeat_to_accuracy, scale_subbenchmarks
+
+    timings = time_benchmarks(POINTS)
+    scales = scale_subbenchmarks(timings, scale)
+
+    def timeit(func, arg, scale, timer):
+        i: cython.long
+        t0 = timer()
+        for i in range(scale):
+            func(arg)
+        t1 = timer()
+        return t1 - t0
+
+    collected_timings = defaultdict(list)
+
+    points = benchmark_create(POINTS)
+
+    collected_timings['create'] = repeat_to_accuracy(
+        timeit, benchmark_create, POINTS, scale=scales['create'], repeat=repeat)[0]
+
+    for name, bench_func in [
+            ('float', benchmark_float),
+            ('repr', benchmark_repr),
+            ('compare', benchmark_compare),
+            ]:
+        collected_timings[name] = repeat_to_accuracy(
+            timeit, bench_func, points, scale=scales[name], repeat=repeat)[0]
+
+    for name, timings in collected_timings.items():
+        print(f"bm_dataclasses[{name}]: {timings}")

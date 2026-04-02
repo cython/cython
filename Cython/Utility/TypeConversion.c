@@ -119,9 +119,11 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 #if CYTHON_ASSUME_SAFE_MACROS
 #define __Pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
 #define __Pyx_PyFloat_AS_DOUBLE(x) PyFloat_AS_DOUBLE(x)
+#define __Pyx_PyFloat_IsNonZero(x) (PyFloat_AS_DOUBLE(x) != 0.0)
 #else
 #define __Pyx_PyFloat_AsDouble(x) PyFloat_AsDouble(x)
 #define __Pyx_PyFloat_AS_DOUBLE(x) PyFloat_AsDouble(x)
+#define __Pyx_PyFloat_IsNonZero(x) PyObject_IsTrue(x)
 #endif
 #define __Pyx_PyFloat_AsFloat(x) ((float) __Pyx_PyFloat_AsDouble(x))
 
@@ -138,7 +140,7 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #ifndef _PyLong_NON_SIZE_BITS
     #define _PyLong_NON_SIZE_BITS 3
   #endif
-  #define __Pyx_PyLong_Sign(x)  (((PyLongObject*)x)->long_value.lv_tag & _PyLong_SIGN_MASK)
+  #define __Pyx_PyLong_Sign(x)  ((int) (((PyLongObject*)x)->long_value.lv_tag & _PyLong_SIGN_MASK))
   #define __Pyx_PyLong_IsNeg(x)  ((__Pyx_PyLong_Sign(x) & 2) != 0)
   #define __Pyx_PyLong_IsNonNeg(x)  (!__Pyx_PyLong_IsNeg(x))
   #define __Pyx_PyLong_IsZero(x)  (__Pyx_PyLong_Sign(x) & 1)
@@ -182,6 +184,11 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #else
   #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->ob_digit)
   #endif
+
+  // Functions/macros that must be generally available, e.g. for truth testing.
+  #define __Pyx_PyLong_IsNonZero(x)  (!__Pyx_PyLong_IsZero(x))
+#else
+  #define __Pyx_PyLong_IsNonZero(x)  PyObject_IsTrue(x)
 #endif
 
 #if __PYX_DEFAULT_STRING_ENCODING_IS_UTF8

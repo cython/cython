@@ -947,7 +947,7 @@ class FusedCFuncDefNode(StatListNode):
             fused_func.generate_evaluation_code(code)
 
             code.putln(
-                f"((__pyx_FusedFunctionObject *) {fused_func.result()})->__signatures__ = {signatures.result()};")
+                f"__Pyx_as_FusedFunctionObject({fused_func.result()})->__signatures__ = {signatures.result()};")
 
             signatures.generate_giveref(code)
             signatures.generate_post_assignment_code(code)

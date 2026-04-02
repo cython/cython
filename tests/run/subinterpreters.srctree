@@ -1,4 +1,4 @@
-# tag: subinterpreters
+# tag: subinterpreters, threads
 
 UNSET CFLAGS
 PYTHON setup.py build_ext --inplace

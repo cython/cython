@@ -10,6 +10,7 @@ memoryview.memoryview$
 #run.unicodemethods
 # multiphase import not supported
 run.unicode_imports
+run.combined_modules
 
 run.tp_new
 run.test_fstring
@@ -36,6 +37,7 @@ run.reimport_from_subinterpreter
 run.reimport_failure
 pkg.cimportfrom
 embedded
+embed_modules
 TestCyCache
 run.ext_auto_richcmp
 run.coverage_cmd

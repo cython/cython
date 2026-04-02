@@ -59,9 +59,10 @@ low.  This includes code that makes heavy use of typed memoryviews, or code that
 an external C library.
 
 Where the majority of the work involves interacting with Python objects the cost is likely to
-be more significant.  As an example, compiling the Cython compiler with the regular C API
-gives a ~35% speed-up compared to not compiling the Cython compiler.  Compiling the Cython
-compiler in the Limited API gives a 0-10% speed-up (depending on the exact version used).
+be greater.  As an example, compiling the Cython compiler with the regular C API
+gives a 38% speed-up compared to not compiling the Cython compiler.  Compiling the Cython
+compiler in the Limited API gives a 18-33% speed-up (depending on the exact Limited API
+version used).
 
 If you are prepared to restrict yourself to Python versions 3.12+, then Cython will use
 the "vectorcall" interface in Limited API mode.  This doesn't enable any new functionality,
