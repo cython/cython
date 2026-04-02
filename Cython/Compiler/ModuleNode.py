@@ -3697,12 +3697,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                    Naming.pymodule_create_func_cname)
         code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
 
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000")
+        code.putln(f"PyABIInfo_VAR({Naming.pyrex_prefix}abi_info);")
+        code.putln("#endif")
+
         code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
 
         # PEP 793 initialization - these slots come first so they can be skipped in PyInit
         code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000")
         code.putln("{Py_mod_name, (void*)%s}," % env.module_name.as_c_string_literal())
         code.putln("{Py_mod_token, &%s}," % Naming.pymoduledef_cname)
+        code.putln("{Py_mod_abi, &%sabi_info}," % Naming.pyrex_prefix)
         code.putln("{Py_mod_methods, %s, }," % env.method_table_cname)
         if env.doc:
             code.putln("{Py_mod_doc, (void*)%s}," % doc)
