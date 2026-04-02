@@ -4,7 +4,7 @@
 
 
 from .StringEncoding import EncodedString
-from .Symtab import BuiltinScope, CClassScope, StructOrUnionScope, ModuleScope, Entry
+from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
 from .Code import UtilityCode, TempitaUtilityCode, KNOWN_PYTHON_BUILTINS, uncachable_builtins
 from .TypeSlots import Signature
 from . import PyrexTypes

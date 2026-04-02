@@ -10,7 +10,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                bytes_literal=object, StringEncoding=object,
                FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
-               Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
+               Builtin=object, ModuleNode=object, _unicode=object, _bytes=object,
                re=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
                partial=object, reduce=object,
                _CDEF_MODIFIERS=tuple, COMMON_BINOP_MISTAKES=dict)
@@ -28,8 +28,7 @@ from . import Builtin
 from . import StringEncoding
 from .StringEncoding import EncodedString, bytes_literal
 from .ModuleNode import ModuleNode
-from .Errors import error, warning, CompileError
-from .. import Utils
+from .Errors import error, warning
 from . import Future
 from . import Options
 

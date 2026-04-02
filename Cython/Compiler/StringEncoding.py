@@ -4,7 +4,6 @@
 
 
 import re
-import sys
 
 
 class UnicodeLiteralBuilder:
