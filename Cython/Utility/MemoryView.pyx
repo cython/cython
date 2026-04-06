@@ -234,7 +234,7 @@ cdef class array:
 
     @property
     def memview(self):
-        return self.get_memview()
+        return array.get_memview(self)
 
     @cname('get_memview')
     cdef get_memview(self):
@@ -434,7 +434,7 @@ cdef class memoryview:
         if have_slices:
             return memview_slice(self, indices)
         else:
-            itemp = self.get_item_pointer(<tuple> indices)
+            itemp = memoryview.get_item_pointer(self, <tuple> indices)
             return self.convert_item_to_object(itemp)
 
     def __setitem__(memoryview self, object index, object value):
@@ -442,20 +442,20 @@ cdef class memoryview:
             raise TypeError, "Cannot assign to read-only memoryview"
 
         if self.view.ndim == 1 and isinstance(index, int):
-            self.setitem_indexed1(index, value)
+            memoryview.setitem_indexed1(self, index, value)
             return
 
         have_slices, indices = _unellipsify(index, self.view.ndim)
 
         if have_slices:
-            obj = self.is_slice(value)
+            obj = memoryview.is_slice(self, value)
             target_slice = memview_slice(self, indices)
             if obj is not None:
-                self.setitem_slice_assignment(target_slice, obj)
+                memoryview.setitem_slice_assignment(self, target_slice, obj)
             else:
-                self.setitem_slice_assign_scalar(target_slice, value)
+                memoryview.setitem_slice_assign_scalar(self, target_slice, value)
         else:
-            self.setitem_indexed(<tuple> indices, value)
+            memoryview.setitem_indexed(self, <tuple> indices, value)
 
     cdef is_slice(self, obj):
         if not isinstance(obj, memoryview):
@@ -508,7 +508,7 @@ cdef class memoryview:
             PyMem_Free(tmp)
 
     cdef setitem_indexed(self, indices: tuple, value):
-        cdef char *itemp = self.get_item_pointer(indices)
+        cdef char *itemp = memoryview.get_item_pointer(self, indices)
         self.assign_item_from_object(itemp, value)
 
     cdef setitem_indexed1(self, index, value):
