@@ -12,7 +12,8 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                unicode_type=object, bytes_type=object, type_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
-               bytearray_type=object, slice_type=object, build_line_table=object,
+               bytearray_type=object, slice_type=object,
+               builtin_sequence_types=object, build_line_table=object,
                inspect=object, copy=object, os=object, re=object, sys=object,
                itertools=object, defaultdict=object,
 )
@@ -10602,10 +10603,16 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             def_node = self.def_node
 
         if self.specialized_cpdefs or self.is_specialization:
+            if code.funcstate.scope.context.shared_utility_qualified_name:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("FusedFunctionFromSharedModule", "CythonFunction.c"))
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("FusedFunction", "CythonFunction.c"))
             constructor = "__pyx_FusedFunction_New"
         else:
+            if code.funcstate.scope.context.shared_utility_qualified_name:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("CythonFunctionFromSharedModule", "CythonFunction.c"))
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
             constructor = "__Pyx_CyFunction_New"
@@ -12744,7 +12751,7 @@ class NumBinopNode(BinopNode):
     def is_specialised_binop_type(typ):
         return typ is py_object_type or typ.is_pyint_type or typ.is_pyfloat_type
 
-    fast_pyops = {'+', '-', '*'}
+    fast_pyops = {'+', '-', '*', '^', '&', '|'}
 
     py_functions = {
         "|":        "PyNumber_Or",

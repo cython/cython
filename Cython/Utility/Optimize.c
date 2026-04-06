@@ -1097,7 +1097,7 @@ static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *
 
 {{py: assert type1 in ('object', 'int', 'float'), type1 }}
 {{py: assert type2 in ('object', 'int', 'float'), type2 }}
-{{py: slot_name = {'+': 'add', '-': 'subtract', '*': 'multiply'}[c_op] }}
+{{py: slot_name = {'+': 'add', '-': 'subtract', '*': 'multiply', '^': 'xor', '&': 'and', '|': 'or'}[c_op] }}
 {{py:
 def is_type(operand, expected, type1=type1, type2=type2):
     assert operand in ('op1', 'op2'), operand
@@ -1113,6 +1113,8 @@ def is_type(operand, expected, type1=type1, type2=type2):
             check = f"likely({check})"
     return check
 }}
+
+{{if c_op in '+-*' or type1 != 'float'}}
 
 #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
 #ifndef __Pyx_DEFINED_BinopTypeError
@@ -1133,6 +1135,10 @@ static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op, i
 }
 #endif
 #endif
+
+{{endif}}
+
+{{if c_op in '+-*'}}
 
 {{if type1 in ('object', 'float')}}
 #ifndef __Pyx_DEFINED_{{op_name}}_xfloat_{{type2}}
@@ -1216,12 +1222,15 @@ static PyObject* __Pyx_{{op_name}}_xfloat_{{type2}}(PyObject *op1, PyObject *op2
 #endif
 {{endif}}
 
+// c_op in '+-*'
+{{endif}}
+
 {{if type1 in ('object', 'int')}}
 #ifndef __Pyx_DEFINED_{{op_name}}_xint_{{type2}}
 #define __Pyx_DEFINED_{{op_name}}_xint_{{type2}}
 
 static PyObject* __Pyx_{{op_name}}_xint_{{type2}}(PyObject *op1, PyObject *op2, int inplace) {
-    {{if type2 in ('object', 'float')}}
+    {{if type2 in ('object', 'float') and c_op in '+-*'}}
     if ({{is_type('op2', 'float')}}) {
         double int_op1;
         #if CYTHON_USE_PYLONG_INTERNALS
@@ -1299,7 +1308,7 @@ static PyObject* __Pyx_{{op_name}}_xint_{{type2}}(PyObject *op1, PyObject *op2, 
 {{endif}}
 
 static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int inplace) {
-    {{if type1 in ('object', 'float')}}
+    {{if type1 in ('object', 'float') and c_op in '+-*'}}
     if ({{is_type('op1', 'float')}}) {
         {{if type2 in ('object', 'float')}}
         if ({{is_type('op2', 'float')}}) {
@@ -1336,30 +1345,36 @@ static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *
 
                     return PyLong_FromLongLong(int_op1 {{c_op}} int_op2);
                 }
-            } else if (__Pyx_PyLong_IsZero(op2)) return __Pyx_NewRef(op2);
+            }
 
             {{else}}
 
             if (__Pyx_PyLong_IsCompact(op1)) {
                 Py_ssize_t int_op1 = __Pyx_PyLong_CompactValue(op1);
-                {{if c_op == '+'}}
+                {{if c_op in '+|^'}}
                 if (int_op1 == 0) return __Pyx_NewRef(op2);
+                {{elif c_op == '&'}}
+                if (int_op1 == 0) return __Pyx_NewRef(op1);
                 {{endif}}
 
                 if (__Pyx_PyLong_IsCompact(op2)) {
                     Py_ssize_t int_op2 = __Pyx_PyLong_CompactValue(op2);
-                    {{if c_op in '+-'}}
+                    {{if c_op in '+-|^'}}
                     if (int_op2 == 0) return __Pyx_NewRef(op1);
+                    {{elif c_op == '&'}}
+                    if (int_op2 == 0) return __Pyx_NewRef(op2);
                     {{endif}}
 
                     return PyLong_FromSsize_t(int_op1 {{c_op}} int_op2);
                 }
             }
-            {{if c_op in '+-'}}
-            else if (__Pyx_PyLong_IsZero(op2)) return __Pyx_NewRef(op1);
             {{endif}}
 
-            {{endif}}
+            // op1 is not compact, but op2 might still hit the special case for '0':
+            // identity for '+-|^'  -> reuse op1
+            // zero     for '*&'    -> reuse op2
+            else if (__Pyx_PyLong_IsZero(op2)) return __Pyx_NewRef({{if c_op in '+-|^'}}op1{{else}}op2{{endif}});
+
             #endif
 
             binaryfunc slot_func = __Pyx_PyType_GetSubSlot(&PyLong_Type, tp_as_number, nb_{{slot_name}}, binaryfunc);

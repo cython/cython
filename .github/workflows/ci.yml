@@ -22,8 +22,51 @@ concurrency:
 permissions:
   contents: read # to fetch code (actions/checkout)
 
+env:
+  MACOSX_DEPLOYMENT_TARGET: "11.0"
+  GCC_VERSION: 10
+  USE_CCACHE: 1
+  CCACHE_SLOPPINESS: "pch_defines,time_macros"
+  CCACHE_COMPRESS: 1
+  CCACHE_COMPRESSLEVEL: 5
+  # Size guide: 10GB maximum cache storage / total number of CI jobs creating a cache.
+  # However, a single run currently generates 170-210 MB, so less would use less but be useless.
+  CCACHE_MAXSIZE: "220M"
+
+
 jobs:
-  ci:
+
+  ci-early:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-2022, macos-latest]
+        backend: [c, cpp]
+
+        include:
+          # Limited API
+          - os: ubuntu-22.04
+            backend: "c,cpp"
+            limited_api: "--limited-api --abi3audit"
+            extra_hash: "-limited_api"
+          # Cython Shared Module
+          - os: ubuntu-22.04
+            backend: "c,cpp"
+            shared_utility: "--shared-utility"
+            extra_hash: "--shared-utility"
+
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      python-version: "3.14"
+      os: ${{ matrix.os }}
+      backend: ${{ matrix.backend }}
+      limited_api: ${{ matrix.limited_api }}
+      shared_utility: ${{ matrix.shared_utility }}
+      extra_hash: ${{ matrix.extra_hash }}
+
+
+  ci-all:
+    needs: [codespell, codestyle, ci-early, build_docs]
+
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
       fail-fast: false
@@ -34,9 +77,13 @@ jobs:
       #  os                  the os to run on
       #  python-version      the python version to use
       #  backend             the backend to use
-      #  env                 any additional env variables. Set to '{}' for none
       # Optional parameters:
-      #  allowed_failure     whether the job is allowed to fail
+      #  limited_api         extra flags related to the limited api
+      #  shared_utility      extra flags relating to the shared utility
+      #  gcc_version
+      #  extra_cflags
+      #  cython_compile_all  '1' to build cython with "compile all"
+      #  no_cython_compile   '1' to not compile cython itself
       #  extra_hash          extra hash str to differentiate from other caches with similar name (must always start with '-')
       matrix:
         # Tests [amd64]
@@ -50,11 +97,10 @@ jobs:
           - "3.12"
           - "3.13"
           - "3.13t"
-          - "3.14"
+          #- "3.14"  # ci-early
           - "3.14t"
           - "3.15-dev"
           - "3.15t-dev"
-        env: [{}]
 
         exclude:
           # Windows and free-threading is difficult to build right now
@@ -72,226 +118,144 @@ jobs:
             backend: "cpp"
 
         include:
-          #- python-version: "3.15-dev"
-          #  allowed_failure: true
-          #- python-version: "3.15t-dev"
-          #  allowed_failure: true
-
           # Ubuntu sub-jobs:
           # ================
-          # graalpy is really slow...
-          - os: ubuntu-22.04
-            python-version: graalpy25
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-            allowed_failure: false
           # GCC 13 (with broad language standards)
           - os: ubuntu-22.04
             python-version: "3.9"
             backend: c
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c99" }
+            gcc_version: 13
+            extra_cflags: "-std=c99"
             extra_hash: "-c99"
           - os: ubuntu-22.04
             python-version: "3.10"
             backend: c
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
-            extra_hash: "-gcc11"
+            gcc_version: 13
+            extra_cflags: "-std=c17"
+            extra_hash: "-c17"
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: c
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
-            extra_hash: "-gcc11"
+            gcc_version: 13
+            extra_cflags: "-std=c17"
+            extra_hash: "-c17"
           - os: ubuntu-22.04
             python-version: "3.13"
             backend: cpp
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c++20" }
-            extra_hash: "-gcc11"
+            gcc_version: 13
+            extra_cflags: "-std=c++20"
+            extra_hash: "-cpp20"
           # Arm64
           - os: ubuntu-22.04-arm
             python-version: "3.13"
             backend: c
-            env: {}
           - os: ubuntu-22.04-arm
             python-version: "3.13"
             backend: cpp
-            env: {}
           - os:  windows-11-arm
             python-version: "3.13"
             backend: "c"
-            env: {}
           - os:  windows-11-arm
             python-version: "3.13"
             backend: "cpp"
-            env: {}
           # compile all modules
           - os: ubuntu-22.04
             python-version: "3.9"
             backend: c
-            env: { CYTHON_COMPILE_ALL: 1 }
+            cython_compile_all: 1
             extra_hash: "-all"
           - os: ubuntu-22.04
             python-version: "3.9"
             backend: cpp
-            env: { CYTHON_COMPILE_ALL: 1 }
+            cython_compile_all: 1
             extra_hash: "-all"
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: c
-            env: { CYTHON_COMPILE_ALL: 1 }
+            cython_compile_all: 1
             extra_hash: "-all"
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: cpp
-            env: { CYTHON_COMPILE_ALL: 1 }
+            cython_compile_all: 1
             extra_hash: "-all"
-          # Linting
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: "c,cpp"
-            env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
-            extra_hash: "-codestyle"
           # Limited API
           - os: ubuntu-22.04
             python-version: "3.9"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
+            limited_api: "--limited-api --abi3audit"
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
+            limited_api: "--limited-api --abi3audit"
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api --abi3audit" }
+            limited_api: "--limited-api --abi3audit"
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.15-dev"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api" }
+            limited_api: "--limited-api"
             extra_hash: "-limited_api"
           # Cython Shared Module
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: "c,cpp"
-            env: { SHARED_UTILITY: "--shared-utility" }
+            shared_utility: "--shared-utility"
             extra_hash: "--shared-utility"
           # Type specs
           - os: ubuntu-22.04
             python-version: "3.14"
             backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_cflags: "-DCYTHON_USE_TYPE_SPECS=1"
             extra_hash: "-typespecs"
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_cflags: "-DCYTHON_USE_TYPE_SPECS=1"
             extra_hash: "-typespecs"
           - os: ubuntu-22.04
             python-version: "3.9"
             backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_cflags: "-DCYTHON_USE_TYPE_SPECS=1"
             extra_hash: "-typespecs"
           # Pypy
           - os: ubuntu-22.04
             python-version: pypy-3.9
             backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
+            no_cython_compile: 1
           - os: ubuntu-22.04
             python-version: pypy-3.10
             backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
+            no_cython_compile: 1
           - os: ubuntu-22.04
             python-version: pypy-3.11
             backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
+            no_cython_compile: 1
+          # GraalPy
+          - os: ubuntu-22.04
+            python-version: graalpy25
+            backend: c
+            no_cython_compile: 1
 
-    # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
-    # From testing, the runs tend to take ~10-15 minutes for ubuntu / macos and ~25 for windows,
-    # so a limit of 80 minutes should be enough. This can always be changed in the future if needed.
-    timeout-minutes: 80
-    runs-on: ${{ matrix.os }}
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      backend: ${{ matrix.backend }}
+      extra_hash: ${{ matrix.extra_hash }}
 
-    env:
-      BACKEND: ${{ matrix.backend }}
-      PYTHON_VERSION: ${{ matrix.python-version }}
-      MACOSX_DEPLOYMENT_TARGET: "11.0"
-      GCC_VERSION: 10
-      USE_CCACHE: 1
-      CCACHE_SLOPPINESS: "pch_defines,time_macros"
-      CCACHE_COMPRESS: 1
-      CCACHE_COMPRESSLEVEL: 5
-      # Size guide: 10GB maximum cache storage / total number of CI jobs creating a cache.
-      # However, a single run currently generates 170-210 MB, so less would use less but be useless.
-      CCACHE_MAXSIZE: "220M"
 
+  ci-success:
+    needs: ci-all
+    if: success()
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
+      - run: true
 
-      - name: Setup python
-        uses: actions/setup-python@v6.2.0
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@v1.2.20
-        with:
-          variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
-          create-symlink: ${{ startsWith(runner.os, 'Linux') && 'false' || 'true' }}  # fake ternary
-          # Disable ccache saving from pull requests to reserve caching storage for the main branches.
-          save: ${{ startsWith(github.ref, '/refs/pull/') && 'false' || 'true' }}  # fake ternary
-          key: ${{ runner.os }}-${{ runner.arch }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/**/ci-run.sh') }}
-          max-size: ${{ env.CCACHE_MAXSIZE }}
-
-      - name: Run CI
-        continue-on-error: ${{ matrix.allowed_failure || false }}
-        env: ${{ matrix.env }}
-        # Windows does not support job summary reports and has problems with pipes, so keep things simple there.
-        run: |
-          bash -c "\
-            if [[ '${{runner.os}}' == 'Windows' ]]; then \
-              bash ./Tools/ci-run.sh; \
-            else \
-              ${{runner.os == 'Linux' && 'stdbuf -e4M' || ''}}  bash ./Tools/ci-run.sh \
-              2> >(tee  ${{runner.os == 'Linux' && '-p' || ''}} \
-                >(tail -20 > ci-summary.txt) \
-                >(grep -F ' SLOWTEST ' >ci-slowtests.txt) \
-                >&2); \
-            fi"
-
-      - name: Report results
-        if: runner.os != 'Windows'
-        run: |
-          bash -c "\
-            if [[ -s ci-slowtests.txt ]]; then \
-              echo '| Slow tests | duration |'; \
-              echo '|:---|---:|'; \
-              sed -e 's/^.*\[/|    / ; s/: SLOWTEST / | / ; s/\].*/ |/ ; s/_/\\\\_/g' ci-slowtests.txt | sort -nr -k4; \
-              echo; \
-            fi; \
-            if [[ -s ci-summary.txt ]]; then \
-              grep -A20 'Most expensive pipeline stages' ci-summary.txt | \
-                sed -e '2,21s/^\(.*[^:]\)$/    \1/ ; s/^\(.*:\)$/\n\1\n/ ; 1,1s/: /:\n\n    / ; 1,1s/), /)\n    /g' ; \
-            fi; \
-            " >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload HTML docs
-        uses: actions/upload-artifact@v6.0.0
-        with:
-          name: htmldocs
-          path: docs/build/html
-          if-no-files-found: ignore
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v6.0.0
-        with:
-          name: wheels-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}${{ matrix.extra_hash }}
-          path: dist/*.whl
-          if-no-files-found: ignore
 
   codespell:
     name: Check for spelling errors
@@ -299,6 +263,74 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Codespell
-        uses: codespell-project/actions-codespell@v2
+        uses: codespell-project/actions-codespell@8f01853be192eb0f849a5c7d721450e7a467c579 # v2.2
+
+
+  codestyle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      PYTHON_VERSION: "3.13"
+      BACKEND: "c,cpp"
+      TEST_CODE_STYLE: "1"
+      NO_CYTHON_COMPILE: "1"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run codestyle
+        run: |
+          bash -c "\
+            python -m pip install --no-cache-dir -U pip || exit 1 ; \
+            python -m pip install --no-cache-dir -r test-requirements.txt || exit 1 ; \
+            python runcodestyle.py \
+              2> >(tee >(egrep '.+:[0-9]+: ' | sed -e 's/^/    /' >> $GITHUB_STEP_SUMMARY) >&2) \
+            "
+
+  build_docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      PYTHON_VERSION: "3.13"
+      BACKEND: "c,cpp"
+      TEST_CODE_STYLE: "1"
+      NO_CYTHON_COMPILE: "1"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Build HTML docs
+        run: |
+          python -m pip install --no-cache-dir -r doc-requirements.txt
+          make -C docs html
+
+      - name: Upload HTML docs
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: htmldocs
+          path: docs/build/html
+          if-no-files-found: ignore

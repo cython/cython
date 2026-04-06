@@ -928,3 +928,132 @@ __pyx_fill_slice_{{dtype_name}}({{type_decl}} *p, Py_ssize_t extent, Py_ssize_t 
         p += stride;
     }
 }
+
+/////////////////// SliceMemoryviewSlice.proto //////////////
+//@substitute: naming
+
+// Slicing in a single dimension of a memoryviewslice.
+
+// Relies on being inlined to optimize out unused paths so
+// not a good candidate for the shared library.
+//
+// Create a new slice dst given slice src.
+//
+//    dim             - the current src dimension (indexing will make dimensions
+//                                                 disappear)
+//    new_dim         - the new dst dimension
+//    suboffset_dim   - pointer to a single int initialized to -1 to keep track of
+//                      where slicing offsets should be added
+
+static CYTHON_INLINE int __pyx_memoryview_slice_memviewslice(
+        $memviewslice_cname *dst,
+        Py_ssize_t shape, Py_ssize_t stride, Py_ssize_t suboffset,
+        int dim, int new_ndim, int *suboffset_dim,
+        Py_ssize_t start, Py_ssize_t stop, Py_ssize_t step,
+        int have_start, int have_stop, int have_step,
+        int is_slice); /* proto */
+
+/////////////////// SliceMemoryviewSlice //////////////
+//@substitute: naming
+
+static void __pyx_memoryview_slice_memviewslice_err_dim(PyObject *error, const char* msg, int dim) {
+    PyGILState_STATE gilstate = PyGILState_Ensure();
+    PyErr_Format(error, msg, dim);
+    PyGILState_Release(gilstate);
+}
+
+static CYTHON_INLINE int __pyx_memoryview_slice_memviewslice(
+        $memviewslice_cname *dst,
+        Py_ssize_t shape, Py_ssize_t stride, Py_ssize_t suboffset,
+        int dim, int new_ndim, int *suboffset_dim,
+        Py_ssize_t start, Py_ssize_t stop, Py_ssize_t step,
+        int have_start, int have_stop, int have_step,
+        int is_slice) {
+    if (!is_slice) {
+        // index is a normal integer-like index
+        if (start < 0) {
+            start += shape;
+        }
+        if (unlikely(!(0 <= start && start < shape))) {
+            __pyx_memoryview_slice_memviewslice_err_dim(PyExc_IndexError, "Index out of bounds (axis %d)", dim);
+            return -1;
+        }
+    } else {
+        // index is a slice
+        int negative_step;
+        if (have_step) {
+            negative_step = step < 0;
+            if (unlikely(step == 0)) {
+                __pyx_memoryview_slice_memviewslice_err_dim(PyExc_ValueError, "Step may not be zero (axis %d)", dim);
+                return -1;
+            }
+        } else {
+            negative_step = 0;
+            step = 1;
+        }
+
+        // check our bounds and set defaults
+        if (have_start) {
+            if (start < 0) {
+                start += shape;
+                if (start < 0) {
+                    start = 0;
+                }
+            } else if (start >= shape) {
+                start = negative_step ? (shape - 1) : shape;
+            }
+        } else {
+            start = negative_step ? (shape - 1) : 0;
+        }
+        if (have_stop) {
+            if (stop < 0) {
+                stop += shape;
+                if (stop < 0) {
+                    stop = 0;
+                }
+            } else if (stop > shape) {
+                stop = shape;
+            }
+        } else {
+            stop = negative_step ? -1 : shape;
+        }
+
+        // len = ceil( (stop - start) / step )
+        Py_ssize_t new_shape = (stop - start) / step;
+        if ((stop - start) - step * new_shape) {
+            ++new_shape;
+        }
+        if (new_shape < 0) {
+            new_shape = 0;
+        }
+
+        // shape/strides/suboffsets
+        dst->strides[new_ndim] = stride * step;
+        dst->shape[new_ndim] = new_shape;
+        dst->suboffsets[new_ndim] = suboffset;
+    }
+    
+    // Add the slicing or indexing offsets to the right suboffset or base data *
+    if (suboffset_dim[0] < 0) {
+        dst->data += start * stride;
+    } else {
+        dst->suboffsets[suboffset_dim[0]] += start * stride;
+    }
+
+    if (suboffset >= 0) {
+        if (!is_slice) {
+            if (likely(new_ndim == 0)) {
+                dst->data = ((char **)(dst->data))[0] + suboffset;
+            } else {
+                __pyx_memoryview_slice_memviewslice_err_dim(
+                    PyExc_IndexError,
+                    "All dimensions preceding dimension %d must be indexed and not sliced",
+                    dim);
+                return -1;
+            }
+        } else {
+            suboffset_dim[0] = new_ndim;
+        }
+    }
+    return 0;
+}

@@ -433,10 +433,6 @@
   #endif
 #endif
 
-#ifndef CYTHON_COMPRESS_STRINGS
-  #define CYTHON_COMPRESS_STRINGS 1
-#endif
-
 #ifndef CYTHON_FAST_PYCCALL
 #define CYTHON_FAST_PYCCALL  CYTHON_FAST_PYCALL
 #endif
@@ -496,6 +492,8 @@
         #define CYTHON_UNUSED [[maybe_unused]]
       #endif
     #endif
+  #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+    #define CYTHON_UNUSED [[maybe_unused]]
   #endif
 #endif
 #ifndef CYTHON_UNUSED

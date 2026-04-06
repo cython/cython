@@ -32,7 +32,9 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Set compiler
         if: ${{inputs.compiler}}
@@ -88,7 +90,7 @@ jobs:
             else
               TSAN_SUPPRESSIONS="${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
             fi
-            if [[ "${{github.event.label.name}}" != "full_sanitizers" ]]; then
+            if [[ "${GITHUB_LABEL_NAME}" != "full_sanitizers" ]]; then
               # For thread sanitizer run on a much smaller list of tests
               EXCLUDE="tag:threads"
             fi
@@ -105,6 +107,8 @@ jobs:
           echo "CONFIGURE_ARGS=$CONFIGURE_ARGS" >> $GITHUB_ENV
           echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS" >> $GITHUB_ENV
           echo "EXTRA_CONFIGURE_CFLAGS=$EXTRA_CONFIGURE_CFLAGS" >> $GITHUB_ENV
+        env:
+          GITHUB_LABEL_NAME: ${{ github.event.label.name }}
 
       - name: Install build dependencies
         run: |
@@ -128,7 +132,7 @@ jobs:
 
       - name: Archive logs
         if: ${{ inputs.sanitize && always() }}
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{inputs.sanitize}}-logs
           path: san_log.*

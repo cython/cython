@@ -13,7 +13,6 @@ import itertools
 import json
 import operator
 import os
-import pathlib
 import re
 import sys
 from typing import Sequence
@@ -1397,6 +1396,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for method_entry in scope.cfunc_entries:
                 if not method_entry.is_inherited:
                     code.putln("%s;" % method_entry.type.declaration_code("(*%s)" % method_entry.cname))
+                    code.globalstate.use_entry_utility_code(method_entry)
             code.putln("};")
 
     def generate_exttype_vtabptr_declaration(self, entry, code):
@@ -3346,6 +3346,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         shared_utility_exporter.call_export_code(code)
 
         code.putln("/*--- Type init code ---*/")
+
+        shared_utility_exporter.call_import_code(code)
+
         self.generate_type_init_code(env, subfunction, code)
 
         with subfunction("Type import code") as inner_code:
@@ -3361,8 +3364,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.specialize_fused_types(module)
                 self.generate_c_function_import_code_for_module(module, env, inner_code)
 
-        shared_utility_exporter.call_import_code(code)
-
+        code.put_error_if_neg(self.pos, "__Pyx_InitAfterSharedUtility()")
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
 
@@ -4056,7 +4058,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         type_name = type.name
         is_builtin = module_name in ('__builtin__', 'builtins')
         if not is_builtin:
-            module_name = f'"{module_name}"'
+            module_name = module_name.as_c_string_literal()
         elif type_name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
             code.putln(

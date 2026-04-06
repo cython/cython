@@ -1,5 +1,5 @@
 UNSET PYTHON_GIL
-UNSET CFLAGS
+UNSET CFLAGS -DPy_LIMITED_API -DCYTHON_
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import default; default.test()"
 PYTHON -c "import compatible; compatible.test()"
