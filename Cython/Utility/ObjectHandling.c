@@ -898,11 +898,11 @@ __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
     res = PyTuple_New(n);
     if (unlikely(res == NULL)) return NULL;
     for (i = 0; i < n; i++) {
+        Py_INCREF(src[i]);
         if (unlikely(__Pyx_PyTuple_SET_ITEM(res, i, src[i]) < (0))) {
             Py_DECREF(res);
             return NULL;
         }
-        Py_INCREF(src[i]);
     }
     return res;
 }
@@ -2358,8 +2358,8 @@ static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, P
 static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
     (void)__Pyx_PyObject_FastCallDict;
 
-    if (__Pyx_PyTuple_SET_ITEM(builder, n, key) != (0)) return -1;
     Py_INCREF(key);
+    if (__Pyx_PyTuple_SET_ITEM(builder, n, key) != (0)) return -1;
     args[n] = value;
     return 0;
 }
