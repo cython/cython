@@ -54,7 +54,7 @@ jobs:
           fetch-tags: true
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@v1.2.19
+        uses: hendrikmuhs/ccache-action@v1.2.22
         with:
           create-symlink: true
           variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
@@ -63,7 +63,7 @@ jobs:
           max-size: 250M
 
       - name: Setup python
-        uses: actions/setup-python@v6.0.0
+        uses: actions/setup-python@v6.2.0
         with:
           # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
           python-version: |
@@ -99,7 +99,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark_results.txt
           path: benchmarks.log
