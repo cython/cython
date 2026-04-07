@@ -1808,7 +1808,7 @@ class BytesNode(ConstNode):
 
         node = BytesNode.from_node(self, value=self.value)
         if dst_type.is_pyobject:
-            if dst_type is py_object_type or dst_type.is_pybytes_type:
+            if dst_type.may_be_pybytes_type:
                 node.type = Builtin.bytes_type
             else:
                 self.check_for_coercion_error(dst_type, env, fail=True)
@@ -7620,7 +7620,7 @@ class AsTupleNode(ExprNode):
     gil_message = "Constructing Python tuple"
 
     def generate_result_code(self, code):
-        cfunc = "__Pyx_PySequence_Tuple" if self.arg.type is py_object_type or self.arg.type.is_pytuple_type else "PySequence_Tuple"
+        cfunc = "__Pyx_PySequence_Tuple" if self.arg.type.may_be_pytuple_type else "PySequence_Tuple"
         code.putln(
             "%s = %s(%s); %s" % (
                 self.result(),
@@ -8755,8 +8755,7 @@ class SequenceNode(ExprNode):
         # is evaluated twice, within each if-block.
         for item in self.unpacked_items:
             item.allocate(code)
-        special_unpack = (rhs.type is py_object_type
-                          or rhs.type.is_pytuple_type or rhs.type.is_pylist_type
+        special_unpack = (rhs.type.may_be_pytuple_type or rhs.type.may_be_pylist_type
                           or not rhs.type.is_builtin_type)
         long_enough_for_a_loop = len(self.unpacked_items) > 3
 
@@ -8978,7 +8977,7 @@ class SequenceNode(ExprNode):
         code.putln("%s = %s(%s); %s" % (
             target_list,
             "__Pyx_PySequence_ListKeepNew" if (
-                    not iterator_temp and rhs.result_in_temp() and rhs.type is py_object_type or rhs.type.is_pylist_type)
+                    not iterator_temp and rhs.result_in_temp() and rhs.type.may_be_pylist_type)
                 else "PySequence_List",
             iterator_temp or rhs.py_result(),
             code.error_goto_if_null(target_list, self.pos)))
@@ -9118,7 +9117,7 @@ class TupleNode(SequenceNode):
         if self.type.is_ctuple:
             if dst_type.is_ctuple and self.type.size == dst_type.size:
                 return self.coerce_to_ctuple(dst_type, env)
-            elif dst_type.is_pytuple_type or dst_type is py_object_type:
+            elif dst_type.may_be_pytuple_type:
                 coerced_args = [arg.coerce_to_pyobject(env) for arg in self.args]
                 return TupleNode(
                     self.pos,
@@ -9726,7 +9725,7 @@ class MergedSequenceNode(ExprNode):
             code.putln("%s = %s(%s); %s" % (
                 self.result(),
                 'PySet_New' if is_set
-                    else "__Pyx_PySequence_ListKeepNew" if item.result_in_temp() and (item.type is py_object_type or item.type.is_pylist_type)
+                    else "__Pyx_PySequence_ListKeepNew" if item.result_in_temp() and item.type.may_be_pylist_type
                     else "PySequence_List",
                 item.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
@@ -12749,7 +12748,7 @@ class NumBinopNode(BinopNode):
 
     @staticmethod
     def is_specialised_binop_type(typ):
-        return typ is py_object_type or typ.is_pyint_type or typ.is_pyfloat_type
+        return typ.may_be_pyint_type or typ.may_be_pyfloat_type
 
     fast_pyops = {'+', '-', '*', '^', '&', '|'}
 
@@ -13374,7 +13373,7 @@ class PowNode(NumBinopNode):
             self.type.is_pyobject and
             self.operand1.constant_result == 2 and
             isinstance(self.operand1.constant_result, int) and
-            (self.operand2.type is py_object_type or self.operand2.type.is_pyint_type)
+            self.operand2.type.may_be_pyint_type
         ):
             code.globalstate.use_utility_code(UtilityCode.load_cached('PyNumberPow2', 'Optimize.c'))
             if self.inplace:
