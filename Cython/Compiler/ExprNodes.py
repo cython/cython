@@ -4265,7 +4265,7 @@ class IndexNode(_IndexingBaseNode):
             elif base_type.is_pyunicode_ptr:
                 # sliced Py_UNICODE* strings must coerce to Python
                 return unicode_type
-            elif base_type.is_bytes_or_str_or_bytearray or base_type.is_pylist_type or base_type.is_pytuple_type:
+            elif base_type.is_builtin_sequence:
                 # slicing these returns the same type
                 return base_type
             elif base_type.is_memoryviewslice:
@@ -5579,7 +5579,7 @@ class SliceIndexNode(ExprNode):
             return bytes_type
         elif base_type.is_pyunicode_ptr:
             return unicode_type
-        elif base_type.is_bytes_or_str_or_bytearray or base_type.is_pylist_type or base_type.is_pytuple_type:
+        elif base_type.is_builtin_sequence:
             return base_type
         elif base_type.is_ptr or base_type.is_array:
             return PyrexTypes.c_array_type(base_type.base_type, None)
@@ -5599,7 +5599,7 @@ class SliceIndexNode(ExprNode):
         if base_type:
             if base_type.is_string:
                 return False
-            if base_type.is_bytes_or_str_or_bytearray or base_type.is_pylist_type or base_type.is_pytuple_type:
+            if base_type.is_builtin_sequence:
                 return False
         return ExprNode.may_be_none(self)
 
@@ -12909,16 +12909,16 @@ class MulNode(NumBinopNode):
                 return self.analyse_sequence_mul(env, operand1, operand2)
             elif operand2.is_sequence_constructor and operand2.mult_factor is None:
                 return self.analyse_sequence_mul(env, operand2, operand1)
-            elif operand1.type and operand1.type.is_sequence:
+            elif operand1.type and operand1.type.is_builtin_sequence:
                 self.operand2 = operand2.coerce_to_index(env)
-            elif operand2.type and operand2.type.is_sequence:
+            elif operand2.type and operand2.type.is_builtin_sequence:
                 self.operand1 = operand1.coerce_to_index(env)
 
         return self.analyse_operation(env)
 
     @staticmethod
     def is_builtin_seqmul_type(type):
-        return type.is_builtin_type and type.is_sequence and not type.is_pymemoryview_type
+        return type.is_builtin_type and type.is_builtin_sequence and not type.is_pymemoryview_type
 
     def calculate_is_sequence_mul(self):
         type1 = self.operand1.type

@@ -321,7 +321,7 @@ class PyrexType(BaseType):
         return self.is_pybytes_type or self.is_pystr_type
 
     @property
-    def is_sequence(self) -> bool:
+    def is_builtin_sequence(self) -> bool:
         return (
             self.is_pybytes_type or self.is_pystr_type or self.is_pybytearray_type or
             self.is_pymemoryview_type or self.is_pylist_type or self.is_pytuple_type
