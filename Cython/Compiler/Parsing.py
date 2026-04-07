@@ -2803,7 +2803,7 @@ def p_c_simple_base_type(s: PyrexScanner, nonempty: cython.bint, templates=None)
     pos = s.position()
 
     # Handle const/volatile
-    is_restrict = is_const = is_volatile = False
+    is_const = is_volatile = False
     while s.sy == 'IDENT':
         if s.systring == 'const':
             if is_const: error(pos, "Duplicate 'const'")
@@ -2811,21 +2811,18 @@ def p_c_simple_base_type(s: PyrexScanner, nonempty: cython.bint, templates=None)
         elif s.systring == 'volatile':
             if is_volatile: error(pos, "Duplicate 'volatile'")
             is_volatile = True
-        elif s.systring == 'restrict':
-            if is_restrict: error(pos, "Duplicate 'restrict'")
-            is_restrict = True
         else:
             break
         s.next()
-    if is_const or is_volatile or is_restrict:
+    if is_const or is_volatile:
         base_type = p_c_base_type(s, nonempty=nonempty, templates=templates)
         if isinstance(base_type, Nodes.MemoryViewSliceTypeNode):
             # reverse order to avoid having to write "(const int)[:]"
             base_type.base_type_node = Nodes.CQualifierTypeNode(pos,
-                base_type=base_type.base_type_node, is_const=is_const, is_volatile=is_volatile, is_restrict=is_restrict)
+                base_type=base_type.base_type_node, is_const=is_const, is_volatile=is_volatile)
             return base_type
         return Nodes.CQualifierTypeNode(pos,
-            base_type=base_type, is_const=is_const, is_volatile=is_volatile, is_restrict=is_restrict)
+            base_type=base_type, is_const=is_const, is_volatile=is_volatile)
 
     if s.sy != 'IDENT':
         error(pos, "Expected an identifier, found '%s'" % s.sy)

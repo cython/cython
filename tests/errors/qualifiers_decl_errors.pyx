@@ -103,6 +103,8 @@ cdef const_array():
     cdef const object_var = [1, 2, 3]
     cdef const int int_not_list_var = [1, 2, 3]
 
+cdef int *restrict bar(int *restrict a):
+    pass
 
 _ERRORS = """
 5:4: Assignment to const 'x'
@@ -158,6 +160,7 @@ _ERRORS = """
 103:9: Const/volatile base type cannot be a Python object
 104:4: Assignment to const 'int_not_list_var'
 104:38: Cannot coerce list to type 'const int'
+106:10: Restrict qualifier cannot be applied to function type
 """
 
 _WARNINGS = """
