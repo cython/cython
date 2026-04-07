@@ -5746,12 +5746,15 @@ class CClassDefNode(ClassDefNode):
                 # trial_type is a heaptype so GetSlot works in all versions of the limited API
                 trial_type_base = "__Pyx_PyType_GetSlot((PyTypeObject*) %s, tp_base, PyTypeObject*)" % trial_type
                 code.putln("__Pyx_TypeName base_name = __Pyx_PyType_GetFullyQualifiedName(%s);" % trial_type_base)
+                code.putln(code.error_goto_if("__Pyx_Typename_ErrorCheck(base_name)", self.pos))
                 code.putln("__Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(%s);" % first_base)
+                code.putln("if (likely(!__Pyx_Typename_ErrorCheck(type_name))) {")
                 code.putln("PyErr_Format(PyExc_TypeError, "
                     "\"best base '\" __Pyx_FMT_TYPENAME \"' must be equal to first base '\" __Pyx_FMT_TYPENAME \"'\",")
                 code.putln("             base_name, type_name);")
-                code.putln("__Pyx_DECREF_TypeName(base_name);")
                 code.putln("__Pyx_DECREF_TypeName(type_name);")
+                code.putln("}")
+                code.putln("__Pyx_DECREF_TypeName(base_name);")
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
 

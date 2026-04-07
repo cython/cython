@@ -59,10 +59,12 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     else if (unlikely(!PyDict_Check(globals))) {
         __Pyx_TypeName globals_type_name =
             __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(globals));
-        PyErr_Format(PyExc_TypeError,
-                     "exec() arg 2 must be a dict, not " __Pyx_FMT_TYPENAME,
-                     globals_type_name);
-        __Pyx_DECREF_TypeName(globals_type_name);
+        if (likely(!__Pyx_Typename_ErrorCheck(globals_type_name))) {
+            PyErr_Format(PyExc_TypeError,
+                        "exec() arg 2 must be a dict, not " __Pyx_FMT_TYPENAME,
+                        globals_type_name);
+            __Pyx_DECREF_TypeName(globals_type_name);
+        }
         goto bad;
     }
 #endif
@@ -98,10 +100,12 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
             o = s;
         } else if (unlikely(!PyBytes_Check(o))) {
             __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
-            PyErr_Format(PyExc_TypeError,
-                "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME,
-                o_type_name);
-            __Pyx_DECREF_TypeName(o_type_name);
+            if (likely(!__Pyx_Typename_ErrorCheck(o_type_name))) {
+                PyErr_Format(PyExc_TypeError,
+                    "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME,
+                    o_type_name);
+                __Pyx_DECREF_TypeName(o_type_name);
+            }
             goto bad;
         }
         code = PyBytes_AS_STRING(o);
@@ -520,10 +524,12 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
         __Pyx_TypeName c_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(c));
-        PyErr_Format(PyExc_TypeError,
-            "ord() expected string of length 1, but " __Pyx_FMT_TYPENAME " found",
-            c_type_name);
-        __Pyx_DECREF_TypeName(c_type_name);
+        if (likely(!__Pyx_Typename_ErrorCheck(c_type_name))) {
+            PyErr_Format(PyExc_TypeError,
+                "ord() expected string of length 1, but " __Pyx_FMT_TYPENAME " found",
+                c_type_name);
+            __Pyx_DECREF_TypeName(c_type_name);
+        }
         return (long)(Py_UCS4)-1;
     }
     PyErr_Format(PyExc_TypeError,
