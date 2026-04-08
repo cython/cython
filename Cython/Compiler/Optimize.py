@@ -3531,7 +3531,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     PyUnicode_uchar_predicate_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_bint_type, [
             PyrexTypes.CFuncTypeArg("uchar", PyrexTypes.c_py_ucs4_type, None),
-            ])
+            ],
+            exception_value=-1)
 
     def _inject_unicode_predicate(self, node, function, args, is_unbound_method):
         if is_unbound_method or len(args) != 1:
