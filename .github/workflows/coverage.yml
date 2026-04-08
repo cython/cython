@@ -52,9 +52,8 @@ jobs:
       - name: Copy coverage HTML
         run: |
           if [ -d './coverage-report-html' ]; then
-            REF_DIRNAME="${{ github.event_name == 'pull_request' && format('pr/{0}', github.sha) || github.head_ref || github.ref_name }}"
-            mkdir -p gh_pages_coverage/coverage/pr \
-              && cp -r './coverage-report-html' "gh_pages_coverage/coverage/${REF_DIRNAME}";
+            mkdir -p gh_pages_coverage/coverage/ \
+              && cp -r './coverage-report-html' 'gh_pages_coverage/coverage/${{ github.head_ref || github.ref_name }}';
           fi
 
       - name: Upload Coverage HTML to GH Pages
@@ -78,8 +77,7 @@ jobs:
         run: |
           echo "## Python coverage results:" >> $GITHUB_STEP_SUMMARY
           PAGES_URL="${{ steps.htmldeploy.outputs.page_url }}"
-          REF_DIRNAME="${{ github.event_name == 'pull_request' && format('pr/{0}', github.sha) || github.head_ref || github.ref_name }}"
-          if [ -n "${PAGES_URL}" ]; then echo "[Coverage HTML](${PAGES_URL}/coverage/${REF_DIRNAME}/)" >> $GITHUB_STEP_SUMMARY; fi
+          if [ -n "${PAGES_URL}" ]; then echo "[Coverage HTML](${PAGES_URL}/coverage/${{ github.head_ref || github.ref_name }})" >> $GITHUB_STEP_SUMMARY; fi
           if [ -f coverage-report.md ]; then { echo; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
   cycoverage:
