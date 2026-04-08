@@ -394,7 +394,7 @@ static PyObject *__Pyx_setup_reduce_get_reduce_attribute(PyObject *type_obj, PyO
     if (allow_not_present) {
         return __Pyx_PyObject_GetAttrStrNoError(type_obj, name);
     } else {
-        return __Pyx_PyObject_GetAttrStr(type_obj, name)
+        return __Pyx_PyObject_GetAttrStr(type_obj, name);
     }
 #endif
 }
