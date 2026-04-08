@@ -536,7 +536,6 @@ __pyx_memoryview_copy_new_contig(const $memviewslice_cname *from_mvs,
     struct $memview_objstruct_cname *from_memview = from_mvs->memview;
     Py_buffer *buf = &from_memview->view;
     PyObject *shape_tuple = NULL;
-    PyObject *temp_int = NULL;
     struct __pyx_array_obj *array_obj = NULL;
     struct $memview_objstruct_cname *memview_obj = NULL;
 
@@ -558,7 +557,7 @@ __pyx_memoryview_copy_new_contig(const $memviewslice_cname *from_mvs,
 
 
     for(i = 0; i < ndim; i++) {
-        temp_int = PyLong_FromSsize_t(from_mvs->shape[i]);
+        PyObject *temp_int = PyLong_FromSsize_t(from_mvs->shape[i]);
         if(unlikely(!temp_int)) {
             goto fail;
         } else {
@@ -569,7 +568,6 @@ __pyx_memoryview_copy_new_contig(const $memviewslice_cname *from_mvs,
                 goto fail;
             }
 #endif
-            temp_int = NULL;
         }
     }
 
@@ -602,7 +600,6 @@ fail:
     new_mvs.data = NULL;
 no_fail:
     __Pyx_XDECREF(shape_tuple);
-    __Pyx_XDECREF(temp_int);
     __Pyx_XDECREF((PyObject *) array_obj);
     __Pyx_RefNannyFinishContext();
     return new_mvs;
