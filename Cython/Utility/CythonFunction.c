@@ -614,7 +614,7 @@ __Pyx_CyFunction_get_is_coroutine_value(__pyx_CyFunctionObject *op) {
             return is_coroutine_value;
         }
 ignore_or_error:
-        if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+        if (!__Pyx_IgnoreException(PyExc_Exception)) {
             return NULL;
         }
     }

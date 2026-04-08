@@ -1486,7 +1486,7 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
             return result;
         }
     }
-    if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+    if (!__Pyx_IgnoreException(PyExc_Exception)) {
         return NULL; // BaseException
     }
     __Pyx_GetModuleGlobalNameUncached(result, name);
@@ -1592,12 +1592,12 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     if (likely(result)) {
         return result;
     }
-    if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+    if (!__Pyx_IgnoreException(PyExc_Exception)) {
         return NULL; // BaseException
     }
 #elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
     if (unlikely(__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), name, &result) == -1)) {
-        if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+        if (!__Pyx_IgnoreException(PyExc_Exception)) {
             return NULL; // BaseException
         }
     }
@@ -1613,7 +1613,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
         return __Pyx_NewRef(result);
     }
     PyObject *exc = PyErr_Occurred();
-    if (unlikely(exc) && !__Pyx_IgnoreException(exc, PyExc_Exception)) {
+    if (unlikely(exc) && !__Pyx_IgnoreGivenException(exc, PyExc_Exception)) {
         return NULL; // BaseException
     }
 #endif
@@ -1980,7 +1980,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
         int self_found;
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
         self = PyObject_GetAttrString(method, "__self__");
-        if (!self && !__Pyx_IgnoreException(NULL, PyExc_AttributeError)) {
+        if (!self && !__Pyx_IgnoreException(PyExc_AttributeError)) {
             return -1;
         }
 #else

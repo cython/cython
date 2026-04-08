@@ -1023,11 +1023,13 @@ bad:
 
 // Returns 1 if the exception was ignored, 0, otherwise.
 // given_exception may be NULL, in which case PyErr_Occurred() is used.
-static CYTHON_INLINE int __Pyx_IgnoreException(PyObject *given_exception, PyObject *ignorable_exception); /* proto */
+static CYTHON_INLINE int __Pyx_IgnoreGivenException(PyObject *given_exception, PyObject *ignorable_exception); /* proto */
+
+#define __Pyx_IgnoreException(ignorable_exception) __Pyx_IgnoreGivenException(NULL, ignorable_exception)
 
 //////////////////// IgnoreException /////////////////////////////////
 
-static CYTHON_INLINE int __Pyx_IgnoreException(PyObject *given_exception, PyObject *ignorable_exception) {
+static CYTHON_INLINE int __Pyx_IgnoreGivenException(PyObject *given_exception, PyObject *ignorable_exception) {
     if (PyErr_GivenExceptionMatches(given_exception ? given_exception : PyErr_Occurred(), ignorable_exception)) {
         PyErr_Clear();
         return 1;

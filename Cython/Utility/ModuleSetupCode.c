@@ -2171,7 +2171,7 @@ static int __Pyx_RegisterCleanup(void) {
         ret = PyList_Insert(reg, 0, args);
     } else {
         if (!reg) {
-            if (!__Pyx_IgnoreException(NULL, PyExc_AttributeError)) {
+            if (!__Pyx_IgnoreException(PyExc_AttributeError)) {
               goto bad;
             }
         } else {
@@ -2372,7 +2372,7 @@ static void __Pyx_FastGilFuncInit(void) {
   struct __Pyx_FastGilVtab* shared = (struct __Pyx_FastGilVtab*)PyCapsule_Import(__Pyx_FastGIL_PyCapsule, 1);
   if (shared) {
     __Pyx_FastGilFuncs = *shared;
-  } else if (__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+  } else if (__Pyx_IgnoreException(PyExc_Exception)) {
     return __Pyx_FastGilFuncInit0();
   }
 }

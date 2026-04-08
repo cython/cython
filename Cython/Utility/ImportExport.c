@@ -857,7 +857,7 @@ static PyObject* __Pyx__ImportNumPyArray(void) {
         Py_DECREF(numpy_module);
     }
     if (unlikely(!ndarray_object)) {
-        if (!__Pyx_IgnoreException(NULL, PyExc_Exception)) {
+        if (!__Pyx_IgnoreException(PyExc_Exception)) {
             return NULL;
         }
     }

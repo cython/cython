@@ -1070,7 +1070,7 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
         }
     } else if (shiftby == -1) {
         PyObject *err = PyErr_Occurred();
-        if (err && !__Pyx_IgnoreException(err, PyExc_Exception)) {
+        if (err && !__Pyx_IgnoreGivenException(err, PyExc_Exception)) {
             return NULL; // BaseException
         }
     }
