@@ -1155,8 +1155,8 @@ bad:
     CYTHON_UNUSED_VAR(result_ulength);
 
     for (i=0; i<value_count; i++) {
-        if (__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) != (0)) goto bad;
         Py_INCREF(values[i]);
+        if (__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) != (0)) goto bad;
     }
 
     result = PyUnicode_Join(EMPTY(unicode), value_tuple);
