@@ -348,8 +348,8 @@ static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject *index) {
 
     // Error handling code -- only manage OverflowError differently.
     if (PyErr_GivenExceptionMatches(runerr, PyExc_OverflowError)) {
-        __Pyx_TypeName index_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(index));
         PyErr_Clear();
+        __Pyx_TypeName index_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(index));
         PyErr_Format(PyExc_IndexError,
             "cannot fit '" __Pyx_FMT_TYPENAME "' into an index-sized integer", index_type_name);
         __Pyx_DECREF_TypeName(index_type_name);
@@ -363,7 +363,9 @@ static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
     if (likely(PyType_Check(obj))) {
         PyObject *meth = __Pyx_PyObject_GetAttrStrNoError(obj, PYIDENT("__class_getitem__"));
         if (!meth) {
-            PyErr_Clear();
+            if (PyErr_Occurred()) {
+                return NULL;
+            }
         } else {
             PyObject *result = __Pyx_PyObject_CallOneArg(meth, key);
             Py_DECREF(meth);
@@ -1465,6 +1467,7 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name); /*pro
 
 /////////////// GetNameInClass ///////////////
 //@requires: GetModuleGlobalName
+//@requires: Exceptions.c::IgnoreException
 
 static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
     PyObject *result;
@@ -1483,7 +1486,9 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
             return result;
         }
     }
-    PyErr_Clear();
+    if (!__Pyx_IgnoreException(PyExc_Exception)) {
+        return NULL; // BaseException
+    }
     __Pyx_GetModuleGlobalNameUncached(result, name);
     return result;
 }
@@ -1567,6 +1572,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name); /*pro
 
 /////////////// GetModuleGlobalName ///////////////
 //@requires: GetBuiltinName
+//@requires: Exceptions.c::IgnoreException
 //@substitute: naming
 
 #if CYTHON_USE_DICT_VERSIONS
@@ -1586,9 +1592,15 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     if (likely(result)) {
         return result;
     }
-    PyErr_Clear();
+    if (!__Pyx_IgnoreException(PyExc_Exception)) {
+        return NULL; // BaseException
+    }
 #elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-    if (unlikely(__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), name, &result) == -1)) PyErr_Clear();
+    if (unlikely(__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), name, &result) == -1)) {
+        if (!__Pyx_IgnoreException(PyExc_Exception)) {
+            return NULL; // BaseException
+        }
+    }
     __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return result;
@@ -1600,7 +1612,10 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     if (likely(result)) {
         return __Pyx_NewRef(result);
     }
-    PyErr_Clear();
+    PyObject *exc = PyErr_Occurred();
+    if (unlikely(exc) && !__Pyx_IgnoreGivenException(exc, PyExc_Exception)) {
+        return NULL; // BaseException
+    }
 #endif
     return __Pyx_GetBuiltinName(name);
 }
@@ -1910,6 +1925,7 @@ static CYTHON_INLINE void __Pyx_CachedCFunction_SetFinishedInitializing(__Pyx_Ca
 
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
+//@requires: Exceptions.c::IgnoreException
 
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030C0000
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
@@ -1964,8 +1980,8 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
         int self_found;
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
         self = PyObject_GetAttrString(method, "__self__");
-        if (!self) {
-            PyErr_Clear();
+        if (!self && !__Pyx_IgnoreException(PyExc_AttributeError)) {
+            return -1;
         }
 #else
         self = PyCFunction_GET_SELF(method);

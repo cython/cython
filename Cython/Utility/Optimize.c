@@ -1030,6 +1030,7 @@ fallback:
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace); /*proto*/
 
 /////////////// PyNumberPow2 ///////////////
+//@requires: Exceptions.c::IgnoreException
 
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace) {
 // in CPython, 1<<N is substantially faster than 2**N
@@ -1067,8 +1068,11 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
             Py_DECREF(one);
             return result;
         }
-    } else if (shiftby == -1 && PyErr_Occurred()) {
-        PyErr_Clear();
+    } else if (shiftby == -1) {
+        PyObject *err = PyErr_Occurred();
+        if (err && !__Pyx_IgnoreGivenException(err, PyExc_Exception)) {
+            return NULL; // BaseException
+        }
     }
 fallback:
 #endif
