@@ -445,6 +445,8 @@
 //  that's available cleanly from Python 3.12. Note that only VectorcallDict isn't
 //  available though.
 #define CYTHON_VECTORCALL  (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
+#elif CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_PYPY
+#define CYTHON_VECTORCALL 1
 #else
 #define CYTHON_VECTORCALL  (CYTHON_FAST_PYCCALL)
 #endif
