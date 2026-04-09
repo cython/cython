@@ -1852,14 +1852,14 @@ class CQualifierType(BaseType):
             from .Symtab import CQualifierScope
             self.scope = CQualifierScope(base_type.scope, is_const, is_volatile)
 
-    def cv_string(self):
+    def cv_string(self, for_display=0):
         cvstring = ""
         if self.is_const:
             cvstring = "const " + cvstring
         if self.is_volatile:
             cvstring = "volatile " + cvstring
         if self.is_restrict:
-            cvstring = "CYTHON_RESTRICT " + cvstring
+            cvstring = "restrict " if for_display else "CYTHON_RESTRICT " + cvstring
 
         return cvstring
 
@@ -1871,7 +1871,7 @@ class CQualifierType(BaseType):
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
-        cv = self.cv_string()
+        cv = self.cv_string(for_display=for_display)
         if for_display or pyrex:
             return cv + self.cv_base_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
         else:
@@ -5675,12 +5675,13 @@ def parse_basic_type(name: str):
         base = parse_basic_type(name[:-1])
     if base:
         return CPtrType(base)
-    if name.startswith(('const_', 'volatile_')):
+    if name.startswith(('const_', 'volatile_', 'restrict_')):
         modifier, _, base_name = name.partition('_')
         base = parse_basic_type(base_name)
         if base:
             return CQualifierType(
-                base, is_const=modifier == 'const', is_volatile=modifier == 'volatile')
+                base, is_const=modifier == 'const', is_volatile=modifier == 'volatile',
+                is_restrict=modifier == 'restrict')
     #
     basic_type = parse_basic_ctype(name)
     if basic_type:

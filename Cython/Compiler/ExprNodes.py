@@ -4171,7 +4171,7 @@ class IndexNode(_IndexingBaseNode):
     def analyse_as_type(self, env):
         modifier = self.base.as_cython_attribute()
 
-        if modifier is not None and modifier in ('pointer', 'const', 'volatile'):
+        if modifier is not None and modifier in ('pointer', 'const', 'volatile', 'restrict'):
             base_type = self.index.analyse_as_type(env)
             if base_type is None:
                 error(self.base.pos, f"invalid use of '{modifier}', argument is not a type")
@@ -4182,7 +4182,8 @@ class IndexNode(_IndexingBaseNode):
 
             # const[base_type] or volatile[base_type]
             is_const = modifier == 'const'
-            is_volatile = not is_const
+            is_volatile = modifier == 'volatile'
+            is_restrict = modifier == 'restrict'
             if base_type.is_cv_qualified:
                 if base_type.is_const:
                     if is_const:
@@ -4192,12 +4193,16 @@ class IndexNode(_IndexingBaseNode):
                     if is_volatile:
                         error(self.base.pos, "Duplicate 'volatile'")
                     is_volatile = True
+                if base_type.is_restrict:
+                    if is_restrict:
+                        error(self.base.pos, "Duplicate 'restrict'")
+                    is_restrict = True
                 base_type = base_type.cv_base_type
             if base_type.is_memoryviewslice:
                 error(self.base.pos,
                       f"Cannot declare memory view variable as '{modifier}'. Did you mean '{modifier}[item_type][:]' ?")
             return PyrexTypes.c_qualifier_type(
-                base_type, is_const=is_const, is_volatile=not is_const)
+                base_type, is_const=is_const, is_volatile=is_volatile, is_restrict=is_restrict)
 
         base_type = self.base.analyse_as_type(env)
         if base_type:
