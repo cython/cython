@@ -288,8 +288,11 @@
   #undef CYTHON_OPAQUE_OBJECTS
   #define CYTHON_OPAQUE_OBJECTS 0
   #elif !defined(CYTHON_OPAQUE_OBJECTS)
-  // From 3.15 it starts being needed for freethreading compatibility
-  #define CYTHON_OPAQUE_OBJECTS (__PYX_LIMITED_VERSION_HEX >= 0x030F0000)
+  #ifdef Py_TARGET_ABI3T
+  #define CYTHON_OPAQUE_OBJECTS 1
+  #else
+  #define CYTHON_OPAQUE_OBJECTS 0
+  #endif
   #endif
 
 #else
