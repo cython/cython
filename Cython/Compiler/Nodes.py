@@ -3968,7 +3968,7 @@ class DefNodeWrapper(FuncDefNode):
                 fastcall_args = "PyObject *const *%s, Py_ssize_t %s, PyObject *%s" % (
                         Naming.args_cname, Naming.nargs_cname, Naming.kwds_cname)
                 arg_code_list.append(
-                    "\n#if CYTHON_METH_FASTCALL\n%s\n#else\n%s\n#endif\n" % (
+                    "\n#if CYTHON_VECTORCALL\n%s\n#else\n%s\n#endif\n" % (
                         fastcall_args, varargs_args))
             else:
                 arg_code_list.append(varargs_args)
@@ -4040,7 +4040,7 @@ class DefNodeWrapper(FuncDefNode):
             # error handling for this is checked after the declarations
             nargs_code = "CYTHON_UNUSED Py_ssize_t %s;" % Naming.nargs_cname
             if self.signature.use_fastcall:
-                code.putln("#if !CYTHON_METH_FASTCALL")
+                code.putln("#if !CYTHON_VECTORCALL")
                 code.putln(nargs_code)
                 code.putln("#endif")
             else:
@@ -4068,7 +4068,7 @@ class DefNodeWrapper(FuncDefNode):
         # Assign nargs variable as len(args).
         if self.signature_has_generic_args():
             if self.signature.use_fastcall:
-                code.putln("#if !CYTHON_METH_FASTCALL")
+                code.putln("#if !CYTHON_VECTORCALL")
             code.putln("#if CYTHON_ASSUME_SAFE_SIZE")
             code.putln("%s = PyTuple_GET_SIZE(%s);" % (
                 Naming.nargs_cname, Naming.args_cname))
