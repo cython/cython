@@ -686,27 +686,36 @@ bad:
 
 /////////////// GetVTable.proto ///////////////
 
-static void* __Pyx_GetVtable(PyTypeObject *type); /*proto*/
+// Returns
+// 0 (with an exception set) for "not found".
+// 1 for "found".
+// -1 (with an exception set) for another error.
+static int __Pyx_GetVtable(PyTypeObject *type, void** table); /*proto*/
 
 /////////////// GetVTable ///////////////
 
-static void* __Pyx_GetVtable(PyTypeObject *type) {
+static int __Pyx_GetVtable(PyTypeObject *type, void** table) {
     void* ptr;
+    *table = NULL;
 #if CYTHON_COMPILING_IN_LIMITED_API
     PyObject *ob = PyObject_GetAttr((PyObject *)type, PYIDENT("__pyx_vtable__"));
 #else
     PyObject *ob = PyObject_GetItem(type->tp_dict, PYIDENT("__pyx_vtable__"));
 #endif
     if (!ob)
-        goto bad;
+        goto no_attr;
     ptr = PyCapsule_GetPointer(ob, 0);
     if (!ptr && !PyErr_Occurred())
         PyErr_SetString(PyExc_RuntimeError, "invalid vtable found for imported type");
     Py_DECREF(ob);
-    return ptr;
-bad:
+    *table = ptr;
+    return 1;
+no_attr:
+    if (PyErr_ExceptionMatches(PyExc_Exception)) {
+        return 0;
+    }
     Py_XDECREF(ob);
-    return NULL;
+    return -1;
 }
 
 
@@ -759,29 +768,41 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
 #else
         basei = PyTuple_GET_ITEM(bases, i);
 #endif
-        base_vtable = __Pyx_GetVtable((PyTypeObject*)basei);
+        int get_vtable_result = __Pyx_GetVtable((PyTypeObject*)basei, &base_vtable);
 #if CYTHON_AVOID_BORROWED_REFS
         Py_DECREF(basei);
 #endif
-        if (base_vtable != NULL) {
+        if (get_vtable_result != 1) {
+            if (get_vtable_result == -1) {
+                goto other_failure;
+            }
+            PyErr_Clear(); // Class doesn't have a vtable.
+        } else {
+            assert(base_vtable != NULL);
             int j;
             PyTypeObject* base = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
             for (j = 0; j < base_depth; j++) {
                 if (base_vtables[j] == unknown) {
-                    base_vtables[j] = __Pyx_GetVtable(base);
+                    switch (__Pyx_GetVtable(base, &base_vtables[j])) {
+                        case 1:
+                            assert(base_vtables[j] == NULL);
+                            break;
+                        case 0:
+                            // No more potential matching bases (with vtables).
+                            goto bad;
+                        case -1:
+                        default:
+                            goto other_failure;
+                    }
                     base_vtables[j + 1] = unknown;
                 }
                 if (base_vtables[j] == base_vtable) {
                     break;
-                } else if (base_vtables[j] == NULL) {
-                    // No more potential matching bases (with vtables).
-                    goto bad;
                 }
                 base = __Pyx_PyType_GetSlot(base, tp_base, PyTypeObject*);
             }
         }
     }
-    PyErr_Clear();
     PyMem_Free(base_vtables);
     return 0;
 bad:
@@ -810,9 +831,7 @@ really_bad: // bad has failed!
 #endif
     __Pyx_DECREF_TypeName(tp_base_name);
     __Pyx_DECREF_TypeName(base_name);
-#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
 other_failure:
-#endif
     PyMem_Free(base_vtables);
     return -1;
 }
