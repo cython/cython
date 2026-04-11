@@ -137,6 +137,13 @@ try:
 except ImportError:
     def inspect_isawaitable(o):
         return hasattr(o, '__await__')
+    
+try:
+    anext
+except NameError:
+    # py3.9
+    def anext(g):
+        return g.__anext__()
 
 
 # compiled exec()
