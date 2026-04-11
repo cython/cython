@@ -931,7 +931,7 @@ class CQualifierDeclaratorNode(CDeclaratorNode):
     child_attrs = ["base"]
 
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
-        if isinstance(self.base, CFuncDeclaratorNode):
+        if isinstance(self.base, CFuncDeclaratorNode) and self.is_restrict:
             error(self.pos, "Restrict qualifier cannot be applied to function type")
         if base_type.is_pyobject:
             error(self.pos,
