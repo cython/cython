@@ -1119,7 +1119,7 @@ most important to least important:
     This C macro allows to override the directive at C compile time.
 
 There is a further list of macros which turn off various optimizations or language
-features.  Under normal circumstance Cython enables these automatically based on the
+features.  Under normal circumstances Cython enables these automatically based on the
 version of Python you are compiling for so there is no need to use them
 to try to enable extra optimizations - all supported optimizations are enabled by
 default.  These are mostly relevant if you're tying to get Cython working in a
@@ -1137,7 +1137,7 @@ hidden by default since most users will be uninterested in changing them.
             struct.
 
         ``CYTHON_USE_PYTYPE_LOOKUP``
-            Use the internal `_PyType_Lookup()` function for more efficient access
+            Use the internal ``_PyType_Lookup()`` function for more efficient access
             to properties of C classes.
 
         ``CYTHON_USE_PYLONG_INTERNALS``/``CYTHON_USE_PYLIST_INTERNALS``/``CYTHON_USE_UNICODE_INTERNALS``
