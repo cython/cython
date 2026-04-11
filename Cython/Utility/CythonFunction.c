@@ -64,7 +64,7 @@ typedef struct {
     // PEP-573: PyCFunctionObject + mm_class
     PyCMethodObject func;
 #endif
-#if CYTHON_COMPILING_IN_LIMITED_API && CYTHON_METH_FASTCALL
+#if CYTHON_COMPILING_IN_LIMITED_API && CYTHON_VECTORCALL
     __pyx_vectorcallfunc func_vectorcall;
 #endif
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -120,7 +120,7 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *m,
 // shared module.
 static int __pyx_CyFunction_init(PyObject *module);
 
-#if CYTHON_METH_FASTCALL
+#if CYTHON_VECTORCALL
 #if CYTHON_COMPILING_IN_LIMITED_API
 #define __Pyx_CyFunction_func_vectorcall(f) ((f)->func_vectorcall)
 #else
@@ -237,7 +237,7 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in, PyMethodDef *ml,
                                       PyObject *module, PyObject *globals,
                                       PyObject* code);
 
-#if CYTHON_METH_FASTCALL
+#if CYTHON_VECTORCALL
 static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
 static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
 static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
@@ -769,7 +769,7 @@ static PyMemberDef __pyx_CyFunction_members[] = {
     {"__dictoffset__", T_PYSSIZET, offsetof(__pyx_CyFunctionObject, func_dict),
         __PYX_SHARED_RELATIVE_OFFSET | READONLY, 0},
 #endif
-#if CYTHON_METH_FASTCALL
+#if CYTHON_VECTORCALL
 #if CYTHON_COMPILING_IN_LIMITED_API
     {"__vectorcalloffset__", T_PYSSIZET, offsetof(__pyx_CyFunctionObject, func_vectorcall),
         __PYX_SHARED_RELATIVE_OFFSET | READONLY, 0},
@@ -862,7 +862,7 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
     op->defaults_getter = NULL;
     op->func_annotations = NULL;
     op->func_is_coroutine = NULL;
-#if CYTHON_METH_FASTCALL
+#if CYTHON_VECTORCALL
     switch (ml->ml_flags & (METH_VARARGS | METH_FASTCALL | METH_NOARGS | METH_O | METH_KEYWORDS | METH_METHOD)) {
     case METH_NOARGS:
         __Pyx_CyFunction_func_vectorcall(op) = __Pyx_CyFunction_Vectorcall_NOARGS;
@@ -1087,7 +1087,7 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
     PyObject *result;
     __pyx_CyFunctionObject *cyfunc = __Pyx_as_CyFunctionObject(func);
 
-#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
+#if CYTHON_VECTORCALL
     // Prefer vectorcall if available. This is not the typical case, as
     // CPython would normally use vectorcall directly instead of tp_call.
      __pyx_vectorcallfunc vc = __Pyx_CyFunction_func_vectorcall(cyfunc);
@@ -1135,7 +1135,7 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
     return result;
 }
 
-#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
+#if CYTHON_VECTORCALL
 // Check that kwnames is empty (if you want to allow keyword arguments,
 // simply pass kwnames=NULL) and figure out what to do with "self".
 // Return value:
@@ -1311,13 +1311,13 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
 #ifdef Py_TPFLAGS_METHOD_DESCRIPTOR
     Py_TPFLAGS_METHOD_DESCRIPTOR |
 #endif
-#if CYTHON_METH_FASTCALL
+#if CYTHON_VECTORCALL
 #if defined(Py_TPFLAGS_HAVE_VECTORCALL)
     Py_TPFLAGS_HAVE_VECTORCALL |
 #elif defined(_Py_TPFLAGS_HAVE_VECTORCALL)
     _Py_TPFLAGS_HAVE_VECTORCALL |
 #endif
-#endif // CYTHON_METH_FASTCALL
+#endif // CYTHON_VECTORCALL
 #if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_TPFLAGS_MANAGED_DICT |
 #endif

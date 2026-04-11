@@ -1179,9 +1179,8 @@ hidden by default since most users will be uninterested in changing them.
             is used to selectively enable the compiler directive only on versions
             of Python that support it.
 
-        ``CYTHON_METH_FASTCALL``/``CYTHON_FAST_PYCALL``
-            These are used internally to incrementally enable the vectorcall calling
-            mechanism on older Python versions (<3.8).
+        ``CYTHON_VECTORCALL``
+            Enable the vectorcall calling mechanism.
 
         ``CYTHON_PEP487_INIT_SUBCLASS``
             Enable :pep:`487` ``__init_subclass__`` behaviour.
