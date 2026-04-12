@@ -912,7 +912,7 @@ static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRI
 #define __Pyx_PyTuple_FromArray PyTuple_FromArray
 #else
 {{endif}}
-static CYTHON_INLINE PyObject *
+CYTHON_UNUSED static PyObject *
 __Pyx_Py{{Type}}_FromArray(PyObject *const *src, Py_ssize_t n); /* proto */
 {{if Type == 'Tuple'}}
 #endif
@@ -924,7 +924,7 @@ __Pyx_Py{{Type}}_FromArray(PyObject *const *src, Py_ssize_t n); /* proto */
 {{if Type == 'Tuple'}}
 #if !(PY_VERSION_HEX >= 0x030F0000 && !CYTHON_COMPILING_IN_LIMITED_API)
 {{endif}}
-static CYTHON_INLINE PyObject *
+CYTHON_UNUSED static PyObject *
 __Pyx_Py{{Type}}_FromArray(PyObject *const *src, Py_ssize_t n) {
     {{if Type == 'Tuple'}}
     if (n <= 0) {
