@@ -937,6 +937,7 @@ __Pyx_Py{{Type}}_FromArray(PyObject *const *src, Py_ssize_t n) {
     #if CYTHON_COMPILING_IN_CPYTHON
     __Pyx_copy_object_array(src, ((Py{{Type}}Object*)res)->ob_item, n);
     #else
+    Py_ssize_t i;
     for (i = 0; i < n; i++) {
         Py_INCREF(src[i]);
         if (unlikely(__Pyx_Py{{Type}}_SET_ITEM(res, i, src[i]) < (0))) {
