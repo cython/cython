@@ -936,7 +936,7 @@ static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_
 #endif
 
 /////////////// fastcall ///////////////
-//@requires: ObjectHandling.c::TupleAndListFromArray
+//@requires: ObjectHandling.c::TupleFromArray
 //@requires: Optimize.c::UnicodeEquals
 
 #if CYTHON_METH_FASTCALL

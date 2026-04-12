@@ -876,39 +876,25 @@ bad:
 }
 
 
-/////////////// TupleAndListFromArray.proto ///////////////
+/////////////// TupleFromArray.proto //////////////////////
+//@requires: TupleOrListFromArrayImpl{"Type": "Tuple"}
+
+// This block only exists to require the tempita utility code
+
+/////////////// ListFromArray.proto //////////////////////
+//@requires: TupleOrListFromArrayImpl{"Type": "List"}
+
+// This block only exists to require the tempita utility code
+
+/////////////// CopyObjectArray.proto /////////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject* __Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n);
-#endif
-#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_METH_FASTCALL
-static CYTHON_INLINE PyObject* __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n);
+static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRICT src, PyObject** CYTHON_RESTRICT dest, Py_ssize_t length); /* proto */
 #endif
 
+/////////////// CopyObjectArray ///////////////////////
 
-/////////////// TupleAndListFromArray ///////////////
-
-#if !CYTHON_COMPILING_IN_CPYTHON && CYTHON_METH_FASTCALL
-static CYTHON_INLINE PyObject *
-__Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
-{
-    PyObject *res;
-    Py_ssize_t i;
-    if (n <= 0) {
-        return __Pyx_NewRef(EMPTY(tuple));
-    }
-    res = PyTuple_New(n);
-    if (unlikely(res == NULL)) return NULL;
-    for (i = 0; i < n; i++) {
-        Py_INCREF(src[i]);
-        if (unlikely(__Pyx_PyTuple_SET_ITEM(res, i, src[i]) < (0))) {
-            Py_DECREF(res);
-            return NULL;
-        }
-    }
-    return res;
-}
-#elif CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRICT src, PyObject** CYTHON_RESTRICT dest, Py_ssize_t length) {
     PyObject *v;
     Py_ssize_t i;
@@ -917,34 +903,53 @@ static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRI
         Py_INCREF(v);
     }
 }
+#endif
 
+/////////////// TupleOrListFromArrayImpl.proto //////////////
+
+{{if Type == 'Tuple'}}
+#if PY_VERSION_HEX >= 0x030F0000 && !CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_PyTuple_FromArray PyTuple_FromArray
+#else
+{{endif}}
 static CYTHON_INLINE PyObject *
-__Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
-{
-    PyObject *res;
+__Pyx_Py{{Type}}_FromArray(PyObject *const *src, Py_ssize_t n); /* proto */
+{{if Type == 'Tuple'}}
+#endif
+{{endif}}
+
+/////////////// TupleOrListFromArrayImpl //////////////
+//@requires: CopyObjectArray
+
+{{if Type == 'Tuple'}}
+#if !(PY_VERSION_HEX >= 0x030F0000 && !CYTHON_COMPILING_IN_LIMITED_API)
+{{endif}}
+static CYTHON_INLINE PyObject *
+__Pyx_Py{{Type}}_FromArray(PyObject *const *src, Py_ssize_t n) {
+    {{if Type == 'Tuple'}}
     if (n <= 0) {
         return __Pyx_NewRef(EMPTY(tuple));
     }
-    res = PyTuple_New(n);
-    if (unlikely(res == NULL)) return NULL;
-    __Pyx_copy_object_array(src, ((PyTupleObject*)res)->ob_item, n);
-    return res;
-}
+    {{endif}}
 
-static CYTHON_INLINE PyObject *
-__Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n)
-{
-    PyObject *res;
-    if (n <= 0) {
-        return PyList_New(0);
+    PyObject *res = Py{{Type}}_New(n);
+    if (unlikely(res == NULL)) return NULL;
+    #if CYTHON_COMPILING_IN_CPYTHON
+    __Pyx_copy_object_array(src, ((Py{{Type}}Object*)res)->ob_item, n);
+    #else
+    for (i = 0; i < n; i++) {
+        Py_INCREF(src[i]);
+        if (unlikely(__Pyx_Py{{Type}}_SET_ITEM(res, i, src[i]) < (0))) {
+            Py_DECREF(res);
+            return NULL;
+        }
     }
-    res = PyList_New(n);
-    if (unlikely(res == NULL)) return NULL;
-    __Pyx_copy_object_array(src, ((PyListObject*)res)->ob_item, n);
+    #endif
     return res;
 }
+{{if Type == 'Tuple'}}
 #endif
-
+{{endif}}
 
 /////////////// SliceTupleAndList.proto ///////////////
 
@@ -957,7 +962,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(PyObject* src, Py_ssize_t 
 #endif
 
 /////////////// SliceTupleAndList ///////////////
-//@requires: TupleAndListFromArray
+//@requires: ListFromArray
+//@requires: TupleFromArray
 //@requires: Synchronization.c::CriticalSections
 
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -3252,33 +3258,6 @@ static void __Pyx_RaiseCppAttributeErrorNogil(const char *varname) {
     PyGILState_STATE gilstate = PyGILState_Ensure();
     __Pyx_RaiseCppAttributeError(varname);
     PyGILState_Release(gilstate);
-}
-
-/////////////// ListPack.proto //////////////////////////////////////
-
-// Equivalent to PyTuple_Pack for sections where we want to reduce the code size
-static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...); /* proto */
-
-/////////////// ListPack //////////////////////////////////////
-
-static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...) {
-    va_list va;
-    PyObject *l = PyList_New(n);
-    va_start(va, n);
-    if (unlikely(!l)) goto end;
-
-    for (Py_ssize_t i=0; i<n; ++i) {
-        PyObject *arg = va_arg(va, PyObject*);
-        Py_INCREF(arg);
-        if (__Pyx_PyList_SET_ITEM(l, i, arg) != (0)) {
-            Py_CLEAR(l);
-            goto end;
-        }
-    }
-
-    end:
-    va_end(va);
-    return l;
 }
 
 /////////////// LengthHint.proto //////////////////////////////////////

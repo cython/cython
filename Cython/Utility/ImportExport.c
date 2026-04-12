@@ -17,7 +17,7 @@ static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, 
 /////////////// ImportImpl ///////////////
 //@requires: StringTools.c::IncludeStringH
 //@requires: Builtins.c::HasAttr
-//@requires: ObjectHandling.c::TupleAndListFromArray
+//@requires: ObjectHandling.c::ListFromArray
 //@requires: ObjectHandling.c::PyObjectCallOneArg
 
 static int __Pyx__Import_GetModule(PyObject *qualname, PyObject **module) {
@@ -110,17 +110,9 @@ static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, 
     if (unlikely(!empty_dict))
         goto bad;
     if (imported_names) {
-#if CYTHON_COMPILING_IN_CPYTHON
         from_list = __Pyx_PyList_FromArray(imported_names, len_imported_names);
         if (unlikely(!from_list))
             goto bad;
-#else
-        from_list = PyList_New(len_imported_names);
-        if (unlikely(!from_list)) goto bad;
-        for (Py_ssize_t i=0; i<len_imported_names; ++i) {
-            if (PyList_SetItem(from_list, i, __Pyx_NewRef(imported_names[i])) < 0) goto bad;
-        }
-#endif
     }
     if (level == -1) {
         const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');
