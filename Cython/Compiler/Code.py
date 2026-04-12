@@ -607,6 +607,10 @@ class UtilityCodeBase(AbstractUtilityCode):
                     dependencies = []
                     for dep in sorted(values):
                         if '{' in dep:
+                            # Avoid passing 'context' twice
+                            kwargs_context = kwargs.pop('context', None)
+                            assert kwargs_context is None
+
                             split_pos = dep.index('{')
                             tempita_context = json.loads(dep[split_pos:])
                             dependency = TempitaUtilityCode.load_cached(

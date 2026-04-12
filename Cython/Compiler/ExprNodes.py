@@ -8642,21 +8642,23 @@ class SequenceNode(ExprNode):
                 (self.is_literal or self.slow) and
                 not c_mult and
                 len(self.args) > 0):
-            # use PyTuple_Pack() to avoid generating huge amounts of one-time code
-            if self.type is list_type:
-                pack_name = '__Pyx_PyList_Pack'
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached('ListPack', 'ObjectHandling.c')
-                )
-            else:
-                pack_name = 'PyTuple_Pack'
-            code.putln('%s = %s(%d, %s); %s' % (
+            # use Py*_FromArray() to avoid generating huge amounts of one-time code
+            type_name = 'List' if self.type is list_type else 'Tuple'
+            pack_name = f'__Pyx_Py{type_name}_FromArray'
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached(f'{type_name}FromArray', 'ObjectHandling.c')
+            )
+            code.putln('{')
+            code.putln(f'PyObject* {Naming.quick_temp_cname}[{len(self.args)}] = '
+                       f"{{{', '.join(arg.py_result() for arg in self.args)}}};")
+            code.putln('%s = %s(%s, %d); %s' % (
                 target,
                 pack_name,
+                Naming.quick_temp_cname,
                 len(self.args),
-                ', '.join(arg.py_result() for arg in self.args),
                 code.error_goto_if_null(target, self.pos)))
             code.put_gotref(target, py_object_type)
+            code.putln('}')
             self.needs_subexpr_disposal = True
         elif self.type.is_ctuple:
             for i, arg in enumerate(self.args):
