@@ -64,7 +64,7 @@ typedef struct {
     // PEP-573: PyCFunctionObject + mm_class
     PyCMethodObject func;
 #endif
-#if CYTHON_COMPILING_IN_LIMITED_API && CYTHON_VECTORCALL
+#if (CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY) && CYTHON_VECTORCALL
     __pyx_vectorcallfunc func_vectorcall;
 #endif
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -121,7 +121,7 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *m,
 static int __pyx_CyFunction_init(PyObject *module);
 
 #if CYTHON_VECTORCALL
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
 #define __Pyx_CyFunction_func_vectorcall(f) ((f)->func_vectorcall)
 #else
 #define __Pyx_CyFunction_func_vectorcall(f) (((PyCFunctionObject*)f)->vectorcall)
@@ -770,7 +770,7 @@ static PyMemberDef __pyx_CyFunction_members[] = {
         __PYX_SHARED_RELATIVE_OFFSET | READONLY, 0},
 #endif
 #if CYTHON_VECTORCALL
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
     {"__vectorcalloffset__", T_PYSSIZET, offsetof(__pyx_CyFunctionObject, func_vectorcall),
         __PYX_SHARED_RELATIVE_OFFSET | READONLY, 0},
 #else
