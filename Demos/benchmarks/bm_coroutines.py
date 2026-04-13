@@ -76,7 +76,7 @@ def benchmark(N, count=100, scale=1, timer=time.perf_counter):
 def run_benchmark(repeat=True, scale=1):
     from util import repeat_to_accuracy
 
-    count = 100
+    count = 10
     expected_result = _RESULT_BY_COUNT[count]
 
     def single_run(scale, timer):

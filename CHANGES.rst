@@ -39,7 +39,8 @@ Features added
 
 * The builtin Python types ``int`` and ``float`` are special cased in ``+``, ``-`` and ``*``
   operations with (compile-time) unknown Python types in order to speed them up.
-  (Github issue :issue:`7485`)
+  The bit operations ``^``, ``|`` and ``&`` are additionally special cased for ``int``.
+  (Github issues :issue:`7485`, :issue:`7541`)
 
 * C arrays may now be declared with (``extern`` or internal) enum values as their size.
   (Github issues :issue:`7401`, :issue:`7406`)
@@ -52,9 +53,15 @@ Features added
 * A simpler mechanism was added for implementing C++ exception handlers in Cython code.
   (Github issues :issue:`7388`, :issue:`7390`)
 
+* Type inference was improved for builtin Python types.
+  (Github issue :issue:`7536`)
+
 * Repeated memoryview slicing inside of loops now avoids redundant reference counting,
   making it substantially faster.
   (Github issue :issue:`5507`)
+
+* Indexing into Cython memoryview objects from Python is faster.
+  (Github issue :issue:`7529`)
 
 * C arrays are substituted for sequence iteration in more cases, also inside of generators.
   Ad-hoc C array storage on the stack and in closures was reworked along the way.
@@ -74,6 +81,9 @@ Features added
 
 * The runtime dispatch code of fused types uses less code.
   (Github issue :issue:`7501`)
+
+* More code is extracted to the shared utility code module.
+  (Github issues :issue:`7556`, :issue:`7570`)
 
 * Cython compiled functions have a more efficient memory layout in the Limited API.
   (Github issue :issue:`7519`)
@@ -115,6 +125,12 @@ Bugs fixed
 * Mixing function signature declarations in Python modules and their ``.pxd`` modules could fail.
   (Github issues :issue:`5970`, :issue:`4388`)
 
+* C array declarations with type and size could fail with an exception in pure Python code.
+  (Github issue :issue:`7372`)
+
+* A ``const`` modifier in C++ template type arguments could be mapped incorrectly.
+  (Github issue :issue:`6294`)
+
 * Optimised Python ``int`` and ``float`` operations did not remember their result type,
   leading to less optimised code in longer expressions.
   (Github issues :issue:`7363`, :issue:`7502`)
@@ -130,6 +146,10 @@ Bugs fixed
 
 * The floating point parsing code relied on C implementation specific "pointer compare after free" behaviour.
   Patch by stratakis.  (Github issue :issue:`7463`)
+
+* When non-heap types were used as base classes of extension heap types, the heap types
+  were not correctly reference counted by their instances.
+  (Github issue :issue:`7483`)
 
 * The ``__signatures__`` dict of fused functions is no longer writable.
   (Github issue :issue:`7386`)
@@ -172,17 +192,48 @@ Other changes
 Bugs fixed
 ----------
 
-* Spaces in file paths written to the ``depfile`` were not escaped.
-  Patch by Loïc Estève.  (Github issue :issue:`7423`)
-
 * A compile failure was fixed when using the walrus operator inside of try-except.
   (Github issue :issue:`7462`)
 
-* Several problems generating the shared utility module were resolved.
-  (Github issues :issue:`7487`, :issue:`7497`, :issue:`7504`)
+* Several problems generating the shared utility module were resolved, including
+  a performance regression with memory views.
+  (Github issues :issue:`7487`, :issue:`7497`, :issue:`7504`, :issue:`7558`)
+
+* Some GC and refcounting issues were resolved for Cython functions in the Limited API.
+  (Github issue :issue:`7594`)
+
+* Using ``cython.pymutex`` in an extension type with ``cdef`` methods generated
+  invalid C code missing the required ``PyMutex`` declarations.
+  (Github issue :issue:`6995`)
 
 * A problem with cpdef enums in the Limited API of Python 3.11+ was resolved.
   (Github issue :issue:`7503`)
+
+* Conditional expressions mixing Python float and int object types could accidentally
+  infer float as the common result type, instead of treating both independently.
+
+* Using ``sizeof()`` in the size declarations of ``extern`` arrays failed.
+  (Github issue :issue:`7451`)
+
+* Enabling profiling generated invalid C code for non-Python return tuples.
+  (Github issue :issue:`7580`)
+
+* A C compiler warning about unused functions was resolved.
+  (Github issue :issue:`7560`)
+
+* Spaces in file paths written to the ``depfile`` were not escaped.
+  Patch by Loïc Estève.  (Github issue :issue:`7423`)
+
+* Cython's cache failed to restore multi-file results.
+  (Github issue :issue:`7559`)
+
+* Using Tempita from its command line failed with a name error.
+  (Github issue :issue:`7567`)
+
+Other changes
+-------------
+
+* The known builtin types were updated for Py3.15.
 
 
 3.2.4 (2026-01-04)

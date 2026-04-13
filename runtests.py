@@ -2007,6 +2007,7 @@ class TestCodeFormat(unittest.TestCase):
             exclude=[
                 "*badindent*",
                 "*tabspace*",
+                "fstring.pyx"
             ],
         )
         print("")  # Fix the first line of the report.
@@ -2166,9 +2167,15 @@ class EndToEndTest(TimedTest):
             if command[0] == "UNSET":
                 try:
                     envvar = command[1]
-                except KeyError:
-                    envvar = None
-                env.pop(envvar, None)
+                except IndexError:
+                    continue
+                old_value = env.pop(envvar, None)
+                if len(command) > 2:
+                    # Unset specific flags only
+                    old_value = old_value.split()
+                    for flag in command[2:]:
+                        old_value = [part for part in old_value if not part.startswith(flag)]
+                    env[envvar] = " ".join(old_value)
                 continue
             elif command[0] == "CD":
                 if len(command) == 1:
@@ -2857,14 +2864,14 @@ def generate_shared_utility(options):
         shared_utility_c_file = os.path.join(workdir, f'{SHARED_UTILITY_MODULE_NAME}.c')
         utility_gen_result = subprocess.run(
             [
-                'python', 'cython.py', '--generate-shared', shared_utility_c_file
+                sys.executable, 'cython.py', '--generate-shared', shared_utility_c_file
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
         if utility_gen_result.returncode != 0:
             raise RuntimeError(f"Shared utility generation failed:\n{utility_gen_result.stdout}")
 
         compilation_result = subprocess.run(
             [
-                'python', 'cythonize.py', '-bi', shared_utility_c_file
+                sys.executable, 'cythonize.py', '-bi', shared_utility_c_file
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
         if compilation_result.returncode != 0:
             raise RuntimeError(f"Shared utility compilation failed:\n{compilation_result.stdout}")
@@ -3083,7 +3090,6 @@ def runtests(options, cmd_args, coverage=None):
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
-            ('windows_arm_bugs.txt', sys.platform == 'win32' and platform.machine().lower() == "arm64"),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
         ]

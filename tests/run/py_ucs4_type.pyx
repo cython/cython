@@ -443,6 +443,48 @@ def const_str_index(int n):
     return str(n)[0]
 
 
+def concat(Py_UCS4 a, Py_UCS4 b):
+    """
+    >>> concat('a', 'b')
+    'ab'
+    """
+    return a + b
+
+
+def plus_int(Py_UCS4 a, int b):
+    """
+    >>> plus_int('a', ord('b'))  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: can only concatenate str (not "int") to str
+    """
+    return a + b
+
+
+def plus_int_const(Py_UCS4 a):
+    """
+    >>> plus_int_const('a')  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: can only concatenate str (not "int") to str
+    """
+    return a + 1
+
+
+def multiply(Py_UCS4 a, int m):
+    """
+    >>> multiply('a', 5)
+    'aaaaa'
+    """
+    return a * m
+
+
+def multiply_const(Py_UCS4 a):
+    """
+    >>> multiply_const('a')
+    'aaa'
+    """
+    return a * 3
+
+
 _WARNINGS = """
 373:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
 """

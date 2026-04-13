@@ -116,7 +116,13 @@ class CythonTest(TimedTest):
         if name.startswith("__main__."):
             name = name[len("__main__."):]
         name = name.replace(".", "_")
-        return TreeFragment(code, name, pxds, pipeline=pipeline)
+
+        with Errors.local_errors() as errors:
+            fragment = TreeFragment(code, name, pxds, pipeline=pipeline)
+
+        if errors:
+            raise errors[0]
+        return fragment
 
     def treetypes(self, root):
         return treetypes(root)

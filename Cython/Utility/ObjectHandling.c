@@ -348,8 +348,8 @@ static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject *index) {
 
     // Error handling code -- only manage OverflowError differently.
     if (PyErr_GivenExceptionMatches(runerr, PyExc_OverflowError)) {
-        __Pyx_TypeName index_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(index));
         PyErr_Clear();
+        __Pyx_TypeName index_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(index));
         PyErr_Format(PyExc_IndexError,
             "cannot fit '" __Pyx_FMT_TYPENAME "' into an index-sized integer", index_type_name);
         __Pyx_DECREF_TypeName(index_type_name);
@@ -363,7 +363,9 @@ static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
     if (likely(PyType_Check(obj))) {
         PyObject *meth = __Pyx_PyObject_GetAttrStrNoError(obj, PYIDENT("__class_getitem__"));
         if (!meth) {
-            PyErr_Clear();
+            if (PyErr_Occurred()) {
+                return NULL;
+            }
         } else {
             PyObject *result = __Pyx_PyObject_CallOneArg(meth, key);
             Py_DECREF(meth);
@@ -874,39 +876,25 @@ bad:
 }
 
 
-/////////////// TupleAndListFromArray.proto ///////////////
+/////////////// TupleFromArray.proto //////////////////////
+//@requires: TupleOrListFromArrayImpl{"Type": "Tuple"}
+
+// This block only exists to require the tempita utility code
+
+/////////////// ListFromArray.proto //////////////////////
+//@requires: TupleOrListFromArrayImpl{"Type": "List"}
+
+// This block only exists to require the tempita utility code
+
+/////////////// CopyObjectArray.proto /////////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject* __Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n);
-#endif
-#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_METH_FASTCALL
-static CYTHON_INLINE PyObject* __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n);
+static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRICT src, PyObject** CYTHON_RESTRICT dest, Py_ssize_t length); /* proto */
 #endif
 
+/////////////// CopyObjectArray ///////////////////////
 
-/////////////// TupleAndListFromArray ///////////////
-
-#if !CYTHON_COMPILING_IN_CPYTHON && CYTHON_METH_FASTCALL
-static CYTHON_INLINE PyObject *
-__Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
-{
-    PyObject *res;
-    Py_ssize_t i;
-    if (n <= 0) {
-        return __Pyx_NewRef(EMPTY(tuple));
-    }
-    res = PyTuple_New(n);
-    if (unlikely(res == NULL)) return NULL;
-    for (i = 0; i < n; i++) {
-        if (unlikely(__Pyx_PyTuple_SET_ITEM(res, i, src[i]) < (0))) {
-            Py_DECREF(res);
-            return NULL;
-        }
-        Py_INCREF(src[i]);
-    }
-    return res;
-}
-#elif CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRICT src, PyObject** CYTHON_RESTRICT dest, Py_ssize_t length) {
     PyObject *v;
     Py_ssize_t i;
@@ -915,34 +903,54 @@ static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRI
         Py_INCREF(v);
     }
 }
+#endif
 
-static CYTHON_INLINE PyObject *
-__Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
-{
-    PyObject *res;
+/////////////// TupleOrListFromArrayImpl.proto //////////////
+
+{{if Type == 'Tuple'}}
+#if PY_VERSION_HEX >= 0x030F0000 && !CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_PyTuple_FromArray(src, n) PyTuple_FromArray(src, ((n)<0) ? 0 : (n)) 
+#else
+{{endif}}
+CYTHON_UNUSED static PyObject *
+__Pyx_Py{{Type}}_FromArray(PyObject *const *src, Py_ssize_t n); /* proto */
+{{if Type == 'Tuple'}}
+#endif
+{{endif}}
+
+/////////////// TupleOrListFromArrayImpl //////////////
+//@requires: CopyObjectArray
+
+{{if Type == 'Tuple'}}
+#if !(PY_VERSION_HEX >= 0x030F0000 && !CYTHON_COMPILING_IN_LIMITED_API)
+{{endif}}
+CYTHON_UNUSED static PyObject *
+__Pyx_Py{{Type}}_FromArray(PyObject *const *src, Py_ssize_t n) {
+    {{if Type == 'Tuple'}}
     if (n <= 0) {
         return __Pyx_NewRef(EMPTY(tuple));
     }
-    res = PyTuple_New(n);
-    if (unlikely(res == NULL)) return NULL;
-    __Pyx_copy_object_array(src, ((PyTupleObject*)res)->ob_item, n);
-    return res;
-}
+    {{endif}}
 
-static CYTHON_INLINE PyObject *
-__Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n)
-{
-    PyObject *res;
-    if (n <= 0) {
-        return PyList_New(0);
+    PyObject *res = Py{{Type}}_New(n);
+    if (unlikely(res == NULL)) return NULL;
+    #if CYTHON_COMPILING_IN_CPYTHON
+    __Pyx_copy_object_array(src, ((Py{{Type}}Object*)res)->ob_item, n);
+    #else
+    Py_ssize_t i;
+    for (i = 0; i < n; i++) {
+        Py_INCREF(src[i]);
+        if (unlikely(__Pyx_Py{{Type}}_SET_ITEM(res, i, src[i]) < (0))) {
+            Py_DECREF(res);
+            return NULL;
+        }
     }
-    res = PyList_New(n);
-    if (unlikely(res == NULL)) return NULL;
-    __Pyx_copy_object_array(src, ((PyListObject*)res)->ob_item, n);
+    #endif
     return res;
 }
+{{if Type == 'Tuple'}}
 #endif
-
+{{endif}}
 
 /////////////// SliceTupleAndList.proto ///////////////
 
@@ -955,7 +963,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(PyObject* src, Py_ssize_t 
 #endif
 
 /////////////// SliceTupleAndList ///////////////
-//@requires: TupleAndListFromArray
+//@requires: ListFromArray
+//@requires: TupleFromArray
 //@requires: Synchronization.c::CriticalSections
 
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -1465,6 +1474,7 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name); /*pro
 
 /////////////// GetNameInClass ///////////////
 //@requires: GetModuleGlobalName
+//@requires: Exceptions.c::IgnoreException
 
 static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
     PyObject *result;
@@ -1483,7 +1493,9 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
             return result;
         }
     }
-    PyErr_Clear();
+    if (!__Pyx_IgnoreException(PyExc_Exception)) {
+        return NULL; // BaseException
+    }
     __Pyx_GetModuleGlobalNameUncached(result, name);
     return result;
 }
@@ -1567,6 +1579,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name); /*pro
 
 /////////////// GetModuleGlobalName ///////////////
 //@requires: GetBuiltinName
+//@requires: Exceptions.c::IgnoreException
 //@substitute: naming
 
 #if CYTHON_USE_DICT_VERSIONS
@@ -1586,9 +1599,15 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     if (likely(result)) {
         return result;
     }
-    PyErr_Clear();
+    if (!__Pyx_IgnoreException(PyExc_Exception)) {
+        return NULL; // BaseException
+    }
 #elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-    if (unlikely(__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), name, &result) == -1)) PyErr_Clear();
+    if (unlikely(__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), name, &result) == -1)) {
+        if (!__Pyx_IgnoreException(PyExc_Exception)) {
+            return NULL; // BaseException
+        }
+    }
     __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return result;
@@ -1600,7 +1619,10 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     if (likely(result)) {
         return __Pyx_NewRef(result);
     }
-    PyErr_Clear();
+    PyObject *exc = PyErr_Occurred();
+    if (unlikely(exc) && !__Pyx_IgnoreGivenException(exc, PyExc_Exception)) {
+        return NULL; // BaseException
+    }
 #endif
     return __Pyx_GetBuiltinName(name);
 }
@@ -1752,103 +1774,16 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
 
 /////////////// PyObjectGetMethod.proto ///////////////
 
-#if !(CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || !CYTHON_COMPILING_IN_LIMITED_API))
+#if !CYTHON_VECTORCALL
 static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method);/*proto*/
 #endif
 
 /////////////// PyObjectGetMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
-#if !(CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || !CYTHON_COMPILING_IN_LIMITED_API))
+#if !CYTHON_VECTORCALL
 static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method) {
-    PyObject *attr;
-#if CYTHON_UNPACK_METHODS && CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_PYTYPE_LOOKUP
-    __Pyx_TypeName type_name;
-    // Copied from _PyObject_GetMethod() in CPython 3.7
-    PyTypeObject *tp = Py_TYPE(obj);
-    PyObject *descr;
-    descrgetfunc f = NULL;
-    PyObject **dictptr, *dict;
-    int meth_found = 0;
-
-    assert (*method == NULL);
-
-    if (unlikely(tp->tp_getattro != PyObject_GenericGetAttr)) {
-        attr = __Pyx_PyObject_GetAttrStr(obj, name);
-        goto try_unpack;
-    }
-    if (unlikely(tp->tp_dict == NULL) && unlikely(PyType_Ready(tp) < 0)) {
-        return 0;
-    }
-
-    descr = _PyType_Lookup(tp, name);
-    if (likely(descr != NULL)) {
-        Py_INCREF(descr);
-#if defined(Py_TPFLAGS_METHOD_DESCRIPTOR) && Py_TPFLAGS_METHOD_DESCRIPTOR
-        if (__Pyx_PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR))
-#else
-        // Repeating the condition below accommodates for MSVC's inability to test macros inside of macro expansions.
-        #ifdef __Pyx_CyFunction_USED
-        if (likely(PyFunction_Check(descr) || Py_IS_TYPE(descr, &PyMethodDescr_Type) || __Pyx_CyFunction_Check(descr)))
-        #else
-        if (likely(PyFunction_Check(descr) || Py_IS_TYPE(descr, &PyMethodDescr_Type)))
-        #endif
-#endif
-        {
-            meth_found = 1;
-        } else {
-            f = Py_TYPE(descr)->tp_descr_get;
-            if (f != NULL && PyDescr_IsData(descr)) {
-                attr = f(descr, obj, (PyObject *)Py_TYPE(obj));
-                Py_DECREF(descr);
-                goto try_unpack;
-            }
-        }
-    }
-
-    dictptr = _PyObject_GetDictPtr(obj);
-    if (dictptr != NULL && (dict = *dictptr) != NULL) {
-        Py_INCREF(dict);
-        attr = __Pyx_PyDict_GetItemStr(dict, name);
-        if (attr != NULL) {
-            Py_INCREF(attr);
-            Py_DECREF(dict);
-            Py_XDECREF(descr);
-            goto try_unpack;
-        }
-        Py_DECREF(dict);
-    }
-
-    if (meth_found) {
-        *method = descr;
-        return 1;
-    }
-
-    if (f != NULL) {
-        attr = f(descr, obj, (PyObject *)Py_TYPE(obj));
-        Py_DECREF(descr);
-        goto try_unpack;
-    }
-
-    if (likely(descr != NULL)) {
-        *method = descr;
-        return 0;
-    }
-
-    type_name = __Pyx_PyType_GetFullyQualifiedName(tp);
-    PyErr_Format(PyExc_AttributeError,
-                 "'" __Pyx_FMT_TYPENAME "' object has no attribute '%U'",
-                 type_name, name);
-    __Pyx_DECREF_TypeName(type_name);
-    return 0;
-
-// Generic fallback implementation using normal attribute lookup.
-#else
-    attr = __Pyx_PyObject_GetAttrStr(obj, name);
-    goto try_unpack;
-#endif
-
-try_unpack:
+    PyObject *attr = __Pyx_PyObject_GetAttrStr(obj, name);
 #if CYTHON_UNPACK_METHODS
     // Even if we failed to avoid creating a bound method object, it's still worth unpacking it now, if possible.
     if (likely(attr) && PyMethod_Check(attr) && likely(PyMethod_GET_SELF(attr) == obj)) {
@@ -1910,6 +1845,7 @@ static CYTHON_INLINE void __Pyx_CachedCFunction_SetFinishedInitializing(__Pyx_Ca
 
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
+//@requires: Exceptions.c::IgnoreException
 
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030C0000
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
@@ -1964,8 +1900,8 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
         int self_found;
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
         self = PyObject_GetAttrString(method, "__self__");
-        if (!self) {
-            PyErr_Clear();
+        if (!self && !__Pyx_IgnoreException(PyExc_AttributeError)) {
+            return -1;
         }
 #else
         self = PyCFunction_GET_SELF(method);
@@ -2358,8 +2294,8 @@ static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, P
 static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
     (void)__Pyx_PyObject_FastCallDict;
 
-    if (__Pyx_PyTuple_SET_ITEM(builder, n, key) != (0)) return -1;
     Py_INCREF(key);
+    if (__Pyx_PyTuple_SET_ITEM(builder, n, key) != (0)) return -1;
     args[n] = value;
     return 0;
 }
@@ -2631,14 +2567,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
 
 /////////////// PyVectorcallFastCallDict.proto ///////////////
 
-#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
+#if CYTHON_VECTORCALL
 static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw);
 #endif
 
 /////////////// PyVectorcallFastCallDict ///////////////
 //@requires: OwnedDictNext
 
-#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
+#if CYTHON_VECTORCALL
 // Slow path when kw is non-empty
 static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw)
 {
@@ -3236,33 +3172,6 @@ static void __Pyx_RaiseCppAttributeErrorNogil(const char *varname) {
     PyGILState_STATE gilstate = PyGILState_Ensure();
     __Pyx_RaiseCppAttributeError(varname);
     PyGILState_Release(gilstate);
-}
-
-/////////////// ListPack.proto //////////////////////////////////////
-
-// Equivalent to PyTuple_Pack for sections where we want to reduce the code size
-static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...); /* proto */
-
-/////////////// ListPack //////////////////////////////////////
-
-static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...) {
-    va_list va;
-    PyObject *l = PyList_New(n);
-    va_start(va, n);
-    if (unlikely(!l)) goto end;
-
-    for (Py_ssize_t i=0; i<n; ++i) {
-        PyObject *arg = va_arg(va, PyObject*);
-        Py_INCREF(arg);
-        if (__Pyx_PyList_SET_ITEM(l, i, arg) != (0)) {
-            Py_CLEAR(l);
-            goto end;
-        }
-    }
-
-    end:
-    va_end(va);
-    return l;
 }
 
 /////////////// LengthHint.proto //////////////////////////////////////

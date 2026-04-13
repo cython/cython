@@ -110,7 +110,7 @@ class BaseType:
         # get_fused_types in subclasses.
         return self.get_fused_types()
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
         """
         Deduce any template params in this (argument) type given the actual
         argument type.
@@ -178,6 +178,7 @@ class PyrexType(BaseType):
     #  is_ptr                boolean     Is a C pointer type
     #  is_null_ptr           boolean     Is the type of NULL
     #  is_reference          boolean     Is a C reference type
+    #  is_fake_reference     boolean
     #  is_rvalue_reference   boolean     Is a C++ rvalue reference type
     #  is_const              boolean     Is a C const type
     #  is_volatile           boolean     Is a C volatile type
@@ -198,6 +199,17 @@ class PyrexType(BaseType):
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
     #  is_buffer             boolean     Is buffer access type
+    #  is_ctuple             boolean     Is a Cython ctuple type
+    #  is_pytuple_type       boolean     Is a Python tuple type
+    #  is_pylist_type        boolean     Is a Python list type
+    #  is_pydict_type        boolean     Is a Python dict type
+    #  is_pyset_type         boolean     Is a Python set type
+    #  is_pyfrozenset_type   boolean     Is a Python frozenset type
+    #  is_pybytes_type       boolean     Is a Python bytes type
+    #  is_pystr_type         boolean     Is a Python str type
+    #  is_pybytearray_type   boolean     Is a Python bytearray type
+    #  is_pymemoryview_type  boolean     Is a Python memoryview type
+    #  is_memoryviewslice    boolean     Is a Cython memoryview slice type
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
     #  is_unowned_view       boolean     Is a pointer or a C++ class such as std::string_view
@@ -274,6 +286,23 @@ class PyrexType(BaseType):
     is_error = 0
     is_buffer = 0
     is_ctuple = 0
+
+    is_pyint_type = False
+    is_pyfloat_type = False
+    is_pybool_type = False
+    is_pycomplex_type = False
+
+    is_pytuple_type = False
+    is_pylist_type = False
+    is_pydict_type = False
+    is_pyset_type = False
+    is_pyfrozenset_type = False
+
+    is_pybytes_type = False
+    is_pystr_type = False
+    is_pybytearray_type = False
+    is_pymemoryview_type = False
+
     is_memoryviewslice = 0
     is_pythran_expr = 0
     is_numpy_buffer = 0
@@ -286,6 +315,45 @@ class PyrexType(BaseType):
     equivalent_type = None
     default_value = ""
     declaration_value = ""
+
+    @property
+    def is_c_or_cpp_string(self) -> bool:
+        return self.is_string or self.is_cpp_string
+
+    @property
+    def is_bytes_or_str_or_bytearray(self) -> bool:
+        return self.is_pybytes_type or self.is_pystr_type or self.is_pybytearray_type
+
+    @property
+    def is_bytes_or_str(self) -> bool:
+        return self.is_pybytes_type or self.is_pystr_type
+
+    @property
+    def is_builtin_sequence(self) -> bool:
+        return (
+            self.is_pybytes_type or self.is_pystr_type or self.is_pybytearray_type or
+            self.is_pymemoryview_type or self.is_pylist_type or self.is_pytuple_type
+        )
+
+    @property
+    def may_be_pyint_type(self) -> bool:
+        return self is py_object_type or self.is_pyint_type
+
+    @property
+    def may_be_pyfloat_type(self) -> bool:
+        return self is py_object_type or self.is_pyfloat_type
+
+    @property
+    def may_be_pybytes_type(self) -> bool:
+        return self is py_object_type or self.is_pybytes_type
+
+    @property
+    def may_be_pytuple_type(self) -> bool:
+        return self is py_object_type or self.is_pytuple_type
+
+    @property
+    def may_be_pylist_type(self) -> bool:
+        return self is py_object_type or self.is_pylist_type
 
     def resolve(self):
         # If a typedef, returns the base type.
@@ -1453,6 +1521,22 @@ class BuiltinObjectType(PyObjectType):
     is_external = True
     decl_type = 'PyObject'
 
+    _builtin_type_flag_mapping = {
+        'int': 'is_pyint_type',
+        'float': 'is_pyfloat_type',
+        'bool': 'is_pybool_type',
+        'complex': 'is_pycomplex_type',
+        'list': 'is_pylist_type',
+        'dict': 'is_pydict_type',
+        'set': 'is_pyset_type',
+        'tuple': 'is_pytuple_type',
+        'frozenset': 'is_pyfrozenset_type',
+        'bytes': 'is_pybytes_type',
+        'str': 'is_pystr_type',
+        'bytearray': 'is_pybytearray_type',
+        'memoryview': 'is_pymemoryview_type',
+    }
+
     def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
         self.cname = cname
@@ -1466,6 +1550,11 @@ class BuiltinObjectType(PyObjectType):
         if is_exception_type_name(name):
             self.is_exception_type = True
             self.require_exact = False
+        self._init_builtin_type_flags(name)
+
+    def _init_builtin_type_flags(self, type_name: str) -> None:
+        if type_name in self._builtin_type_flag_mapping:
+            setattr(self, self._builtin_type_flag_mapping[type_name], True)
 
     @property
     def typeptr_cname(self):
@@ -1895,8 +1984,14 @@ class CConstOrVolatileType(BaseType):
         return CConstOrVolatileType(base_type,
                 self.is_const, self.is_volatile)
 
-    def deduce_template_params(self, actual):
-        return self.cv_base_type.deduce_template_params(actual)
+    def deduce_template_params(self, actual, is_value_type=True):
+        if ((actual.is_const and self.is_const)
+                or (actual.is_volatile and self.is_volatile)):
+            # If we're "const T" and actual is "const int" then deduce "T=int".
+            # Also, if the type is being passed by value then deduce a non-const type.
+            return self.cv_base_type.deduce_template_params(actual.cv_base_type, is_value_type=is_value_type)
+        # Otherwise, if we're "const T" and actual is "int" then deduce "T=int"
+        return self.cv_base_type.deduce_template_params(actual, is_value_type=is_value_type)
 
     def can_coerce_to_pyobject(self, env):
         return self.cv_base_type.can_coerce_to_pyobject(env)
@@ -2830,9 +2925,9 @@ class CArrayType(CPointerBaseType):
         else:
             return CArrayType(base_type, self.size)
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
         if isinstance(actual, CArrayType):
-            return self.base_type.deduce_template_params(actual.base_type)
+            return self.base_type.deduce_template_params(actual.base_type, is_value_type=False)
         else:
             return {}
 
@@ -3001,9 +3096,9 @@ class CPtrType(CPointerBaseType):
         else:
             return CPtrType(base_type)
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
         if isinstance(actual, CPtrType):
-            return self.base_type.deduce_template_params(actual.base_type)
+            return self.base_type.deduce_template_params(actual.base_type, is_value_type=False)
         else:
             return {}
 
@@ -3044,8 +3139,8 @@ class CReferenceBaseType(BaseType):
         else:
             return type(self)(base_type)
 
-    def deduce_template_params(self, actual):
-        return self.ref_base_type.deduce_template_params(actual)
+    def deduce_template_params(self, actual, is_value_type=True):
+        return self.ref_base_type.deduce_template_params(actual, is_value_type=False)
 
     def __getattr__(self, name):
         return getattr(self.ref_base_type, name)
@@ -4289,7 +4384,7 @@ class CppClassType(CType):
                         specialized.scope.entries[bit_ref_returner].type.return_type = T
         return specialized
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
         if actual.is_cv_qualified:
             actual = actual.cv_base_type
         if actual.is_reference:
@@ -4585,7 +4680,10 @@ class TemplatePlaceholderType(CType):
         else:
             return self
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
+        if is_value_type and actual.is_cv_qualified:
+            # For value types, there's no reason to preserve const/volatile
+            return {self: actual.cv_base_type}
         return {self: actual}
 
     def same_as_resolved_type(self, other_type):
@@ -4695,6 +4793,8 @@ class CTupleType(CType):
 
     _convert_to_py_code = None
     _convert_from_py_code = None
+    to_py_function = None
+    from_py_function = None
 
     def __init__(self, cname, components):
         from .Builtin import tuple_type
@@ -4702,8 +4802,6 @@ class CTupleType(CType):
         self.components = components
         self.equivalent_type = tuple_type
         self.size = len(components)
-        self.to_py_function = f"{Naming.convert_func_prefix}_to_py_{self.cname}"
-        self.from_py_function = f"{Naming.convert_func_prefix}_from_py_{self.cname}"
 
     def __str__(self):
         return "(%s)" % ", ".join(str(c) for c in self.components)
@@ -4738,6 +4836,7 @@ class CTupleType(CType):
                 return False
 
         if self._convert_to_py_code is None:
+            self.to_py_function = f"{Naming.convert_func_prefix}_to_py_{self.cname}"
             context = dict(
                 struct_type_decl=self.empty_declaration_code(),
                 components=self.components,
@@ -4761,6 +4860,7 @@ class CTupleType(CType):
                 return False
 
         if self._convert_from_py_code is None:
+            self.from_py_function = f"{Naming.convert_func_prefix}_from_py_{self.cname}"
             context = dict(
                 struct_type_decl=self.empty_declaration_code(),
                 components=self.components,
@@ -5516,7 +5616,13 @@ def merge_template_deductions(a, b):
         return None
     add_if_missing = a.setdefault
     for param, value in b.items():
-        if add_if_missing(param, value) != value:
+        value_in_a = add_if_missing(param, value)
+        if value_in_a != value:
+            if value_in_a.is_cv_qualified and value_in_a.cv_base_type == value:
+                continue  # This is fine
+            if value.is_cv_qualified and value.cv_base_type == value_in_a:
+                a[param] = value  # replace with the more restrictive qualified value
+                continue
             # Found mismatch, cannot merge.
             return None
     return a

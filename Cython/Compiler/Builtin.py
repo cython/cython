@@ -4,7 +4,7 @@
 
 
 from .StringEncoding import EncodedString
-from .Symtab import BuiltinScope, CClassScope, StructOrUnionScope, ModuleScope, Entry
+from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
 from .Code import UtilityCode, TempitaUtilityCode, KNOWN_PYTHON_BUILTINS, uncachable_builtins
 from .TypeSlots import Signature
 from . import PyrexTypes
@@ -863,15 +863,6 @@ def init_builtins():
     typed_container_types = tuple(
         builtin_scope.lookup(type_name).type
         for type_name in PyrexTypes.BuiltinTypeConstructorObjectType.types_supporting_subscripting
-    )
-
-    sequence_types = (
-        list_type,
-        tuple_type,
-        bytes_type,
-        unicode_type,
-        bytearray_type,
-        memoryview_type,
     )
 
     # Set up type inference links between equivalent Python/C types

@@ -2,16 +2,15 @@
 # tag: shared_utility
 
 """
-PYTHON delete_generated_files.py
-PYTHON setup_with_sources.py build_ext --inplace
+PYTHON setup_with_sources.py build_ext --inplace --force -j3
 PYTHON -c "import test_shared_utility"
 
 PYTHON delete_generated_files.py
-PYTHON setup_with_builddir.py build_ext --inplace
+PYTHON setup_with_builddir.py build_ext --inplace --force -j3
 PYTHON -c "import test_shared_utility"
 
 PYTHON delete_generated_files.py
-PYTHON setup_without_sources.py build_ext --inplace
+PYTHON setup_without_sources.py build_ext --inplace --force -j3
 PYTHON -c "import test_shared_utility"
 """
 

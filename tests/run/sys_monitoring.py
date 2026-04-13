@@ -346,11 +346,13 @@ else:
     ...     # monitored
     ...     trace_return_neg_1()
     ...     trace_return_charptr()
+    ...     trace_return_ctuple()
     ... finally:
     ...     _ = smon.register_callback(TOOL_ID, E.PY_RETURN, None)
     ...     smon.free_tool_id(TOOL_ID)
     -1
     b'xyzxyz'
+    True
 
     >>> -1 in events  or  events
     True
@@ -703,3 +705,15 @@ def c_return_charptr() -> cython.p_char:
 def trace_return_charptr():
     result: object = c_return_charptr()
     return result * 2
+
+
+@cython.cfunc
+def c_return_ctuple() -> tuple[cython.pointer[cython.int]]:
+    return (cython.NULL,)
+
+def trace_return_ctuple():
+    if COMPILED:
+        result = c_return_ctuple()
+        return result[0] is cython.NULL
+    # Otherwise pure-py test complains about how Cython.PointerType is unhashable.
+    return True
