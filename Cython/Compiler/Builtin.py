@@ -860,15 +860,6 @@ def init_builtins():
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
 
-    sequence_types = (
-        list_type,
-        tuple_type,
-        bytes_type,
-        unicode_type,
-        bytearray_type,
-        memoryview_type,
-    )
-
     # Set up type inference links between equivalent Python/C types
     assert bool_type.name == 'bool', bool_type.name
     bool_type.equivalent_type = PyrexTypes.c_bint_type
