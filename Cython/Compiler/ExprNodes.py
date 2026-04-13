@@ -15,7 +15,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                bytearray_type=object, slice_type=object,
                builtin_sequence_types=object, build_line_table=object,
                inspect=object, copy=object, os=object, re=object, sys=object,
-               itertools=object, defaultdict=object,
+               itertools=object, defaultdict=object, typed_container_types=object,
 )
 
 import copy
@@ -45,7 +45,7 @@ from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
     unicode_type, bytes_type, bytearray_type,
-    slice_type
+    slice_type, typed_container_types
 )
 from . import Builtin
 from . import Symtab
