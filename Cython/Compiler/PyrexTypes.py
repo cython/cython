@@ -295,6 +295,13 @@ class PyrexType(BaseType):
     is_pybytearray_type = False
     is_pymemoryview_type = False
 
+    # is_bytes_or_str is True if bytes or str
+    is_bytes_or_str = False
+    # is_builting_sequence is True if bytes or str or bytearray or memoryview or tuple or list
+    is_builtin_sequence = False
+    # is_bytes_or_str_or_bytearray is True if bytes or str or bytearray
+    is_bytes_or_str_or_bytearray = False
+
     is_memoryviewslice = 0
     is_pythran_expr = 0
     is_numpy_buffer = 0
@@ -311,21 +318,6 @@ class PyrexType(BaseType):
     @property
     def is_c_or_cpp_string(self) -> bool:
         return self.is_string or self.is_cpp_string
-
-    @property
-    def is_bytes_or_str_or_bytearray(self) -> bool:
-        return self.is_pybytes_type or self.is_pystr_type or self.is_pybytearray_type
-
-    @property
-    def is_bytes_or_str(self) -> bool:
-        return self.is_pybytes_type or self.is_pystr_type
-
-    @property
-    def is_builtin_sequence(self) -> bool:
-        return (
-            self.is_pybytes_type or self.is_pystr_type or self.is_pybytearray_type or
-            self.is_pymemoryview_type or self.is_pylist_type or self.is_pytuple_type
-        )
 
     @property
     def may_be_pyint_type(self) -> bool:
@@ -1514,19 +1506,19 @@ class BuiltinObjectType(PyObjectType):
     decl_type = 'PyObject'
 
     _builtin_type_flag_mapping = {
-        'int': 'is_pyint_type',
-        'float': 'is_pyfloat_type',
-        'bool': 'is_pybool_type',
-        'complex': 'is_pycomplex_type',
-        'list': 'is_pylist_type',
-        'dict': 'is_pydict_type',
-        'set': 'is_pyset_type',
-        'tuple': 'is_pytuple_type',
-        'frozenset': 'is_pyfrozenset_type',
-        'bytes': 'is_pybytes_type',
-        'str': 'is_pystr_type',
-        'bytearray': 'is_pybytearray_type',
-        'memoryview': 'is_pymemoryview_type',
+        'int': ['is_pyint_type'],
+        'float': ['is_pyfloat_type'],
+        'bool': ['is_pybool_type'],
+        'complex': ['is_pycomplex_type'],
+        'list': ['is_pylist_type', 'is_builtin_sequence'],
+        'dict': ['is_pydict_type'],
+        'set': ['is_pyset_type'],
+        'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
+        'frozenset': ['is_pyfrozenset_type'],
+        'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str', 'is_bytes_or_str_or_bytearray'],
+        'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str', 'is_bytes_or_str_or_bytearray'],
+        'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
+        'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
     }
 
     def __init__(self, name, cname, objstruct_cname=None):
@@ -1546,7 +1538,8 @@ class BuiltinObjectType(PyObjectType):
 
     def _init_builtin_type_flags(self, type_name: str) -> None:
         if type_name in self._builtin_type_flag_mapping:
-            setattr(self, self._builtin_type_flag_mapping[type_name], True)
+            for attribute in self._builtin_type_flag_mapping[type_name]:
+                setattr(self, attribute, True)
 
     def set_scope(self, scope):
         self.scope = scope
