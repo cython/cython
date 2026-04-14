@@ -6405,8 +6405,8 @@ class SingleAssignmentNode(AssignmentNode):
             else:
                 rhs = self.rhs.coerce_to(self.lhs.type, env)
         elif (self.lhs.type in Builtin.typed_container_types and
-              self.rhs.type in Builtin.typed_container_types and
-              not self.lhs.type.assignable_from(self.rhs.type)):
+                self.rhs.type in Builtin.typed_container_types and
+                not self.lhs.type.assignable_from(self.rhs.type)):
             rhs = self.rhs
             rhs.fail_assignment(self.lhs.type)
         else:
