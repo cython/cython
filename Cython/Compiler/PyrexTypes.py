@@ -295,11 +295,9 @@ class PyrexType(BaseType):
     is_pybytearray_type = False
     is_pymemoryview_type = False
 
-    # is_bytes_or_str is True if bytes or str
+    # Combined type group flags, based on common needs in the code base.
     is_bytes_or_str = False
-    # is_builting_sequence is True if bytes or str or bytearray or memoryview or tuple or list
     is_builtin_sequence = False
-    # is_bytes_or_str_or_bytearray is True if bytes or str or bytearray
     is_bytes_or_str_or_bytearray = False
 
     is_memoryviewslice = 0
