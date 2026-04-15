@@ -16,24 +16,18 @@ except ImportError:
 def test_subscripted_types():
     """
     >>> test_subscripted_types()
-    dict object
-    list object
-    set object
+    dict[int object,double] object
+    list[int object] object
+    set[Python object] object
     """
     a: typing.Dict[int, float] = {}
     b: List[int] = []
     c: _SET_[object] = set()
 
-    print(cython.typeof(a) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(b) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(c) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(a) + ("[int object,double] object" if not cython.compiled else ""))
+    print(cython.typeof(b) + ("[int object] object" if not cython.compiled else ""))
+    print(cython.typeof(c) + ("[Python object] object" if not cython.compiled else ""))
 
-if cython.compiled:
-    test_subscripted_types.__doc__ = """
-    dict[int object,double] object
-    list[int object] object
-    set[Python object] object
-    """
 
 @cython.cclass
 class TestClassVar:

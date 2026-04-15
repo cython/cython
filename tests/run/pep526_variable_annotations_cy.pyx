@@ -28,10 +28,12 @@ def test_subscripted_types():
 def test_casting_subscripted_types():
     """
     >>> test_casting_subscripted_types()
+    Lists:
     list[int] object
     1
     list object
     1.0
+    Dicts:
     dict[str object,float] object
     2.0
     dict object
@@ -41,14 +43,14 @@ def test_casting_subscripted_types():
     Python object
     3
     """
-    # list
+    print("Lists:")
     cdef list[float] l = [1.0, 2.0]
     print(cython.typeof((<list[int]> l)))
     print((<list[int]> l)[0])
 
     print(cython.typeof((<list> l)))
     print((<list> l)[0])
-    # dict
+    print("Dicts:")
     cdef dict[str, int] d = {'a': 1, 'b': 2}
     print(
         cython.typeof((<dict[str, float]> d)))

@@ -174,12 +174,12 @@ def literal_list_ptr():
 def test_subscripted_types():
     """
     >>> test_subscripted_types()
-    dict object
-    dict object
+    dict[int,float] object
+    dict[int,float] object
+    list[int] object
+    list[int] object
     list object
-    list object
-    list object
-    set object
+    set[Python object] object
     """
     a1: typing.Dict[cython.int, cython.float] = {}
     a2: dict[cython.int, cython.float] = {}
@@ -188,23 +188,12 @@ def test_subscripted_types():
     b3: List = []  # doesn't need to be subscripted
     c: _SET_[object] = set()
 
-    print(cython.typeof(a1) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(a2) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(b1) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(b2) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(a1) + ("[int,float] object" if not cython.compiled else ""))
+    print(cython.typeof(a2) + ("[int,float] object" if not cython.compiled else ""))
+    print(cython.typeof(b1) + ("[int] object" if not cython.compiled else ""))
+    print(cython.typeof(b2) + ("[int] object" if not cython.compiled else ""))
     print(cython.typeof(b3) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(c) + (" object" if not cython.compiled else ""))
-
-if cython.compiled:
-    test_subscripted_types.__doc__ = """
-    >>> test_subscripted_types()
-    dict[int,float] object
-    dict[int,float] object
-    list[int] object
-    list[int] object
-    list object
-    set[Python object] object
-    """
+    print(cython.typeof(c) + ("[Python object] object" if not cython.compiled else ""))
 
 if sys.version_info >= (3, 11) or cython.compiled:
     # This part of the test is failing in Python 3.9 and 3.10 with the following exception in Shadow.py:
