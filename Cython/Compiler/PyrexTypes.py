@@ -336,7 +336,7 @@ class PyrexType(BaseType):
         )
 
     @property
-    def is_typed_container_type(self) -> bool:
+    def supports_container_type(self) -> bool:
         return (
             self.is_pydict_type or self.is_pylist_type or self.is_pyset_type or self.is_pyfrozenset_type
         )
@@ -4996,7 +4996,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         # For types_supporting_subscripting is the list of types supporting subscripting in Cython.
         # The other types will just ignore the subscription types.
         # if self.name not in self.types_supporting_subscripting:
-        if not self.is_typed_container_type:
+        if not self.supports_container_type:
             return self
         if template_values and None not in template_values and len(template_values) <= 2:
             subscripted_types = ','.join([str(tv) for tv in template_values])

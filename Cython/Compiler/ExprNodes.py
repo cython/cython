@@ -110,7 +110,7 @@ def find_coercion_error(type_tuple, default, env):
     err = coercion_error_dict.get(type_tuple)
     if err is None:
         type1, type2 = type_tuple
-        if type1.is_typed_container_type and type2.is_typed_container_type:
+        if type1.supports_container_type and type2.supports_container_type:
             # Typed containers. Validate the coercion of their subscripted types.
             for subscripted_type1, subscripted_type2 in zip(type1.subscripted_types, type2.subscripted_types):
                 if (ret := find_coercion_error((subscripted_type1, subscripted_type2), default, env)) == default:
@@ -3138,7 +3138,7 @@ class IteratorNode(ScopedExprNode):
             self.sequence = self.sequence.coerce_to_pyobject(env)
             if self.sequence.type.is_pylist_type or self.sequence.type.is_pytuple_type:
                 self.sequence = self.sequence.as_none_safe_node("'NoneType' object is not iterable")
-            if self.sequence.type.is_typed_container_type:
+            if self.sequence.type.supports_container_type:
                 self.type = self.sequence.type
         self.is_temp = 1
         return self
@@ -3174,7 +3174,7 @@ class IteratorNode(ScopedExprNode):
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
-        if sequence_type.is_typed_container_type and (item_type := sequence_type.get_subscripted_type(0)):
+        if sequence_type.supports_container_type and (item_type := sequence_type.get_subscripted_type(0)):
             return item_type
         if sequence_type.is_array or sequence_type.is_ptr:
             return sequence_type
@@ -3522,7 +3522,7 @@ class NextNode(AtomicExprNode):
             item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
             item_type = PyrexTypes.remove_cv_ref(item_type, remove_fakeref=True)
             return item_type
-        elif (sequence_type := self.iterator.sequence.infer_type(env)).is_typed_container_type and \
+        elif (sequence_type := self.iterator.sequence.infer_type(env)).supports_container_type and \
                 (iterator_type := sequence_type.infer_iterator_type()):
             return iterator_type
         else:
@@ -4288,7 +4288,7 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
-        if base_type.is_typed_container_type and (sub_type := base_type.infer_indexed_type()):
+        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
             return sub_type
 
         index_type = self.index.infer_type(env)
@@ -4508,7 +4508,7 @@ class IndexNode(_IndexingBaseNode):
 
         self.wrap_in_nonecheck_node(env, getting)
 
-        if base_type.is_typed_container_type and (sub_type := base_type.infer_indexed_type()):
+        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
             self.type = base_type
             return self.coerce_to(sub_type, env)
 
