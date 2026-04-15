@@ -112,9 +112,7 @@ def find_coercion_error(type_tuple, default, env):
         type1, type2 = type_tuple
         if type1.is_typed_container_type and type2.is_typed_container_type:
             # Typed containers. Validate the coercion of their subscripted types.
-            for i in range(max(len(type1.subscripted_types), len(type2.subscripted_types))):
-                subscripted_type1 = type1.get_subscripted_type(i)
-                subscripted_type2 = type2.get_subscripted_type(i)
+            for subscripted_type1, subscripted_type2 in zip(type1.subscripted_types, type2.subscripted_types):
                 if (ret := find_coercion_error((subscripted_type1, subscripted_type2), default, env)) == default:
                     continue
                 return ret
