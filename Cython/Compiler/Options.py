@@ -136,7 +136,7 @@ embed_modules = []
 old_style_globals = ShouldBeFromDirective('old_style_globals')
 
 #: Allows cimporting from a pyx file without a pxd file.
-cimport_from_pyx = True
+cimport_from_pyx = False
 
 #: Maximum number of dimensions for buffers -- set lower than number of
 #: dimensions in numpy, as
