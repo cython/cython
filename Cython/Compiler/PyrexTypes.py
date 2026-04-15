@@ -336,6 +336,12 @@ class PyrexType(BaseType):
         )
 
     @property
+    def is_typed_container_type(self) -> bool:
+        return (
+            self.is_pydict_type or self.is_pylist_type or self.is_pyset_type or self.is_pyfrozenset_type
+        )
+
+    @property
     def may_be_pyint_type(self) -> bool:
         return self is py_object_type or self.is_pyint_type
 
@@ -4971,38 +4977,44 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     builtin types like list, dict etc which can be subscripted in annotations
     """
 
-    types_supporting_subscripting = {'dict', 'list', 'set', 'frozenset'}
-
     def __init__(self, name, cname, objstruct_cname=None, **kwargs):
+        # We need to ensure that the base_type attribute is set before calling super().__init__()
+        # to ensure that _init_builtin_type_flags() has base_type available.
+        for arg in kwargs:
+            setattr(self, arg, kwargs[arg])
+
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
         self.set_python_type_constructor_name(self.get_container_type().name)
         self.specializations = {}
-        for arg in kwargs:
-            setattr(self, arg, kwargs[arg])
+
+    def _init_builtin_type_flags(self, type_name: str) -> None:
+        # ensure correct flag is set for subscripted types, e.g. list[int]
+        super()._init_builtin_type_flags(self.get_container_type().name)
 
     def specialize_here(self, pos, env, template_values=None):
         # For types_supporting_subscripting is the list of types supporting subscripting in Cython.
         # The other types will just ignore the subscription types.
-        if self.name not in self.types_supporting_subscripting:
+        # if self.name not in self.types_supporting_subscripting:
+        if not self.is_typed_container_type:
             return self
         if template_values and None not in template_values and len(template_values) <= 2:
-            template_values = tuple(template_values)
-            if template_values in self.specializations:
-                return self.specializations[template_values]
             subscripted_types = ','.join([str(tv) for tv in template_values])
             name = f'{self.get_container_type().name}[{subscripted_types}]'
+
+            if name in self.specializations:
+                return self.specializations[name]
 
             typ = BuiltinTypeConstructorObjectType(
                 name=name, cname=self.cname, objstruct_cname=self.objstruct_cname,
                 base_type=self, subscripted_types=tuple(template_values), scope=self.scope)
             env.global_scope().declare_type(name, typ, pos, cname=typ.cname)
-            self.specializations[template_values] = typ
+            self.specializations[name] = typ
             return typ
         return self
 
     def assignable_from(self, src_type):
-        if self == src_type:
+        if self.get_container_type() is src_type.get_container_type():
             if not self.subscripted_types and not src_type.subscripted_types:
                 return True
             if not self.subscripted_types and src_type.subscripted_types:
@@ -5019,8 +5031,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         return super().assignable_from(src_type)
 
     def infer_indexed_type(self):
-        from .Builtin import dict_type
-        if self.get_container_type() == dict_type:
+        if self.get_container_type().is_pydict_type:
             return self.get_subscripted_type(1)
         else:
             return self.get_subscripted_type(0)
@@ -5038,14 +5049,6 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         if base_type:
             return base_type.get_container_type()
         return self
-
-    def __eq__(self, other):
-        if isinstance(other, BuiltinTypeConstructorObjectType):
-            return self.get_container_type().name == other.get_container_type().name
-        return NotImplemented
-
-    def __hash__(self):
-        return hash((type(self), self.get_container_type().name))
 
 
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):

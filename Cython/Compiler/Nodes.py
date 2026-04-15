@@ -6404,8 +6404,8 @@ class SingleAssignmentNode(AssignmentNode):
                     env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
             else:
                 rhs = self.rhs.coerce_to(self.lhs.type, env)
-        elif (self.lhs.type in Builtin.typed_container_types and
-                self.rhs.type in Builtin.typed_container_types and
+        elif (self.lhs.type.is_typed_container_type and
+                self.rhs.type.is_typed_container_type and
                 not self.lhs.type.assignable_from(self.rhs.type)):
             rhs = self.rhs
             rhs.fail_assignment(self.lhs.type)
