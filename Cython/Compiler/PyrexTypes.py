@@ -4963,7 +4963,7 @@ class PythonTypeConstructorMixin:
         self.python_type_constructor_name = name
 
     def __repr__(self):
-        if self.modifier_name:
+        if self.base_type:
             return "%s[%r]" % (self.name, self.base_type)
         else:
             return self.name
