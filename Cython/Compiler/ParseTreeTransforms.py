@@ -3217,7 +3217,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
 
     def visit_PyClassDefNode(self, node):
         if any(directive in self.directives for directive in self.converts_to_cclass):
-            node = node.as_cclass()
+            visibility = 'public' if 'public' in self.directives else 'private'
+            node = node.as_cclass(visibility=visibility)
             return self.visit(node)
         else:
             old_in_pyclass = self.in_py_class
@@ -3250,7 +3251,7 @@ class AlignFunctionDefinitions(CythonTransform):
         pxd_def = self.scope.lookup(node.name)
         if pxd_def:
             if pxd_def.is_cclass:
-                return self.visit_CClassDefNode(node.as_cclass(), pxd_def)
+                return self.visit_CClassDefNode(node.as_cclass(visibility='private'), pxd_def)
             elif not pxd_def.scope or not pxd_def.scope.is_builtin_scope:
                 error(node.pos, "'%s' redeclared" % node.name)
                 if pxd_def.pos:

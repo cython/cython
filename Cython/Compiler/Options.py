@@ -404,7 +404,7 @@ directive_scopes = {  # defaults to available everywhere
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),
     'no_ccall': ('function', 'with statement'),
-    'public': ('function', 'with statement'),
+    'public': ('function', 'class', 'cclass', 'with statement'),
     'returns' : ('function',),
     'exceptval' : ('function',),
     'locals' : ('function',),

@@ -3317,6 +3317,8 @@ class DefNode(FuncDefNode):
             return False
         if self.star_arg or self.starstar_arg:
             return False
+        if self.name.startswith('__') and self.name.endswith('__'):
+            return False
 
         is_property = False
         from . import ExprNodes
@@ -3330,8 +3332,10 @@ class DefNode(FuncDefNode):
                 elif isinstance(func, ExprNodes.AttributeNode):
                     if func.attribute in ('setter', 'deleter'):
                         is_property = True
+
         if self.is_classmethod or self.is_staticmethod or is_property:
             return False
+
         return True
 
     def analyse_declarations(self, env):
@@ -5277,7 +5281,7 @@ class PyClassDefNode(ClassDefNode):
         self.target = ExprNodes.NameNode(pos, name=name)
         self.class_cell = ExprNodes.ClassCellInjectorNode(self.pos)
 
-    def as_cclass(self):
+    def as_cclass(self, visibility):
         """
         Return this node as if it were declared as an extension class
         """
@@ -5287,7 +5291,7 @@ class PyClassDefNode(ClassDefNode):
 
         from . import ExprNodes
         return CClassDefNode(self.pos,
-                             visibility='private',
+                             visibility=visibility,
                              module_name=None,
                              class_name=self.name,
                              bases=self.bases or ExprNodes.TupleNode(self.pos, args=[]),
