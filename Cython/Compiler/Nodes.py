@@ -4474,7 +4474,7 @@ class DefNodeWrapper(FuncDefNode):
     def generate_arg_assignment(self, arg, item, code):
         if arg.type.is_pyobject:
             # Python default arguments were already stored in 'item' at the very beginning
-            if arg.type.is_builtin_type and arg.type.name in ('int', 'float'):
+            if arg.type.is_pyint_type or arg.type.is_pyfloat_type:
                 arg.type.convert_to_basetype(code, arg.pos, item, arg.accept_none, arg.name_cstring)
             if arg.is_generic:
                 item = PyrexTypes.typecast(arg.type, PyrexTypes.py_object_type, item)
@@ -5571,8 +5571,7 @@ class CClassDefNode(ClassDefNode):
                      base_type.is_final_type:
                 error(base.pos, "Base class '%s' of type '%s' is final" % (
                     base_type, self.class_name))
-            elif base_type.is_builtin_type and \
-                     base_type.name in ('tuple', 'bytes'):
+            elif base_type.is_pytuple_type or base_type.is_pybytes_type:
                 error(base.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
                       % base_type.name)
             else:
