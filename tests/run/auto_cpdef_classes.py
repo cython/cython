@@ -41,7 +41,7 @@ class Vector:
         # This function is automatically promoted to cpdef
         return self.a*self.a + self.b*self.b
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: 'Vector') -> bool:
         return self.a == other.a and self.b == other.b
 
     def __repr__(self) -> str:
@@ -64,6 +64,14 @@ def test_vector(v):
     Vector(6, 8)
     >>> test_vector(fn().length_sq())
     13
+    >>> test_vector(Vector(2, 3) == Vector(4, 5))  # special method semantics preserved
+    False
+    >>> test_vector(Vector(2, 3) == Vector(2, 3))
+    True
+    >>> test_vector(Vector(2, 3).__eq__(Vector(4, 5)))  # special method semantics preserved
+    False
+    >>> test_vector(Vector(2, 3).__eq__(Vector(2, 3)))
+    True
     """
     return v
 
