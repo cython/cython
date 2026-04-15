@@ -136,7 +136,7 @@ embed_modules = []
 old_style_globals = ShouldBeFromDirective('old_style_globals')
 
 #: Allows cimporting from a pyx file without a pxd file.
-cimport_from_pyx = False
+cimport_from_pyx = True
 
 #: Maximum number of dimensions for buffers -- set lower than number of
 #: dimensions in numpy, as
@@ -362,6 +362,8 @@ directive_types = {
     'binding' : bool,
     'cfunc' : None,  # decorators do not take directive value
     'ccall' : None,
+    'public': None,
+    'no_ccall': None,
     'ufunc': None,
     'cpow' : bool,
     'inline' : None,
@@ -395,12 +397,14 @@ directive_scopes = {  # defaults to available everywhere
     'ccomplex' : ('module',),
     'collection_type': ('cclass',),
     'nogil' : ('function', 'with statement'),
-    'gil' : ('with statement'),
+    'gil' : ('with statement',),
     'with_gil' : ('function',),
     'critical_section': ('function', 'with statement'),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),
+    'no_ccall': ('function', 'with statement'),
+    'public': ('function', 'with statement'),
     'returns' : ('function',),
     'exceptval' : ('function',),
     'locals' : ('function',),
@@ -450,7 +454,7 @@ directive_scopes = {  # defaults to available everywhere
 # A list of directives that (when used as a decorator) are only applied to
 # the object they decorate and not to its children.
 immediate_decorator_directives = {
-    'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass', 'ufunc',
+    'cfunc', 'ccall', 'no_ccall', 'cclass', 'dataclasses.dataclass', 'ufunc', 'public',
     # function signature directives
     'inline', 'exceptval', 'returns', 'with_gil',  # 'nogil',
     # class directives

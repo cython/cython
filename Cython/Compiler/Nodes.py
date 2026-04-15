@@ -2792,7 +2792,7 @@ class CFuncDefNode(FuncDefNode):
 
         opt_arg_count = self.cfunc_declarator.optional_arg_count
         if (self.visibility == 'public' or self.api) and opt_arg_count:
-            error(self.cfunc_declarator.pos,
+            warning(self.cfunc_declarator.pos,
                   "Function with optional arguments may not be declared public or api")
 
         if typ.exception_check == '+' and self.visibility != 'extern':
@@ -3240,7 +3240,7 @@ class DefNode(FuncDefNode):
         self.num_required_args = r
 
     def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, has_explicit_exc_clause=False,
-                     modifiers=None, nogil=False, with_gil=False):
+                     modifiers=None, nogil=False, with_gil=False, visibility='private'):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
@@ -3302,7 +3302,7 @@ class DefNode(FuncDefNode):
                             overridable=overridable,
                             with_gil=with_gil,
                             nogil=nogil,
-                            visibility='private',
+                            visibility=visibility,
                             api=False,
                             directive_locals=getattr(cfunc, 'directive_locals', {}),
                             directive_returns=returns,
@@ -3316,6 +3316,21 @@ class DefNode(FuncDefNode):
         if self.needs_closure:
             return False
         if self.star_arg or self.starstar_arg:
+            return False
+
+        is_property = False
+        from . import ExprNodes
+        if self.decorators:
+            for decorator in self.decorators:
+                func = decorator.decorator
+                if func.is_name:
+                    self.is_classmethod |= func.name == 'classmethod'
+                    self.is_staticmethod |= func.name == 'staticmethod'
+                    is_property |= func.name == 'property'
+                elif isinstance(func, ExprNodes.AttributeNode):
+                    if func.attribute in ('setter', 'deleter'):
+                        is_property = True
+        if self.is_classmethod or self.is_staticmethod or is_property:
             return False
         return True
 
