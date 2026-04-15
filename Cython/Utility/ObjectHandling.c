@@ -2173,7 +2173,7 @@ static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject * con
 }
 #endif
 
-#if CYTHON_VECTORCALL && !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_VECTORCALL && !(CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY)
   #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE vectorcallfunc __Pyx_PyVectorcall_Function(PyObject *callable) {
     PyTypeObject *tp = Py_TYPE(callable);
@@ -2220,7 +2220,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 
     if (kwargs == NULL) {
         #if CYTHON_VECTORCALL
-          #if CYTHON_COMPILING_IN_LIMITED_API
+          #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
             return PyObject_Vectorcall(func, args, _nargs, NULL);
           #else
             vectorcallfunc f = __Pyx_PyVectorcall_Function(func);
