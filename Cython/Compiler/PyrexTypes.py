@@ -4993,9 +4993,6 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         super()._init_builtin_type_flags(self.get_container_type().name)
 
     def specialize_here(self, pos, env, template_values=None):
-        # For types_supporting_subscripting is the list of types supporting subscripting in Cython.
-        # The other types will just ignore the subscription types.
-        # if self.name not in self.types_supporting_subscripting:
         if not self.supports_container_type:
             return self
         if template_values and None not in template_values and len(template_values) <= 2:
