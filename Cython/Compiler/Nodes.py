@@ -2712,6 +2712,7 @@ class CFuncDefNode(FuncDefNode):
     #  decorators    [DecoratorNode]        list of decorators
     #
     #  with_gil      boolean    Acquire GIL around body
+    #  promoted      boolean    If it was a def promoted to cpdef
     #  type          CFuncType
     #  py_func       wrapper for calling from Python
     #  overridable   whether or not this is a cpdef function
@@ -2732,6 +2733,7 @@ class CFuncDefNode(FuncDefNode):
     template_declaration = None
     is_const_method = False
     py_func_stat = None
+    promoted = False
     _code_object = None
 
     def unqualified_name(self):
@@ -2791,8 +2793,8 @@ class CFuncDefNode(FuncDefNode):
         self.args = declarator.args
 
         opt_arg_count = self.cfunc_declarator.optional_arg_count
-        if (self.visibility == 'public' or self.api) and opt_arg_count:
-            warning(self.cfunc_declarator.pos,
+        if (self.visibility == 'public' or self.api) and opt_arg_count and not self.promoted:
+            error(self.cfunc_declarator.pos,
                   "Function with optional arguments may not be declared public or api")
 
         if typ.exception_check == '+' and self.visibility != 'extern':
@@ -3240,7 +3242,7 @@ class DefNode(FuncDefNode):
         self.num_required_args = r
 
     def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, has_explicit_exc_clause=False,
-                     modifiers=None, nogil=False, with_gil=False, visibility='private'):
+                     modifiers=None, nogil=False, with_gil=False, visibility='private', promoted=False):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
@@ -3284,6 +3286,7 @@ class DefNode(FuncDefNode):
         else:
             def_node_kwds = {}
             base_type = CAnalysedBaseTypeNode(self.pos, type=py_object_type)
+        def_node_kwds.update({"promoted": promoted})
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),
                                          args=self.args,

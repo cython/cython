@@ -3172,7 +3172,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
                 returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause,
-                visibility=visibility)
+                visibility=visibility, promoted=promoted)
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
