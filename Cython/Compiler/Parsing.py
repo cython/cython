@@ -2632,6 +2632,10 @@ def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = False):
                     match_statement = p_match_statement(s, ctx)
                     if match_statement is not None:
                         return match_statement
+                elif s.sy == 'IDENT' and s.systring == 'type':
+                    type_alias = p_type_alias(s)
+                    if type_alias is not None:
+                        return type_alias
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
@@ -3855,6 +3859,9 @@ def p_def_statement(s: PyrexScanner, decorators: list = None, is_async_def: cyth
         s.enter_async()
     s.next()
     name = _reject_cdef_modifier_in_py(s, p_ident(s))
+    type_params = None
+    if s.sy == '[':
+        type_params = p_type_params(s)
     s.expect(
         '(',
         "Expected '(', found '%s'. Did you use cdef syntax in a Python declaration? "
@@ -3876,7 +3883,8 @@ def p_def_statement(s: PyrexScanner, decorators: list = None, is_async_def: cyth
     return Nodes.DefNode(
         pos, name=name, args=args, star_arg=star_arg, starstar_arg=starstar_arg,
         doc=doc, body=body, decorators=decorators, is_async_def=is_async_def,
-        return_type_annotation=return_type_annotation)
+        return_type_annotation=return_type_annotation,
+        type_params=type_params)
 
 
 @cython.cfunc
@@ -3937,6 +3945,9 @@ def p_class_statement(s: PyrexScanner, decorators):
     class_name.encoding = s.source_encoding  # FIXME: why is this needed?
     arg_tuple = None
     keyword_dict = None
+    type_params = None
+    if s.sy == '[':
+        type_params = p_type_params(s)
     if s.sy == '(':
         positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
         arg_tuple, keyword_dict = p_call_build_packed_args(pos, positional_args, keyword_args)
@@ -3949,7 +3960,8 @@ def p_class_statement(s: PyrexScanner, decorators):
         bases=arg_tuple,
         keyword_args=keyword_dict,
         doc=doc, body=body, decorators=decorators,
-        force_py3_semantics=s.context.language_level >= 3)
+        force_py3_semantics=s.context.language_level >= 3,
+        type_params=type_params)
 
 
 @cython.cfunc
@@ -4730,6 +4742,72 @@ def p_pattern_capture_target(s: PyrexScanner):
         s.error("Illegal next symbol '%s'" % s.sy)
     return target
 
+
+def p_type_params(s: PyrexScanner):
+    # For PEP-695 type parameters
+    pos = s.position()
+    s.expect('[')
+    type_params = []
+    while True:
+        is_star = False
+        is_starstar = False
+        if s.sy == '**':
+            is_starstar = True
+            s.next()
+        elif s.sy == '*':
+            is_star = True
+            s.next()
+        pos = s.position()
+        name = p_ident(s)
+        annotation = None
+        default_value = None
+        if s.sy == ":":
+            if is_star or is_starstar:
+                s.error(
+                    f"Cannot use bound or constraints with {'TypeVarTuple' if is_star else 'ParamSpec'}")
+            else:
+                s.next()
+                annotation = p_annotation(s)
+        if s.sy == '=':
+            s.next()
+            if is_star:
+                default_value = p_test_or_starred_expr(s)
+            else:
+                default_value = p_test(s)
+        param = Nodes.TypeParameterNode(
+            pos,
+            name=name, annotation=annotation, default_value=default_value,
+            is_star=is_star, is_starstar=is_starstar
+        )
+        type_params.append(param)
+        if s.sy == ',':
+            s.next()
+        else:
+            s.expect(']')
+            break
+    return Nodes.TypeParameterListNode(
+        pos,
+        params=type_params
+    )
+
+
+def p_type_alias(s: PyrexScanner):
+    pos = s.position()
+    with tentatively_scan(s) as errors:
+        s.next()
+        name = p_ident(s)
+    if errors:
+        return None
+    type_params = None
+    if s.sy == '[':
+        type_params = p_type_params(s)
+    s.expect('=')
+    value = p_test(s)
+    s.expect_newline()
+    return Nodes.TypeAliasNode(
+        pos,
+        name=name, type_params=type_params,
+        value = value)
 
 
 #----------------------------------------------

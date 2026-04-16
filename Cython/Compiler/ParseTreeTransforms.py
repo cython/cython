@@ -183,6 +183,7 @@ class PostParse(ScopeTrackingTransform):
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
         self.in_pattern_node = False
+        self.in_type_param = ""
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
@@ -408,7 +409,60 @@ class PostParse(ScopeTrackingTransform):
             warning(node.pos, f"'{node.name}' relates to the old Python 2 buffer protocol "
                     "and is no longer used.", 2)
             return None  # drop the node - the arguments are invalid for a def node
+        if node.type_params and node.args:
+            in_type_param, self.in_type_param = self.in_type_param, "the definition of a generic"
+            # Visit these individually just to find out if anything disallowed is used
+            # (accepting that it gets visited twice).
+            for a in node.args:
+                self.visit(a)
+            self.in_type_param = in_type_param
         return self.visit_FuncDefNode(node)
+
+    def visit_PyClassDefNode(self, node):
+        if node.type_params and node.bases:
+            in_type_param, self.in_type_param = self.in_type_param, "the definition of a generic"
+            # Visit this individually just to find out if anything disallowed is used
+            # (accepting that it gets visited twice).
+            self.visit(node.bases)
+            self.in_type_param = in_type_param
+        return super().visit_PyClassDefNode(node)
+
+    def visit_TypeAliasNode(self, node):
+        in_type_param, self.in_type_param = self.in_type_param, "a type alias"
+        self.visitchildren(node)
+        self.in_type_param = in_type_param
+        return node
+
+    def visit_TypeParameterListNode(self, node):
+        in_type_param = self.in_type_param
+        if not in_type_param:
+            self.in_type_param = "a TypeVar bound"
+        seen = set()
+        for p in node.params:
+            if p.name in seen:
+                error(p.pos, f"duplicate type parameter '{p.name}'")
+            seen.add(p.name)
+        self.visitchildren(node)
+        self.in_type_param = in_type_param
+        return node
+
+    def visit_YieldExprNode(self, node):
+        if self.in_type_param:
+            error(node.pos,
+                  f"{node.expr_keyword} expression cannot be used within {self.in_type_param}")
+        return self.visit_Node(node)
+
+    def visit_AssignmentExpressionNode(self, node):
+        if self.in_type_param:
+            error(node.pos,
+                  f"named expression cannot be used within {self.in_type_param}")
+        return self.visit_Node(node)
+
+    def visit_AnnotationNode(self, node):
+        if self.in_type_param:
+            # So we can catch any of the banned syntax in type params here
+            self.visit(node.expr)
+        return node
 
 
 class _AssignmentExpressionTargetNameFinder(TreeVisitor):
@@ -453,6 +507,7 @@ class _AssignmentExpressionChecker(TreeVisitor):
         self.target_names_dict = target_name_finder.target_names
         self.in_iterator = False
         self.in_nested_generator = False
+        self.in_type_alias = False
         self.scope_is_class = scope_is_class
         self.current_target_names = ()
         self.all_target_names = set()
@@ -1453,6 +1508,46 @@ class InterpretCompilerDirectives(CythonTransform):
             node.pos, args=args, body=node.body
         )
         return self.visit_Node(node)
+
+    def visit_TypeParameterListNode(self, node):
+        # This node is warned about then dropped here simply because
+        # it's the earliest time we know the directives well enough to
+        # know whether to generate the warning.
+        if self.directives['warn.pep695']:
+            extra = ''
+            if 'cfunc' in self.directives:
+                extra = " 'cfunc' functions are unlikely to use them meaningfully in future."
+            elif 'ccall' in self.directives:
+                extra = " 'ccall' functions are unlikely to use them meaningfully in future."
+            elif 'cclass' in self.directives:
+                extra = " 'cclass' extension types are unlikely to use them meaningfully in future."
+            warning(
+                node.pos,
+                f"Type parameters are currently completely ignored by Cython.{extra}\n"
+                "This warning can be disabled with the warn.pep695 directive.",
+                2
+            )
+        return None
+
+    def visit_TypeAliasNode(self, node):
+        # This node is warned about then dropped here simply because
+        # it's the earliest time we know the directives well enough to
+        # know whether to generate the warning.
+        if self.directives['warn.pep695']:
+            warning(
+                node.pos,
+                "Type aliases are currently ignored by Cython. "
+                f"This will be replaced with '{node.name} = None'.\n"
+                "This warning can be disabled with the warn.pep695 directive.",
+                2
+            )
+        # The reason for replacement rather than dropping the node entirely is just
+        # because Cython is usually picky about unassigned names.
+        return Nodes.SingleAssignmentNode(
+            node.pos,
+            lhs=ExprNodes.NameNode(node.pos, name=node.name),
+            rhs=ExprNodes.NoneNode(node.pos)
+        )
 
 
 class ParallelRangeTransform(CythonTransform, SkipDeclarations):
