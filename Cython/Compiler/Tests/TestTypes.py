@@ -36,7 +36,6 @@ class TestBuiltinTypes(TimedTest):
         'is_pymemoryview_type': ['memoryview'],
         'is_builtin_sequence': ['list', 'tuple', 'bytes', 'str', 'bytearray'],
         'is_bytes_or_str_or_bytearray': ['bytes', 'str', 'bytearray'],
-        'is_bytes_or_str': ['bytes', 'str'],
     }
 
     def test_set_builtin_type_flags(self):

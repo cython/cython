@@ -296,7 +296,6 @@ class PyrexType(BaseType):
     is_pymemoryview_type = False
 
     # Combined type group flags, based on common needs in the code base.
-    is_bytes_or_str = False
     is_builtin_sequence = False
     is_bytes_or_str_or_bytearray = False
 
@@ -1513,8 +1512,8 @@ class BuiltinObjectType(PyObjectType):
         'set': ['is_pyset_type'],
         'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
         'frozenset': ['is_pyfrozenset_type'],
-        'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str', 'is_bytes_or_str_or_bytearray'],
-        'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str', 'is_bytes_or_str_or_bytearray'],
+        'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
+        'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
     }
