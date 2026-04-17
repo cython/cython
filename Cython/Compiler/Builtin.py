@@ -840,7 +840,6 @@ def init_builtins():
     global bytes_type, unicode_type, bytearray_type
     global float_type, int_type, bool_type, complex_type
     global memoryview_type, py_buffer_type
-    global sequence_types
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -859,15 +858,6 @@ def init_builtins():
     int_type = builtin_scope.lookup('int').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
-
-    sequence_types = (
-        list_type,
-        tuple_type,
-        bytes_type,
-        unicode_type,
-        bytearray_type,
-        memoryview_type,
-    )
 
     # Set up type inference links between equivalent Python/C types
     assert bool_type.name == 'bool', bool_type.name
