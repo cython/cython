@@ -316,6 +316,7 @@ class PyrexType(BaseType):
     needs_refcounting = False
     refcounting_needs_gil = True
     supports_refnanny = False
+    supports_container_type = False
     equivalent_type = None
     default_value = ""
     declaration_value = ""
@@ -323,12 +324,6 @@ class PyrexType(BaseType):
     @property
     def is_c_or_cpp_string(self) -> bool:
         return self.is_string or self.is_cpp_string
-
-    @property
-    def supports_container_type(self) -> bool:
-        return (
-            self.is_pydict_type or self.is_pylist_type or self.is_pyset_type or self.is_pyfrozenset_type
-        )
 
     @property
     def may_be_pyint_type(self) -> bool:
@@ -1521,11 +1516,11 @@ class BuiltinObjectType(PyObjectType):
         'float': ['is_pyfloat_type'],
         'bool': ['is_pybool_type'],
         'complex': ['is_pycomplex_type'],
-        'list': ['is_pylist_type', 'is_builtin_sequence'],
-        'dict': ['is_pydict_type'],
-        'set': ['is_pyset_type'],
+        'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type'],
+        'dict': ['is_pydict_type', 'supports_container_type'],
+        'set': ['is_pyset_type', 'supports_container_type'],
         'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
-        'frozenset': ['is_pyfrozenset_type'],
+        'frozenset': ['is_pyfrozenset_type', 'supports_container_type'],
         'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
