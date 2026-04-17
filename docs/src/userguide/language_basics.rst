@@ -454,7 +454,7 @@ type declaration and let them be objects.
 Type qualifiers
 ---------------
 
-Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_
+Cython supports ``const``, ``volatile`` and ``restrict`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_
 
 .. tabs::
 
