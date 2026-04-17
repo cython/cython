@@ -9748,10 +9748,14 @@ class ParallelStatNode(StatNode, ParallelNode):
             elif self.parent and not self.parent.is_prange:
                 error(self.pos, "num_threads must be declared in the parent parallel section")
             elif (self.num_threads.type.is_int and
-                    self.num_threads.is_literal and
-                    self.num_threads.compile_time_value(env) <= 0):
-                error(self.pos, "argument to num_threads must be greater than 0")
+                    self.num_threads.is_literal):
+                num_threads_compile_time = self.num_threads.compile_time_value(env)
+                if num_threads_compile_time < 0:
+                    error(self.pos, "argument to num_threads must be greater than or equal to 0")
+                elif num_threads_compile_time == 0:
+                    self.num_threads = None
 
+        if self.num_threads is not None:
             if not self.num_threads.is_simple() or self.num_threads.type.is_pyobject:
                 self.num_threads = self.num_threads.coerce_to(
                     PyrexTypes.c_int_type, env).coerce_to_temp(env)
@@ -9890,7 +9894,10 @@ class ParallelStatNode(StatNode, ParallelNode):
         Write self.num_threads if set as the num_threads OpenMP directive
         """
         if self.num_threads is not None:
-            code.put(" num_threads(%s)" % self.evaluate_before_block(code, self.num_threads))
+            num_threads_result = self.evaluate_before_block(code, self.num_threads)
+            if not self.num_threads.is_literal:
+                num_threads_result = f"{num_threads_result} != 0 ? {num_threads_result} : omp_get_max_threads()"
+            code.put(f" num_threads({num_threads_result})")
 
 
     def declare_closure_privates(self, code):
