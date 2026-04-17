@@ -362,6 +362,7 @@ static int __Pyx_setup_reduce(PyObject* type_obj);
 /////////////// SetupReduce ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: Exceptions.c::IgnoreException
 //@requires: SetItemOnTypeDict
 //@requires: DelItemOnTypeDict
 
@@ -376,13 +377,26 @@ static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
       ret = -1;
   }
 
-  if (unlikely(ret < 0)) {
-      PyErr_Clear();
-      ret = 0;
+  if (unlikely(ret < 0) && __Pyx_IgnoreException(PyExc_Exception)) {
+      ret = 0;  // But BaseException is still propagated.
   }
 
   Py_XDECREF(name_attr);
   return ret;
+}
+
+// Returns a borrowed reference with CYTHON_USE_PYTYPE_LOOKUP
+static PyObject *__Pyx_setup_reduce_get_reduce_attribute(PyObject *type_obj, PyObject *name, int allow_not_present) {
+#if CYTHON_USE_PYTYPE_LOOKUP
+    CYTHON_UNUSED_VAR(allow_not_present);
+    return _PyType_Lookup((PyTypeObject*)type_obj, name);
+#else
+    if (allow_not_present) {
+        return __Pyx_PyObject_GetAttrStrNoError(type_obj, name);
+    } else {
+        return __Pyx_PyObject_GetAttrStr(type_obj, name);
+    }
+#endif
 }
 
 static int __Pyx_setup_reduce(PyObject* type_obj) {
@@ -397,46 +411,38 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     PyObject *setstate_cython = NULL;
     PyObject *getstate = NULL;
 
-#if CYTHON_USE_PYTYPE_LOOKUP
-    getstate = _PyType_Lookup((PyTypeObject*)type_obj, PYIDENT("__getstate__"));
-#else
-    getstate = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__getstate__"));
+    getstate = __Pyx_setup_reduce_get_reduce_attribute(type_obj, PYIDENT("__getstate__"), 1);
     if (!getstate && PyErr_Occurred()) {
         goto __PYX_BAD;
     }
-#endif
     if (getstate) {
         // Python 3.11 introduces object.__getstate__. Because it's version-specific failure to find it should not be an error
-#if CYTHON_USE_PYTYPE_LOOKUP
-        object_getstate = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__getstate__"));
-#else
-        object_getstate = __Pyx_PyObject_GetAttrStrNoError((PyObject*)&PyBaseObject_Type, PYIDENT("__getstate__"));
+        object_getstate = __Pyx_setup_reduce_get_reduce_attribute((PyObject*)&PyBaseObject_Type, PYIDENT("__getstate__"), 1);
         if (!object_getstate && PyErr_Occurred()) {
             goto __PYX_BAD;
         }
-#endif
         if (object_getstate != getstate) {
             goto __PYX_GOOD;
         }
     }
 
-#if CYTHON_USE_PYTYPE_LOOKUP
-    object_reduce_ex = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto __PYX_BAD;
-#else
-    object_reduce_ex = __Pyx_PyObject_GetAttrStr((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto __PYX_BAD;
-#endif
-
+    object_reduce_ex = __Pyx_setup_reduce_get_reduce_attribute((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce_ex__"), 0);
+    if (unlikely(!object_reduce_ex)) goto __PYX_BAD;
     reduce_ex = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce_ex__")); if (unlikely(!reduce_ex)) goto __PYX_BAD;
     if (reduce_ex == object_reduce_ex) {
-
-#if CYTHON_USE_PYTYPE_LOOKUP
-        object_reduce = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__reduce__")); if (!object_reduce) goto __PYX_BAD;
-#else
-        object_reduce = __Pyx_PyObject_GetAttrStr((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce__")); if (!object_reduce) goto __PYX_BAD;
-#endif
+        object_reduce = __Pyx_setup_reduce_get_reduce_attribute((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce__"), 0);
+        if (!object_reduce) goto __PYX_BAD;
         reduce = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce__")); if (unlikely(!reduce)) goto __PYX_BAD;
 
-        if (reduce == object_reduce || __Pyx_setup_reduce_is_named(reduce, PYIDENT("__reduce_cython__"))) {
+        int try_to_replace_reduce = (reduce == object_reduce);
+        if (!try_to_replace_reduce) {
+            try_to_replace_reduce = __Pyx_setup_reduce_is_named(reduce, PYIDENT("__reduce_cython__"));
+            if (unlikely(try_to_replace_reduce < 0)) {
+                goto __PYX_BAD;
+            }
+        }
+
+        if (try_to_replace_reduce) {
             reduce_cython = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__reduce_cython__"));
             if (likely(reduce_cython)) {
                 ret = __Pyx_SetItemOnTypeDict((PyTypeObject*)type_obj, PYIDENT("__reduce__"), reduce_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
@@ -448,8 +454,21 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
             }
 
             setstate = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__setstate__"));
-            if (!setstate) PyErr_Clear();
-            if (!setstate || __Pyx_setup_reduce_is_named(setstate, PYIDENT("__setstate_cython__"))) {
+            int try_to_replace_setstate;
+            if (!setstate) {
+                PyObject *exc = PyErr_Occurred();
+                if (exc && !__Pyx_IgnoreGivenException(exc, PyExc_Exception)) {
+                    goto __PYX_BAD;
+                }
+                try_to_replace_setstate = 1;
+            } else {
+                try_to_replace_setstate = __Pyx_setup_reduce_is_named(setstate, PYIDENT("__setstate_cython__"));
+                if (unlikely(try_to_replace_setstate < 0)) {
+                    goto __PYX_BAD;
+                }
+            }
+
+            if (try_to_replace_setstate) {
                 setstate_cython = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__setstate_cython__"));
                 if (likely(setstate_cython)) {
                     ret = __Pyx_SetItemOnTypeDict((PyTypeObject*)type_obj, PYIDENT("__setstate__"), setstate_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
