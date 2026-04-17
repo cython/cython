@@ -303,6 +303,10 @@ class PyrexType(BaseType):
     is_pybytearray_type = False
     is_pymemoryview_type = False
 
+    # Combined type group flags, based on common needs in the code base.
+    is_builtin_sequence = False
+    is_bytes_or_str_or_bytearray = False
+
     is_memoryviewslice = 0
     is_pythran_expr = 0
     is_numpy_buffer = 0
@@ -319,21 +323,6 @@ class PyrexType(BaseType):
     @property
     def is_c_or_cpp_string(self) -> bool:
         return self.is_string or self.is_cpp_string
-
-    @property
-    def is_bytes_or_str_or_bytearray(self) -> bool:
-        return self.is_pybytes_type or self.is_pystr_type or self.is_pybytearray_type
-
-    @property
-    def is_bytes_or_str(self) -> bool:
-        return self.is_pybytes_type or self.is_pystr_type
-
-    @property
-    def is_builtin_sequence(self) -> bool:
-        return (
-            self.is_pybytes_type or self.is_pystr_type or self.is_pybytearray_type or
-            self.is_pymemoryview_type or self.is_pylist_type or self.is_pytuple_type
-        )
 
     @property
     def supports_container_type(self) -> bool:
@@ -1528,19 +1517,19 @@ class BuiltinObjectType(PyObjectType):
     decl_type = 'PyObject'
 
     _builtin_type_flag_mapping = {
-        'int': 'is_pyint_type',
-        'float': 'is_pyfloat_type',
-        'bool': 'is_pybool_type',
-        'complex': 'is_pycomplex_type',
-        'list': 'is_pylist_type',
-        'dict': 'is_pydict_type',
-        'set': 'is_pyset_type',
-        'tuple': 'is_pytuple_type',
-        'frozenset': 'is_pyfrozenset_type',
-        'bytes': 'is_pybytes_type',
-        'str': 'is_pystr_type',
-        'bytearray': 'is_pybytearray_type',
-        'memoryview': 'is_pymemoryview_type',
+        'int': ['is_pyint_type'],
+        'float': ['is_pyfloat_type'],
+        'bool': ['is_pybool_type'],
+        'complex': ['is_pycomplex_type'],
+        'list': ['is_pylist_type', 'is_builtin_sequence'],
+        'dict': ['is_pydict_type'],
+        'set': ['is_pyset_type'],
+        'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
+        'frozenset': ['is_pyfrozenset_type'],
+        'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
+        'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
+        'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
+        'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
     }
 
     def __init__(self, name, cname, objstruct_cname=None):
@@ -1560,7 +1549,8 @@ class BuiltinObjectType(PyObjectType):
 
     def _init_builtin_type_flags(self, type_name: str) -> None:
         if type_name in self._builtin_type_flag_mapping:
-            setattr(self, self._builtin_type_flag_mapping[type_name], True)
+            for attribute in self._builtin_type_flag_mapping[type_name]:
+                setattr(self, attribute, True)
 
     @property
     def typeptr_cname(self):
@@ -1578,11 +1568,11 @@ class BuiltinObjectType(PyObjectType):
         return "<%s>"% self.typeptr_cname
 
     def default_coerced_ctype(self):
-        if self.name in ('bytes', 'bytearray'):
+        if self.is_pybytes_type or self.is_pybytearray_type:
             return c_char_ptr_type
-        elif self.name == 'bool':
+        elif self.is_pybool_type:
             return c_bint_type
-        elif self.name == 'float':
+        elif self.is_pyfloat_type:
             return c_double_type
         return None
 
@@ -1641,10 +1631,10 @@ class BuiltinObjectType(PyObjectType):
 
         Replaces the C value in 'arg_cname' on conversion or error, decrefing the original value.
         """
-        if self.name == 'float':
+        if self.is_pyfloat_type:
             utility_code_name = "pyfloat_simplify"
             cfunc = "__Pyx_PyFloat_FromNumber"
-        elif self.name == 'int':
+        elif self.is_pyint_type:
             utility_code_name = "pyint_simplify"
             cfunc = "__Pyx_PyInt_FromNumber"
         else:
@@ -2972,10 +2962,9 @@ class CArrayType(CPointerBaseType):
             return super().to_py_call_code(source_code, result_code, result_type, to_py_function)
 
         func = self.to_py_function if to_py_function is None else to_py_function
-        target_is_tuple = result_type.is_builtin_type and result_type.name == 'tuple'
         return '%s = %s(%s, %s)' % (
             result_code,
-            self.to_tuple_function if target_is_tuple else func,
+            self.to_tuple_function if result_type.is_pytuple_type else func,
             source_code,
             self.size)
 
@@ -5448,7 +5437,7 @@ def map_argument_type(src_type, dst_type):
     # manually for overloaded and fused functions
     c_src_type = None
     if src_type.is_pyobject:
-        if src_type.is_builtin_type and src_type.name == 'str' and dst_type.resolve().is_string:
+        if src_type.is_pystr_type and dst_type.resolve().is_string:
             c_src_type = dst_type.resolve()
         else:
             c_src_type = src_type.default_coerced_ctype()
@@ -5679,26 +5668,26 @@ def result_type_of_builtin_operation(builtin_type, type2):
     """
     Try to find a suitable (C) result type for a binary operation with a known builtin type.
     """
-    if builtin_type.name == 'float':
+    if builtin_type.is_pyfloat_type:
         if type2.is_numeric:
             return widest_numeric_type(c_double_type, type2)
-        elif type2.is_builtin_type and type2.name in ('int', 'float'):
+        elif type2.is_pyint_type or type2.is_pyfloat_type:
             return c_double_type
-        elif type2.is_builtin_type and type2.name == 'complex':
+        elif type2.is_pycomplex_type:
             return type2
-    elif builtin_type.name == 'int':
+    elif builtin_type.is_pyint_type:
         if type2 == builtin_type or type2.is_int:
             return builtin_type
-        elif type2.is_float or type2.is_builtin_type and type2.name == 'float':
+        elif type2.is_float or type2.is_pyfloat_type:
             return c_double_type
-        elif type2.is_builtin_type and type2.name == 'complex':
+        elif type2.is_pycomplex_type:
             return type2
-    elif builtin_type.name == 'complex':
+    elif builtin_type.is_pycomplex_type:
         if type2.is_complex:
             return CComplexType(widest_numeric_type(c_double_type, type2.real_type))
         elif type2.is_numeric:
             return CComplexType(widest_numeric_type(c_double_type, type2))
-        elif type2.is_builtin_type and type2.name in ('int', 'float', 'complex'):
+        elif type2.is_pyint_type or type2.is_pyfloat_type or type2.is_pycomplex_type:
             return CComplexType(c_double_type)
 
     return None
@@ -5740,9 +5729,9 @@ def independent_spanning_type(type1, type2):
         if resolved_type2.is_pyobject and resolved_type2.equivalent_type == resolved_type1:
             return resolved_type1
         # PyInt + C int => PyInt
-        if resolved_type1.is_int and resolved_type2.is_builtin_type and resolved_type2.name == 'int':
+        if resolved_type1.is_int and resolved_type2.is_pyint_type:
             return resolved_type2
-        if resolved_type2.is_int and resolved_type1.is_builtin_type and resolved_type1.name == 'int':
+        if resolved_type2.is_int and resolved_type1.is_pyint_type:
             return resolved_type1
         # e.g. PyInt + double => object
         return py_object_type

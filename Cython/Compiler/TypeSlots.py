@@ -788,7 +788,6 @@ class DictOffsetSlot(SlotDescriptor):
         if dict_entry and dict_entry.is_variable:
             if dict_entry.is_inherited:
                 return "0"
-            from . import Builtin
             if not dict_entry.type.is_pydict_type:
                 error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
                 return "0"
