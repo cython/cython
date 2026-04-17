@@ -46,10 +46,11 @@ class TestBuiltinTypes(TimedTest):
         self.assertSetEqual(set(PT.BuiltinObjectType._builtin_type_flag_mapping), builtin_types)
 
         for attr in builtin_flags:
-            self.assertFalse(getattr(PT.PyrexType, attr))
+            self.assertIs(getattr(PT.PyrexType, attr), False)
             for type_name in self.BUILTIN_FLAGS_MAPPING[attr]:
-                self.assertTrue(
+                self.assertIs(
                     getattr(PT.BuiltinObjectType(type_name, f'c_{type_name}'), attr),
+                    True,
                     f"{attr} should be set for {type_name}"
                 )
 
