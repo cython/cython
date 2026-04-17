@@ -115,11 +115,35 @@ except ImportError:
 
         return call
 
+def gc_collect():
+    """Force as many objects as possible to be collected.
+
+    In non-CPython implementations of Python, this is needed because timely
+    deallocation is not guaranteed by the garbage collector.  (Even in CPython
+    this can be the case in case of reference cycles.)  This means that __del__
+    methods may be called later than expected and weakrefs may remain alive for
+    longer than expected.  This function tries its best to force all garbage
+    objects to disappear.
+
+    Copied from test/support/__init__.py
+    """
+    import gc
+    gc.collect()
+    gc.collect()
+    gc.collect()
+
 try:
     from inspect import isawaitable as inspect_isawaitable
 except ImportError:
     def inspect_isawaitable(o):
         return hasattr(o, '__await__')
+    
+try:
+    anext
+except NameError:
+    # py3.9
+    def anext(g):
+        return g.__anext__()
 
 
 # compiled exec()
@@ -485,6 +509,26 @@ class AsyncGenTest(TimedTest):
             yield 3
 
         self.compare_generators(sync_gen_wrapper(), async_gen_wrapper())
+
+    def test_async_gen_exception_12(self):
+        async def gen():
+            with self.assertWarnsRegex(RuntimeWarning,
+                    f"coroutine method 'asend' of '{gen.__qualname__}' "
+                    f"was never awaited"):
+                await anext(me)
+            yield 123
+
+        me = gen()
+        ai = me.__aiter__()
+        an = ai.__anext__()
+
+        with self.assertRaisesRegex(RuntimeError,
+                r'anext\(\): asynchronous generator is already running'):
+            an.__next__()
+
+        with self.assertRaisesRegex(RuntimeError,
+                r"cannot reuse already awaited __anext__\(\)/asend\(\)"):
+            an.send(None)
 
     def test_async_gen_api_01(self):
         async def gen():
@@ -1321,6 +1365,62 @@ class AsyncGenAsyncioTest(TimedTest):
 
         self.loop.run_until_complete(run())
 
+    def test_async_gen_throw_same_aclose_coro_twice(self):
+        async def async_iterate():
+            yield 1
+            yield 2
+
+        it = async_iterate()
+        nxt = it.aclose()
+        with self.assertRaises(StopIteration):
+            nxt.throw(GeneratorExit)
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            r"cannot reuse already awaited aclose\(\)/athrow\(\)"
+        ):
+            nxt.throw(GeneratorExit)
+
+    def test_async_gen_throw_custom_same_aclose_coro_twice(self):
+        async def async_iterate():
+            yield 1
+            yield 2
+
+        it = async_iterate()
+
+        class MyException(Exception):
+            pass
+
+        nxt = it.aclose()
+        with self.assertRaises(MyException):
+            nxt.throw(MyException)
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            r"cannot reuse already awaited aclose\(\)/athrow\(\)"
+        ):
+            nxt.throw(MyException)
+
+    def test_async_gen_throw_custom_same_athrow_coro_twice(self):
+        async def async_iterate():
+            yield 1
+            yield 2
+
+        it = async_iterate()
+
+        class MyException(Exception):
+            pass
+
+        nxt = it.athrow(MyException)
+        with self.assertRaises(MyException):
+            nxt.throw(MyException)
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            r"cannot reuse already awaited aclose\(\)/athrow\(\)"
+        ):
+            nxt.throw(MyException)
+
     def test_async_gen_aclose_twice_with_different_coros(self):
         # Regression test for https://bugs.python.org/issue39606
         async def async_iterate():
@@ -1363,6 +1463,125 @@ class AsyncGenAsyncioTest(TimedTest):
 
         self.loop.run_until_complete(run())
     """
+
+
+class TestUnawaitedWarnings(unittest.TestCase):
+    """
+    def test_asend(self):
+        async def gen():
+            yield 1
+
+        # gh-113753: asend objects allocated from a free-list should warn.
+        # Ensure there is a finalized 'asend' object ready to be reused.
+        try:
+            g = gen()
+            g.asend(None).send(None)
+        except StopIteration:
+            pass
+
+        msg = f"coroutine method 'asend' of '{gen.__qualname__}' was never awaited"
+        with self.assertWarnsRegex(RuntimeWarning, msg):
+            g = gen()
+            g.asend(None)
+            gc_collect()
+    """
+
+    """
+    def test_athrow(self):
+        async def gen():
+            yield 1
+
+        msg = f"coroutine method 'athrow' of '{gen.__qualname__}' was never awaited"
+        with self.assertWarnsRegex(RuntimeWarning, msg):
+            g = gen()
+            g.athrow(RuntimeError)
+            gc_collect()
+    """
+
+    """
+    def test_athrow_throws_immediately(self):
+        async def gen():
+            yield 1
+
+        g = gen()
+        msg = "athrow expected at least 1 argument, got 0"
+        with self.assertRaisesRegex(TypeError, msg):
+            g.athrow()
+    """
+
+    """
+    def test_aclose(self):
+        async def gen():
+            yield 1
+
+        msg = f"coroutine method 'aclose' of '{gen.__qualname__}' was never awaited"
+        with self.assertWarnsRegex(RuntimeWarning, msg):
+            g = gen()
+            g.aclose()
+            gc_collect()
+    """
+
+    def test_aclose_throw(self):
+        async def gen():
+            return
+            yield
+
+        class MyException(Exception):
+            pass
+
+        g = gen()
+        with self.assertRaises(MyException):
+            g.aclose().throw(MyException)
+
+        del g
+        gc_collect()  # does not warn unawaited
+
+    def test_asend_send_already_running(self):
+        @types_coroutine
+        def _async_yield(v):
+            return (yield v)
+
+        async def agenfn():
+            while True:
+                await _async_yield(1)
+            return
+            yield
+
+        agen = agenfn()
+        gen = agen.asend(None)
+        gen.send(None)
+        gen2 = agen.asend(None)
+
+        with self.assertRaisesRegex(RuntimeError,
+                r'anext\(\): asynchronous generator is already running'):
+            gen2.send(None)
+
+        del gen2
+        gc_collect()  # does not warn unawaited
+
+
+    def test_athrow_send_already_running(self):
+        @types_coroutine
+        def _async_yield(v):
+            return (yield v)
+
+        async def agenfn():
+            while True:
+                await _async_yield(1)
+            return
+            yield
+
+        agen = agenfn()
+        gen = agen.asend(None)
+        gen.send(None)
+        gen2 = agen.athrow(Exception)
+
+        with self.assertRaisesRegex(RuntimeError,
+                r'athrow\(\): asynchronous generator is already running'):
+            gen2.send(None)
+
+        del gen2
+        gc_collect()  # does not warn unawaited
 
 
 if __name__ == "__main__":
