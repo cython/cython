@@ -132,22 +132,35 @@ def main():
                            "used to generate debugging information")
 
     options = parser.parse_args()
-    path_to_debug_info = options.build_dir
-    gdb_argv = options.gdb_argv
-    no_import = path_to_debug_info is None
-
-    if options.build_dir is None and gdb_argv and os.path.isdir(gdb_argv[0]):
-        import warnings
-        gdb_argv = options.gdb_argv[1:]
-        path_to_debug_info = options.gdb_argv[0]
-        warnings.warn(f'Using deprecated positional parameter to find build directory. Use "--build-dir {path_to_debug_info}" argument instead.')
-
     logging_level = logging.WARN
     if options.verbosity == 1:
         logging_level = logging.INFO
     if options.verbosity >= 2:
         logging_level = logging.DEBUG
     logging.basicConfig(level=logging_level)
+
+    gdb_argv = options.gdb_argv
+    if options.build_dir is None:  # legacy positional argument: `cygdb`, `cygdb BUILD_DIR` or `cygdb --`
+        import warnings
+        if len(sys.argv) > 1 and sys.argv[1] == '--':  # case `cygdb -- [...]`
+            # Once an alternative to `cygdb --` is available, issue a warning here and change warning messages below.
+            path_to_debug_info = None
+        elif gdb_argv and os.path.isdir(gdb_argv[0]):  # case `cygdb BUILD_DIR [...] [-- ...]`
+            gdb_argv = options.gdb_argv[1:]
+            path_to_debug_info = options.gdb_argv[0]
+            warnings.warn(
+                'Using deprecated positional parameter to find build directory.'
+                f' Use "--build-dir {path_to_debug_info}" argument instead.'
+            )
+        else:  # case `cygdb` not immediately followed by a directory path or by "--"
+            path_to_debug_info = os.curdir
+            warnings.warn(
+                'Using deprecated positional parameter to find build directory.'
+                f' Use "--build-dir {path_to_debug_info}" to specify current dir. Use "--" to avoid debug info import.'
+            )
+    else:
+        path_to_debug_info = options.build_dir
+    no_import = path_to_debug_info is None
 
     skip_interpreter = options.skip_interpreter
 
