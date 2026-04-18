@@ -3174,7 +3174,7 @@ class IteratorNode(ScopedExprNode):
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
-        if sequence_type.supports_container_type and (item_type := sequence_type.get_subscripted_type(0)):
+        if sequence_type.supports_container_type and (item_type := sequence_type.infer_iterator_type()):
             return item_type
         if sequence_type.is_array or sequence_type.is_ptr:
             return sequence_type
