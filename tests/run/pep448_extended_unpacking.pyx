@@ -614,7 +614,7 @@ def unpack_in_loop(a: list[float], b: list[float]):
     [1.0, 2.0, 3.0, [4.0, 5.0]]
     Python object
     [[1.0, 2.0, 3.0], 4.0, 5.0]
-    list object
+    list[double] object
     [[1.0, 2.0, 3.0], [4.0, 5.0]]
     """
     result = []

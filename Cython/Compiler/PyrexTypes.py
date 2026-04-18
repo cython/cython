@@ -153,6 +153,14 @@ class BaseType:
         """
         return None
 
+    def get_container_type(self):
+        """Returns the basic container type of the (potentially subscripted) type,
+        or None if not a container type.
+
+        Similar to typing.get_origin().
+        """
+        return None
+
 
 class PyrexType(BaseType):
     #
@@ -308,6 +316,7 @@ class PyrexType(BaseType):
     needs_refcounting = False
     refcounting_needs_gil = True
     supports_refnanny = False
+    supports_container_type = False
     equivalent_type = None
     default_value = ""
     declaration_value = ""
@@ -1507,11 +1516,11 @@ class BuiltinObjectType(PyObjectType):
         'float': ['is_pyfloat_type'],
         'bool': ['is_pybool_type'],
         'complex': ['is_pycomplex_type'],
-        'list': ['is_pylist_type', 'is_builtin_sequence'],
-        'dict': ['is_pydict_type'],
-        'set': ['is_pyset_type'],
+        'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type'],
+        'dict': ['is_pydict_type', 'supports_container_type'],
+        'set': ['is_pyset_type', 'supports_container_type'],
         'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
-        'frozenset': ['is_pyfrozenset_type'],
+        'frozenset': ['is_pyfrozenset_type', 'supports_container_type'],
         'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
@@ -1520,7 +1529,7 @@ class BuiltinObjectType(PyObjectType):
 
     def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
-        self.typeptr_cname = "(%s)" % cname
+        self.cname = cname
         self.objstruct_cname = objstruct_cname
         self.is_gc_simple = name in builtin_types_that_cannot_create_refcycles
         self.builtin_trashcan = name in builtin_types_with_trashcan
@@ -1537,6 +1546,10 @@ class BuiltinObjectType(PyObjectType):
         if type_name in self._builtin_type_flag_mapping:
             for attribute in self._builtin_type_flag_mapping[type_name]:
                 setattr(self, attribute, True)
+
+    @property
+    def typeptr_cname(self):
+        return f"({self.cname})"
 
     def set_scope(self, scope):
         self.scope = scope
@@ -1582,7 +1595,10 @@ class BuiltinObjectType(PyObjectType):
         return type.is_pyobject and type.assignable_from(self)
 
     def type_check_function(self, exact=True):
-        type_name = self.name
+        if container_type := self.get_container_type():
+            type_name = container_type.name
+        else:
+            type_name = self.name
         if type_name in _special_type_check_functions:
             type_check = _special_type_check_functions[type_name]
         elif self.is_exception_type:
@@ -4912,6 +4928,14 @@ class PythonTypeConstructorMixin:
     """
     modifier_name = None
     contains_none = False
+    base_type = None
+    subscripted_types = ()
+
+    def get_subscripted_type(self, index: int):
+        try:
+            return self.subscripted_types[index]
+        except IndexError:
+            return None
 
     def allows_none(self):
         return (
@@ -4919,13 +4943,8 @@ class PythonTypeConstructorMixin:
             self.modifier_name == 'typing.Union' and self.contains_none
         )
 
-    def set_python_type_constructor_name(self, name):
+    def set_python_type_constructor_name(self, name: str) -> None:
         self.python_type_constructor_name = name
-
-    def specialize_here(self, pos, env, template_values=None):
-        # for a lot of the typing classes it doesn't really matter what the template is
-        # (i.e. typing.Dict[int] is really just a dict)
-        return self
 
     def __repr__(self):
         if self.base_type:
@@ -4941,10 +4960,76 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     """
     builtin types like list, dict etc which can be subscripted in annotations
     """
-    def __init__(self, name, cname, objstruct_cname=None):
+
+    def __init__(self, name, cname, objstruct_cname=None, **kwargs):
+        # We need to ensure that the base_type attribute is set before calling super().__init__()
+        # to ensure that _init_builtin_type_flags() has base_type available.
+        for attr_name, value in kwargs.items():
+            setattr(self, attr_name, value)
+
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
-        self.set_python_type_constructor_name(name)
+        self.set_python_type_constructor_name(self.get_container_type().name)
+        self.specializations = {}
+
+    def _init_builtin_type_flags(self, type_name: str) -> None:
+        # ensure correct flag is set for subscripted types, e.g. list[int]
+        super()._init_builtin_type_flags(self.get_container_type().name)
+
+    def specialize_here(self, pos, env, template_values=None):
+        if not self.supports_container_type:
+            return self
+        if template_values and None not in template_values and len(template_values) <= 2:
+            subscripted_types = ','.join([str(tv) for tv in template_values])
+            name = f'{self.get_container_type().name}[{subscripted_types}]'
+
+            if name in self.specializations:
+                return self.specializations[name]
+
+            typ = BuiltinTypeConstructorObjectType(
+                name=name, cname=self.cname, objstruct_cname=self.objstruct_cname,
+                base_type=self, subscripted_types=tuple(template_values), scope=self.scope)
+            env.global_scope().declare_type(name, typ, pos, cname=typ.cname)
+            self.specializations[name] = typ
+            return typ
+        return self
+
+    def assignable_from(self, src_type):
+        if self.get_container_type() is src_type.get_container_type():
+            if not self.subscripted_types and not src_type.subscripted_types:
+                return True
+            if not self.subscripted_types and src_type.subscripted_types:
+                return True
+            if self.subscripted_types and not src_type.subscripted_types:
+                return True
+            if (
+                len(self.subscripted_types) == len(src_type.subscripted_types) and
+                all(dst_sc.assignable_from(src_sc)
+                    for dst_sc, src_sc in zip(self.subscripted_types, src_type.subscripted_types))
+            ):
+                return True
+            return False
+        return super().assignable_from(src_type)
+
+    def infer_indexed_type(self):
+        if self.get_container_type().is_pydict_type:
+            return self.get_subscripted_type(1)
+        else:
+            return self.get_subscripted_type(0)
+
+    def infer_iterator_type(self):
+        return self.get_subscripted_type(0)
+
+    def get_container_type(self):
+        """Returns the basic container type of the (potentially subscripted) type,
+        or None if not a container type.
+
+        Similar to typing.get_origin().
+        """
+        base_type = self.base_type
+        if base_type:
+            return base_type.get_container_type()
+        return self
 
 
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
