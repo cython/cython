@@ -2712,6 +2712,7 @@ class CFuncDefNode(FuncDefNode):
     #  decorators    [DecoratorNode]        list of decorators
     #
     #  with_gil      boolean    Acquire GIL around body
+    #  promoted      boolean    If it was a def promoted to cpdef
     #  type          CFuncType
     #  py_func       wrapper for calling from Python
     #  overridable   whether or not this is a cpdef function
@@ -2732,6 +2733,7 @@ class CFuncDefNode(FuncDefNode):
     template_declaration = None
     is_const_method = False
     py_func_stat = None
+    promoted = False
     _code_object = None
 
     def unqualified_name(self):
@@ -2791,7 +2793,7 @@ class CFuncDefNode(FuncDefNode):
         self.args = declarator.args
 
         opt_arg_count = self.cfunc_declarator.optional_arg_count
-        if (self.visibility == 'public' or self.api) and opt_arg_count:
+        if (self.visibility == 'public' or self.api) and opt_arg_count and not self.promoted:
             error(self.cfunc_declarator.pos,
                   "Function with optional arguments may not be declared public or api")
 
@@ -3240,7 +3242,7 @@ class DefNode(FuncDefNode):
         self.num_required_args = r
 
     def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, has_explicit_exc_clause=False,
-                     modifiers=None, nogil=False, with_gil=False):
+                     modifiers=None, nogil=False, with_gil=False, visibility='private', promoted=False):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
@@ -3284,6 +3286,7 @@ class DefNode(FuncDefNode):
         else:
             def_node_kwds = {}
             base_type = CAnalysedBaseTypeNode(self.pos, type=py_object_type)
+        def_node_kwds.update({"promoted": promoted})
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),
                                          args=self.args,
@@ -3302,7 +3305,7 @@ class DefNode(FuncDefNode):
                             overridable=overridable,
                             with_gil=with_gil,
                             nogil=nogil,
-                            visibility='private',
+                            visibility=visibility,
                             api=False,
                             directive_locals=getattr(cfunc, 'directive_locals', {}),
                             directive_returns=returns,
@@ -3317,6 +3320,25 @@ class DefNode(FuncDefNode):
             return False
         if self.star_arg or self.starstar_arg:
             return False
+        if self.name.startswith('__') and self.name.endswith('__'):
+            return False
+
+        is_property = False
+        from . import ExprNodes
+        if self.decorators:
+            for decorator in self.decorators:
+                func = decorator.decorator
+                if func.is_name:
+                    self.is_classmethod |= func.name == 'classmethod'
+                    self.is_staticmethod |= func.name == 'staticmethod'
+                    is_property |= func.name == 'property'
+                elif isinstance(func, ExprNodes.AttributeNode):
+                    if func.attribute in ('setter', 'deleter'):
+                        is_property = True
+
+        if self.is_classmethod or self.is_staticmethod or is_property:
+            return False
+
         return True
 
     def analyse_declarations(self, env):
@@ -5262,7 +5284,7 @@ class PyClassDefNode(ClassDefNode):
         self.target = ExprNodes.NameNode(pos, name=name)
         self.class_cell = ExprNodes.ClassCellInjectorNode(self.pos)
 
-    def as_cclass(self):
+    def as_cclass(self, visibility):
         """
         Return this node as if it were declared as an extension class
         """
@@ -5272,7 +5294,7 @@ class PyClassDefNode(ClassDefNode):
 
         from . import ExprNodes
         return CClassDefNode(self.pos,
-                             visibility='private',
+                             visibility=visibility,
                              module_name=None,
                              class_name=self.name,
                              bases=self.bases or ExprNodes.TupleNode(self.pos, args=[]),

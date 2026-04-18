@@ -1,4 +1,5 @@
 import cython
+
 cython.declare(UtilityCode=object, EncodedString=object, bytes_literal=object, encoded_string=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
                UtilNodes=object, Options=object, Utils=object,
@@ -1789,10 +1790,54 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
     def visit_SimpleCallNode(self, node):
         self.visitchildren(node)
+        if self._is_c_base_method_call(node):
+            node = self._handle_simple_base_method_call(node)
+
         function = node.function
         if not self._function_is_builtin_name(function):
             return node
+
         return self._dispatch_to_handler(node, function, node.args)
+
+    def _is_c_base_method_call(self, node):
+        # detect super().method() calls
+        function = node.function
+        return (function.is_attribute and isinstance(function.obj, ExprNodes.CallNode)
+            and function.obj.function.is_name and function.obj.function.name == 'super')
+
+    def _handle_simple_base_method_call(self, node):
+        # replace super().method(args) by an unbound method call like BaseClass.method(args)
+        # which could subsequently be replaced by a direct C method call downstream
+        function = node.function
+        class_node, class_scope = self.env_stack[-2]
+        if not isinstance(class_node, Nodes.CClassDefNode):
+            return node
+
+        base_type = class_node.base_type
+        if base_type is None or base_type.scope is None:
+            return node
+        resolved_fn = base_type.scope.lookup(function.attribute)
+        if not resolved_fn or not resolved_fn.is_cmethod:
+            return node
+
+        method_scope = self.current_env()
+        first_arg = ExprNodes.NameNode(
+            node.pos, name=method_scope.arg_entries[0].name,
+            entry=method_scope.arg_entries[0])
+        new_args = [first_arg] + node.args
+        # FIXME: it should be improved by finding the correct entry
+        #  instead of assuming the type is accessible by its name
+        super_class_ref = ExprNodes.NameNode(node.pos, name=base_type.name)
+        node = ExprNodes.SimpleCallNode.from_node(
+            node,
+            function=ExprNodes.AttributeNode(
+                node.pos,
+                obj=super_class_ref,
+                attribute=resolved_fn.name,
+                needs_none_check=False),
+            args=new_args
+        )
+        return node
 
     def visit_GeneralCallNode(self, node):
         self.visitchildren(node)

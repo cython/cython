@@ -3109,6 +3109,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     Adjust function and class definitions by the decorator directives:
 
     @cython.cfunc
+    @cython.public
     @cython.cclass
     @cython.ccall
     @cython.inline
@@ -3117,6 +3118,9 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     """
     # list of directives that cause conversion to cclass
     converts_to_cclass = ('cclass', 'total_ordering', 'dataclasses.dataclass')
+
+    # makes functions cpdef by default
+    auto_ccall = False
 
     def visit_ModuleNode(self, node):
         self.directives = node.directives
@@ -3150,14 +3154,25 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             except_val = (None, True if return_type_node else False)
         if self.directives.get('c_compile_guard') and 'cfunc' not in self.directives:
             error(node.pos, "c_compile_guard only allowed on C functions")
-        if 'ccall' in self.directives:
+        if 'public' in self.directives and 'ccall' not in self.directives:
+            error(node.pos, "public directive can only be used with ccall")
+        is_ccall = 'ccall' in self.directives
+        if is_ccall and 'no_ccall' in self.directives:
+            error(node.pos, "ccall and no_ccall directives cannot be combined")
+        if not is_ccall:
+            promoted = self.auto_ccall and 'no_ccall' not in self.directives and node.is_cdef_func_compatible()
+        else:
+            promoted = False
+        if is_ccall or promoted:
             if 'cfunc' in self.directives:
                 error(node.pos, "cfunc and ccall directives cannot be combined")
             if with_gil:
                 error(node.pos, "ccall functions cannot be declared 'with_gil'")
+            visibility = 'public' if 'public' in self.directives or promoted else 'private'
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
-                returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause)
+                returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause,
+                visibility=visibility, promoted=promoted)
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
@@ -3202,7 +3217,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
 
     def visit_PyClassDefNode(self, node):
         if any(directive in self.directives for directive in self.converts_to_cclass):
-            node = node.as_cclass()
+            visibility = 'public' if 'public' in self.directives else 'private'
+            node = node.as_cclass(visibility=visibility)
             return self.visit(node)
         else:
             old_in_pyclass = self.in_py_class
@@ -3212,6 +3228,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             return node
 
     def visit_CClassDefNode(self, node):
+        self.auto_ccall = self.directives.get('auto_cpdef', self.auto_ccall)
         old_in_pyclass = self.in_py_class
         self.in_py_class = False
         self.visitchildren(node)
@@ -3234,7 +3251,7 @@ class AlignFunctionDefinitions(CythonTransform):
         pxd_def = self.scope.lookup(node.name)
         if pxd_def:
             if pxd_def.is_cclass:
-                return self.visit_CClassDefNode(node.as_cclass(), pxd_def)
+                return self.visit_CClassDefNode(node.as_cclass(visibility='private'), pxd_def)
             elif not pxd_def.scope or not pxd_def.scope.is_builtin_scope:
                 error(node.pos, "'%s' redeclared" % node.name)
                 if pxd_def.pos:
@@ -4159,7 +4176,7 @@ class TransformBuiltinMethods(EnvTransform):
             return node
         # Inject no-args super
         def_node = self.current_scope_node()
-        if not isinstance(def_node, Nodes.DefNode) or not def_node.args or len(self.env_stack) < 2:
+        if not isinstance(def_node, (Nodes.DefNode, Nodes.CFuncDefNode)) or not def_node.args or len(self.env_stack) < 2:
             return node
         class_node, class_scope = self.env_stack[-2]
         if class_scope.is_py_class_scope:

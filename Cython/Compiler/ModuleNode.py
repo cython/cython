@@ -1418,11 +1418,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.mark_pos(entry.pos)
         # Generate final methods prototypes
         for method_entry in entry.type.scope.cfunc_entries:
-            if not method_entry.is_inherited and method_entry.final_func_cname:
+            if method_entry.final_func_cname:
                 declaration = method_entry.type.declaration_code(
                     method_entry.final_func_cname)
                 modifiers = code.build_function_modifiers(method_entry.func_modifiers)
-                code.putln("static %s%s;" % (modifiers, declaration))
+                static = "static " if method_entry.visibility != 'public' else ""
+                code.putln("%s%s%s;" % (static, modifiers, declaration))
 
     def generate_objstruct_predeclaration(self, type, code):
         if not type.scope:
