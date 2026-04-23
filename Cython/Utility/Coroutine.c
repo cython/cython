@@ -1682,9 +1682,7 @@ static void __Pyx_Coroutine_unset_is_running(__pyx_CoroutineObject *gen) {
 }
 static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *gen) {
     char result;
-    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
     __Pyx_BEGIN_CRITICAL_SECTION((PyObject*)gen);
-    #endif
     result = gen->is_running;
     __Pyx_END_CRITICAL_SECTION();
     return result;
