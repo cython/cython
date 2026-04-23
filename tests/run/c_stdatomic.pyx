@@ -3,7 +3,7 @@
 
 # TODO: set /std:c11 and /experimental:c11atomics flags for windows.
 
-from libc.stdatomic cimport atomic_int, atomic_store, atomic_load, atomic_exchange
+from libc.stdatomic cimport atomic_int, atomic_store, atomic_load
 
 def int_test(int x):
     """
@@ -37,7 +37,7 @@ def stack_allocation_test(int x):
     try:
         atomic_store(&atom, 0)
         atomic_store(&atom, atom + 1)
-        atomic_exchange(&atom, atom + 1)
+        atomic_store(&atom, atom + 1)
         atomic_store(&atom, x)
 
         return atom.load()
