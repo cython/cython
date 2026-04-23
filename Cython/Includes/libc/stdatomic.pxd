@@ -65,7 +65,7 @@ cdef extern from "<stdatomic.h>" nogil:
     ctypedef uintmax_t atomic_uintmax_t "atomic_uintmax_t" 
     ctypedef int atomic_flag "atomic_flag"
 
-# XXX: Just a limitation but we need serveral templates for some 
+# XXX: Just a limitation but we need several templates for some 
 # of these atomic APIs
 ctypedef fused __A:
     atomic_bool
@@ -201,11 +201,11 @@ cdef extern from "<stdatomic.h>" nogil:
     __A atomic_load_explicit(volatile const __A* obj, memory_order order)
     __A atomic_exchange(volatile __A* obj, __C desired)
     __A atomic_exchange_explicit(volatile __A* obj, __C desired, memory_order order)
-    bint atomic_compare_exchange_strong(volatile __A* obj, __B expexted, __C desired)
-    bint atomic_compare_exchange_strong_explicit(volatile __A* obj, __B expexted,
+    bint atomic_compare_exchange_strong(volatile __A* obj, __B expected, __C desired)
+    bint atomic_compare_exchange_strong_explicit(volatile __A* obj, __B expected,
     __C desired, memory_order success, memory_order failure)
-    bint atomic_compare_exchange_weak(volatile __A* obj, __B expexted, __C desired)
-    bint atomic_compare_exchange_weak_explicit(volatile __A* obj, __B expexted, __C desired, memory_order success, memory_order failure)
+    bint atomic_compare_exchange_weak(volatile __A* obj, __B expected, __C desired)
+    bint atomic_compare_exchange_weak_explicit(volatile __A* obj, __B expected, __C desired, memory_order success, memory_order failure)
     bint atomic_flag_test_and_set(volatile atomic_flag* obj)
     bint atomic_flag_test_and_set_explicit(volatile atomic_flag* obj, memory_order order)
     void atomic_flag_clear(volatile atomic_flag* obj)
