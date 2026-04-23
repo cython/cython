@@ -38,6 +38,9 @@ jobs:
 
   ci-early:
     strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+
       matrix:
         os: [ubuntu-22.04, windows-2022, macos-latest]
         backend: [c, cpp]
