@@ -1583,6 +1583,7 @@ __Pyx__Coroutine_get_frame_locked(__pyx_CoroutineObject *self) {
         }
     }
     Py_INCREF(frame);
+    return frame;
 }
 #endif
 
