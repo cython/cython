@@ -866,7 +866,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_New(PyObject* it) {
         PyObject *dict = PyDict_New();
         if (!dict) return NULL;
         // PyDict_Merge() and friends do not handle arbitrary iterables. '|' does.
-        PyObject *result = PyNumber_InplaceOr(dict, it);
+        PyObject *result = PyNumber_InPlaceOr(dict, it);
         Py_DECREF(dict);
         return result;
     }
