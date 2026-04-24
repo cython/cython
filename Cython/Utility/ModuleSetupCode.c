@@ -752,12 +752,13 @@ static int __Pyx_init_co_variables(void); /* proto */
   // Value if defined: Stackless Python < 3.6: 0x80 else 0x100.
   #define METH_STACKLESS 0
 #endif
-#ifndef METH_FASTCALL
+#if !defined(METH_FASTCALL) || CYTHON_COMPILING_IN_PYPY
   // new in CPython 3.6, but changed in 3.7 - see
   // positional-only parameters:
   //   https://bugs.python.org/issue29464
   // const args:
   //   https://bugs.python.org/issue32240
+  // PyPy doesn't have the const args.
   #ifndef METH_FASTCALL
      #define METH_FASTCALL 0x80
   #endif
@@ -826,9 +827,13 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
 // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
   #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
-  typedef PyObject *(*__Pyx_PyCMethod)(PyObject *, PyTypeObject *, PyObject *const *, size_t, PyObject *);
 #else
   #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  PyType_FromModuleAndSpec(m, s, b)
+#endif
+#if CYTHON_COMPILING_IN_PYPY
+  // PyPy's internal definition misses the const
+  typedef PyObject *(*__Pyx_PyCMethod)(PyObject *, PyTypeObject *, PyObject *const *, size_t, PyObject *);
+#else
   #define __Pyx_PyCMethod  PyCMethod
 #endif
 #ifndef METH_METHOD
