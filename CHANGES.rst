@@ -63,6 +63,9 @@ Features added
 * Indexing into Cython memoryview objects from Python is faster.
   (Github issue :issue:`7529`)
 
+* Some internal call overhead in the memoryview code was removed.
+  (Github issue :issue:`7609`)
+
 * C arrays are substituted for sequence iteration in more cases, also inside of generators.
   Ad-hoc C array storage on the stack and in closures was reworked along the way.
   (Github issues :issue:`7323`, :issue:`7339`)
@@ -72,6 +75,9 @@ Features added
 
 * F-strings are a little faster in some cases.
   (Github issues :issue:`7495`, :issue:`7526`)
+
+* PyPy and GraalPython use the vectorcall protocall to enable faster Python calls in future releases.
+  (Github issue :issue:`7614`)
 
 * The runtime conversion from a Python mapping to a C struct/union uses less code.
   (Github issue :issue:`7343`)
@@ -87,6 +93,11 @@ Features added
 
 * Cython compiled functions have a more efficient memory layout in the Limited API.
   (Github issue :issue:`7519`)
+
+* Module string content is now compressed with LZSS by default, which reduces the footprint of the
+  decompressor code compared to the 3.2.x default ``zlib``.  This also avoids a runtime dependency
+  on the ``zlib`` module since the tiny LZSS decompressor can be embedded in the module.
+  (Github issue :issue:`7577`)
 
 * Several C++ exception declarations were added to ``libcpp.exceptions``.
   (Github issue :issue:`7389`)
@@ -140,6 +151,15 @@ Bugs fixed
   This is now modernised in many places to reduce overhead.
   (Github issue :issue:`7481`)
 
+* Exceptions originating from the ``Py_UNICODE_IS*()`` character classification macros and
+  the corresponding ``str.is*()`` methods, which they alias, were not handled but ignored in
+  the Limited API.
+  (Github issue :issue:`7602`)
+
+* Several internal cases where exceptions are caught and discarded now propagate the
+  ``BaseException`` errors and only discard the expected exceptions.
+  (Github issue :issue:`7600`)
+
 * The global module state struct now lives in an anonymous namespace in C++ mode to
   allow linking multiple modules together in one shared library file.
   (Github issue :issue:`7159`)
@@ -168,7 +188,10 @@ Bugs fixed
   such redundant decorators in the code for occasional use.
 
 * Cached methods of builtin types were non GC-traversed and cleaned up as part of the module state.
-  Patch by NMaxwell Bernstein.  (Github issue :issue:`7468`)
+  Patch by Maxwell Bernstein.  (Github issue :issue:`7468`)
+
+* Modules with non-ASCII names could end up with UTF-8 chracters in their C code.
+  (Github issue :issue:`7588`)
 
 * Several C compiler warnings related to mixed signed/unsigned C integer usage were resolved.
 
@@ -182,8 +205,17 @@ Other changes
   Python 3.9 is planned to remain supported for several years due to its use in LTS Linux distributions.
   (Github issue :issue:`7271`)
 
+* The vectorcall feature macros were unified to make ``CYTHON_VECTORCALL`` the only way to
+  disable this feature (if need arises).  Previously the option macros ``CYTHON_METH_FASTCALL``,
+  ``CYTHON_FAST_PYCALL`` and ``CYTHON_VECTORCALL`` all controlled different aspects of the
+  implementation.
+  (Github issue :issue:`7616`)
+
 * ``Cython/Shadow.pyi`` has been merged into ``Cython/Shadow.py``.
   (Github issue :issue:`7376`)
+
+* The documentation now uses the "Clarity" Sphinx theme.
+  Patch by Libor Jelínek.  (Github issue :issue:`7564`)
 
 
 3.2.5 (2026-0?-??)
