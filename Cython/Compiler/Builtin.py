@@ -443,7 +443,6 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("py_frozendict_keys", "Builtins.c")),
                                     BuiltinMethod("values", "T",   "O", "__Pyx_PyFrozenDict_Values",
                                                   utility_code=UtilityCode.load("py_frozendict_values", "Builtins.c")),
-                                    BuiltinMethod("copy",   "T",   "T", "PyDict_Copy"),  # Returns frozendict in Py3.15.
                                     ]),
 
     ("range",  "&PyRange_Type",    []),
