@@ -226,6 +226,7 @@ static PyObject* __Pyx_Intern(PyObject* s) {
 }
 
 //////////////////// abs_longlong.proto ////////////////////
+//@requires: ModuleSetupCode.c::IncludeStdlibH
 
 static CYTHON_INLINE PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
 #if defined (__cplusplus) && __cplusplus >= 201103L

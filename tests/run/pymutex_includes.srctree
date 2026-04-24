@@ -1,8 +1,8 @@
 PYTHON setup.py build_ext --inplace
-PYTHON -c "import m1, m2, m3"
-PYTHON -c "import i1, i2, i3"
-PYTHON -c "import api1, api2, api3"
-PYTHON -c "import ci1, ci2, ci3a, ci3b"
+PYTHON -c "import m1, m2, m3, m4"
+PYTHON -c "import i1, i2, i3, i4"
+PYTHON -c "import api1, api2, api3, api4"
+PYTHON -c "import ci1, ci2, ci3a, ci3b, ci4"
 
 ################# setup.py ######################
 
@@ -56,6 +56,20 @@ cdef public api class C[object C_obj, type C_type]:
 cdef class C:
     pass
 
+################# m4.pxd #######################
+
+cimport cython
+cdef public api class C[object C_obj, type C_type]:
+    cdef cython.pymutex* f(self)
+
+################# m4.pyx #######################
+
+cdef cython.pymutex global_mutex
+
+cdef class C:
+    cdef cython.pymutex* f(self):
+        return &global_mutex
+
 ################# i1.pyx ########################
 
 # This generates a warning about not defining __PYX_EXTERN_C externally.
@@ -77,6 +91,13 @@ cdef extern from "m2.h":
 cdef extern from "m3.h":
     pass
 
+################# i4.pyx ########################
+
+# This generates a warning about not defining __PYX_EXTERN_C externally.
+# It's not relevant for the test though.
+cdef extern from "m4.h":
+    pass
+
 ################# api1.pyx ########################
 
 # This generates a warning about not defining __PYX_EXTERN_C externally.
@@ -96,6 +117,13 @@ cdef extern from "m2_api.h":
 # This generates a warning about not defining __PYX_EXTERN_C externally.
 # It's not relevant for the test though.
 cdef extern from "m3_api.h":
+    pass
+
+################# api4.pyx ########################
+
+# This generates a warning about not defining __PYX_EXTERN_C externally.
+# It's not relevant for the test though.
+cdef extern from "m4_api.h":
     pass
 
 ################# ci1.pyx #######################
@@ -127,3 +155,6 @@ cdef class D(m3.C):
 cdef class D:
     pass
 
+################# ci4.pyx #######################
+
+cimport m4

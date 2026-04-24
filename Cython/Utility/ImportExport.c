@@ -18,7 +18,7 @@ static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, 
 //@requires: StringTools.c::IncludeStringH
 //@requires: Builtins.c::HasAttr
 //@requires: Builtins.c::PyFrozenDict
-//@requires: ObjectHandling.c::TupleAndListFromArray
+//@requires: ObjectHandling.c::ListFromArray
 //@requires: ObjectHandling.c::PyObjectCallOneArg
 
 static int __Pyx__Import_GetModule(PyObject *qualname, PyObject **module) {
@@ -111,17 +111,9 @@ static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, 
     if (unlikely(!empty_dict))
         goto bad;
     if (imported_names) {
-#if CYTHON_COMPILING_IN_CPYTHON
         from_list = __Pyx_PyList_FromArray(imported_names, len_imported_names);
         if (unlikely(!from_list))
             goto bad;
-#else
-        from_list = PyList_New(len_imported_names);
-        if (unlikely(!from_list)) goto bad;
-        for (Py_ssize_t i=0; i<len_imported_names; ++i) {
-            if (PyList_SetItem(from_list, i, __Pyx_NewRef(imported_names[i])) < 0) goto bad;
-        }
-#endif
     }
     if (level == -1) {
         const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');
@@ -148,7 +140,7 @@ bad:
 }
 
 
-/////////////// ImportFrom.proto ///////////////
+/////////////// ImportFrom.export ///////////////
 
 static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name); /*proto*/
 
@@ -848,6 +840,7 @@ Py_CLEAR(CGLOBAL(__pyx_numpy_ndarray));
 
 /////////////// ImportNumPyArray ///////////////
 //@requires: ImportExport.c::Import
+//@requires: Exceptions.c::IgnoreException
 
 static PyObject* __Pyx__ImportNumPyArray(void) {
     PyObject *numpy_module, *ndarray_object = NULL;
@@ -857,8 +850,9 @@ static PyObject* __Pyx__ImportNumPyArray(void) {
         Py_DECREF(numpy_module);
     }
     if (unlikely(!ndarray_object)) {
-        // ImportError, AttributeError, ...
-        PyErr_Clear();
+        if (!__Pyx_IgnoreException(PyExc_Exception)) {
+            return NULL;
+        }
     }
     if (unlikely(!ndarray_object || !PyObject_TypeCheck(ndarray_object, &PyType_Type))) {
         Py_XDECREF(ndarray_object);
@@ -904,6 +898,6 @@ static CYTHON_INLINE PyObject* __Pyx__ImportNumPyArrayTypeIfAvailable(void) {
 
 static CYTHON_INLINE PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void) {
     PyObject *result = __Pyx__ImportNumPyArrayTypeIfAvailable();
-    Py_INCREF(result);
+    Py_XINCREF(result);
     return result;
 }

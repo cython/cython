@@ -121,6 +121,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.ExprNodes",
             "Cython.Compiler.ModuleNode",
             "Cython.Compiler.Optimize",
+            "Cython.LZSS",
             ])
 
     from shutil import which

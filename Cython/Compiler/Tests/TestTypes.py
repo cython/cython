@@ -1,3 +1,5 @@
+from itertools import chain
+
 import Cython.Compiler.PyrexTypes as PT
 from ...TestUtils import TimedTest
 
@@ -15,6 +17,42 @@ class TestMethodDispatcherTransform(TimedTest):
         cenum = PT.CEnumType("E", "cenum", typedef_flag=False)
         assert_widest(PT.c_int_type, cenum, PT.c_int_type)
 
+
+class TestBuiltinTypes(TimedTest):
+
+    BUILTIN_FLAGS_MAPPING = {
+        'is_pyint_type': ['int'],
+        'is_pyfloat_type': ['float'],
+        'is_pybool_type': ['bool'],
+        'is_pycomplex_type': ['complex'],
+        'is_pylist_type': ['list'],
+        'is_pydict_type': ['dict'],
+        'is_pyset_type': ['set'],
+        'is_pytuple_type': ['tuple'],
+        'is_pyfrozenset_type': ['frozenset'],
+        'is_pybytes_type': ['bytes'],
+        'is_pystr_type': ['str'],
+        'is_pybytearray_type': ['bytearray'],
+        'is_pymemoryview_type': ['memoryview'],
+        'is_builtin_sequence': ['list', 'tuple', 'bytes', 'str', 'bytearray'],
+        'is_bytes_or_str_or_bytearray': ['bytes', 'str', 'bytearray'],
+    }
+
+    def test_set_builtin_type_flags(self):
+        builtin_flags = set(chain.from_iterable(PT.BuiltinObjectType._builtin_type_flag_mapping.values()))
+        builtin_types = set(chain.from_iterable(self.BUILTIN_FLAGS_MAPPING.values()))
+
+        self.assertSetEqual(builtin_flags, set(self.BUILTIN_FLAGS_MAPPING))
+        self.assertSetEqual(set(PT.BuiltinObjectType._builtin_type_flag_mapping), builtin_types)
+
+        for attr in builtin_flags:
+            self.assertIs(getattr(PT.PyrexType, attr), False)
+            for type_name in self.BUILTIN_FLAGS_MAPPING[attr]:
+                self.assertIs(
+                    getattr(PT.BuiltinObjectType(type_name, f'c_{type_name}'), attr),
+                    True,
+                    f"{attr} should be set for {type_name}"
+                )
 
 class TestTypeIdentifiers(TimedTest):
 
