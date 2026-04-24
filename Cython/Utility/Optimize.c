@@ -320,6 +320,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
                                                    Py_ssize_t* p_orig_length, int* p_source_is_dict) {
+    int owned_method_name = 0;
     is_dict = is_dict || likely(PyDict_CheckExact(iterable));
     *p_source_is_dict = is_dict;
     if (is_dict) {
@@ -330,20 +331,16 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
 #else
         // On PyPy3/GraalPy, we need to translate manually a few method names.
         // This logic is not needed on CPython thanks to the fast case above.
-        static PyObject *py_items = NULL, *py_keys = NULL, *py_values = NULL;
-        PyObject **pp = NULL;
         if (method_name) {
             const char *name = PyUnicode_AsUTF8(method_name);
-            if (strcmp(name, "iteritems") == 0) pp = &py_items;
-            else if (strcmp(name, "iterkeys") == 0) pp = &py_keys;
-            else if (strcmp(name, "itervalues") == 0) pp = &py_values;
-            if (pp) {
-                if (!*pp) {
-                    *pp = PyUnicode_FromString(name + 4);
-                    if (!*pp)
-                        return NULL;
-                }
-                method_name = *pp;
+            if (strncmp(name, "iter", 4) == 0 && (
+                    strcmp(name+4, "items") == 0 ||
+                    strcmp(name+4, "keys") == 0 ||
+                    strcmp(name+4, "values") == 0)) {
+                method_name = PyUnicode_FromString(name + 4);
+                if (unlikely(!method_name))
+                    return NULL;
+                owned_method_name = 1;
             }
         }
 #endif
@@ -352,6 +349,8 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
     if (method_name) {
         PyObject* iter;
         iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
+        if (owned_method_name)
+            Py_DECREF(method_name);
         if (!iterable)
             return NULL;
 #if !CYTHON_AVOID_BORROWED_REFS
