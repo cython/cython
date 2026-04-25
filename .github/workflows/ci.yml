@@ -7,12 +7,20 @@ on:
       - '!Demos/benchmarks/**'
       - '!.github/**'
       - '.github/workflows/ci.yml'
+      - '**/*.md'
+      - '**/*.rst'
+      - '!docs/**'
+      - 'docs/examples/**'
   pull_request:
     paths:
       - '**'
       - '!Demos/benchmarks/**'
       - '!.github/**'
       - '.github/workflows/ci.yml'
+      - '!**/*.md'
+      - '!**/*.rst'
+      - '!docs/**'
+      - 'docs/examples/**'
   workflow_dispatch:
 
 concurrency:
