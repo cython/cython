@@ -2729,14 +2729,12 @@ def main():
             # Make sure subprocesses can print() Unicode text.
             os.environ["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
         from concurrent.futures import ProcessPoolExecutor, as_completed
-        pool = ProcessPoolExecutor(
-            options.shard_count,
-            # GraalPy seems to like using all the memory and crashing the GitHub workflow runner.
-            # This is a shot-in-the dark attempt to keep it down on the assumption that cleanup of
-            # Cython modules is poor. Because of this, always run the GraalPy tests in the executor
-            # even with -j1.
-            max_tasks_per_child=10 if IS_GRAAL else None
-        )
+        # GraalPy seems to like using all the memory and crashing the GitHub workflow runner.
+        # This is a shot-in-the dark attempt to keep it down on the assumption that cleanup of
+        # Cython modules is poor. Because of this, always run the GraalPy tests in the executor
+        # even with -j1.
+        executor_args = {'max_tasks_per_child': 10} if IS_GRAAL else {}
+        pool = ProcessPoolExecutor(options.shard_count, **executor_args)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
         open_shards = list(range(options.shard_count))
         error_shards = []
