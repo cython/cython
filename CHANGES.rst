@@ -76,7 +76,7 @@ Features added
 * F-strings are a little faster in some cases.
   (Github issues :issue:`7495`, :issue:`7526`)
 
-* PyPy and GraalPython use the vectorcall protocall to enable faster Python calls in future releases.
+* PyPy and GraalPython use the vectorcall protocol to enable faster Python calls in future releases.
   (Github issue :issue:`7614`)
 
 * The runtime conversion from a Python mapping to a C struct/union uses less code.
@@ -190,7 +190,7 @@ Bugs fixed
 * Cached methods of builtin types were non GC-traversed and cleaned up as part of the module state.
   Patch by Maxwell Bernstein.  (Github issue :issue:`7468`)
 
-* Modules with non-ASCII names could end up with UTF-8 chracters in their C code.
+* Modules with non-ASCII names could end up with UTF-8 characters in their C code.
   (Github issue :issue:`7588`)
 
 * Several C compiler warnings related to mixed signed/unsigned C integer usage were resolved.
