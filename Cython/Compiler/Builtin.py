@@ -435,7 +435,7 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("py_dict_clear", "Optimize.c")),
                                     BuiltinMethod("copy",   "T",   "T", "PyDict_Copy")]),
 
-    ("frozendict", "&__Pyx_PyFrozenDict_Type", [
+    ("frozendict", "__Pyx_PyFrozenDict_TypePtr", [
                                     BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
                                     BuiltinMethod("items",  "T",   "O", "__Pyx_PyFrozenDict_Items",
                                                   utility_code=UtilityCode.load("py_frozendict_items", "Builtins.c")),

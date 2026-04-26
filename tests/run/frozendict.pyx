@@ -66,3 +66,21 @@ def items_of_frozendict_call():
     kwargs = frozendict(parrot1="resting", answer1=42)
     items = frozendict(kwargs.items(), parrot2="resting", answer2=42, **kwargs).items()
     return sorted(items)
+
+
+def py315_really_has_frozendict():
+    """
+    # This is especially important for the Limited API build that decides the type at import/run time.
+
+    >>> fd1, fd2 = py315_really_has_frozendict()
+    >>> fd1 == fd2
+    False
+
+    >>> from sys import version_info
+    >>> ('frozen' if version_info < (3, 15, 0, 'alpha', 7) else '')  +  type(fd1).__name__
+    'frozendict'
+    >>> ('frozen' if version_info < (3, 15, 0, 'alpha', 7) else '')  +  type(fd2).__name__
+    'frozendict'
+    >>>
+    """
+    return frozendict(), frozendict({'a': 5})
