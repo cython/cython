@@ -3590,7 +3590,14 @@ class CFuncType(CType):
         permutations = self.get_all_specialized_permutations()
 
         new_cfunc_entries = []
+        original_args = [arg for arg in self.args]
         for cname, fused_to_specific in permutations:
+            specialized_args = [
+                fused_to_specific[arg.type] if arg.is_fused else arg
+                for arg in original_args
+            ]
+            func_name = _get_fused_specialized_name_from_arg_types(
+                self.entry.name, original_args, specialized_args)
             new_func_type = self.entry.type.specialize(fused_to_specific)
 
             if self.optional_arg_count:
@@ -3598,7 +3605,7 @@ class CFuncType(CType):
                 self.declare_opt_arg_struct(new_func_type, cname)
 
             new_entry = copy.deepcopy(self.entry)
-            new_func_type.specialize_entry(new_entry, cname)
+            new_func_type.specialize_entry(new_entry, cname, name=func_name)
 
             new_entry.type = new_func_type
             new_func_type.entry = new_entry
@@ -3626,9 +3633,9 @@ class CFuncType(CType):
             # types we don't (because it must be derivable from the arguments)
             subtypes=self.subtypes if include_function_return_type else ['args'])
 
-    def specialize_entry(self, entry, cname):
+    def specialize_entry(self, entry, cname, name=None):
         assert not self.is_fused
-        specialize_entry(entry, cname)
+        specialize_entry(entry, cname, name=name)
 
     def can_coerce_to_pyobject(self, env):
         # duplicating the decisions from create_to_py_utility_code() here avoids writing out unused code
@@ -3722,15 +3729,20 @@ class CFuncType(CType):
         return True
 
 
-def specialize_entry(entry, cname):
+def specialize_entry(entry, cname, name=None):
     """
     Specialize an entry of a copied fused function or method
     """
     entry.is_fused_specialized = True
-    entry.name = get_fused_cname(cname, entry.name)
+    entry.legacy_capi_name = get_fused_cname(cname, entry.name)
+    method_cname = get_fused_cname(cname, entry.name)
+    if name is not None:
+        entry.name = name
+    else:
+        entry.name = method_cname
 
     if entry.is_cmethod:
-        entry.cname = entry.name
+        entry.cname = method_cname
         if entry.is_inherited:
             entry.cname = StringEncoding.EncodedString(
                     "%s.%s" % (Naming.obj_base_cname, entry.cname))
@@ -3749,6 +3761,22 @@ def get_fused_cname(fused_cname, orig_cname):
     assert fused_cname and orig_cname
     return StringEncoding.EncodedString('%s%s%s' % (Naming.fused_func_prefix,
                                                     fused_cname, orig_cname))
+
+def _get_fused_specialized_name_from_arg_types(name, original_arg_types, specialized_arg_types):
+    specialised_type_names = [
+        sarg_type.declaration_code('', for_display=True)
+        for (farg_type, sarg_type) in zip(original_arg_types, specialized_arg_types)
+        if farg_type.is_fused
+    ]
+    return StringEncoding.EncodedString(f"{name}[{','.join(specialised_type_names)}]")
+
+
+def get_fused_specialized_name(name, original_args, specialized_args):
+    return _get_fused_specialized_name_from_arg_types(
+        name,
+        [arg.type for arg in original_args],
+        [arg.type for arg in specialized_args]
+    )
 
 def unique(somelist):
     seen = set()

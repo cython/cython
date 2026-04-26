@@ -2875,7 +2875,7 @@ class CFuncDefNode(FuncDefNode):
 
         name = self.entry.name
         self.py_func = DefNode(pos=self.pos,
-                               name=self.entry.name,
+                               name=self.entry.cname if self.entry.is_fused_specialized else self.entry.name,
                                args=self.args,
                                star_arg=None,
                                starstar_arg=None,
@@ -3368,6 +3368,7 @@ class DefNode(FuncDefNode):
             self.pos,
             target=self,
             name=self.entry.name,
+            cname=self.entry.cname,
             args=self.args,
             star_arg=self.star_arg,
             starstar_arg=self.starstar_arg,
@@ -3785,10 +3786,10 @@ class DefNodeWrapper(FuncDefNode):
 
     def analyse_declarations(self, env):
         target_entry = self.target.entry
-        name = self.name
+        cname = self.cname
         prefix = env.next_id(env.scope_prefix)
-        target_entry.func_cname = punycodify_name(Naming.pywrap_prefix + prefix + name)
-        target_entry.pymethdef_cname = punycodify_name(Naming.pymethdef_prefix + prefix + name)
+        target_entry.func_cname = punycodify_name(Naming.pywrap_prefix + prefix + cname)
+        target_entry.pymethdef_cname = punycodify_name(Naming.pymethdef_prefix + prefix + cname)
 
         self.signature = target_entry.signature
 

@@ -504,11 +504,14 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
 #ifndef __PYX_HAVE_RT_ImportFunction_$cyversion
 #define __PYX_HAVE_RT_ImportFunction_$cyversion
 static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
+    if (*f) {
+        return 0; // already imported under a different name
+    }
     union {
         void (*fp)(void);
         void *p;
     } tmp;
-    int result = __Pyx_ImportFromPxd_$cyversion(module, funcname, &tmp.p, sig, "function");
+    int result = __Pyx_ImportFromPxd_$cyversion(module, funcname, &tmp.p, sig, "function", 0);
     if (result == 0) {
         *f = tmp.fp;
     }
@@ -516,6 +519,34 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
 }
 #endif
 
+/////////////// FunctionImportFused.proto ///////////////
+//@substitute: naming
+
+static int __Pyx_ImportFusedFunction_$cyversion(PyObject *module, const char *funcname, void (**f)(void), const char *sig); /*proto*/
+
+/////////////// FunctionImportFused ///////////////
+//@substitute: naming
+//@requires: PxdImportShared
+
+// Account for updated naming of fused functions in the API dictionary.
+// This looks them up under the new name, but if they aren't found isn't considered a failure.
+// For now they are still looked up under the old name afterwards and it becomes an error if that fails.
+// Eventually this can go away when enough time has passed that both importers and exporters will be
+// using the new scheme.
+#ifndef __PYX_HAVE_RT_ImportFusedFunction_$cyversion
+#define __PYX_HAVE_RT_ImportFusedFunction_$cyversion
+static int __Pyx_ImportFusedFunction_$cyversion(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
+    union {
+        void (*fp)(void);
+        void *p;
+    } tmp;
+    int result = __Pyx_ImportFromPxd_$cyversion(module, funcname, &tmp.p, sig, "function", 1);
+    if (result == 0) {
+        *f = tmp.fp;
+    }
+    return result;
+}
+#endif
 
 /////////////// GetApiDict.proto ///////////////
 
@@ -574,7 +605,7 @@ bad:
 
 #ifndef __PYX_HAVE_RT_ImportFromPxd_$cyversion
 #define __PYX_HAVE_RT_ImportFromPxd_$cyversion
-static int __Pyx_ImportFromPxd_$cyversion(PyObject *module, const char *name, void **p, const char *sig, const char *what) {
+static int __Pyx_ImportFromPxd_$cyversion(PyObject *module, const char *name, void **p, const char *sig, const char *what, int optional) {
     PyObject *d = 0;
     PyObject *cobj = 0;
 
@@ -589,10 +620,16 @@ static int __Pyx_ImportFromPxd_$cyversion(PyObject *module, const char *name, vo
     Py_XINCREF(cobj);
 #endif
     if (!cobj) {
-        PyErr_Format(PyExc_ImportError,
-            "%.200s does not export expected C %.8s %.200s",
-                PyModule_GetName(module), what, name);
-        goto bad;
+        if (optional && !PyErr_Occurred()) {
+            PyErr_Clear();
+            *p = NULL;
+            goto allowed_failure;
+        } else {
+            PyErr_Format(PyExc_ImportError,
+                "%.200s does not export expected C %.8s %.200s",
+                    PyModule_GetName(module), what, name);
+            goto bad;
+        }
     }
     if (!PyCapsule_IsValid(cobj, sig)) {
         PyErr_Format(PyExc_TypeError,
@@ -603,8 +640,9 @@ static int __Pyx_ImportFromPxd_$cyversion(PyObject *module, const char *name, vo
     *p = PyCapsule_GetPointer(cobj, sig);
     if (!(*p))
         goto bad;
-    Py_DECREF(d);
     Py_DECREF(cobj);
+allowed_failure:
+    Py_DECREF(d);
     return 0;
 bad:
     Py_XDECREF(d);
@@ -625,7 +663,7 @@ static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, vo
 #ifndef __PYX_HAVE_RT_ImportVoidPtr_$cyversion
 #define __PYX_HAVE_RT_ImportVoidPtr_$cyversion
 static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, void **p, const char *sig) {
-    return __Pyx_ImportFromPxd_$cyversion(module, name, p, sig, "variable");
+    return __Pyx_ImportFromPxd_$cyversion(module, name, p, sig, "variable", 0);
 }
 #endif
 
