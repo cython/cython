@@ -935,11 +935,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_New(PyObject* it) {
             Py_DECREF(type_name);
             if (!frozendict_type && PyErr_ExceptionMatches(PyExc_KeyError)) {
                 PyErr_Clear();
-                type_name = PyUnicode_FromStringAndSize("dict", sizeof("dict")-1);
-                if (likely(type_name)) {
-                    frozendict_type = PyObject_GetItem(builtins, type_name);
-                    Py_DECREF(type_name);
-                }
+                frozendict_type = (PyObject*) &PyDict_Type;
+                Py_INCREF(frozendict_type);
             }
             CGLOBAL(__Pyx_PyFrozenDictType) = frozendict_type;
         }
