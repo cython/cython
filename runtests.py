@@ -1119,7 +1119,8 @@ class CythonCompileTestCase(unittest.TestCase):
         ]
         Options.warning_errors = self.warning_errors
 
-        gc.collect()
+        if IS_GRAAL:
+            gc.collect()
 
         os.makedirs(self.workdir, exist_ok=True)
         if self.workdir not in sys.path:
