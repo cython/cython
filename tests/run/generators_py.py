@@ -395,7 +395,6 @@ def test_yield_in_const_conditional_true():
     if True:
         print((yield 1))
 
-'''
 def test_generator_scope():
     """
     Tests that the function is run at the correct time
@@ -411,4 +410,3 @@ def test_generator_scope():
     gen = (a for a in inner(10))
     print("generator created")
     return gen
-'''
