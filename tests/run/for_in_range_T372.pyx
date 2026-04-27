@@ -44,7 +44,7 @@ def test_negindex():
 
 
 @cython.test_assert_path_exists("//ForFromStatNode",
-                                "//ForFromStatNode//PrintStatNode//CoerceToPyTypeNode")
+                                "//ForFromStatNode//*[@function and ./NameNode[@name = 'print']]//CoerceToPyTypeNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 def test_negindex_inferred():
     """
@@ -147,7 +147,7 @@ def test_enum_range():
 
 
 @cython.test_assert_path_exists("//ForFromStatNode",
-                                "//ForFromStatNode//PrintStatNode//CoerceToPyTypeNode")
+                                "//ForFromStatNode//*[@function and ./NameNode[@name = 'print']]//CoerceToPyTypeNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 def test_negindex_inferred_xrange():
     """

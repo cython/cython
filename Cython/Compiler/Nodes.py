@@ -6816,61 +6816,46 @@ class PrintStatNode(StatNode):
     child_attrs = ["arg_tuple", "stream"]
 
     def analyse_expressions(self, env):
+        from .ExprNodes import (
+            DictNode, UnicodeNode, SimpleCallNode, GeneralCallNode,
+            NameNode
+        )
+
         if self.stream:
             stream = self.stream.analyse_expressions(env)
             self.stream = stream.coerce_to_pyobject(env)
-        arg_tuple = self.arg_tuple.analyse_expressions(env)
-        self.arg_tuple = arg_tuple.coerce_to_pyobject(env)
-        env.use_utility_code(printing_utility_code)
-        if len(self.arg_tuple.args) == 1 and self.append_newline:
-            env.use_utility_code(printing_one_utility_code)
-        return self
+        arg_tuple = self.arg_tuple.analyse_expressions(env).coerce_to_pyobject(env)
 
-    nogil_check = Node.gil_error
-    gil_message = "Python print statement"
-
-    def generate_execution_code(self, code):
-        code.mark_pos(self.pos)
-        if self.stream:
-            self.stream.generate_evaluation_code(code)
-            stream_result = self.stream.py_result()
+        func = NameNode(
+            self.pos,
+            name="print",
+            entry=env.builtin_scope().lookup_here("print")
+        )
+        if self.stream or not self.append_newline:
+            key_value_pairs = []
+            if self.stream:
+                stream = self.stream.analyse_expressions(env).coerce_to_pyobject(env)
+                key_value_pairs.append((
+                    UnicodeNode(self.pos, value=EncodedString("file")),
+                    stream
+                ))
+            if not self.append_newline:
+                key_value_pairs.append((
+                    UnicodeNode(self.pos, value=EncodedString("end")),
+                    UnicodeNode(self.pos, value=EncodedString(" "))
+                ))
+            kwargs = DictNode.from_pairs(self.pos, key_value_pairs)
+            call = GeneralCallNode(
+                self.pos,
+                function=func, positional_args=arg_tuple,
+                keyword_args=kwargs
+            )
         else:
-            stream_result = '0'
-        if len(self.arg_tuple.args) == 1 and self.append_newline:
-            arg = self.arg_tuple.args[0]
-            arg.generate_evaluation_code(code)
-
-            code.putln(
-                "if (__Pyx_PrintOne(%s, %s) < 0) %s" % (
-                    stream_result,
-                    arg.py_result(),
-                    code.error_goto(self.pos)))
-            arg.generate_disposal_code(code)
-            arg.free_temps(code)
-        else:
-            self.arg_tuple.generate_evaluation_code(code)
-            code.putln(
-                "if (__Pyx_Print(%s, %s, %d) < 0) %s" % (
-                    stream_result,
-                    self.arg_tuple.py_result(),
-                    self.append_newline,
-                    code.error_goto(self.pos)))
-            self.arg_tuple.generate_disposal_code(code)
-            self.arg_tuple.free_temps(code)
-
-        if self.stream:
-            self.stream.generate_disposal_code(code)
-            self.stream.free_temps(code)
-
-    def generate_function_definitions(self, env, code):
-        if self.stream:
-            self.stream.generate_function_definitions(env, code)
-        self.arg_tuple.generate_function_definitions(env, code)
-
-    def annotate(self, code):
-        if self.stream:
-            self.stream.annotate(code)
-        self.arg_tuple.annotate(code)
+            call = SimpleCallNode(
+                self.pos,
+                function=func, args=arg_tuple.args
+            )
+        return ExprStatNode(self.pos, expr=call).analyse_expressions(env)
 
 
 class ExecStatNode(StatNode):
@@ -10843,12 +10828,6 @@ else:
 #define unlikely(x) (x)
 """
 
-#------------------------------------------------------------------------------------
-
-printing_utility_code = UtilityCode.load_cached("Print", "Printing.c")
-printing_one_utility_code = UtilityCode.load_cached("PrintOne", "Printing.c")
-
-#------------------------------------------------------------------------------------
 
 # Exception raising code
 #

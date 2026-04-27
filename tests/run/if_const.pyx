@@ -31,7 +31,7 @@ def constant_if_elif_else():
     else:
         return False
 
-@cython.test_fail_if_path_exists("//PrintStatNode")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'print']")
 @cython.test_assert_path_exists("//IfStatNode",
                                 "//IfClauseNode")
 def non_constant_if_elif_else1():
@@ -46,7 +46,7 @@ def non_constant_if_elif_else1():
     else:
         print(False)
 
-@cython.test_fail_if_path_exists("//PrintStatNode")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'print']")
 @cython.test_assert_path_exists("//IfStatNode",
                                 "//IfClauseNode")
 def non_constant_if_elif_else2():

@@ -218,7 +218,7 @@ def while_false_else():
 
 
 @cython.test_fail_if_path_exists(
-    "//WhileStatNode//PrintStatNode",
+    "//WhileStatNode//NameNode[@name = 'print']",
     "//WhileStatNode//PrimaryCmpNode",
     "//WhileStatNode/BoolNode",
     "//WhileStatNode/IntNode",
