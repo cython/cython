@@ -6821,11 +6821,6 @@ class PrintStatNode(StatNode):
             NameNode
         )
 
-        if self.stream:
-            stream = self.stream.analyse_expressions(env)
-            self.stream = stream.coerce_to_pyobject(env)
-        arg_tuple = self.arg_tuple.analyse_expressions(env).coerce_to_pyobject(env)
-
         func = NameNode(
             self.pos,
             name="print",
@@ -6834,10 +6829,9 @@ class PrintStatNode(StatNode):
         if self.stream or not self.append_newline:
             key_value_pairs = []
             if self.stream:
-                stream = self.stream.analyse_expressions(env).coerce_to_pyobject(env)
                 key_value_pairs.append((
                     UnicodeNode(self.pos, value=EncodedString("file")),
-                    stream
+                    self.stream
                 ))
             if not self.append_newline:
                 key_value_pairs.append((
@@ -6847,13 +6841,13 @@ class PrintStatNode(StatNode):
             kwargs = DictNode.from_pairs(self.pos, key_value_pairs)
             call = GeneralCallNode(
                 self.pos,
-                function=func, positional_args=arg_tuple,
+                function=func, positional_args=self.arg_tuple,
                 keyword_args=kwargs
             )
         else:
             call = SimpleCallNode(
                 self.pos,
-                function=func, args=arg_tuple.args
+                function=func, args=self.arg_tuple.args
             )
         return ExprStatNode(self.pos, expr=call).analyse_expressions(env)
 
