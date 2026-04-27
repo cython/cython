@@ -7136,7 +7136,8 @@ class PyMethodCallNode(CallNode):
 
         # Clean up.
 
-        code.put_xdecref_clear(self_arg, py_object_type)
+        if self.unpack:
+            code.put_xdecref_clear(self_arg, py_object_type)
         for tmp in [self_arg, space_for_selfarg]:
             code.funcstate.release_temp(tmp)
 
