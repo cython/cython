@@ -4984,6 +4984,15 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         subscripted_types = ','.join([str(tv) for tv in subscripted_types])
         return f"{name}[{subscripted_types}]" if subscripted_types else name
 
+    def __eq__(self, value):
+        return (
+            isinstance(value, BuiltinTypeConstructorObjectType) and
+            self._full_type_name(self.name, self.subscripted_types) == self._full_type_name(value.name, value.subscripted_types)
+        )
+
+    def __hash__(self):
+        return hash(self._full_type_name(self.name, self.subscripted_types))
+
     def __str__(self):
         if self.subscripted_types:
             return f"{self._full_type_name(self.name, self.subscripted_types)} object"
