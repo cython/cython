@@ -200,4 +200,12 @@ def test_recursive_frozenset():
             print(cython.typeof(a))
             print(a)
 
-
+def common_container_type(cond, list[float] a, list[int] b):
+    """
+    >>> common_container_type(True, [1.0], [2])
+    ([1.0], 'Python object')
+    >>> common_container_type(False, [1.0], [2])
+    ([2], 'Python object')
+    """
+    result = a if cond else b
+    print(result, cython.typeof(result))
