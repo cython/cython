@@ -348,30 +348,6 @@ builtin_function_table = [
 
 
 # Builtin types
-#  bool
-#  bytearray
-#  bytes
-#  classmethod
-#  complex
-#  dict
-#  enumerate
-#  float
-#  frozendict
-#  frozenset
-#  int
-#  list
-#  long
-#  memoryview
-#  object
-#  property
-#  range
-#  set
-#  slice
-#  staticmethod
-#  str
-#  super
-#  tuple
-#  type
 
 builtin_types_table = [
 
