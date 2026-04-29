@@ -68,6 +68,36 @@ def items_of_frozendict_call():
     return sorted(items)
 
 
+def in_frozendict(value):
+    """
+    >>> in_frozendict('a')
+    True
+    >>> in_frozendict('b')
+    True
+    >>> in_frozendict('c')
+    False
+    >>> in_frozendict('')
+    False
+    """
+    d = frozendict({'a': 1, 'b': 2})
+    return value in d
+
+
+def frozendict_contains(value):
+    """
+    >>> frozendict_contains('a')
+    True
+    >>> frozendict_contains('b')
+    True
+    >>> frozendict_contains('c')
+    False
+    >>> frozendict_contains('')
+    False
+    """
+    d = frozendict({'a': 1, 'b': 2})
+    return d.__contains__(value)
+
+
 def py315_really_has_frozendict():
     """
     # This is especially important for the Limited API build that decides the type at import/run time.
