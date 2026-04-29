@@ -849,7 +849,7 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
 #define __Pyx_PyFrozenDict_TypePtr  ((PyTypeObject*) CGLOBAL(__Pyx_PyFrozenDictType))
 
 #define __Pyx_PyFrozenDict_New(it)  __Pyx__PyFrozenDict_New(CGLOBAL(__Pyx_PyFrozenDictType), it)
-static CYTHON_INLINE PyObject* __Pyx__PyFrozenDict_New(PyObject* it); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx__PyFrozenDict_New(PyObject* frozendict_type, PyObject* it); /*proto*/
 
 #define __Pyx_PyFrozenDict_NewEmpty()  __Pyx_PyFrozenDict_New(NULL)
 #define __Pyx_PyFrozenDict_Check(obj)  PyObject_TypeCheck((obj), __Pyx_PyFrozenDict_TypePtr)
