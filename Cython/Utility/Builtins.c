@@ -934,7 +934,7 @@ static CYTHON_INLINE PyObject* __Pyx__PyFrozenDict_New(PyObject* frozendict_type
 } // error handling follows
 #endif
 
-/////////////// PyFrozenDict_LAPI.cleanup ////////////////
+/////////////// PyFrozenDict.cleanup ////////////////
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 Py_CLEAR(CGLOBAL(__Pyx_PyFrozenDictType));
