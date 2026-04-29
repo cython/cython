@@ -1,0 +1,32 @@
+############################################################################
+# Frozen Dictionary Objects (Python 3.15+)
+############################################################################
+
+cdef extern from "Python.h":
+    # PyTypeObject PyFrozenDict_Type
+    # This instance of PyTypeObject represents the Python frozen dictionary type.
+    # This is the same object as frozendict in the Python layer.
+
+    bint PyAnyDict_Check(object p) noexcept
+    # Return true if p is a dict object, a frozendict object, or an instance of a subtype
+    # of the dict or frozendict type.
+    # This function always succeeds.
+
+    bint PyAnyDict_CheckExact(object p) noexcept
+    # Return true if p is a dict object or a frozendict object, but not an instance
+    # of a subtype of the dict or frozendict type.
+    # This function always succeeds.
+
+    bint PyFrozenDict_Check(object p) noexcept
+    # Return true if p is a frozendict object or an instance of a subtype of the
+    # frozendict type.
+    # This function always succeeds.
+
+    bint PyFrozenDict_CheckExact(object p) noexcept
+    # Return true if p is a frozendict object, but not an instance of a subtype
+    # of the frozendict type.
+    # This function always succeeds.
+
+    object PyFrozenDict_New(object iterable)
+    # Return a new frozendict from an iterable, or NULL on failure with an exception set.
+    # Create an empty dictionary if iterable is NULL.
