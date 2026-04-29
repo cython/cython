@@ -15,7 +15,7 @@ def typecheck(obj):
     True
 
     >>> import sys
-    >>> typecheck(frozendict() if sys.version_info >= (3,15,0,'alpha',6) else {})
+    >>> typecheck(frozendict() if sys.version_info >= (3, 15, 0, 'alpha', 7) else {})
     True
     """
     return PyAnyDict_Check(obj)
