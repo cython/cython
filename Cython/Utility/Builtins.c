@@ -848,7 +848,8 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
 
 #define __Pyx_PyFrozenDict_TypePtr  ((PyTypeObject*) CGLOBAL(__Pyx_PyFrozenDictType))
 
-static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_New(PyObject* it); /*proto*/
+#define __Pyx_PyFrozenDict_New(it)  __Pyx__PyFrozenDict_New(CGLOBAL(__Pyx_PyFrozenDictType), it)
+static CYTHON_INLINE PyObject* __Pyx__PyFrozenDict_New(PyObject* it); /*proto*/
 
 #define __Pyx_PyFrozenDict_NewEmpty()  __Pyx_PyFrozenDict_New(NULL)
 #define __Pyx_PyFrozenDict_Check(obj)  PyObject_TypeCheck((obj), __Pyx_PyFrozenDict_TypePtr)
@@ -907,19 +908,8 @@ PyObject *__Pyx_PyFrozenDictType;
 ////////////// PyFrozenDict /////////////////////////
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_New(PyObject* it) {
-    if (!it) {
-        return PyDict_New();
-    } else if (PyDict_Check(it)) {
-        return PyDict_Copy(it);
-    } else {
-        PyObject *dict = PyDict_New();
-        if (!dict) return NULL;
-        // PyDict_Merge() and friends do not handle arbitrary iterables. '|' does.
-        PyObject *result = PyNumber_InPlaceOr(dict, it);
-        Py_DECREF(dict);
-        return result;
-    }
+static CYTHON_INLINE PyObject* __Pyx__PyFrozenDict_New(PyObject* frozendict_type, PyObject* it) {
+    return PyObject_CallFunctionObjArgs(frozendict_type, it, NULL);
 }
 #endif
 
