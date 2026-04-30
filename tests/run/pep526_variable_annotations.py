@@ -391,6 +391,33 @@ if cython.compiled:
     5 5 5.0
     """
 
+if sys.version_info >= (3, 15) or cython.compiled:
+
+    def test_assignment_frozendict_with_subscription():
+        """
+        >>> test_assignment_frozendict_with_subscription()
+        int
+        int
+        int
+        5 5 5
+        """
+        a: frozendict[str, cython.int] = frozendict({'a': 5})
+        b: frozendict = a
+        c: frozendict[str, cython.float] = b
+        print(cython.typeof(a['a']))
+        print(cython.typeof(b['a']))
+        print(cython.typeof(c['a']))
+        print(a['a'], b['a'], c['a'])
+
+    if cython.compiled:
+        test_assignment_frozendict_with_subscription.__doc__ = """
+        >>> test_assignment_dict_with_subscription()
+        int
+        Python object
+        float
+        5 5 5.0
+        """
+
 def test_failed_assignment_list_with_subscription():
     """
     >>> test_failed_assignment_list_with_subscription()
@@ -455,21 +482,36 @@ def test_iteration_over_frozenset_with_subscription():
         print(b + c)
 
 @cython.infer_types(True)
-def test_iteration_over_set_with_subscription():
+def test_iteration_over_dict_with_subscription():
     """
-    >>> test_iteration_over_set_with_subscription()
+    >>> test_iteration_over_dict_with_subscription()
     int
     int
     3
     """
     b: cython.int = 1
-    a: dict[cython.int, cython.int] = {2: 3}
+    a: dict[cython.int, cython.str] = {2: 'a'}
     for c in a:
         print(cython.typeof(c))
         print(cython.typeof(b + c))
         print(b + c)
 
+if sys.version_info >= (3, 15) or cython.compiled:
 
+    @cython.infer_types(True)
+    def test_iteration_over_frozendict_with_subscription():
+        """
+        >>> test_iteration_over_frozendict_with_subscription()
+        int
+        int
+        3
+        """
+        b: cython.int = 1
+        a: frozendict[cython.int, cython.str] = frozendict({2: 'a'})
+        for c in a:
+            print(cython.typeof(c))
+            print(cython.typeof(b + c))
+            print(b + c)
 
 try:
     import numpy.typing as npt

@@ -203,6 +203,7 @@ class PyrexType(BaseType):
     #  is_pytuple_type       boolean     Is a Python tuple type
     #  is_pylist_type        boolean     Is a Python list type
     #  is_pydict_type        boolean     Is a Python dict type
+    #  is_pyfrozendict_type  boolean     Is a Python frozendict type
     #  is_pyset_type         boolean     Is a Python set type
     #  is_pyfrozenset_type   boolean     Is a Python frozenset type
     #  is_pybytes_type       boolean     Is a Python bytes type
@@ -295,6 +296,7 @@ class PyrexType(BaseType):
     is_pytuple_type = False
     is_pylist_type = False
     is_pydict_type = False
+    is_pyfrozendict_type = False
     is_pyset_type = False
     is_pyfrozenset_type = False
 
@@ -1519,6 +1521,7 @@ class BuiltinObjectType(PyObjectType):
         'complex': ['is_pycomplex_type'],
         'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type'],
         'dict': ['is_pydict_type', 'supports_container_type'],
+        'frozendict': ['is_pyfrozendict_type', 'supports_container_type'],
         'set': ['is_pyset_type', 'supports_container_type'],
         'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
         'frozenset': ['is_pyfrozenset_type', 'supports_container_type'],
@@ -5018,7 +5021,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         return super().assignable_from(src_type)
 
     def infer_indexed_type(self):
-        if self.get_container_type().is_pydict_type:
+        if self.get_container_type().is_pydict_type or self.get_container_type().is_pyfrozendict_type:
             return self.get_subscripted_type(1)
         else:
             return self.get_subscripted_type(0)
