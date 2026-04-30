@@ -9,9 +9,7 @@ if [[ $PYTHON == "" ]]; then
 fi
 
 # Set up compilers
-if [[ $TEST_CODE_STYLE == "1" ]]; then
-  echo "Skipping compiler setup: Code style run"
-elif [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
+if [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
@@ -107,23 +105,16 @@ if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VER
   $PYTHON -m pip install --no-cache-dir -r test-requirements-cpython.txt || exit 1
 fi
 
-if [[ $TEST_CODE_STYLE == "1" ]]; then
-  STYLE_ARGS="--no-unit --no-doctest --no-file --no-pyregr --no-examples"
-  $PYTHON -m pip install --no-cache-dir -r doc-requirements.txt || exit 1
-else
-  STYLE_ARGS="--no-code-style"
-
-  # Install more requirements
-  if [[ $PYTHON_VERSION != *"-dev" ]]; then
-    if [[ $BACKEND == *"cpp"* && $OSTYPE != "msys" ]]; then
-      $PYTHON -m pip install --no-cache-dir pythran || exit 1
-    fi
-
-    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
-      $PYTHON -m pip install --no-cache-dir mypy || exit 1
-    fi
-
+# Install more requirements
+if [[ $PYTHON_VERSION != *"-dev" ]]; then
+  if [[ $BACKEND == *"cpp"* && $OSTYPE != "msys" ]]; then
+    $PYTHON -m pip install --no-cache-dir pythran || exit 1
   fi
+
+  if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
+    $PYTHON -m pip install --no-cache-dir mypy || exit 1
+  fi
+
 fi
 
 echo "==== Runner resources ===="
@@ -208,9 +199,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   find Cython -name "*.so" -ls | sort -k11
 fi
 
-if [[ $TEST_CODE_STYLE == "1" ]]; then
-  make -C docs html || exit 1
-elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
+if [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
   # Run the debugger tests in python-dbg if available
   # (but don't fail, because they currently do fail)
   PYTHON_DBG=$($PYTHON -c 'import sys; print("%d.%d" % sys.version_info[:2])')
@@ -232,12 +221,10 @@ RUNTESTS_ARGS=""
 if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --coverage-md --cython-only"
 fi
-if [[ $TEST_CODE_STYLE != "1" ]]; then
-  if [[ ! $TEST_PARALLELISM ]]; then
-    TEST_PARALLELISM=-j7
-  fi
-  RUNTESTS_ARGS="$RUNTESTS_ARGS $TEST_PARALLELISM"
+if [[ ! $TEST_PARALLELISM ]]; then
+  TEST_PARALLELISM=-j7
 fi
+RUNTESTS_ARGS="$RUNTESTS_ARGS $TEST_PARALLELISM"
 
 if [[ $LIMITED_API == "1" ]]; then
   # don't cleanup to give us the opportunity to rerun at higher Python versions
@@ -257,7 +244,7 @@ if [[ $PYTHON_VERSION == *"t" ]]; then
   export PYTHON_GIL=0
 fi
 $PYTHON $GRAAL_PYTHON_ARGS runtests.py \
-  -vv $STYLE_ARGS \
+  -vv --no-code-style \
   -x Debugger \
   --backends=$BACKEND \
   $SHARED_UTILITY \

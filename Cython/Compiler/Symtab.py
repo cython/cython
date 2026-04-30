@@ -6,7 +6,6 @@
 import re
 import copy
 import operator
-import math
 
 from ..Utils import try_finally_contextmanager
 from .Errors import warning, error, InternalError, performance_hint
@@ -1409,8 +1408,7 @@ class ModuleScope(Scope):
         outer_scope = Builtin.builtin_scope
         Scope.__init__(self, name, outer_scope, parent_module)
         self.is_package = is_package
-        self.module_name = name
-        self.module_name = EncodedString(self.module_name)
+        self.module_name = EncodedString(name)
         self._context = context
         self.module_cname = Naming.module_cname
         self.module_dict_cname = Naming.moddict_cname

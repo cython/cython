@@ -1,4 +1,6 @@
 import builtins
+import json
+import subprocess
 import sys
 
 from ..Builtin import (
@@ -9,6 +11,7 @@ from ..Builtin import (
 
 from ..Code import (
     KNOWN_PYTHON_BUILTINS_VERSION, KNOWN_PYTHON_BUILTINS,
+    uncachable_builtins,
 )
 
 from ...TestUtils import TimedTest
@@ -18,9 +21,18 @@ class TestBuiltinReturnTypes(TimedTest):
     def test_find_return_type_of_builtin_method(self):
         # It's enough to test the method existence in a recent Python that likely has them.
         look_up_methods = sys.version_info >= (3,10)
+        min_versions = {
+            'frozendict': (3, 15, 0, 'alpha', 7),
+        }
 
         for type_name, methods in inferred_method_return_types.items():
-            py_type = getattr(builtins, type_name if type_name != 'unicode' else 'str')
+            try:
+                py_type = getattr(builtins, type_name if type_name != 'unicode' else 'str')
+            except AttributeError:
+                if sys.version_info >= min_versions.get(type_name, ()):
+                    raise
+                print(f"Skipping builtin type '{type_name}' as it is not in 'builtins'")
+                continue
 
             for method_name, return_type_name in methods.items():
                 builtin_type = builtin_scope.lookup(type_name).type
@@ -43,12 +55,22 @@ class TestBuiltinCompatibility(TimedTest):
         expected_builtins = set(KNOWN_PYTHON_BUILTINS)
         if sys.platform != 'win32':
             expected_builtins.discard("WindowsError")
+
+        # Read builtins from fresh Python process to prevent modifications by test dependencies.
+        output = subprocess.run(
+            [sys.executable, '-c', 'import builtins, json, sys; sys.stdout.write(json.dumps(dir(builtins)))'],
+            capture_output=True,
+            encoding='utf8',
+        )
         runtime_builtins = frozenset(
-            name for name in dir(builtins)
+            name for name in json.loads(output.stdout)
             if name not in ('__doc__', '__loader__', '__name__', '__package__', '__spec__'))
+
         if sys.version_info < KNOWN_PYTHON_BUILTINS_VERSION:
             missing_builtins = expected_builtins - runtime_builtins
             if missing_builtins:
+                missing_from_uncachable = missing_builtins - set(uncachable_builtins)
+                self.assertSetEqual(missing_from_uncachable, set())
                 self.skipTest(f'skipping test, older Python release found. Missing builtins: {", ".join(sorted(missing_builtins))}')
             self.skipTest('skipping test, older Python release found.')
         self.assertSetEqual(runtime_builtins, expected_builtins)

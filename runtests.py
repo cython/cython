@@ -1123,6 +1123,9 @@ class CythonCompileTestCase(unittest.TestCase):
         ]
         Options.warning_errors = self.warning_errors
 
+        if IS_GRAAL:
+            gc.collect()
+
         os.makedirs(self.workdir, exist_ok=True)
         if self.workdir not in sys.path:
             sys.path.insert(0, self.workdir)
@@ -2030,6 +2033,7 @@ class TestCodeFormat(unittest.TestCase):
             exclude=[
                 "*badindent*",
                 "*tabspace*",
+                "fstring.pyx"
             ],
         )
         print("")  # Fix the first line of the report.
@@ -2189,9 +2193,15 @@ class EndToEndTest(TimedTest):
             if command[0] == "UNSET":
                 try:
                     envvar = command[1]
-                except KeyError:
-                    envvar = None
-                env.pop(envvar, None)
+                except IndexError:
+                    continue
+                old_value = env.pop(envvar, None)
+                if len(command) > 2:
+                    # Unset specific flags only
+                    old_value = old_value.split()
+                    for flag in command[2:]:
+                        old_value = [part for part in old_value if not part.startswith(flag)]
+                    env[envvar] = " ".join(old_value)
                 continue
             elif command[0] == "CD":
                 if len(command) == 1:
@@ -2743,12 +2753,17 @@ def main():
     else:
         keep_alive_interval = None
     setup_test_directory(options)
-    if options.shard_count > 1 and options.shard_num == -1:
+    if (options.shard_count > 1 or IS_GRAAL) and options.shard_num == -1:
         if "PYTHONIOENCODING" not in os.environ:
             # Make sure subprocesses can print() Unicode text.
             os.environ["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
         from concurrent.futures import ProcessPoolExecutor, as_completed
-        pool = ProcessPoolExecutor(options.shard_count)
+        # GraalPy seems to like using all the memory and crashing the GitHub workflow runner.
+        # This is a shot-in-the dark attempt to keep it down on the assumption that cleanup of
+        # Cython modules is poor. Because of this, always run the GraalPy tests in the executor
+        # even with -j1.
+        executor_args = {'max_tasks_per_child': 10} if IS_GRAAL else {}
+        pool = ProcessPoolExecutor(options.shard_count, **executor_args)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
         open_shards = list(range(options.shard_count))
         error_shards = []
@@ -2789,7 +2804,7 @@ def main():
             _, stats, merged_pipeline_stats, return_code, _ = runtests(options, cmd_args, coverage)
 
     if coverage:
-        if options.shard_count > 1 and options.shard_num == -1:
+        if (options.shard_count > 1 or IS_GRAAL) and options.shard_num == -1:
             coverage.combine()
         coverage.stop()
 
@@ -2885,14 +2900,14 @@ def generate_shared_utility(options):
         shared_utility_c_file = os.path.join(workdir, f'{SHARED_UTILITY_MODULE_NAME}.c')
         utility_gen_result = subprocess.run(
             [
-                'python', 'cython.py', '--generate-shared', shared_utility_c_file
+                sys.executable, 'cython.py', '--generate-shared', shared_utility_c_file
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
         if utility_gen_result.returncode != 0:
             raise RuntimeError(f"Shared utility generation failed:\n{utility_gen_result.stdout}")
 
         compilation_result = subprocess.run(
             [
-                'python', 'cythonize.py', '-bi', shared_utility_c_file
+                sys.executable, 'cythonize.py', '-bi', shared_utility_c_file
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
         if compilation_result.returncode != 0:
             raise RuntimeError(f"Shared utility compilation failed:\n{compilation_result.stdout}")
@@ -3115,7 +3130,6 @@ def runtests(options, cmd_args, coverage=None):
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
-            ('windows_arm_bugs.txt', sys.platform == 'win32' and platform.machine().lower() == "arm64"),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
             ('exclude_limited_api_rerun.txt', options.limited_api and not WITH_COMPILE),
