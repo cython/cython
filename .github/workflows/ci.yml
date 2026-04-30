@@ -359,7 +359,6 @@ jobs:
 
       - name: Run extra versions
         continue-on-error: ${{ matrix.allowed_failure || false }}
-        env: ${{ matrix.env }}
         if: ${{ matrix.extra_python_versions[0] != null }}
         run: |
           for py_version in ${{ join(matrix.extra_python_versions, ' ') }}; do
