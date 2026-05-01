@@ -131,9 +131,9 @@ def test_tuple_assignment(i, list[int] la, set[int] sa, dict[int, int] da, froze
         fa = ta
 
 
-def test_recursive_list():
+def test_nested_list():
     """
-    >>> test_recursive_list()
+    >>> test_nested_list()
     list[list[int] object] object
     list[int] object
     int
@@ -145,9 +145,9 @@ def test_recursive_list():
     print(cython.typeof(la[0][0]))
     print(la[0][0])
 
-def test_recursive_set():
+def test_nested_set():
     """
-    >>> test_recursive_set()
+    >>> test_nested_set()
     set[frozenset[int] object] object
     frozenset[int] object
     int
@@ -161,9 +161,9 @@ def test_recursive_set():
             print(cython.typeof(s))
             print(s)
 
-def test_recursive_dict():
+def test_nested_dict():
     """
-    >>> test_recursive_dict()
+    >>> test_nested_dict()
     dict[frozenset[str object] object,list[int] object] object
     frozenset[str object] object
     list[int] object
@@ -184,9 +184,9 @@ def test_recursive_dict():
             print(cython.typeof(fs))
             print(fs)
 
-def test_recursive_frozenset():
+def test_nested_frozenset():
     """
-    >>> test_recursive_frozenset()
+    >>> test_nested_frozenset()
     frozenset[frozenset[int] object] object
     frozenset[int] object
     int
