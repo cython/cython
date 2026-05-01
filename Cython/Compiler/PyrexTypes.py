@@ -5005,9 +5005,8 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
 
     def assignable_from(self, src_type):
         if self.get_container_type() is src_type.get_container_type():
-            if not self.subscripted_types and not src_type.subscripted_types:
-                return True
-            if not self.subscripted_types and src_type.subscripted_types:
+            if not self.subscripted_types:
+                # Assignment to unqualified type is always fine, e.g. list[int] -> list
                 return True
             if self.subscripted_types and not src_type.subscripted_types:
                 return True
