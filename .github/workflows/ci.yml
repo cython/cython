@@ -57,7 +57,8 @@ jobs:
           # Limited API
           - os: ubuntu-22.04
             backend: "c,cpp"
-            limited_api: "--limited-api --abi3audit"
+            limited_api: true
+            abi3audit: true
             extra_hash: "-limited_api"
           # Cython Shared Module
           - os: ubuntu-22.04
@@ -71,8 +72,10 @@ jobs:
       os: ${{ matrix.os }}
       backend: ${{ matrix.backend }}
       limited_api: ${{ matrix.limited_api }}
+      abi3audit: ${{ matrix.abi3audit }}
       shared_utility: ${{ matrix.shared_utility }}
       extra_hash: ${{ matrix.extra_hash }}
+      extra_python_versions: ${{ join(inputs.extra_python_versions, ' ') }}
 
 
   ci-all:
@@ -89,7 +92,8 @@ jobs:
       #  python-version      the python version to use
       #  backend             the backend to use
       # Optional parameters:
-      #  limited_api         extra flags related to the limited api
+      #  limited_api         bool for use limited api
+      #  abi3audit           bool for use abi3audit
       #  shared_utility      extra flags relating to the shared utility
       #  gcc_version
       #  extra_cflags
@@ -195,7 +199,8 @@ jobs:
           - os: ubuntu-22.04
             python-version: "3.9"
             backend: "c,cpp"
-            limited_api: "--limited-api --abi3audit"
+            limited_api: true
+            abi3audit: true
             extra_hash: "-limited_api"
             # 3.10 is deliberately skipped here because it somehow ends up deleting most
             # of the .so files and I don't understand why.
@@ -203,19 +208,21 @@ jobs:
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
-            limited_api: "--limited-api --abi3audit"
+            limited_api: true
+            abi3audit: true
             extra_hash: "-limited_api"
             extra_python_versions: ["3.12", "3.13", "3.14"]
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: "c,cpp"
-            limited_api: "--limited-api --abi3audit"
+            limited_api: true
+            abi3audit: true
             extra_hash: "-limited_api"
             extra_python_versions: ["3.13", "3.14"]
           - os: ubuntu-22.04
             python-version: "3.15-dev"
             backend: "c,cpp"
-            limited_api: "--limited-api"
+            limited_api: true
             extra_hash: "-limited_api"
           # Cython Shared Module
           - os: ubuntu-22.04
@@ -263,7 +270,11 @@ jobs:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
       backend: ${{ matrix.backend }}
+      limited_api: ${{ matrix.limited_api }}
+      abi3audit: ${{ matrix.abi3audit }}
+      extra_cflags: ${{ matrix.extra_hash }} 
       extra_hash: ${{ matrix.extra_hash }}
+      extra_python_versions: ${{ join(inputs.extra_python_versions, ' ') }}
 
 
   ci-success:
@@ -303,18 +314,6 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-
-      - name: Write extra Python versions
-        if: ${{ matrix.extra_python_versions[0] != null }}
-        run: |
-          for py_version in ${{ join(matrix.extra_python_versions, ' ') }}; do
-            echo $py_version >> .python-versions
-          done
-      - name: Setup extra Python versions
-        if: ${{ matrix.extra_python_versions[0] != null }}
-        uses: actions/setup-python@v6.1.0
-        with:
-          python-version-file: .python-versions
 
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -356,14 +355,6 @@ jobs:
         run: |
           python -m pip install --no-cache-dir -r doc-requirements.txt
           make -C docs html
-
-      - name: Run extra versions
-        continue-on-error: ${{ matrix.allowed_failure || false }}
-        if: ${{ matrix.extra_python_versions[0] != null }}
-        run: |
-          for py_version in ${{ join(matrix.extra_python_versions, ' ') }}; do
-            PYTHON=python$py_version PYTHON_VERSION=$py_version NO_COMPILE_TESTS=1 NO_CYTHON_COMPILE=1 bash ./Tools/ci-run.sh
-          done
 
       - name: Upload HTML docs
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0

@@ -169,7 +169,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
-  if [[ $LIMITED_API == "1" && $NO_LIMITED_COMPILE != "1" ]]; then
+  if [[ {$LIMITED_API == "true" || $LIMITED_API == "1"} && $NO_LIMITED_COMPILE != "1" ]]; then
     # in the limited API tests, also build Cython in this mode.
     SETUP_ARGS="$SETUP_ARGS --cython-limited-api"
   fi
@@ -226,11 +226,11 @@ if [[ ! $TEST_PARALLELISM ]]; then
 fi
 RUNTESTS_ARGS="$RUNTESTS_ARGS $TEST_PARALLELISM"
 
-if [[ $LIMITED_API == "1" ]]; then
+if [[ $LIMITED_API == "true" || $LIMITED_API == "1" ]]; then
   # don't cleanup to give us the opportunity to rerun at higher Python versions
   RUNTESTS_ARGS="$RUNTESTS_ARGS --limited-api --no-cleanup --no-cleanup-sharedlib"
 fi
-if [[ $ABI3AUDIT == "1" ]]; then
+if [[ $ABI3AUDIT == "true" || $ABI3AUDIT == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --abi3audit"
 fi
 if [[ $NO_COMPILE_TESTS == "1" ]]; then
