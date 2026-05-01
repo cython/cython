@@ -58,7 +58,7 @@ def subscripted_types_assignments():
     da = la
 
 
-def subscribed_types_assignments_to_variable():
+def subscripted_types_assignments_to_variable():
     la: list[cython.float] = [5.0]
     lb: list[cython.int] = [1]
     a: cython.int = la[0]
@@ -114,7 +114,7 @@ def bitwise_or_pytypes(i: int | None, f: None | float , c: complex | None):
     list[None | complex]()
     py_lc: list[complex | None] = []
 
-def allowed_subscribed_types_assignments():
+def allowed_subscripted_types_assignments():
     la: list[cython.float] = [5.0]
     lb: list[cython.float] = la
     sa: set[cython.int] = {5}
@@ -134,7 +134,7 @@ def allowed_subscribed_types_assignments():
     fa = f1
     da = d1
 
-def forbidden_subscribed_types_assignments():
+def forbidden_subscripted_types_assignments():
     la: list[cython.int] = [5]
     sa: set[cython.int] = {5}
     fa: frozenset[cython.int] = frozenset({1})
@@ -178,7 +178,7 @@ cdef list_bytes(a: list[bytes]):
 cdef dict_bytes(a: dict[str, bytes], b: dict[bytes, str], c: dict[bytes, bytes], d: dict[str, str]):
     pass
 
-def forbidden_subscribed_types_args():
+def forbidden_subscripted_types_args():
     la: list[str] = ['asdf']
     list_bytes(la)
     da: dict[bytes, str] = {}
