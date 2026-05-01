@@ -23,6 +23,7 @@ class TestBuiltinReturnTypes(TimedTest):
         look_up_methods = sys.version_info >= (3,10)
         min_versions = {
             'frozendict': (3, 15, 0, 'alpha', 7),
+            'sentinel': (3, 15, 0, 'beta', 1),
         }
 
         for type_name, methods in inferred_method_return_types.items():
