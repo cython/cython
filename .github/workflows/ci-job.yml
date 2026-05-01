@@ -148,7 +148,6 @@ jobs:
             " >> $GITHUB_STEP_SUMMARY
 
       - name: Run extra versions
-        env: ${{ inputs.env }}
         if: ${{ inputs.extra_python_versions }}
         run: |
           for py_version in ${{ inputs.extra_python_versions }}; do

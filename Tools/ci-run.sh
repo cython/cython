@@ -3,10 +3,7 @@
 set -x
 
 GCC_VERSION=${GCC_VERSION:=10}
-
-if [[ $PYTHON == "" ]]; then
-  PYTHON=python
-fi
+PYTHON=${PYTHON:=python}
 
 # Set up compilers
 if [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
