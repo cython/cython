@@ -4991,7 +4991,8 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     def __eq__(self, value):
         return (
             isinstance(value, BuiltinTypeConstructorObjectType) and
-            self._full_type_name(self.name, self.subscripted_types) == self._full_type_name(value.name, value.subscripted_types)
+            self.name == value.name and
+            self.subscripted_types == value.subscripted_types
         )
 
     def __hash__(self):
