@@ -46,7 +46,7 @@ on:
         type: string
       extra_python_versions:
         required: false
-        default: []
+        default: ""
         type: string  # space separated
 
 
