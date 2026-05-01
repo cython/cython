@@ -4448,14 +4448,14 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_pyobject(self, env, is_slice, getting, setting):
         base_type = self.base.type
-        if self.index.type.is_unicode_char and not base_type.is_pydict_type:
+        if self.index.type.is_unicode_char and not base_type.is_pyanydict_type:
             # TODO: eventually fold into case below and remove warning, once people have adapted their code
             warning(self.pos,
                     "Item lookup of unicode character codes now always converts to a Unicode string. "
                     "Use an explicit C integer cast to get back the previous integer lookup behaviour.", level=1)
             self.index = self.index.coerce_to_pyobject(env)
             self.is_temp = 1
-        elif self.index.type.is_int and not base_type.is_pydict_type:
+        elif self.index.type.is_int and not base_type.is_pyanydict_type:
             if (getting
                     and not env.directives['boundscheck']
                     and (base_type.is_pybytearray_type or base_type.is_pylist_type or base_type.is_pytuple_type)
@@ -4494,7 +4494,7 @@ class IndexNode(_IndexingBaseNode):
                 # Infer homogeneous item type when looping over container literals.
                 item_type = infer_sequence_item_type(env, self.base, seq_type=base_type)
 
-            if base_type.is_pylist_type or base_type.is_pytuple_type or base_type.is_pydict_type:
+            if base_type.is_pylist_type or base_type.is_pytuple_type or base_type.is_pyanydict_type:
                 # Do the None check explicitly (not in a helper, and regardless of 'nonecheck') to allow optimising it away.
                 self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
 
@@ -4831,7 +4831,7 @@ class IndexNode(_IndexingBaseNode):
                     function = "__Pyx_GetItemInt"
                 utility_code = TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c")
             else:
-                if base_type.is_pydict_type:
+                if base_type.is_pyanydict_type:
                     function = "__Pyx_PyDict_GetItem"
                     utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
                 elif base_type is py_object_type and self.index.type.is_pystr_type:
@@ -10101,7 +10101,7 @@ class SortedDictKeysNode(ExprNode):
 
     def analyse_types(self, env):
         arg = self.arg.analyse_types(env)
-        if arg.type.is_pydict_type:
+        if arg.type.is_pyanydict_type:
             arg = arg.as_none_safe_node(
                 "'NoneType' object is not iterable")
         self.arg = arg
@@ -10112,7 +10112,7 @@ class SortedDictKeysNode(ExprNode):
 
     def generate_result_code(self, code):
         dict_result = self.arg.py_result()
-        if self.arg.type.is_pydict_type:
+        if self.arg.type.is_pyanydict_type:
             code.putln('%s = PyDict_Keys(%s); %s' % (
                 self.result(), dict_result,
                 code.error_goto_if_null(self.result(), self.pos)))
