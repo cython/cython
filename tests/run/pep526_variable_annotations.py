@@ -411,7 +411,7 @@ if sys.version_info >= (3, 15) or cython.compiled:
 
     if cython.compiled:
         test_assignment_frozendict_with_subscription.__doc__ = """
-        >>> test_assignment_dict_with_subscription()
+        >>> test_assignment_frozendict_with_subscription()
         int
         Python object
         float
