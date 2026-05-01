@@ -1,8 +1,14 @@
 
 cimport cython
 
+
+def make_frozendict(d):
+    return frozendict(d)
+
+
 dict_size = 4
 d = dict(zip(range(10,dict_size+10), range(dict_size)))
+fd = make_frozendict(d)
 
 
 def dict_iteritems(dict d):
@@ -555,6 +561,38 @@ def for_in_iteritems_of_expression(*args, **kwargs):
     for k, v in dict(*args, **kwargs).iteritems():
         result.append((k, v))
     return result
+
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def iterfrozendict(frozendict fd):
+    """
+    >>> iterfrozendict(fd)
+    [10, 11, 12, 13]
+    >>> iterfrozendict(make_frozendict({}))
+    []
+    """
+    l = []
+    for k in fd:
+        l.append(k)
+    l.sort()
+    return l
+
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def iterfrozendict_listcomp(frozendict fd):
+    """
+    >>> iterfrozendict_listcomp(fd)
+    [10, 11, 12, 13]
+    >>> iterfrozendict_listcomp(make_frozendict({}))
+    []
+    """
+    cdef list l = [k for k in fd]
+    l.sort()
+    return l
 
 
 cdef class NotADict:
