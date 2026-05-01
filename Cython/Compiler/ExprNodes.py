@@ -14085,7 +14085,7 @@ class CmpNode:
                          _) = result
                         return True
         elif self.operator in ('in', 'not_in'):
-            if self.operand2.type.is_pydict_type:
+            if self.operand2.type.is_pyanydict_type:
                 self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyDictContains", "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_PyDict_ContainsTF"
@@ -14565,7 +14565,7 @@ class CascadedCmpNode(Node, CmpNode):
 
     def coerce_operands_to_pyobjects(self, env):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
-        if self.operand2.type.is_pydict_type and self.operator in ('in', 'not_in'):
+        if self.operand2.type.is_pyanydict_type and self.operator in ('in', 'not_in'):
             self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
         if self.cascade:
             self.cascade.coerce_operands_to_pyobjects(env)

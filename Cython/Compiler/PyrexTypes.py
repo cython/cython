@@ -297,6 +297,7 @@ class PyrexType(BaseType):
     is_pylist_type = False
     is_pydict_type = False
     is_pyfrozendict_type = False
+    is_pyanydict_type = False
     is_pyset_type = False
     is_pyfrozenset_type = False
 
@@ -1520,8 +1521,8 @@ class BuiltinObjectType(PyObjectType):
         'bool': ['is_pybool_type'],
         'complex': ['is_pycomplex_type'],
         'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type'],
-        'dict': ['is_pydict_type', 'supports_container_type'],
-        'frozendict': ['is_pyfrozendict_type', 'supports_container_type'],
+        'dict': ['is_pydict_type', 'is_pyanydict_type', 'supports_container_type'],
+        'frozendict': ['is_pyfrozendict_type', 'is_pyanydict_type', 'supports_container_type'],
         'set': ['is_pyset_type', 'supports_container_type'],
         'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
         'frozenset': ['is_pyfrozenset_type', 'supports_container_type'],
