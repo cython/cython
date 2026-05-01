@@ -5021,7 +5021,8 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         return super().assignable_from(src_type)
 
     def infer_indexed_type(self):
-        if self.get_container_type().is_pydict_type or self.get_container_type().is_pyfrozendict_type:
+        container_type = self.get_container_type()
+        if container_type.is_pydict_type or container_type.is_pyfrozendict_type:
             return self.get_subscripted_type(1)
         else:
             return self.get_subscripted_type(0)
