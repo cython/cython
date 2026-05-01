@@ -4995,7 +4995,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         )
 
     def __hash__(self):
-        return hash(self._full_type_name(self.name, self.subscripted_types))
+        return hash(self.name) ^ hash(self.subscripted_types)
 
     def __str__(self):
         if self.subscripted_types:
