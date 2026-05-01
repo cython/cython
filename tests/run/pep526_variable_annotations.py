@@ -305,9 +305,9 @@ def test_list_with_str_subscript():
     print(cython.typeof(a[0] + b[0]) + (" object" if not cython.compiled else ""))
     print(a[0] + b[0])
 
-def test_list_with_int_subscription():
+def test_list_with_int_subscript():
     """
-    >>> test_list_with_int_subscription()
+    >>> test_list_with_int_subscript()
     int
     int
     int
@@ -323,9 +323,9 @@ def test_list_with_int_subscription():
     print(cython.typeof(c))
     print(c)
 
-def test_dict_with_subscription():
+def test_dict_with_subscript():
     """
-    >>> test_list_with_int_subscription()
+    >>> test_list_with_int_subscript()
     int
     int
     int
@@ -341,9 +341,9 @@ def test_dict_with_subscription():
     print(cython.typeof(c))
     print(c)
 
-def test_assignment_list_with_subscription():
+def test_assignment_list_with_subscript():
     """
-    >>> test_assignment_list_with_subscription()
+    >>> test_assignment_list_with_subscript()
     int
     int
     int
@@ -358,17 +358,17 @@ def test_assignment_list_with_subscription():
     print(a[0], b[0], c[0])
 
 if cython.compiled:
-    test_assignment_list_with_subscription.__doc__ = """
-    >>> test_assignment_list_with_subscription()
+    test_assignment_list_with_subscript.__doc__ = """
+    >>> test_assignment_list_with_subscript()
     int
     Python object
     float
     5 5 5.0
     """
 
-def test_assignment_dict_with_subscription():
+def test_assignment_dict_with_subscript():
     """
-    >>> test_assignment_dict_with_subscription()
+    >>> test_assignment_dict_with_subscript()
     int
     int
     int
@@ -383,8 +383,8 @@ def test_assignment_dict_with_subscription():
     print(a['a'], b['a'], c['a'])
 
 if cython.compiled:
-    test_assignment_dict_with_subscription.__doc__ = """
-    >>> test_assignment_dict_with_subscription()
+    test_assignment_dict_with_subscript.__doc__ = """
+    >>> test_assignment_dict_with_subscript()
     int
     Python object
     float
@@ -393,9 +393,9 @@ if cython.compiled:
 
 if sys.version_info >= (3, 15) or cython.compiled:
 
-    def test_assignment_frozendict_with_subscription():
+    def test_assignment_frozendict_with_subscript():
         """
-        >>> test_assignment_frozendict_with_subscription()
+        >>> test_assignment_frozendict_with_subscript()
         int
         int
         int
@@ -410,17 +410,17 @@ if sys.version_info >= (3, 15) or cython.compiled:
         print(a['a'], b['a'], c['a'])
 
     if cython.compiled:
-        test_assignment_frozendict_with_subscription.__doc__ = """
-        >>> test_assignment_frozendict_with_subscription()
+        test_assignment_frozendict_with_subscript.__doc__ = """
+        >>> test_assignment_frozendict_with_subscript()
         int
         Python object
         float
         5 5 5.0
         """
 
-def test_failed_assignment_list_with_subscription():
+def test_failed_assignment_list_with_subscript():
     """
-    >>> test_failed_assignment_list_with_subscription()
+    >>> test_failed_assignment_list_with_subscript()
     5 5 5
     """
     a: list[cython.int] = [5]
@@ -429,17 +429,17 @@ def test_failed_assignment_list_with_subscription():
     print(a[0], b[0], c[0])
 
 if cython.compiled:
-    test_failed_assignment_list_with_subscription.__doc__ = """
-    >>> test_failed_assignment_list_with_subscription()  #doctest: +ELLIPSIS
+    test_failed_assignment_list_with_subscript.__doc__ = """
+    >>> test_failed_assignment_list_with_subscript()  #doctest: +ELLIPSIS
     Traceback (most recent call last):
        ...
     TypeError: Expected str, got int
     """
 
 @cython.infer_types(True)
-def test_iteration_over_list_with_subscription():
+def test_iteration_over_list_with_subscript():
     """
-    >>> test_iteration_over_list_with_subscription()
+    >>> test_iteration_over_list_with_subscript()
     int
     int
     3
@@ -452,9 +452,9 @@ def test_iteration_over_list_with_subscription():
         print(b + c)
 
 @cython.infer_types(True)
-def test_iteration_over_set_with_subscription():
+def test_iteration_over_set_with_subscript():
     """
-    >>> test_iteration_over_set_with_subscription()
+    >>> test_iteration_over_set_with_subscript()
     int
     int
     3
@@ -467,9 +467,9 @@ def test_iteration_over_set_with_subscription():
         print(b + c)
 
 @cython.infer_types(True)
-def test_iteration_over_frozenset_with_subscription():
+def test_iteration_over_frozenset_with_subscript():
     """
-    >>> test_iteration_over_frozenset_with_subscription()
+    >>> test_iteration_over_frozenset_with_subscript()
     int
     int
     3
@@ -482,9 +482,9 @@ def test_iteration_over_frozenset_with_subscription():
         print(b + c)
 
 @cython.infer_types(True)
-def test_iteration_over_dict_with_subscription():
+def test_iteration_over_dict_with_subscript():
     """
-    >>> test_iteration_over_dict_with_subscription()
+    >>> test_iteration_over_dict_with_subscript()
     int
     int
     3
@@ -499,9 +499,9 @@ def test_iteration_over_dict_with_subscription():
 if sys.version_info >= (3, 15) or cython.compiled:
 
     @cython.infer_types(True)
-    def test_iteration_over_frozendict_with_subscription():
+    def test_iteration_over_frozendict_with_subscript():
         """
-        >>> test_iteration_over_frozendict_with_subscription()
+        >>> test_iteration_over_frozendict_with_subscript()
         int
         int
         3
