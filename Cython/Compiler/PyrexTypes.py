@@ -5740,13 +5740,10 @@ def independent_spanning_type(type1, type2):
         # e.g. PyInt + double => object
         return py_object_type
     elif resolved_type1.is_builtin_type and resolved_type2.is_builtin_type:
-        if (
-            (container_type1 := resolved_type1.get_container_type()) and
-            (container_type2 := resolved_type2.get_container_type()) and
-            container_type1 == container_type2
-        ):
+        container_type = resolved_type1.get_container_type()
+        if container_type is not None and container_type == resolved_type2.get_container_type():
             # list[float] + list[int] => list
-            return container_type1
+            return container_type
         # Either numeric or incompatible. Do not try to find a widest Python type
         # (e.g. int+float => float) as it would change one of the result types.
         return py_object_type
