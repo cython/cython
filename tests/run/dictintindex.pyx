@@ -1,7 +1,3 @@
-def make_frozendict(d):
-    return frozendict(d)
-
-
 def test_get_char_neg():
     """
     >>> test_get_char_neg()
@@ -255,7 +251,7 @@ def test_get_char_frozendict():
     1
     """
     cdef char key = 0
-    cdef frozendict fd = make_frozendict({0: 1})
+    fd = frozendict({0: 1})
     return fd[key]
 
 
@@ -265,7 +261,7 @@ def test_get_int_frozendict():
     2
     """
     cdef int key = 1
-    cdef frozendict fd = make_frozendict({1: 2})
+    fd = frozendict({1: 2})
     return fd[key]
 
 
@@ -275,7 +271,7 @@ def test_get_longlong_frozendict():
     3
     """
     cdef long long key = -1
-    cdef frozendict fd = make_frozendict({-1: 3})
+    fd = frozendict({-1: 3})
     return fd[key]
 
 
@@ -287,5 +283,5 @@ def test_get_ulonglong_big_frozendict():
     cdef unsigned int shift = sizeof(long)+2
     cdef unsigned long long big = 1
     cdef unsigned long long key = big<<shift
-    cdef frozendict fd = make_frozendict({big<<shift: 4})
+    fd = frozendict({big<<shift: 4})
     return fd[key]

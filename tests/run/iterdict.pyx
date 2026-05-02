@@ -1,14 +1,10 @@
 
 cimport cython
 
-
-def make_frozendict(d):
-    return frozendict(d)
-
-
 dict_size = 4
 d = dict(zip(range(10,dict_size+10), range(dict_size)))
-fd = make_frozendict(d)
+fd = frozendict(d)
+empty_fd = frozendict({})
 
 
 def dict_iteritems(dict d):
@@ -570,7 +566,7 @@ def iterfrozendict(frozendict fd):
     """
     >>> iterfrozendict(fd)
     [10, 11, 12, 13]
-    >>> iterfrozendict(make_frozendict({}))
+    >>> iterfrozendict(empty_fd)
     []
     """
     l = []
@@ -587,7 +583,7 @@ def iterfrozendict_listcomp(frozendict fd):
     """
     >>> iterfrozendict_listcomp(fd)
     [10, 11, 12, 13]
-    >>> iterfrozendict_listcomp(make_frozendict({}))
+    >>> iterfrozendict_listcomp(empty_fd)
     []
     """
     cdef list l = [k for k in fd]

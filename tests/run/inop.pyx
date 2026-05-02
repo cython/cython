@@ -1,11 +1,6 @@
 
 cimport cython
 
-
-def make_frozendict(d):
-    return frozendict(d)
-
-
 def f(a,b):
     """
     >>> f(1,[1,2,3])
@@ -330,7 +325,7 @@ def p_frozendict(a):
     >>> p_frozendict('a')
     1
     """
-    cdef frozendict fd = make_frozendict({u'a': 1, u'b': 2})
+    cdef frozendict fd = frozendict({u'a': 1, u'b': 2})
     cdef int result = a in fd
     return result
 
