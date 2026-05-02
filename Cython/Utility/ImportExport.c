@@ -106,7 +106,12 @@ static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, 
     } else if (unlikely(module_found == -1)) {
         return NULL;
     }
+    #if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030f00a6
+    // Prefer the empty frozendict singleton when we know it's faster to get than creating a new dict.
+    empty_dict = PyFrozenDict_New(NULL);
+    #else
     empty_dict = PyDict_New();
+    #endif
     if (unlikely(!empty_dict))
         goto bad;
     if (imported_names) {

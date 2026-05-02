@@ -9278,6 +9278,7 @@ utility_code_for_cimports = {
     # TODO: Consider a generic user-level mechanism for importing
     'cpython.array'         : lambda options: UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
     'cpython.array.array'   : lambda options: UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cpython.frozendict'    : lambda options: UtilityCode.load_cached("PyFrozenDict", "Builtins.c"),
     'cython.view'           : cython_view_utility_code,
 }
 

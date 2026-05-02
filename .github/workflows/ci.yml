@@ -7,12 +7,20 @@ on:
       - '!Demos/benchmarks/**'
       - '!.github/**'
       - '.github/workflows/ci.yml'
+      - '**/*.md'
+      - '**/*.rst'
+      - '!docs/**'
+      - 'docs/examples/**'
   pull_request:
     paths:
       - '**'
       - '!Demos/benchmarks/**'
       - '!.github/**'
       - '.github/workflows/ci.yml'
+      - '!**/*.md'
+      - '!**/*.rst'
+      - '!docs/**'
+      - 'docs/examples/**'
   workflow_dispatch:
 
 concurrency:
@@ -249,6 +257,12 @@ jobs:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
       backend: ${{ matrix.backend }}
+      limited_api: ${{ matrix.limited_api }}
+      # shared_utility - not used in this matrix
+      gcc_version: ${{ matrix.gcc_version }}
+      extra_cflags: ${{ matrix.extra_cflags }}
+      cython_compile_all: ${{ matrix.cython_compile_all }}
+      no_cython_compile: ${{ matrix.no_cython_compile }}
       extra_hash: ${{ matrix.extra_hash }}
 
 

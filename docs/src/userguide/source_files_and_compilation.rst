@@ -1118,6 +1118,13 @@ most important to least important:
     The default setting depends on the ``freethreading_compatible`` directive.
     This C macro allows to override the directive at C compile time.
 
+``CYTHON_WITHOUT_ASSERTIONS``
+    *Defining* this macro will disable ``assert`` statements in your Cython code
+    at compile-time.  Otherwise ``assert`` statements behave like in Python and
+    depend on if the interpreter is in debug mode.
+    Unlike most other macros here, the behaviour of ``CYTHON_WITHOUT_ASSERTIONS``
+    depends only on whether it is defined and not what it is defined to.  
+
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstances Cython enables these automatically based on the
 version of Python you are compiling for so there is no need to use them
