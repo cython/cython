@@ -779,7 +779,7 @@ class MatchSequencePatternNode(PatternNode):
 
         def type_check(type):
             # type-check need not be perfect, it's an optimization
-            if type in [Builtin.list_type, Builtin.tuple_type]:
+            if type.is_pylist_type or type.is_pytuple_type:
                 return True
             if type.is_memoryviewslice or type.is_ctuple:
                 return True
@@ -1193,9 +1193,9 @@ class SliceToListNode(ExprNodes.ExprNode):
     def generate_for_pyobject(self):
         util_code_name = None
         func_name = None
-        if self.base.type is Builtin.tuple_type:
+        if self.base.type.is_pytuple_type:
             util_code_name = "TupleSliceToList"
-        elif self.base.type is Builtin.list_type:
+        elif self.base.type.is_pylist_type:
             func_name = "PyList_GetSlice"
         elif (
             self.base.type.is_pyobject
