@@ -6813,7 +6813,7 @@ class PrintStatNode(StatNode):
     #  stream            ExprNode or None (stdout)
     #  append_newline    boolean
     #
-    # tranformed into
+    # transformed into
     #  print_function_call  ExprStatNode
 
     print_function_call = None
