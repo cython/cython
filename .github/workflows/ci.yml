@@ -52,6 +52,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04, windows-2022, macos-latest]
         backend: [c, cpp]
+        extra_hash: ['']
 
         include:
           # Limited API
@@ -112,6 +113,7 @@ jobs:
           - "3.14t"
           - "3.15-dev"
           - "3.15t-dev"
+        extra_hash: ['']
 
         exclude:
           # Windows and free-threading is difficult to build right now
