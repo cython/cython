@@ -260,7 +260,7 @@ jobs:
       python-version: ${{ matrix.python-version }}
       backend: ${{ matrix.backend }}
       limited_api: ${{ matrix.limited_api }}
-      # shared_utility - not used in this matrix
+      shared_utility: ${{ matrix.shared_utility }}
       gcc_version: ${{ matrix.gcc_version }}
       extra_cflags: ${{ matrix.extra_cflags }}
       cython_compile_all: ${{ matrix.cython_compile_all }}
