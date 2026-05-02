@@ -54,7 +54,7 @@ jobs:
           fetch-tags: true
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@v1.2.22
+        uses: hendrikmuhs/ccache-action@v1.2.23
         with:
           create-symlink: true
           variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
@@ -99,7 +99,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: benchmark_results.txt
           path: benchmarks.log
