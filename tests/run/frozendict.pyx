@@ -114,3 +114,21 @@ def py315_really_has_frozendict():
     >>>
     """
     return frozendict(), frozendict({'a': 5})
+
+
+empty_fd = frozendict()
+
+
+def from_keys_bound(frozendict fd, val):
+    """
+    https://github.com/cython/cython/issues/5051
+    Optimization of bound method calls was breaking classmethods
+    >>> sorted(from_keys_bound(empty_fd, 100).items())
+    [('a', 100), ('b', 100)]
+    >>> sorted(from_keys_bound(empty_fd, None).items())
+    [('a', None), ('b', None)]
+    """
+    if val is not None:
+        return fd.fromkeys(("a", "b"), val)
+    else:
+        return fd.fromkeys(("a", "b"))

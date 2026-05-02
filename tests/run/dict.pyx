@@ -1,10 +1,5 @@
 # mode: run
 
-
-def make_frozendict(d):
-    return frozendict(d)
-
-
 def empty():
     """
     >>> empty()
@@ -182,19 +177,3 @@ def from_keys_bound(dict d, val):
         return d.fromkeys(("a", "b"), val)
     else:
         return d.fromkeys(("a", "b"))
-
-
-def from_keys_bound_frozendict(frozendict fd, val):
-    """
-    Mirror of `from_keys_bound` for frozendict, exercising bound classmethod
-    optimization on a frozendict-typed receiver.
-
-    >>> sorted(from_keys_bound_frozendict(make_frozendict({}), 100).items())
-    [('a', 100), ('b', 100)]
-    >>> sorted(from_keys_bound_frozendict(make_frozendict({}), None).items())
-    [('a', None), ('b', None)]
-    """
-    if val is not None:
-        return fd.fromkeys(("a", "b"), val)
-    else:
-        return fd.fromkeys(("a", "b"))
