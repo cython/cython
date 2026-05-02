@@ -1131,6 +1131,8 @@ class IterationTransform(Visitor.EnvTransform):
         body.stats[0:0] = [iter_next_node]
 
         if method:
+            if dict_obj.type.is_pydict_type and method.startswith('iter'):
+                method = EncodedString(method[4:])
             method_node = ExprNodes.IdentifierStringNode(dict_obj.pos, value=method)
             dict_obj = dict_obj.as_none_safe_node(
                 "'NoneType' object has no attribute '%{}s'".format('.30' if len(method) <= 30 else ''),
