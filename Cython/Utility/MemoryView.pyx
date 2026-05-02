@@ -234,8 +234,9 @@ cdef class array:
 
     @property
     def memview(self):
-        return self.get_memview()
+        return array.get_memview(self)
 
+    # treat as cython_final
     @cname('get_memview')
     cdef get_memview(self):
         flags =  PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT|PyBUF_WRITABLE
@@ -408,6 +409,7 @@ cdef class memoryview:
             else:
                 PyThread_free_lock(self.lock)
 
+    # treat as cython.final
     cdef char *get_item_pointer(memoryview self, index: tuple) except NULL:
         cdef Py_ssize_t dim
         cdef char *itemp = <char *> self.view.buf
@@ -434,7 +436,7 @@ cdef class memoryview:
         if have_slices:
             return memview_slice(self, indices)
         else:
-            itemp = self.get_item_pointer(<tuple> indices)
+            itemp = memoryview.get_item_pointer(self, <tuple> indices)
             return self.convert_item_to_object(itemp)
 
     def __setitem__(memoryview self, object index, object value):
@@ -442,21 +444,22 @@ cdef class memoryview:
             raise TypeError, "Cannot assign to read-only memoryview"
 
         if self.view.ndim == 1 and isinstance(index, int):
-            self.setitem_indexed1(index, value)
+            memoryview.setitem_indexed1(self, index, value)
             return
 
         have_slices, indices = _unellipsify(index, self.view.ndim)
 
         if have_slices:
-            obj = self.is_slice(value)
+            obj = memoryview.is_slice(self, value)
             target_slice = memview_slice(self, indices)
             if obj is not None:
-                self.setitem_slice_assignment(target_slice, obj)
+                memoryview.setitem_slice_assignment(self, target_slice, obj)
             else:
-                self.setitem_slice_assign_scalar(target_slice, value)
+                memoryview.setitem_slice_assign_scalar(self, target_slice, value)
         else:
-            self.setitem_indexed(<tuple> indices, value)
+            memoryview.setitem_indexed(self, <tuple> indices, value)
 
+    # treat as cython.final
     cdef is_slice(self, obj):
         if not isinstance(obj, memoryview):
             try:
@@ -467,6 +470,7 @@ cdef class memoryview:
 
         return obj
 
+    # treat as cython.final
     cdef setitem_slice_assignment(self, dst, src):
         cdef {{memviewslice_name}} dst_slice
         cdef {{memviewslice_name}} src_slice
@@ -475,6 +479,7 @@ cdef class memoryview:
 
         memoryview_copy_contents(msrc, mdst, src.ndim, dst.ndim, self.dtype_is_object)
 
+    # treat as cython.final
     cdef setitem_slice_assign_scalar(self, memoryview dst, value):
         cdef int array[128]
         cdef void *tmp = NULL
@@ -507,10 +512,12 @@ cdef class memoryview:
         finally:
             PyMem_Free(tmp)
 
+    # treat as cython.final
     cdef setitem_indexed(self, indices: tuple, value):
-        cdef char *itemp = self.get_item_pointer(indices)
+        cdef char *itemp = memoryview.get_item_pointer(self, indices)
         self.assign_item_from_object(itemp, value)
 
+    # treat as cython.final
     cdef setitem_indexed1(self, index, value):
         cdef char *buffer = <char *> self.view.buf
         cdef char *itemp = pybuffer_index(&self.view, buffer, index, 0)

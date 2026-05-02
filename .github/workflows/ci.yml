@@ -7,12 +7,20 @@ on:
       - '!Demos/benchmarks/**'
       - '!.github/**'
       - '.github/workflows/ci.yml'
+      - '**/*.md'
+      - '**/*.rst'
+      - '!docs/**'
+      - 'docs/examples/**'
   pull_request:
     paths:
       - '**'
       - '!Demos/benchmarks/**'
       - '!.github/**'
       - '.github/workflows/ci.yml'
+      - '!**/*.md'
+      - '!**/*.rst'
+      - '!docs/**'
+      - 'docs/examples/**'
   workflow_dispatch:
 
 concurrency:
@@ -38,6 +46,9 @@ jobs:
 
   ci-early:
     strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+
       matrix:
         os: [ubuntu-22.04, windows-2022, macos-latest]
         backend: [c, cpp]
@@ -246,6 +257,12 @@ jobs:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
       backend: ${{ matrix.backend }}
+      limited_api: ${{ matrix.limited_api }}
+      # shared_utility - not used in this matrix
+      gcc_version: ${{ matrix.gcc_version }}
+      extra_cflags: ${{ matrix.extra_cflags }}
+      cython_compile_all: ${{ matrix.cython_compile_all }}
+      no_cython_compile: ${{ matrix.no_cython_compile }}
       extra_hash: ${{ matrix.extra_hash }}
 
 
@@ -263,9 +280,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Codespell
-        uses: codespell-project/actions-codespell@v2
+        uses: codespell-project/actions-codespell@8f01853be192eb0f849a5c7d721450e7a467c579 # v2.2
 
 
   codestyle:
@@ -280,12 +299,13 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Setup python
-        uses: actions/setup-python@v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -303,19 +323,20 @@ jobs:
     timeout-minutes: 15
 
     env:
-      PYTHON_VERSION: "3.9"
+      PYTHON_VERSION: "3.13"
       BACKEND: "c,cpp"
       TEST_CODE_STYLE: "1"
       NO_CYTHON_COMPILE: "1"
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Setup python
-        uses: actions/setup-python@v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -325,7 +346,7 @@ jobs:
           make -C docs html
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: htmldocs
           path: docs/build/html

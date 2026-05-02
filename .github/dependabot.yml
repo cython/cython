@@ -2,6 +2,7 @@ version: 2
 updates:
   # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
+    target-branch: "master"
     directory: "/"
     schedule:
       # Check for updates to GitHub Actions every month
@@ -10,11 +11,40 @@ updates:
       github-actions:
         patterns:
           - "*"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "github-actions"
+    target-branch: "3.2.x"
+    directory: "/"
+    schedule:
+      # Check for updates to GitHub Actions every month
+      interval: "monthly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7
+
   # The following is designed to update only cibuildwheel, and is here so that
   # it's kept in sync with github actions above.
   - package-ecosystem: "pip"
+    target-branch: "master"
     directory: ".github"
     schedule:
       interval: "monthly"
     allow:
       - dependency-name: "cibuildwheel"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "pip"
+    target-branch: "3.2.x"
+    directory: ".github"
+    schedule:
+      interval: "monthly"
+    allow:
+      - dependency-name: "cibuildwheel"
+    cooldown:
+      default-days: 7

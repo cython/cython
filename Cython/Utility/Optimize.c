@@ -314,7 +314,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 //@requires: ObjectHandling.c::IterFinish
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_AVOID_BORROWED_REFS
 #include <string.h>
 #endif
 
@@ -323,12 +323,12 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
     is_dict = is_dict || likely(PyDict_CheckExact(iterable));
     *p_source_is_dict = is_dict;
     if (is_dict) {
-#if !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_AVOID_BORROWED_REFS
         *p_orig_length = PyDict_Size(iterable);
         Py_INCREF(iterable);
         return iterable;
 #else
-        // On PyPy3, we need to translate manually a few method names.
+        // On PyPy3/GraalPy, we need to translate manually a few method names.
         // This logic is not needed on CPython thanks to the fast case above.
         static PyObject *py_items = NULL, *py_keys = NULL, *py_values = NULL;
         PyObject **pp = NULL;
@@ -354,7 +354,7 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
         iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
         if (!iterable)
             return NULL;
-#if !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_AVOID_BORROWED_REFS
         if (PyTuple_CheckExact(iterable) || PyList_CheckExact(iterable))
             return iterable;
 #endif
@@ -1030,6 +1030,7 @@ fallback:
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace); /*proto*/
 
 /////////////// PyNumberPow2 ///////////////
+//@requires: Exceptions.c::IgnoreException
 
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace) {
 // in CPython, 1<<N is substantially faster than 2**N
@@ -1067,8 +1068,11 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
             Py_DECREF(one);
             return result;
         }
-    } else if (shiftby == -1 && PyErr_Occurred()) {
-        PyErr_Clear();
+    } else if (shiftby == -1) {
+        PyObject *err = PyErr_Occurred();
+        if (err && !__Pyx_IgnoreGivenException(err, PyExc_Exception)) {
+            return NULL; // BaseException
+        }
     }
 fallback:
 #endif
