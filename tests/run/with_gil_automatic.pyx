@@ -10,7 +10,7 @@ cimport cython
 @cython.test_assert_path_exists(
     "//GILStatNode",
     "//GILStatNode//GILStatNode",
-    "//GILStatNode//GILStatNode//NameNode[@name = 'print']",
+    "//GILStatNode//GILStatNode//PrintStatNode",
 )
 def test_print_in_nogil_section(x):
     """
@@ -23,7 +23,7 @@ def test_print_in_nogil_section(x):
 
 @cython.test_assert_path_exists(
     "//GILStatNode",
-    "//GILStatNode//NameNode[@name = 'print']",
+    "//GILStatNode//PrintStatNode",
 )
 @cython.test_fail_if_path_exists(
     "//GILStatNode//GILStatNode",

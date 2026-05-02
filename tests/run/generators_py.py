@@ -375,7 +375,7 @@ def test_del_in_generator():
     yield a
     del a
 
-@cython.test_fail_if_path_exists("//IfStatNode", "//NameNode[@name = 'print']")
+@cython.test_fail_if_path_exists("//IfStatNode", "//PrintStatNode")
 def test_yield_in_const_conditional_false():
     """
     >>> list(test_yield_in_const_conditional_false())
@@ -385,7 +385,7 @@ def test_yield_in_const_conditional_false():
         print((yield 1))
 
 @cython.test_fail_if_path_exists("//IfStatNode")
-@cython.test_assert_path_exists("//*[@function and ./NameNode[@name = 'print']]")
+@cython.test_assert_path_exists("//PrintStatNode")
 def test_yield_in_const_conditional_true():
     """
     >>> list(test_yield_in_const_conditional_true())
@@ -394,6 +394,7 @@ def test_yield_in_const_conditional_true():
     """
     if True:
         print((yield 1))
+
 
 def test_generator_scope():
     """

@@ -6812,13 +6812,18 @@ class PrintStatNode(StatNode):
     #  arg_tuple         TupleNode
     #  stream            ExprNode or None (stdout)
     #  append_newline    boolean
+    #
+    # tranformed into
+    #  print_function_call  ExprStatNode
 
-    child_attrs = ["arg_tuple", "stream"]
+    print_function_call = None
+
+    child_attrs = ["arg_tuple", "stream", "print_function_call"]
 
     def analyse_expressions(self, env):
         from .ExprNodes import (
             DictNode, UnicodeNode, SimpleCallNode, GeneralCallNode,
-            NameNode
+            NameNode, IdentifierStringNode
         )
 
         func = NameNode(
@@ -6830,12 +6835,12 @@ class PrintStatNode(StatNode):
             key_value_pairs = []
             if self.stream:
                 key_value_pairs.append((
-                    UnicodeNode(self.pos, value=EncodedString("file")),
+                    IdentifierStringNode(self.pos, value=EncodedString("file")),
                     self.stream
                 ))
             if not self.append_newline:
                 key_value_pairs.append((
-                    UnicodeNode(self.pos, value=EncodedString("end")),
+                    IdentifierStringNode(self.pos, value=EncodedString("end")),
                     UnicodeNode(self.pos, value=EncodedString(" "))
                 ))
             kwargs = DictNode.from_pairs(self.pos, key_value_pairs)
@@ -6849,7 +6854,12 @@ class PrintStatNode(StatNode):
                 self.pos,
                 function=func, args=self.arg_tuple.args
             )
-        return ExprStatNode(self.pos, expr=call).analyse_expressions(env)
+        self.print_function_call = ExprStatNode(self.pos, expr=call).analyse_expressions(env)
+        self.stream = self.arg_tuple = None  # unused from now on
+        return self
+
+    def generate_execution_code(self, code):
+        self.print_function_call.generate_execution_code(code)
 
 
 class ExecStatNode(StatNode):

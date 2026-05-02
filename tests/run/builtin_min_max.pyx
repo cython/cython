@@ -10,12 +10,6 @@ class loud_list(list):
         return super(loud_list, self).__len__()
 
 
-# Note on path assertions:
-# Detecting 'print' is difficult because it gets transformed to a CallNode but
-# which type of call is a arbitrary and the path assertions don't work with inheritance.
-# Therefore we instead look for the attribute 'function' and a NameNode(name='print')
-# as a signature of the right CallNode
-
 # min()
 
 @cython.test_assert_path_exists("//CondExprNode")
@@ -101,10 +95,10 @@ def literal_min3():
 
 
 @cython.test_assert_path_exists(
-    '//*[@function and ./NameNode[@name = "print"]]//CondExprNode')
+    '//PrintStatNode//CondExprNode')
 @cython.test_fail_if_path_exists(
-    '//*[@function and ./NameNode[@name = "print"]]//SimpleCallNode//CoerceToPyTypeNode',
-    '//*[@function and ./NameNode[@name = "print"]]//SimpleCallNode//ConstNode')
+    '//PrintStatNode//SimpleCallNode//CoerceToPyTypeNode',
+    '//PrintStatNode//SimpleCallNode//ConstNode')
 def test_min2():
     """
     >>> test_min2()
@@ -134,10 +128,10 @@ def test_min2():
 
 
 @cython.test_assert_path_exists(
-    '//*[@function and ./NameNode[@name = "print"]]//CondExprNode')
+    '//PrintStatNode//CondExprNode')
 @cython.test_fail_if_path_exists(
-    '//*[@function and ./NameNode[@name = "print"]]//SimpleCallNode//CoerceToPyTypeNode',
-    '//*[@function and ./NameNode[@name = "print"]]//SimpleCallNode//ConstNode')
+    '//PrintStatNode//SimpleCallNode//CoerceToPyTypeNode',
+    '//PrintStatNode//SimpleCallNode//ConstNode')
 def test_min3():
     """
     >>> test_min3()
@@ -156,10 +150,10 @@ def test_min3():
 
 
 @cython.test_assert_path_exists(
-    '//*[@function and ./NameNode[@name = "print"]]//CondExprNode')
+    '//PrintStatNode//CondExprNode')
 @cython.test_fail_if_path_exists(
-    '//*[@function and ./NameNode[@name = "print"]]//SimpleCallNode//CoerceToPyTypeNode',
-    '//*[@function and ./NameNode[@name = "print"]]//SimpleCallNode//ConstNode')
+    '//PrintStatNode//SimpleCallNode//CoerceToPyTypeNode',
+    '//PrintStatNode//SimpleCallNode//ConstNode')
 def test_minN():
     """
     >>> test_minN()
@@ -238,10 +232,10 @@ def max1(x):
 
 
 @cython.test_assert_path_exists(
-    '//*[@function and ./NameNode[@name = "print"]]//CondExprNode')
+    '//PrintStatNode//CondExprNode')
 @cython.test_fail_if_path_exists(
-    '//*[@function and ./NameNode[@name = "print"]]//SimpleCallNode//CoerceToPyTypeNode',
-    '//*[@function and ./NameNode[@name = "print"]]//SimpleCallNode//ConstNode')
+    '//PrintStatNode//SimpleCallNode//CoerceToPyTypeNode',
+    '//PrintStatNode//SimpleCallNode//ConstNode')
 def test_max2():
     """
     >>> test_max2()
@@ -271,10 +265,10 @@ def test_max2():
 
 
 @cython.test_assert_path_exists(
-    '//*[@function and ./NameNode[@name = "print"]]//CondExprNode')
+    '//PrintStatNode//CondExprNode')
 @cython.test_fail_if_path_exists(
-    '//*[@function and ./NameNode[@name = "print"]]//SimpleCallNode//CoerceToPyTypeNode',
-    '//*[@function and ./NameNode[@name = "print"]]//SimpleCallNode//ConstNode')
+    '//PrintStatNode//SimpleCallNode//CoerceToPyTypeNode',
+    '//PrintStatNode//SimpleCallNode//ConstNode')
 def test_max3():
     """
     >>> test_max3()
@@ -293,10 +287,10 @@ def test_max3():
 
 
 @cython.test_assert_path_exists(
-    '//*[@function and ./NameNode[@name = "print"]]//CondExprNode')
+    '//PrintStatNode//CondExprNode')
 @cython.test_fail_if_path_exists(
-    '//*[@function and ./NameNode[@name = "print"]]//SimpleCallNode//CoerceToPyTypeNode',
-    '//*[@function and ./NameNode[@name = "print"]]//SimpleCallNode//ConstNode')
+    '//PrintStatNode//SimpleCallNode//CoerceToPyTypeNode',
+    '//PrintStatNode//SimpleCallNode//ConstNode')
 def test_maxN():
     """
     >>> test_maxN()
