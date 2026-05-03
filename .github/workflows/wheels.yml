@@ -241,7 +241,7 @@ jobs:
           cd ./wheel_check
           for filename in *.whl; do
             twine check "$filename"
-            if [[ "$filename" == *"abi3"*]]; then
+            if [[ "$filename" == *"abi3"* ]]; then
               abi3audit --strict --report "$filename"
             fi
           done
