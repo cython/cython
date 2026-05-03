@@ -60,7 +60,6 @@ jobs:
             limited_api: true
             abi3audit: true
             extra_hash: "-limited_api"
-            extra_python_versions: ["3.13", "3.14"]
           # Cython Shared Module
           - os: ubuntu-22.04
             backend: "c,cpp"
@@ -76,7 +75,6 @@ jobs:
       abi3audit: ${{ matrix.abi3audit }}
       shared_utility: ${{ matrix.shared_utility }}
       extra_hash: ${{ matrix.extra_hash }}
-      extra_python_versions: ${{ join(matrix.extra_python_versions, ' ') }}
 
 
   ci-all:
