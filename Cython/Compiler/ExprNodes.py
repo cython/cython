@@ -4508,7 +4508,7 @@ class IndexNode(_IndexingBaseNode):
 
         self.wrap_in_nonecheck_node(env, getting)
 
-        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
+        if getting and base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
             self.type = base_type
             return self.coerce_to(sub_type, env)
 
