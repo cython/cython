@@ -402,8 +402,6 @@ static PyObject *__Pyx_PyObject_GetItem(PyObject *obj, PyObject *key) {
 #if !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key);/*proto*/
 
-// `PyDict_GetItem` accepts any dict subclass at the C level, so frozendict
-// (which is a true dict subclass on Python 3.15+) takes the fast path here too.
 #define __Pyx_PyObject_Dict_GetItem(obj, name) \
     (likely(__Pyx_PyAnyDict_CheckExact(obj)) ? \
      __Pyx_PyDict_GetItem(obj, name) : PyObject_GetItem(obj, name))
@@ -555,7 +553,6 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
 #endif
 #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
     // This dict check is so cheap after the other type checks above that it would be costly *not* to do it.
-    // Frozendict shares dict's mp_subscript layout, so the same fast path applies.
     if (__Pyx_PyAnyDict_CheckExact(o)) {
         return __Pyx_GetItemInt_Fast_mapping(o, PyDict_Type.tp_as_mapping->mp_subscript, i);
     } else
