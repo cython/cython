@@ -24,9 +24,9 @@
 // functions aren't visible yet.
 typedef struct arraydescr {
 #if PY_VERSION_HEX <= 0x030F00a8
-    const char* typecode;
-#else
     char typecode;
+#else
+    const char* typecode;
 #endif
     int itemsize;
     PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
@@ -38,18 +38,19 @@ typedef struct arraydescr {
 
 static CYTHON_INLINE Py_ssize_t __Pyx_PyArrayDescr_typecode_length(arraydescr *desc) {
 #if PY_VERSION_HEX <= 0x030F00a8
-    return strlen(desc->typecode);
-#else
+    (void)desc;
     return 1;
+#else
+    return strlen(desc->typecode);
 #endif
 }
 
 static CYTHON_INLINE void __Pyx_PyArrayDescr_copy_typecode(arraydescr *desc, char *dst) {
 #if PY_VERSION_HEX <= 0x030F00a8
-    strcpy(dst, desc->typecode);
-#else
     dst[0] = desc->typecode;
     dst[1] = '\0';
+#else
+    strcpy(dst, desc->typecode);
 #endif
 }
 
