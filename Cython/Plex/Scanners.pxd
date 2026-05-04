@@ -21,7 +21,7 @@ cdef class Scanner:
     cdef public str text
     cdef public initial_state # int?
     cdef public state_name
-    cdef public list[tuple] queue
+    cdef public list queue
     cdef public bint trace
     cdef public cur_char
     cdef public long input_state
