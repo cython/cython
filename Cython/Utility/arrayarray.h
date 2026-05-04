@@ -48,7 +48,7 @@ static CYTHON_INLINE void __Pyx_PyArrayDescr_copy_typecode(arraydescr *desc, cha
 #if PY_VERSION_HEX <= 0x030F00a8
     strcpy(dst, desc->typecode);
 #else
-    dst[0] = arrayarray->typecode;
+    dst[0] = desc->typecode;
     dst[1] = '\0';
 #endif
 }
