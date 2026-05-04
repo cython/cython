@@ -23,12 +23,35 @@
 // below.  That's defined later because the appropriate get and set
 // functions aren't visible yet.
 typedef struct arraydescr {
-    int typecode;
+#if PY_VERSION_HEX <= 0x030F00a8
+    const char* typecode;
+#else
+    char typecode;
+#endif
     int itemsize;
     PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
     int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
+#if PY_VERSION_HEX <= 0x030F00a8
     char *formats;
+#endif
 } arraydescr;
+
+static CYTHON_INLINE Py_ssize_t __Pyx_PyArrayDescr_typecode_length(arraydescr *desc) {
+#if PY_VERSION_HEX <= 0x030F00a8
+    return strlen(desc->typecode);
+#else
+    return 1;
+#endif
+}
+
+static CYTHON_INLINE void __Pyx_PyArrayDescr_copy_typecode(arraydescr *desc, char *dst) {
+#if PY_VERSION_HEX <= 0x030F00a8
+    strcpy(dst, desc->typecode);
+#else
+    dst[0] = arrayarray->typecode;
+    dst[1] = '\0';
+#endif
+}
 
 typedef union {
     char *ob_item;

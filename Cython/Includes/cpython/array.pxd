@@ -70,10 +70,13 @@ cdef extern from *:  # Hard-coded utility code hack.
     ctypedef object GETF(array a, Py_ssize_t ix)
     ctypedef object SETF(array a, Py_ssize_t ix, object o)
     ctypedef struct arraydescr:  # [object arraydescr]:
-        char typecode
+        char typecode   # This is untrue in Python 3.15+ but it isn't easy to expose both
         int itemsize
         GETF getitem    # PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
         SETF setitem    # int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
+
+    Py_ssize_t _typecode_length "__Pyx_PyArrayDescr_typecode_length"(arraydescr *descr)
+    void _copy_typecode "__Pyx_PyArrayDescr_copy_typecode"(arraydescr *descr, char *dst)
 
     ctypedef union __data_union "__Pyx_data_union":
         # views of ob_item:
@@ -118,15 +121,14 @@ cdef extern from *:  # Hard-coded utility code hack.
             info.itemsize = self.ob_descr.itemsize   # e.g. sizeof(float)
             info.len = info.itemsize * item_count
 
-            info.shape = <Py_ssize_t*> PyObject_Malloc(sizeof(Py_ssize_t) + 2)
+            info.shape = <Py_ssize_t*> PyObject_Malloc(sizeof(Py_ssize_t) + _typecode_length(self.ob_descr) +  1)
             if not info.shape:
                 raise MemoryError()
             info.shape[0] = item_count      # constant regardless of resizing
             info.strides = &info.itemsize
 
             info.format = <char*> (info.shape + 1)
-            info.format[0] = self.ob_descr.typecode
-            info.format[1] = 0
+            _copy_typecode(self.ob_descr, info.format)
             info.obj = self
 
         def __releasebuffer__(self, Py_buffer* info):
