@@ -135,12 +135,6 @@ jobs:
           # ================
           # GCC 13 (with broad language standards)
           - os: ubuntu-24.04
-            python-version: "3.9"
-            backend: c
-            gcc_version: 13
-            extra_cflags: "-std=c99"
-            extra_hash: "-c99"
-          - os: ubuntu-24.04
             python-version: "3.10"
             backend: c
             gcc_version: 13
