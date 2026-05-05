@@ -15091,29 +15091,37 @@ class CoerceToBooleanNode(CoercionNode):
 
     type = PyrexTypes.c_bint_type
 
-    # Note that all of these need a check if CYTHON_ASSUME_SAFE_SIZE is false.
-    # They should also all return something compatible with Py_ssize_t
-    # (i.e. Py_ssize_t or a smaller int type).
-    _special_builtins = {
-        Builtin.list_type:       '__Pyx_PyList_GET_SIZE',
-        Builtin.tuple_type:      '__Pyx_PyTuple_GET_SIZE',
-        Builtin.set_type:        '__Pyx_PySet_GET_SIZE',
-        Builtin.dict_type:       '__Pyx_PyDict_GET_SIZE',
-        Builtin.frozenset_type:  '__Pyx_PySet_GET_SIZE',
-        Builtin.bytes_type:      '__Pyx_PyBytes_GET_SIZE',
-        Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
-        Builtin.unicode_type:    '__Pyx_PyUnicode_IS_TRUE',
-        Builtin.int_type:        '__Pyx_PyLong_IsNonZero',
-        Builtin.float_type:      '__Pyx_PyFloat_IsNonZero',
-    }
-
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
         if arg.type.is_pyobject:
             self.is_temp = 1
 
+    @staticmethod
+    def _special_builtin(typ) -> str:
+        # Note that all of these need a check if CYTHON_ASSUME_SAFE_SIZE is false.
+        # They should also all return something compatible with Py_ssize_t
+        # (i.e. Py_ssize_t or a smaller int type).
+        if typ.is_pylist_type:
+            return '__Pyx_PyList_GET_SIZE'
+        if typ.is_pytuple_type:
+            return '__Pyx_PyTuple_GET_SIZE'
+        if typ.is_pyset_type or typ.is_pyfrozenset_type:
+            return '__Pyx_PySet_GET_SIZE'
+        if typ.is_pydict_type or typ.is_pyfrozendict_type:
+            return '__Pyx_PyDict_GET_SIZE'
+        if typ.is_pybytes_type:
+            return '__Pyx_PyBytes_GET_SIZE'
+        if typ.is_pybytearray_type:
+            return '__Pyx_PyByteArray_GET_SIZE'
+        if typ.is_pystr_type:
+            return '__Pyx_PyUnicode_IS_TRUE'
+        if typ.is_pyint_type:
+            return '__Pyx_PyLong_IsNonZero'
+        if typ.is_pyfloat_type:
+            return '__Pyx_PyFloat_IsNonZero'
+
     def nogil_check(self, env):
-        if self.arg.type.is_pyobject and self._special_builtins.get(self.arg.type) is None:
+        if self.arg.type.is_pyobject and self._special_builtin(self.arg.type) is None:
             self.gil_error()
 
     gil_message = "Truth-testing Python object"
@@ -15130,7 +15138,7 @@ class CoerceToBooleanNode(CoercionNode):
     def generate_result_code(self, code):
         if not self.is_temp:
             return
-        test_func = self._special_builtins.get(self.arg.type)
+        test_func = self._special_builtin(self.arg.type)
         if test_func is not None:
             if self.arg.may_be_none():
                 code.putln(f"if ({self.arg.py_result()} == Py_None) {self.result()} = 0;")
