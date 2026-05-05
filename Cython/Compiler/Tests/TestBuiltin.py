@@ -28,6 +28,7 @@ class TestBuiltinReturnTypes(TimedTest):
             'sentinel': (3, 15, 0, 'beta', 1),
         }
         test_module_scope = ModuleScope('test', None, None)
+        pos = None
 
         for type_name, methods in inferred_method_return_types.items():
             try:
@@ -41,8 +42,7 @@ class TestBuiltinReturnTypes(TimedTest):
             for method_name, return_type_name in methods.items():
                 builtin_type = builtin_scope.lookup(type_name).type
                 return_type = find_return_type_of_builtin_method(
-                    pos=None, env=test_module_scope, builtin_type=builtin_type, method_name=method_name
-                )
+                    pos, test_module_scope, builtin_type, method_name)
 
                 if return_type.is_builtin_type:
                     if '[' in return_type_name:
@@ -56,8 +56,7 @@ class TestBuiltinReturnTypes(TimedTest):
                             subscripted_types = [e.type if e else py_object_type for e in subscripted_type_entries]
                             origin_type = builtin_scope.lookup(origin_type_name).type
                             return_type_name = origin_type.specialize_here(
-                                pos=None, env=test_module_scope, template_values=subscripted_types
-                            ).name
+                                pos, test_module_scope, subscripted_types).name
                     if return_type_name == 'T':
                         return_type_name = type_name
 
