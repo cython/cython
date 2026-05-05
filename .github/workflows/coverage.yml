@@ -60,7 +60,7 @@ jobs:
 
       - name: Upload Coverage HTML to GH Pages
         if: github.repository == 'cython/cython' && github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: './gh_pages_coverage/'
 

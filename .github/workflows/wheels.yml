@@ -113,7 +113,7 @@ jobs:
 
       - name: Build wheels
         # Nb. dependabot should keep cibuildwheel version pin consistent with generate-matrix job above
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@v3.4.1
         with:
           only: ${{ matrix.only }}
 
@@ -152,7 +152,7 @@ jobs:
           python-version: '3.13'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@v3.4.1
         env:
           # Smaller set of platforms that we only provide Stable ABI wheels for
           CIBW_BUILD: |
@@ -262,7 +262,7 @@ jobs:
           name: all_wheels
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: github.ref_type == 'tag'
         with:
           files: |
