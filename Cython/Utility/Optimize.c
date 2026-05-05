@@ -331,17 +331,12 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
 #else
         // On PyPy3/GraalPy, we need to translate manually a few method names.
         // This logic is not needed on CPython thanks to the fast case above.
-        if (method_name) {
-            const char *name = PyUnicode_AsUTF8(method_name);
-            if (strncmp(name, "iter", 4) == 0 && (
-                    strcmp(name+4, "items") == 0 ||
-                    strcmp(name+4, "keys") == 0 ||
-                    strcmp(name+4, "values") == 0)) {
-                method_name = PyUnicode_FromString(name + 4);
-                if (unlikely(!method_name))
-                    return NULL;
-                owned_method_name = 1;
-            }
+        if (method_name && PyUnicode_GET_LENGTH(method_name) > 6) {
+            // This is enough to distinguish the "iter*" names from "items", "values", "keys".
+            method_name = PyUnicode_Substring(method_name, 4, 10);  // longest is "itervalues" (len=10)
+            if (unlikely(!method_name))
+                return NULL;
+            owned_method_name = 1;
         }
 #endif
     }
