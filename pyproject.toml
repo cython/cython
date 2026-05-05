@@ -19,6 +19,12 @@ test-command = [
     "cython {project}/Cython/Compiler/Scanning.py",
     "cython {project}/Cython/Compiler/Parsing.py",
 ]
+# For cibuildwheel, use strict version constraints to ensure it's as reproducible as possible.
+# This means not installing from pyproject.toml but instead using a separate, more constrained file.
+# However, keep pyproject.toml build-system.requires open to not artificially constrain users
+# who may be trying to install on future versions of Python with unknown setuptools support. 
+build-frontend = "build; args: --no-isolation"
+before-build = "pip install -r .wheel_build_requirements/requirements.txt --no-deps --only-binary :all:"
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64", "aarch64", "i686", "armv7l"]
