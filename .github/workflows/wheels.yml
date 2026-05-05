@@ -216,8 +216,7 @@ jobs:
           path: ./dist/*.whl
 
   # Keep abi3audit and twine checks out of the the wheel build step
-  # to minimize the dependencies that need to be installed (ideally to
-  # steptools, cibuildwheel and cibuildwheel's dependencies only).
+  # to minimize the dependencies that need to be installed.
   inspect_wheels:
     name: Inspect Release Assets
     needs: [ build_sdist_pure_wheel, build_wheels, build_limited_api_wheels ]
@@ -239,12 +238,14 @@ jobs:
       - name: Run tools on wheels
         run: |
           cd ./wheel_check
+          ERRORS=0
           for filename in *.whl; do
-            twine check "$filename"
+            twine check "$filename" || ERRORS=$((ERRORS + 1))
             if [[ "$filename" == *"abi3"* ]]; then
-              abi3audit --strict --report "$filename"
+              abi3audit --strict --report "$filename" || ERRORS=$((ERRORS + 1))
             fi
           done
+          exit $ERRORS
 
   upload_release_assets:
     name: Upload Release Assets
