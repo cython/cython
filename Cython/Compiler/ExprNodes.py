@@ -15119,6 +15119,7 @@ class CoerceToBooleanNode(CoercionNode):
             return '__Pyx_PyLong_IsNonZero'
         if typ.is_pyfloat_type:
             return '__Pyx_PyFloat_IsNonZero'
+        return None
 
     def nogil_check(self, env):
         if self.arg.type.is_pyobject and self._special_builtin(self.arg.type) is None:
