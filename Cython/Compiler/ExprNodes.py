@@ -15122,7 +15122,8 @@ class CoerceToBooleanNode(CoercionNode):
         return None
 
     def nogil_check(self, env):
-        if self.arg.type.is_pyobject and self._special_builtin(self.arg.type) is None:
+        expr_type = self.arg.type
+        if expr_type.is_builtin_type and self._special_builtin(expr_type) is None:
             self.gil_error()
 
     gil_message = "Truth-testing Python object"
