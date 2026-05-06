@@ -15139,7 +15139,8 @@ class CoerceToBooleanNode(CoercionNode):
     def generate_result_code(self, code):
         if not self.is_temp:
             return
-        test_func = self._special_builtin(self.arg.type)
+        expr_type = self.arg.type
+        test_func = self._special_builtin(expr_type) if expr_type.is_builtin_type else None
         if test_func is not None:
             if self.arg.may_be_none():
                 code.putln(f"if ({self.arg.py_result()} == Py_None) {self.result()} = 0;")
