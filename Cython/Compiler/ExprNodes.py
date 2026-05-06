@@ -15098,6 +15098,8 @@ class CoerceToBooleanNode(CoercionNode):
 
     @staticmethod
     def _special_builtin(typ) -> str:
+        if not typ.is_builtin_type:
+            return None
         # Note that all of these need a check if CYTHON_ASSUME_SAFE_SIZE is false.
         # They should also all return something compatible with Py_ssize_t
         # (i.e. Py_ssize_t or a smaller int type).
