@@ -2,13 +2,8 @@ from .object cimport PyObject
 from .pyport cimport uint64_t
 
 cdef extern from *:
-    # On Python 2, PyDict_GetItemWithError is called _PyDict_GetItemWithError
-    # Also backport PyDict_GetItemStringRef and PyDict_SetDefaultRef
+    # Backport PyDict_GetItemStringRef and PyDict_SetDefaultRef
     """
-    #if PY_MAJOR_VERSION <= 2
-    #define PyDict_GetItemWithError _PyDict_GetItemWithError
-    #endif
-
     #if __PYX_LIMITED_VERSION_HEX < 0x030d0000
     static CYTHON_INLINE int
     __Pyx_CAPI_PyDict_GetItemStringRef(PyObject *mp, const char *key, PyObject **result)

@@ -433,7 +433,7 @@ __Pyx_PyAsyncGen_ClearFreeLists(void)
 
     while (CGLOBAL(__Pyx_ag_value_freelist_free)) {
         __pyx__PyAsyncGenWrappedValue *o;
-        o = CGLOBAL(__Pyx_ag_value_freelist)[--CGLOBAL(__Pyx_ag_value_freelist_free]);
+        o = CGLOBAL(__Pyx_ag_value_freelist)[--CGLOBAL(__Pyx_ag_value_freelist_free)];
         assert(__pyx__PyAsyncGenWrappedValue_CheckExact((PyObject*)o));
         __Pyx_PyHeapTypeObject_GC_Del(o);
     }

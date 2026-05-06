@@ -221,24 +221,28 @@ static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
     PyObject *exc, *val, *val2, *tb;
     __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
     assert(PyErr_Occurred());
-    PyErr_Fetch(&exc, &val, &tb);
+    __Pyx_PyErr_FetchException(&exc, &val, &tb);
+#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
     PyErr_NormalizeException(&exc, &val, &tb);
     if (tb != NULL) {
         PyException_SetTraceback(val, tb);
         Py_DECREF(tb);
     }
     Py_DECREF(exc);
+#endif
     assert(!PyErr_Occurred());
     PyErr_Format(PyExc_TypeError,
         "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
     __Pyx_DECREF_TypeName(source_type_name);
 
-    PyErr_Fetch(&exc, &val2, &tb);
+    __Pyx_PyErr_FetchException(&exc, &val2, &tb);
+#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
     PyErr_NormalizeException(&exc, &val2, &tb);
+#endif
     Py_INCREF(val);
     PyException_SetCause(val2, val);
     PyException_SetContext(val2, val);
-    PyErr_Restore(exc, val2, tb);
+    __Pyx_PyErr_RestoreException(exc, val2, tb);
 #endif
 }
 
@@ -252,10 +256,11 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     } else
 #if CYTHON_COMPILING_IN_CPYTHON && defined(CO_ITERABLE_COROUTINE)
 #if PY_VERSION_HEX >= 0x030C00A6
-    if (PyGen_CheckExact(obj) && (PyGen_GetCode((PyGenObject*)obj)->co_flags & CO_ITERABLE_COROUTINE)) {
+    if (PyGen_CheckExact(obj) && (PyGen_GetCode((PyGenObject*)obj)->co_flags & CO_ITERABLE_COROUTINE))
 #else
-    if (PyGen_CheckExact(obj) && ((PyGenObject*)obj)->gi_code && ((PyCodeObject *)((PyGenObject*)obj)->gi_code)->co_flags & CO_ITERABLE_COROUTINE) {
+    if (PyGen_CheckExact(obj) && ((PyGenObject*)obj)->gi_code && ((PyCodeObject *)((PyGenObject*)obj)->gi_code)->co_flags & CO_ITERABLE_COROUTINE)
 #endif
+    {
         // Python generator marked with "@types.coroutine" decorator
         return __Pyx_NewRef(obj);
     } else
@@ -268,9 +273,9 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
             // We need to distinguish between "doesn't have __await__" vs "__await__ failed"
             if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
                 PyObject *type, *value, *traceback;
-                PyErr_Fetch(&type, &value, &traceback);
+                __Pyx_PyErr_FetchException(&type, &value, &traceback);
                 int has_attr = PyObject_HasAttr(obj, PYIDENT("__await__"));
-                PyErr_Restore(type, value, traceback);
+                __Pyx_PyErr_RestoreException(type, value, traceback);
                 if (!has_attr) goto slot_error;
             }
         }
@@ -419,6 +424,7 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
     }
     PyException_SetCause(new_exc, val); // steals ref to val
     PyErr_SetObject(PyExc_RuntimeError, new_exc);
+    Py_DECREF(new_exc);
 }
 
 
@@ -576,6 +582,7 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self);
 //@requires: CommonStructures.c::CommonTypesMetaclass
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ExtensionTypes.c::CallTypeTraverse
+//@requires: Synchronization.c::CriticalSections
 
 #if !CYTHON_COMPILING_IN_LIMITED_API
 #include <frameobject.h>
@@ -1541,14 +1548,10 @@ __Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value, void 
     return 0;
 }
 
-static PyObject *
-__Pyx__Coroutine_get_frame(__pyx_CoroutineObject *self)
-{
 #if !CYTHON_COMPILING_IN_LIMITED_API
+static PyObject *
+__Pyx__Coroutine_get_frame_locked(__pyx_CoroutineObject *self) {
     PyObject *frame;
-    #if PY_VERSION_HEX >= 0x030d0000
-    Py_BEGIN_CRITICAL_SECTION(self);
-    #endif
     frame = self->gi_frame;
     if (!frame) {
         if (unlikely(!self->gi_code)) {
@@ -1580,9 +1583,19 @@ __Pyx__Coroutine_get_frame(__pyx_CoroutineObject *self)
         }
     }
     Py_INCREF(frame);
-    #if PY_VERSION_HEX >= 0x030d0000
-    Py_END_CRITICAL_SECTION();
-    #endif
+    return frame;
+}
+#endif
+
+
+static PyObject *
+__Pyx__Coroutine_get_frame(__pyx_CoroutineObject *self)
+{
+#if !CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *frame;
+    __Pyx_BEGIN_CRITICAL_SECTION((PyObject*)self);
+    frame = __Pyx__Coroutine_get_frame_locked(self);
+    __Pyx_END_CRITICAL_SECTION();
     return frame;
 #else
     // In the limited API there probably isn't much we can usefully do to get a frame
@@ -1656,35 +1669,23 @@ static char __Pyx_Coroutine_test_and_set_is_running(__pyx_CoroutineObject *gen) 
     // 2. They aren't *ultra* high performance, and so critical sections (locking) is appropriate
     //    instead of atomics.
     char result;
-    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
-    Py_BEGIN_CRITICAL_SECTION(gen);
-    #endif
+    __Pyx_BEGIN_CRITICAL_SECTION((PyObject*)gen);
     result = gen->is_running;
     gen->is_running = 1;
-    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
-    Py_END_CRITICAL_SECTION();
-    #endif
+    __Pyx_END_CRITICAL_SECTION();
     return result;
 }
 static void __Pyx_Coroutine_unset_is_running(__pyx_CoroutineObject *gen) {
-    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
-    Py_BEGIN_CRITICAL_SECTION(gen);
-    #endif
+    __Pyx_BEGIN_CRITICAL_SECTION((PyObject*)gen);
     assert(gen->is_running);
     gen->is_running = 0;
-    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
-    Py_END_CRITICAL_SECTION();
-    #endif
+    __Pyx_END_CRITICAL_SECTION();
 }
 static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *gen) {
     char result;
-    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
-    Py_BEGIN_CRITICAL_SECTION(gen);
-    #endif
+    __Pyx_BEGIN_CRITICAL_SECTION((PyObject*)gen);
     result = gen->is_running;
-    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
-    Py_END_CRITICAL_SECTION();
-    #endif
+    __Pyx_END_CRITICAL_SECTION();
     return result;
 }
 static PyObject *__Pyx_Coroutine_get_is_running_getter(PyObject *gen, void *closure) {

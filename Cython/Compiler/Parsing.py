@@ -10,7 +10,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                bytes_literal=object, StringEncoding=object,
                FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
-               Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
+               Builtin=object, ModuleNode=object, _unicode=object, _bytes=object,
                re=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
                partial=object, reduce=object,
                _CDEF_MODIFIERS=tuple, COMMON_BINOP_MISTAKES=dict)
@@ -28,8 +28,7 @@ from . import Builtin
 from . import StringEncoding
 from .StringEncoding import EncodedString, bytes_literal
 from .ModuleNode import ModuleNode
-from .Errors import error, warning, CompileError
-from .. import Utils
+from .Errors import error, warning
 from . import Future
 from . import Options
 
@@ -550,7 +549,7 @@ def p_trailer(s: PyrexScanner, node1):
 #             star_expr )
 
 @cython.cfunc
-def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True):
+def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tuple:
     # s.sy == '('
     s.next()
     positional_args = []
@@ -560,7 +559,7 @@ def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True):
     while s.sy != ')':
         if s.sy == '*':
             if starstar_seen:
-                s.error("Non-keyword arg following keyword arg", pos=s.position())
+                s.error("Non-keyword arg following keyword arg")
             s.next()
             positional_args.append(p_test(s))
             last_was_tuple_unpack = True
@@ -699,7 +698,7 @@ def p_subscript_list(s: PyrexScanner) -> tuple:
 #subscript: '.' '.' '.' | test | [test] ':' [test] [':' [test]]
 
 @cython.cfunc
-def p_subscript(s: PyrexScanner):
+def p_subscript(s: PyrexScanner) -> list:
     # Parse a subscript and return a list of
     # 1, 2 or 3 ExprNodes, depending on how
     # many slice elements were encountered.
@@ -731,7 +730,7 @@ def expect_ellipsis(s: PyrexScanner):
 
 
 @cython.cfunc
-def make_slice_nodes(pos, subscripts):
+def make_slice_nodes(pos, subscripts) -> list:
     # Convert a list of subscripts as returned
     # by p_subscript_list into a list of ExprNodes,
     # creating SliceNodes for elements with 2 or
@@ -1042,7 +1041,7 @@ def p_string_literal_shared_read(
     return result
 
 @cython.cfunc
-def _validate_kind_string(pos, systring: str):
+def _validate_kind_string(pos, systring: str) -> str:
     kind_string = systring.rstrip('"\'').lower()
     if len(kind_string) <= 1 or (len(kind_string) == 2 and kind_string in "rbrurfrtr"):
         return kind_string
@@ -1138,7 +1137,7 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
 
 
 @cython.cfunc
-def p_read_ft_string_expression(s: PyrexScanner):
+def p_read_ft_string_expression(s: PyrexScanner) -> str:
     strings = []
     while True:
         s.next()
@@ -1155,7 +1154,7 @@ def p_read_ft_string_expression(s: PyrexScanner):
 @cython.cfunc
 def p_ft_string_replacement_field(s: PyrexScanner,
                                 is_raw: cython.bint, is_single_quoted: cython.bint,
-                                tf_string_kind: cython.Py_UCS4):
+                                tf_string_kind: cython.Py_UCS4) -> list:
     result = []
     conversion_char = format_spec = expr = None
     t_string_expression = None
@@ -1199,7 +1198,7 @@ def p_ft_string_replacement_field(s: PyrexScanner,
             # validate the conversion char
             if conversion_char in ['}', ':', '']:
                 error(s.position(), "missing conversion character")
-            elif not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
+            elif ExprNodes.FormattedValueNode.find_conversion_func(conversion_char) is None:
                 error(s.position(), "invalid conversion character '%s'" % conversion_char)
                 s.next()
             elif s.position()[2] != (previous_pos[2] + 1):
@@ -1265,7 +1264,7 @@ def p_ft_string_replacement_field(s: PyrexScanner,
 def p_ft_string_middles(s: PyrexScanner,
                         is_raw: cython.bint, is_single_quoted: cython.bint,
                         is_format_string: cython.bint,
-                        tf_string_kind: cython.Py_UCS4):
+                        tf_string_kind: cython.Py_UCS4) -> list:
     middles: list = []
     builder = StringEncoding.UnicodeLiteralBuilder()
     pos = s.position()
@@ -1303,7 +1302,7 @@ def p_ft_string_middles(s: PyrexScanner,
     return middles
 
 @cython.cfunc
-def p_ft_string_literal(s: PyrexScanner):
+def p_ft_string_literal(s: PyrexScanner) -> tuple:
     # s.sy == BEGIN_FT_STRING
     kind_string = _validate_kind_string(s.position(), s.systring)
     tf_string_kind: cython.Py_UCS4 = 't' if 't' in kind_string else 'f'
@@ -1989,7 +1988,7 @@ def p_from_import_statement(s: PyrexScanner, first_statement: cython.bint = 0):
 
 
 @cython.cfunc
-def p_imported_name(s: PyrexScanner):
+def p_imported_name(s: PyrexScanner) -> tuple:
     pos = s.position()
     name = p_ident(s)
     as_name = p_as_name(s)
@@ -2685,7 +2684,7 @@ def p_suite_with_docstring(s: PyrexScanner, ctx, with_doc_only: cython.bint = Fa
 
 
 @cython.cfunc
-def p_positional_and_keyword_args(s: PyrexScanner, end_sy_set, templates = None):
+def p_positional_and_keyword_args(s: PyrexScanner, end_sy_set, templates = None) -> tuple:
     """
     Parses positional and keyword arguments. end_sy_set
     should contain any s.sy that terminate the argument list.
@@ -4018,7 +4017,7 @@ def p_c_class_definition(s: PyrexScanner, pos,  ctx):
         visibility = ctx.visibility,
         typedef_flag = ctx.typedef_flag,
         api = ctx.api,
-        module_name = ".".join(module_path),
+        module_name = EncodedString(".".join(module_path)),
         class_name = class_name,
         as_name = as_name,
         bases = bases,
@@ -4455,8 +4454,8 @@ def p_closed_pattern(s: PyrexScanner):
     | class_pattern
 
     For the sake avoiding too much backtracking, we know:
-    * starts with "{" is a sequence_pattern
-    * starts with "[" is a mapping_pattern
+    * starts with "{" is a mapping_pattern
+    * starts with "[" is a sequence_pattern
     * starts with "(" is a group_pattern or sequence_pattern
     * wildcard pattern is just identifier=='_'
     The rest are then tried in order with backtracking
@@ -4593,25 +4592,21 @@ def p_group_pattern(s: PyrexScanner):
 
 @cython.cfunc
 def p_sequence_pattern(s: PyrexScanner):
-    opener = s.sy
     pos = s.position()
-    if opener in ['[', '(']:
-        closer = ']' if opener == '[' else ')'
+    assert s.sy in ('(', '[')
+    closer = ')' if s.sy == '(' else ']'
+    s.next()
+    # maybe_sequence_pattern and open_sequence_pattern
+    patterns = []
+    while s.sy != closer:
+        patterns.append(p_maybe_star_pattern(s))
+        if s.sy != ",":
+            if closer == ')' and len(patterns) == 1:
+                s.error("tuple-like pattern of length 1 must finish with ','")
+            break
         s.next()
-        # maybe_sequence_pattern and open_sequence_pattern
-        patterns = []
-        while s.sy != closer:
-            patterns.append(p_maybe_star_pattern(s))
-            if s.sy == ",":
-                s.next()
-            else:
-                if opener == '(' and len(patterns) == 1:
-                    s.error("tuple-like pattern of length 1 must finish with ','")
-                break
-        s.expect(closer)
-        return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
-    else:
-        s.error("Expected '[' or '('")
+    s.expect(closer)
+    return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
 
 
 @cython.cfunc
@@ -4712,7 +4707,7 @@ def p_class_pattern(s: PyrexScanner):
 
 
 @cython.cfunc
-def p_keyword_pattern(s: PyrexScanner):
+def p_keyword_pattern(s: PyrexScanner) -> tuple:
     if s.sy != "IDENT":
         s.error("Expected identifier")
     arg = p_name(s, s.systring)

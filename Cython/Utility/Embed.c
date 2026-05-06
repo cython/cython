@@ -1,5 +1,13 @@
 //////////////////// MainFunction ////////////////////
 
+#ifdef Py_LIMITED_API
+// The purpose of the Limited API is to allow building extension modules
+// that import on different Python versions.  It is quite useless
+// (and unnecessarily constraining) to set it up for an embedded Python build
+// against a specific Python implementation and version.
+#error Do not use the Limited API for embedding. Build for the specific Python target version instead.
+#endif
+
 #ifdef __FreeBSD__
 #include <floatingpoint.h>
 #endif
@@ -89,9 +97,9 @@ int
     }
     else {
         int i, res;
-        wchar_t **argv_copy = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
+        wchar_t **argv_copy = (wchar_t **)malloc(sizeof(wchar_t*) * (size_t) argc);
         /* We need a second copy, as Python might modify the first one. */
-        wchar_t **argv_copy2 = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
+        wchar_t **argv_copy2 = (wchar_t **)malloc(sizeof(wchar_t*) * (size_t) argc);
         char *oldloc = strdup(setlocale(LC_ALL, NULL));
         if (!argv_copy || !argv_copy2 || !oldloc) {
             fprintf(stderr, "out of memory\\n");

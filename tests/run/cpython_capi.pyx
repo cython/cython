@@ -4,8 +4,10 @@
 from __future__ import print_function
 
 from cpython cimport mem, PyObject
+cimport cpython.frozendict as capi_frozendict
 from cpython.pystate cimport PyGILState_Ensure, PyGILState_Release, PyGILState_STATE
-from cpython.dict cimport PyDict_GetItemRef, PyDict_GetItemStringRef, PyDict_SetDefaultRef 
+from cpython.dict cimport PyDict_GetItemRef, PyDict_GetItemStringRef, PyDict_SetDefaultRef
+from cpython.list cimport PyList_GetItemRef, PyList_Clear, PyList_Extend
 from cpython.ref cimport Py_XDECREF
 
 import sys
@@ -60,11 +62,11 @@ def test_dict_getref(d):
     if PyDict_GetItemRef(d, "key", &o):
         print(<object>o)
         Py_XDECREF(o)
-    
+
     if PyDict_GetItemStringRef(d, "key", &o):
         print(<object>o)
         Py_XDECREF(o)
-    
+
     was_in_dict = PyDict_SetDefaultRef(d, "key", Ellipsis, &o)
     print(was_in_dict, <object>o)
     Py_XDECREF(o)
@@ -75,3 +77,60 @@ if not hasattr(sys, 'pypy_version_info'):
         Traceback (most recent call last):
         SystemError: ...
     """
+
+def test_list_getref_extend_clear(list):
+    """
+    >>> test_list_getref_extend_clear([1, 2, 3])
+    1
+    [1, 2, 3, 4, 5]
+    []
+    >>> test_list_getref_extend_clear([])  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    IndexError: ...
+    """
+
+    first = PyList_GetItemRef(list, 0)
+    print(first)
+
+    PyList_Extend(list, [4, 5])
+    print(list)
+
+    PyList_Clear(list)
+    print(list)
+
+
+def test_frozendict():
+    """
+    >>> test_frozendict()
+    EMPTY: 0
+    True
+    True
+    True
+    True
+    DICT: 1
+    True
+    True
+    NON-EMPTY: 1
+    True
+    True
+    True
+    True
+    """
+    fd_empty = capi_frozendict.PyFrozenDict_NewEmpty()
+    print("EMPTY:", len(fd_empty))
+    print(capi_frozendict.PyFrozenDict_Check(fd_empty))
+    print(capi_frozendict.PyFrozenDict_CheckExact(fd_empty))
+    print(capi_frozendict.PyAnyDict_Check(fd_empty))
+    print(capi_frozendict.PyAnyDict_CheckExact(fd_empty))
+
+    d = {1: 2}
+    print("DICT:", len(d))
+    print(capi_frozendict.PyAnyDict_Check(d))
+    print(capi_frozendict.PyAnyDict_CheckExact(d))
+
+    fd = capi_frozendict.PyFrozenDict_New(d)
+    print("NON-EMPTY:", len(fd))
+    print(capi_frozendict.PyFrozenDict_Check(fd))
+    print(capi_frozendict.PyFrozenDict_CheckExact(fd))
+    print(capi_frozendict.PyAnyDict_Check(fd))
+    print(capi_frozendict.PyAnyDict_CheckExact(fd))

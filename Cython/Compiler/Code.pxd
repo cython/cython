@@ -18,6 +18,7 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object init
     cdef public object cleanup
     cdef object proto_block
+    cdef object init_block
     cdef readonly object module_state_decls
     cdef readonly object module_state_traverse
     cdef readonly object module_state_clear
@@ -121,6 +122,8 @@ cdef class CCodeWriter(object):
     cdef public Py_ssize_t call_level  # debug-only, see Nodes.py
     cdef bint bol
 
+    @cython.final
+    cdef void handle_refnanny(self, tp, bint nanny=*)
     cpdef write(self, s)
     cdef _write_lines(self, s)
     cpdef _write_to_buffer(self, s)

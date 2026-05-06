@@ -1,6 +1,4 @@
-import cython
-
-
+# This is the Pure Python mode version, using cython.declare and annotations.
 @cython.cclass
 class A:
     cython.declare(a=cython.int, b=cython.int)

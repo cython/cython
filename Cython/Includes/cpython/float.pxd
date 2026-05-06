@@ -1,12 +1,3 @@
-cdef extern from *:
-    """
-    #if PY_MAJOR_VERSION >= 3
-      #define __Pyx_PyFloat_FromString(obj)  PyFloat_FromString(obj)
-    #else
-      #define __Pyx_PyFloat_FromString(obj)  PyFloat_FromString(obj, NULL)
-    #endif
-    """
-
 cdef extern from "Python.h":
     ############################################################################
     # 7.2.3
@@ -29,7 +20,7 @@ cdef extern from "Python.h":
     # Return true if its argument is a PyFloatObject, but not a
     # subtype of PyFloatObject.
 
-    object PyFloat_FromString "__Pyx_PyFloat_FromString" (object str)
+    object PyFloat_FromString(object str)
     # Return value: New reference.
     # Create a PyFloatObject object based on the string value in str,
     # or NULL on failure. The pend argument is ignored. It remains

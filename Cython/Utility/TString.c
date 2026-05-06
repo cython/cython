@@ -17,8 +17,10 @@ Py_VISIT((PyObject*)traverse_module_state->__pyx_templatelib_Interpolation);
 
 //////////////////////////// InitializeTemplateLib.module_state_clear ////////////////////////////
 
-Py_CLEAR((PyObject*)traverse_module_state->__pyx_templatelib_Template);
-Py_CLEAR((PyObject*)traverse_module_state->__pyx_templatelib_Interpolation)
+Py_XDECREF((PyObject*)clear_module_state->__pyx_templatelib_Template);
+clear_module_state->__pyx_templatelib_Template = 0;
+Py_XDECREF((PyObject*)clear_module_state->__pyx_templatelib_Interpolation);
+clear_module_state->__pyx_templatelib_Interpolation = 0;
 
 //////////////////////////// InitializeTemplateLib.proto ///////////////////////////
 
@@ -33,10 +35,13 @@ static PyObject* __Pyx_GetObjectFromTemplateLib(int is_template); /* proto */
 
 
 //////////////////////////// InitializeTemplateLib ///////////////////////////
+//@requires: Exceptions.c::IgnoreException
 
 #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
 static PyObject *__Pyx_TemplateLibFallback(void) {
-    PyErr_Clear();
+    if (!__Pyx_IgnoreException(PyExc_Exception)) {
+        return NULL; // BaseException
+    }
 
     // The assumption here is that Interpolation and Template are fairly simple classes
     // and the cost of compiling them with Cython (for all Python versions) is probably
@@ -309,7 +314,9 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
 
       failed_shortcut:
         Py_CLEAR(kwargs_builder);
-        PyErr_Clear();
+        if (!__Pyx_IgnoreException(PyExc_Exception)) {
+            return NULL; // BaseException
+        }
     }
 #endif
 
@@ -327,7 +334,7 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
 #endif
     zipped_tuple = PyTuple_New(strings_len + interpolations_len);
     if (!zipped_tuple) goto end;
-    for (Py_ssize_t i=0; (i<interpolations_len && i<strings_len); ++i) {
+    for (Py_ssize_t i=0; (i<interpolations_len || i<strings_len); ++i) {
         if (i < strings_len) {
             PyObject *s = __Pyx_PyTuple_GET_ITEM(strings, i);
 #if !CYTHON_ASSUME_SAFE_MACROS

@@ -238,7 +238,7 @@
 #define __Pyx_Locks_PyThreadTypeLock_LockNogil(l) (void)PyThread_acquire_lock(l, WAIT_LOCK)
 #define __Pyx_Locks_PyThreadTypeLock_Unlock(l) PyThread_release_lock(l)
 static CYTHON_INLINE int __Pyx_Locks_PyThreadTypeLock_CanCheckLocked(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
-static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
+static int __Pyx__Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 static void __Pyx__Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 // CYTHON_INLINE because these may be unused
@@ -247,6 +247,9 @@ static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThread
 }
 static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock) {
     __Pyx__Locks_PyThreadTypeLock_LockGil(lock);
+}
+static CYTHON_INLINE int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock) {
+    return __Pyx__Locks_PyThreadTypeLock_Locked(lock);
 }
 
 
@@ -322,7 +325,7 @@ static CYTHON_INLINE int __Pyx_Locks_PyThreadTypeLock_CanCheckLocked(__Pyx_Locks
     return 1;
 }
 
-static int __Pyx_Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock) {
+static int __Pyx__Locks_PyThreadTypeLock_Locked(__Pyx_Locks_PyThreadTypeLock lock) {
     // Check if lock is held by attempting a non-blocking acquire.
     // If acquire succeeds, the lock was not held, so release it and return 0.
     // If acquire fails, the lock is held (by this or another thread), return 1.

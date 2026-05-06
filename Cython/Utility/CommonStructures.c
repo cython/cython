@@ -9,12 +9,71 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
     return __Pyx_PyImport_AddModuleRef(__PYX_ABI_MODULE_NAME);
 }
 
+/////////////// VerifyCachedType.proto //////////////
+
+// Note - not a candidate for shared utility module.
+// It's desirable that the check happens with the LIMITED_API/CACHED_OBJECTS
+// settings of the current module.
+
+static int __Pyx_VerifyCachedType(PyObject *cached_type,
+                               const char *name,
+                               Py_ssize_t expected_basicsize); /* proto */
+
+/////////////// VerifyCachedType ///////////////////
+
+static int __Pyx_VerifyCachedType(PyObject *cached_type,
+                               const char *name,
+                               Py_ssize_t expected_basicsize) {
+    Py_ssize_t basicsize;
+
+    if (!PyType_Check(cached_type)) {
+        PyErr_Format(PyExc_TypeError,
+            "Shared Cython type %.200s is not a type object", name);
+        return -1;
+    }
+
+    if (expected_basicsize == 0) {
+        return 0; // size is inherited, nothing useful to check
+    }
+
+#if CYTHON_COMPILING_IN_LIMITED_API && CYTHON_OPAQUE_OBJECTS
+    if (expected_basicsize < 0) {
+        basicsize = PyType_GetTypeDataSize((PyTypeObject*)cached_type);
+    } else
+#endif
+    {
+    #if CYTHON_COMPILING_IN_LIMITED_API
+        PyObject *py_basicsize;
+        py_basicsize = PyObject_GetAttrString(cached_type, "__basicsize__");
+        if (unlikely(!py_basicsize)) return -1;
+        basicsize = PyLong_AsSsize_t(py_basicsize);
+        Py_DECREF(py_basicsize);
+        py_basicsize = NULL;
+        if (unlikely(basicsize == (Py_ssize_t)-1) && PyErr_Occurred()) return -1;
+    #else
+        basicsize = ((PyTypeObject*) cached_type)->tp_basicsize;
+    #endif
+    }
+
+    if ((expected_basicsize >= 0) ?
+            (basicsize != expected_basicsize) :
+            // For types allocated with an opaque base, Python may overallocate
+            (basicsize < -expected_basicsize)) {
+        PyErr_Format(PyExc_TypeError,
+            "Shared Cython type %.200s has the wrong size, try recompiling",
+            name);
+        return -1;
+    }
+    return 0;
+}
+
 /////////////// FetchCommonType.proto ///////////////
 
 static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyTypeObject *metaclass, PyObject *module, PyType_Spec *spec, PyObject *bases);
 
 /////////////// FetchCommonType ///////////////
 //@requires: FetchSharedCythonModule
+//@requires: VerifyCachedType
 //@requires:StringTools.c::IncludeStringH
 //@requires:Builtins.c::dict_setdefault
 
@@ -32,42 +91,6 @@ static PyObject* __Pyx_PyType_FromMetaclass(PyTypeObject *metaclass, PyObject *m
 #else
 #define __Pyx_PyType_FromMetaclass(me, mo, s, b) PyType_FromMetaclass(me, mo, s, b)
 #endif
-
-static int __Pyx_VerifyCachedType(PyObject *cached_type,
-                               const char *name,
-                               Py_ssize_t expected_basicsize) {
-    Py_ssize_t basicsize;
-
-    if (!PyType_Check(cached_type)) {
-        PyErr_Format(PyExc_TypeError,
-            "Shared Cython type %.200s is not a type object", name);
-        return -1;
-    }
-
-    if (expected_basicsize == 0) {
-        return 0; // size is inherited, nothing useful to check
-    }
-
-#if CYTHON_COMPILING_IN_LIMITED_API
-    PyObject *py_basicsize;
-    py_basicsize = PyObject_GetAttrString(cached_type, "__basicsize__");
-    if (unlikely(!py_basicsize)) return -1;
-    basicsize = PyLong_AsSsize_t(py_basicsize);
-    Py_DECREF(py_basicsize);
-    py_basicsize = NULL;
-    if (unlikely(basicsize == (Py_ssize_t)-1) && PyErr_Occurred()) return -1;
-#else
-    basicsize = ((PyTypeObject*) cached_type)->tp_basicsize;
-#endif
-
-    if (basicsize != expected_basicsize) {
-        PyErr_Format(PyExc_TypeError,
-            "Shared Cython type %.200s has the wrong size, try recompiling",
-            name);
-        return -1;
-    }
-    return 0;
-}
 
 static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyTypeObject *metaclass, PyObject *module, PyType_Spec *spec, PyObject *bases) {
     PyObject *abi_module = NULL, *cached_type = NULL, *abi_module_dict, *new_cached_type, *py_object_name;

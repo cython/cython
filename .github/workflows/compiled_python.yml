@@ -32,7 +32,9 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Set compiler
         if: ${{inputs.compiler}}
@@ -49,7 +51,6 @@ jobs:
           fi
           echo "CC=$CC" >> $GITHUB_ENV
           echo "CXX=$CXX" >> $GITHUB_ENV
-              
 
       - name: Set up sanitizer args
         if: ${{inputs.sanitize}}
@@ -89,7 +90,7 @@ jobs:
             else
               TSAN_SUPPRESSIONS="${GITHUB_WORKSPACE}/cpython_main/Tools/tsan/suppressions.txt"
             fi
-            if [[ "${{github.event.label.name}}" != "full_sanitizers" ]]; then
+            if [[ "${GITHUB_LABEL_NAME}" != "full_sanitizers" ]]; then
               # For thread sanitizer run on a much smaller list of tests
               EXCLUDE="tag:threads"
             fi
@@ -105,16 +106,18 @@ jobs:
           echo "LD_PRELOAD=$(realpath "$(clang -print-file-name=libstdc++.so)")" >> $GITHUB_ENV
           echo "CONFIGURE_ARGS=$CONFIGURE_ARGS" >> $GITHUB_ENV
           echo "SANITIZER_CFLAGS=$SANITIZER_CFLAGS" >> $GITHUB_ENV
-          echo "EXTRA_CONFIGURE_CFLAGS=$EXTRA_CONFIGURE_CFLAGS" >> $GITHUB_ENV 
+          echo "EXTRA_CONFIGURE_CFLAGS=$EXTRA_CONFIGURE_CFLAGS" >> $GITHUB_ENV
+        env:
+          GITHUB_LABEL_NAME: ${{ github.event.label.name }}
 
       - name: Install build dependencies
         run: |
           sudo apt-get update -y -q
-          sudo apt-get install -y -q libbz2-dev lzma-dev libreadline-dev libgmp-dev
+          sudo apt-get install -y -q libbz2-dev liblzma-dev libreadline-dev libgmp-dev
 
       - name: Build Python
         run: |
-          git clone https://github.com/python/cpython/ cpython_main
+          git clone --branch main --depth 1 https://github.com/python/cpython/ cpython_main
           cd cpython_main
           ./configure ${CONFIGURE_ARGS} --prefix=${GITHUB_WORKSPACE}/cpython_install CFLAGS="-O2 $EXTRA_CONFIGURE_CFLAGS"
           make -j8
@@ -129,7 +132,7 @@ jobs:
 
       - name: Archive logs
         if: ${{ inputs.sanitize && always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{inputs.sanitize}}-logs
           path: san_log.*
