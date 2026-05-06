@@ -77,9 +77,6 @@ cdef extern from *:  # Hard-coded utility code hack.
         GETF getitem    # PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
         SETF setitem    # int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
 
-    Py_ssize_t _typecode_length "__Pyx_PyArrayDescr_typecode_length"(arraydescr *descr)
-    void _copy_typecode "__Pyx_PyArrayDescr_copy_typecode"(arraydescr *descr, char *dst)
-
     ctypedef union __data_union "__Pyx_data_union":
         # views of ob_item:
         float* as_floats        # direct float pointer access to buffer
