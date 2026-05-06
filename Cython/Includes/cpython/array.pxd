@@ -107,33 +107,6 @@ cdef extern from *:  # Hard-coded utility code hack.
         cdef inline __data_union data(self) noexcept nogil:
             return __Pyx_PyArray_Data(self)
 
-        def __getbuffer__(self, Py_buffer* info, int flags):
-            # This implementation of getbuffer is geared towards Cython
-            # requirements, and does not yet fulfill the PEP.
-            # In particular strided access is always provided regardless
-            # of flags
-            item_count = Py_SIZE(self)
-
-            info.suboffsets = NULL
-            info.buf = self.data.as_chars
-            info.readonly = 0
-            info.ndim = 1
-            info.itemsize = self.ob_descr.itemsize   # e.g. sizeof(float)
-            info.len = info.itemsize * item_count
-
-            info.shape = <Py_ssize_t*> PyObject_Malloc(sizeof(Py_ssize_t) + _typecode_length(self.ob_descr) +  1)
-            if not info.shape:
-                raise MemoryError()
-            info.shape[0] = item_count      # constant regardless of resizing
-            info.strides = &info.itemsize
-
-            info.format = <char*> (info.shape + 1)
-            _copy_typecode(self.ob_descr, info.format)
-            info.obj = self
-
-        def __releasebuffer__(self, Py_buffer* info):
-            PyObject_Free(info.shape)
-
     array newarrayobject(PyTypeObject* type, Py_ssize_t size, arraydescr *descr)
 
     __data_union __Pyx_PyArray_Data(array self) noexcept nogil
