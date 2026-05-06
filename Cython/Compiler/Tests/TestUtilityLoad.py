@@ -1,12 +1,12 @@
-import unittest
-
 from Cython.Compiler import Code, UtilityCode
+from ...TestUtils import TimedTest
 
 
 def strip_2tup(tup):
     return tup[0] and tup[0].strip(), tup[1] and tup[1].strip()
 
-class TestUtilityLoader(unittest.TestCase):
+
+class TestUtilityLoader(TimedTest):
     """
     Test loading UtilityCodes
     """
@@ -94,7 +94,7 @@ class TestCythonUtilityLoader(TestTempitaUtilityLoader):
     test_load_tempita = TestTempitaUtilityLoader.test_load
 
 
-class TestUtilityCode(unittest.TestCase):
+class TestUtilityCode(TimedTest):
     def test_equality(self):
         c1 = Code.UtilityCode.load("NumpyImportUFunc", "NumpyImportArray.c")
         c2 = Code.UtilityCode.load("NumpyImportArray", "NumpyImportArray.c")

@@ -35,6 +35,7 @@ cdef class NameAssignment:
     cdef public object bit
     cdef public object inferred_type
     cdef public object rhs_scope
+    cdef public object assignment_type
 
 cdef class AssignmentList:
     cdef public object bit
@@ -64,7 +65,7 @@ cdef class ControlFlow:
     cpdef bint is_tracked(self, entry)
     cpdef bint is_statically_assigned(self, entry)
     cpdef mark_position(self, node)
-    cpdef mark_assignment(self, lhs, rhs, entry, rhs_scope=*)
+    cpdef mark_assignment(self, lhs, rhs, entry, rhs_scope=*, assignment_type=*)
     cpdef mark_argument(self, lhs, rhs, entry)
     cpdef mark_deletion(self, node, entry)
     cpdef mark_reference(self, node, entry)
@@ -92,6 +93,7 @@ cdef class ControlFlowAnalysis(CythonTransform):
     cdef ControlFlow flow
     cdef object object_expr
     cdef bint in_inplace_assignment
+    cdef bint in_assignment_expression
 
-    cpdef mark_assignment(self, lhs, rhs=*, rhs_scope=*)
+    cpdef mark_assignment(self, lhs, rhs=*, rhs_scope=*, assignment_type=*)
     cpdef mark_position(self, node)

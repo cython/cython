@@ -139,6 +139,6 @@ def test_integer_overflow():
     a = 1
     b = 2
     c = a + b
-    assert typeof(a) == "Python object", typeof(a)
-    assert typeof(b) == "Python object", typeof(b)
-    assert typeof(c) == "Python object", typeof(c)
+    assert typeof(a) == "int object", typeof(a)
+    assert typeof(b) == "int object", typeof(b)
+    assert typeof(c) == "int object", typeof(c)

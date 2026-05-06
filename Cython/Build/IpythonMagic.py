@@ -44,7 +44,6 @@ Parts of this code were taken from Cython.inline.
 #-----------------------------------------------------------------------------
 
 
-import io
 import os
 import re
 import sys

@@ -10,7 +10,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                bytes_literal=object, StringEncoding=object,
                FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
-               Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
+               Builtin=object, ModuleNode=object, _unicode=object, _bytes=object,
                re=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
                partial=object, reduce=object,
                _CDEF_MODIFIERS=tuple, COMMON_BINOP_MISTAKES=dict)
@@ -28,8 +28,7 @@ from . import Builtin
 from . import StringEncoding
 from .StringEncoding import EncodedString, bytes_literal
 from .ModuleNode import ModuleNode
-from .Errors import error, warning, CompileError
-from .. import Utils
+from .Errors import error, warning
 from . import Future
 from . import Options
 
@@ -560,7 +559,7 @@ def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tupl
     while s.sy != ')':
         if s.sy == '*':
             if starstar_seen:
-                s.error("Non-keyword arg following keyword arg", pos=s.position())
+                s.error("Non-keyword arg following keyword arg")
             s.next()
             positional_args.append(p_test(s))
             last_was_tuple_unpack = True
@@ -1199,7 +1198,7 @@ def p_ft_string_replacement_field(s: PyrexScanner,
             # validate the conversion char
             if conversion_char in ['}', ':', '']:
                 error(s.position(), "missing conversion character")
-            elif not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
+            elif ExprNodes.FormattedValueNode.find_conversion_func(conversion_char) is None:
                 error(s.position(), "invalid conversion character '%s'" % conversion_char)
                 s.next()
             elif s.position()[2] != (previous_pos[2] + 1):
@@ -4018,7 +4017,7 @@ def p_c_class_definition(s: PyrexScanner, pos,  ctx):
         visibility = ctx.visibility,
         typedef_flag = ctx.typedef_flag,
         api = ctx.api,
-        module_name = ".".join(module_path),
+        module_name = EncodedString(".".join(module_path)),
         class_name = class_name,
         as_name = as_name,
         bases = bases,
@@ -4455,8 +4454,8 @@ def p_closed_pattern(s: PyrexScanner):
     | class_pattern
 
     For the sake avoiding too much backtracking, we know:
-    * starts with "{" is a sequence_pattern
-    * starts with "[" is a mapping_pattern
+    * starts with "{" is a mapping_pattern
+    * starts with "[" is a sequence_pattern
     * starts with "(" is a group_pattern or sequence_pattern
     * wildcard pattern is just identifier=='_'
     The rest are then tried in order with backtracking
@@ -4593,25 +4592,21 @@ def p_group_pattern(s: PyrexScanner):
 
 @cython.cfunc
 def p_sequence_pattern(s: PyrexScanner):
-    opener = s.sy
     pos = s.position()
-    if opener in ['[', '(']:
-        closer = ']' if opener == '[' else ')'
+    assert s.sy in ('(', '[')
+    closer = ')' if s.sy == '(' else ']'
+    s.next()
+    # maybe_sequence_pattern and open_sequence_pattern
+    patterns = []
+    while s.sy != closer:
+        patterns.append(p_maybe_star_pattern(s))
+        if s.sy != ",":
+            if closer == ')' and len(patterns) == 1:
+                s.error("tuple-like pattern of length 1 must finish with ','")
+            break
         s.next()
-        # maybe_sequence_pattern and open_sequence_pattern
-        patterns = []
-        while s.sy != closer:
-            patterns.append(p_maybe_star_pattern(s))
-            if s.sy == ",":
-                s.next()
-            else:
-                if opener == '(' and len(patterns) == 1:
-                    s.error("tuple-like pattern of length 1 must finish with ','")
-                break
-        s.expect(closer)
-        return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
-    else:
-        s.error("Expected '[' or '('")
+    s.expect(closer)
+    return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
 
 
 @cython.cfunc
