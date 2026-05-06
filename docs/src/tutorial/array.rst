@@ -17,7 +17,7 @@ Working with Python arrays
     developers of Cython). It is exposed mostly for historical reasons
     from a time when there was no other way to provide fast element access.
 
-    The compatible way to use this type to use it through the Python
+    The compatible way to use this type is to use it through the Python
     interface without specifying a type to Cython, and to use
     :ref:`typed memoryviews<memoryviews>` for fast element element access.
 
