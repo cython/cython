@@ -9,17 +9,17 @@ Working with Python arrays
 
 .. caution::
 
-    The developers of Python are keen to emphasize that the Python
-    ``array.array`` type is an *internal* structure and can change at
-    any time, including between patch releases of Python. If you use it
+    The developers of CPython are keen to emphasize that the implementation of
+    the ``array.array`` type is an *internal* structure and can change at any time,
+    potentially even between patch releases of Python. If you use it
     through the ``cpython.array`` cimport then you are accepting the risk
     of that happening and will not complain to either them or us (the
     developers of Cython). It is exposed mostly for historical reasons
     from a time when there was no other way to provide fast element access.
 
-    The compatible way to use this type is to use it through the Python
-    interface without specifying a type to Cython, and to use
-    :ref:`typed memoryviews<memoryviews>` for fast element element access.
+    The compatible ways to use this type are to use it through the Python
+    interface without specifying a type to Cython at all, and to use
+    :ref:`typed memoryviews<memoryviews>` for fast element access.
 
 Python has a builtin array module supporting dynamic 1-dimensional arrays of
 primitive types. It is possible to access the underlying C array of a Python
