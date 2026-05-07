@@ -15097,7 +15097,7 @@ class CoerceToBooleanNode(CoercionNode):
             self.is_temp = 1
 
     @staticmethod
-    def _special_builtin(typ) -> Optional[str]:
+    def _find_special_builtin_function(typ) -> Optional[str]:
         if not typ.is_builtin_type:
             return None
         # Note that all of these need a check if CYTHON_ASSUME_SAFE_SIZE is false.
@@ -15124,7 +15124,7 @@ class CoerceToBooleanNode(CoercionNode):
         return None
 
     def nogil_check(self, env):
-        if self.arg.type.is_pyobject and self._special_builtin(self.arg.type) is None:
+        if self.arg.type.is_pyobject and self._find_special_builtin_function(self.arg.type) is None:
             self.gil_error()
 
     gil_message = "Truth-testing Python object"
@@ -15141,7 +15141,7 @@ class CoerceToBooleanNode(CoercionNode):
     def generate_result_code(self, code):
         if not self.is_temp:
             return
-        test_func = self._special_builtin(self.arg.type)
+        test_func = self._find_special_builtin_function(self.arg.type)
         if test_func is not None:
             if self.arg.may_be_none():
                 code.putln(f"if ({self.arg.py_result()} == Py_None) {self.result()} = 0;")
