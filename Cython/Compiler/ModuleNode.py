@@ -3107,7 +3107,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         globalstate.use_utility_code(
             UtilityCode.load("MultiPhaseInitModuleState", "ModuleSetupCode.c")
         )
-        module_state.putln('#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 '
+        module_state.putln('#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 '
                            '&& CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_COMPILING_IN_LIMITED_API')
         # Just an address to use for Py_mod_token
         module_state.putln(f'static char {Naming.pymoduledef_cname};')
@@ -3205,7 +3205,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # for PEP 793 upwards
         header_modexport = f"__Pyx_PyMODEXPORT_FUNC {self.mod_init_func_cname('PyModExport', env)}(void)"
         # Optimise for small code size as the module init function is only executed once.
-        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 
+                   "&& CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln(f"{header_modexport} CYTHON_SMALL_CODE; /*proto*/")
         code.putln("#endif")
         # Always define PyInit_ (even with PEP 793) mainly because setuptools on Windows will
@@ -3230,7 +3231,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("{")
-        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 "
+                   "&& CYTHON_COMPILING_IN_LIMITED_API")
         # We still define the PyInit function because setuptools will try to export it, but it's unusable with
         # an opaque PyModuleDef.
         code.putln(f'Py_FatalError("Python should use {self.mod_init_func_cname("PyModExport", env)} instead");')
@@ -3238,7 +3240,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
         code.putln("#endif")
         code.putln("}")
-        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1")
         code.putln(header_modexport)
         code.putln("{")
         code.putln(f"return {Naming.module_pyslots_cname};")
@@ -3762,10 +3764,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                    Naming.pymodule_create_func_cname)
         code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
 
-        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000")
-        
-        code.putln("#endif")
-
         code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
 
         code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
@@ -3813,7 +3811,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("")
-        code.putln("#if !(__PYX_LIMITED_VERSION_HEX >= 0x030F0000 && CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_COMPILING_IN_LIMITED_API)")
+        code.putln("#if !(__PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 "
+                   "&& CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_COMPILING_IN_LIMITED_API)")
         code.putln('#ifdef __cplusplus')
         code.putln('namespace {')
         code.putln("struct PyModuleDef %s =" % Naming.pymoduledef_cname)
