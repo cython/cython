@@ -1,9 +1,8 @@
-import unittest
-
 import Cython.Compiler.StringEncoding as StringEncoding
+from ...TestUtils import TimedTest
 
 
-class StringEncodingTest(unittest.TestCase):
+class StringEncodingTest(TimedTest):
     """
     Test the StringEncoding module.
     """

@@ -9,29 +9,17 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
     return __Pyx_PyImport_AddModuleRef(__PYX_ABI_MODULE_NAME);
 }
 
-/////////////// FetchCommonType.proto ///////////////
+/////////////// VerifyCachedType.proto //////////////
 
-static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyTypeObject *metaclass, PyObject *module, PyType_Spec *spec, PyObject *bases);
+// Note - not a candidate for shared utility module.
+// It's desirable that the check happens with the LIMITED_API/CACHED_OBJECTS
+// settings of the current module.
 
-/////////////// FetchCommonType ///////////////
-//@requires: FetchSharedCythonModule
-//@requires:StringTools.c::IncludeStringH
-//@requires:Builtins.c::dict_setdefault
+static int __Pyx_VerifyCachedType(PyObject *cached_type,
+                               const char *name,
+                               Py_ssize_t expected_basicsize); /* proto */
 
-#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
-static PyObject* __Pyx_PyType_FromMetaclass(PyTypeObject *metaclass, PyObject *module, PyType_Spec *spec, PyObject *bases) {
-    PyObject *result = __Pyx_PyType_FromModuleAndSpec(module, spec, bases);
-    if (result && metaclass) {
-        PyObject *old_tp = (PyObject*)Py_TYPE(result);
-        Py_INCREF((PyObject*)metaclass);
-        Py_SET_TYPE(result, metaclass);
-        Py_DECREF(old_tp);
-    }
-    return result;
-}
-#else
-#define __Pyx_PyType_FromMetaclass(me, mo, s, b) PyType_FromMetaclass(me, mo, s, b)
-#endif
+/////////////// VerifyCachedType ///////////////////
 
 static int __Pyx_VerifyCachedType(PyObject *cached_type,
                                const char *name,
@@ -78,6 +66,31 @@ static int __Pyx_VerifyCachedType(PyObject *cached_type,
     }
     return 0;
 }
+
+/////////////// FetchCommonType.proto ///////////////
+
+static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyTypeObject *metaclass, PyObject *module, PyType_Spec *spec, PyObject *bases);
+
+/////////////// FetchCommonType ///////////////
+//@requires: FetchSharedCythonModule
+//@requires: VerifyCachedType
+//@requires:StringTools.c::IncludeStringH
+//@requires:Builtins.c::dict_setdefault
+
+#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
+static PyObject* __Pyx_PyType_FromMetaclass(PyTypeObject *metaclass, PyObject *module, PyType_Spec *spec, PyObject *bases) {
+    PyObject *result = __Pyx_PyType_FromModuleAndSpec(module, spec, bases);
+    if (result && metaclass) {
+        PyObject *old_tp = (PyObject*)Py_TYPE(result);
+        Py_INCREF((PyObject*)metaclass);
+        Py_SET_TYPE(result, metaclass);
+        Py_DECREF(old_tp);
+    }
+    return result;
+}
+#else
+#define __Pyx_PyType_FromMetaclass(me, mo, s, b) PyType_FromMetaclass(me, mo, s, b)
+#endif
 
 static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyTypeObject *metaclass, PyObject *module, PyType_Spec *spec, PyObject *bases) {
     PyObject *abi_module = NULL, *cached_type = NULL, *abi_module_dict, *new_cached_type, *py_object_name;

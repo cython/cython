@@ -14,7 +14,7 @@ from ..Compiler.Main import Context
 from ..Compiler.Options import (default_options, CompilationOptions,
     get_directive_defaults)
 
-from ..Compiler.Visitor import CythonTransform, EnvTransform
+from ..Compiler.Visitor import EnvTransform
 from ..Compiler.ParseTreeTransforms import SkipDeclarations
 from ..Compiler.TreeFragment import parse_from_strings
 from .Dependencies import strip_string_literals, cythonize, cached_function
@@ -364,6 +364,8 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, timer=tim
 
     # Run for at least 0.2 seconds, either as integer nanoseconds or floating point seconds.
     min_runtime = one_second // 5 if timer_returns_nanoseconds else one_second / 5
+    # Jump by larger steps until we reach a reasonable time.
+    fast_jumptime = min_runtime // 20 if timer_returns_nanoseconds else min_runtime / 20
 
     def autorange():
         i = 1
@@ -374,12 +376,14 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, timer=tim
                 assert isinstance(time_taken, int if timer_returns_nanoseconds else float)
                 if time_taken >= min_runtime:
                     return number
+                elif time_taken < fast_jumptime:
+                    break
                 elif timer_returns_nanoseconds and (time_taken < 10 and number >= 10):
                     # Arbitrary sanity check to prevent endless loops for non-ns timers.
                     raise RuntimeError(f"Timer seems to return non-ns timings: {timer}")
             i *= 10
 
-    autorange()  # warmup
+    timeit(2)  # warmup
     number = autorange()
 
     # Run and repeat the benchmark.
