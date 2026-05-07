@@ -42,6 +42,19 @@ def frozendict_call_frozendict():
     return d
 
 
+def dict_call_frozendict():
+    """
+    >>> print(dict_call_frozendict()['parrot'])
+    resting
+    >>> print(dict_call_frozendict()['answer'])
+    42
+    >>> type(dict_call_frozendict()).__name__
+    'dict'
+    """
+    d = dict(frozendict(parrot=u"resting", answer=42))
+    return d
+
+
 def frozendict_call_kwargs():
     """
     >>> print(frozendict_call_kwargs()['parrot1'])
