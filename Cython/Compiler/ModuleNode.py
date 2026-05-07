@@ -3785,7 +3785,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("};")
 
         # PEP 803 and 793 initialization
-        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 || 1")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1")
         code.putln(f"PyABIInfo_VAR({Naming.pyrex_prefix}abi_info);")
         code.putln(f"static PySlot {Naming.module_pyslots_cname}[] = {{")
         code.putln(f"PySlot_PTR_STATIC(Py_mod_name, {env.module_name.as_c_string_literal()}),")
