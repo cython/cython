@@ -3205,7 +3205,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # for PEP 793 upwards
         header_modexport = f"__Pyx_PyMODEXPORT_FUNC {self.mod_init_func_cname('PyModExport', env)}(void)"
         # Optimise for small code size as the module init function is only executed once.
-        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 "
                    "&& CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln(f"{header_modexport} CYTHON_SMALL_CODE; /*proto*/")
         code.putln("#endif")
