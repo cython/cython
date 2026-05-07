@@ -2977,7 +2977,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         # Map the separate type checks to check functions.
 
         if types and (allowed_none_node or len(types) > 1):
-            if arg.is_attribute or not arg.is_simple():
+            # CoerceToTempNode wrapping a walrus operator (AssignmentExpressionNode) reports
+            # is_simple()=True (is_temp=True), but each call to generate_evaluation_code()
+            # re-evaluates the underlying expression. Unwrap any CoercionNode layers to detect
+            # this case and force the arg into a ResultRefNode so it is evaluated only once.
+            inner = arg
+            while isinstance(inner, ExprNodes.CoercionNode):
+                inner = inner.arg
+            if arg.is_attribute or not arg.is_simple() or isinstance(inner, ExprNodes.AssignmentExpressionNode):
                 arg = UtilNodes.ResultRefNode(arg)
                 temps.append(arg)
 
