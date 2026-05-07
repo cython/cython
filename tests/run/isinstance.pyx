@@ -312,3 +312,25 @@ def test_exttype_or_none(get_obj):
     False
     """
     return isinstance(get_obj(), A | None)
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode//ResultRefNode",
+)
+def test_call_arg_evaluated_once(get_obj):
+    """
+    A function call as the first argument of isinstance() with a tuple of types
+    must be evaluated exactly once.  Previously, any expression whose result
+    ended up in a temp (is_temp=True, so is_simple()=True) was not cached, and
+    the call was duplicated for every type in the expanded OR chain.
+
+    >>> calls = []
+    >>> def make_none():
+    ...     calls.append(1)
+    ...     return None
+    >>> _ = test_call_arg_evaluated_once(make_none)
+    >>> len(calls)
+    1
+    """
+    # None matches no type, so all branches are reached — no short-circuit.
+    return isinstance(get_obj(), (int, float, str, bytes))
