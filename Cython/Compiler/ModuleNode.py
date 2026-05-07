@@ -3108,7 +3108,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             UtilityCode.load("MultiPhaseInitModuleState", "ModuleSetupCode.c")
         )
         module_state.putln('#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 '
-                           '&& CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_COMPILING_IN_LIMITED_API')
+                           '&& CYTHON_PEP489_MULTI_PHASE_INIT && defined(Py_TARGET_ABI3T)')
         # Just an address to use for Py_mod_token
         module_state.putln(f'static char {Naming.pymoduledef_cname};')
         module_state.putln('#else')
@@ -3119,7 +3119,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('#else')
         module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
         module_state.putln('#endif')
-        module_state.putln('#endif')  # PEP 793 (Py>3.15 && multi_phase_init)
+        module_state.putln('#endif')
         module_state.putln('')
         module_state.putln("#if CYTHON_USE_MODULE_STATE")
         module_state.putln('#define %s (__Pyx_PyModule_GetState(__Pyx_State_FindModule(&%s)))' % (
@@ -3812,7 +3812,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("")
         code.putln("#if !(__PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 "
-                   "&& CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_COMPILING_IN_LIMITED_API)")
+                   "&& CYTHON_PEP489_MULTI_PHASE_INIT && defined(Py_TARGET_ABI3T))")
         code.putln('#ifdef __cplusplus')
         code.putln('namespace {')
         code.putln("struct PyModuleDef %s =" % Naming.pymoduledef_cname)
