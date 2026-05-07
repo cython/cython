@@ -3232,7 +3232,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("{")
         code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 "
-                   "&& CYTHON_COMPILING_IN_LIMITED_API")
+                   "&& defined(Py_TARGET_ABI3T)")
         # We still define the PyInit function because setuptools will try to export it, but it's unusable with
         # an opaque PyModuleDef.
         code.putln(f'Py_FatalError("Python should use {self.mod_init_func_cname("PyModExport", env)} instead");')
