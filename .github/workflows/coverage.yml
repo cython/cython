@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   pycoverage:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     permissions:
       # deploy HTML to GitHub pages
@@ -33,7 +33,7 @@ jobs:
 
     env:
       BACKEND: c,cpp
-      OS_NAME: ubuntu-22.04
+      OS_NAME: ubuntu-24.04
       PYTHON_VERSION: "3.12"
       HEAD: "${{ github.head_ref || github.ref_name }}"
 
@@ -86,12 +86,12 @@ jobs:
           if [ -f coverage-report.md ]; then { echo; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
   cycoverage:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [ pycoverage ]  # order summary report output
 
     env:
       BACKEND: c,cpp
-      OS_NAME: ubuntu-22.04
+      OS_NAME: ubuntu-24.04
       PYTHON_VERSION: "3.12"
 
     steps:

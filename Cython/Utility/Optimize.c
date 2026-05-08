@@ -313,6 +313,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 //@requires: ObjectHandling.c::UnpackTuple2
 //@requires: ObjectHandling.c::IterFinish
 //@requires: ObjectHandling.c::PyObjectCallMethod0
+//@requires: Builtins.c::PyFrozenDict
 
 #if CYTHON_AVOID_BORROWED_REFS
 #include <string.h>
@@ -320,7 +321,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
                                                    Py_ssize_t* p_orig_length, int* p_source_is_dict) {
-    is_dict = is_dict || likely(PyDict_CheckExact(iterable));
+    is_dict = is_dict || likely(__Pyx_PyAnyDict_CheckExact(iterable));
     *p_source_is_dict = is_dict;
     if (is_dict) {
 #if !CYTHON_AVOID_BORROWED_REFS

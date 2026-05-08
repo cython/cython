@@ -123,11 +123,6 @@ jobs:
         with:
           only: ${{ matrix.only }}
 
-      - name: Check wheel
-        run: |
-          python -m pip install twine
-          python -m twine check ./wheelhouse/*.whl
-
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ matrix.only }}
@@ -177,11 +172,6 @@ jobs:
                 matrix.os == 'windows-11-arm' && '*win_arm64' ||
             '' }}
 
-      - name: Check wheel
-        run: |
-          python -m pip install twine
-          python -m twine check ./wheelhouse/*.whl
-
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: Stable-ABI-${{ matrix.os }}-${{ strategy.job-index }}
@@ -211,10 +201,9 @@ jobs:
 
       - name: Build sdist
         run: |
-          pip install --upgrade wheel setuptools twine
+          pip install --upgrade wheel setuptools
           python setup.py sdist
           python setup.py bdist_wheel --no-cython-compile
-          twine check ./dist/*.whl
 
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
@@ -226,9 +215,41 @@ jobs:
           name: pure-wheel
           path: ./dist/*.whl
 
+  # Keep abi3audit and twine checks out of the the wheel build step
+  # to minimize the dependencies that need to be installed.
+  inspect_wheels:
+    name: Inspect Release Assets
+    needs: [ build_sdist_pure_wheel, build_wheels, build_limited_api_wheels ]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: ./wheel_check
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: ls -la ./wheel_check
+
+      - name: Install tools
+        run: python -m pip install twine abi3audit
+
+      - name: Run tools on wheels
+        run: |
+          cd ./wheel_check
+          ERRORS=0
+          for filename in *.whl; do
+            twine check "$filename" || ERRORS=$((ERRORS + 1))
+            if [[ "$filename" == *"abi3"* ]]; then
+              abi3audit --strict --report "$filename" || ERRORS=$((ERRORS + 1))
+            fi
+          done
+          exit $ERRORS
+
   upload_release_assets:
     name: Upload Release Assets
-    needs: [ build_sdist_pure_wheel, build_wheels, build_limited_api_wheels ]
+    needs: [ inspect_wheels ]
     runs-on: ubuntu-latest
 
     permissions:
