@@ -219,6 +219,10 @@ def test_list_of_extensions(myclass):
     list[MyClass] object
     MyClass
     <pep526_variable_annotations_cy.MyClass object at ...>
+    >>> test_list_of_extensions(5)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError:
     """
     cdef list[MyClass] l = [MyClass()]
     l[0] = myclass
@@ -232,6 +236,10 @@ def test_dict_of_extensions(myclass):
     dict[int,MyClass] object
     MyClass
     <pep526_variable_annotations_cy.MyClass object at ...>
+    >>> test_dict_of_extensions(5)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError:
     """
     cdef dict[int, MyClass] l = {0: MyClass()}
     l[0] = myclass
