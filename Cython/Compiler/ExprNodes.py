@@ -7670,7 +7670,7 @@ class MergedDictNode(ExprNode):
                 items = ((key.constant_result, value.constant_result)
                          for key, value in item.key_value_pairs)
             else:
-                items = item.constant_result.iteritems()
+                items = item.constant_result.items()
 
             for key, value in items:
                 if reject_duplicates and key in result:
@@ -7688,7 +7688,7 @@ class MergedDictNode(ExprNode):
                 items = [(key.compile_time_value(denv), value.compile_time_value(denv))
                          for key, value in item.key_value_pairs]
             else:
-                items = item.compile_time_value(denv).iteritems()
+                items = item.compile_time_value(denv).items()
 
             try:
                 for key, value in items:
