@@ -209,3 +209,32 @@ def common_container_type(cond, list[float] a, list[int] b):
     """
     result = a if cond else b
     print(result, cython.typeof(result))
+
+cdef class MyClass:
+    pass
+
+def test_list_of_extensions(myclass):
+    """
+    >>> test_list_of_extensions(MyClass())  # doctest: +ELLIPSIS
+    list[MyClass] object
+    MyClass
+    <pep526_variable_annotations_cy.MyClass object at ...>
+    """
+    cdef list[MyClass] l = [MyClass()]
+    l[0] = myclass
+    print(cython.typeof(l))
+    print(cython.typeof(l[0]))
+    print(l[0])
+
+def test_dict_of_extensions(myclass):
+    """
+    >>> test_dict_of_extensions(MyClass())  # doctest: +ELLIPSIS
+    dict[int,MyClass] object
+    MyClass
+    <pep526_variable_annotations_cy.MyClass object at ...>
+    """
+    cdef dict[int, MyClass] l = {0: MyClass()}
+    l[0] = myclass
+    print(cython.typeof(l))
+    print(cython.typeof(l[0]))
+    print(l[0])
