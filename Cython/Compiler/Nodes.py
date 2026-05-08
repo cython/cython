@@ -6407,6 +6407,11 @@ class SingleAssignmentNode(AssignmentNode):
                     env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
             else:
                 rhs = self.rhs.coerce_to(self.lhs.type, env)
+        elif (self.lhs.type.supports_container_type and
+                self.rhs.type.supports_container_type and
+                not self.lhs.type.assignable_from(self.rhs.type)):
+            rhs = self.rhs
+            rhs.fail_assignment(self.lhs.type)
         else:
             rhs = self.rhs.coerce_to(self.lhs.type, env)
 
@@ -6816,65 +6821,54 @@ class PrintStatNode(StatNode):
     #  arg_tuple         TupleNode
     #  stream            ExprNode or None (stdout)
     #  append_newline    boolean
+    #
+    # transformed into
+    #  print_function_call  ExprStatNode
 
-    child_attrs = ["arg_tuple", "stream"]
+    print_function_call = None
+
+    child_attrs = ["arg_tuple", "stream", "print_function_call"]
 
     def analyse_expressions(self, env):
-        if self.stream:
-            stream = self.stream.analyse_expressions(env)
-            self.stream = stream.coerce_to_pyobject(env)
-        arg_tuple = self.arg_tuple.analyse_expressions(env)
-        self.arg_tuple = arg_tuple.coerce_to_pyobject(env)
-        env.use_utility_code(printing_utility_code)
-        if len(self.arg_tuple.args) == 1 and self.append_newline:
-            env.use_utility_code(printing_one_utility_code)
+        from .ExprNodes import (
+            DictNode, UnicodeNode, SimpleCallNode, GeneralCallNode,
+            NameNode, IdentifierStringNode
+        )
+
+        func = NameNode(
+            self.pos,
+            name="print",
+            entry=env.builtin_scope().lookup_here("print")
+        )
+        if self.stream or not self.append_newline:
+            key_value_pairs = []
+            if self.stream:
+                key_value_pairs.append((
+                    IdentifierStringNode(self.pos, value=EncodedString("file")),
+                    self.stream
+                ))
+            if not self.append_newline:
+                key_value_pairs.append((
+                    IdentifierStringNode(self.pos, value=EncodedString("end")),
+                    UnicodeNode(self.pos, value=EncodedString(" "))
+                ))
+            kwargs = DictNode.from_pairs(self.pos, key_value_pairs)
+            call = GeneralCallNode(
+                self.pos,
+                function=func, positional_args=self.arg_tuple,
+                keyword_args=kwargs
+            )
+        else:
+            call = SimpleCallNode(
+                self.pos,
+                function=func, args=self.arg_tuple.args
+            )
+        self.print_function_call = ExprStatNode(self.pos, expr=call).analyse_expressions(env)
+        self.stream = self.arg_tuple = None  # unused from now on
         return self
 
-    nogil_check = Node.gil_error
-    gil_message = "Python print statement"
-
     def generate_execution_code(self, code):
-        code.mark_pos(self.pos)
-        if self.stream:
-            self.stream.generate_evaluation_code(code)
-            stream_result = self.stream.py_result()
-        else:
-            stream_result = '0'
-        if len(self.arg_tuple.args) == 1 and self.append_newline:
-            arg = self.arg_tuple.args[0]
-            arg.generate_evaluation_code(code)
-
-            code.putln(
-                "if (__Pyx_PrintOne(%s, %s) < 0) %s" % (
-                    stream_result,
-                    arg.py_result(),
-                    code.error_goto(self.pos)))
-            arg.generate_disposal_code(code)
-            arg.free_temps(code)
-        else:
-            self.arg_tuple.generate_evaluation_code(code)
-            code.putln(
-                "if (__Pyx_Print(%s, %s, %d) < 0) %s" % (
-                    stream_result,
-                    self.arg_tuple.py_result(),
-                    self.append_newline,
-                    code.error_goto(self.pos)))
-            self.arg_tuple.generate_disposal_code(code)
-            self.arg_tuple.free_temps(code)
-
-        if self.stream:
-            self.stream.generate_disposal_code(code)
-            self.stream.free_temps(code)
-
-    def generate_function_definitions(self, env, code):
-        if self.stream:
-            self.stream.generate_function_definitions(env, code)
-        self.arg_tuple.generate_function_definitions(env, code)
-
-    def annotate(self, code):
-        if self.stream:
-            self.stream.annotate(code)
-        self.arg_tuple.annotate(code)
+        self.print_function_call.generate_execution_code(code)
 
 
 class ExecStatNode(StatNode):
@@ -9282,6 +9276,7 @@ utility_code_for_cimports = {
     # TODO: Consider a generic user-level mechanism for importing
     'cpython.array'         : lambda options: UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
     'cpython.array.array'   : lambda options: UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cpython.frozendict'    : lambda options: UtilityCode.load_cached("PyFrozenDict", "Builtins.c"),
     'cython.view'           : cython_view_utility_code,
 }
 
@@ -10847,12 +10842,6 @@ else:
 #define unlikely(x) (x)
 """
 
-#------------------------------------------------------------------------------------
-
-printing_utility_code = UtilityCode.load_cached("Print", "Printing.c")
-printing_one_utility_code = UtilityCode.load_cached("PrintOne", "Printing.c")
-
-#------------------------------------------------------------------------------------
 
 # Exception raising code
 #

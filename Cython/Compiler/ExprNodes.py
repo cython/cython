@@ -109,6 +109,13 @@ coercion_error_dict = {
 def find_coercion_error(type_tuple, default, env):
     err = coercion_error_dict.get(type_tuple)
     if err is None:
+        type1, type2 = type_tuple
+        if type1.supports_container_type and type2.supports_container_type:
+            # Typed containers. Validate the coercion of their subscripted types.
+            for subscripted_type1, subscripted_type2 in zip(type1.subscripted_types, type2.subscripted_types):
+                if (ret := find_coercion_error((subscripted_type1, subscripted_type2), default, env)) == default:
+                    continue
+                return ret
         return default
     elif (env.directives['c_string_encoding'] and
               any(t in type_tuple for t in (PyrexTypes.c_char_ptr_type, PyrexTypes.c_uchar_ptr_type,
@@ -3131,6 +3138,8 @@ class IteratorNode(ScopedExprNode):
             self.sequence = self.sequence.coerce_to_pyobject(env)
             if self.sequence.type.is_pylist_type or self.sequence.type.is_pytuple_type:
                 self.sequence = self.sequence.as_none_safe_node("'NoneType' object is not iterable")
+            if self.sequence.type.supports_container_type:
+                self.type = self.sequence.type
         self.is_temp = 1
         return self
 
@@ -3165,6 +3174,8 @@ class IteratorNode(ScopedExprNode):
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
+        if sequence_type.supports_container_type and (item_type := sequence_type.infer_iterator_type()):
+            return item_type
         if sequence_type.is_array or sequence_type.is_ptr:
             return sequence_type
         elif sequence_type.is_cpp_class:
@@ -3511,6 +3522,9 @@ class NextNode(AtomicExprNode):
             item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
             item_type = PyrexTypes.remove_cv_ref(item_type, remove_fakeref=True)
             return item_type
+        elif (sequence_type := self.iterator.sequence.infer_type(env)).supports_container_type and \
+                (iterator_type := sequence_type.infer_iterator_type()):
+            return iterator_type
         else:
             # Avoid duplication of complicated logic.
             fake_index_node = IndexNode(
@@ -4279,6 +4293,9 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
+        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
+            return sub_type
+
         index_type = self.index.infer_type(env)
         if index_type and index_type.is_int or isinstance(self.index, IntNode):
             # indexing!
@@ -4436,14 +4453,14 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_pyobject(self, env, is_slice, getting, setting):
         base_type = self.base.type
-        if self.index.type.is_unicode_char and not base_type.is_pydict_type:
+        if self.index.type.is_unicode_char and not base_type.is_pyanydict_type:
             # TODO: eventually fold into case below and remove warning, once people have adapted their code
             warning(self.pos,
                     "Item lookup of unicode character codes now always converts to a Unicode string. "
                     "Use an explicit C integer cast to get back the previous integer lookup behaviour.", level=1)
             self.index = self.index.coerce_to_pyobject(env)
             self.is_temp = 1
-        elif self.index.type.is_int and not base_type.is_pydict_type:
+        elif self.index.type.is_int and not base_type.is_pyanydict_type:
             if (getting
                     and not env.directives['boundscheck']
                     and (base_type.is_pybytearray_type or base_type.is_pylist_type or base_type.is_pytuple_type)
@@ -4482,7 +4499,7 @@ class IndexNode(_IndexingBaseNode):
                 # Infer homogeneous item type when looping over container literals.
                 item_type = infer_sequence_item_type(env, self.base, seq_type=base_type)
 
-            if base_type.is_pylist_type or base_type.is_pytuple_type or base_type.is_pydict_type:
+            if base_type.is_pylist_type or base_type.is_pytuple_type or base_type.is_pyanydict_type:
                 # Do the None check explicitly (not in a helper, and regardless of 'nonecheck') to allow optimising it away.
                 self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
 
@@ -4495,6 +4512,11 @@ class IndexNode(_IndexingBaseNode):
                 self.type = item_type
 
         self.wrap_in_nonecheck_node(env, getting)
+
+        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
+            self.type = base_type
+            return self.coerce_to(sub_type, env)
+
         return self
 
     def analyse_as_c_array(self, env, is_slice):
@@ -4814,7 +4836,7 @@ class IndexNode(_IndexingBaseNode):
                     function = "__Pyx_GetItemInt"
                 utility_code = TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c")
             else:
-                if base_type.is_pydict_type:
+                if base_type.is_pyanydict_type:
                     function = "__Pyx_PyDict_GetItem"
                     utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
                 elif base_type is py_object_type and self.index.type.is_pystr_type:
@@ -6170,7 +6192,7 @@ class CallNode(ExprNode):
             if function.is_attribute:
                 method_obj_type = function.obj.infer_type(env)
                 if method_obj_type.is_builtin_type:
-                    result_type = Builtin.find_return_type_of_builtin_method(method_obj_type, function.attribute)
+                    result_type = Builtin.find_return_type_of_builtin_method(self.pos, env, method_obj_type, function.attribute)
                     if result_type is not py_object_type:
                         return result_type
             entry = getattr(function, 'entry', None)
@@ -6231,7 +6253,7 @@ class CallNode(ExprNode):
                 return False
         return ExprNode.may_be_none(self)
 
-    def set_py_result_type(self, function, func_type=None):
+    def set_py_result_type(self, env, function, func_type=None):
         # Default to 'object' and then try to find a better type.
         self.type = py_object_type
         if func_type is None:
@@ -6257,7 +6279,7 @@ class CallNode(ExprNode):
                 self.may_return_none = False
         elif function.is_attribute and function.obj.type.is_builtin_type:
             method_obj_type = function.obj.type
-            result_type = Builtin.find_return_type_of_builtin_method(method_obj_type, function.attribute)
+            result_type = Builtin.find_return_type_of_builtin_method(self.pos, env, method_obj_type, function.attribute)
             self.may_return_none = result_type is py_object_type
             if result_type.is_pyobject:
                 self.type = result_type
@@ -6445,7 +6467,7 @@ class SimpleCallNode(CallNode):
             self.arg_tuple = TupleNode(self.pos, args = self.args)
             self.arg_tuple = self.arg_tuple.analyse_types(env).coerce_to_pyobject(env)
             self.args = None
-            self.set_py_result_type(function, func_type)
+            self.set_py_result_type(env, function, func_type)
             self.is_temp = 1
         else:
             self.args = [ arg.analyse_types(env) for arg in self.args ]
@@ -7430,7 +7452,7 @@ class GeneralCallNode(CallNode):
         self.positional_args = self.positional_args.analyse_types(env)
         self.positional_args = \
             self.positional_args.coerce_to_pyobject(env)
-        self.set_py_result_type(self.function)
+        self.set_py_result_type(env, self.function)
         self.is_temp = 1
         return self
 
@@ -7712,6 +7734,8 @@ class MergedDictNode(ExprNode):
         item.generate_evaluation_code(code)
         if not item.type.is_pydict_type:
             # CPython supports calling functions with non-dicts, so do we
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "PyFrozenDict", "Builtins.c"))
             code.putln('if (likely(PyDict_CheckExact(%s))) {' %
                        item.py_result())
 
@@ -9213,7 +9237,7 @@ class ListNode(SequenceNode):
     #  List constructor.
 
     # obj_conversion_errors    [PyrexError]   used internally
-    # orignial_args            [ExprNode]     used internally
+    # original_args            [ExprNode]     used internally
 
     obj_conversion_errors = []
     type = list_type
@@ -10084,7 +10108,7 @@ class SortedDictKeysNode(ExprNode):
 
     def analyse_types(self, env):
         arg = self.arg.analyse_types(env)
-        if arg.type.is_pydict_type:
+        if arg.type.is_pyanydict_type:
             arg = arg.as_none_safe_node(
                 "'NoneType' object is not iterable")
         self.arg = arg
@@ -10095,7 +10119,7 @@ class SortedDictKeysNode(ExprNode):
 
     def generate_result_code(self, code):
         dict_result = self.arg.py_result()
-        if self.arg.type.is_pydict_type:
+        if self.arg.type.is_pyanydict_type:
             code.putln('%s = PyDict_Keys(%s); %s' % (
                 self.result(), dict_result,
                 code.error_goto_if_null(self.result(), self.pos)))
@@ -14068,7 +14092,7 @@ class CmpNode:
                          _) = result
                         return True
         elif self.operator in ('in', 'not_in'):
-            if self.operand2.type.is_pydict_type:
+            if self.operand2.type.is_pyanydict_type:
                 self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyDictContains", "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_PyDict_ContainsTF"
@@ -14548,7 +14572,7 @@ class CascadedCmpNode(Node, CmpNode):
 
     def coerce_operands_to_pyobjects(self, env):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
-        if self.operand2.type.is_pydict_type and self.operator in ('in', 'not_in'):
+        if self.operand2.type.is_pyanydict_type and self.operator in ('in', 'not_in'):
             self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
         if self.cascade:
             self.cascade.coerce_operands_to_pyobjects(env)
@@ -15074,29 +15098,40 @@ class CoerceToBooleanNode(CoercionNode):
 
     type = PyrexTypes.c_bint_type
 
-    # Note that all of these need a check if CYTHON_ASSUME_SAFE_SIZE is false.
-    # They should also all return something compatible with Py_ssize_t
-    # (i.e. Py_ssize_t or a smaller int type).
-    _special_builtins = {
-        Builtin.list_type:       '__Pyx_PyList_GET_SIZE',
-        Builtin.tuple_type:      '__Pyx_PyTuple_GET_SIZE',
-        Builtin.set_type:        '__Pyx_PySet_GET_SIZE',
-        Builtin.dict_type:       '__Pyx_PyDict_GET_SIZE',
-        Builtin.frozenset_type:  '__Pyx_PySet_GET_SIZE',
-        Builtin.bytes_type:      '__Pyx_PyBytes_GET_SIZE',
-        Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
-        Builtin.unicode_type:    '__Pyx_PyUnicode_IS_TRUE',
-        Builtin.int_type:        '__Pyx_PyLong_IsNonZero',
-        Builtin.float_type:      '__Pyx_PyFloat_IsNonZero',
-    }
-
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
         if arg.type.is_pyobject:
             self.is_temp = 1
 
+    @staticmethod
+    def _find_special_builtin_function(typ) -> Optional[str]:
+        if not typ.is_builtin_type:
+            return None
+        # Note that all of these need a check if CYTHON_ASSUME_SAFE_SIZE is false.
+        # They should also all return something compatible with Py_ssize_t
+        # (i.e. Py_ssize_t or a smaller int type).
+        if typ.is_pylist_type:
+            return '__Pyx_PyList_GET_SIZE'
+        if typ.is_pytuple_type:
+            return '__Pyx_PyTuple_GET_SIZE'
+        if typ.is_pyset_type or typ.is_pyfrozenset_type:
+            return '__Pyx_PySet_GET_SIZE'
+        if typ.is_pyanydict_type:
+            return '__Pyx_PyDict_GET_SIZE'
+        if typ.is_pybytes_type:
+            return '__Pyx_PyBytes_GET_SIZE'
+        if typ.is_pybytearray_type:
+            return '__Pyx_PyByteArray_GET_SIZE'
+        if typ.is_pystr_type:
+            return '__Pyx_PyUnicode_IS_TRUE'
+        if typ.is_pyint_type:
+            return '__Pyx_PyLong_IsNonZero'
+        if typ.is_pyfloat_type:
+            return '__Pyx_PyFloat_IsNonZero'
+        return None
+
     def nogil_check(self, env):
-        if self.arg.type.is_pyobject and self._special_builtins.get(self.arg.type) is None:
+        if self.arg.type.is_pyobject and self._find_special_builtin_function(self.arg.type) is None:
             self.gil_error()
 
     gil_message = "Truth-testing Python object"
@@ -15113,7 +15148,7 @@ class CoerceToBooleanNode(CoercionNode):
     def generate_result_code(self, code):
         if not self.is_temp:
             return
-        test_func = self._special_builtins.get(self.arg.type)
+        test_func = self._find_special_builtin_function(self.arg.type)
         if test_func is not None:
             if self.arg.may_be_none():
                 code.putln(f"if ({self.arg.py_result()} == Py_None) {self.result()} = 0;")

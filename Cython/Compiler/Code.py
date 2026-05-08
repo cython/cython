@@ -102,7 +102,7 @@ basicsize_builtins_map = {
 }
 
 # Builtins as of Python version ...
-KNOWN_PYTHON_BUILTINS_VERSION = (3, 15, 0, 'alpha', 7)
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 15, 0, 'beta', 1)
 KNOWN_PYTHON_BUILTINS = frozenset([
     'ArithmeticError',
     'AssertionError',
@@ -250,6 +250,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'repr',
     'reversed',
     'round',
+    'sentinel',
     'set',
     'setattr',
     'slice',
@@ -267,6 +268,11 @@ KNOWN_PYTHON_BUILTINS = frozenset([
 uncachable_builtins = [
     # Global/builtin names that cannot be cached because they may or may not
     # be available at import time, for various reasons:
+    ## Python 3.15+
+    'frozendict',
+    'sentinel',
+    'ImportCycleError',
+    '__lazy_import__',
     ## Python 3.13+
     '_IncompleteInputError',
     'PythonFinalizationError',
@@ -277,11 +283,10 @@ uncachable_builtins = [
     'aiter',
     'anext',
     'EncodingWarning',
-    ## - Py3.7+
-    'breakpoint',  # might deserve an implementation in Cython
     ## - platform specific
     'WindowsError',
     ## - others
+    'breakpoint',  # Probably best left alone.
     '_',  # e.g. used by gettext
 ]
 
@@ -990,9 +995,10 @@ def _format_impl_code(utility_code: UtilityCode, _, impl):
 
 @add_macro_processor(
     'CALL_UNBOUND_METHOD',
+    'CALL_UNBOUND_METHOD_TYPEPTR',
     is_module_specific=True,
     regex=(
-        r'CALL_UNBOUND_METHOD\('
+        r'CALL_UNBOUND_METHOD(_TYPEPTR)?\('
         r'([a-zA-Z_]+),\s*'   # type cname
         r'"([^"]+)",\s*'      # method name
         r'([^),\s]+)'         # object cname
@@ -1003,10 +1009,11 @@ def _format_impl_code(utility_code: UtilityCode, _, impl):
 def _inject_unbound_method(output, matchobj):
     """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
     """
-    type_cname, method_name, obj_cname, args = matchobj.groups()
-    type_cname = '&%s' % type_cname
+    is_typeptr, type_cname, method_name, obj_cname, args = matchobj.groups()
+    type_cname = type_cname if is_typeptr else f'&{type_cname}'
     args = [arg.strip() for arg in args[1:].split(',')] if args else []
-    assert len(args) < 3, f"CALL_UNBOUND_METHOD() does not support {len(args):d} call arguments"
+    assert len(args) < 3, \
+        f"CALL_UNBOUND_METHOD{'_TYPEPTR' if is_typeptr else ''}() does not support {len(args):d} call arguments"
     return output.cached_unbound_method_call_code(
         f"{Naming.modulestateglobal_cname}->",
         obj_cname, type_cname, method_name, args)

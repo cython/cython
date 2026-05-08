@@ -27,6 +27,8 @@ class TestBuiltinTypes(TimedTest):
         'is_pycomplex_type': ['complex'],
         'is_pylist_type': ['list'],
         'is_pydict_type': ['dict'],
+        'is_pyfrozendict_type': ['frozendict'],
+        'is_pyanydict_type': ['dict', 'frozendict'],
         'is_pyset_type': ['set'],
         'is_pytuple_type': ['tuple'],
         'is_pyfrozenset_type': ['frozenset'],
@@ -36,6 +38,7 @@ class TestBuiltinTypes(TimedTest):
         'is_pymemoryview_type': ['memoryview'],
         'is_builtin_sequence': ['list', 'tuple', 'bytes', 'str', 'bytearray'],
         'is_bytes_or_str_or_bytearray': ['bytes', 'str', 'bytearray'],
+        'supports_container_type': ['list', 'dict', 'frozendict', 'set', 'frozenset'],
     }
 
     def test_set_builtin_type_flags(self):
