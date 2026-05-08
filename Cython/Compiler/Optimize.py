@@ -1131,7 +1131,7 @@ class IterationTransform(Visitor.EnvTransform):
         body.stats[0:0] = [iter_next_node]
 
         if method:
-            if dict_obj.type.is_pydict_type and method.startswith('iter'):
+            if dict_obj.type.is_pyanydict_type and method.startswith('iter'):
                 assert method in ('iterkeys', 'itervalues', 'iteritems'), method
                 method = EncodedString(method[4:])
             method_node = ExprNodes.IdentifierStringNode(dict_obj.pos, value=method)
