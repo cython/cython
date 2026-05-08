@@ -224,7 +224,7 @@ class IterationTransform(Visitor.EnvTransform):
             if annotation.is_subscript:
                 annotation = annotation.base  # container base type
 
-        if iterable.type.is_pydict_type:
+        if iterable.type.is_pyanydict_type:
             # like iterating over dict.keys()
             if reversed:
                 # CPython raises an error here: not a sequence
@@ -1140,7 +1140,7 @@ class IterationTransform(Visitor.EnvTransform):
             method_node = ExprNodes.NullNode(dict_obj.pos)
             dict_obj = dict_obj.as_none_safe_node("'NoneType' object is not iterable")
 
-        is_dict = ExprNodes.IntNode.for_int(node.pos, int(dict_obj.type.is_pydict_type))
+        is_dict = ExprNodes.IntNode.for_int(node.pos, int(dict_obj.type.is_pyanydict_type))
 
         result_code = [
             Nodes.SingleAssignmentNode(
@@ -2588,7 +2588,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     PyDict_Copy_func_type = PyrexTypes.CFuncType(
         Builtin.dict_type, [
-            PyrexTypes.CFuncTypeArg("dict", Builtin.dict_type, None)
+            PyrexTypes.CFuncTypeArg("dict", PyrexTypes.py_object_type, None)
             ])
 
     def _handle_simple_function_dict(self, node, function, pos_args):
@@ -2597,7 +2597,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if len(pos_args) != 1:
             return node
         arg = pos_args[0]
-        if arg.type.is_pydict_type:
+        if arg.type.is_pyanydict_type:
             arg = arg.as_none_safe_node("'NoneType' is not iterable")
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
@@ -2878,6 +2878,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         Builtin.set_type:        "__Pyx_PySet_GET_SIZE",
         Builtin.frozenset_type:  "__Pyx_PySet_GET_SIZE",
         Builtin.dict_type:       "PyDict_Size",
+        Builtin.frozendict_type: "PyDict_Size",
     }.get
 
     _ext_types_with_pysize = {"cpython.array.array"}
@@ -3406,6 +3407,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             'get', is_unbound_method, args,
             may_return_none = True,
             utility_code = load_c_utility("dict_getitem_default"))
+
+    # frozendict shares the read-only method handlers with dict.
+    # Mutating handlers (pop, setdefault) are intentionally NOT aliased:
+    # frozendict has no such methods, and we want those calls to fail loud.
+    _handle_simple_method_frozendict_get = _handle_simple_method_dict_get
 
     Pyx_PyDict_SetDefault_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
