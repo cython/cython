@@ -317,6 +317,29 @@ def q(a):
     cdef int result = a in d # should fail with a TypeError
     return result
 
+
+def p_frozendict(a):
+    """
+    >>> p_frozendict(1)
+    0
+    >>> p_frozendict('a')
+    1
+    """
+    cdef frozendict fd = frozendict({u'a': 1, u'b': 2})
+    cdef int result = a in fd
+    return result
+
+
+def q_frozendict(a):
+    """
+    >>> q_frozendict(1)
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object is not iterable
+    """
+    cdef frozendict fd = None
+    cdef int result = a in fd  # should fail with a TypeError
+    return result
+
 def r(a):
     """
     >>> r(2)
