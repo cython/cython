@@ -7727,11 +7727,11 @@ class MergedDictNode(ExprNode):
         args = iter(self.keyword_args)
         item = next(args)
         item.generate_evaluation_code(code)
-        if not item.type.is_pyanydict_type:
+        if not item.type.is_pydict_type:
             # CPython supports calling functions with non-dicts, so do we
             code.globalstate.use_utility_code(UtilityCode.load_cached(
                 "PyFrozenDict", "Builtins.c"))
-            code.putln('if (likely(__Pyx_PyAnyDict_CheckExact(%s))) {' %
+            code.putln('if (likely(PyDict_CheckExact(%s))) {' %
                        item.py_result())
 
         if item.is_dict_literal:
@@ -7759,7 +7759,7 @@ class MergedDictNode(ExprNode):
             if item.result_in_temp():
                 code.putln("}")
 
-        if not item.type.is_pyanydict_type:
+        if not item.type.is_pydict_type:
             code.putln('} else {')
             code.globalstate.use_utility_code(UtilityCode.load_cached(
                 "PyObjectCallOneArg", "ObjectHandling.c"))
