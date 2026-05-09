@@ -4,6 +4,8 @@
 
 cimport cython
 
+from functools import wraps
+
 def inspect_isroutine():
     """
     >>> inspect_isroutine()
@@ -424,6 +426,36 @@ def test_fused_module(cython.numeric arg):
     then we don't run the tests, and never find out about the failure!
     """
     pass
+
+
+def to_be_wrapped(a: int, b: float):
+    """
+    Hello from to_be_wrapped's docstring
+    """
+    pass
+to_be_wrapped.__module__ = "other_module"
+
+def test_wraps(f):
+    """
+    >>> wrapped_func = test_wraps(to_be_wrapped)
+    >>> wrapped_func.__module__
+    'other_module'
+    >>> wrapped_func.__name__
+    'to_be_wrapped'
+    >>> wrapped_func.__qualname__
+    'to_be_wrapped'
+    >>> wrapped_func.__annotations__ == to_be_wrapped.__annotations__
+    True
+    >>> wrapped_func.__doc__
+    "\\n    Hello from to_be_wrapped's docstring\\n    "
+
+    # __type_params__ should also be copied, but Cython doesn't support this at all
+    """
+    @wraps(f)
+    def wrapper(*args, **kwds):
+        return f(*args, **kwds)
+    return wrapper
+
 
 __doc__ = """
 >>> test_module.__module__
