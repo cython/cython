@@ -45,20 +45,14 @@ static int __Pyx_check_twos_complement(void) {
 #define __Pyx_div_no_overflow(a, b, overflow) ((a) / (b))
 #define __Pyx_div_const_no_overflow(a, b, overflow) ((a) / (b))
 
-#if defined(__has_builtin)
-#  if __has_builtin(__builtin_add_overflow) && !defined(__ibmxl__)
-#    define __PYX_HAVE_BUILTIN_OVERFLOW
-#  endif
+#if __Pyx_has_cbuiltin(__builtin_add_overflow) && !defined(__ibmxl__)
+#  define __PYX_HAVE_BUILTIN_OVERFLOW
 #elif defined(__GNUC__) && (__GNUC__ >= 5) && (!defined(__INTEL_COMPILER) || (__INTEL_COMPILER >= 1800))
 #  define __PYX_HAVE_BUILTIN_OVERFLOW
 #endif
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || __Pyx_has_cbuiltin(__builtin_constant_p)
 #  define __Pyx_is_constant(x) (__builtin_constant_p(x))
-#elif defined(__has_builtin)
-#  if __has_builtin(__builtin_constant_p)
-#    define __Pyx_is_constant(x) (__builtin_constant_p(x))
-#  endif
 #else
 #  define __Pyx_is_constant(x) (0)
 #endif

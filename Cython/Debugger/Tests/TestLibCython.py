@@ -12,9 +12,10 @@ import subprocess
 from distutils import ccompiler
 
 import runtests
-import Cython.Distutils.extension
+#import Cython.Distutils.extension
 import Cython.Distutils.old_build_ext as build_ext
 from Cython.Debugger import Cygdb as cygdb
+from ...TestUtils import TimedTest
 
 root = os.path.dirname(os.path.abspath(__file__))
 codefile = os.path.join(root, 'codefile')
@@ -66,7 +67,7 @@ def test_gdb():
     return have_gdb
 
 
-class DebuggerTestCase(unittest.TestCase):
+class DebuggerTestCase(TimedTest):
 
     def setUp(self):
         """
@@ -158,7 +159,10 @@ class DebuggerTestCase(unittest.TestCase):
             os.chdir(self.cwd)
             raise
 
+        super().setUp()
+
     def tearDown(self):
+        super().tearDown()
         if not test_gdb():
             return
         os.chdir(self.cwd)

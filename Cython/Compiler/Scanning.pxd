@@ -40,7 +40,18 @@ cdef class PyrexScanner(Scanner):
     cdef int in_ft_string_expr_prescan
 
     cdef Py_ssize_t current_level(self)
-    cdef int error_at_scanpos(self, str message) except -1
+
+    cpdef int next(self) except -1
+    cpdef tuple peek(self)
+    cpdef int error_at_scanpos(self, message) except -1
+    cpdef int expect(self, what: str, message=*) except -1
+    cpdef int expect_keyword(self, what: str, message=*) except -1
+    cpdef int expected(self, what: str, message=*)  except -1
+    cpdef int expect_indent(self) except -1
+    cpdef int expect_dedent(self) except -1
+    cpdef int expect_newline(self, message=*, ignore_semicolon: bint=*) except -1
+    cpdef int enter_async(self) except -1
+    cpdef int exit_async(self) except -1
 
 
 cdef class FTStringState:

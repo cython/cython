@@ -236,3 +236,67 @@ def mul_float_obj(x):
     """
     result = 2.0 * x
     return result
+
+
+def mul_obj_obj(a, b):
+    """
+    >>> mul_obj_obj(0, 0)
+    0
+    >>> mul_obj_obj(0, 1)
+    0
+    >>> mul_obj_obj(1, 0)
+    0
+    >>> mul_obj_obj(0, -1)
+    0
+    >>> mul_obj_obj(-1, 0)
+    0
+    >>> mul_obj_obj(10, 99)
+    990
+    >>> mul_obj_obj(10, -1)
+    -10
+    >>> mul_obj_obj(-1, 10)
+    -10
+
+    >>> mul_obj_obj(1e-50, 1e50)
+    1.0
+    >>> (1e-50) * (2**100_000)
+    Traceback (most recent call last):
+    OverflowError: int too large to convert to float
+    >>> mul_obj_obj(1e-50, 2**100_000)
+    Traceback (most recent call last):
+    OverflowError: int too large to convert to float
+
+    >>> mul_obj_obj(0, 'abc')
+    ''
+    >>> mul_obj_obj('abc', 0)
+    ''
+    >>> mul_obj_obj(1, 'abc')
+    'abc'
+    >>> mul_obj_obj('abc', 1)
+    'abc'
+    >>> mul_obj_obj(2, 'abc')
+    'abcabc'
+    >>> mul_obj_obj('abc', 2)
+    'abcabc'
+
+    >>> 'abc' * 'abc'  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> mul_obj_obj('abc', 'abc')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+
+    >>> 'abc' * 1.0  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> 1.0 * 'abc'  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> mul_obj_obj('abc', 1.0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> mul_obj_obj(1.0, 'abc')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    """
+    return a * b
