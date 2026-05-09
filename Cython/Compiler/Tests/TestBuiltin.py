@@ -8,6 +8,8 @@ from ..Builtin import (
     unsafe_compile_time_methods, is_safe_compile_time_method,
     builtin_scope,
 )
+from ..Symtab import ModuleScope
+from ..PyrexTypes import py_object_type
 
 from ..Code import (
     KNOWN_PYTHON_BUILTINS_VERSION, KNOWN_PYTHON_BUILTINS,
@@ -25,6 +27,8 @@ class TestBuiltinReturnTypes(TimedTest):
             'frozendict': (3, 15, 0, 'alpha', 7),
             'sentinel': (3, 15, 0, 'beta', 1),
         }
+        test_module_scope = ModuleScope('test', None, None)
+        pos = None
 
         for type_name, methods in inferred_method_return_types.items():
             try:
@@ -37,17 +41,33 @@ class TestBuiltinReturnTypes(TimedTest):
 
             for method_name, return_type_name in methods.items():
                 builtin_type = builtin_scope.lookup(type_name).type
-                return_type = find_return_type_of_builtin_method(builtin_type, method_name)
+                return_type = find_return_type_of_builtin_method(
+                    pos, test_module_scope, builtin_type, method_name)
 
                 if return_type.is_builtin_type:
                     if '[' in return_type_name:
-                        return_type_name = return_type_name.partition('[')[0]
+                        origin_type_name, _, subscripted_type_names = return_type_name[:-1].partition('[')
+                        if origin_type_name == 'tuple':
+                            # Currently, cython does not support tuple with subscript
+                            return_type_name = origin_type_name
+                        else:
+                            subscripted_type_names = [type_name if t == 'T' else t for t in subscripted_type_names.split(',')]
+                            subscripted_types = [
+                                entry.type if entry else py_object_type
+                                for entry in map(builtin_scope.lookup, subscripted_type_names)
+                            ]
+                            origin_type = builtin_scope.lookup(origin_type_name).type
+                            return_type_name = origin_type.specialize_here(
+                                pos, test_module_scope, subscripted_types).name
                     if return_type_name == 'T':
                         return_type_name = type_name
+
                     self.assertEqual(return_type.name, return_type_name)
                     if look_up_methods:
                         self.assertTrue(hasattr(py_type, method_name), f"{type_name}.{method_name}")
                 else:
+                    if return_type_name == 'I':
+                        return_type_name = 'object'
                     self.assertEqual(return_type.empty_declaration_code(pyrex=True), return_type_name)
 
 
