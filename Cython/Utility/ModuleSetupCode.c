@@ -1,6 +1,6 @@
 /////////////// InitLimitedAPI ///////////////
 
-#if defined(Py_LIMITED_API)
+#if defined(Py_LIMITED_API) || defined(Py_TARGET_ABI3T)
   #if !defined(CYTHON_LIMITED_API)
   // Use Py_LIMITED_API as the main control for Cython's limited API mode.
   // However it's still possible to define CYTHON_LIMITED_API alone to
