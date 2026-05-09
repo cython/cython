@@ -33,6 +33,14 @@ Features added
 * ``cdef`` property methods support setters.
   (Github issue :issue:`7505`)
 
+* The Py3.15 ``frozendict`` builtin type is supported and has been backported as an alias
+  for ``dict`` in older Python versions.
+  Patches to adapt existing ``dict`` optimisations were contributed by Omkar Kabde.
+  (Github issues :issue:`7545`, :issue:`7647`)
+
+* The Py3.15 ``sentinel`` builtin is supported and its C-API declarations are available in
+  ``cpython.sentinel``.
+
 * The builtin Python types ``int``, ``float``, ``str``, ``bytes`` and ``bytearray``
   are special cased in comparisons to speed them up.
   (Github issues :issue:`7452`, :issue:`7474`)
@@ -55,6 +63,9 @@ Features added
 
 * Type inference was improved for builtin Python types.
   (Github issue :issue:`7536`)
+
+* Declared container item types (e.g. ``list[float]``) are now used by the type system.
+  (Github issue :issue:`7288`)
 
 * Repeated memoryview slicing inside of loops now avoids redundant reference counting,
   making it substantially faster.
@@ -98,6 +109,10 @@ Features added
   decompressor code compared to the 3.2.x default ``zlib``.  This also avoids a runtime dependency
   on the ``zlib`` module since the tiny LZSS decompressor can be embedded in the module.
   (Github issue :issue:`7577`)
+
+* The Py2 ``print`` statement is now implemented in Cython instead of C to make it
+  thread-safe and uses a vectorcall into Python.
+  (Github issue :issue:`7642`)
 
 * Several C++ exception declarations were added to ``libcpp.exceptions``.
   (Github issue :issue:`7389`)
@@ -234,12 +249,21 @@ Bugs fixed
 * Some GC and refcounting issues were resolved for Cython functions in the Limited API.
   (Github issue :issue:`7594`)
 
+* Refcounting errors and error handling issues were resolved in some rare error handling cases.
+  (Github issues :issue:`7597`, :issue:`7599`, :issue:`7612`, :issue:`7673`)
+
 * Using ``cython.pymutex`` in an extension type with ``cdef`` methods generated
   invalid C code missing the required ``PyMutex`` declarations.
   (Github issue :issue:`6995`)
 
+* Calling ``.get_frame()`` on Cython coroutines could crash in freethreading Python.
+  (Github issue :issue:`7632`)
+
 * A problem with cpdef enums in the Limited API of Python 3.11+ was resolved.
   (Github issue :issue:`7503`)
+
+* Unicode predicates like ``.isdigit()`` are now allowed to fail in the Limited API.
+  (Github issue :issue:`7602`)
 
 * Conditional expressions mixing Python float and int object types could accidentally
   infer float as the common result type, instead of treating both independently.
@@ -250,8 +274,22 @@ Bugs fixed
 * Enabling profiling generated invalid C code for non-Python return tuples.
   (Github issue :issue:`7580`)
 
+* ``abs()`` on C ``long long`` values could generate invalid C code.
+
+* When the ``CYTHON_AVOID_BORROWED_REFS`` C macro is enabled, e.g. in GraalPython,
+  dict iteration could fail to compile.
+  Patch by Michael Šimáček.  (Github issue :issue:`7631`)
+
 * A C compiler warning about unused functions was resolved.
   (Github issue :issue:`7560`)
+
+* The ``py_safe_call_once()`` C++ mutex helper function in ``libcpp.mutex``
+  failed to compile.
+  (Github issue :issue:`7585`)
+
+* The ``cpython.array`` declarations were adapted for Python 3.15.  Direct access
+  to the C struct of the ``array.array`` data type might require user code changes.
+  (Github issue :issue:`7659`)
 
 * Spaces in file paths written to the ``depfile`` were not escaped.
   Patch by Loïc Estève.  (Github issue :issue:`7423`)
