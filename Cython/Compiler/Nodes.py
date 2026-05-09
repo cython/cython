@@ -935,7 +935,7 @@ class CQualifierDeclaratorNode(CDeclaratorNode):
             error(self.pos, "Restrict qualifier cannot be applied to function type")
         if base_type.is_pyobject:
             error(self.pos,
-                  "Const base type cannot be a Python object")
+                  "Const/restrict base type cannot be a Python object")
         const = PyrexTypes.c_qualifier_type(base_type, is_const=self.is_const, is_restrict=self.is_restrict)
         return self.base.analyse(const, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
@@ -1514,6 +1514,7 @@ class CQualifierTypeNode(CBaseTypeNode):
     # base_type     CBaseTypeNode
     # is_const      boolean
     # is_volatile   boolean
+    # is_restrict   boolean
 
     child_attrs = ["base_type"]
 
@@ -1521,7 +1522,7 @@ class CQualifierTypeNode(CBaseTypeNode):
         base = self.base_type.analyse(env, could_be_name)
         if base.is_pyobject:
             error(self.pos,
-                  "Const/volatile base type cannot be a Python object")
+                  "Const/volatile/restrict base type cannot be a Python object")
         return PyrexTypes.c_qualifier_type(base, self.is_const, self.is_volatile)
 
 
