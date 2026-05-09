@@ -1,7 +1,5 @@
 import cython
 
-from functools import partial
-import collections
 import time
 
 
@@ -38,20 +36,15 @@ def _fused_func_args_1(o: builtin_collections):
     assert o is not None
 
 
-def _call_fused_func_args_1(ordered: cython.bint, number: cython.int, timer):
+def _call_fused_func_args_1(number: cython.int, timer):
     func = _fused_func_args_1
     args = [[], (), set(), {}, 5]
-    number //= len(args)
+    number = max(1, number // len(args))
 
     t = timer()
-    if ordered:
+    for _ in range(number):
         for arg in args:
-            for _ in range(number):
-                func(arg)
-    else:
-        for _ in range(number):
-            for arg in args:
-                func(arg)
+            func(arg)
     t = timer() - t
     return t
 
@@ -61,22 +54,16 @@ def _fused_func_args_2(o1: builtin_collections, o2: builtin_collections2):
     assert o2 is not None
 
 
-def _call_fused_func_args_2(ordered: cython.bint, number: cython.int, timer):
+def _call_fused_func_args_2(number: cython.int, timer):
     func = _fused_func_args_2
     args = [[], (), set(), {}, 5]
-    number //= len(args) ** 2
+    number = max(1, number // (len(args) ** 2))
 
     t = timer()
-    if ordered:
+    for _ in range(number):
         for arg1 in args:
             for arg2 in args:
-                for _ in range(number):
-                    func(arg1, arg2)
-    else:
-        for _ in range(number):
-            for arg1 in args:
-                for arg2 in args:
-                    func(arg1, arg2)
+                func(arg1, arg2)
     t = timer() - t
     return t
 
@@ -87,36 +74,26 @@ def _fused_func_args_3(o1: builtin_collections, o2: builtin_collections2, o3: bu
     assert o3 is not None
 
 
-def _call_fused_func_args_3(ordered: cython.bint, number: cython.int, timer):
+def _call_fused_func_args_3(number: cython.int, timer):
     func = _fused_func_args_3
     args = [[], (), set(), {}, 5]
-    number //= len(args) ** 3
+    number = max(1, number // (len(args) ** 3))
 
     t = timer()
-    if ordered:
+    for _ in range(number):
         for arg1 in args:
             for arg2 in args:
                 for arg3 in args:
-                    for _ in range(number):
-                        func(arg1, arg2, arg3)
-    else:
-        for _ in range(number):
-            for arg1 in args:
-                for arg2 in args:
-                    for arg3 in args:
-                        func(arg1, arg2, arg3)
+                    func(arg1, arg2, arg3)
     t = timer() - t
     return t
 
 
 def get_benchmarks():
     return {
-        'fused_args_1_ordered': partial(_call_fused_func_args_1, True),
-        'fused_args_1_unordered': partial(_call_fused_func_args_1, False),
-        'fused_args_2_ordered': partial(_call_fused_func_args_2, True),
-        'fused_args_2_unordered': partial(_call_fused_func_args_2, False),
-        'fused_args_3_ordered': partial(_call_fused_func_args_3, True),
-        'fused_args_3_unordered': partial(_call_fused_func_args_3, False),
+        'fused_args_1': _call_fused_func_args_1,
+        'fused_args_2': _call_fused_func_args_2,
+        'fused_args_3': _call_fused_func_args_3,
     }
 
 
@@ -131,7 +108,7 @@ def run_benchmark(repeat=True, scale=100):
     }
     scales = scale_subbenchmarks(timings, scale)
 
-    collected_timings = collections.defaultdict(list)
+    collected_timings = {}
 
     for name, func in benchmarks.items():
         collected_timings[name] = repeat_to_accuracy(

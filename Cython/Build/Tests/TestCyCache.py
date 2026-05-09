@@ -149,6 +149,7 @@ class TestCyCache(CythonTest):
 
         for output in expected:
             self.assertTrue(os.path.exists(output), output)
+            self.assertTrue(os.path.isfile(output), output)
 
     def test_multi_file_output_cythonize(self):
         self._test_multi_file_output(self.fresh_cythonize)
