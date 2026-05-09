@@ -56,7 +56,7 @@ static CYTHON_INLINE void *__Pyx__CyFunction_Defaults(PyObject *defaults_obj) {
 #define __Pyx__CyFunction_Defaults(defaults_obj) defaults_obj
 #endif
 #define __Pyx_CyFunction_Defaults(type, f) \
-    ((type *)((__Pyx_as_CyFunctionObject(f))->defaults))
+    ((type*)__Pyx__CyFunction_Defaults((__Pyx_as_CyFunctionObject(f)->defaults)))
 #define __Pyx_CyFunction_SetDefaultsGetter(f, g) \
     (__Pyx_as_CyFunctionObject(f))->defaults_getter = (g)
 
