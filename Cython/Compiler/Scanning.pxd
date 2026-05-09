@@ -68,4 +68,3 @@ cdef class FTStringState:
 cdef class FTStringBracketState:
     cdef int bracket_nesting_level
     cdef bint in_format_specifier
-
