@@ -456,6 +456,40 @@ def test_wraps(f):
         return f(*args, **kwds)
     return wrapper
 
+def test_annotate():
+    """
+    Currently we don't implement PEP 649 fully, so __annotate__ is a limited
+    placeholder version mainly to make `functools.wraps` work on Python 3.14+.
+    Therefore, we shouldn't worry too much if this test needs to change in
+    future.
+
+    >>> f = test_annotate()
+    >>> list(f.__annotate__().keys())
+    ['a', 'b']
+    >>> list(f.__annotate__(1).keys())
+    ['a', 'b']
+
+    Assigning should work
+    >>> f.__annotate__ = lambda arg=0: {'different_argument': 5}
+    >>> f.__annotations__
+    {'different_argument': 5}
+    
+    Assigning to None shouldn't change the annotations
+    >>> f = test_annotate()
+    >>> f.__annotate__ = None
+    >>> list(f.__annotate__().keys())
+    ['a', 'b']
+
+    Deleting is banned
+    >>> f = test_annotate()
+    >>> del f.__annotate__
+    Traceback (most recent call last):
+    TypeError: __annotate__ cannot be deleted
+    """
+    def inner(a: int, b: str):
+        pass
+    return inner
+
 
 __doc__ = """
 >>> test_module.__module__

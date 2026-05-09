@@ -608,7 +608,7 @@ static PyObject *__Pyx_CyFunction_annotate_impl(PyObject *self,
 
 static PyMethodDef __Pyx_CyFunction_annotate_method = {
     "__annotate__",
-    (PyCFunction)__Pyx_CyFunction_annotate_impl,
+    (PyCFunction)(void (*)(void))__Pyx_CyFunction_annotate_impl,
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
     METH_VARARGS,
 #else
@@ -640,6 +640,10 @@ __Pyx_CyFunction_set_annotate(PyObject *op_in, PyObject* value, void *context) {
     if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "__annotate__ cannot be deleted");
         return -1;
+    }
+    if (value == Py_None) {
+        // PEP 649 says "Setting o.__annotate__ to None has no effect on the cached annotations dict."
+        return 0;
     }
     PyObject *annotations = PyObject_CallObject(value, NULL);
     if (!annotations) return -1;
