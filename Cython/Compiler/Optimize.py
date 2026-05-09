@@ -1164,7 +1164,7 @@ class IterationTransform(Visitor.EnvTransform):
                 lhs = dict_temp,
                 rhs = ExprNodes.PythonCapiCallNode(
                     dict_obj.pos,
-                    f"__Pyx_dict_iterator{'_legacy' if legacy_method else ''}",
+                    "__Pyx_dict_iterator_legacy" if legacy_method else "__Pyx_dict_iterator",
                     self.PyDict_Iterator_func_type,
                     utility_code = UtilityCode.load_cached("dict_iter", "Optimize.c"),
                     args = [dict_obj, is_dict, method_node, dict_len_temp_addr, is_dict_temp_addr],

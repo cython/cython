@@ -308,7 +308,7 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, 
                                                    Py_ssize_t* p_orig_length, int* p_is_dict);
 // "legacy" handles old-style iter* methods
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator_legacy(PyObject* dict, int is_dict, PyObject* method_name,
-                                                   Py_ssize_t* p_orig_length, int* p_is_dict);
+                                                          Py_ssize_t* p_orig_length, int* p_is_dict);
 static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t orig_length, Py_ssize_t* ppos,
                                               PyObject** pkey, PyObject** pvalue, PyObject** pitem, int is_dict);
 
@@ -350,12 +350,10 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
 #endif
     *p_orig_length = 0;
     if (method_name) {
-        iterable = __Pyx_dict_call_to_get_iterable(iterable, method_name);
-        if (unlikely(!iterable)) {
-            return NULL;
-        }
+        return __Pyx_dict_call_to_get_iterable(iterable, method_name);
+    } else {
+        return PyObject_GetIter(iterable);
     }
-    return PyObject_GetIter(iterable);
 }
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator_legacy(PyObject* iterable, int is_dict, PyObject* method_name,
@@ -386,11 +384,10 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator_legacy(PyObject* iterable, in
         if (owned_method_name) {
             Py_DECREF(method_name);
         }
-        if (unlikely(!iterable)) {
-            return NULL;
-        }
-    }
+        return iterable;
+} else {
     return PyObject_GetIter(iterable);
+}
 }
 
 
