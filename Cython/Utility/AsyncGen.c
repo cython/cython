@@ -843,11 +843,7 @@ __Pyx_async_gen_athrow_send_impl(__pyx_PyAsyncGenAThrow *o, PyObject *arg, int i
 
             retval = __Pyx__Coroutine_Throw((PyObject*)gen,
                 /* Do not close generator when PyExc_GeneratorExit is passed */
-                PyExc_GeneratorExit, NULL, NULL,
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-                NULL, // args
-#endif
-                0);
+                PyExc_GeneratorExit, NULL, NULL, NULL, 0);
 
             if (retval && __pyx__PyAsyncGenWrappedValue_CheckExact(retval)) {
                 Py_DECREF(retval);
@@ -864,11 +860,7 @@ __Pyx_async_gen_athrow_send_impl(__pyx_PyAsyncGenAThrow *o, PyObject *arg, int i
 
             retval = __Pyx__Coroutine_Throw((PyObject*)gen,
                 /* Do not close generator when PyExc_GeneratorExit is passed */
-                typ, val, tb,
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-                o->agt_args,
-#endif
-                0);
+                typ, val, tb, o->agt_args, 0);
             retval = __Pyx_async_gen_unwrap_value(o->agt_gen, retval, iternext);
         }
         if (retval == NULL) {

@@ -1269,12 +1269,7 @@ __Pyx_Coroutine_Close(PyObject *self, PyObject **retval) {
 }
 
 static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject *val, PyObject *tb,
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-                                        PyObject *args,
-                                        // On higher versions, args are in typ, val, tb
-                                        // and there's no optimization to be gained by passing the tuple through.
-#endif
-                                        int close_on_genexit) {
+                                        PyObject *args, int close_on_genexit) {
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
     PyObject *yf;
 
@@ -1305,18 +1300,10 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
             || __Pyx_Coroutine_Check(yf)
         #endif
             ) {
-            ret = __Pyx__Coroutine_Throw(yf, typ, val, tb,
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-                                        args,
-#endif
-                                        close_on_genexit);
+            ret = __Pyx__Coroutine_Throw(yf, typ, val, tb, args, close_on_genexit);
         #ifdef __Pyx_Coroutine_USED
         } else if (__Pyx_CoroutineAwait_CheckExact(yf)) {
-            ret = __Pyx__Coroutine_Throw(((__pyx_CoroutineAwaitObject*)yf)->coroutine, typ, val, tb,
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-                                        args,
-#endif
-                                        close_on_genexit);
+            ret = __Pyx__Coroutine_Throw(((__pyx_CoroutineAwaitObject*)yf)->coroutine, typ, val, tb, args, close_on_genexit);
         #endif
         } else {
             PyObject *meth = __Pyx_PyObject_GetAttrStrNoError(yf, PYIDENT("throw"));
@@ -1329,12 +1316,9 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
                 __Pyx_Coroutine_Undelegate(gen);
                 goto throw_here;
             }
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-            if (likely(args)) {
+            if (args) {
                 ret = __Pyx_PyObject_Call(meth, args, NULL);
-            }
-#endif
-            else {
+            } else {
                 // "tb" or even "val" might be NULL
                 PyObject *cargs[4] = {NULL, typ, val, tb};
                 Py_ssize_t nargs = 1 + (val != NULL) + (tb != NULL);
@@ -1399,6 +1383,8 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *self,
     return __Pyx__Coroutine_Throw(self, typ, val, tb,
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
                                   args,
+#else
+                                  NULL,
 #endif
                                   1);
 }
