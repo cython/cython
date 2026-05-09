@@ -612,7 +612,7 @@ __Pyx_async_gen_asend_close(PyObject *g, PyObject *args)
 
 static PyMethodDef __Pyx_async_gen_asend_methods[] = {
     {"send", (PyCFunction)__Pyx_async_gen_asend_send, METH_O, __Pyx_async_gen_send_doc},
-    {"throw", (PyCFunction)(void(*)(void))__Pyx_async_gen_asend_throw,
+    {"throw", __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_async_gen_asend_throw),
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
         METH_VARARGS,
 #else
@@ -987,7 +987,7 @@ __Pyx_async_gen_athrow_close(PyObject *g, PyObject *args)
 
 static PyMethodDef __Pyx_async_gen_athrow_methods[] = {
     {"send", (PyCFunction)__Pyx_async_gen_athrow_send, METH_O, __Pyx_async_gen_send_doc},
-    {"throw", (PyCFunction)(void(*)(void))__Pyx_async_gen_athrow_throw,
+    {"throw", __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_async_gen_athrow_throw),
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
         METH_VARARGS,
 #else

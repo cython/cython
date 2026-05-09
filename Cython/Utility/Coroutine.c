@@ -1874,7 +1874,7 @@ static PyObject *__Pyx_CoroutineAwait_no_new(PyTypeObject *type, PyObject *args,
 static PyMethodDef __pyx_CoroutineAwait_methods[] = {
     {"send", (PyCFunction) __Pyx_CoroutineAwait_Send, METH_O,
      PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration.")},
-    {"throw", (PyCFunction)(void(*)(void))__Pyx_CoroutineAwait_Throw,
+    {"throw", __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_CoroutineAwait_Throw),
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
         METH_VARARGS,
 #else
@@ -2140,7 +2140,7 @@ if (likely(__pyx_Generator_init($module_cname) == 0)); else
 static PyMethodDef __pyx_Generator_methods[] = {
     {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
      PyDoc_STR("send(arg) -> send 'arg' into generator,\nreturn next yielded value or raise StopIteration.")},
-    {"throw", (PyCFunction)(void(*)(void))__Pyx_Coroutine_Throw,
+    {"throw", __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_Coroutine_Throw),
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
         METH_VARARGS,
 #else
