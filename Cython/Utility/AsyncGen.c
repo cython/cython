@@ -329,7 +329,7 @@ __Pyx_async_gen_aclose(__pyx_PyAsyncGenObject *o, PyObject *arg)
 }
 
 
-// Not FASTCALL because the args end up being convered back to a tuple anyway.
+// Not FASTCALL because the args end up being converted back to a tuple anyway.
 static PyObject *
 __Pyx_async_gen_athrow(__pyx_PyAsyncGenObject *o, PyObject *args)
 {
