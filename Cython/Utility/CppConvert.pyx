@@ -9,10 +9,31 @@ cdef extern from *:
         string(char* c_str, size_t size) except +
     cdef const char* __Pyx_PyObject_AsStringAndSize(object, Py_ssize_t*) except NULL
 
+ctypedef const char[:] const_char_mv
+ctypedef const unsigned char[:] const_uchar_mv
+
+ctypedef fused string_like_t:
+    str
+    bytes
+    bytearray
+    const_char_mv
+    const_uchar_mv
+    object
+
 @cname("{{cname}}")
-cdef string {{cname}}(object o) except *:
+cdef string {{cname}}(string_like_t o) except *:
     cdef Py_ssize_t length = 0
-    cdef const char* data = __Pyx_PyObject_AsStringAndSize(o, &length)
+    cdef const char* data = NULL
+
+    if string_like_t is const_char_mv:
+        data = &(<const_char_mv>o)[0]
+        length = len(<const_char_mv>o)
+    elif string_like_t is const_uchar_mv:
+        data = &(<const_uchar_mv>o)[0]
+        length = len(<const_uchar_mv>o)
+    else:
+        data = __Pyx_PyObject_AsStringAndSize(o, &length)
+
     return string(data, <size_t> length)
 
 
