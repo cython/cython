@@ -1363,7 +1363,6 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *self,
     if (unlikely(!PyArg_UnpackTuple(args, "throw", 1, 3, &typ, &val, &tb)))
         return NULL;
 #else
-    nargs = PyVectorcall_NARGS(nargs);
     switch (nargs) {
     case 3:
         tb = args[2];
@@ -1939,7 +1938,7 @@ static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
 static PyMethodDef __pyx_Coroutine_methods[] = {
     {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
      PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next iterated value or raise StopIteration.")},
-    {"throw", (PyCFunction)(void (*)(void))__Pyx_Coroutine_Throw,
+    {"throw", __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_Coroutine_Throw),
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
         METH_VARARGS,
 #else
