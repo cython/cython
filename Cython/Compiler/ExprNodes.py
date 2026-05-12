@@ -4514,7 +4514,6 @@ class IndexNode(_IndexingBaseNode):
         self.wrap_in_nonecheck_node(env, getting)
 
         if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
-            self.type = base_type
             return self.coerce_to(sub_type, env)
 
         return self
@@ -9920,14 +9919,16 @@ class DictNode(ExprNode):
 
     def infer_type(self, env):
         typ = dict_type
-        if len(self.key_value_pairs) == 0:
-            return typ
-        key_type = reduce(
-            lambda a, b: a if a == b else None, (i.key.type for i in self.key_value_pairs))
-        value_type = reduce(
-            lambda a, b: a if a == b else None, (i.value.type for i in self.key_value_pairs))
-        if key_type is not None and value_type is not None:
-            return typ.specialize_here(self.pos, env, [key_type, value_type])
+        if len(self.key_value_pairs) > 0:
+            key_type = reduce(
+                lambda a, b: a if a == b else None, (i.key.type for i in self.key_value_pairs))
+            value_type = reduce(
+                lambda a, b: a if a == b else None, (i.value.type for i in self.key_value_pairs))
+            if key_type is not None or value_type is not None:
+                key_type = key_type if key_type is not None else PyrexTypes.py_object_type
+                value_type = value_type if value_type is not None else PyrexTypes.py_object_type
+                return typ.specialize_here(self.pos, env, [key_type, value_type])
+        return typ
 
     def analyse_types(self, env):
         with local_errors(ignore=True) as errors:
