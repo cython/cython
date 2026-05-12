@@ -26,7 +26,7 @@ import os.path
 import re
 import sys
 from collections import defaultdict
-from functools import partial
+from functools import partial, reduce
 from typing import Optional
 
 from .Errors import (
@@ -9249,8 +9249,12 @@ class ListNode(SequenceNode):
         return ()
 
     def infer_type(self, env):
-        # TODO: Infer non-object list arrays.
-        return list_type
+        typ = list_type
+        if len(self.args) == 0:
+            return typ
+        item_type = reduce(
+            lambda a, b: a if a == b else None, (arg.type for arg in self.args))
+        return typ.specialize_here(self.pos, env, [item_type])
 
     def analyse_expressions(self, env):
         for arg in self.args:
@@ -9830,6 +9834,14 @@ class SetNode(ExprNode):
     is_set_literal = True
     gil_message = "Constructing Python set"
 
+    def infer_type(self, env):
+        typ = set_type
+        if len(self.args) == 0:
+            return typ
+        item_type = reduce(
+            lambda a, b: a if a == b else None, (arg.type for arg in self.args))
+        return typ.specialize_here(self.pos, env, [item_type])
+
     def analyse_types(self, env):
         for i in range(len(self.args)):
             arg = self.args[i]
@@ -9907,8 +9919,15 @@ class DictNode(ExprNode):
         return ()
 
     def infer_type(self, env):
-        # TODO: Infer struct constructors.
-        return dict_type
+        typ = dict_type
+        if len(self.key_value_pairs) == 0:
+            return typ
+        key_type = reduce(
+            lambda a, b: a if a == b else None, (i.key.type for i in self.key_value_pairs))
+        value_type = reduce(
+            lambda a, b: a if a == b else None, (i.value.type for i in self.key_value_pairs))
+        if key_type is not None and value_type is not None:
+            return typ.specialize_here(self.pos, env, [key_type, value_type])
 
     def analyse_types(self, env):
         with local_errors(ignore=True) as errors:
