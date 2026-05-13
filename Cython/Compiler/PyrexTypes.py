@@ -10,7 +10,7 @@ import re
 from functools import partial, reduce
 from itertools import product
 
-from Cython.Utils import cached_function
+from Cython.Utils import cached_function, set_dedup
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode, AbstractUtilityCode
 from . import StringEncoding
 from . import Naming
@@ -5836,6 +5836,15 @@ def widest_cpp_type(type1, type2):
     else:
         # Fall back to void* for now.
         return None
+
+
+def reduce_spanning_types(types):
+    """Reduce a series of types to their common spanning type.
+    """
+    if not types:
+        return py_object_type
+    types = list(set_dedup(types))
+    return reduce(spanning_type, types) if types else py_object_type
 
 
 def simple_c_type(signed, longness, name):
