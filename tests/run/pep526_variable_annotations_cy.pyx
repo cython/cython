@@ -237,6 +237,7 @@ def test_initialised_subscripted_set():
     for i3 in s3:
         print(cython.typeof(s3), cython.typeof(i3))
 
+
 def test_initialised_subscripted_list():
     """
     >>> test_initialised_subscripted_list()
@@ -262,6 +263,7 @@ def test_initialised_subscripted_list():
     l3 = [1, 3.0, "5"]
     for i3 in l3:
         print(i3, cython.typeof(l3), cython.typeof(i3))
+
 
 def test_initialised_subscripted_dict():
     """
@@ -308,3 +310,43 @@ def test_initialised_subscripted_dict():
     d5 = {1: 1.0, 3.0: "b", "5": "c"}
     for k5 in d5:
         print(cython.typeof(d5), cython.typeof(k5), cython.typeof(d5[k5]))
+
+
+cdef class MyClass:
+    pass
+
+
+def test_list_of_extensions(myclass):
+    """
+    >>> test_list_of_extensions(MyClass())  # doctest: +ELLIPSIS
+    list[MyClass] object
+    MyClass
+    <pep526_variable_annotations_cy.MyClass object at ...>
+    >>> test_list_of_extensions(5)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError:
+    """
+    cdef list[MyClass] l = [MyClass()]
+    l[0] = myclass
+    print(cython.typeof(l))
+    print(cython.typeof(l[0]))
+    print(l[0])
+
+
+def test_dict_of_extensions(myclass):
+    """
+    >>> test_dict_of_extensions(MyClass())  # doctest: +ELLIPSIS
+    dict[int,MyClass] object
+    MyClass
+    <pep526_variable_annotations_cy.MyClass object at ...>
+    >>> test_dict_of_extensions(5)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError:
+    """
+    cdef dict[int, MyClass] l = {0: MyClass()}
+    l[0] = myclass
+    print(cython.typeof(l))
+    print(cython.typeof(l[0]))
+    print(l[0])
