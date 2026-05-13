@@ -9468,7 +9468,6 @@ class CArrayNode(ListNode):
     def calculate_result_code(self):
         return self.array_cname
 
-
 class ComprehensionNode(ScopedExprNode):
     # A list/set/dict comprehension
 
@@ -9478,7 +9477,32 @@ class ComprehensionNode(ScopedExprNode):
     constant_result = not_a_constant
 
     def infer_type(self, env):
-        return self.type
+        # Bail early for container types that cannot be parameterised
+        # (e.g. unspecialised builtins added later); avoids analysing the body.
+        if not self.type.supports_container_type:
+            return self.type
+        append = self.append
+        # DictComprehensionAppendNode is defined later in this module, so
+        # dispatch by attribute shape to avoid a forward reference.
+        if hasattr(append, 'key_expr'):
+            item_exprs = [append.key_expr, append.value_expr]
+        else:
+            item_exprs = [append.expr]
+        # Resolve names in the comprehension's own scope. NameNode.infer_type
+        # caches its entry, so using the outer env here would steal the inner
+        # loop variable's binding (regression: list_comp_in_closure_T598).
+        body_env = self.expr_scope or env
+        item_types = []
+        for expr in item_exprs:
+            item_type = expr.infer_type(body_env)
+            if (item_type is None
+                    or item_type is py_object_type
+                    or item_type.is_error
+                    or item_type.is_unspecified
+                    or item_type.is_fused):
+                return self.type
+            item_types.append(item_type)
+        return self.type.specialize_here(self.pos, env, item_types)
 
     def analyse_declarations(self, env):
         self.append.target = self  # this is used in the PyList_Append of the inner loop
