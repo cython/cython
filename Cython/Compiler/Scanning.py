@@ -698,7 +698,7 @@ class FTStringState:
     def set_in_format_specifier(self):
         self.bracket_states[-1].in_format_specifier = True
 
-    def push_bracket_state(self, bracket_nesting_level: cython.int):
+    def push_bracket_state(self, bracket_nesting_level: cython.Py_ssize_t):
         self.bracket_states.append(FTStringBracketState(bracket_nesting_level))
 
     def pop_bracket_state(self):
@@ -706,6 +706,6 @@ class FTStringState:
 
 
 class FTStringBracketState:
-    def __init__(self, bracket_nesting_level: cython.int):
+    def __init__(self, bracket_nesting_level: cython.Py_ssize_t):
         self.bracket_nesting_level = bracket_nesting_level
         self.in_format_specifier = False

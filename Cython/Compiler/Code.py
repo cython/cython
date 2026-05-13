@@ -1976,10 +1976,8 @@ class GlobalState:
         writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ Py_CLEAR(clear_module_state->{struct_attr_cname}[i]); }}")
 
     def generate_object_constant_decls(self):
-        consts: list[tuple] = [
-            (len(c.cname), c.cname, c)
-                for c in self.arg_default_constants
-        ]
+        consts = [(len(c.cname), c.cname, c)
+                  for c in self.arg_default_constants]
         consts.sort()
         for _, cname, c in consts:
             self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))

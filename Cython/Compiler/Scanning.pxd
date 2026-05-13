@@ -30,7 +30,7 @@ cdef class PyrexScanner(Scanner):
     cdef dict keywords
     cdef public list[Py_ssize_t] indentation_stack
     cdef public Py_UCS4 indentation_char
-    cdef public int bracket_nesting_level
+    cdef public Py_ssize_t bracket_nesting_level
     cdef readonly bint async_enabled
     cdef public unicode sy
     cdef public systring  # EncodedString
@@ -61,10 +61,10 @@ cdef class FTStringState:
     cdef bracket_nesting_level(self)
     cdef bint in_format_specifier(self)
     cdef set_in_format_specifier(self)
-    cdef push_bracket_state(self, int bracket_nesting_level)
+    cdef push_bracket_state(self, Py_ssize_t bracket_nesting_level)
     cdef pop_bracket_state(self)
 
 @cython.final
 cdef class FTStringBracketState:
-    cdef int bracket_nesting_level
+    cdef Py_ssize_t bracket_nesting_level
     cdef bint in_format_specifier
