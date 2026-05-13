@@ -9480,24 +9480,20 @@ class ComprehensionNode(ScopedExprNode):
     constant_result = not_a_constant
 
     def infer_type(self, env):
-        # Bail early for container types that cannot be parameterised
-        # (e.g. unspecialised builtins added later); avoids analysing the body.
+        # Bail early for container types that cannot be parameterised.
         if not self.type.supports_container_type:
             return self.type
-        append = self.append
-        # DictComprehensionAppendNode is defined later in this module, so
-        # dispatch by attribute shape to avoid a forward reference.
-        if hasattr(append, 'key_expr'):
-            item_exprs = [append.key_expr, append.value_expr]
-        else:
-            item_exprs = [append.expr]
         # Resolve names in the comprehension's own scope. NameNode.infer_type
         # caches its entry, so using the outer env here would steal the inner
         # loop variable's binding (regression: list_comp_in_closure_T598).
         body_env = self.expr_scope or env
+        # Propagate the iterator's item type into the loop target before
+        # inspecting the body. Without this, `[a for a in xs]` where
+        # xs: list[int] sees `a` as py_object because ControlFlowAnalysis
+        # has not yet typed the comprehension's loop variable.
+        self._propagate_loop_target_type(env)
         item_types = []
-        for expr in item_exprs:
-            item_type = expr.infer_type(body_env)
+        for item_type in self.append.infer_item_types(body_env):
             if (item_type is None
                     or item_type is py_object_type
                     or item_type.is_error
@@ -9506,6 +9502,25 @@ class ComprehensionNode(ScopedExprNode):
                 return self.type
             item_types.append(item_type)
         return self.type.specialize_here(self.pos, env, item_types)
+
+    def _propagate_loop_target_type(self, env):
+        if not isinstance(self.loop, Nodes._ForInStatNode):
+            return
+        target = self.loop.target
+        if (target is None or not getattr(target, 'is_name', False)
+                or target.entry is None):
+            return
+        if target.entry.type not in (py_object_type, unspecified_type):
+            return
+        sequence_type = self.loop.iterator.sequence.infer_type(env)
+        if not sequence_type.supports_container_type:
+            return
+        item_type = sequence_type.infer_iterator_type()
+        if (item_type is None
+                or item_type is py_object_type
+                or item_type.is_unspecified):
+            return
+        target.entry.type = item_type
 
     def analyse_declarations(self, env):
         self.append.target = self  # this is used in the PyList_Append of the inner loop
@@ -9571,6 +9586,9 @@ class ComprehensionAppendNode(Node):
             self.expr = self.expr.coerce_to_pyobject(env)
         return self
 
+    def infer_item_types(self, env):
+        return [self.expr.infer_type(env)]
+
     def generate_execution_code(self, code):
         if self.target.type.is_pylist_type:
             code.globalstate.use_utility_code(
@@ -9608,6 +9626,9 @@ class DictComprehensionAppendNode(ComprehensionAppendNode):
         if not self.value_expr.type.is_pyobject:
             self.value_expr = self.value_expr.coerce_to_pyobject(env)
         return self
+
+    def infer_item_types(self, env):
+        return [self.key_expr.infer_type(env), self.value_expr.infer_type(env)]
 
     def generate_execution_code(self, code):
         self.key_expr.generate_evaluation_code(code)
