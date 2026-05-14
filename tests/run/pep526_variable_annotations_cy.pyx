@@ -237,25 +237,35 @@ def test_initialised_subscripted_set():
     for i3 in s3:
         print(cython.typeof(s3), cython.typeof(i3))
 
+def bar():
+    return object()
 
 def test_initialised_subscripted_list():
     """
     >>> test_initialised_subscripted_list()
     Testing list[int]:
-    (1, 'list[long] object', 'long')
-    (3, 'list[long] object', 'long')
-    (5, 'list[long] object', 'long')
+    (1, 'list[int object] object', 'int object')
+    (3, 'list[int object] object', 'int object')
+    (5, 'list[int object] object', 'int object')
+    [1, 0, 5]
     Testing list:
     list object
     Testing list with mixed types:
     (1, 'list object', 'Python object')
     (3.0, 'list object', 'Python object')
     ('5', 'list object', 'Python object')
+    [1, 0, '5']
+    Testing list with inferrable function call:
+    list[int object] object
+    Testing list with noninferrable function call:
+    list[Python object] object
     """
     print("Testing list[int]:")
     l1 = [1, 3, 5]
     for i1 in l1:
         print(i1, cython.typeof(l1), cython.typeof(i1))
+    l1[1] = 0
+    print(l1)
     print("Testing list:")
     l2 = []
     print(cython.typeof(l2))
@@ -263,6 +273,14 @@ def test_initialised_subscripted_list():
     l3 = [1, 3.0, "5"]
     for i3 in l3:
         print(i3, cython.typeof(l3), cython.typeof(i3))
+    l3[1] = 0
+    print(l3)
+    print("Testing list with inferrable function call:")
+    l4 = [len(l3)]
+    print(cython.typeof(l4))
+    print("Testing list with noninferrable function call:")
+    l5 = [bar()]
+    print(cython.typeof(l5))
 
 
 def test_initialised_subscripted_dict():
@@ -350,3 +368,4 @@ def test_dict_of_extensions(myclass):
     print(cython.typeof(l))
     print(cython.typeof(l[0]))
     print(l[0])
+

@@ -9254,8 +9254,10 @@ class ListNode(SequenceNode):
         typ = list_type
         if len(self.args) == 0:
             return typ
+        for arg in self.args:
+            arg.type = arg.infer_type(env)
         item_type = reduce(
-            lambda a, b: a if a == b else None, (arg.type for arg in self.args))
+            lambda a, b: a if a == b else None, (arg.coerce_to_pyobject(env).type for arg in self.args))
         return typ.specialize_here(self.pos, env, [item_type])
 
     def analyse_expressions(self, env):
