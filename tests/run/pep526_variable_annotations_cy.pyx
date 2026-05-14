@@ -211,19 +211,27 @@ def common_container_type(cond, list[float] a, list[int] b):
     print(result, cython.typeof(result))
 
 
+def bar():
+    return object()
+
+
 def test_initialised_subscripted_set():
     """
     >>> test_initialised_subscripted_set()
     Testing set[int]:
-    ('set[long] object', 'long')
-    ('set[long] object', 'long')
-    ('set[long] object', 'long')
+    ('set[int object] object', 'int object')
+    ('set[int object] object', 'int object')
+    ('set[int object] object', 'int object')
     Testing set:
     set object
     Testing set with mixed types:
     ('set object', 'Python object')
     ('set object', 'Python object')
     ('set object', 'Python object')
+    Testing set with inferrable function call:
+    set[int object] object
+    Testing set with noninferrable function call:
+    set[Python object] object
     """
     print("Testing set[int]:")
     s1 = {1, 3, 5}
@@ -236,9 +244,13 @@ def test_initialised_subscripted_set():
     s3 = {1, 3.0, "5"}
     for i3 in s3:
         print(cython.typeof(s3), cython.typeof(i3))
+    print("Testing set with inferrable function call:")
+    s4 = {len(s3)}
+    print(cython.typeof(s4))
+    print("Testing set with noninferrable function call:")
+    s5 = {bar()}
+    print(cython.typeof(s5))
 
-def bar():
-    return object()
 
 def test_initialised_subscripted_list():
     """
