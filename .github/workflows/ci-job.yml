@@ -156,7 +156,7 @@ jobs:
             ls -l "${ARTEFACT_NAME}.zip"; \
             mkdir OLD_TEST_TMP && cd OLD_TEST_TMP || exit 1; \
             unzip -q "../${ARTEFACT_NAME}.zip" || exit 1; \
-            (for dir in */; do echo "Diffing $dir ..." >&2; diff -r -udB -x "*.py*" -x "*.html" -x "*.so" "$dir" "../$dir" || true; done) \
+            (for dir in */; do echo "Diffing $dir ..." >&2; diff -r -udB -x "*.py*" -x "*.pxd" -x "*.html" -x "*.so" -x "__pycache__" "$dir" "../$dir" || true; done) \
             | gzip -9c > ../gensources-${{ inputs.os }}-${{ inputs.backend }}${{ inputs.extra_hash }}.diff.gz; \
           else \
             echo "No archive downloaded."; \
