@@ -92,7 +92,7 @@ jobs:
           python-version: ${{ inputs.python-version }}
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@33522472633dbd32578e909b315f5ee43ba878ce # v1.2.22
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
         if: runner.os != 'Windows'  # There is currently no working sccache setup for Windows.
         with:
           variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
@@ -131,7 +131,7 @@ jobs:
           fi >> $GITHUB_STEP_SUMMARY
 
       - name: Upload wheels
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wheels-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}${{ inputs.extra_hash }}
           path: dist/*.whl
@@ -163,7 +163,7 @@ jobs:
           fi
 
       - name: Upload C/C++ test diff
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         # Run on master branch and on PRs against master.
         if: inputs.upload_testsources && (github.base_ref == 'master' || github.base_ref == 'refs/heads/master' || github.ref == 'refs/heads/master')
         with:
@@ -173,7 +173,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload C/C++ test sources
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: inputs.upload_testsources
         with:
           name: testsources-${{ github.ref_name == 'master' && 'master-' || 'branch-' }}${{ inputs.os }}-${{ inputs.backend }}${{ inputs.extra_hash }}
