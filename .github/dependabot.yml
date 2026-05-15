@@ -52,7 +52,7 @@ updates:
   # Constraints for build dependencies
   - package-ecosystem: "pip"
     target-branch: "master"
-    directory: ".wheel_build_requirements"
+    directory: ".wheel_build_constraints"
     schedule:
       interval: "monthly"
     cooldown:
@@ -60,7 +60,7 @@ updates:
 
   - package-ecosystem: "pip"
     target-branch: "3.2.x"
-    directory: ".wheel_build_requirements"
+    directory: ".wheel_build_constraints"
     schedule:
       interval: "monthly"
     cooldown:
