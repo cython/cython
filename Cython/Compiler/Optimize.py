@@ -1089,6 +1089,17 @@ class IterationTransform(Visitor.EnvTransform):
         temps.append(temp)
         pos_temp = temp.ref(node.pos)
 
+        legacy_method = False
+        if method and method.startswith('iter'):
+            assert method in ('iterkeys', 'itervalues', 'iteritems'), method
+            if dict_obj.type.is_pydict_type:
+                method = EncodedString(method[4:])
+            elif dict_obj.type.is_pyfrozendict_type:
+                # Don't apply legacy Python 2 behaviour to Python 3.15 types
+                return node
+            else:
+                legacy_method = True
+
         key_target = value_target = tuple_target = None
         if keys and values:
             if node.target.is_sequence_constructor:
@@ -1153,9 +1164,11 @@ class IterationTransform(Visitor.EnvTransform):
                 lhs = dict_temp,
                 rhs = ExprNodes.PythonCapiCallNode(
                     dict_obj.pos,
-                    "__Pyx_dict_iterator",
+                    "__Pyx_dict_iterator_legacy" if legacy_method else "__Pyx_dict_iterator",
                     self.PyDict_Iterator_func_type,
-                    utility_code = UtilityCode.load_cached("dict_iter", "Optimize.c"),
+                    utility_code = UtilityCode.load_cached(
+                        "dict_iter_legacy" if legacy_method else "dict_iter",
+                        "Optimize.c"),
                     args = [dict_obj, is_dict, method_node, dict_len_temp_addr, is_dict_temp_addr],
                     is_temp=True,
                 )),

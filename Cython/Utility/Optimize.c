@@ -302,70 +302,30 @@ static CYTHON_INLINE int __Pyx_PyDict_Pop_ignore(PyObject *d, PyObject *key, PyO
 }
 
 
-/////////////// dict_iter.proto ///////////////
-
-static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, PyObject* method_name,
-                                                   Py_ssize_t* p_orig_length, int* p_is_dict);
+/////////////// dict_iter_common.proto ///////////////
+static PyObject *__Pyx_dict_call_to_get_iterable(PyObject* iterable, PyObject* method_name); /* proto */
 static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t orig_length, Py_ssize_t* ppos,
                                               PyObject** pkey, PyObject** pvalue, PyObject** pitem, int is_dict);
 
-/////////////// dict_iter ///////////////
+/////////////// dict_iter_common ///////////////
 //@requires: ObjectHandling.c::UnpackTuple2
 //@requires: ObjectHandling.c::IterFinish
 //@requires: ObjectHandling.c::PyObjectCallMethod0
-//@requires: Builtins.c::PyFrozenDict
 
-#if CYTHON_AVOID_BORROWED_REFS
-#include <string.h>
-#endif
-
-static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
-                                                   Py_ssize_t* p_orig_length, int* p_source_is_dict) {
-    is_dict = is_dict || likely(__Pyx_PyAnyDict_CheckExact(iterable));
-    *p_source_is_dict = is_dict;
-    if (is_dict) {
+static PyObject *__Pyx_dict_call_to_get_iterable(PyObject* iterable, PyObject* method_name) {
+    
+    PyObject* iter;
+    iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
+    if (!iterable)
+        return NULL;
 #if !CYTHON_AVOID_BORROWED_REFS
-        *p_orig_length = PyDict_Size(iterable);
-        Py_INCREF(iterable);
+    if (PyTuple_CheckExact(iterable) || PyList_CheckExact(iterable))
         return iterable;
-#else
-        // On PyPy3/GraalPy, we need to translate manually a few method names.
-        // This logic is not needed on CPython thanks to the fast case above.
-        static PyObject *py_items = NULL, *py_keys = NULL, *py_values = NULL;
-        PyObject **pp = NULL;
-        if (method_name) {
-            const char *name = PyUnicode_AsUTF8(method_name);
-            if (strcmp(name, "iteritems") == 0) pp = &py_items;
-            else if (strcmp(name, "iterkeys") == 0) pp = &py_keys;
-            else if (strcmp(name, "itervalues") == 0) pp = &py_values;
-            if (pp) {
-                if (!*pp) {
-                    *pp = PyUnicode_FromString(name + 4);
-                    if (!*pp)
-                        return NULL;
-                }
-                method_name = *pp;
-            }
-        }
 #endif
-    }
-    *p_orig_length = 0;
-    if (method_name) {
-        PyObject* iter;
-        iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
-        if (!iterable)
-            return NULL;
-#if !CYTHON_AVOID_BORROWED_REFS
-        if (PyTuple_CheckExact(iterable) || PyList_CheckExact(iterable))
-            return iterable;
-#endif
-        iter = PyObject_GetIter(iterable);
-        Py_DECREF(iterable);
-        return iter;
-    }
-    return PyObject_GetIter(iterable);
+    iter = PyObject_GetIter(iterable);
+    Py_DECREF(iterable);
+    return iter;
 }
-
 
 #if !CYTHON_AVOID_BORROWED_REFS
 static CYTHON_INLINE int __Pyx_dict_iter_next_source_is_dict(
@@ -476,6 +436,81 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         *pvalue = next_item;
     }
     return 1;
+}
+
+/////////////// dict_iter_legacy.proto //////////////
+
+// "legacy" handles old-style iter* methods
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator_legacy(PyObject* dict, int is_dict, PyObject* method_name,
+                                                          Py_ssize_t* p_orig_length, int* p_is_dict);
+
+/////////////// dict_iter_legacy //////////////////
+//@requires: dict_iter_common
+
+#if CYTHON_AVOID_BORROWED_REFS
+#include <string.h>
+#endif
+
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator_legacy(PyObject* iterable, int is_dict, PyObject* method_name,
+                                                          Py_ssize_t* p_orig_length, int* p_source_is_dict) {
+    int owned_method_name = 0;
+    // Don't include frozendict.
+    is_dict = is_dict || likely(PyDict_CheckExact(iterable));
+    *p_source_is_dict = is_dict;
+    if (is_dict) {
+#if !CYTHON_AVOID_BORROWED_REFS
+        *p_orig_length = PyDict_Size(iterable);
+        Py_INCREF(iterable);
+        return iterable;
+#else
+        // On PyPy3/GraalPy, we need to translate manually the method name.
+        // This logic is not needed on CPython thanks to the fast case above.
+        if (method_name) {
+            method_name = PyUnicode_Substring(method_name, 4, 10);  // longest is "itervalues" (len=10)
+            if (unlikely(!method_name))
+                return NULL;
+            owned_method_name = 1;
+        }
+#endif
+    }
+    *p_orig_length = 0;
+    if (method_name) {
+        iterable = __Pyx_dict_call_to_get_iterable(iterable, method_name);
+        if (owned_method_name) {
+            Py_DECREF(method_name);
+        }
+        return iterable;
+    } else {
+        return PyObject_GetIter(iterable);
+    }
+}
+
+/////////////// dict_iter.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, PyObject* method_name,
+                                                   Py_ssize_t* p_orig_length, int* p_is_dict);
+
+/////////////// dict_iter ///////////////
+//@requires: Builtins.c::PyFrozenDict
+//@requires: dict_iter_common
+
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
+                                                   Py_ssize_t* p_orig_length, int* p_source_is_dict) {
+    is_dict = is_dict || likely(__Pyx_PyAnyDict_CheckExact(iterable));
+    *p_source_is_dict = is_dict;
+#if !CYTHON_AVOID_BORROWED_REFS
+    if (is_dict) {
+        *p_orig_length = PyDict_Size(iterable);
+        Py_INCREF(iterable);
+        return iterable;
+    }
+#endif
+    *p_orig_length = 0;
+    if (method_name) {
+        return __Pyx_dict_call_to_get_iterable(iterable, method_name);
+    } else {
+        return PyObject_GetIter(iterable);
+    }
 }
 
 

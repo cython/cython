@@ -911,7 +911,7 @@ static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRI
 
 {{if Type == 'Tuple'}}
 #if PY_VERSION_HEX >= 0x030F0000 && !CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_PyTuple_FromArray(src, n) PyTuple_FromArray(src, ((n)<0) ? 0 : (n)) 
+#define __Pyx_PyTuple_FromArray(src, n) PyTuple_FromArray(src, ((n)<0) ? 0 : (n))
 #else
 {{endif}}
 CYTHON_UNUSED static PyObject *

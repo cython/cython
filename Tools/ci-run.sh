@@ -229,6 +229,7 @@ if [[ $PYTHON_VERSION == *"t" ]]; then
 fi
 python $GRAAL_PYTHON_ARGS runtests.py \
   -vv --no-code-style \
+  --no-cleanup \
   -x Debugger \
   --backends=$BACKEND \
   $LIMITED_API \

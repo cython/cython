@@ -800,7 +800,7 @@ __Pyx_CyFunction_reduce(PyObject *m_in, PyObject *args)
 }
 
 static PyMethodDef __pyx_CyFunction_methods[] = {
-    {"__reduce__", (PyCFunction)__Pyx_CyFunction_reduce, METH_VARARGS, 0},
+    {"__reduce__", (PyCFunction)__Pyx_CyFunction_reduce, METH_NOARGS, 0},
     {0, 0, 0, 0}
 };
 
