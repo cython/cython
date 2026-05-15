@@ -9256,7 +9256,10 @@ class ListNode(SequenceNode):
         for arg in self.args:
             arg.type = arg.infer_type(env)
         item_type = reduce(
-            lambda a, b: a if a == b else None, (arg.coerce_to_pyobject(env).type for arg in self.args))
+            lambda a, b: a if a == b else None, (
+                arg.type if arg.type.is_pyobject else arg.coerce_to_pyobject(env).type for arg in self.args
+            )
+        )
         return typ.specialize_here(self.pos, env, [item_type])
 
     def analyse_expressions(self, env):
@@ -9844,7 +9847,10 @@ class SetNode(ExprNode):
         for arg in self.args:
             arg.type = arg.infer_type(env)
         item_type = reduce(
-            lambda a, b: a if a == b else None, (arg.coerce_to_pyobject(env).type for arg in self.args))
+            lambda a, b: a if a == b else None, (
+                arg.type if arg.type.is_pyobject else arg.coerce_to_pyobject(env).type for arg in self.args
+            )
+        )
         return typ.specialize_here(self.pos, env, [item_type])
 
     def analyse_types(self, env):
@@ -9926,10 +9932,19 @@ class DictNode(ExprNode):
     def infer_type(self, env):
         typ = dict_type
         if len(self.key_value_pairs) > 0:
+            for kv_pair in self.key_value_pairs:
+                kv_pair.key.type = kv_pair.key.infer_type(env)
+                kv_pair.value.type = kv_pair.value.infer_type(env)
             key_type = reduce(
-                lambda a, b: a if a == b else None, (i.key.type for i in self.key_value_pairs))
+                lambda a, b: a if a == b else None, (
+                    i.key.type if i.key.type.is_pyobject else i.key.coerce_to_pyobject(env).type for i in self.key_value_pairs
+                )
+            )
             value_type = reduce(
-                lambda a, b: a if a == b else None, (i.value.type for i in self.key_value_pairs))
+                lambda a, b: a if a == b else None, (
+                    i.value.type if i.value.type.is_pyobject else i.value.coerce_to_pyobject(env).type for i in self.key_value_pairs
+                )
+            )
             if key_type is not None or value_type is not None:
                 key_type = key_type if key_type is not None else PyrexTypes.py_object_type
                 value_type = value_type if value_type is not None else PyrexTypes.py_object_type

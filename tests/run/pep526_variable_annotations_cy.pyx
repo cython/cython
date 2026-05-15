@@ -299,23 +299,27 @@ def test_initialised_subscripted_dict():
     """
     >>> test_initialised_subscripted_dict()
     Testing dict[int, str]:
-    ('dict[long,str object] object', 'long', 'str object')
-    ('dict[long,str object] object', 'long', 'str object')
-    ('dict[long,str object] object', 'long', 'str object')
+    ('dict[int object,str object] object', 'int object', 'str object')
+    ('dict[int object,str object] object', 'int object', 'str object')
+    ('dict[int object,str object] object', 'int object', 'str object')
     Testing dict:
     dict object
     Testing dict with mixed key types:
-    ('dict[Python object,long] object', 'Python object', 'long')
-    ('dict[Python object,long] object', 'Python object', 'long')
-    ('dict[Python object,long] object', 'Python object', 'long')
+    ('dict[Python object,int object] object', 'Python object', 'int object')
+    ('dict[Python object,int object] object', 'Python object', 'int object')
+    ('dict[Python object,int object] object', 'Python object', 'int object')
     Testing dict with mixed value types:
-    ('dict[long,Python object] object', 'long', 'Python object')
-    ('dict[long,Python object] object', 'long', 'Python object')
-    ('dict[long,Python object] object', 'long', 'Python object')
+    ('dict[int object,Python object] object', 'int object', 'Python object')
+    ('dict[int object,Python object] object', 'int object', 'Python object')
+    ('dict[int object,Python object] object', 'int object', 'Python object')
     Testing dict with mixed key and value types:
     ('dict object', 'Python object', 'Python object')
     ('dict object', 'Python object', 'Python object')
     ('dict object', 'Python object', 'Python object')
+    Testing dict with inferrable function call:
+    dict[int object,int object] object
+    Testing dict with noninferrable function call:
+    dict[Python object,Python object] object
     """
     print("Testing dict[int, str]:")
     d1 = {1: "a", 3: "b", 5: "c"}
@@ -340,6 +344,14 @@ def test_initialised_subscripted_dict():
     d5 = {1: 1.0, 3.0: "b", "5": "c"}
     for k5 in d5:
         print(cython.typeof(d5), cython.typeof(k5), cython.typeof(d5[k5]))
+
+    print("Testing dict with inferrable function call:")
+    d6 = {len(d1): len(d2), len(d3): len(d5)}
+    print(cython.typeof(d6))
+
+    print("Testing dict with noninferrable function call:")
+    d7 = {bar(): bar()}
+    print(cython.typeof(d7))
 
 
 cdef class MyClass:
