@@ -28,6 +28,7 @@ class TestBuiltinTypes(TimedTest):
         'is_pylist_type': ['list'],
         'is_pydict_type': ['dict'],
         'is_pyfrozendict_type': ['frozendict'],
+        'is_pyanydict_type': ['dict', 'frozendict'],
         'is_pyset_type': ['set'],
         'is_pytuple_type': ['tuple'],
         'is_pyfrozenset_type': ['frozenset'],

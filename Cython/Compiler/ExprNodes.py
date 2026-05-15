@@ -182,24 +182,25 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             infer_sequence_item_type(env, item) if item.is_starred else item.infer_type(env)
             for item in args_without_none
         }
-        if None in item_types:
-            # Could not infer all starred types.
+        if None in item_types or py_object_type in item_types:
+            # Could not infer all (starred) types to specific types.
             return None
-        # Unpack the Python types. Also avoids a mix of inferred C and Python.
-        item_types = {
+        item_type = PyrexTypes.reduce_spanning_types(
+            # Unpack the Python types to optimise and avoid a mix of inferred C and Python.
             item_type.equivalent_type if item_type.is_pyobject and item_type.equivalent_type else item_type
             for item_type in item_types
-        }
-        if len(item_types) == 1:
-            item_type = item_types.pop()
-            if has_none and not item_type.is_pyobject:
-                # Must be a Python type to cover 'None'.
-                item_type = item_type.equivalent_type  # 'equivalent_type' may be None => cannot infer type
-            elif not has_none and (item_type.is_pybytes_type or item_type.is_pystr_type):
-                # Infer special case of single character sequences as single character type.
-                if all(arg.is_string_literal and arg.can_coerce_to_char_literal() for arg in args_without_none):
-                    item_type = PyrexTypes.c_py_ucs4_type if item_type.is_pystr_type else PyrexTypes.c_uchar_type
-            return item_type
+        )
+        if item_type is py_object_type:
+            # Normalise "cannot infer anything specific" to "cannot infer".
+            return None
+        if has_none and not item_type.is_pyobject:
+            # Must be a Python type to cover 'None'.
+            item_type = item_type.equivalent_type  # 'equivalent_type' may be None => cannot infer type
+        elif not has_none and (item_type.is_pybytes_type or item_type.is_pystr_type):
+            # Infer special case of single character sequences as single character type.
+            if all(arg.is_string_literal and arg.can_coerce_to_char_literal() for arg in args_without_none):
+                item_type = PyrexTypes.c_py_ucs4_type if item_type.is_pystr_type else PyrexTypes.c_uchar_type
+        return item_type
     return None
 
 
@@ -4184,7 +4185,7 @@ class IndexNode(_IndexingBaseNode):
     def analyse_as_type(self, env):
         modifier = self.base.as_cython_attribute()
 
-        if modifier is not None and modifier in ('pointer', 'const', 'volatile'):
+        if modifier is not None and modifier in ('pointer', 'const', 'volatile', 'restrict'):
             base_type = self.index.analyse_as_type(env)
             if base_type is None:
                 error(self.base.pos, f"invalid use of '{modifier}', argument is not a type")
@@ -4195,7 +4196,8 @@ class IndexNode(_IndexingBaseNode):
 
             # const[base_type] or volatile[base_type]
             is_const = modifier == 'const'
-            is_volatile = not is_const
+            is_volatile = modifier == 'volatile'
+            is_restrict = modifier == 'restrict'
             if base_type.is_cv_qualified:
                 if base_type.is_const:
                     if is_const:
@@ -4205,12 +4207,16 @@ class IndexNode(_IndexingBaseNode):
                     if is_volatile:
                         error(self.base.pos, "Duplicate 'volatile'")
                     is_volatile = True
+                if base_type.is_restrict:
+                    if is_restrict:
+                        error(self.base.pos, "Duplicate 'restrict'")
+                    is_restrict = True
                 base_type = base_type.cv_base_type
             if base_type.is_memoryviewslice:
                 error(self.base.pos,
                       f"Cannot declare memory view variable as '{modifier}'. Did you mean '{modifier}[item_type][:]' ?")
-            return PyrexTypes.c_const_or_volatile_type(
-                base_type, is_const=is_const, is_volatile=not is_const)
+            return PyrexTypes.c_qualifier_type(
+                base_type, is_const=is_const, is_volatile=is_volatile, is_restrict=is_restrict)
 
         base_type = self.base.analyse_as_type(env)
         if base_type:
@@ -4448,14 +4454,14 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_pyobject(self, env, is_slice, getting, setting):
         base_type = self.base.type
-        if self.index.type.is_unicode_char and not base_type.is_pydict_type:
+        if self.index.type.is_unicode_char and not base_type.is_pyanydict_type:
             # TODO: eventually fold into case below and remove warning, once people have adapted their code
             warning(self.pos,
                     "Item lookup of unicode character codes now always converts to a Unicode string. "
                     "Use an explicit C integer cast to get back the previous integer lookup behaviour.", level=1)
             self.index = self.index.coerce_to_pyobject(env)
             self.is_temp = 1
-        elif self.index.type.is_int and not base_type.is_pydict_type:
+        elif self.index.type.is_int and not base_type.is_pyanydict_type:
             if (getting
                     and not env.directives['boundscheck']
                     and (base_type.is_pybytearray_type or base_type.is_pylist_type or base_type.is_pytuple_type)
@@ -4494,7 +4500,7 @@ class IndexNode(_IndexingBaseNode):
                 # Infer homogeneous item type when looping over container literals.
                 item_type = infer_sequence_item_type(env, self.base, seq_type=base_type)
 
-            if base_type.is_pylist_type or base_type.is_pytuple_type or base_type.is_pydict_type:
+            if base_type.is_pylist_type or base_type.is_pytuple_type or base_type.is_pyanydict_type:
                 # Do the None check explicitly (not in a helper, and regardless of 'nonecheck') to allow optimising it away.
                 self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
 
@@ -4509,8 +4515,10 @@ class IndexNode(_IndexingBaseNode):
         self.wrap_in_nonecheck_node(env, getting)
 
         if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
-            self.type = base_type
-            return self.coerce_to(sub_type, env)
+            if getting:
+                self.type = base_type
+                return self.coerce_to(sub_type, env)
+            self.type = sub_type
 
         return self
 
@@ -4831,7 +4839,7 @@ class IndexNode(_IndexingBaseNode):
                     function = "__Pyx_GetItemInt"
                 utility_code = TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c")
             else:
-                if base_type.is_pydict_type:
+                if base_type.is_pyanydict_type:
                     function = "__Pyx_PyDict_GetItem"
                     utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
                 elif base_type is py_object_type and self.index.type.is_pystr_type:
@@ -7670,7 +7678,7 @@ class MergedDictNode(ExprNode):
                 items = ((key.constant_result, value.constant_result)
                          for key, value in item.key_value_pairs)
             else:
-                items = item.constant_result.iteritems()
+                items = item.constant_result.items()
 
             for key, value in items:
                 if reject_duplicates and key in result:
@@ -7688,7 +7696,7 @@ class MergedDictNode(ExprNode):
                 items = [(key.compile_time_value(denv), value.compile_time_value(denv))
                          for key, value in item.key_value_pairs]
             else:
-                items = item.compile_time_value(denv).iteritems()
+                items = item.compile_time_value(denv).items()
 
             try:
                 for key, value in items:
@@ -7729,6 +7737,8 @@ class MergedDictNode(ExprNode):
         item.generate_evaluation_code(code)
         if not item.type.is_pydict_type:
             # CPython supports calling functions with non-dicts, so do we
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "PyFrozenDict", "Builtins.c"))
             code.putln('if (likely(PyDict_CheckExact(%s))) {' %
                        item.py_result())
 
@@ -10101,7 +10111,7 @@ class SortedDictKeysNode(ExprNode):
 
     def analyse_types(self, env):
         arg = self.arg.analyse_types(env)
-        if arg.type.is_pydict_type:
+        if arg.type.is_pyanydict_type:
             arg = arg.as_none_safe_node(
                 "'NoneType' object is not iterable")
         self.arg = arg
@@ -10112,7 +10122,7 @@ class SortedDictKeysNode(ExprNode):
 
     def generate_result_code(self, code):
         dict_result = self.arg.py_result()
-        if self.arg.type.is_pydict_type:
+        if self.arg.type.is_pyanydict_type:
             code.putln('%s = PyDict_Keys(%s); %s' % (
                 self.result(), dict_result,
                 code.error_goto_if_null(self.result(), self.pos)))
@@ -12257,7 +12267,7 @@ class TypeidNode(ExprNode):
             env_module = env_module.outer_scope
         typeinfo_module = env_module.find_module('libcpp.typeinfo', self.pos)
         typeinfo_entry = typeinfo_module.lookup('type_info')
-        return PyrexTypes.CFakeReferenceType(PyrexTypes.c_const_or_volatile_type(typeinfo_entry.type, is_const=True))
+        return PyrexTypes.CFakeReferenceType(PyrexTypes.c_qualifier_type(typeinfo_entry.type, is_const=True))
 
     cpp_message = 'typeid operator'
 
@@ -14085,7 +14095,7 @@ class CmpNode:
                          _) = result
                         return True
         elif self.operator in ('in', 'not_in'):
-            if self.operand2.type.is_pydict_type:
+            if self.operand2.type.is_pyanydict_type:
                 self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyDictContains", "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_PyDict_ContainsTF"
@@ -14565,7 +14575,7 @@ class CascadedCmpNode(Node, CmpNode):
 
     def coerce_operands_to_pyobjects(self, env):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
-        if self.operand2.type.is_pydict_type and self.operator in ('in', 'not_in'):
+        if self.operand2.type.is_pyanydict_type and self.operator in ('in', 'not_in'):
             self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
         if self.cascade:
             self.cascade.coerce_operands_to_pyobjects(env)
@@ -15109,7 +15119,7 @@ class CoerceToBooleanNode(CoercionNode):
             return '__Pyx_PyTuple_GET_SIZE'
         if typ.is_pyset_type or typ.is_pyfrozenset_type:
             return '__Pyx_PySet_GET_SIZE'
-        if typ.is_pydict_type or typ.is_pyfrozendict_type:
+        if typ.is_pyanydict_type:
             return '__Pyx_PyDict_GET_SIZE'
         if typ.is_pybytes_type:
             return '__Pyx_PyBytes_GET_SIZE'

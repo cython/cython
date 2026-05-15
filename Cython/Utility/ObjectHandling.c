@@ -397,12 +397,13 @@ static PyObject *__Pyx_PyObject_GetItem(PyObject *obj, PyObject *key) {
 
 
 /////////////// DictGetItem.proto ///////////////
+//@requires: Builtins.c::PyFrozenDict
 
 #if !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key);/*proto*/
 
 #define __Pyx_PyObject_Dict_GetItem(obj, name) \
-    (likely(PyDict_CheckExact(obj)) ? \
+    (likely(__Pyx_PyAnyDict_CheckExact(obj)) ? \
      __Pyx_PyDict_GetItem(obj, name) : PyObject_GetItem(obj, name))
 
 #else
@@ -485,6 +486,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
 /////////////// GetItemInt ///////////////
 //@substitute: tempita
 //@requires: GettItemInt_wraparound
+//@requires: Builtins.c::PyFrozenDict
 
 static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
     PyObject *r;
@@ -551,7 +553,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
 #endif
 #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
     // This dict check is so cheap after the other type checks above that it would be costly *not* to do it.
-    if (PyDict_CheckExact(o)) {
+    if (__Pyx_PyAnyDict_CheckExact(o)) {
         return __Pyx_GetItemInt_Fast_mapping(o, PyDict_Type.tp_as_mapping->mp_subscript, i);
     } else
     {
@@ -909,7 +911,7 @@ static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRI
 
 {{if Type == 'Tuple'}}
 #if PY_VERSION_HEX >= 0x030F0000 && !CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_PyTuple_FromArray(src, n) PyTuple_FromArray(src, ((n)<0) ? 0 : (n)) 
+#define __Pyx_PyTuple_FromArray(src, n) PyTuple_FromArray(src, ((n)<0) ? 0 : (n))
 #else
 {{endif}}
 CYTHON_UNUSED static PyObject *
