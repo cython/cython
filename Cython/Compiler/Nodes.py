@@ -2413,6 +2413,12 @@ class FuncDefNode(StatNode, BlockNode):
                         "int %s = 0; /* StopIteration */" % Naming.error_without_exception_cname
                     )
                     code.putln("if (!%s) {" % Naming.error_without_exception_cname)
+                if (self.entry.scope.is_property_scope and
+                        self.entry.name == "__get__" and
+                        self.local_scope.directives['safe_property_autocomplete']):
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("GuardPropertyAutocomplete", "Exceptions.c"))
+                    code.putln("__Pyx_GuardPropertyAutocomplete();")
                 code.put_add_traceback(self.entry.qualified_name)
                 if code.funcstate.error_without_exception:
                     code.putln("}")
