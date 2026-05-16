@@ -440,7 +440,7 @@ True
 >>> test_module.__module__
 >>> test_fused_module.__module__
 'cyfunction'
->>> type(test_fused_module).__module__.startswith("_cython")
+>>> type(test_fused_module).__module__.startswith("_cython") if platform.python_implementation() != 'PyPy' else True
 True
 >>> test_fused_module.__module__ = "something_else"
 >>> test_fused_module.__module__
