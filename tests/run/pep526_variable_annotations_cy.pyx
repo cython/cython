@@ -231,7 +231,7 @@ def test_initialised_subscripted_set():
     Testing set with inferable function call:
     set[int object] object
     Testing set with noninferrable function call:
-    set[Python object] object
+    set object
     """
     print("Testing set[int]:")
     s1 = {1, 3, 5}
@@ -270,7 +270,7 @@ def test_initialised_subscripted_list():
     Testing list with inferable function call:
     list[int object] object
     Testing list with noninferrable function call:
-    list[Python object] object
+    list object
     """
     print("Testing list[int]:")
     l1 = [1, 3, 5]
@@ -319,7 +319,7 @@ def test_initialised_subscripted_dict():
     Testing dict with inferable function call:
     dict[int object,int object] object
     Testing dict with noninferrable function call:
-    dict[Python object,Python object] object
+    dict object
     """
     print("Testing dict[int, str]:")
     d1 = {1: "a", 3: "b", 5: "c"}
