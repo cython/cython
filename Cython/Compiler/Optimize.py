@@ -2882,18 +2882,24 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         ],
         exception_value=-1)
 
-    _map_to_capi_len_function = {
-        Builtin.unicode_type:    "__Pyx_PyUnicode_GET_LENGTH",
-        Builtin.bytes_type:      "__Pyx_PyBytes_GET_SIZE",
-        Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
-        Builtin.list_type:       "__Pyx_PyList_GET_SIZE",
-        Builtin.tuple_type:      "__Pyx_PyTuple_GET_SIZE",
-        Builtin.set_type:        "__Pyx_PySet_GET_SIZE",
-        Builtin.frozenset_type:  "__Pyx_PySet_GET_SIZE",
-        Builtin.dict_type:       "PyDict_Size",
-        Builtin.frozendict_type: "PyDict_Size",
-    }.get
 
+    @staticmethod
+    def _find_special_capi_len_function(typ) -> Optional[str]:
+        if typ.is_pystr_type:
+            return "__Pyx_PyUnicode_GET_LENGTH"
+        if typ.is_pybytes_type:
+            return "__Pyx_PyBytes_GET_SIZE"
+        if typ.is_pybytearray_type:
+            return "__Pyx_PyByteArray_GET_SIZE"
+        if typ.is_pylist_type:
+            return "__Pyx_PyList_GET_SIZE"
+        if typ.is_pytuple_type:
+            return "__Pyx_PyTuple_GET_SIZE"
+        if typ.is_pyset_type or typ.is_pyfrozenset_type:
+            return "__Pyx_PySet_GET_SIZE"
+        if typ.is_pydict_type or typ.is_pyforzendict_type:
+            return "PyDict_Size"
+        
     _ext_types_with_pysize = {"cpython.array.array"}
 
     def _handle_simple_function_len(self, node, function, pos_args):
@@ -2927,7 +2933,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 node.pos, "__Pyx_MemoryView_Len", func_type,
                 args=[arg], is_temp=node.is_temp)
         elif arg.type.is_pyobject:
-            cfunc_name = self._map_to_capi_len_function(arg.type)
+            cfunc_name = self._find_special_capi_len_function(arg.type)
             if cfunc_name is None:
                 arg_type = arg.type
                 if ((arg_type.is_extension_type or arg_type.is_builtin_type)
