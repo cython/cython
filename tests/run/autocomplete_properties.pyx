@@ -2,6 +2,7 @@
 
 cimport cython
 import sys
+import platform
 
 # For testing purposes we need to make it so Cython believes the interpreter
 # is interactive.
@@ -34,7 +35,8 @@ def get_unguarded_fail_py(inst):
     return inst.q_unguarded_fail
 """, globals())
 
-assert not trick_cython_into_believing_interpreter_is_interactive()
+# At the moment, Graal always believes it's in an interactive terminal.
+assert not trick_cython_into_believing_interpreter_is_interactive() or platform.python_implementation() == "GraalVM"
 
 cdef class FailableProperties:
     """
