@@ -228,7 +228,7 @@ def test_initialised_subscripted_set():
     ('set object', 'Python object')
     ('set object', 'Python object')
     ('set object', 'Python object')
-    Testing set with inferrable function call:
+    Testing set with inferable function call:
     set[int object] object
     Testing set with noninferrable function call:
     set[Python object] object
@@ -244,7 +244,7 @@ def test_initialised_subscripted_set():
     s3 = {1, 3.0, "5"}
     for i3 in s3:
         print(cython.typeof(s3), cython.typeof(i3))
-    print("Testing set with inferrable function call:")
+    print("Testing set with inferable function call:")
     s4 = {len(s3)}
     print(cython.typeof(s4))
     print("Testing set with noninferrable function call:")
@@ -267,7 +267,7 @@ def test_initialised_subscripted_list():
     (3.0, 'list object', 'Python object')
     ('5', 'list object', 'Python object')
     [1, 0, '5']
-    Testing list with inferrable function call:
+    Testing list with inferable function call:
     list[int object] object
     Testing list with noninferrable function call:
     list[Python object] object
@@ -287,7 +287,7 @@ def test_initialised_subscripted_list():
         print(i3, cython.typeof(l3), cython.typeof(i3))
     l3[1] = 0
     print(l3)
-    print("Testing list with inferrable function call:")
+    print("Testing list with inferable function call:")
     l4 = [len(l3)]
     print(cython.typeof(l4))
     print("Testing list with noninferrable function call:")
@@ -316,7 +316,7 @@ def test_initialised_subscripted_dict():
     ('dict object', 'Python object', 'Python object')
     ('dict object', 'Python object', 'Python object')
     ('dict object', 'Python object', 'Python object')
-    Testing dict with inferrable function call:
+    Testing dict with inferable function call:
     dict[int object,int object] object
     Testing dict with noninferrable function call:
     dict[Python object,Python object] object
@@ -345,7 +345,7 @@ def test_initialised_subscripted_dict():
     for k5 in d5:
         print(cython.typeof(d5), cython.typeof(k5), cython.typeof(d5[k5]))
 
-    print("Testing dict with inferrable function call:")
+    print("Testing dict with inferable function call:")
     d6 = {len(d1): len(d2), len(d3): len(d5)}
     print(cython.typeof(d6))
 
