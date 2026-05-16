@@ -11,6 +11,7 @@ import copy
 import codecs
 import itertools
 from functools import partial, reduce
+from typing import Optional
 from operator import attrgetter
 
 from . import TypeSlots
