@@ -2,6 +2,7 @@
 # mode: run
 # tag: cyfunction
 
+import platform
 cimport cython
 
 def inspect_isroutine():
@@ -428,7 +429,9 @@ def test_fused_module(cython.numeric arg):
 __doc__ = """
 >>> test_module.__module__
 'cyfunction'
->>> type(test_module).__module__.startswith("_cython")
+
+# Our metaclass doesn't stick on PyPy unfortunately
+>>> type(test_module).__module__.startswith("_cython") if platform.python_implementation() != 'PyPy' else True
 True
 >>> test_module.__module__ = "something_else"
 >>> test_module.__module__
