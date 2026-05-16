@@ -182,24 +182,25 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             infer_sequence_item_type(env, item) if item.is_starred else item.infer_type(env)
             for item in args_without_none
         }
-        if None in item_types:
-            # Could not infer all starred types.
+        if None in item_types or py_object_type in item_types:
+            # Could not infer all (starred) types to specific types.
             return None
-        # Unpack the Python types. Also avoids a mix of inferred C and Python.
-        item_types = {
+        item_type = PyrexTypes.reduce_spanning_types(
+            # Unpack the Python types to optimise and avoid a mix of inferred C and Python.
             item_type.equivalent_type if item_type.is_pyobject and item_type.equivalent_type else item_type
             for item_type in item_types
-        }
-        if len(item_types) == 1:
-            item_type = item_types.pop()
-            if has_none and not item_type.is_pyobject:
-                # Must be a Python type to cover 'None'.
-                item_type = item_type.equivalent_type  # 'equivalent_type' may be None => cannot infer type
-            elif not has_none and (item_type.is_pybytes_type or item_type.is_pystr_type):
-                # Infer special case of single character sequences as single character type.
-                if all(arg.is_string_literal and arg.can_coerce_to_char_literal() for arg in args_without_none):
-                    item_type = PyrexTypes.c_py_ucs4_type if item_type.is_pystr_type else PyrexTypes.c_uchar_type
-            return item_type
+        )
+        if item_type is py_object_type:
+            # Normalise "cannot infer anything specific" to "cannot infer".
+            return None
+        if has_none and not item_type.is_pyobject:
+            # Must be a Python type to cover 'None'.
+            item_type = item_type.equivalent_type  # 'equivalent_type' may be None => cannot infer type
+        elif not has_none and (item_type.is_pybytes_type or item_type.is_pystr_type):
+            # Infer special case of single character sequences as single character type.
+            if all(arg.is_string_literal and arg.can_coerce_to_char_literal() for arg in args_without_none):
+                item_type = PyrexTypes.c_py_ucs4_type if item_type.is_pystr_type else PyrexTypes.c_uchar_type
+        return item_type
     return None
 
 

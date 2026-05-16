@@ -6,7 +6,7 @@ on:
       - '**'
       - '!Demos/benchmarks/**'
       - '!.github/**'
-      - '.github/workflows/ci.yml'
+      - '.github/workflows/ci*.yml'
       - '**/*.md'
       - '**/*.rst'
       - '!docs/**'
@@ -16,7 +16,7 @@ on:
       - '**'
       - '!Demos/benchmarks/**'
       - '!.github/**'
-      - '.github/workflows/ci.yml'
+      - '.github/workflows/ci*.yml'
       - '!**/*.md'
       - '!**/*.rst'
       - '!docs/**'
@@ -57,12 +57,20 @@ jobs:
         include:
           # Limited API
           - os: ubuntu-24.04
-            backend: "c,cpp"
+            backend: "c"
+            limited_api: "--limited-api --abi3audit"
+            extra_hash: "-limited_api"
+          - os: ubuntu-24.04
+            backend: "cpp"
             limited_api: "--limited-api --abi3audit"
             extra_hash: "-limited_api"
           # Cython Shared Module
           - os: ubuntu-24.04
-            backend: "c,cpp"
+            backend: "c"
+            shared_utility: "--shared-utility"
+            extra_hash: "--shared-utility"
+          - os: ubuntu-24.04
+            backend: "cpp"
             shared_utility: "--shared-utility"
             extra_hash: "--shared-utility"
 
@@ -74,6 +82,7 @@ jobs:
       limited_api: ${{ matrix.limited_api }}
       shared_utility: ${{ matrix.shared_utility }}
       extra_hash: ${{ matrix.extra_hash }}
+      upload_testsources: ${{ startsWith(matrix.os, 'ubuntu') }}
 
 
   ci-all:
