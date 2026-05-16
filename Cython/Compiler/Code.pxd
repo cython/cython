@@ -57,8 +57,8 @@ cdef class FunctionState:
     cdef public bint gil_owned
 
     cdef list[tuple] temps_allocated
-    cdef dict temps_free
-    cdef dict temps_used_type
+    cdef dict[tuple, tuple] temps_free
+    cdef dict[object, tuple] temps_used_type
     cdef set zombie_temps
     cdef size_t temp_counter
     cdef list[set[tuple]] collect_temps_stack
