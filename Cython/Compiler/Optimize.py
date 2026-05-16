@@ -2882,9 +2882,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         ],
         exception_value=-1)
 
-
-    @staticmethod
-    def _find_special_capi_len_function(typ) -> Optional[str]:
+    def _find_special_capi_len_function(self, typ) -> Optional[str]:
         if typ.is_pystr_type:
             return "__Pyx_PyUnicode_GET_LENGTH"
         if typ.is_pybytes_type:
@@ -2897,8 +2895,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return "__Pyx_PyTuple_GET_SIZE"
         if typ.is_pyset_type or typ.is_pyfrozenset_type:
             return "__Pyx_PySet_GET_SIZE"
-        if typ.is_pydict_type or typ.is_pyforzendict_type:
+        if typ.is_pydict_type or typ.is_pyfrozendict_type:
             return "PyDict_Size"
+        if ((typ.is_extension_type or typ.is_builtin_type)
+                and typ.entry.qualified_name in self._ext_types_with_pysize):
+            return 'Py_SIZE'
+        return None
         
     _ext_types_with_pysize = {"cpython.array.array"}
 
@@ -2935,12 +2937,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif arg.type.is_pyobject:
             cfunc_name = self._find_special_capi_len_function(arg.type)
             if cfunc_name is None:
-                arg_type = arg.type
-                if ((arg_type.is_extension_type or arg_type.is_builtin_type)
-                        and arg_type.entry.qualified_name in self._ext_types_with_pysize):
-                    cfunc_name = 'Py_SIZE'
-                else:
-                    return node
+                return node
             arg = arg.as_none_safe_node(
                 "object of type 'NoneType' has no len()")
             new_node = ExprNodes.PythonCapiCallNode(
