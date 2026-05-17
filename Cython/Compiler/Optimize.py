@@ -2883,26 +2883,28 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         ],
         exception_value=-1)
 
-    def _find_special_capi_len_function(self, typ) -> Optional[str]:
-        if typ.is_pystr_type:
-            return "__Pyx_PyUnicode_GET_LENGTH"
-        if typ.is_pybytes_type:
-            return "__Pyx_PyBytes_GET_SIZE"
-        if typ.is_pybytearray_type:
-            return "__Pyx_PyByteArray_GET_SIZE"
-        if typ.is_pylist_type:
-            return "__Pyx_PyList_GET_SIZE"
-        if typ.is_pytuple_type:
-            return "__Pyx_PyTuple_GET_SIZE"
-        if typ.is_pyset_type or typ.is_pyfrozenset_type:
-            return "__Pyx_PySet_GET_SIZE"
-        if typ.is_pydict_type or typ.is_pyfrozendict_type:
-            return "PyDict_Size"
-        if ((typ.is_extension_type or typ.is_builtin_type)
-                and typ.entry.qualified_name in self._ext_types_with_pysize):
-            return 'Py_SIZE'
-        return None
     _ext_types_with_pysize = {"cpython.array.array"}
+
+    def _find_special_capi_len_function(self, typ) -> Optional[str]:
+        if typ.is_extension_type:
+            if typ.entry.qualified_name in self._ext_types_with_pysize:
+                return 'Py_SIZE'
+        elif typ.is_builtin_type:
+            if typ.is_pystr_type:
+                return "__Pyx_PyUnicode_GET_LENGTH"
+            if typ.is_pybytes_type:
+                return "__Pyx_PyBytes_GET_SIZE"
+            if typ.is_pybytearray_type:
+                return "__Pyx_PyByteArray_GET_SIZE"
+            if typ.is_pylist_type:
+                return "__Pyx_PyList_GET_SIZE"
+            if typ.is_pytuple_type:
+                return "__Pyx_PyTuple_GET_SIZE"
+            if typ.is_pyset_type or typ.is_pyfrozenset_type:
+                return "__Pyx_PySet_GET_SIZE"
+            if typ.is_pydict_type or typ.is_pyfrozendict_type:
+                return "PyDict_Size"
+        return None
 
     def _handle_simple_function_len(self, node, function, pos_args):
         """Replace len(char*) by the equivalent call to strlen(),
