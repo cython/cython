@@ -982,7 +982,7 @@ static PyObject *__Pyx_CallNewInitFromVectorcall(PyTypeObject *t, PyObject *cons
     if (unlikely(!tp_new)) {
         __Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(t);
         PyErr_Format(PyExc_TypeError, "cannot create " __Pyx_FMT_TYPENAME " instances", type_name);
-        __Pyx_DECREF_TypeName(globals_type_name);
+        __Pyx_DECREF_TypeName(type_name);
         return NULL;
     }
     Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(nargsf);

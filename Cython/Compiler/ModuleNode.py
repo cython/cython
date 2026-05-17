@@ -1849,7 +1849,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # But in this case we should fall back to the regular type construction approach.
         code.putln("if (unlikely("
                     f"(PyTypeObject*)t != {code.name_in_slot_module_state(scope.parent_type.typeptr_cname)} || "
-                    "__Pyx_PyType_HasFeature(t, Py_TPFLAGS_IS_ABSTRACT))) {")
+                    "__Pyx_PyType_HasFeature((PyTypeObject*)t, Py_TPFLAGS_IS_ABSTRACT))) {")
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("CallNewInitFromVectorcall", "ExtensionTypes.c"))
         code.putln("return __Pyx_CallNewInitFromVectorcall((PyTypeObject*)t, args, nargsf, kwnames);")
