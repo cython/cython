@@ -26,7 +26,7 @@ import os.path
 import re
 import sys
 from collections import defaultdict
-from functools import partial, reduce
+from functools import partial
 from typing import Optional
 
 from .Errors import (
