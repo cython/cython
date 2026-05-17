@@ -1576,6 +1576,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if scope:  # could be None if there was an error
                     self.generate_exttype_vtable(scope, code)
                     self.generate_new_function(scope, code, entry)
+                    self.generate_vectorcall_new_function(scope, code, entry)
                     self.generate_del_function(scope, code)
                     self.generate_dealloc_function(scope, code)
 
@@ -1653,9 +1654,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             f"if (likely((int)({size_check}) & {freelist_check}({type_cname}, {typeptr_cname}, sizeof({obj_struct}))))")
 
-    def generate_new_function(self, scope, code, cclass_entry):
-        tp_slot = TypeSlots.ConstructorSlot("tp_new", "__cinit__")
-        slot_func = scope.mangle_internal("tp_new")
+    def generate_new_function(self, scope, code, cclass_entry, is_vectorcall_overload=False):
+        slot_name = f"tp_new{'v' if is_vectorcall_overload else ''}"
+        tp_slot = TypeSlots.ConstructorSlot(slot_name, "__cinit__")
+        slot_func = scope.mangle_internal(slot_name)
         if tp_slot.slot_code(scope) != slot_func:
             return  # never used
 
@@ -1676,6 +1678,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         cinit_func_entry = scope.lookup_here("__cinit__")
         if cinit_func_entry and not cinit_func_entry.is_special:
             cinit_func_entry = None
+        if is_vectorcall_overload and cinit_func_entry:
+            # Artificial version with vectorcall signature
+            cinit_func_entry = cinit_func_entry.overloaded_alternatives[0]
 
         if base_type or (cinit_func_entry and not cinit_func_entry.trivial_signature):
             unused_marker = ''
@@ -1689,7 +1694,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         freelist_name = scope.mangle_internal(Naming.freelist_name)
         freecount_name = scope.mangle_internal(Naming.freecount_name)
 
-        if freelist_size:
+        if freelist_size and not is_vectorcall_overload:
             module_state = code.globalstate['module_state_contents']
             module_state.putln("")
             module_state.putln("#if CYTHON_USE_FREELISTS")
@@ -1699,9 +1704,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_state.putln("int %s;" % freecount_name)
             module_state.putln("#endif")
 
+        signature = (f"PyTypeObject *t, {unused_marker}PyObject *a, {unused_marker}PyObject *k"
+            if not is_vectorcall_overload else
+            f"PyTypeObject *t, {unused_marker}PyObject *const *args, "
+            f"{unused_marker}Py_ssize_t nargs, {unused_marker}PyObject *kwnames"
+        )
+        call_args = "a, k" if not is_vectorcall_overload else "args, nargs, kwnames"
         code.start_slotfunc(
-            scope, PyrexTypes.py_objptr_type, "tp_new",
-            f"PyTypeObject *t, {unused_marker}PyObject *a, {unused_marker}PyObject *k", needs_prototype=True)
+            scope, PyrexTypes.py_objptr_type, slot_name,
+            signature, needs_prototype=True)
 
         need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
@@ -1715,7 +1726,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 base_type_typeptr_cname = code.name_in_slot_module_state(base_type_typeptr_cname)
             if tp_new is None:
                 tp_new = f"__Pyx_PyType_GetSlot({base_type_typeptr_cname}, tp_new, newfunc)"
-            code.putln("PyObject *o = %s(t, a, k);" % tp_new)
+            code.putln(f"PyObject *o = {tp_new}(t, {call_args});")
         else:
             code.putln("PyObject *o;")
             if freelist_size:
@@ -1799,9 +1810,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if cinit_func_entry:
             if cinit_func_entry.trivial_signature:
-                cinit_args = f"o, {Naming.modulestateglobal_cname}->{Naming.empty_tuple}, NULL"
+                if is_vectorcall_overload:
+                    cinit_args = f"o, NULL, 0, NULL"
+                else:
+                    cinit_args = f"o, {Naming.modulestateglobal_cname}->{Naming.empty_tuple}, NULL"
             else:
-                cinit_args = "o, a, k"
+                cinit_args = f"o, {call_args}"
             needs_error_cleanup = True
             code.putln("if (unlikely(%s(%s) < 0)) goto bad;" % (
                 cinit_func_entry.func_cname, cinit_args))
@@ -1815,6 +1829,57 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "}")
         code.exit_cfunc_scope()
+
+    def generate_vectorcall_new_function(self, scope, code, cclass_entry):
+        tp_slot = TypeSlots.get_slot_by_name("tp_vectorcall", scope.directives)
+        slot_func = scope.mangle_internal("tp_vectorcall")
+        if tp_slot.slot_code(scope) != slot_func:
+            return  # never used
+        code.putln("#if CYTHON_VECTORCALL_NEW")
+        code.globalstate['decls'].putln("#if CYTHON_VECTORCALL_NEW")
+
+        self.generate_new_function(scope, code, cclass_entry, is_vectorcall_overload=True)
+
+        code.start_slotfunc(
+            scope, PyrexTypes.py_objptr_type, "tp_vectorcall",
+            f"PyObject *t, PyObject *const *args, size_t nargsf, PyObject *kwnames",
+            needs_prototype=True)
+
+        # This is unlikely to happen because tp_vectorcall isn't inherited.
+        # But in this case we should fall back to the regular type construction approach.
+        code.putln("if (unlikely("
+                    f"(PyTypeObject*)t != {code.name_in_slot_module_state(scope.parent_type.typeptr_cname)} || "
+                    "__Pyx_PyType_HasFeature(t, Py_TPFLAGS_IS_ABSTRACT))) {")
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("CallNewInitFromVectorcall", "ExtensionTypes.c"))
+        code.putln("return __Pyx_CallNewInitFromVectorcall((PyTypeObject*)t, args, nargsf, kwnames);")
+        code.putln("}")
+
+        code.putln("Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);")
+        call = TypeSlots.get_slot_by_name("tp_newv", scope.directives).slot_code(scope)
+        code.putln(f"PyObject *o = {call}((PyTypeObject*)t, args, nargs, kwnames);")
+
+        init_tp = scope.parent_type
+        tp_init = None
+        while init_tp and not tp_init:
+            tp_init = init_tp.scope.lookup_here("__init__")
+            if tp_init and not tp_init.is_special:
+                tp_init = None
+            init_tp = init_tp.base_type
+        if tp_init:
+            code.putln("if (likely(o)) {")
+            code.putln("assert(Py_TYPE(o) == (PyTypeObject*)t);")
+            tp_init = tp_init.overloaded_alternatives[0]
+            code.putln(f"if (unlikely({tp_init.func_cname}(o, args, nargs, kwnames) < 0)) {{")
+            code.putln("Py_CLEAR(o);")
+            code.putln("}")
+            code.putln("}")
+
+        code.putln("return o;")
+        code.putln("}")
+        code.exit_cfunc_scope()
+        code.putln("#endif")  # !CYTHON_VECTORCALL_NEW
+        code.globalstate['decls'].putln("#endif")  # !CYTHON_VECTORCALL_NEW
 
     def generate_del_function(self, scope, code):
         tp_slot = TypeSlots.get_slot_by_name("tp_finalize", scope.directives)

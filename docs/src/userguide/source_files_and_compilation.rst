@@ -1189,6 +1189,9 @@ hidden by default since most users will be uninterested in changing them.
         ``CYTHON_VECTORCALL``
             Enable the vectorcall calling mechanism.
 
+        ``CYTHON_VECTORCALL_NEW``
+            Enable the vectorcall calling mechanism for cdef class creation.
+
         ``CYTHON_PEP487_INIT_SUBCLASS``
             Enable :pep:`487` ``__init_subclass__`` behaviour.
 

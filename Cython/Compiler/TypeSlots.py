@@ -460,7 +460,7 @@ class ConstructorSlot(InternalMethodSlot):
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
                 and not scope.has_explicitly_constructable_attrs
-                and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_cname)):
+                and not (self.slot_name in ('tp_new', 'tp_newv') and scope.parent_type.vtabslot_cname)):
             entry = scope.lookup_here(self.method) if self.method else None
             if not (entry and entry.is_special):
                 return False
@@ -500,6 +500,40 @@ class ConstructorSlot(InternalMethodSlot):
             return
 
         self.generate_set_slot_code(src, scope, code)
+
+
+class TpVectorcallSlot(ConstructorSlot):
+    def _needs_own(self, scope):
+        return True  # never inherited
+
+    def slot_code(self, scope):
+        tp = scope.parent_type
+        seen_init = False
+        while tp:
+            if not tp.is_extension_type:
+                return "0"
+            if tp.is_external:
+                return "0"
+            if tp.scope.parent_scope is not scope.parent_scope:
+                # In a pxd file. We don't have enough visibility to make this work.
+                return "0"
+            if tp.multiple_bases:
+                return "0"  # Can't reason about __init__
+            # If we don't have the second overloaded alternative for __cinit__ or __init__
+            # this means the signature was wrong and so we haven't generated code for the
+            # vectorcall wrappers in DefNode.analyse_declarations
+            if (entry := tp.scope.lookup_here("__cinit__")):
+                if not entry.overloaded_alternatives:
+                    return "0"
+            if not seen_init and (entry := tp.scope.lookup_here("__init__")):
+                seen_init = True
+                if not entry.overloaded_alternatives:
+                    return "0"
+            tp = tp.base_type
+        return super().slot_code(scope)
+
+    def generate_dynamic_init_code(self, scope, code):
+        return  # never do anything dynamic here
 
 
 class SyntheticSlot(InternalMethodSlot):
@@ -859,6 +893,13 @@ def get_slot_by_name(slot_name, compiler_directives):
     for slot in get_slot_table(compiler_directives).slot_table:
         if slot.slot_name == slot_name:
             return slot
+    # Special-case for hacky dummy slot used to implement tp_vectorcall.
+    # It has the same rules about when to generate it as tp_new.
+    if slot_name == "tp_newv":
+        slot = get_slot_by_name("tp_new", compiler_directives)
+        slot = copy.copy(slot)
+        slot.slot_name = "tp_newv"
+        return slot
     assert False, "Slot not found: %s" % slot_name
 
 
@@ -1163,7 +1204,10 @@ class SlotTable:
             EmptySlot("tp_version_tag"),
             SyntheticSlot("tp_finalize", ["__del__"], "0",
                           used_ifdef="CYTHON_USE_TP_FINALIZE"),
-            EmptySlot("tp_vectorcall", ifdef="!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800"),
+            TpVectorcallSlot("tp_vectorcall",
+                            ifdef="(!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800) && "
+                                  "(!CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030E0000)",
+                            used_ifdef="CYTHON_VECTORCALL_NEW"),
             EmptySlot("tp_print", ifdef="__PYX_NEED_TP_PRINT_SLOT == 1"),
             EmptySlot("tp_watched", ifdef="PY_VERSION_HEX >= 0x030C0000"),
             EmptySlot("tp_versions_used", ifdef="PY_VERSION_HEX >= 0x030d00A4"),
