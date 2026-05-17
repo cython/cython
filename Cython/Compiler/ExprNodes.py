@@ -325,6 +325,13 @@ def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code, lhs_
     code.putln(code.error_goto(pos))
     code.putln('}')
 
+def infer_container_type(env, container_nodes):
+    for arg in container_nodes:
+        arg.type = arg.infer_type(env)
+    return PyrexTypes.reduce_spanning_types(
+        arg.type if arg.type.is_pyobject else arg.coerce_to_pyobject(env).type for arg in container_nodes
+    )
+
 
 class ExprNode(Node):
     #  subexprs     [string]     Class var holding names of subexpr node attrs
@@ -9251,16 +9258,11 @@ class ListNode(SequenceNode):
         return ()
 
     def infer_type(self, env):
-        if len(self.args) == 0:
-            return list_type
-        for arg in self.args:
-            arg.type = arg.infer_type(env)
-        item_type = PyrexTypes.reduce_spanning_types(
-            arg.type if arg.type.is_pyobject else arg.coerce_to_pyobject(env).type for arg in self.args
-        )
-        if item_type is py_object_type:
-            return list_type
-        return list_type.specialize_here(self.pos, env, [item_type])
+        if len(self.args) > 0:
+            item_type = infer_container_type(env, self.args)
+            if item_type is not py_object_type:
+                return list_type.specialize_here(self.pos, env, [item_type])
+        return list_type
 
     def analyse_expressions(self, env):
         for arg in self.args:
@@ -9841,16 +9843,11 @@ class SetNode(ExprNode):
     gil_message = "Constructing Python set"
 
     def infer_type(self, env):
-        if len(self.args) == 0:
-            return set_type
-        for arg in self.args:
-            arg.type = arg.infer_type(env)
-        item_type = PyrexTypes.reduce_spanning_types(
-            arg.type if arg.type.is_pyobject else arg.coerce_to_pyobject(env).type for arg in self.args
-        )
-        if item_type is py_object_type:
-            return set_type
-        return set_type.specialize_here(self.pos, env, [item_type])
+        if len(self.args) > 0:
+            item_type = infer_container_type(env, self.args)
+            if item_type is not py_object_type:
+                return set_type.specialize_here(self.pos, env, [item_type])
+        return set_type
 
     def analyse_types(self, env):
         for i in range(len(self.args)):
@@ -9930,20 +9927,9 @@ class DictNode(ExprNode):
 
     def infer_type(self, env):
         if len(self.key_value_pairs) > 0:
-            for kv_pair in self.key_value_pairs:
-                kv_pair.key.type = kv_pair.key.infer_type(env)
-                kv_pair.value.type = kv_pair.value.infer_type(env)
-            key_type = PyrexTypes.reduce_spanning_types(
-                i.key.type if i.key.type.is_pyobject else i.key.coerce_to_pyobject(env).type for i in self.key_value_pairs
-            )
-            value_type = PyrexTypes.reduce_spanning_types(
-                i.value.type if i.value.type.is_pyobject else i.value.coerce_to_pyobject(env).type for i in self.key_value_pairs
-            )
-            if key_type is py_object_type and value_type is py_object_type:
-                return dict_type
-            if key_type is not None or value_type is not None:
-                key_type = key_type if key_type is not None else PyrexTypes.py_object_type
-                value_type = value_type if value_type is not None else PyrexTypes.py_object_type
+            key_type = infer_container_type(env, [item.key for item in self.key_value_pairs])
+            value_type = infer_container_type(env, [item.value for item in self.key_value_pairs])
+            if key_type is not py_object_type or value_type is not py_object_type:
                 return dict_type.specialize_here(self.pos, env, [key_type, value_type])
         return dict_type
 
