@@ -2902,7 +2902,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 and typ.entry.qualified_name in self._ext_types_with_pysize):
             return 'Py_SIZE'
         return None
-        
     _ext_types_with_pysize = {"cpython.array.array"}
 
     def _handle_simple_function_len(self, node, function, pos_args):
