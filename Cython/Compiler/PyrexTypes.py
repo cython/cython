@@ -1263,6 +1263,13 @@ class BufferType(BaseType):
     def can_coerce_from_pyobject(self,env):
         return True
 
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if for_display or pyrex:
+            return str(self)
+        return self.base.declaration_code(entity_code,
+            for_display=for_display, dll_linkage=dll_linkage, pyrex=pyrex)
+
     def as_argument_type(self):
         return self
 
