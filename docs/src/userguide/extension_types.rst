@@ -660,7 +660,7 @@ definition, for example,::
 
 
 .. _freelist:
-        
+
 Fast instantiation
 ===================
 
@@ -777,7 +777,7 @@ object called :attr:`__weakref__`. For example:
                 """This animal will self-destruct when it is
                 no longer strongly referenced."""
 
-                __weakref__: object 
+                __weakref__: object
 
     .. group-tab:: Cython
 
@@ -877,7 +877,7 @@ enabled by setting the ``trashcan`` directive to ``True``. For example:
             @cython.trashcan(True)
             @cython.cclass
             class Object:
-                __dict__: dict 
+                __dict__: dict
 
     .. group-tab:: Cython
 
@@ -1004,6 +1004,8 @@ disable this auto-generation and can be used to support pickling of more
 complicated types.
 
 
+.. _collection_type:
+
 Pattern matching and extension types (Python 3.10+)
 ===================================================
 
@@ -1011,20 +1013,20 @@ Python 3.10 introduced the structural pattern matching feature
 (documented in `the Python documentation
 <https://docs.python.org/3/reference/compound_stmts.html#the-match-statement>`_,
 and `PEP 634 <https://peps.python.org/pep-0634>`_).
-where Python objects can be decomposed if they meet a particular 
-set of rules. For a type to be treated as a sequence in pattern 
-matching it must have the flag ``Py_TPFLAGS_SEQUENCE`` in its 
-internal "type flags", and similarly for a type to be treated 
+where Python objects can be decomposed if they meet a particular
+set of rules. For a type to be treated as a sequence in pattern
+matching it must have the flag ``Py_TPFLAGS_SEQUENCE`` in its
+internal "type flags", and similarly for a type to be treated
 as a mapping it must have ``Py_TPFLAGS_MAPPING`` set.
 
-There's a number of ways for these flags to be set: they're 
+There's a number of ways for these flags to be set: they're
 set for a number of builtin types.  They will be set on a
 type where one of the base classes has the flag (including
 the builtin types, and also the relevant abstract base
 class in ``collections.abc``).
 
 A third way to mark a Python class as a
-sequence or mapping would be to register the class with 
+sequence or mapping would be to register the class with
 either ``collections.abc.Sequence`` or ``collections.abc.Mapping``
 using their ``.register`` function.
 Unfortunately for Cython extension types this does not work because
@@ -1032,12 +1034,20 @@ Cython extension types are immutable (usually, with certain C defines
 set this may not always be true).
 
 Therefore a Cython extension type can be decorated with
-``cython.collection_type("sequence")`` or 
-``cython.collection_type("mapping")`` to enable pattern matching to
-use the type as intended.  These decorators are only needed
-to make the ``collections.abc`` type registration work
-(we recommend you use them *in addition* to type registration
-although pattern matching will work with the decorator alone).
+``@cython.collection_type("sequence")`` or
+``@cython.collection_type("mapping")`` to set the respective type flag.
+Pattern matching will then use the type as intended.
+
+Additionally, Cython can use the decorator as hint for its protocol implementation.
+Declaring a type as ``sequence`` may allow subscripting code to bypass
+the potentially less efficient ``mapping`` protocol and pass indices
+without wrapping them in Python objects first.
+See :ref:`sequences and mappings <sequences_and_mappings>`.
+
+Finally, these decorators are needed to make the ``collections.abc``
+type registration work.
+We recommend you use them *in addition* to type registration
+although pattern matching will work with the decorator alone.
 If your Cython class would become a sequence or mapping
 through inheritance then it does not need the decorators
 although you may choose to provide them for clarity.
@@ -1053,7 +1063,7 @@ As an example:
     .. group-tab:: Cython
 
         .. literalinclude:: ../../examples/userguide/extension_types/sequence.pyx
-            
+
 Then in Python (since Cython doesn't currently implement pattern matching)::
 
     r5 = Range5()
@@ -1357,8 +1367,8 @@ here only briefly outlines the differences - if you plan on using them
 then please read `the documentation for the standard library module
 <https://docs.python.org/3/library/dataclasses.html>`_.
 
-Dataclasses can be declared using the ``@dataclasses.dataclass`` 
-decorator on a Cython extension type (types marked ``cdef`` or created with the 
+Dataclasses can be declared using the ``@dataclasses.dataclass``
+decorator on a Cython extension type (types marked ``cdef`` or created with the
 ``cython.cclass`` decorator). Alternatively the ``@cython.dataclasses.dataclass``
 decorator can be applied to any class to both turn it into an extension type and
 a dataclass. If
@@ -1378,6 +1388,6 @@ you need to define special properties on a field then use ``dataclasses.field``
 You may use C-level types such as structs, pointers, or C++ classes.
 However, you may find these types are not compatible with the auto-generated
 special methods - for example if they cannot be converted from a Python
-type they cannot be passed to a constructor, and so you must use a 
+type they cannot be passed to a constructor, and so you must use a
 ``default_factory`` to initialize them. Like with the Python implementation, you can also control
 which special functions an attribute is used in using ``field()``.

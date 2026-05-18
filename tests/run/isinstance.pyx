@@ -1,3 +1,5 @@
+# mode: run
+# tag: isinstance, builtins
 
 cimport cython
 from cpython.bool cimport bool
@@ -40,6 +42,7 @@ def test_non_optimised():
     '//PythonCapiFunctionNode[@cname = "PyTuple_Check"]',
     '//PythonCapiFunctionNode[@cname = "PyList_Check"]',
     '//PythonCapiFunctionNode[@cname = "PyDict_Check"]',
+    '//PythonCapiFunctionNode[@cname = "__Pyx_PyFrozenDict_Check"]',
     '//PythonCapiFunctionNode[@cname = "PySet_Check"]',
     '//PythonCapiFunctionNode[@cname = "PySlice_Check"]',
     '//PythonCapiFunctionNode[@cname = "PyComplex_Check"]',
@@ -94,6 +97,10 @@ def test_optimised():
     assert isinstance(dictval, dict)
     assert isinstance(dict(), dict)
 
+    cdef object frozendictval = frozendict()
+    assert isinstance(frozendictval, frozendict)
+    assert isinstance(frozendict(), frozendict)
+
     cdef object setval = set()
     assert isinstance(setval, set)
     assert isinstance(set(), set)
@@ -125,12 +132,12 @@ def test_optimised_tuple():
     >>> test_optimised_tuple()
     True
     """
-    assert isinstance(int(),   (int, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
-    assert isinstance(list(),  (int, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
-    assert isinstance(A(),  (int, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
-    assert isinstance(A(),  (int, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A, a_as_obj))
-    assert isinstance(A(),  (int, float, bytes, str, unicode, tuple, list, dict, set, slice, type, a_as_obj, A))
-    assert isinstance(A(),  (int, float, bytes, str, unicode, a_as_obj, tuple, list, dict, set, slice, type, A))
+    assert isinstance(int(),   (int, float, bytes, str, unicode, tuple, list, dict, frozendict, set, slice, type, A))
+    assert isinstance(list(),  (int, float, bytes, str, unicode, tuple, list, dict, frozendict, set, slice, type, A))
+    assert isinstance(A(),  (int, float, bytes, str, unicode, tuple, list, dict, frozendict, set, slice, type, A))
+    assert isinstance(A(),  (int, float, bytes, str, unicode, tuple, list, dict, frozendict, set, slice, type, A, a_as_obj))
+    assert isinstance(A(),  (int, float, bytes, str, unicode, tuple, list, dict, frozendict, set, slice, type, a_as_obj, A))
+    assert isinstance(A(),  (int, float, bytes, str, unicode, a_as_obj, tuple, list, dict, frozendict, set, slice, type, A))
     assert isinstance(0, (str, int))
     return True
 

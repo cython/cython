@@ -1,5 +1,5 @@
 # mode: run
-# tag: pure3.8
+# tag: pure3.10
 
 # These are extra tests for the assignment expression/walrus operator/named expression that cover things
 # additional to the standard Python test-suite in tests/run/test_named_expressions.pyx
@@ -353,3 +353,210 @@ def genexp_scope():
     i = 0
     # i needs to refer to the loop variable, not the function one
     return tuple(x for i in range(5) if (x := i))
+
+def return_x(x):
+    return x
+
+def in_try_block_1(x):
+    """
+    >>> in_try_block_1(True)
+    'Except return True'
+    >>> in_try_block_1(False)
+    'Normal return False'
+    """
+    try:
+        if (a := return_x(x)):
+            raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+
+def return_false():
+    return False
+
+def if_in_try_block_2(x):
+    """
+    >>> if_in_try_block_2(True)
+    'Except return True'
+    >>> if_in_try_block_2(False)
+    'Normal return False'
+    """
+    try:
+        if return_false():
+            raise RuntimeError
+        elif (a := return_x(x)):
+            raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def if_in_try_block_3(x):
+    """
+    >>> if_in_try_block_3(True)
+    'Except return True'
+    >>> if_in_try_block_3(False)
+    'Normal return False'
+    """
+    try:
+        if (a := return_x(x)):
+            raise RuntimeError
+        else:
+            pass
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def if_in_try_block_4(x):
+    """
+    >>> if_in_try_block_4(True)
+    'Normal return True'
+    >>> if_in_try_block_4(False)
+    'Except return False'
+    """
+    try:
+        if (a := return_x(x)):
+            pass
+        else:
+            raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def case_in_try_block_1(x):
+    """
+    >>> case_in_try_block_1(True)
+    'Except return True'
+    >>> case_in_try_block_1(False)
+    'Normal return False'
+    """
+    try:
+        match x:
+            case _ if (a := return_x(x)):
+                raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def case_in_try_block_2(x):
+    """
+    >>> case_in_try_block_2(True)
+    'Except return True'
+    >>> case_in_try_block_2(False)
+    'Normal return False'
+    """
+    try:
+        match x:
+            case _ if (a := return_x(x)):
+                raise RuntimeError
+            case _:
+                pass
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def match_in_try_block_2(x):
+    """
+    >>> match_in_try_block_2(True)
+    'Except return True'
+    >>> match_in_try_block_2(False)
+    'Normal return False'
+    """
+    try:
+        # Note that pycodestyle on older versions of Python
+        # enforces a weird spacing here and can't be turned
+        # off with noqa.  Undo this in future...
+        match(a := return_x(x)):
+            case True:
+                raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def while_in_try_block(x):
+    """
+    >>> while_in_try_block(True)
+    'Except return True'
+    >>> while_in_try_block(False)
+    'Normal return False'
+    """
+    try:
+        while (a := return_x(x)):
+            raise ValueError("Not found")
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def raise_something():
+    raise RuntimeError
+
+def except_in_try_block(x):
+    """
+    >>> except_in_try_block(True)
+    'Normal return ValueError'
+    >>> except_in_try_block(False)
+    'Except return RuntimeError'
+    """
+    try:
+        try:
+            raise_something()
+        except (a := return_x(ValueError if x else RuntimeError)):
+            raise RuntimeError()
+        except:
+            pass
+
+        return f'Normal return {a.__name__}'
+    except Exception:
+        return f'Except return {a.__name__}'
+
+def for_in_try_block_1(x):
+    """
+    >>> for_in_try_block_1(10)
+    'Except return 10'
+    >>> for_in_try_block_2(0)
+    'Normal return 0'
+    """
+    try:
+        for x in range(a := x):
+            raise RuntimeError()
+
+        return f'Normal return {a}'
+    except Exception:
+        return f'Except return {a}'
+
+def for_in_try_block_2(x):
+    """
+    >>> for_in_try_block_2(10)
+    'Except return 10'
+    >>> for_in_try_block_2(0)
+    'Normal return 0'
+    """
+    try:
+        for x in (a := return_x(range(x))):
+            raise RuntimeError()
+
+        return f'Normal return {a.stop}'
+    except Exception:
+        return f'Except return {a.stop}'
+
+class ContextManager:
+    def __init__(self, value):
+        self.value = value
+    def __enter__(self):
+        pass
+    def __exit__(self, exc_type, exc_value, traceback):
+        return self.value
+
+def with_in_try_block(x):
+    """
+    >>> with_in_try_block(True)
+    'Normal return True'
+    >>> with_in_try_block(False)
+    'Except return False'
+    """
+    try:
+        with (a := ContextManager(x)):
+            raise RuntimeError
+        return f'Normal return {a.value}'
+    except Exception:
+        return f'Except return {a.value}'

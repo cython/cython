@@ -399,25 +399,15 @@ cdef extern from "Python.h":
     # Added in Py2.6
 
     # Type flags (tp_flags of PyTypeObject)
-    const long Py_TPFLAGS_HAVE_GETCHARBUFFER
-    const long Py_TPFLAGS_HAVE_SEQUENCE_IN
-    const long Py_TPFLAGS_HAVE_INPLACEOPS
-    const long Py_TPFLAGS_CHECKTYPES
-    const long Py_TPFLAGS_HAVE_RICHCOMPARE
-    const long Py_TPFLAGS_HAVE_WEAKREFS
-    const long Py_TPFLAGS_HAVE_ITER
-    const long Py_TPFLAGS_HAVE_CLASS
     const long Py_TPFLAGS_HEAPTYPE
     const long Py_TPFLAGS_BASETYPE
     const long Py_TPFLAGS_READY
     const long Py_TPFLAGS_READYING
     const long Py_TPFLAGS_HAVE_GC
     const long Py_TPFLAGS_HAVE_STACKLESS_EXTENSION
-    const long Py_TPFLAGS_HAVE_INDEX
     const long Py_TPFLAGS_HAVE_VERSION_TAG  # unused since Py3.11
     const long Py_TPFLAGS_VALID_VERSION_TAG
     const long Py_TPFLAGS_IS_ABSTRACT
-    const long Py_TPFLAGS_HAVE_NEWBUFFER
     const long Py_TPFLAGS_INT_SUBCLASS
     const long Py_TPFLAGS_LONG_SUBCLASS
     const long Py_TPFLAGS_LIST_SUBCLASS
@@ -427,7 +417,14 @@ cdef extern from "Python.h":
     const long Py_TPFLAGS_DICT_SUBCLASS
     const long Py_TPFLAGS_BASE_EXC_SUBCLASS
     const long Py_TPFLAGS_TYPE_SUBCLASS
-    const long Py_TPFLAGS_DEFAULT_EXTERNAL
-    const long Py_TPFLAGS_DEFAULT_CORE
     const long Py_TPFLAGS_DEFAULT
     const long Py_TPFLAGS_HAVE_FINALIZE  # unused since CPython 3.8
+    const long Py_TPFLAGS_METHOD_DESCRIPTOR
+    const long Py_TPFLAGS_IMMUTABLETYPE
+    const long Py_TPFLAGS_DISALLOW_INSTANTIATION
+    const long Py_TPFLAGS_SEQUENCE
+    const long Py_TPFLAGS_MAPPING
+    const long Py_TPFLAGS_MANAGED_DICT
+    const long Py_TPFLAGS_MANAGED_WEAKREF
+    const long Py_TPFLAGS_ITEMS_AT_END
+    const long Py_TPFLAGS_HAVE_VECTORCALL

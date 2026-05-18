@@ -5,7 +5,7 @@ Report benchmark results from CSV files in Markdown format.
 import csv
 import itertools
 import operator
-import string
+import re
 
 
 def unbreak(s):
@@ -24,7 +24,7 @@ def read_rows(csv_rows):
     # - benchmark, revision_name, pyversion, size, diff
     reader = csv.reader(csv_rows)
 
-    # Sort by benchmark name.
+    # Sort rows by benchmark name.
     rows = sorted(reader, key=operator.itemgetter(0))
     return rows
 
@@ -33,6 +33,11 @@ def time_in_seconds(time_string):
     units = {"nsec": 1e-9, "usec": 1e-6, "msec": 1e-3, "sec": 1.0}
     number, unit = time_string.split()
     return float(number) * units[unit]
+
+
+def reformat_time(time_string):
+    number, unit = time_string.split()
+    return f"{float(number) :.2f}\N{NO-BREAK SPACE}{unit}"
 
 
 def warn_difference(reference, value, max_margin):
@@ -52,7 +57,7 @@ def warn_difference(reference, value, max_margin):
 def format_timings(tmin, tmed, tmean, tmax, diff, *, master_data=None, warn_margin=.1/3.):
     warn = warn_difference(time_in_seconds(master_data[0]), time_in_seconds(tmin), warn_margin) if master_data else ''
     diff_str = f" ({unbreak(diff.strip(' ()'))})" if diff else ''
-    return f"{unbreak(tmin)}{diff_str}{warn}"
+    return f"{reformat_time(tmin)}{diff_str}{warn}"
 
 
 def format_sizes(size, diff, *, master_data=None, warn_margin=.01):
@@ -62,10 +67,17 @@ def format_sizes(size, diff, *, master_data=None, warn_margin=.01):
 
 
 def build_table(rows, title, data_formatter):
-    # Collect all revision names and Python versions, keeping their original order.
+    # Collect all revision names, keeping their original order.
     # (The set may not be the same for all benchmarks.)
     revisions = list({row[1]: 1 for row in rows})
-    python_versions = list({row[2]: 1 for row in rows})
+
+    # Collect all Python versions, newest first.
+    # Relies on sort stability for Limited API / freethreading / etc.
+    find_numbers = re.compile(r"(\d+)").findall
+    python_versions = sorted(
+        {row[2] for row in rows},
+        key=lambda s: tuple([-int(d) for d in find_numbers(s)]),
+    )
 
     # Prepare table column mapping and header.
     pos = itertools.count(1)
@@ -94,7 +106,9 @@ def build_table(rows, title, data_formatter):
             if 'master' in revision_name
         }
 
-        row[0] = benchmark[3:] if benchmark.startswith('bm_') else benchmark
+        if benchmark.startswith('bm_'):
+            benchmark = benchmark[3:]
+        row[0] = benchmark.replace('_', '\N{ZERO WIDTH SPACE}_')  # Allow line breaks in benchmark name.
         for pyversion, revision_name, version_key, data in bm_rows:
             column_index = column_map[(pyversion, revision_name)]
             empty_column_indices.discard(column_index)
