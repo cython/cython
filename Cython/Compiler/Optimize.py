@@ -233,7 +233,7 @@ class IterationTransform(Visitor.EnvTransform):
             return self._transform_dict_iteration(
                 node, dict_obj=iterable, method=None, keys=True, values=False)
 
-        if iterable.type.is_pyset_type or iterable.type.is_pyfrozenset_type:
+        if iterable.type.is_pyanyset_type:
             if reversed:
                 # CPython raises an error here: not a sequence
                 return node

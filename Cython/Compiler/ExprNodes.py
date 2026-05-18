@@ -15117,7 +15117,7 @@ class CoerceToBooleanNode(CoercionNode):
             return '__Pyx_PyList_GET_SIZE'
         if typ.is_pytuple_type:
             return '__Pyx_PyTuple_GET_SIZE'
-        if typ.is_pyset_type or typ.is_pyfrozenset_type:
+        if typ.is_pyanyset_type:
             return '__Pyx_PySet_GET_SIZE'
         if typ.is_pyanydict_type:
             return '__Pyx_PyDict_GET_SIZE'
