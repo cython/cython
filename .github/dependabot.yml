@@ -48,3 +48,20 @@ updates:
       - dependency-name: "cibuildwheel"
     cooldown:
       default-days: 7
+
+  # Constraints for build dependencies
+  - package-ecosystem: "pip"
+    target-branch: "master"
+    directory: ".wheel_build_constraints"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "pip"
+    target-branch: "3.2.x"
+    directory: ".wheel_build_constraints"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
