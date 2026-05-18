@@ -4514,9 +4514,13 @@ class IndexNode(_IndexingBaseNode):
 
         self.wrap_in_nonecheck_node(env, getting)
 
-        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
+        # Slicing keeps the container type (set above); a plain subscript
+        # narrows to the item type.
+        if not is_slice and base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
             if getting:
-                self.type = base_type
+                # Coerce instead of setting self.type = base_type first: that
+                # would no-op for e.g. list[list] -> list and leak the
+                # container type into a nested subscript like m[i][j] = x.
                 return self.coerce_to(sub_type, env)
             self.type = sub_type
 
