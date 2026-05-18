@@ -2902,7 +2902,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 return "__Pyx_PyTuple_GET_SIZE"
             if typ.is_pyset_type or typ.is_pyfrozenset_type:
                 return "__Pyx_PySet_GET_SIZE"
-            if typ.is_pydict_type or typ.is_pyfrozendict_type:
+            if typ.is_pyanydict_type:
                 return "PyDict_Size"
         return None
 
