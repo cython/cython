@@ -4294,7 +4294,7 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
-        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
+        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type(self.index.constant_result)):
             return sub_type
 
         index_type = self.index.infer_type(env)
@@ -4514,7 +4514,7 @@ class IndexNode(_IndexingBaseNode):
 
         self.wrap_in_nonecheck_node(env, getting)
 
-        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
+        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type(self.index.constant_result)):
             if getting:
                 self.type = base_type
                 return self.coerce_to(sub_type, env)

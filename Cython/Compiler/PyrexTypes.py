@@ -1524,7 +1524,7 @@ class BuiltinObjectType(PyObjectType):
         'bool': ['is_pybool_type'],
         'complex': ['is_pycomplex_type'],
         'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type'],
-        'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
+        'tuple': ['is_pytuple_type', 'is_builtin_sequence', 'supports_container_type'],
         'dict': ['is_pydict_type', 'is_pyanydict_type', 'supports_container_type'],
         'frozendict': ['is_pyfrozendict_type', 'is_pyanydict_type', 'supports_container_type'],
         'set': ['is_pyset_type', 'is_pyanyset_type', 'supports_container_type'],
@@ -4949,6 +4949,9 @@ class PythonTypeConstructorMixin:
         except IndexError:
             return None
 
+    def get_subscripted_spanning_type(self):
+        return reduce_spanning_types(self.subscripted_types)
+
     def allows_none(self):
         return (
             self.modifier_name == 'typing.Optional' or
@@ -4983,7 +4986,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     def specialize_here(self, pos, env, template_values=None):
         if not self.supports_container_type:
             return self
-        if template_values and None not in template_values and len(template_values) <= 2:
+        if template_values and None not in template_values:
             typ = BuiltinTypeConstructorObjectType(
                 name=self.name, cname=self.cname, objstruct_cname=self.objstruct_cname,
                 base_type=self, subscripted_types=tuple(template_values), scope=self.scope)
@@ -5028,14 +5031,19 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             return False
         return super().assignable_from(src_type)
 
-    def infer_indexed_type(self):
+    def infer_indexed_type(self, index=None):
         container_type = self.get_container_type()
+        if container_type.is_pytuple_type:
+            return self.get_subscripted_spanning_type() if index is None else self.get_subscripted_type(index)
         if container_type.is_pydict_type or container_type.is_pyfrozendict_type:
             return self.get_subscripted_type(1)
         else:
             return self.get_subscripted_type(0)
 
     def infer_iterator_type(self):
+        container_type = self.get_container_type()
+        if container_type.is_pytuple_type:
+            return self.get_subscripted_spanning_type()
         return self.get_subscripted_type(0)
 
     def get_container_type(self):
