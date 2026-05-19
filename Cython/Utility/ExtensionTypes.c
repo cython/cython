@@ -1076,7 +1076,7 @@ static {{ret_type}} __Pyx_Call{{name.title()}}AsVectorcall(__Pyx_{{name}}vectorc
         return f(o, NULL, 0, NULL);
     }
 #endif
-    PyObject *stack_args[10];
+    PyObject *stack_args[5];
     PyObject **args = stack_args;
     Py_ssize_t maxnargs = PY_SSIZE_T_MAX / sizeof(PyObject*) - 1;
     if (a_size > maxnargs - k_size) {
@@ -1084,7 +1084,7 @@ static {{ret_type}} __Pyx_Call{{name.title()}}AsVectorcall(__Pyx_{{name}}vectorc
         return {{error_value}};
     }
     Py_ssize_t total_size = a_size + k_size;
-    if (total_size > 10) {
+    if (total_size > 5) {
         args = (PyObject**)PyMem_Malloc(((size_t)total_size)*sizeof(PyObject*));
         if (unlikely(!args)) {
             PyErr_NoMemory();
