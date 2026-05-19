@@ -15,28 +15,38 @@ from enum import IntEnum as __Pyx_EnumBase
 cdef object __Pyx_FlagBase
 from enum import IntFlag as __Pyx_FlagBase
 
+cdef inline object __Pyx_ConstructEnum(name, items, module, bint safe_flag):
+    if not safe_flag and (__PYX_LIMITED_VERSION_HEX >= 0x030F0000 or
+            (CYTHON_COMPILING_IN_LIMITED_API and __Pyx_get_runtime_version() >= 0x030B0000)):
+        return __Pyx_EnumBase(name, items, module=module)
+    else:
+        result = __Pyx_FlagBase(name, items, module=module)
+        if (__PYX_LIMITED_VERSION_HEX >= 0x030B0000 or
+                (CYTHON_COMPILING_IN_LIMITED_API and __Pyx_get_runtime_version() >= 0x030B0000)):
+            # Python 3.11 starts making the behaviour of flags stricter
+            # (only including powers of 2 when iterating). Since we're using
+            # "flag" because C enums *might* be used as flags, not because
+            # we want strict flag behaviour, manually undo some of this.
+            result._member_names_ = list(result.__members__)
+        return result
+
+
 #################### EnumType ####################
-#@requires: EnumBase
+# requires EnumBase but this is done manually to avoid duplication
 
 cdef extern from *:
     object {{enum_to_pyint_func}}({{name}} value)
 
+
 # create new IntFlag() - the assumption is that C enums are sufficiently commonly
 # used as flags that this is the most appropriate base class
-{{name}} = __Pyx_FlagBase('{{name}}', [
-    {{for item in items}}
-    ('{{item}}', {{enum_to_pyint_func}}({{item}})),
-    {{endfor}}
-    # Try to look up the module name dynamically if possible
-], module=globals().get("__module__", '{{static_modname}}'))
-
-if (__PYX_LIMITED_VERSION_HEX >= 0x030B0000 or
-        (CYTHON_COMPILING_IN_LIMITED_API and __Pyx_get_runtime_version() >= 0x030B0000)):
-    # Python 3.11 starts making the behaviour of flags stricter
-    # (only including powers of 2 when iterating). Since we're using
-    # "flag" because C enums *might* be used as flags, not because
-    # we want strict flag behaviour, manually undo some of this.
-    {{name}}._member_names_ = list({{name}}.__members__)
+{{name}} = __Pyx_ConstructEnum('{{name}}', [
+        {{for item in items}}
+        ('{{item}}', {{enum_to_pyint_func}}({{item}})),
+        {{endfor}}
+        # Try to look up the module name dynamically if possible
+    ], module=globals().get("__module__", '{{static_modname}}'),
+    safe_flag=(True {{for item in items}} and ({{item}}>=0) {{endfor}}))
 
 {{if enum_doc is not None}}
 {{name}}.__doc__ = {{ repr(enum_doc) }}
@@ -44,7 +54,7 @@ if (__PYX_LIMITED_VERSION_HEX >= 0x030B0000 or
 
 
 #################### CppScopedEnumType ####################
-#@requires: EnumBase
+# requires EnumBase (but this is done manually to avoid duplication)
 cdef dict __Pyx_globals = globals()
 
 __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', [

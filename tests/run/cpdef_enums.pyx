@@ -142,6 +142,21 @@ cpdef enum CyDefinedHasDuplicates3:
     CY_DUP3_C  # = 1
 
 
+cdef extern from *:
+    """
+    enum ExternHasNegatives {
+        EX_NEG_A = -1,
+        EX_NEG_B = 1
+    };
+    """
+    cpdef enum ExternHasNegatives:
+        EX_NEG_A
+        EX_NEG_B
+
+cpdef enum CyDefinedHasNegatives:
+    CY_NEG_A = -1
+    CY_NEG_B = 1
+
 def test_as_variable_from_cython():
     """
     >>> test_as_variable_from_cython()
@@ -285,3 +300,23 @@ def test_special_attributes():
         cpdefPyxDocLineEnum.__module__,
         cpdefPyxDocLineEnum.__doc__,
     )
+
+def test_extern_negatives():
+    """
+    >>> val = test_extern_negatives()
+    >>> type(val) == ExternHasNegatives
+    True
+    >>> val < 0
+    True
+    """
+    return ExternHasNegatives.EX_NEG_A
+
+def test_cy_negatives():
+    """
+    >>> val = test_cy_negatives()
+    >>> type(val) == CyDefinedHasNegatives
+    True
+    >>> val < 0
+    True
+    """
+    return CyDefinedHasNegatives.CY_NEG_A
