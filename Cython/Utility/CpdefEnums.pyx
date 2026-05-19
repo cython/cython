@@ -38,8 +38,10 @@ cdef extern from *:
     object {{enum_to_pyint_func}}({{name}} value)
 
 
-# create new IntFlag() - the assumption is that C enums are sufficiently commonly
-# used as flags that this is the most appropriate base class
+# Create new IntFlag() if possible:
+# the assumption is that C enums are sufficiently commonly
+# used as flags that this is the most appropriate base class.
+# On Python 3.15+ IntFlag doesn't accept negative numbers however.
 {{name}} = __Pyx_ConstructEnum('{{name}}', [
         {{for item in items}}
         ('{{item}}', {{enum_to_pyint_func}}({{item}})),
