@@ -1114,12 +1114,12 @@ static {{ret_type}} __Pyx_Call{{name.title()}}AsVectorcall(__Pyx_{{name}}vectorc
     }
     result = f(o, args, a_size, kwnames);
   cleanup:
-    if (args != stack_args) {
-        PyMem_Free(args);
-    }
     Py_XDECREF(kwnames);
     for (i=a_size; i<total_size; ++i) {
         Py_XDECREF(args[i]);
+    }
+    if (args != stack_args) {
+        PyMem_Free(args);
     }
     return result;
 }
