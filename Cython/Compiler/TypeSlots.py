@@ -9,6 +9,7 @@ from . import PyrexTypes
 from .Errors import error, warn_once
 
 import copy
+import enum
 
 invisible = ['__cinit__', '__dealloc__', '__richcmp__',
              '__nonzero__', '__bool__']
@@ -24,7 +25,7 @@ class Signature:
     #  fixed_arg_format   string
     #  ret_format         string
     #  error_value        string
-    #  use_fastcall       boolean
+    #  use_fastcall       FastcallType enum
     #
     #  The formats are strings made up of the following
     #  characters:
@@ -90,7 +91,12 @@ class Signature:
     }
 
     # Use METH_FASTCALL instead of METH_VARARGS
-    use_fastcall = False
+    class FastcallType(enum.IntEnum):
+        NO = 0
+        YES = 1
+        TP_NEW = 2
+
+    use_fastcall = FastcallType.NO
 
     def __init__(self, arg_format, ret_format, nogil=False):
         self.has_dummy_arg = False
@@ -200,20 +206,31 @@ class Signature:
                 return "__Pyx_PyCFunction_FastCall" + kw
         return None
 
-    def with_fastcall(self):
+    def with_fastcall(self, fastcall_type=FastcallType.YES):
         # Return a copy of this Signature with use_fastcall=True
         sig = copy.copy(self)
-        sig.use_fastcall = True
+        sig.use_fastcall = fastcall_type
         return sig
 
     @property
     def fastvar(self):
         # Used to select variants of functions, one dealing with METH_VARARGS
         # and one dealing with __Pyx_METH_FASTCALL
-        if self.use_fastcall:
+        if self.use_fastcall == self.FastcallType.YES:
             return "FASTCALL"
+        elif self.use_fastcall == self.FastcallType.TP_NEW:
+            return "FASTCALL_NEW"
         else:
             return "VARARGS"
+
+    @property
+    def fastcall_guard(self):
+        if self.use_fastcall == self.FastcallType.YES:
+            return "CYTHON_VECTORCALL"
+        elif self.use_fastcall == self.FastcallType.TP_NEW:
+            return "CYTHON_VECTORCALL_NEW"
+        else:
+            return "1"
 
 
 class SlotDescriptor:
@@ -523,11 +540,11 @@ class TpVectorcallSlot(ConstructorSlot):
             # this means the signature was wrong and so we haven't generated code for the
             # vectorcall wrappers in DefNode.analyse_declarations
             if (entry := tp.scope.lookup_here("__cinit__")):
-                if not entry.overloaded_alternatives:
+                if not entry.is_special or not entry.tp_new_can_be_vectorcall:
                     return "0"
             if not seen_init and (entry := tp.scope.lookup_here("__init__")):
                 seen_init = True
-                if not entry.overloaded_alternatives:
+                if not entry.is_special or not entry.tp_new_can_be_vectorcall:
                     return "0"
             tp = tp.base_type
         return super().slot_code(scope)
@@ -637,6 +654,18 @@ class BinopSlot(SyntheticSlot):
         # MethodSlot causes special method registration.
         self.left_slot = MethodSlot(signature, "", left_method, method_name_to_slot, **kargs)
         self.right_slot = MethodSlot(signature, "", right_method, method_name_to_slot, **kargs)
+
+
+
+class InitSlot(MethodSlot):
+    def slot_code(self, scope):
+        super_slot_code = super().slot_code(scope)
+        if (super_slot_code != "0" and (entry := scope.lookup(self.method_name))
+                and entry.is_special and entry.signature.use_fastcall):
+            # we need a wrapper
+            return InternalMethodSlot.slot_code(self, scope)
+        return super_slot_code
+
 
 
 class RichcmpSlot(MethodSlot):
@@ -1189,7 +1218,7 @@ class SlotTable:
 
             DictOffsetSlot("tp_dictoffset", ifdef="!CYTHON_USE_TYPE_SPECS"),  # otherwise set via "__dictoffset__" member
 
-            MethodSlot(initproc, "tp_init", "__init__", method_name_to_slot),
+            InitSlot(initproc, "tp_init", "__init__", method_name_to_slot),
             EmptySlot("tp_alloc"),  #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
             ConstructorSlot("tp_new", "__cinit__"),
             EmptySlot("tp_free"),

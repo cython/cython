@@ -927,6 +927,22 @@ static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_
     #define __Pyx_GetKwValue_FASTCALL __Pyx_GetKwValue_VARARGS
     #define __Pyx_KwargsAsDict_FASTCALL __Pyx_KwargsAsDict_VARARGS
 #endif
+#if CYTHON_VECTORCALL_NEW
+    #if !CYTHON_VECTORCALL
+        #error Enabling CYTHON_VECTORCALL_NEW without CYTHON_VECTORCALL is not supported
+    #endif
+    #define __Pyx_ArgRef_FASTCALL_NEW __Pyx_ArgRef_FASTCALL
+    #define __Pyx_NumKwargs_FASTCALL_NEW __Pyx_NumKwargs_FASTCALL
+    #define __Pyx_KwValues_FASTCALL_NEW __Pyx_KwValues_FASTCALL
+    #define __Pyx_GetKwValue_FASTCALL_NEW __Pyx_GetKwValue_FASTCALL
+    #define __Pyx_KwargsAsDict_FASTCALL_NEW __Pyx_KwargsAsDict_FASTCALL
+#else
+    #define __Pyx_ArgRef_FASTCALL_NEW __Pyx_ArgRef_VARARGS
+    #define __Pyx_NumKwargs_FASTCALL_NEW __Pyx_NumKwargs_VARARGS
+    #define __Pyx_KwValues_FASTCALL_NEW __Pyx_KwValues_VARARGS
+    #define __Pyx_GetKwValue_FASTCALL_NEW __Pyx_GetKwValue_VARARGS
+    #define __Pyx_KwargsAsDict_FASTCALL_NEW __Pyx_KwargsAsDict_VARARGS
+#endif
 
 #define __Pyx_ArgsSlice_VARARGS(args, start, stop) PyTuple_GetSlice(args, start, stop)
 
