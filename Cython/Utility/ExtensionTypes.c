@@ -1085,7 +1085,7 @@ static {{ret_type}} __Pyx_Call{{name.title()}}AsVectorcall(__Pyx_{{name}}vectorc
     }
     Py_ssize_t total_size = a_size + k_size;
     if (total_size > 10) {
-        args = (PyObject**)PyMem_RawMalloc(total_size*sizeof(PyObject*));
+        args = (PyObject**)PyMem_Malloc(((size_t)total_size)*sizeof(PyObject*));
         if (unlikely(!args)) {
             PyErr_NoMemory();
             return {{error_value}};

@@ -382,7 +382,11 @@
   #ifndef CYTHON_VECTORCALL
     #define CYTHON_VECTORCALL 1
   #endif
-  #ifndef CYTHON_VECTORCALL_NEW
+  #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX < 0x030E0000
+    // Py_tp_vectorcall slot unavailable
+    #undef CYTHON_VECTORCALL_NEW
+    #define CYTHON_VECTORCALL_NEW 0
+  #elif !defined(CYTHON_VECTORCALL_NEW)
     #define CYTHON_VECTORCALL_NEW CYTHON_VECTORCALL
   #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
