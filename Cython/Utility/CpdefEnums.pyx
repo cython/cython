@@ -42,13 +42,13 @@ cdef extern from *:
 # the assumption is that C enums are sufficiently commonly
 # used as flags that this is the most appropriate base class.
 # On Python 3.15+ IntFlag doesn't accept negative numbers however.
-{{name}} = __Pyx_ConstructEnum('{{name}}', [
-        {{for item in items}}
-        ('{{item}}', {{enum_to_pyint_func}}({{item}})),
-        {{endfor}}
-        # Try to look up the module name dynamically if possible
-    ], module=globals().get("__module__", '{{static_modname}}'),
-    safe_flag=(True {{for item in items}} and ({{item}}>=0) {{endfor}}))
+{{name}} = __Pyx_ConstructEnum('{{name}}',  [
+    {{for item in items}}
+    ('{{item}}', {{enum_to_pyint_func}}({{item}})),
+    {{endfor}}
+    # Try to look up the module name dynamically if possible
+], module=globals().get("__module__", '{{static_modname}}'),
+safe_flag=(True {{for item in items}} and ({{item}}>=0) {{endfor}}))
 
 {{if enum_doc is not None}}
 {{name}}.__doc__ = {{ repr(enum_doc) }}
