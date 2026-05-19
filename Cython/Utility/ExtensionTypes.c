@@ -1099,21 +1099,27 @@ static {{ret_type}} __Pyx_Call{{name.title()}}AsVectorcall(__Pyx_{{name}}vectorc
 #endif
     }
     {{ret_type}} result = {{error_value}};
+    PyObject *kwnames = NULL;
     int unpack_dict_result;
-    PyObject *kwnames = PyTuple_New(k_size);
-    if (unlikely(!kwnames)) goto cleanup;
-    __Pyx_BEGIN_CRITICAL_SECTION(k);
-    unpack_dict_result = __Pyx_CallSlotAsVectorcallUnpackDict(a_size, k, args, kwnames);
-    __Pyx_END_CRITICAL_SECTION();
-    if (likely(unpack_dict_result == 0))
-        result = f(o, args, a_size, kwnames);
+#if !CYTHON_ASSUME_SAFE_MACROS
+    if (k)
+#endif
+    {
+        kwnames = PyTuple_New(k_size);
+        if (unlikely(!kwnames)) goto cleanup;
+        __Pyx_BEGIN_CRITICAL_SECTION(k);
+        unpack_dict_result = __Pyx_CallSlotAsVectorcallUnpackDict(a_size, k, args, kwnames);
+        __Pyx_END_CRITICAL_SECTION();
+        if (unlikely(unpack_dict_result == -1)) goto cleanup;
+    }
+    result = f(o, args, a_size, kwnames);
   cleanup:
     if (args != stack_args) {
         PyMem_Free(args);
     }
-    Py_DECREF(kwnames);
+    Py_XDECREF(kwnames);
     for (i=a_size; i<total_size; ++i) {
-        Py_DECREF(args[i]);
+        Py_XDECREF(args[i]);
     }
     return result;
 }
