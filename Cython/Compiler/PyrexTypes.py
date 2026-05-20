@@ -4537,13 +4537,15 @@ class EnumMixin:
     def create_enum_to_py_utility_code(self, env):
         from .UtilityCode import CythonUtilityCode
         self.to_py_function = "__Pyx_Enum_%s_to_py" % type_identifier(self)
-        if self.entry.scope != env.global_scope():
-            module_name = self.entry.scope.qualified_name
-        else:
-            module_name = None
+        module_name = self.entry.scope.qualified_name
 
         directives = CythonUtilityCode.filter_inherited_directives(
             env.global_scope().directives)
+        use_int_enum = not any(
+            value_entry.value_node is not None and
+            isinstance(value_entry.value_node.constant_result, (str, bytes))
+            for value_entry in self.entry.enum_values
+        )
         if any(value_entry.enum_int_value is None for value_entry in self.entry.enum_values):
             # We're at a high risk of making a switch statement with equal values in
             # (because we simply can't tell, and enums are often used like that).
@@ -4573,6 +4575,8 @@ class EnumMixin:
                     "underlying_type": underlying_type_str,
                     "module_name": module_name,
                     "is_flag": not self.is_cpp_enum,
+                    "use_int_enum": use_int_enum,
+                    "static_modname": env.qualified_name,
                     },
             outer_module_scope=self.entry.scope,  # ensure that "name" is findable
             compiler_directives = directives,
@@ -4757,11 +4761,26 @@ class CEnumType(CIntLike, CType, EnumMixin):
         enum_to_pyint_func = self.to_py_function
         self.to_py_function = old_to_py_function  # we don't actually want to overwrite this
 
+        def get_value_code(entry):
+            if entry.value_node is None:
+                return str(entry.enum_int_value) if entry.enum_int_value is not None else entry.name
+            constant_value = entry.value_node.constant_result
+            if isinstance(constant_value, (str, bytes)):
+                return repr(constant_value)
+            if entry.enum_int_value is not None:
+                return str(entry.enum_int_value)
+            return entry.name
+
+        use_int_enum = all(
+            entry.value_node is None or
+            not isinstance(entry.value_node.constant_result, (str, bytes))
+            for entry in self.entry.enum_values
+        )
         if self.entry.type.scope is self.entry.scope:
-            items = tuple((value, value) for value in self.values)
+            items = tuple((value, get_value_code(self.entry.type.scope.lookup_here(value))) for value in self.values)
         else:
             items = tuple(
-                (value, self.entry.type.scope.lookup_here(value).cname)
+                (value, get_value_code(self.entry.type.scope.lookup_here(value)))
                 for value in self.values
             )
 
@@ -4771,6 +4790,7 @@ class CEnumType(CIntLike, CType, EnumMixin):
                      "items": items,
                      "enum_doc": self.doc,
                      "enum_to_pyint_func": enum_to_pyint_func,
+                     "use_int_enum": use_int_enum,
                      "static_modname": env.qualified_name,
                      },
             outer_module_scope=env.global_scope()))

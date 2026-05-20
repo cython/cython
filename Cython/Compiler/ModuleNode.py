@@ -1347,16 +1347,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             last_entry = enum_values[-1]
             # this does not really generate code, just builds the result value
             for value_entry in enum_values:
-                if value_entry.value_node is not None:
+                if value_entry.value_node is not None and value_entry.value_node.type.is_int:
                     value_entry.value_node.generate_evaluation_code(code)
 
             for value_entry in enum_values:
                 if value_entry.value_node is None:
                     value_code = value_entry.cname.split("::")[-1]
-                else:
+                elif value_entry.value_node.type.is_int:
                     value_code = ("%s = %s" % (
                         value_entry.cname.split("::")[-1],
                         value_entry.value_node.result()))
+                else:
+                    value_code = ("%s = %s" % (
+                        value_entry.cname.split("::")[-1],
+                        value_entry.enum_int_value))
                 if value_entry is not last_entry:
                     value_code += ","
                 code.putln(value_code)

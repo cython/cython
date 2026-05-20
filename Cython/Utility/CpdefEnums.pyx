@@ -10,7 +10,10 @@ cdef extern from *:
 
 # @cython.internal
 cdef object __Pyx_EnumBase
-from enum import IntEnum as __Pyx_EnumBase
+from enum import Enum as __Pyx_EnumBase
+
+cdef object __Pyx_IntEnumBase
+from enum import IntEnum as __Pyx_IntEnumBase
 
 cdef object __Pyx_FlagBase
 from enum import IntFlag as __Pyx_FlagBase
@@ -23,12 +26,21 @@ cdef extern from *:
 
 # create new IntFlag() - the assumption is that C enums are sufficiently commonly
 # used as flags that this is the most appropriate base class
+{{if use_int_enum}}
 {{name}} = __Pyx_FlagBase('{{name}}', [
     {{for item in items}}
-    ('{{item[0]}}', {{enum_to_pyint_func}}({{item[1]}})),
+    ('{{item[0]}}', {{item[1]}}),
     {{endfor}}
     # Try to look up the module name dynamically if possible
 ], module=globals().get("__module__", '{{static_modname}}'))
+{{else}}
+{{name}} = __Pyx_EnumBase('{{name}}', [
+    {{for item in items}}
+    ('{{item[0]}}', {{item[1]}}),
+    {{endfor}}
+    # Try to look up the module name dynamically if possible
+], module=globals().get("__module__", '{{static_modname}}'))
+{{endif}}
 
 if (__PYX_LIMITED_VERSION_HEX >= 0x030B0000 or
         (CYTHON_COMPILING_IN_LIMITED_API and __Pyx_get_runtime_version() >= 0x030B0000)):
@@ -47,7 +59,7 @@ if (__PYX_LIMITED_VERSION_HEX >= 0x030B0000 or
 #@requires: EnumBase
 cdef dict __Pyx_globals = globals()
 
-__Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', [
+__Pyx_globals["{{name}}"] = __Pyx_IntEnumBase('{{name}}', [
     {{for item in items}}
     ('{{item[0]}}', <{{underlying_type}}>({{name}}.{{item[0]}})),
     {{endfor}}

@@ -1882,6 +1882,11 @@ class CEnumDefItemNode(StatNode):
         if self.value:
             self.value = self.value.analyse_const_expression(env)
             if not self.value.type.is_int:
+                # Keep non-integer enum values as Python objects. The C enum
+                # still gets a surrogate integer value, but the Python wrapper
+                # uses the original value.
+                pass
+            else:
                 self.value = self.value.coerce_to(PyrexTypes.c_int_type, env)
                 self.value = self.value.analyse_const_expression(env)
 
@@ -1899,13 +1904,10 @@ class CEnumDefItemNode(StatNode):
         # Use the incremental integer value unless we see an explicitly declared value.
         enum_value = incremental_int_value
         if self.value:
-            if self.value.is_literal:
+            if self.value.type.is_int and self.value.is_literal:
                 enum_value = str_to_number(self.value.value)
-            elif (self.value.is_name or self.value.is_attribute) and self.value.entry:
+            elif self.value.type.is_int and (self.value.is_name or self.value.is_attribute) and self.value.entry:
                 enum_value = self.value.entry.enum_int_value
-            else:
-                # There is a value but we don't understand its integer value.
-                enum_value = None
         if enum_value is not None:
             entry.enum_int_value = enum_value
 
