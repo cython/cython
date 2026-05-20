@@ -1790,8 +1790,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
     def visit_SimpleCallNode(self, node):
         self.visitchildren(node)
-        # if self._is_c_base_method_call(node):
-        #    node = self._handle_simple_base_method_call(node)
+        if self._is_c_base_method_call(node):
+            node = self._handle_simple_base_method_call(node)
 
         function = node.function
         if not self._function_is_builtin_name(function):
