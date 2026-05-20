@@ -1442,21 +1442,15 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
 
     if (gen->resume_label >= 0) {
         // Generator is paused or unstarted, so we need to close
-        PyObject_GC_Track(self);
 #if CYTHON_USE_TP_FINALIZE
+        PyObject_GC_Track(self);
         if (unlikely(PyObject_CallFinalizerFromDealloc(self)))
-#else
-        {
-            destructor del = __Pyx_PyObject_GetSlot(gen, tp_del, destructor);
-            if (del) del(self);
-        }
-        if (unlikely(Py_REFCNT(self) > 0))
-#endif
         {
             // resurrected.  :(
             return;
         }
         PyObject_GC_UnTrack(self);
+#endif
     }
 
 #ifdef __Pyx_AsyncGen_USED
