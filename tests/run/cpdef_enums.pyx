@@ -285,3 +285,19 @@ def test_special_attributes():
         cpdefPyxDocLineEnum.__module__,
         cpdefPyxDocLineEnum.__doc__,
     )
+
+
+def test_enum_member_attributes():
+    """
+    >>> test_enum_member_attributes()
+    ('TWO', 2)
+    >>> PyxEnum.TWO.name = 'bad'  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    AttributeError: <enum 'Enum'> cannot set attribute 'name'
+    >>> PyxEnum.TWO.value = 99  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    AttributeError: <enum 'Enum'> cannot set attribute 'value'
+    """
+    return PyxEnum.TWO.name, PyxEnum.TWO.value

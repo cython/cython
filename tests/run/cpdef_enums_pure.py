@@ -48,3 +48,19 @@ def test_as_variable_from_cython_str():
     <PyxEnumStr.THREE: 'three'>
     """
     assert list(PyxEnumStr) == [PyxEnumStr.TWO, PyxEnumStr.THREE, PyxEnumStr.FIVE], list(PyxEnumStr)
+
+
+def test_enum_member_attributes():
+    """
+    >>> test_enum_member_attributes()
+    ('TWO', 2, 'TWO', 2)
+    >>> PyxEnum.TWO.name = 'bad'  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    AttributeError: <enum 'Enum'> cannot set attribute 'name'
+    >>> PyxEnumInt.TWO.value = 99  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    AttributeError: <enum 'Enum'> cannot set attribute 'value'
+    """
+    return PyxEnum.TWO.name, PyxEnum.TWO.value, PyxEnumInt.TWO.name, PyxEnumInt.TWO.value

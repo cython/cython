@@ -8075,6 +8075,17 @@ class AttributeNode(ExprNode):
 
     def analyse_as_ordinary_attribute_node(self, env, target):
         self.obj = self.obj.analyse_types(env)
+        if self.obj.type.is_enum or self.obj.type.is_cpp_enum:
+            if self.attribute in ("name", "value"):
+                if target:
+                    error(self.pos, "Assignment to read-only attribute '%s'" % self.attribute)
+                    self.type = PyrexTypes.error_type
+                    return self
+                self.obj = self.obj.coerce_to_pyobject(env)
+                self.is_py_attr = 1
+                self.type = py_object_type
+                self.is_temp = 1
+                return self
         self.analyse_attribute(env)
         if self.entry and self.entry.is_cmethod and not self.is_called:
 #            error(self.pos, "C method can only be called")
