@@ -162,6 +162,56 @@ def ctypes_def(a: list, b: cython.int = 2, c: cython.long = 3, d: cython.float =
     return a
 
 
+@cython.ccall
+def maybe_cint(x: cython.int | None = None):
+    """
+    >>> maybe_cint(5)
+    5
+    >>> maybe_cint(None)
+    """
+    return x
+
+
+@cython.ccall
+def maybe_cfloat(x: cython.float | None = None):
+    """
+    >>> maybe_cfloat(5.5)
+    5.5
+    >>> maybe_cfloat(None)
+    """
+    return x
+
+
+@cython.ccall
+def maybe_str(x: str | None = None):
+    """
+    >>> maybe_str("spam")
+    'spam'
+    >>> maybe_str(None)
+    """
+    return x
+
+
+@cython.ccall
+def maybe_bytes(x: bytes | None = None):
+    """
+    >>> maybe_bytes(b"spam")
+    b'spam'
+    >>> maybe_bytes(None)
+    """
+    return x
+
+
+@cython.ccall
+def maybe_bytearray(x: bytearray | None = None):
+    """
+    >>> maybe_bytearray(bytearray(b"spam"))
+    bytearray(b'spam')
+    >>> maybe_bytearray(None)
+    """
+    return x
+
+
 def return_tuple_for_carray() -> tuple:
     """
     >>> return_tuple_for_carray()
@@ -547,36 +597,39 @@ _WARNINGS = """
 37:40: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 37:40: Unknown type declaration 'long' in annotation, ignoring
 37:66: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+75:0: 'pytypes_cpdef' redeclared
 75:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
+75:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
+75:44: Unknown type declaration 'long' in annotation, ignoring
 75:44: Unknown type declaration 'long' in annotation, ignoring
 75:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 113:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 113:44: Unknown type declaration 'long' in annotation, ignoring
 113:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-175:30: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
-175:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
-180:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
-315:44: Unknown type declaration in annotation, ignoring
-325:55: Unknown type declaration in annotation, ignoring
-368:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
-459:32: Unknown type declaration in annotation, ignoring
-459:69: Unknown type declaration in annotation, ignoring
-511:20: Unknown type declaration in annotation, ignoring
-511:20: Unknown type declaration in annotation, ignoring
-511:29: Unknown type declaration in annotation, ignoring
-530:22: Unknown type declaration in annotation, ignoring
-530:31: Unknown type declaration in annotation, ignoring
-533:24: Unknown type declaration in annotation, ignoring
-533:33: Unknown type declaration in annotation, ignoring
-# DUPLICATE:
-75:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
-75:44: Unknown type declaration 'long' in annotation, ignoring
-# BUG:
-75:0: 'pytypes_cpdef' redeclared
-187:0: 'struct_io' redeclared
-222:0: 'struct_convert' redeclared
-241:0: 'exception_default' redeclared
-272:0: 'exception_default_uint' redeclared
-502:0: 'unknown_pyclass' redeclared
-510:0: 'none_as_type' redeclared
+165:0: 'maybe_cint' redeclared
+175:0: 'maybe_cfloat' redeclared
+185:0: 'maybe_str' redeclared
+195:0: 'maybe_bytes' redeclared
+205:0: 'maybe_bytearray' redeclared
+225:30: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+225:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+230:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+237:0: 'struct_io' redeclared
+272:0: 'struct_convert' redeclared
+291:0: 'exception_default' redeclared
+322:0: 'exception_default_uint' redeclared
+365:44: Unknown type declaration in annotation, ignoring
+375:55: Unknown type declaration in annotation, ignoring
+418:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+509:32: Unknown type declaration in annotation, ignoring
+509:69: Unknown type declaration in annotation, ignoring
+552:0: 'unknown_pyclass' redeclared
+560:0: 'none_as_type' redeclared
+561:20: Unknown type declaration in annotation, ignoring
+561:20: Unknown type declaration in annotation, ignoring
+561:29: Unknown type declaration in annotation, ignoring
+580:22: Unknown type declaration in annotation, ignoring
+580:31: Unknown type declaration in annotation, ignoring
+583:24: Unknown type declaration in annotation, ignoring
+583:33: Unknown type declaration in annotation, ignoring
 """

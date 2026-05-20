@@ -52,6 +52,18 @@ from cython.cimports.py_enum import PyEnum, PyEnumInt, PyEnumStr
 def is_green(value: PyEnum) -> cython.bint:
     return value == PyEnum.GREEN
 
+@cython.ccall
+def optional_values(enum_value: PyEnum | None,
+                    int_value: PyEnumInt | None,
+                    str_value: PyEnumStr | None):
+    """
+    >>> optional_values(PyEnum.GREEN, PyEnumInt.SECOND, PyEnumStr.GREEN)
+    (<PyEnum.GREEN: 2>, <PyEnumInt.SECOND: 20>, <PyEnumStr.GREEN: 'green'>)
+    >>> optional_values(None, None, None)
+    (None, None, None)
+    """
+    return enum_value, int_value, str_value
+
 assert list(PyEnum) == [PyEnum.RED, PyEnum.GREEN], list(PyEnum)
 assert is_green(PyEnum.GREEN)
 assert list(PyEnumInt) == [PyEnumInt.FIRST, PyEnumInt.SECOND], list(PyEnumInt)
@@ -59,20 +71,44 @@ assert list(PyEnumStr) == [PyEnumStr.RED, PyEnumStr.GREEN], list(PyEnumStr)
 
 ######## consume_py_enum.py ########
 
+from __future__ import annotations
+
 import cython
 from py_enum import PyEnum, PyEnumInt, PyEnumStr
 from cython.cimports.py_enum import PyEnum, PyEnumInt, PyEnumStr
+from typing import Optional
 
 @cython.ccall
 def is_green(value: PyEnum) -> cython.bint:
     return value == PyEnum.GREEN
+
+@cython.ccall
+def optional_values(enum_value: Optional[PyEnum],
+                    int_value: Optional[PyEnumInt],
+                    str_value: Optional[PyEnumStr]):
+    """
+    >>> optional_values(PyEnum.GREEN, PyEnumInt.SECOND, PyEnumStr.GREEN)
+    (<PyEnum.GREEN: 2>, <PyEnumInt.SECOND: 20>, <PyEnumStr.GREEN: 'green'>)
+    >>> optional_values(None, None, None)
+    (None, None, None)
+    """
+    return enum_value, int_value, str_value
 
 assert list(PyEnum) == [PyEnum.RED, PyEnum.GREEN], list(PyEnum)
 assert is_green(PyEnum.GREEN)
 assert list(PyEnumInt) == [PyEnumInt.FIRST, PyEnumInt.SECOND], list(PyEnumInt)
 assert list(PyEnumStr) == [PyEnumStr.RED, PyEnumStr.GREEN], list(PyEnumStr)
 
+######## consume_py_enum_runtime.py ########
+
+from py_enum import PyEnum, PyEnumInt, PyEnumStr
+
+assert PyEnum.GREEN.value == 2
+assert PyEnumInt.SECOND.value == 20
+assert PyEnumStr.GREEN.value == "green"
+
 ######## runner.py ########
 
 import consume_pyx_enum
 import consume_py_enum
+import consume_py_enum_runtime

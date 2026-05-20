@@ -1059,27 +1059,28 @@ class CArgDeclNode(Node):
             return None
 
         modifiers, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
-        if arg_type is not None:
-            self.base_type = CAnalysedBaseTypeNode(
-                annotation.pos, type=arg_type, is_arg=True)
-
         if arg_type:
             if "typing.Optional" in modifiers:
                 # "x: Optional[...]"  =>  explicitly allow 'None'
                 arg_type = arg_type.resolve()
                 if arg_type and not arg_type.can_be_optional():
-                    # We probably already reported this as "cannot be applied to non-Python type".
-                    # error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
-                    pass
-                else:
-                    self.or_none = True
+                    boxed_type = arg_type.boxed_type
+                    if boxed_type:
+                        arg_type = boxed_type
+                    elif arg_type.equivalent_type:
+                        arg_type = arg_type.equivalent_type
+                    else:
+                        # We probably already reported this as "cannot be applied to non-Python type".
+                        # error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
+                        pass
+                self.or_none = True
             elif arg_type is py_object_type:
                 # exclude ": object" from the None check - None is a generic object.
                 self.or_none = True
             elif self.default and self.default.is_none and (arg_type.can_be_optional() or arg_type.equivalent_type):
                 # "x: ... = None"  =>  implicitly allow 'None'
                 if not arg_type.can_be_optional():
-                    arg_type = arg_type.equivalent_type
+                    arg_type = arg_type.boxed_type or arg_type.equivalent_type
                 if not self.or_none:
                     warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
                     self.or_none = True
@@ -1087,6 +1088,8 @@ class CArgDeclNode(Node):
                 self.not_none = True
 
         if arg_type:
+            self.base_type = CAnalysedBaseTypeNode(
+                annotation.pos, type=arg_type, is_arg=True)
             self.type_from_annotation = True
         return arg_type
 
@@ -1350,7 +1353,10 @@ class TemplatedTypeNode(CBaseTypeNode):
             if ttype is None:
                 continue
             if require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():
-                if ttype.equivalent_type and not template_node.as_cython_attribute():
+                boxed_type = ttype.boxed_type
+                if boxed_type and not template_node.as_cython_attribute():
+                    template_types[i] = boxed_type
+                elif ttype.equivalent_type and not template_node.as_cython_attribute():
                     template_types[i] = ttype.equivalent_type
                 else:
                     error(template_node.pos, "%s[...] cannot be applied to type %s" % (

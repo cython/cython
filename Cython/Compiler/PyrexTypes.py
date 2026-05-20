@@ -27,6 +27,7 @@ class BaseType:
     _empty_declaration = None
     _specialization_name = None
     default_format_spec = None
+    boxed_type = None
 
     def can_coerce_to_pyobject(self, env):
         return False
@@ -1662,6 +1663,26 @@ class BuiltinObjectType(PyObjectType):
         return self.name
 
 
+class BoxedType(PyObjectType):
+    """Python object type that preserves the semantic identity of a value type."""
+
+    def __init__(self, name, equivalent_type):
+        self.name = name
+        self.equivalent_type = equivalent_type
+
+    def __str__(self):
+        return "%s object" % self.name
+
+    def __repr__(self):
+        return "<BoxedType %s>" % self.name
+
+    def py_type_name(self):
+        return self.name
+
+    def subtype_of_resolved_type(self, other_type):
+        return other_type is py_object_type or self.same_as(other_type)
+
+
 class PyExtensionType(PyObjectType):
     #
     #  A Python extension type.
@@ -2303,6 +2324,11 @@ class CIntType(CIntLike, CNumericType):
             TypeName = "LongLong"
         return f"PyLong_From{SignWord}{TypeName}"
 
+    @property
+    def boxed_type(self):
+        from .Builtin import int_type
+        return int_type
+
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
 
@@ -2432,6 +2458,11 @@ class CBIntType(CIntType):
     def py_type_name(self):
         return "bool"
 
+    @property
+    def boxed_type(self):
+        from .Builtin import bool_type
+        return bool_type
+
 
 class CPyUCS4IntType(CIntType):
     # Py_UCS4
@@ -2535,6 +2566,11 @@ class CFloatType(CNumericType):
 
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
+
+    @property
+    def boxed_type(self):
+        from .Builtin import float_type
+        return float_type
 
 
 class CComplexType(CNumericType):
@@ -4661,6 +4697,12 @@ class CppScopedEnumType(CType, EnumMixin):
 
         env.use_utility_code(rst)
 
+    @property
+    def boxed_type(self):
+        if getattr(self, '_boxed_type', None) is None:
+            self._boxed_type = BoxedType(self.name, self)
+        return self._boxed_type
+
 
 class TemplatePlaceholderType(CType):
 
@@ -4756,6 +4798,12 @@ class CEnumType(CIntLike, CType, EnumMixin):
                     self.name, self.cname, self.typedef_flag, namespace)
         return self
 
+    @property
+    def boxed_type(self):
+        if getattr(self, '_boxed_type', None) is None:
+            self._boxed_type = BoxedType(self.name, self)
+        return self._boxed_type
+
     def create_type_wrapper(self, env):
         from .UtilityCode import CythonUtilityCode
         # Generate "int"-like conversion function
@@ -4827,6 +4875,10 @@ class CTupleType(CType):
         self.components = components
         self.equivalent_type = tuple_type
         self.size = len(components)
+
+    @property
+    def boxed_type(self):
+        return self.equivalent_type
 
     def __str__(self):
         return "(%s)" % ", ".join(str(c) for c in self.components)

@@ -2459,6 +2459,7 @@ class NameNode(AtomicExprNode):
             self.type_entry = entry
         if entry.is_type and (entry.type.is_enum or entry.type.is_cpp_enum) and entry.create_wrapper:
             py_entry = Symtab.Entry(self.name, None, py_object_type)
+            py_entry.is_variable = True
             py_entry.is_pyglobal = True
             py_entry.scope = self.entry.scope
             self.entry = py_entry
@@ -12801,9 +12802,11 @@ class BitwiseOrNode(IntBinopNode):
         if not ttype:
             return None
         if not ttype.can_be_optional():
-            # If ttype cannot be optional we need to return an equivalent Python type allowing None.
-            # If it cannot be mapped to a Python type, we must error out.
-            if ttype.equivalent_type and not operand_node.as_cython_attribute():
+            # If ttype cannot be optional we need to return a boxed Python type allowing None.
+            # If it cannot be boxed, fall back to any known Python equivalent.
+            if ttype.boxed_type:
+                return ttype.boxed_type
+            if ttype.equivalent_type:
                 return ttype.equivalent_type
             else:
                 error(operand_node.pos, f"'[...] | None' cannot be applied to type {ttype}")
@@ -14910,6 +14913,8 @@ class CoerceToPyTypeNode(CoercionNode):
                 self.type = unicode_type
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
+            elif arg.type.boxed_type is not None and arg.type.boxed_type.is_pyobject:
+                self.type = arg.type.boxed_type
             elif arg.type.equivalent_type is not None and arg.type.equivalent_type.is_pyobject:
                 # Includes bint.
                 self.type = arg.type.equivalent_type
