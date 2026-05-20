@@ -3006,11 +3006,18 @@ class CFuncDefNode(FuncDefNode):
             cname = self.entry.func_cname
         entity = type.function_header_code(cname, ', '.join(arg_decls))
         storage_class = ""
-        if self.entry.visibility == 'private' and '::' not in cname and not self.entry.final_func_cname:
+        if (self.entry.visibility == 'private' and '::' not in cname and
+                not self.entry.final_func_cname and
+                not (self.entry.defined_in_pxd or self.inline_in_pxd)):
             storage_class = "static "
 
         dll_linkage = None
-        modifiers = code.build_function_modifiers(self.entry.func_modifiers)
+        modifiers = self.entry.func_modifiers
+        if self.entry.defined_in_pxd or self.inline_in_pxd:
+            # Keep inline on the declaration side, but avoid baking it into the
+            # emitted body so cimporters still get an exported symbol.
+            modifiers = [modifier for modifier in modifiers if modifier != 'inline']
+        modifiers = code.build_function_modifiers(modifiers)
 
         header = self.return_type.declaration_code(entity, dll_linkage=dll_linkage)
         #print (storage_class, modifiers, header)

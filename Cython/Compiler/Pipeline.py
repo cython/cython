@@ -327,7 +327,7 @@ def create_pyx_as_pxd_pipeline(context, result):
                 if entry.name == entry.cname and entry.visibility != 'extern':
                     # Always mangle non-extern cimported entries.
                     entry.cname = entry.scope.mangle(Naming.func_prefix, entry.name)
-                if entry.is_type and entry.type.scope:
+                if entry.is_type and not entry.type.is_ctuple and entry.type.scope:
                     for method_entry in entry.type.scope.cfunc_entries:
                         if not method_entry.is_inherited:
                             method_entry.defined_in_pxd = 1

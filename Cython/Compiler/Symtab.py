@@ -924,10 +924,7 @@ class Scope:
                 cname = name
             else:
                 cname = self.mangle(Naming.func_prefix, name)
-        inline_in_pxd = 'inline' in modifiers and in_pxd and defining
-        if inline_in_pxd:
-            # in_pxd does special things that we don't want to apply to inline functions
-            in_pxd = False
+        inline_in_pxd = 'inline' in modifiers and in_pxd
         entry = self.lookup_here(name)
         if entry:
             if not in_pxd and visibility != entry.visibility and visibility == 'extern':
