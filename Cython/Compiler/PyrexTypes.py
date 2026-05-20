@@ -5034,7 +5034,11 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     def infer_indexed_type(self, index=None):
         container_type = self.get_container_type()
         if container_type.is_pytuple_type:
-            return self.get_subscripted_spanning_type() if index is None else self.get_subscripted_type(index)
+            if index is None:
+                return self.get_subscripted_spanning_type()
+            if isinstance(index, int):
+                return self.get_subscripted_type(index)
+            return py_object_type
         if container_type.is_pydict_type or container_type.is_pyfrozendict_type:
             return self.get_subscripted_type(1)
         else:

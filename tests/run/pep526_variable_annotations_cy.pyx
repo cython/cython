@@ -246,3 +246,16 @@ def test_dict_of_extensions(myclass):
     print(cython.typeof(l))
     print(cython.typeof(l[0]))
     print(l[0])
+
+def test_tuple_with_not_constant_index(tuple[str, int] a, int index):
+    """
+    >>> test_tuple_with_not_constant_index(("Foo", 1), 0)
+    ('Python object', 'Foo')
+    >>> test_tuple_with_not_constant_index(("Foo", 1), 1)
+    ('Python object', 1)
+    >>> test_tuple_with_not_constant_index(("Foo", 1), "not an int")   # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    TypeError: an integer is required
+    """
+    print(cython.typeof(a[index]), a[index])

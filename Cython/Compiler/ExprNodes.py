@@ -4516,7 +4516,6 @@ class IndexNode(_IndexingBaseNode):
 
         if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type(self.index.constant_result)):
             if getting:
-                self.type = base_type
                 return self.coerce_to(sub_type, env)
             self.type = sub_type
 
