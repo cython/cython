@@ -12,26 +12,26 @@ class TestCodeWriter(CythonTest):
     def rewrite(self, code):
         node = self.parse_code(code)
         self.assertEqual(
-            code.strip(), 
-            self.codeToString(node), 
+            code.strip(),
+            self.codeToString(node),
             "code failed to write correctly"
-        ) 
+        )
 
 
     def test_cdef_enum(self):
         self.rewrite(
             (
                 "cdef enum start_stop:\n" +
-                "    START = 1\n" + 
+                "    START = 1\n" +
                 "    STOP = 2"
             )
         )
-    
+
     def test_cpdef_enum(self):
         self.rewrite(
             (
                 "cpdef enum start_stop:\n" +
-                "    START = 1\n" + 
+                "    START = 1\n" +
                 "    STOP = 2"
             )
         )
@@ -52,7 +52,7 @@ class TestCodeWriter(CythonTest):
                 "    return a + b"
             )
         )
-    
+
     def test_noexcept(self):
         self.rewrite(
             (
@@ -60,7 +60,7 @@ class TestCodeWriter(CythonTest):
                 "    return a + b"
             )
         )
-    
+
     def test_noexcept_with_gil(self):
         self.rewrite(
             (
@@ -76,7 +76,7 @@ class TestCodeWriter(CythonTest):
                 "    return a + b"
             )
         )
-    
+
     def test_cpdef_nogil(self):
         self.rewrite(
             (
