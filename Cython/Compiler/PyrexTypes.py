@@ -4562,8 +4562,12 @@ class EnumMixin:
         if self.entry.type.scope is self.entry.scope:
             items = tuple((item_name, item_name) for item_name in self.values)
         else:
+            def get_value_code(entry):
+                if entry.enum_int_value is not None:
+                    return str(entry.enum_int_value)
+                return entry.cname
             items = tuple(
-                (item_name, self.entry.type.scope.lookup_here(item_name).cname)
+                (item_name, get_value_code(self.entry.type.scope.lookup_here(item_name)))
                 for item_name in self.values
             )
 

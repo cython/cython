@@ -17,7 +17,6 @@ setup(
     ext_modules=cythonize([
         "py_enum.pyx",
         "consume_pyx_enum.pyx",
-        "pyx_enum.pyx",
         "consume_py_enum.py",
     ]),
 )
@@ -25,6 +24,7 @@ setup(
 ######## py_enum.pyx ########
 
 from enum import Enum
+from enum import IntEnum
 from cython import cclass
 
 @cclass
@@ -32,41 +32,45 @@ class PyEnum(Enum):
     RED = 1
     GREEN = 2
 
+@cclass
+class PyEnumInt(IntEnum):
+    FIRST = 10
+    SECOND = 20
+
+@cclass
+class PyEnumStr(Enum):
+    RED = "red"
+    GREEN = "green"
+
 ######## consume_pyx_enum.pyx ########
 
 import cython
-from py_enum import PyEnum
-from cython.cimports.py_enum import PyEnum as CPyEnum
+from py_enum import PyEnum, PyEnumInt, PyEnumStr
+from cython.cimports.py_enum import PyEnum, PyEnumInt, PyEnumStr
 
 @cython.ccall
-def is_green(value: CPyEnum) -> cython.bint:
-    return value == CPyEnum.GREEN
+def is_green(value: PyEnum) -> cython.bint:
+    return value == PyEnum.GREEN
 
 assert list(PyEnum) == [PyEnum.RED, PyEnum.GREEN], list(PyEnum)
 assert is_green(PyEnum.GREEN)
-
-######## pyx_enum.pyx ########
-
-from enum import IntEnum
-from cython import cclass
-
-@cclass
-class PyxEnum(IntEnum):
-    FIRST = 10
-    SECOND = 20
+assert list(PyEnumInt) == [PyEnumInt.FIRST, PyEnumInt.SECOND], list(PyEnumInt)
+assert list(PyEnumStr) == [PyEnumStr.RED, PyEnumStr.GREEN], list(PyEnumStr)
 
 ######## consume_py_enum.py ########
 
 import cython
-from pyx_enum import PyxEnum
-from cython.cimports.pyx_enum import PyxEnum as CPyxEnum
+from py_enum import PyEnum, PyEnumInt, PyEnumStr
+from cython.cimports.py_enum import PyEnum, PyEnumInt, PyEnumStr
 
 @cython.ccall
-def is_second(value: CPyxEnum) -> cython.bint:
-    return value == CPyxEnum.SECOND
+def is_green(value: PyEnum) -> cython.bint:
+    return value == PyEnum.GREEN
 
-assert list(PyxEnum) == [PyxEnum.FIRST, PyxEnum.SECOND], list(PyxEnum)
-assert is_second(PyxEnum.SECOND)
+assert list(PyEnum) == [PyEnum.RED, PyEnum.GREEN], list(PyEnum)
+assert is_green(PyEnum.GREEN)
+assert list(PyEnumInt) == [PyEnumInt.FIRST, PyEnumInt.SECOND], list(PyEnumInt)
+assert list(PyEnumStr) == [PyEnumStr.RED, PyEnumStr.GREEN], list(PyEnumStr)
 
 ######## runner.py ########
 
