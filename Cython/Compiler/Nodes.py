@@ -1794,6 +1794,7 @@ class CEnumDefNode(StatNode):
 
     child_attrs = ["items", "underlying_type"]
     doc = None
+    use_class_scope = False
 
     def declare(self, env):
         doc = None
@@ -1817,12 +1818,13 @@ class CEnumDefNode(StatNode):
 
         self.entry.type.underlying_type = underlying_type
 
-        if self.scoped and self.items is not None:
+        if (self.scoped or self.use_class_scope) and self.items is not None:
             scope = CppScopedEnumScope(self.name, env)
             scope.type = self.entry.type
             scope.directives = env.directives
         else:
             scope = env
+        self.entry.type.scope = scope
 
         if self.items is not None:
             if self.in_pxd and not env.in_cinclude:
@@ -1886,7 +1888,7 @@ class CEnumDefItemNode(StatNode):
         if enum_entry.type.is_cpp_enum:
             cname = "%s::%s" % (enum_entry.cname, self.name)
         else:
-            cname = self.cname
+            cname = getattr(self, 'cname', None)
 
         self.entry = entry = env.declare_const(
             self.name, enum_entry.type,
@@ -1906,6 +1908,11 @@ class CEnumDefItemNode(StatNode):
                 enum_value = None
         if enum_value is not None:
             entry.enum_int_value = enum_value
+
+        if env is not enum_entry.scope and not enum_entry.type.is_cpp_enum:
+            enum_entry.scope.declare_const(
+                entry.cname, enum_entry.type, self.value, self.pos,
+                cname=entry.cname, visibility='private')
 
         enum_entry.enum_values.append(entry)
         if enum_entry.name:
@@ -5314,6 +5321,67 @@ class PyClassDefNode(ClassDefNode):
                              body=self.body,
                              in_pxd=False,
                              doc=self.doc)
+
+    def as_cenum(self, visibility):
+        """
+        Return this node as if it were declared as a cpdef enum class.
+        """
+        from . import ExprNodes
+
+        items = []
+        def iter_stats(node):
+            if node is None:
+                return
+            if isinstance(node, CompilerDirectivesNode):
+                yield from iter_stats(node.body)
+            elif isinstance(node, StatListNode):
+                for subnode in node.stats:
+                    yield from iter_stats(subnode)
+            else:
+                yield node
+
+        for stat in iter_stats(self.body):
+            if stat is None:
+                continue
+            if isinstance(stat, ExprStatNode) and stat.expr.is_string_literal:
+                continue
+            if isinstance(stat, SingleAssignmentNode):
+                if not isinstance(stat.lhs, ExprNodes.NameNode):
+                    error(stat.pos, "Enum members must be simple names")
+                    continue
+                items.append(CEnumDefItemNode(
+                    stat.pos,
+                    name=stat.lhs.name,
+                    value=stat.rhs,
+                ))
+                continue
+            if isinstance(stat, PassStatNode):
+                continue
+            error(stat.pos, "Enum classes can only contain member assignments")
+
+        return CEnumDefNode(
+            self.pos,
+            name=self.name,
+            cname=None,
+            scoped=False,
+            use_class_scope=True,
+            items=items,
+            underlying_type=CSimpleBaseTypeNode(
+                self.pos,
+                name="int",
+                module_path=[],
+                is_basic_c_type=True,
+                signed=1,
+                complex=False,
+                longness=0,
+            ),
+            typedef_flag=False,
+            visibility=visibility,
+            create_wrapper=True,
+            api=False,
+            in_pxd=False,
+            doc=self.doc,
+        )
 
     def create_scope(self, env):
         genv = env

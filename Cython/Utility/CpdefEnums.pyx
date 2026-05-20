@@ -25,7 +25,7 @@ cdef extern from *:
 # used as flags that this is the most appropriate base class
 {{name}} = __Pyx_FlagBase('{{name}}', [
     {{for item in items}}
-    ('{{item}}', {{enum_to_pyint_func}}({{item}})),
+    ('{{item[0]}}', {{enum_to_pyint_func}}({{item[1]}})),
     {{endfor}}
     # Try to look up the module name dynamically if possible
 ], module=globals().get("__module__", '{{static_modname}}'))
@@ -49,7 +49,7 @@ cdef dict __Pyx_globals = globals()
 
 __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', [
     {{for item in items}}
-    ('{{item}}', <{{underlying_type}}>({{name}}.{{item}})),
+    ('{{item[0]}}', <{{underlying_type}}>({{name}}.{{item[0]}})),
     {{endfor}}
 ], module=__Pyx_globals.get("__module__", '{{static_modname}}'))
 
@@ -95,8 +95,8 @@ cdef {{funcname}}({{name}} c_val):
     if 0:
         pass
 {{for item in items}}
-    elif c_val == {{name}}.{{item}}:
-        return __pyx_enum.{{item}}
+    elif c_val == {{item[1]}}:
+        return __pyx_enum.{{item[0]}}
 {{endfor}}
     else:
         underlying_c_val = <{{underlying_type}}>c_val

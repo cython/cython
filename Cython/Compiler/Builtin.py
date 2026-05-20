@@ -935,6 +935,12 @@ def get_known_standard_library_module_scope(module_name):
         for name in ["total_ordering"]:
             mod.declare_var(EncodedString(name), PyrexTypes.py_object_type, pos=None)
         _known_module_scopes[module_name] = mod
+    elif module_name == "enum":
+        mod = ModuleScope(module_name, None, None)
+        for name in ["Enum", "IntEnum", "Flag", "IntFlag"]:
+            entry = mod.declare_var(EncodedString(name), PyrexTypes.py_object_type, pos=None)
+            entry.known_standard_library_import = "%s.%s" % (module_name, name)
+        _known_module_scopes[module_name] = mod
 
     return mod
 

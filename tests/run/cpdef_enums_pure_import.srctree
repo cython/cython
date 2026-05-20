@@ -1,0 +1,74 @@
+# mode: run
+
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner"
+"""
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+import Cython.Compiler.Options
+from distutils.core import setup
+
+Cython.Compiler.Options.cimport_from_pyx = True
+
+setup(
+    ext_modules=cythonize([
+        "py_enum.pyx",
+        "consume_pyx_enum.pyx",
+        "pyx_enum.pyx",
+        "consume_py_enum.py",
+    ]),
+)
+
+######## py_enum.pyx ########
+
+from enum import Enum
+from cython import cclass
+
+@cclass
+class PyEnum(Enum):
+    RED = 1
+    GREEN = 2
+
+######## consume_pyx_enum.pyx ########
+
+import cython
+from py_enum import PyEnum
+from cython.cimports.py_enum import PyEnum as CPyEnum
+
+@cython.ccall
+def is_green(value: CPyEnum) -> cython.bint:
+    return value == CPyEnum.GREEN
+
+assert list(PyEnum) == [PyEnum.RED, PyEnum.GREEN], list(PyEnum)
+assert is_green(PyEnum.GREEN)
+
+######## pyx_enum.pyx ########
+
+from enum import IntEnum
+from cython import cclass
+
+@cclass
+class PyxEnum(IntEnum):
+    FIRST = 10
+    SECOND = 20
+
+######## consume_py_enum.py ########
+
+import cython
+from pyx_enum import PyxEnum
+from cython.cimports.pyx_enum import PyxEnum as CPyxEnum
+
+@cython.ccall
+def is_second(value: CPyxEnum) -> cython.bint:
+    return value == CPyxEnum.SECOND
+
+assert list(PyxEnum) == [PyxEnum.FIRST, PyxEnum.SECOND], list(PyxEnum)
+assert is_second(PyxEnum.SECOND)
+
+######## runner.py ########
+
+import consume_pyx_enum
+import consume_py_enum

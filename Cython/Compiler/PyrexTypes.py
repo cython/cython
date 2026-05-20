@@ -4557,11 +4557,19 @@ class EnumMixin:
         else:
             underlying_type_str = "int"
 
+        if self.entry.type.scope is self.entry.scope:
+            items = tuple((item_name, item_name) for item_name in self.values)
+        else:
+            items = tuple(
+                (item_name, self.entry.type.scope.lookup_here(item_name).cname)
+                for item_name in self.values
+            )
+
         env.use_utility_code(CythonUtilityCode.load(
             "EnumTypeToPy", "CpdefEnums.pyx",
             context={"funcname": self.to_py_function,
                     "name": self.name,
-                    "items": tuple(self.values),
+                    "items": items,
                     "underlying_type": underlying_type_str,
                     "module_name": module_name,
                     "is_flag": not self.is_cpp_enum,
@@ -4636,7 +4644,7 @@ class CppScopedEnumType(CType, EnumMixin):
             context={
                 "name": self.name,
                 "cname": self.cname.split("::")[-1],
-                "items": tuple(self.values),
+                "items": tuple((value, value) for value in self.values),
                 "underlying_type": self.underlying_type.empty_declaration_code(),
                 "enum_doc": self.doc,
                 "static_modname": env.qualified_name,
@@ -4749,10 +4757,18 @@ class CEnumType(CIntLike, CType, EnumMixin):
         enum_to_pyint_func = self.to_py_function
         self.to_py_function = old_to_py_function  # we don't actually want to overwrite this
 
+        if self.entry.type.scope is self.entry.scope:
+            items = tuple((value, value) for value in self.values)
+        else:
+            items = tuple(
+                (value, self.entry.type.scope.lookup_here(value).cname)
+                for value in self.values
+            )
+
         env.use_utility_code(CythonUtilityCode.load(
             "EnumType", "CpdefEnums.pyx",
             context={"name": self.name,
-                     "items": tuple(self.values),
+                     "items": items,
                      "enum_doc": self.doc,
                      "enum_to_pyint_func": enum_to_pyint_func,
                      "static_modname": env.qualified_name,

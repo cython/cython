@@ -3125,6 +3125,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     """
     # list of directives that cause conversion to cclass
     converts_to_cclass = ('cclass', 'total_ordering', 'dataclasses.dataclass')
+    enum_base_names = {'Enum', 'IntEnum', 'Flag', 'IntFlag'}
 
 
     def visit_ModuleNode(self, node):
@@ -3238,7 +3239,10 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         self.env, env = node, self.env
         if any(directive in self.directives for directive in self.converts_to_cclass):
             visibility = 'public' if 'public' in self.directives else 'private'
-            node = node.as_cclass(visibility=visibility)
+            if self._is_enum_class(node):
+                node = node.as_cenum(visibility=visibility)
+            else:
+                node = node.as_cclass(visibility=visibility)
             result = self.visit(node)
         else:
             self.in_py_class, old_in_pyclass = True, self.in_py_class
@@ -3248,6 +3252,16 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
 
         self.env = env
         return result
+
+    def _is_enum_class(self, node):
+        if not node.bases or not node.bases.args or len(node.bases.args) != 1:
+            return False
+        base = node.bases.args[0]
+        if base.is_name:
+            return base.name in self.enum_base_names
+        if base.is_attribute and base.obj.is_name:
+            return base.obj.name == 'enum' and base.attribute in self.enum_base_names
+        return False
 
     def visit_CClassDefNode(self, node):
         self.env, env = node, self.env
