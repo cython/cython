@@ -1354,7 +1354,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                 continue
             if require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():
                 boxed_type = ttype.boxed_type
-                if boxed_type and not template_node.as_cython_attribute():
+                if boxed_type:
                     template_types[i] = boxed_type
                 elif ttype.equivalent_type and not template_node.as_cython_attribute():
                     template_types[i] = ttype.equivalent_type
@@ -1453,6 +1453,9 @@ class CComplexBaseTypeNode(CBaseTypeNode):
         base = self.base_type.analyse(env, could_be_name)
         _, type = self.declarator.analyse(base, env)
         return type
+
+    def as_cython_attribute(self):
+        return None
 
 
 class CTupleBaseTypeNode(CBaseTypeNode):
@@ -1914,6 +1917,20 @@ class CEnumDefItemNode(StatNode):
                 enum_value = str_to_number(self.value.value)
             elif self.value.type.is_int and (self.value.is_name or self.value.is_attribute) and self.value.entry:
                 enum_value = self.value.entry.enum_int_value
+            elif self.value.type.is_enum and self.value.entry and self.value.entry.enum_int_value is not None:
+                enum_value = self.value.entry.enum_int_value
+            elif self.value.type.is_int:
+                # Try to compute the constant result for expressions like 3+2+1
+                if not self.value.has_constant_result():
+                    try:
+                        self.value.calculate_constant_result()
+                    except Exception:
+                        pass
+                if self.value.has_constant_result():
+                    try:
+                        enum_value = int(self.value.constant_result)
+                    except (ValueError, TypeError):
+                        pass
         if enum_value is not None:
             entry.enum_int_value = enum_value
 

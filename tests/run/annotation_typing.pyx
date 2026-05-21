@@ -587,6 +587,28 @@ def def_none_as_type(a: None) -> None:
     """
     return c_none_as_type(a)
 
+@cython.ccall
+def optional_cy_bint_c(a: Optional[cython.bint]) -> None:
+    """
+    >>> optional_cy_bint_c(True)
+    True
+    >>> optional_cy_bint_c(None)
+    """
+    if a is not None:
+        b: cython.bint = a
+        print(b)
+
+@cython.ccall
+def boxed_optional_c_double(price: Optional[cython.double]) -> None:
+    """
+    >>> boxed_optional_c_double(1.23)
+    1.23
+    >>> boxed_optional_c_double(None)
+    """
+    if price is not None:
+        p: cython.double = price  # <-- unboxing
+        print(p)
+
 _WARNINGS = """
 15:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 15:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -632,4 +654,8 @@ _WARNINGS = """
 580:31: Unknown type declaration in annotation, ignoring
 583:24: Unknown type declaration in annotation, ignoring
 583:33: Unknown type declaration in annotation, ignoring
+590:0: 'optional_cy_bint_c' redeclared
+591:52: Unknown type declaration in annotation, ignoring
+601:0: 'boxed_optional_c_double' redeclared
+602:63: Unknown type declaration in annotation, ignoring
 """

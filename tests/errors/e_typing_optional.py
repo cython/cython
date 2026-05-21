@@ -32,12 +32,7 @@ def optional_memoryview(d: double[:], o: Optional[double[:]]):
 
 
 _ERRORS = """
-13:44: typing.Optional[...] cannot be applied to type int
-13:69: typing.Optional[...] cannot be applied to type double
-13:97: typing.Optional[...] cannot be applied to type float
 14:44: typing.Optional[...] cannot be applied to type double complex
-14:73: typing.Optional[...] cannot be applied to type long
-14:100: typing.Optional[...] cannot be applied to type long long
 
 20:33: typing.Optional[...] cannot be applied to type MyStruct
 """
