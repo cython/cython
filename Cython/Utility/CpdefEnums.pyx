@@ -76,7 +76,7 @@ cdef extern from *:
     cdef enum:
         __PYX_LIMITED_VERSION_HEX
         CYTHON_COMPILING_IN_LIMITED_API
-    int __Pyx_get_runtime_version()    
+    int __Pyx_get_runtime_version()
 
 {{if module_name}}
 cdef object __pyx_imported_enum_{{funcname}} = None
