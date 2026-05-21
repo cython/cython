@@ -1319,7 +1319,7 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
             if (args) {
                 ret = __Pyx_PyObject_Call(meth, args, NULL);
             } else {
-                // "tb" or even "val" might be NULL
+                // "tb" or even "val" might be NULL.
                 PyObject *cargs[4] = {NULL, typ, val, tb};
                 size_t nargs = 1U + (val != NULL) + (tb != NULL);
                 ret = __Pyx_PyObject_FastCall(meth, cargs+1, nargs | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET);
