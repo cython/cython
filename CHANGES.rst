@@ -28,6 +28,10 @@ Bugs fixed
 * Calling ``.get_frame()`` on Cython coroutines could crash in freethreading Python.
   (Github issue :issue:`7632`)
 
+* The vectorcall protocol was not used correctly in ``.throw()`` of Cython coroutines
+  when raising the exception only by type (without value or traceback).
+  (Github issue :issue:`7677`)
+
 * A problem with cpdef enums in the Limited API of Python 3.11+ was resolved.
   (Github issue :issue:`7503`)
 
