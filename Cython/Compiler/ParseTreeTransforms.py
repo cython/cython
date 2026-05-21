@@ -3313,7 +3313,6 @@ class AlignFunctionDefinitions(CythonTransform):
                 return None
             modifiers = [modifier for modifier in pxd_def.func_modifiers if modifier != 'inline']
             node = node.as_cfunction(pxd_def, modifiers=modifiers or None)
-            node.inline_in_pxd = 'inline' in pxd_def.func_modifiers
         # Enable this when nested cdef functions are allowed.
         # self.visitchildren(node)
         return node

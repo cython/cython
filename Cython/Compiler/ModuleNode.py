@@ -4328,10 +4328,13 @@ def generate_cfunction_declaration(entry, env, code, definition):
             storage_class = "static"
             dll_linkage = None
             type = CPtrType(type)
+            func_modifiers = [m for m in entry.func_modifiers if m != 'inline']
+        else:
+            func_modifiers = entry.func_modifiers
 
         header = type.declaration_code(
             entry.cname, dll_linkage=dll_linkage)
-        modifiers = code.build_function_modifiers(entry.func_modifiers)
+        modifiers = code.build_function_modifiers(func_modifiers)
         code.putln("%s %s%s; /*proto*/" % (
             storage_class,
             modifiers,

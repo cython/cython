@@ -3314,6 +3314,7 @@ class DefNode(FuncDefNode):
                             api=False,
                             directive_locals=getattr(cfunc, 'directive_locals', {}),
                             directive_returns=returns,
+                            needs_closure=self.needs_closure,
                             **def_node_kwds)
 
     def is_cdef_func_compatible(self):
