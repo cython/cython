@@ -9258,6 +9258,7 @@ class ListNode(SequenceNode):
         return ()
 
     def infer_type(self, env):
+        # TODO: Infer non-object list arrays.
         if len(self.args) > 0:
             item_type = infer_container_type(env, self.args)
             if item_type is not py_object_type:
@@ -9926,6 +9927,7 @@ class DictNode(ExprNode):
         return ()
 
     def infer_type(self, env):
+        # TODO: Infer struct constructors.
         if len(self.key_value_pairs) > 0:
             key_type = infer_container_type(env, [item.key for item in self.key_value_pairs])
             value_type = infer_container_type(env, [item.value for item in self.key_value_pairs])
