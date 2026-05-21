@@ -204,8 +204,10 @@ class PyrexType(BaseType):
     #  is_pylist_type        boolean     Is a Python list type
     #  is_pydict_type        boolean     Is a Python dict type
     #  is_pyfrozendict_type  boolean     Is a Python frozendict type
+    #  is_pyanydict_type     boolean     Is a Python dict or frozendict type
     #  is_pyset_type         boolean     Is a Python set type
     #  is_pyfrozenset_type   boolean     Is a Python frozenset type
+    #  is_pyanyset_type      boolean     Is a Python set or frozenset type
     #  is_pybytes_type       boolean     Is a Python bytes type
     #  is_pystr_type         boolean     Is a Python str type
     #  is_pybytearray_type   boolean     Is a Python bytearray type
@@ -300,6 +302,7 @@ class PyrexType(BaseType):
     is_pyanydict_type = False
     is_pyset_type = False
     is_pyfrozenset_type = False
+    is_pyanyset_type = False
 
     is_pybytes_type = False
     is_pystr_type = False
@@ -1521,11 +1524,11 @@ class BuiltinObjectType(PyObjectType):
         'bool': ['is_pybool_type'],
         'complex': ['is_pycomplex_type'],
         'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type'],
+        'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
         'dict': ['is_pydict_type', 'is_pyanydict_type', 'supports_container_type'],
         'frozendict': ['is_pyfrozendict_type', 'is_pyanydict_type', 'supports_container_type'],
-        'set': ['is_pyset_type', 'supports_container_type'],
-        'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
-        'frozenset': ['is_pyfrozenset_type', 'supports_container_type'],
+        'set': ['is_pyset_type', 'is_pyanyset_type', 'supports_container_type'],
+        'frozenset': ['is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type'],
         'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
