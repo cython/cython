@@ -72,6 +72,12 @@ __Pyx_globals["{{name}}"].__doc__ = {{ repr(enum_doc) }}
 
 #################### EnumTypeToPy ####################
 
+cdef extern from *:
+    cdef enum:
+        __PYX_LIMITED_VERSION_HEX
+        CYTHON_COMPILING_IN_LIMITED_API
+    int __Pyx_get_runtime_version()    
+
 {{if module_name}}
 cdef object __pyx_imported_enum_{{funcname}} = None
 {{endif}}
@@ -113,7 +119,15 @@ cdef {{funcname}}({{name}} c_val):
     else:
         underlying_c_val = <{{underlying_type}}>c_val
 {{if is_flag}}
-        return __pyx_enum(underlying_c_val)
+        try:
+            return __pyx_enum(underlying_c_val)
+        except ValueError:
+            if (__PYX_LIMITED_VERSION_HEX >= 0x030F0000 or
+                    (CYTHON_COMPILING_IN_LIMITED_API and __Pyx_get_runtime_version() >= 0x030B0000)):
+                # In Python 3.15+ we have to use IntEnum which is strict about what values to accept.
+                # In this case the best we can do is return a Python int.
+                return underlying_c_val
+            raise
 {{else}}
         raise ValueError(f"{underlying_c_val} is not a valid {{name}}")
 {{endif}}
