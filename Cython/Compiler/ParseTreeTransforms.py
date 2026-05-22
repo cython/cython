@@ -1913,6 +1913,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
                                 error(decorator_node.pos,
                                       "Mismatching property names, expected '%s', got '%s'" % (
                                           decorator.obj.name, node.name))
+                                return node
                             elif len(node.decorators) > 1:
                                 return self._reject_decorated_property(node, decorator_node)
                             else:

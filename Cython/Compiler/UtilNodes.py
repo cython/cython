@@ -409,5 +409,10 @@ class CPropertySetNode(ExprNodes.ExprNode):
 
         self.call_node.generate_evaluation_code(code)
 
+        if not self.call_node.is_temp and self.call_node.result():
+            code.putln("%s;" % self.call_node.result())
+            self.call_node.generate_subexpr_disposal_code(code)
+            self.call_node.free_subexpr_temps(code)
+
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
