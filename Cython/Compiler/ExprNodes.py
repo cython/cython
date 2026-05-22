@@ -4522,9 +4522,10 @@ class IndexNode(_IndexingBaseNode):
         self.wrap_in_nonecheck_node(env, getting)
 
         if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
-            if getting:
+            if getting and not is_slice:
                 return self.coerce_to(sub_type, env)
-            self.type = sub_type
+            elif setting:
+                self.type = sub_type
 
         return self
 
@@ -5678,7 +5679,9 @@ class SliceIndexNode(ExprNode):
     def analyse_types(self, env, getting=True):
         self.base = self.base.analyse_types(env)
 
-        if self.base.type.is_buffer or self.base.type.is_pythran_expr or self.base.type.is_memoryviewslice:
+        if (self.base.type.is_buffer or self.base.type.is_pythran_expr or
+            self.base.type.is_memoryviewslice or self.base.type.is_pyanydict_type
+        ):
             none_node = NoneNode(self.pos)
             index = SliceNode(self.pos,
                               start=self.start or none_node,
@@ -15139,7 +15142,7 @@ class CoerceToBooleanNode(CoercionNode):
             return '__Pyx_PyList_GET_SIZE'
         if typ.is_pytuple_type:
             return '__Pyx_PyTuple_GET_SIZE'
-        if typ.is_pyset_type or typ.is_pyfrozenset_type:
+        if typ.is_pyanyset_type:
             return '__Pyx_PySet_GET_SIZE'
         if typ.is_pyanydict_type:
             return '__Pyx_PyDict_GET_SIZE'

@@ -3,8 +3,8 @@ cimport cython
 from .Visitor cimport CythonTransform, TreeVisitor
 
 cdef class ControlBlock:
-    cdef public set children
-    cdef public set parents
+    cdef public set[ControlBlock] children
+    cdef public set[ControlBlock] parents
     cdef public set positions
     cdef public list stats
     cdef public dict gen
@@ -43,11 +43,11 @@ cdef class AssignmentList:
     cdef public list stats
 
 cdef class AssignmentCollector(TreeVisitor):
-    cdef list assignments
+    cdef list[tuple] assignments
 
 @cython.final
 cdef class ControlFlow:
-    cdef public set blocks
+    cdef public set[ControlBlock] blocks
     cdef public set entries
     cdef public list loops
     cdef public list exceptions
