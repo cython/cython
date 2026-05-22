@@ -2740,43 +2740,78 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.generate_property_set_function(entry, code)
 
     def generate_property_get_function(self, property_entry, code):
+        if not property_entry or not property_entry.scope or not code:
+            return
         property_scope = property_entry.scope
+        if not property_scope.parent_scope:
+            return
         property_entry.getter_cname = property_scope.parent_scope.mangle(
             Naming.prop_get_prefix, property_entry.name)
         get_entry = property_scope.lookup_here("__get__")
 
-        code.putln("")
-        code.putln(
-            "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % (
-                property_entry.getter_cname))
-        code.putln(
-            "return %s(o);" % (
-                get_entry.func_cname))
-        code.putln(
-            "}")
+        if not get_entry:
+            return
+
+        # Check if this is an overridable property with a Python wrapper
+        is_overridable = property_scope.is_overridable and get_entry.as_variable
+
+        if is_overridable:
+            # For now, generate simple getter without override checking
+            # Override checking will be added in a follow-up implementation
+            # Cast o to the correct type for C++ compatibility
+            parent_type_cname = property_scope.parent_type.typeptr_cname
+            code.putln("")
+            code.putln(
+                "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % (
+                    property_entry.getter_cname))
+            code.putln("    return %s((%s)o);" % (get_entry.func_cname, parent_type_cname))
+            code.putln("}")
+            return
+        else:
+            code.putln("")
+            code.putln(
+                "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % (
+                    property_entry.getter_cname))
+            code.putln(
+                "return %s(o);" % (
+                    get_entry.func_cname))
+            code.putln(
+                "}")
 
     def generate_property_set_function(self, property_entry, code):
         property_scope = property_entry.scope
-        property_entry.setter_cname = property_scope.parent_scope.mangle(
-            Naming.prop_set_prefix, property_entry.name)
         set_entry = property_scope.lookup_here("__set__")
         del_entry = property_scope.lookup_here("__del__")
 
-        code.putln("")
-        code.putln(
-            "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" % (
-                property_entry.setter_cname))
-        code.putln(
-            "if (v) {")
-        if set_entry:
+        if not set_entry:
+            return
+
+        # Check if this is an overridable property with a Python wrapper
+        is_overridable = property_scope.is_overridable and set_entry.as_variable
+
+        if is_overridable:
+            # For now, generate simple setter without override checking
+            # Override checking will be added in a follow-up implementation
+            property_entry.setter_cname = property_scope.parent_scope.mangle(
+                Naming.prop_set_prefix, property_entry.name)
+            code.putln("")
             code.putln(
-                "return %s(o, v);" % (
-                    set_entry.func_cname))
+                "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" % (
+                    property_entry.setter_cname))
+            code.putln("if (v) {")
+            code.putln("    return %s(o, v);" % set_entry.func_cname)
+            code.putln("} else {")
         else:
+            property_entry.setter_cname = property_scope.parent_scope.mangle(
+                Naming.prop_set_prefix, property_entry.name)
+            code.putln("")
             code.putln(
-                'PyErr_SetString(PyExc_NotImplementedError, "__set__");')
+                "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" % (
+                    property_entry.setter_cname))
+            code.putln("if (v) {")
             code.putln(
-                "return -1;")
+                "    return %s(o, v);" % (
+                    set_entry.func_cname))
         code.putln(
             "}")
         code.putln(

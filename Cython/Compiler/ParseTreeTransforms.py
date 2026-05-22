@@ -1931,6 +1931,35 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         node.decorators = None
         return self.chain_decorators(node, decs, node.name)
 
+    def _convert_property_to_cpdef(self, node):
+        """Convert a property getter/setter DefNode to CFuncDefNode for auto_cpdef.
+
+        When auto_cpdef is enabled, converts eligible @property methods in @cclass
+        from DefNode to CFuncDefNode. The C function is NOT overridable (no skip_dispatch
+        parameter) - override checking is handled at the property accessor level.
+        """
+        auto_cpdef = self.current_directives.get('auto_cpdef')
+        if not auto_cpdef:
+            return node
+
+        # Check if this DefNode is compatible with cdef conversion
+        # (excluding the property check since we're handling property specially)
+        if node.needs_closure:
+            return node
+        if node.star_arg or node.starstar_arg:
+            return node
+        if node.num_required_args != len(node.args):
+            return node
+
+        # Convert to CFuncDefNode with overridable=False (property accessors don't use skip_dispatch)
+        # Add 'inline' modifier so the property is treated as a C property
+        node = node.as_cfunction(
+            overridable=False, modifiers=['inline'], nogil=False, with_gil=False,
+            returns=None, except_val=None, has_explicit_exc_clause=False,
+            visibility='private')
+
+        return node
+
     def _find_property_decorator(self, node):
         properties = self._properties[-1]
         for decorator_node in node.decorators[::-1]:
@@ -1966,14 +1995,26 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         if len(node.decorators) > 1:
             return self._reject_decorated_property(node, decorator_node)
         node.decorators.remove(decorator_node)
+
+        # Track whether this is a true C property (cdef inline property)
+        # vs a Python property being converted to cpdef-style via auto_cpdef
+        is_true_cproperty = isinstance(node, Nodes.CFuncDefNode) and 'inline' in node.modifiers
+
+        # Convert DefNode getter to CFuncDefNode for auto_cpdef
+        if isinstance(node, Nodes.DefNode):
+            node = self._convert_property_to_cpdef(node)
+
         properties = self._properties[-1]
-        is_cproperty = isinstance(node, Nodes.CFuncDefNode)
+        # After conversion, node is CFuncDefNode but NOT a C property
+        # C properties use CPropertyNode, Python properties use PropertyNode
+        is_cproperty = is_true_cproperty
         body = Nodes.StatListNode(node.pos, stats=[node])
         node_type = Nodes.PropertyNode
         if is_cproperty:
-            if 'inline' not in node.modifiers:
-                error(node.pos, "C property method must be declared 'inline'")
             node_type = Nodes.CPropertyNode
+        elif isinstance(node, Nodes.CFuncDefNode) and 'inline' not in node.modifiers:
+            # C function with @property but no 'inline' modifier - error
+            error(node.pos, "C property method must be declared 'inline'")
         if name in properties:
             prop = properties[name]
             if prop.is_cproperty:
@@ -1994,11 +2035,20 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     def _add_to_property(self, node, name, decorator):
         properties = self._properties[-1]
         prop = properties[self._get_property_function_name(node)]
+
+        # Remove decorator before conversion (DefNode has decorators, CFuncDefNode doesn't)
+        if node.decorators:
+            node.decorators.remove(decorator)
+
         self._rename_property_function(node, name)
+
+        # Convert setter DefNode to CFuncDefNode for auto_cpdef
+        if isinstance(node, Nodes.DefNode):
+            node = self._convert_property_to_cpdef(node)
+
         if isinstance(node, Nodes.CFuncDefNode):
             if 'inline' not in node.modifiers:
                 error(node.pos, "C property method must be declared 'inline'")
-        node.decorators.remove(decorator)
         stats = prop.body.stats
         for i, stat in enumerate(stats):
             if self._get_property_function_name(stat) == name:

@@ -6167,7 +6167,14 @@ class PropertyNode(StatNode):
 
     def analyse_declarations(self, env):
         self.entry = env.declare_property(self.name, self.doc, self.pos)
+        # Mark property scope as overridable if getter/setter has overridable=True
+        for stat in self.body.stats:
+            if isinstance(stat, CFuncDefNode) and stat.overridable:
+                self.entry.scope.is_overridable = True
+                break
         self.body.analyse_declarations(self.entry.scope)
+        # Create Python wrapper for overridable properties
+        self.declare_cpdef_wrapper(env)
 
     def analyse_expressions(self, env):
         self.body = self.body.analyse_expressions(env)
@@ -6181,6 +6188,145 @@ class PropertyNode(StatNode):
 
     def annotate(self, code):
         self.body.annotate(code)
+
+    def declare_cpdef_wrapper(self, env):
+        """Create Python wrapper DefNodes for overridable properties.
+
+        When auto_cpdef is enabled for a property, the getter/setter DefNodes
+        are converted to CFuncDefNode. This method creates the Python wrapper
+        DefNodes that call the C functions directly, enabling override checking
+        for Python subclasses.
+
+        Note: CFuncDefNode.analyse_declarations already calls declare_cpdef_wrapper,
+        so we just need to ensure the property entry's as_variable is set correctly.
+        """
+        if not self.body.stats:
+            return
+        getter = self.body.stats[0]
+        property_scope = self.entry.scope
+
+        # Check if this property should have override checking
+        is_overridable = property_scope.is_overridable
+
+        # Handle getter - create Python wrapper for override checking
+        if isinstance(getter, CFuncDefNode) and is_overridable:
+            # Create a Python wrapper DefNode that calls the C function
+            from . import ExprNodes
+            from .ExprNodes import SimpleCallNode, NameNode
+            from .Nodes import CompilerDirectivesNode, StatListNode
+
+            py_func_body = SimpleCallNode(
+                getter.pos,
+                function=NameNode(getter.pos, name=getter.entry.name),
+                args=[NameNode(getter.pos, name=EncodedString('self'))]
+            )
+            py_func_body = CompilerDirectivesNode.for_directives(
+                py_func_body, env, profile=False, linetrace=False)
+
+            py_func = DefNode(pos=getter.pos,
+                              name=getter.entry.name,
+                              args=list(getter.args),
+                              star_arg=None,
+                              starstar_arg=None,
+                              doc=getter.doc,
+                              body=StatListNode(getter.pos, stats=[py_func_body]),
+                              decorators=None,
+                              is_wrapper=1)
+            py_func.is_module_scope = False
+            py_func.analyse_declarations(env)
+            py_func.entry.is_overridable = True
+
+            # Set entry.as_variable to point to the Python wrapper
+            self.entry.as_variable = py_func.entry
+            self.entry.used = self.entry.as_variable.used = True
+            # Update scope entry
+            env.entries[self.entry.name] = self.entry
+
+        # Handle setter - CFuncDefNode already created py_func in analyse_declarations
+        for stat in self.body.stats[1:]:
+            if isinstance(stat, CFuncDefNode) and stat.entry and stat.entry.name == "__set__" and stat.overridable:
+                # Setter doesn't need as_variable set, but py_func is already created
+                pass
+
+    def _create_property_wrapper(self, env, cfunc, is_getter):
+        """Create a Python wrapper DefNode for a C property getter/setter."""
+        from . import ExprNodes
+        from .ExprNodes import SimpleCallNode, NameNode, RawCNameExprNode
+
+        name = cfunc.entry.name  # __get__ or __set__
+        pos = cfunc.pos
+
+        # Build the call to the C function
+        if is_getter:
+            # Getter: returns py_object_type, takes self argument
+            # The C function signature is: return_type getter(self)
+            py_func_body = SimpleCallNode(
+                pos,
+                function=NameNode(pos, name=cfunc.entry.name),
+                args=[NameNode(pos, name=EncodedString('self'))]
+            )
+        else:
+            # Setter: returns void, takes self and value arguments
+            # The C function signature is: void setter(self, value)
+            setter_args = []
+            for arg in cfunc.args:
+                setter_args.append(NameNode(pos, name=arg.name))
+            py_func_body = SimpleCallNode(
+                pos,
+                function=NameNode(pos, name=cfunc.entry.name),
+                args=setter_args
+            )
+
+        py_func_body = CompilerDirectivesNode.for_directives(
+            py_func_body, env, profile=False, linetrace=False)
+
+        # Create the Python wrapper DefNode
+        py_func = DefNode(pos=pos,
+                          name=cfunc.entry.name,
+                          args=list(cfunc.args),
+                          star_arg=None,
+                          starstar_arg=None,
+                          doc=cfunc.doc,
+                          body=StatListNode(pos, stats=[py_func_body]),
+                          decorators=None,
+                          is_wrapper=1)
+        py_func.is_module_scope = False
+        py_func.analyse_declarations(env)
+        py_func.entry.is_overridable = True
+
+        # Store the wrapper on the CFuncDefNode
+        if is_getter:
+            cfunc.py_func = py_func
+            cfunc.py_func_stat = StatListNode(pos, stats=[py_func])
+            cfunc.py_func.type = PyrexTypes.py_object_type
+            # Set entry.as_variable to point to the Python wrapper
+            self.entry.as_variable = py_func.entry
+            self.entry.used = self.entry.as_variable.used = True
+            # Update scope entry
+            env.entries[cfunc.entry.name] = cfunc.entry
+
+            # Add override checking for getter
+            if (not cfunc.entry.is_final_cmethod and
+                    (not env.is_module_scope or Options.lookup_module_cpdef)):
+                if cfunc.override:
+                    assert cfunc.entry.is_fused_specialized
+                    cfunc.override.py_func = py_func
+                else:
+                    cfunc.override = OverrideCheckNode(pos, py_func=py_func)
+                    # Insert override check before the getter body
+                    getter_body = cfunc.body
+                    if isinstance(getter_body, StatListNode):
+                        cfunc.body = StatListNode(pos, stats=[cfunc.override] + getter_body.stats)
+                    else:
+                        cfunc.body = StatListNode(pos, stats=[cfunc.override, getter_body])
+        else:
+            cfunc.py_func = py_func
+            cfunc.py_func_stat = StatListNode(pos, stats=[py_func])
+            cfunc.py_func.type = PyrexTypes.py_object_type
+
+        # Update the property entry reference
+        if is_getter:
+            env.entries[self.entry.name] = self.entry
 
 
 class CPropertyNode(StatNode):
@@ -6216,16 +6362,23 @@ class CPropertyNode(StatNode):
 
     def analyse_declarations(self, env):
         scope = PropertyScope(self.name, class_scope=env)
-        self.body.analyse_declarations(scope)
+        # Mark property scope as overridable if getter/setter has overridable=True
         getter = self.getter_cfunc
+        if getter.overridable:
+            scope.is_overridable = True
+        setter = self.setter_cfunc
+        if setter and setter.overridable:
+            scope.is_overridable = True
+        self.body.analyse_declarations(scope)
         entry = self.entry = env.declare_property(
             self.name, self.doc, self.pos, ctype=getter.return_type, property_scope=scope)
         entry.getter_cname = getter.entry.cname
-        setter = self.setter_cfunc
         if setter:
             entry = self.entry = env.declare_property(
                 self.name, self.doc, self.pos, ctype=setter.return_type, property_scope=scope)
             entry.setter_cname = setter.entry.cname
+        # Create Python wrappers for overridable properties
+        self.declare_cpdef_wrapper(env)
 
     def analyse_expressions(self, env):
         self.body = self.body.analyse_expressions(env)
@@ -6239,6 +6392,23 @@ class CPropertyNode(StatNode):
 
     def annotate(self, code):
         self.body.annotate(code)
+
+    def declare_cpdef_wrapper(self, env):
+        """Set up Python wrapper references for C property getter/setter CFuncDefNodes.
+
+        For cdef inline property, the getter/setter are already CFuncDefNode.
+        Their declare_cpdef_wrapper is already called during analyse_declarations.
+        We just need to set the property entry's as_variable for override checking.
+        """
+        getter = self.getter_cfunc
+        if getter.overridable and getter.py_func:
+            # Set entry.as_variable to point to the Python wrapper
+            self.entry.as_variable = getter.py_func.entry
+            self.entry.used = self.entry.as_variable.used = True
+            # Update scope entry
+            env.entries[self.entry.name] = self.entry
+
+        # Setter py_func is already created by CFuncDefNode.declare_cpdef_wrapper
 
 
 class GlobalNode(StatNode):

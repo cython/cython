@@ -3008,12 +3008,14 @@ class CppScopedEnumScope(Scope):
 
 
 class PropertyScope(Scope):
-    #  Scope holding the __get__, __set__ and __del__ methods for
+    #  Scope holding the __get__, __set__ and __Del__ methods for
     #  a property of an extension type.
     #
     #  parent_type   PyExtensionType   The type to which the property belongs
+    #  is_overridable  boolean         Set when auto_cpdef is enabled for this property
 
     is_property_scope = 1
+    is_overridable = False
 
     def __init__(self, name, class_scope):
         # outer scope is None for some internal properties
@@ -3021,6 +3023,14 @@ class PropertyScope(Scope):
         Scope.__init__(self, name, outer_scope, parent_scope=class_scope)
         self.parent_type = class_scope.parent_type
         self.directives = class_scope.directives
+
+    def handle_already_declared_name(self, name, cname, type, pos, visibility, copy_entry=False):
+        # Allow redeclarations of property accessor methods (__get__, __set__, __del__).
+        # This is needed because when auto_cpdef converts a DefNode property to CFuncDefNode,
+        # the entry may already exist from the original declaration.
+        if name in ('__get__', '__set__', '__del__'):
+            return self.entries[name]
+        return super().handle_already_declared_name(name, cname, type, pos, visibility, copy_entry)
 
     def declare_cfunction(self, name, type, pos, *args, **kwargs):
         """Declare a C property function.
@@ -3044,7 +3054,8 @@ class PropertyScope(Scope):
             type.args[0].type = self.parent_scope.parent_type
 
         entry = Scope.declare_cfunction(self, name, type, pos, *args, **kwargs)
-        entry.is_cproperty = True
+        if self.is_overridable:
+            entry.is_overridable = True
         return entry
 
     def declare_pyfunction(self, name, pos, allow_redefine=False):
@@ -3054,6 +3065,8 @@ class PropertyScope(Scope):
             entry = self.declare(name, name, py_object_type, pos, 'private')
             entry.is_special = 1
             entry.signature = signature
+            if self.is_overridable:
+                entry.is_overridable = True
             return entry
         else:
             error(pos, "Only __get__, __set__ and __del__ methods allowed "
