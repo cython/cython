@@ -1841,6 +1841,62 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         )
         return node
 
+    def visit_AttributeNode(self, node):
+        self.visitchildren(node)
+        if self._is_c_base_property_access(node):
+            node = self._handle_simple_base_property_access(node)
+        return node
+
+    def _is_c_base_property_access(self, node):
+        # detect super().prop access where prop is a property on the base class
+        return (isinstance(node.obj, ExprNodes.CallNode)
+            and node.obj.function.is_name
+            and node.obj.function.name == 'super')
+
+    def _handle_simple_base_property_access(self, node):
+        # replace super().prop by a direct call to the base class property getter
+        class_node, class_scope = self.env_stack[-2]
+        if not isinstance(class_node, Nodes.CClassDefNode):
+            return node
+
+        base_type = class_node.base_type
+        if base_type is None or base_type.scope is None:
+            return node
+
+        # Look up the property in the base class scope
+        prop_entry = base_type.scope.lookup(node.attribute)
+        if not prop_entry or not prop_entry.is_property:
+            return node
+
+        # Check if this property has a C getter
+        property_scope = prop_entry.scope
+        if property_scope is None:
+            return node
+
+        getter_entry = property_scope.lookup_here("__get__")
+        if not getter_entry or not getter_entry.func_cname:
+            return node
+
+        # Get the current method scope to find 'self'
+        method_scope = self.current_env()
+        if not method_scope.arg_entries:
+            return node
+
+        self_arg = ExprNodes.NameNode(
+            node.pos, name=method_scope.arg_entries[0].name,
+            entry=method_scope.arg_entries[0])
+
+        # Create a vtable-based call to the getter
+        # This works cross-module because the vtable pointer is retrieved via __Pyx_GetVtable
+        if base_type.vtabptr_cname:
+            vtable_call = "%s->%s" % (base_type.vtabptr_cname, getter_entry.cname)
+            function = ExprNodes.RawCNameExprNode(
+                node.pos, type=getter_entry.type, cname=vtable_call)
+            return ExprNodes.SimpleCallNode(node.pos, function=function, args=[self_arg])
+        else:
+            return ExprNodes.SimpleCallNode.for_cproperty_get(
+                node.pos, self_arg, prop_entry)
+
     def visit_GeneralCallNode(self, node):
         self.visitchildren(node)
         function = node.function

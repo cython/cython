@@ -6178,12 +6178,16 @@ class PropertyNode(StatNode):
         self.entry = env.declare_property(self.name, self.doc, self.pos)
         # Mark property scope as overridable if getter/setter has overridable=True
         # or if it was converted via auto_cpdef (has 'inline' modifier)
+        has_inline_getter = False
         for stat in self.body.stats:
             if isinstance(stat, CFuncDefNode):
                 if stat.overridable or 'inline' in stat.modifiers:
                     self.entry.scope.is_overridable = True
-                    break
+                if 'inline' in stat.modifiers:
+                    has_inline_getter = True
         self.body.analyse_declarations(self.entry.scope)
+        if has_inline_getter:
+            self.entry.is_cproperty = True
         # Create Python wrapper for overridable properties
         self.declare_cpdef_wrapper(env)
 
