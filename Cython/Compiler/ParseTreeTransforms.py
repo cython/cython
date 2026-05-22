@@ -1998,7 +1998,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         else:
             node = node.as_cfunction(
                 overridable=False, modifiers=['inline'], nogil=False, with_gil=False,
-                returns=None, except_val=None, has_explicit_exc_clause=False,
+                returns=node.return_type_annotation, except_val=None, has_explicit_exc_clause=False,
                 visibility='private')
 
         return node

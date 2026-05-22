@@ -2694,13 +2694,29 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             ext_type = scope.parent_type
             if ext_type:
                 cast_type = "struct %s" % ext_type.objstruct_cname
-                code.putln(
-                    "r = %s((%s *)o);" % (
-                        user_get_entry.func_cname, cast_type))
+                call_code = "%s((%s *)o)" % (user_get_entry.func_cname, cast_type)
             else:
-                code.putln(
-                    "r = %s(o);" % (
-                        user_get_entry.func_cname))
+                call_code = "%s(o)" % (user_get_entry.func_cname)
+
+            # For auto_cpdef properties, user_get_entry is the Python wrapper entry
+            # but its func_cname points to the C function. Get the C return type
+            # from the property scope's __get__ entry if available.
+            c_return_type = None
+            for prop_entry in scope.property_entries:
+                prop_scope = getattr(prop_entry, 'scope', None)
+                if prop_scope:
+                    get_entry = prop_scope.lookup_here("__get__")
+                    if get_entry and get_entry.type and get_entry.type.return_type:
+                        c_return_type = get_entry.type.return_type
+                        break
+            if c_return_type and not c_return_type.is_pyobject and not c_return_type.is_void:
+                c_return_type.create_to_py_utility_code(scope)
+                tmpvar = "__pyx_tmp_r"
+                code.putln("    %s;" % c_return_type.declaration_code(tmpvar))
+                code.putln("    %s = %s;" % (tmpvar, call_code))
+                code.putln("    %s;" % c_return_type.to_py_call_code(tmpvar, "r", PyrexTypes.py_object_type))
+            else:
+                code.putln("    r = %s;" % call_code)
         else:
             # descrgetfunc signature - call with obj, index, context
             code.putln(
@@ -2826,12 +2842,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % (
                 property_entry.getter_cname))
+
         if is_overridable:
-            code.putln("    return %s((%s)o);" % (get_entry.func_cname, parent_type_cname))
+            call_code = "%s((%s)o)" % (get_entry.func_cname, parent_type_cname)
         else:
-            code.putln(
-                "return %s(o);" % (
-                    get_entry.func_cname))
+            call_code = "%s(o)" % (get_entry.func_cname)
+
+        return_type = getattr(getattr(get_entry, 'type', None), 'return_type', None)
+        if return_type and not return_type.is_pyobject and not return_type.is_void:
+            return_type.create_to_py_utility_code(property_scope)
+            tmpvar = "__pyx_tmp_r"
+            code.putln("    %s;" % return_type.declaration_code(tmpvar))
+            code.putln("    %s = %s;" % (tmpvar, call_code))
+            code.putln("    return %s(%s);" % (return_type.to_py_function, tmpvar))
+        else:
+            code.putln("    return %s;" % call_code)
+
         code.putln(
             "}")
 
