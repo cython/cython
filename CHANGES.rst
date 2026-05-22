@@ -50,6 +50,9 @@ Features added
   The bit operations ``^``, ``|`` and ``&`` are additionally special cased for ``int``.
   (Github issues :issue:`7485`, :issue:`7541`)
 
+* The C ``restrict`` modifier can be used in declarations.
+  (Github issue :issue:`7617`)
+
 * C arrays may now be declared with (``extern`` or internal) enum values as their size.
   (Github issues :issue:`7401`, :issue:`7406`)
 
@@ -62,7 +65,7 @@ Features added
   (Github issues :issue:`7388`, :issue:`7390`)
 
 * Type inference was improved for builtin Python types.
-  (Github issue :issue:`7536`)
+  (Github issues :issue:`7536`, :issue:`7644`)
 
 * Declared container item types (e.g. ``list[float]``) are now used by the type system.
   (Github issue :issue:`7288`)
@@ -76,6 +79,9 @@ Features added
 
 * Some internal call overhead in the memoryview code was removed.
   (Github issue :issue:`7609`)
+
+* Coroutine methods use the faster vectorcall interface.
+  (Github issue :issue:`7678`)
 
 * C arrays are substituted for sequence iteration in more cases, also inside of generators.
   Ad-hoc C array storage on the stack and in closures was reworked along the way.
@@ -161,6 +167,9 @@ Bugs fixed
   leading to less optimised code in longer expressions.
   (Github issues :issue:`7363`, :issue:`7502`)
 
+* Slices as dictionary keys confused the type inference of item access.
+  (Github issue :issue:`7702`)
+
 * Cython still used ``(type, exc, traceback)`` for saving and restoring exception state,
   even though modern CPython versions only store the exception object itself internally.
   This is now modernised in many places to reduce overhead.
@@ -178,6 +187,9 @@ Bugs fixed
 * The global module state struct now lives in an anonymous namespace in C++ mode to
   allow linking multiple modules together in one shared library file.
   (Github issue :issue:`7159`)
+
+* Dict iteration generates safer code in PyPy/GraalPy/free-threading.
+  (Github issue :issue:`7637`)
 
 * The floating point parsing code relied on C implementation specific "pointer compare after free" behaviour.
   Patch by stratakis.  (Github issue :issue:`7463`)
@@ -241,6 +253,10 @@ Bugs fixed
 
 * A compile failure was fixed when using the walrus operator inside of try-except.
   (Github issue :issue:`7462`)
+
+* Expressions with side-effects as object argument to ``isinstance()`` could get
+  evaluated multiple times, e.g. when they use the walrus operator.
+  (Github issue :issue:`7670`)
 
 * Several problems generating the shared utility module were resolved, including
   a performance regression with memory views.
