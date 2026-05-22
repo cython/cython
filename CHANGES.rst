@@ -254,6 +254,10 @@ Bugs fixed
 * A compile failure was fixed when using the walrus operator inside of try-except.
   (Github issue :issue:`7462`)
 
+* Expressions with side-effects as object argument to ``isinstance()`` could get
+  evaluated multiple times, e.g. when they use the walrus operator.
+  (Github issue :issue:`7670`)
+
 * Several problems generating the shared utility module were resolved, including
   a performance regression with memory views.
   (Github issues :issue:`7487`, :issue:`7497`, :issue:`7504`, :issue:`7558`)
