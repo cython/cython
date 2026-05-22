@@ -510,3 +510,24 @@ def with_in_try_block(x):
         return f'Normal return {a.value}'
     except Exception:
         return f'Except return {a.value}'
+
+
+def isinstance_tuple_walrus():
+    """
+    Walrus expression inside isinstance() with a tuple of types must be evaluated
+    exactly once per loop iteration. With the bug, Cython expanded
+    ``isinstance(ni := next(it), (int, float, str, bytes))`` into four separate
+    ``isinstance(ni := next(it), T)`` checks, calling next() four times per
+    iteration and raising StopIteration prematurely.
+
+    >>> isinstance_tuple_walrus()
+    True
+    """
+    # iter has only 2 items: the loop runs once (value=1 matches int → True),
+    # then once more (value=None does not match any → False, loop exits).
+    # If next() were called more than once per iteration the iterator would be
+    # exhausted and StopIteration would propagate out.
+    it = iter([1, None])
+    while isinstance(ni := next(it), (int, float, str, bytes)):
+        pass
+    return ni is None
