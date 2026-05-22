@@ -1,5 +1,5 @@
 PYTHON setup.py build_ext --inplace
-PYTHON -c "import b; import a"
+PYTHON -c "import runner"
 
 ######## setup.py ########
 
@@ -39,3 +39,13 @@ class B:
     @property
     def prop(self) -> int:
         return 2
+
+######## runner.py ########
+
+import a
+import b
+
+a.A().s()
+print(a.A().prop)
+b.B().mtd()
+print(b.B().prop)
