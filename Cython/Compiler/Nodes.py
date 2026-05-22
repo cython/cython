@@ -3645,6 +3645,15 @@ class DefNode(FuncDefNode):
         entry = env.declare_pyfunction(name, self.pos, allow_redefine=not self.is_wrapper)
         self.entry = entry
 
+        # Fix signature for property accessor wrappers: the wrapper has name "__get__" which gets
+        # the descrgetfunc signature from ClassScope.declare_pyfunction(), but it should have
+        # the property accessor signature (1 arg for __get__, 2 for __set__, 1 for __del__)
+        if self.is_wrapper and entry.is_special:
+            from .TypeSlots import get_property_accessor_signature
+            accessor_sig = get_property_accessor_signature(name)
+            if accessor_sig:
+                entry.signature = accessor_sig
+
         if entry.is_special and name in ('__getitem__', '__setitem__', '__delitem__'):
             # We choose the more generic mapping protocol by default, but prefer the sequence
             # protocol here if the lookup key argument has a C integer type.
@@ -6168,10 +6177,12 @@ class PropertyNode(StatNode):
     def analyse_declarations(self, env):
         self.entry = env.declare_property(self.name, self.doc, self.pos)
         # Mark property scope as overridable if getter/setter has overridable=True
+        # or if it was converted via auto_cpdef (has 'inline' modifier)
         for stat in self.body.stats:
-            if isinstance(stat, CFuncDefNode) and stat.overridable:
-                self.entry.scope.is_overridable = True
-                break
+            if isinstance(stat, CFuncDefNode):
+                if stat.overridable or 'inline' in stat.modifiers:
+                    self.entry.scope.is_overridable = True
+                    break
         self.body.analyse_declarations(self.entry.scope)
         # Create Python wrapper for overridable properties
         self.declare_cpdef_wrapper(env)
@@ -6214,6 +6225,7 @@ class PropertyNode(StatNode):
             from . import ExprNodes
             from .ExprNodes import SimpleCallNode, NameNode
             from .Nodes import CompilerDirectivesNode, StatListNode
+            from .TypeSlots import get_property_accessor_signature
 
             py_func_body = SimpleCallNode(
                 getter.pos,
@@ -6235,6 +6247,15 @@ class PropertyNode(StatNode):
             py_func.is_module_scope = False
             py_func.analyse_declarations(env)
             py_func.entry.is_overridable = True
+            # Fix signature: the wrapper has name "__get__" which gets the descrgetfunc
+            # signature from ClassScope.declare_pyfunction(), but it should have the
+            # property accessor signature (1 arg for __get__, 2 for __set__)
+            accessor_sig = get_property_accessor_signature(py_func.entry.name)
+            if accessor_sig:
+                py_func.entry.signature = accessor_sig
+            # For auto_cpdef properties, set the wrapper's func_cname to the C function's
+            # func_cname so that code generation uses the C function directly
+            py_func.entry.func_cname = getter.entry.func_cname
 
             # Set entry.as_variable to point to the Python wrapper
             self.entry.as_variable = py_func.entry

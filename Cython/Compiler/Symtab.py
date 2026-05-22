@@ -3054,6 +3054,10 @@ class PropertyScope(Scope):
             type.args[0].type = self.parent_scope.parent_type
 
         entry = Scope.declare_cfunction(self, name, type, pos, *args, **kwargs)
+        # Set the signature to the property accessor signature for __get__, __set__, __del__
+        sig = get_property_accessor_signature(name)
+        if sig:
+            entry.signature = sig
         if self.is_overridable:
             entry.is_overridable = True
         return entry

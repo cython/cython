@@ -1895,11 +1895,34 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
 
     def visit_DefNode(self, node):
         scope_type = self.scope_type
+        # Check for property decorators before visit_FuncDefNode to avoid
+        # analyse_declarations() being called on the DefNode before conversion.
+        # When auto_cpdef converts DefNode to CFuncDefNode, the conversion must
+        # happen before any analysis so the entry is created in PropertyScope.
+        if scope_type == 'cclass' and node.decorators:
+            for decorator_node in node.decorators:
+                decorator = decorator_node.decorator
+                if decorator.is_name and decorator.name == 'property':
+                    return self._add_property(node, node.name, decorator_node)
+                elif decorator.is_attribute and decorator.attribute in ('getter', 'setter', 'deleter'):
+                    handler_name = self._map_property_attribute(decorator.attribute)
+                    if handler_name:
+                        prop_name = decorator.obj.name
+                        if prop_name in self._properties[-1]:
+                            if decorator.obj.name != node.name:
+                                error(decorator_node.pos,
+                                      "Mismatching property names, expected '%s', got '%s'" % (
+                                          decorator.obj.name, node.name))
+                            elif len(node.decorators) > 1:
+                                return self._reject_decorated_property(node, decorator_node)
+                            else:
+                                return self._add_to_property(node, handler_name, decorator_node)
+
         node = self.visit_FuncDefNode(node)
         if scope_type != 'cclass' or not node.decorators:
             return node
 
-        # transform @property decorators
+        # transform @property decorators (for cases not caught above)
         decorator_node = self._find_property_decorator(node)
         if decorator_node is not None:
             decorator = decorator_node.decorator
@@ -1931,7 +1954,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         node.decorators = None
         return self.chain_decorators(node, decs, node.name)
 
-    def _convert_property_to_cpdef(self, node):
+    def _convert_property_to_cpdef(self, node, is_setter=False):
         """Convert a property getter/setter DefNode to CFuncDefNode for auto_cpdef.
 
         When auto_cpdef is enabled, converts eligible @property methods in @cclass
@@ -1953,10 +1976,29 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
 
         # Convert to CFuncDefNode with overridable=False (property accessors don't use skip_dispatch)
         # Add 'inline' modifier so the property is treated as a C property
-        node = node.as_cfunction(
-            overridable=False, modifiers=['inline'], nogil=False, with_gil=False,
-            returns=None, except_val=None, has_explicit_exc_clause=False,
-            visibility='private')
+        # Setters must return void, getters return py_object_type (default)
+        from . import Nodes as NodesMod
+        from . import PyrexTypes
+
+        if is_setter:
+            # Create a simple wrapper that provides analyse_as_type() for void return type
+            class _VoidReturns:
+                """Wrapper for void return type in directive_returns."""
+                def __init__(self, pos):
+                    self.pos = pos
+                def analyse_as_type(self, env):
+                    return PyrexTypes.c_void_type
+
+            node = node.as_cfunction(
+                overridable=False, modifiers=['inline'], nogil=False, with_gil=False,
+                returns=_VoidReturns(node.pos),
+                except_val=None, has_explicit_exc_clause=False,
+                visibility='private')
+        else:
+            node = node.as_cfunction(
+                overridable=False, modifiers=['inline'], nogil=False, with_gil=False,
+                returns=None, except_val=None, has_explicit_exc_clause=False,
+                visibility='private')
 
         return node
 
@@ -2044,7 +2086,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
 
         # Convert setter DefNode to CFuncDefNode for auto_cpdef
         if isinstance(node, Nodes.DefNode):
-            node = self._convert_property_to_cpdef(node)
+            node = self._convert_property_to_cpdef(node, is_setter=name == '__set__')
 
         if isinstance(node, Nodes.CFuncDefNode):
             if 'inline' not in node.modifiers:

@@ -1,0 +1,41 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import b; import a"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+import Cython.Compiler.Options
+Cython.Compiler.Options.cimport_from_pyx = True
+
+from distutils.core import setup
+
+setup(ext_modules=cythonize("*.pyx", compiler_directives={'auto_cpdef': True}))
+
+######## a.pyx ########
+from b import B
+from b cimport B
+from cython import ccall, cclass, int
+
+@cclass
+class A(B):
+    @ccall
+    def s(self):
+        super().mtd()
+
+    @property
+    def prop(self) -> int:
+        return super().prop + 1
+
+######## b.pyx ########
+
+from cython import cclass, ccall, int
+
+@cclass
+class B:
+    @ccall
+    def mtd(self):
+        pass
+
+    @property
+    def prop(self) -> int:
+        return 2

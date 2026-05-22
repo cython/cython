@@ -2677,9 +2677,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "if (!c) c = Py_None;")
         #code.put_incref("i", py_object_type)
         #code.put_incref("c", py_object_type)
-        code.putln(
-            "r = %s(o, i, c);" % (
-                user_get_entry.func_cname))
+        # For property accessor wrappers (auto_cpdef), the entry has the property
+        # accessor signature (1 arg) instead of descrgetfunc signature (3 args).
+        # Generate the call with the correct number of arguments.
+        sig = getattr(user_get_entry, 'signature', None)
+        if sig and sig.min_num_fixed_args() <= 1:
+            # Property accessor signature - only call with self
+            # Cast o to the extension type for C function calls
+            ext_type = scope.parent_type
+            if ext_type:
+                cast_type = "struct %s" % ext_type.objstruct_cname
+                code.putln(
+                    "r = %s((%s *)o);" % (
+                        user_get_entry.func_cname, cast_type))
+            else:
+                code.putln(
+                    "r = %s(o);" % (
+                        user_get_entry.func_cname))
+        else:
+            # descrgetfunc signature - call with obj, index, context
+            code.putln(
+                "r = %s(o, i, c);" % (
+                    user_get_entry.func_cname))
         #code.put_decref("i", py_object_type)
         #code.put_decref("c", py_object_type)
         code.putln(
@@ -2700,24 +2719,58 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "if (v) {")
         if user_set_entry:
-            code.putln(
-                "return %s(o, i, v);" % (
-                    user_set_entry.func_cname))
+            # For property accessor wrappers (auto_cpdef), the entry has the property
+            # accessor signature (2 args: self, value) instead of descrsetfunc signature (3 args).
+            sig = getattr(user_set_entry, 'signature', None)
+            ext_type = scope.parent_type
+            if sig and sig.min_num_fixed_args() <= 2:
+                # Property accessor signature - call with self, value
+                if ext_type:
+                    cast_type = "struct %s" % ext_type.objstruct_cname
+                    code.putln(
+                        "return %s((%s *)o, v);" % (
+                            user_set_entry.func_cname, cast_type))
+                else:
+                    code.putln(
+                        "return %s(o, v);" % (
+                            user_set_entry.func_cname))
+            else:
+                # descrsetfunc signature - call with obj, index, value
+                code.putln(
+                    "return %s(o, i, v);" % (
+                        user_set_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
                 base_type, None, "tp_descr_set", "descrsetfunc", "o, i, v", code)
             code.putln(
                 'PyErr_SetString(PyExc_NotImplementedError, "__set__");')
             code.putln(
-                "return -1;")
+             "return -1;")
         code.putln(
             "}")
         code.putln(
             "else {")
         if user_del_entry:
-            code.putln(
-                "return %s(o, i);" % (
-                    user_del_entry.func_cname))
+            # For property accessor wrappers (auto_cpdef), the entry has the property
+            # accessor signature (1 arg: self) instead of descdelfunc signature (2 args).
+            sig = getattr(user_del_entry, 'signature', None)
+            ext_type = scope.parent_type
+            if sig and sig.min_num_fixed_args() <= 1:
+                # Property accessor signature - call with self only
+                if ext_type:
+                    cast_type = "struct %s" % ext_type.objstruct_cname
+                    code.putln(
+                        "return %s((%s *)o);" % (
+                            user_del_entry.func_cname, cast_type))
+                else:
+                    code.putln(
+                        "return %s(o);" % (
+                            user_del_entry.func_cname))
+            else:
+                # descdelfunc signature - call with obj, index
+                code.putln(
+                    "return %s(o, i);" % (
+                        user_del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
                 base_type, None, "tp_descr_set", "descrsetfunc", "o, i, v", code)
@@ -2752,31 +2805,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not get_entry:
             return
 
-        # Check if this is an overridable property with a Python wrapper
-        is_overridable = property_scope.is_overridable and get_entry.as_variable
-
-        if is_overridable:
-            # For now, generate simple getter without override checking
-            # Override checking will be added in a follow-up implementation
-            # Cast o to the correct type for C++ compatibility
-            parent_type_cname = property_scope.parent_type.typeptr_cname
-            code.putln("")
-            code.putln(
-                "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % (
-                    property_entry.getter_cname))
-            code.putln("    return %s((%s)o);" % (get_entry.func_cname, parent_type_cname))
-            code.putln("}")
-            return
+        # Check if this is an overridable property (auto_cpdef enabled)
+        # Cast o to the correct type for C++ compatibility
+        is_overridable = property_scope.is_overridable
+        ext_type = property_scope.parent_type
+        # For auto_cpdef properties, cast to struct type, not PyTypeObject*
+        if is_overridable and ext_type.objstruct_cname:
+            parent_type_cname = "struct %s *" % ext_type.objstruct_cname
         else:
-            code.putln("")
-            code.putln(
-                "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % (
-                    property_entry.getter_cname))
+            parent_type_cname = ext_type.typeptr_cname
+
+        code.putln("")
+        code.putln(
+            "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % (
+                property_entry.getter_cname))
+        if is_overridable:
+            code.putln("    return %s((%s)o);" % (get_entry.func_cname, parent_type_cname))
+        else:
             code.putln(
                 "return %s(o);" % (
                     get_entry.func_cname))
-            code.putln(
-                "}")
+        code.putln(
+            "}")
 
     def generate_property_set_function(self, property_entry, code):
         property_scope = property_entry.scope
@@ -2786,29 +2836,44 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not set_entry:
             return
 
-        # Check if this is an overridable property with a Python wrapper
-        is_overridable = property_scope.is_overridable and set_entry.as_variable
-
-        if is_overridable:
-            # For now, generate simple setter without override checking
-            # Override checking will be added in a follow-up implementation
-            property_entry.setter_cname = property_scope.parent_scope.mangle(
-                Naming.prop_set_prefix, property_entry.name)
-            code.putln("")
-            code.putln(
-                "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" % (
-                    property_entry.setter_cname))
-            code.putln("if (v) {")
-            code.putln("    return %s(o, v);" % set_entry.func_cname)
-            code.putln("} else {")
+        # Check if this is an overridable property (auto_cpdef enabled)
+        # Cast o and v to the correct types for C++ compatibility
+        is_overridable = property_scope.is_overridable
+        ext_type = property_scope.parent_type
+        # For auto_cpdef properties, cast to struct type, not PyTypeObject*
+        if is_overridable and ext_type.objstruct_cname:
+            parent_type_cname = "struct %s *" % ext_type.objstruct_cname
         else:
-            property_entry.setter_cname = property_scope.parent_scope.mangle(
-                Naming.prop_set_prefix, property_entry.name)
-            code.putln("")
-            code.putln(
-                "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" % (
-                    property_entry.setter_cname))
-            code.putln("if (v) {")
+            parent_type_cname = ext_type.typeptr_cname
+
+        property_entry.setter_cname = property_scope.parent_scope.mangle(
+            Naming.prop_set_prefix, property_entry.name)
+        code.putln("")
+        code.putln(
+            "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" % (
+                property_entry.setter_cname))
+        code.putln("if (v) {")
+        if is_overridable:
+            # Check if the C function returns void (property setter) or int
+            set_type = set_entry.type
+            if set_type and hasattr(set_type, 'return_type') and set_type.return_type.is_void:
+                # Check if the setter has typed arguments (not PyObject*)
+                # If so, we need to convert the Python object to a C value
+                if len(set_type.args) >= 2:
+                    value_arg = set_type.args[1]
+                    if not value_arg.type.is_pyobject:
+                        # Generate conversion code: extract C value from PyObject*
+                        code.putln("    int __pyx_v_converted_value;")
+                        code.putln("    if ((__pyx_v_converted_value = PyLong_AsLong(v)) == -1 && PyErr_Occurred()) return -1;")
+                        code.putln("    %s((%s)o, __pyx_v_converted_value);" % (set_entry.func_cname, parent_type_cname))
+                    else:
+                        code.putln("    %s((%s)o, v);" % (set_entry.func_cname, parent_type_cname))
+                else:
+                    code.putln("    %s((%s)o, v);" % (set_entry.func_cname, parent_type_cname))
+                code.putln("    return 0;")
+            else:
+                code.putln("    return %s((%s)o, v);" % (set_entry.func_cname, parent_type_cname))
+        else:
             code.putln(
                 "    return %s(o, v);" % (
                     set_entry.func_cname))
@@ -2844,7 +2909,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
 
         if ext_type.typedef_flag:
-            objstruct = ext_type.objstruct_cname
+            objstruct = "struct %s" % ext_type.objstruct_cname
         else:
             objstruct = "struct %s" % ext_type.objstruct_cname
 

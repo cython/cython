@@ -9,6 +9,8 @@ from cython import cclass, int
 class SimpleProperty:
     """Test basic @property with setter no type annotations"""
 
+    _x: object
+
     def __init__(self):
         self._x = 0
 
@@ -63,8 +65,10 @@ def test_simple_property2() -> None:
 class SimpleProperty3:
     """Test basic @property readonly"""
 
+    _x: int
+
     def __init__(self) -> None:
-        self._x: int = 43
+        self._x = 43
 
     @property
     def x(self) -> int:
@@ -110,6 +114,8 @@ def test_simple_property4() -> None:
 @cclass
 class SimpleProperty5:
     """Test basic @property non-eligible for auto-cpdef"""
+
+    _x: list
 
     def __init__(self) -> None:
         self._x = [1,2,7,4]
