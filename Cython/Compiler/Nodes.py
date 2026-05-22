@@ -2612,6 +2612,14 @@ class FuncDefNode(StatNode, BlockNode):
 
     def generate_arg_type_test(self, arg, code):
         # Generate type test for one argument.
+        # Skip for enum types - they are C types with Python wrappers
+        # that handle type checking internally.
+        if arg.type.is_enum or arg.type.is_cpp_enum:
+            return
+        eq_type = getattr(arg.type, 'equivalent_type', None)
+        if eq_type is not None:
+            if eq_type.is_enum or eq_type.is_cpp_enum:
+                return
         if arg.type.typeobj_is_available():
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ArgTypeTest", "FunctionArguments.c"))

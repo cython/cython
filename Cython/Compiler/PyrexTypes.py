@@ -1682,6 +1682,9 @@ class BoxedType(PyObjectType):
     def subtype_of_resolved_type(self, other_type):
         return other_type is py_object_type or self.same_as(other_type)
 
+    def typeobj_is_available(self):
+        return self.equivalent_type.typeobj_is_available()
+
 
 class PyExtensionType(PyObjectType):
     #
@@ -4804,6 +4807,9 @@ class CEnumType(CIntLike, CType, EnumMixin):
             self._boxed_type = BoxedType(self.name, self)
         return self._boxed_type
 
+    def typeobj_is_available(self):
+        return True
+
     def create_type_wrapper(self, env):
         from .UtilityCode import CythonUtilityCode
         # Generate "int"-like conversion function
@@ -4823,16 +4829,26 @@ class CEnumType(CIntLike, CType, EnumMixin):
                 return str(entry.enum_int_value)
             return entry.name
 
+        def get_cvalue(entry):
+            if entry.enum_int_value is not None:
+                return str(entry.enum_int_value)
+            return entry.cname
+
         use_int_enum = all(
             entry.value_node is None or
             not isinstance(entry.value_node.constant_result, (str, bytes))
             for entry in self.entry.enum_values
         )
         if self.entry.type.scope is self.entry.scope:
-            items = tuple((value, get_value_code(self.entry.type.scope.lookup_here(value))) for value in self.values)
+            items = tuple(
+                (value, get_value_code(self.entry.type.scope.lookup_here(value)),
+                 get_cvalue(self.entry.type.scope.lookup_here(value)))
+                for value in self.values
+            )
         else:
             items = tuple(
-                (value, get_value_code(self.entry.type.scope.lookup_here(value)))
+                (value, get_value_code(self.entry.type.scope.lookup_here(value)),
+                 get_cvalue(self.entry.type.scope.lookup_here(value)))
                 for value in self.values
             )
 

@@ -42,6 +42,10 @@ cdef extern from *:
 ], module=globals().get("__module__", '{{static_modname}}'))
 {{endif}}
 
+{{for item in items}}
+{{name}}.{{item[0]}}._cython_cvalue_ = {{item[2]}}
+{{endfor}}
+
 if (__PYX_LIMITED_VERSION_HEX >= 0x030B0000 or
         (CYTHON_COMPILING_IN_LIMITED_API and __Pyx_get_runtime_version() >= 0x030B0000)):
     # Python 3.11 starts making the behaviour of flags stricter

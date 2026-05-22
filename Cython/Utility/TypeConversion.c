@@ -1523,7 +1523,20 @@ static {{TYPE}} __Pyx_NonPyLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
     if (likely(PyLong_Check(x))) {
         return __Pyx_PyLong_{{FROM_PY_FUNCTION}}(x);
-    } else {
-        return __Pyx_NonPyLong_{{FROM_PY_FUNCTION}}(x);
     }
+{{if IS_ENUM}}
+    /* For @cclass Enum types (regular Enum, not IntEnum/IntFlag), the
+     * C int value is stored as _cython_cvalue_ attribute on each member.
+     */
+    {
+        PyObject *cval = __Pyx_PyObject_GetAttrStr(x, PYIDENT("_cython_cvalue_"));
+        if (cval) {
+            {{TYPE}} val = ({{TYPE}}) __Pyx_PyLong_{{FROM_PY_FUNCTION}}(cval);
+            Py_DECREF(cval);
+            return val;
+        }
+        PyErr_Clear();
+    }
+{{endif}}
+    return __Pyx_NonPyLong_{{FROM_PY_FUNCTION}}(x);
 }

@@ -1091,7 +1091,12 @@ class ExprNode(Node):
             elif src.type.is_pyobject:
                 if not src.type.subtype_of(dst_type):
                     # Apply a type check on assignment.
-                    src = PyTypeTestNode(src, dst_type, env)
+                    # Skip for enum types - they are C types with Python wrappers,
+                    # and the wrapper handles type checking internally.
+                    if not (dst_type.is_enum or dst_type.is_cpp_enum or
+                            (getattr(dst_type, 'equivalent_type', None) is not None and
+                             (dst_type.equivalent_type.is_enum or dst_type.equivalent_type.is_cpp_enum))):
+                        src = PyTypeTestNode(src, dst_type, env)
             else:
                 if dst_type.is_pybytes_type and src.type.is_int:
                     src = CoerceIntToBytesNode(src, env)
@@ -1101,7 +1106,10 @@ class ExprNode(Node):
                 #        but it doesn't for ctuples. Thus, we add a PyTypeTestNode which then triggers the
                 #        Python conversion and becomes useless. That seems backwards and inefficient.
                 #        We should not need a PyTypeTestNode after a previous conversion above.
-                if not src.type.subtype_of(dst_type):
+                # Skip for enum types - they are C types with Python wrappers.
+                if not src.type.subtype_of(dst_type) and not (dst_type.is_enum or dst_type.is_cpp_enum or
+                        (getattr(dst_type, 'equivalent_type', None) is not None and
+                         (dst_type.equivalent_type.is_enum or dst_type.equivalent_type.is_cpp_enum))):
                     src = PyTypeTestNode(src, dst_type, env)
         elif is_pythran_expr(dst_type) and is_pythran_supported_type(src.type):
             # We let the compiler decide whether this is valid
@@ -2289,6 +2297,13 @@ class NameNode(AtomicExprNode):
             if type.is_pyobject and type.equivalent_type:
                 type = type.equivalent_type
             return type
+        # For enum types with Python wrappers, the entry may have been replaced with a Python object entry.
+        # Look up the original type entry from the module scope.
+        if entry and not entry.is_type:
+            module_scope = env.global_scope()
+            original_entry = module_scope.lookup_here(self.name)
+            if original_entry and original_entry.is_type and (original_entry.type.is_enum or original_entry.type.is_cpp_enum):
+                return original_entry.type
         if self.name == 'object':
             # This is normally parsed as "simple C type", but not if we don't parse C types.
             return py_object_type
@@ -8192,6 +8207,7 @@ class AttributeNode(ExprNode):
             if (obj_type.is_string or obj_type.is_cpp_string
                     or obj_type.is_buffer or obj_type.is_memoryviewslice
                     or obj_type.is_numeric
+                    or obj_type.is_enum or obj_type.is_cpp_enum
                     or (obj_type.is_ctuple and obj_type.can_coerce_to_pyobject(env))
                     or (obj_type.is_struct and obj_type.can_coerce_to_pyobject(env))):
                 if not immutable_obj:
