@@ -4949,7 +4949,7 @@ class PythonTypeConstructorMixin:
         except IndexError:
             return None
 
-    def get_subscripted_spanning_type(self):
+    def get_common_item_type(self):
         return reduce_spanning_types(self.subscripted_types)
 
     def allows_none(self):
@@ -5031,23 +5031,22 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             return False
         return super().assignable_from(src_type)
 
-    def infer_indexed_type(self, index=None):
+    def infer_indexed_type(self, at_index=None):
         container_type = self.get_container_type()
-        if container_type.is_pytuple_type:
-            if index is None:
-                return self.get_subscripted_spanning_type()
-            if isinstance(index, int):
-                return self.get_subscripted_type(index)
-            return py_object_type
-        if container_type.is_pydict_type or container_type.is_pyfrozendict_type:
+        if at_index is None:
+            return self.get_common_item_type()
+        if container_type.is_pytuple_type and isinstance(at_index, int):
+            return self.get_subscripted_type(at_index)
+        if container_type.is_pyanydict_type:
             return self.get_subscripted_type(1)
-        else:
+        if container_type.is_pylist_type:
             return self.get_subscripted_type(0)
+        return self.get_common_item_type()
 
     def infer_iterator_type(self):
         container_type = self.get_container_type()
         if container_type.is_pytuple_type:
-            return self.get_subscripted_spanning_type()
+            return self.get_common_item_type()
         return self.get_subscripted_type(0)
 
     def get_container_type(self):
