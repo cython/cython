@@ -37,7 +37,7 @@ def simple():
     L = [1,2,3]
     assert typeof(L) == "list object", typeof(L)
     t = (4,5,6,())
-    assert typeof(t) == "tuple object", typeof(t)
+    assert typeof(t) == "tuple[long,long,long,tuple object] object", typeof(t)
     t2 = (4, 5.0, 6)
     assert typeof(t2) == "(long, double, long)", typeof(t)
 
@@ -114,7 +114,7 @@ def slicing():
     assert typeof(L2) == "list object", typeof(L2)
 
     t = (4,5,6,())
-    assert typeof(t) == "tuple object", typeof(t)
+    assert typeof(t) == "tuple[long,long,long,tuple object] object", typeof(t)
     t1 = t[1:2]
     assert typeof(t1) == "tuple object", typeof(t1)
     t2 = t[1:2:2]
@@ -146,7 +146,7 @@ def indexing():
     assert typeof(L1) == "Python object", typeof(L1)
 
     t = (4,5,())
-    assert typeof(t) == "tuple object", typeof(t)
+    assert typeof(t) == "tuple object[long,long,tuple object] object", typeof(t)
     t1 = t[1]
     assert typeof(t1) == "long", typeof(t1)
 
