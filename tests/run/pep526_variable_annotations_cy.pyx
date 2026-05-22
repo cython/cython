@@ -246,3 +246,14 @@ def test_dict_of_extensions(myclass):
     print(cython.typeof(l))
     print(cython.typeof(l[0]))
     print(l[0])
+
+
+def test_list_slice():
+    """
+    >>> test_list_slice()
+    list[int] object
+    int
+    """
+    cdef list[int] l = [1, 2, 3]
+    print(cython.typeof(l[::-1]))
+    print(cython.typeof(l[::-1][0]))
