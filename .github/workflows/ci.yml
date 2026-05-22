@@ -209,7 +209,8 @@ jobs:
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
           - os: ubuntu-22.04
-            python-version: pypy-3.11
+            #python-version: pypy-3.11
+            python-version: pypy-3.11-v7.3.21  # TODO remove pin when https://github.com/pypy/pypy/issues/5472 is fixed in a release
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
           # Free-threading
