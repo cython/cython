@@ -987,8 +987,11 @@ class Scope:
             entry.func_cname = cname
             entry.is_overridable = overridable
         if inline_in_pxd:
-            entry.inline_func_in_pxd = True
-        if in_pxd and visibility != 'extern' and not inline_in_pxd:
+            if defining:
+                # body in pxd: keep module-local static inline
+                entry.inline_func_in_pxd = True
+            # else: declaration only (body in .py/.pyx), fall through to defined_in_pxd
+        if in_pxd and visibility != 'extern' and not getattr(entry, 'inline_func_in_pxd', False):
             entry.defined_in_pxd = 1
         if api:
             entry.api = 1

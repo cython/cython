@@ -2811,10 +2811,12 @@ class CFuncDefNode(FuncDefNode):
         if isinstance(self.declarator, CFuncDeclaratorNode):
             name_declarator, typ = self.declarator.analyse(
                 base_type, env, nonempty=2 * (self.body is not None),
-                directive_locals=self.directive_locals, visibility=self.visibility)
+                directive_locals=self.directive_locals, visibility=self.visibility,
+                in_pxd=self.inline_in_pxd)
         else:
             name_declarator, typ = self.declarator.analyse(
-                base_type, env, nonempty=2 * (self.body is not None), visibility=self.visibility)
+                base_type, env, nonempty=2 * (self.body is not None), visibility=self.visibility,
+                in_pxd=self.inline_in_pxd)
         if not typ.is_cfunction:
             error(self.pos, "Suite attached to non-function declaration")
         # Remember the actual type according to the function header

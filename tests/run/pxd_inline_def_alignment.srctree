@@ -1,0 +1,32 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import consumer; assert consumer.test() == 42"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+import Cython.Compiler.Options
+Cython.Compiler.Options.cimport_from_pyx = True
+
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("*.py"),
+)
+
+######## base.pxd ########
+
+cdef inline int get_value() except? -1
+
+######## base.py ########
+
+def get_value():
+    return 42
+
+######## consumer.py ########
+
+from __future__ import annotations
+
+from cython.cimports.base import get_value
+
+def test():
+    return get_value()

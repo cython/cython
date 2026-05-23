@@ -4054,7 +4054,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def _select_exported_entries(self, all_entries):
         return [
             entry for entry in all_entries
-            if entry.api or entry.defined_in_pxd or (Options.cimport_from_pyx and entry.visibility != 'extern')
+            if entry.api or entry.defined_in_pxd
+            or (Options.cimport_from_pyx and entry.visibility != 'extern')
         ]
 
     def generate_c_variable_export_code(self, env, code):
@@ -4115,7 +4116,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def _select_imported_entries(self, all_entries, used_only=False):
         return [
             entry for entry in all_entries
-            if entry.defined_in_pxd and (not used_only or entry.used)
+            if entry.defined_in_pxd
+                and (not used_only or entry.used)
         ]
 
     def generate_c_variable_import_code_for_module(self, module, env, code):
