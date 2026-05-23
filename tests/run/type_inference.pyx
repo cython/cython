@@ -146,12 +146,12 @@ def indexing():
     assert typeof(L1) == "Python object", typeof(L1)
 
     t = (4,5,())
-    assert typeof(t) == "tuple object[long,long,tuple object] object", typeof(t)
+    assert typeof(t) == "tuple[long,long,tuple object] object", typeof(t)
     t1 = t[1]
     assert typeof(t1) == "long", typeof(t1)
 
     t2 = ('abc', 'def', 'ghi')
-    assert typeof(t2) == "tuple object", typeof(t2)
+    assert typeof(t2) == "tuple[str object,str object,str object] object", typeof(t2)
     t2_1 = t2[1]
     assert typeof(t2_1) == "str object", typeof(t2_1)
     t2_2 = t2[t[0]-3]
