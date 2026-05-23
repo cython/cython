@@ -21,7 +21,12 @@ import asyncio
 import cy_test
 import py_test
 from contextlib import closing
-from inspect import iscoroutinefunction
+import sys
+if sys.version_info > (3,10,6)
+    from inspect import iscoroutinefunction
+else:
+    iscoroutinefunction = asyncio.iscoroutinefunction
+
 
 async def main():
     await cy_test.say()

@@ -93,7 +93,7 @@ typedef struct {
     PyObject *(*defaults_getter)(PyObject *);
     PyObject *func_annotations; /* function annotations dict */
 
-#if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
     // Coroutine marker
     PyObject *func_is_coroutine;
 #endif
@@ -588,7 +588,7 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
     return result;
 }
 
-#if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
 static PyObject *
 __Pyx_CyFunction_get_is_coroutine_value(__pyx_CyFunctionObject *op) {
     int is_coroutine = op->flags & __Pyx_CYFUNCTION_COROUTINE;
@@ -757,7 +757,7 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {"__defaults__", (getter)__Pyx_CyFunction_get_defaults, (setter)__Pyx_CyFunction_set_defaults, 0, 0},
     {"__kwdefaults__", (getter)__Pyx_CyFunction_get_kwdefaults, (setter)__Pyx_CyFunction_set_kwdefaults, 0, 0},
     {"__annotations__", (getter)__Pyx_CyFunction_get_annotations, (setter)__Pyx_CyFunction_set_annotations, 0, 0},
-#if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
     {"_is_coroutine", (getter)__Pyx_CyFunction_get_is_coroutine, 0, 0, 0},
 #endif
 //    {"__signature__", (getter)__Pyx_CyFunction_get_signature, 0, 0, 0},
@@ -867,7 +867,7 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
     op->defaults_kwdict = NULL;
     op->defaults_getter = NULL;
     op->func_annotations = NULL;
-#if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
     op->func_is_coroutine = NULL;
 #endif
 #if CYTHON_VECTORCALL
@@ -930,7 +930,7 @@ static int __Pyx__CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->defaults_tuple);
     Py_CLEAR(m->defaults_kwdict);
     Py_CLEAR(m->func_annotations);
-#if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
     Py_CLEAR(m->func_is_coroutine);
 #endif
 
@@ -997,7 +997,7 @@ static int __Pyx_CyFunction_traverse(PyObject *m_in, visitproc visit, void *arg)
     Py_VISIT(m->defaults_tuple);
     Py_VISIT(m->defaults_kwdict);
     Py_VISIT(m->func_annotations);
-#if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
     Py_VISIT(m->func_is_coroutine);
 #endif
     Py_VISIT(m->defaults);
