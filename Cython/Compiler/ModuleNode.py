@@ -4179,8 +4179,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         An entry is considered inline if:
         - It's a property getter/setter (scope is property scope)
         - AND it has is_overridable=True (auto_cpdef enabled)
+        - AND it's not being imported (defined_in_pxd means it's from a cimport)
+
+        Auto_cpdef properties are imported via function pointers at module load time
+        to avoid import order dependency and ensure cross-platform compatibility.
         """
         if not entry.scope or not entry.scope.is_property_scope:
+            return False
+        # Auto_cpdef properties that are imported (defined_in_pxd) should use
+        # function pointers, not vtable access
+        if entry.is_overridable and entry.defined_in_pxd:
             return False
         if entry.is_overridable:
             return True
@@ -4506,24 +4514,25 @@ def generate_cfunction_declaration(entry, env, code, definition):
 
         if entry.defined_in_pxd and entry.scope and entry.scope.is_property_scope:
             # Property getter/setter with cimport_from_pyx:
-            # For auto_cpdef properties (is_overridable=True), export the function directly
-            # so it can be called from other modules without going through the vtable.
-            # Remove inline modifier to ensure the function is exported as a global symbol.
+            # For auto_cpdef properties (is_overridable=True), use function pointers
+            # that are imported at module load time. This avoids import order dependency
+            # and works on all platforms (including Windows).
             # For non-inline imported properties, use regular declaration but remove inline modifier.
             # For local properties, use regular declaration with original modifiers.
-            def_module_scope = entry.scope
-            while def_module_scope and not def_module_scope.is_module_scope:
-                def_module_scope = def_module_scope.outer_scope
-            is_imported = (def_module_scope != env)
             is_inline_prop = entry.is_overridable
-            if is_inline_prop:
-                # For auto_cpdef properties, export the function directly (not as function pointer)
-                # so consumer modules can call it directly for efficiency.
-                # Remove inline modifier to ensure the function is exported as a global symbol.
-                storage_class = ""
+            if is_inline_prop and not definition:
+                # For auto_cpdef properties in consumer modules, use function pointer
+                # that gets imported at module load time
+                storage_class = "static"
                 dll_linkage = None
+                type = CPtrType(type)
                 func_modifiers = [m for m in entry.func_modifiers if m != 'inline']
-            elif is_imported:
+            elif is_inline_prop and definition:
+                # For auto_cpdef properties in defining module, don't generate
+                # a separate function pointer declaration - the function itself
+                # is being defined and will be exported
+                return
+            elif not definition:
                 # Non-inline imported properties: remove inline modifier so function is exported
                 func_modifiers = [m for m in entry.func_modifiers if m != 'inline']
             else:
