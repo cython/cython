@@ -93,8 +93,13 @@ typedef struct {
     PyObject *(*defaults_getter)(PyObject *);
     PyObject *func_annotations; /* function annotations dict */
 
-    // Coroutine marker
+    // Coroutine marker (inspect and asyncio versions)
+#if __PYX_LIMITED_VERSION_HEX < 0x03100000  
     PyObject *func_is_coroutine;
+#endif
+#if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX > 0x030C0000
+    PyObject *func_is_coroutine_marker;
+#endif
 } __pyx_CyFunctionObject;
 
 #undef __Pyx_CyOrPyCFunction_Check
@@ -586,11 +591,12 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
     return result;
 }
 
+// shared between get_is_coroutine and get_is_coroutine_marker
 static PyObject *
-__Pyx_CyFunction_get_is_coroutine_value(__pyx_CyFunctionObject *op) {
+__Pyx_CyFunction_get_is_coroutine_attribute_value(__pyx_CyFunctionObject *op, PyObject *module_name, PyObject *marker) {
     int is_coroutine = op->flags & __Pyx_CYFUNCTION_COROUTINE;
     if (is_coroutine) {
-        PyObject *is_coroutine_value, *module, *fromlist, *marker = PYIDENT("_is_coroutine");
+        PyObject *is_coroutine_value, *module, *fromlist;
         fromlist = PyList_New(1);
         if (unlikely(!fromlist)) return NULL;
         Py_INCREF(marker);
@@ -602,7 +608,7 @@ __Pyx_CyFunction_get_is_coroutine_value(__pyx_CyFunctionObject *op) {
             return NULL;
         }
 #endif
-        module = PyImport_ImportModuleLevelObject(PYIDENT("asyncio.coroutines"), NULL, NULL, fromlist, 0);
+        module = PyImport_ImportModuleLevelObject(module_name, NULL, NULL, fromlist, 0);
         Py_DECREF(fromlist);
         if (unlikely(!module)) {
             goto ignore_or_error;
@@ -621,30 +627,53 @@ ignore_or_error:
     return __Pyx_PyBool_FromLong(is_coroutine);
 }
 
+// shared between get_is_coroutine and get_is_coroutine_marker
 static PyObject *
-__Pyx_CyFunction_get_is_coroutine(PyObject *op_in, void *context) {
+__Pyx_CyFunction_get_is_coroutine_attribute(PyObject *op_in, size_t field_offset, PyObject *module, PyObject *marker) {
     __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
-    PyObject *result;
-    CYTHON_UNUSED_VAR(context);
-    if (op->func_is_coroutine) {
-        return __Pyx_NewRef(op->func_is_coroutine);
+    PyObject **field = (PyObject**)((char*)op + field_offset); 
+
+    if (*field) {
+        return __Pyx_NewRef(*field);
     }
 
-    result = __Pyx_CyFunction_get_is_coroutine_value(op);
+    PyObject *result = __Pyx_CyFunction_get_is_coroutine_attribute_value(op, module, marker);
     if (unlikely(!result))
         return NULL;
 
     __Pyx_BEGIN_CRITICAL_SECTION(op_in);
     // Guard against concurrent initialisation.
-    if (op->func_is_coroutine) {
+    if (*field) {
         Py_DECREF(result);
-        result = __Pyx_NewRef(op->func_is_coroutine);
+        result = __Pyx_NewRef(*field);
     } else {
-        op->func_is_coroutine = __Pyx_NewRef(result);
+        *field = __Pyx_NewRef(result);
     }
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
+
+#if __PYX_LIMITED_VERSION_HEX < 0x03100000
+static PyObject *
+__Pyx_CyFunction_get_is_coroutine(PyObject *op_in, void *context) {
+    CYTHON_UNUSED_VAR(context);
+    return __Pyx_CyFunction_get_is_coroutine_attribute(
+        op_in, offsetof(__pyx_CyFunctionObject, func_is_coroutine),
+        PYIDENT("asyncio.coroutines"), PYIDENT("_is_coroutine")
+    );
+}
+#endif
+
+#if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX > 0x030C0000
+static PyObject *
+__Pyx_CyFunction_get_is_coroutine_marker(PyObject *op_in, void *context) {
+   CYTHON_UNUSED_VAR(context);
+    return __Pyx_CyFunction_get_is_coroutine_attribute(
+        op_in, offsetof(__pyx_CyFunctionObject, func_is_coroutine_marker),
+        PYIDENT("inspect"), PYIDENT("_is_coroutine_mark")
+    );
+}
+#endif
 
 //static PyObject *
 //__Pyx_CyFunction_get_signature(__pyx_CyFunctionObject *op, void *context) {
@@ -753,7 +782,12 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {"__defaults__", (getter)__Pyx_CyFunction_get_defaults, (setter)__Pyx_CyFunction_set_defaults, 0, 0},
     {"__kwdefaults__", (getter)__Pyx_CyFunction_get_kwdefaults, (setter)__Pyx_CyFunction_set_kwdefaults, 0, 0},
     {"__annotations__", (getter)__Pyx_CyFunction_get_annotations, (setter)__Pyx_CyFunction_set_annotations, 0, 0},
+#if __PYX_LIMITED_VERSION_HEX < 0x03100000
     {"_is_coroutine", (getter)__Pyx_CyFunction_get_is_coroutine, 0, 0, 0},
+#endif
+#if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX > 0x030C0000
+    {"_is_coroutine_marker", __Pyx_CyFunction_get_is_coroutine_marker, 0, 0, 0},
+#endif
 //    {"__signature__", (getter)__Pyx_CyFunction_get_signature, 0, 0, 0},
 #if CYTHON_COMPILING_IN_LIMITED_API
     {"__module__", (getter)__Pyx_CyFunction_get_module, (setter)__Pyx_CyFunction_set_module, 0, 0},
@@ -861,7 +895,12 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
     op->defaults_kwdict = NULL;
     op->defaults_getter = NULL;
     op->func_annotations = NULL;
+#if __PYX_LIMITED_VERSION_HEX < 0x03100000
     op->func_is_coroutine = NULL;
+#endif
+#if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX > 0x030C0000
+    op->func_is_coroutine_marker = NULL;
+#endif
 #if CYTHON_VECTORCALL
     switch (ml->ml_flags & (METH_VARARGS | METH_FASTCALL | METH_NOARGS | METH_O | METH_KEYWORDS | METH_METHOD)) {
     case METH_NOARGS:
@@ -922,7 +961,12 @@ static int __Pyx__CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->defaults_tuple);
     Py_CLEAR(m->defaults_kwdict);
     Py_CLEAR(m->func_annotations);
+#if __PYX_LIMITED_VERSION_HEX < 0x03100000
     Py_CLEAR(m->func_is_coroutine);
+#endif
+#if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX > 0x030C0000
+    Py_CLEAR(m->func_is_coroutine_marker);
+#endif
 
     Py_CLEAR(m->defaults);
 
@@ -987,7 +1031,12 @@ static int __Pyx_CyFunction_traverse(PyObject *m_in, visitproc visit, void *arg)
     Py_VISIT(m->defaults_tuple);
     Py_VISIT(m->defaults_kwdict);
     Py_VISIT(m->func_annotations);
+#if __PYX_LIMITED_VERSION_HEX < 0x03100000
     Py_VISIT(m->func_is_coroutine);
+#endif
+#if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX > 0x030C0000
+    Py_VISIT(m->func_is_coroutine_marker);
+#endif
     Py_VISIT(m->defaults);
 
     return 0;
