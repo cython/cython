@@ -21,6 +21,7 @@ import asyncio
 import cy_test
 import py_test
 from contextlib import closing
+from inspect import iscoroutinefunction
 
 async def main():
     await cy_test.say()
@@ -32,12 +33,12 @@ with closing(asyncio.new_event_loop()) as loop:
     print("Running Cython coroutine ...")
     loop.run_until_complete(cy_test.say())
 
-assert asyncio.iscoroutinefunction(cy_test.cy_async_def_example) == True
-assert asyncio.iscoroutinefunction(cy_test.cy_async_def_example) == True
-assert asyncio.iscoroutinefunction(py_test.py_async_def_example) == True
-assert asyncio.iscoroutinefunction(py_test.py_async_def_example) == True
-assert asyncio.iscoroutinefunction(cy_test.cy_def_example) == False
-assert asyncio.iscoroutinefunction(py_test.py_def_example) == False
+assert iscoroutinefunction(cy_test.cy_async_def_example) == True
+assert iscoroutinefunction(cy_test.cy_async_def_example) == True
+assert iscoroutinefunction(py_test.py_async_def_example) == True
+assert iscoroutinefunction(py_test.py_async_def_example) == True
+assert iscoroutinefunction(cy_test.cy_def_example) == False
+assert iscoroutinefunction(py_test.py_def_example) == False
 
 ######## cy_test.pyx ########
 
