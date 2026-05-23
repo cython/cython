@@ -312,8 +312,8 @@ def test_extern_negatives(ExternHasNegatives val=ExternHasNegatives.EX_NEG_A):
     >>> val < 0
     True
 
-    # It's still possible to do bitwise operations of numbers and convert them too/from Cython
-    # whether Cython chooses to represent it as an IntEnum or a IntFlag.
+    # It's still possible to do bitwise operations of numbers and convert them to/from Cython
+    # whether Cython chooses to represent it as an IntEnum or an IntFlag.
     >>> test_extern_negatives(ExternHasNegatives.EX_NEG_B) == 1 == ExternHasNegatives.EX_NEG_B
     True
     >>> test_extern_negatives(3) == 3 == (ExternHasNegatives.EX_NEG_B | ExternHasNegatives.EX_NEG_C)
@@ -331,8 +331,8 @@ def test_cy_negatives(CyDefinedHasNegatives val=CyDefinedHasNegatives.CY_NEG_A):
     >>> val < 0
     True
 
-    # It's still possible to do bitwise operations of numbers and convert them too/from Cython
-    # whether Cython chooses to represent it as an IntEnum or a IntFlag.
+    # It's still possible to do bitwise operations of numbers and convert them to/from Cython
+    # whether Cython chooses to represent it as an IntEnum or an IntFlag.
     >>> test_cy_negatives(CyDefinedHasNegatives.CY_NEG_B) == 1 == CyDefinedHasNegatives.CY_NEG_B
     True
     >>> test_cy_negatives(3) == 3 == (CyDefinedHasNegatives.CY_NEG_B | CyDefinedHasNegatives.CY_NEG_C)
