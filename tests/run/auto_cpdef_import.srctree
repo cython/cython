@@ -12,9 +12,13 @@ from distutils.core import setup
 setup(ext_modules=cythonize("*.pyx", compiler_directives={'auto_cpdef': True}))
 
 ######## a.pyx ########
-from b import B
-from b cimport B
+from b import B, func_in_b
+from b cimport B, func_in_b
 from cython import ccall, cclass, int
+
+@ccall
+def func_in_a():
+    func_in_b()
 
 @cclass
 class A(B):
@@ -29,6 +33,10 @@ class A(B):
 ######## b.pyx ########
 
 from cython import cclass, ccall, int
+
+@ccall
+def func_in_b():
+    print("Hello from func_in_b()")
 
 @cclass
 class B:
@@ -53,3 +61,5 @@ a.A().s()
 print(a.A().prop)
 b.B().mtd()
 print(b.B().prop)
+a.func_in_a()
+b.func_in_b()
