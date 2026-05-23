@@ -1894,6 +1894,12 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return ExprNodes.SimpleCallNode.for_cproperty_get(
                 node.pos, self_arg, prop_entry)
 
+        # Only use vtable access for C properties (is_cproperty=True)
+        # Python properties don't have vtable entries
+        is_cproperty = getattr(prop_entry, 'is_cproperty', False)
+        if not is_cproperty:
+            return node
+
         # Create a vtable-based call to the getter
         # This works cross-module because the vtable pointer is retrieved via __Pyx_GetVtable
         if base_type.vtabptr_cname:
