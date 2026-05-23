@@ -75,6 +75,19 @@ def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
     print(cython.typeof(plain_tuple) + (" object" if not cython.compiled else ""))
 
+if cython.compiled:
+    test_tuple.__doc__ = """
+    >>> test_tuple((1, 1.0), (1, 1.0), (1, 1.0))
+    int
+    int object
+    double
+    double
+    (int, float)
+    tuple[int object,double] object
+    tuple object
+    tuple[int,Python object] object
+    tuple object
+    """
 
 # because tuple is specifically special cased to go to ctuple where possible
 def test_tuple_without_typing(a: tuple[cython.int, cython.float], b: tuple[cython.int, ...],
@@ -108,6 +121,19 @@ def test_tuple_without_typing(a: tuple[cython.int, cython.float], b: tuple[cytho
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
     print(cython.typeof(plain_tuple) + (" object" if not cython.compiled else ""))
 
+if cython.compiled:
+    test_tuple_without_typing.__doc__ = """
+    >>> test_tuple_without_typing((1, 1.0), (1, 1.0), (1, 1.0))
+    int
+    int object
+    double
+    double
+    (int, float)
+    tuple[int object,double] object
+    tuple object
+    tuple[int,Python object] object
+    tuple object
+    """
 
 _WARNINGS = """
 """
