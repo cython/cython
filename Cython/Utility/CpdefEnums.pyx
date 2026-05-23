@@ -18,13 +18,12 @@ class __Pyx_FlexibleEnumBase(PyImport_Import("enum").IntEnum):
         if (value2member_map := getattr(cls, '_value2member_map_')) is not None:
             pseudo_member = value2member_map.setdefault(value, pseudo_member)
         return pseudo_member
-    
+
     def __repr__(self):
         if self._name_ is None:
             # arbitrary value pseudo member
             return "<%s: %s>" % (self.__class__.__name__, repr(self._value_))
         return super().__repr__()
-
 
 
 #################### EnumType ####################
