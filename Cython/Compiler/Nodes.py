@@ -3056,9 +3056,17 @@ class CFuncDefNode(FuncDefNode):
         dll_linkage = None
         modifiers = self.entry.func_modifiers
         if self.entry.defined_in_pxd or self.inline_in_pxd:
-            # Keep inline on the declaration side, but avoid baking it into the
-            # emitted body so cimporters still get an exported symbol.
-            modifiers = [modifier for modifier in modifiers if modifier != 'inline']
+            if self.entry.scope and self.entry.scope.is_property_scope:
+                # Property getter/setter with cimport_from_pyx:
+                # For inline properties (is_overridable=True, i.e., auto_cpdef), keep as static inline
+                # so the function is copied into each compilation unit.
+                # For non-inline properties, remove inline modifier so function is exported.
+                if not getattr(self.entry, 'is_overridable', False):
+                    modifiers = [modifier for modifier in modifiers if modifier != 'inline']
+            else:
+                # Keep inline on the declaration side, but avoid baking it into the
+                # emitted body so cimporters still get an exported symbol.
+                modifiers = [modifier for modifier in modifiers if modifier != 'inline']
         modifiers = code.build_function_modifiers(modifiers)
 
         header = self.return_type.declaration_code(entity, dll_linkage=dll_linkage)

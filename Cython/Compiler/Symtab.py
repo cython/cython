@@ -3063,6 +3063,20 @@ class PropertyScope(Scope):
             entry.signature = sig
         if self.is_overridable:
             entry.is_overridable = True
+        # When cimport_from_pyx is enabled, property getter/setter entries must be
+        # added to the module's cfunc_entries so they get declarations generated in
+        # consuming modules, and marked defined_in_pxd so they are treated as inline
+        # functions that are copied (static inline) into each compilation unit.
+        if Options.cimport_from_pyx:
+            entry.defined_in_pxd = 1
+            entry.used = 1
+            # Walk up from parent_scope (class scope) to find the module scope.
+            scope = self.parent_scope
+            while scope and not scope.is_module_scope:
+                scope = scope.outer_scope
+            if scope is not None:
+                if entry not in scope.cfunc_entries:
+                    scope.cfunc_entries.append(entry)
         return entry
 
     def declare_pyfunction(self, name, pos, allow_redefine=False):

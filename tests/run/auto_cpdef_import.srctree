@@ -40,6 +40,10 @@ class B:
     def prop(self) -> int:
         return 2
 
+    @prop.setter
+    def prop(self, int val):
+        pass  # no-op for testing
+
 ######## runner.py ########
 
 import a

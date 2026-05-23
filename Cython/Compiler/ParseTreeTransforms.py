@@ -22,7 +22,7 @@ from . import Errors
 
 from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
-from .UtilNodes import LetNode, LetRefNode
+from .UtilNodes import CPropertySetNode, LetNode, LetRefNode
 from .TreeFragment import TreeFragment
 from .StringEncoding import EncodedString
 from .Errors import error, warning, CompileError, InternalError
@@ -3164,6 +3164,13 @@ class ExpandInplaceOperators(EnvTransform):
             elif node.is_attribute:
                 obj, temps = side_effect_free_reference(node.obj, setting=setting)
                 return ExprNodes.AttributeNode(node.pos, obj=obj, attribute=node.attribute), temps
+            elif isinstance(node, CPropertySetNode):
+                setter_call = node.call_node
+                obj = setter_call.args[0]
+                obj, temps = side_effect_free_reference(obj, setting=True)
+                return ExprNodes.AttributeNode(
+                    node.pos, obj=obj,
+                    attribute=setter_call.function.name), temps
             elif isinstance(node, ExprNodes.BufferIndexNode):
                 raise ValueError("Don't allow things like attributes of buffer indexing operations")
             else:
@@ -3174,6 +3181,7 @@ class ExpandInplaceOperators(EnvTransform):
         except ValueError:
             return node
         dup = lhs.__class__(**lhs.__dict__)
+        dup = dup.analyse_types(env)
         binop = ExprNodes.binop_node(node.pos,
                                      operator = node.operator,
                                      operand1 = dup,
@@ -3182,7 +3190,6 @@ class ExpandInplaceOperators(EnvTransform):
         # Manually analyse types for new node.
         lhs.is_target = True
         lhs = lhs.analyse_target_types(env)
-        dup.analyse_types(env)  # FIXME: no need to reanalyse the copy, right?
         binop.analyse_operation(env)
         node = Nodes.SingleAssignmentNode(
             node.pos,

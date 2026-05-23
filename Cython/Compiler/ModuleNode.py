@@ -4143,21 +4143,48 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_c_function_import_code_for_module(self, module, env, code):
         """Generate import code for all exported C functions in a cimported module.
+
+        Inline property getter/setter entries (auto_cpdef or marked inline) are
+        excluded because they are accessed via the vtable mechanism which handles
+        cross-module calls correctly. Regular properties are still imported.
         """
         entries = self._select_imported_entries(module.cfunc_entries, used_only=True)
         if not entries:
             return
 
+        # Filter out inline property getter/setter entries - they use vtable access
+        # Regular properties are still imported via function import
+        regular_entries = [
+            entry for entry in entries
+            if not self._is_inline_property_entry(entry)
+        ]
+        if not regular_entries:
+            return
+
         imports = [
             # (signature, name, cname)
             (entry.type.signature_string(), entry.name, entry.cname)
-            for entry in entries
+            for entry in regular_entries
         ]
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
 
         _generate_import_code(
             code, self.pos, imports, module.qualified_name, f"__Pyx_ImportFunction_{Naming.cyversion}", "void (**{name})(void)")
+
+    def _is_inline_property_entry(self, entry):
+        """Check if an entry is an inline property getter/setter that should be
+        accessed via vtable instead of function import.
+
+        An entry is considered inline if:
+        - It's a property getter/setter (scope is property scope)
+        - AND it has is_overridable=True (auto_cpdef enabled)
+        """
+        if not entry.scope or not entry.scope.is_property_scope:
+            return False
+        if entry.is_overridable:
+            return True
+        return False
 
     def generate_type_init_code(self, env, subfunction, code):
         # Generate type import code for extern extension types
@@ -4477,7 +4504,28 @@ def generate_cfunction_declaration(entry, env, code, definition):
             dll_linkage = None
         type = entry.type
 
-        if entry.defined_in_pxd and not definition:
+        if entry.defined_in_pxd and entry.scope and entry.scope.is_property_scope:
+            # Property getter/setter with cimport_from_pyx:
+            # For inline properties (is_overridable=True, i.e., auto_cpdef), use function pointer import
+            # so the function is resolved from the producer module at runtime via vtable.
+            # For non-inline imported properties, use regular declaration but remove inline modifier.
+            # For local properties, use regular declaration with original modifiers.
+            def_module_scope = entry.scope
+            while def_module_scope and not def_module_scope.is_module_scope:
+                def_module_scope = def_module_scope.outer_scope
+            is_imported = (def_module_scope != env)
+            is_inline_prop = entry.is_overridable
+            if is_imported and is_inline_prop:
+                storage_class = "static"
+                dll_linkage = None
+                type = CPtrType(type)
+                func_modifiers = [m for m in entry.func_modifiers if m != 'inline']
+            elif is_imported:
+                # Non-inline imported properties: remove inline modifier so function is exported
+                func_modifiers = [m for m in entry.func_modifiers if m != 'inline']
+            else:
+                func_modifiers = entry.func_modifiers
+        elif entry.defined_in_pxd and not definition:
             storage_class = "static"
             dll_linkage = None
             type = CPtrType(type)
