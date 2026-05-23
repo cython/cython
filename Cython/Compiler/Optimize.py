@@ -1886,6 +1886,14 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             node.pos, name=method_scope.arg_entries[0].name,
             entry=method_scope.arg_entries[0])
 
+        # For auto_cpdef properties (is_overridable=True), call the C function directly
+        # instead of using the vtable, since the function is exported and can be called
+        # directly from other modules in the same compilation.
+        is_auto_cpdef_property = getattr(getter_entry, 'is_overridable', False)
+        if is_auto_cpdef_property and getter_entry.func_cname:
+            return ExprNodes.SimpleCallNode.for_cproperty_get(
+                node.pos, self_arg, prop_entry)
+
         # Create a vtable-based call to the getter
         # This works cross-module because the vtable pointer is retrieved via __Pyx_GetVtable
         if base_type.vtabptr_cname:

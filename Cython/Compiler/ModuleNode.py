@@ -4506,8 +4506,9 @@ def generate_cfunction_declaration(entry, env, code, definition):
 
         if entry.defined_in_pxd and entry.scope and entry.scope.is_property_scope:
             # Property getter/setter with cimport_from_pyx:
-            # For inline properties (is_overridable=True, i.e., auto_cpdef), use function pointer import
-            # so the function is resolved from the producer module at runtime via vtable.
+            # For auto_cpdef properties (is_overridable=True), export the function directly
+            # so it can be called from other modules without going through the vtable.
+            # Remove inline modifier to ensure the function is exported as a global symbol.
             # For non-inline imported properties, use regular declaration but remove inline modifier.
             # For local properties, use regular declaration with original modifiers.
             def_module_scope = entry.scope
@@ -4515,10 +4516,12 @@ def generate_cfunction_declaration(entry, env, code, definition):
                 def_module_scope = def_module_scope.outer_scope
             is_imported = (def_module_scope != env)
             is_inline_prop = entry.is_overridable
-            if is_imported and is_inline_prop:
-                storage_class = "static"
+            if is_inline_prop:
+                # For auto_cpdef properties, export the function directly (not as function pointer)
+                # so consumer modules can call it directly for efficiency.
+                # Remove inline modifier to ensure the function is exported as a global symbol.
+                storage_class = ""
                 dll_linkage = None
-                type = CPtrType(type)
                 func_modifiers = [m for m in entry.func_modifiers if m != 'inline']
             elif is_imported:
                 # Non-inline imported properties: remove inline modifier so function is exported

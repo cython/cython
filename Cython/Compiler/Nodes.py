@@ -3058,11 +3058,11 @@ class CFuncDefNode(FuncDefNode):
         if self.entry.defined_in_pxd or self.inline_in_pxd:
             if self.entry.scope and self.entry.scope.is_property_scope:
                 # Property getter/setter with cimport_from_pyx:
-                # For inline properties (is_overridable=True, i.e., auto_cpdef), keep as static inline
-                # so the function is copied into each compilation unit.
+                # For auto_cpdef properties (is_overridable=True), export the function directly
+                # so consumer modules can call it without going through the vtable.
+                # Remove inline modifier to ensure the function is exported as a global symbol.
                 # For non-inline properties, remove inline modifier so function is exported.
-                if not getattr(self.entry, 'is_overridable', False):
-                    modifiers = [modifier for modifier in modifiers if modifier != 'inline']
+                modifiers = [modifier for modifier in modifiers if modifier != 'inline']
             else:
                 # Keep inline on the declaration side, but avoid baking it into the
                 # emitted body so cimporters still get an exported symbol.
