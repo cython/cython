@@ -22,7 +22,12 @@ import cy_test
 import py_test
 from contextlib import closing
 import sys
-if sys.version_info > (3,10,6)
+if sys.version_info > (3, 10, 6) and sys.version_info < (3, 16):
+    import inspect
+    def iscoroutinefunction(f):
+        # check both
+        return inspect.iscoroutinefunction(f) and asyncio.iscoroutinefunction(f)
+elif sys.version_info >= (3, 16):
     from inspect import iscoroutinefunction
 else:
     iscoroutinefunction = asyncio.iscoroutinefunction
