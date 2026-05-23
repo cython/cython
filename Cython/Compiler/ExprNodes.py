@@ -4285,6 +4285,10 @@ class IndexNode(_IndexingBaseNode):
             elif base_type.is_pyunicode_ptr:
                 # sliced Py_UNICODE* strings must coerce to Python
                 return unicode_type
+            elif base_type.supports_container_type and not base_type.has_uniform_element_type:
+                # slicing a container with non-uniform element types (tuple[int, str]) depends on the slice indices,
+                # so we can't infer a more specific type here.
+                return base_type.get_container_type()
             elif base_type.is_builtin_sequence:
                 # slicing these returns the same type
                 return base_type
@@ -5609,6 +5613,10 @@ class SliceIndexNode(ExprNode):
             return bytes_type
         elif base_type.is_pyunicode_ptr:
             return unicode_type
+        elif base_type.supports_container_type and not base_type.has_uniform_element_type:
+            # slicing a container with non-uniform element types (tuple[int, str]) depends on the slice indices,
+            # so we can't infer a more specific type here.
+            return base_type.get_container_type()
         elif base_type.is_builtin_sequence:
             return base_type
         elif base_type.is_ptr or base_type.is_array:
@@ -6069,6 +6077,7 @@ class SliceNode(ExprNode):
     is_slice = True
     type = slice_type
     is_temp = 1
+
 
     def calculate_constant_result(self):
         self.constant_result = slice(

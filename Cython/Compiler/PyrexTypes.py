@@ -4942,6 +4942,8 @@ class PythonTypeConstructorMixin:
     contains_none = False
     base_type = None
     subscripted_types = ()
+    # container has uniform elements (e.g. list[int], but not tuple[int, str])
+    has_uniform_element_type = False
 
     def get_subscripted_type(self, index: int):
         try:
@@ -4979,6 +4981,8 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     def __init__(self, name, cname, objstruct_cname=None, **kwargs):
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
+        if name in {'list', 'set', 'frozenset'}:
+            self.has_uniform_element_type = True
         self.set_python_type_constructor_name(self.get_container_type().name)
         for attr_name, value in kwargs.items():
             setattr(self, attr_name, value)
