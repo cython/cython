@@ -1,34 +1,30 @@
 #################### EnumBase ####################
 
-cimport cython
-
 cdef extern from *:
-    cdef enum:
-        __PYX_LIMITED_VERSION_HEX
-        CYTHON_COMPILING_IN_LIMITED_API
-    int __Pyx_get_runtime_version()
+    object PyImport_Import(object)
 
-# @cython.internal
-cdef object __Pyx_EnumBase
-from enum import IntEnum as __Pyx_EnumBase
+cdef object __Pyx_FlexibleEnumBase
+class __Pyx_FlexibleEnumBase(PyImport_Import("enum").IntEnum):
+    @classmethod
+    def _missing_(cls, value):
+        # This is a trimmed down version of "EnumFlag._missing_" with with
+        # the flag-specific details removed.
+        pseudo_member = int.__new__(cls, value)
+        if not hasattr(pseudo_member, '_value_'):
+            pseudo_member._value_ = value
+        pseudo_member._name_ = None
+        # _value2member_map_ is an undocumented detail of enum so don't fail
+        # if we can't use it to cache pseudo-members
+        if (value2member_map := getattr(cls, '_value2member_map_')) is not None:
+            pseudo_member = value2member_map.setdefault(value, pseudo_member)
+        return pseudo_member
+    
+    def __repr__(self):
+        if self._name_ is None:
+            # arbitrary value pseudo member
+            return "<%s: %s>" % (self.__class__.__name__, repr(self._value_))
+        return super().__repr__()
 
-cdef object __Pyx_FlagBase
-from enum import IntFlag as __Pyx_FlagBase
-
-cdef inline object __Pyx_ConstructEnum(name, items, module, bint safe_flag):
-    if not safe_flag and (__PYX_LIMITED_VERSION_HEX >= 0x030F0000 or
-            (CYTHON_COMPILING_IN_LIMITED_API and __Pyx_get_runtime_version() >= 0x030B0000)):
-        return __Pyx_EnumBase(name, items, module=module)
-    else:
-        result = __Pyx_FlagBase(name, items, module=module)
-        if (__PYX_LIMITED_VERSION_HEX >= 0x030B0000 or
-                (CYTHON_COMPILING_IN_LIMITED_API and __Pyx_get_runtime_version() >= 0x030B0000)):
-            # Python 3.11 starts making the behaviour of flags stricter
-            # (only including powers of 2 when iterating). Since we're using
-            # "flag" because C enums *might* be used as flags, not because
-            # we want strict flag behaviour, manually undo some of this.
-            result._member_names_ = list(result.__members__)
-        return result
 
 
 #################### EnumType ####################
@@ -42,21 +38,25 @@ cdef extern from *:
 # the assumption is that C enums are sufficiently commonly
 # used as flags that this is the most appropriate base class.
 # On Python 3.15+ IntFlag doesn't accept negative numbers however.
-{{name}} = __Pyx_ConstructEnum('{{name}}',  [
+{{name}} = __Pyx_FlexibleEnumBase('{{name}}',  [
     {{for item in items}}
     ('{{item}}', {{enum_to_pyint_func}}({{item}})),
     {{endfor}}
     # Try to look up the module name dynamically if possible
-], module=globals().get("__module__", '{{static_modname}}'),
-safe_flag=(True {{for item in items}} and ({{item}}>=0) {{endfor}}))
+], module=globals().get("__module__", '{{static_modname}}'))
 
 {{if enum_doc is not None}}
 {{name}}.__doc__ = {{ repr(enum_doc) }}
 {{endif}}
 
 
+#################### CppScopedEnumBase ####################
+
+cdef object __Pyx_EnumBase
+from enum import IntEnum as __Pyx_EnumBase
+
 #################### CppScopedEnumType ####################
-# requires EnumBase (but this is done manually to avoid duplication)
+# requires CppScopedEnumBase (but this is done manually to avoid duplication)
 cdef dict __Pyx_globals = globals()
 
 __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', [
@@ -71,12 +71,6 @@ __Pyx_globals["{{name}}"].__doc__ = {{ repr(enum_doc) }}
 
 
 #################### EnumTypeToPy ####################
-
-cdef extern from *:
-    cdef enum:
-        __PYX_LIMITED_VERSION_HEX
-        CYTHON_COMPILING_IN_LIMITED_API
-    int __Pyx_get_runtime_version()
 
 {{if module_name}}
 cdef object __pyx_imported_enum_{{funcname}} = None
@@ -119,15 +113,7 @@ cdef {{funcname}}({{name}} c_val):
     else:
         underlying_c_val = <{{underlying_type}}>c_val
 {{if is_flag}}
-        try:
-            return __pyx_enum(underlying_c_val)
-        except ValueError:
-            if (__PYX_LIMITED_VERSION_HEX >= 0x030F0000 or
-                    (CYTHON_COMPILING_IN_LIMITED_API and __Pyx_get_runtime_version() >= 0x030B0000)):
-                # In Python 3.15+ we have to use IntEnum which is strict about what values to accept.
-                # In this case the best we can do is return a Python int.
-                return underlying_c_val
-            raise
+        return __pyx_enum(underlying_c_val)
 {{else}}
         raise ValueError(f"{underlying_c_val} is not a valid {{name}}")
 {{endif}}
