@@ -2923,7 +2923,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         # Generate conversion code: extract C value from PyObject*
                         value_type_cname = value_arg.type.empty_declaration_code()
                         code.putln("    %s __pyx_v_converted_value;" % value_type_cname)
-                        code.putln("    if ((__pyx_v_converted_value = (%s)PyLong_AsLong(v)) == -1 && PyErr_Occurred()) return -1;" % value_type_cname)
+                        if value_arg.type.create_from_py_utility_code(property_scope.global_scope()):
+                            # Use the type's from_py conversion function (works for int, float,
+                            # bool, ctuple, string, memoryview, etc.)
+                            from_py_func = value_arg.type.from_py_function
+                            code.putln("    __pyx_v_converted_value = %s(v); if (PyErr_Occurred()) return -1;" % from_py_func)
+                        else:
+                            # Fallback for types without from_py_function (e.g. enums)
+                            code.putln("    if ((__pyx_v_converted_value = (%s)PyLong_AsLong(v)) == -1 && PyErr_Occurred()) return -1;" % value_type_cname)
                         code.putln("    %s((%s)o, __pyx_v_converted_value);" % (set_entry.func_cname, parent_type_cname))
                     else:
                         code.putln("    %s((%s)o, v);" % (set_entry.func_cname, parent_type_cname))

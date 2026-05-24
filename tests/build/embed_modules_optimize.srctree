@@ -253,7 +253,9 @@ def func_in_a():
     A().color = Color.RED
     assert A().color == Color.RED
     assert A().prop_obj.prop == 2
+    assert A().prop_tuple == (1, 2)
     A().prop_obj = B()  # test setter
+    A().prop_tuple = (3, 4)  # test setter
     func_in_b()
 
 @cclass
@@ -280,6 +282,14 @@ class A(B):
 
     @prop_obj.setter
     def prop_obj(self, val: B) -> None:
+        pass  # no-op for testing
+
+    @property
+    def prop_tuple(self) -> tuple[int, int]:
+        return (1, 2)
+
+    @prop_tuple.setter
+    def prop_tuple(self, val: tuple[int, int]) -> None:
         pass  # no-op for testing
 
 ################# b.pyx ####################
