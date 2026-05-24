@@ -243,6 +243,30 @@ from b import B, func_in_b, Color
 from b cimport B, func_in_b, Color
 from cython import ccall, cclass, int, bint as bool
 
+cdef bint _helper = True
+
+@cclass
+class TestBugDescrGet:
+    """Class that triggers tp_descr_get generation with mixed return types.
+    
+    With auto_cpdef=True:
+    - prop_obj and prop_int are cpdef-converted (add __get__ to class scope)
+    - prop_bool is NOT cpdef-convertible (has closure), so all_overridable=False
+    - tp_descr_get is generated using the last cpdef property's getter (prop_int)
+    - But prop_int returns int, not PyObject*, causing type mismatch
+    """
+    @property
+    def prop_obj(self) -> object:  # PyObject* - first cpdef property
+        return None
+
+    @property
+    def prop_int(self) -> int:     # C int - last cpdef property
+        return 42
+
+    @property
+    def prop_bool(self) -> bool:  # NOT cpdef (closure via lambda)
+        return (lambda: _helper)()
+
 @ccall
 def func_in_a():
     t: A = A()
@@ -254,6 +278,13 @@ def func_in_a():
     assert t.prop_obj.prop == 2
     assert t.prop_tuple == (1, 2)
     assert t.prop_bool is True
+
+    # Test tp_descr_get generation with mixed return types
+    bug_obj = TestBugDescrGet()
+    assert bug_obj.prop_obj is None
+    assert bug_obj.prop_int == 42
+    assert bug_obj.prop_bool is True
+
     func_in_b()
 
 @cclass

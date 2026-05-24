@@ -2683,13 +2683,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # For cpdef properties, each property has its own getter function
         # in the PyGetSetDef table. The tp_descr_get slot is not needed and
         # would be incorrect because it can't handle multiple properties with
-        # different return types. Skip generating it if all properties are overridable.
-        all_overridable = all(
+        # different return types. Skip generating it if any properties are overridable.
+        has_overridable = any(
             getattr(prop_entry.scope, 'is_overridable', False)
             for prop_entry in scope.property_entries
             if getattr(prop_entry, 'scope', None)
         )
-        if all_overridable and scope.property_entries:
+        if has_overridable and scope.property_entries:
             return
 
         code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "tp_descr_get", "PyObject *o, PyObject *i, PyObject *c", needs_funcstate=False)
@@ -3001,7 +3001,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
         # Check if we should skip tp_descr_get/tp_descr_set for cpdef properties
-        all_props_overridable = scope.property_entries and all(
+        has_overridable_props = scope.property_entries and any(
             getattr(prop_entry.scope, 'is_overridable', False)
             for prop_entry in scope.property_entries
             if getattr(prop_entry, 'scope', None)
@@ -3009,7 +3009,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for slot in TypeSlots.get_slot_table(code.globalstate.directives):
             # Skip tp_descr_get/tp_descr_set for cpdef properties
             # since they're handled by PyGetSetDef instead
-            if all_props_overridable and slot.slot_name in ('tp_descr_get', 'tp_descr_set'):
+            if has_overridable_props and slot.slot_name in ('tp_descr_get', 'tp_descr_set'):
                 continue
             slot.generate_spec(scope, code)
         if generate_members:
@@ -3054,7 +3054,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "0, /*tp_itemsize*/")
         # Check if we should skip tp_descr_get/tp_descr_set for cpdef properties
-        all_props_overridable = scope.property_entries and all(
+        has_overridable_props = scope.property_entries and any(
             getattr(prop_entry.scope, 'is_overridable', False)
             for prop_entry in scope.property_entries
             if getattr(prop_entry, 'scope', None)
@@ -3062,7 +3062,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for slot in TypeSlots.get_slot_table(code.globalstate.directives):
             # Skip tp_descr_get/tp_descr_set for cpdef properties
             # since they're handled by PyGetSetDef instead
-            if all_props_overridable and slot.slot_name in ('tp_descr_get', 'tp_descr_set'):
+            if has_overridable_props and slot.slot_name in ('tp_descr_get', 'tp_descr_set'):
                 code.putln("0, /*%s*/" % slot.slot_name)
             else:
                 slot.generate(scope, code)
