@@ -1352,7 +1352,7 @@ class PyConstNode(AtomicExprNode):
     #  Abstract base class for constant Python values.
 
     is_literal = 1
-    type = py_none_type
+    type = py_object_type
     nogil_check = None
 
     def is_simple(self):
@@ -1374,6 +1374,7 @@ class PyConstNode(AtomicExprNode):
 class NoneNode(PyConstNode):
     #  The constant value None
 
+    type = py_none_type
     is_none = 1
     value = "Py_None"
 
