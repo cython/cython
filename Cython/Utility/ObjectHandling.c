@@ -2270,83 +2270,78 @@ static PyObject *__Pyx_PyObject_FastCallMethod(PyObject *name, PyObject *const *
 }
 #endif
 
-/////////////// PyObjectVectorCallKwBuilder.proto ////////////////
+/////////////// PyObjectVectorcallKwds.proto ////////////////////
 //@requires: PyObjectFastCall
-// For versions that define PyObject_Vectorcall, use PyObject_Vectorcall and define functions to build a kwnames tuple and add arguments to args.
-// For versions that don't, use __Pyx_PyObject_FastCallDict and functions to build a keyword dictionary
-
-CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
 
 #if CYTHON_VECTORCALL
-#define __Pyx_Object_Vectorcall_CallFromBuilder PyObject_Vectorcall
-
-#define __Pyx_MakeVectorcallBuilderKwds(n) PyTuple_New(n)
-
-static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
-static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
+#define __Pyx_Object_VectorcallKwds PyObject_Vectorcall
+CYTHON_UNUSED static int __Pyx_CheckVectorcallKwarg(PyObject *kwnames, Py_ssize_t i); /* proto */
 #else
-#define __Pyx_Object_Vectorcall_CallFromBuilder __Pyx_PyObject_FastCallDict
-
-#define __Pyx_MakeVectorcallBuilderKwds(n) __Pyx_PyDict_NewPresized(n)
-
-#define __Pyx_VectorcallBuilder_AddArg(key, value, builder, args, n) PyDict_SetItem(builder, key, value)
-#define __Pyx_VectorcallBuilder_AddArgStr(key, value, builder, args, n) PyDict_SetItemString(builder, key, value)
+#define __Pyx_Object_VectorcallKwds __Pyx_PyObject_FastCallDict
+CYTHON_UNUSED static PyObject *__Pyx_MakeKwargDict(PyObject **keys, PyObject **values, Py_ssize_t n); /* proto */
+CYTHON_UNUSED static int __Pyx_CheckVectorcallKwarg(PyObject **kwnames, Py_ssize_t i); /* proto */
 #endif
 
-/////////////// PyObjectVectorCallKwBuilder ////////////////
+/////////////// PyObjectVectorcallKwds ////////////////////
 
 #if CYTHON_VECTORCALL
-static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
-    (void)__Pyx_PyObject_FastCallDict;
+CYTHON_UNUSED static int __Pyx_CheckVectorcallKwarg(PyObject *kwnames, Py_ssize_t i) {
+    PyObject *key = __Pyx_PyTuple_GET_ITEM(kwnames, i);
+#if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(!key)) return -1;
+#endif
 
-    Py_INCREF(key);
-    if (__Pyx_PyTuple_SET_ITEM(builder, n, key) != (0)) return -1;
-    args[n] = value;
+    if (unlikely(!PyUnicode_Check(key))) {
+        PyErr_SetString(PyExc_TypeError, "keywords must be strings");
+        return -1;
+    }
     return 0;
 }
 
-CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
-    (void)__Pyx_VectorcallBuilder_AddArgStr;
-    if (unlikely(!PyUnicode_Check(key))) {
-        PyErr_SetString(PyExc_TypeError, "keywords must be strings");
-        return -1;
+#else
+
+CYTHON_UNUSED static PyObject *__Pyx_MakeKwargDict(PyObject **keys, PyObject **values, Py_ssize_t n) {
+    PyObject *out = PyDict_New();
+    if (unlikely(!out)) return NULL;
+    for (Py_ssize_t i=0; i<n; ++i) {
+        if (unlikely(PyDict_SetItem(out, keys[i], values[i]) < 0)) {
+            Py_DECREF(out);
+            return NULL;
+        }
     }
-    return __Pyx_VectorcallBuilder_AddArg(key, value, builder, args, n);
+    return out;
 }
 
-static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
-    PyObject *pyKey = PyUnicode_FromString(key);
-    if (!pyKey) return -1;
-    return __Pyx_VectorcallBuilder_AddArg(pyKey, value, builder, args, n);
-}
-#else // CYTHON_VECTORCALL
-CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, CYTHON_UNUSED PyObject **args, CYTHON_UNUSED int n) {
+CYTHON_UNUSED static int __Pyx_CheckVectorcallKwarg(PyObject **kwnames, Py_ssize_t i) {
+    PyObject *key = kwnames[i];
+
     if (unlikely(!PyUnicode_Check(key))) {
         PyErr_SetString(PyExc_TypeError, "keywords must be strings");
         return -1;
     }
-    return PyDict_SetItem(builder, key, value);
+    return 0;
 }
+
 #endif
 
-/////////////// PyObjectVectorCallMethodKwBuilder.proto ////////////////
+/////////////// PyObjectVectorcallMethodKwds.proto /////////////////
+//@requires: PyObjectVectorcallKwds
 
 #if CYTHON_VECTORCALL
-#define __Pyx_Object_VectorcallMethod_CallFromBuilder PyObject_VectorcallMethod
+#define __Pyx_Object_VectorcallMethodKwds PyObject_VectorcallMethod
 #else
-static PyObject *__Pyx_Object_VectorcallMethod_CallFromBuilder(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames); /* proto */
+static PyObject *__Pyx_Object_VectorcallMethodKwds(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames); /* proto */
 #endif
 
-/////////////// PyObjectVectorCallMethodKwBuilder ////////////////
-//@requires: PyObjectVectorCallKwBuilder
+/////////////// PyObjectVectorcallMethodKwds ///////////////////
 
 #if !CYTHON_VECTORCALL
-static PyObject *__Pyx_Object_VectorcallMethod_CallFromBuilder(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames) {
+static PyObject *__Pyx_Object_VectorcallMethodKwds(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames) {
     PyObject *result;
     PyObject *obj = PyObject_GetAttr(args[0], name);
     if (unlikely(!obj))
         return NULL;
-    result = __Pyx_Object_Vectorcall_CallFromBuilder(obj, args+1, nargsf-1, kwnames);
+    result = __Pyx_Object_VectorcallKwds(obj, args+1, nargsf-1, kwnames);
     Py_DECREF(obj);
     return result;
 }
