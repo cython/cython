@@ -7088,7 +7088,7 @@ class PyMethodCallNode(CallNode):
             code.put_error_if_neg(kwnames.pos, f"__Pyx_CheckVectorcallKwarg({kwnames_temp}, {arg_index})")
         code.putln("#else")
         code.putln("{")
-        kwnames.generate_sequence_as_array_code(code, Naming.quick_temp_cname);
+        kwnames.generate_sequence_as_array_code(code, Naming.quick_temp_cname)
         for arg_index in arg_indices_to_check:
             code.put_error_if_neg(kwnames.pos, f"__Pyx_CheckVectorcallKwarg({Naming.quick_temp_cname}, {arg_index})")
         code.putln(f"{kwnames_temp} = __Pyx_MakeKwargDict({Naming.quick_temp_cname}, "
