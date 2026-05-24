@@ -5043,7 +5043,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             return self.get_subscripted_type(at_index)
         if container_type.is_pyanydict_type:
             return self.get_subscripted_type(1)
-        if container_type.is_pylist_type:
+        if container_type.is_pylist_type or container_type.is_pyanyset_type:
             return self.get_subscripted_type(0)
         return self.get_common_item_type()
 

@@ -610,7 +610,7 @@ def loop_over_int_array():
 def loop_over_character_list():
     """
     >>> loop_over_character_list()
-    Py_UCS4
+    str object
     str object
     """
     for c_ch in ['a', '\x0a', '\N{SNOWMAN}']:
@@ -653,7 +653,7 @@ def loop_over_bools():
     """
     >>> loop_over_bools()
     bint
-    bool object
+    bint
     """
     for c_b in True, False, False, True:
         assert c_b or not c_b
