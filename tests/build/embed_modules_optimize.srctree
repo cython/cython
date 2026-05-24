@@ -9,16 +9,30 @@ PYTHON run.py main_module
 
 # With auto_cpdef=True (uses function pointer import)
 PYTHON cythonize_embed.py -f -X auto_cpdef=True a.pyx b.pyx
-PYTHON check_codegen.py auto_cpdef
+PYTHON check_codegen.py auto_cpdef a.c
 CYTHON --embed --embed-modules a,b main_module.pyx
 PYTHON build.py main_module main_module.c a.c b.c
 PYTHON run.py main_module
 
+# CPP auto_cpdef=True (uses function pointer import)
+PYTHON cythonize_embed.py -+ -f -X auto_cpdef=True a.pyx b.pyx
+PYTHON check_codegen.py auto_cpdef a.cpp
+CYTHON -+ --embed --embed-modules a,b main_module.pyx
+PYTHON build.py main_module main_module.cpp a.cpp b.cpp
+PYTHON run.py main_module
+
 # With lto=True (uses direct function call)
 PYTHON cythonize_embed.py -f -X auto_cpdef=True -X lto=True a.pyx b.pyx
-PYTHON check_codegen.py lto
+PYTHON check_codegen.py lto a.c
 CYTHON --embed --embed-modules a,b main_module.pyx
 PYTHON build.py main_module main_module.c a.c b.c
+PYTHON run.py main_module
+
+# CPP With lto=True (uses direct function call)
+PYTHON cythonize_embed.py -+ -f -X auto_cpdef=True -X lto=True a.pyx b.pyx
+PYTHON check_codegen.py lto a.cpp
+CYTHON -+ --embed --embed-modules a,b main_module.pyx
+PYTHON build.py main_module main_module.cpp a.cpp b.cpp
 PYTHON run.py main_module
 
 ################### cythonize_embed.py ########################
@@ -37,7 +51,7 @@ import sys
 import os
 
 mode = sys.argv[1]
-a_c_path = os.path.join(os.path.dirname(__file__) or '.', 'a.c')
+a_c_path = sys.argv[2]
 with open(a_c_path, 'r') as f:
     a_c_content = f.read()
 
@@ -61,6 +75,7 @@ import os
 import setuptools
 import sys
 import sysconfig
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
 IS_WINDOWS = sys.platform == 'win32'
@@ -145,14 +160,14 @@ def link_exe(objects, app_name):
 
 def main(args):
     app_name, *c_files = args
-    c_base_names = [filename[:-2] for filename in c_files]
+    c_base_names = [Path(filename).stem for filename in c_files]
 
     print("CFLAGS:", CFLAGS)
     print(f"PYLIBS: {PYLIB!r} {PYLIB_DYN!r}")
     print(f"LINK: {LIBDIR1!r} {LIBDIR2!r}")
     print("LIBDIR1:", os.listdir(LIBDIR1))
 
-    compile_commands = [filename+'.c' for filename in c_base_names]
+    compile_commands = c_files
     for command in compile_commands:
         print("CC:", command)
 
