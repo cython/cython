@@ -4574,24 +4574,15 @@ class EnumMixin:
     """
 
     def create_enum_to_py_utility_code(self, env):
-        from .UtilityCode import CythonUtilityCode
         self.to_py_function = "__Pyx_Enum_%s_to_py" % type_identifier(self)
-        module_name = self.entry.scope.qualified_name
+        enum_module_name = self.entry.scope.qualified_name
+        current_module_name = env.qualified_name
+        is_defining_module = (enum_module_name == current_module_name)
 
-        directives = CythonUtilityCode.filter_inherited_directives(
-            env.global_scope().directives)
-        use_int_enum = not any(
-            value_entry.value_node is not None and
-            isinstance(value_entry.value_node.constant_result, (str, bytes))
-            for value_entry in self.entry.enum_values
-        )
-        if any(value_entry.enum_int_value is None for value_entry in self.entry.enum_values):
-            # We're at a high risk of making a switch statement with equal values in
-            # (because we simply can't tell, and enums are often used like that).
-            # So turn off the switch optimization to be safe.
-            # (Note that for now Cython doesn't do the switch optimization for
-            # scoped enums anyway)
-            directives['optimize.use_switch'] = False
+        # Check LTO mode
+        compilation_sources = env.global_scope().compilation_sources
+        lto_directive = env.global_scope().directives.get('lto', False)
+        is_lto = bool(lto_directive) and bool(compilation_sources) and enum_module_name in compilation_sources
 
         if self.is_cpp_enum:
             underlying_type_str = self.underlying_type.empty_declaration_code()
@@ -4599,31 +4590,60 @@ class EnumMixin:
             underlying_type_str = "int"
 
         if self.entry.type.scope is self.entry.scope:
-            items = tuple((item_name, item_name) for item_name in self.values)
+            # Enum defined in this module - use C-level enum value names
+            def get_c_value(entry):
+                return entry.cname
+            c_items = tuple(
+                (item_name, get_c_value(self.entry.type.scope.lookup_here(item_name)))
+                for item_name in self.values
+            )
         else:
             def get_value_code(entry):
                 if entry.enum_int_value is not None:
                     return str(entry.enum_int_value)
                 return entry.cname
-            items = tuple(
+            c_items = tuple(
                 (item_name, get_value_code(self.entry.type.scope.lookup_here(item_name)))
                 for item_name in self.values
             )
 
-        env.use_utility_code(CythonUtilityCode.load(
-            "EnumTypeToPy", "CpdefEnums.pyx",
-            context={"funcname": self.to_py_function,
+        if is_lto and not is_defining_module:
+            # LTO mode: enum is defined in another module being compiled together,
+            # just declare the function prototype so we can call it directly
+            enum_type_cname = self.empty_declaration_code()
+            proto = TempitaUtilityCode.load_cached(
+                "EnumToPyProto", "CpdefEnums.c",
+                context={
+                    "funcname": self.to_py_function,
+                    "enum_type": enum_type_cname,
+                })
+            env.use_utility_code(proto)
+        elif is_lto and is_defining_module:
+            # LTO mode: defining module generates non-static function
+            enum_type_cname = self.empty_declaration_code()
+            proto = TempitaUtilityCode.load_cached(
+                "EnumToPyLTO", "CpdefEnums.c",
+                context={
+                    "funcname": self.to_py_function,
+                    "enum_type": enum_type_cname,
+                    "module_name": enum_module_name,
                     "name": self.name,
-                    "items": items,
-                    "underlying_type": underlying_type_str,
-                    "module_name": module_name,
-                    "is_flag": not self.is_cpp_enum,
-                    "use_int_enum": use_int_enum,
-                    "static_modname": env.qualified_name,
-                    },
-            outer_module_scope=self.entry.scope,  # ensure that "name" is findable
-            compiler_directives = directives,
-        ))
+                    "items": c_items,
+                })
+            env.use_utility_code(proto)
+        else:
+            # Non-LTO mode: each module gets its own copy of the function (static)
+            enum_type_cname = self.empty_declaration_code()
+            proto = TempitaUtilityCode.load_cached(
+                "EnumToPyStatic", "CpdefEnums.c",
+                context={
+                    "funcname": self.to_py_function,
+                    "enum_type": enum_type_cname,
+                    "module_name": enum_module_name,
+                    "name": self.name,
+                    "items": c_items,
+                })
+            env.use_utility_code(proto)
 
 
 class CppScopedEnumType(CType, EnumMixin):
@@ -4864,8 +4884,6 @@ class CEnumType(CIntLike, CType, EnumMixin):
             outer_module_scope=env.global_scope()))
 
     def create_to_py_utility_code(self, env):
-        if self.to_py_function is not None:
-            return self.to_py_function
         if not self.entry.create_wrapper:
             return super().create_to_py_utility_code(env)
         self.create_enum_to_py_utility_code(env)

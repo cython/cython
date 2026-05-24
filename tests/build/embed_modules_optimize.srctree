@@ -239,14 +239,9 @@ print("DONE")
 
 ################# a.pyx ####################
 
-from enum import Enum
-from b import B, func_in_b
-from b cimport B, func_in_b
+from b import B, func_in_b, Color
+from b cimport B, func_in_b, Color
 from cython import ccall, cclass, int
-
-@cclass
-class Color(Enum):
-    RED = 1
 
 @ccall
 def func_in_a():
@@ -294,7 +289,12 @@ class A(B):
 
 ################# b.pyx ####################
 
+from enum import Enum
 from cython import cclass, ccall, int
+
+@cclass
+class Color(Enum):
+    RED = 1
 
 @ccall
 def func_in_b():
