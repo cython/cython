@@ -1886,6 +1886,20 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             node.pos, name=method_scope.arg_entries[0].name,
             entry=method_scope.arg_entries[0])
 
+        # For LTO (Link Together Optimization), call the C function directly
+        # if the property is defined in a module being compiled together
+        is_lto = self.current_directives.get('lto', False)
+        if is_lto and getter_entry.func_cname:
+            # Check if the property's module is in the compilation sources
+            compilation_sources = method_scope.global_scope().compilation_sources
+            if compilation_sources:
+                prop_module_scope = prop_entry.scope
+                while prop_module_scope and not prop_module_scope.is_module_scope:
+                    prop_module_scope = prop_module_scope.outer_scope
+                if prop_module_scope and prop_module_scope.qualified_name in compilation_sources:
+                    return ExprNodes.SimpleCallNode.for_cproperty_get(
+                        node.pos, self_arg, prop_entry)
+
         # For auto_cpdef properties (is_overridable=True), call the C function directly
         # instead of using the vtable, since the function is exported and can be called
         # directly from other modules in the same compilation.

@@ -4183,9 +4183,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         Auto_cpdef properties are imported via function pointers at module load time
         to avoid import order dependency and ensure cross-platform compatibility.
+
+        For LTO (Link Together Optimization), all auto_cpdef properties should be
+        called directly since all modules are linked together.
         """
         if not entry.scope or not entry.scope.is_property_scope:
             return False
+        # For LTO, check if the property's module is being compiled together
+        is_lto = self.directives.get('lto', False)
+        if is_lto and entry.is_overridable:
+            compilation_sources = self.scope.global_scope().compilation_sources
+            if compilation_sources:
+                prop_module_scope = entry.scope
+                while prop_module_scope and not prop_module_scope.is_module_scope:
+                    prop_module_scope = prop_module_scope.outer_scope
+                if prop_module_scope and prop_module_scope.qualified_name in compilation_sources:
+                    # Property is from a module being compiled together, call directly
+                    return True
         # Auto_cpdef properties that are imported (defined_in_pxd) should use
         # function pointers, not vtable access
         if entry.is_overridable and entry.defined_in_pxd:
@@ -4514,13 +4528,31 @@ def generate_cfunction_declaration(entry, env, code, definition):
 
         if entry.defined_in_pxd and entry.scope and entry.scope.is_property_scope:
             # Property getter/setter with cimport_from_pyx:
+            # For LTO, check if the property's module is being compiled together
+            is_lto = code.globalstate.directives.get('lto', False)
+            is_linked_module = False
+            if is_lto:
+                compilation_sources = code.globalstate.module_node.scope.global_scope().compilation_sources
+                if compilation_sources:
+                    prop_module_scope = entry.scope
+                    while prop_module_scope and not prop_module_scope.is_module_scope:
+                        prop_module_scope = prop_module_scope.outer_scope
+                    if prop_module_scope and prop_module_scope.qualified_name in compilation_sources:
+                        is_linked_module = True
+
             # For auto_cpdef properties (is_overridable=True), use function pointers
             # that are imported at module load time. This avoids import order dependency
             # and works on all platforms (including Windows).
             # For non-inline imported properties, use regular declaration but remove inline modifier.
             # For local properties, use regular declaration with original modifiers.
             is_inline_prop = entry.is_overridable
-            if is_inline_prop and not definition:
+            if is_linked_module:
+                # For LTO, export the function directly (not as function pointer)
+                # so consumer modules can call it directly for efficiency
+                storage_class = ""
+                dll_linkage = None
+                func_modifiers = entry.func_modifiers
+            elif is_inline_prop and not definition:
                 # For auto_cpdef properties in consumer modules, use function pointer
                 # that gets imported at module load time
                 storage_class = "static"

@@ -3048,9 +3048,23 @@ class CFuncDefNode(FuncDefNode):
             cname = self.entry.func_cname
         entity = type.function_header_code(cname, ', '.join(arg_decls))
         storage_class = ""
+        is_lto = code.globalstate.directives.get('lto', False)
+        # For LTO, check if this function's module is being compiled together with others
+        is_linked_module = False
+        if is_lto:
+            compilation_sources = code.globalstate.module_node.scope.global_scope().compilation_sources
+            if compilation_sources:
+                # Get this function's module name
+                func_module_scope = self.entry.scope
+                while func_module_scope and not func_module_scope.is_module_scope:
+                    func_module_scope = func_module_scope.outer_scope
+                if func_module_scope and func_module_scope.qualified_name in compilation_sources:
+                    is_linked_module = True
+
         if (self.entry.visibility == 'private' and '::' not in cname and
                 not self.entry.final_func_cname and
-                not (self.entry.defined_in_pxd or self.inline_in_pxd)):
+                not (self.entry.defined_in_pxd or self.inline_in_pxd) and
+                not is_linked_module):
             storage_class = "static "
 
         dll_linkage = None

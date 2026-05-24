@@ -198,6 +198,7 @@ _directive_defaults = {
     'embedsignature.format': 'c',
     'auto_cpdef': False,
     'auto_pickle': None,
+    'lto': False,  # Link Together Optimization - assumes modules are linked together
     'cdivision': False,  # was True before 0.12
     'cdivision_warnings': False,
     'cpow': None,  # was True before 3.0
@@ -350,6 +351,7 @@ DEFER_ANALYSIS_OF_ARGUMENTS = DEFER_ANALYSIS_OF_ARGUMENTS()
 directive_types = {
     'language_level': str,  # values can be None/2/3/'3str', where None == 2+warning
     'auto_pickle': bool,
+    'lto': bool,  # Link Together Optimization
     'locals': dict,
     'final' : bool,  # final cdef classes and methods
     'collection_type': one_of('sequence', 'mapping'),
@@ -393,6 +395,7 @@ for key, val in _directive_defaults.items():
 directive_scopes = {  # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'auto_pickle': ('module', 'cclass'),
+    'lto': ('module',),
     'final' : ('cclass', 'function'),
     'ccomplex' : ('module',),
     'collection_type': ('cclass',),
@@ -839,4 +842,5 @@ default_options = dict(
     legacy_implicit_noexcept=None,
     shared_c_file_path=None,
     shared_utility_qualified_name = None,
+    compilation_sources=None,  # List of module names being compiled together (for LTO)
 )

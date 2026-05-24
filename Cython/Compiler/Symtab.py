@@ -1429,6 +1429,8 @@ class ModuleScope(Scope):
         self.namespace_cname = self.module_cname
         self._cached_tuple_types = {}
         self._cached_defaults_c_class_entries = {}
+        # Get compilation_sources from context for LTO
+        self.compilation_sources = context.compilation_sources if context else None
         self.process_include(Code.IncludeCode("Python.h", initial=True))
 
     def qualifying_scope(self):

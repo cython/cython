@@ -1120,11 +1120,15 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     to_compile.sort()
     N = len(to_compile)
 
+    # Extract module names for LTO (Link Together Optimization)
+    # This tells the compiler which modules are being compiled together
+    module_names = [m.name for m in module_list]
+
     # Drop "priority" sorting component of "to_compile" entries
     # and add a simple progress indicator and the remaining arguments.
     build_progress_indicator = ("[{0:%d}/%d] " % (len(str(N)), N)).format
     to_compile = [
-        task[1:] + (build_progress_indicator(i), cache)
+        task[1:] + (build_progress_indicator(i), cache, module_names)
         for i, task in enumerate(to_compile, 1)
     ]
 
@@ -1215,7 +1219,7 @@ def cythonize_one(pyx_file, c_file,
                   fingerprint=None, quiet=False, options=None,
                   raise_on_failure=True, embedded_metadata=None,
                   full_module_name=None, show_all_warnings=False,
-                  progress="", cache=None):
+                  progress="", cache=None, module_names=None):
     from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
@@ -1228,6 +1232,8 @@ def cythonize_one(pyx_file, c_file,
         options = CompilationOptions(default_options)
     options.output_file = c_file
     options.embedded_metadata = embedded_metadata
+    if module_names:
+        options.compilation_sources = module_names
 
     old_warning_level = Errors.LEVEL
     if show_all_warnings:

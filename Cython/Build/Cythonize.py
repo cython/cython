@@ -33,23 +33,14 @@ def cython_compile(path_pattern, options):
 def _cython_compile_files(all_paths, options) -> dict:
     ext_modules_to_build = defaultdict(list)
 
-    for path in all_paths:
-        if options.build_inplace:
-            base_dir = path
-            while not os.path.isdir(base_dir) or is_package_dir(base_dir):
-                base_dir = os.path.dirname(base_dir)
-        else:
-            base_dir = None
+    # For LTO (Link Together Optimization), compile all files together
+    # in a single cythonize() call so the compiler knows about all modules
+    is_lto = options.directives.get('lto', False)
 
-        if os.path.isdir(path):
-            # recursively compiling a package
-            paths = [os.path.join(path, '**', '*.{py,pyx}')]
-        else:
-            # assume it's a file(-like thing)
-            paths = [path]
-
+    if is_lto:
+        all_paths_list = list(all_paths)
         ext_modules = cythonize(
-            paths,
+            all_paths_list,
             nthreads=options.parallel,
             exclude_failures=options.keep_going,
             exclude=options.excludes,
@@ -62,7 +53,43 @@ def _cython_compile_files(all_paths, options) -> dict:
             **options.options)
 
         if ext_modules and options.build:
+            base_dir = None
+            if options.build_inplace:
+                base_dir = all_paths_list[0]
+                while not os.path.isdir(base_dir) or is_package_dir(base_dir):
+                    base_dir = os.path.dirname(base_dir)
             ext_modules_to_build[base_dir].extend(ext_modules)
+    else:
+        for path in all_paths:
+            if options.build_inplace:
+                base_dir = path
+                while not os.path.isdir(base_dir) or is_package_dir(base_dir):
+                    base_dir = os.path.dirname(base_dir)
+            else:
+                base_dir = None
+
+            if os.path.isdir(path):
+                # recursively compiling a package
+                paths = [os.path.join(path, '**', '*.{py,pyx}')]
+            else:
+                # assume it's a file(-like thing)
+                paths = [path]
+
+            ext_modules = cythonize(
+                paths,
+                nthreads=options.parallel,
+                exclude_failures=options.keep_going,
+                exclude=options.excludes,
+                compiler_directives=options.directives,
+                compile_time_env=options.compile_time_env,
+                force=options.force,
+                quiet=options.quiet,
+                depfile=options.depfile,
+                language=options.language,
+                **options.options)
+
+            if ext_modules and options.build:
+                ext_modules_to_build[base_dir].extend(ext_modules)
 
     return dict(ext_modules_to_build)
 

@@ -81,6 +81,7 @@ class Context:
         self.pxds = {}  # full name -> node tree
         self.utility_pxds = {}  # pxd name -> node tree
         self._interned = {}  # (type(value), value, *key_args) -> interned_value
+        self.compilation_sources = options.compilation_sources if options else None  # For LTO
 
         if language_level is not None:
             self.set_language_level(language_level)
