@@ -201,8 +201,6 @@ os.environ.update(PATH=f".{sep}{PYLIB_DIR}{sep}{PATH}")
 
 result = run([os.path.abspath(sys.argv[1] + EXE_EXT)], capture_output=True)
 assert b"DONE" in result.stdout, result.stdout
-assert b"3" in result.stdout, result.stdout  # a.A().prop should return 3 (2 + 1)
-assert b"2" in result.stdout, result.stdout  # b.B().prop should return 2
 assert b"Hello from func_in_b()" in result.stdout, result.stdout
 
 
@@ -213,22 +211,25 @@ import b
 
 assert __name__ == '__main__'
 
+t: A = a.A()
+u: B = b.B()
+
 # Test class methods
-a.A().s()
-b.B().mtd()
+t.s()
+u.mtd()
 
 # Test properties
-prop_a = a.A().prop
-prop_b = b.B().prop
-a.A().color = a.Color.RED
-assert a.A().color == a.Color.RED
-assert a.A().prop_obj.prop == 2
+t.prop_cenum = b.Color.RED  # test setter
+t.prop_obj = b.B()  # test setter
+t.prop_tuple = (3, 4)  # test setter
+t.prop_bool = True  # test setter
+assert t.prop_cenum == b.Color.RED
+assert t.prop_obj.prop == 2
+assert t.prop_tuple == (1, 2)
+assert t.prop_bool is True
 
-print(f"a.A().prop = {prop_a}")
-print(f"b.B().prop = {prop_b}")
-
-assert prop_a == 3, f"Expected 3, got {prop_a}"
-assert prop_b == 2, f"Expected 2, got {prop_b}"
+assert t.prop == 3
+assert u.prop == 2
 
 # Test ccall functions
 a.func_in_a()
@@ -236,25 +237,33 @@ b.func_in_b()
 
 print("DONE")
 
-
 ################# a.pyx ####################
 
 from b import B, func_in_b, Color
 from b cimport B, func_in_b, Color
-from cython import ccall, cclass, int
+from cython import ccall, cclass, int, bint as bool
 
 @ccall
 def func_in_a():
-    A().color = Color.RED
-    assert A().color == Color.RED
-    assert A().prop_obj.prop == 2
-    assert A().prop_tuple == (1, 2)
-    A().prop_obj = B()  # test setter
-    A().prop_tuple = (3, 4)  # test setter
+    t: A = A()
+    t.prop_cenum = Color.RED  # test setter
+    t.prop_obj = B()  # test setter
+    t.prop_tuple = (3, 4)  # test setter
+    t.prop_bool = True  # test setter
+    assert t.prop_cenum == Color.RED
+    assert t.prop_obj.prop == 2
+    assert t.prop_tuple == (1, 2)
+    assert t.prop_bool is True
     func_in_b()
 
 @cclass
 class A(B):
+
+    _prop_bool: bool
+
+    def __init__(self) -> None:
+        self._prop_bool = False
+
     @ccall
     def s(self):
         super().mtd()
@@ -264,11 +273,19 @@ class A(B):
         return super().prop + 1
 
     @property
-    def color(self) -> Color:
+    def prop_bool(self) -> bool:
+        return self._prop_bool
+
+    @prop_bool.setter
+    def prop_bool(self, v: bool) -> bool:
+        self._prop_bool = v
+
+    @property
+    def prop_cenum(self) -> Color:
         return Color.RED
 
-    @color.setter
-    def color(self, Color val) -> None:
+    @prop_cenum.setter
+    def prop_cenum(self, Color val) -> None:
         pass  # no-op for testing
 
     @property
