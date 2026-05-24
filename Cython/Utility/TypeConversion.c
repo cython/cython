@@ -887,9 +887,8 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 #else
         // call int.from_bytes()
         int one = 1; int little = (int)*(unsigned char *)&one;
-        PyObject *from_bytes, *result = NULL, *kwds = NULL;
+        PyObject *result = NULL, *kwds = NULL;
         PyObject *py_bytes = NULL, *order_str = NULL, *from_bytes_str = NULL;;
-        if (!from_bytes) return NULL;
         py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof({{TYPE}}));
         if (!py_bytes) goto limited_bad;
         // I'm deliberately not using PYIDENT here because this code path is very unlikely
