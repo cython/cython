@@ -220,6 +220,8 @@ b.B().mtd()
 # Test properties
 prop_a = a.A().prop
 prop_b = b.B().prop
+a.A().color = a.Color.RED
+assert a.A().color == a.Color.RED
 
 print(f"a.A().prop = {prop_a}")
 print(f"b.B().prop = {prop_b}")
@@ -236,12 +238,19 @@ print("DONE")
 
 ################# a.pyx ####################
 
+from enum import Enum
 from b import B, func_in_b
 from b cimport B, func_in_b
 from cython import ccall, cclass, int
 
+@cclass
+class Color(Enum):
+    RED = 1
+
 @ccall
 def func_in_a():
+    A().color = Color.RED
+    assert A().color == Color.RED
     func_in_b()
 
 @cclass
@@ -254,6 +263,13 @@ class A(B):
     def prop(self) -> int:
         return super().prop + 1
 
+    @property
+    def color(self) -> Color:
+        return Color.RED
+
+    @color.setter
+    def color(self, Color val):
+        pass  # no-op for testing
 
 ################# b.pyx ####################
 

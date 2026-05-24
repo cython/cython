@@ -136,6 +136,9 @@ def inject_utility_code_stage_factory(context, internalise_c_class_entries=True)
                     if dep not in added:
                         utility_code_list.append(dep)
             if tree := utilcode.get_tree(cython_scope=context.cython_scope):
+                # Mark utility code function entries so they get declarations generated
+                for entry in tree.scope.cfunc_entries:
+                    entry.utility_code_definition = utilcode
                 module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, stage="utility")
                 module_node.merge_scope(tree.scope, internalise_c_class_entries=internalise_c_class_entries)

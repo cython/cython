@@ -304,6 +304,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if (entry.create_wrapper and entry.scope is env
                     and entry.is_type and (entry.type.is_enum or entry.type.is_cpp_enum)):
                 entry.type.create_type_wrapper(env)
+                # Also create the C-to-Python conversion utility code for enums
+                # This must happen before the utility code injection stage
+                if hasattr(entry.type, 'create_to_py_utility_code'):
+                    entry.type.create_to_py_utility_code(env)
 
     def process_implementation(self, options, result):
         env = self.scope
@@ -1574,7 +1578,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if (entry.used
                     or entry.visibility == 'public'
                     or entry.api
-                    or from_pyx):
+                    or from_pyx
+                    or entry.utility_code_definition):
                 generate_cfunction_declaration(entry, env, code, definition)
 
     def generate_variable_definitions(self, env, code):
@@ -2850,7 +2855,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         return_type = getattr(getattr(get_entry, 'type', None), 'return_type', None)
         if return_type and not return_type.is_pyobject and not return_type.is_void:
-            return_type.create_to_py_utility_code(property_scope)
+            return_type.create_to_py_utility_code(property_scope.global_scope())
             tmpvar = "__pyx_tmp_r"
             code.putln("    %s;" % return_type.declaration_code(tmpvar))
             code.putln("    %s = %s;" % (tmpvar, call_code))
@@ -2896,8 +2901,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     value_arg = set_type.args[1]
                     if not value_arg.type.is_pyobject:
                         # Generate conversion code: extract C value from PyObject*
-                        code.putln("    int __pyx_v_converted_value;")
-                        code.putln("    if ((__pyx_v_converted_value = PyLong_AsLong(v)) == -1 && PyErr_Occurred()) return -1;")
+                        value_type_cname = value_arg.type.empty_declaration_code()
+                        code.putln("    %s __pyx_v_converted_value;" % value_type_cname)
+                        code.putln("    if ((__pyx_v_converted_value = (%s)PyLong_AsLong(v)) == -1 && PyErr_Occurred()) return -1;" % value_type_cname)
                         code.putln("    %s((%s)o, __pyx_v_converted_value);" % (set_entry.func_cname, parent_type_cname))
                     else:
                         code.putln("    %s((%s)o, v);" % (set_entry.func_cname, parent_type_cname))
@@ -4509,7 +4515,7 @@ class ModuleImportGenerator:
 
 
 def generate_cfunction_declaration(entry, env, code, definition):
-    from_cy_utility = entry.used and entry.utility_code_definition
+    from_cy_utility = entry.utility_code_definition is not None
     if entry.used and entry.inline_func_in_pxd or (not entry.in_cinclude and (
             definition or entry.defined_in_pxd or entry.visibility == 'extern' or from_cy_utility)):
         if entry.visibility == 'extern':
@@ -4560,10 +4566,12 @@ def generate_cfunction_declaration(entry, env, code, definition):
                 type = CPtrType(type)
                 func_modifiers = [m for m in entry.func_modifiers if m != 'inline']
             elif is_inline_prop and definition:
-                # For auto_cpdef properties in defining module, don't generate
-                # a separate function pointer declaration - the function itself
-                # is being defined and will be exported
-                return
+                # For auto_cpdef properties in defining module, generate a regular
+                # declaration (not function pointer) so the function can be called
+                # from other functions in the same module before its definition
+                storage_class = "static"
+                dll_linkage = None
+                func_modifiers = [m for m in entry.func_modifiers if m != 'inline']
             elif not definition:
                 # Non-inline imported properties: remove inline modifier so function is exported
                 func_modifiers = [m for m in entry.func_modifiers if m != 'inline']
