@@ -301,8 +301,8 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
         if (unlikely(__Pyx_VectorcallBuilder_AddArg(PYIDENT("interpolations"), interpolations, kwargs_builder, args, 1)<0))
             goto failed_shortcut;
         result = __Pyx_Object_Vectorcall_CallFromBuilder(tp, args, 0, kwargs_builder);
-        Py_DECREF(kwargs_builder);
         if (result) {
+            Py_DECREF(kwargs_builder);
             Py_DECREF(tp);
             return result;
         }
