@@ -2680,7 +2680,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # None in that case.
         user_get_entry = scope.lookup_here("__get__")
 
-        # For auto_cpdef properties, each property has its own getter function
+        # For cpdef properties, each property has its own getter function
         # in the PyGetSetDef table. The tp_descr_get slot is not needed and
         # would be incorrect because it can't handle multiple properties with
         # different return types. Skip generating it if all properties are overridable.
@@ -2701,7 +2701,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "if (!c) c = Py_None;")
         #code.put_incref("i", py_object_type)
         #code.put_incref("c", py_object_type)
-        # For property accessor wrappers (auto_cpdef), the entry has the property
+        # For property accessor wrappers (cpdef), the entry has the property
         # accessor signature (1 arg) instead of descrgetfunc signature (3 args).
         # Generate the call with the correct number of arguments.
         sig = getattr(user_get_entry, 'signature', None)
@@ -2715,7 +2715,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 call_code = "%s(o)" % (user_get_entry.func_cname)
 
-            # For auto_cpdef properties, user_get_entry is the Python wrapper entry
+            # For cpdef properties, user_get_entry is the Python wrapper entry
             # but its func_cname points to the C function. Get the C return type
             # from the property scope's __get__ entry if available.
             c_return_type = None
@@ -2759,7 +2759,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "if (v) {")
         if user_set_entry:
-            # For property accessor wrappers (auto_cpdef), the entry has the property
+            # For property accessor wrappers (cpdef), the entry has the property
             # accessor signature (2 args: self, value) instead of descrsetfunc signature (3 args).
             sig = getattr(user_set_entry, 'signature', None)
             ext_type = scope.parent_type
@@ -2791,7 +2791,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "else {")
         if user_del_entry:
-            # For property accessor wrappers (auto_cpdef), the entry has the property
+            # For property accessor wrappers (cpdef), the entry has the property
             # accessor signature (1 arg: self) instead of descdelfunc signature (2 args).
             sig = getattr(user_del_entry, 'signature', None)
             ext_type = scope.parent_type
@@ -2845,11 +2845,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not get_entry:
             return
 
-        # Check if this is an overridable property (auto_cpdef enabled)
+        # Check if this is an overridable property (cpdef enabled)
         # Cast o to the correct type for C++ compatibility
         is_overridable = property_scope.is_overridable
         ext_type = property_scope.parent_type
-        # For auto_cpdef properties, cast to struct type, not PyTypeObject*
+        # For cpdef properties, cast to struct type, not PyTypeObject*
         if is_overridable and ext_type.objstruct_cname:
             parent_type_cname = "struct %s *" % ext_type.objstruct_cname
         else:
@@ -2890,11 +2890,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not set_entry:
             return
 
-        # Check if this is an overridable property (auto_cpdef enabled)
+        # Check if this is an overridable property (cpdef enabled)
         # Cast o and v to the correct types for C++ compatibility
         is_overridable = property_scope.is_overridable
         ext_type = property_scope.parent_type
-        # For auto_cpdef properties, cast to struct type, not PyTypeObject*
+        # For cpdef properties, cast to struct type, not PyTypeObject*
         if is_overridable and ext_type.objstruct_cname:
             parent_type_cname = "struct %s *" % ext_type.objstruct_cname
         else:
@@ -2915,7 +2915,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # If so, we need to convert the Python object to a C value
                 if len(set_type.args) >= 2:
                     value_arg = set_type.args[1]
-                    if not value_arg.type.is_pyobject:
+                    if value_arg.type.is_extension_type:
+                        # Extension types: cast PyObject* to struct pointer
+                        value_type_cname = value_arg.type.empty_declaration_code()
+                        code.putln("    %s((%s)o, (%s)v);" % (set_entry.func_cname, parent_type_cname, value_type_cname))
+                    elif not value_arg.type.is_pyobject:
                         # Generate conversion code: extract C value from PyObject*
                         value_type_cname = value_arg.type.empty_declaration_code()
                         code.putln("    %s __pyx_v_converted_value;" % value_type_cname)
@@ -2989,14 +2993,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("};")
 
         code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
-        # Check if we should skip tp_descr_get/tp_descr_set for auto_cpdef properties
+        # Check if we should skip tp_descr_get/tp_descr_set for cpdef properties
         all_props_overridable = scope.property_entries and all(
             getattr(prop_entry.scope, 'is_overridable', False)
             for prop_entry in scope.property_entries
             if getattr(prop_entry, 'scope', None)
         )
         for slot in TypeSlots.get_slot_table(code.globalstate.directives):
-            # Skip tp_descr_get/tp_descr_set for auto_cpdef properties
+            # Skip tp_descr_get/tp_descr_set for cpdef properties
             # since they're handled by PyGetSetDef instead
             if all_props_overridable and slot.slot_name in ('tp_descr_get', 'tp_descr_set'):
                 continue
@@ -3042,14 +3046,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "sizeof(%s), /*tp_basicsize*/" % objstruct)
         code.putln(
             "0, /*tp_itemsize*/")
-        # Check if we should skip tp_descr_get/tp_descr_set for auto_cpdef properties
+        # Check if we should skip tp_descr_get/tp_descr_set for cpdef properties
         all_props_overridable = scope.property_entries and all(
             getattr(prop_entry.scope, 'is_overridable', False)
             for prop_entry in scope.property_entries
             if getattr(prop_entry, 'scope', None)
         )
         for slot in TypeSlots.get_slot_table(code.globalstate.directives):
-            # Skip tp_descr_get/tp_descr_set for auto_cpdef properties
+            # Skip tp_descr_get/tp_descr_set for cpdef properties
             # since they're handled by PyGetSetDef instead
             if all_props_overridable and slot.slot_name in ('tp_descr_get', 'tp_descr_set'):
                 code.putln("0, /*%s*/" % slot.slot_name)
@@ -4187,7 +4191,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_c_function_import_code_for_module(self, module, env, code):
         """Generate import code for all exported C functions in a cimported module.
 
-        Inline property getter/setter entries (auto_cpdef or marked inline) are
+        Inline property getter/setter entries (cpdef or marked inline) are
         excluded because they are accessed via the vtable mechanism which handles
         cross-module calls correctly. Regular properties are still imported.
         """
@@ -4221,13 +4225,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         An entry is considered inline if:
         - It's a property getter/setter (scope is property scope)
-        - AND it has is_overridable=True (auto_cpdef enabled)
+        - AND it has is_overridable=True (cpdef enabled)
         - AND it's not being imported (defined_in_pxd means it's from a cimport)
 
         Auto_cpdef properties are imported via function pointers at module load time
         to avoid import order dependency and ensure cross-platform compatibility.
 
-        For LTO (Link Together Optimization), all auto_cpdef properties should be
+        For LTO (Link Together Optimization), all cpdef properties should be
         called directly since all modules are linked together.
         """
         if not entry.scope or not entry.scope.is_property_scope:
@@ -4583,7 +4587,7 @@ def generate_cfunction_declaration(entry, env, code, definition):
                     if prop_module_scope and prop_module_scope.qualified_name in compilation_sources:
                         is_linked_module = True
 
-            # For auto_cpdef properties (is_overridable=True), use function pointers
+            # For cpdef properties (is_overridable=True), use function pointers
             # that are imported at module load time. This avoids import order dependency
             # and works on all platforms (including Windows).
             # For non-inline imported properties, use regular declaration but remove inline modifier.
@@ -4596,14 +4600,14 @@ def generate_cfunction_declaration(entry, env, code, definition):
                 dll_linkage = None
                 func_modifiers = entry.func_modifiers
             elif is_inline_prop and not definition:
-                # For auto_cpdef properties in consumer modules, use function pointer
+                # For cpdef properties in consumer modules, use function pointer
                 # that gets imported at module load time
                 storage_class = "static"
                 dll_linkage = None
                 type = CPtrType(type)
                 func_modifiers = [m for m in entry.func_modifiers if m != 'inline']
             elif is_inline_prop and definition:
-                # For auto_cpdef properties in defining module, generate a regular
+                # For cpdef properties in defining module, generate a regular
                 # declaration (not function pointer) so the function can be called
                 # from other functions in the same module before its definition
                 storage_class = "static"

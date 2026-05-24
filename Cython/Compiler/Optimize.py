@@ -1900,11 +1900,11 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                     return ExprNodes.SimpleCallNode.for_cproperty_get(
                         node.pos, self_arg, prop_entry)
 
-        # For auto_cpdef properties (is_overridable=True), call the C function directly
+        # For cpdef properties (is_overridable=True), call the C function directly
         # instead of using the vtable, since the function is exported and can be called
         # directly from other modules in the same compilation.
-        is_auto_cpdef_property = getattr(getter_entry, 'is_overridable', False)
-        if is_auto_cpdef_property and getter_entry.func_cname:
+        is_cpdef_property = getattr(getter_entry, 'is_overridable', False)
+        if is_cpdef_property and getter_entry.func_cname:
             return ExprNodes.SimpleCallNode.for_cproperty_get(
                 node.pos, self_arg, prop_entry)
 

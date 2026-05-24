@@ -253,6 +253,7 @@ def func_in_a():
     A().color = Color.RED
     assert A().color == Color.RED
     assert A().prop_obj.prop == 2
+    A().prop_obj = B()  # test setter
     func_in_b()
 
 @cclass
@@ -276,6 +277,10 @@ class A(B):
     @property
     def prop_obj(self) -> B:
         return B()
+
+    @prop_obj.setter
+    def prop_obj(self, val: B) -> None:
+        pass  # no-op for testing
 
 ################# b.pyx ####################
 

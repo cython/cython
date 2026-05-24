@@ -3072,7 +3072,7 @@ class CFuncDefNode(FuncDefNode):
         if self.entry.defined_in_pxd or self.inline_in_pxd:
             if self.entry.scope and self.entry.scope.is_property_scope:
                 # Property getter/setter with cimport_from_pyx:
-                # For auto_cpdef properties (is_overridable=True), export the function directly
+                # For cpdef properties (is_overridable=True), export the function directly
                 # so consumer modules can call it without going through the vtable.
                 # Remove inline modifier to ensure the function is exported as a global symbol.
                 # For non-inline properties, remove inline modifier so function is exported.
@@ -6201,7 +6201,7 @@ class PropertyNode(StatNode):
     def analyse_declarations(self, env):
         self.entry = env.declare_property(self.name, self.doc, self.pos)
         # Mark property scope as overridable if getter/setter has overridable=True
-        # or if it was converted via auto_cpdef (has 'inline' modifier)
+        # or if it was converted via cpdef (has 'inline' modifier)
         has_inline_getter = False
         for stat in self.body.stats:
             if isinstance(stat, CFuncDefNode):
@@ -6231,7 +6231,7 @@ class PropertyNode(StatNode):
     def declare_cpdef_wrapper(self, env):
         """Create Python wrapper DefNodes for overridable properties.
 
-        When auto_cpdef is enabled for a property, the getter/setter DefNodes
+        When cpdef is enabled for a property, the getter/setter DefNodes
         are converted to CFuncDefNode. This method creates the Python wrapper
         DefNodes that call the C functions directly, enabling override checking
         for Python subclasses.
@@ -6281,7 +6281,7 @@ class PropertyNode(StatNode):
             accessor_sig = get_property_accessor_signature(py_func.entry.name)
             if accessor_sig:
                 py_func.entry.signature = accessor_sig
-            # For auto_cpdef properties, set the wrapper's func_cname to the C function's
+            # For cpdef properties, set the wrapper's func_cname to the C function's
             # func_cname so that code generation uses the C function directly
             py_func.entry.func_cname = getter.entry.func_cname
 

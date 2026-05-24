@@ -3017,7 +3017,7 @@ class PropertyScope(Scope):
     #  a property of an extension type.
     #
     #  parent_type   PyExtensionType   The type to which the property belongs
-    #  is_overridable  boolean         Set when auto_cpdef is enabled for this property
+    #  is_overridable  boolean         Set when cpdef is enabled for this property
 
     is_property_scope = 1
     is_overridable = False
@@ -3031,7 +3031,7 @@ class PropertyScope(Scope):
 
     def handle_already_declared_name(self, name, cname, type, pos, visibility, copy_entry=False):
         # Allow redeclarations of property accessor methods (__get__, __set__, __del__).
-        # This is needed because when auto_cpdef converts a DefNode property to CFuncDefNode,
+        # This is needed because when cpdef converts a DefNode property to CFuncDefNode,
         # the entry may already exist from the original declaration.
         if name in ('__get__', '__set__', '__del__'):
             return self.entries[name]
