@@ -881,12 +881,10 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
             return PyLong_FromNativeBytes(bytes, sizeof(value), -1);
         }
 #elif !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030d0000
-        int one = 1; int little = (int)*(unsigned char *)&one;
         return _PyLong_FromByteArray(bytes, sizeof({{TYPE}}),
-                                     little, !is_unsigned);
+                                     PY_LITTLE_ENDIAN, !is_unsigned);
 #else
         // call int.from_bytes()
-        int one = 1; int little = (int)*(unsigned char *)&one;
         PyObject *result = NULL, *kwds = NULL;
         PyObject *py_bytes = NULL, *order_str = NULL, *from_bytes_str = NULL;;
         py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof({{TYPE}}));
@@ -895,7 +893,11 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
         // to ever run so it seems a pessimization mostly.
         from_bytes_str = PyUnicode_FromStringAndSize("from_bytes", 10);
         if (!from_bytes_str) goto limited_bad;
-        order_str = PyUnicode_FromString(little ? "little" : "big");
+#if PY_LITTLE_ENDIAN
+        order_str = PyUnicode_FromStringAndSize("little", 6);
+#else
+        order_str = PyUnicode_FromStringAndSize("big", 3);
+#endif
         if (!order_str) goto limited_bad;
         {
             PyObject *args[] = { (PyObject*)&PyLong_Type, py_bytes, order_str, Py_True };
