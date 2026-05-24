@@ -222,6 +222,7 @@ prop_a = a.A().prop
 prop_b = b.B().prop
 a.A().color = a.Color.RED
 assert a.A().color == a.Color.RED
+assert a.A().prop_obj.prop == 2
 
 print(f"a.A().prop = {prop_a}")
 print(f"b.B().prop = {prop_b}")
@@ -251,6 +252,7 @@ class Color(Enum):
 def func_in_a():
     A().color = Color.RED
     assert A().color == Color.RED
+    assert A().prop_obj.prop == 2
     func_in_b()
 
 @cclass
@@ -268,8 +270,12 @@ class A(B):
         return Color.RED
 
     @color.setter
-    def color(self, Color val):
+    def color(self, Color val) -> None:
         pass  # no-op for testing
+
+    @property
+    def prop_obj(self) -> B:
+        return B()
 
 ################# b.pyx ####################
 
@@ -290,5 +296,5 @@ class B:
         return 2
 
     @prop.setter
-    def prop(self, int val):
+    def prop(self, int val) -> None:
         pass  # no-op for testing
