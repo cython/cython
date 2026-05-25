@@ -338,7 +338,7 @@ jobs:
           matrix.python-version == '3.9', '3.11 3.12 3.13 3.14 ',
           matrix.python-version == '3.11', '3.12 3.13 3.14',
           matrix.python-version == '3.12', '3.13 3.14',
-          matrix.python-version == '3.13', '3.14'
+          matrix.python-version == '3.13', '3.14',
           '') }}
 
 
