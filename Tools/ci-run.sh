@@ -77,11 +77,11 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ $PYTHON_VERSION == "3.1"[2-9]* || $PYTHON_VERSION == *"-dev" || $PYTHON_VERSION == "pypy-3.11" || $PYTHON_VERSION == "graalpy"* ]]; then
-  python -m pip install --no-cache-dir -U pip wheel setuptools || exit 1
-else
+if [[ $PYTHON_VERSION == *"3.9"* || $PYTHON_VERSION == "3.1"[01]* || $PYTHON_VERSION == "pypy-3.10"* ]]; then
   # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.10.
   python -m pip install --no-cache-dir -U pip "setuptools<60" "wheel<0.46" "twine" "cryptography<42" "nh3<0.2.19" || exit 1
+else
+  python -m pip install --no-cache-dir -U pip wheel setuptools || exit 1
 fi
 if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" && $PYTHON_VERSION != "graalpy"* ]]; then
   # twine is not installable on freethreaded Python due to cryptography requirement
