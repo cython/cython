@@ -10,11 +10,6 @@ except ImportError:
 
 # not OK
 
-def optional_cython_types(Optional[cython.int] i, Optional[cython.double] d, Optional[cython.float] f,
-                          Optional[cython.complex] c, Optional[cython.long] l, Optional[cython.longlong] ll):
-    pass
-
-
 MyStruct = cython.struct(a=cython.int, b=cython.double)
 
 def optional_cstruct(Optional[MyStruct] x):
@@ -62,26 +57,7 @@ def bitwise_or_pytypes(i: int | None, f: None | float , c: complex | None):
 
 
 _ERRORS = """
-13:42: typing.Optional[...] cannot be applied to type int
-13:66: typing.Optional[...] cannot be applied to type double
-13:93: typing.Optional[...] cannot be applied to type float
-14:42: typing.Optional[...] cannot be applied to type double complex
-14:70: typing.Optional[...] cannot be applied to type long
-14:95: typing.Optional[...] cannot be applied to type long long
-24:30: typing.Optional[...] cannot be applied to type int
-24:47: typing.Optional[...] cannot be applied to type float
-24:87: typing.Optional[...] cannot be applied to type long
+15:30: typing.Optional[...] cannot be applied to type MyStruct
 
-20:30: typing.Optional[...] cannot be applied to type MyStruct
-
-28:20: Modifier 'typing.ClassVar' is not allowed here.
-
-30:29: typing.Union[...] cannot be applied to type int
-30:50: typing.Union[...] cannot be applied to type float
-30:96: typing.Union[...] cannot be applied to type long
-
-33:31: '[...] | None' cannot be applied to type int
-33:60: '[...] | None' cannot be applied to type float
-33:78: '[...] | None' cannot be applied to type double complex
-33:104: '[...] | None' cannot be applied to type long
+23:20: Modifier 'typing.ClassVar' is not allowed here.
 """

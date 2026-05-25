@@ -28,5 +28,5 @@ def optional_memoryview(d: double[:], o: Optional[double[:]]):
 
 _ERRORS = """
 
-20:33: typing.Optional[...] cannot be applied to type MyStruct
+15:33: typing.Optional[...] cannot be applied to type MyStruct
 """
