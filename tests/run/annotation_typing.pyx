@@ -537,6 +537,78 @@ def def_none_as_type(a: None) -> None:
     """
     return c_none_as_type(a)
 
+# Boxed c value types
+
+@cython.ccall
+def use_nullable_c_float(a: Optional[cython.float]): return a is None
+@cython.ccall
+def use_nullable_c_bool(a: Optional[cython.bint]): return a is None
+@cython.ccall
+def use_nullable_c_int(a: Optional[cython.int]): return a is None
+@cython.ccall
+def use_nullable_c_long(a: Optional[cython.long]): return a is None
+@cython.ccall
+def use_nullable_c_longlong(a: Optional[cython.longlong]): return a is None
+@cython.ccall
+def use_nullable_c_tuple(a: Optional[tuple[cython.int, cython.bint]]): return a is None
+
+cpdef test_boxed_values():
+    """
+    >>> test_boxed_values()
+    """
+    assert not use_nullable_c_float(0.0)
+    assert not use_nullable_c_float(0.1)
+    assert use_nullable_c_float(None)
+
+    assert not use_nullable_c_bool(True)
+    assert not use_nullable_c_bool(False)
+    assert use_nullable_c_bool(None)
+
+    assert not use_nullable_c_int(0)
+    assert not use_nullable_c_int(1)
+    assert not use_nullable_c_int(-100)
+    assert use_nullable_c_int(None)
+
+    assert not use_nullable_c_long(0)
+    assert not use_nullable_c_long(1)
+    assert not use_nullable_c_long(-100)
+    assert use_nullable_c_long(None)
+
+    assert not use_nullable_c_longlong(0)
+    assert not use_nullable_c_longlong(1)
+    assert not use_nullable_c_longlong(-100)
+    assert use_nullable_c_longlong(None)
+
+    assert not use_nullable_c_tuple((1, False))
+    assert not use_nullable_c_tuple((0, 0))
+    assert use_nullable_c_tuple(None)
+
+    # test boxed values as variables
+    cdef Optional[cython.int] maybe_int = 1
+    assert maybe_int == 1
+    maybe_int = None
+    assert maybe_int is None
+
+    cdef Optional[cython.float] maybe_float = 0.1
+    assert maybe_float == 0.1
+    maybe_float = None
+    assert maybe_float is None
+
+    cdef Optional[cython.bint] maybe_bool = True
+    assert maybe_bool is True
+    maybe_bool = None
+    assert maybe_bool is None
+
+cdef class ClassWithBoxedValues:
+    cdef Optional[cython.long] b_long
+    cdef Optional[cython.float] b_float
+    cdef Optional[cython.bint] b_bint
+
+    cpdef fn(self):
+        self.b_long = 1
+        self.b_float = 1.0
+        self.b_int = True
+
 _WARNINGS = """
 15:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 15:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -579,4 +651,12 @@ _WARNINGS = """
 272:0: 'exception_default_uint' redeclared
 502:0: 'unknown_pyclass' redeclared
 510:0: 'none_as_type' redeclared
+542:0: 'use_nullable_c_float' redeclared
+544:0: 'use_nullable_c_bool' redeclared
+546:0: 'use_nullable_c_int' redeclared
+548:0: 'use_nullable_c_long' redeclared
+550:0: 'use_nullable_c_longlong' redeclared
+552:0: 'use_nullable_c_tuple' redeclared
+555:0: 'test_boxed_values' redeclared
+607:4: 'fn' redeclared
 """

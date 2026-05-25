@@ -834,6 +834,10 @@ class Scope:
                 cname = self.mangle(Naming.var_prefix, name)
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
+        if pytyping_modifiers and "typing.Optional" in pytyping_modifiers and not type.can_be_optional():
+            boxed_type = PyrexTypes.optional_boxed_type(type)
+            if boxed_type is not None:
+                type = entry.type = boxed_type
         if type.is_cpp_class and visibility != 'extern':
             if self.directives['cpp_locals']:
                 entry.make_cpp_optional()
@@ -2534,11 +2538,12 @@ class CClassScope(ClassScope):
             if "typing.ClassVar" in pytyping_modifiers:
                 is_cdef = 0
                 if not type.is_pyobject:
-                    if not type.equivalent_type:
+                    boxed_type = PyrexTypes.optional_boxed_type(type)
+                    if not boxed_type:
                         warning(pos, "ClassVar[] requires the type to be a Python object type. Found '%s', using object instead." % type)
                         type = py_object_type
                     else:
-                        type = type.equivalent_type
+                        type = boxed_type
             if  "dataclasses.InitVar" in pytyping_modifiers and not self.is_c_dataclass_scope:
                 error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
 

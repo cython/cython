@@ -407,6 +407,10 @@ class PyrexType(BaseType):
         """Returns True if type can be used with typing.Optional[]."""
         return False
 
+    def boxed_type(self):
+        """Return the Python type used when this value type is boxed, or None."""
+        return None
+
     def struct_nesting_depth(self):
         # Returns the number levels of nested structs. This is
         # used for constructing a stack for walking the run-time
@@ -474,6 +478,16 @@ class PyrexType(BaseType):
 
     def needs_explicit_destruction(self, scope):
         return False
+
+
+def optional_boxed_type(tp):
+    tp = tp.resolve()
+    if tp.can_be_optional():
+        return tp
+    boxed = tp.boxed_type()
+    if boxed is not None:
+        return boxed.resolve()
+    return None
 
 
 def public_decl(base_code, dll_linkage):
@@ -707,6 +721,9 @@ class CTypedefType(BaseType):
 
     def can_coerce_from_pyobject(self, env):
         return self.typedef_base_type.can_coerce_from_pyobject(env)
+
+    def boxed_type(self):
+        return self.typedef_base_type.boxed_type()
 
     def can_coerce_to_pystring(self, env, format_spec=None):
         return self.typedef_base_type.can_coerce_to_pystring(env, format_spec)
@@ -1360,6 +1377,9 @@ class PyObjectType(PyrexType):
         """Returns True if type can be used with typing.Optional[]."""
         return True
 
+    def boxed_type(self):
+        return self
+
     def default_coerced_ctype(self):
         """The default C type that this Python type coerces to, or None."""
         return None
@@ -2002,6 +2022,9 @@ class CQualifierType(BaseType):
     def can_coerce_from_pyobject(self, env):
         return self.cv_base_type.can_coerce_from_pyobject(env)
 
+    def boxed_type(self):
+        return self.cv_base_type.boxed_type()
+
     def create_to_py_utility_code(self, env):
         if self.cv_base_type.create_to_py_utility_code(env):
             self.to_py_function = self.cv_base_type.to_py_function
@@ -2230,6 +2253,10 @@ class CIntLike:
     def can_coerce_from_pyobject(self, env):
         return True
 
+    def boxed_type(self):
+        from . import Builtin
+        return Builtin.int_type
+
     def create_to_py_utility_code(self, env):
         if type(self).to_py_function is None:
             self.to_py_function = "__Pyx_PyLong_From_" + self.specialization_name()
@@ -2323,6 +2350,10 @@ class CIntType(CIntLike, CNumericType):
 
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
+
+    def boxed_type(self):
+        from . import Builtin
+        return Builtin.int_type
 
     def overflow_check_binop(self, binop, env, const_rhs=False):
         env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
@@ -2450,6 +2481,10 @@ class CBIntType(CIntType):
     def py_type_name(self):
         return "bool"
 
+    def boxed_type(self):
+        from . import Builtin
+        return Builtin.bool_type
+
 
 class CPyUCS4IntType(CIntType):
     # Py_UCS4
@@ -2553,6 +2588,10 @@ class CFloatType(CNumericType):
 
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
+
+    def boxed_type(self):
+        from . import Builtin
+        return Builtin.float_type
 
 
 class CComplexType(CNumericType):
@@ -2662,6 +2701,10 @@ class CComplexType(CNumericType):
                     cname="__Pyx_c_conj%s" % self.funcsuffix)
 
         return True
+
+    def boxed_type(self):
+        from . import Builtin
+        return Builtin.complex_type
 
     def _utility_code_context(self):
         return {
@@ -4662,6 +4705,10 @@ class CppScopedEnumType(CType, EnumMixin):
 
         env.use_utility_code(rst)
 
+    def boxed_type(self):
+        from . import Builtin
+        return Builtin.int_type
+
 
 class TemplatePlaceholderType(CType):
 
@@ -4784,6 +4831,10 @@ class CEnumType(CIntLike, CType, EnumMixin):
         self.create_enum_to_py_utility_code(env)
         return True
 
+    def boxed_type(self):
+        from . import Builtin
+        return Builtin.int_type
+
 
 class CTupleType(CType):
     # components [PyrexType]
@@ -4883,6 +4934,10 @@ class CTupleType(CType):
         components = [c.specialize(values) for c in self.components]
         new_entry = self.entry.scope.declare_tuple_type(self.entry.pos, components)
         return new_entry.type
+
+    def boxed_type(self):
+        from . import Builtin
+        return Builtin.tuple_type
 
 
 def c_tuple_type(components):
