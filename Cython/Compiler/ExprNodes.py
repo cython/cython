@@ -12800,13 +12800,12 @@ class BitwiseOrNode(IntBinopNode):
             ttype = operand_node.analyse_as_type(env)
         if not ttype:
             return None
-        if not ttype.can_be_optional():
-            # If ttype cannot be optional we need to return an equivalent Python type allowing None.
-            # If it cannot be mapped to a Python type, we must error out.
-            if ttype.equivalent_type and not operand_node.as_cython_attribute():
-                return ttype.equivalent_type
-            else:
-                error(operand_node.pos, f"'[...] | None' cannot be applied to type {ttype}")
+        if ttype.can_be_optional():
+            return ttype
+        boxed_type = PyrexTypes.optional_boxed_type(ttype)
+        if boxed_type is not None:
+            return boxed_type
+        error(operand_node.pos, f"'[...] | None' cannot be applied to type {ttype}")
         return ttype
 
     def analyse_as_type(self, env):

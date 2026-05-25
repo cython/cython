@@ -1068,18 +1068,21 @@ class CArgDeclNode(Node):
                 # "x: Optional[...]"  =>  explicitly allow 'None'
                 arg_type = arg_type.resolve()
                 if arg_type and not arg_type.can_be_optional():
-                    # We probably already reported this as "cannot be applied to non-Python type".
-                    # error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
-                    pass
-                else:
-                    self.or_none = True
+                    boxed_type = PyrexTypes.optional_boxed_type(arg_type)
+                    if boxed_type is not None:
+                        arg_type = boxed_type
+                    else:
+                        # We probably already reported this as "cannot be applied to non-Python type".
+                        # error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
+                        pass
+                self.or_none = True
             elif arg_type is py_object_type:
                 # exclude ": object" from the None check - None is a generic object.
                 self.or_none = True
-            elif self.default and self.default.is_none and (arg_type.can_be_optional() or arg_type.equivalent_type):
+            elif self.default and self.default.is_none and (arg_type.can_be_optional() or PyrexTypes.optional_boxed_type(arg_type)):
                 # "x: ... = None"  =>  implicitly allow 'None'
                 if not arg_type.can_be_optional():
-                    arg_type = arg_type.equivalent_type
+                    arg_type = PyrexTypes.optional_boxed_type(arg_type)
                 if not self.or_none:
                     warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
                     self.or_none = True
@@ -1349,9 +1352,10 @@ class TemplatedTypeNode(CBaseTypeNode):
         for i, ttype in enumerate(template_types):
             if ttype is None:
                 continue
-            if require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():
-                if ttype.equivalent_type and not template_node.as_cython_attribute():
-                    template_types[i] = ttype.equivalent_type
+            if require_python_types and not ttype.is_pyobject or require_optional_types and not (ttype.can_be_optional() or PyrexTypes.optional_boxed_type(ttype)):
+                boxed_type = PyrexTypes.optional_boxed_type(ttype)
+                if boxed_type is not None and not template_node.as_cython_attribute():
+                    template_types[i] = boxed_type
                 else:
                     error(template_node.pos, "%s[...] cannot be applied to type %s" % (
                         base_type.python_type_constructor_name,
