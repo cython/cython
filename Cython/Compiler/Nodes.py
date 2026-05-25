@@ -3005,19 +3005,13 @@ class CFuncDefNode(FuncDefNode):
         if cname is None:
             cname = self.entry.func_cname
         entity = type.function_header_code(cname, ', '.join(arg_decls))
-        storage_class = ""
-        if (self.entry.visibility == 'private' and '::' not in cname and
-                not self.entry.final_func_cname and
-                not (self.entry.defined_in_pxd or self.inline_in_pxd)):
+        if self.entry.visibility == 'private' and '::' not in cname:
             storage_class = "static "
+        else:
+            storage_class = ""
 
         dll_linkage = None
-        modifiers = self.entry.func_modifiers
-        if self.entry.defined_in_pxd or self.inline_in_pxd:
-            # Keep inline on the declaration side, but avoid baking it into the
-            # emitted body so cimporters still get an exported symbol.
-            modifiers = [modifier for modifier in modifiers if modifier != 'inline']
-        modifiers = code.build_function_modifiers(modifiers)
+        modifiers = code.build_function_modifiers(self.entry.func_modifiers)
 
         header = self.return_type.declaration_code(entity, dll_linkage=dll_linkage)
         #print (storage_class, modifiers, header)
@@ -3247,7 +3241,7 @@ class DefNode(FuncDefNode):
         self.num_required_args = r
 
     def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, has_explicit_exc_clause=False,
-                     modifiers=None, nogil=False, with_gil=False, visibility='private'):
+                     modifiers=None, nogil=False, with_gil=False):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
@@ -3310,7 +3304,7 @@ class DefNode(FuncDefNode):
                             overridable=overridable,
                             with_gil=with_gil,
                             nogil=nogil,
-                            visibility=visibility,
+                            visibility='private',
                             api=False,
                             directive_locals=getattr(cfunc, 'directive_locals', {}),
                             directive_returns=returns,
@@ -5296,7 +5290,7 @@ class PyClassDefNode(ClassDefNode):
         self.target = ExprNodes.NameNode(pos, name=name)
         self.class_cell = ExprNodes.ClassCellInjectorNode(self.pos)
 
-    def as_cclass(self, visibility):
+    def as_cclass(self):
         """
         Return this node as if it were declared as an extension class
         """
@@ -5306,7 +5300,7 @@ class PyClassDefNode(ClassDefNode):
 
         from . import ExprNodes
         return CClassDefNode(self.pos,
-                             visibility=visibility,
+                             visibility='private',
                              module_name=None,
                              class_name=self.name,
                              bases=self.bases or ExprNodes.TupleNode(self.pos, args=[]),

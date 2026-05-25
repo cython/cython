@@ -1,5 +1,4 @@
 import cython
-from .. import auto_cpdef
 
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
@@ -3111,7 +3110,6 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     Adjust function and class definitions by the decorator directives:
 
     @cython.cfunc
-    @cython.public
     @cython.cclass
     @cython.ccall
     @cython.inline
@@ -3177,11 +3175,9 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 error(node.pos, "cfunc and ccall directives cannot be combined")
             if with_gil:
                 error(node.pos, "ccall functions cannot be declared 'with_gil'")
-            visibility = 'public' if 'public' in self.directives else 'private'
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
-                returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause,
-                visibility=visibility)
+                returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause)
             self.directives['auto_cpdef'] = False  # avoid auto_cpdef nested methods
             node = self.visit(node)
             self.directives['auto_cpdef'] = auto_cpdef
@@ -3190,11 +3186,9 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             if self.in_py_class:
                 error(node.pos, "cfunc directive is not allowed here")
             else:
-                visibility = 'public' if 'public' in self.directives else 'private'
                 node = node.as_cfunction(
                     overridable=False, modifiers=modifiers, nogil=nogil, with_gil=with_gil,
-                    returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause,
-                    visibility=visibility)
+                    returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause)
                 self.directives['auto_cpdef'] = False
                 node = self.visit(node)
                 self.directives['auto_cpdef'] = auto_cpdef
@@ -3237,8 +3231,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     def visit_PyClassDefNode(self, node):
         self.env, env = node, self.env
         if any(directive in self.directives for directive in self.converts_to_cclass):
-            visibility = 'public' if 'public' in self.directives else 'private'
-            node = node.as_cclass(visibility=visibility)
+            node = node.as_cclass()
             result = self.visit(node)
         else:
             self.in_py_class, old_in_pyclass = True, self.in_py_class
@@ -3282,7 +3275,7 @@ class AlignFunctionDefinitions(CythonTransform):
         pxd_def = self.scope.lookup(node.name)
         if pxd_def:
             if pxd_def.is_cclass:
-                return self.visit_CClassDefNode(node.as_cclass(visibility='private'), pxd_def)
+                return self.visit_CClassDefNode(node.as_cclass(), pxd_def)
             elif not pxd_def.scope or not pxd_def.scope.is_builtin_scope:
                 error(node.pos, "'%s' redeclared" % node.name)
                 if pxd_def.pos:

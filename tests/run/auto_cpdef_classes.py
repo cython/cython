@@ -1,7 +1,7 @@
 # cython: auto_cpdef=True
 # mode:run
 # tag: directive,auto_cpdef
-from cython import cclass, int, final, public, no_ccall
+from cython import cclass, int, final, no_ccall
 
 
 @cclass
@@ -11,6 +11,7 @@ class Base:
     def ret3(self) -> int:
         # This function is automatically promoted to cpdef
         return 3
+
 
 @final
 @cclass
@@ -23,8 +24,6 @@ class BaseFinal:
         return 2
 
 
-# Auto cpdef causes the fn() function becomes public, thus Vector needs to be public too.
-@public
 @cclass
 class Vector:
     a: int
@@ -49,8 +48,9 @@ class Vector:
 
 
 def fn() -> Vector:
-    a: int = BaseFinal().ret2()  # optimized direct C-call of promoted to cpdef
-    b: int = Base().ret3()  # optimized vtable-call of promoted cpdef
+    # This function is automatically promoted to cpdef
+    a: int = BaseFinal().ret2()
+    b: int = Base().ret3()
     return Vector(a, b)
 
 
@@ -72,11 +72,12 @@ def test_vector(v):
     False
     >>> test_vector(Vector(2, 3).__eq__(Vector(2, 3)))
     True
+    >>> fn()
+    Vector(2, 3)
     """
     return v
 
 
-@public
 @final
 @cclass
 class VectorFinal(Vector):
@@ -87,16 +88,16 @@ class VectorFinal(Vector):
 
     def origin_length_sq(self) -> int:
         # This function is automatically promoted to cpdef
-        # accessing base class through super() is optimized too
         return super().length_sq()
 
     @no_ccall
     def origin_length_sq_no_ccall(self) -> int:
-        # This function is PREVENTED to become cpdef
+        # This function is PREVENTED to become cpdef via decorator
         return super().length_sq() + 1
 
 
 def fn2() -> VectorFinal:
+    # This function is automatically promoted to cpdef
     return VectorFinal(2, 3)
 
 
@@ -112,5 +113,7 @@ def test_vector_final(v):
     13
     >>> test_vector(fn2().origin_length_sq_no_ccall())
     14
+    >>> fn2()
+    Vector(2, 3)
     """
     return v

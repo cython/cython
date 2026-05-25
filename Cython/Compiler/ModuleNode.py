@@ -1428,11 +1428,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.mark_pos(entry.pos)
         # Generate final methods prototypes
         for method_entry in entry.type.scope.cfunc_entries:
-            if method_entry.final_func_cname:
+            if not method_entry.is_inherited and method_entry.final_func_cname:
                 declaration = method_entry.type.declaration_code(
                     method_entry.final_func_cname)
                 modifiers = code.build_function_modifiers(method_entry.func_modifiers)
-                code.putln("%s%s;" % (modifiers, declaration))
+                code.putln("static %s%s;" % (modifiers, declaration))
 
     def generate_objstruct_predeclaration(self, type, code):
         if not type.scope:
@@ -4328,13 +4328,10 @@ def generate_cfunction_declaration(entry, env, code, definition):
             storage_class = "static"
             dll_linkage = None
             type = CPtrType(type)
-            func_modifiers = [m for m in entry.func_modifiers if m != 'inline']
-        else:
-            func_modifiers = entry.func_modifiers
 
         header = type.declaration_code(
             entry.cname, dll_linkage=dll_linkage)
-        modifiers = code.build_function_modifiers(func_modifiers)
+        modifiers = code.build_function_modifiers(entry.func_modifiers)
         code.putln("%s %s%s; /*proto*/" % (
             storage_class,
             modifiers,
