@@ -1661,13 +1661,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if tp_slot.slot_code(scope) != slot_func:
             return  # never used
 
-        format_vectorcall_if = """
-#if CYTHON_VECTORCALL_NEW
-    {}
-#else
-    {}
-#endif
-""".format
+        format_vectorcall_if = "\n#if CYTHON_VECTORCALL_NEW\n    {}\n#else\n    {}\n#endif\n".format
 
         vectorcall_tp_slot = TypeSlots.get_slot_by_name("tp_vectorcall", scope.directives)
         vectorcall_slot_func = scope.mangle_internal("tp_vectorcall")
