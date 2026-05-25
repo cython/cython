@@ -756,6 +756,7 @@ static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping); /*pr
 //@requires: Optimize.c::dict_iter
 //@requires: ObjectHandling.c::OwnedDictNext
 //@requires: Synchronization.c::CriticalSections
+//@requires: Builtins.c::PyFrozenDict
 
 static int __Pyx_MergeKeywords_dict(PyObject *kwdict, PyObject *source_dict) {
     Py_ssize_t len1, len2;
@@ -879,7 +880,7 @@ bad:
 
 static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping) {
     assert(PyDict_Check(kwdict));
-    if (likely(PyDict_Check(source_mapping))) {
+    if (likely(__Pyx_PyAnyDict_Check(source_mapping))) {
         return __Pyx_MergeKeywords_dict(kwdict, source_mapping);
     } else {
         return __Pyx_MergeKeywords_any(kwdict, source_mapping);

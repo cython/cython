@@ -774,7 +774,7 @@ class UtilityCode(UtilityCodeBase):
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
 
-    def parse_export_functions(self, export_proto: str) -> list:
+    def parse_export_functions(self, export_proto: str) -> list[SharedFunctionDecl]:
 
         assert '//' not in export_proto and '/*' not in export_proto and '*/' not in export_proto, \
             f'Export block must not contain comments:\n{export_proto.strip()}\n in file {self.file}'
@@ -1808,7 +1808,7 @@ class GlobalState:
             self.dedup_const_index[dedup_key] = const
         return const
 
-    def get_argument_default_const(self, type):
+    def get_argument_default_const(self, type) -> PyObjectConst:
         cname = self.new_const_cname('')
         c = PyObjectConst(cname, type)
         self.arg_default_constants.append(c)
@@ -2403,8 +2403,7 @@ class GlobalState:
         w = self.parts['init_constants']
         defines = self.parts['constant_name_defines']
 
-        def store_array(w, name: str, ctype: str, constants: list):
-            c: tuple
+        def store_array(w, name: str, ctype: str, constants: list[tuple]):
             values = ','.join([c[1] for c in constants])
             w.putln(f"{ctype} const {name}[] = {{{values}}};")
 

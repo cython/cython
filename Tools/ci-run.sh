@@ -9,9 +9,9 @@ PYTHON=${PYTHON:=python}
 if [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
-  sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
+  #sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt-get update -y -q
-  sudo apt-get install -y -q gdb python3-dbg gcc-$GCC_VERSION || exit 1
+  sudo apt-get install -y -q gdb python3-dbg gcc-$GCC_VERSION libopenblas-dev || exit 1
 
   ALTERNATIVE_ARGS=""
   if [[ $BACKEND == *"cpp"* ]]; then
@@ -78,11 +78,11 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ $PYTHON_VERSION == "3.1"[2-9]* || $PYTHON_VERSION == *"-dev" || $PYTHON_VERSION == "pypy-3.11" || $PYTHON_VERSION == "graalpy"* ]]; then
-  $PYTHON -m pip install --no-cache-dir -U pip wheel setuptools || exit 1
-else
+if [[ $PYTHON_VERSION == *"3.9"* || $PYTHON_VERSION == "3.1"[01]* || $PYTHON_VERSION == "pypy-3.10"* ]]; then
   # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.10.
   $PYTHON -m pip install --no-cache-dir -U pip "setuptools<60" "wheel<0.46" "twine" "cryptography<42" "nh3<0.2.19" || exit 1
+else
+  $PYTHON -m pip install --no-cache-dir -U pip wheel setuptools || exit 1
 fi
 if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" && $PYTHON_VERSION != "graalpy"* ]]; then
   # twine is not installable on freethreaded Python due to cryptography requirement
@@ -242,6 +242,7 @@ if [[ $PYTHON_VERSION == *"t" ]]; then
 fi
 $PYTHON $GRAAL_PYTHON_ARGS runtests.py \
   -vv --no-code-style \
+  --no-cleanup \
   -x Debugger \
   --backends=$BACKEND \
   $SHARED_UTILITY \

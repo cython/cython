@@ -397,12 +397,13 @@ static PyObject *__Pyx_PyObject_GetItem(PyObject *obj, PyObject *key) {
 
 
 /////////////// DictGetItem.proto ///////////////
+//@requires: Builtins.c::PyFrozenDict
 
 #if !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key);/*proto*/
 
 #define __Pyx_PyObject_Dict_GetItem(obj, name) \
-    (likely(PyDict_CheckExact(obj)) ? \
+    (likely(__Pyx_PyAnyDict_CheckExact(obj)) ? \
      __Pyx_PyDict_GetItem(obj, name) : PyObject_GetItem(obj, name))
 
 #else
@@ -485,6 +486,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
 /////////////// GetItemInt ///////////////
 //@substitute: tempita
 //@requires: GettItemInt_wraparound
+//@requires: Builtins.c::PyFrozenDict
 
 static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
     PyObject *r;
@@ -551,7 +553,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
 #endif
 #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
     // This dict check is so cheap after the other type checks above that it would be costly *not* to do it.
-    if (PyDict_CheckExact(o)) {
+    if (__Pyx_PyAnyDict_CheckExact(o)) {
         return __Pyx_GetItemInt_Fast_mapping(o, PyDict_Type.tp_as_mapping->mp_subscript, i);
     } else
     {
@@ -909,7 +911,7 @@ static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRI
 
 {{if Type == 'Tuple'}}
 #if PY_VERSION_HEX >= 0x030F0000 && !CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_PyTuple_FromArray(src, n) PyTuple_FromArray(src, ((n)<0) ? 0 : (n)) 
+#define __Pyx_PyTuple_FromArray(src, n) PyTuple_FromArray(src, ((n)<0) ? 0 : (n))
 #else
 {{endif}}
 CYTHON_UNUSED static PyObject *
@@ -2148,7 +2150,7 @@ static PyObject* __Pyx__CallUnboundCMethod2(__Pyx_CachedCFunction* cfunc, PyObje
 /////////////// PyObjectFastCall.proto ///////////////
 
 #define __Pyx_PyObject_FastCall(func, args, nargs)  __Pyx_PyObject_FastCallDict(func, args, (size_t)(nargs), NULL)
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject * const*args, size_t nargs, PyObject *kwargs); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject * const*args, size_t nargsf, PyObject *kwargs); /*proto*/
 
 /////////////// PyObjectFastCall ///////////////
 //@requires: PyObjectCall
@@ -2201,12 +2203,12 @@ static CYTHON_INLINE vectorcallfunc __Pyx_PyVectorcall_Function(PyObject *callab
   #endif
 #endif
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject *const *args, size_t _nargs, PyObject *kwargs) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwargs) {
     // Special fast paths for 0 and 1 arguments
     // NOTE: in many cases, this is called with a constant value for nargs
     // which is known at compile-time. So the branches below will typically
     // be optimized away.
-    Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(_nargs);
+    Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(nargsf);
 #if CYTHON_COMPILING_IN_CPYTHON
     if (nargs == 0 && kwargs == NULL) {
         if (__Pyx_CyOrPyCFunction_Check(func) && likely( __Pyx_CyOrPyCFunction_GET_FLAGS(func) & METH_NOARGS))
@@ -2221,11 +2223,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     if (kwargs == NULL) {
         #if CYTHON_VECTORCALL
           #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
-            return PyObject_Vectorcall(func, args, _nargs, NULL);
+            return PyObject_Vectorcall(func, args, nargsf, NULL);
           #else
             vectorcallfunc f = __Pyx_PyVectorcall_Function(func);
             if (f) {
-                return f(func, args, _nargs, NULL);
+                return f(func, args, nargsf, NULL);
             }
           #endif
         #endif
@@ -2237,8 +2239,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 
     #if CYTHON_COMPILING_IN_LIMITED_API
     return __Pyx_PyObject_FastCall_fallback(func, args, (size_t)nargs, kwargs);
+    #elif CYTHON_COMPILING_IN_PYPY
+    // PyPy miscalculates nargs if we include PY_VECTORCALL_ARGUMENTS_OFFSET.
+    return PyObject_VectorcallDict(func, args, (size_t) nargs, kwargs);
     #else
-    return PyObject_VectorcallDict(func, args, (size_t)nargs, kwargs);
+    return PyObject_VectorcallDict(func, args, nargsf, kwargs);
     #endif
 }
 
@@ -2256,6 +2261,19 @@ static PyObject *__Pyx_PyObject_FastCallMethod(PyObject *name, PyObject *const *
 #if !CYTHON_VECTORCALL
 static PyObject *__Pyx_PyObject_FastCallMethod(PyObject *name, PyObject *const *args, size_t nargsf) {
     PyObject *result;
+    switch (__Pyx_PyVectorcall_NARGS(nargsf)) {
+        // no case 0 - there's always one positional argument.
+        case 1:
+            return PyObject_CallMethodObjArgs(args[0], name, NULL);
+        case 2:
+            return PyObject_CallMethodObjArgs(args[0], name, args[1], NULL);
+        case 3:
+            return PyObject_CallMethodObjArgs(args[0], name, args[1], args[2], NULL);
+        case 4:
+            return PyObject_CallMethodObjArgs(args[0], name, args[1], args[2], args[3], NULL);
+        case 5:
+            return PyObject_CallMethodObjArgs(args[0], name, args[1], args[2], args[3], args[4], NULL);
+    }
     PyObject *attr = PyObject_GetAttr(args[0], name);
     if (unlikely(!attr))
         return NULL;
