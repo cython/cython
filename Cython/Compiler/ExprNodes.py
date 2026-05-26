@@ -3526,7 +3526,11 @@ class NextNode(AtomicExprNode):
             return item_type
         elif (
             (sequence_type := self.iterator.sequence.infer_type(env)).supports_container_type and
-            not (self.iterator.sequence.is_sequence_constructor or self.iterator.sequence.is_dict_literal or self.iterator.sequence.is_set_literal) and
+            not (
+                self.iterator.sequence.is_sequence_constructor or
+                self.iterator.sequence.is_dict_literal or
+                self.iterator.sequence.is_set_literal
+            ) and
             (iterator_type := sequence_type.infer_iterator_type())
         ):
             return iterator_type
