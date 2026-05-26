@@ -3524,8 +3524,11 @@ class NextNode(AtomicExprNode):
             item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
             item_type = PyrexTypes.remove_cv_ref(item_type, remove_fakeref=True)
             return item_type
-        elif (sequence_type := self.iterator.sequence.infer_type(env)).supports_container_type and \
-                (iterator_type := sequence_type.infer_iterator_type()):
+        elif (
+            (sequence_type := self.iterator.sequence.infer_type(env)).supports_container_type and
+            not (self.iterator.sequence.is_sequence_constructor or self.iterator.sequence.is_dict_literal or self.iterator.sequence.is_set_literal) and
+            (iterator_type := sequence_type.infer_iterator_type())
+        ):
             return iterator_type
         else:
             # Avoid duplication of complicated logic.
@@ -4299,7 +4302,11 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
-        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type(self.index.constant_result)):
+        if (
+            base_type.supports_container_type and
+            not (self.base.is_sequence_constructor or self.base.is_dict_literal or self.base.is_set_literal) and
+            (sub_type := base_type.infer_indexed_type(self.index.constant_result))
+        ):
             return sub_type
 
         index_type = self.index.infer_type(env)
