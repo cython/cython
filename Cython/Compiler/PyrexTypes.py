@@ -4251,8 +4251,12 @@ class CppClassType(CType):
                 'type': self.cname,
             })
             # Override directives that should not be inherited from user code.
+            # Use the module-level (global scope) directives to ensure that the same
+            # conversion utility is not emitted twice when it is requested from two
+            # different local scopes that carry different directive values for settings
+            # that are irrelevant to the generated C helper (e.g. 'binding').
             from .UtilityCode import CythonUtilityCode
-            directives = CythonUtilityCode.filter_inherited_directives(env.directives)
+            directives = CythonUtilityCode.filter_inherited_directives(env.global_scope().directives)
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
                 context=context, compiler_directives=directives))
@@ -4297,8 +4301,11 @@ class CppClassType(CType):
                 'type': self.cname,
             })
             from .UtilityCode import CythonUtilityCode
-            # Override directives that should not be inherited from user code.
-            directives = CythonUtilityCode.filter_inherited_directives(env.directives)
+            # Use the module-level (global scope) directives to ensure that the same
+            # conversion utility is not emitted twice when it is requested from two
+            # different local scopes that carry different directive values for settings
+            # that are irrelevant to the generated C helper (e.g. 'binding').
+            directives = CythonUtilityCode.filter_inherited_directives(env.global_scope().directives)
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
                 context=context, compiler_directives=directives))
