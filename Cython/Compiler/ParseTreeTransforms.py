@@ -3168,7 +3168,9 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         is_ccall_promoted = False
         if not is_ccall and auto_cpdef and not no_ccall and not is_cfunc and not self.in_py_class:
             # avoid conflicts with redeclared symbols
-            if hasattr(self.env, "scope") and self.env.scope.is_module_scope and node.name not in self.imported_names:
+            in_cclass = isinstance(self.env, Nodes.CClassDefNode)
+            in_module = hasattr(self.env, "scope") and self.env.scope.is_module_scope
+            if (in_module and node.name not in self.imported_names) or in_cclass:
                 is_ccall_promoted = node.is_cdef_func_compatible()
         if is_ccall or is_ccall_promoted:
             if is_ccall and is_cfunc:
