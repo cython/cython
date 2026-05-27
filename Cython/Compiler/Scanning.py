@@ -263,6 +263,10 @@ class StringSourceDescriptor(SourceDescriptor):
         self.codelines = [line.rstrip() for line in code.splitlines()]
         self._cmp_name = name
 
+    @property
+    def filename(self):
+        return self.name
+
     def get_lines(self, encoding=None, error_handling=None):
         if not encoding:
             return self.codelines
@@ -277,6 +281,10 @@ class StringSourceDescriptor(SourceDescriptor):
         return Path(self.get_description())
 
     get_error_description = get_description
+
+    def get_file_object(self, encoding=None, error_handling=None):
+        from io import StringIO
+        return StringIO('\n'.join(self.codelines))
 
     def get_filenametable_entry(self):
         return "<stringsource>"
