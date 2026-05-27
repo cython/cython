@@ -5142,9 +5142,11 @@ class PyClassDefNode(ClassDefNode):
     #  orig_bases  None or ExprNode  "bases" before transformation by PEP560 __mro_entries__,
     #                                used to create the __orig_bases__ attribute
 
-    child_attrs = ["doc_node", "body", "dict", "metaclass", "mkw", "bases", "class_result",
+    child_attrs = ["doc_node", "body", "dict", "metaclass", "mkw", "bases",
+                   "classobj", "class_result",
                    "target", "class_cell", "decorators", "orig_bases"]
     decorators = None
+    class_result_before_decorators = None
     class_result = None
     is_py3_style_class = False  # Python3 style class (kwargs)
     metaclass = None
@@ -5252,7 +5254,9 @@ class PyClassDefNode(ClassDefNode):
         return cenv
 
     def analyse_declarations(self, env):
-        unwrapped_class_result = class_result = self.classobj
+        from .ExprNodes import CloneNode
+        unwrapped_class_result = self.classobj
+        class_result = CloneNode(unwrapped_class_result)
         if self.decorators:
             from .ExprNodes import SimpleCallNode
             for decorator in self.decorators[::-1]:
@@ -5270,7 +5274,6 @@ class PyClassDefNode(ClassDefNode):
         self.target.analyse_target_declaration(env)
         cenv = self.create_scope(env)
         cenv.directives = env.directives
-        cenv.class_obj_cname = self.target.entry.cname
         if self.doc_node:
             self.doc_node.analyse_target_declaration(cenv)
         self.body.analyse_declarations(cenv)
@@ -5334,7 +5337,7 @@ class PyClassDefNode(ClassDefNode):
             code.putln("}")
             self.orig_bases.generate_disposal_code(code)
             self.orig_bases.free_temps(code)
-        cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
+        cenv.namespace_cname = self.dict.result()
 
         class_cell = self.class_cell
         if class_cell is not None and not class_cell.is_active:
@@ -5343,16 +5346,19 @@ class PyClassDefNode(ClassDefNode):
         if class_cell is not None:
             class_cell.generate_evaluation_code(code)
         self.body.generate_execution_code(code)
+        self.classobj.generate_evaluation_code(code)
         self.class_result.generate_evaluation_code(code)
         if class_cell is not None:
             class_cell.generate_injection_code(
-                code, self.class_result.result())
+                code, self.classobj.result())
         if class_cell is not None:
             class_cell.generate_disposal_code(code)
             class_cell.free_temps(code)
 
-        cenv.namespace_cname = cenv.class_obj_cname = self.classobj.result()
+        cenv.namespace_cname = self.classobj.result()
         self.target.generate_assignment_code(self.class_result, code)
+        self.classobj.generate_disposal_code(code)
+        self.classobj.free_temps(code)
         self.dict.generate_disposal_code(code)
         self.dict.free_temps(code)
         if self.metaclass:
