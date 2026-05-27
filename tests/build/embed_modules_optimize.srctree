@@ -4,6 +4,7 @@
 # standalone
 PYTHON cythonize_embed.py a.pyx b.pyx
 CYTHON --embed --embed-modules a,b main_module.pyx
+UNSET CFLAGS -DCYTHON_REFNANNY
 PYTHON build.py main_module main_module.c a.c b.c
 PYTHON run.py main_module
 
@@ -199,10 +200,7 @@ PATH = os.environ.get('PATH', '')
 sep = os.pathsep
 os.environ.update(PATH=f".{sep}{PYLIB_DIR}{sep}{PATH}")
 
-result = run([os.path.abspath(sys.argv[1] + EXE_EXT)], capture_output=True)
-assert b"DONE" in result.stdout, result.stdout
-assert b"Hello from func_in_b()" in result.stdout, result.stdout
-
+result = run([os.path.abspath(sys.argv[1] + EXE_EXT)], check=True)
 
 ################# main_module.pyx ####################
 
@@ -215,25 +213,26 @@ t: A = a.A()
 u: B = b.B()
 
 # Test class methods
-t.s()
+t.mtd_cpdef()
 u.mtd()
 
 # Test properties
+t.prop = 2  # test setter (prop getter adds 1)
 t.prop_cenum = b.Color.RED  # test setter
 t.prop_obj = b.B()  # test setter
 t.prop_tuple = (3, 4)  # test setter
 t.prop_bool = True  # test setter
+assert t.prop == 3
 assert t.prop_cenum == b.Color.RED
 assert t.prop_obj.prop == 2
 assert t.prop_tuple == (1, 2)
 assert t.prop_bool is True
 
-assert t.prop == 3
 assert u.prop == 2
 
 # Test ccall functions
-a.func_in_a()
-b.func_in_b()
+assert a.func_in_a() == 9
+assert b.func_in_b() == 9
 
 print("DONE")
 
@@ -248,7 +247,7 @@ cdef bint _helper = True
 @cclass
 class TestBugDescrGet:
     """Class that triggers tp_descr_get generation with mixed return types.
-    
+
     With auto_cpdef=True:
     - prop_obj and prop_int are cpdef-converted (add __get__ to class scope)
     - prop_bool is NOT cpdef-convertible (has closure), so all_overridable=False
@@ -270,10 +269,12 @@ class TestBugDescrGet:
 @ccall
 def func_in_a():
     t: A = A()
+    t.prop = 2  # test setter (prop getter adds 1)
     t.prop_cenum = Color.RED  # test setter
     t.prop_obj = B()  # test setter
     t.prop_tuple = (3, 4)  # test setter
     t.prop_bool = True  # test setter
+    assert t.prop == 3
     assert t.prop_cenum == Color.RED
     assert t.prop_obj.prop == 2
     assert t.prop_tuple == (1, 2)
@@ -285,7 +286,7 @@ def func_in_a():
     assert bug_obj.prop_int == 42
     assert bug_obj.prop_bool is True
 
-    func_in_b()
+    return func_in_b()
 
 @cclass
 class A(B):
@@ -296,12 +297,16 @@ class A(B):
         self._prop_bool = False
 
     @ccall
-    def s(self):
+    def mtd_cpdef(self):
         super().mtd()
 
     @property
     def prop(self) -> int:
         return super().prop + 1
+
+    @prop.setter
+    def prop(self, int val) -> None:
+        B.prop.__set__(self, val)
 
     @property
     def prop_bool(self) -> bool:
@@ -346,18 +351,25 @@ class Color(Enum):
 
 @ccall
 def func_in_b():
-    print("Hello from func_in_b()")
+    B().mtd()
+    return 9
 
 @cclass
 class B:
+
+    __prop_int: int
+
+    def __init__(self) -> None:
+        self.__prop_int = 2
+
     @ccall
     def mtd(self):
         pass
 
     @property
     def prop(self) -> int:
-        return 2
+        return self.__prop_int
 
     @prop.setter
     def prop(self, int val) -> None:
-        pass  # no-op for testing
+        self.__prop_int = val
