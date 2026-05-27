@@ -7,7 +7,7 @@ import cython
 cython.declare(error=object, warning=object, warn_once=object, InternalError=object,
                CompileError=object, UtilityCode=object, TempitaUtilityCode=object,
                StringEncoding=object, operator=object, local_errors=object, report_error=object,
-               Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object, py_none_type=object,
+               Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
                list_type=object, tuple_type=object, set_type=object, dict_type=object,
                unicode_type=object, bytes_type=object, type_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
@@ -39,7 +39,7 @@ from . import Naming
 from . import Nodes
 from .Nodes import Node, SingleAssignmentNode
 from . import PyrexTypes
-from .PyrexTypes import c_char_ptr_type, py_object_type, py_none_type, typecast, error_type, \
+from .PyrexTypes import c_char_ptr_type, py_object_type, typecast, error_type, \
     unspecified_type
 from . import TypeSlots
 from .Builtin import (
@@ -1374,7 +1374,6 @@ class PyConstNode(AtomicExprNode):
 class NoneNode(PyConstNode):
     #  The constant value None
 
-    type = py_none_type
     is_none = 1
     value = "Py_None"
 
@@ -6089,7 +6088,6 @@ class SliceNode(ExprNode):
     is_slice = True
     type = slice_type
     is_temp = 1
-
 
     def calculate_constant_result(self):
         self.constant_result = slice(

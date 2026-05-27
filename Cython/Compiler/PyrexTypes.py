@@ -5254,7 +5254,6 @@ error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
 
 py_object_type = PyObjectType()
-py_none_type = PyObjectType()
 
 c_void_type =        CVoidType()
 
@@ -5785,10 +5784,6 @@ def spanning_type(type1, type2):
     # fail if the types cannot actually coerce to a py_object_type.
     if type1 == type2:
         return type1
-    # elif type1 is py_none_type:
-    #     return type2
-    # elif type2 is py_none_type:
-    #     return type1
     elif type1 is py_object_type or type2 is py_object_type:
         return py_object_type
     elif type1 is c_py_unicode_type or type2 is c_py_unicode_type:
