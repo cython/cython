@@ -245,7 +245,7 @@ Other changes
   Patch by Libor Jelínek.  (Github issue :issue:`7564`)
 
 
-3.2.5 (2026-0?-??)
+3.2.5 (2026-05-23)
 ==================
 
 Bugs fixed
@@ -253,6 +253,10 @@ Bugs fixed
 
 * A compile failure was fixed when using the walrus operator inside of try-except.
   (Github issue :issue:`7462`)
+
+* Expressions with side-effects as object argument to ``isinstance()`` could get
+  evaluated multiple times, e.g. when they use the walrus operator.
+  (Github issue :issue:`7670`)
 
 * Several problems generating the shared utility module were resolved, including
   a performance regression with memory views.
