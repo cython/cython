@@ -131,6 +131,55 @@ def test_tuple_assignment(i, list[int] la, set[int] sa, dict[int, int] da, froze
         fa = ta
 
 
+def test_nested_tuple():
+    """
+    >>> test_nested_tuple()
+    tuple[dict[tuple[str object,int] object,tuple[int,str object] object] object,list[(int, int)] object,set[(float, float)] object,tuple[tuple[str object,int] object,tuple[int,str object] object] object] object
+    ta[0]:
+    dict[tuple[str object,int] object,tuple[int,str object] object] object
+    tuple[int,str object] object
+    ta[1]:
+    list[(int, int)] object
+    (int, int)
+    ta[2]:
+    set[(float, float)] object
+    ta[3]:
+    tuple[tuple[str object,int] object,tuple[int,str object] object] object
+    tuple[str object,int] object
+    tuple[int,str object] object
+    str object
+    int
+    int
+    str object
+    """
+    cdef tuple[
+        dict[tuple[str, int], tuple[int, str]],
+        list[tuple[int, int]],
+        set[tuple[float, float]],
+        tuple[tuple[str, int], tuple[int, str]]
+    ] ta = (
+        {('a', 1): (2, 'b')},
+        [(1, 2), (3, 4)],
+        {(1.0, 2.0), (3.0, 4.0)}
+    )
+    print(cython.typeof(ta))
+    print('ta[0]:')
+    print(cython.typeof(ta[0]))
+    print(cython.typeof(ta[0][('a', 1)]))
+    print('ta[1]:')
+    print(cython.typeof(ta[1]))
+    print(cython.typeof(ta[1][1]))
+    print('ta[2]:')
+    print(cython.typeof(ta[2]))
+    print('ta[3]:')
+    print(cython.typeof(ta[3]))
+    print(cython.typeof(ta[3][0]))
+    print(cython.typeof(ta[3][1]))
+    print(cython.typeof(ta[3][0][0]))
+    print(cython.typeof(ta[3][0][1]))
+    print(cython.typeof(ta[3][1][0]))
+    print(cython.typeof(ta[3][1][1]))
+
 def test_nested_list():
     """
     >>> test_nested_list()
