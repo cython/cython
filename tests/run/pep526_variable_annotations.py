@@ -219,26 +219,31 @@ if sys.version_info >= (3, 11) or cython.compiled:
     def test_casting_subscripted_types():
         """
         >>> test_casting_subscripted_types()
+        tuple:
+        tuple 1.0 2.0
+        tuple 1.0 2.0
+        list:
         list 1.0
         list 1.0
+        dict:
         dict 2
         dict 2
         int 3
         int 3
         """
-        # tuple
-        # t: tuple[cython.float, cython.float] = (1.0, 2.0)
-        # x1 = cython.cast(tuple[cython.int, cython.int], t)
-        # y1 = cython.cast(tuple, t)
-        # print(cython.typeof(x1), x1[0], x1[1])
-        # print(cython.typeof(y1), y1[0], y1[1])
-        # list
+        print('tuple:')
+        t: tuple[list, cython.float, cython.float] = ([], 1.0, 2.0)
+        x0 = cython.cast(tuple[list, cython.int, cython.int], t)
+        y0 = cython.cast(tuple, t)
+        print(cython.typeof(x0), x0[1], x0[2])
+        print(cython.typeof(y0), y0[1], y0[2])
+        print('list:')
         l: list[cython.float] = [1.0, 2.0]
         x1 = cython.cast(list[cython.int], l)
         y1 = cython.cast(list, l)
         print(cython.typeof(x1), x1[0])
         print(cython.typeof(y1), y1[0])
-        # dict
+        print('dict:')
         d: dict[str, cython.int] = {'a': 1, 'b': 2}
         x2 = cython.cast(dict[str, cython.float], d)
         y2 = cython.cast(dict, d)
@@ -256,8 +261,13 @@ if sys.version_info >= (3, 11) or cython.compiled:
 if cython.compiled:
     test_casting_subscripted_types.__doc__ = """
     >>> test_casting_subscripted_types()
+    tuple:
+    tuple[list object,int,int] object 1 2
+    tuple object 1.0 2.0
+    list:
     list[int] object 1
     list object 1.0
+    dict:
     dict[str object,float] object 2.0
     dict object 2
     float 3.0
