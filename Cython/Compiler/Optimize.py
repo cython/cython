@@ -2432,6 +2432,11 @@ class OptimizeCPropertyCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTransform):
 
     def _optimize_cproperty_call(self, node, prop_entry, func_entry):
         """Replace SimpleCallNode with direct C function call for C property access."""
+        # For overridable properties, we keep the original SimpleCallNode which
+        # uses vtable dispatch in c_call_code to correctly resolve subclass overrides.
+        if prop_entry.is_overridable:
+            return node
+
         pos = node.pos
         obj = node.args[0] if node.args else None
 

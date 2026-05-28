@@ -1418,10 +1418,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if hasattr(scope, 'property_entries'):
                 for prop_entry in scope.property_entries:
                     if prop_entry.is_cproperty and prop_entry.scope:
-                        getter = prop_entry.scope.lookup_here("__get__")
-                        if getter:
-                            code.putln("%s;" % getter.type.declaration_code("(*%s)" % getter.cname))
-                            code.globalstate.use_entry_utility_code(getter)
+                        for accessor in ('__get__', '__set__'):
+                            func = prop_entry.scope.lookup_here(accessor)
+                            if func:
+                                code.putln("%s;" % func.type.declaration_code("(*%s)" % func.cname))
+                                code.globalstate.use_entry_utility_code(func)
             code.putln("};")
 
     def generate_exttype_vtabptr_declaration(self, entry, code):
@@ -4419,16 +4420,40 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if hasattr(type.scope, 'property_entries'):
                 for prop_entry in type.scope.property_entries:
                     if prop_entry.is_cproperty and prop_entry.scope:
-                        getter = prop_entry.scope.lookup_here("__get__")
-                        if getter and getter.func_cname:
-                            vtable_type = getter.vtable_type or getter.type
-                            cast = vtable_type.signature_cast_string()
-                            code.putln(
-                                "%s.%s = %s%s;" % (
-                                    type.vtable_cname,
-                                    getter.cname,
-                                    cast,
-                                    getter.func_cname))
+                        for accessor in ('__get__', '__set__'):
+                            func = prop_entry.scope.lookup_here(accessor)
+                            if func and func.func_cname:
+                                vtable_type = func.vtable_type or func.type
+                                cast = vtable_type.signature_cast_string()
+                                code.putln(
+                                    "%s.%s = %s%s;" % (
+                                        type.vtable_cname,
+                                        func.cname,
+                                        cast,
+                                        func.func_cname))
+                                # For overridable properties, also override the base class's
+                                # vtable slot so that dispatch through a base-class reference
+                                # correctly resolves to this class's implementation.
+                                base_type = type.base_type
+                                while base_type and base_type.scope:
+                                    base_prop_entry = base_type.scope.lookup_here(prop_entry.name)
+                                    if base_prop_entry and base_prop_entry.scope and base_prop_entry.scope.is_property_scope:
+                                        base_func = base_prop_entry.scope.lookup_here(accessor)
+                                        if base_func and base_func.cname:
+                                            # Use the base function's own type for the cast,
+                                            # since the base vtable slot expects the base class's
+                                            # argument type (e.g., B* not A*).
+                                            base_vtable_type = base_func.vtable_type or base_func.type
+                                            base_cast = base_vtable_type.signature_cast_string()
+                                            code.putln(
+                                                "%s.%s.%s = %s%s;" % (
+                                                    type.vtable_cname,
+                                                    Naming.obj_base_cname,
+                                                    base_func.cname,
+                                                    base_cast,
+                                                    func.func_cname))
+                                        break
+                                    base_type = base_type.base_type
 
 
 # cimport/export code for functions and pointers.

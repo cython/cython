@@ -6681,6 +6681,63 @@ class SimpleCallNode(CallNode):
         func_type = self.function_type()
         if self.type is PyrexTypes.error_type or not func_type.is_cfunction:
             return "<error>"
+
+        # Vtable dispatch for overridable property calls (getter/setter).
+        # When a property is overridable, calling it through a base-class reference
+        # must dispatch through the object's vtable so that subclass overrides
+        # are correctly resolved.
+        func_entry = getattr(self.function, 'entry', None)
+        if (func_entry and func_entry.scope
+                and func_entry.scope.is_property_scope
+                and func_entry.is_overridable
+                and self.args):
+            obj = self.args[0]
+            obj_type = obj.type
+            if obj_type and obj_type.is_extension_type and obj_type.vtabstruct_cname:
+                obj_code = obj.result_as(obj_type)
+                # Find the correct vtable slot by walking the declared type's hierarchy.
+                prop_name = getattr(self.function, 'name', '')
+                if prop_name:
+                    vtab_type = obj_type
+                    slot_cname = None
+                    t = obj_type
+                    while t and t.scope:
+                        prop = t.scope.lookup_here(prop_name)
+                        if prop and prop.scope and prop.scope.is_property_scope:
+                            # Only use vtable dispatch if the property scope we found
+                            # matches the entry's property scope.  For super().prop,
+                            # the entry's scope (base class) differs from the one
+                            # found by walking from the object's type (derived class),
+                            # so we fall through to the direct function call.
+                            if prop.scope is func_entry.scope:
+                                accessor = prop.scope.lookup_here(func_entry.name)
+                                if accessor and accessor.cname:
+                                    vtab_type = t
+                                    slot_cname = accessor.cname
+                                    break
+                        t = t.base_type
+                else:
+                    slot_cname = func_entry.cname
+
+                if slot_cname:
+                    if vtab_type is not obj_type:
+                        # super() dispatch: use base class's static vtable pointer
+                        # to avoid dispatching through the object's vtable, which
+                        # may have been overridden by a subclass.
+                        vtab_code = "%s->%s" % (
+                            vtab_type.vtabptr_cname, slot_cname)
+                    else:
+                        vtab_code = "((struct %s *)%s->%s)->%s" % (
+                            vtab_type.vtabstruct_cname, obj_code,
+                            obj_type.vtabslot_cname, slot_cname)
+                    arg_codes = [obj.move_result_rhs_as(func_type.args[0].type)]
+                    if len(self.args) > 1:
+                        for i in range(1, len(self.args)):
+                            formal_arg = func_type.args[i]
+                            actual_arg = self.args[i]
+                            arg_codes.append(actual_arg.move_result_rhs_as(formal_arg.type))
+                    return "%s(%s)" % (vtab_code, ', '.join(arg_codes))
+
         formal_args = func_type.args
         arg_list_code = []
         args = list(zip(formal_args, self.args))
