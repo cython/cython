@@ -37,7 +37,7 @@ jobs:
       with:
         persist-credentials: false
       # Only needed to compare the "base" on push; not needed for PR
-      if: ${{ github.event.name == 'push' }}
+      if: ${{ github.event_name == 'push' }}
     - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
       id: filter
       with:
@@ -55,7 +55,7 @@ jobs:
 
   ci-early:
     needs: [file-changes]
-    if: ${{ github.event.name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
       fail-fast: false
@@ -108,7 +108,7 @@ jobs:
 
   ci-all:
     needs: [ci-early-success, file-changes]
-    if: ${{ github.event.name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -170,7 +170,7 @@ jobs:
   ci-arm64:
     # ARM builds
     needs: [ci-early-success, file-changes]
-    if: ${{ github.event.name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -191,7 +191,7 @@ jobs:
   ci-typespecs:
     # compile with typespecs
     needs: [ci-early-success, file-changes]
-    if: ${{ github.event.name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -216,7 +216,7 @@ jobs:
   ci-sharedmodule:
     # compile with shared utility module
     needs: [ci-early-success, file-changes]
-    if: ${{ github.event.name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -240,7 +240,7 @@ jobs:
   ci-compileall:
     # compile all modules
     needs: [ci-early-success, file-changes]
-    if: ${{ github.event.name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -264,7 +264,7 @@ jobs:
   ci-stdc:
     # GCC/clang with broad language standards
     needs: [ci-early-success, file-changes]
-    if: ${{ github.event.name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -310,7 +310,7 @@ jobs:
   ci-lapi:
     # Limited API tests
     needs: [ci-early-success, file-changes]
-    if: ${{ github.event.name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -350,7 +350,7 @@ jobs:
   ci-noncpython:
     # PyPy, GraalPython, ...
     needs: [ci-early-success, file-changes]
-    if: ${{ github.event.name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
