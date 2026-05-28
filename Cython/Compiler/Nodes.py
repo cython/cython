@@ -6203,11 +6203,11 @@ class PropertyNode(StatNode):
         # Mark property scope as overridable if getter/setter has overridable=True
         # or if it was converted via cpdef (has 'inline' modifier)
         has_inline_getter = False
-        for stat in self.body.stats:
+        for i, stat in enumerate(self.body.stats):
             if isinstance(stat, CFuncDefNode):
                 if stat.overridable or 'inline' in stat.modifiers:
                     self.entry.scope.is_overridable = True
-                if 'inline' in stat.modifiers:
+                if i == 0 and 'inline' in stat.modifiers:
                     has_inline_getter = True
         self.body.analyse_declarations(self.entry.scope)
         if has_inline_getter:

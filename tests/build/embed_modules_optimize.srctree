@@ -227,6 +227,7 @@ assert t.prop_cenum == b.Color.RED
 assert t.prop_obj.prop == 2
 assert t.prop_tuple == (1, 2)
 assert t.prop_bool is True
+assert t.prop_closure == 14
 
 assert u.prop == 2
 
@@ -279,6 +280,7 @@ def func_in_a():
     assert t.prop_obj.prop == 2
     assert t.prop_tuple == (1, 2)
     assert t.prop_bool is True
+    assert t.prop_closure == 14
 
     # Test tp_descr_get generation with mixed return types
     bug_obj = TestBugDescrGet()
@@ -340,10 +342,19 @@ class A(B):
     def prop_tuple(self, val: tuple[int, int]) -> None:
         pass  # no-op for testing
 
+    @property
+    def prop_closure(self) -> int:
+        a = [1,2,3,4]
+        return sum(1+x for x in a)
+
+    @prop_closure.setter
+    def prop_closure(self, val: int) -> None:
+        pass  # no-op for testing
+
 ################# b.pyx ####################
 
 from enum import Enum
-from cython import cclass, ccall, int
+from cython import cclass, ccall, int, float
 
 @cclass
 class Color(Enum):
@@ -373,3 +384,7 @@ class B:
     @prop.setter
     def prop(self, int val) -> None:
         self.__prop_int = val
+
+    @property
+    def prop_second(self) -> float:
+        return 3.14

@@ -2850,7 +2850,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         is_overridable = property_scope.is_overridable
         ext_type = property_scope.parent_type
         # For cpdef properties, cast to struct type, not PyTypeObject*
-        if is_overridable and ext_type.objstruct_cname:
+        # Only cast when the getter is a C function (is_cfunction), not a Python wrapper.
+        use_struct_cast = is_overridable and ext_type.objstruct_cname and get_entry.is_cfunction
+        if use_struct_cast:
             parent_type_cname = "struct %s *" % ext_type.objstruct_cname
         else:
             parent_type_cname = ext_type.typeptr_cname
@@ -2860,7 +2862,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % (
                 property_entry.getter_cname))
 
-        if is_overridable:
+        if use_struct_cast:
             call_code = "%s((%s)o)" % (get_entry.func_cname, parent_type_cname)
         else:
             call_code = "%s(o)" % (get_entry.func_cname)
@@ -2895,7 +2897,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         is_overridable = property_scope.is_overridable
         ext_type = property_scope.parent_type
         # For cpdef properties, cast to struct type, not PyTypeObject*
-        if is_overridable and ext_type.objstruct_cname:
+        # Only cast when the setter is a C function (is_cfunction), not a Python wrapper.
+        use_struct_cast = is_overridable and ext_type.objstruct_cname and set_entry.is_cfunction
+        if use_struct_cast:
             parent_type_cname = "struct %s *" % ext_type.objstruct_cname
         else:
             parent_type_cname = ext_type.typeptr_cname
@@ -2907,7 +2911,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" % (
                 property_entry.setter_cname))
         code.putln("if (v) {")
-        if is_overridable:
+        if use_struct_cast:
             # Check if the C function returns void (property setter) or int
             set_type = set_entry.type
             if set_type and hasattr(set_type, 'return_type') and set_type.return_type.is_void:
