@@ -4133,6 +4133,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         _generate_export_code(code, self.pos, exports, "__Pyx_ExportVoidPtr", "void *{name}")
 
+    def _get_function_export_name(self, entry):
+        """Qualify property accessor names with the property name to avoid
+        collisions when multiple properties exist in the same module.
+        """
+        if (entry.scope and entry.scope.is_property_scope
+                and entry.name in ('__get__', '__set__', '__del__')):
+            return f"{entry.scope.name}.{entry.name}"
+        return entry.name
+
     def generate_c_function_export_code(self, env, code):
         """Generate code to create PyCFunction wrappers for exported C functions.
         """
@@ -4142,7 +4151,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         exports = [
             # (signature, name, cname)
-            (entry.type.signature_string(), entry.name, entry.cname)
+            (entry.type.signature_string(), self._get_function_export_name(entry), entry.cname)
             for entry in entries
         ]
         code.globalstate.use_utility_code(
@@ -4221,7 +4230,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         imports = [
             # (signature, name, cname)
-            (entry.type.signature_string(), entry.name, entry.cname)
+            (entry.type.signature_string(), self._get_function_export_name(entry), entry.cname)
             for entry in regular_entries
         ]
         code.globalstate.use_utility_code(
