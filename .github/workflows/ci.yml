@@ -57,7 +57,7 @@ jobs:
           - '**/*.md'
           - '**/*.rst'
           - 'docs/**'
-          positive-docs
+          positive-docs:
           - 'docs/examples/**'
 
   ci-early:
