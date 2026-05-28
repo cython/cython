@@ -30,10 +30,7 @@ jobs:
     permissions:
       pull-requests: read
     outputs:
-      ci-changes: |
-        ${{ steps.filter.outputs.any-files == 'true' }} &&
-        ${{ steps.filter.outputs.negative-files == 'false' || steps.filter.outputs.positive-github == 'true' }} &&
-        ${{ steps.filter.outputs.negative-docs == 'false' || steps.filter.outputs.positive-docs == 'true' }}
+      ci-changes: ${{ steps.filter.outputs.any-files == 'true' && (steps.filter.outputs.negative-files == 'false' || steps.filter.outputs.positive-github == 'true') && (steps.filter.outputs.negative-docs == 'false' || steps.filter.outputs.positive-docs == 'true') }}
     steps:
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
