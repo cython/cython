@@ -63,9 +63,9 @@ def subscripted_types_assignments():
 def subscripted_types_assignments_to_variable():
     ta: tuple[str, cython.float] = ('foo', 5.0)
     tb: tuple[str, cython.int] = ('bar', 1)
-    z: cython.int = ta[0]
+    z: cython.int = ta[1]
     zz: cython.float = 1.0
-    tb[0] = zz
+    tb[1] = zz
     h: cython.int
     for h in ta:
         pass
@@ -266,6 +266,8 @@ _ERRORS = """
 58:9: Cannot assign type 'set[float] object' to 'dict[float,float] object'
 59:9: Cannot assign type 'frozenset[float] object' to 'dict[float,float] object'
 60:9: Cannot assign type 'list[float] object' to 'dict[float,float] object'
+66:22: Cannot assign type 'float' to 'int'
+68:12: Cannot assign type 'float' to 'int'
 75:22: Cannot assign type 'float' to 'int'
 77:12: Cannot assign type 'float' to 'int'
 79:13: Cannot assign type 'float' to 'int'
