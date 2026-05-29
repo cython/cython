@@ -192,6 +192,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     # code in pxd files. So it will be run multiple times in a
     # compilation stage.
     stages = [
+        lambda: exit(1),
         NormalizeTree(context),
         PostParse(context),
         _specific_post_parse,
