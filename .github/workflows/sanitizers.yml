@@ -5,20 +5,7 @@ on:
   push:
     branches:
       - master
-    paths:
-      - ".github/workflows/sanitizers.yml"
-      - ".github/workflows/compiled_python.yml"
-      - "Cython/**"
-      - "tests/**"
   pull_request:
-    paths:
-      # Only run these tests on PRs likely to affect code generation
-      - ".github/workflows/sanitizers.yml"
-      - ".github/workflows/compiled_python.yml"
-      - "Cython/Utility/**"
-      - "Cython/Compiler/Nodes.py"
-      - "Cython/Compiler/ExprNodes.py"
-      - "Cython/Compiler/Optimize.py"
   label:
     # Accepted labels (in the 'if' condition below) are:
     # * sanitizers
@@ -33,7 +20,40 @@ permissions:
   contents: read # to fetch code (actions/checkout)
 
 jobs:
+  file-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      push-files: ${{ steps.filter.outputs.push-files }}
+      pr-files: ${{ steps.filter.outputs.pr-files }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+      # Only needed to compare the "base" on push; not needed for PR
+      if: ${{ github.event_name == 'push' }}
+    - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
+      id: filter
+      with:
+        base: ${{ github.ref }}
+        filters: |
+          push-files:
+          - ".github/workflows/sanitizers.yml"
+          - ".github/workflows/compiled_python.yml"
+          - "Cython/**"
+          - "tests/**"
+          pr-files:
+          - ".github/workflows/sanitizers.yml"
+          - ".github/workflows/compiled_python.yml"
+          - "Cython/Utility/**"
+          - "Cython/Compiler/Nodes.py"
+          - "Cython/Compiler/ExprNodes.py"
+          - "Cython/Compiler/Optimize.py"
+
   sanitizers:
+    needs: [file-changes]
     strategy:
       fail-fast: false
       matrix:
@@ -45,9 +65,11 @@ jobs:
       cpp_compiler: clang++
       sanitize: ${{ matrix.sanitizer }}
       name: ${{ matrix.sanitizer }}
-    if: ${{ github.event_name != 'label' || github.event.label.name == 'sanitizers' || github.event.label.name == 'full_sanitizers' }}
+    if: ${{ case(github.event_name == 'push', needs.file-changes.outputs.push-files == 'true', github.event_name == 'pull_request', needs.file-changes.outputs.pr-files == 'true', github.event_name == 'label', github.event.label.name == 'sanitizers' || github.event.label.name == 'full_sanitizers', 'true') }}
 
   pydebug:
     uses: ./.github/workflows/compiled_python.yml
     with:
       name: pydebug
+    needs: [file-changes]
+    if: ${{ case(github.event_name == 'push', needs.file-changes.outputs.push-files == 'true', github.event_name == 'pull_request', needs.file-changes.outputs.pr-files == 'true', 'true') }}
