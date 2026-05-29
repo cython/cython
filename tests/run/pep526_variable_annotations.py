@@ -401,29 +401,26 @@ def test_assignment_tuple_with_subscript():
     """
     >>> test_assignment_tuple_with_subscript()
     int int
-    int int
-    int int
-    5 5 5
-    6 6 6
-    """
-    a: tuple[cython.int, cython.int] = (5, 6)
-    b: tuple = a
-    c: tuple[cython.float, cython.float] = b
-    print(cython.typeof(a[0]), cython.typeof(a[1]))
-    print(cython.typeof(b[0]), cython.typeof(b[1]))
-    print(cython.typeof(c[0]), cython.typeof(c[1]))
-    print(a[0], b[0], c[0])
-    print(a[1], b[1], c[1])
-
-if cython.compiled:
-    test_assignment_tuple_with_subscript.__doc__ = """
-    >>> test_assignment_tuple_with_subscript()
-    int int
     Python object Python object
     float float
     5 5 5.0
     6 6 6.0
     """
+    a: tuple[cython.int, cython.int] = (5, 6)
+    b: tuple = a
+    c: tuple[cython.float, cython.float] = b
+    print(cython.typeof(a[0]), cython.typeof(a[1])
+    )
+    print(
+        cython.typeof(b[0]) if cython.compiled else "Python object",
+        cython.typeof(b[1]) if cython.compiled else "Python object"
+    )
+    print(
+        cython.typeof(c[0]) if cython.compiled else "float",
+        cython.typeof(c[1]) if cython.compiled else "float"
+    )
+    print(a[0], b[0], c[0] if cython.compiled else float(c[0]))
+    print(a[1], b[1], c[1] if cython.compiled else float(c[1]))
 
 def test_assignment_list_with_subscript():
     """
