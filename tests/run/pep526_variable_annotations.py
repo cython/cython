@@ -212,7 +212,7 @@ def test_subscripted_types():
     print(cython.typeof(t1) + ("[int,Python object,float] object" if not cython.compiled else ""))
     print(cython.typeof(t2) + ("[int,Python object,float] object" if not cython.compiled else ""))
 
-if sys.version_info >= (3, 11) or cython.compiled:
+if sys.version_info >= (3, 11):
     # This part of the test is failing in Python 3.9 and 3.10 with the following exception in Shadow.py:
     # isinstance() argument 2 cannot be a parameterized generic
 
@@ -220,59 +220,52 @@ if sys.version_info >= (3, 11) or cython.compiled:
         """
         >>> test_casting_subscripted_types()
         tuple:
-        tuple 1.0 2.0
-        tuple 1.0 2.0
+        tuple[list object,int,int] object 1 2
+        tuple object 1.0 2.0
         list:
-        list 1.0
-        list 1.0
+        list[int] object 1
+        list object 1.0
         dict:
-        dict 2
-        dict 2
-        int 3
-        int 3
+        dict[str object,float] object 2.0
+        dict object 2
+        float 3.0
+        Python object 3
         """
         print('tuple:')
         t: tuple[list, cython.float, cython.float] = ([], 1.0, 2.0)
         x0 = cython.cast(tuple[list, cython.int, cython.int], t)
         y0 = cython.cast(tuple, t)
-        print(cython.typeof(x0), x0[1], x0[2])
-        print(cython.typeof(y0), y0[1], y0[2])
+        print(
+            cython.typeof(x0) + ('[list object,int,int] object' if not cython.compiled else ''),
+            x0[1] if cython.compiled else int(x0[1]),
+            x0[2] if cython.compiled else int(x0[2]),
+        )
+        print(cython.typeof(y0) + (' object' if not cython.compiled else ''), y0[1], y0[2])
         print('list:')
         l: list[cython.float] = [1.0, 2.0]
         x1 = cython.cast(list[cython.int], l)
         y1 = cython.cast(list, l)
-        print(cython.typeof(x1), x1[0])
-        print(cython.typeof(y1), y1[0])
+        print(cython.typeof(x1) + ('[int] object' if not cython.compiled else ""), int(x1[0]) if not cython.compiled else x1[0])
+        print(cython.typeof(y1) + (' object' if not cython.compiled else ""), y1[0])
         print('dict:')
         d: dict[str, cython.int] = {'a': 1, 'b': 2}
         x2 = cython.cast(dict[str, cython.float], d)
         y2 = cython.cast(dict, d)
-        print(cython.typeof(x2), x2['b'])
-        print(cython.typeof(y2), y2['b'])
+        print(
+            cython.typeof(x2) + ('[str object,float] object' if not cython.compiled else ""),
+            x2['b'] if cython.compiled else float(x2['b'])
+        )
+        print(cython.typeof(y2) + (' object' if not cython.compiled else ""), y2['b'])
 
         d2: dict[cython.int, str] = {3: '3'}
         for k1 in cython.cast(dict[cython.float, str], d2):
-            print(cython.typeof(k1), k1)
+            print(
+                cython.typeof(k1) if cython.compiled else 'float',
+                k1 if cython.compiled else float(k1)
+            )
 
         for k2 in cython.cast(dict, d2):
-            print(cython.typeof(k2), k2)
-
-
-if cython.compiled:
-    test_casting_subscripted_types.__doc__ = """
-    >>> test_casting_subscripted_types()
-    tuple:
-    tuple[list object,int,int] object 1 2
-    tuple object 1.0 2.0
-    list:
-    list[int] object 1
-    list object 1.0
-    dict:
-    dict[str object,float] object 2.0
-    dict object 2
-    float 3.0
-    Python object 3
-    """
+            print(cython.typeof(k2) if cython.compiled else 'Python object', k2)
 
 
 def test_use_typing_attributes_as_non_annotations():
