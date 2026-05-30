@@ -325,7 +325,7 @@ def test_list_with_int_subscript():
 
 def test_dict_with_subscript():
     """
-    >>> test_list_with_int_subscript()
+    >>> test_dict_with_subscript()
     int
     int
     int
