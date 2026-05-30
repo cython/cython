@@ -180,6 +180,7 @@ def test_nested_tuple():
     print(cython.typeof(ta[3][1][0]))
     print(cython.typeof(ta[3][1][1]))
 
+
 def test_nested_list():
     """
     >>> test_nested_list()
