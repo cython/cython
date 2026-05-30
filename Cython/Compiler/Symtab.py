@@ -3071,6 +3071,11 @@ class PropertyScope(Scope):
             entry.signature = sig
         if self.is_overridable:
             entry.is_overridable = True
+        # Mark property accessor as final when the parent type is @final
+        # so the code generator can skip vtable dispatch for direct calls.
+        if self.parent_type.is_final_type:
+            entry.is_final_cmethod = True
+            entry.final_func_cname = entry.func_cname
         # When cimport_from_pyx is enabled, property getter/setter entries must be
         # added to the module's cfunc_entries so they get declarations generated in
         # consuming modules, and marked defined_in_pxd so they are treated as inline

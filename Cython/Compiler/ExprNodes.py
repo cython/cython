@@ -6690,6 +6690,7 @@ class SimpleCallNode(CallNode):
         if (func_entry and func_entry.scope
                 and func_entry.scope.is_property_scope
                 and func_entry.is_overridable
+                and not func_entry.final_func_cname
                 and self.args):
             obj = self.args[0]
             obj_type = obj.type

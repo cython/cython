@@ -1897,8 +1897,10 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                 while prop_module_scope and not prop_module_scope.is_module_scope:
                     prop_module_scope = prop_module_scope.outer_scope
                 if prop_module_scope and prop_module_scope.qualified_name in compilation_sources:
-                    return ExprNodes.SimpleCallNode.for_cproperty_get(
-                        node.pos, self_arg, prop_entry)
+                    # Use RawCNameExprNode to bypass c_call_code's vtable dispatch
+                    function = ExprNodes.RawCNameExprNode(
+                        node.pos, type=getter_entry.type, cname=getter_entry.func_cname)
+                    return ExprNodes.SimpleCallNode(node.pos, function=function, args=[self_arg])
 
         # For cpdef properties (is_overridable=True), call the C function directly
         # instead of using the vtable, since the function is exported and can be called
