@@ -3670,10 +3670,10 @@ class DefNode(FuncDefNode):
             if entry.is_final_cmethod and not env.parent_type.is_final_type:
                 error(self.pos, "Only final types can have final Python (def/cpdef) methods")
             if entry.type.is_cfunction and not entry.is_builtin_cmethod and not self.is_wrapper:
-                if env.directives.get("auto_cpdef"):
+                if entry.name != '__init__' and env.directives.get("auto_cpdef"):
                     error(self.pos, "Found c(p)def method overridden with a def method. "
                         "Ensure the method do not use closures or disable auto_cpdef mode")
-                else:
+                elif entry.name != '__init__':
                     warning(self.pos, "Overriding a c(p)def method with a def method. "
                         "This can lead to different methods being called depending on the "
                         "call context. Consider using a cpdef method for both.", 5)

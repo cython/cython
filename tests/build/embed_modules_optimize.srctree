@@ -412,7 +412,7 @@ class DerivedWithCtorOverride(DerivedWithCtor):
 @cclass
 class DerivedWithCtorOverrideClosure(DerivedWithCtor):
     def __init__(self, n: int, z: float, k: str) -> None:
-        super().__init__(n, z, k)
+        super().__init__(n, z)
         # this closure makes this constructor not cpdef-convertible
         # however because this is a constructor, it is not an error
         # Because the constructor are always called directly and never
