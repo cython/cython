@@ -64,6 +64,7 @@ elif mode == 'auto_cpdef':
     assert "static int (*__pyx_f_1b_1B_4prop___get__)(struct __pyx_obj_1b_B *);" in a_c_content
     assert "->__pyx_f_1b_1B_4prop___get__(((struct __pyx_obj_1b_B *)" in a_c_content
     assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" not in a_c_content, "Expected no Python GetAttrStr call"
+    assert "__Pyx_PyObject_Call(((PyObject *)__pyx_mstate_global->__pyx_ptype_1a_DerivedWithCtorOverride)," not in a_c_content, "Expected no call to DerivedWithCtorOverride constructor skipping python"
     print("OK: auto_cpdef mode")
 
 elif mode == 'lto':
@@ -71,6 +72,7 @@ elif mode == 'lto':
     assert "__pyx_vtabptr_1b_B->__pyx_f_1b_1B_4prop___get__" not in a_c_content, "Expected direct call to 'super().method', not vtable dispatch"
     assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" not in a_c_content
     assert "__pyx_vtab)->__pyx_f_1b_8Derived3_4prop___get__(" not in a_c_content, "Expected direct call to final method, not vtable dispatch"
+    assert "__Pyx_PyObject_Call(((PyObject *)__pyx_mstate_global->__pyx_ptype_1a_DerivedWithCtorOverride)," not in a_c_content, "Expected no call to DerivedWithCtorOverride constructor skipping python"
     print("OK: LTO mode")
 
 else:
@@ -307,6 +309,16 @@ def func_in_a():
     # final prop should invoke directly, not through vtable
     assert Derived3().prop == 100, "Expected Derived3.prop to be 100"
 
+    # test that constructor overrides work and don't interfere with property getters
+    dw: DerivedWithCtorOverride
+    dw = DerivedWithCtorOverride()
+    assert dw.prop == 2, f"Expected DerivedWithCtorOverride.prop to be 2, got {dw.prop}"
+    dw = DerivedWithCtorOverride(1, 2.0, "test")
+    assert dw.prop == 3, f"Expected DerivedWithCtorOverride.prop to be 3, got {dw.prop}"
+    dw = DerivedWithCtorOverride.__new__(DerivedWithCtorOverride)
+    dw.__init__(1, 2.0, "test")
+    assert dw.prop == 3, f"Expected DerivedWithCtorOverride.prop to be 3, got {dw.prop}"
+
     func_with_for_loop()
     return func_in_b()
 
@@ -381,6 +393,23 @@ class A(B):
     @prop_closure.setter
     def prop_closure(self, val: int) -> None:
         pass  # no-op for testing
+
+@cclass
+class IBaseWithCtor:
+    _prop: int
+
+    def __init__(self, val: int = 0, unused: float = 0.0) -> None:
+        self._prop = val
+
+@cclass
+class DerivedWithCtor(IBaseWithCtor):
+    pass
+
+@cclass
+class DerivedWithCtorOverride(DerivedWithCtor):
+    def __init__(self, n: int = 0, z: float = 0.0, k: str = "") -> None:
+        super().__init__(n, z)
+        self._prop = n + 2
 
 ################# b.pyx ####################
 
