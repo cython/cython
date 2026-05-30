@@ -4,12 +4,12 @@ CYTHON_FREEZE = ../../bin/cython_freeze
 PYTHON = python
 RST2HTML = rst2html
 
-PY_LDFLAGS = $(shell $(PYTHON) -c 'from distutils.sysconfig import get_config_var as g; import sys; sys.stdout.write(" ".join([g("LINKFORSHARED"), "-L"+g("LIBPL")]) + "\n")')
-PY_CPPFLAGS = $(shell $(PYTHON) -c 'from distutils.sysconfig import *; import sys; sys.stdout.write("-I"+get_python_inc() + "\n")')
-LIBDIR1 := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
-LIBDIR2 := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('LIBPL'))")
-PYLIB := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('LIBRARY')[3:-2])")
-LIBS := $(shell $(PYTHON) -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('LIBS'))")
+PY_LDFLAGS = $(shell $(PYTHON) -c 'from sysconfig import get_config_var as g; import sys; sys.stdout.write(" ".join([g("LINKFORSHARED"), "-L"+g("LIBPL")]) + "\n")')
+PY_CPPFLAGS = $(shell $(PYTHON) -c 'from sysconfig import *; import sys; sys.stdout.write("-I"+get_python_inc() + "\n")')
+LIBDIR1 := $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
+LIBDIR2 := $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_config_var('LIBPL'))")
+PYLIB := $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_config_var('LIBRARY')[3:-2])")
+LIBS := $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_config_var('LIBS'))")
 
 CFLAGS = -fPIC -fno-strict-aliasing -g -O2 -Wall -Wextra
 CPPFLAGS = $(PY_CPPFLAGS)

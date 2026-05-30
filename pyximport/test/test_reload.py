@@ -5,7 +5,7 @@ from . import test_pyximport
 
 
 if 1:
-    from distutils import sysconfig
+    import sysconfig
     try:
         sysconfig.set_python_build()
     except AttributeError:
