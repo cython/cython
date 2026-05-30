@@ -3519,28 +3519,27 @@ class NextNode(AtomicExprNode):
             iterator_type = self.iterator.infer_type(env)
         if iterator_type.is_ptr or iterator_type.is_array:
             return iterator_type.base_type
-        elif iterator_type.is_cpp_class:
+        if iterator_type.is_cpp_class:
             item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
             item_type = PyrexTypes.remove_cv_ref(item_type, remove_fakeref=True)
             return item_type
-        elif (
-            (sequence_type := self.iterator.sequence.infer_type(env)).supports_container_type and
-            not (
-                self.iterator.sequence.is_sequence_constructor or
-                self.iterator.sequence.is_dict_literal or
-                self.iterator.sequence.is_set_literal
-            ) and
-            (iterator_type := sequence_type.infer_iterator_type())
+        sequence_node = self.iterator.sequence
+        if not (
+            sequence_node.is_sequence_constructor or
+            sequence_node.is_dict_literal or
+            sequence_node.is_set_literal
         ):
-            return iterator_type
-        else:
-            # Avoid duplication of complicated logic.
-            fake_index_node = IndexNode(
-                self.pos,
-                base=self.iterator.sequence,
-                index=IntNode(self.pos, value='PY_SSIZE_T_MAX',
-                              type=PyrexTypes.c_py_ssize_t_type))
-            return fake_index_node.infer_type(env)
+            # Here we infer only non-literal squences. Literals are infered via special infer_sequence_item_type().
+            sequence_type = sequence_node.infer_type(env)
+            if sequence_type.supports_container_type and (iterator_type := sequence_type.infer_iterator_type()):
+                return iterator_type
+        # Avoid duplication of complicated logic.
+        fake_index_node = IndexNode(
+            self.pos,
+            base=self.iterator.sequence,
+            index=IntNode(self.pos, value='PY_SSIZE_T_MAX',
+                            type=PyrexTypes.c_py_ssize_t_type))
+        return fake_index_node.infer_type(env)
 
     def analyse_types(self, env):
         item_type = self.infer_type(env, self.iterator.type)
