@@ -195,7 +195,7 @@ def test_subscripted_types():
     print(cython.typeof(b3) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + ("[Python object] object" if not cython.compiled else ""))
 
-if sys.version_info >= (3, 11):
+if sys.version_info >= (3, 11) or cython.compiled:
     # This part of the test is failing in Python 3.9 and 3.10 with the following exception in Shadow.py:
     # isinstance() argument 2 cannot be a parameterized generic
 
@@ -366,7 +366,7 @@ def test_assignment_dict_with_subscript():
     print(cython.typeof(c['a']) if cython.compiled else 'float')
     print(a['a'], b['a'], c['a'] if cython.compiled else float(c['a']))
 
-if sys.version_info >= (3, 15):
+if sys.version_info >= (3, 15) or cython.compiled:
 
     def test_assignment_frozendict_with_subscript():
         """
