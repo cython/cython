@@ -383,23 +383,42 @@ class MethodSlot(SlotDescriptor):
         if fallback:
             self.alternatives.append(fallback)
 
+    def _get_slot_function(self, entry):
+        """Return the C function name to use for this slot.
+
+        For extension type slots like tp_init, the slot expects a
+        specific C signature (e.g., initproc returns int). For cpdef
+        functions, entry.func_cname is the __pyx_f_ function which
+        returns PyObject*. The correct slot function is the Python
+        wrapper in entry.as_variable.func_cname (__pyx_pw_ wrapper).
+        For regular def functions, entry.func_cname already points
+        to the correct wrapper.
+        """
+        if entry.is_cfunction and entry.as_variable and entry.as_variable.func_cname:
+            return entry.as_variable.func_cname
+        if entry.func_cname:
+            return entry.func_cname
+        if entry.pyfunc_cname:
+            return entry.pyfunc_cname
+        return ""
+
     def slot_code(self, scope):
         entry = scope.lookup_here(self.method_name)
-        if entry and entry.is_special and entry.func_cname:
+        if entry and entry.is_special and (entry.func_cname or entry.pyfunc_cname or (entry.as_variable and entry.as_variable.func_cname)):
             for method_name in self.alternatives:
                 alt_entry = scope.lookup_here(method_name)
                 if alt_entry:
                     warn_once(alt_entry.pos,
                               f"{method_name} was removed in Python 3; ignoring it and using {self.method_name} instead",
                               2)
-            return entry.func_cname
+            return self._get_slot_function(entry)
         for method_name in self.alternatives:
             entry = scope.lookup_here(method_name)
-            if entry and entry.is_special and entry.func_cname:
+            if entry and entry.is_special and (entry.func_cname or entry.pyfunc_cname or (entry.as_variable and entry.as_variable.func_cname)):
                 warn_once(entry.pos,
                           f"{method_name} was removed in Python 3; use {self.method_name} instead",
                           2)
-                return entry.func_cname
+                return self._get_slot_function(entry)
         return "0"
 
 

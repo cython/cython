@@ -3231,7 +3231,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     def visit_ModuleNode(self, node):
         self.directives = node.directives
         self.in_py_class = False
-        self.imported_names = set()  # hack, see visit_FromImportStatNode()
+        self.imported_names = set()
         self.env = node
         self.visitchildren(node)
         return node
@@ -3271,8 +3271,15 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         is_ccall_promoted = False
         if not is_ccall and auto_cpdef and not no_ccall and not is_cfunc and not self.in_py_class:
             # avoid conflicts with redeclared symbols
-            if hasattr(self.env, "scope") and self.env.scope.is_module_scope and node.name not in self.imported_names:
+            if (not hasattr(self.env, "scope") or self.env.scope.is_module_scope) and node.name not in self.imported_names:
                 is_ccall_promoted = node.is_cdef_func_compatible()
+            # Block dunder method promotion inside cclasses, except __init__
+            # which is handled separately with special slot-wrapper logic.
+            # Other dunders (__add__, __eq__, __repr__, etc.) get __pyx_skip_dispatch
+            # added to their signature by cpdef promotion, which conflicts with
+            # the fixed signatures expected by CPython slot wrappers.
+            if is_ccall_promoted and not hasattr(self.env, "scope") and node.name not in ('__init__',):
+                is_ccall_promoted = False
         if is_ccall or is_ccall_promoted:
             if is_ccall and is_cfunc:
                 error(node.pos, "cfunc and ccall directives cannot be combined")

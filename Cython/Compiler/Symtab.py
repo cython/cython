@@ -2662,8 +2662,10 @@ class CClassScope(ClassScope):
                           defining=0, modifiers=(), utility_code=None, overridable=False):
         name = self.mangle_class_private_name(name)
         if (get_slot_table(self.directives).get_special_method_signature(name)
-                and not self.parent_type.is_builtin_type):
+                and not self.parent_type.is_builtin_type
+                and not overridable):
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
+
         args = type.args
         if not type.is_static_method:
             if not args:
@@ -2699,6 +2701,10 @@ class CClassScope(ClassScope):
                                 name, self.class_name), 2)
                         warning(entry.pos, "Previous declaration is here", 2)
                     entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
+                elif name in ('__init__', '<init>'):
+                    # __init__ always has different signatures per class across the
+                    # inheritance hierarchy, which is normal for Python constructors.
+                    entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
                 else:
                     error(pos, "Signature not compatible with previous declaration")
                     error(entry.pos, "Previous declaration is here")
@@ -2711,6 +2717,10 @@ class CClassScope(ClassScope):
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
         entry.utility_code = utility_code
+        if (entry.func_cname
+                and not self.parent_type.is_builtin_type
+                and get_slot_table(self.directives).get_special_method_signature(name)):
+            entry.is_special = 1
         type.entry = entry
 
         if 'inline' in modifiers:

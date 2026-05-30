@@ -2904,7 +2904,17 @@ class CFuncDefNode(FuncDefNode):
             # TODO(robertwb): Finish this up, perhaps via more function refactoring.
             error(self.pos, "static cpdef methods not yet supported")
 
-        py_func_body = self.call_self_node(is_module_scope=env.is_module_scope)
+        # Check if the Python wrapper will have a c_returncode_type return type
+        # (e.g., __init__ gets initproc signature). In that case, the wrapper
+        # should not return the result of the C function call.
+        omit_return_value = False
+        if not env.is_module_scope:
+            from .TypeSlots import get_slot_table
+            special_sig = get_slot_table(env.directives).get_special_method_signature(self.entry.name)
+            if special_sig is not None and special_sig.return_type().is_returncode:
+                omit_return_value = True
+
+        py_func_body = self.call_self_node(is_module_scope=env.is_module_scope, omit_return_value=omit_return_value)
         py_func_body = CompilerDirectivesNode.for_directives(
             py_func_body, env, profile=False, linetrace=False)
 
@@ -2956,7 +2966,7 @@ class CFuncDefNode(FuncDefNode):
                     entry.api or entry.in_cinclude):
                 error(pos, "Function declared public or api may not have private types")
 
-    def call_self_node(self, omit_optional_args=0, is_module_scope=0):
+    def call_self_node(self, omit_optional_args=0, is_module_scope=0, omit_return_value=False):
         from . import ExprNodes
         args = self.type.args
         if omit_optional_args:
@@ -2982,6 +2992,10 @@ class CFuncDefNode(FuncDefNode):
             function=cfunc,
             args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names],
             wrapper_call=skip_dispatch)
+        if omit_return_value:
+            return StatListNode(self.pos, stats=[
+                ExprStatNode(self.pos, expr=c_call),
+                ReturnStatNode(self.pos, value=None)])
         return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
 
     def declare_arguments(self, env):
@@ -3389,8 +3403,6 @@ class DefNode(FuncDefNode):
         if self.needs_closure:
             return False
         if self.star_arg or self.starstar_arg:
-            return False
-        if self.name.startswith('__') and self.name.endswith('__'):
             return False
         if self.num_required_args != len(self.args):
             return False
