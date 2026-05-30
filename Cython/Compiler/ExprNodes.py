@@ -8173,9 +8173,27 @@ class AttributeNode(ExprNode):
             error(self.pos, "Assignment to an immutable object field")
         elif self.entry and self.entry.is_cproperty:
             if not target:
-                return SimpleCallNode.for_cproperty_get(self.pos, self.obj, self.entry).analyse_types(env)
+                # Overridable properties on types without vtables must use
+                # Python attribute access for correct MRO dispatch.
+                if (self.entry.scope and self.entry.scope.is_property_scope
+                        and self.entry.scope.is_overridable
+                        and self.obj.type.is_extension_type
+                        and not self.obj.type.vtabstruct_cname):
+                    self.is_py_attr = 1
+                    self.is_temp = 1
+                    self.result_ctype = py_object_type
+                else:
+                    return SimpleCallNode.for_cproperty_get(self.pos, self.obj, self.entry).analyse_types(env)
             else:
-                return SimpleCallNode.for_cproperty_set(self.pos, self.obj, self.entry).analyse_types(env)
+                # Overridable properties on types without vtables must use
+                # Python attribute access for correct MRO dispatch.
+                if (self.entry.scope and self.entry.scope.is_property_scope
+                        and self.entry.scope.is_overridable
+                        and self.obj.type.is_extension_type
+                        and not self.obj.type.vtabstruct_cname):
+                    self.is_py_attr = 1
+                else:
+                    return SimpleCallNode.for_cproperty_set(self.pos, self.obj, self.entry).analyse_types(env)
         #elif self.type.is_memoryviewslice and not target:
         #    self.is_temp = True
         return self

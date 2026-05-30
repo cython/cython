@@ -4140,7 +4140,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         """
         if (entry.scope and entry.scope.is_property_scope
                 and entry.name in ('__get__', '__set__', '__del__')):
-            return f"{entry.scope.name}.{entry.name}"
+            class_name = entry.scope.parent_type.name
+            return f"{class_name}.{entry.scope.name}.{entry.name}"
         return entry.name
 
     def generate_c_function_export_code(self, env, code):
@@ -4435,6 +4436,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                 # vtable slot so that dispatch through a base-class reference
                                 # correctly resolves to this class's implementation.
                                 base_type = type.base_type
+                                base_path = Naming.obj_base_cname
                                 while base_type and base_type.scope:
                                     base_prop_entry = base_type.scope.lookup_here(prop_entry.name)
                                     if base_prop_entry and base_prop_entry.scope and base_prop_entry.scope.is_property_scope:
@@ -4448,12 +4450,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                             code.putln(
                                                 "%s.%s.%s = %s%s;" % (
                                                     type.vtable_cname,
-                                                    Naming.obj_base_cname,
+                                                    base_path,
                                                     base_func.cname,
                                                     base_cast,
                                                     func.func_cname))
-                                        break
                                     base_type = base_type.base_type
+                                    if base_type:
+                                        base_path = "%s.%s" % (base_path, Naming.obj_base_cname)
 
 
 # cimport/export code for functions and pointers.

@@ -1937,6 +1937,12 @@ class ModuleScope(Scope):
                 base_type = base_type.base_type
             #print "...allocating vtabslot_cname because there are C methods" ###
             type.vtabslot_cname = Naming.vtabslot_cname
+        elif entry.visibility != 'extern' and type.scope and hasattr(type.scope, 'property_entries') and any(
+            e.is_cproperty for e in type.scope.property_entries
+        ):
+            # Allocate vtable for types with C properties but no C methods
+            # (e.g. a cclass that only has @property accessors)
+            type.vtabslot_cname = Naming.vtabslot_cname
         if type.vtabslot_cname:
             #print "...allocating other vtable related cnames" ###
             type.vtabstruct_cname = self.mangle(Naming.vtabstruct_prefix, entry.name)
