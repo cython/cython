@@ -63,13 +63,15 @@ if mode == 'default':
 elif mode == 'auto_cpdef':
     assert "static int (*__pyx_f_1b_1B_4prop___get__)(struct __pyx_obj_1b_B *);" in a_c_content
     assert "->__pyx_f_1b_1B_4prop___get__(((struct __pyx_obj_1b_B *)" in a_c_content
-    assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" not in a_c_content
-    print("OK: auto_cpdef mode uses vtable dispatch")
+    assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" not in a_c_content, "Expected no Python GetAttrStr call"
+    print("OK: auto_cpdef mode")
 
 elif mode == 'lto':
     assert "int __pyx_f_1b_1B_4prop___get__(struct __pyx_obj_1b_B *);" in a_c_content
+    assert "__pyx_vtabptr_1b_B->__pyx_f_1b_1B_4prop___get__" not in a_c_content, "Expected direct call to 'super().method', not vtable dispatch"
     assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" not in a_c_content
-    print("OK: LTO mode uses vtable dispatch")
+    assert "__pyx_vtab)->__pyx_f_1b_8Derived3_4prop___get__(" not in a_c_content, "Expected direct call to final method, not vtable dispatch"
+    print("OK: LTO mode")
 
 else:
     print(f"Unknown mode: {mode}")
@@ -247,8 +249,8 @@ print("DONE")
 
 ################# a.pyx ####################
 
-from b import B, Derived, Derived2, IBase, func_in_b, func_with_parameter, Color
-from b cimport B, Derived, Derived2, IBase, func_in_b, func_with_parameter, Color
+from b import B, Derived, Derived2, Derived3, IBase, func_in_b, func_with_parameter, Color
+from b cimport B, Derived, Derived2, Derived3, IBase, func_in_b, func_with_parameter, Color
 from cython import ccall, cclass, int, bint as bool
 
 cdef bint _helper = True
@@ -301,6 +303,10 @@ def func_in_a():
 
     assert func_with_parameter(t) == 3  # passing A through parameter typed as A
     assert func_with_parameter(tt) == 3  # passing A through parameter typed as B
+
+    # final prop should invoke directly, not through vtable
+    assert Derived3().prop == 100, "Expected Derived3.prop to be 100"
+
     func_with_for_loop()
     return func_in_b()
 
@@ -379,7 +385,7 @@ class A(B):
 ################# b.pyx ####################
 
 from enum import Enum
-from cython import cclass, ccall, int, float
+from cython import cclass, ccall, final, int, float
 
 @cclass
 class Color(Enum):
@@ -434,3 +440,10 @@ class Derived2(Derived):
     @property
     def prop(self) -> int:
         return 44
+
+@final
+@cclass
+class Derived3(Derived2):
+    @property
+    def prop(self) -> int:
+        return 100
