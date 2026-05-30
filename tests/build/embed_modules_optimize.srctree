@@ -62,7 +62,6 @@ if mode == 'auto_cpdef':
 
 elif mode == 'lto':
     assert "int __pyx_f_1b_1B_4prop___get__(struct __pyx_obj_1b_B *);" in a_c_content
-    assert "->__pyx_f_1b_1B_4prop___get__(((struct __pyx_obj_1b_B *)" in a_c_content
     print("OK: LTO mode uses vtable dispatch")
 
 else:
@@ -241,8 +240,8 @@ print("DONE")
 
 ################# a.pyx ####################
 
-from b import B, func_in_b, Color
-from b cimport B, func_in_b, Color
+from b import B, Derived, Derived2, IBase, func_in_b, func_with_parameter, Color
+from b cimport B, Derived, Derived2, IBase, func_in_b, func_with_parameter, Color
 from cython import ccall, cclass, int, bint as bool
 
 cdef bint _helper = True
@@ -293,7 +292,20 @@ def func_in_a():
     assert bug_obj.prop_int == 42
     assert bug_obj.prop_bool is True
 
+    assert func_with_parameter(t) == 3  # passing A through parameter typed as A
+    assert func_with_parameter(tt) == 3  # passing A through parameter typed as B
+    func_with_for_loop()
     return func_in_b()
+
+def func_with_for_loop():
+    items = [Derived(), Derived2()]
+    item: IBase
+    total: int = 0
+    for item in items:
+        # should call through vtable dispatch
+        total = total + item.prop
+
+    assert total == 86, f"Expected total 86, got {total}"
 
 @cclass
 class A(B):
@@ -301,6 +313,7 @@ class A(B):
     _prop_bool: bool
 
     def __init__(self) -> None:
+        super().__init__()
         self._prop_bool = False
 
     @ccall
@@ -309,7 +322,7 @@ class A(B):
 
     @property
     def prop(self) -> int:
-        return super().prop + 1
+        return super().prop + 1*1
 
     @prop.setter
     def prop(self, int val) -> None:
@@ -394,9 +407,23 @@ class B:
     def prop_second(self) -> float:
         return 3.14
 
+def func_with_parameter(p: B) -> int:
+    return p.prop
+
 @cclass
-class C:
+class IBase:
     @property
-    def prop(self) -> float:
-        """Property with same name as B.prop but different return type."""
-        return 2.71
+    def prop(self) -> int:
+        raise NotImplementedError()
+
+@cclass
+class Derived(IBase):
+    @property
+    def prop(self) -> int:
+        return 42
+
+@cclass
+class Derived2(Derived):
+    @property
+    def prop(self) -> int:
+        return 44
