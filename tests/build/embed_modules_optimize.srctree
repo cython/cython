@@ -3,6 +3,7 @@
 
 # standalone
 PYTHON cythonize_embed.py a.pyx b.pyx
+PYTHON check_codegen.py default a.c
 CYTHON --embed --embed-modules a,b main_module.pyx
 PYTHON build.py main_module main_module.c a.c b.c
 PYTHON run.py main_module
@@ -55,13 +56,19 @@ a_c_path = sys.argv[2]
 with open(a_c_path, 'r') as f:
     a_c_content = f.read()
 
-if mode == 'auto_cpdef':
+if mode == 'default':
+    assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" in a_c_content
+    print("OK: default mode uses Python GetAttrStr call")
+
+elif mode == 'auto_cpdef':
     assert "static int (*__pyx_f_1b_1B_4prop___get__)(struct __pyx_obj_1b_B *);" in a_c_content
     assert "->__pyx_f_1b_1B_4prop___get__(((struct __pyx_obj_1b_B *)" in a_c_content
+    assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" not in a_c_content
     print("OK: auto_cpdef mode uses vtable dispatch")
 
 elif mode == 'lto':
     assert "int __pyx_f_1b_1B_4prop___get__(struct __pyx_obj_1b_B *);" in a_c_content
+    assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" not in a_c_content
     print("OK: LTO mode uses vtable dispatch")
 
 else:
