@@ -3529,7 +3529,7 @@ class NextNode(AtomicExprNode):
             sequence_node.is_dict_literal or
             sequence_node.is_set_literal
         ):
-            # Here we infer only non-literal squences. Literals are infered via special infer_sequence_item_type().
+            # Here we infer only non-literal sequences. Literals are inferred via special infer_sequence_item_type().
             sequence_type = sequence_node.infer_type(env)
             if sequence_type.supports_container_type and (iterator_type := sequence_type.infer_iterator_type()):
                 return iterator_type
@@ -4292,7 +4292,7 @@ class IndexNode(_IndexingBaseNode):
                 # sliced Py_UNICODE* strings must coerce to Python
                 return unicode_type
             elif base_type.supports_container_type and not base_type.has_uniform_element_type:
-                # slicing a container with non-uniform element types (tuple[int, str]) depends on the slice indices,
+                # Slicing a container with non-uniform element types (tuple[int, str]) depends on the slice indices,
                 # so we can't infer a more specific type here.
                 return base_type.get_container_type()
             elif base_type.is_builtin_sequence:
