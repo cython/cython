@@ -542,7 +542,7 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnan
         if (!subject) {
             int contains = PyDict_Contains(dict, key);
             if (contains <= 0) {
-                return -1; // any subjects that were already set will be cleaned up externally
+                return contains; // any subjects that were already set will be cleaned up externally
             }
         } else {
             PyObject *value;

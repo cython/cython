@@ -117,3 +117,21 @@ def test_typed_optional_frozendict(arg: frozendict | None):
             print(f"case keys: {keys}")
         case _:
             print("Unmatched")
+
+def test_dict_without_subjects(arg: dict):
+    """
+    dict/frozendict without subjects takes a shortcut in Cython
+    that's worth testing specifically.
+
+    >>> test_dict_without_subjects({})
+    unmatched
+    >>> test_dict_without_subjects({'a': 1, 'b': 2, 'c': 3})
+    ab
+    >>> test_dict_without_subjects({'a': 1, 'b': 2})
+    ab
+    """
+    match arg:
+        case {"a": _, "b": _}:
+            print("ab")
+        case _:
+            print("unmatched")
