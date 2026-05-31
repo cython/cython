@@ -63,7 +63,7 @@ class MatchNode(StatNode):
                     body=body,
                 )
                 # Passing None for env is safe only because we know it's a simple value comparison.
-                assignments = c.pattern.generate_target_assignments(subject, None)
+                assignments = c.pattern.create_target_assignments(subject, env=None)
                 if assignments:
                     if_clause.body.stats.insert(0, assignments)
                 if current_if_statement is None:
@@ -78,14 +78,14 @@ class MatchNode(StatNode):
                         current_if_statement.pos, body=current_if_statement
                     ))
                     current_if_statement = None
-                new_cases.append(c)
+                if c is not None:
+                    new_cases.append(c)
         if current_if_statement:
             # this cannot be simplified, but previous case(s) were
             new_cases.append(SubstitutedMatchCaseNode(
                 current_if_statement.pos, body=current_if_statement
             ))
-        # eliminate optimized cases
-        self.cases = [c for c in new_cases if c is not None]
+        self.cases = new_cases
 
     def analyse_declarations(self, env):
         self.subject.analyse_declarations(env)
@@ -99,20 +99,21 @@ class MatchNode(StatNode):
                 sequence_mapping_count += 1
         if sequence_mapping_count >= 2:
             self.sequence_mapping_temp = AssignableTempNode(
-                self.pos, PyrexTypes.c_uint_type
+                self.pos, PyrexTypes.c_uint_type,
+                is_addressable=True
             )
-            self.sequence_mapping_temp.is_addressable = lambda: True
 
         self.subject = self.subject.analyse_expressions(env)
         assert isinstance(self.subject, ExprNodes.ProxyNode)
         if not self.subject.arg.is_literal:
             self.subject.arg = self.subject.arg.coerce_to_temp(env)
         subject = self.subject_clonenode.analyse_expressions(env)
-        self.cases = [
-            c.analyse_case_expressions(subject, env, self.sequence_mapping_temp)
-            for c in self.cases
-        ]
-        self.cases = [c for c in self.cases if c is not None]
+        analysed_cases = []
+        for c in self.cases:
+            c = c.analyse_case_expressions(subject, env, self.sequence_mapping_temp)
+            if c is not None:
+                analysed_cases.append(c)
+        self.cases = analysed_cases
         return self
 
     def generate_execution_code(self, code):
@@ -184,7 +185,7 @@ class MatchCaseNode(Node):
 
     def analyse_case_declarations(self, subject_node, env):
         self.pattern.analyse_declarations(env)
-        self.target_assignments = self.pattern.generate_target_assignments(subject_node, env)
+        self.target_assignments = self.pattern.create_target_assignments(subject_node, env)
         if self.target_assignments:
             self.target_assignments.analyse_declarations(env)
         if self.guard:
@@ -285,9 +286,9 @@ class PatternNode(Node):
 
     ----------------------------------------
     How these nodes are processed:
-    1. During "analyse_declarations", "PatternNode.generate_target_assignments()"
+    1. During "analyse_declarations", "PatternNode.create_target_assignments()"
        is called on the main "PatternNode" of the case. This calls its
-       sub-patterns ".generate_target_assignments()" recursively.
+       sub-patterns ".create_target_assignments()" recursively.
        This creates a "StatListNode" that is held by the "MatchCaseNode".
     2. In the "analyse_expressions" phases, the "MatchCaseNode" calls
        "PatternNode.analyse_pattern_expressions", which calls its sub-pattern recursively.
@@ -370,7 +371,7 @@ class PatternNode(Node):
     def generate_result_code(self, code):
         pass
 
-    def generate_target_assignments(self, subject_node, env):
+    def create_target_assignments(self, subject_node, env):
         # Generates the assignment code needed to initialize all the targets.
         # Returns either a StatListNode or None.
         #
@@ -586,7 +587,7 @@ class OrPatternNode(PatternNode):
     def generate_main_pattern_assignment_list(self, subject_node, env):
         assignments = []
         for a in self.alternatives:
-            a_assignment = a.generate_target_assignments(subject_node, env)
+            a_assignment = a.create_target_assignments(subject_node, env)
             if a_assignment:
                 # In an "or" pattern we will need to chose which targets to assign to
                 # based on which alternative matches.
@@ -745,7 +746,7 @@ class MatchSequencePatternNode(PatternNode):
 
                     subject = ResultRefNode(subject)
                     needs_result_ref = True
-            p_assignments = pattern.generate_target_assignments(subject, env)
+            p_assignments = pattern.create_target_assignments(subject, env)
             if needs_result_ref:
                 p_assignments = LetNode(subject, p_assignments)
             else:
@@ -1048,6 +1049,14 @@ class StaticTypeCheckNode(ExprNodes.ExprNode):
 class AssignableTempNode(ExprNodes.TempNode):
     lhs_of_first_assignment = True  # assume it can be assigned to once
     _assigned_twice = False
+    _is_addressable = False
+
+    def __init__(self, pos, *args, **kwds):
+        self._is_addressable = kwds.pop('is_addressable', False)
+        super().__init__(pos, *args, **kwds)
+
+    def is_addressable(self):
+        return self._is_addressable
 
     def infer_type(self, env):
         return self.type
@@ -1307,8 +1316,8 @@ class LazyCoerceToPyObject(ExprNodes.ExprNode):
 
 class LazyCoerceToBool(ExprNodes.ExprNode):
     """
-    Just calls "self.arg.coerce_to_bool" when it's analysed,
-    so doesn't need 'env' when it's created
+    Just calls "self.arg.analyse_boolean_expression"
+    when it's analysed, so doesn't need 'env' when it's created
     arg  - ExprNode
     """
     subexprs = ["arg"]
