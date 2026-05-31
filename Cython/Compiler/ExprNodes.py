@@ -15422,7 +15422,7 @@ class CloneNode(CoercionNode):
         pass
 
 
-class CompilerDirectivesExprNode(ProxyNode, Nodes.CompilerDirectivesMixin):
+class CompilerDirectivesExprNode(Nodes.CompilerDirectivesMixin, ProxyNode):
     # Like compiler directives node, but for an expression
     #  directives     {string:value}  A dictionary holding the right value for
     #                                 *all* possible directives.

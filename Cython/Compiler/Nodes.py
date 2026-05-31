@@ -355,7 +355,7 @@ class CompilerDirectivesMixin:
         yield
         obj.directives = old
 
-class CompilerDirectivesNode(Node, CompilerDirectivesMixin):
+class CompilerDirectivesNode(CompilerDirectivesMixin, Node):
     """
     Sets compiler directives for the children nodes
     """
