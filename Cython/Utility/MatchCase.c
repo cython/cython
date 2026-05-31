@@ -349,7 +349,7 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
 
     for (i=start; i<end; ++i) {
         PyObject *obj = slot(x, i);
-        if (unlikely(!obj || __Pyx_PyList_SET_ITEM(list, i-start, obj) == -1)) {
+        if (unlikely(!obj) || unlikely(__Pyx_PyList_SET_ITEM(list, i-start, obj) == -1)) {
             Py_DECREF(list);
             return NULL;
         }
