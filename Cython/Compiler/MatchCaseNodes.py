@@ -1051,7 +1051,8 @@ class AssignableTempNode(ExprNodes.TempNode):
 
     def __init__(self, pos, *args, **kwds):
         self._is_addressable = kwds.pop('is_addressable', False)
-        super().__init__(pos, *args, **kwds)
+    def __init__(self, pos, *args, is_addressable=False, **kwds):
+        self._is_addressable = is_addressable
 
     def is_addressable(self):
         return self._is_addressable
