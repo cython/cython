@@ -122,7 +122,7 @@ jobs:
           if [[ -s ci-slowtests.txt ]]; then \
             echo '| Slow tests | duration |'; \
             echo '|:---|---:|'; \
-            sed -e 's/^.*\[/|    / ; s/: SLOWTEST / | / ; s/\].*/ |/ ; s/_/\\\\_/g' ci-slowtests.txt | sort -nr -k4; \
+            sed -e 's/^.*\[/|    / ; s/: SLOWTEST / | / ; s/\].*/ |/' ci-slowtests.txt | sort -nr -k4; \
             echo; \
           fi >> $GITHUB_STEP_SUMMARY; \
           if [[ -s ci-summary.txt ]]; then \
