@@ -2,25 +2,7 @@ name: CI
 
 on:
   push:
-    paths:
-      - '**'
-      - '!Demos/benchmarks/**'
-      - '!.github/**'
-      - '.github/workflows/ci*.yml'
-      - '**/*.md'
-      - '**/*.rst'
-      - '!docs/**'
-      - 'docs/examples/**'
   pull_request:
-    paths:
-      - '**'
-      - '!Demos/benchmarks/**'
-      - '!.github/**'
-      - '.github/workflows/ci*.yml'
-      - '!**/*.md'
-      - '!**/*.rst'
-      - '!docs/**'
-      - 'docs/examples/**'
   workflow_dispatch:
 
 concurrency:
@@ -43,8 +25,41 @@ env:
 
 
 jobs:
+  file-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      ci-changes: ${{ steps.filter.outputs.any-files == 'true' && (steps.filter.outputs.negative-files == 'false' || steps.filter.outputs.positive-github == 'true') && (steps.filter.outputs.negative-docs == 'false' || steps.filter.outputs.positive-docs == 'true') }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+      # Only needed to compare the "base" on push; not needed for PR
+      if: ${{ github.event_name == 'push' }}
+    - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
+      id: filter
+      with:
+        base: ${{ github.ref }}
+        filters: |
+          any-files:
+          - '**'
+          negative-files:
+          - 'Demos/benchmarks/**'
+          - '.github/**'
+          positive-github:
+          - '.github/workflows/ci*.yml'
+          negative-docs:
+          - '**/*.md'
+          - '**/*.rst'
+          - 'docs/**'
+          positive-docs:
+          - 'docs/examples/**'
 
   ci-early:
+    needs: [file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
       fail-fast: false
@@ -89,14 +104,17 @@ jobs:
 
   ci-early-success:
     needs: [codespell, codestyle, ci-early, build_docs]
-    if: success()
+    if: always()
+    env:
+      FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
     runs-on: ubuntu-latest
     steps:
-      - run: true
+      - run: exit $FAIL
 
 
   ci-all:
-    needs: [ci-early-success]
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -157,7 +175,8 @@ jobs:
 
   ci-arm64:
     # ARM builds
-    needs: [ci-early-success]
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -177,7 +196,8 @@ jobs:
 
   ci-typespecs:
     # compile with typespecs
-    needs: [ci-early-success]
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -201,7 +221,8 @@ jobs:
 
   ci-sharedmodule:
     # compile with shared utility module
-    needs: [ci-early-success]
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -224,7 +245,8 @@ jobs:
 
   ci-compileall:
     # compile all modules
-    needs: [ci-early-success]
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -247,7 +269,8 @@ jobs:
 
   ci-stdc:
     # GCC/clang with broad language standards
-    needs: [ci-early-success]
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -292,7 +315,8 @@ jobs:
 
   ci-lapi:
     # Limited API tests
-    needs: [ci-early-success]
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -331,7 +355,8 @@ jobs:
 
   ci-noncpython:
     # PyPy, GraalPython, ...
-    needs: [ci-early-success]
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -354,11 +379,13 @@ jobs:
 
 
   ci-success:
-    needs: [ci-all, ci-arm64, ci-typespecs, ci-sharedmodule, ci-compileall, ci-stdc, ci-lapi, ci-noncpython]
-    if: success()
+    needs: [ci-early-success, ci-all, ci-arm64, ci-typespecs, ci-sharedmodule, ci-compileall, ci-stdc, ci-lapi, ci-noncpython]
+    if: always()
+    env:
+      FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
     runs-on: ubuntu-latest
     steps:
-      - run: true
+      - run: exit $FAIL
 
 
   codespell:

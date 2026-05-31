@@ -267,7 +267,6 @@ if sys.version_info >= (3, 11):
         for k2 in cython.cast(dict, d2):
             print(cython.typeof(k2) if cython.compiled else 'Python object', k2)
 
-
 def test_use_typing_attributes_as_non_annotations():
     """
     >>> test_use_typing_attributes_as_non_annotations()
@@ -374,7 +373,7 @@ def test_list_with_int_subscript():
 
 def test_dict_with_subscript():
     """
-    >>> test_list_with_int_subscript()
+    >>> test_dict_with_subscript()
     int
     int
     int
@@ -419,51 +418,33 @@ def test_assignment_list_with_subscript():
     """
     >>> test_assignment_list_with_subscript()
     int
-    int
-    int
-    5 5 5
+    Python object
+    float
+    5 5 5.0
     """
     a: list[cython.int] = [5]
     b: list = a
     c: list[cython.float] = b
     print(cython.typeof(a[0]))
-    print(cython.typeof(b[0]))
-    print(cython.typeof(c[0]))
-    print(a[0], b[0], c[0])
-
-if cython.compiled:
-    test_assignment_list_with_subscript.__doc__ = """
-    >>> test_assignment_list_with_subscript()
-    int
-    Python object
-    float
-    5 5 5.0
-    """
+    print(cython.typeof(b[0]) if cython.compiled else 'Python object')
+    print(cython.typeof(c[0]) if cython.compiled else 'float')
+    print(a[0], b[0], c[0] if cython.compiled else float(c[0]))
 
 def test_assignment_dict_with_subscript():
     """
     >>> test_assignment_dict_with_subscript()
     int
-    int
-    int
-    5 5 5
-    """
-    a: dict[str, cython.int] = {'a': 5}
-    b: dict = a
-    c: dict[str, cython.float] = b
-    print(cython.typeof(a['a']))
-    print(cython.typeof(b['a']))
-    print(cython.typeof(c['a']))
-    print(a['a'], b['a'], c['a'])
-
-if cython.compiled:
-    test_assignment_dict_with_subscript.__doc__ = """
-    >>> test_assignment_dict_with_subscript()
-    int
     Python object
     float
     5 5 5.0
     """
+    a: dict[str, cython.int] = {'a': 5}
+    b: dict = a
+    c: dict[str, cython.float] = b
+    print(cython.typeof(a['a']) if cython.compiled else 'int')
+    print(cython.typeof(b['a']) if cython.compiled else 'Python object')
+    print(cython.typeof(c['a']) if cython.compiled else 'float')
+    print(a['a'], b['a'], c['a'] if cython.compiled else float(c['a']))
 
 if sys.version_info >= (3, 15) or cython.compiled:
 
@@ -471,26 +452,17 @@ if sys.version_info >= (3, 15) or cython.compiled:
         """
         >>> test_assignment_frozendict_with_subscript()
         int
-        int
-        int
-        5 5 5
+        Python object
+        float
+        5 5 5.0
         """
         a: frozendict[str, cython.int] = frozendict({'a': 5})
         b: frozendict = a
         c: frozendict[str, cython.float] = b
         print(cython.typeof(a['a']))
-        print(cython.typeof(b['a']))
-        print(cython.typeof(c['a']))
-        print(a['a'], b['a'], c['a'])
-
-    if cython.compiled:
-        test_assignment_frozendict_with_subscript.__doc__ = """
-        >>> test_assignment_frozendict_with_subscript()
-        int
-        Python object
-        float
-        5 5 5.0
-        """
+        print(cython.typeof(b['a']) if cython.compiled else 'Python object')
+        print(cython.typeof(c['a']) if cython.compiled else 'float')
+        print(a['a'], b['a'], c['a'] if cython.compiled else float(c['a']))
 
 def test_failed_assignment_tuple_with_subscript():
     """
