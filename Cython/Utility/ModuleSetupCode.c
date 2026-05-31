@@ -735,8 +735,8 @@ static int __Pyx_init_co_variables(void); /* proto */
 // These can be deduced at runtime and are enough of an optimization that
 // it's worth doing (while still respecting the decision not to add them to
 // the Limited API).
-static long __Pyx_Runtime_TPFLAGS_SEQUENCE;
-static long __Pyx_Runtime_TPFLAGS_MAPPING;
+static unsigned long __Pyx_Runtime_TPFLAGS_SEQUENCE;
+static unsigned long __Pyx_Runtime_TPFLAGS_MAPPING;
 #else
 #define __Pyx_Runtime_TPFLAGS_SEQUENCE Py_TPFLAGS_SEQUENCE
 #define __Pyx_Runtime_TPFLAGS_MAPPING Py_TPFLAGS_MAPPING
@@ -1341,7 +1341,7 @@ static int __Pyx_init_tpflags_bitcount(long flag) {
 // It's quite possible that the flags aren't reliably available at runtime.
 // Therefore most errors are ignored and we just leave the values as 0.
 static int __Pyx_init_tpflags_variables(void) {
-    if (__Pyx_Runtime_TPFLAGS_MAPPING != 0 && __Pyx_Runtime_TPFLAGS_MAPPING != 0) {
+    if (__Pyx_Runtime_TPFLAGS_SEQUENCE != 0 && __Pyx_Runtime_TPFLAGS_MAPPING != 0) {
         // Already set (possibly in another subinterpreter). Note that there's a
         // harmless race here because the variables aren't atomic.
         return 0;
@@ -1368,9 +1368,9 @@ static int __Pyx_init_tpflags_variables(void) {
 
     if (!PyType_Check(sequence) || !PyType_Check(mapping)) goto fail;
     {
-        long sequence_flags = PyType_GetFlags((PyTypeObject*)sequence);
-        long mapping_flags = PyType_GetFlags((PyTypeObject*)mapping);
-        long mutual_flags = sequence_flags & mapping_flags;
+        unsigned long sequence_flags = PyType_GetFlags((PyTypeObject*)sequence);
+        unsigned long mapping_flags = PyType_GetFlags((PyTypeObject*)mapping);
+        unsigned long mutual_flags = sequence_flags & mapping_flags;
         sequence_flags = sequence_flags ^ mutual_flags;
         mapping_flags = mapping_flags ^ mutual_flags;
 

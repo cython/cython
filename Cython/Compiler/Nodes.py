@@ -348,11 +348,12 @@ class CompilerDirectivesMixin:
     #  directives     {string:value}  A dictionary holding the right value for
     #                                 *all* possible directives.
     @contextmanager
-    def _apply_directives(self, env):
-        old = env.directives
-        env.directives = self.directives
+    def apply_directives(self, obj):
+        # obj is usually a scope, but doesn't have to be.
+        old = obj.directives
+        obj.directives = self.directives
         yield
-        env.directives = old
+        obj.directives = old
 
 class CompilerDirectivesNode(Node, CompilerDirectivesMixin):
     """
@@ -373,24 +374,24 @@ class CompilerDirectivesNode(Node, CompilerDirectivesMixin):
         return cls(body.pos, body=body, directives=new_directives, is_terminator=body.is_terminator)
 
     def analyse_declarations(self, env):
-        with self._apply_directives(env):
+        with self.apply_directives(env):
             self.body.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        with self._apply_directives(env):
+        with self.apply_directives(env):
             self.body = self.body.analyse_expressions(env)
         return self
 
     def generate_function_definitions(self, env, code):
-        with self._apply_directives(env), self._apply_directives(code.globalstate):
+        with self.apply_directives(env), self.apply_directives(code.globalstate):
             self.body.generate_function_definitions(env, code)
 
     def generate_execution_code(self, code):
-        with self._apply_directives(code.globalstate):
+        with self.apply_directives(code.globalstate):
             self.body.generate_execution_code(code)
 
     def annotate(self, code):
-        with self._apply_directives(code.globalstate):
+        with self.apply_directives(code.globalstate):
             self.body.annotate(code)
 
 

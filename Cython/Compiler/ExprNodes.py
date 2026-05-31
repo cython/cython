@@ -15437,35 +15437,35 @@ class CompilerDirectivesExprNode(ProxyNode, Nodes.CompilerDirectivesMixin):
         return self.arg.is_temp
 
     def infer_type(self, env):
-        with self._apply_directives(env):
+        with self.apply_directives(env):
             return super(CompilerDirectivesExprNode, self).infer_type(env)
 
     def analyse_declarations(self, env):
-        with self._apply_directives(env):
+        with self.apply_directives(env):
             self.arg.analyse_declarations(env)
 
     def analyse_types(self, env):
-        with self._apply_directives(env):
+        with self.apply_directives(env):
             return super(CompilerDirectivesExprNode, self).analyse_types(env)
 
     def generate_result_code(self, code):
-        with self._apply_directives(code.globalstate):
+        with self.apply_directives(code.globalstate):
             super(CompilerDirectivesExprNode, self).generate_result_code(code)
 
     def generate_evaluation_code(self, code):
-        with self._apply_directives(code.globalstate):
+        with self.apply_directives(code.globalstate):
             super(CompilerDirectivesExprNode, self).generate_evaluation_code(code)
 
     def generate_disposal_code(self, code):
-        with self._apply_directives(code.globalstate):
+        with self.apply_directives(code.globalstate):
             super(CompilerDirectivesExprNode, self).generate_disposal_code(code)
 
     def free_temps(self, code):
-        with self._apply_directives(code.globalstate):
+        with self.apply_directives(code.globalstate):
             super(CompilerDirectivesExprNode, self).free_temps(code)
 
     def annotate(self, code):
-        with self._apply_directives(code.globalstate):
+        with self.apply_directives(code.globalstate):
             self.arg.annotate(code)
 
 

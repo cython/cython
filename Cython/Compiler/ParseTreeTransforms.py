@@ -962,9 +962,8 @@ class InterpretCompilerDirectives(CythonTransform):
         return node
 
     def visit_CompilerDirectivesMixin(self, node):
-        old_directives, self.directives = self.directives, node.directives
-        self.visitchildren(node)
-        self.directives = old_directives
+        with node.apply_directives(self):
+            self.visitchildren(node)
         return node
 
     # The following four functions track imports and cimports that
@@ -2092,10 +2091,8 @@ class ForwardDeclareTypes(CythonTransform):
 
     def visit_CompilerDirectivesMixin(self, node):
         env = self.module_scope
-        old = env.directives
-        env.directives = node.directives
-        self.visitchildren(node)
-        env.directives = old
+        with node.apply_directives(env):
+            self.visitchildren(node)
         return node
 
     def visit_ModuleNode(self, node):
@@ -3125,10 +3122,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         return node
 
     def visit_CompilerDirectivesMixin(self, node):
-        old_directives = self.directives
-        self.directives = node.directives
-        self.visitchildren(node)
-        self.directives = old_directives
+        with node.apply_directives(self):
+            self.visitchildren(node)
         return node
 
     def visit_DefNode(self, node):

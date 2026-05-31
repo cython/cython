@@ -1,4 +1,5 @@
 ///////////////////////////// ABCCheck //////////////////////////////
+//@requires: Builtins.c::PyFrozenDict
 
 #if PY_VERSION_HEX < 0x030A0000 || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
 static CYTHON_INLINE int __Pyx_MatchCase_IsExactSequence(PyObject *o) {
@@ -13,10 +14,10 @@ static CYTHON_INLINE int __Pyx_MatchCase_IsExactSequence(PyObject *o) {
 }
 
 static CYTHON_INLINE int __Pyx_MatchCase_IsExactMapping(PyObject *o) {
-    // Py_Dict is the only regularly used mapping type.
+    // dict and frozendict are the only regularly used mapping type.
     // "types.MappingProxyType" also exists but is correctly covered by
     // the isinstance(o, Mapping) check.
-    return PyDict_CheckExact(o);
+    return __Pyx_PyAnyDict_CheckExact(o);
 }
 
 static int __Pyx_MatchCase_IsExactNeitherSequenceNorMapping(PyObject *o) {
