@@ -535,6 +535,11 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnan
 
 static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnanny, PyObject *dict, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
     Py_ssize_t i;
+    Py_ssize_t size;
+    size = PyDict_Size(dict);
+    if (size < nKeys) {
+        return size == -1 ? -1: 0;
+    }
 
     for (i=0; i<nKeys; ++i) {
         PyObject *key = keys[i];
@@ -578,11 +583,17 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_ref
 
 static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
     PyObject *dummy=NULL, *get=NULL;
-    Py_ssize_t i;
+    Py_ssize_t i, size;
     int result = 0;
 #if CYTHON_UNPACK_METHODS && CYTHON_VECTORCALL
     PyObject *get_method = NULL, *get_self = NULL;
 #endif
+
+    // Length check is undocumented but does take place in CPython and is probably worthwhile.
+    size = PyObject_Length(mapping);
+    if (size < nKeys) {
+        return size == -1 ? -1: 0;
+    }
 
     dummy = PyObject_CallObject((PyObject *)&PyBaseObject_Type, NULL);
     if (!dummy) {
@@ -684,20 +695,23 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyO
 
 static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys) {
     PyObject *dict_out;
-    Py_ssize_t i;
+    Py_ssize_t i, size;
 
-    {{if tag != "NonDict"}}
     // shortcut for when there are no left-over keys
-    if ({{if tag=="ExactDict" or tag=="ExactFrozenDict"}}(1){{else}}__Pyx_PyAnyDict_CheckExact(mapping){{endif}}) {
-        Py_ssize_t s = PyDict_Size(mapping);
-        if (s == -1) {
-            return NULL;
-        }
-        if (s == nKeys) {
-            return PyDict_New();
-        }
-    }
+    {{if tag=="ExactDict" or tag=="ExactFrozenDict"}}
+    if ((1))
+    {{else}}
+    if (__Pyx_PyAnyDict_CheckExact(mapping))
     {{endif}}
+    {
+        size = PyDict_Size(mapping);
+    } else {
+        size = PyObject_Length(mapping);
+    }
+    if (unlikely(size == -1)) return NULL;
+    if (size == nKeys) {
+        return PyDict_New();
+    }
 
     {{if tag=="ExactDict"}}
     dict_out = PyDict_Copy(mapping);
