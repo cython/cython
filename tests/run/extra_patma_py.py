@@ -47,3 +47,73 @@ def test_duplicate_keys(key1, key2):
             return True
         case _:
             return False
+
+
+def test_untyped_frozendict(arg):
+    """
+    >>> test_untyped_frozendict(frozendict(a=1, b=2))
+    case ab: 1 2
+    >>> test_untyped_frozendict(frozendict(x=1, y=2))
+    case xy: 1 2 {}
+    >>> test_untyped_frozendict(frozendict(x=1, y=2, z=3))
+    case xy: 1 2 {'z': 3}
+    >>> test_untyped_frozendict(frozendict(p=1, q=2))
+    case keys: {'p': 1, 'q': 2}
+    >>> test_untyped_frozendict(None)
+    Unmatched
+    """
+    match arg:
+        case {"a": a, "b": b}:
+            print(f"case ab: {a} {b}")
+        case {"x": x, "y": y, **keys}:
+            print(f"case xy: {x} {y} {keys}")
+        case {**keys}:
+            print(f"case keys: {keys}")
+        case _:
+            print("Unmatched")
+
+
+def test_typed_frozendict(arg: frozendict):
+    """
+    >>> test_typed_frozendict(frozendict(a=1, b=2))
+    case ab: 1 2
+    >>> test_typed_frozendict(frozendict(x=1, y=2))
+    case xy: 1 2 {}
+    >>> test_typed_frozendict(frozendict(x=1, y=2, z=3))
+    case xy: 1 2 {'z': 3}
+    >>> test_typed_frozendict(frozendict(p=1, q=2))
+    case keys: {'p': 1, 'q': 2}
+    """
+    match arg:
+        case {"a": a, "b": b}:
+            print(f"case ab: {a} {b}")
+        case {"x": x, "y": y, **keys}:
+            print(f"case xy: {x} {y} {keys}")
+        case {**keys}:
+            print(f"case keys: {keys}")
+        case _:
+            print("Unmatched")
+
+
+def test_typed_optional_frozendict(arg: frozendict | None):
+    """
+    >>> test_typed_optional_frozendict(frozendict(a=1, b=2))
+    case ab: 1 2
+    >>> test_typed_optional_frozendict(frozendict(x=1, y=2))
+    case xy: 1 2 {}
+    >>> test_typed_optional_frozendict(frozendict(x=1, y=2, z=3))
+    case xy: 1 2 {'z': 3}
+    >>> test_typed_optional_frozendict(frozendict(p=1, q=2))
+    case keys: {'p': 1, 'q': 2}
+    >>> test_typed_optional_frozendict(None)
+    Unmatched
+    """
+    match arg:
+        case {"a": a, "b": b}:
+            print(f"case ab: {a} {b}")
+        case {"x": x, "y": y, **keys}:
+            print(f"case xy: {x} {y} {keys}")
+        case {**keys}:
+            print(f"case keys: {keys}")
+        case _:
+            print("Unmatched")

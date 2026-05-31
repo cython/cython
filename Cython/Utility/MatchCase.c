@@ -519,10 +519,10 @@ static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *keys[], Py_ssize_t nFixe
 
 /////////////////////////// ExtractExactDict.proto ////////////////
 
-// the variadic arguments are a list of PyObject** to subjects to be filled. They may be NULL
+// The subjects array is a list of PyObject** to subjects to be filled. They may be NULL
 // in which case they're ignored.
 //
-// This is a specialized version for when we have an exact dict (which is likely to be pretty common)
+// This is a specialized version for when we have an exact (frozen)dict (which is likely to be pretty common)
 
 #if CYTHON_REFNANNY
 #define __Pyx_MatchCase_Mapping_ExtractDict(...) __Pyx__MatchCase_Mapping_ExtractDict(__pyx_refnanny, __VA_ARGS__)
@@ -545,12 +545,13 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnan
                 return -1; // any subjects that were already set will be cleaned up externally
             }
         } else {
-            PyObject *value = __Pyx_PyDict_GetItemStrWithError(dict, key);
-            if (!value) {
-                return (PyErr_Occurred()) ? -1 : 0;  // any subjects that were already set will be cleaned up externally
+            PyObject *value;
+            int getref_result = __Pyx_PyDict_GetItemRef(dict, key, &value);
+            if (getref_result != 1) {
+                return getref_result;  // any subjects that were already set will be cleaned up externally
             }
+            __Pyx_GOTREF(value);
             __Pyx_XDECREF_SET(*subject, value);
-            __Pyx_INCREF(*subject);  // capture this incref with refnanny!
         }
     }
     return 1;  // success
@@ -558,7 +559,7 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnan
 
 ///////////////////////// ExtractNonDict.proto ////////////////////////////////
 
-// the variadic arguments are a list of PyObject** to subjects to be filled. They may be NULL
+// The subjects array is a list of PyObject** to subjects to be filled. They may be NULL
 // in which case they're ignored.
 //
 // This is a specialized version for the rarer case when the type isn't an exact dict.
@@ -587,7 +588,7 @@ static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObjec
     if (!dummy) {
         return -1;
     }
-    get = PyObject_GetAttrString(mapping, "get");
+    get = PyObject_GetAttr(mapping, PYIDENT("get"));
     if (!get) {
         result = -1;
         goto end;
@@ -611,7 +612,7 @@ static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObjec
 #if CYTHON_UNPACK_METHODS && CYTHON_VECTORCALL
         if (likely(get_method)) {
             PyObject *args[] = { get_self, key, dummy };
-            value = _PyObject_Vectorcall(get_method, args, 3, NULL);
+            value = PyObject_Vectorcall(get_method, args, 3, NULL);
         }
         else
 #endif
@@ -623,7 +624,7 @@ static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObjec
             goto end;
         } else if (value == dummy) {
             Py_DECREF(value);
-            goto end;  // failed
+            goto end;  // failed to match.
         } else {
             subject = subjects[i];
             if (subject) {
@@ -654,9 +655,10 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, 
 ////////////////////// ExtractGeneric //////////////////////////////////////
 //@requires: ExtractExactDict
 //@requires: ExtractNonDict
+//@requires: Builtins.c::PyFrozenDict
 
 static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
-    if (PyDict_CheckExact(mapping)) {
+    if (__Pyx_PyAnyDict_CheckExact(mapping)) {
         return __Pyx_MatchCase_Mapping_ExtractDict(mapping, keys, nKeys, subjects);
     } else {
         return __Pyx_MatchCase_Mapping_ExtractNonDict(mapping, keys, nKeys, subjects);
@@ -668,6 +670,7 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, 
 static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys); /* proto */
 
 //////////////////////////// DoubleStarCapture //////////////////////////////
+//@requires: Builtins.c::PyFrozenDict
 
 // The implementation is largely copied from the original COPY_DICT_WITHOUT_KEYS opcode
 // implementation of CPython
@@ -677,7 +680,7 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyO
 //  1. We use an array of keys rather than a tuple of keys
 //  2. We add a shortcut for when there will be no left over keys (because I guess it's pretty common)
 //
-// Tempita variable 'tag' can be "NonDict", "ExactDict" or empty
+// Tempita variable 'tag' can be "NonDict", "ExactDict", "ExactFrozenDict" or empty
 
 static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys) {
     PyObject *dict_out;
@@ -685,7 +688,7 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyO
 
     {{if tag != "NonDict"}}
     // shortcut for when there are no left-over keys
-    if ({{if tag=="ExactDict"}}(1){{else}}PyDict_CheckExact(mapping){{endif}}) {
+    if ({{if tag=="ExactDict" or tag=="ExactFrozenDict"}}(1){{else}}__Pyx_PyAnyDict_CheckExact(mapping){{endif}}) {
         Py_ssize_t s = PyDict_Size(mapping);
         if (s == -1) {
             return NULL;

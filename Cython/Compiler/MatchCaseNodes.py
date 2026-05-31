@@ -2,6 +2,8 @@
 #
 # In a separate file because they're unlikely to be useful for much else.
 
+import enum
+
 from .Nodes import Node, StatNode, ErrorNode
 from .Errors import error, local_errors, report_error
 from . import Nodes, ExprNodes, PyrexTypes, Builtin
@@ -1049,20 +1051,33 @@ class MatchMappingPatternNode(PatternNode):
             )
         return assignments
 
+    class DictCheckResult(enum.IntEnum):
+        NotAMapping = enum.auto()
+        NotADict = enum.auto()  # but might be another mapping
+        MightBeAnAnyDict = enum.auto()
+        ExactDict = enum.auto()
+        ExactFrozenDict = enum.auto()
+
     def is_dict_type_check(self, type):
-        # Returns true if it's an exact dict, False if it's definitely not
-        # an exact dict, None if it might be
-        # type-check need not be perfect, it's an optimization
-        if type is Builtin.dict_type:
-            return True
-        if type in Builtin.builtin_types:
-            # all other builtin types aren't mappings (except DictProxyType, but
-            # Cython doesn't know about that)
-            return False
+        # Returns a DictCheckResult to summarize what we know about types dictness.
+        # We need to get ExactDict, ExactFrozenDict, and NotAMapping right. The other
+        # two cases are optimizations so can be wrong.
+        if type.is_pydict_type:
+            return self.DictCheckResult.ExactDict
+        if type.is_pyfrozendict_type:
+            return self.DictCheckResult.ExactFrozenDict
+        if type.is_builtin_type:
+            # All other builtin types that Cython knows of are not mappings
+            # (DictProxyType is, but Cython doesn't know about that).
+            return self.DictCheckResult.NotAMapping
         if not type.is_pyobject:
-            # for now any non-pyobject type is False
-            return False
-        return None
+            # for now any non-pyobject type isn't treated as a mapping
+            return self.DictCheckResult.NotAMapping
+        if type.is_extension_type:
+            # An external extension type might actually be a dict, but that's fine:
+            # it just ends up on a slightly slower code path.
+            return self.DictCheckResult.NotADict
+        return self.DictCheckResult.MightBeAnAnyDict
 
     def make_mapping_check(self, subject_node, sequence_mapping_temp):
         # Note: the mapping check code is very quick on Python 3.10+
@@ -1087,8 +1102,16 @@ class MatchMappingPatternNode(PatternNode):
             args=[subject_node, sequence_mapping_temp],
         )
 
+        def type_check(type):
+            res = self.is_dict_type_check(type)
+            if res == self.DictCheckResult.ExactDict or res == self.DictCheckResult.ExactFrozenDict:
+                return True
+            if res == self.DictCheckResult.NotAMapping:
+                return False
+            return None
+
         return StaticTypeCheckNode(
-            self.pos, arg=subject_node, fallback=call, check=self.is_dict_type_check
+            self.pos, arg=subject_node, fallback=call, check=type_check
         )
 
     def make_duplicate_keys_check(self, n_fixed_keys):
@@ -1126,16 +1149,15 @@ class MatchMappingPatternNode(PatternNode):
             return ExprNodes.BoolNode(self.pos, value=True)
 
         is_dict = self.is_dict_type_check(subject_node.type)
-        if is_dict:
+        if is_dict == self.DictCheckResult.ExactDict or is_dict == self.DictCheckResult.ExactFrozenDict:
             util_code = UtilityCode.load_cached("ExtractExactDict", "MatchCase.c")
             func_name = "__Pyx_MatchCase_Mapping_ExtractDict"
-        elif is_dict is False:  # exact False... None indicates "might be dict"
-            # For any other non-generic PyObject type
-            util_code = UtilityCode.load_cached("ExtractNonDict", "MatchCase.c")
-            func_name = "__Pyx_MatchCase_Mapping_ExtractNonDict"
-        else:
+        elif is_dict == self.DictCheckResult.MightBeAnAnyDict:
             util_code = UtilityCode.load_cached("ExtractGeneric", "MatchCase.c")
             func_name = "__Pyx_MatchCase_Mapping_Extract"
+        else:
+            util_code = UtilityCode.load_cached("ExtractNonDict", "MatchCase.c")
+            func_name = "__Pyx_MatchCase_Mapping_ExtractNonDict"
 
         return ExprNodes.PythonCapiCallNode(
             self.pos,
@@ -1156,12 +1178,14 @@ class MatchMappingPatternNode(PatternNode):
     def make_double_star_capture(self, subject_node, test_result):
         # test_result being the variable that holds "case check passed until now"
         is_dict = self.is_dict_type_check(subject_node.type)
-        if is_dict:
+        if is_dict == self.DictCheckResult.ExactDict:
             tag = "ExactDict"
-        elif is_dict is False:
-            tag = "NotDict"
-        else:
+        elif is_dict == self.DictCheckResult.ExactFrozenDict:
+            tag = "ExactFrozenDict"
+        elif is_dict == self.DictCheckResult.MightBeAnAnyDict:
             tag = ""
+        else:
+            tag = "NotDict"
         utility_code = TempitaUtilityCode.load_cached(
             "DoubleStarCapture", "MatchCase.c", context={"tag": tag}
         )
