@@ -364,7 +364,7 @@ static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start,
 
 ////////////////////// TupleSliceToList //////////////////////////
 //@requires: OtherSequenceSliceToList
-//@requires: ObjectHandling.c::TupleFromArray
+//@requires: ObjectHandling.c::ListFromArray
 
 // Indices must be positive - there's no wraparound or boundschecking.
 
