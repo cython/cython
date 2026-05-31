@@ -1,8 +1,9 @@
 ///////////////////////////// ABCCheck //////////////////////////////
+//@requires: Builtins.c::PyFrozenDict
 
 #if PY_VERSION_HEX < 0x030A0000 || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
 static CYTHON_INLINE int __Pyx_MatchCase_IsExactSequence(PyObject *o) {
-    // is one of the small list of builtin types known to be a sequence
+    // Is one of the small list of builtin types known to be a sequence.
     if (PyList_CheckExact(o) || PyTuple_CheckExact(o) ||
             Py_IS_TYPE(o, &PyRange_Type) || Py_IS_TYPE(o, &PyMemoryView_Type)) {
         // Use exact type match for these checks. In in the event of inheritance we need to make sure
@@ -13,21 +14,25 @@ static CYTHON_INLINE int __Pyx_MatchCase_IsExactSequence(PyObject *o) {
 }
 
 static CYTHON_INLINE int __Pyx_MatchCase_IsExactMapping(PyObject *o) {
-    // Py_Dict is the only regularly used mapping type
+    // dict and frozendict are the only regularly used mapping type.
     // "types.MappingProxyType" also exists but is correctly covered by
-    // the isinstance(o, Mapping) check
-    return PyDict_CheckExact(o);
+    // the isinstance(o, Mapping) check.
+    return __Pyx_PyAnyDict_CheckExact(o);
 }
 
 static int __Pyx_MatchCase_IsExactNeitherSequenceNorMapping(PyObject *o) {
     if (PyByteArray_Check(o) || PyBytes_Check(o) || PyUnicode_Check(o)) {
-        return 1;  // these types are deliberately excluded from the sequence test
-            // even though they look like sequences for most other purposes.
-            // Leave them as inexact checks since they do pass
-            // "isinstance(o, collections.abc.Sequence)" so it's very hard to
-            // reason about their subclasses
+        // These types are deliberately excluded from the sequence test
+        // even though they look like sequences for most other purposes.
+        // Leaving them as inexact checks since they do pass
+        // "isinstance(o, collections.abc.Sequence)" so it's very hard to
+        // reason about their subclasses.
+        return 1;
     }
-    if (o == Py_None || PyLong_CheckExact(o) || PyFloat_CheckExact(o)) {
+    // No-exhaustive list of other common builtin types as an optimization.
+    if (o == Py_None || PyLong_CheckExact(o) || PyFloat_CheckExact(o) ||
+        Py_TYPE(o) == &PyBool_Type || Py_TYPE(o) == &PySlice_Type ||
+        PyAnySet_CheckExact(o) || PyComplex_CheckExact(o)) {
         return 1;
     }
 
@@ -41,7 +46,7 @@ static int __Pyx_MatchCase_IsExactNeitherSequenceNorMapping(PyObject *o) {
 // The bits of it in order are:
 //  0. definitely a sequence
 //  1. definitely a mapping
-//     - note that both of the above and be true when
+//     - note that both of the above can be true when
 //        the type is registered with both abc types (not via inheritance)
 //       and in this case we return true for both IsSequence or IsMapping
 //       (which seems like the best handling of an ambiguous situation)
@@ -60,13 +65,13 @@ static int __Pyx_MatchCase_InitAbcType(PyObject *abc_module, PyObject **abc_type
     return *abc_type ? 0 : -1;
 }
 
-// the result is defined using the specification for sequence_mapping_temp
-// (detailed in "is_sequence")
+// The result is defined using the specification for sequence_mapping_temp
+// (detailed in "is_sequence").
 static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, int definitely_not_sequence, int definitely_not_mapping) {
-    // in Python 3.10 objects can have their sequence bit set or their mapping bit set
-    // but not both. Practically this translates to "which type is registered first".
+    // In Python 3.10+, objects can have their sequence bit set or their mapping bit set
+    // but not both. Practically, this translates to "which type is registered first".
     // In Python < 3.10 we can only determine this if they're direct bases (by looking
-    // at the MRO order). If they're registered manually then we can't tell
+    // at the MRO order). If they're registered manually then we can't tell.
 
     PyObject *abc_module=NULL, *sequence_type=NULL, *mapping_type=NULL;
     PyObject *mro;
@@ -120,7 +125,7 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
         }
     }
     if (!sequence_first) {
-        // here we know mapping_result is true because we'd have returned otherwise
+        // Here we know mapping_result is true because we'd have returned otherwise.
         assert(mapping_result);
         if (!definitely_not_sequence) {
             if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &sequence_type, PYIDENT("Sequence")) == -1)) {
@@ -154,8 +159,7 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     mro_size = __Pyx_PyTuple_GET_SIZE(mro);
 #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(mro_size == -1)) {
-        Py_DECREF(mro);
-        goto end;
+        goto loop_error;
     }
 #endif
     for (i=1; i < mro_size; ++i) {
@@ -178,11 +182,8 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     }
     // If we get to the end of the loop without breaking then neither type is in
     // the MRO, so they've both been registered manually. We don't know which was
-    // registered first so accept the object as either as a compromise
-    if (0) {
-        loop_error:
-        PyErr_Clear();
-    }
+    // registered first so accept the object as either as a compromise.
+    loop_error_recovery:
     Py_DECREF(mro);
 
     end:
@@ -190,6 +191,10 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     Py_XDECREF(sequence_type);
     Py_XDECREF(mapping_type);
     return result;
+
+    loop_error:
+    PyErr_Clear();
+    goto loop_error_recovery;
 }
 #endif
 
@@ -204,6 +209,20 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
 #if PY_VERSION_HEX >= 0x030A0000 && !(CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY)
     return __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_SEQUENCE);
 #else
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // In the Limited API we have runtime access to Py_TPFLAGS_SEQUENCE
+    // by looking it up on module init so it's still worth attempting
+    // the fast path.
+    if (__Pyx_Runtime_TPFLAGS_SEQUENCE) {
+        return __Pyx_PyType_HasFeature(Py_TYPE(o), __Pyx_Runtime_TPFLAGS_SEQUENCE);
+    }
+#elif defined(Py_TPFLAGS_SEQUENCE)
+    // Elsewhere *we* define Py_TPFLAGS_SEQUENCE but that doesn't necessarily
+    // mean other types use it, so only success is meaningful.
+    if (__Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_SEQUENCE)) {
+        return 1;
+    }
+#endif
     // Py_TPFLAGS_SEQUENCE doesn't exit.
     PyObject *o_module_name;
     unsigned int abc_result, dummy=0;
@@ -217,11 +236,11 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
             return 0;
         }
     } else {
-        // Probably quicker to just assign it and not check from here
+        // Probably quicker to just assign it and not check from here.
         sequence_mapping_temp = &dummy;
     }
 
-    // Start by check a known list of types
+    // Start by checking a known list of types.
     if (__Pyx_MatchCase_IsExactSequence(o)) {
         *sequence_mapping_temp |= (__PYX_DEFINITELY_SEQUENCE_FLAG | __PYX_DEFINITELY_NOT_MAPPING_FLAG);
         return 1;
@@ -250,9 +269,9 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
 
     // array.array is a more complicated check (and unfortunately isn't covered by
     // collections.abc.Sequence on Python <3.10).
-    // Do the test by checking the module name, and then importing/testing the class
+    // Do the test by checking the module name, and then importing/testing the class.
     // It also doesn't give perfect results for classes that inherit from both array.array
-    // and a mapping
+    // and a mapping.
 #if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX < 0x030A0000
 #if CYTHON_COMPILING_IN_LIMITED_API
     if (__Pyx_get_runtime_version() < 0x030A0000)
@@ -304,8 +323,8 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
 ////////////////////// OtherSequenceSliceToList //////////////////////////
 
 // This is substantially based off ceval unpack_iterable.
-// It's also pretty similar to itertools.islice
-// Indices must be positive - there's no wraparound or boundschecking
+// It's also pretty similar to itertools.islice.
+// Indices must be positive - there's no wraparound or boundschecking.
 
 static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
     int total = end-start;
@@ -321,8 +340,8 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
     slot = __Pyx_PyObject_TryGetSubSlot(x, tp_as_sequence, sq_item, ssizeargfunc);
     if (!slot) {
         #if !defined(Py_LIMITED_API) && !defined(PySequence_ITEM)
-        // PyPy (and maybe others?) implements PySequence_ITEM as a function. In this case
-        // it's slightly more efficient than using PySequence_GetItem since it skips negative indices
+        // PyPy (and maybe others?) implements PySequence_ITEM as a function. In this case.
+        // it's slightly more efficient than using PySequence_GetItem since it skips negative indices.
         slot = PySequence_ITEM;
         #else
         slot = PySequence_GetItem;
@@ -331,7 +350,7 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
 
     for (i=start; i<end; ++i) {
         PyObject *obj = slot(x, i);
-        if (unlikely(!obj || __Pyx_PyList_SET_ITEM(list, i-start, obj) == -1)) {
+        if (unlikely(!obj) || unlikely(__Pyx_PyList_SET_ITEM(list, i-start, obj) == -1)) {
             Py_DECREF(list);
             return NULL;
         }
@@ -345,10 +364,9 @@ static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start,
 
 ////////////////////// TupleSliceToList //////////////////////////
 //@requires: OtherSequenceSliceToList
-//@requires: ObjectHandling.c::TupleAndListFromArray
+//@requires: ObjectHandling.c::TupleFromArray
 
-// Note that this should also work fine on lists (if needed)
-// Indices must be positive - there's no wraparound or boundschecking
+// Indices must be positive - there's no wraparound or boundschecking.
 
 static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
 #if !CYTHON_COMPILING_IN_CPYTHON
@@ -358,7 +376,7 @@ static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start,
 
     (void)__Pyx_MatchCase_OtherSequenceSliceToList; // clear unused warning
 
-    array = PySequence_Fast_ITEMS(x);
+    array = &PyTuple_GET_ITEM(x, 0);
     return __Pyx_PyList_FromArray(array+start, end-start);
 #endif
 }

@@ -226,6 +226,7 @@ static PyObject* __Pyx_Intern(PyObject* s) {
 }
 
 //////////////////// abs_longlong.proto ////////////////////
+//@requires: ModuleSetupCode.c::IncludeStdlibH
 
 static CYTHON_INLINE PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
 #if defined (__cplusplus) && __cplusplus >= 201103L
@@ -542,6 +543,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d) {
     return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
 }
 
+//////////////////// py_frozendict_keys.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Keys(PyObject* d); /*proto*/
+
+//////////////////// py_frozendict_keys ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Keys(PyObject* d) {
+    return CALL_UNBOUND_METHOD_TYPEPTR(__Pyx_PyFrozenDict_TypePtr, "keys", d);
+}
+
 //////////////////// py_dict_values.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d); /*proto*/
@@ -552,6 +563,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d) {
     return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
 }
 
+//////////////////// py_frozendict_values.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Values(PyObject* d); /*proto*/
+
+//////////////////// py_frozendict_values ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Values(PyObject* d) {
+    return CALL_UNBOUND_METHOD_TYPEPTR(__Pyx_PyFrozenDict_TypePtr, "values", d);
+}
+
 //////////////////// py_dict_items.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
@@ -560,6 +581,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d) {
     return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
+}
+
+//////////////////// py_frozendict_items.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Items(PyObject* d); /*proto*/
+
+//////////////////// py_frozendict_items ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Items(PyObject* d) {
+    return CALL_UNBOUND_METHOD_TYPEPTR(__Pyx_PyFrozenDict_TypePtr, "items", d);
 }
 
 //////////////////// py_dict_iterkeys.proto ////////////////////
@@ -807,4 +838,104 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
 #define __Pyx_PySlice_Start(o) __Pyx_NewRef(((PySliceObject*)o)->start)
 #define __Pyx_PySlice_Stop(o) __Pyx_NewRef(((PySliceObject*)o)->stop)
 #define __Pyx_PySlice_Step(o) __Pyx_NewRef(((PySliceObject*)o)->step)
+#endif
+
+
+////////////// PyFrozenDict.proto /////////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+// PyFrozenDict is not currently in the Limited API.
+
+#define __Pyx_PyFrozenDict_TypePtr  ((PyTypeObject*) CGLOBAL(__Pyx_PyFrozenDictType))
+
+#define __Pyx_PyFrozenDict_New(it)  __Pyx__PyFrozenDict_New(CGLOBAL(__Pyx_PyFrozenDictType), it)
+static CYTHON_INLINE PyObject* __Pyx__PyFrozenDict_New(PyObject* frozendict_type, PyObject* it); /*proto*/
+
+#define __Pyx_PyFrozenDict_NewEmpty()  __Pyx_PyFrozenDict_New(NULL)
+#define __Pyx_PyFrozenDict_Check(obj)  PyObject_TypeCheck((obj), __Pyx_PyFrozenDict_TypePtr)
+#define __Pyx_PyFrozenDict_CheckExact(obj)  Py_IS_TYPE((obj), __Pyx_PyFrozenDict_TypePtr)
+
+#define __Pyx_PyAnyDict_Check(obj)   __Pyx__PyAnyDict_Check(obj, __Pyx_PyFrozenDict_TypePtr)
+static CYTHON_INLINE int __Pyx__PyAnyDict_Check(PyObject *obj, PyTypeObject* frozendict_type) {
+    return PyObject_TypeCheck(obj, &PyDict_Type) || PyObject_TypeCheck(obj, frozendict_type);
+}
+#define __Pyx_PyAnyDict_CheckExact(obj)  __Pyx__PyAnyDict_CheckExact(obj, __Pyx_PyFrozenDict_TypePtr)
+static CYTHON_INLINE int __Pyx__PyAnyDict_CheckExact(PyObject *obj, PyTypeObject* frozendict_type) {
+    return Py_IS_TYPE(obj, &PyDict_Type) || Py_IS_TYPE(obj, frozendict_type);
+}
+
+#elif PY_VERSION_HEX >= 0x030f00a6 || \
+    (defined(PyFrozenDict_Check) && defined(PyAnyDict_Check) && defined(PyFrozenDict_New))
+#define __Pyx_PyFrozenDict_TypePtr  (&PyFrozenDict_Type)
+#define __Pyx_PyFrozenDict_New(it)  PyFrozenDict_New(it)
+#define __Pyx_PyFrozenDict_NewEmpty()  PyFrozenDict_New(NULL)
+#define __Pyx_PyFrozenDict_Check(obj)  PyFrozenDict_Check(obj)
+#define __Pyx_PyFrozenDict_CheckExact(obj)  PyFrozenDict_CheckExact(obj)
+#define __Pyx_PyAnyDict_Check(obj)  PyAnyDict_Check(obj)
+#define __Pyx_PyAnyDict_CheckExact(obj)  PyAnyDict_CheckExact(obj)
+
+#else
+// Replacing PyFrozenDict with PyDict for older Python versions seems reasonable and helpful.
+#define __Pyx_PyFrozenDict_TypePtr  (&PyDict_Type)
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_New(PyObject* it) {
+    if (!it) {
+        return PyDict_New();
+    } else if (PyDict_Check(it)) {
+        return PyDict_Copy(it);
+    } else {
+        PyObject *dict = PyDict_New();
+        if (!dict) return NULL;
+        // PyDict_Merge() and friends do not handle arbitrary iterables. '|' does.
+        PyObject *result = PyNumber_InPlaceOr(dict, it);
+        Py_DECREF(dict);
+        return result;
+    }
+}
+#define __Pyx_PyFrozenDict_NewEmpty()  PyDict_New()
+#define __Pyx_PyFrozenDict_Check(obj)  PyDict_Check(obj)
+#define __Pyx_PyFrozenDict_CheckExact(obj)  PyDict_CheckExact(obj)
+#define __Pyx_PyAnyDict_Check(obj)  PyDict_Check(obj)
+#define __Pyx_PyAnyDict_CheckExact(obj)  PyDict_CheckExact(obj)
+#endif
+
+/////////////////// PyFrozenDict.module_state_decls //////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+PyObject *__Pyx_PyFrozenDictType;
+#endif
+
+////////////// PyFrozenDict /////////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static CYTHON_INLINE PyObject* __Pyx__PyFrozenDict_New(PyObject* frozendict_type, PyObject* it) {
+    return PyObject_CallFunctionObjArgs(frozendict_type, it, NULL);
+}
+#endif
+
+////////////////// PyFrozenDict.init ////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+{
+    PyObject *builtins = PyEval_GetBuiltins(); // borrowed
+    if (likely(builtins)) {
+        PyObject *type_name = PyUnicode_FromStringAndSize("frozendict", sizeof("frozendict")-1);
+        if (likely(type_name)) {
+            PyObject *frozendict_type = PyObject_GetItem(builtins, type_name);
+            Py_DECREF(type_name);
+            if (!frozendict_type && PyErr_ExceptionMatches(PyExc_KeyError)) {
+                PyErr_Clear();
+                frozendict_type = (PyObject*) &PyDict_Type;
+                Py_INCREF(frozendict_type);
+            }
+            CGLOBAL(__Pyx_PyFrozenDictType) = frozendict_type;
+        }
+    }
+} // error handling follows
+#endif
+
+/////////////// PyFrozenDict.cleanup ////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+Py_CLEAR(CGLOBAL(__Pyx_PyFrozenDictType));
 #endif

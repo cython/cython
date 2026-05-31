@@ -545,6 +545,16 @@ class OrderedSet:
     __nonzero__ = __bool__
 
 
+def set_dedup(it):
+    """Deduplicate the items in an iterable using a set.
+    """
+    seen = set()
+    for item in it:
+        if item not in seen:
+            seen.add(item)
+            yield item
+
+
 # Class decorator that adds a metaclass and recreates the class with it.
 # Copied from 'six'.
 def add_metaclass(metaclass):
@@ -613,6 +623,8 @@ def write_depfile(target, source, dependencies):
             # if they are on different Windows drives, absolute is fine
             newpath = os.path.abspath(fname)
 
+        # Escape spaces
+        newpath = newpath.replace(" ", "\\ ")
         paths.append(newpath)
 
     depline = os.path.relpath(target, cwd) + ": \\\n  "

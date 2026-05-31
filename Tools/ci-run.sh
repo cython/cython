@@ -5,20 +5,20 @@ set -x
 GCC_VERSION=${GCC_VERSION:=10}
 
 # Set up compilers
-if [[ $TEST_CODE_STYLE == "1" ]]; then
-  echo "Skipping compiler setup: Code style run"
-elif [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
+if [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
-  sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
-  sudo apt update -y -q
-  sudo apt install -y -q gdb python3-dbg gcc-$GCC_VERSION || exit 1
+  #sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
+  sudo apt-get update -y -q
+  sudo apt-get install -y -q gdb python3-dbg gcc-$GCC_VERSION libopenblas-dev || exit 1
 
   ALTERNATIVE_ARGS=""
   if [[ $BACKEND == *"cpp"* ]]; then
-    sudo apt install -y -q g++-$GCC_VERSION || exit 1
+    sudo apt-get install -y -q g++-$GCC_VERSION || exit 1
     ALTERNATIVE_ARGS="--slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"
   fi
+
+  sudo apt-get clean
 
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
@@ -37,7 +37,7 @@ fi
 
 if [[ $COVERAGE == "1" ]]; then
   echo "Skip setting up compilation caches"
-elif [[ $OSTYPE == "msys" ]]; then
+elif [[ $OSTYPE == "msys" || $OSTYPE == "cygwin" ]]; then
   echo "Set up sccache"
   echo "TODO: Make a soft symlink to sccache"
 else
@@ -77,46 +77,44 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ $PYTHON_VERSION == "3.1"[2-9]* || $PYTHON_VERSION == *"-dev" || $PYTHON_VERSION == "pypy-3.11" ]]; then
-  python -m pip install -U pip wheel setuptools || exit 1
-else
+if [[ $PYTHON_VERSION == *"3.9"* || $PYTHON_VERSION == "3.1"[01]* || $PYTHON_VERSION == "pypy-3.10"* ]]; then
   # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.10.
-  python -m pip install -U pip "setuptools<60" wheel twine "cryptography<42" "nh3<0.2.19" || exit 1
+  python -m pip install --no-cache-dir -U pip "setuptools<60" "wheel<0.46" "twine" "cryptography<42" "nh3<0.2.19" || exit 1
+else
+  python -m pip install --no-cache-dir -U pip wheel setuptools || exit 1
 fi
-if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" ]]; then
+if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" && $PYTHON_VERSION != "graalpy"* ]]; then
   # twine is not installable on freethreaded Python due to cryptography requirement
-  python -m pip install -U twine || exit 1
+  # On GraalPython, it is useless and takes long to install due to its binary dependencies.
+  python -m pip install --no-cache-dir -U twine || exit 1
 fi
 if [[ $PYTHON_VERSION != *"-dev" ]]; then
-  python -m pip install --pre -r test-requirements.txt || exit 1
+  python -m pip install --no-cache-dir --pre -r test-requirements.txt || exit 1
 elif [[ ! "$SANITIZER_CFLAGS" ]]; then
   # Install packages one by one, allowing failures due to missing recent wheels.
-  cat test-requirements.txt | while read package; do python -m pip install --pre --only-binary ":all:" "$package" || true; done
+  cat test-requirements.txt | while read package; do python -m pip install --no-cache-dir --pre --only-binary ":all:" "$package" || true; done
 fi
 if [[ $PYTHON_VERSION == "3.13"* ]]; then
-  python -m pip install --pre -r test-requirements-313.txt || exit 1
+  python -m pip install --no-cache-dir --pre -r test-requirements-313.txt || exit 1
 fi
 if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VERSION != *"-dev" ]]; then
-  python -m pip install -r test-requirements-cpython.txt || exit 1
+  python -m pip install --no-cache-dir -r test-requirements-cpython.txt || exit 1
 fi
 
-if [[ $TEST_CODE_STYLE == "1" ]]; then
-  STYLE_ARGS="--no-unit --no-doctest --no-file --no-pyregr --no-examples"
-  python -m pip install -r doc-requirements.txt || exit 1
-else
-  STYLE_ARGS="--no-code-style"
-
-  # Install more requirements
-  if [[ $PYTHON_VERSION != *"-dev" ]]; then
-    if [[ $BACKEND == *"cpp"* && $OSTYPE != "msys" ]]; then
-      python -m pip install pythran || exit 1
-    fi
-
-    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* ]]; then
-      python -m pip install mypy || exit 1
-    fi
+# Install more requirements
+if [[ $PYTHON_VERSION != *"-dev" ]]; then
+  if [[ $BACKEND == *"cpp"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]]; then
+    python -m pip install --no-cache-dir pythran || exit 1
   fi
+
+  if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
+    python -m pip install --no-cache-dir mypy || exit 1
+  fi
+
 fi
+
+echo "==== Runner resources ===="
+df -h
 
 # Run tests
 echo "==== Running tests ===="
@@ -126,7 +124,7 @@ export PATH="/usr/lib/ccache:$PATH"
 # Most modern compilers allow the last conflicting option
 # to override the previous ones, so '-O0 -O3' == '-O3'
 # This is true for the latest msvc, gcc and clang
-if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
+if [[ $OSTYPE == "msys" || $OSTYPE == "cygwin" ]]; then  # for MSVC cl
   # /wd disables warnings
   # 4711 warns that function `x` was selected for automatic inline expansion
   # 4127 warns that a conditional expression is constant, should be fixed here https://github.com/cython/cython/pull/4317
@@ -156,7 +154,7 @@ fi
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
   BUILD_CFLAGS="$CFLAGS -O2"
-  if [[ $CYTHON_COMPILE_ALL == "1" && $OSTYPE != "msys" ]]; then
+  if [[ $CYTHON_COMPILE_ALL == "1" && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]]; then
     BUILD_CFLAGS="$CFLAGS -O3 -g0 -mtune=generic"  # make wheel sizes comparable to standard wheel build
   fi
 
@@ -197,9 +195,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   find Cython -name "*.so" -ls | sort -k11
 fi
 
-if [[ $TEST_CODE_STYLE == "1" ]]; then
-  make -C docs html || exit 1
-elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
+if [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]]; then
   # Run the debugger tests in python-dbg if available
   # (but don't fail, because they currently do fail)
   PYTHON_DBG=$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])')
@@ -210,33 +206,34 @@ elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
   fi
 fi
 
+if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+  # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
+  # JIT actually makes it faster! And reduces the number of cores each process uses.
+  GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
+  TEST_PARALLELISM=-j2
+fi
+
 RUNTESTS_ARGS=""
 if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --coverage-md --cython-only"
 fi
-if [[ $TEST_CODE_STYLE != "1" ]]; then
-  if [[ ! $TEST_PARALLELISM ]]; then
-    TEST_PARALLELISM=-j7
-  fi
-  RUNTESTS_ARGS="$RUNTESTS_ARGS $TEST_PARALLELISM"
+if [[ ! $TEST_PARALLELISM ]]; then
+  TEST_PARALLELISM=-j7
 fi
+RUNTESTS_ARGS="$RUNTESTS_ARGS $TEST_PARALLELISM"
 
-
-if [[ $PYTHON_VERSION == "graalpy"* ]]; then
-  # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
-  # JIT actually makes it faster! And reduces the number of cores each process uses.
-  export GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
-fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
-if [[ $PYTHON_VERSION == "3.13t" ]]; then
+if [[ $PYTHON_VERSION == *"t" ]]; then
   export PYTHON_GIL=0
 fi
-python runtests.py \
-  -vv $STYLE_ARGS \
+python $GRAAL_PYTHON_ARGS runtests.py \
+  -vv --no-code-style \
+  --no-cleanup \
   -x Debugger \
   --backends=$BACKEND \
   $LIMITED_API \
+  $SHARED_UTILITY \
   $EXCLUDE \
   $RUNTESTS_ARGS
 

@@ -18,6 +18,7 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object init
     cdef public object cleanup
     cdef object proto_block
+    cdef object init_block
     cdef readonly object module_state_decls
     cdef readonly object module_state_traverse
     cdef readonly object module_state_clear
@@ -55,12 +56,12 @@ cdef class FunctionState:
     cdef public bint can_trace
     cdef public bint gil_owned
 
-    cdef list temps_allocated
-    cdef dict temps_free
-    cdef dict temps_used_type
+    cdef list[tuple] temps_allocated
+    cdef dict[tuple, tuple] temps_free
+    cdef dict[object, tuple] temps_used_type
     cdef set zombie_temps
     cdef size_t temp_counter
-    cdef list collect_temps_stack
+    cdef list[set[tuple]] collect_temps_stack
 
     cdef readonly object closure_temps
     cdef bint should_declare_error_indicator
@@ -77,7 +78,7 @@ cdef class FunctionState:
     cpdef start_collecting_temps(self)
     cpdef stop_collecting_temps(self)
 
-    cpdef list temps_in_use(self)
+    cpdef list[tuple] temps_in_use(self)
 
 
 @cython.final
@@ -121,6 +122,8 @@ cdef class CCodeWriter(object):
     cdef public Py_ssize_t call_level  # debug-only, see Nodes.py
     cdef bint bol
 
+    @cython.final
+    cdef void handle_refnanny(self, tp, bint nanny=*)
     cpdef write(self, s)
     cdef _write_lines(self, s)
     cpdef _write_to_buffer(self, s)
