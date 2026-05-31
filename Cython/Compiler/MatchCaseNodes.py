@@ -198,9 +198,8 @@ class MatchCaseNode(Node):
             self.comp_node = self.pattern.get_comparison_node(subject_node, sequence_mapping_temp)
             self.comp_node = self.comp_node.analyse_types(env)
 
-        if self.comp_node and self.comp_node.is_literal:
-            self.comp_node.calculate_constant_result()
-            if not self.comp_node.constant_result:
+        if self.comp_node and isinstance(self.comp_node, ExprNodes.BoolNode):
+            if not self.comp_node.value:
                 # We know this pattern can't succeed. Ignore any errors and return None.
                 return None
         for error in errors:
