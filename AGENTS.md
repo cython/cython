@@ -54,6 +54,12 @@ The best test case to run is:
 python runtests.py --no-code-style -x Debugger --backends=c --no-cleanup embed_modules_optimize
 ```
 
+The script has some options:
+- `--no-code-style` to skip PEP8 checks (auto-implied when passing test selectors)
+- `-x Debugger` to exclude tests matching "Debugger"
+- `--backends=c` to only test the C backend (the optimization is backend-agnostic but the C++ backend). it do not apply for srctree tests.
+- `--no-cleanup` to keep the generated C files for inspection (otherwise they get deleted after the test run)
+
 Then you can check the generated file in: `TEST_TMP/build/embed_modules_optimize/`
 
 ## Development quirks & conventions
@@ -65,7 +71,7 @@ Then you can check the generated file in: `TEST_TMP/build/embed_modules_optimize
 - **`auto_cpdef=True`** makes `cpdef` functions importable as function pointers (`__pyx_f_...`). Used by embed-module optimization.
 - **auto_cpdef + `__init__` in cclasses**: `__init__` can be promoted inside `@cclass` via auto_cpdef. The promoted entry gets `is_special=1` set in `CClassScope.declare_cfunction` (`Symtab.py`) so the `tp_init` slot is assigned. The slot must use the `__pyx_pw_` wrapper (returns `int` for `initproc`), not the `__pyx_f_` function (returns `PyObject*`). This is handled by `MethodSlot._get_slot_function` (`TypeSlots.py`) which prefers `as_variable.func_cname` for cfunction entries. Signature conflicts across inheritance are suppressed with an `elif name in ('__init__', '<init>')` branch in `declare_cfunction`.
 - **auto_cpdef blocks other dunders in cclasses**: `__add__`, `__eq__`, `__repr__` etc. are NOT promoted inside cclasses because cpdef promotion adds `int __pyx_skip_dispatch` to the C signature, but the synthesized slot wrappers (richcompare, nb_add, getattro, etc.) call `entry.func_cname` with the fixed CPython slot argument count. Only `__init__` is exempt because its slot (`tp_init`) goes through `MethodSlot.slot_code` which we patch. To enable other dunders, update every slot wrapper generator in `ModuleNode.py` (6-7 sites) to pass `, 1` for overridable entries.
-- **`lto=True`** (Link-Time Optimization): Asume que los modulos que estan siendo compilados seran tambien enlazados juntos por lo tanto no depende de la carga dinamica de modulos de Python que estan siendo compilados juntos. Se activa con `-X lto=True`.
+- **`lto=True`** (Link-Together Optimization): El modo LTO asume que los modulos que estan siendo compilados seran tambien enlazados juntos por lo tanto no depende de la carga dinamica de modulos de Python que estan siendo compilados juntos. Se activa con `-X lto=True`.
 - **Property accessor capsule names**: Multiple classes per module sharing property names cause `__get__`/`__set__` capsule name collisions in function export/import (`ModuleNode.py:_get_function_export_name`). Qualified as `{ClassName}.{prop_name}.{entry.name}`.
 - **auto_cpdef properties are cproperties**: With `auto_cpdef=True`, `@property` getters get `inline` modifier, which sets both `is_cproperty=True` and `is_overridable=True` (`PropertyNode.analyse_declarations`, `Nodes.py:6208-6214`). The vtable dispatch vs Python attribute fallback is controlled by whether `vtabstruct_cname` is set, not by `is_cproperty`.
 - **Vtable allocation for property-only types**: `allocate_vtable_names` (`Symtab.py:1916`) only checks `cfunc_entries` when deciding whether to allocate a vtable struct. Property accessor entries live in `PropertyScope`, not the class scope. If a cclass only has `@property` accessors and no `cdef` methods, add an `elif` for `property_entries` with `is_cproperty=True` to allocate the vtable. Skip extern types (`entry.visibility == 'extern'`) to avoid breaking `cpython/datetime` and similar pxd wrappers.
