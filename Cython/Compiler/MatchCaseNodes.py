@@ -391,13 +391,13 @@ class PatternNode(Node):
                 )
             )
         assert env or self.is_simple_value_comparison()
-        assignments.extend(self.generate_main_pattern_assignment_list(subject_node, env))
+        assignments.extend(self.create_main_pattern_assignment_list(subject_node, env))
         if assignments:
             return Nodes.StatListNode(self.pos, stats=assignments)
         else:
             return None
 
-    def generate_main_pattern_assignment_list(self, subject_node, env):
+    def create_main_pattern_assignment_list(self, subject_node, env):
         # Generates assignments for everything except the "as_targets".
         # Override in subclasses.
         # Returns a list of Nodes.
@@ -491,7 +491,7 @@ class MatchAndAssignPatternNode(PatternNode):
     def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
         return ExprNodes.BoolNode(self.pos, value=True)
 
-    def generate_main_pattern_assignment_list(self, subject_node, env):
+    def create_main_pattern_assignment_list(self, subject_node, env):
         if not self.target:
             return []
         return [Nodes.SingleAssignmentNode(self.pos, lhs=self.target.clone_node(), rhs=subject_node)]
@@ -584,7 +584,7 @@ class OrPatternNode(PatternNode):
         ]
         return self
 
-    def generate_main_pattern_assignment_list(self, subject_node, env):
+    def create_main_pattern_assignment_list(self, subject_node, env):
         assignments = []
         for a in self.alternatives:
             a_assignment = a.create_target_assignments(subject_node, env)
@@ -728,7 +728,7 @@ class MatchSequencePatternNode(PatternNode):
             for s, p in zip(self.subjects, self.patterns)
         ]
 
-    def generate_main_pattern_assignment_list(self, subject_node, env):
+    def create_main_pattern_assignment_list(self, subject_node, env):
         assignments = []
         self.generate_subjects(subject_node, env)
         for subject_temp, subject, pattern in zip(
@@ -1031,11 +1031,11 @@ class MatchMappingPatternNode(PatternNode):
                 )
         self.subject_temps = subject_temps
 
-    def generate_main_pattern_assignment_list(self, subject_node, env):
+    def create_main_pattern_assignment_list(self, subject_node, env):
         self.generate_subjects(subject_node, env)
         assignments = []
         for subject, pattern in zip(self.subject_temps, self.value_patterns):
-            p_assignments = pattern.generate_target_assignments(subject, env)
+            p_assignments = pattern.create_target_assignments(subject, env)
             if p_assignments:
                 assignments.extend(p_assignments.stats)
         if self.double_star_capture_target:
