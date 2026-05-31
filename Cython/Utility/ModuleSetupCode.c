@@ -1329,7 +1329,7 @@ static int __Pyx_init_co_variables(void) {
     return result ? 0 : -1;
 }
 
-static int __Pyx_init_tpflags_bitcount(long flag) {
+static int __Pyx_init_tpflags_bitcount(unsigned long flag) {
     int count = 0;
     while (flag) {
         count += (flag & 1);
