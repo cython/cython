@@ -10,7 +10,7 @@ import re
 from functools import partial, reduce
 from itertools import product
 
-from Cython.Utils import cached_function
+from Cython.Utils import cached_function, set_dedup
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode, AbstractUtilityCode
 from . import StringEncoding
 from . import Naming
@@ -153,6 +153,14 @@ class BaseType:
         """
         return None
 
+    def get_container_type(self):
+        """Returns the basic container type of the (potentially subscripted) type,
+        or None if not a container type.
+
+        Similar to typing.get_origin().
+        """
+        return None
+
 
 class PyrexType(BaseType):
     #
@@ -195,8 +203,11 @@ class PyrexType(BaseType):
     #  is_pytuple_type       boolean     Is a Python tuple type
     #  is_pylist_type        boolean     Is a Python list type
     #  is_pydict_type        boolean     Is a Python dict type
+    #  is_pyfrozendict_type  boolean     Is a Python frozendict type
+    #  is_pyanydict_type     boolean     Is a Python dict or frozendict type
     #  is_pyset_type         boolean     Is a Python set type
     #  is_pyfrozenset_type   boolean     Is a Python frozenset type
+    #  is_pyanyset_type      boolean     Is a Python set or frozenset type
     #  is_pybytes_type       boolean     Is a Python bytes type
     #  is_pystr_type         boolean     Is a Python str type
     #  is_pybytearray_type   boolean     Is a Python bytearray type
@@ -287,8 +298,11 @@ class PyrexType(BaseType):
     is_pytuple_type = False
     is_pylist_type = False
     is_pydict_type = False
+    is_pyfrozendict_type = False
+    is_pyanydict_type = False
     is_pyset_type = False
     is_pyfrozenset_type = False
+    is_pyanyset_type = False
 
     is_pybytes_type = False
     is_pystr_type = False
@@ -308,6 +322,7 @@ class PyrexType(BaseType):
     needs_refcounting = False
     refcounting_needs_gil = True
     supports_refnanny = False
+    supports_container_type = False
     equivalent_type = None
     default_value = ""
     declaration_value = ""
@@ -1508,11 +1523,12 @@ class BuiltinObjectType(PyObjectType):
         'float': ['is_pyfloat_type'],
         'bool': ['is_pybool_type'],
         'complex': ['is_pycomplex_type'],
-        'list': ['is_pylist_type', 'is_builtin_sequence'],
-        'dict': ['is_pydict_type'],
-        'set': ['is_pyset_type'],
+        'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type'],
         'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
-        'frozenset': ['is_pyfrozenset_type'],
+        'dict': ['is_pydict_type', 'is_pyanydict_type', 'supports_container_type'],
+        'frozendict': ['is_pyfrozendict_type', 'is_pyanydict_type', 'supports_container_type'],
+        'set': ['is_pyset_type', 'is_pyanyset_type', 'supports_container_type'],
+        'frozenset': ['is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type'],
         'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
@@ -1521,7 +1537,7 @@ class BuiltinObjectType(PyObjectType):
 
     def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
-        self.typeptr_cname = "(%s)" % cname
+        self.cname = cname
         self.objstruct_cname = objstruct_cname
         self.is_gc_simple = name in builtin_types_that_cannot_create_refcycles
         self.builtin_trashcan = name in builtin_types_with_trashcan
@@ -1538,6 +1554,10 @@ class BuiltinObjectType(PyObjectType):
         if type_name in self._builtin_type_flag_mapping:
             for attribute in self._builtin_type_flag_mapping[type_name]:
                 setattr(self, attribute, True)
+
+    @property
+    def typeptr_cname(self):
+        return f"({self.cname})"
 
     def set_scope(self, scope):
         self.scope = scope
@@ -1583,7 +1603,10 @@ class BuiltinObjectType(PyObjectType):
         return type.is_pyobject and type.assignable_from(self)
 
     def type_check_function(self, exact=True):
-        type_name = self.name
+        if container_type := self.get_container_type():
+            type_name = container_type.name
+        else:
+            type_name = self.name
         if type_name in _special_type_check_functions:
             type_check = _special_type_check_functions[type_name]
         elif self.is_exception_type:
@@ -1916,38 +1939,42 @@ class PythranExpr(CType):
         return hash(self.pythran_type)
 
 
-class CConstOrVolatileType(BaseType):
-    "A C const or volatile type"
+class CQualifierType(BaseType):
+    """A C qualifier type - currently const, restrict and volatile"""
 
     subtypes = ['cv_base_type']
 
     is_cv_qualified = 1
 
-    def __init__(self, base_type, is_const=0, is_volatile=0):
+    def __init__(self, base_type, is_const=False, is_volatile=False, is_restrict=False):
         self.cv_base_type = base_type
         self.is_const = is_const
         self.is_volatile = is_volatile
+        self.is_restrict = is_restrict
         if base_type.has_attributes and base_type.scope is not None:
-            from .Symtab import CConstOrVolatileScope
-            self.scope = CConstOrVolatileScope(base_type.scope, is_const, is_volatile)
+            from .Symtab import CQualifierScope
+            self.scope = CQualifierScope(base_type.scope, is_const, is_volatile)
 
-    def cv_string(self):
+    def cv_string(self, for_display=0):
         cvstring = ""
         if self.is_const:
             cvstring = "const " + cvstring
         if self.is_volatile:
             cvstring = "volatile " + cvstring
+        if self.is_restrict:
+            cvstring = "restrict " if for_display else "CYTHON_RESTRICT " + cvstring
+
         return cvstring
 
     def __repr__(self):
-        return "<CConstOrVolatileType %s%r>" % (self.cv_string(), self.cv_base_type)
+        return "<CQualifierType %s%r>" % (self.cv_string(), self.cv_base_type)
 
     def __str__(self):
         return self.declaration_code("", for_display=1)
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
-        cv = self.cv_string()
+        cv = self.cv_string(for_display=for_display)
         if for_display or pyrex:
             return cv + self.cv_base_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
         else:
@@ -1957,8 +1984,8 @@ class CConstOrVolatileType(BaseType):
         base_type = self.cv_base_type.specialize(values)
         if base_type == self.cv_base_type:
             return self
-        return CConstOrVolatileType(base_type,
-                self.is_const, self.is_volatile)
+        return CQualifierType(base_type,
+                self.is_const, self.is_volatile, self.is_restrict)
 
     def deduce_template_params(self, actual, is_value_type=True):
         if ((actual.is_const and self.is_const)
@@ -1990,10 +2017,10 @@ class CConstOrVolatileType(BaseType):
         return getattr(self.cv_base_type, name)
 
 
-def c_const_type(base_type):
+def c_const_type(base_type, is_const: bool = True):
     """Creates a C 'const ...' type but does not test for 'error_type'.
     """
-    return CConstOrVolatileType(base_type, is_const=True)
+    return CQualifierType(base_type, is_const=is_const)
 
 
 class FusedType(CType):
@@ -4913,6 +4940,14 @@ class PythonTypeConstructorMixin:
     """
     modifier_name = None
     contains_none = False
+    base_type = None
+    subscripted_types = ()
+
+    def get_subscripted_type(self, index: int):
+        try:
+            return self.subscripted_types[index]
+        except IndexError:
+            return None
 
     def allows_none(self):
         return (
@@ -4920,13 +4955,8 @@ class PythonTypeConstructorMixin:
             self.modifier_name == 'typing.Union' and self.contains_none
         )
 
-    def set_python_type_constructor_name(self, name):
+    def set_python_type_constructor_name(self, name: str) -> None:
         self.python_type_constructor_name = name
-
-    def specialize_here(self, pos, env, template_values=None):
-        # for a lot of the typing classes it doesn't really matter what the template is
-        # (i.e. typing.Dict[int] is really just a dict)
-        return self
 
     def __repr__(self):
         if self.base_type:
@@ -4942,10 +4972,82 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     """
     builtin types like list, dict etc which can be subscripted in annotations
     """
-    def __init__(self, name, cname, objstruct_cname=None):
+
+    def __init__(self, name, cname, objstruct_cname=None, **kwargs):
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
-        self.set_python_type_constructor_name(name)
+        self.set_python_type_constructor_name(self.get_container_type().name)
+        for attr_name, value in kwargs.items():
+            setattr(self, attr_name, value)
+
+    def specialize_here(self, pos, env, template_values=None):
+        if not self.supports_container_type:
+            return self
+        if template_values and None not in template_values and len(template_values) <= 2:
+            typ = BuiltinTypeConstructorObjectType(
+                name=self.name, cname=self.cname, objstruct_cname=self.objstruct_cname,
+                base_type=self, subscripted_types=tuple(template_values), scope=self.scope)
+            typ.entry = self.entry
+            return typ
+        return self
+
+    @staticmethod
+    def _full_type_name(name: str, subscripted_types) -> str:
+        subscripted_types = ','.join([str(tv) for tv in subscripted_types])
+        return f"{name}[{subscripted_types}]" if subscripted_types else name
+
+    def __eq__(self, value):
+        return (
+            isinstance(value, BuiltinTypeConstructorObjectType) and
+            self.name == value.name and
+            self.subscripted_types == value.subscripted_types
+        )
+
+    def __hash__(self):
+        return hash(self.name) ^ hash(tuple(self.subscripted_types))
+
+    def __str__(self):
+        if self.subscripted_types:
+            return f"{self._full_type_name(self.name, self.subscripted_types)} object"
+        else:
+            return super().__str__()
+
+    def assignable_from(self, src_type):
+        if self.get_container_type() is src_type.get_container_type():
+            if not self.subscripted_types:
+                # Assignment to unqualified type is always fine, e.g. list[int] -> list
+                return True
+            if self.subscripted_types and not src_type.subscripted_types:
+                return True
+            if (
+                len(self.subscripted_types) == len(src_type.subscripted_types) and
+                all(dst_sc.assignable_from(src_sc)
+                    for dst_sc, src_sc in zip(self.subscripted_types, src_type.subscripted_types))
+            ):
+                return True
+            return False
+        return super().assignable_from(src_type)
+
+    def infer_indexed_type(self):
+        container_type = self.get_container_type()
+        if container_type.is_pydict_type or container_type.is_pyfrozendict_type:
+            return self.get_subscripted_type(1)
+        else:
+            return self.get_subscripted_type(0)
+
+    def infer_iterator_type(self):
+        return self.get_subscripted_type(0)
+
+    def get_container_type(self):
+        """Returns the basic container type of the (potentially subscripted) type,
+        or None if not a container type.
+
+        Similar to typing.get_origin().
+        """
+        base_type = self.base_type
+        if base_type:
+            return base_type.get_container_type()
+        return self
 
 
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
@@ -5647,6 +5749,10 @@ def independent_spanning_type(type1, type2):
         # e.g. PyInt + double => object
         return py_object_type
     elif resolved_type1.is_builtin_type and resolved_type2.is_builtin_type:
+        container_type = resolved_type1.get_container_type()
+        if container_type is not None and container_type == resolved_type2.get_container_type():
+            # list[float] + list[int] => list
+            return container_type
         # Either numeric or incompatible. Do not try to find a widest Python type
         # (e.g. int+float => float) as it would change one of the result types.
         return py_object_type
@@ -5735,6 +5841,15 @@ def widest_cpp_type(type1, type2):
         return None
 
 
+def reduce_spanning_types(types):
+    """Reduce a series of types to their common spanning type.
+    """
+    if not types:
+        return py_object_type
+    types = list(set_dedup(types))
+    return reduce(spanning_type, types) if types else py_object_type
+
+
 def simple_c_type(signed, longness, name):
     # Find type descriptor for simple type given name and modifiers.
     # Returns None if arguments don't make sense.
@@ -5750,12 +5865,13 @@ def parse_basic_type(name: str):
         base = parse_basic_type(name[:-1])
     if base:
         return CPtrType(base)
-    if name.startswith(('const_', 'volatile_')):
+    if name.startswith(('const_', 'volatile_', 'restrict_')):
         modifier, _, base_name = name.partition('_')
         base = parse_basic_type(base_name)
         if base:
-            return CConstOrVolatileType(
-                base, is_const=modifier == 'const', is_volatile=modifier == 'volatile')
+            return CQualifierType(
+                base, is_const=modifier == 'const', is_volatile=modifier == 'volatile',
+                is_restrict=modifier == 'restrict')
     #
     basic_type = parse_basic_ctype(name)
     if basic_type:
@@ -5824,9 +5940,9 @@ def cpp_rvalue_ref_type(base_type):
     # Construct a C++ rvalue reference type
     return _construct_type_from_base(CppRvalueReferenceType, base_type)
 
-def c_const_or_volatile_type(base_type, is_const=False, is_volatile=False):
-    # Construct a C const/volatile type.
-    return _construct_type_from_base(CConstOrVolatileType, base_type, is_const, is_volatile)
+def c_qualifier_type(base_type, is_const: bool = False, is_volatile: bool = False, is_restrict: bool = False):
+    # Construct a C const/volatile/restrict type.
+    return _construct_type_from_base(CQualifierType, base_type, is_const, is_volatile, is_restrict)
 
 
 def same_type(type1, type2):

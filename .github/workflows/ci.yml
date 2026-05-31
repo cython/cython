@@ -2,25 +2,7 @@ name: CI
 
 on:
   push:
-    paths:
-      - '**'
-      - '!Demos/benchmarks/**'
-      - '!.github/**'
-      - '.github/workflows/ci.yml'
-      - '**/*.md'
-      - '**/*.rst'
-      - '!docs/**'
-      - 'docs/examples/**'
   pull_request:
-    paths:
-      - '**'
-      - '!Demos/benchmarks/**'
-      - '!.github/**'
-      - '.github/workflows/ci.yml'
-      - '!**/*.md'
-      - '!**/*.rst'
-      - '!docs/**'
-      - 'docs/examples/**'
   workflow_dispatch:
 
 concurrency:
@@ -43,27 +25,71 @@ env:
 
 
 jobs:
+  file-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      ci-changes: ${{ steps.filter.outputs.any-files == 'true' && (steps.filter.outputs.negative-files == 'false' || steps.filter.outputs.positive-github == 'true') && (steps.filter.outputs.negative-docs == 'false' || steps.filter.outputs.positive-docs == 'true') }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+      # Only needed to compare the "base" on push; not needed for PR
+      if: ${{ github.event_name == 'push' }}
+    - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
+      id: filter
+      with:
+        base: ${{ github.ref }}
+        filters: |
+          any-files:
+          - '**'
+          negative-files:
+          - 'Demos/benchmarks/**'
+          - '.github/**'
+          positive-github:
+          - '.github/workflows/ci*.yml'
+          negative-docs:
+          - '**/*.md'
+          - '**/*.rst'
+          - 'docs/**'
+          positive-docs:
+          - 'docs/examples/**'
 
   ci-early:
+    needs: [file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
       fail-fast: false
 
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-latest]
+        os: [ubuntu-24.04, windows-2022, macos-latest]
         backend: [c, cpp]
+        limited_api: ['']
+        shared_utility: ['']
+        extra_hash: ['']
 
         include:
           # Limited API
-          - os: ubuntu-22.04
-            backend: "c,cpp"
+          - os: ubuntu-24.04
+            backend: "c"
+            limited_api: "--limited-api --abi3audit"
+            extra_hash: "-limited_api"
+          - os: ubuntu-24.04
+            backend: "cpp"
             limited_api: "--limited-api --abi3audit"
             extra_hash: "-limited_api"
           # Cython Shared Module
-          - os: ubuntu-22.04
-            backend: "c,cpp"
+          - os: ubuntu-24.04
+            backend: "c"
             shared_utility: "--shared-utility"
-            extra_hash: "--shared-utility"
+            extra_hash: "-shared-utility"
+          - os: ubuntu-24.04
+            backend: "cpp"
+            shared_utility: "--shared-utility"
+            extra_hash: "-shared-utility"
 
     uses: ./.github/workflows/ci-job.yml
     with:
@@ -73,10 +99,22 @@ jobs:
       limited_api: ${{ matrix.limited_api }}
       shared_utility: ${{ matrix.shared_utility }}
       extra_hash: ${{ matrix.extra_hash }}
+      upload_testsources: ${{ startsWith(matrix.os, 'ubuntu') }}
+
+
+  ci-early-success:
+    needs: [codespell, codestyle, ci-early, build_docs]
+    if: always()
+    env:
+      FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit $FAIL
 
 
   ci-all:
-    needs: [codespell, codestyle, ci-early, build_docs]
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
     strategy:
       # Allows for matrix sub-jobs to fail without canceling the rest
@@ -99,7 +137,7 @@ jobs:
       matrix:
         # Tests [amd64]
         #
-        os: [ubuntu-22.04, windows-2022, macos-latest]
+        os: [ubuntu-24.04, windows-2022, macos-latest]
         backend: [c, cpp]
         python-version:
           - "3.9"
@@ -108,7 +146,7 @@ jobs:
           - "3.12"
           - "3.13"
           - "3.13t"
-          #- "3.14"  # ci-early
+          #- "3.14"  # -> 'ci-early'
           - "3.14t"
           - "3.15-dev"
           - "3.15t-dev"
@@ -128,155 +166,232 @@ jobs:
             python-version: 3.14t
             backend: "cpp"
 
-        include:
-          # Ubuntu sub-jobs:
-          # ================
-          # GCC 13 (with broad language standards)
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: c
-            gcc_version: 13
-            extra_cflags: "-std=c99"
-            extra_hash: "-c99"
-          - os: ubuntu-22.04
-            python-version: "3.10"
-            backend: c
-            gcc_version: 13
-            extra_cflags: "-std=c17"
-            extra_hash: "-c17"
-          - os: ubuntu-22.04
-            python-version: "3.12"
-            backend: c
-            gcc_version: 13
-            extra_cflags: "-std=c17"
-            extra_hash: "-c17"
-          - os: ubuntu-22.04
-            python-version: "3.13"
-            backend: cpp
-            gcc_version: 13
-            extra_cflags: "-std=c++20"
-            extra_hash: "-cpp20"
-          # Arm64
-          - os: ubuntu-22.04-arm
-            python-version: "3.13"
-            backend: c
-          - os: ubuntu-22.04-arm
-            python-version: "3.13"
-            backend: cpp
-          - os:  windows-11-arm
-            python-version: "3.13"
-            backend: "c"
-          - os:  windows-11-arm
-            python-version: "3.13"
-            backend: "cpp"
-          # compile all modules
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: c
-            cython_compile_all: 1
-            extra_hash: "-all"
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: cpp
-            cython_compile_all: 1
-            extra_hash: "-all"
-          - os: ubuntu-22.04
-            python-version: "3.11"
-            backend: c
-            cython_compile_all: 1
-            extra_hash: "-all"
-          - os: ubuntu-22.04
-            python-version: "3.11"
-            backend: cpp
-            cython_compile_all: 1
-            extra_hash: "-all"
-          # Limited API
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: "c,cpp"
-            limited_api: "--limited-api --abi3audit"
-            extra_hash: "-limited_api"
-          - os: ubuntu-22.04
-            python-version: "3.11"
-            backend: "c,cpp"
-            limited_api: "--limited-api --abi3audit"
-            extra_hash: "-limited_api"
-          - os: ubuntu-22.04
-            python-version: "3.12"
-            backend: "c,cpp"
-            limited_api: "--limited-api --abi3audit"
-            extra_hash: "-limited_api"
-          - os: ubuntu-22.04
-            python-version: "3.15-dev"
-            backend: "c,cpp"
-            limited_api: "--limited-api"
-            extra_hash: "-limited_api"
-          # Cython Shared Module
-          - os: ubuntu-22.04
-            python-version: "3.12"
-            backend: "c,cpp"
-            shared_utility: "--shared-utility"
-            extra_hash: "--shared-utility"
-          # Type specs
-          - os: ubuntu-22.04
-            python-version: "3.14"
-            backend: c
-            extra_cflags: "-DCYTHON_USE_TYPE_SPECS=1"
-            extra_hash: "-typespecs"
-          - os: ubuntu-22.04
-            python-version: "3.12"
-            backend: c
-            extra_cflags: "-DCYTHON_USE_TYPE_SPECS=1"
-            extra_hash: "-typespecs"
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: c
-            extra_cflags: "-DCYTHON_USE_TYPE_SPECS=1"
-            extra_hash: "-typespecs"
-          # Pypy
-          - os: ubuntu-22.04
-            python-version: pypy-3.9
-            backend: c
-            no_cython_compile: 1
-          - os: ubuntu-22.04
-            python-version: pypy-3.10
-            backend: c
-            no_cython_compile: 1
-          - os: ubuntu-22.04
-            python-version: pypy-3.11
-            backend: c
-            no_cython_compile: 1
-          # GraalPy
-          - os: ubuntu-22.04
-            python-version: graalpy25
-            backend: c
-            no_cython_compile: 1
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      backend: ${{ matrix.backend }}
+
+
+  ci-arm64:
+    # ARM builds
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+
+    strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, windows-11-arm]
+        backend: [c, cpp]
+        python-version:
+          - "3.x"  # latest
 
     uses: ./.github/workflows/ci-job.yml
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
       backend: ${{ matrix.backend }}
-      limited_api: ${{ matrix.limited_api }}
-      # shared_utility - not used in this matrix
-      gcc_version: ${{ matrix.gcc_version }}
-      extra_cflags: ${{ matrix.extra_cflags }}
-      cython_compile_all: ${{ matrix.cython_compile_all }}
-      no_cython_compile: ${{ matrix.no_cython_compile }}
-      extra_hash: ${{ matrix.extra_hash }}
+
+
+  ci-typespecs:
+    # compile with typespecs
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+
+    strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.9"
+          - "3.12"
+          - "3.14"
+        backend: [c]
+        os: [ubuntu-24.04]
+
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      backend: ${{ matrix.backend }}
+      extra_cflags: "-DCYTHON_USE_TYPE_SPECS=1"
+      extra_hash: "-typespecs"
+
+
+  ci-sharedmodule:
+    # compile with shared utility module
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+
+    strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+      matrix:
+        backend: [c,cpp]
+        python-version:
+          - "3.12"
+          #- "3.14"  # -> 'ci-early'
+        os: [ubuntu-24.04]
+
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      backend: ${{ matrix.backend }}
+      shared_utility: "--shared-utility"
+      extra_hash: "-shared-utility"
+
+
+  ci-compileall:
+    # compile all modules
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+
+    strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+      matrix:
+        backend: [c, cpp]
+        python-version:
+          - "3.9"
+          - "3.11"
+        os: [ubuntu-24.04]
+
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      backend: ${{ matrix.backend }}
+      cython_compile_all: "1"
+      extra_hash: "-all"
+
+
+  ci-stdc:
+    # GCC/clang with broad language standards
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+
+    strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+      matrix:
+        cstd: ['c99']
+        python-version: ['3.9']
+        os: [ubuntu-24.04]
+
+        include:
+          - cstd: "c99"
+            python-version: "3.9"
+            os: ubuntu-24.04  # GCC
+          - cstd: "c99"
+            python-version: "3.9"
+            os: macos-latest  # clang
+          - cstd: "c17"
+            python-version: "3.10"
+            os: ubuntu-24.04  # GCC
+          - cstd: "c17"
+            python-version: "3.12"
+            os: ubuntu-24.04  # GCC
+          - cstd: "c17"
+            os: macos-latest  # clang
+            python-version: "3.12"
+          - cstd: "c2x"  # "c23"
+            python-version: "3.12"
+            os: ubuntu-24.04  # GCC
+          - cstd: "c++20"
+            python-version: "3.13"
+            os: ubuntu-24.04  # GCC
+
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      backend: ${{ startsWith(matrix.cstd, 'cpp') && 'cpp' || 'c' }}
+      extra_cflags: "-std=${{ matrix.cstd }}"
+      extra_hash: "-${{ matrix.cstd == 'c++20' && 'cpp20' || matrix.cstd }}"
+      gcc_version: "13"
+
+
+  ci-lapi:
+    # Limited API tests
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+
+    strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.9"
+          #- "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          #- "3.13t"
+          #- "3.14"  # -> 'ci-early'
+          #- "3.14t"
+          - "3.15-dev"
+          #- "3.15t-dev"
+        os: [ubuntu-24.04]
+        backend: [c, cpp]
+
+        include:
+          - os: macos-latest
+            python-version: "3.14"
+            backend: c
+          - os: macos-latest
+            python-version: "3.14"
+            backend: cpp
+
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      backend: ${{ matrix.backend }}
+      limited_api: ${{ endsWith(matrix.python-version, '-dev') && '--limited-api' || '--limited-api --abi3audit' }}
+      extra_hash: "-limited_api"
+
+
+  ci-noncpython:
+    # PyPy, GraalPython, ...
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
+
+    strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+      matrix:
+        python-version:
+          - pypy-3.9
+          - pypy-3.10
+          - pypy-3.11-v7.3.21  # TODO remove pin when https://github.com/pypy/pypy/issues/5472 is fixed in a release
+          - graalpy25
+        os: [ubuntu-24.04]
+        backend: [c]
+
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      backend: ${{ matrix.backend }}
+      no_cython_compile: "1"
 
 
   ci-success:
-    needs: ci-all
-    if: success()
+    needs: [ci-early-success, ci-all, ci-arm64, ci-typespecs, ci-sharedmodule, ci-compileall, ci-stdc, ci-lapi, ci-noncpython]
+    if: always()
+    env:
+      FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
     runs-on: ubuntu-latest
     steps:
-      - run: true
+      - run: exit $FAIL
 
 
   codespell:
     name: Check for spelling errors
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -289,13 +404,10 @@ jobs:
 
   codestyle:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     env:
       PYTHON_VERSION: "3.13"
-      BACKEND: "c,cpp"
-      TEST_CODE_STYLE: "1"
-      NO_CYTHON_COMPILE: "1"
 
     steps:
       - name: Checkout repo
@@ -320,13 +432,10 @@ jobs:
 
   build_docs:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     env:
       PYTHON_VERSION: "3.13"
-      BACKEND: "c,cpp"
-      TEST_CODE_STYLE: "1"
-      NO_CYTHON_COMPILE: "1"
 
     steps:
       - name: Checkout repo
