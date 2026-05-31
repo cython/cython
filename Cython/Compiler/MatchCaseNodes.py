@@ -1047,12 +1047,10 @@ class StaticTypeCheckNode(ExprNodes.ExprNode):
 class AssignableTempNode(ExprNodes.TempNode):
     lhs_of_first_assignment = True  # assume it can be assigned to once
     _assigned_twice = False
-    _is_addressable = False
 
-    def __init__(self, pos, *args, **kwds):
-        self._is_addressable = kwds.pop('is_addressable', False)
     def __init__(self, pos, *args, is_addressable=False, **kwds):
         self._is_addressable = is_addressable
+        super().__init__(pos, *args, **kwds)
 
     def is_addressable(self):
         return self._is_addressable
