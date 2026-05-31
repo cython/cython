@@ -7,7 +7,6 @@ from .Errors import error, local_errors, report_error
 from . import Nodes, ExprNodes, PyrexTypes, Builtin
 from .Code import UtilityCode
 from .Options import copy_inherited_directives
-from contextlib import contextmanager
 
 
 class MatchNode(StatNode):
@@ -861,7 +860,7 @@ class MatchSequencePatternNode(PatternNode):
                 length_node=self.length_temp if self.needs_length_temp else None,
             )
         else:
-            indexer = CompilerDirectivesExprNode(
+            indexer = ExprNodes.CompilerDirectivesExprNode(
                 arg=ExprNodes.IndexNode(
                     pattern.pos, base=subject_node, index=get_index_from_int(idx)
                 ),
@@ -1127,7 +1126,7 @@ class SliceToListNode(ExprNodes.ExprNode):
     def generate_via_slicing(self, env):
         # for any more complicated type that doesn't have a specialized path
         # we can simply slice it and copy it to list
-        res = CompilerDirectivesExprNode(
+        res = ExprNodes.CompilerDirectivesExprNode(
             arg=ExprNodes.SliceIndexNode(
                 self.pos, base=self.base, start=self.start, stop=self.stop
             ),
@@ -1244,60 +1243,6 @@ class SliceToListNode(ExprNodes.ExprNode):
             # Just slice it, copy it to a list and hope it works
             result = self.generate_via_slicing(env)
         return result.analyse_types(env)
-
-
-class CompilerDirectivesExprNode(ExprNodes.ProxyNode):
-    # Like compiler directives node, but for an expression
-    #  directives     {string:value}  A dictionary holding the right value for
-    #                                 *all* possible directives.
-    #  arg           ExprNode
-
-    def __init__(self, arg, directives):
-        super(CompilerDirectivesExprNode, self).__init__(arg)
-        self.directives = directives
-
-    @contextmanager
-    def _apply_directives(self, obj):
-        old = obj.directives
-        obj.directives = self.directives
-        yield
-        obj.directives = old
-
-    @property
-    def is_temp(self):
-        return self.arg.is_temp
-
-    def infer_type(self, env):
-        with self._apply_directives(env):
-            return super(CompilerDirectivesExprNode, self).infer_type(env)
-
-    def analyse_declarations(self, env):
-        with self._apply_directives(env):
-            self.arg.analyse_declarations(env)
-
-    def analyse_types(self, env):
-        with self._apply_directives(env):
-            return super(CompilerDirectivesExprNode, self).analyse_types(env)
-
-    def generate_result_code(self, code):
-        with self._apply_directives(code.globalstate):
-            super(CompilerDirectivesExprNode, self).generate_result_code(code)
-
-    def generate_evaluation_code(self, code):
-        with self._apply_directives(code.globalstate):
-            super(CompilerDirectivesExprNode, self).generate_evaluation_code(code)
-
-    def generate_disposal_code(self, code):
-        with self._apply_directives(code.globalstate):
-            super(CompilerDirectivesExprNode, self).generate_disposal_code(code)
-
-    def free_temps(self, code):
-        with self._apply_directives(code.globalstate):
-            super(CompilerDirectivesExprNode, self).free_temps(code)
-
-    def annotate(self, code):
-        with self._apply_directives(code.globalstate):
-            self.arg.annotate(code)
 
 
 class LazyCoerceToPyObject(ExprNodes.ExprNode):
