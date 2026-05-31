@@ -73,3 +73,12 @@ jobs:
       name: pydebug
     needs: [file-changes]
     if: ${{ case(github.event_name == 'push', needs.file-changes.outputs.push-files == 'true', github.event_name == 'pull_request', needs.file-changes.outputs.pr-files == 'true', 'true') }}
+
+  sanitizers-success:
+    needs: [sanitizers, pydebug]
+    if: always()
+    env:
+      FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit $FAIL
