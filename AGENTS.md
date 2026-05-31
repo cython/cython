@@ -22,14 +22,14 @@ Test name = `{directory}.{filename_without_ext}` — e.g. `tests/run/with_gil.py
 **Key flags:**
 | Flag | Purpose |
 |------|---------|
-| `--no-cleanup` | Keep generated C files in `TEST_TMP/` |
+| `--no-cleanup` | Keep generated C/C++ files in `TEST_TMP/` |
 | `--no-cleanup-failures` | Keep workdir only for failed tests |
-| `--backends=c,cpp` | Select language backends (default: both) |
+| `--backends=c,cpp` | Select language backends (default: both) (do not apply for srctree tests) |
 | `--cython-only` | Stop after pyx→c generation (skip compilation/run) |
 | `--limited-api [VER]` | Test with CPython Limited API |
 | `--no-code-style` | Skip PEP8 checks (auto-implied when passing test selectors) |
 | `-x PATTERN` | Exclude tests matching pattern |
-| `tag:cpp` | Filter by tag |
+| `tag:cpp` | Matcher that filter by tag |
 
 **Test modes** (set via `# mode:` comment, default `run`):
 - `run` — compile → build `.so` → run doctests
@@ -53,12 +53,6 @@ The best test case to run is:
 ```
 python runtests.py --no-code-style -x Debugger --backends=c --no-cleanup embed_modules_optimize
 ```
-
-The script has some options:
-- `--no-code-style` to skip PEP8 checks (auto-implied when passing test selectors)
-- `-x Debugger` to exclude tests matching "Debugger"
-- `--backends=c` to only test the C backend (the optimization is backend-agnostic but the C++ backend). it do not apply for srctree tests.
-- `--no-cleanup` to keep the generated C files for inspection (otherwise they get deleted after the test run)
 
 Then you can check the generated file in: `TEST_TMP/build/embed_modules_optimize/`
 
