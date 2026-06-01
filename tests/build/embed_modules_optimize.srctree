@@ -316,6 +316,12 @@ def func_in_a():
     dw = DerivedWithCtorOverride.__new__(DerivedWithCtorOverride)
     DerivedWithCtorOverride.__init__(dw, 1, 2.0, "test")
     assert dw._prop == 3, f"Expected DerivedWithCtorOverride._prop to be 3, got {dw._prop}"
+    dw2: DerivedWithCtorOverrideClosure
+    dw2 = DerivedWithCtorOverrideClosure(2, 3.0, "test")
+    assert dw2._prop == 8, f"Expected DerivedWithCtorOverrideClosure._prop to be 8, got {dw2._prop}"
+    dw2 = DerivedWithCtorOverrideClosure.__new__(DerivedWithCtorOverrideClosure)
+    #DerivedWithCtorOverrideClosure.__init__(dw2, 3, 3.0, "test")  # commented because it would require python call which check_codegen check against
+    #assert dw2._prop == 9, f"Expected DerivedWithCtorOverrideClosure._prop to be 9, got {dw2._prop}"
 
     func_with_for_loop()
     return func_in_b()
@@ -336,7 +342,7 @@ class A(B):
     _prop_bool: bool
 
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__()  # Can be a direct call to B.__init__ because it is known at compile time
         self._prop_bool = False
 
     @ccall

@@ -16,9 +16,7 @@ from operator import attrgetter
 
 from . import TypeSlots
 from .ExprNodes import UnicodeNode, not_a_constant
-
-_py_string_types = (bytes, str)
-
+from . import Naming
 
 from . import Nodes
 from . import ExprNodes
@@ -33,6 +31,8 @@ from .StringEncoding import EncodedString, bytes_literal, encoded_string
 from .Errors import error, warning
 from .ParseTreeTransforms import SkipDeclarations
 from .. import Utils
+
+_py_string_types = (bytes, str)
 
 
 def load_c_utility(name):
@@ -1816,27 +1816,80 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         base_type = class_node.base_type
         if base_type is None or base_type.scope is None:
             return node
-        resolved_fn = base_type.scope.lookup(function.attribute)
+
+        # Find the first ancestor that DEFINES this method (not just inherits it).
+        # This avoids accumulating __pyx_base prefixes through the entire inheritance
+        # chain, which would cause super().__init__() to resolve to the farthest
+        # ancestor's implementation instead of the nearest one.
+        resolved_fn = None
+        resolved_type = None
+        t = base_type
+        while t and t.scope:
+            entry = t.scope.lookup_here(function.attribute)
+            if entry and entry.is_cmethod:
+                resolved_fn = entry
+                resolved_type = t
+                break
+            t = t.base_type
+
         if not resolved_fn or not resolved_fn.is_cmethod:
             return node
 
         method_scope = self.current_env()
-        if not method_scope.lookup(base_type.name):
-            # ensure the base type is available in the method scope
-            return node
-
+        current_module = method_scope.global_scope()
         first_arg = ExprNodes.NameNode(
             node.pos, name=method_scope.arg_entries[0].name,
             entry=method_scope.arg_entries[0])
         new_args = [first_arg] + node.args
-        super_class_ref = ExprNodes.NameNode(node.pos, name=base_type.name)
+
+        # For methods with a func_cname (cpdef/overridable), use RawCNameExprNode
+        # to generate a direct C function call instead of going through Python-level
+        # attribute lookup which can fail to resolve correctly in deep inheritance chains.
+        # Find the owning class's cname for direct C call.
+        def _find_owning_cname():
+            t = resolved_type
+            while t and t.scope:
+                entry = t.scope.lookup_here(resolved_fn.name)
+                if entry and not getattr(entry, 'is_inherited', False):
+                    # Check the OWN entry's values, not the inherited entry's.
+                    e_func_cname = getattr(entry, 'func_cname', None)
+                    if e_func_cname and e_func_cname.startswith('__pyx_f_'):
+                        return t, e_func_cname
+                    var_entry = getattr(entry, 'as_variable', None)
+                    if var_entry:
+                        e_pyfunc_cname = getattr(var_entry, 'pyfunc_cname', None)
+                        if e_pyfunc_cname and e_pyfunc_cname.startswith('__pyx_pf_'):
+                            return t, e_func_cname or e_pyfunc_cname
+                    e_pyfunc_cname = getattr(entry, 'pyfunc_cname', None)
+                    if e_pyfunc_cname and e_pyfunc_cname.startswith('__pyx_pf_'):
+                        return t, e_pyfunc_cname
+                t = t.base_type
+            return resolved_type, None
+
+        owner_type, origin = _find_owning_cname()
+        if not origin:
+            # No valid C function target found. Don't transform the call
+            # at all — let `super()` dispatch through Python's regular MRO,
+            # which correctly handles Python-level `def` methods that don't
+            # have a C function cname.
+            return node
+
+        # Check if the OWNER class is in the same module.
+        owner_scope = owner_type.scope
+        while owner_scope and not owner_scope.is_module_scope:
+            owner_scope = owner_scope.outer_scope
+        owner_same_module = owner_scope is current_module
+
+        if not owner_same_module:
+            # Cross-module direct C calls need extern declarations we don't
+            # generate here. Fall back to Python MRO dispatch via super().
+            return node
+
+        func_node = ExprNodes.RawCNameExprNode(
+            node.pos, type=resolved_fn.type, cname=origin)
         node = ExprNodes.SimpleCallNode.from_node(
             node,
-            function=ExprNodes.AttributeNode(
-                node.pos,
-                obj=super_class_ref,
-                attribute=resolved_fn.name,
-                needs_none_check=False),
+            function=func_node,
             args=new_args
         )
         return node

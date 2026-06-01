@@ -2681,7 +2681,7 @@ class CClassScope(ClassScope):
                 error(pos, "'%s' redeclared " % name)
                 entry.already_declared_here()
             else:
-                if defining and entry.func_cname:
+                if defining and entry.func_cname and not entry.is_inherited:
                     error(pos, "'%s' already defined" % name)
                 #print "CClassScope.declare_cfunction: checking signature" ###
                 if entry.is_final_cmethod and entry.is_inherited:
@@ -2705,6 +2705,7 @@ class CClassScope(ClassScope):
                     # __init__ always has different signatures per class across the
                     # inheritance hierarchy, which is normal for Python constructors.
                     entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
+                    entry.func_cname = self.mangle(Naming.func_prefix, name)
                 else:
                     error(pos, "Signature not compatible with previous declaration")
                     error(entry.pos, "Previous declaration is here")
@@ -2822,9 +2823,15 @@ class CClassScope(ClassScope):
                 base_entry.type.get_all_specialized_function_types()
 
         for base_entry in base_scope.cfunc_entries:
-            cname = base_entry.cname
             var_entry = base_entry.as_variable
             is_builtin = var_entry and var_entry.is_builtin
+            cname = base_entry.cname
+            # For inherited entries that already have __pyx_base prefix, strip it first
+            # to avoid accumulation through multiple inheritance levels.
+            # This ensures the base method cname stays clean (e.g. __pyx___init__)
+            # instead of accumulating prefixes (e.g. __pyx_base.__pyx_base.__pyx___init__).
+            if base_entry.is_inherited and cname.startswith(Naming.obj_base_cname + "."):
+                cname = cname[len(Naming.obj_base_cname) + 1:]
             if not is_builtin:
                 cname = adapt(cname)
             entry = self.add_cfunction(

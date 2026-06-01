@@ -6750,7 +6750,11 @@ class SimpleCallNode(CallNode):
             arg_list_code.append(arg_code)
 
         if func_type.is_overridable:
-            arg_list_code.append(str(int(self.wrapper_call or self.function.entry.is_unbound_cmethod)))
+            skip_dispatch = self.wrapper_call
+            if not skip_dispatch:
+                func_entry = getattr(self.function, 'entry', None)
+                skip_dispatch = func_entry.is_unbound_cmethod if func_entry else False
+            arg_list_code.append(str(int(skip_dispatch)))
 
         if func_type.optional_arg_count:
             if expected_nargs == actual_nargs:
