@@ -1,6 +1,8 @@
 # mode: run
 # tag: pure3.10
 
+from __future__ import annotations
+
 import array
 
 def test_array_is_sequence(x):
@@ -43,15 +45,22 @@ def test_duplicate_keys(key1, key2):
             return False
 
 
+def make_frozendict(*args, **kwds):
+    import sys
+    if sys.version_info < (3, 15):
+        return dict(*args, **kwds)
+    return frozendict(*args, **kwds)
+
+
 def test_untyped_frozendict(arg):
     """
-    >>> test_untyped_frozendict(frozendict(a=1, b=2))
+    >>> test_untyped_frozendict(make_frozendict(a=1, b=2))
     case ab: 1 2
-    >>> test_untyped_frozendict(frozendict(x=1, y=2))
+    >>> test_untyped_frozendict(make_frozendict(x=1, y=2))
     case xy: 1 2 {}
-    >>> test_untyped_frozendict(frozendict(x=1, y=2, z=3))
+    >>> test_untyped_frozendict(make_frozendict(x=1, y=2, z=3))
     case xy: 1 2 {'z': 3}
-    >>> test_untyped_frozendict(frozendict(p=1, q=2))
+    >>> test_untyped_frozendict(make_frozendict(p=1, q=2))
     case keys: {'p': 1, 'q': 2}
     >>> test_untyped_frozendict(None)
     Unmatched
@@ -69,13 +78,13 @@ def test_untyped_frozendict(arg):
 
 def test_typed_frozendict(arg: frozendict):
     """
-    >>> test_typed_frozendict(frozendict(a=1, b=2))
+    >>> test_typed_frozendict(make_frozendict(a=1, b=2))
     case ab: 1 2
-    >>> test_typed_frozendict(frozendict(x=1, y=2))
+    >>> test_typed_frozendict(make_frozendict(x=1, y=2))
     case xy: 1 2 {}
-    >>> test_typed_frozendict(frozendict(x=1, y=2, z=3))
+    >>> test_typed_frozendict(make_frozendict(x=1, y=2, z=3))
     case xy: 1 2 {'z': 3}
-    >>> test_typed_frozendict(frozendict(p=1, q=2))
+    >>> test_typed_frozendict(make_frozendict(p=1, q=2))
     case keys: {'p': 1, 'q': 2}
     """
     match arg:
@@ -91,13 +100,13 @@ def test_typed_frozendict(arg: frozendict):
 
 def test_typed_optional_frozendict(arg: frozendict | None):
     """
-    >>> test_typed_optional_frozendict(frozendict(a=1, b=2))
+    >>> test_typed_optional_frozendict(make_frozendict(a=1, b=2))
     case ab: 1 2
-    >>> test_typed_optional_frozendict(frozendict(x=1, y=2))
+    >>> test_typed_optional_frozendict(make_frozendict(x=1, y=2))
     case xy: 1 2 {}
-    >>> test_typed_optional_frozendict(frozendict(x=1, y=2, z=3))
+    >>> test_typed_optional_frozendict(make_frozendict(x=1, y=2, z=3))
     case xy: 1 2 {'z': 3}
-    >>> test_typed_optional_frozendict(frozendict(p=1, q=2))
+    >>> test_typed_optional_frozendict(make_frozendict(p=1, q=2))
     case keys: {'p': 1, 'q': 2}
     >>> test_typed_optional_frozendict(None)
     Unmatched

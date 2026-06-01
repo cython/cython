@@ -1676,7 +1676,7 @@ def generate_binop_tree_from_list(pos, operator, list_of_tests):
 
 class MappingComparisonNode(ExprNodes.ExprNode):
     """
-    Combined with MappingComparisonNodeInner this is responsible 
+    Combined with MappingComparisonNodeInner this is responsible
     for setting up up the arrays of subjects and keys
 
     Note that self.keys_array is owned by this but used by
@@ -1684,7 +1684,7 @@ class MappingComparisonNode(ExprNodes.ExprNode):
     it gets evaluated in the correct order
     """
     subexprs = ["keys_array", "inner"]
-    
+
     keys_array_cname = "__pyx_match_mapping_keys"
     subjects_array_cname = "__pyx_match_mapping_subjects"
 
@@ -1781,7 +1781,7 @@ class MappingComparisonNodeInner(ExprNodes.ExprNode):
             subjects_str
         ))
         super(MappingComparisonNodeInner, self).generate_evaluation_code(code)
-        
+
         code.putln("}")
 
     def generate_result_code(self, code):
