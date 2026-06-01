@@ -990,19 +990,18 @@ class MatchMappingPatternNode(PatternNode):
 
     def validate_keys(self):
         # called after constant folding
-        seen_keys = set()
+        literal_keys = set()
         for k in self.keys:
             if k.has_constant_result():
                 value = k.constant_result
-                if k.is_string_literal:
-                    value = repr(value)
-                if value in seen_keys:
+                # Note that "set" equality behaviour is intentional. e.g. 0.0 and 0 are duplicates.
+                if value in literal_keys:
                     error(k.pos, "mapping pattern checks duplicate key (%s)" % value)
-                seen_keys.add(value)
+                literal_keys.add(value)
             else:
                 self.needs_runtime_keycheck = True
 
-        if self.keys:
+        if literal_keys and self.keys:
             # it's very useful to sort keys early so the literal keys
             # come first
             sorted_keys = sorted(
@@ -1104,9 +1103,9 @@ class MatchMappingPatternNode(PatternNode):
 
         def type_check(type):
             res = self.is_dict_type_check(type)
-            if res == self.DictCheckResult.ExactDict or res == self.DictCheckResult.ExactFrozenDict:
+            if res is self.DictCheckResult.ExactDict or res is self.DictCheckResult.ExactFrozenDict:
                 return True
-            if res == self.DictCheckResult.NotAMapping:
+            if res is self.DictCheckResult.NotAMapping:
                 return False
             return None
 
@@ -1150,10 +1149,10 @@ class MatchMappingPatternNode(PatternNode):
             return ExprNodes.BoolNode(self.pos, value=True)
 
         is_dict = self.is_dict_type_check(subject_node.type)
-        if is_dict == self.DictCheckResult.ExactDict or is_dict == self.DictCheckResult.ExactFrozenDict:
+        if is_dict is self.DictCheckResult.ExactDict or is_dict == self.DictCheckResult.ExactFrozenDict:
             util_code = UtilityCode.load_cached("ExtractExactDict", "MatchCase.c")
             func_name = "__Pyx_MatchCase_Mapping_ExtractDict"
-        elif is_dict == self.DictCheckResult.MightBeAnAnyDict:
+        elif is_dict is self.DictCheckResult.MightBeAnAnyDict:
             util_code = UtilityCode.load_cached("ExtractGeneric", "MatchCase.c")
             func_name = "__Pyx_MatchCase_Mapping_Extract"
         else:
@@ -1176,11 +1175,11 @@ class MatchMappingPatternNode(PatternNode):
     def make_double_star_capture(self, subject_node, test_result):
         # test_result being the variable that holds "case check passed until now"
         is_dict = self.is_dict_type_check(subject_node.type)
-        if is_dict == self.DictCheckResult.ExactDict:
+        if is_dict is self.DictCheckResult.ExactDict:
             tag = "ExactDict"
-        elif is_dict == self.DictCheckResult.ExactFrozenDict:
+        elif is_dict is self.DictCheckResult.ExactFrozenDict:
             tag = "ExactFrozenDict"
-        elif is_dict == self.DictCheckResult.MightBeAnAnyDict:
+        elif is_dict is self.DictCheckResult.MightBeAnAnyDict:
             tag = ""
         else:
             tag = "NotDict"
@@ -1704,14 +1703,15 @@ class MappingComparisonNode(ExprNodes.ExprNode):
         self.inner = MappingComparisonNodeInner(
             pos,
             arg=arg,
-            keys_array = self.keys_array,
-            subjects_array = subjects_array
+            parent=self,
+            subjects_array=subjects_array
         )
 
     def analyse_types(self, env):
         self.inner = self.inner.analyse_types(env)
         self.keys_array = [
-            key.analyse_types(env).coerce_to_simple(env) for key in self.keys_array
+            key.analyse_types(env).coerce_to_pyobject(env).coerce_to_simple(env)
+            for key in self.keys_array
         ]
         return self
 
@@ -1722,7 +1722,7 @@ class MappingComparisonNode(ExprNodes.ExprNode):
         return self.inner.calculate_result_code()
 
 
-class MappingComparisonNodeInner(ExprNodes.ExprNode):
+class MappingComparisonNodeInner(ExprNodes.ExprNode, Nodes.CopyWithUpTreeRefsMixin):
     """
     Sets up the arrays of subjects and keys
 
@@ -1731,10 +1731,11 @@ class MappingComparisonNodeInner(ExprNodes.ExprNode):
 
     has attributes:
     * arg  - the main comparison node
-    * keys_array - list of ExprNodes representing keys
+    * parent - the MappingComparisonNode that owns this
     * subjects_array - list of ExprNodes representing subjects
     """
     subexprs = ['arg']
+    uptree_ref_attrs = ["parent"]
 
     @property
     def type(self):
@@ -1742,16 +1743,12 @@ class MappingComparisonNodeInner(ExprNodes.ExprNode):
 
     def analyse_types(self, env):
         self.arg = self.arg.analyse_types(env)
-        for n in range(len(self.keys_array)):
-            key = self.keys_array[n].analyse_types(env)
-            key = key.coerce_to_pyobject(env)
-            self.keys_array[n] = key
         assert self.arg.type is PyrexTypes.c_bint_type
         return self
 
     def generate_evaluation_code(self, code):
         code.putln("{")
-        keys_str = ", ".join(k.result() for k in self.keys_array)
+        keys_str = ", ".join(k.result() for k in self.parent.keys_array)
         if not keys_str:
             # GCC gets worried about overflow if we pass
             # a genuinely empty array
