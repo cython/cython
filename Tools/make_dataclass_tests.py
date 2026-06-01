@@ -49,15 +49,21 @@ skip_tests = frozenset(
         ("TestKeywordArgs", "test_KW_ONLY_twice"),
         ("TestKeywordArgs", "test_defaults"),
         # uses local variable in class definition
+            # Also: difficulty lining up correct repr string when converting tests
         ("TestCase", "test_default_factory"),
+            # Also: Mock unassignable to list - legitimate for Cython to raise an error
         ("TestCase", "test_default_factory_with_no_init"),
+            # Also: attributes not available on class itself, only instances
         ("TestCase", "test_field_default"),
         ("TestCase", "test_function_annotations"),
         ("TestDescriptors", "test_lookup_on_instance"),
+            # Also: Mock unassignable to int - legitimate for Cython to raise an error
         ("TestCase", "test_default_factory_not_called_if_value_given"),
+            # Also: cdef classes never don't have the attribute
         ("TestCase", "test_class_attrs"),
         ("TestCase", "test_hash_field_rules"),
         ("TestStringAnnotations",),  # almost all the texts here use local variables
+        ("TestMatchArgs", "test_explicit_match_args"),
         # Currently unsupported
         # =====================
         (
@@ -68,7 +74,6 @@ skip_tests = frozenset(
         ("TestCase", "test_missing_default"),  # MISSING
         ("TestCase", "test_missing_repr"),  # MISSING
         ("TestSlots",),  # __slots__ isn't understood
-        ("TestMatchArgs",),
         ("TestKeywordArgs", "test_field_marked_as_kwonly"),
         ("TestKeywordArgs", "test_match_args"),
         ("TestKeywordArgs", "test_KW_ONLY"),
@@ -79,6 +84,7 @@ skip_tests = frozenset(
             "test_class_var_frozen",
         ),  # __annotations__ not present on cdef classes https://github.com/cython/cython/issues/4519
         ("TestCase", "test_dont_include_other_annotations"),  # __annotations__
+        ("TestCase", "test_class_marker"),  # __annotations__
         ("TestDocString",),  # don't think cython dataclasses currently set __doc__
         # either cython.dataclasses.field or cython.dataclasses.dataclass called directly as functions
         # (will probably never be supported)
@@ -149,8 +155,6 @@ skip_tests = frozenset(
             "TestCase",
             "test_dataclasses_qualnames",
         ),  # doesn't define __setattr__ and just relies on Cython to enforce readonly properties
-        ("TestCase", "test_compare_subclasses"),  # wrong comparison
-        ("TestCase", "test_simple_compare"),  # wrong comparison
         (
             "TestCase",
             "test_field_named_self",
@@ -164,8 +168,6 @@ skip_tests = frozenset(
         ("TestReplace", "test_initvar_with_default_value"),  # needs investigating
         # Maybe bugs?
         # ==========
-        # non-default argument 'z' follows default argument in dataclass __init__ - this message looks right to me!
-        ("TestCase", "test_class_marker"),
         # cython.dataclasses.field parameter 'metadata' must be a literal value - possibly not something we can support?
         ("TestCase", "test_field_metadata_custom_mapping"),
         (
@@ -225,9 +227,9 @@ class SubstituteNameString(ast.NodeTransformer):
             if node.value.find("<locals>") != -1:
                 import re
 
-                new_value = new_value2 = re.sub("[\w.]*<locals>", "", node.value)
+                new_value = new_value2 = re.sub(r"[\w.]*<locals>", "", node.value)
                 for key, value in self.substitutions.items():
-                    new_value2 = re.sub(f"(?<![\w])[.]{key}(?![\w])", value, new_value2)
+                    new_value2 = re.sub(rf"(?<![\w])[.]{key}(?![\w])", value, new_value2)
                 if new_value != new_value2:
                     node.value = new_value2
         return node
@@ -298,11 +300,19 @@ class ExtractDataclassesToTopLevel(ast.NodeTransformer):
 
             self.generic_visit(node)  # any nested classes in it?
             if not node.body:
-                node.body.append(ast.Pass)
+                node.body.append(ast.Pass())
 
             # First, make it a C class.
             if node in self.cdef_classes_set:
-                node.decorator_list.append(ast.Name(id="cclass", ctx=ast.Load()))
+                ctx = ast.Load()
+                if self.nested_name and 'pickleable' in self.nested_name[-1]:
+                    # Make class auto-pickleable only if the current test needs it.
+                    node.decorator_list.append(ast.Call(
+                        ast.Name(id="auto_pickle", ctx=ctx),
+                        [ast.Name(id="True", ctx=ctx)],
+                        [],
+                    ))
+                node.decorator_list.append(ast.Name(id="cclass", ctx=ctx))
             # otherwise move it to the global scope, but don't make it cdef
             # change the name
             old_name = node.name
@@ -327,6 +337,10 @@ class ExtractDataclassesToTopLevel(ast.NodeTransformer):
                 self.top_level_class = top_level_class
                 self.nested_name.pop()
                 return None
+            if len(node.bases) == 1 and isinstance(node.bases[0], ast.Attribute):
+                base = node.bases[0]
+                if base.attr == 'TestCase' and base.value.id == 'unittest':
+                    node.bases = [ast.Name(id="TimedTest", ctx=ast.Load())]
             self.generic_visit(node)
             self.nested_name.pop()
             if not node.body:
@@ -408,7 +422,7 @@ class ExtractDataclassesToTopLevel(ast.NodeTransformer):
                 isinstance(node.annotation.value, str)):
             # although it'd be good to resolve these declarations, for the
             # sake of the tests they only need to be "object"
-            node.annotation = ast.Name(id="object", ctx=ast.Load)
+            node.annotation = ast.Name(id="object", ctx=ast.Load())
 
         return node
 
@@ -430,10 +444,11 @@ def main():
         print("# AUTO-GENERATED BY Tools/make_dataclass_tests.py", file=f)
         print("# DO NOT EDIT", file=f)
         print(file=f)
-        # the directive doesn't get applied outside the include if it's put
-        # in the pxi file
+        # The directives doesn't get applied outside the include if put in the pxi file.
         print("# cython: language_level=3", file=f)
-        # any extras Cython needs to add go in this include file
+        print("# cython: auto_pickle=False", file=f)
+        print(file=f)
+        # Any extras that Cython needs to add should go in this include file.
         print('include "test_dataclasses.pxi"', file=f)
         print(file=f)
         print(ast.unparse(tree), file=f)

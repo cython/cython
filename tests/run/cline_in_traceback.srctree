@@ -1,0 +1,159 @@
+PYTHON setup.py build_ext --inplace
+PYTHON run_all_tests.py
+
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from setuptools import setup, Extension
+
+setup(ext_modules = cythonize([
+        Extension("test_on", ["test_on.pyx"]),
+        Extension("test_off", ["test_off.pyx"]),
+        Extension("test_runtime", ["test_runtime.pyx"]),
+        Extension("test_default", ["test_default.pyx"]),
+        Extension("test_contradicting_macros", ["test_contradicting_macros.pyx"]),
+    ],
+))
+
+setup(ext_modules = cythonize([
+        Extension("test_options_on", ["test_options_on.pyx"]),
+        Extension("test_options_on_overridden", ["test_options_on_overridden.pyx"]),
+    ],
+    c_line_in_traceback = True,
+))
+
+setup(ext_modules = cythonize([
+        Extension("test_options_off", ["test_options_off.pyx"]),
+        Extension("test_options_off_overridden1", ["test_options_off_overridden1.pyx"]),
+        Extension("test_options_off_overridden2", ["test_options_off_overridden2.pyx"]),
+    ],
+    c_line_in_traceback = False,
+))
+
+
+####### test_on.pyx ###############
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK=1
+
+include "should_be_on.pxi"
+
+####### test_off.pyx ###############
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK=0
+
+include "should_be_off.pxi"
+
+####### test_runtime.pyx ###############
+
+include "should_be_runtime.pxi"
+
+####### test_runtime.pyx ##############
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1
+
+include "should_be_runtime.pxi"
+
+####### test_default.pyx ##############
+
+include "should_be_off.pxi"
+
+####### test_options_on.pyx ########
+
+include "should_be_runtime.pxi"
+
+####### test_options_off.pyx ########
+
+include "should_be_off.pxi"
+
+####### test_options_off_overridden1.pyx #######
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK=1
+
+include "should_be_on.pxi"
+
+####### test_options_off_overridden2.pyx #######
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1
+
+include "should_be_runtime.pxi"
+
+####### test_options_on_overridden.pyx #######
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK=0
+
+include "should_be_off.pxi"
+
+####### test_contradicting_macros.pyx #######
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK=0
+
+include "should_be_off.pxi"
+
+
+####### should_be_on.pxi #########
+
+import helpers
+
+def run():
+    try:
+        raise RuntimeError
+    except Exception as e:
+        helpers.validate_cline_in_traceback(e.__traceback__)
+        
+####### should_be_off.pxi #########
+
+import helpers
+
+def run():
+    try:
+        raise RuntimeError
+    except Exception as e:
+        helpers.validate_no_cline_in_traceback(e.__traceback__)
+        
+####### should_be_runtime.pxi #########
+
+import helpers
+import cython_runtime
+
+def run():
+    try:
+        raise RuntimeError
+    except Exception as e:
+        helpers.validate_no_cline_in_traceback(e.__traceback__)
+
+    cython_runtime.cline_in_traceback = True
+    try:
+        raise RuntimeError
+    except Exception as e:
+        helpers.validate_cline_in_traceback(e.__traceback__)
+
+    cython_runtime.cline_in_traceback = False
+    try:
+        raise RuntimeError
+    except Exception as e:
+        helpers.validate_no_cline_in_traceback(e.__traceback__)
+
+
+####### helpers.py ##############
+
+import traceback
+import re
+
+cline_re = re.compile(r"[(]\w*[.]c:\d*[)]")
+
+def validate_cline_in_traceback(tb):
+    formatted = traceback.format_tb(tb)
+    assert cline_re.search(formatted[0]), formatted
+    
+def validate_no_cline_in_traceback(tb):
+    formatted = traceback.format_tb(tb)
+    assert not cline_re.search(formatted[0]), formatted
+
+
+####### run_all_tests.py #########
+
+import test_on; test_on.run()
+import test_off; test_off.run()
+import test_runtime; test_runtime.run()
+import test_default; test_default.run()
+import test_options_on; test_options_on.run()
+import test_options_off; test_options_off.run()
+import test_options_off_overridden1; test_options_off_overridden1.run()
+import test_options_off_overridden2; test_options_off_overridden2.run()
+import test_options_on_overridden; test_options_on_overridden.run()
+import test_contradicting_macros; test_contradicting_macros.run()

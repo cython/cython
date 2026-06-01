@@ -33,7 +33,7 @@ u1 = bs1
 s1 = bs1
 
 # errors:
-cdef char* c_f1   = u"abc"
+cdef char* c_f1   = u"\N{SNOWMAN}"  # not bytes compatible
 cdef char* c_f2   = u1
 cdef char* c_f3   = s1
 
@@ -74,41 +74,53 @@ print <str>c1[1:2]
 print <unicode>c1
 print <unicode>c1[1:2]
 
+cdef void* v_f1   = u"\N{SNOWMAN}"  # not bytes compatible
+
+
+# ok again:
+
+cdef void* v1 =  "abc"
+cdef void* v2 = b"abc"
+cdef void* v3 = u"abc"
+
+cdef voidptr_func(void* x): pass
+
+voidptr_func( "abc")
+voidptr_func(b"abc")
+voidptr_func(u"abc")
+
+
 _ERRORS = u"""
-36:20: Unicode literals do not support coercion to C types other than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* (for strings).
+36:20: Unicode literals do not support coercion to C types other than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* (for strings) or char*/void* (for auto-encoded strings).
 37:20: Unicode objects only support coercion to Py_UNICODE*.
-38:20: 'str' objects do not support coercion to C types (use 'bytes'?).
+38:20: Unicode objects only support coercion to Py_UNICODE*.
 
 40:25: Cannot assign type 'char *' to 'Py_UNICODE *'
-41:25: Cannot convert 'bytes' object to Py_UNICODE*, use 'unicode'.
-42:25: 'str' objects do not support coercion to C types (use 'unicode'?).
-43:25: Cannot convert 'bytes' object to Py_UNICODE*, use 'unicode'.
+41:25: Cannot convert 'bytes' object to Py_UNICODE*, use 'str'.
+43:25: Cannot convert 'bytes' object to Py_UNICODE*, use 'str'.
 
 45:20: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
 46:20: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
-47:20: Cannot convert 'str' to 'bytes' implicitly. This is not portable.
-48:20: Cannot convert 'basestring' object to bytes implicitly. This is not portable.
+47:20: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
+48:20: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
 
-50:17: Cannot convert 'bytes' object to str implicitly. This is not portable to Py3.
-51:17: Cannot convert 'bytes' object to str implicitly. This is not portable to Py3.
-52:17: Cannot convert Unicode string to 'str' implicitly. This is not portable and requires explicit encoding.
-53:17: Cannot convert Unicode string to 'str' implicitly. This is not portable and requires explicit encoding.
+50:17: Cannot convert 'bytes' object to str implicitly, decoding required
+51:17: Cannot convert 'bytes' object to str implicitly, decoding required
 
-55:20: str objects do not support coercion to unicode, use a unicode string literal instead (u'')
-56:20: str objects do not support coercion to unicode, use a unicode string literal instead (u'')
-57:20: Cannot convert 'bytes' object to unicode implicitly, decoding required
-58:20: Cannot convert 'bytes' object to unicode implicitly, decoding required
+57:20: Cannot convert 'bytes' object to str implicitly, decoding required
+58:20: Cannot convert 'bytes' object to str implicitly, decoding required
 59:20: Cannot convert 'char*' to unicode implicitly, decoding required
 
-61:24: Cannot convert 'bytes' object to basestring implicitly. This is not portable to Py3.
-62:24: Cannot convert 'bytes' object to basestring implicitly. This is not portable to Py3.
+61:24: Cannot convert 'bytes' object to str implicitly, decoding required
+62:24: Cannot convert 'bytes' object to str implicitly, decoding required
 
 64:19: Cannot assign type 'str object' to 'tuple object'
-65:18: Cannot assign type 'unicode object' to 'tuple object'
+65:18: Cannot assign type 'str object' to 'tuple object'
 66:18: Cannot assign type 'bytes object' to 'tuple object'
 
-72:11: default encoding required for conversion from 'char *' to 'str object'
+72:11: Cannot convert 'char*' to unicode implicitly, decoding required
 73:13: default encoding required for conversion from 'char *' to 'str object'
 74:15: Cannot convert 'char*' to unicode implicitly, decoding required
-75:17: default encoding required for conversion from 'char *' to 'unicode object'
+75:17: default encoding required for conversion from 'char *' to 'str object'
+77:20: Unicode literals do not support coercion to C types other than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* (for strings) or char*/void* (for auto-encoded strings).
 """

@@ -1,3 +1,27 @@
+# mode: run
+# tag: call
+
+
+def func0():
+    """
+    >>> func0()
+    """
+
+
+def onearg(arg):
+    """
+    >>> onearg(None)
+    None
+    """
+    print(arg)
+
+
+def onearg_unused(arg):
+    """
+    >>> onearg_unused(None)
+    """
+
+
 def c(a=10, b=20, **kwds):
     """
     >>> c()
@@ -38,8 +62,65 @@ def d(a, b=1, *args, **kwds):
     """
     print a, b, len(args), len(kwds)
 
+
 def e(*args, **kwargs):
+    """
+    >>> e()
+    0 0
+    >>> e(1)
+    1 0
+    >>> e(1,2)
+    2 0
+    >>> e(1,2)
+    2 0
+    >>> e(a=4)
+    0 1
+    >>> e(a=4, b=5)
+    0 2
+    >>> e(1,2, x=5)
+    2 1
+    """
     print len(args), len(kwargs)
+
+
+def args_kwargs_unused(*args, **kwargs):
+    """
+    >>> args_kwargs_unused()
+    >>> args_kwargs_unused(1, 2, 3)
+    >>> args_kwargs_unused(x=5)
+    >>> args_kwargs_unused(1, 2, 3, x=5)
+    """
+
+
+def args_kwargs_unused_args(*args, **kwargs):
+    """
+    >>> args_kwargs_unused_args()
+    0
+    >>> args_kwargs_unused_args(1, 2, 3)
+    0
+    >>> args_kwargs_unused_args(x=5)
+    1
+    >>> args_kwargs_unused_args(1, 2, 3, x=5)
+    1
+    >>> args_kwargs_unused_args(1, 2, 3, x=5, y=4)
+    2
+    """
+    return len(kwargs)
+
+
+def args_kwargs_unused_kwargs(*args, **kwargs):
+    """
+    >>> args_kwargs_unused_kwargs()
+    0
+    >>> args_kwargs_unused_kwargs(1, 2, 3)
+    3
+    >>> args_kwargs_unused_kwargs(x=5)
+    0
+    >>> args_kwargs_unused_kwargs(1, 2, 3, x=5)
+    3
+    """
+    return len(args)
+
 
 def f(*args):
     """
@@ -78,12 +159,8 @@ def h(a, b, c, *args, **kwargs):
     print a, b, c, u'*', len(args), len(kwargs)
 
 args = (9,8,7)
-
-import sys
-if sys.version_info[0] >= 3:
-    kwargs = {u"test" : u"toast"}
-else:
-    kwargs = {"test" : u"toast"}
+kwargs = {u"test" : u"toast"}
+frozen_kwargs = frozendict({u"test" : u"toast"})
 
 def test_kw_args(f):
     """
@@ -93,6 +170,8 @@ def test_kw_args(f):
     1 2 7 * 2 1
     1 2 9 * 2 2
     1 2 9 * 2 2
+    1 2 9 * 2 2
+    1 2 9 * 2 3
     1 2 9 * 2 3
     >>> test_kw_args(e)
     2 1
@@ -100,14 +179,18 @@ def test_kw_args(f):
     5 1
     5 2
     5 2
+    5 2
+    5 3
     5 3
     """
     f(1,2, c=3)
     f(1,2, d=3, *args)
     f(1,2, d=3, *(7,8,9))
     f(1,2, d=3, *args, **kwargs)
+    f(1,2, d=3, *args, **frozen_kwargs)
     f(1,2, d=3, *args, e=5)
     f(1,2, d=3, *args, e=5, **kwargs)
+    f(1,2, d=3, *args, e=5, **frozen_kwargs)
 
 def test_pos_args(f):
     """
@@ -137,9 +220,13 @@ def test_kw(f):
     0 2
     0 2
     0 1
+    0 2
+    0 1
     >>> test_kw(g)
     1
     2
+    2
+    1
     2
     1
     """
@@ -147,6 +234,8 @@ def test_kw(f):
     f(d=3, e=5)
     f(d=3, **kwargs)
     f(**kwargs)
+    f(d=3, **frozen_kwargs)
+    f(**frozen_kwargs)
 
 def test_noargs(f):
     """

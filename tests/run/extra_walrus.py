@@ -1,5 +1,5 @@
 # mode: run
-# tag: pure3.8
+# tag: pure3.10
 
 # These are extra tests for the assignment expression/walrus operator/named expression that cover things
 # additional to the standard Python test-suite in tests/run/test_named_expressions.pyx
@@ -39,51 +39,69 @@ def optimize_literals1():
     x = 5
     return (x := 10)
 
+
+@cython.test_fail_if_path_exists(
+    "//CloneNode",
+    "//CoercionNode",
+)
+def optimize_literals1_typed_int():
+    """
+    There's a small optimization for literals to avoid creating unnecessary temps
+    >>> optimize_literals1_typed_int()
+    10
+    """
+    x: cython.int = 5
+    return (x := 10)
+
+
+@cython.test_fail_if_path_exists(
+    "//CloneNode",
+    "//CoercionNode",
+)
+def optimize_literals1_typed_object():
+    """
+    There's a small optimization for literals to avoid creating unnecessary temps
+    >>> optimize_literals1_typed_object()
+    10
+    """
+    x: object = 5
+    return (x := 10)
+
+
 @cython.test_fail_if_path_exists("//CloneNode")
 def optimize_literals2():
     """
     There's a small optimization for literals to avoid creating unnecessary temps
-    Test is in __doc__ (for Py2 string formatting reasons)
+
+    >>> optimize_literals2()
+    'a string'
     """
     x = 5
     return (x := u"a string")
+
 
 @cython.test_fail_if_path_exists("//CloneNode")
 def optimize_literals3():
     """
     There's a small optimization for literals to avoid creating unnecessary temps
-    Test is in __doc__ (for Py2 string formatting reasons)
+
+    >>> optimize_literals3()
+    b'a bytes'
     """
     x = 5
     return (x := b"a bytes")
+
 
 @cython.test_fail_if_path_exists("//CloneNode")
 def optimize_literals4():
     """
     There's a small optimization for literals to avoid creating unnecessary temps
-    Test is in __doc__ (for Py2 string formatting reasons)
+
+    >>> optimize_literals4()
+    ('tuple', 1, 1.0, b'stuff')
     """
     x = 5
     return (x := (u"tuple", 1, 1.0, b"stuff"))
-
-if sys.version_info[0] != 2:
-    __doc__ = """
-        >>> optimize_literals2()
-        'a string'
-        >>> optimize_literals3()
-        b'a bytes'
-        >>> optimize_literals4()
-        ('tuple', 1, 1.0, b'stuff')
-        """
-else:
-    __doc__ = """
-        >>> optimize_literals2()
-        u'a string'
-        >>> optimize_literals3()
-        'a bytes'
-        >>> optimize_literals4()
-        (u'tuple', 1, 1.0, 'stuff')
-        """
 
 
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode//AssignmentExpressionNode")
@@ -96,6 +114,7 @@ def avoid_extra_coercion(x : cython.double):
     """
     y : object = "I'm an object"
     return (y := x)
+
 
 async def async_func():
     """
@@ -144,3 +163,421 @@ def in_lambda_in_generator_expression2():
     [(0, 1, 2, 3), (1, 2, 3, 4), (2, 3, 4, 5), (3, 4, 5, 6), (4, 5, 6, 7)]
     """
     return [ (lambda z: tuple((x := y) + z for y in range(4)))(x) for x in range(5) ]
+
+
+# A bunch of tests where assignment may/may not happen and flow control has to
+# be able to detect this to avoid crashing:
+
+def flow_control_binops1(test, value):
+    """
+    >>> flow_control_binops1(True, "value")
+    ('value', 'value')
+    >>> flow_control_binops1(False, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    res = test and (target := value)
+
+    return res, target
+
+def flow_control_binops2(test, value):
+    """
+    >>> flow_control_binops2(True, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    >>> flow_control_binops2(False, "value")
+    ('value', 'value')
+    """
+    res = test or (target := value)
+
+    return res, target
+
+def flow_control_binops3(test, value):
+    """
+    >>> flow_control_binops3(True, "value")
+    ('value', 'value')
+    >>> flow_control_binops3(False, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    # "True" may or may not be optimized out here
+    # but either way the assignment is uncertain
+    res = True and test and (target := value)
+
+    return res, target
+
+def flow_control_binops4(test1, test2, value):
+    """
+    >>> flow_control_binops4(True, True, "value")
+    ('value', 'value')
+    >>> flow_control_binops4(False, True, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    >>> flow_control_binops4(False, False, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    >>> flow_control_binops4(True, False, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    # "True" may or may not be optimized out here
+    # but either way the assignment is uncertain
+    res = test1 and test2 and (target := value)
+
+    return res, target
+
+def flow_control_cond_expr1(test, value):
+    """
+    >>> flow_control_cond_expr1(True, "value")
+    ('value', 'value')
+    >>> flow_control_cond_expr1(False, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    res = (target := value) if test else None
+    return res, target
+
+def flow_control_cond_expr2(test, value):
+    """
+    >>> flow_control_cond_expr2(True, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    >>> flow_control_cond_expr2(False, "value")
+    ('value', 'value')
+    """
+    res = None if test else (target := value)
+    return res, target
+
+def flow_control_cond_expr3(test, value1, value2):
+    """
+    >>> flow_control_cond_expr3(True, "value1", "value2")
+    ('value1', 'value1')
+    >>> flow_control_cond_expr3(False, "value1", "value2")
+    ('value2', 'value2')
+    """
+    res = (target := value1) if test else (target := value2)
+    # Not tested here (but I believe working) - Cython shouldn't need
+    # to generate an unbound local check for "target"
+    return res, target
+
+def flow_control_list_comp(it, value):
+    """
+    >>> flow_control_list_comp([1], "value")
+    'value'
+    >>> flow_control_list_comp([], "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    [(target := value) for _ in it]
+    return target
+
+def flow_control_set_comp(it, value):
+    """
+    >>> flow_control_set_comp([1], "value")
+    'value'
+    >>> flow_control_set_comp([], "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    {(target := value) for _ in it}
+    return target
+
+def flow_control_dict_comp1(it, value):
+    """
+    >>> flow_control_dict_comp1([1], "value")
+    'value'
+    >>> flow_control_dict_comp1([], "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    {(target := value): x for x in it}
+    return target
+
+def flow_control_dict_comp2(it, value):
+    """
+    >>> flow_control_dict_comp2([1], "value")
+    'value'
+    >>> flow_control_dict_comp2([], "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    {x: (target := value) for x in it}
+    return target
+
+def flow_control_genexp(it, value):
+    """
+    >>> flow_control_genexp([1], "value")
+    'value'
+    >>> flow_control_genexp([], "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    all((target := value) for _ in it)
+    return target
+
+def memoryview_walrus(x: cython.uchar[:]):
+    """
+    >>> memoryview_walrus(bytearray(b"123"))
+    '1'
+    """
+    (y := x)
+    return chr(y[0])
+
+def comprehension_scope():
+    """
+    >>> comprehension_scope()
+    [1, 2, 3, 4]
+    """
+    i = 0
+    # i needs to refer to the loop variable, not the function one
+    return [ x for i in range(5) if (x := i) ]
+
+def genexp_scope():
+    """
+    >>> genexp_scope()
+    (1, 2, 3, 4)
+    """
+    i = 0
+    # i needs to refer to the loop variable, not the function one
+    return tuple(x for i in range(5) if (x := i))
+
+def return_x(x):
+    return x
+
+def in_try_block_1(x):
+    """
+    >>> in_try_block_1(True)
+    'Except return True'
+    >>> in_try_block_1(False)
+    'Normal return False'
+    """
+    try:
+        if (a := return_x(x)):
+            raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+
+def return_false():
+    return False
+
+def if_in_try_block_2(x):
+    """
+    >>> if_in_try_block_2(True)
+    'Except return True'
+    >>> if_in_try_block_2(False)
+    'Normal return False'
+    """
+    try:
+        if return_false():
+            raise RuntimeError
+        elif (a := return_x(x)):
+            raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def if_in_try_block_3(x):
+    """
+    >>> if_in_try_block_3(True)
+    'Except return True'
+    >>> if_in_try_block_3(False)
+    'Normal return False'
+    """
+    try:
+        if (a := return_x(x)):
+            raise RuntimeError
+        else:
+            pass
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def if_in_try_block_4(x):
+    """
+    >>> if_in_try_block_4(True)
+    'Normal return True'
+    >>> if_in_try_block_4(False)
+    'Except return False'
+    """
+    try:
+        if (a := return_x(x)):
+            pass
+        else:
+            raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def case_in_try_block_1(x):
+    """
+    >>> case_in_try_block_1(True)
+    'Except return True'
+    >>> case_in_try_block_1(False)
+    'Normal return False'
+    """
+    try:
+        match x:
+            case _ if (a := return_x(x)):
+                raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def case_in_try_block_2(x):
+    """
+    >>> case_in_try_block_2(True)
+    'Except return True'
+    >>> case_in_try_block_2(False)
+    'Normal return False'
+    """
+    try:
+        match x:
+            case _ if (a := return_x(x)):
+                raise RuntimeError
+            case _:
+                pass
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def match_in_try_block_2(x):
+    """
+    >>> match_in_try_block_2(True)
+    'Except return True'
+    >>> match_in_try_block_2(False)
+    'Normal return False'
+    """
+    try:
+        # Note that pycodestyle on older versions of Python
+        # enforces a weird spacing here and can't be turned
+        # off with noqa.  Undo this in future...
+        match(a := return_x(x)):
+            case True:
+                raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def while_in_try_block(x):
+    """
+    >>> while_in_try_block(True)
+    'Except return True'
+    >>> while_in_try_block(False)
+    'Normal return False'
+    """
+    try:
+        while (a := return_x(x)):
+            raise ValueError("Not found")
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def raise_something():
+    raise RuntimeError
+
+def except_in_try_block(x):
+    """
+    >>> except_in_try_block(True)
+    'Normal return ValueError'
+    >>> except_in_try_block(False)
+    'Except return RuntimeError'
+    """
+    try:
+        try:
+            raise_something()
+        except (a := return_x(ValueError if x else RuntimeError)):
+            raise RuntimeError()
+        except:
+            pass
+
+        return f'Normal return {a.__name__}'
+    except Exception:
+        return f'Except return {a.__name__}'
+
+def for_in_try_block_1(x):
+    """
+    >>> for_in_try_block_1(10)
+    'Except return 10'
+    >>> for_in_try_block_2(0)
+    'Normal return 0'
+    """
+    try:
+        for x in range(a := x):
+            raise RuntimeError()
+
+        return f'Normal return {a}'
+    except Exception:
+        return f'Except return {a}'
+
+def for_in_try_block_2(x):
+    """
+    >>> for_in_try_block_2(10)
+    'Except return 10'
+    >>> for_in_try_block_2(0)
+    'Normal return 0'
+    """
+    try:
+        for x in (a := return_x(range(x))):
+            raise RuntimeError()
+
+        return f'Normal return {a.stop}'
+    except Exception:
+        return f'Except return {a.stop}'
+
+class ContextManager:
+    def __init__(self, value):
+        self.value = value
+    def __enter__(self):
+        pass
+    def __exit__(self, exc_type, exc_value, traceback):
+        return self.value
+
+def with_in_try_block(x):
+    """
+    >>> with_in_try_block(True)
+    'Normal return True'
+    >>> with_in_try_block(False)
+    'Except return False'
+    """
+    try:
+        with (a := ContextManager(x)):
+            raise RuntimeError
+        return f'Normal return {a.value}'
+    except Exception:
+        return f'Except return {a.value}'
+
+
+def isinstance_tuple_walrus():
+    """
+    Walrus expression inside isinstance() with a tuple of types must be evaluated
+    exactly once per loop iteration. With the bug, Cython expanded
+    ``isinstance(ni := next(it), (int, float, str, bytes))`` into four separate
+    ``isinstance(ni := next(it), T)`` checks, calling next() four times per
+    iteration and raising StopIteration prematurely.
+
+    >>> isinstance_tuple_walrus()
+    True
+    """
+    # iter has only 2 items: the loop runs once (value=1 matches int → True),
+    # then once more (value=None does not match any → False, loop exits).
+    # If next() were called more than once per iteration the iterator would be
+    # exhausted and StopIteration would propagate out.
+    it = iter([1, None])
+    while isinstance(ni := next(it), (int, float, str, bytes)):
+        pass
+    return ni is None

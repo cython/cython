@@ -97,8 +97,8 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
 
 #. If the header file uses macros to define constants, translate them into a
    normal external variable declaration.  You can also declare them as an
-   :keyword:`enum` if they contain normal :c:type:`int` values.  Note that
-   Cython considers :keyword:`enum` to be equivalent to :c:type:`int`, so do
+   :keyword:`enum` if they contain normal :c:expr:`int` values.  Note that
+   Cython considers :keyword:`enum` to be equivalent to :c:expr:`int`, so do
    not do this for non-int values.
 
 #. If the header file defines a function using a macro, declare it as though
@@ -280,7 +280,7 @@ there.
 Special Types
 --------------
 
-Cython predefines the name ``Py_ssize_t`` for use with Python/C API routines. To
+Cython predefines the name :c:type:`Py_ssize_t` for use with Python/C API routines. To
 make your extensions compatible with 64-bit systems, you should always use
 this type where it is specified in the documentation of Python/C API routines.
 
@@ -386,8 +386,8 @@ The above is essentially equivalent to having the C code in a file
 ``header.h`` and writing ::
 
     cdef extern from "header.h":
-        long square(long x)
-        void assign(long& x, long y)
+        long c_square(long x)
+        void c_assign(long& x, long y)
 
 This feature is commonly used for platform specific adaptations at
 compile time, for example:
@@ -429,6 +429,8 @@ declarations.
     Cython module available to another Cython module – you should use the
     :keyword:`cimport` statement for that. Sharing Declarations Between Cython Modules.
 
+.. _inittab_guide:
+
 Public Declarations
 ---------------------
 
@@ -454,7 +456,7 @@ In this case, the file ``grail_helper.c`` just needs to add
 ``#include "grail.h"`` in order to access the public Cython variables.
 
 A more advanced use case is embedding Python in C using Cython.
-In this case, make sure to call Py_Initialize() and Py_Finalize().
+In this case, make sure to call :c:func:`Py_Initialize()` and :c:func:`Py_Finalize()`.
 For example, in the following snippet that includes :file:`grail.h`:
 
 .. code-block:: c
@@ -495,6 +497,32 @@ file consists of the full dotted name of the module, e.g. a module called
     build the Cython extension in the usual way and then link against
     the resulting ``.so`` file like a dynamic library.
     Beware that this is not portable, so it should be avoided.
+
+.. _CYTHON_EXTERN_C:
+
+C++ public declarations
+^^^^^^^^^^^^^^^^^^^^^^^
+
+When a file is compiled as C++, its public functions are declared as C++ API (using ``extern "C++"``) by default.
+This disallows to call the functions from C code.  If the functions are really meant as a plain C API,
+the ``extern`` declaration needs to be manually specified by the user.
+This can be done by setting the ``CYTHON_EXTERN_C`` C macro to ``extern "C"`` during the compilation of the generated C++ file::
+
+    from setuptools import Extension, setup
+    from Cython.Build import cythonize
+
+    extensions = [
+        Extension(
+            "module", ["module.pyx"],
+            define_macros=[("CYTHON_EXTERN_C", 'extern "C"')],
+            language="c++",
+        )
+    ]
+
+    setup(
+        name="My hello app",
+        ext_modules=cythonize(extensions),
+    )
 
 .. _api:
 
@@ -539,7 +567,7 @@ declarations to be linked with the extension module in any way, as the Python
 import machinery is used to make the connection dynamically. However, only
 functions can be accessed this way, not variables. Note also that for the
 module import mechanism to be set up correctly, the user must call
-Py_Initialize() and Py_Finalize(); if you experience a segmentation fault in
+:c:func:`Py_Initialize()` and :c:func:`Py_Finalize()`; if you experience a segmentation fault in
 the call to :func:`import_modulename`, it is likely that this wasn't done.
 
 You can use both :keyword:`public` and :keyword:`api` on the same function to
@@ -581,7 +609,7 @@ Acquiring and Releasing the GIL
 ---------------------------------
 
 Cython provides facilities for acquiring and releasing the
-`Global Interpreter Lock (GIL) <https://docs.python.org/dev/glossary.html#term-global-interpreter-lock>`_.
+Global Interpreter Lock (GIL) (see :term:`our glossary<Global Interpreter Lock or GIL>` or `external documentation <https://docs.python.org/dev/glossary.html#term-global-interpreter-lock>`_).
 This may be useful when calling from multi-threaded code into
 (external C) code that may block, or when wanting to use Python
 from a (native) C thread callback.  Releasing the GIL should

@@ -64,7 +64,7 @@ the C-API view on it alive.  Entries in a Python class dict will obviously
 not work either.
 
 One of the more visible places where this may happen is when accessing the
-:c:type:`char*` buffer of a byte string.  In PyPy, this will only work as
+:c:expr:`char*` buffer of a byte string.  In PyPy, this will only work as
 long as the Cython code holds a direct reference to the byte string object
 itself.
 
@@ -118,7 +118,7 @@ re-entrant in PyPy and deadlocks when called twice.  This means that
 code that tries to acquire the GIL "just in case", because it might be
 called with or without the GIL, will not work as expected in PyPy.
 See `PyGILState_Ensure should not deadlock if GIL already held
-<https://bitbucket.org/pypy/pypy/issues/1778>`_.
+<https://foss.heptapod.net/pypy/pypy/-/issues/1778>`_.
 
 
 Efficiency

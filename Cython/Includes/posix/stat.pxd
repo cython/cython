@@ -96,4 +96,3 @@ cdef extern from "<unistd.h>" nogil:
     bint S_TYPEISSEM(struct_stat *buf)
     bint S_TYPEISSHM(struct_stat *buf)
     bint S_TYPEISTMO(struct_stat *buf)
-

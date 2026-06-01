@@ -1,15 +1,6 @@
 # mode: run
 # tag: multiply
 
-import sys
-IS_PY2 = sys.version_info[0] < 3
-
-
-def print_long(x):
-    if IS_PY2:
-        x = str(x).rstrip('L')
-    print(x)
-
 
 def mul_10_obj(x):
     """
@@ -25,29 +16,29 @@ def mul_10_obj(x):
     163840
     >>> mul_10_obj(-2**14)
     -163840
-    >>> print_long(10 * (2**29))
+    >>> 10 * (2**29)
     5368709120
-    >>> print_long(mul_10_obj(2**29))
+    >>> mul_10_obj(2**29)
     5368709120
-    >>> print_long(mul_10_obj(-2**29))
+    >>> mul_10_obj(-2**29)
     -5368709120
-    >>> print_long(10 * (2**30))
+    >>> 10 * (2**30)
     10737418240
-    >>> print_long(mul_10_obj(2**30))
+    >>> mul_10_obj(2**30)
     10737418240
-    >>> print_long(mul_10_obj(-2**30))
+    >>> mul_10_obj(-2**30)
     -10737418240
-    >>> print_long(10 * (2**63))
+    >>> 10 * (2**63)
     92233720368547758080
-    >>> print_long(mul_10_obj(2**63))
+    >>> mul_10_obj(2**63)
     92233720368547758080
-    >>> print_long(mul_10_obj(-2**63))
+    >>> mul_10_obj(-2**63)
     -92233720368547758080
-    >>> print_long(10 * (2**128))
+    >>> 10 * (2**128)
     3402823669209384634633746074317682114560
-    >>> print_long(mul_10_obj(2**128))
+    >>> mul_10_obj(2**128)
     3402823669209384634633746074317682114560
-    >>> print_long(mul_10_obj(-2**128))
+    >>> mul_10_obj(-2**128)
     -3402823669209384634633746074317682114560
     """
     result = 10 * x
@@ -68,29 +59,29 @@ def mul_obj_10(x):
     163840
     >>> mul_obj_10(-2**14)
     -163840
-    >>> print_long(10 * (2**29))
+    >>> 10 * (2**29)
     5368709120
-    >>> print_long(mul_obj_10(2**29))
+    >>> mul_obj_10(2**29)
     5368709120
-    >>> print_long(mul_obj_10(-2**29))
+    >>> mul_obj_10(-2**29)
     -5368709120
-    >>> print_long(10 * (2**30))
+    >>> 10 * (2**30)
     10737418240
-    >>> print_long(mul_obj_10(2**30))
+    >>> mul_obj_10(2**30)
     10737418240
-    >>> print_long(mul_obj_10(-2**30))
+    >>> mul_obj_10(-2**30)
     -10737418240
-    >>> print_long(10 * (2**63))
+    >>> 10 * (2**63)
     92233720368547758080
-    >>> print_long(mul_obj_10(2**63))
+    >>> mul_obj_10(2**63)
     92233720368547758080
-    >>> print_long(mul_obj_10(-2**63))
+    >>> mul_obj_10(-2**63)
     -92233720368547758080
-    >>> print_long(10 * (2**128))
+    >>> 10 * (2**128)
     3402823669209384634633746074317682114560
-    >>> print_long(mul_obj_10(2**128))
+    >>> mul_obj_10(2**128)
     3402823669209384634633746074317682114560
-    >>> print_long(mul_obj_10(-2**128))
+    >>> mul_obj_10(-2**128)
     -3402823669209384634633746074317682114560
     """
     result = x * 10
@@ -101,24 +92,105 @@ def mul_bigint_obj(x):
     """
     >>> mul_bigint_obj(0)
     0
-    >>> print_long(mul_bigint_obj(1))
+    >>> (2**29) * 1
     536870912
-    >>> print_long(mul_bigint_obj(2))
+    >>> mul_bigint_obj(1)
+    536870912
+
+    >>> (2**29) * 2
     1073741824
-    >>> print_long(mul_bigint_obj(2**29))
+    >>> mul_bigint_obj(2)
+    1073741824
+
+    >>> (2**29) * (2**29)
     288230376151711744
-    >>> print_long(mul_bigint_obj(-2**29))
+    >>> mul_bigint_obj(2**29)
+    288230376151711744
+
+    >>> (2**29) * -(2**29)
     -288230376151711744
-    >>> print_long(mul_bigint_obj(2**30))
+    >>> mul_bigint_obj(-2**29)
+    -288230376151711744
+
+    >>> (2**29) * (2**30)
     576460752303423488
-    >>> print_long(mul_bigint_obj(-2**30))
+    >>> mul_bigint_obj(2**30)
+    576460752303423488
+
+    >>> (2**29) * -(2**30)
     -576460752303423488
-    >>> print_long(mul_bigint_obj(2**59))
+    >>> mul_bigint_obj(-2**30)
+    -576460752303423488
+
+    >>> (2**29) * (2**31)
+    1152921504606846976
+    >>> mul_bigint_obj(2**31)
+    1152921504606846976
+
+    >>> (2**29) * -(2**31)
+    -1152921504606846976
+    >>> mul_bigint_obj(-2**31)
+    -1152921504606846976
+
+    >>> (2**29) * (2**59)
     309485009821345068724781056
-    >>> print_long(mul_bigint_obj(-2**59))
+    >>> mul_bigint_obj(2**59)
+    309485009821345068724781056
+
+    >>> (2**29) * -(2**59)
+    -309485009821345068724781056
+    >>> mul_bigint_obj(-2**59)
     -309485009821345068724781056
     """
     result = (2**29) * x
+    return result
+
+
+def mul_bigint64_obj(x):
+    """
+    >>> mul_bigint64_obj(0)
+    0
+    >>> (2**58) * 1
+    288230376151711744
+    >>> mul_bigint64_obj(1)
+    288230376151711744
+
+    >>> (2**58) * 2
+    576460752303423488
+    >>> mul_bigint64_obj(2)
+    576460752303423488
+
+    >>> (2**58) * (2**29)
+    154742504910672534362390528
+    >>> mul_bigint64_obj(2**29)
+    154742504910672534362390528
+
+    >>> (2**58) * -(2**29)
+    -154742504910672534362390528
+    >>> mul_bigint64_obj(-2**29)
+    -154742504910672534362390528
+
+    >>> (2**58) * (2**30)
+    309485009821345068724781056
+    >>> mul_bigint64_obj(2**30)
+    309485009821345068724781056
+
+    >>> (2**58) * -(2**30)
+    -309485009821345068724781056
+    >>> mul_bigint64_obj(-2**30)
+    -309485009821345068724781056
+
+    >>> (2**58) * (2**58)
+    83076749736557242056487941267521536
+    >>> mul_bigint64_obj(2**58)
+    83076749736557242056487941267521536
+
+    >>> (2**58) * -(2**58)
+    -83076749736557242056487941267521536
+    >>> mul_bigint64_obj(-2**58)
+    -83076749736557242056487941267521536
+    """
+    result = (2**58) * x
     return result
 
 
@@ -164,3 +236,67 @@ def mul_float_obj(x):
     """
     result = 2.0 * x
     return result
+
+
+def mul_obj_obj(a, b):
+    """
+    >>> mul_obj_obj(0, 0)
+    0
+    >>> mul_obj_obj(0, 1)
+    0
+    >>> mul_obj_obj(1, 0)
+    0
+    >>> mul_obj_obj(0, -1)
+    0
+    >>> mul_obj_obj(-1, 0)
+    0
+    >>> mul_obj_obj(10, 99)
+    990
+    >>> mul_obj_obj(10, -1)
+    -10
+    >>> mul_obj_obj(-1, 10)
+    -10
+
+    >>> mul_obj_obj(1e-50, 1e50)
+    1.0
+    >>> (1e-50) * (2**100_000)
+    Traceback (most recent call last):
+    OverflowError: int too large to convert to float
+    >>> mul_obj_obj(1e-50, 2**100_000)
+    Traceback (most recent call last):
+    OverflowError: int too large to convert to float
+
+    >>> mul_obj_obj(0, 'abc')
+    ''
+    >>> mul_obj_obj('abc', 0)
+    ''
+    >>> mul_obj_obj(1, 'abc')
+    'abc'
+    >>> mul_obj_obj('abc', 1)
+    'abc'
+    >>> mul_obj_obj(2, 'abc')
+    'abcabc'
+    >>> mul_obj_obj('abc', 2)
+    'abcabc'
+
+    >>> 'abc' * 'abc'  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> mul_obj_obj('abc', 'abc')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+
+    >>> 'abc' * 1.0  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> 1.0 * 'abc'  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> mul_obj_obj('abc', 1.0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> mul_obj_obj(1.0, 'abc')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    """
+    return a * b

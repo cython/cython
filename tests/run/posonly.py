@@ -3,7 +3,6 @@
 # tag: posonly, pure3.8
 
 import cython
-import sys
 import pickle
 
 def test_optional_posonly_args1(a, b=10, /, c=100):
@@ -76,10 +75,7 @@ def test_optional_posonly_args2(a=1, b=10, /, c=100):
 @cython.binding(True)
 def func_introspection1(a, b, c, /, d, e=1, *, f, g=2):
     """
-    >>> if sys.version_info[0] < 3:
-    ...     assert func_introspection2.__code__.co_argcount == 7, func_introspection2.__code__.co_argcount
-    ... else:
-    ...     assert func_introspection2.__code__.co_argcount == 5, func_introspection2.__code__.co_argcount
+    >>> assert func_introspection2.__code__.co_argcount == 5, func_introspection2.__code__.co_argcount
     >>> func_introspection1.__defaults__
     (1,)
     """
@@ -87,10 +83,7 @@ def func_introspection1(a, b, c, /, d, e=1, *, f, g=2):
 @cython.binding(True)
 def func_introspection2(a, b, c=1, /, d=2, e=3, *, f, g=4):
     """
-    >>> if sys.version_info[0] < 3:
-    ...     assert func_introspection2.__code__.co_argcount == 7, func_introspection2.__code__.co_argcount
-    ... else:
-    ...     assert func_introspection2.__code__.co_argcount == 5, func_introspection2.__code__.co_argcount
+    >>> assert func_introspection2.__code__.co_argcount == 5, func_introspection2.__code__.co_argcount
     >>> func_introspection2.__defaults__
     (1, 2, 3)
     """
@@ -416,8 +409,6 @@ def test_async_call(*args, **kwargs):
     >>> test_async_call(1)
     >>> test_async_call()
     """
-    if sys.version_info < (3, 6):
-        return
     try:
         coro = test_async(*args, **kwargs)
         coro.send(None)

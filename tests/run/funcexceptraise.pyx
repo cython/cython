@@ -11,8 +11,6 @@ __doc__ = u"""
 """
 
 import sys
-if sys.version_info[0] < 3:
-    sys.exc_clear()
 
 def foo():
     try:

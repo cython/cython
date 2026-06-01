@@ -8,7 +8,7 @@ from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 
 setup(
-  ext_modules = cythonize(["enums.pyx", "no_enums.pyx"]),
+  ext_modules = cythonize(["enums.pyx", "enums_same_name.pyx", "no_enums.pyx"]),
 )
 
 ######## enums.pyx ########
@@ -28,17 +28,76 @@ cpdef enum NamedEnumType:
 
 cpdef foo()
 
+######## enums_same_name.pyx ############
+
+######## enums_same_name.pxd ############
+
+# Note - same name as enums.pxd but shouldn't conflict
+cpdef enum NamedEnumType:
+    Value = 1
+
+######## enums_without_pyx.pxd #####
+
+cpdef enum EnumTypeNotInPyx:
+    AnotherEnumValue = 500
+
+######## c_enum.h #############
+
+enum CEnum {
+    CEnumVal1, CEnumVal2
+};
+
+######## external_enums1.pxd ######
+
+cdef extern from "c_enum.h":
+    cpdef enum CEnum:
+        CEnumVal1
+        CEnumVal2
+
+######## external_enums1.pyx ######
+
+######## external_enums2.pxd ######
+
+# external_enums1 and external_enums2 expose the same
+# enum - this shouldn't lead to duplicate utility code
+cdef extern from "c_enum.h":
+    cpdef enum CEnum:
+        CEnumVal1
+        CEnumVal2
+
+######## external_enums2.pyx ######
+
 ######## no_enums.pyx ########
 
 from enums cimport *
+from enums_without_pyx cimport *
+cimport enums_same_name
+cimport external_enums1
+cimport external_enums2
 
 def get_named_enum_value():
     return NamedEnumType.NamedEnumValue
+
+def get_from_enums_same_name():
+    # This should not generate conflicting "to py" functions with the other
+    # identically named enum from a different pxd file.
+    return enums_same_name.NamedEnumType.Value
+
+def get_named_without_pyx():
+    # This'll generate a warning but return a c int
+    return EnumTypeNotInPyx.AnotherEnumValue
+
+def get_external1():
+    return external_enums1.CEnumVal1
+
+def get_external2():
+    return external_enums2.CEnumVal1
 
 ######## import_enums_test.py ########
 
 # We can import enums with a star import.
 from enums import *
+import enums_same_name
 
 print(dir())
 assert 'BAR' in dir() and 'FOO' in dir()
@@ -51,3 +110,10 @@ assert 'FOO' not in dir(no_enums)
 assert 'foo' not in dir(no_enums)
 
 assert no_enums.get_named_enum_value() == NamedEnumType.NamedEnumValue
+# In this case the enum isn't accessible from Python (by design)
+# but the conversion to Python goes through a reasonable fallback
+assert no_enums.get_named_without_pyx() == 500
+
+assert no_enums.get_from_enums_same_name() == enums_same_name.NamedEnumType.Value
+
+assert no_enums.get_external1() == no_enums.get_external2()

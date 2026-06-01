@@ -134,33 +134,35 @@ def list_index_order():
 
 def genexpr_fcall_order():
     """
+    Note that the order of getting the function and evaluating the
+    function arguments can end up slightly different in Python and
+    Cython and so isn't tested.
+
     >>> list(genexpr_fcall_order())
     Getting function
-    In zero
-    In five
-    In one
     In func
     Made generator expression
     [0, 5, 1]
     """
     obj = NoisyAttributeLookup()
-    ret = (a for a in obj.function(zero(), five(), one()))
+    ret = (a for a in obj.function(0, 5, 1))
     print("Made generator expression")
     return ret
 
 @cython.test_assert_path_exists("//InlinedGeneratorExpressionNode")
 def list_fcall_order():
     """
+    Note that the order of getting the function and evaluating the
+    function arguments can end up slightly different in Python and
+    Cython and so isn't tested.
+
     >>> list_fcall_order()
     Getting function
-    In zero
-    In five
-    In one
     In func
     [0, 5, 1]
     """
     obj = NoisyAttributeLookup()
-    return list(a for a in obj.function(zero(), five(), one()))
+    return list(a for a in obj.function(0, 5, 1))
 
 def call1():
     print("In call1")

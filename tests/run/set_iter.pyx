@@ -65,9 +65,9 @@ def set_iter_modify(set s, int value):
     [1, 2, 3]
     >>> sorted(set_iter_modify(s, 3))
     [1, 2, 3]
-    >>> sorted(set_iter_modify(s, 4))
+    >>> sorted(set_iter_modify(s, 4))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    RuntimeError: set changed size during iteration
+    RuntimeError: ...et changed size during iteration
     """
     for x in s:
         s.add(value)

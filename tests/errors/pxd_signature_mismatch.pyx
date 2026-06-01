@@ -56,13 +56,13 @@ cdef int narrower_exception_check_optimised(int x, int y) except *:
 
 
 _ERRORS = """
-30:5: Function signature does not match previous declaration
-33:5: Function signature does not match previous declaration
-36:5: Function signature does not match previous declaration
-39:5: Function signature does not match previous declaration
-42:5: Function signature does not match previous declaration
-45:5: Function signature does not match previous declaration
-48:5: Function signature does not match previous declaration
-51:5: Function signature does not match previous declaration
-54:5: Function signature does not match previous declaration
+30:0: Function signature does not match previous declaration
+33:0: Function signature does not match previous declaration
+36:0: Function signature does not match previous declaration
+39:0: Function signature does not match previous declaration
+42:0: Function signature does not match previous declaration
+45:0: Function signature does not match previous declaration
+48:0: Function signature does not match previous declaration
+51:0: Function signature does not match previous declaration
+54:0: Function signature does not match previous declaration
 """

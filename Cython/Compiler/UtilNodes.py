@@ -4,16 +4,15 @@
 # so it is convenient to have them in a separate module.
 #
 
-from __future__ import absolute_import
 
 from . import Nodes
 from . import ExprNodes
 from .Nodes import Node
 from .ExprNodes import AtomicExprNode
-from .PyrexTypes import c_ptr_type
+from .PyrexTypes import c_ptr_type, c_int_type
 
 
-class TempHandle(object):
+class TempHandle:
     # THIS IS DEPRECATED, USE LetRefNode instead
     temp = None
     needs_xdecref = False
@@ -146,6 +145,9 @@ class ResultRefNode(AtomicExprNode):
         type = getattr(expression, "type", None)
         if type:
             self.type = type
+
+    def analyse_target_declaration(self, env):
+        pass  # OK - we can assign to this
 
     def analyse_types(self, env):
         if self.expression is not None:
@@ -366,3 +368,46 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
 
     def generate_function_definitions(self, env, code):
         self.body.generate_function_definitions(env, code)
+
+
+class HasNoGilNode(AtomicExprNode):
+    """
+    Simple node that evaluates to
+    * 0 if gil
+    * 1 if nogil
+    * 2 if maybe gil
+    """
+    type = c_int_type
+
+    def analyse_types(self, env):
+        return self
+
+    def generate_result_code(self, code):
+        pass
+
+    def calculate_result_code(self):
+        return str(int(self.in_nogil_context))
+
+
+class CPropertySetNode(ExprNodes.ExprNode):
+    subexprs = ['call_node']
+    arg1 : ExprNodes.RawCNameExprNode
+    call_node : ExprNodes.ExprNode
+
+    def is_lvalue(self):
+        return True
+
+    def analyse_types(self, env):
+        self.call_node = self.call_node.analyse_types(env)
+        return self
+
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False, exception_check=None, exception_value=None):
+        assert not overloaded_assignment
+        assert exception_check is None, exception_check
+        assert exception_value is None, exception_value
+        self.arg1.set_cname(rhs.result())
+
+        self.call_node.generate_evaluation_code(code)
+
+        rhs.generate_disposal_code(code)
+        rhs.free_temps(code)

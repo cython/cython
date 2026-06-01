@@ -5,7 +5,6 @@
 Uses TreeFragment to test invalid syntax.
 """
 
-from __future__ import absolute_import
 
 import ast
 import textwrap
@@ -146,7 +145,7 @@ class TestGrammar(CythonTest):
             for expression in ['%s', '1 + %s', '%s + 1', '2 * %s', '%s * 2']:
                 code = 'x = ' + expression % literal
                 try:
-                    self.fragment(u'''\
+                    self.fragment('''\
                     # cython: language_level=3
                     ''' + code)
                 except CompileError as exc:
@@ -158,7 +157,7 @@ class TestGrammar(CythonTest):
         for literal in VALID_UNDERSCORE_LITERALS:
             for i, expression in enumerate(['%s', '1 + %s', '%s + 1', '2 * %s', '%s * 2']):
                 code = 'x = ' + expression % literal
-                node = self.fragment(u'''\
+                node = self.fragment('''\
                     # cython: language_level=3
                     ''' + code).root
                 assert node is not None
@@ -189,7 +188,7 @@ class TestGrammar(CythonTest):
                 assert False, "Invalid Python code '%s' failed to raise an exception" % code
 
             try:
-                self.fragment(u'''\
+                self.fragment('''\
                 # cython: language_level=3
                 ''' + code)
             except CompileError as exc:

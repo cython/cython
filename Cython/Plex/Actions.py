@@ -1,12 +1,10 @@
-# cython: language_level=3str
-# cython: auto_pickle=False
 """
 Python Lexical Analyser
 
 Actions for use in token specifications
 """
 
-class Action(object):
+class Action:
     def perform(self, token_stream, text):
         pass  # abstract
 
