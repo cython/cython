@@ -689,7 +689,7 @@ class MatchSequencePatternNode(PatternNode):
                 self.pos,
                 operator=">=" if has_star else "==",
                 operand1=length_call,
-                operand2=ExprNodes.IntNode(self.pos, value=str(min_length)),
+                operand2=ExprNodes.IntNode.for_size(self.pos, min_length),
             )
             all_tests.append(seq_len_test)
         else:
@@ -809,12 +809,11 @@ class MatchSequencePatternNode(PatternNode):
                 base=ExprNodes.AttributeNode(
                     self.pos, obj=subject_node, attribute="shape"
                 ),
-                index=ExprNodes.IntNode(self.pos, value="0"),
+                index=ExprNodes.IntNode.for_size(self.pos, 0),
             )
         elif subject_node.type.is_ctuple:
-            len_call = ExprNodes.IntNode(
-                self.pos, value=str(len(subject_node.type.components))
-            )
+            len_call = ExprNodes.IntNode.for_size(
+                self.pos, len(subject_node.type.components))
         else:
             len_call = ExprNodes.SimpleCallNode(
                 self.pos,
@@ -837,7 +836,7 @@ class MatchSequencePatternNode(PatternNode):
             if i is None:
                 return None
             else:
-                int_node = ExprNodes.IntNode(pattern.pos, value=str(i))
+                int_node = ExprNodes.IntNode.for_size(pattern.pos, i)
                 if i >= 0:
                     return int_node
                 else:
@@ -1191,7 +1190,7 @@ class SliceToListNode(ExprNodes.ExprNode):
             utility_code=util_code,
             args=[
                 self.base,
-                self.start if self.start else ExprNodes.IntNode(self.pos, value="0"),
+                self.start if self.start else ExprNodes.IntNode.for_size(self.pos, 0),
                 self.get_stop(),
             ],
         )
@@ -1221,7 +1220,7 @@ class SliceToListNode(ExprNodes.ExprNode):
             )
         else:
             util_code = None
-        start = self.start if self.start else ExprNodes.IntNode(self.pos, value="0")
+        start = self.start if self.start else ExprNodes.IntNode.for_size(self.pos, 0)
         stop = self.get_stop()
         return ExprNodes.PythonCapiCallNode(
             self.pos,
