@@ -339,7 +339,7 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
 
     slot = __Pyx_PyObject_TryGetSubSlot(x, tp_as_sequence, sq_item, ssizeargfunc);
     if (!slot) {
-        #if !defined(Py_LIMITED_API) && !defined(PySequence_ITEM)
+        #if !CYTHON_COMPILING_IN_LIMITED_API && !defined(PySequence_ITEM)
         // PyPy (and maybe others?) implements PySequence_ITEM as a function. In this case.
         // it's slightly more efficient than using PySequence_GetItem since it skips negative indices.
         slot = PySequence_ITEM;
@@ -364,7 +364,7 @@ static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start,
 
 ////////////////////// TupleSliceToList //////////////////////////
 //@requires: OtherSequenceSliceToList
-//@requires: ObjectHandling.c::TupleFromArray
+//@requires: ObjectHandling.c::ListFromArray
 
 // Indices must be positive - there's no wraparound or boundschecking.
 
