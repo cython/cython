@@ -1525,11 +1525,17 @@ class ClassPatternNode(PatternNode):
             ]:
                 if self.class_known_type.subtype_of_resolved_type(t):
                     return 1
-            if self.class_known_type.is_extension_type and not (
-                self.class_known_type.is_external
-                or not self.class_known_type.scope.method_table_cname
-            ):  # effectively extern visibility
-                return 0  # I think... Relies on knowing the bases
+            if self.class_known_type.is_extension_type:
+                tp = self.class_known_type
+                while tp:
+                    if (not tp.is_extension_type or
+                        tp.is_external
+                        or not self.class_known_type.scope.method_table_cname
+                    ):  # effectively extern visibility:
+                        return -1
+                    tp = tp.base_type
+                # We know enough about the type's provinence to know it can't match a self argument
+                return 0
         return -1
 
 
