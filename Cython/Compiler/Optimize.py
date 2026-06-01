@@ -2356,6 +2356,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                         utility_code = UtilityCode.load_cached("pynumber_float", "TypeConversion.c"),
                         result_is_used=node.result_is_used,
                     ).coerce_to(node.type, self.current_env())
+        if arg.type.is_pyobject:
+            # skip Py->C->Py coercion
+            return arg
         return node
 
     def visit_CoerceFromPyTypeNode(self, node):
