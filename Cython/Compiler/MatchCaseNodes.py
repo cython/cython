@@ -1502,6 +1502,37 @@ class ClassPatternNode(PatternNode):
         )
         return TempResultFromStatNode(passed_rr, try_except)
 
+    def _calculate_match_self(self):
+        # -1 is "unknown", 0 is false, 1 is true
+        if not (len(self.positional_patterns) == 1 and not self.keyword_pattern_names):
+            return 0
+        if self.class_known_type:
+            for type_attr in [
+                "is_pytuple_type",
+                "is_pylist_type",
+                "is_pyanydict_type",
+                "is_pyanyset_type",
+                "is_pybytes_type",
+                "is_pystr_type",
+                "is_pybytearray_type"
+            ]:
+                if getattr(self.class_known_type, type_attr):
+                    return 1
+            for t in [
+                Builtin.bool_type,
+                Builtin.float_type,
+                Builtin.int_type,
+            ]:
+                if self.class_known_type.subtype_of_resolved_type(t):
+                    return 1
+            if self.class_known_type.is_extension_type and not (
+                self.class_known_type.is_external
+                or not self.class_known_type.scope.method_table_cname
+            ):  # effectively extern visibility
+                return 0  # I think... Relies on knowing the bases
+        return -1
+
+
     def make_positional_args_call(self, subject_node, class_node):
         assert self.positional_patterns
         util_code = UtilityCode.load_cached("ClassPositionalPatterns", "MatchCase.c")
@@ -1509,37 +1540,8 @@ class ClassPatternNode(PatternNode):
             ExprNodes.UnicodeNode(n.pos, value=n.name)
             for n in self.keyword_pattern_names
         ]
-        # -1 is "unknown"
-        match_self = (
-            -1
-            if (len(self.positional_patterns) == 1 and not self.keyword_pattern_names)
-            else 0
-        )
-        if match_self and self.class_known_type:
-            for t in [
-                # Builtin.bool_type ends up being py_object_type
-                Builtin.bytearray_type,
-                Builtin.bytes_type,
-                Builtin.dict_type,
-                Builtin.float_type,
-                Builtin.frozenset_type,
-                Builtin.int_type,
-                Builtin.list_type,
-                Builtin.set_type,
-                Builtin.unicode_type,
-                Builtin.tuple_type,
-            ]:
-                if self.class_known_type.subtype_of_resolved_type(t):
-                    match_self = 1
-                    break
-            else:
-                if self.class_known_type.is_extension_type and not (
-                    self.class_known_type.is_external
-                    or not self.class_known_type.scope.method_table_cname
-                ):  # effectively extern visibility
-                    match_self = 0  # I think... Relies on knowing the bases
 
-        match_self = ExprNodes.IntNode(self.pos, value=str(match_self))
+        match_self = ExprNodes.IntNode(self.pos, value=str(self._calculate_match_self()))
         n_subjects = ExprNodes.IntNode(self.pos, value=str(len(self.positional_patterns)))
         return MappingOrClassComparisonNode(
             self.pos,

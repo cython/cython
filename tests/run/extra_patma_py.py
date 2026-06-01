@@ -153,3 +153,36 @@ class PrivateAttrLookupOuter:
         match x:
             case PyClass(__something=y):
                 return y
+
+
+def match_untyped_frozendict_as_class(v):
+    """
+    >>> match_untyped_frozendict_as_class(frozendict())
+    frozendict()
+    >>> match_untyped_frozendict_as_class("not a frozendict")
+    """
+    match v:
+        case frozendict(d):
+            return d
+
+def match_frozendict_as_class(v: frozendict):
+    """
+    >>> match_frozendict_as_class(frozendict())
+    frozendict()
+    """
+    match v:
+        case frozendict(d):
+            return d
+
+def match_optional_frozendict_as_class(v: frozendict | None):
+    """
+    >>> match_optional_frozendict_as_class(frozendict())
+    frozendict()
+    >>> match_optional_frozendict_as_class(None)
+    'unmatched'
+    """
+    match v:
+        case frozendict(d):
+            return d
+        case _:
+            return "unmatched"
