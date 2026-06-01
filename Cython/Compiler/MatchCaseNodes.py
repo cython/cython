@@ -1128,8 +1128,8 @@ class MatchMappingPatternNode(PatternNode):
                 utility_code=utility_code,
                 args=[
                     MappingComparisonNode.make_keys_node(self.pos),
-                    ExprNodes.IntNode(self.pos, value=str(n_fixed_keys)),
-                    ExprNodes.IntNode(self.pos, value=str(len(self.keys)))
+                    ExprNodes.IntNode.for_size(self.pos, n_fixed_keys),
+                    ExprNodes.IntNode.for_size(self.pos, len(self.keys)),
                 ],
             ),
         )
@@ -1139,12 +1139,13 @@ class MatchMappingPatternNode(PatternNode):
         # Current implementation is a function that's loosely copied from CPython.
         # For small numbers of keys it might be better to generate the code instead.
         # There's three versions depending on if we know that the type is exactly
-        # a dict, definitely not or dict, or unknown.
+        # a dict, definitely not a dict, or unknown.
         # The advantages of generating a function are:
         # * more compact code
+        # * can potentially be extracted into the shared utility module
         # * easier to check the type once then branch the implementation
         # * faster in the cases that are more likely to fail due to wrong keys being
-        # present than due to the values not matching the patterns
+        #    present than due to the values not matching the patterns
         if not self.keys:
             return ExprNodes.BoolNode(self.pos, value=True)
 
@@ -1167,10 +1168,7 @@ class MatchMappingPatternNode(PatternNode):
             args=[
                 subject_node,
                 MappingComparisonNode.make_keys_node(self.pos),
-                ExprNodes.IntNode(
-                    self.pos,
-                    value=str(len(self.keys))
-                ),
+                ExprNodes.IntNode.for_size(self.pos, len(self.keys)),
                 MappingComparisonNode.make_subjects_node(self.pos),
             ],
         )
@@ -1197,7 +1195,7 @@ class MatchMappingPatternNode(PatternNode):
             args=[
                 subject_node,
                 MappingComparisonNode.make_keys_node(self.pos),
-                ExprNodes.IntNode(self.pos, value=str(len(self.keys)))
+                ExprNodes.IntNode.for_size(self.pos, len(self.keys)),
             ],
         )
         assignment = Nodes.SingleAssignmentNode(
@@ -1237,27 +1235,23 @@ class MatchMappingPatternNode(PatternNode):
             assert subject
             all_tests.append(pattern.get_comparison_node(subject))
 
-        all_tests = generate_binop_tree_from_list(self.pos, "and", all_tests)
-
-        test_result = UtilNodes.ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
+        body = all_tests_node = generate_binop_tree_from_list(self.pos, "and", all_tests)
         duplicate_check = self.make_duplicate_keys_check(n_literal_keys)
-        body = Nodes.StatListNode(
-            self.pos,
-            stats=([duplicate_check] if duplicate_check else []) + [
-                Nodes.SingleAssignmentNode(self.pos, lhs=test_result, rhs=all_tests),
-            ],
-        )
-        if self.double_star_capture_target:
-            assert self.double_star_temp
-            body.stats.append(
-                # make_double_star_capture wraps itself in an if
-                self.make_double_star_capture(subject_node, test_result)
-            )
 
         if duplicate_check or self.double_star_capture_target:
-            body = UtilNodes.TempResultFromStatNode(test_result, body)
-        else:
-            body = all_tests
+            stats = []
+            if duplicate_check:
+                stats.append(duplicate_check)
+            test_result = UtilNodes.ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
+            stats.append(
+                Nodes.SingleAssignmentNode(self.pos, lhs=test_result, rhs=all_tests_node))
+            if self.double_star_capture_target:
+                assert self.double_star_temp
+                stats.append(
+                    # make_double_star_capture wraps itself in an if
+                    self.make_double_star_capture(subject_node, test_result)
+                )
+            body = UtilNodes.TempResultFromStatNode(test_result, Nodes.StatListNode(self.pos, stats=stats))
         if self.keys or self.double_star_capture_target:
             body = MappingComparisonNode(
                 body.pos,
@@ -1269,10 +1263,7 @@ class MatchMappingPatternNode(PatternNode):
 
     def analyse_pattern_expressions(self, env, sequence_mapping_temp):
         def to_temp_or_literal(node):
-            if node.is_literal:
-                return node
-            else:
-                return node.coerce_to_temp(env)
+            return node if node.is_literal else node.coerce_to_temp(env)
 
         self.keys = [
             to_temp_or_literal(k.analyse_expressions(env))

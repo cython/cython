@@ -4628,8 +4628,8 @@ def p_mapping_pattern(s: PyrexScanner):
 
     double_star_capture_target = None
     items_patterns = []
-    double_star_set_twice = None
-    pattern_after_double_star = None
+    double_star_set_twice_pos = None
+    pattern_after_double_star_pos = None
     star_star_arg_pos = None
     while s.sy != '}':
         if double_star_capture_target and not star_star_arg_pos:
