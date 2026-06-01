@@ -503,15 +503,8 @@ static int __Pyx_MatchCase_CheckMappingDuplicateKeys(PyObject *keys[], Py_ssize_
     return 0;
  
     raise_error:
-    #if PY_MAJOR_VERSION > 2
     PyErr_Format(PyExc_ValueError,
                  "mapping pattern checks duplicate key (%R)", key);
-    #else
-    // DW really can't be bothered working around features that don't exist in
-    // Python 2, so just provide less information!
-    PyErr_SetString(PyExc_ValueError,
-                    "mapping pattern checks duplicate key");
-    #endif
     bad:
     Py_DECREF(var_keys_set);
     return -1;
@@ -790,14 +783,8 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(const char *tp_name, PyObjec
     return 0;
 
     raise_error:
-    #if PY_MAJOR_VERSION > 2
     PyErr_Format(PyExc_TypeError, "%s() got multiple sub-patterns for attribute %R",
                     tp_name, attr);
-    #else
-    // DW has no interest in working around the lack of %R in Python 2.7
-    PyErr_Format(PyExc_TypeError, "%s() got multiple sub-patterns for attribute",
-                    tp_name);
-    #endif
     bad:
     Py_DECREF(attrs_set);
     return -1;
@@ -830,9 +817,6 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
                                 // long should capture bool too
                                 (Py_TPFLAGS_LONG_SUBCLASS | Py_TPFLAGS_LIST_SUBCLASS | Py_TPFLAGS_TUPLE_SUBCLASS |
                                  Py_TPFLAGS_BYTES_SUBCLASS | Py_TPFLAGS_UNICODE_SUBCLASS | Py_TPFLAGS_DICT_SUBCLASS
-                                 #if PY_MAJOR_VERSION < 3
-                                 | Py_TPFLAGS_IN_SUBCLASS
-                                 #endif
                                 )) ||
                               PyType_IsSubtype(type, &PyByteArray_Type) ||
                               PyType_IsSubtype(type, &PyFloat_Type) ||
@@ -923,13 +907,6 @@ static PyTypeObject* __Pyx_MatchCase_IsType(PyObject* type); /* proto */
 //////////////////////// MatchClassIsType /////////////////////////////
 
 static PyTypeObject* __Pyx_MatchCase_IsType(PyObject* type) {
-    #if PY_MAJOR_VERSION < 3
-    if (PyClass_Check(type)) {
-        // I don't really think it's worth the effort getting this to work!
-        PyErr_Format(PyExc_TypeError, "called match pattern must be a new-style class.");
-        return NULL;
-    }
-    #endif
     if (!PyType_Check(type)) {
         PyErr_Format(PyExc_TypeError, "called match pattern must be a type");
         return NULL;
