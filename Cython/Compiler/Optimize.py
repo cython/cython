@@ -1881,9 +1881,18 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         owner_same_module = owner_scope is current_module
 
         if not owner_same_module:
-            # Cross-module direct C calls need extern declarations we don't
-            # generate here. Fall back to Python MRO dispatch via super().
-            return node
+            # Cross-module: the target C function is `static` in its own module
+            # and cannot be called directly. Dispatch through the base type's
+            # exported vtable pointer (imported via __Pyx_GetVtable), mirroring
+            # the cross-module path in _handle_simple_base_property_access.
+            base_entry = base_type.scope.lookup(function.attribute)
+            if not (base_type.vtabptr_cname and base_entry and base_entry.cname and base_entry.type):
+                return node
+            vtable_call = "%s->%s" % (base_type.vtabptr_cname, base_entry.cname)
+            func_node = ExprNodes.RawCNameExprNode(
+                node.pos, type=base_entry.type, cname=vtable_call)
+            return ExprNodes.SimpleCallNode.from_node(
+                node, function=func_node, args=new_args)
 
         func_node = ExprNodes.RawCNameExprNode(
             node.pos, type=resolved_fn.type, cname=origin)
