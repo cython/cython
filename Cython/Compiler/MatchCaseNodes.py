@@ -1558,7 +1558,6 @@ class ClassPatternNode(PatternNode):
             subjects_array=self.positional_subject_temps,
             keys_array=keynames,
         )
-        return 
 
     def make_subpattern_checks(self):
         patterns = self.keyword_pattern_patterns + self.positional_patterns
@@ -1576,7 +1575,7 @@ class ClassPatternNode(PatternNode):
             class_node = self.class_.clone_node()
             class_node.entry = self.class_known_type.entry
         else:
-            if not self.class_.type is Builtin.type_type:
+            if self.class_.type is not Builtin.type_type:
                 util_code = UtilityCode.load_cached("MatchClassIsType", "MatchCase.c")
                 class_node = ExprNodes.PythonCapiCallNode(
                     self.pos,
@@ -1604,7 +1603,6 @@ class ClassPatternNode(PatternNode):
             all_checks.append(self.make_keyword_pattern_lookups())
 
         all_checks.extend(self.make_subpattern_checks())
-        
 
         if any(isinstance(ch, ExprNodes.BoolNode) and not ch.value for ch in all_checks):
             # handle any obvious failures
@@ -2005,7 +2003,7 @@ def generate_binop_tree_from_list(pos, operator, list_of_tests):
 
 class MappingOrClassComparisonNode(ExprNodes.ExprNode):
     """
-    Combined with MappingOrClassComparisonNodeInner this is responsible 
+    Combined with MappingOrClassComparisonNodeInner this is responsible
     for setting up up the arrays of subjects and keys that are used in
     the function calls that handle these types of patterns
 
