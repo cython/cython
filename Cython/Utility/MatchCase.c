@@ -503,7 +503,6 @@ static int __Pyx_MatchCase_CheckMappingDuplicateKeys(PyObject *keys[], Py_ssize_
     }
     Py_DECREF(var_keys_set);
     return 0;
- 
     raise_error:
     PyErr_Format(PyExc_ValueError,
                  "mapping pattern checks duplicate key (%R)", key);
