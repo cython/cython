@@ -1149,7 +1149,7 @@ class MatchMappingPatternNode(PatternNode):
             return ExprNodes.BoolNode(self.pos, value=True)
 
         is_dict = self.is_dict_type_check(subject_node.type)
-        if is_dict is self.DictCheckResult.ExactDict or is_dict == self.DictCheckResult.ExactFrozenDict:
+        if is_dict is self.DictCheckResult.ExactDict or is_dict is self.DictCheckResult.ExactFrozenDict:
             util_code = UtilityCode.load_cached("ExtractExactDict", "MatchCase.c")
             func_name = "__Pyx_MatchCase_Mapping_ExtractDict"
         elif is_dict is self.DictCheckResult.MightBeAnAnyDict:
