@@ -145,3 +145,61 @@ def use_inherited_method_ref():
     sub: RefSub = RefSub()
     callback = sub.make_value   # inherited cpdef method taken as a value
     return callback
+
+
+@cclass
+class IThing:
+    @property
+    def total(self) -> int:
+        raise NotImplementedError()
+
+    @property
+    def items(self) -> object:
+        raise NotImplementedError()
+
+
+@cclass
+class Thing(IThing):
+    _values: list
+
+    def __init__(self, values) -> None:
+        self._values = list(values)
+
+    @property
+    def total(self) -> int:
+        # closure (generator EXPRESSION) -- not a generator getter; must still
+        # become a cproperty C getter and fill the inherited vtable slot.
+        return sum(v for v in self._values)
+
+    @property
+    def items(self) -> object:
+        # generator getter (`yield`) -- cannot be a C getter; stays a Python
+        # getter and must NOT crash.
+        for v in self._values:
+            yield v
+
+
+def use_closure_property_override():
+    """
+    A closure (genexpr) property getter overriding an abstract cproperty must
+    fill the vtable slot, so a statically-typed *base* access dispatches to the
+    override -- not the abstract base getter (which would raise NotImplementedError,
+    swallowed as "Exception ignored in: 'IThing.total.__get__'").
+
+    >>> use_closure_property_override()
+    6
+    """
+    base: IThing = Thing([1, 2, 3])
+    return base.total   # typed-base access -> vtable dispatch -> Thing.total
+
+
+def use_generator_property_getter():
+    """
+    A generator property getter (`yield`) stays a Python getter and must work
+    (it cannot be a plain C getter; converting one used to crash).
+
+    >>> list(use_generator_property_getter())
+    [1, 2, 3]
+    """
+    t: Thing = Thing([1, 2, 3])
+    return t.items

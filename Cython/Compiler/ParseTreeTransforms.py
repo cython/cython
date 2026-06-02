@@ -1967,8 +1967,23 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             return node
 
         # Check if this DefNode is compatible with cdef conversion
-        # (excluding the property check since we're handling property specially)
-        if node.needs_closure:
+        # (excluding the property check since we're handling property specially).
+        #
+        # A *generator* getter (the body uses `yield`) cannot be a plain C
+        # getter — it must build a generator object via the generator machinery —
+        # so leave it as a Python getter.
+        #
+        # A non-generator closure (a generator *expression* / comprehension /
+        # lambda *inside* the body, with no `yield` in the getter itself) IS
+        # allowed: Cython compiles such closures inside cdef/cpdef functions, and
+        # the resulting C getter fills the type's vtable slot. Previously these
+        # were excluded too (via a blanket `needs_closure` check), so they stayed
+        # Python-only getters that could NOT override an inherited cproperty's
+        # vtable slot: a statically typed base access (`x: IOrder;
+        # x.is_fulfilled`, where `Order.is_fulfilled` is `all(... for ...)`)
+        # dispatched to the *base* (often abstract) getter -> `NotImplementedError`
+        # swallowed as "Exception ignored in: 'IOrder.is_fulfilled.__get__'".
+        if node.is_generator:
             return node
         if node.star_arg or node.starstar_arg:
             return node
