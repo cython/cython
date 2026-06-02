@@ -786,13 +786,13 @@ class MatchSequencePatternNode(PatternNode):
                 return True
             if type.is_memoryviewslice or type.is_ctuple:
                 return True
-            if type in [
-                Builtin.bytes_type,
-                Builtin.unicode_type,
-                Builtin.bytearray_type,
-                Builtin.dict_type,
-                Builtin.set_type,
-            ]:
+            if (
+                type.is_pybytes_type or
+                type.is_pystr_type or
+                type.is_pybytearray_type or
+                type.is_pyanydict_type or
+                type.is_pyanyset_type
+            ):
                 # non-exhaustive list at this stage, but returning "False" is
                 # an optimization so it's allowed to be non-exchaustive
                 return False

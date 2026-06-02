@@ -849,9 +849,8 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
         }
     } else if (!match_args && match_self == -1) {
         // Mysteriously, this private flag seems to have ended up defined in the Limited API
-        #if defined(_Py_TPFLAGS_MATCH_SELF) && !(CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000)
-        match_self = PyType_HasFeature(type,
-                                    _Py_TPFLAGS_MATCH_SELF);
+        #if defined(_Py_TPFLAGS_MATCH_SELF) && !CYTHON_COMPILING_IN_PYPY && !(CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000)
+        match_self = PyType_HasFeature(type, _Py_TPFLAGS_MATCH_SELF);
         #else
         // probably an earlier version of Python. Go off the known list in the specification
         match_self = ((PyType_GetFlags(type) &
@@ -861,8 +860,10 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
                         )) ||
                         PyType_IsSubtype(type, &PyByteArray_Type) ||
                         PyType_IsSubtype(type, &PyFloat_Type) ||
-                        PyType_IsSubtype(type, &PyFrozenSet_Type) ||
-                        PyType_IsSubtype(type, __Pyx_PyFrozenDict_TypePtr)
+                        PyType_IsSubtype(type, &PyFrozenSet_Type)
+        #if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX >= 0x030F0000
+                        || PyType_IsSubtype(type, __Pyx_PyFrozenDict_TypePtr)
+        #endif
                         );
         #endif
     }
