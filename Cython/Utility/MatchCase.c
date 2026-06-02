@@ -1,11 +1,12 @@
 ///////////////////////////// ABCCheck //////////////////////////////
+//@requires: Builtins.c::PyFrozenDict
 
-#if PY_VERSION_HEX < 0x030A0000
+#if PY_VERSION_HEX < 0x030A0000 || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
 static CYTHON_INLINE int __Pyx_MatchCase_IsExactSequence(PyObject *o) {
-    // is one of the small list of builtin types known to be a sequence
+    // Is one of the small list of builtin types known to be a sequence.
     if (PyList_CheckExact(o) || PyTuple_CheckExact(o) ||
-            PyType_CheckExact(o, PyRange_Type) || PyType_CheckExact(o, PyMemoryView_Type)) {
-        // Use exact type match for these checks. I in the event of inheritence we need to make sure
+            Py_IS_TYPE(o, &PyRange_Type) || Py_IS_TYPE(o, &PyMemoryView_Type)) {
+        // Use exact type match for these checks. In in the event of inheritance we need to make sure
         // that it isn't a mapping too
         return 1;
     }
@@ -13,29 +14,27 @@ static CYTHON_INLINE int __Pyx_MatchCase_IsExactSequence(PyObject *o) {
 }
 
 static CYTHON_INLINE int __Pyx_MatchCase_IsExactMapping(PyObject *o) {
-    // Py_Dict is the only regularly used mapping type
+    // dict and frozendict are the only regularly used mapping type.
     // "types.MappingProxyType" also exists but is correctly covered by
-    // the isinstance(o, Mapping) check
-    return PyDict_CheckExact(o);
+    // the isinstance(o, Mapping) check.
+    return __Pyx_PyAnyDict_CheckExact(o);
 }
 
 static int __Pyx_MatchCase_IsExactNeitherSequenceNorMapping(PyObject *o) {
-    if (PyType_GetFlags(Py_TYPE(o)) & (Py_TPFLAGS_BYTES_SUBCLASS | Py_TPFLAGS_UNICODE_SUBCLASS)) ||
-            PyByteArray_Check(o)) {
-        return 1;  // these types are deliberately excluded from the sequence test
-            // even though they look like sequences for most other purposes.
-            // Leave them as inexact checks since they do pass
-            // "isinstance(o, collections.abc.Sequence)" so it's very hard to
-            // reason about their subclasses
-    }
-    if (o == Py_None || PyLong_CheckExact(o) || PyFloat_CheckExact(o)) {
+    if (PyByteArray_Check(o) || PyBytes_Check(o) || PyUnicode_Check(o)) {
+        // These types are deliberately excluded from the sequence test
+        // even though they look like sequences for most other purposes.
+        // Leaving them as inexact checks since they do pass
+        // "isinstance(o, collections.abc.Sequence)" so it's very hard to
+        // reason about their subclasses.
         return 1;
     }
-    #if PY_MAJOR_VERSION < 3
-    if (PyInt_CheckExact(o)) {
+    // No-exhaustive list of other common builtin types as an optimization.
+    if (o == Py_None || PyLong_CheckExact(o) || PyFloat_CheckExact(o) ||
+        Py_TYPE(o) == &PyBool_Type || Py_TYPE(o) == &PySlice_Type ||
+        PyAnySet_CheckExact(o) || PyComplex_CheckExact(o)) {
         return 1;
     }
-    #endif
 
     return 0;
 }
@@ -47,108 +46,96 @@ static int __Pyx_MatchCase_IsExactNeitherSequenceNorMapping(PyObject *o) {
 // The bits of it in order are:
 //  0. definitely a sequence
 //  1. definitely a mapping
-//     - note that both of the above and be true when
+//     - note that both of the above can be true when
 //        the type is registered with both abc types (not via inheritance)
 //       and in this case we return true for both IsSequence or IsMapping
 //       (which seems like the best handling of an ambiguous situation)
 //  2. definitely not a sequence
 //  3. definitely not a mapping
 
-#if PY_VERSION_HEX < 0x030A0000
 #define __PYX_DEFINITELY_SEQUENCE_FLAG 1U
 #define __PYX_DEFINITELY_MAPPING_FLAG (1U<<1)
 #define __PYX_DEFINITELY_NOT_SEQUENCE_FLAG (1U<<2)
 #define __PYX_DEFINITELY_NOT_MAPPING_FLAG (1U<<3)
 #define __PYX_SEQUENCE_MAPPING_ERROR (1U<<4)  // only used by the ABCCheck function
-#endif
 
-static int __Pyx_MatchCase_InitAndIsInstanceAbc(PyObject *o, PyObject *abc_module,
-                                                PyObject **abc_type, PyObject *name) {
-    assert(!abc_type);
-    abc_type = PyObject_GetAttr(abc_module, name);
-    if (!abc_type) {
-        return -1;
-    }
-    return PyObject_IsInstance(o, abc_type);
+static int __Pyx_MatchCase_InitAbcType(PyObject *abc_module, PyObject **abc_type, PyObject *name) {
+    if (*abc_type) return 0;
+    *abc_type = PyObject_GetAttr(abc_module, name);
+    return *abc_type ? 0 : -1;
 }
 
-// the result is defined using the specification for sequence_mapping_temp
-// (detailed in "is_sequence")
+// The result is defined using the specification for sequence_mapping_temp
+// (detailed in "is_sequence").
 static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, int definitely_not_sequence, int definitely_not_mapping) {
-    // in Python 3.10 objects can have their sequence bit set or their mapping bit set
-    // but not both. Practically this translates to "which type is registered first".
+    // In Python 3.10+, objects can have their sequence bit set or their mapping bit set
+    // but not both. Practically, this translates to "which type is registered first".
     // In Python < 3.10 we can only determine this if they're direct bases (by looking
-    // at the MRO order). If they're registered manually then we can't tell
+    // at the MRO order). If they're registered manually then we can't tell.
 
     PyObject *abc_module=NULL, *sequence_type=NULL, *mapping_type=NULL;
     PyObject *mro;
     int sequence_result=0, mapping_result=0;
     unsigned int result = 0;
 
-    abc_module = PyImport_ImportModule(
-#if PY_VERSION_HEX > 0x03030000
-        "collections.abc"
-#else
-        "collections"
-#endif
-                 );
+    if (sequence_first && definitely_not_sequence) {
+        return __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
+    }
+    if (!sequence_first && definitely_not_mapping) {
+        return __PYX_DEFINITELY_NOT_MAPPING_FLAG;
+    }
+
+    abc_module = PyImport_ImportModule("collections.abc");
     if (!abc_module) {
         return __PYX_SEQUENCE_MAPPING_ERROR;
     }
     if (sequence_first) {
-        if (definitely_not_sequence) {
-            result = __PYX_DEFINITELY_SEQUENCE_FLAG;
-            goto end;
-        }
-        sequence_result = __Pyx_MatchCase_InitAndIsInstanceAbc(o, abc_module, &sequence_type, PYIDENT("Sequence"));
-        if (sequence_result < 0) {
+        if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &sequence_type, PYIDENT("Sequence")) == -1)) {
             result = __PYX_SEQUENCE_MAPPING_ERROR;
             goto end;
-        } else if (sequence_result == 0) {
-            result |= __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
+        }
+        sequence_result = PyObject_IsInstance(o, sequence_type);
+        if (sequence_result <= 0) {
+            result = sequence_result < 0 ? __PYX_SEQUENCE_MAPPING_ERROR : __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
             goto end;
         }
-        // else wait to see what mapping is
+        // else sequence_result==1 but wait to see what mapping is
     }
     if (!definitely_not_mapping) {
-        mapping_result = __Pyx_MatchCase_InitAndIsInstanceAbc(o, abc_module, &mapping_type, PYIDENT("Mapping"));
-        if (mapping_result < 0) {
+        if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &mapping_type, PYIDENT("Mapping")) == -1)) {
             result = __PYX_SEQUENCE_MAPPING_ERROR;
             goto end;
-        } else if (mapping_result == 0) {
-            result |= __PYX_DEFINITELY_NOT_MAPPING_FLAG;
-            if (sequence_first) {
-                assert(sequence_result);
-                result |= __PYX_DEFINITELY_SEQUENCE_FLAG;
-            }
+        }
+        mapping_result = PyObject_IsInstance(o, mapping_type);
+        if (unlikely(mapping_result < 0)) {
+            result = __PYX_SEQUENCE_MAPPING_ERROR;
             goto end;
-        } else /* mapping_result == 1 */ {
-            if (sequence_first && !sequence_result) {
-                result |= __PYX_DEFINITELY_MAPPING_FLAG;
-                goto end;
-            }
+        } else if (mapping_result == 0 && !sequence_first) {
+            result = __PYX_DEFINITELY_NOT_MAPPING_FLAG;
+            goto end;
+        } // else mapping_result == 1
+    }
+    if (!sequence_first && !definitely_not_sequence) {
+        if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &sequence_type, PYIDENT("Sequence")) == -1)) {
+            result = __PYX_SEQUENCE_MAPPING_ERROR;
+            goto end;
+        }
+        sequence_result = PyObject_IsInstance(o, sequence_type);
+        if (unlikely(sequence_result < 0)) {
+            result = __PYX_SEQUENCE_MAPPING_ERROR;
+            goto end;
         }
     }
-    if (!sequence_first) {
-        // here we know mapping_result is true because we'd have returned otherwise
-        assert(mapping_result);
-        if (!definitely_not_sequence) {
-            sequence_result = __Pyx_MatchCase_InitAndIsInstanceAbc(o, abc_module, &sequence_type, PYIDENT("Sequence"));
-        }
-        if (sequence_result < 0) {
-            result = __PYX_SEQUENCE_MAPPING_ERROR;
-            goto end;
-        } else if (sequence_result == 0) {
-            result |= (__PYX_DEFINITELY_NOT_SEQUENCE_FLAG | __PYX_DEFINITELY_MAPPING_FLAG);
-            goto end;
-        } /* else sequence_result == 1, continue to check both */
+    result |= (sequence_result ? __PYX_DEFINITELY_SEQUENCE_FLAG : __PYX_DEFINITELY_NOT_SEQUENCE_FLAG);
+    result |= (mapping_result ? __PYX_DEFINITELY_MAPPING_FLAG : __PYX_DEFINITELY_NOT_MAPPING_FLAG);
+    if (result != (__PYX_DEFINITELY_SEQUENCE_FLAG | __PYX_DEFINITELY_MAPPING_FLAG)) {
+        goto end;
     }
 
     // It's an instance of both types. Look up the MRO order.
     // In event of failure treat it as "could be either"
-    result = __PYX_DEFINITELY_SEQUENCE_FLAG | __PYX_DEFINITELY_MAPPING_FLAG;
     mro = PyObject_GetAttrString((PyObject*)Py_TYPE(o), "__mro__");
-    Py_ssize_t i;
+    Py_ssize_t i, mro_size;
     if (!mro) {
         PyErr_Clear();
         goto end;
@@ -157,9 +144,18 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
         Py_DECREF(mro);
         goto end;
     }
-    for (i=1; i < PyTuple_GET_SIZE(mro); ++i) {
+    mro_size = __Pyx_PyTuple_GET_SIZE(mro);
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(mro_size == -1)) {
+        goto loop_error;
+    }
+#endif
+    for (i=1; i < mro_size; ++i) {
         int is_subclass_sequence, is_subclass_mapping;
-        PyObject *mro_item = PyTuple_GET_ITEM(mro, i);
+        PyObject *mro_item = __Pyx_PyTuple_GET_ITEM(mro, i);
+#if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely(!mro_item)) goto loop_error;
+#endif
         is_subclass_sequence = PyObject_IsSubclass(mro_item, sequence_type);
         if (is_subclass_sequence < 0) goto loop_error;
         is_subclass_mapping = PyObject_IsSubclass(mro_item, mapping_type);
@@ -174,11 +170,8 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     }
     // If we get to the end of the loop without breaking then neither type is in
     // the MRO, so they've both been registered manually. We don't know which was
-    // registered first so accept the object as either as a compromise
-    if (0) {
-        loop_error:
-        PyErr_Clear();
-    }
+    // registered first so accept the object as either as a compromise.
+    loop_error_recovery:
     Py_DECREF(mro);
 
     end:
@@ -186,6 +179,10 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     Py_XDECREF(sequence_type);
     Py_XDECREF(mapping_type);
     return result;
+
+    loop_error:
+    PyErr_Clear();
+    goto loop_error_recovery;
 }
 #endif
 
@@ -197,9 +194,23 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
 //@requires: ABCCheck
 
 static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mapping_temp) {
-#if PY_VERSION_HEX >= 0x030A0000
+#if PY_VERSION_HEX >= 0x030A0000 && !(CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY)
     return __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_SEQUENCE);
 #else
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // In the Limited API we have runtime access to Py_TPFLAGS_SEQUENCE
+    // by looking it up on module init so it's still worth attempting
+    // the fast path.
+    if (__Pyx_Runtime_TPFLAGS_SEQUENCE) {
+        return __Pyx_PyType_HasFeature(Py_TYPE(o), __Pyx_Runtime_TPFLAGS_SEQUENCE);
+    }
+#elif defined(Py_TPFLAGS_SEQUENCE)
+    // Elsewhere *we* define Py_TPFLAGS_SEQUENCE but that doesn't necessarily
+    // mean other types use it, so only success is meaningful.
+    if (__Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_SEQUENCE)) {
+        return 1;
+    }
+#endif
     // Py_TPFLAGS_SEQUENCE doesn't exit.
     PyObject *o_module_name;
     unsigned int abc_result, dummy=0;
@@ -213,11 +224,11 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
             return 0;
         }
     } else {
-        // Probably quicker to just assign it and not check from here
+        // Probably quicker to just assign it and not check from here.
         sequence_mapping_temp = &dummy;
     }
 
-    // Start by check a known list of types
+    // Start by checking a known list of types.
     if (__Pyx_MatchCase_IsExactSequence(o)) {
         *sequence_mapping_temp |= (__PYX_DEFINITELY_SEQUENCE_FLAG | __PYX_DEFINITELY_NOT_MAPPING_FLAG);
         return 1;
@@ -246,46 +257,48 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
 
     // array.array is a more complicated check (and unfortunately isn't covered by
     // collections.abc.Sequence on Python <3.10).
-    // Do the test by checking the module name, and then importing/testing the class
+    // Do the test by checking the module name, and then importing/testing the class.
     // It also doesn't give perfect results for classes that inherit from both array.array
-    // and a mapping
-    o_module_name = PyObject_GetAttrString((PyObject*)Py_TYPE(o), "__module__");
-    if (!o_module_name) {
-        return -1;
-    }
-#if PY_MAJOR_VERSION >= 3
-    if (PyUnicode_Check(o_module_name) && PyUnicode_CompareWithASCIIString(o_module_name, "array") == 0)
-#else
-    if (PyBytes_Check(o_module_name) && PyBytes_AS_STRING(o_module_name)[0] == 'a' &&
-        PyBytes_AS_STRING(o_module_name)[1] == 'r' && PyBytes_AS_STRING(o_module_name)[2] == 'r' &&
-        PyBytes_AS_STRING(o_module_name)[3] == 'a' && PyBytes_AS_STRING(o_module_name)[4] == 'y' &&
-        PyBytes_AS_STRING(o_module_name)[5] == '\0')
+    // and a mapping.
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX < 0x030A0000
+#if CYTHON_COMPILING_IN_LIMITED_API
+    if (__Pyx_get_runtime_version() < 0x030A0000)
 #endif
     {
-        int is_array;
-        PyObject *array_module, *array_object;
-        Py_DECREF(o_module_name);
-        array_module = PyImport_ImportModule("array");
-        if (!array_module) {
+        o_module_name = PyObject_GetAttrString((PyObject*)Py_TYPE(o), "__module__");
+        if (!o_module_name) {
+            return -1;
+        }
+        if (PyUnicode_Check(o_module_name) && PyUnicode_CompareWithASCIIString(o_module_name, "array") == 0)
+        {
+            int is_array;
+            PyObject *array_module, *array_object;
+            Py_DECREF(o_module_name);
+            array_module = PyImport_ImportModule("array");
+            if (!array_module) {
+                PyErr_Clear();
+                return 0;  // treat these tests as "soft" and don't cause an exception
+            }
+            array_object = PyObject_GetAttrString(array_module, "array");
+            Py_DECREF(array_module);
+            if (!array_object) {
+                PyErr_Clear();
+                return 0;
+            }
+            is_array = PyObject_IsInstance(o, array_object);
+            Py_DECREF(array_object);
+            if (is_array) {
+                *sequence_mapping_temp |= __PYX_DEFINITELY_SEQUENCE_FLAG;
+                return 1;
+            }
             PyErr_Clear();
-            return 0;  // treat these tests as "soft" and don't cause an exception
+        } else {
+            Py_DECREF(o_module_name);
         }
-        array_object = PyObject_GetAttrString(array_module, "array");
-        Py_DECREF(array_module);
-        if (!array_object) {
-            PyErr_Clear();
-            return 0;
-        }
-        is_array = PyObject_IsInstance(o, array_object);
-        Py_DECREF(array_object);
-        if (is_array) {
-            *sequence_mapping_temp |= __PYX_DEFINITELY_SEQUENCE_FLAG;
-            return 1;
-        }
-        PyErr_Clear();
-    } else {
-        Py_DECREF(o_module_name);
     }
+#else
+    CYTHON_UNUSED_VAR(o_module_name);
+#endif
     *sequence_mapping_temp |= __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
     return 0;
 #endif
@@ -298,33 +311,25 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
 ////////////////////// OtherSequenceSliceToList //////////////////////////
 
 // This is substantially based off ceval unpack_iterable.
-// It's also pretty similar to itertools.islice
-// Indices must be postive - there's no wraparound or boundschecking
+// It's also pretty similar to itertools.islice.
+// Indices must be positive - there's no wraparound or boundschecking.
 
 static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
     int total = end-start;
     int i;
     PyObject *list;
     ssizeargfunc slot;
-    PyTypeObject *type = Py_TYPE(x);
 
     list = PyList_New(total);
     if (!list) {
         return NULL;
     }
 
-#if CYTHON_USE_TYPE_SLOTS || PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
-    slot = type->tp_as_sequence ? type->tp_as_sequence->sq_item : NULL;
-#else
-    if ((PY_VERSION_HEX >= 0x030A0000) || __Pyx_PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
-        // PyType_GetSlot only works on heap types in Python <3.10
-        slot = (ssizeargfunc) PyType_GetSlot(type, Py_sq_item);
-    }
-#endif
+    slot = __Pyx_PyObject_TryGetSubSlot(x, tp_as_sequence, sq_item, ssizeargfunc);
     if (!slot) {
-        #if !defined(Py_LIMITED_API) && !defined(PySequence_ITEM)
-        // PyPy (and maybe others?) implements PySequence_ITEM as a function. In this case
-        // it's slightly more efficient than using PySequence_GetItem since it skips negative indices
+        #if !CYTHON_COMPILING_IN_LIMITED_API && !defined(PySequence_ITEM)
+        // PyPy (and maybe others?) implements PySequence_ITEM as a function. In this case.
+        // it's slightly more efficient than using PySequence_GetItem since it skips negative indices.
         slot = PySequence_ITEM;
         #else
         slot = PySequence_GetItem;
@@ -333,11 +338,10 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
 
     for (i=start; i<end; ++i) {
         PyObject *obj = slot(x, i);
-        if (!obj) {
+        if (unlikely(!obj) || unlikely(__Pyx_PyList_SET_ITEM(list, i-start, obj) == -1)) {
             Py_DECREF(list);
             return NULL;
         }
-        PyList_SET_ITEM(list, i-start, obj);
     }
     return list;
 }
@@ -348,10 +352,9 @@ static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start,
 
 ////////////////////// TupleSliceToList //////////////////////////
 //@requires: OtherSequenceSliceToList
-//@requires: ObjectHandling.c::TupleAndListFromArray
+//@requires: ObjectHandling.c::ListFromArray
 
-// Note that this should also work fine on lists (if needed)
-// Indices must be postive - there's no wraparound or boundschecking
+// Indices must be positive - there's no wraparound or boundschecking.
 
 static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
 #if !CYTHON_COMPILING_IN_CPYTHON
@@ -361,7 +364,7 @@ static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start,
 
     (void)__Pyx_MatchCase_OtherSequenceSliceToList; // clear unused warning
 
-    array = PySequence_Fast_ITEMS(x);
+    array = &PyTuple_GET_ITEM(x, 0);
     return __Pyx_PyList_FromArray(array+start, end-start);
 #endif
 }
@@ -397,9 +400,23 @@ static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping
 //@requires: ABCCheck
 
 static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping_temp) {
-#if PY_VERSION_HEX >= 0x030A0000
+#if PY_VERSION_HEX >= 0x030A0000 && !(CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY)
     return __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_MAPPING);
 #else
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // In the Limited API we have runtime access to Py_TPFLAGS_MAPPING
+    // by looking it up on module init so it's still worth attempting
+    // the fast path.
+    if (__Pyx_Runtime_TPFLAGS_MAPPING) {
+        return __Pyx_PyType_HasFeature(Py_TYPE(o), __Pyx_Runtime_TPFLAGS_MAPPING);
+    }
+#elif defined(Py_TPFLAGS_MAPPING)
+    // Elsewhere *we* define Py_TPFLAGS_SEQUENCE but that doesn't necessarily
+    // mean other types use it, so only success is meaningful.
+    if (__Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_MAPPING)) {
+        return 1;
+    }
+#endif
     unsigned int abc_result, dummy=0;
     if (sequence_mapping_temp) {
         // do we already know the answer?
@@ -486,17 +503,10 @@ static int __Pyx_MatchCase_CheckMappingDuplicateKeys(PyObject *keys[], Py_ssize_
     }
     Py_DECREF(var_keys_set);
     return 0;
- 
+
     raise_error:
-    #if PY_MAJOR_VERSION > 2
     PyErr_Format(PyExc_ValueError,
                  "mapping pattern checks duplicate key (%R)", key);
-    #else
-    // DW really can't be bothered working around features that don't exist in
-    // Python 2, so just provide less information!
-    PyErr_SetString(PyExc_ValueError,
-                    "mapping pattern checks duplicate key");
-    #endif
     bad:
     Py_DECREF(var_keys_set);
     return -1;
@@ -504,10 +514,10 @@ static int __Pyx_MatchCase_CheckMappingDuplicateKeys(PyObject *keys[], Py_ssize_
 
 /////////////////////////// ExtractExactDict.proto ////////////////
 
-// the variadic arguments are a list of PyObject** to subjects to be filled. They may be NULL
+// The subjects array is a list of PyObject** to subjects to be filled. They may be NULL
 // in which case they're ignored.
 //
-// This is a specialized version for when we have an exact dict (which is likely to be pretty common)
+// This is a specialized version for when we have an exact (frozen)dict (which is likely to be pretty common)
 
 #if CYTHON_REFNANNY
 #define __Pyx_MatchCase_Mapping_ExtractDict(...) __Pyx__MatchCase_Mapping_ExtractDict(__pyx_refnanny, __VA_ARGS__)
@@ -520,6 +530,11 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnan
 
 static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnanny, PyObject *dict, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
     Py_ssize_t i;
+    Py_ssize_t size;
+    size = PyDict_Size(dict);
+    if (size < nKeys) {
+        return size == -1 ? -1: 0;
+    }
 
     for (i=0; i<nKeys; ++i) {
         PyObject *key = keys[i];
@@ -527,15 +542,16 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnan
         if (!subject) {
             int contains = PyDict_Contains(dict, key);
             if (contains <= 0) {
-                return -1; // any subjects that were already set will be cleaned up externally
+                return contains; // any subjects that were already set will be cleaned up externally
             }
         } else {
-            PyObject *value = __Pyx_PyDict_GetItemStrWithError(dict, key);
-            if (!value) {
-                return (PyErr_Occurred()) ? -1 : 0;  // any subjects that were already set will be cleaned up externally
+            PyObject *value;
+            int getref_result = __Pyx_PyDict_GetItemRef(dict, key, &value);
+            if (getref_result != 1) {
+                return getref_result;  // any subjects that were already set will be cleaned up externally
             }
+            __Pyx_GOTREF(value);
             __Pyx_XDECREF_SET(*subject, value);
-            __Pyx_INCREF(*subject);  // capture this incref with refnanny!
         }
     }
     return 1;  // success
@@ -543,7 +559,7 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnan
 
 ///////////////////////// ExtractNonDict.proto ////////////////////////////////
 
-// the variadic arguments are a list of PyObject** to subjects to be filled. They may be NULL
+// The subjects array is a list of PyObject** to subjects to be filled. They may be NULL
 // in which case they're ignored.
 //
 // This is a specialized version for the rarer case when the type isn't an exact dict.
@@ -562,17 +578,23 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_ref
 
 static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
     PyObject *dummy=NULL, *get=NULL;
-    Py_ssize_t i;
+    Py_ssize_t i, size;
     int result = 0;
 #if CYTHON_UNPACK_METHODS && CYTHON_VECTORCALL
     PyObject *get_method = NULL, *get_self = NULL;
 #endif
 
+    // Length check is undocumented but does take place in CPython and is probably worthwhile.
+    size = PyObject_Length(mapping);
+    if (size < nKeys) {
+        return size == -1 ? -1: 0;
+    }
+
     dummy = PyObject_CallObject((PyObject *)&PyBaseObject_Type, NULL);
     if (!dummy) {
         return -1;
     }
-    get = PyObject_GetAttrString(mapping, "get");
+    get = PyObject_GetAttr(mapping, PYIDENT("get"));
     if (!get) {
         result = -1;
         goto end;
@@ -596,7 +618,7 @@ static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObjec
 #if CYTHON_UNPACK_METHODS && CYTHON_VECTORCALL
         if (likely(get_method)) {
             PyObject *args[] = { get_self, key, dummy };
-            value = _PyObject_Vectorcall(get_method, args, 3, NULL);
+            value = PyObject_Vectorcall(get_method, args, 3, NULL);
         }
         else
 #endif
@@ -608,7 +630,7 @@ static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObjec
             goto end;
         } else if (value == dummy) {
             Py_DECREF(value);
-            goto end;  // failed
+            goto end;  // failed to match.
         } else {
             subject = subjects[i];
             if (subject) {
@@ -639,9 +661,10 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, 
 ////////////////////// ExtractGeneric //////////////////////////////////////
 //@requires: ExtractExactDict
 //@requires: ExtractNonDict
+//@requires: Builtins.c::PyFrozenDict
 
 static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
-    if (PyDict_CheckExact(mapping)) {
+    if (__Pyx_PyAnyDict_CheckExact(mapping)) {
         return __Pyx_MatchCase_Mapping_ExtractDict(mapping, keys, nKeys, subjects);
     } else {
         return __Pyx_MatchCase_Mapping_ExtractNonDict(mapping, keys, nKeys, subjects);
@@ -653,6 +676,7 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, 
 static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys); /* proto */
 
 //////////////////////////// DoubleStarCapture //////////////////////////////
+//@requires: Builtins.c::PyFrozenDict
 
 // The implementation is largely copied from the original COPY_DICT_WITHOUT_KEYS opcode
 // implementation of CPython
@@ -662,24 +686,27 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyO
 //  1. We use an array of keys rather than a tuple of keys
 //  2. We add a shortcut for when there will be no left over keys (because I guess it's pretty common)
 //
-// Tempita variable 'tag' can be "NonDict", "ExactDict" or empty
+// Tempita variable 'tag' can be "NonDict", "ExactDict", "ExactFrozenDict" or empty
 
 static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys) {
     PyObject *dict_out;
-    Py_ssize_t i;
+    Py_ssize_t i, size;
 
-    {{if tag != "NonDict"}}
     // shortcut for when there are no left-over keys
-    if ({{if tag=="ExactDict"}}(1){{else}}PyDict_CheckExact(mapping){{endif}}) {
-        Py_ssize_t s = PyDict_Size(mapping);
-        if (s == -1) {
-            return NULL;
-        }
-        if (s == nKeys) {
-            return PyDict_New();
-        }
-    }
+    {{if tag=="ExactDict" or tag=="ExactFrozenDict"}}
+    if ((1))
+    {{else}}
+    if (__Pyx_PyAnyDict_CheckExact(mapping))
     {{endif}}
+    {
+        size = PyDict_Size(mapping);
+    } else {
+        size = PyObject_Length(mapping);
+    }
+    if (unlikely(size == -1)) return NULL;
+    if (size == nKeys) {
+        return PyDict_New();
+    }
 
     {{if tag=="ExactDict"}}
     dict_out = PyDict_Copy(mapping);
@@ -714,9 +741,11 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyO
 #endif
 static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, int match_self, PyObject **subjects[], Py_ssize_t n_subjects); /* proto */
 
-/////////////////////////////// ClassPositionalPatterns //////////////////////////////
+/////////////////////////// ClassPositionalPatterns //////////////////////////////
+//@requires: ObjectHandling.c::FormatTypeName
+//@requires: Builtins.c::PyFrozenDict
 
-static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(const char *tp_name, PyObject *fixed_names[], Py_ssize_t n_fixed, PyObject *match_args,  Py_ssize_t num_args) {
+static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(PyTypeObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, PyObject *match_args,  Py_ssize_t num_args) {
     // a lot of the basic logic of this is shared with __Pyx_MatchCase_CheckMappingDuplicateKeys
     // but they take different input types so it isn't easy to actually share the code.
 
@@ -725,15 +754,22 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(const char *tp_name, PyObjec
  
     PyObject *attrs_set;
     PyObject *attr = NULL;
-    Py_ssize_t n;
+    Py_ssize_t n, match_args_size;
     int contains;
 
     attrs_set = PySet_New(NULL);
-    if (!attrs_set) return -1;
+    if (unlikely(!attrs_set)) return -1;
 
-    num_args = PyTuple_GET_SIZE(match_args) < num_args ? PyTuple_GET_SIZE(match_args) : num_args;
+    match_args_size = __Pyx_PyTuple_GET_SIZE(match_args);
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(match_args_size < 0)) return -1;
+#endif
+    num_args = match_args_size < num_args ? match_args_size : num_args;
     for (n=0; n < num_args; ++n) {
-        attr = PyTuple_GET_ITEM(match_args, n);
+        attr = __Pyx_PyTuple_GET_ITEM(match_args, n);
+#if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely(!attr)) goto bad;
+#endif
         contains = PySet_Contains(attrs_set, attr);
         if (contains < 0) {
             goto bad;
@@ -758,14 +794,12 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(const char *tp_name, PyObjec
     return 0;
 
     raise_error:
-    #if PY_MAJOR_VERSION > 2
-    PyErr_Format(PyExc_TypeError, "%s() got multiple sub-patterns for attribute %R",
-                    tp_name, attr);
-    #else
-    // DW has no interest in working around the lack of %R in Python 2.7
-    PyErr_Format(PyExc_TypeError, "%s() got multiple sub-patterns for attribute",
-                    tp_name);
-    #endif
+    {
+        __Pyx_TypeName tp_name = __Pyx_PyType_GetFullyQualifiedName(type);
+        PyErr_Format(PyExc_TypeError, __Pyx_FMT_TYPENAME "() got multiple sub-patterns for attribute %R",
+                        tp_name, attr);
+        __Pyx_DECREF_TypeName(tp_name);
+    }
     bad:
     Py_DECREF(attrs_set);
     return -1;
@@ -776,61 +810,81 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(const char *tp_name, PyObjec
 // The argument match_self can equal 1 for "known to be true"
 //                                   0 for "known to be false"
 //                                  -1 for "unknown", runtime test
-// nargs is >= 0 otherwise this function will be skipped
+// n_subjects is >= 0 otherwise this function will be skipped
 static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, int match_self, PyObject **subjects[], Py_ssize_t n_subjects)
 {
-    PyObject *match_args;
+    PyObject *match_args = NULL;
     Py_ssize_t allowed, i;
     int result;
 
-    match_args = PyObject_GetAttrString((PyObject*)type, "__match_args__");
-    if (!match_args) {
-        if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
-            PyErr_Clear();
-
-            if (match_self == -1) {
-                #if defined(_Py_TPFLAGS_MATCH_SELF)
-                match_self = PyType_HasFeature(type,
-                                            _Py_TPFLAGS_MATCH_SELF);
-                #else
-                // probably an earlier version of Python. Go off the known list in the specification
-                match_self = ((PyType_GetFlags(type) &
-                                // long should capture bool too
-                                (Py_TPFLAGS_LONG_SUBCLASS | Py_TPFLAGS_LIST_SUBCLASS | Py_TPFLAGS_TUPLE_SUBCLASS |
-                                 Py_TPFLAGS_BYTES_SUBCLASS | Py_TPFLAGS_UNICODE_SUBCLASS | Py_TPFLAGS_DICT_SUBCLASS
-                                 #if PY_MAJOR_VERSION < 3
-                                 | Py_TPFLAGS_IN_SUBCLASS
-                                 #endif
-                                )) ||
-                              PyType_IsSubtype(type, &PyByteArray_Type) ||
-                              PyType_IsSubtype(type, &PyFloat_Type) ||
-                              PyType_IsSubtype(type, &PyFrozenSet_Type) ||
-                              );
-                #endif
-            }
-        } else {
+    if (match_self != 1) {
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+        if (PyObject_GetOptionalAttr((PyObject*)type, PYIDENT("__match_args__"), &match_args) == -1) {
             return -1;
         }
-    } else {
+#else
+        match_args = PyObject_GetAttr((PyObject*)type, PYIDENT("__match_args__"));
+        if (!match_args) {
+            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyErr_Clear();
+            } else {
+                return -1;
+            }
+        }
+#endif
+    }
+    if (match_args) {
         match_self = 0;
         if (!PyTuple_CheckExact(match_args)) {
-            PyErr_Format(PyExc_TypeError, "%s.__match_args__ must be a tuple (got %s)",
-                type->tp_name,
-                Py_TYPE(match_args)->tp_name
+            __Pyx_TypeName type_typename = __Pyx_PyType_GetFullyQualifiedName(type);
+            __Pyx_TypeName match_args_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(match_args));
+            PyErr_Format(PyExc_TypeError, __Pyx_FMT_TYPENAME ".__match_args__ must be a tuple (got " __Pyx_FMT_TYPENAME ")",
+                type_typename,
+                match_args_type_name
             );
             Py_DECREF(match_args);
+            __Pyx_DECREF_TypeName(type_typename);
+            __Pyx_DECREF_TypeName(match_args_type_name);
             return -1;
         }
+    } else if (!match_args && match_self == -1) {
+        // Mysteriously, this private flag seems to have ended up defined in the Limited API
+        #if defined(_Py_TPFLAGS_MATCH_SELF) && !(CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000)
+        match_self = PyType_HasFeature(type,
+                                    _Py_TPFLAGS_MATCH_SELF);
+        #else
+        // probably an earlier version of Python. Go off the known list in the specification
+        match_self = ((PyType_GetFlags(type) &
+                        // long should capture bool too
+                        (Py_TPFLAGS_LONG_SUBCLASS | Py_TPFLAGS_LIST_SUBCLASS | Py_TPFLAGS_TUPLE_SUBCLASS |
+                            Py_TPFLAGS_BYTES_SUBCLASS | Py_TPFLAGS_UNICODE_SUBCLASS | Py_TPFLAGS_DICT_SUBCLASS
+                        )) ||
+                        PyType_IsSubtype(type, &PyByteArray_Type) ||
+                        PyType_IsSubtype(type, &PyFloat_Type) ||
+                        PyType_IsSubtype(type, &PyFrozenSet_Type) ||
+                        PyType_IsSubtype(type, __Pyx_PyFrozenDict_TypePtr)
+                        );
+        #endif
     }
 
-    allowed = match_self ?
-        1 : (match_args ? PyTuple_GET_SIZE(match_args) : 0);
+    if (match_self) {
+        allowed = 1;
+    } else if (match_args) {
+        allowed = __Pyx_PyTuple_GET_SIZE(match_args);
+#if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(allowed < 0)) goto end;
+#endif
+    } else {
+        allowed = 0;
+    }
     if (allowed < n_subjects) {
         const char *plural = (allowed == 1) ? "" : "s";
+        __Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(type);
         PyErr_Format(PyExc_TypeError,
-                     "%s() accepts %d positional sub-pattern%s (%d given)",
-                     type->tp_name,
+                     __Pyx_FMT_TYPENAME "() accepts %d positional sub-pattern%s (%d given)",
+                     type_name,
                      allowed, plural, n_subjects);
+        __Pyx_DECREF_TypeName(type_name);
         Py_XDECREF(match_args);
         return -1;
     }
@@ -845,7 +899,7 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
         goto end_match_self;
     }
     // next stage is to check for duplicate attributes.
-    if (__Pyx_MatchCase_ClassCheckDuplicateAttrs(type->tp_name, fixed_names, n_fixed, match_args, n_subjects)) {
+    if (__Pyx_MatchCase_ClassCheckDuplicateAttrs(type, fixed_names, n_fixed, match_args, n_subjects)) {
         result = -1;
         goto end;
     }
@@ -853,11 +907,19 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
     for (i = 0; i < n_subjects; i++) {
         PyObject *attr;
         PyObject **subject_i;
-        PyObject *name = PyTuple_GET_ITEM(match_args, i);
+        PyObject *name = __Pyx_PyTuple_GET_ITEM(match_args, i);
+#if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely(!name)) {
+            result = -1;
+            goto end;
+        } 
+#endif
         if (!PyUnicode_CheckExact(name)) {
+            __Pyx_TypeName name_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(name));    
             PyErr_Format(PyExc_TypeError,
                          "__match_args__ elements must be strings "
-                         "(got %s)", Py_TYPE(name)->tp_name);
+                         "(got " __Pyx_FMT_TYPENAME ")", name_type_name);
+            __Pyx_DECREF_TypeName(name_type_name);
             result = -1;
             goto end;
         }
@@ -891,13 +953,6 @@ static PyTypeObject* __Pyx_MatchCase_IsType(PyObject* type); /* proto */
 //////////////////////// MatchClassIsType /////////////////////////////
 
 static PyTypeObject* __Pyx_MatchCase_IsType(PyObject* type) {
-    #if PY_MAJOR_VERSION < 3
-    if (PyClass_Check(type)) {
-        // I don't really think it's worth the effort getting this to work!
-        PyErr_Format(PyExc_TypeError, "called match pattern must be a new-style class.");
-        return NULL;
-    }
-    #endif
     if (!PyType_Check(type)) {
         PyErr_Format(PyExc_TypeError, "called match pattern must be a type");
         return NULL;

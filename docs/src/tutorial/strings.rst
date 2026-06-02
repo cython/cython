@@ -1,7 +1,12 @@
 .. highlight:: cython
 
+.. _string_tutorial:
+
 Unicode and passing strings
 ===========================
+
+.. include::
+    ../two-syntax-variants-used
 
 Similar to the string semantics in Python 3, Cython strictly separates
 byte strings and unicode strings.  Above all, this means that by default
@@ -70,8 +75,8 @@ Cython understands all Python string type prefixes:
   :PEP:`498` (added in Cython 0.24)
 
 Unprefixed string literals become :obj:`str` objects when compiling
-with language level 2 and :obj:`unicode` objects (i.e. Python 3
-:obj:`str`) with language level 3.
+with language level 2 and :obj:`str` objects
+(i.e. :obj:`unicode`) with language level 3.
 
 
 General notes about C strings
@@ -107,31 +112,59 @@ within a well defined context.
 Passing byte strings
 --------------------
 
-we have dummy C functions declared in
-a file called :file:`c_func.pyx` that we are going to reuse throughout this tutorial:
+We have dummy C functions declared that we are going to reuse throughout this tutorial:
 
-.. literalinclude:: ../../examples/tutorial/string/c_func.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/c_func.py
+            :caption: c_func.py
+
+        .. include::
+            ../cimport-warning
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/c_func.pyx
+            :caption: c_func.pyx
+
 
 We make a corresponding :file:`c_func.pxd` to be able to cimport those functions:
 
 .. literalinclude:: ../../examples/tutorial/string/c_func.pxd
+    :caption: c_func.pxd
 
 It is very easy to pass byte strings between C code and Python.
 When receiving a byte string from a C library, you can let Cython
 convert it into a Python byte string by simply assigning it to a
-Python variable::
+Python variable:
 
-    from c_func cimport c_call_returning_a_c_string
 
-    cdef char* c_string = c_call_returning_a_c_string()
-    if c_string is NULL:
-        ...  # handle error
+.. tabs::
+    .. group-tab:: Pure Python
 
-    cdef bytes py_string = c_string
+        .. literalinclude:: ../../examples/tutorial/string/c_string_to_str.py
 
-A type cast to :obj:`object` or :obj:`bytes` will do the same thing::
+    .. group-tab:: Cython
 
-    py_string = <bytes> c_string
+        .. literalinclude:: ../../examples/tutorial/string/c_string_to_str.pyx
+
+A type cast to :obj:`object` or :obj:`bytes` will do the same thing:
+
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            py_string = cython.cast(bytes, c_string)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            py_string = <bytes> c_string
 
 This creates a Python byte string object that holds a copy of the
 original C string.  It can be safely passed around in Python code, and
@@ -149,7 +182,16 @@ length already, e.g. because a C function returned it.  In this case,
 it is much more efficient to tell Cython the exact number of bytes by
 slicing the C string. Here is an example:
 
-.. literalinclude:: ../../examples/tutorial/string/slicing_c_string.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/slicing_c_string.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/slicing_c_string.pyx
+
 
 Here, no additional byte counting is required and ``length`` bytes from
 the ``c_string`` will be copied into the Python bytes object, including
@@ -162,18 +204,36 @@ exception, e.g. due to insufficient memory.  If you need to
 :c:func:`free()` the string after the conversion, you should wrap
 the assignment in a try-finally construct:
 
-.. literalinclude:: ../../examples/tutorial/string/try_finally.pyx
+.. tabs::
+    .. group-tab:: Pure Python
 
-To convert the byte string back into a C :c:type:`char*`, use the
-opposite assignment::
+        .. literalinclude:: ../../examples/tutorial/string/try_finally.py
 
-    cdef char* other_c_string = py_string  # other_c_string is a 0-terminated string.
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/try_finally.pyx
+
+To convert the byte string back into a C :c:expr:`char*`, use the
+opposite assignment:
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            other_c_string = cython.declare(cython.p_char, py_string)  # other_c_string is a 0-terminated string.
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef char* other_c_string = py_string  # other_c_string is a 0-terminated string.
 
 This is a very fast operation after which ``other_c_string`` points to
 the byte string buffer of the Python string itself.  It is tied to the
 life time of the Python string.  When the Python string is garbage
 collected, the pointer becomes invalid.  It is therefore important to
-keep a reference to the Python string as long as the :c:type:`char*`
+keep a reference to the Python string as long as the :c:expr:`char*`
 is in use.  Often enough, this only spans the call to a C function that
 receives the pointer as parameter.  Special care must be taken,
 however, when the C function stores the pointer for later use.  Apart
@@ -205,7 +265,14 @@ of byte containers, e.g. :obj:`bytearray` objects or memory views.
 Depending on how (and where) the data is being processed, it may be a
 good idea to instead receive a 1-dimensional memory view, e.g.
 
-.. literalinclude:: ../../examples/tutorial/string/arg_memview.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/arg_memview.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/arg_memview.pyx
 
 Cython's memory views are described in more detail in
 :doc:`../userguide/memoryviews`, but the above example already shows
@@ -221,7 +288,16 @@ general idea here is to be liberal with input by accepting any kind of
 byte buffer, but strict with output by returning a simple, well adapted
 object.  This can simply be done as follows:
 
-.. literalinclude:: ../../examples/tutorial/string/return_memview.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/return_memview.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/return_memview.pyx
+
 
 For read-only buffers, like :obj:`bytes`, the memoryview item type should
 be declared as ``const`` (see :ref:`readonly_views`). If the byte input is
@@ -236,17 +312,48 @@ allows for easy adaptation of the input normalisation process later.
 This kind of input normalisation function will commonly look similar to
 the following:
 
-.. literalinclude:: ../../examples/tutorial/string/to_unicode.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/to_unicode.py
+            :caption: to_unicode.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/to_unicode.pyx
+            :caption: to_unicode.pyx
+
+.. literalinclude:: ../../examples/tutorial/string/to_unicode.pxd
+    :caption: to_unicode.pxd
 
 And should then be used like this:
 
-.. literalinclude:: ../../examples/tutorial/string/api_func.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/api_func.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/api_func.pyx
+
 
 Similarly, if the further processing happens at the byte level, but Unicode
 string input should be accepted, then the following might work, if you are
 using memory views:
 
-.. literalinclude:: ../../examples/tutorial/string/to_char.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/to_char.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/to_char.pyx
+
 
 In this case, you might want to additionally ensure that byte string
 input really uses the correct encoding, e.g. if you require pure ASCII
@@ -263,6 +370,8 @@ that they will not modify a string, or to require that users must
 not modify a string they return, for example:
 
 .. literalinclude:: ../../examples/tutorial/string/someheader.h
+   :caption: someheader.h
+   :language: c
 
 Cython has support for the ``const`` modifier in
 the language, so you can declare the above functions straight away as
@@ -288,11 +397,29 @@ With a Python byte string object, you would normally just call the
 Cython allows you to do the same for a C string, as long as it
 contains no null bytes:
 
-.. literalinclude:: ../../examples/tutorial/string/naive_decode.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/naive_decode.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/naive_decode.pyx
+
 
 And, more efficiently, for strings where the length is known:
 
-.. literalinclude:: ../../examples/tutorial/string/decode.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/decode.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/decode.pyx
+
 
 The same should be used when the string contains null bytes, e.g. when
 it uses an encoding like UCS-4, where each character is encoded in four
@@ -312,7 +439,16 @@ conversions in general) in dedicated functions, as this needs to be
 done in exactly the same way whenever receiving text from C.  This
 could look as follows:
 
-.. literalinclude:: ../../examples/tutorial/string/utf_eight.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/utf_eight.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/utf_eight.pyx
+
 
 Most likely, you will prefer shorter function names in your code based
 on the kind of string being handled.  Different types of content often
@@ -324,18 +460,46 @@ Encoding text to bytes
 ----------------------
 
 The reverse way, converting a Python unicode string to a C
-:c:type:`char*`, is pretty efficient by itself, assuming that what
-you actually want is a memory managed byte string::
+:c:expr:`char*`, is pretty efficient by itself, assuming that what
+you actually want is a memory managed byte string:
 
-    py_byte_string = py_unicode_string.encode('UTF-8')
-    cdef char* c_string = py_byte_string
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            py_byte_string = py_unicode_string.encode('UTF-8')
+            c_string = cython.declare(cython.p_char, py_byte_string)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            py_byte_string = py_unicode_string.encode('UTF-8')
+            cdef char* c_string = py_byte_string
+
 
 As noted before, this takes the pointer to the byte buffer of the
 Python byte string.  Trying to do the same without keeping a reference
-to the Python byte string will fail with a compile error::
+to the Python byte string will fail with a compile error:
 
-    # this will not compile !
-    cdef char* c_string = py_unicode_string.encode('UTF-8')
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            # this will not compile !
+            c_string = cython.declare(cython.p_char, py_unicode_string.encode('UTF-8'))
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            # this will not compile !
+            cdef char* c_string = py_unicode_string.encode('UTF-8')
+
 
 Here, the Cython compiler notices that the code takes a pointer to a
 temporary string result that will be garbage collected after the
@@ -348,19 +512,40 @@ C++ strings
 -----------
 
 When wrapping a C++ library, strings will usually come in the form of
-the :c:type:`std::string` class.  As with C strings, Python byte strings
+the :cpp:expr:`std::string` class.  As with C strings, Python byte strings
 automatically coerce from and to C++ strings:
 
-.. literalinclude:: ../../examples/tutorial/string/cpp_string.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/cpp_string.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/cpp_string.pyx
+
 
 The memory management situation is different than in C because the
 creation of a C++ string makes an independent copy of the string
 buffer which the string object then owns.  It is therefore possible
 to convert temporarily created Python objects directly into C++
 strings.  A common way to make use of this is when encoding a Python
-unicode string into a C++ string::
+unicode string into a C++ string:
 
-    cdef string cpp_string = py_unicode_string.encode('UTF-8')
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            cpp_string = cython.declare(string, py_unicode_string.encode('UTF-8'))
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef string cpp_string = py_unicode_string.encode('UTF-8')
 
 Note that this involves a bit of overhead because it first encodes
 the Unicode string into a temporarily created Python bytes object
@@ -369,7 +554,16 @@ and then copies its buffer into a new C++ string.
 For the other direction, efficient decoding support is available
 in Cython 0.17 and later:
 
-.. literalinclude:: ../../examples/tutorial/string/decode_cpp_string.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/decode_cpp_string.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/decode_cpp_string.pyx
+
 
 For C++ strings, decoding slices will always take the proper length
 of the string into account and apply Python slicing semantics (e.g.
@@ -379,15 +573,15 @@ return empty strings for out-of-bounds indices).
 Auto encoding and decoding
 --------------------------
 
-Cython 0.19 comes with two new directives: ``c_string_type`` and
+Automatic conversions are controlled by the directives ``c_string_type`` and
 ``c_string_encoding``.  They can be used to change the Python string
 types that C/C++ strings coerce from and to.  By default, they only
 coerce from and to the bytes type, and encoding or decoding must
 be done explicitly, as described above.
 
-There are two use cases where this is inconvenient.  First, if all
+This can be inconvenient if all
 C strings that are being processed (or the large majority) contain
-text, automatic encoding and decoding from and to Python unicode
+text, and automatic encoding and decoding from and to Python unicode
 objects can reduce the code overhead a little.  In this case, you
 can set the ``c_string_type`` directive in your module to :obj:`unicode`
 and the ``c_string_encoding`` to the encoding that your C code uses,
@@ -395,24 +589,14 @@ for example:
 
 .. literalinclude:: ../../examples/tutorial/string/auto_conversion_1.pyx
 
-The second use case is when all C strings that are being processed
-only contain ASCII encodable characters (e.g. numbers) and you want
-your code to use the native legacy string type in Python 2 for them,
-instead of always using Unicode. In this case, you can set the
-string type to :obj:`str`:
-
-.. literalinclude:: ../../examples/tutorial/string/auto_conversion_2.pyx
-
 The other direction, i.e. automatic encoding to C strings, is only
-supported for ASCII and the "default encoding", which is usually UTF-8
-in Python 3 and usually ASCII in Python 2.  CPython handles the memory
+supported for ASCII/UTF-8.  CPython handles the memory
 management in this case by keeping an encoded copy of the string alive
 together with the original unicode string.  Otherwise, there would be no
 way to limit the lifetime of the encoded string in any sensible way,
 thus rendering any attempt to extract a C string pointer from it a
 dangerous endeavour.  The following safely converts a Unicode string to
-ASCII (change ``c_string_encoding`` to ``default`` to use the default
-encoding instead):
+UTF-8 (change ``c_string_encoding`` to ``ASCII`` to limit it to that):
 
 .. literalinclude:: ../../examples/tutorial/string/auto_conversion_3.pyx
 
@@ -476,13 +660,13 @@ unicode string literals, just like Python 3.
 Single bytes and characters
 ---------------------------
 
-The Python C-API uses the normal C :c:type:`char` type to represent
+The Python C-API uses the normal C :c:expr:`char` type to represent
 a byte value, but it has two special integer types for a Unicode code
 point value, i.e. a single Unicode character: :c:type:`Py_UNICODE`
 and :c:type:`Py_UCS4`.  Cython supports the
 first natively, support for :c:type:`Py_UCS4` is new in Cython 0.15.
 :c:type:`Py_UNICODE` is either defined as an unsigned 2-byte or
-4-byte integer, or as :c:type:`wchar_t`, depending on the platform.
+4-byte integer, or as :c:expr:`wchar_t`, depending on the platform.
 The exact type is a compile time option in the build of the CPython
 interpreter and extension modules inherit this definition at C
 compile time.  The advantage of :c:type:`Py_UCS4` is that it is
@@ -490,52 +674,116 @@ guaranteed to be large enough for any Unicode code point value,
 regardless of the platform.  It is defined as a 32bit unsigned int
 or long.
 
-In Cython, the :c:type:`char` type behaves differently from the
+In Cython, the :c:expr:`char` type behaves differently from the
 :c:type:`Py_UNICODE` and :c:type:`Py_UCS4` types when coercing
 to Python objects.  Similar to the behaviour of the bytes type in
-Python 3, the :c:type:`char` type coerces to a Python integer
-value by default, so that the following prints 65 and not ``A``::
+Python 3, the :c:expr:`char` type coerces to a Python integer
+value by default, so that the following prints 65 and not ``A``:
 
-    # -*- coding: ASCII -*-
+.. tabs::
+    .. group-tab:: Pure Python
 
-    cdef char char_val = 'A'
-    assert char_val == 65   # ASCII encoded byte value of 'A'
-    print( char_val )
+        .. code-block:: python
+
+            # -*- coding: ASCII -*-
+
+            char_val = declare(cython.char, 'A')
+            assert char_val == 65   # ASCII encoded byte value of 'A'
+            print( char_val )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            # -*- coding: ASCII -*-
+
+            cdef char char_val = 'A'
+            assert char_val == 65   # ASCII encoded byte value of 'A'
+            print( char_val )
+
 
 If you want a Python bytes string instead, you have to request it
 explicitly, and the following will print ``A`` (or ``b'A'`` in Python
-3)::
+3):
 
-    print( <bytes>char_val )
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            print( cython.cast(bytes, char_val) )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            print( <bytes>char_val )
 
 The explicit coercion works for any C integer type.  Values outside of
-the range of a :c:type:`char` or :c:type:`unsigned char` will raise an
+the range of a :c:expr:`char` or :c:expr:`unsigned char` will raise an
 :obj:`OverflowError` at runtime.  Coercion will also happen automatically
-when assigning to a typed variable, e.g.::
+when assigning to a typed variable, e.g.:
 
-    cdef bytes py_byte_string
-    py_byte_string = char_val
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            py_byte_string = cython.declare(bytes)
+            py_byte_string = char_val
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef bytes py_byte_string
+            py_byte_string = char_val
 
 On the other hand, the :c:type:`Py_UNICODE` and :c:type:`Py_UCS4`
 types are rarely used outside of the context of a Python unicode string,
 so their default behaviour is to coerce to a Python unicode object.  The
 following will therefore print the character ``A``, as would the same
-code with the :c:type:`Py_UNICODE` type::
+code with the :c:type:`Py_UNICODE` type:
 
-    cdef Py_UCS4 uchar_val = u'A'
-    assert uchar_val == 65 # character point value of u'A'
-    print( uchar_val )
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            uchar_val = cython.declare(cython.Py_UCS4, u'A')
+            assert uchar_val == 65 # character point value of u'A'
+            print( uchar_val )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef Py_UCS4 uchar_val = u'A'
+            assert uchar_val == 65 # character point value of u'A'
+            print( uchar_val )
 
 Again, explicit casting will allow users to override this behaviour.
-The following will print 65::
+The following will print 65:
 
-    cdef Py_UCS4 uchar_val = u'A'
-    print( <long>uchar_val )
+.. tabs::
+    .. group-tab:: Pure Python
 
-Note that casting to a C :c:type:`long` (or :c:type:`unsigned long`) will work
+        .. code-block:: python
+
+            uchar_val = cython.declare(cython.Py_UCS4, u'A')
+            print( cython.cast(long, uchar_val) )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef Py_UCS4 uchar_val = u'A'
+            print( <long>uchar_val )
+
+Note that casting to a C :c:expr:`long` (or :c:expr:`unsigned long`) will work
 just fine, as the maximum code point value that a Unicode character
 can have is 1114111 (``0x10FFFF``).  On platforms with 32bit or more,
-:c:type:`int` is just as good.
+:c:expr:`int` is just as good.
 
 
 Narrow Unicode builds
@@ -582,20 +830,44 @@ pair is always identifiable in a sequence of code points.
 
 As of version 0.15, Cython has extended support for surrogate pairs so
 that you can safely use an ``in`` test to search character values from
-the full :c:type:`Py_UCS4` range even on narrow platforms::
+the full :c:type:`Py_UCS4` range even on narrow platforms:
 
-    cdef Py_UCS4 uchar = 0x12345
-    print( uchar in some_unicode_string )
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            uchar = cython.declare(cython.Py_UCS4, 0x12345)
+            print( uchar in some_unicode_string )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef Py_UCS4 uchar = 0x12345
+            print( uchar in some_unicode_string )
 
 Similarly, it can coerce a one character string with a high Unicode
 code point value to a Py_UCS4 value on both narrow and wide Unicode
-platforms::
+platforms:
 
-    cdef Py_UCS4 uchar = u'\U00012345'
-    assert uchar == 0x12345
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            uchar = cython.declare(cython.Py_UCS4, u'\U00012345')
+            assert uchar == 0x12345
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef Py_UCS4 uchar = u'\U00012345'
+            assert uchar == 0x12345
 
 In CPython 3.3 and later, the :c:type:`Py_UNICODE` type is an alias
-for the system specific :c:type:`wchar_t` type and is no longer tied
+for the system specific :c:expr:`wchar_t` type and is no longer tied
 to the internal representation of the Unicode string.  Instead, any
 Unicode character can be represented on all platforms without
 resorting to surrogate pairs.  This implies that narrow builds no
@@ -613,21 +885,33 @@ time, as usual.
 Iteration
 ---------
 
-Cython 0.13 supports efficient iteration over :c:type:`char*`,
+Cython 0.13 supports efficient iteration over :c:expr:`char*`,
 bytes and unicode strings, as long as the loop variable is
 appropriately typed. So the following will generate the expected
 C code:
 
-.. literalinclude:: ../../examples/tutorial/string/for_char.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+        .. literalinclude:: ../../examples/tutorial/string/for_char.py
+    .. group-tab:: Cython
+        .. literalinclude:: ../../examples/tutorial/string/for_char.pyx
 
 The same applies to bytes objects:
 
-.. literalinclude:: ../../examples/tutorial/string/for_bytes.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+        .. literalinclude:: ../../examples/tutorial/string/for_bytes.py
+    .. group-tab:: Cython
+        .. literalinclude:: ../../examples/tutorial/string/for_bytes.pyx
 
 For unicode objects, Cython will automatically infer the type of the
 loop variable as :c:type:`Py_UCS4`:
 
-.. literalinclude:: ../../examples/tutorial/string/for_unicode.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+        .. literalinclude:: ../../examples/tutorial/string/for_unicode.py
+    .. group-tab:: Cython
+        .. literalinclude:: ../../examples/tutorial/string/for_unicode.pyx
 
 The automatic type inference usually leads to much more efficient code
 here.  However, note that some unicode operations still require the
@@ -642,7 +926,11 @@ it.
 There are also optimisations for ``in`` tests, so that the following
 code will run in plain C code, (actually using a switch statement):
 
-.. literalinclude:: ../../examples/tutorial/string/if_char_in.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+        .. literalinclude:: ../../examples/tutorial/string/if_char_in.py
+    .. group-tab:: Cython
+        .. literalinclude:: ../../examples/tutorial/string/if_char_in.pyx
 
 Combined with the looping optimisation above, this can result in very
 efficient character switching code, e.g. in unicode parsers.
@@ -650,26 +938,38 @@ efficient character switching code, e.g. in unicode parsers.
 Windows and wide character APIs
 -------------------------------
 
+.. Warning::
+
+    The use of :c:type:`Py_UNICODE` strings outside of Windows is
+    strongly discouraged. :c:type:`Py_UNICODE` is inherently not
+    portable between different platforms and Python versions.
+
+    Support for the ``Py_UNICODE`` C-API has been removed in CPython 3.12.
+    Code that uses it will no longer compile in recent CPython releases.
+    Since version 3.3, CPython provides a flexible internal representation of
+    unicode strings (:pep:`393`), that makes all :c:type:`Py_UNICODE` related
+    APIs deprecated and inefficient.
+
 Windows system APIs natively support Unicode in the form of
-zero-terminated UTF-16 encoded :c:type:`wchar_t*` strings, so called
+zero-terminated UTF-16 encoded :c:expr:`wchar_t*` strings, so called
 "wide strings".
 
 By default, Windows builds of CPython define :c:type:`Py_UNICODE` as
-a synonym for :c:type:`wchar_t`. This makes internal :obj:`unicode`
+a synonym for :c:expr:`wchar_t`. This makes internal :obj:`unicode`
 representation compatible with UTF-16 and allows for efficient zero-copy
 conversions. This also means that Windows builds are always
 `Narrow Unicode builds`_ with all the caveats.
 
 To aid interoperation with Windows APIs, Cython 0.19 supports wide
-strings (in the form of :c:type:`Py_UNICODE*`) and implicitly converts
+strings (in the form of :c:expr:`Py_UNICODE*`) and implicitly converts
 them to and from :obj:`unicode` string objects.  These conversions behave the
-same way as they do for :c:type:`char*` and :obj:`bytes` as described in
+same way as they do for :c:expr:`char*` and :obj:`bytes` as described in
 `Passing byte strings`_.
 
 In addition to automatic conversion, unicode literals that appear
 in C context become C-level wide string literals and :py:func:`len`
 built-in function is specialized to compute the length of zero-terminated
-:c:type:`Py_UNICODE*` string or array.
+:c:expr:`Py_UNICODE*` string or array.
 
 Here is an example of how one would call a Unicode API on Windows::
 
@@ -683,16 +983,6 @@ Here is an example of how one would call a Unicode API on Windows::
 
     title = u"Windows Interop Demo - Python %d.%d.%d" % sys.version_info[:3]
     MessageBoxW(NULL, u"Hello Cython \u263a", title, 0)
-
-.. Warning::
-
-    The use of :c:type:`Py_UNICODE*` strings outside of Windows is
-    strongly discouraged. :c:type:`Py_UNICODE` is inherently not
-    portable between different platforms and Python versions.
-
-    CPython 3.3 has moved to a flexible internal representation of
-    unicode strings (:pep:`393`), making all :c:type:`Py_UNICODE` related
-    APIs deprecated and inefficient.
 
 One consequence of CPython 3.3 changes is that :py:func:`len` of
 :obj:`unicode` strings is always measured in *code points* ("characters"),

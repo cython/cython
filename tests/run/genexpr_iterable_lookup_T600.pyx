@@ -36,10 +36,6 @@ def genexpr_iterable_in_closure():
     assert x == 'abc' # don't leak in Py3 code
     assert f() == 'abc' # don't leak in Py3 code
 
-    # Py2 cleanup (pretty irrelevant to the actual test!)
-    import sys
-    if sys.version_info[0] == 2:
-        result = map(bytes, result)
     return result
 
 

@@ -2,12 +2,13 @@
 #
 # In a separate file because they're unlikely to be useful for much else.
 
+import enum
+
 from .Nodes import Node, StatNode, ErrorNode
 from .Errors import error, local_errors, report_error
 from . import Nodes, ExprNodes, PyrexTypes, Builtin
 from .Code import UtilityCode, TempitaUtilityCode
 from .Options import copy_inherited_directives
-from contextlib import contextmanager
 
 
 class MatchNode(StatNode):
@@ -22,7 +23,6 @@ class MatchNode(StatNode):
 
     child_attrs = ["subject", "cases"]
 
-    subject_clonenode = None  # set to a value if we require a temp
     sequence_mapping_temp = None
 
     def validate_irrefutable(self):
@@ -35,10 +35,7 @@ class MatchNode(StatNode):
             if found_irrefutable_case:
                 error(
                     found_irrefutable_case.pos,
-                    (
-                        "%s makes remaining patterns unreachable"
-                        % found_irrefutable_case.pattern.irrefutable_message()
-                    ),
+                    f"{found_irrefutable_case.pattern.irrefutable_message()} makes remaining patterns unreachable"
                 )
                 break
             if case.is_irrefutable():
@@ -55,33 +52,43 @@ class MatchNode(StatNode):
         self.subject = ProxyNode(self.subject)
         subject = self.subject_clonenode = CloneNode(self.subject)
         current_if_statement = None
-        for n, c in enumerate(self.cases + [None]):  # The None is dummy at the end
+        new_cases = []
+        for c in self.cases:
             if c is not None and c.is_simple_value_comparison():
                 body = SubstitutedIfStatListNode(
-                    c.body.pos, stats=c.body.stats, match_node=self
+                    c.body.pos,
+                    stats=c.body.stats,
+                    match_node=self
                 )
                 if_clause = Nodes.IfClauseNode(
                     c.pos,
                     condition=c.pattern.get_simple_comparison_node(subject),
                     body=body,
                 )
-                assignments = c.pattern.generate_target_assignments(subject, None)
+                # Passing None for env is safe only because we know it's a simple value comparison.
+                assignments = c.pattern.create_target_assignments(subject, env=None)
                 if assignments:
                     if_clause.body.stats.insert(0, assignments)
-                if not current_if_statement:
+                if current_if_statement is None:
                     current_if_statement = Nodes.IfStatNode(
                         c.pos, if_clauses=[], else_clause=None
                     )
                 current_if_statement.if_clauses.append(if_clause)
-                self.cases[n] = None  # remove case
-            elif current_if_statement:
-                # this cannot be simplified, but previous case(s) were
-                self.cases[n - 1] = SubstitutedMatchCaseNode(
-                    current_if_statement.pos, body=current_if_statement
-                )
-                current_if_statement = None
-        # eliminate optimized cases
-        self.cases = [c for c in self.cases if c is not None]
+            else:
+                if current_if_statement:
+                    # this cannot be simplified, but previous case(s) were
+                    new_cases.append(SubstitutedMatchCaseNode(
+                        current_if_statement.pos, body=current_if_statement
+                    ))
+                    current_if_statement = None
+                if c is not None:
+                    new_cases.append(c)
+        if current_if_statement:
+            # this cannot be simplified, but previous case(s) were
+            new_cases.append(SubstitutedMatchCaseNode(
+                current_if_statement.pos, body=current_if_statement
+            ))
+        self.cases = new_cases
 
     def analyse_declarations(self, env):
         self.subject.analyse_declarations(env)
@@ -95,45 +102,41 @@ class MatchNode(StatNode):
                 sequence_mapping_count += 1
         if sequence_mapping_count >= 2:
             self.sequence_mapping_temp = AssignableTempNode(
-                self.pos, PyrexTypes.c_uint_type
+                self.pos, PyrexTypes.c_uint_type,
+                is_addressable=True
             )
-            self.sequence_mapping_temp.is_addressable = lambda: True
 
         self.subject = self.subject.analyse_expressions(env)
         assert isinstance(self.subject, ExprNodes.ProxyNode)
         if not self.subject.arg.is_literal:
             self.subject.arg = self.subject.arg.coerce_to_temp(env)
         subject = self.subject_clonenode.analyse_expressions(env)
-        self.cases = [
-            c.analyse_case_expressions(subject, env, self.sequence_mapping_temp)
-            for c in self.cases
-        ]
-        self.cases = [c for c in self.cases if c is not None]
+        analysed_cases = []
+        for c in self.cases:
+            c = c.analyse_case_expressions(subject, env, self.sequence_mapping_temp)
+            if c is not None:
+                analysed_cases.append(c)
+        self.cases = analysed_cases
         return self
 
     def generate_execution_code(self, code):
         if self.sequence_mapping_temp:
             self.sequence_mapping_temp.allocate(code)
-            code.putln(
-                "%s = 0; /* sequence/mapping test temp */"
-                % self.sequence_mapping_temp.result()
-            )
+            code.putln(f"{self.sequence_mapping_temp.result()} = 0; /* sequence/mapping test temp */")
             # For things that are a sequence at compile-time it's difficult
             # to avoid generating the sequence mapping temp. Therefore, silence
-            # an "unused error"
-            code.putln("(void)%s;" % self.sequence_mapping_temp.result())
+            # an "unused error".
+            code.putln(f"(void){self.sequence_mapping_temp.result()};")
         end_label = self.end_label = code.new_label()
-        if self.subject_clonenode:
-            self.subject.generate_evaluation_code(code)
+        self.subject.generate_evaluation_code(code)
         for c in self.cases:
             c.generate_execution_code(code, end_label)
         if self.sequence_mapping_temp:
             self.sequence_mapping_temp.release(code)
         if code.label_used(end_label):
             code.put_label(end_label)
-        if self.subject_clonenode:
-            self.subject.generate_disposal_code(code)
-            self.subject.free_temps(code)
+        self.subject.generate_disposal_code(code)
+        self.subject.free_temps(code)
 
 
 class MatchCaseBaseNode(Node):
@@ -185,9 +188,7 @@ class MatchCaseNode(Node):
 
     def analyse_case_declarations(self, subject_node, env):
         self.pattern.analyse_declarations(env)
-        self.target_assignments = self.pattern.generate_target_assignments(
-            subject_node, env
-        )
+        self.target_assignments = self.pattern.create_target_assignments(subject_node, env)
         if self.target_assignments:
             self.target_assignments.analyse_declarations(env)
         if self.guard:
@@ -200,19 +201,23 @@ class MatchCaseNode(Node):
             self.comp_node = self.pattern.get_comparison_node(subject_node, sequence_mapping_temp)
             self.comp_node = self.comp_node.analyse_types(env)
 
-        if self.comp_node and self.comp_node.is_literal:
-            self.comp_node.calculate_constant_result()
-            if not self.comp_node.constant_result:
-                # we know this pattern can't succeed. Ignore any errors and return None
+        if self.comp_node and isinstance(self.comp_node, ExprNodes.BoolNode):
+            if not self.comp_node.value:
+                # We know this pattern can't succeed. Ignore any errors and return None.
                 return None
         for error in errors:
             report_error(error)
 
+        # coerce_to_boolean.coerce_to_simple is taken from analyse_temp_boolean_expression
+        # and ensures that self.comp_node.generate_disposal_code is trivial and so
+        # it doesn't matter if it's skipped in one branch. IfClauseNode relies on the same mechanism.
         self.comp_node = self.comp_node.coerce_to_boolean(env).coerce_to_simple(env)
-        
+
         if self.target_assignments:
             self.target_assignments = self.target_assignments.analyse_expressions(env)
         if self.guard:
+            # analyse_temp_boolean_expression ensures that self.guard.generate_disposal_code is trivial
+            # and so it doesn't matter if it's skipped in one branch.
             self.guard = self.guard.analyse_temp_boolean_expression(env)
         self.body = self.body.analyse_expressions(env)
         return self
@@ -223,7 +228,7 @@ class MatchCaseNode(Node):
 
         end_of_case_label = code.new_label()
 
-        code.putln("if (!%s) { /* !pattern */" % self.comp_node.result())
+        code.putln(f"if (!{self.comp_node.result()}) ""{ /* !pattern */")
         self.pattern.dispose_of_subject_temps(code)  # failed, don't need the subjects
         code.put_goto(end_of_case_label)
 
@@ -239,7 +244,6 @@ class MatchCaseNode(Node):
             code.putln("if (%s) { /* guard */" % self.guard.result())
             self.guard.generate_disposal_code(code)
             self.guard.free_temps(code)
-        # body_insertion_point = code.insertion_point()
         self.body.generate_execution_code(code)
         if not self.body.is_terminator:
             code.put_goto(end_label)
@@ -273,7 +277,7 @@ class SubstitutedMatchCaseNode(MatchCaseBaseNode):
 class PatternNode(Node):
     """
     PatternNode is not an expression because
-    it does several things (evalutating a boolean expression,
+    it does several things (evaluating a boolean expression,
     assignment of targets), and they need to be done at different
     times.
 
@@ -284,27 +288,25 @@ class PatternNode(Node):
 
     ----------------------------------------
     How these nodes are processed:
-    1. During "analyse_declarations" PatternNode.generate_target_assignments
-       is called on the main PatternNode of the case. This calls its
-       sub-patterns generate_target_assignments recursively.
-       This creates a StatListNode that is held by the
-       MatchCaseNode.
-    2. In the "analyse_expressions" phases, the MatchCaseNode calls
-       PatternNode.analyse_pattern_expressions, which calls its
-       sub-pattern recursively.
-    3. At the end of the "analyse_expressions" stage the MatchCaseNode
-       class PatternNode.get_comparison_node (which calls 
-       PatternNode.get_comparison_node for its sub-patterns). This
-       returns an ExprNode which can be evaluated to determine if the
+    1. During "analyse_declarations", "PatternNode.create_target_assignments()"
+       is called on the main "PatternNode" of the case. This calls its
+       sub-patterns ".create_target_assignments()" recursively.
+       This creates a "StatListNode" that is held by the "MatchCaseNode".
+    2. In the "analyse_expressions" phases, the "MatchCaseNode" calls
+       "PatternNode.analyse_pattern_expressions", which calls its sub-pattern recursively.
+    3. At the end of the "analyse_expressions" stage, the "MatchCaseNode"
+       class "PatternNode.get_comparison_node()" (which calls
+       "PatternNode.get_comparison_node()" for its sub-patterns).
+       This returns an ExprNode which can be evaluated to determine if the
        pattern has matched.
        While generating the comparison we try quite hard not to
        analyse it until right at the end, because otherwise it'll lead
        to a lot of repeated work for deeply nested patterns.
-    4. In the code generation stage, PatternNodes hardly generate any
-       code themselves. However, they do set up whatever temps they
-       need (mainly for sub-pattern subjects), with "allocate_subject_temps",
+    4. In the code generation stage, "PatternNodes" hardly generate any
+       code themselves. However, they do set up whatever temps they need
+       (mainly for sub-pattern subjects), with "allocate_subject_temps",
        "release_subject_temps", and "dispose_of_subject_temps" (which
-       they also call recursively on their sub-patterns)
+       they also call recursively on their sub-patterns).
     """
 
     # useful for type tests
@@ -337,12 +339,12 @@ class PatternNode(Node):
 
     def update_targets_with_targets(self, targets, other_targets):
         for name in targets.intersection(other_targets):
-            error(self.pos, "multiple assignments to name '%s' in pattern" % name)
+            error(self.pos, f"multiple assignments to name '{name}' in pattern")
         targets.update(other_targets)
 
     def add_target_to_targets(self, targets, target):
         if target in targets:
-            error(self.pos, "multiple assignments to name '%s in pattern" % target)
+            error(self.pos, f"multiple assignments to name '{target}' in pattern")
         targets.add(target)
 
     def get_main_pattern_targets(self):
@@ -364,7 +366,7 @@ class PatternNode(Node):
         raise NotImplementedError
 
     def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
-        error(self.pos, "This type of pattern is not currently supported %s" % self)
+        error(self.pos, f"This type of pattern is not currently supported: {self}")
         raise NotImplementedError
 
     def validate_irrefutable(self):
@@ -374,18 +376,25 @@ class PatternNode(Node):
                 child.validate_irrefutable()
 
     def analyse_pattern_expressions(self, env, sequence_mapping_temp):
-        error(self.pos, "This type of pattern is not currently supported %s" % self)
+        error(self.pos, f"This type of pattern is not currently supported {self}")
         raise NotImplementedError
 
     def generate_result_code(self, code):
         pass
 
-    def generate_target_assignments(self, subject_node, env):
+    def create_target_assignments(self, subject_node, env):
         # Generates the assignment code needed to initialize all the targets.
-        # Returns either a StatListNode or None
+        # Returns either a StatListNode or None.
+        #
+        # env may be None only if self.is_simple_value_comparison().
+        # In which case there is no main_pattern_assignment_list.
         assignments = []
         for target in self.as_targets:
-            if self.is_match_value_pattern and self.value and self.value.is_simple():
+            if (
+                self.is_match_value_pattern and
+                self.value and
+                self.value.is_simple()
+            ):
                 # in this case we can optimize slightly and just take the value
                 subject_node = self.value.clone_node()
             assignments.append(
@@ -393,18 +402,17 @@ class PatternNode(Node):
                     target.pos, lhs=target.clone_node(), rhs=subject_node
                 )
             )
-        assignments.extend(
-            self.generate_main_pattern_assignment_list(subject_node, env)
-        )
+        assert env or self.is_simple_value_comparison()
+        assignments.extend(self.create_main_pattern_assignment_list(subject_node, env))
         if assignments:
             return Nodes.StatListNode(self.pos, stats=assignments)
         else:
             return None
 
-    def generate_main_pattern_assignment_list(self, subject_node, env):
-        # generates assignments for everything except the "as_target".
+    def create_main_pattern_assignment_list(self, subject_node, env):
+        # Generates assignments for everything except the "as_targets".
         # Override in subclasses.
-        # Returns a list of Nodes
+        # Returns a list of Nodes.
         return []
 
     def allocate_subject_temps(self, code):
@@ -443,7 +451,7 @@ class MatchValuePatternNode(PatternNode):
 
     def get_simple_comparison_node(self, subject_node):
         op = "is" if self.is_is_check else "=="
-        return ExprNodes.PrimaryCmpNode(
+        return MatchValuePrimaryCmpNode(
             self.pos, operator=op, operand1=subject_node, operand2=self.value
         )
 
@@ -475,7 +483,7 @@ class MatchAndAssignPatternNode(PatternNode):
 
     def irrefutable_message(self):
         if self.target:
-            return "name capture '%s'" % self.target.name
+            return f"name capture '{self.target.name}'"
         else:
             return "wildcard"
 
@@ -490,20 +498,15 @@ class MatchAndAssignPatternNode(PatternNode):
 
     def get_simple_comparison_node(self, subject_node):
         assert self.is_simple_value_comparison()
-        return self.get_comparison_node(subject_node, None)
+        return self.get_comparison_node(subject_node)
 
     def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
         return ExprNodes.BoolNode(self.pos, value=True)
 
-    def generate_main_pattern_assignment_list(self, subject_node, env):
-        if self.target:
-            return [
-                Nodes.SingleAssignmentNode(
-                    self.pos, lhs=self.target.clone_node(), rhs=subject_node
-                )
-            ]
-        else:
+    def create_main_pattern_assignment_list(self, subject_node, env):
+        if not self.target:
             return []
+        return [Nodes.SingleAssignmentNode(self.pos, lhs=self.target.clone_node(), rhs=subject_node)]
 
     def analyse_pattern_expressions(self, env, sequence_mapping_temp):
         return self  # nothing to analyse
@@ -559,10 +562,7 @@ class OrPatternNode(PatternNode):
             if found_irrefutable_case:
                 error(
                     found_irrefutable_case.pos,
-                    (
-                        "%s makes remaining patterns unreachable"
-                        % found_irrefutable_case.irrefutable_message()
-                    ),
+                    f"{found_irrefutable_case.irrefutable_message()} makes remaining patterns unreachable"
                 )
                 break
             if alternative.is_irrefutable():
@@ -647,11 +647,10 @@ class OrPatternNode(PatternNode):
                 sequence_mapping_temp = self.sequence_mapping_temp
         return self
 
-    def generate_main_pattern_assignment_list(self, subject_node, env):
-        assignments = []
+    def create_main_pattern_assignment_list(self, subject_node, env):
         ifclauses = []
         for n, a in enumerate(self.alternatives, start=1):
-            a_assignment = a.generate_target_assignments(subject_node, env)
+            a_assignment = a.create_target_assignments(subject_node, env)
             if a_assignment:
                 if not self.which_alternative_temp:
                     self.which_alternative_temp = AssignableTempNode(self.pos, PyrexTypes.c_int_type)
@@ -668,15 +667,14 @@ class OrPatternNode(PatternNode):
                 )
                 ifclauses.append(ifclause)
         if ifclauses:
-            assignments.append(
+            return [
                 Nodes.IfStatNode(
                     self.pos,
                     if_clauses=ifclauses,
                     else_clause=None
                 )
-            )
-                
-        return assignments
+            ]
+        return []
 
     def allocate_subject_temps(self, code):
         if self.sequence_mapping_temp:
@@ -809,7 +807,7 @@ class MatchSequencePatternNode(PatternNode):
                 self.pos,
                 operator=">=" if has_star else "==",
                 operand1=length_call,
-                operand2=ExprNodes.IntNode(self.pos, value=str(min_length)),
+                operand2=ExprNodes.IntNode.for_size(self.pos, min_length),
             )
             all_tests.append(seq_len_test)
         else:
@@ -846,7 +844,7 @@ class MatchSequencePatternNode(PatternNode):
             for s, p in zip(self.subjects, self.patterns)
         ]
 
-    def generate_main_pattern_assignment_list(self, subject_node, env):
+    def create_main_pattern_assignment_list(self, subject_node, env):
         assignments = []
         self.generate_subjects(subject_node, env)
         for subject_temp, subject, pattern in zip(
@@ -864,7 +862,7 @@ class MatchSequencePatternNode(PatternNode):
 
                     subject = ResultRefNode(subject)
                     needs_result_ref = True
-            p_assignments = pattern.generate_target_assignments(subject, env)
+            p_assignments = pattern.create_target_assignments(subject, env)
             if needs_result_ref:
                 p_assignments = LetNode(subject, p_assignments)
             else:
@@ -898,12 +896,11 @@ class MatchSequencePatternNode(PatternNode):
 
         def type_check(type):
             # type-check need not be perfect, it's an optimization
-            if type in [Builtin.list_type, Builtin.tuple_type]:
+            if type.is_pylist_type or type.is_pytuple_type:
                 return True
             if type.is_memoryviewslice or type.is_ctuple:
                 return True
             if type in [
-                Builtin.str_type,
                 Builtin.bytes_type,
                 Builtin.unicode_type,
                 Builtin.bytearray_type,
@@ -930,12 +927,11 @@ class MatchSequencePatternNode(PatternNode):
                 base=ExprNodes.AttributeNode(
                     self.pos, obj=subject_node, attribute="shape"
                 ),
-                index=ExprNodes.IntNode(self.pos, value="0"),
+                index=ExprNodes.IntNode.for_size(self.pos, 0),
             )
         elif subject_node.type.is_ctuple:
-            len_call = ExprNodes.IntNode(
-                self.pos, value=str(len(subject_node.type.components))
-            )
+            len_call = ExprNodes.IntNode.for_size(
+                self.pos, len(subject_node.type.components))
         else:
             len_call = ExprNodes.SimpleCallNode(
                 self.pos,
@@ -958,7 +954,7 @@ class MatchSequencePatternNode(PatternNode):
             if i is None:
                 return None
             else:
-                int_node = ExprNodes.IntNode(pattern.pos, value=str(i))
+                int_node = ExprNodes.IntNode.for_size(pattern.pos, i)
                 if i >= 0:
                     return int_node
                 else:
@@ -981,7 +977,7 @@ class MatchSequencePatternNode(PatternNode):
                 length_node=self.length_temp if self.needs_length_temp else None,
             )
         else:
-            indexer = CompilerDirectivesExprNode(
+            indexer = ExprNodes.CompilerDirectivesExprNode(
                 arg=ExprNodes.IndexNode(
                     pattern.pos, base=subject_node, index=get_index_from_int(idx)
                 ),
@@ -1110,19 +1106,18 @@ class MatchMappingPatternNode(PatternNode):
 
     def validate_keys(self):
         # called after constant folding
-        seen_keys = set()
+        literal_keys = set()
         for k in self.keys:
             if k.has_constant_result():
                 value = k.constant_result
-                if k.is_string_literal:
-                    value = repr(value)
-                if value in seen_keys:
+                # Note that "set" equality behaviour is intentional. e.g. 0.0 and 0 are duplicates.
+                if value in literal_keys:
                     error(k.pos, "mapping pattern checks duplicate key (%s)" % value)
-                seen_keys.add(value)
+                literal_keys.add(value)
             else:
                 self.needs_runtime_keycheck = True
 
-        if self.keys:
+        if literal_keys and self.keys:
             # it's very useful to sort keys early so the literal keys
             # come first
             sorted_keys = sorted(
@@ -1153,11 +1148,11 @@ class MatchMappingPatternNode(PatternNode):
                 )
         self.subject_temps = subject_temps
 
-    def generate_main_pattern_assignment_list(self, subject_node, env):
+    def create_main_pattern_assignment_list(self, subject_node, env):
         self.generate_subjects(subject_node, env)
         assignments = []
         for subject, pattern in zip(self.subject_temps, self.value_patterns):
-            p_assignments = pattern.generate_target_assignments(subject, env)
+            p_assignments = pattern.create_target_assignments(subject, env)
             if p_assignments:
                 assignments.extend(p_assignments.stats)
         if self.double_star_capture_target:
@@ -1171,20 +1166,33 @@ class MatchMappingPatternNode(PatternNode):
             )
         return assignments
 
+    class DictCheckResult(enum.IntEnum):
+        NotAMapping = enum.auto()
+        NotADict = enum.auto()  # but might be another mapping
+        MightBeAnAnyDict = enum.auto()
+        ExactDict = enum.auto()
+        ExactFrozenDict = enum.auto()
+
     def is_dict_type_check(self, type):
-        # Returns true if it's an exact dict, False if it's definitely not
-        # an exact dict, None if it might be
-        # type-check need not be perfect, it's an optimization
-        if type is Builtin.dict_type:
-            return True
-        if type in Builtin.builtin_types:
-            # all other builtin types aren't mappings (except DictProxyType, but
-            # Cython doesn't know about that)
-            return False
+        # Returns a DictCheckResult to summarize what we know about types dictness.
+        # We need to get ExactDict, ExactFrozenDict, and NotAMapping right. The other
+        # two cases are optimizations so can be wrong.
+        if type.is_pydict_type:
+            return self.DictCheckResult.ExactDict
+        if type.is_pyfrozendict_type:
+            return self.DictCheckResult.ExactFrozenDict
+        if type.is_builtin_type:
+            # All other builtin types that Cython knows of are not mappings
+            # (DictProxyType is, but Cython doesn't know about that).
+            return self.DictCheckResult.NotAMapping
         if not type.is_pyobject:
-            # for now any non-pyobject type is False
-            return False
-        return None
+            # for now any non-pyobject type isn't treated as a mapping
+            return self.DictCheckResult.NotAMapping
+        if type.is_extension_type:
+            # An external extension type might actually be a dict, but that's fine:
+            # it just ends up on a slightly slower code path.
+            return self.DictCheckResult.NotADict
+        return self.DictCheckResult.MightBeAnAnyDict
 
     def make_mapping_check(self, subject_node, sequence_mapping_temp):
         # Note: the mapping check code is very quick on Python 3.10+
@@ -1209,8 +1217,16 @@ class MatchMappingPatternNode(PatternNode):
             args=[subject_node, sequence_mapping_temp],
         )
 
+        def type_check(type):
+            res = self.is_dict_type_check(type)
+            if res is self.DictCheckResult.ExactDict or res is self.DictCheckResult.ExactFrozenDict:
+                return True
+            if res is self.DictCheckResult.NotAMapping:
+                return False
+            return None
+
         return StaticTypeCheckNode(
-            self.pos, arg=subject_node, fallback=call, check=self.is_dict_type_check
+            self.pos, arg=subject_node, fallback=call, check=type_check
         )
 
     def make_duplicate_keys_check(self, n_fixed_keys):
@@ -1227,8 +1243,8 @@ class MatchMappingPatternNode(PatternNode):
                 utility_code=utility_code,
                 args=[
                     MappingOrClassComparisonNode.make_keys_node(self.pos),
-                    ExprNodes.IntNode(self.pos, value=str(n_fixed_keys)),
-                    ExprNodes.IntNode(self.pos, value=str(len(self.keys)))
+                    ExprNodes.IntNode.for_size(self.pos, n_fixed_keys),
+                    ExprNodes.IntNode.for_size(self.pos, len(self.keys)),
                 ],
             ),
         )
@@ -1238,26 +1254,26 @@ class MatchMappingPatternNode(PatternNode):
         # Current implementation is a function that's loosely copied from CPython.
         # For small numbers of keys it might be better to generate the code instead.
         # There's three versions depending on if we know that the type is exactly
-        # a dict, definitely not or dict, or unknown.
+        # a dict, definitely not a dict, or unknown.
         # The advantages of generating a function are:
         # * more compact code
+        # * can potentially be extracted into the shared utility module
         # * easier to check the type once then branch the implementation
         # * faster in the cases that are more likely to fail due to wrong keys being
-        # present than due to the values not matching the patterns
+        #    present than due to the values not matching the patterns
         if not self.keys:
             return ExprNodes.BoolNode(self.pos, value=True)
 
         is_dict = self.is_dict_type_check(subject_node.type)
-        if is_dict:
+        if is_dict is self.DictCheckResult.ExactDict or is_dict is self.DictCheckResult.ExactFrozenDict:
             util_code = UtilityCode.load_cached("ExtractExactDict", "MatchCase.c")
             func_name = "__Pyx_MatchCase_Mapping_ExtractDict"
-        elif is_dict is False:  # exact False... None indicates "might be dict"
-            # For any other non-generic PyObject type
-            util_code = UtilityCode.load_cached("ExtractNonDict", "MatchCase.c")
-            func_name = "__Pyx_MatchCase_Mapping_ExtractNonDict"
-        else:
+        elif is_dict is self.DictCheckResult.MightBeAnAnyDict:
             util_code = UtilityCode.load_cached("ExtractGeneric", "MatchCase.c")
             func_name = "__Pyx_MatchCase_Mapping_Extract"
+        else:
+            util_code = UtilityCode.load_cached("ExtractNonDict", "MatchCase.c")
+            func_name = "__Pyx_MatchCase_Mapping_ExtractNonDict"
 
         return ExprNodes.PythonCapiCallNode(
             self.pos,
@@ -1267,10 +1283,7 @@ class MatchMappingPatternNode(PatternNode):
             args=[
                 subject_node,
                 MappingOrClassComparisonNode.make_keys_node(self.pos),
-                ExprNodes.IntNode(
-                    self.pos,
-                    value=str(len(self.keys))
-                ),
+                ExprNodes.IntNode.for_size(self.pos, len(self.keys)),
                 MappingOrClassComparisonNode.make_subjects_node(self.pos),
             ],
         )
@@ -1278,12 +1291,14 @@ class MatchMappingPatternNode(PatternNode):
     def make_double_star_capture(self, subject_node, test_result):
         # test_result being the variable that holds "case check passed until now"
         is_dict = self.is_dict_type_check(subject_node.type)
-        if is_dict:
+        if is_dict is self.DictCheckResult.ExactDict:
             tag = "ExactDict"
-        elif is_dict is False:
-            tag = "NotDict"
-        else:
+        elif is_dict is self.DictCheckResult.ExactFrozenDict:
+            tag = "ExactFrozenDict"
+        elif is_dict is self.DictCheckResult.MightBeAnAnyDict:
             tag = ""
+        else:
+            tag = "NotDict"
         utility_code = TempitaUtilityCode.load_cached(
             "DoubleStarCapture", "MatchCase.c", context={"tag": tag}
         )
@@ -1295,7 +1310,7 @@ class MatchMappingPatternNode(PatternNode):
             args=[
                 subject_node,
                 MappingOrClassComparisonNode.make_keys_node(self.pos),
-                ExprNodes.IntNode(self.pos, value=str(len(self.keys)))
+                ExprNodes.IntNode.for_size(self.pos, len(self.keys)),
             ],
         )
         assignment = Nodes.SingleAssignmentNode(
@@ -1335,27 +1350,23 @@ class MatchMappingPatternNode(PatternNode):
             assert subject
             all_tests.append(pattern.get_comparison_node(subject))
 
-        all_tests = generate_binop_tree_from_list(self.pos, "and", all_tests)
-
-        test_result = UtilNodes.ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
+        body = all_tests_node = generate_binop_tree_from_list(self.pos, "and", all_tests)
         duplicate_check = self.make_duplicate_keys_check(n_literal_keys)
-        body = Nodes.StatListNode(
-            self.pos,
-            stats=([duplicate_check] if duplicate_check else []) + [
-                Nodes.SingleAssignmentNode(self.pos, lhs=test_result, rhs=all_tests),
-            ],
-        )
-        if self.double_star_capture_target:
-            assert self.double_star_temp
-            body.stats.append(
-                # make_double_star_capture wraps itself in an if
-                self.make_double_star_capture(subject_node, test_result)
-            )
 
         if duplicate_check or self.double_star_capture_target:
-            body = UtilNodes.TempResultFromStatNode(test_result, body)
-        else:
-            body = all_tests
+            stats = []
+            if duplicate_check:
+                stats.append(duplicate_check)
+            test_result = UtilNodes.ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
+            stats.append(
+                Nodes.SingleAssignmentNode(self.pos, lhs=test_result, rhs=all_tests_node))
+            if self.double_star_capture_target:
+                assert self.double_star_temp
+                stats.append(
+                    # make_double_star_capture wraps itself in an if
+                    self.make_double_star_capture(subject_node, test_result)
+                )
+            body = UtilNodes.TempResultFromStatNode(test_result, Nodes.StatListNode(self.pos, stats=stats))
         if self.keys or self.double_star_capture_target:
             body = MappingOrClassComparisonNode(
                 body.pos,
@@ -1367,10 +1378,7 @@ class MatchMappingPatternNode(PatternNode):
 
     def analyse_pattern_expressions(self, env, sequence_mapping_temp):
         def to_temp_or_literal(node):
-            if node.is_literal:
-                return node
-            else:
-                return node.coerce_to_temp(env)
+            return node if node.is_literal else node.coerce_to_temp(env)
 
         self.keys = [
             to_temp_or_literal(k.analyse_expressions(env))
@@ -1497,13 +1505,13 @@ class ClassPatternNode(PatternNode):
             self.update_targets_with_targets(targets, pattern.get_targets())
         return targets
 
-    def generate_main_pattern_assignment_list(self, subject_node, env):
+    def create_main_pattern_assignment_list(self, subject_node, env):
         self.generate_subjects(subject_node)
         assignments = []
         patterns = self.keyword_pattern_patterns + self.positional_patterns
         temps = self.keyword_subject_temps + self.positional_subject_temps
         for pattern, temp in zip(patterns, temps):
-            pattern_assignments = pattern.generate_target_assignments(temp, env)
+            pattern_assignments = pattern.create_target_assignments(temp, env)
             if pattern_assignments:
                 assignments.extend(pattern_assignments.stats)
         return assignments
@@ -1600,45 +1608,52 @@ class ClassPatternNode(PatternNode):
         )
         return TempResultFromStatNode(passed_rr, try_except)
 
+    def _calculate_match_self(self):
+        # -1 is "unknown", 0 is false, 1 is true
+        if len(self.positional_patterns) != 1 or self.keyword_pattern_names:
+            return 0
+        if self.class_known_type:
+            for type_attr in [
+                "is_pytuple_type",
+                "is_pylist_type",
+                "is_pyanydict_type",
+                "is_pyanyset_type",
+                "is_pybytes_type",
+                "is_pystr_type",
+                "is_pybytearray_type"
+            ]:
+                if getattr(self.class_known_type, type_attr):
+                    return 1
+            for t in [
+                Builtin.bool_type,
+                Builtin.float_type,
+                Builtin.int_type,
+            ]:
+                if self.class_known_type.subtype_of_resolved_type(t):
+                    return 1
+            if self.class_known_type.is_extension_type:
+                tp = self.class_known_type
+                while tp:
+                    if (not tp.is_extension_type or
+                        tp.is_external
+                        or not self.class_known_type.scope.method_table_cname
+                    ):  # effectively extern visibility:
+                        return -1
+                    tp = tp.base_type
+                # We know enough about the type's provinence to know it can't match a self argument
+                return 0
+        return -1
+
+
     def make_positional_args_call(self, subject_node, class_node):
         assert self.positional_patterns
         util_code = UtilityCode.load_cached("ClassPositionalPatterns", "MatchCase.c")
         keynames = [
-            ExprNodes.StringNode(n.pos, value=n.name)
+            ExprNodes.UnicodeNode(n.pos, value=n.name)
             for n in self.keyword_pattern_names
         ]
-        # -1 is "unknown"
-        match_self = (
-            -1
-            if (len(self.positional_patterns) == 1 and not self.keyword_pattern_names)
-            else 0
-        )
-        if match_self and self.class_known_type:
-            for t in [
-                # Builtin.bool_type ends up being py_object_type
-                Builtin.bytearray_type,
-                Builtin.bytes_type,
-                Builtin.dict_type,
-                Builtin.float_type,
-                Builtin.frozenset_type,
-                Builtin.long_type,
-                Builtin.list_type,
-                Builtin.set_type,
-                Builtin.unicode_type,
-                Builtin.str_type,
-                Builtin.tuple_type,
-            ]:
-                if self.class_known_type.subtype_of_resolved_type(t):
-                    match_self = 1
-                    break
-            else:
-                if self.class_known_type.is_extension_type and not (
-                    self.class_known_type.is_external
-                    or not self.class_known_type.scope.method_table_cname
-                ):  # effectively extern visibility
-                    match_self = 0  # I think... Relies on knowing the bases
 
-        match_self = ExprNodes.IntNode(self.pos, value=str(match_self))
+        match_self = ExprNodes.IntNode(self.pos, value=str(self._calculate_match_self()))
         n_subjects = ExprNodes.IntNode(self.pos, value=str(len(self.positional_patterns)))
         return MappingOrClassComparisonNode(
             self.pos,
@@ -1660,7 +1675,6 @@ class ClassPatternNode(PatternNode):
             subjects_array=self.positional_subject_temps,
             keys_array=keynames,
         )
-        return 
 
     def make_subpattern_checks(self):
         patterns = self.keyword_pattern_patterns + self.positional_patterns
@@ -1678,7 +1692,7 @@ class ClassPatternNode(PatternNode):
             class_node = self.class_.clone_node()
             class_node.entry = self.class_known_type.entry
         else:
-            if not self.class_.type is Builtin.type_type:
+            if self.class_.type is not Builtin.type_type:
                 util_code = UtilityCode.load_cached("MatchClassIsType", "MatchCase.c")
                 class_node = ExprNodes.PythonCapiCallNode(
                     self.pos,
@@ -1706,7 +1720,6 @@ class ClassPatternNode(PatternNode):
             all_checks.append(self.make_keyword_pattern_lookups())
 
         all_checks.extend(self.make_subpattern_checks())
-        
 
         if any(isinstance(ch, ExprNodes.BoolNode) and not ch.value for ch in all_checks):
             # handle any obvious failures
@@ -1766,9 +1779,35 @@ class ClassPatternNode(PatternNode):
         for kw in self.keyword_pattern_names:
             if kw.name in seen:
                 error(
-                    kw.name, "attribute name repeated in class pattern: '%s" % kw.name
+                    self.pos,
+                    "attribute name repeated in class pattern: '%s" % kw.name
                 )
             seen.add(kw.name)
+
+
+class MatchValuePrimaryCmpNode(ExprNodes.PrimaryCmpNode):
+    """
+    Overrides PrimaryCmpNode to be a little more restrictive
+    than normal. Specifically, Cython normally allows:
+      int(1) is True
+    Here, True should only match an exact Python object, or
+    a bint(True).
+    """
+    def __init__(self, pos, **kwds):
+        super().__init__(pos, **kwds)
+        # operand1 should be the match subject
+        assert isinstance(self.operand1, (ExprNodes.CloneNode, TrackTypeTempNode, AssignableTempNode)), type(self.operand1)
+        assert self.operator in ["==", "is"]
+
+    def analyse_types(self, env):
+        if (self.operator == "is" and
+                isinstance(self.operand2, ExprNodes.BoolNode)):
+            # operand1's type should already be known
+            op1_type = self.operand1.type
+            if not (op1_type.is_pyobject or op1_type is PyrexTypes.c_bint_type):
+                return ExprNodes.BoolNode(self.pos, value=False).analyse_expressions(env)
+
+        return super().analyse_types(env)
 
 
 class SubstitutedIfStatListNode(Nodes.StatListNode):
@@ -1789,7 +1828,7 @@ class StaticTypeCheckNode(ExprNodes.ExprNode):
     """
     Useful for structural pattern matching, where we
     can skip the "is_seqeunce/is_mapping" checks if
-    we know the type in advantage (or reduce it to a
+    we know the type in advance (or reduce it to a
     None check).
 
     This should optimize itself out at the analyse_expressions
@@ -1828,6 +1867,13 @@ class StaticTypeCheckNode(ExprNodes.ExprNode):
 class AssignableTempNode(ExprNodes.TempNode):
     lhs_of_first_assignment = True  # assume it can be assigned to once
     _assigned_twice = False
+
+    def __init__(self, pos, *args, is_addressable=False, **kwds):
+        self._is_addressable = is_addressable
+        super().__init__(pos, *args, **kwds)
+
+    def is_addressable(self):
+        return self._is_addressable
 
     def infer_type(self, env):
         return self.type
@@ -1902,7 +1948,7 @@ class SliceToListNode(ExprNodes.ExprNode):
     def generate_via_slicing(self, env):
         # for any more complicated type that doesn't have a specialized path
         # we can simply slice it and copy it to list
-        res = CompilerDirectivesExprNode(
+        res = ExprNodes.CompilerDirectivesExprNode(
             arg=ExprNodes.SliceIndexNode(
                 self.pos, base=self.base, start=self.start, stop=self.stop
             ),
@@ -1968,7 +2014,7 @@ class SliceToListNode(ExprNodes.ExprNode):
             utility_code=util_code,
             args=[
                 self.base,
-                self.start if self.start else ExprNodes.IntNode(self.pos, value="0"),
+                self.start if self.start else ExprNodes.IntNode.for_size(self.pos, 0),
                 self.get_stop(),
             ],
         )
@@ -1976,13 +2022,13 @@ class SliceToListNode(ExprNodes.ExprNode):
     def generate_for_pyobject(self):
         util_code_name = None
         func_name = None
-        if self.base.type is Builtin.tuple_type:
+        if self.base.type.is_pytuple_type:
             util_code_name = "TupleSliceToList"
-        elif self.base.type is Builtin.list_type:
+        elif self.base.type.is_pylist_type:
             func_name = "PyList_GetSlice"
         elif (
             self.base.type.is_pyobject
-            and not self.base.type is PyrexTypes.py_object_type
+            and self.base.type is not PyrexTypes.py_object_type
         ):
             # some specialized type that almost certainly isn't a list. Just go straight
             # to the "other" version of it
@@ -1998,7 +2044,7 @@ class SliceToListNode(ExprNodes.ExprNode):
             )
         else:
             util_code = None
-        start = self.start if self.start else ExprNodes.IntNode(self.pos, value="0")
+        start = self.start if self.start else ExprNodes.IntNode.for_size(self.pos, 0)
         stop = self.get_stop()
         return ExprNodes.PythonCapiCallNode(
             self.pos,
@@ -2021,60 +2067,6 @@ class SliceToListNode(ExprNodes.ExprNode):
         return result.analyse_types(env)
 
 
-class CompilerDirectivesExprNode(ExprNodes.ProxyNode):
-    # Like compiler directives node, but for an expression
-    #  directives     {string:value}  A dictionary holding the right value for
-    #                                 *all* possible directives.
-    #  arg           ExprNode
-
-    def __init__(self, arg, directives):
-        super(CompilerDirectivesExprNode, self).__init__(arg)
-        self.directives = directives
-
-    @contextmanager
-    def _apply_directives(self, obj):
-        old = obj.directives
-        obj.directives = self.directives
-        yield
-        obj.directives = old
-
-    @property
-    def is_temp(self):
-        return self.arg.is_temp
-
-    def infer_type(self, env):
-        with self._apply_directives(env):
-            return super(CompilerDirectivesExprNode, self).infer_type(env)
-
-    def analyse_declarations(self, env):
-        with self._apply_directives(env):
-            self.arg.analyse_declarations(env)
-
-    def analyse_types(self, env):
-        with self._apply_directives(env):
-            return super(CompilerDirectivesExprNode, self).analyse_types(env)
-
-    def generate_result_code(self, code):
-        with self._apply_directives(code.globalstate):
-            super(CompilerDirectivesExprNode, self).generate_result_code(code)
-
-    def generate_evaluation_code(self, code):
-        with self._apply_directives(code.globalstate):
-            super(CompilerDirectivesExprNode, self).generate_evaluation_code(code)
-
-    def generate_disposal_code(self, code):
-        with self._apply_directives(code.globalstate):
-            super(CompilerDirectivesExprNode, self).generate_disposal_code(code)
-
-    def free_temps(self, code):
-        with self._apply_directives(code.globalstate):
-            super(CompilerDirectivesExprNode, self).free_temps(code)
-
-    def annotate(self, code):
-        with self._apply_directives(code.globalstate):
-            self.arg.annotate(code)
-
-
 class LazyCoerceToPyObject(ExprNodes.ExprNode):
     """
     Just calls "self.arg.coerce_to_pyobject" when it's analysed,
@@ -2090,8 +2082,8 @@ class LazyCoerceToPyObject(ExprNodes.ExprNode):
 
 class LazyCoerceToBool(ExprNodes.ExprNode):
     """
-    Just calls "self.arg.coerce_to_bool" when it's analysed,
-    so doesn't need 'env' when it's created
+    Just calls "self.arg.analyse_boolean_expression"
+    when it's analysed, so doesn't need 'env' when it's created
     arg  - ExprNode
     """
     subexprs = ["arg"]
@@ -2129,7 +2121,7 @@ def generate_binop_tree_from_list(pos, operator, list_of_tests):
 
 class MappingOrClassComparisonNode(ExprNodes.ExprNode):
     """
-    Combined with MappingOrClassComparisonNodeInner this is responsible 
+    Combined with MappingOrClassComparisonNodeInner this is responsible
     for setting up up the arrays of subjects and keys that are used in
     the function calls that handle these types of patterns
 
@@ -2138,7 +2130,7 @@ class MappingOrClassComparisonNode(ExprNodes.ExprNode):
     it gets evaluated in the correct order
     """
     subexprs = ["keys_array", "inner"]
-    
+
     keys_array_cname = "__pyx_match_mapping_keys"
     subjects_array_cname = "__pyx_match_mapping_subjects"
 
@@ -2167,14 +2159,15 @@ class MappingOrClassComparisonNode(ExprNodes.ExprNode):
         self.inner = MappingOrClassComparisonNodeInner(
             pos,
             arg=arg,
-            keys_array = self.keys_array,
-            subjects_array = subjects_array
+            parent=self,
+            subjects_array=subjects_array
         )
 
     def analyse_types(self, env):
         self.inner = self.inner.analyse_types(env)
         self.keys_array = [
-            key.analyse_types(env).coerce_to_simple(env) for key in self.keys_array
+            key.analyse_types(env).coerce_to_pyobject(env).coerce_to_simple(env)
+            for key in self.keys_array
         ]
         return self
 
@@ -2185,19 +2178,20 @@ class MappingOrClassComparisonNode(ExprNodes.ExprNode):
         return self.inner.calculate_result_code()
 
 
-class MappingOrClassComparisonNodeInner(ExprNodes.ExprNode):
+class MappingOrClassComparisonNodeInner(ExprNodes.ExprNode, Nodes.CopyWithUpTreeRefsMixin):
     """
     Sets up the arrays of subjects and keys
 
-    Created by the constructor of MappingComparisonNode
+    Created by the constructor of MappingOrClassComparisonNode
     (no need to create directly)
 
     has attributes:
     * arg  - the main comparison node
-    * keys_array - list of ExprNodes representing keys
+    * parent - the MappingOrClassComparisonNode that owns this
     * subjects_array - list of ExprNodes representing subjects
     """
     subexprs = ['arg']
+    uptree_ref_attrs = ["parent"]
 
     @property
     def type(self):
@@ -2205,16 +2199,12 @@ class MappingOrClassComparisonNodeInner(ExprNodes.ExprNode):
 
     def analyse_types(self, env):
         self.arg = self.arg.analyse_types(env)
-        for n in range(len(self.keys_array)):
-            key = self.keys_array[n].analyse_types(env)
-            key = key.coerce_to_pyobject(env)
-            self.keys_array[n] = key
         assert self.arg.type is PyrexTypes.c_bint_type
         return self
 
     def generate_evaluation_code(self, code):
         code.putln("{")
-        keys_str = ", ".join(k.result() for k in self.keys_array)
+        keys_str = ", ".join(k.result() for k in self.parent.keys_array)
         if not keys_str:
             # GCC gets worried about overflow if we pass
             # a genuinely empty array
@@ -2235,7 +2225,7 @@ class MappingOrClassComparisonNodeInner(ExprNodes.ExprNode):
             subjects_str
         ))
         super(MappingOrClassComparisonNodeInner, self).generate_evaluation_code(code)
-        
+
         code.putln("}")
 
     def generate_result_code(self, code):

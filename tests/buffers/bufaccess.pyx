@@ -10,7 +10,7 @@
 from __future__ import unicode_literals
 
 from cpython.object cimport PyObject
-from cpython.ref cimport Py_INCREF, Py_DECREF, Py_CLEAR
+from cpython.ref cimport Py_INCREF, Py_DECREF, Py_CLEAR, Py_REFCNT
 cimport cython
 
 import sys
@@ -959,7 +959,7 @@ def decref(*args):
 @cython.binding(False)
 @cython.always_allow_keywords(False)
 def get_refcount(x):
-    return (<PyObject*>x).ob_refcnt
+    return Py_REFCNT(x)
 
 @testcase
 def printbuf_object(object[object] buf, shape):
@@ -971,9 +971,12 @@ def printbuf_object(object[object] buf, shape):
     we to the "buffer implementor" refcounting directly in the
     testcase.
 
-    >>> a, b, c = "globally_unique_string_23234123", {4:23}, [34,3]
+    >>> _x = 1
+    >>> a, b, c = "globally_unique_string_2323412" + "3" * _x, {4:23}, [34,3]
+
     >>> get_refcount(a), get_refcount(b), get_refcount(c)
     (2, 2, 2)
+
     >>> A = ObjectMockBuffer(None, [a, b, c])
     >>> printbuf_object(A, (3,))
     'globally_unique_string_23234123' 2
@@ -982,7 +985,7 @@ def printbuf_object(object[object] buf, shape):
     """
     cdef int i
     for i in range(shape[0]):
-        print repr(buf[i]), (<PyObject*>buf[i]).ob_refcnt
+        print repr(buf[i]), Py_REFCNT(buf[i])
 
 @testcase
 def assign_to_object(object[object] buf, int idx, obj):

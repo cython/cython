@@ -1,3 +1,5 @@
+# tag: openmp, threads
+
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import counting_atomic"
 PYTHON -c "import counting_locked"

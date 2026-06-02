@@ -198,25 +198,16 @@ def m_unicode_literal(Py_UNICODE a):
 
 cdef unicode wide_unicode_character = u'\U0010FEDC'
 py_wide_unicode_character = wide_unicode_character
-wide_unicode_character_surrogate1 = 0xDBFF
-wide_unicode_character_surrogate2 = 0xDEDC
 
-@cython.test_fail_if_path_exists("//SwitchStatNode")
-@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
 def m_wide_unicode_literal(Py_UCS4 a):
     """
     >>> m_unicode_literal(ord('f'))
     1
     >>> m_unicode_literal(ord('X'))
     0
-    >>> import sys
-    >>> if sys.maxunicode == 65535:
-    ...     m_wide_unicode_literal(wide_unicode_character_surrogate1)
-    ...     m_wide_unicode_literal(wide_unicode_character_surrogate2)
-    ... else:
-    ...     m_wide_unicode_literal(ord(py_wide_unicode_character))
-    ...     1
-    1
+    >>> m_wide_unicode_literal(ord(py_wide_unicode_character))
     1
     """
     cdef int result = a in u'abc\0defg\u1234\uF8D2\U0010FEDC'
@@ -326,6 +317,29 @@ def q(a):
     cdef int result = a in d # should fail with a TypeError
     return result
 
+
+def p_frozendict(a):
+    """
+    >>> p_frozendict(1)
+    0
+    >>> p_frozendict('a')
+    1
+    """
+    cdef frozendict fd = frozendict({u'a': 1, u'b': 2})
+    cdef int result = a in fd
+    return result
+
+
+def q_frozendict(a):
+    """
+    >>> q_frozendict(1)
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object is not iterable
+    """
+    cdef frozendict fd = None
+    cdef int result = a in fd  # should fail with a TypeError
+    return result
+
 def r(a):
     """
     >>> r(2)
@@ -344,16 +358,36 @@ def s(a):
     cdef int result = a in [1,2,3,4] in [[1,2,3],[2,3,4],[1,2,3,4]]
     return result
 
-#@cython.test_assert_path_exists("//ReturnStatNode//BoolNode")
-#@cython.test_fail_if_path_exists("//SwitchStatNode")
+
+@cython.test_assert_path_exists("//ReturnStatNode//BoolNode")
+@cython.test_fail_if_path_exists(
+    "//SwitchStatNode",
+    "//PrimaryCmpNode",
+)
 def constant_empty_sequence(a):
     """
     >>> constant_empty_sequence(1)
-    False
+    (False, True)
     >>> constant_empty_sequence(5)
-    False
+    (False, True)
     """
-    return a in ()
+    return (a in ()), (a not in ())  # 'a' is simple, so this has a constant (False) result
+
+
+@cython.test_assert_path_exists("//ReturnStatNode//BoolNode")
+@cython.test_fail_if_path_exists(
+    "//SwitchStatNode",
+    "//PrimaryCmpNode",
+)
+def constant_empty_sequence_cint(int a):
+    """
+    >>> constant_empty_sequence_cint(1)
+    (False, True)
+    >>> constant_empty_sequence_cint(5)
+    (False, True)
+    """
+    return (a in ()), (a not in ())  # 'a' is simple, so this has a constant result
+
 
 @cython.test_fail_if_path_exists("//ReturnStatNode//BoolNode")
 @cython.test_assert_path_exists("//PrimaryCmpNode")

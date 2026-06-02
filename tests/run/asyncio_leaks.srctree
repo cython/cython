@@ -1,0 +1,64 @@
+# mode: run
+# tag: asyncio, pep492
+# ticket: gh6878, gh6850
+
+"""
+PYTHON setup.py build_ext -i
+PYTHON test_no_leak.py
+"""
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+
+######## leaky_coros.pyx ########
+# See https://github.com/cython/cython/issues/6878
+
+import asyncio
+
+async def helper(func):
+    await asyncio.sleep(.1)  # force delegation
+    return func()
+
+async def leak_return_value_of(func):
+    await helper(func)
+
+
+######## test_no_leak.py ########
+# See https://github.com/cython/cython/issues/6878
+
+import asyncio
+import gc
+import platform
+from contextlib import closing
+
+import leaky_coros
+
+class Leaked:
+    pass
+
+async def run_test(repeat):
+    for _ in range(repeat):
+        x = await leaky_coros.leak_return_value_of(Leaked)
+        del x
+
+    gc.collect()
+
+    refcount = sum((type(x) is Leaked) for x in gc.get_objects())
+
+    if refcount != 0:
+        if platform.python_implementation() == 'CPython':
+            raise RuntimeError(f"{refcount}/{repeat} references leaked")
+        else:
+            # GC is not instantaneous in PyPy etc.
+            print(f"{refcount}/{repeat} references left over - may have leaked!")
+
+
+with closing(asyncio.new_event_loop()) as loop:
+    loop.run_until_complete(run_test(10))

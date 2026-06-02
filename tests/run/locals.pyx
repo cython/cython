@@ -5,6 +5,8 @@ def get_locals(x, *args, **kwds):
     """
     >>> sorted( get_locals(1,2,3, k=5).items() )
     [('args', (2, 3)), ('kwds', {'k': 5}), ('x', 1), ('y', 'hi'), ('z', 5)]
+    >>> sorted( get_locals(1).items() )  # args and kwds should *always* be present even if not passed
+    [('args', ()), ('kwds', {}), ('x', 1), ('y', 'hi'), ('z', 5)]
     """
     cdef int z = 5
     y = "hi"
@@ -14,6 +16,8 @@ def get_vars(x, *args, **kwds):
     """
     >>> sorted( get_vars(1,2,3, k=5).items() )
     [('args', (2, 3)), ('kwds', {'k': 5}), ('x', 1), ('y', 'hi'), ('z', 5)]
+    >>> sorted( get_vars(1).items() )
+    [('args', ()), ('kwds', {}), ('x', 1), ('y', 'hi'), ('z', 5)]
     """
     cdef int z = 5
     y = "hi"
@@ -22,6 +26,8 @@ def get_vars(x, *args, **kwds):
 def get_dir(x, *args, **kwds):
     """
     >>> sorted( get_dir(1,2,3, k=5) )
+    ['args', 'kwds', 'x', 'y', 'z']
+    >>> sorted( get_dir(1) )
     ['args', 'kwds', 'x', 'y', 'z']
     """
     cdef int z = 5
@@ -36,6 +42,8 @@ def in_locals(x, *args, **kwds):
     True
     >>> in_locals('X')
     False
+    >>> in_locals('kwds')
+    True
     """
     cdef int z = 5
     y = "hi"
@@ -49,6 +57,8 @@ def in_dir(x, *args, **kwds):
     True
     >>> in_dir('X')
     False
+    >>> in_dir('kwds')
+    True
     """
     cdef int z = 5
     y = "hi"
@@ -62,6 +72,8 @@ def in_vars(x, *args, **kwds):
     True
     >>> in_vars('X')
     False
+    >>> in_vars('kwds')
+    True
     """
     cdef int z = 5
     y = "hi"

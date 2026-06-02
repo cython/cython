@@ -24,5 +24,5 @@ def test_Foo(n):
 
 
 _WARNINGS = """
-5:5: 'Foo' already defined  (ignoring second definition)
+5:0: 'Foo' already defined  (ignoring second definition)
 """

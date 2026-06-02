@@ -149,12 +149,10 @@ from cpython.mapping cimport *
 from cpython.iterator cimport *
 from cpython.type cimport *
 from cpython.number cimport *
-from cpython.int cimport *
 from cpython.bool cimport *
 from cpython.long cimport *
 from cpython.float cimport *
 from cpython.complex cimport *
-from cpython.string cimport *
 from cpython.unicode cimport *
 from cpython.dict cimport *
 from cpython.instance cimport *
@@ -164,22 +162,10 @@ from cpython.weakref cimport *
 from cpython.getargs cimport *
 from cpython.pythread cimport *
 from cpython.pystate cimport *
-
-# Python <= 2.x
-from cpython.cobject cimport *
-from cpython.oldbuffer cimport *
-
-# Python >= 2.4
 from cpython.set cimport *
-
-# Python >= 2.6
 from cpython.buffer cimport *
 from cpython.bytes cimport *
-
-# Python >= 3.0
 from cpython.pycapsule cimport *
-
-# Python >= 3.7
 from cpython.contextvars cimport *
 
 #################################################################

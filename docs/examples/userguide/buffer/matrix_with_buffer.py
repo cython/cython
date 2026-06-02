@@ -16,7 +16,7 @@ class Matrix:
         """Adds a row, initially zero-filled."""
         self.v.resize(self.v.size() + self.ncols)
 
-    def __getbuffer__(self, buffer: cython.pointer(Py_buffer), flags: cython.int):
+    def __getbuffer__(self, buffer: cython.pointer[Py_buffer], flags: cython.int):
         itemsize: cython.Py_ssize_t = cython.sizeof(self.v[0])
 
         self.shape[0] = self.v.size() // self.ncols
@@ -26,10 +26,9 @@ class Matrix:
         # this is the distance between two adjacent items in the vector.
         # Stride 0 is the distance between the first elements of adjacent rows.
         self.strides[1] = cython.cast(cython.Py_ssize_t, (
-             cython.cast(cython.p_char, cython.address(self.v[1]))
-           - cython.cast(cython.p_char, cython.address(self.v[0]))
-           )
-       )
+              cython.cast(cython.p_char, cython.address(self.v[1]))
+            - cython.cast(cython.p_char, cython.address(self.v[0]))
+        ))
         self.strides[0] = self.ncols * self.strides[1]
 
         buffer.buf = cython.cast(cython.p_char, cython.address(self.v[0]))
@@ -44,5 +43,5 @@ class Matrix:
         buffer.strides = self.strides
         buffer.suboffsets = cython.NULL         # for pointer arrays only
 
-    def __releasebuffer__(self, buffer: cython.pointer(Py_buffer)):
+    def __releasebuffer__(self, buffer: cython.pointer[Py_buffer]):
         pass

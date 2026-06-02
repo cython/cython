@@ -9,7 +9,7 @@ def modobj(obj2, obj3):
     '5'
     >>> modobj(1, 0)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ZeroDivisionError: integer... by zero
+    ZeroDivisionError: ... by zero
     """
     obj1 = obj2 % obj3
     return obj1
@@ -276,19 +276,19 @@ def modint(int int2, int int3):
 
 def modptr():
     """
-    >>> print(modptr() if sys.version_info[0] < 3 else 'spameggs')
-    spameggs
+    >>> modptr()
+    b'spameggs'
     """
     cdef char *str2, *str3
     str2 = "spam%s"
     str3 = "eggs"
-    obj1 = str2 % str3  # '%' operator doesn't work on byte strings in Py3
+    obj1 = str2 % str3
     return obj1
 
 
 def mod_bigint(obj):
     """
-    >>> print(mod_bigint(3316000000000))
+    >>> mod_bigint(3316000000000)
     319
     """
     result = obj % 999

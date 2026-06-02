@@ -21,10 +21,10 @@ class Matrix:
             raise ValueError("can't add row while being viewed")
         self.v.resize(self.v.size() + self.ncols)
 
-    def __getbuffer__(self, buffer: cython.pointer(Py_buffer), flags: cython.int):
+    def __getbuffer__(self, buffer: cython.pointer[Py_buffer], flags: cython.int):
         # ... as before
 
         self.view_count += 1
 
-    def __releasebuffer__(self, buffer: cython.pointer(Py_buffer)):
+    def __releasebuffer__(self, buffer: cython.pointer[Py_buffer]):
         self.view_count -= 1

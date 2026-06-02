@@ -10,7 +10,7 @@ my_c_struct = cython.struct(
 @cython.cclass
 class WrapperClass:
     """A wrapper class for a C/C++ data structure"""
-    _ptr: cython.pointer(my_c_struct)
+    _ptr: cython.pointer[my_c_struct]
     ptr_owner: cython.bint
 
     def __cinit__(self):
@@ -38,7 +38,7 @@ class WrapperClass:
 
     @staticmethod
     @cython.cfunc
-    def from_ptr(_ptr: cython.pointer(my_c_struct), owner: cython.bint=False) -> WrapperClass:
+    def from_ptr(_ptr: cython.pointer[my_c_struct], owner: cython.bint=False) -> WrapperClass:
         """Factory function to create WrapperClass objects from
         given my_c_struct pointer.
 
@@ -56,8 +56,8 @@ class WrapperClass:
     def new_struct() -> WrapperClass:
         """Factory function to create WrapperClass objects with
         newly allocated my_c_struct"""
-        _ptr: cython.pointer(my_c_struct) = cython.cast(
-                cython.pointer(my_c_struct), malloc(cython.sizeof(my_c_struct)))
+        _ptr: cython.pointer[my_c_struct] = cython.cast(
+                cython.pointer[my_c_struct], malloc(cython.sizeof(my_c_struct)))
         if _ptr is cython.NULL:
             raise MemoryError
         _ptr.a = 0

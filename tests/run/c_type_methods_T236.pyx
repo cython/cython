@@ -1,26 +1,22 @@
 # ticket: t236
 
-import sys
-
-__doc__ = '''
->>> float_is_integer(1.0)
-True
->>> float_is_integer(1.1)
-False
-'''
-if sys.version_info >= (3,1):
-    __doc__ += '''
->>> int_bit_length(1) == (1).bit_length()
-True
->>> int_bit_length(1234) == (1234).bit_length()
-True
-'''
 
 def float_is_integer(float f):
+    """
+    >>> float_is_integer(1.0)
+    True
+    >>> float_is_integer(1.1)
+    False
+    """
     return f.is_integer()
 
 def int_bit_length(int i):
-    # requires Python 3.x
+    """
+    >>> int_bit_length(1) == (1).bit_length()
+    True
+    >>> int_bit_length(1234) == (1234).bit_length()
+    True
+    """
     return i.bit_length()
 
 

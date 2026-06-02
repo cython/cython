@@ -1,6 +1,9 @@
 import unittest
 
-class DictSetTest(unittest.TestCase):
+from Cython.TestUtils import TimedTest
+
+
+class DictSetTest(TimedTest):
 
     def test_constructors_not_callable(self):
         kt = type({}.viewkeys())
@@ -144,14 +147,13 @@ class DictSetTest(unittest.TestCase):
                          {('a', 1), ('b', 2), ('d', 4), ('e', 5)})
 
 
-
-
 def test_main():
     try:
         from test import test_support as support
     except ImportError:
         from test import support
     support.run_unittest(DictSetTest)
+
 
 if __name__ == "__main__":
     test_main()

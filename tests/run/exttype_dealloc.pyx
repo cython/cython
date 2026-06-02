@@ -133,10 +133,7 @@ class PySubTypeRefCycleDel(ExtTypeRefCycle):
     >>> obj = None
     >>> _ = gc.collect()
 
-    >>> count = 2
-    >>> if sys.version_info >= (3, 4):
-    ...     count = find_name(PySubTypeRefCycleDel)
-    >>> count
+    >>> find_name(PySubTypeRefCycleDel)
     2
     """
     def __del__(self):

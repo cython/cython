@@ -8,6 +8,19 @@ ustring_with_a = u'abcdefg'
 ustring_without_a = u'bcdefg'
 
 
+def infer_return_type(ch):
+    """
+    >>> infer_return_type('5')
+    53
+    >>> infer_return_type('ab')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...
+    """
+    n = ord(ch)
+    assert cython.typeof(n) == 'long', cython.typeof(n)
+    return n
+
+
 @cython.test_assert_path_exists(
     # ord() should receive and return a C value
     '//ReturnStatNode//CoerceToPyTypeNode//SimpleCallNode')
@@ -70,8 +83,8 @@ def compare_to_char(s):
 def ord_object(s):
     """
     >>> try: ord_object('abc')
-    ... except ValueError: assert sys.version_info[0] >= 3
-    ... except TypeError: assert sys.version_info[0] < 3
+    ... except ValueError: pass
+    ... except TypeError: print("FAILED!")
     >>> ord_object('a')
     97
     >>> ord_object(b'a')

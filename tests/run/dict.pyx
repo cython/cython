@@ -1,7 +1,4 @@
-import sys
-
-IS_PY35 = sys.version_info >= (3, 5)
-
+# mode: run
 
 def empty():
     """
@@ -93,6 +90,36 @@ def items_of_dict_call():
     return sorted(items)
 
 
+def in_dict(value):
+    """
+    >>> in_dict('a')
+    True
+    >>> in_dict('b')
+    True
+    >>> in_dict('c')
+    False
+    >>> in_dict('')
+    False
+    """
+    d = {'a': 1, 'b': 2}
+    return value in d
+
+
+def dict_contains(value):
+    """
+    >>> dict_contains('a')
+    True
+    >>> dict_contains('b')
+    True
+    >>> dict_contains('c')
+    False
+    >>> dict_contains('')
+    False
+    """
+    d = {'a': 1, 'b': 2}
+    return d.__contains__(value)
+
+
 def item_creation_sideeffect(L, sideeffect, unhashable):
     """
     >>> def sideeffect(x):
@@ -113,7 +140,7 @@ def item_creation_sideeffect(L, sideeffect, unhashable):
     >>> {1:2, sideeffect(2): 3, 3: 4, unhashable(4): 5, sideeffect(5): 6}  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...unhashable...
-    >>> L if IS_PY35 else (L + [5])
+    >>> L
     [2, 4, 5]
     """
     return {1:2, sideeffect(2): 3, 3: 4, unhashable(4): 5, sideeffect(5): 6}
@@ -136,3 +163,17 @@ def dict_unpacking_not_for_arg_create_a_copy():
 
     print(sorted(call_once.items()))
     print(sorted(call_twice.items()))
+
+def from_keys_bound(dict d, val):
+    """
+    https://github.com/cython/cython/issues/5051
+    Optimization of bound method calls was breaking classmethods
+    >>> sorted(from_keys_bound({}, 100).items())
+    [('a', 100), ('b', 100)]
+    >>> sorted(from_keys_bound({}, None).items())
+    [('a', None), ('b', None)]
+    """
+    if val is not None:
+        return d.fromkeys(("a", "b"), val)
+    else:
+        return d.fromkeys(("a", "b"))

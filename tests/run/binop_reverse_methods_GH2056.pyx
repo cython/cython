@@ -95,21 +95,17 @@ class Base(object):
         return cython.typeof(self) == 'Base'
 
 
-if sys.version_info >= (3, 5):
-    __doc__ += """
-    >>> Base() @ 1
-    True
-    >>> set() @ Base()
-    True
-    """
+__doc__ += """
+>>> Base() @ 1
+True
+>>> set() @ Base()
+True
 
-if sys.version_info >= (3, 0):
-    __doc__ += """
-    >>> Base() / 1
-    True
-    >>> set() / Base()
-    True
-    """
+>>> Base() / 1
+True
+>>> set() / Base()
+True
+"""
 
 
 @cython.c_api_binop_methods(False)
@@ -227,17 +223,16 @@ class OverloadCApi(Base):
             return NotImplemented
 
 
-if sys.version_info >= (3, 5):
-    __doc__ += """
-    >>> d = PyVersionDependent()
-    >>> d @ 2
-    9
-    >>> 2 @ d
-    99
-    >>> i = d
-    >>> i @= 2
-    >>> i
-    999
+__doc__ += """
+>>> d = PyVersionDependent()
+>>> d @ 2
+9
+>>> 2 @ d
+99
+>>> i = d
+>>> i @= 2
+>>> i
+999
 """
 
 
@@ -304,6 +299,32 @@ class PyVersionDependent:
 
     def __imatmul__(self, other):
         return 999
+
+
+@cython.cclass
+class CallMethodsDirectly:
+    """
+    A slightly more useful version of this pattern is used by
+    Pandas. In order to (a) not cause a recursion error and
+    (b) correctly follow Python behaviour, the call to __add__
+    should use the function as written and not our dispatch
+    wrapper.
+
+    >>> CallMethodsDirectly() + CallMethodsDirectly  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    TypeError: unsupported operand type...
+
+    We can also do this
+    >>> CallMethodsDirectly().__radd__(None)  #doctest: +ELLIPSIS
+    NotImplemented
+    """
+
+    def __add__(self, other):
+        return NotImplemented
+
+    def __radd__(self, other):
+        return self.__add__(other)
 
 
 # TODO: Test a class that only defines the `__r...__()` methods.

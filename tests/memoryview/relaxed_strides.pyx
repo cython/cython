@@ -40,10 +40,10 @@ NUMPY_HAS_RELAXED_STRIDES = (
 def test_one_sized(array):
     """
     >>> contig = np.ascontiguousarray(np.arange(10, dtype=np.double)[::100])
-    >>> test_one_sized(contig)[0]
+    >>> float(test_one_sized(contig)[0])
     1.0
     >>> a = np.arange(10, dtype=np.double)[::100]
-    >>> if NUMPY_HAS_RELAXED_STRIDES: print(test_one_sized(a)[0])
+    >>> if NUMPY_HAS_RELAXED_STRIDES: print(float(test_one_sized(a)[0]))
     ... else: print(1.0)
     1.0
     """

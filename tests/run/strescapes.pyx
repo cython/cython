@@ -10,8 +10,8 @@ __doc__ = u"""
 ... b"\\"",
 ... b'\\"',
 ... b'abc\\x12def',
-... u'\\u1234',
-... u'\\U00001234',
+... '\\u1234',
+... '\\U00001234',
 ... b'\\u1234',
 ... b'\\U00001234',
 ... b'\\n\\r\\t',
@@ -30,12 +30,6 @@ __doc__ = u"""
 ...             i, c_string, len(c_string), length))
 
 """
-
-import sys
-if sys.version_info[0] < 3:
-    __doc__ = __doc__.replace(u" b'", u" '").replace(u' b"', u' "')
-else:
-    __doc__ = __doc__.replace(u" u'", u" '").replace(u' u"', u' "')
 
 c_strings = [
 (b'\x1234', 3),
