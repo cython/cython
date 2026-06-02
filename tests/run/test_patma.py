@@ -1647,7 +1647,7 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_144(self):
-        x : object = 0.0  # Cython-specific change. Otherwise x is inferred as int 
+        x : object = 0.0  # Cython-specific change. Otherwise x is inferred as a C type 
                           # which makes assertIs(z, x) fail
         match x:
             case float(z):
@@ -2887,8 +2887,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-
-    @disable  # validation will be added when class patterns are added
+    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
     def test_attribute_name_repeated_in_class_pattern(self):
         self.assert_syntax_error("""
         match ...:
@@ -2987,7 +2986,6 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # will be implemented as part of sequence patterns
     def test_multiple_starred_names_in_sequence_pattern_0(self):
         self.assert_syntax_error("""
         match ...:
@@ -2995,7 +2993,6 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # will be implemented as part of sequence patterns
     def test_multiple_starred_names_in_sequence_pattern_1(self):
         self.assert_syntax_error("""
         match ...:
@@ -3130,7 +3127,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # validation will be added when class patterns are added
+    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
     def test_mapping_pattern_duplicate_key(self):
         self.assert_syntax_error("""
         match ...:
@@ -3138,7 +3135,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # validation will be added when class patterns are added
+    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
     def test_mapping_pattern_duplicate_key_edge_case0(self):
         self.assert_syntax_error("""
         match ...:
@@ -3146,7 +3143,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # validation will be added when class patterns are added
+    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
     def test_mapping_pattern_duplicate_key_edge_case1(self):
         self.assert_syntax_error("""
         match ...:
@@ -3154,7 +3151,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # validation will be added when class patterns are added
+    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
     def test_mapping_pattern_duplicate_key_edge_case2(self):
         self.assert_syntax_error("""
         match ...:
@@ -3162,7 +3159,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # validation will be added when class patterns are added
+    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
     def test_mapping_pattern_duplicate_key_edge_case3(self):
         self.assert_syntax_error("""
         match ...:
