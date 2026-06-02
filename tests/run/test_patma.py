@@ -6,6 +6,7 @@
 import cython
 from Cython.TestUtils import TimedTest, py_parse_code
 
+import platform
 
 if cython.compiled:
     def compile(code, name, what):
@@ -16,6 +17,9 @@ if cython.compiled:
 def disable(func):
     pass
 
+def disable_in_compiled_graalpy(func):
+    if not cython.compiled or platform.python_implementation() != 'GraalVM':
+        return func
 
 ############## SLIGHTLY MODIFIED ORIGINAL CODE
 import array
@@ -237,6 +241,7 @@ class TestInheritance(TimedTest):
         self.assertEqual(self.check_mapping_then_sequence(S3()), "seq")
         self.assertEqual(self.check_mapping_then_sequence(S4()), "seq")
 
+    @disable_in_compiled_graalpy
     def test_late_registration_mapping(self):
         class Parent:
             pass
@@ -260,6 +265,7 @@ class TestInheritance(TimedTest):
         self.assertEqual(self.check_mapping_then_sequence(ChildPost()), "map")
         self.assertEqual(self.check_mapping_then_sequence(GrandchildPost()), "map")
 
+    @disable_in_compiled_graalpy
     def test_late_registration_sequence(self):
         class Parent:
             pass

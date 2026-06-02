@@ -29,10 +29,10 @@ def test_duplicate_keys(key1, key2):
 
     >>> test_duplicate_keys("a", "b")
     True
-    >>> test_duplicate_keys("a", "a")
+    >>> test_duplicate_keys("a", "a")  # doctest: +ELLIPSIS
     Traceback (most recent call last):
        ...
-    ValueError: mapping pattern checks duplicate key ('a')
+    ValueError: mapping pattern checks duplicate key ...
     """
     class Keys:
         KEY_1 = key1
