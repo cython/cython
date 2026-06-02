@@ -6,6 +6,7 @@
 import cython
 from Cython.TestUtils import TimedTest, py_parse_code
 
+import platform
 
 if cython.compiled:
     def compile(code, name, what):
@@ -16,6 +17,9 @@ if cython.compiled:
 def disable(func):
     pass
 
+def disable_in_compiled_graalpy(func):
+    if not cython.compiled or platform.python_implementation() != 'GraalVM':
+        return func
 
 ############## SLIGHTLY MODIFIED ORIGINAL CODE
 import array
@@ -183,7 +187,6 @@ class TestInheritance(TimedTest):
 
     @staticmethod
     def check_sequence_then_mapping(x):
-        return  # disabled
         match x:
             case [*_]:
                 return "seq"
@@ -192,7 +195,6 @@ class TestInheritance(TimedTest):
 
     @staticmethod
     def check_mapping_then_sequence(x):
-        return  # disabled
         match x:
             case {}:
                 return "map"
@@ -200,7 +202,6 @@ class TestInheritance(TimedTest):
                 return "seq"
 
     def test_multiple_inheritance_mapping(self):
-        return  # disabled
         class C:
             pass
         class M1(collections.UserDict, collections.abc.Sequence):
@@ -221,7 +222,6 @@ class TestInheritance(TimedTest):
         self.assertEqual(self.check_mapping_then_sequence(M4()), "map")
 
     def test_multiple_inheritance_sequence(self):
-        return  # disabled
         class C:
             pass
         class S1(collections.UserList, collections.abc.Mapping):
@@ -241,8 +241,8 @@ class TestInheritance(TimedTest):
         self.assertEqual(self.check_mapping_then_sequence(S3()), "seq")
         self.assertEqual(self.check_mapping_then_sequence(S4()), "seq")
 
+    @disable_in_compiled_graalpy
     def test_late_registration_mapping(self):
-        return  # disabled
         class Parent:
             pass
         class ChildPre(Parent):
@@ -265,8 +265,8 @@ class TestInheritance(TimedTest):
         self.assertEqual(self.check_mapping_then_sequence(ChildPost()), "map")
         self.assertEqual(self.check_mapping_then_sequence(GrandchildPost()), "map")
 
+    @disable_in_compiled_graalpy
     def test_late_registration_sequence(self):
-        return  # disabled
         class Parent:
             pass
         class ChildPre(Parent):
@@ -458,7 +458,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_022(self):
-        return  # disabled
         x = {}
         match x:
             case {}:
@@ -467,7 +466,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_023(self):
-        return  # disabled
         x = {0: 0}
         match x:
             case {}:
@@ -476,7 +474,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_024(self):
-        return  # disabled
         x = {}
         y = None
         match x:
@@ -526,7 +523,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_029(self):
-        return  # disabled
         x = {}
         y = None
         match x:
@@ -540,7 +536,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_030(self):
-        return  # disabled
         x = {False: (True, 2.0, {})}
         match x:
             case {0: [1, 2, {}]}:
@@ -553,7 +548,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_031(self):
-        return  # disabled
         x = {False: (True, 2.0, {}), 1: [[]], 2: 0}
         match x:
             case {0: [1, 2, {}]}:
@@ -566,7 +560,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_032(self):
-        return  # disabled
         x = {False: (True, 2.0, {}), 1: [[]], 2: 0}
         match x:
             case {0: [1, 2]}:
@@ -579,7 +572,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 1)
 
     def test_patma_033(self):
-        return  # disabled
         x = []
         match x:
             case {0: [1, 2, {}]}:
@@ -1423,7 +1415,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 1)
 
     def test_patma_119(self):
-        return  # disabled
         x = collections.defaultdict(int)
         match x:
             case {0: 0}:
@@ -1434,7 +1425,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 1)
 
     def test_patma_120(self):
-        return  # disabled
         x = collections.defaultdict(int)
         match x:
             case {0: 0}:
@@ -1529,7 +1519,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_133(self):
-        return  # disabled
         x = collections.defaultdict(int, {0: 1})
         match x:
             case {1: 0}:
@@ -1542,7 +1531,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 2)
 
     def test_patma_134(self):
-        return  # disabled
         x = collections.defaultdict(int, {0: 1})
         match x:
             case {1: 0}:
@@ -1556,7 +1544,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, {0: 1})
 
     def test_patma_135(self):
-        return  # disabled
         x = collections.defaultdict(int, {0: 1})
         match x:
             case {1: 0}:
@@ -1570,7 +1557,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, {})
 
     def test_patma_136(self):
-        return  # disabled
         x = {0: 1}
         match x:
             case {1: 0}:
@@ -1583,7 +1569,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 1)
 
     def test_patma_137(self):
-        return  # disabled
         x = {0: 1}
         match x:
             case {1: 0}:
@@ -1597,7 +1582,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, {0: 1})
 
     def test_patma_138(self):
-        return  # disabled
         x = {0: 1}
         match x:
             case {1: 0}:
@@ -2226,7 +2210,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_193(self):
-        return  # disabled
         x = {"bandwidth": 0, "latency": 1}
         match x:
             case {"bandwidth": b, "latency": l}:
@@ -2237,7 +2220,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_194(self):
-        return  # disabled
         x = {"bandwidth": 0, "latency": 1, "key": "value"}
         match x:
             case {"latency": l, "bandwidth": b}:
@@ -2248,7 +2230,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_195(self):
-        return  # disabled
         x = {"bandwidth": 0, "latency": 1, "key": "value"}
         match x:
             case {"bandwidth": b, "latency": l, **rest}:
@@ -2260,7 +2241,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_196(self):
-        return  # disabled
         x = {"bandwidth": 0, "latency": 1}
         match x:
             case {"latency": l, "bandwidth": b, **rest}:
@@ -2491,7 +2471,6 @@ class TestPatma(TimedTest):
         self.assertIs(f(bytearray(b"abc")), None)
 
     def test_patma_211(self):
-        return  # disabled
         def f(w):
             match w:
                 case {"x": x, "y": "y", "z": z}:
@@ -2561,7 +2540,6 @@ class TestPatma(TimedTest):
         self.assertEqual(set(f()), {"a", "b"})
 
     def test_patma_219(self):
-        return  # disabled
         def f():
             match {"k": ..., "l": ...}:
                 case {"k": a, "l": b}:
@@ -2765,7 +2743,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, (2, 3))
 
     def test_patma_239(self):
-        return  # disabled
         x = collections.UserDict({0: 1, 2: 3})
         match x:
             case {2: 3}:
@@ -2774,7 +2751,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_240(self):
-        return  # disabled
         x = collections.UserDict({0: 1, 2: 3})
         match x:
             case {2: 3, **z}:
@@ -2882,7 +2858,6 @@ class TestPatma(TimedTest):
         self.assertEqual(f((False, range(10, 20), True)), alts[4])
 
     def test_patma_248(self):
-        return  # disabled
         class C(dict):
             @staticmethod
             def get(key, default=None):
@@ -3329,7 +3304,6 @@ class TestTypeErrors(TimedTest):
 class TestValueErrors(TimedTest):
 
     def test_mapping_pattern_checks_duplicate_key_1(self):
-        return  # disabled
         class Keys:
             KEY = "a"
         x = {"a": 0, "b": 1}

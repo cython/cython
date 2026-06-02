@@ -78,15 +78,44 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     int sequence_result=0, mapping_result=0;
     unsigned int result = 0;
 
+    if (sequence_first && definitely_not_sequence) {
+        return __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
+    }
+    if (!sequence_first && definitely_not_mapping) {
+        return __PYX_DEFINITELY_NOT_MAPPING_FLAG;
+    }
+
     abc_module = PyImport_ImportModule("collections.abc");
     if (!abc_module) {
         return __PYX_SEQUENCE_MAPPING_ERROR;
     }
     if (sequence_first) {
-        if (definitely_not_sequence) {
-            result = __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
+        if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &sequence_type, PYIDENT("Sequence")) == -1)) {
+            result = __PYX_SEQUENCE_MAPPING_ERROR;
             goto end;
         }
+        sequence_result = PyObject_IsInstance(o, sequence_type);
+        if (sequence_result <= 0) {
+            result = sequence_result < 0 ? __PYX_SEQUENCE_MAPPING_ERROR : __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
+            goto end;
+        }
+        // else sequence_result==1 but wait to see what mapping is
+    }
+    if (!definitely_not_mapping) {
+        if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &mapping_type, PYIDENT("Mapping")) == -1)) {
+            result = __PYX_SEQUENCE_MAPPING_ERROR;
+            goto end;
+        }
+        mapping_result = PyObject_IsInstance(o, mapping_type);
+        if (unlikely(mapping_result < 0)) {
+            result = __PYX_SEQUENCE_MAPPING_ERROR;
+            goto end;
+        } else if (mapping_result == 0 && !sequence_first) {
+            result = __PYX_DEFINITELY_NOT_MAPPING_FLAG;
+            goto end;
+        } // else mapping_result == 1
+    }
+    if (!sequence_first && !definitely_not_sequence) {
         if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &sequence_type, PYIDENT("Sequence")) == -1)) {
             result = __PYX_SEQUENCE_MAPPING_ERROR;
             goto end;
@@ -95,57 +124,16 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
         if (unlikely(sequence_result < 0)) {
             result = __PYX_SEQUENCE_MAPPING_ERROR;
             goto end;
-        } else if (sequence_result == 0) {
-            result = __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
-            goto end;
-        }
-        // else wait to see what mapping is
-    }
-    if (!definitely_not_mapping) {
-        if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &mapping_type, PYIDENT("Mapping")) == -1)) {
-            result = __PYX_SEQUENCE_MAPPING_ERROR;
-            goto end;
-        }
-        mapping_result = PyObject_IsInstance(o, mapping_type);
-        if (mapping_result < 0) {
-            result = __PYX_SEQUENCE_MAPPING_ERROR;
-            goto end;
-        } else if (mapping_result == 0) {
-            result |= __PYX_DEFINITELY_NOT_MAPPING_FLAG;
-            if (sequence_first) {
-                assert(sequence_result);
-                result |= __PYX_DEFINITELY_SEQUENCE_FLAG;
-            }
-            goto end;
-        } else /* mapping_result == 1 */ {
-            if (sequence_first && !sequence_result) {
-                result |= __PYX_DEFINITELY_MAPPING_FLAG;
-                goto end;
-            }
         }
     }
-    if (!sequence_first) {
-        // Here we know mapping_result is true because we'd have returned otherwise.
-        assert(mapping_result);
-        if (!definitely_not_sequence) {
-            if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &sequence_type, PYIDENT("Sequence")) == -1)) {
-                result = __PYX_SEQUENCE_MAPPING_ERROR;
-                goto end;
-            }
-            sequence_result = PyObject_IsInstance(o, sequence_type);
-        }
-        if (unlikely(sequence_result < 0)) {
-            result = __PYX_SEQUENCE_MAPPING_ERROR;
-            goto end;
-        } else if (sequence_result == 0) {
-            result |= (__PYX_DEFINITELY_NOT_SEQUENCE_FLAG | __PYX_DEFINITELY_MAPPING_FLAG);
-            goto end;
-        } /* else sequence_result == 1, continue to check both */
+    result |= (sequence_result ? __PYX_DEFINITELY_SEQUENCE_FLAG : __PYX_DEFINITELY_NOT_SEQUENCE_FLAG);
+    result |= (mapping_result ? __PYX_DEFINITELY_MAPPING_FLAG : __PYX_DEFINITELY_NOT_MAPPING_FLAG);
+    if (result != (__PYX_DEFINITELY_SEQUENCE_FLAG | __PYX_DEFINITELY_MAPPING_FLAG)) {
+        goto end;
     }
 
     // It's an instance of both types. Look up the MRO order.
     // In event of failure treat it as "could be either"
-    result = __PYX_DEFINITELY_SEQUENCE_FLAG | __PYX_DEFINITELY_MAPPING_FLAG;
     mro = PyObject_GetAttrString((PyObject*)Py_TYPE(o), "__mro__");
     Py_ssize_t i, mro_size;
     if (!mro) {
@@ -402,4 +390,344 @@ static PyObject *__Pyx_MatchCase_UnknownTypeSliceToList(PyObject *x, Py_ssize_t 
     (void)__Pyx_MatchCase_TupleSliceToList;
 #endif
     return __Pyx_MatchCase_OtherSequenceSliceToList(x, start, end);
+}
+
+///////////////////////////// IsMapping.proto //////////////////////
+
+static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping_temp); /* proto */
+
+//////////////////////////// IsMapping /////////////////////////
+//@requires: ABCCheck
+
+static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping_temp) {
+#if PY_VERSION_HEX >= 0x030A0000 && !(CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY)
+    return __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_MAPPING);
+#else
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // In the Limited API we have runtime access to Py_TPFLAGS_MAPPING
+    // by looking it up on module init so it's still worth attempting
+    // the fast path.
+    if (__Pyx_Runtime_TPFLAGS_MAPPING) {
+        return __Pyx_PyType_HasFeature(Py_TYPE(o), __Pyx_Runtime_TPFLAGS_MAPPING);
+    }
+#elif defined(Py_TPFLAGS_MAPPING)
+    // Elsewhere *we* define Py_TPFLAGS_SEQUENCE but that doesn't necessarily
+    // mean other types use it, so only success is meaningful.
+    if (__Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_MAPPING)) {
+        return 1;
+    }
+#endif
+    unsigned int abc_result, dummy=0;
+    if (sequence_mapping_temp) {
+        // do we already know the answer?
+        if (*sequence_mapping_temp & __PYX_DEFINITELY_MAPPING_FLAG) {
+            return 1;
+        } else if (*sequence_mapping_temp & __PYX_DEFINITELY_NOT_MAPPING_FLAG) {
+            return 0;
+        }
+    } else {
+        sequence_mapping_temp = &dummy; // just so we can assign freely without checking
+    }
+
+    if (__Pyx_MatchCase_IsExactMapping(o)) {
+        *sequence_mapping_temp |= (__PYX_DEFINITELY_MAPPING_FLAG | __PYX_DEFINITELY_NOT_SEQUENCE_FLAG);
+        return 1;
+    }
+    if (__Pyx_MatchCase_IsExactSequence(o)) {
+        *sequence_mapping_temp |= (__PYX_DEFINITELY_SEQUENCE_FLAG | __PYX_DEFINITELY_NOT_MAPPING_FLAG);
+        return 0;
+    }
+    if (__Pyx_MatchCase_IsExactNeitherSequenceNorMapping(o)) {
+        *sequence_mapping_temp |= (__PYX_DEFINITELY_NOT_SEQUENCE_FLAG | __PYX_DEFINITELY_NOT_MAPPING_FLAG);
+        return 0;
+    }
+
+    // otherwise check against collections.abc.Mapping
+    abc_result = __Pyx_MatchCase_ABCCheck(
+        o, 0,
+        *sequence_mapping_temp & __PYX_DEFINITELY_NOT_SEQUENCE_FLAG,
+        *sequence_mapping_temp & __PYX_DEFINITELY_NOT_MAPPING_FLAG
+    );
+    if (abc_result & __PYX_SEQUENCE_MAPPING_ERROR) {
+        return -1;
+    }
+    *sequence_mapping_temp = abc_result;
+    return *sequence_mapping_temp & __PYX_DEFINITELY_MAPPING_FLAG;
+#endif
+}
+
+//////////////////////// MappingKeyCheck.proto /////////////////////////
+
+static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *keys[], Py_ssize_t nFixedKeys, Py_ssize_t nKeys); /*proto */
+
+/////////////////////// MappingKeyCheck ////////////////////////////////
+
+static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *keys[], Py_ssize_t nFixedKeys, Py_ssize_t nKeys) {
+    // Inputs are arrays, and typically fairly small. It may be more efficient to
+    // loop over the array than create a set.
+
+    // The CPython implementation (match_keys in ceval.c) does this concurrently with
+    // taking the keys out of the dictionary. I'm choosing to do it separately since the
+    // majority of the time the keys will be known at compile-time so Cython can skip
+    // this step completely.
+
+    PyObject *var_keys_set;
+    PyObject *key;
+    Py_ssize_t n;
+    int contains;
+
+    var_keys_set = PySet_New(NULL);
+    if (!var_keys_set) return -1;
+
+    for (n=nFixedKeys; n < nKeys; ++n) {
+        key = keys[n];
+        contains = PySet_Contains(var_keys_set, key);
+        if (contains < 0) {
+            goto bad;
+        } else if (contains == 1) {
+            goto raise_error;
+        } else {
+            if (PySet_Add(var_keys_set, key)) {
+                goto bad;
+            }
+        }
+    }
+    for (n=0; n < nFixedKeys; ++n) {
+        key = keys[n];
+        contains = PySet_Contains(var_keys_set, key);
+        if (contains < 0) {
+            goto bad;
+        } else if (contains == 1) {
+            goto raise_error;
+        }
+    }
+    Py_DECREF(var_keys_set);
+    return 0;
+
+    raise_error:
+    PyErr_Format(PyExc_ValueError,
+                 "mapping pattern checks duplicate key (%R)", key);
+    bad:
+    Py_DECREF(var_keys_set);
+    return -1;
+}
+
+/////////////////////////// ExtractExactDict.proto ////////////////
+
+// The subjects array is a list of PyObject** to subjects to be filled. They may be NULL
+// in which case they're ignored.
+//
+// This is a specialized version for when we have an exact (frozen)dict (which is likely to be pretty common)
+
+#if CYTHON_REFNANNY
+#define __Pyx_MatchCase_Mapping_ExtractDict(...) __Pyx__MatchCase_Mapping_ExtractDict(__pyx_refnanny, __VA_ARGS__)
+#else
+#define __Pyx_MatchCase_Mapping_ExtractDict(...) __Pyx__MatchCase_Mapping_ExtractDict(NULL, __VA_ARGS__)
+#endif
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnanny, PyObject *dict, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]); /* proto */
+
+/////////////////////////// ExtractExactDict ////////////////
+
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnanny, PyObject *dict, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
+    Py_ssize_t i;
+    Py_ssize_t size;
+    size = PyDict_Size(dict);
+    if (size < nKeys) {
+        return size == -1 ? -1: 0;
+    }
+
+    for (i=0; i<nKeys; ++i) {
+        PyObject *key = keys[i];
+        PyObject **subject = subjects[i];
+        if (!subject) {
+            int contains = PyDict_Contains(dict, key);
+            if (contains <= 0) {
+                return contains; // any subjects that were already set will be cleaned up externally
+            }
+        } else {
+            PyObject *value;
+            int getref_result = __Pyx_PyDict_GetItemRef(dict, key, &value);
+            if (getref_result != 1) {
+                return getref_result;  // any subjects that were already set will be cleaned up externally
+            }
+            __Pyx_GOTREF(value);
+            __Pyx_XDECREF_SET(*subject, value);
+        }
+    }
+    return 1;  // success
+}
+
+///////////////////////// ExtractNonDict.proto ////////////////////////////////
+
+// The subjects array is a list of PyObject** to subjects to be filled. They may be NULL
+// in which case they're ignored.
+//
+// This is a specialized version for the rarer case when the type isn't an exact dict.
+
+#if CYTHON_REFNANNY
+#define __Pyx_MatchCase_Mapping_ExtractNonDict(...) __Pyx__MatchCase_Mapping_ExtractNonDict(__pyx_refnanny, __VA_ARGS__)
+#else
+#define __Pyx_MatchCase_Mapping_ExtractNonDict(...) __Pyx__MatchCase_Mapping_ExtractNonDict(NULL, __VA_ARGS__)
+#endif
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]); /* proto */
+
+///////////////////////// ExtractNonDict //////////////////////////////////////
+//@requires: ObjectHandling.c::PyObjectCall2Args
+
+// largely adapted from match_keys in CPython ceval.c
+
+static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
+    PyObject *dummy=NULL, *get=NULL;
+    Py_ssize_t i, size;
+    int result = 0;
+#if CYTHON_UNPACK_METHODS && CYTHON_VECTORCALL
+    PyObject *get_method = NULL, *get_self = NULL;
+#endif
+
+    // Length check is undocumented but does take place in CPython and is probably worthwhile.
+    size = PyObject_Length(mapping);
+    if (size < nKeys) {
+        return size == -1 ? -1: 0;
+    }
+
+    dummy = PyObject_CallObject((PyObject *)&PyBaseObject_Type, NULL);
+    if (!dummy) {
+        return -1;
+    }
+    get = PyObject_GetAttr(mapping, PYIDENT("get"));
+    if (!get) {
+        result = -1;
+        goto end;
+    }
+#if CYTHON_UNPACK_METHODS && CYTHON_VECTORCALL
+    if (likely(PyMethod_Check(get))) {
+        // both of these are borrowed
+        get_method = PyMethod_GET_FUNCTION(get);
+        get_self = PyMethod_GET_SELF(get);
+    }
+#endif
+
+    for (i=0; i<nKeys; ++i) {
+        PyObject **subject;
+        PyObject *value = NULL;
+        PyObject *key = keys[i];
+
+        // TODO - there's an optimization here (although it deviates from the strict definition of pattern matching).
+        // If we don't need the values then we can call PyObject_Contains instead of "get". If we don't need *any*
+        // of the values then we can skip initialization "get" and "dummy"
+#if CYTHON_UNPACK_METHODS && CYTHON_VECTORCALL
+        if (likely(get_method)) {
+            PyObject *args[] = { get_self, key, dummy };
+            value = PyObject_Vectorcall(get_method, args, 3, NULL);
+        }
+        else
+#endif
+        {
+            value = __Pyx_PyObject_Call2Args(get, key, dummy);
+        }
+        if (!value) {
+            result = -1;
+            goto end;
+        } else if (value == dummy) {
+            Py_DECREF(value);
+            goto end;  // failed to match.
+        } else {
+            subject = subjects[i];
+            if (subject) {
+                __Pyx_XDECREF_SET(*subject, value);
+                __Pyx_GOTREF(*subject);
+            } else {
+                Py_DECREF(value);
+            }
+        }
+    }
+    result = 1;
+
+    end:
+    Py_XDECREF(dummy);
+    Py_XDECREF(get);
+    return result;
+}
+
+///////////////////////// ExtractGeneric.proto ////////////////////////////////
+
+#if CYTHON_REFNANNY
+#define __Pyx_MatchCase_Mapping_Extract(...) __Pyx__MatchCase_Mapping_Extract(__pyx_refnanny, __VA_ARGS__)
+#else
+#define __Pyx_MatchCase_Mapping_Extract(...) __Pyx__MatchCase_Mapping_Extract(NULL, __VA_ARGS__)
+#endif
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]); /* proto */
+
+////////////////////// ExtractGeneric //////////////////////////////////////
+//@requires: ExtractExactDict
+//@requires: ExtractNonDict
+//@requires: Builtins.c::PyFrozenDict
+
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
+    if (__Pyx_PyAnyDict_CheckExact(mapping)) {
+        return __Pyx_MatchCase_Mapping_ExtractDict(mapping, keys, nKeys, subjects);
+    } else {
+        return __Pyx_MatchCase_Mapping_ExtractNonDict(mapping, keys, nKeys, subjects);
+    }
+}
+
+///////////////////////////// DoubleStarCapture.proto //////////////////////
+
+static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys); /* proto */
+
+//////////////////////////// DoubleStarCapture //////////////////////////////
+//@requires: Builtins.c::PyFrozenDict
+
+// The implementation is largely copied from the original COPY_DICT_WITHOUT_KEYS opcode
+// implementation of CPython
+// https://github.com/python/cpython/blob/145bf269df3530176f6ebeab1324890ef7070bf8/Python/ceval.c#L3977
+// (now removed in favour of building the same thing from a combination of opcodes)
+// The differences are:
+//  1. We use an array of keys rather than a tuple of keys
+//  2. We add a shortcut for when there will be no left over keys (because I guess it's pretty common)
+//
+// Tempita variable 'tag' can be "NonDict", "ExactDict", "ExactFrozenDict" or empty
+
+static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys) {
+    PyObject *dict_out;
+    Py_ssize_t i, size;
+
+    // shortcut for when there are no left-over keys
+    {{if tag=="ExactDict" or tag=="ExactFrozenDict"}}
+    if ((1))
+    {{else}}
+    if (__Pyx_PyAnyDict_CheckExact(mapping))
+    {{endif}}
+    {
+        size = PyDict_Size(mapping);
+    } else {
+        size = PyObject_Length(mapping);
+    }
+    if (unlikely(size == -1)) return NULL;
+    if (size == nKeys) {
+        return PyDict_New();
+    }
+
+    {{if tag=="ExactDict"}}
+    dict_out = PyDict_Copy(mapping);
+    {{else}}
+    dict_out = PyDict_New();
+    {{endif}}
+    if (!dict_out) {
+        return NULL;
+    }
+    {{if tag!="ExactDict"}}
+    if (PyDict_Update(dict_out, mapping)) {
+        Py_DECREF(dict_out);
+        return NULL;
+    }
+    {{endif}}
+
+    for (i=0; i<nKeys; ++i) {
+        if (PyDict_DelItem(dict_out, keys[i])) {
+            Py_DECREF(dict_out);
+            return NULL;
+        }
+    }
+    return dict_out;
 }
