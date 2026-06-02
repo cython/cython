@@ -1882,17 +1882,44 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         if not owner_same_module:
             # Cross-module: the target C function is `static` in its own module
-            # and cannot be called directly. Dispatch through the base type's
-            # exported vtable pointer (imported via __Pyx_GetVtable), mirroring
-            # the cross-module path in _handle_simple_base_property_access.
-            base_entry = base_type.scope.lookup(function.attribute)
-            if not (base_type.vtabptr_cname and base_entry and base_entry.cname and base_entry.type):
+            # and cannot be called directly. Only optimize when `base_type`
+            # *itself* defines the method (so its vtable struct has the slot as a
+            # direct, top-level member). In that case generate an unbound
+            # C-method call `BaseClass.method(self, ...)` and let attribute
+            # analysis emit a simple, unambiguous vtable dispatch
+            # (e.g. `__pyx_vtabptr_B->__pyx___init__(self, 1)`).
+            #
+            # When `base_type` only *inherits* the method, the correct vtable
+            # slot lives nested under one or more `__pyx_base` levels, and in
+            # deep multi-level hierarchies attribute analysis can resolve to the
+            # wrong nested slot (observed: a `super().__init__()` resolving to an
+            # unrelated class' `__init__`, so the real base `__init__` never runs
+            # and its fields stay uninitialised). Statically reproducing Python's
+            # MRO chaining for inherited (esp. `__init__`) methods across modules
+            # is the job of the larger constructor rewrite, not this pass — so
+            # fall back to Python `super()` MRO dispatch, which is always correct.
+            #
+            # NB: cpdef `__init__` entries are *copied* into every subclass scope,
+            # so `lookup_here` finds an entry even when the class does not define
+            # the method in source. Require a non-inherited entry to confirm that
+            # `base_type` truly defines it (and thus owns a top-level vtable slot).
+            base_own_entry = base_type.scope.lookup_here(function.attribute)
+            if not (base_own_entry and base_own_entry.is_cmethod
+                    and not getattr(base_own_entry, 'is_inherited', False)):
                 return node
-            vtable_call = "%s->%s" % (base_type.vtabptr_cname, base_entry.cname)
-            func_node = ExprNodes.RawCNameExprNode(
-                node.pos, type=base_entry.type, cname=vtable_call)
+            if not method_scope.lookup(base_type.name):
+                # Base type not available by name in this scope; fall back to
+                # Python `super()` MRO dispatch.
+                return node
+            super_class_ref = ExprNodes.NameNode(node.pos, name=base_type.name)
             return ExprNodes.SimpleCallNode.from_node(
-                node, function=func_node, args=new_args)
+                node,
+                function=ExprNodes.AttributeNode(
+                    node.pos,
+                    obj=super_class_ref,
+                    attribute=resolved_fn.name,
+                    needs_none_check=False),
+                args=new_args)
 
         func_node = ExprNodes.RawCNameExprNode(
             node.pos, type=resolved_fn.type, cname=origin)
