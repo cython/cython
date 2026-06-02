@@ -4628,8 +4628,8 @@ def p_mapping_pattern(s: PyrexScanner):
 
     double_star_capture_target = None
     items_patterns = []
-    double_star_set_twice = None
-    pattern_after_double_star = None
+    double_star_set_twice_pos = None
+    pattern_after_double_star_pos = None
     star_star_arg_pos = None
     while s.sy != '}':
         if double_star_capture_target and not star_star_arg_pos:
@@ -4637,7 +4637,7 @@ def p_mapping_pattern(s: PyrexScanner):
         if s.sy == '**':
             s.next()
             if double_star_capture_target:
-                double_star_set_twice = s.position()
+                double_star_set_twice_pos = s.position()
             double_star_capture_target = p_pattern_capture_target(s)
         else:
             # key=(literal_expr | attr)
@@ -4651,15 +4651,15 @@ def p_mapping_pattern(s: PyrexScanner):
             value = p_pattern(s)
             items_patterns.append((key, value))
             if double_star_capture_target:
-                pattern_after_double_star = value.pos
+                pattern_after_double_star_pos = value.pos
         if s.sy != ',':
             break
         s.next()
     s.expect('}')
-    if double_star_set_twice is not None:
-        return Nodes.ErrorNode(double_star_set_twice, what = "Double star capture set twice")
-    if pattern_after_double_star is not None:
-        return Nodes.ErrorNode(pattern_after_double_star, what = "pattern follows ** capture")
+    if double_star_set_twice_pos is not None:
+        return Nodes.ErrorNode(double_star_set_twice_pos, what = "Double star capture set twice")
+    if pattern_after_double_star_pos is not None:
+        return Nodes.ErrorNode(pattern_after_double_star_pos, what = "pattern follows ** capture")
 
     if star_star_arg_pos is not None:
         return Nodes.ErrorNode(

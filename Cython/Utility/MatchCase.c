@@ -78,15 +78,44 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
     int sequence_result=0, mapping_result=0;
     unsigned int result = 0;
 
+    if (sequence_first && definitely_not_sequence) {
+        return __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
+    }
+    if (!sequence_first && definitely_not_mapping) {
+        return __PYX_DEFINITELY_NOT_MAPPING_FLAG;
+    }
+
     abc_module = PyImport_ImportModule("collections.abc");
     if (!abc_module) {
         return __PYX_SEQUENCE_MAPPING_ERROR;
     }
     if (sequence_first) {
-        if (definitely_not_sequence) {
-            result = __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
+        if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &sequence_type, PYIDENT("Sequence")) == -1)) {
+            result = __PYX_SEQUENCE_MAPPING_ERROR;
             goto end;
         }
+        sequence_result = PyObject_IsInstance(o, sequence_type);
+        if (sequence_result <= 0) {
+            result = sequence_result < 0 ? __PYX_SEQUENCE_MAPPING_ERROR : __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
+            goto end;
+        }
+        // else sequence_result==1 but wait to see what mapping is
+    }
+    if (!definitely_not_mapping) {
+        if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &mapping_type, PYIDENT("Mapping")) == -1)) {
+            result = __PYX_SEQUENCE_MAPPING_ERROR;
+            goto end;
+        }
+        mapping_result = PyObject_IsInstance(o, mapping_type);
+        if (unlikely(mapping_result < 0)) {
+            result = __PYX_SEQUENCE_MAPPING_ERROR;
+            goto end;
+        } else if (mapping_result == 0 && !sequence_first) {
+            result = __PYX_DEFINITELY_NOT_MAPPING_FLAG;
+            goto end;
+        } // else mapping_result == 1
+    }
+    if (!sequence_first && !definitely_not_sequence) {
         if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &sequence_type, PYIDENT("Sequence")) == -1)) {
             result = __PYX_SEQUENCE_MAPPING_ERROR;
             goto end;
@@ -95,57 +124,16 @@ static unsigned int __Pyx_MatchCase_ABCCheck(PyObject *o, int sequence_first, in
         if (unlikely(sequence_result < 0)) {
             result = __PYX_SEQUENCE_MAPPING_ERROR;
             goto end;
-        } else if (sequence_result == 0) {
-            result = __PYX_DEFINITELY_NOT_SEQUENCE_FLAG;
-            goto end;
-        }
-        // else wait to see what mapping is
-    }
-    if (!definitely_not_mapping) {
-        if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &mapping_type, PYIDENT("Mapping")) == -1)) {
-            result = __PYX_SEQUENCE_MAPPING_ERROR;
-            goto end;
-        }
-        mapping_result = PyObject_IsInstance(o, mapping_type);
-        if (mapping_result < 0) {
-            result = __PYX_SEQUENCE_MAPPING_ERROR;
-            goto end;
-        } else if (mapping_result == 0) {
-            result |= __PYX_DEFINITELY_NOT_MAPPING_FLAG;
-            if (sequence_first) {
-                assert(sequence_result);
-                result |= __PYX_DEFINITELY_SEQUENCE_FLAG;
-            }
-            goto end;
-        } else /* mapping_result == 1 */ {
-            if (sequence_first && !sequence_result) {
-                result |= __PYX_DEFINITELY_MAPPING_FLAG;
-                goto end;
-            }
         }
     }
-    if (!sequence_first) {
-        // Here we know mapping_result is true because we'd have returned otherwise.
-        assert(mapping_result);
-        if (!definitely_not_sequence) {
-            if (unlikely(__Pyx_MatchCase_InitAbcType(abc_module, &sequence_type, PYIDENT("Sequence")) == -1)) {
-                result = __PYX_SEQUENCE_MAPPING_ERROR;
-                goto end;
-            }
-            sequence_result = PyObject_IsInstance(o, sequence_type);
-        }
-        if (unlikely(sequence_result < 0)) {
-            result = __PYX_SEQUENCE_MAPPING_ERROR;
-            goto end;
-        } else if (sequence_result == 0) {
-            result |= (__PYX_DEFINITELY_NOT_SEQUENCE_FLAG | __PYX_DEFINITELY_MAPPING_FLAG);
-            goto end;
-        } /* else sequence_result == 1, continue to check both */
+    result |= (sequence_result ? __PYX_DEFINITELY_SEQUENCE_FLAG : __PYX_DEFINITELY_NOT_SEQUENCE_FLAG);
+    result |= (mapping_result ? __PYX_DEFINITELY_MAPPING_FLAG : __PYX_DEFINITELY_NOT_MAPPING_FLAG);
+    if (result != (__PYX_DEFINITELY_SEQUENCE_FLAG | __PYX_DEFINITELY_MAPPING_FLAG)) {
+        goto end;
     }
 
     // It's an instance of both types. Look up the MRO order.
     // In event of failure treat it as "could be either"
-    result = __PYX_DEFINITELY_SEQUENCE_FLAG | __PYX_DEFINITELY_MAPPING_FLAG;
     mro = PyObject_GetAttrString((PyObject*)Py_TYPE(o), "__mro__");
     Py_ssize_t i, mro_size;
     if (!mro) {
@@ -415,6 +403,20 @@ static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping
 #if PY_VERSION_HEX >= 0x030A0000 && !(CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY)
     return __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_MAPPING);
 #else
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // In the Limited API we have runtime access to Py_TPFLAGS_MAPPING
+    // by looking it up on module init so it's still worth attempting
+    // the fast path.
+    if (__Pyx_Runtime_TPFLAGS_MAPPING) {
+        return __Pyx_PyType_HasFeature(Py_TYPE(o), __Pyx_Runtime_TPFLAGS_MAPPING);
+    }
+#elif defined(Py_TPFLAGS_MAPPING)
+    // Elsewhere *we* define Py_TPFLAGS_SEQUENCE but that doesn't necessarily
+    // mean other types use it, so only success is meaningful.
+    if (__Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_MAPPING)) {
+        return 1;
+    }
+#endif
     unsigned int abc_result, dummy=0;
     if (sequence_mapping_temp) {
         // do we already know the answer?
