@@ -1493,7 +1493,7 @@ class ClassPatternNode(PatternNode):
 
     def _calculate_match_self(self):
         # -1 is "unknown", 0 is false, 1 is true
-        if not (len(self.positional_patterns) == 1 and not self.keyword_pattern_names):
+        if len(self.positional_patterns) != 1 or self.keyword_pattern_names:
             return 0
         if self.class_known_type:
             for type_attr in [

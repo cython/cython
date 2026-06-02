@@ -810,41 +810,30 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(PyTypeObject *type, PyObject
 // The argument match_self can equal 1 for "known to be true"
 //                                   0 for "known to be false"
 //                                  -1 for "unknown", runtime test
-// nargs is >= 0 otherwise this function will be skipped
+// n_subjects is >= 0 otherwise this function will be skipped
 static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, int match_self, PyObject **subjects[], Py_ssize_t n_subjects)
 {
-    PyObject *match_args;
+    PyObject *match_args = NULL;
     Py_ssize_t allowed, i;
     int result;
 
-    match_args = PyObject_GetAttrString((PyObject*)type, "__match_args__");
-    if (!match_args) {
-        if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
-            PyErr_Clear();
-
-            if (match_self == -1) {
-                // Mysteriously, this private flag seems to have ended up defined in the Limited API
-                #if defined(_Py_TPFLAGS_MATCH_SELF) && !(CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000)
-                match_self = PyType_HasFeature(type,
-                                            _Py_TPFLAGS_MATCH_SELF);
-                #else
-                // probably an earlier version of Python. Go off the known list in the specification
-                match_self = ((PyType_GetFlags(type) &
-                                // long should capture bool too
-                                (Py_TPFLAGS_LONG_SUBCLASS | Py_TPFLAGS_LIST_SUBCLASS | Py_TPFLAGS_TUPLE_SUBCLASS |
-                                 Py_TPFLAGS_BYTES_SUBCLASS | Py_TPFLAGS_UNICODE_SUBCLASS | Py_TPFLAGS_DICT_SUBCLASS
-                                )) ||
-                              PyType_IsSubtype(type, &PyByteArray_Type) ||
-                              PyType_IsSubtype(type, &PyFloat_Type) ||
-                              PyType_IsSubtype(type, &PyFrozenSet_Type) ||
-                              PyType_IsSubtype(type, __Pyx_PyFrozenDict_TypePtr)
-                              );
-                #endif
-            }
-        } else {
+    if (match_self != 1) {
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+        if (PyObject_GetOptionalAttr((PyObject*)type, PYIDENT("__match_args__"), &match_args) == -1) {
             return -1;
         }
-    } else {
+#else
+        match_args = PyObject_GetAttr((PyObject*)type, PYIDENT("__match_args__"));
+        if (!match_args) {
+            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyErr_Clear();
+            } else {
+                return -1;
+            }
+        }
+#endif
+    }
+    if (match_args) {
         match_self = 0;
         if (!PyTuple_CheckExact(match_args)) {
             __Pyx_TypeName type_typename = __Pyx_PyType_GetFullyQualifiedName(type);
@@ -858,12 +847,29 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
             __Pyx_DECREF_TypeName(match_args_type_name);
             return -1;
         }
+    } else if (!match_args && match_self == -1) {
+        // Mysteriously, this private flag seems to have ended up defined in the Limited API
+        #if defined(_Py_TPFLAGS_MATCH_SELF) && !(CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000)
+        match_self = PyType_HasFeature(type,
+                                    _Py_TPFLAGS_MATCH_SELF);
+        #else
+        // probably an earlier version of Python. Go off the known list in the specification
+        match_self = ((PyType_GetFlags(type) &
+                        // long should capture bool too
+                        (Py_TPFLAGS_LONG_SUBCLASS | Py_TPFLAGS_LIST_SUBCLASS | Py_TPFLAGS_TUPLE_SUBCLASS |
+                            Py_TPFLAGS_BYTES_SUBCLASS | Py_TPFLAGS_UNICODE_SUBCLASS | Py_TPFLAGS_DICT_SUBCLASS
+                        )) ||
+                        PyType_IsSubtype(type, &PyByteArray_Type) ||
+                        PyType_IsSubtype(type, &PyFloat_Type) ||
+                        PyType_IsSubtype(type, &PyFrozenSet_Type) ||
+                        PyType_IsSubtype(type, __Pyx_PyFrozenDict_TypePtr)
+                        );
+        #endif
     }
 
     if (match_self) {
         allowed = 1;
-    }
-    else if (match_args) {
+    } else if (match_args) {
         allowed = __Pyx_PyTuple_GET_SIZE(match_args);
 #if !CYTHON_ASSUME_SAFE_SIZE
         if (unlikely(allowed < 0)) goto end;
