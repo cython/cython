@@ -11,6 +11,7 @@ import copy
 import codecs
 import itertools
 from functools import partial, reduce
+from typing import Optional
 from operator import attrgetter
 
 from . import TypeSlots
@@ -2882,19 +2883,28 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         ],
         exception_value=-1)
 
-    _map_to_capi_len_function = {
-        Builtin.unicode_type:    "__Pyx_PyUnicode_GET_LENGTH",
-        Builtin.bytes_type:      "__Pyx_PyBytes_GET_SIZE",
-        Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
-        Builtin.list_type:       "__Pyx_PyList_GET_SIZE",
-        Builtin.tuple_type:      "__Pyx_PyTuple_GET_SIZE",
-        Builtin.set_type:        "__Pyx_PySet_GET_SIZE",
-        Builtin.frozenset_type:  "__Pyx_PySet_GET_SIZE",
-        Builtin.dict_type:       "PyDict_Size",
-        Builtin.frozendict_type: "PyDict_Size",
-    }.get
-
     _ext_types_with_pysize = {"cpython.array.array"}
+
+    def _find_special_capi_len_function(self, typ) -> Optional[str]:
+        if typ.is_extension_type:
+            if typ.entry.qualified_name in self._ext_types_with_pysize:
+                return 'Py_SIZE'
+        elif typ.is_builtin_type:
+            if typ.is_pystr_type:
+                return "__Pyx_PyUnicode_GET_LENGTH"
+            if typ.is_pybytes_type:
+                return "__Pyx_PyBytes_GET_SIZE"
+            if typ.is_pybytearray_type:
+                return "__Pyx_PyByteArray_GET_SIZE"
+            if typ.is_pylist_type:
+                return "__Pyx_PyList_GET_SIZE"
+            if typ.is_pytuple_type:
+                return "__Pyx_PyTuple_GET_SIZE"
+            if typ.is_pyanyset_type:
+                return "__Pyx_PySet_GET_SIZE"
+            if typ.is_pyanydict_type:
+                return "PyDict_Size"
+        return None
 
     def _handle_simple_function_len(self, node, function, pos_args):
         """Replace len(char*) by the equivalent call to strlen(),
@@ -2927,14 +2937,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 node.pos, "__Pyx_MemoryView_Len", func_type,
                 args=[arg], is_temp=node.is_temp)
         elif arg.type.is_pyobject:
-            cfunc_name = self._map_to_capi_len_function(arg.type)
+            cfunc_name = self._find_special_capi_len_function(arg.type)
             if cfunc_name is None:
-                arg_type = arg.type
-                if ((arg_type.is_extension_type or arg_type.is_builtin_type)
-                        and arg_type.entry.qualified_name in self._ext_types_with_pysize):
-                    cfunc_name = 'Py_SIZE'
-                else:
-                    return node
+                return node
             arg = arg.as_none_safe_node(
                 "object of type 'NoneType' has no len()")
             new_node = ExprNodes.PythonCapiCallNode(

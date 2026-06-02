@@ -325,7 +325,7 @@ class TreeAssertVisitor(VisitorTransform):
         self.visitchildren(node)
         return node
 
-    def visit_CompilerDirectivesNode(self, node):
+    def visit_CompilerDirectivesMixin(self, node):
         self._check_directives(node)
         self.visitchildren(node)
         return node
