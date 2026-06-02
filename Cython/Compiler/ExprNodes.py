@@ -7922,6 +7922,18 @@ class AttributeNode(ExprNode):
                 self.entry = entry.as_variable
                 self.analyse_as_python_attribute(env)
                 return self
+            elif (entry and entry.is_cmethod
+                    and (entry.is_overridable or entry.type.is_overridable)):
+                # A cpdef method referenced as a value (commonly an *inherited*
+                # one, e.g. `self._cb` passed as a callback). Inherited cmethod
+                # entries carry no `as_variable`, so resolve to the bound Python
+                # method via attribute access instead of coercing the raw vtable
+                # function pointer -- the pointer's signature includes the cpdef
+                # `__pyx_skip_dispatch` argument and would not match the generated
+                # `to_py` converter (a g++ "no matching function" error).
+                self.is_temp = 1
+                self.analyse_as_python_attribute(env)
+                return self
             elif entry and entry.is_cfunction and self.obj.type is not Builtin.type_type:
                 # "bound" cdef function.
                 # This implementation is likely a little inefficient and could be improved.

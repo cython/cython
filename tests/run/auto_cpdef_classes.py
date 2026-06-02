@@ -114,3 +114,34 @@ def test_vector_final(v):
     14
     """
     return v
+
+
+@cclass
+class RefBase:
+    def make_value(self) -> int:
+        # promoted to cpdef; referenced below as a *value* (callback), not called
+        return 7
+
+
+@cclass
+class RefSub(RefBase):
+    pass
+
+
+def use_inherited_method_ref():
+    """
+    A cpdef method referenced as a value (here an *inherited* one) must resolve
+    to the bound Python method, not the raw vtable function pointer. Regression
+    test: inherited cmethod entries have no `as_variable`, which previously sent
+    this through a `to_py` of the vtable pointer whose signature includes
+    `__pyx_skip_dispatch` -- a C compile error ('no matching function').
+
+    >>> cb = use_inherited_method_ref()
+    >>> cb()
+    7
+    >>> callable(cb)
+    True
+    """
+    sub: RefSub = RefSub()
+    callback = sub.make_value   # inherited cpdef method taken as a value
+    return callback

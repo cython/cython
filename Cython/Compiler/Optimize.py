@@ -1867,60 +1867,54 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return resolved_type, None
 
         owner_type, origin = _find_owning_cname()
-        if not origin:
-            # No valid C function target found. Don't transform the call
-            # at all — let `super()` dispatch through Python's regular MRO,
-            # which correctly handles Python-level `def` methods that don't
-            # have a C function cname.
-            return node
 
-        # Check if the OWNER class is in the same module.
+        # Check if the OWNER class is in the same module. (`owner_type` is set
+        # even when `origin` is None — the cross-module path below dispatches
+        # through the vtable and does not need a direct C function cname.)
         owner_scope = owner_type.scope
         while owner_scope and not owner_scope.is_module_scope:
             owner_scope = owner_scope.outer_scope
         owner_same_module = owner_scope is current_module
 
         if not owner_same_module:
-            # Cross-module: the target C function is `static` in its own module
-            # and cannot be called directly. Only optimize when `base_type`
-            # *itself* defines the method (so its vtable struct has the slot as a
-            # direct, top-level member). In that case generate an unbound
-            # C-method call `BaseClass.method(self, ...)` and let attribute
-            # analysis emit a simple, unambiguous vtable dispatch
-            # (e.g. `__pyx_vtabptr_B->__pyx___init__(self, 1)`).
+            # Cross-module: dispatch through `base_type`'s exported vtable pointer
+            # (imported via __Pyx_GetVtable, so it is always declared — unlike a
+            # direct cross-module `__pyx_f_` call, which under LTO is emitted
+            # without the extern declaration the calling module needs). The base
+            # entry's `cname` already encodes the correct nested `__pyx_base...`
+            # slot path, and the slot for `base_type` holds the method that
+            # `base_type`'s MRO resolves to — exactly what `super()` should call.
             #
-            # When `base_type` only *inherits* the method, the correct vtable
-            # slot lives nested under one or more `__pyx_base` levels, and in
-            # deep multi-level hierarchies attribute analysis can resolve to the
-            # wrong nested slot (observed: a `super().__init__()` resolving to an
-            # unrelated class' `__init__`, so the real base `__init__` never runs
-            # and its fields stay uninitialised). Statically reproducing Python's
-            # MRO chaining for inherited (esp. `__init__`) methods across modules
-            # is the job of the larger constructor rewrite, not this pass — so
-            # fall back to Python `super()` MRO dispatch, which is always correct.
-            #
-            # NB: cpdef `__init__` entries are *copied* into every subclass scope,
-            # so `lookup_here` finds an entry even when the class does not define
-            # the method in source. Require a non-inherited entry to confirm that
-            # `base_type` truly defines it (and thus owns a top-level vtable slot).
-            base_own_entry = base_type.scope.lookup_here(function.attribute)
-            if not (base_own_entry and base_own_entry.is_cmethod
-                    and not getattr(base_own_entry, 'is_inherited', False)):
+            # `__init__` is the exception: cpdef `__init__` entries are *copied*
+            # into every subclass scope with a cname that does not correctly
+            # locate the slot when `base_type` only inherits `__init__`. So for
+            # `__init__`, only optimize when `base_type` itself defines it; else
+            # fall back to Python `super()` MRO dispatch (always correct).
+            if function.attribute in ('__init__', '<init>'):
+                base_own_entry = base_type.scope.lookup_here(function.attribute)
+                if not (base_own_entry and base_own_entry.is_cmethod
+                        and not getattr(base_own_entry, 'is_inherited', False)):
+                    return node
+            base_entry = base_type.scope.lookup(function.attribute)
+            if not (base_type.vtabptr_cname and base_entry
+                    and base_entry.cname and base_entry.type):
                 return node
-            if not method_scope.lookup(base_type.name):
-                # Base type not available by name in this scope; fall back to
-                # Python `super()` MRO dispatch.
-                return node
-            super_class_ref = ExprNodes.NameNode(node.pos, name=base_type.name)
-            return ExprNodes.SimpleCallNode.from_node(
-                node,
-                function=ExprNodes.AttributeNode(
-                    node.pos,
-                    obj=super_class_ref,
-                    attribute=resolved_fn.name,
-                    needs_none_check=False),
-                args=new_args)
+            vtable_call = "%s->%s" % (base_type.vtabptr_cname, base_entry.cname)
+            func_node = ExprNodes.RawCNameExprNode(
+                node.pos, type=base_entry.type, cname=vtable_call)
+            call_node = ExprNodes.SimpleCallNode.from_node(
+                node, function=func_node, args=new_args)
+            # `super().method()` must call the base method itself and never
+            # re-dispatch to a (Python) override on the instance — pass
+            # skip_dispatch=1 (a RawCNameExprNode has no entry, so it would
+            # otherwise default to 0).
+            call_node.wrapper_call = True
+            return call_node
 
+        if not origin:
+            # Same module, but no direct C function target found. Let `super()`
+            # dispatch through Python's regular MRO.
+            return node
         func_node = ExprNodes.RawCNameExprNode(
             node.pos, type=resolved_fn.type, cname=origin)
         node = ExprNodes.SimpleCallNode.from_node(
@@ -1950,6 +1944,43 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         base_type = class_node.base_type
         if base_type is None or base_type.scope is None:
+            return node
+
+        # If `base_type` only *inherits* the property (it is not in its own
+        # scope), property entries are not copied into subclass scopes the way
+        # cmethods are, so the direct lookup below fails. Walk the base MRO to
+        # find the defining class and how many `__pyx_base` levels deep its
+        # vtable slot lives, and dispatch through `base_type`'s (cimported, so
+        # always declared) vtable pointer. This avoids the undeclared-`__pyx_f_`
+        # problem a direct cross-module call would hit under LTO.
+        direct_entry = base_type.scope.lookup_here(node.attribute)
+        if not (direct_entry and direct_entry.is_property):
+            defining_type = base_type.base_type
+            depth = 1
+            inherited_prop = None
+            while defining_type and defining_type.scope:
+                pe = defining_type.scope.lookup_here(node.attribute)
+                if pe and pe.is_property:
+                    inherited_prop = pe
+                    break
+                defining_type = defining_type.base_type
+                depth += 1
+            if inherited_prop is not None and base_type.vtabptr_cname:
+                prop_scope = inherited_prop.scope
+                getter = prop_scope.lookup_here("__get__") if prop_scope else None
+                method_scope = self.current_env()
+                if (getter and getter.cname and getter.type
+                        and method_scope.arg_entries):
+                    self_arg = ExprNodes.NameNode(
+                        node.pos, name=method_scope.arg_entries[0].name,
+                        entry=method_scope.arg_entries[0])
+                    vtable_call = "%s->%s%s" % (
+                        base_type.vtabptr_cname, "__pyx_base." * depth, getter.cname)
+                    function = ExprNodes.RawCNameExprNode(
+                        node.pos, type=getter.type, cname=vtable_call)
+                    return ExprNodes.SimpleCallNode(
+                        node.pos, function=function, args=[self_arg])
+            # Could not resolve an inherited property getter: leave as Python.
             return node
 
         # Look up the property in the base class scope

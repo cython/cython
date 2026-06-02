@@ -3671,8 +3671,12 @@ class DefNode(FuncDefNode):
                 error(self.pos, "Only final types can have final Python (def/cpdef) methods")
             if entry.type.is_cfunction and not entry.is_builtin_cmethod and not self.is_wrapper:
                 if entry.name != '__init__' and env.directives.get("auto_cpdef"):
-                    error(self.pos, "Found c(p)def method overridden with a def method. "
-                        "Ensure the method do not use closures or disable auto_cpdef mode")
+                    error(self.pos, "'%s' is auto-promoted to cpdef in a base class but is "
+                        "overridden here with a def that cannot be promoted (it uses a closure "
+                        "or generator). Decorate the *base* class's '%s' with @cython.no_ccall to "
+                        "opt the whole method out of cpdef promotion (it then stays a Python "
+                        "method everywhere), or remove the closure/generator." % (
+                            entry.name, entry.name))
                 elif entry.name != '__init__':
                     warning(self.pos, "Overriding a c(p)def method with a def method. "
                         "This can lead to different methods being called depending on the "

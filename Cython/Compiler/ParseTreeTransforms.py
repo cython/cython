@@ -3251,7 +3251,10 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         with_gil = self.directives.get('with_gil')
         except_val = self.directives.get('exceptval')
         auto_cpdef = self.directives.get('auto_cpdef')
-        no_ccall = self.directives.get('no_ccall')
+        # `no_ccall` is a marker directive (the bare `@no_ccall` decorator stores
+        # value None), so test for presence rather than a truthy value -- same as
+        # `ccall`/`cfunc` below. Using `.get()` made `@no_ccall` a silent no-op.
+        no_ccall = 'no_ccall' in self.directives
         is_ccall = 'ccall' in self.directives
         is_cfunc = 'cfunc' in self.directives
         has_explicit_exc_clause = False if except_val is None else True
@@ -3273,12 +3276,16 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             # avoid conflicts with redeclared symbols
             if (not hasattr(self.env, "scope") or self.env.scope.is_module_scope) and node.name not in self.imported_names:
                 is_ccall_promoted = node.is_cdef_func_compatible()
-            # Block dunder method promotion inside cclasses, except __init__
-            # which is handled separately with special slot-wrapper logic.
-            # Other dunders (__add__, __eq__, __repr__, etc.) get __pyx_skip_dispatch
-            # added to their signature by cpdef promotion, which conflicts with
-            # the fixed signatures expected by CPython slot wrappers.
-            if is_ccall_promoted and not hasattr(self.env, "scope") and node.name not in ('__init__',):
+            # Block *dunder* (slot) method promotion inside cclasses, except
+            # __init__ which is handled separately with special slot-wrapper
+            # logic. Other dunders (__add__, __eq__, __repr__, etc.) get
+            # __pyx_skip_dispatch added to their signature by cpdef promotion,
+            # which conflicts with the fixed signatures expected by CPython slot
+            # wrappers. Regular methods MUST still promote so that
+            # `super().method()` calls can be optimised to vtable dispatch.
+            if (is_ccall_promoted and not hasattr(self.env, "scope")
+                    and node.name.startswith('__') and node.name.endswith('__')
+                    and node.name != '__init__'):
                 is_ccall_promoted = False
         if is_ccall or is_ccall_promoted:
             if is_ccall and is_cfunc:

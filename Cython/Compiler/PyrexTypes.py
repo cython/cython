@@ -3764,10 +3764,15 @@ class CFuncType(CType):
             'except_clause': except_clause,
         }
         # FIXME: directives come from first defining environment and do not adapt for reuse
+        # The utility's nested `def wrap` must never be auto_cpdef-promoted (it is a
+        # closure over `f` and is internal Cython code), so force auto_cpdef off here;
+        # otherwise promotion machinery redeclares `wrap` ('wrap redeclared').
+        utility_directives = dict(env.global_scope().directives)
+        utility_directives['auto_cpdef'] = False
         env.use_utility_code(CythonUtilityCode.load(
             "cfunc.to_py", "CConvert.pyx",
             outer_module_scope=env.global_scope(),  # need access to types declared in module
-            context=context, compiler_directives=dict(env.global_scope().directives)))
+            context=context, compiler_directives=utility_directives))
         self.to_py_function = to_py_function
         return True
 
