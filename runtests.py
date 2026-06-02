@@ -2525,7 +2525,7 @@ def main():
     parser.add_argument(
         "--no-compile", dest="with_compile",
         action="store_false", default=True,
-        help="do not run either either Cython or the C compiler")
+        help="do not run either Cython or the C compiler")
     parser.add_argument(
         "--compiler", dest="compiler", default=None,
         help="C compiler type")
