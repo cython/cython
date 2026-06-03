@@ -3585,8 +3585,6 @@ class DefNode(FuncDefNode):
             return False
         if self.star_arg or self.starstar_arg:
             return False
-        if self.num_required_args != len(self.args):
-            return False
 
         is_property = False
         from . import ExprNodes

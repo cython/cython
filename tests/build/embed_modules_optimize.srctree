@@ -65,6 +65,13 @@ elif mode == 'auto_cpdef':
     assert "->__pyx_f_1b_1B_4prop___get__(((struct __pyx_obj_1b_B *)" in a_c_content
     assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" not in a_c_content, "Expected no Python GetAttrStr call"
     assert "__Pyx_PyObject_FastCallMethod((PyObject*)__pyx_mstate_global->__pyx_n_u_init," not in a_c_content, "Expected no call to DerivedWithCtorOverride constructor skipping python"
+    # Cross-module constructor optimization: BWithOptInit(5) and BWithOptInit(5, 2.5)
+    # must be split into tp_new + vtable __init__ call, not a Python type() call.
+    # The vtable slot for __init__ is accessed via the exported vtable pointer.
+    assert "__pyx_vtabptr_1b_BWithOptInit->__pyx___init__" in a_c_content, (
+        "Expected vtable __init__ dispatch for BWithOptInit cross-module constructor")
+    assert "__pyx_opt_args_1b_12BWithOptInit___init__" in a_c_content, (
+        "Expected opt_args struct for BWithOptInit.__init__ optional-arg call in auto_cpdef mode")
     print("OK: auto_cpdef mode")
 
 elif mode == 'lto':
@@ -73,6 +80,10 @@ elif mode == 'lto':
     assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" not in a_c_content
     assert "__pyx_vtab)->__pyx_f_1b_8Derived3_4prop___get__(" not in a_c_content, "Expected direct call to final method, not vtable dispatch"
     assert "__Pyx_PyObject_FastCallMethod((PyObject*)__pyx_mstate_global->__pyx_n_u_init," not in a_c_content, "Expected no call to DerivedWithCtorOverride constructor skipping python"
+    assert "__pyx_vtabptr_1b_BWithOptInit->__pyx___init__" in a_c_content, (
+        "Expected vtable __init__ dispatch for BWithOptInit cross-module constructor in lto mode")
+    assert "__pyx_opt_args_1b_12BWithOptInit___init__" in a_c_content, (
+        "Expected opt_args struct for BWithOptInit.__init__ optional-arg call in lto mode")
     print("OK: LTO mode")
 
 else:
@@ -251,8 +262,8 @@ print("DONE")
 
 ################# a.pyx ####################
 
-from b import B, Derived, Derived2, Derived3, IBase, func_in_b, func_with_parameter, Color
-from b cimport B, Derived, Derived2, Derived3, IBase, func_in_b, func_with_parameter, Color
+from b import B, Derived, Derived2, Derived3, IBase, BWithOptInit, func_in_b, func_with_parameter, Color
+from b cimport B, Derived, Derived2, Derived3, IBase, BWithOptInit, func_in_b, func_with_parameter, Color
 from cython import ccall, cclass, int, bint as bool
 
 cdef bint _helper = True
@@ -324,6 +335,16 @@ def func_in_a():
     #assert dw2._prop == 9, f"Expected DerivedWithCtorOverrideClosure._prop to be 9, got {dw2._prop}"
 
     func_with_for_loop()
+
+    # Test cross-module constructor with optional args (required-only call)
+    bopt: BWithOptInit = BWithOptInit(5)
+    assert bopt.x == 5, f"Expected BWithOptInit(5).x == 5, got {bopt.x}"
+    assert bopt.y == 1.5, f"Expected BWithOptInit(5).y == 1.5, got {bopt.y}"
+    # Test cross-module constructor with optional args (explicit optional call)
+    bopt2: BWithOptInit = BWithOptInit(5, 2.5)
+    assert bopt2.x == 5, f"Expected BWithOptInit(5,2.5).x == 5, got {bopt2.x}"
+    assert bopt2.y == 2.5, f"Expected BWithOptInit(5,2.5).y == 2.5, got {bopt2.y}"
+
     return func_in_b()
 
 def func_with_for_loop():
@@ -490,3 +511,13 @@ class Derived3(Derived2):
     @property
     def prop(self) -> int:
         return 100
+
+@cclass
+class BWithOptInit:
+    """Class whose __init__ has an optional typed arg to test the ctor optimization."""
+    x: int
+    y: float
+
+    def __init__(self, x: int, y: float = 1.5) -> None:
+        self.x = x
+        self.y = y

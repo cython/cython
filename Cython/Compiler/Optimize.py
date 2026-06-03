@@ -1909,6 +1909,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             # skip_dispatch=1 (a RawCNameExprNode has no entry, so it would
             # otherwise default to 0).
             call_node.wrapper_call = True
+            _set_optional_args_flag(call_node, base_entry.type, new_args)
             return call_node
 
         if not origin:
@@ -1917,12 +1918,13 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return node
         func_node = ExprNodes.RawCNameExprNode(
             node.pos, type=resolved_fn.type, cname=origin)
-        node = ExprNodes.SimpleCallNode.from_node(
+        call_node = ExprNodes.SimpleCallNode.from_node(
             node,
             function=func_node,
             args=new_args
         )
-        return node
+        _set_optional_args_flag(call_node, resolved_fn.type, new_args)
+        return call_node
 
     def visit_AttributeNode(self, node):
         self.visitchildren(node)
@@ -2639,6 +2641,17 @@ class OptimizeCPropertyCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTransform):
             return call_node
 
         return node
+
+
+def _set_optional_args_flag(call_node, func_type, actual_args):
+    """Set has_optional_args on call_node when actual_args exceeds the required
+    count for func_type.  This is needed on post-analysis synthesised
+    SimpleCallNode instances (e.g. from the super() optimiser) that bypass the
+    normal analyse_c_function_call path which would normally set the flag."""
+    if func_type.optional_arg_count:
+        expected_nargs = len(func_type.args) - func_type.optional_arg_count
+        if len(actual_args) > expected_nargs:
+            call_node.has_optional_args = True
 
 
 class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
@@ -4726,13 +4739,20 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         if not (ext_type and ext_type.is_extension_type and ext_type.scope):
             return node
 
-        # Require a cpdef __init__ with a known C-level name (function pointer
-        # for cross-module auto_cpdef, or direct symbol for lto/same-module).
+        # Require a cpdef __init__ reachable via a C-level calling path.
+        # Same-module: direct __pyx_f_ symbol.
+        # Cross-module: vtable dispatch (func_cname is None for cimported entries
+        # because the defining module's __pyx_f_ symbol is not declared here;
+        # only the vtable pointer is guaranteed to be imported).
         init_entry = ext_type.scope.lookup_here('__init__')
         if not (init_entry and init_entry.is_cmethod):
             return node
         func_cname = getattr(init_entry, 'func_cname', None)
-        if not (func_cname and func_cname.startswith('__pyx_f_')):
+        has_direct = bool(func_cname and func_cname.startswith('__pyx_f_'))
+        has_vtable = bool(
+            getattr(ext_type, 'vtabptr_cname', None)
+            and getattr(init_entry, 'cname', None))
+        if not (has_direct or has_vtable):
             return node
 
         # Only handle simple variable LHS (subscript/attribute LHS unsupported)
@@ -4751,16 +4771,17 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
             return node
         native_args = [self._unwrap_py_coercion(a) for a in rhs.arg_tuple.args]
 
-        # __init__ formal params (excluding self, excluding skip_dispatch which is
-        # appended automatically).  Optional args use a struct; skip those too.
+        # __init__ formal params (excluding self).  Accept calls that pass only
+        # the required args OR any number of optional args positionally.
         init_formal_params = list(init_entry.type.args[1:])  # skip 'self'
         required_params = len(init_formal_params) - init_entry.type.optional_arg_count
-        if len(native_args) != required_params:
-            # Positional arg count mismatch → keyword / optional args → skip
+        if not (required_params <= len(native_args) <= len(init_formal_params)):
             return node
 
         # --- Build tp_new call: var = T.__new__(T) ---
-        same_module = ext_type.scope.global_scope() is env.global_scope()
+        # Use same_module only when a direct __pyx_f_ symbol is available; for
+        # cross-module imports func_cname is None and we always use vtable dispatch.
+        same_module = has_direct and (ext_type.scope.global_scope() is env.global_scope())
         new_rhs = self._build_tp_new_call(pos, ext_type, func, env, same_module)
         if new_rhs is None:
             return node
@@ -4770,7 +4791,8 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         var_ref.entry = lhs.entry
         var_ref.type = lhs.entry.type
 
-        init_stat = self._build_init_call_stat(pos, ext_type, init_entry, func_cname, var_ref, native_args, env)
+        init_stat = self._build_init_call_stat(
+            pos, ext_type, init_entry, func_cname, var_ref, native_args, env, same_module)
         if init_stat is None:
             return node
 
@@ -4821,43 +4843,63 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
             may_return_none=False,
             is_temp=True)
 
-    def _build_init_call_stat(self, pos, ext_type, init_entry, func_cname, var_ref, native_args, env):
+    def _build_init_call_stat(self, pos, ext_type, init_entry, func_cname, var_ref, native_args, env,
+                              same_module=True):
         orig_type = init_entry.type
-        # Build a call type where 'self' is ext_type.
-        # init_entry.type.args[0].type may be a base-class type due to cpdef inheritance
-        # (the entry is copied from the base), but the actual C function always takes
-        # ext_type* as its first argument.  We also append skip_dispatch explicitly so
-        # that c_call_code does not attempt to add it a second time.
-        formal_param_types = list(orig_type.args[1:])  # n, z, k, ... (skip inherited self)
-        formal_args = (
-            [PyrexTypes.CFuncTypeArg("self", ext_type, None)]
-            + formal_param_types
-            + [PyrexTypes.CFuncTypeArg("__pyx_skip_dispatch", PyrexTypes.c_int_type, None)])
+        opt_count = orig_type.optional_arg_count
+
+        # Build a call type where 'self' is ext_type (the actual class being
+        # constructed, not the possibly-inherited base type in orig_type.args[0]).
+        # Use is_overridable=True so that c_call_code inserts __pyx_skip_dispatch
+        # before the optional-args struct pointer — matching the actual C ABI:
+        #   func(self, req1, ..., __pyx_skip_dispatch, __pyx_opt_args* opt)
+        # We set wrapper_call=True on the call node so skip_dispatch gets value 1.
+        formal_params = list(orig_type.args[1:])  # all params (req + optional), skip orig self
+        formal_args = [PyrexTypes.CFuncTypeArg("self", ext_type, None)] + formal_params
         call_type = PyrexTypes.CFuncType(
             orig_type.return_type,
             formal_args,
+            optional_arg_count=opt_count,
             exception_value=orig_type.exception_value,
-            exception_check=orig_type.exception_check)
-        # is_overridable stays False → c_call_code won't append skip_dispatch again
+            exception_check=orig_type.exception_check,
+            is_overridable=True)
+        if opt_count and orig_type.op_arg_struct:
+            call_type.op_arg_struct = orig_type.op_arg_struct
 
         # Coerce self to ext_type
         self_arg = var_ref.coerce_to(ext_type, env)
 
-        # Coerce each constructor arg to its expected C type.
-        # native_args may still be py_object_type (e.g. Python literals), so we
-        # explicitly coerce each arg to the formal parameter type using Cython's
-        # CoerceFromPy helpers rather than relying on a raw C cast.
-        coerced_args = []
-        for arg, formal in zip(native_args, formal_param_types):
-            coerced_args.append(arg.coerce_to(formal.type, env))
+        # Coerce each provided arg (required + any optional supplied positionally)
+        # to its expected C type, avoiding unnecessary PyObject boxing for typed params.
+        coerced_args = [arg.coerce_to(f.type, env) for arg, f in zip(native_args, formal_params)]
 
-        skip_arg = ExprNodes.IntNode(pos, value='1', type=PyrexTypes.c_int_type)
+        req_count = len(formal_params) - opt_count
+        actual_opt_count = max(0, len(native_args) - req_count)
+
+        # For cross-module calls, the direct C function (`__pyx_f_...`) is only
+        # declared in the DEFINING module's translation unit.  The calling module
+        # does NOT see it via cimport; only the vtable pointer is guaranteed to be
+        # declared (via __Pyx_GetVtable).  Use the vtable slot in that case.
+        if same_module:
+            c_target = func_cname
+        else:
+            vtabptr = getattr(ext_type, 'vtabptr_cname', None)
+            slot_cname = getattr(init_entry, 'cname', None)
+            if not (vtabptr and slot_cname):
+                return None  # no vtable available; caller bails
+            c_target = "%s->%s" % (vtabptr, slot_cname)
 
         call = ExprNodes.PythonCapiCallNode(
-            pos, func_cname, call_type,
-            args=[self_arg] + coerced_args + [skip_arg],
+            pos, c_target, call_type,
+            args=[self_arg] + coerced_args,
             is_temp=False,
             result_is_used=False)
+        call.wrapper_call = True  # skip_dispatch = 1
+
+        # When optional args are actually being passed, activate the struct machinery
+        # in generate_result_code so that the opt_args struct is built on the stack.
+        if actual_opt_count:
+            call.has_optional_args = True
 
         return Nodes.ExprStatNode(pos, expr=call)
 
