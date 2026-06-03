@@ -28,15 +28,29 @@ PyObject *{{funcname}}({{enum_type}} __pyx_v_c_val) {
 {{endif}}
     // Match enum value to Python enum member
 {{for item in items}}
-    if (__pyx_v_c_val == {{item[1]}}) {
+    if (__pyx_v_c_val == ({{enum_type}}){{item[1]}}) {
         __pyx_r = PyObject_GetAttrString(__pyx_v___pyx_enum, "{{item[0]}}");
         Py_DECREF(__pyx_v___pyx_enum);
         return __pyx_r;
     }
 {{endfor}}
-    // Unknown value - return underlying integer
-    Py_DECREF(__pyx_v___pyx_enum);
-    return PyLong_FromLong((long)__pyx_v_c_val);
+{{if is_flag}}
+    // Flag enum: return the Python IntFlag for this combination of bits
+    {
+        PyObject *__pyx_r2 = PyObject_CallOneArg(__pyx_v___pyx_enum,
+                                                  PyLong_FromLong((long)__pyx_v_c_val));
+        Py_DECREF(__pyx_v___pyx_enum);
+        return __pyx_r2;
+    }
+{{else}}
+    // Non-flag enum: unknown value is an error
+    {
+        long __pyx_underlying = (long)__pyx_v_c_val;
+        PyErr_Format(PyExc_ValueError, "%ld is not a valid {{name}}", __pyx_underlying);
+        Py_DECREF(__pyx_v___pyx_enum);
+        return NULL;
+    }
+{{endif}}
 }
 
 
@@ -70,13 +84,27 @@ static PyObject *{{funcname}}({{enum_type}} __pyx_v_c_val) {
 {{endif}}
     // Match enum value to Python enum member
 {{for item in items}}
-    if (__pyx_v_c_val == {{item[1]}}) {
+    if (__pyx_v_c_val == ({{enum_type}}){{item[1]}}) {
         __pyx_r = PyObject_GetAttrString(__pyx_v___pyx_enum, "{{item[0]}}");
         Py_DECREF(__pyx_v___pyx_enum);
         return __pyx_r;
     }
 {{endfor}}
-    // Unknown value - return underlying integer
-    Py_DECREF(__pyx_v___pyx_enum);
-    return PyLong_FromLong((long)__pyx_v_c_val);
+{{if is_flag}}
+    // Flag enum: return the Python IntFlag for this combination of bits
+    {
+        PyObject *__pyx_r2 = PyObject_CallOneArg(__pyx_v___pyx_enum,
+                                                  PyLong_FromLong((long)__pyx_v_c_val));
+        Py_DECREF(__pyx_v___pyx_enum);
+        return __pyx_r2;
+    }
+{{else}}
+    // Non-flag enum: unknown value is an error
+    {
+        long __pyx_underlying = (long)__pyx_v_c_val;
+        PyErr_Format(PyExc_ValueError, "%ld is not a valid {{name}}", __pyx_underlying);
+        Py_DECREF(__pyx_v___pyx_enum);
+        return NULL;
+    }
+{{endif}}
 }

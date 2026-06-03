@@ -2786,7 +2786,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 'PyErr_SetString(PyExc_NotImplementedError, "__set__");')
             code.putln(
-             "return -1;")
+                "return -1;")
         code.putln(
             "}")
         code.putln(
@@ -2935,7 +2935,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             code.putln("    __pyx_v_converted_value = %s(v); if (PyErr_Occurred()) return -1;" % from_py_func)
                         else:
                             # Fallback for types without from_py_function (e.g. enums)
-                            code.putln("    if ((__pyx_v_converted_value = (%s)PyLong_AsLong(v)) == -1 && PyErr_Occurred()) return -1;" % value_type_cname)
+                            code.putln(
+                                "    if ((__pyx_v_converted_value = (%s)PyLong_AsLong(v)) == -1 "
+                                "&& PyErr_Occurred()) return -1;" % value_type_cname)
                         code.putln("    %s((%s)o, __pyx_v_converted_value);" % (set_entry.func_cname, parent_type_cname))
                     else:
                         code.putln("    %s((%s)o, v);" % (set_entry.func_cname, parent_type_cname))

@@ -4612,6 +4612,10 @@ class EnumMixin:
                 for item_name in self.values
             )
 
+        # C enums default to IntFlag (flags accept any integer), C++ scoped enums
+        # use IntEnum (non-flag, invalid values raise ValueError).
+        is_flag = not self.is_cpp_enum
+
         if is_lto and not is_defining_module:
             # LTO mode: enum is defined in another module being compiled together,
             # just declare the function prototype so we can call it directly
@@ -4634,6 +4638,7 @@ class EnumMixin:
                     "module_name": enum_module_name,
                     "name": self.name,
                     "items": c_items,
+                    "is_flag": is_flag,
                 })
             env.use_utility_code(proto)
         else:
@@ -4647,6 +4652,7 @@ class EnumMixin:
                     "module_name": enum_module_name,
                     "name": self.name,
                     "items": c_items,
+                    "is_flag": is_flag,
                 })
             env.use_utility_code(proto)
 

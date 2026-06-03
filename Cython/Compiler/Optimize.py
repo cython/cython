@@ -5932,6 +5932,10 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
             key = (fnode_value_node.name, c_format_spec, format_spec, conversion_char or 's')
             seen_fnode = seen.setdefault(key, fnode)
             if seen_fnode is fnode:
+                if not seen_fnode.result_in_temp():
+                    seen_fnode = seen_fnode.coerce_to_temp(self.current_env())
+                    values[i] = seen_fnode
+                    seen[key] = seen_fnode
                 continue
 
             dedup_fnode = ExprNodes.CloneNode(seen_fnode)
@@ -5940,6 +5944,75 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
 
         node.values[:] = values
         return node
+
+
+class OptimizePropertyCalls(Visitor.EnvTransform):
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
+    in_loop = False
+
+    def _build_property_accessor_call(self, pos, obj, entry, accessor_name):
+        accessor_entry = entry.scope.lookup_here(accessor_name)
+        if not accessor_entry or not accessor_entry.is_cfunction:
+            return None
+        function = ExprNodes.NameNode(pos, name=accessor_name, entry=accessor_entry, type=accessor_entry.type)
+        return ExprNodes.SimpleCallNode(pos, function=function, args=[obj])
+
+    def visit_AttributeNode(self, node):
+        self.visitchildren(node)
+        entry = getattr(node, 'entry', None)
+        if not entry or not entry.is_property:
+            return node
+        if not node.obj.type.is_extension_type:
+            return node
+        call = self._build_property_accessor_call(node.pos, node.obj, entry, '__get__')
+        if call is None:
+            return node
+        return call.analyse_types(self.current_env())
+
+    def visit_SingleAssignmentNode(self, node):
+        self.visitchildren(node)
+        lhs = node.lhs
+        if not isinstance(lhs, ExprNodes.AttributeNode):
+            return node
+        entry = getattr(lhs, 'entry', None)
+        if not entry or not entry.is_property or not lhs.obj.type.is_extension_type:
+            return node
+        set_node = self._build_property_accessor_call(lhs.pos, lhs.obj, entry, '__set__')
+        if set_node is None or len(set_node.args) != 1:
+            return node
+        # Rebuild as a direct setter call and let the rest of the pipeline lower it.
+        rhs = node.rhs
+        arg1 = ExprNodes.RawCNameExprNode(lhs.pos, type=rhs.type)
+        call = ExprNodes.SimpleCallNode(
+            lhs.pos,
+            function=ExprNodes.NameNode(
+                lhs.pos, name='__set__',
+                entry=entry.scope.lookup_here('__set__'),
+                type=entry.scope.lookup_here('__set__').type),
+            args=[lhs.obj, arg1],
+        )
+        from . import UtilNodes
+        return UtilNodes.CPropertySetNode(lhs.pos, call_node=call, type=rhs.type, arg1=arg1).analyse_types(self.current_env())
+
+    def visit_DelStatNode(self, node):
+        self.visitchildren(node)
+        if len(node.args) != 1:
+            return node
+        arg = node.args[0]
+        if not isinstance(arg, ExprNodes.AttributeNode):
+            return node
+        entry = getattr(arg, 'entry', None)
+        if not entry or not entry.is_property or not arg.obj.type.is_extension_type:
+            return node
+        del_entry = entry.scope.lookup_here('__del__')
+        if not del_entry or not del_entry.type.is_cfunction:
+            return node
+        call = ExprNodes.SimpleCallNode(
+            arg.pos,
+            function=ExprNodes.NameNode(arg.pos, name='__del__', entry=del_entry, type=del_entry.type),
+            args=[arg.obj],
+        ).analyse_types(self.current_env())
+        return Nodes.ExprStatNode(node.pos, expr=call)
 
 
 class ConsolidateOverflowCheck(Visitor.CythonTransform):

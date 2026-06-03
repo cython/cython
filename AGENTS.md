@@ -95,7 +95,7 @@ Then you can check the generated file in: `TEST_TMP/build/embed_modules_optimize
 - **`.py` tests** get `import cython` auto-injected when `add_cython_import=True`
 - **CFLAGS `-O0` or `-Og`** cuts test suite runtime by ~2x
 - **Tree path assertions** (`@cython.test_assert_path_exists`, `@cython.test_fail_if_path_exists`) test that optimizations fire. They use XPath-like `TreePath` expressions.
-- **NEVER LET TEST FAILING JUST BECAUSE THEY ARE PRE-EXISTING ISSUES**: Just fix the compiler, I don't care if you don't introduced the issue. It is not acceptable to leave the repository without a clean test run of the test suite: `python3.13 runtests.py --no-code-style -x Debugger -x tag:cpp20 -x tag:cpp17 -x tag:cpp11 -x tag:pythran -x tag:numpy --backends=c,cpp -j32`
+- **NEVER LET TEST FAILING JUST BECAUSE THEY ARE PRE-EXISTING ISSUES**: Just fix the compiler, I don't care if you don't introduced the issue. It is not acceptable to leave the repository without a clean test run of the test suite: ` python3.13 runtests.py --no-code-style -x Debugger -x tag:cpp20 -x tag:cpp17 -x tag:cpp11 --backends=c,cpp -j32`. We skipp cpp20 and cpp17 tests because in MacOS there is missing support for stdlib and some features required in the toolchain.
 
 ## Architecture
 
