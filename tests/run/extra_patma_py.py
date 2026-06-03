@@ -247,3 +247,18 @@ if sys.version_info >= (3, 15):
     >>> match_mystery_class_self({}, frozendict)
     no match
     """
+
+class ListSubclass(list):
+    __match_args__ = ("special_arg",)
+    special_arg = "SPECIAL!"
+
+def test_match_args_overrides_match_self(x):
+    """
+    >>> test_match_args_overrides_match_self(ListSubclass())
+    'SPECIAL!'
+    >>> test_match_args_overrides_match_self([])
+    >>> test_match_args_overrides_match_self(None)
+    """
+    match x:
+        case ListSubclass(v):
+            return v
