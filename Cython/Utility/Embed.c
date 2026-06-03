@@ -14,7 +14,7 @@
 
 
 {{for mname in embed_modules}}
-    __Pyx_PyMODINIT_FUNC PyInit_{{mname}}(void) CYTHON_SMALL_CODE; /*proto*/
+    __Pyx_PyMODINIT_FUNC PyInit_{{mname.rpartition('.')[-1]}}(void) CYTHON_SMALL_CODE; /*proto*/
 {{endfor}}
 
 #if defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)
@@ -36,7 +36,7 @@ static int __Pyx_main(int argc, wchar_t **argv)
 #endif
 
     {{for mname in (module_name,) + embed_modules}}
-    if (PyImport_AppendInittab("{{mname}}", PyInit_{{mname}}) < 0) return 1;
+    if (PyImport_AppendInittab("{{mname}}", PyInit_{{mname.rpartition('.')[-1]}}) < 0) return 1;
     {{endfor}}
 
     {
