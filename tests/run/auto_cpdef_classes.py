@@ -203,3 +203,93 @@ def use_generator_property_getter():
     """
     t: Thing = Thing([1, 2, 3])
     return t.items
+
+
+# --- Trampoline: a def override that cannot itself be promoted to cpdef -------
+# (a closure or generator) still fills the inherited vtable slot via a synthesised
+# C trampoline, so base-typed / super() dispatch resolves to the override.
+
+@cclass
+class TBase:
+    def make(self, x: int) -> int:
+        # promoted to cpdef -> has a vtable slot
+        return x + 1
+
+    def stream(self, n: int) -> object:
+        # promoted to cpdef
+        return list(range(n))
+
+
+@cclass
+class TClosure(TBase):
+    def make(self, x: int) -> int:
+        # closure -> NOT cdef-func-compatible -> trampoline fills the slot
+        def inner():
+            return x * 10
+        return inner() + super().make(x)
+
+
+@cclass
+class TGen(TBase):
+    def stream(self, n: int) -> object:
+        # generator -> NOT cdef-func-compatible -> trampoline fills the slot
+        for i in range(n):
+            yield i * 2
+
+
+@cclass
+class TDispatcher:
+    @no_ccall
+    def via_base_make(self, b: TBase, x: int) -> int:
+        # statically base-typed receiver -> C vtable dispatch must reach the
+        # override's trampoline.
+        return b.make(x)
+
+
+def _dispatch_make(b, x):
+    return TDispatcher().via_base_make(b, x)
+
+
+def test_method_trampoline():
+    """
+    >>> TBase().make(5)
+    6
+    >>> TClosure().make(5)            # 50 (closure) + 6 (super) == 56
+    56
+    >>> _dispatch_make(TBase(), 5)    # vtable -> TBase.make
+    6
+    >>> _dispatch_make(TClosure(), 5) # vtable -> TClosure trampoline -> override
+    56
+    >>> list(TBase().stream(3))
+    [0, 1, 2]
+    >>> list(TGen().stream(3))        # generator override via trampoline
+    [0, 2, 4]
+    >>> b = TBase()
+    >>> list(_dispatch_stream(TGen(), 3))   # base-typed -> TGen trampoline
+    [0, 2, 4]
+    """
+
+
+@cclass
+class TStreamDispatcher:
+    @no_ccall
+    def via_base_stream(self, b: TBase, n: int) -> object:
+        return b.stream(n)
+
+
+def _dispatch_stream(b, n):
+    return TStreamDispatcher().via_base_stream(b, n)
+
+
+def test_python_override_through_trampoline():
+    """
+    A pure-Python subclass overriding a trampolined method must still be reached
+    through C (vtable) dispatch -- the trampoline carries the same OverrideCheck
+    as a normal cpdef method.
+
+    >>> class PyClosure(TClosure):
+    ...     def make(self, x):
+    ...         return 1000
+    >>> _dispatch_make(PyClosure(), 5)
+    1000
+    """

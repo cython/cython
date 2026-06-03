@@ -2439,6 +2439,10 @@ class CClassScope(ClassScope):
     has_cyclic_pyobject_attrs = False
     defined = False
     implemented = False
+    # DefNodes that override an inherited cpdef method but cannot themselves be
+    # promoted to cpdef (closures/generators). A C trampoline filling the vtable
+    # slot is synthesised for each by AnalyseDeclarationsTransform.visit_CClassDefNode.
+    cpdef_method_trampolines = None
 
     def __init__(self, name, outer_scope, visibility, parent_type):
         ClassScope.__init__(self, name, outer_scope)

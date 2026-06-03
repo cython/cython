@@ -2347,6 +2347,9 @@ if VALUE is not None:
                     property.analyse_declarations(node.scope)
                     self.visit(property)
                     stats.append(property)
+            if node.scope.cpdef_method_trampolines:
+                stats.extend(self._create_cpdef_method_trampolines(node))
+            self._create_property_getter_trampolines(node)
             if stats:
                 node.body.stats += stats
             if (node.visibility != 'extern'
@@ -2354,6 +2357,103 @@ if VALUE is not None:
                     and not node.scope.lookup('__reduce_ex__')):
                 self._inject_pickle_methods(node)
         return node
+
+    def _create_cpdef_method_trampolines(self, node):
+        # For each cclass method that overrides an inherited cpdef method but
+        # could not itself be promoted to cpdef (a closure or generator), build a
+        # C trampoline that fills the inherited vtable slot by forwarding to the
+        # method's Python body. This keeps super()/base-typed dispatch resolving
+        # to the override without forcing the user to @cython.no_ccall the family.
+        # The Python body node stays in place and emits its normal __pyx_pf_/__pyx_pw_;
+        # the trampoline only emits the __pyx_f_ slot function. See
+        # docs/design-cpdef-method-family-promotion.md.
+        trampolines = []
+        for pydef, base_entry in node.scope.cpdef_method_trampolines:
+            trampoline = Nodes.CFuncDefNode(
+                pydef.pos,
+                base_type=None, declarator=None, body=None, doc=None,
+                modifiers=[], overridable=True, visibility='private',
+                is_cpdef_trampoline=True)
+            trampoline.trampoline_pydef = pydef
+            trampoline.trampoline_base_entry = base_entry
+            trampoline.analyse_declarations(node.scope)
+            self.visit(trampoline)
+            trampolines.append(trampoline)
+        node.scope.cpdef_method_trampolines = None
+        return trampolines
+
+    def _create_property_getter_trampolines(self, node):
+        # A @property getter that is a *generator* (`yield` in the body) cannot be
+        # compiled as a plain C getter, so it stays a Python getter and does NOT
+        # fill the type's property vtable slot. If an ancestor declares the same
+        # property as a C property (overridable cproperty), a statically-typed
+        # base access would then dispatch to the ancestor's (often abstract)
+        # getter instead of this override. Fill the slot with a C getter
+        # trampoline that forwards to the Python getter. See
+        # docs/design-cpdef-method-family-promotion.md.
+        extra_stats = []
+        for prop in self._iter_property_nodes(node.body):
+            if not prop.body.stats:
+                continue
+            getter = prop.body.stats[0]
+            if not (isinstance(getter, Nodes.DefNode) and getter.is_generator
+                    and getter.entry and getter.entry.name == '__get__'):
+                continue
+            base_get_entry, depth = self._find_ancestor_cproperty_getter(node.entry.type, prop.name)
+            if base_get_entry is None:
+                continue
+            # The inherited vtable slot path: one `__pyx_base.` per inheritance level.
+            base_cname = (Naming.obj_base_cname + ".") * depth + base_get_entry.cname
+            # Synthesise the C trampoline as a class-body stat.  Its
+            # _analyse_property_trampoline_declarations creates a fake cfunc Entry
+            # in cfunc_entries so generate_exttype_vtable_init_code fills the slot
+            # through the normal method path, avoiding the broken PropertyScope path.
+            trampoline = Nodes.CFuncDefNode(
+                getter.pos,
+                base_type=None, declarator=None, body=None, doc=None,
+                modifiers=['inline'], overridable=False, visibility='private',
+                is_cpdef_property_trampoline=True)
+            trampoline.trampoline_pydef = getter
+            # Pack the context needed by _analyse_property_trampoline_declarations:
+            # (vtable_slot_cname, base_getter_cfunc_type)
+            trampoline.trampoline_base_entry = (base_cname, base_get_entry.type)
+            trampoline.analyse_declarations(node.scope)
+            self.visit(trampoline)
+            extra_stats.append(trampoline)
+        if extra_stats:
+            node.body.stats.extend(extra_stats)
+
+    @classmethod
+    def _iter_property_nodes(cls, stat):
+        # Property nodes live in the class body, possibly wrapped in
+        # CompilerDirectivesNode / StatListNode layers.
+        if isinstance(stat, Nodes.PropertyNode):
+            yield stat
+        elif isinstance(stat, Nodes.StatListNode):
+            for s in stat.stats:
+                yield from cls._iter_property_nodes(s)
+        elif isinstance(stat, Nodes.CompilerDirectivesNode):
+            yield from cls._iter_property_nodes(stat.body)
+
+    @staticmethod
+    def _find_ancestor_cproperty_getter(ext_type, prop_name):
+        """Walk base types looking for the first cproperty that owns a C __get__ getter.
+        Returns (get_entry, depth) or (None, 0)."""
+        depth = 0
+        base_type = ext_type.base_type
+        while base_type is not None and base_type.scope is not None:
+            depth += 1
+            entry = base_type.scope.lookup_here(prop_name)
+            if entry is not None and entry.is_property:
+                prop_scope = getattr(entry, 'scope', None)
+                if entry.is_cproperty or (
+                        prop_scope is not None and getattr(prop_scope, 'is_overridable', False)):
+                    if prop_scope is not None:
+                        get_entry = prop_scope.lookup_here('__get__')
+                        if get_entry and get_entry.func_cname:
+                            return get_entry, depth
+            base_type = base_type.base_type
+        return None, 0
 
     def _inject_pickle_methods(self, node):
         env = self.current_env()

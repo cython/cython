@@ -1,0 +1,92 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner; runner.main()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+import Cython.Compiler.Options
+Cython.Compiler.Options.cimport_from_pyx = True
+
+from distutils.core import setup
+
+setup(ext_modules=cythonize("*.pyx", compiler_directives={'auto_cpdef': True}))
+
+######## base.pyx ########
+# cython: auto_cpdef=True
+
+from cython import cclass, int as cyint
+
+
+@cclass
+class Base:
+    def make(self, x: cyint) -> cyint:
+        # promoted to cpdef -> vtable slot
+        return x + 1
+
+    def stream(self, n: cyint) -> object:
+        # promoted to cpdef -> vtable slot
+        return list(range(n))
+
+
+@cclass
+class Dispatcher:
+    # base-typed C dispatch must reach the derived overrides through the vtable
+    def call_make(self, b: Base, x: cyint) -> cyint:
+        return b.make(x)
+
+    def call_stream(self, b: Base, n: cyint) -> object:
+        return b.stream(n)
+
+######## derived.pyx ########
+# cython: auto_cpdef=True
+
+from cython import cclass, int as cyint
+
+from base import Base
+from base cimport Base
+
+
+@cclass
+class Closure(Base):
+    def make(self, x: cyint) -> cyint:
+        # closure -> cannot be promoted -> C trampoline fills the inherited slot
+        def inner():
+            return x * 10
+        return inner() + super().make(x)
+
+
+@cclass
+class Gen(Base):
+    def stream(self, n: cyint) -> object:
+        # generator -> cannot be promoted -> C trampoline fills the inherited slot
+        for i in range(n):
+            yield i * 2
+
+######## runner.py ########
+
+def main():
+    from base import Base, Dispatcher
+    from derived import Closure, Gen
+
+    d = Dispatcher()
+
+    # Direct Python calls
+    assert Base().make(5) == 6, Base().make(5)
+    assert Closure().make(5) == 56, Closure().make(5)        # 50 + super() 6
+    assert list(Base().stream(3)) == [0, 1, 2]
+    assert list(Gen().stream(3)) == [0, 2, 4]
+
+    # Base-typed cross-module C (vtable) dispatch reaches the overrides
+    assert d.call_make(Base(), 5) == 6
+    assert d.call_make(Closure(), 5) == 56
+    assert list(d.call_stream(Base(), 3)) == [0, 1, 2]
+    assert list(d.call_stream(Gen(), 3)) == [0, 2, 4]
+
+    # Pure-Python subclass override is still reached through the trampoline's
+    # OverrideCheck during C dispatch.
+    class PyClosure(Closure):
+        def make(self, x):
+            return 999
+    assert d.call_make(PyClosure(), 5) == 999
+
+    print("OK")

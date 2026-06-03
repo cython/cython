@@ -2774,6 +2774,16 @@ class CFuncDefNode(FuncDefNode):
     py_func_stat = None
     _code_object = None
 
+    # Set when this node is a synthesised C trampoline that fills an inherited
+    # cpdef vtable slot by forwarding to a Python-bodied override (a closure or
+    # generator method that cannot itself be promoted to cpdef). See
+    # AnalyseDeclarationsTransform.visit_CClassDefNode and
+    # docs/design-cpdef-method-family-promotion.md.
+    is_cpdef_trampoline = False
+    is_cpdef_property_trampoline = False
+    trampoline_pydef = None
+    trampoline_base_entry = None
+
     def unqualified_name(self):
         return self.entry.name
 
@@ -2790,6 +2800,10 @@ class CFuncDefNode(FuncDefNode):
         self._code_object = code_object
 
     def analyse_declarations(self, env):
+        if self.is_cpdef_trampoline:
+            return self._analyse_trampoline_declarations(env)
+        if self.is_cpdef_property_trampoline:
+            return self._analyse_property_trampoline_declarations(env)
         self.c_compile_guard = env.directives['c_compile_guard']
         self.is_c_class_method = env.is_c_class_scope
         if self.directive_locals is None:
@@ -2997,6 +3011,170 @@ class CFuncDefNode(FuncDefNode):
                 ExprStatNode(self.pos, expr=c_call),
                 ReturnStatNode(self.pos, value=None)])
         return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
+
+    def _analyse_trampoline_declarations(self, env):
+        # Declare a synthesised C trampoline that fills the vtable slot inherited
+        # from a cpdef base method, forwarding to the Python-bodied override
+        # (`self.trampoline_pydef`) that could not itself be promoted to cpdef.
+        # The slot signature mirrors the inherited cpdef method exactly (so the
+        # vtable stays ABI-compatible); only `self` is retyped to this class.
+        pydef = self.trampoline_pydef
+        base_type = self.trampoline_base_entry.type
+        name = pydef.entry.name
+
+        self.c_compile_guard = env.directives['c_compile_guard']
+        self.is_c_class_method = True
+        self.is_static_method = False
+        if self.directive_locals is None:
+            self.directive_locals = {}
+
+        args = [PyrexTypes.CFuncTypeArg(base_type.args[0].name, env.parent_type, base_type.args[0].pos)]
+        args += [PyrexTypes.CFuncTypeArg(arg.name, arg.type, arg.pos) for arg in base_type.args[1:]]
+        cfunc_type = PyrexTypes.CFuncType(
+            base_type.return_type, args,
+            has_varargs=False,
+            exception_value=base_type.exception_value,
+            exception_check=base_type.exception_check,
+            calling_convention=base_type.calling_convention,
+            nogil=base_type.nogil,
+            with_gil=base_type.with_gil,
+            is_overridable=True)
+        self.type = cfunc_type
+        self.return_type = cfunc_type.return_type
+        # Lightweight argument declaration nodes (matched by name to the local
+        # scope entries) so control-flow analysis marks the parameters as
+        # initialised and codegen can iterate them.
+        self.args = []
+        for type_arg in cfunc_type.args:
+            arg_node = CArgDeclNode(self.pos, base_type=None, declarator=None,
+                                    default=None, annotation=None, name=type_arg.name)
+            arg_node.type = type_arg.type
+            self.args.append(arg_node)
+
+        # The Python body node forwarded to was created as a plain method, so it
+        # never had `is_module_scope` set (OverrideCheckNode needs it).
+        pydef.is_module_scope = False
+
+        self.entry = env.declare_cfunction(
+            name, cfunc_type, self.pos,
+            cname=None, visibility='private', api=False,
+            defining=True, modifiers=(), overridable=True)
+        # Keep the cmethod entry as the primary scope entry (it owns the vtable
+        # slot) and expose the Python body as its variable form, exactly as a
+        # normal cpdef method links its `__pyx_pf_` wrapper.
+        self.entry.as_variable = pydef.entry
+        self.entry.used = pydef.entry.used = True
+        env.entries[name] = self.entry
+
+        self.create_local_scope(env)
+
+        # Body: dispatch to a dynamic Python override if there is one, otherwise
+        # forward straight to this class's Python implementation.
+        self.override = OverrideCheckNode(self.pos, py_func=pydef)
+        self.body = StatListNode(self.pos, stats=[self.override, self._make_trampoline_forward_node()])
+        return self
+
+    def _analyse_property_trampoline_declarations(self, env):
+        # env is the CClassScope. The PropertyScope already has `__get__` declared as a
+        # Python function (the generator getter) — we cannot re-declare it as a C function.
+        # Strategy: create a fake cfunc Entry in env.cfunc_entries with the inherited
+        # vtable slot cname, so generate_exttype_vtable_init_code fills the slot through
+        # the normal method-vtable path (bypassing the broken property-scope path).
+        pydef = self.trampoline_pydef
+        pydef.is_module_scope = False
+
+        # trampoline_base_entry is (inherited_slot_cname, base_getter_cfunc_type)
+        vtable_slot_cname, base_cfunc_type = self.trampoline_base_entry
+        parent_type = env.parent_type
+
+        self.c_compile_guard = env.directives['c_compile_guard']
+        self.is_c_class_method = True
+        self.is_static_method = False
+        if self.directive_locals is None:
+            self.directive_locals = {}
+        self.modifiers = ['inline']
+
+        # Build the trampoline's CFuncType: same args as the base getter but self typed to
+        # this class so the generated header has the right struct type.
+        cfunc_type = PyrexTypes.CFuncType(
+            PyrexTypes.py_object_type,
+            [PyrexTypes.CFuncTypeArg("self", parent_type, self.pos)],
+            exception_value=None, exception_check=True,
+            nogil=False, is_overridable=False)
+        self.type = cfunc_type
+        self.return_type = cfunc_type.return_type
+
+        # Lightweight arg declaration nodes for control-flow analysis.
+        self.args = []
+        for type_arg in cfunc_type.args:
+            arg_node = CArgDeclNode(self.pos, base_type=None, declarator=None,
+                                    default=None, annotation=None, name=type_arg.name)
+            arg_node.type = type_arg.type
+            self.args.append(arg_node)
+
+        # Compute a unique C function name for the trampoline body.
+        prop_name = pydef.entry.name if (pydef.entry and pydef.entry.name != '__get__') else ''
+        trampoline_cname = env.mangle(Naming.func_prefix,
+            env.parent_type.name + "_" + (pydef.entry.scope.name if pydef.entry and pydef.entry.scope else prop_name) + "___get__tramp")
+
+        # Build a fake cfunc Entry and add it to cfunc_entries so that
+        # generate_exttype_vtable_init_code emits the right slot assignment.
+        from .Symtab import Entry
+        fake_entry = Entry(EncodedString("__get__"), vtable_slot_cname, base_cfunc_type, pos=self.pos)
+        fake_entry.func_cname = trampoline_cname
+        fake_entry.vtable_type = base_cfunc_type
+        fake_entry.func_modifiers = ['inline']
+        fake_entry.visibility = 'private'
+        fake_entry.is_cfunction = True
+        fake_entry.is_cmethod = True
+        fake_entry.is_c_class_method = True
+        fake_entry.is_cproperty = True
+        # Mark inherited so generate_exttype_vtable_struct skips adding a new struct
+        # member (the cname contains '.' for the base path which is not valid as a
+        # C struct member). The vtable init code still uses func_cname to fill the slot.
+        fake_entry.is_inherited = True
+        fake_entry.scope = env
+        fake_entry.qualified_name = EncodedString(
+            "%s.%s.__get__" % (env.parent_type.name, pydef.entry.scope.name if pydef.entry and pydef.entry.scope else ''))
+        env.cfunc_entries.append(fake_entry)
+
+        # Create a separate minimal entry for this node's own generate_function_header.
+        self_entry = Entry(EncodedString("__get__"), trampoline_cname, cfunc_type, pos=self.pos)
+        self_entry.func_cname = trampoline_cname
+        self_entry.func_modifiers = ['inline']
+        self_entry.visibility = 'private'
+        self_entry.is_cmethod = True
+        self_entry.is_c_class_method = True
+        self_entry.is_cproperty = True
+        self_entry.scope = env
+        self_entry.qualified_name = fake_entry.qualified_name
+        self.entry = self_entry
+
+        self.create_local_scope(env)
+        self.body = StatListNode(self.pos, stats=[self._make_trampoline_forward_node()])
+        return self
+
+    def _make_trampoline_forward_node(self):
+        # `return __pyx_pf_<class>_<name>(self, args...)` -- a direct C call to the
+        # Python body function (which holds the real closure/generator body). The
+        # result (a Python object) is coerced to the slot's return type by the
+        # enclosing ReturnStatNode.
+        from . import ExprNodes
+        pydef = self.trampoline_pydef
+        args = self.type.args
+        pf_type = PyrexTypes.CFuncType(
+            PyrexTypes.py_object_type,
+            [PyrexTypes.CFuncTypeArg(arg.name, arg.type, arg.pos) for arg in args],
+            exception_value=None, exception_check=True)
+        func = ExprNodes.RawCNameExprNode(self.pos, type=pf_type, cname=pydef.entry.pyfunc_cname)
+        call = ExprNodes.SimpleCallNode(
+            self.pos, function=func,
+            args=[ExprNodes.NameNode(self.pos, name=arg.name) for arg in args])
+        if self.return_type.is_void or self.return_type.is_returncode:
+            return StatListNode(self.pos, stats=[
+                ExprStatNode(self.pos, expr=call),
+                ReturnStatNode(self.pos, value=None)])
+        return ReturnStatNode(self.pos, value=call)
 
     def declare_arguments(self, env):
         for arg in self.type.args:
@@ -3287,6 +3465,9 @@ class DefNode(FuncDefNode):
     lambda_name = None
     reqd_kw_flags_cname = "0"
     is_wrapper = 0
+    # Set when this Python-bodied method overrides an inherited cpdef method and a
+    # C trampoline (a CFuncDefNode) is synthesised to fill its vtable slot.
+    is_cpdef_trampoline_body = False
     no_assignment_synthesis = 0
     decorators = None
     return_type_annotation = None
@@ -3666,17 +3847,23 @@ class DefNode(FuncDefNode):
         #print "DefNode.declare_pyfunction:", self.name, "in", env ###
         name = self.name
         entry = env.lookup_here(name)
+        cpdef_trampoline_base = None
         if entry:
             if entry.is_final_cmethod and not env.parent_type.is_final_type:
                 error(self.pos, "Only final types can have final Python (def/cpdef) methods")
             if entry.type.is_cfunction and not entry.is_builtin_cmethod and not self.is_wrapper:
-                if entry.name != '__init__' and env.directives.get("auto_cpdef"):
-                    error(self.pos, "'%s' is auto-promoted to cpdef in a base class but is "
-                        "overridden here with a def that cannot be promoted (it uses a closure "
-                        "or generator). Decorate the *base* class's '%s' with @cython.no_ccall to "
-                        "opt the whole method out of cpdef promotion (it then stays a Python "
-                        "method everywhere), or remove the closure/generator." % (
-                            entry.name, entry.name))
+                if (entry.name != '__init__' and env.directives.get("auto_cpdef")
+                        and env.is_c_class_scope and entry.type.is_overridable
+                        and not entry.is_final_cmethod):
+                    # This def overrides an inherited cpdef method but cannot itself be
+                    # promoted to cpdef (it uses a closure or generator). Rather than
+                    # rejecting it, we keep the Python body here and remember the method
+                    # so AnalyseDeclarationsTransform.visit_CClassDefNode can synthesise a
+                    # C "trampoline" that fills the inherited vtable slot by forwarding to
+                    # this body. That keeps super()/base-typed dispatch resolving to this
+                    # override without forcing the user to @cython.no_ccall the whole
+                    # method family. See docs/design-cpdef-method-family-promotion.md.
+                    cpdef_trampoline_base = entry
                 elif entry.name != '__init__':
                     warning(self.pos, "Overriding a c(p)def method with a def method. "
                         "This can lead to different methods being called depending on the "
@@ -3717,6 +3904,18 @@ class DefNode(FuncDefNode):
                     entry.wrapperbase_cname = punycodify_name(Naming.wrapperbase_prefix + prefix + name)
         else:
             entry.doc = None
+
+        if cpdef_trampoline_base is not None:
+            # Restore the inherited cmethod entry as the primary scope entry (so the
+            # vtable slot is owned by the C trampoline we will synthesise) and link the
+            # Python body as its `as_variable`, mirroring a normal cpdef method.
+            self.is_cpdef_trampoline_body = True
+            cpdef_trampoline_base.as_variable = entry
+            cpdef_trampoline_base.used = entry.used = True
+            env.entries[name] = cpdef_trampoline_base
+            if env.cpdef_method_trampolines is None:
+                env.cpdef_method_trampolines = []
+            env.cpdef_method_trampolines.append((self, cpdef_trampoline_base))
 
     def declare_lambda_function(self, env):
         entry = env.declare_lambda_function(self.lambda_name, self.pos)
