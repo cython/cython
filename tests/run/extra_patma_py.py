@@ -208,3 +208,42 @@ def match_optional_frozendict_as_class(v: frozendict | None):
             return d
         case _:
             return "unmatched"
+
+
+def match_mystery_class_self(arg, cls):
+    """
+    Most of the time, we're able to replace match-class with a
+    simple known type-check (i.e. `dict(_)` becomes PyDict_Check).
+    This does mean the generic test code is undertested.
+
+    >>> match_mystery_class_self([], list)
+    match
+    >>> match_mystery_class_self(10, list)
+    no match
+    >>> class Cls:
+    ...    __match_args__ = ('arg',)
+    ...    arg = 1
+    >>> match_mystery_class_self(Cls(), Cls)
+    match
+    >>> match_mystery_class_self([], Cls)
+    no match
+    >>> match_mystery_class_self(None, Cls)
+    no match
+    >>> match_mystery_class_self(None, type(None))
+    Traceback (most recent call last):
+        ...
+    TypeError: NoneType() accepts 0 positional sub-patterns (1 given)
+    """
+    match arg:
+        case cls(_):
+            print("match")
+        case _:
+            print("no match")
+
+if sys.version_info >= (3, 15):
+    __doc__ += """
+    >>> match_mystery_class_self(frozendict(), frozendict)
+    match
+    >>> match_mystery_class_self({}, frozendict)
+    no match
+    """
