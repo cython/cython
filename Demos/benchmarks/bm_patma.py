@@ -7,6 +7,8 @@ from array import array
 
 class A:
     b = 1
+    def __repr__(self):
+        return f'A({self.b})'
 
 
 class C:
@@ -64,33 +66,45 @@ c3 = A()
 c3.b = 2
 c4 = C
 
-tests = [d1, d2, d3, l1, l2, l3, l4, l5, v1, v2, c1, c2, c3, c3.b, c4]
+tests = [d1, d2, d3, l1, l2, l3, l4, l5, v1, v2, c1, c2, c3, c4]
 
-
-def main():
-    from timeit import Timer
-
-    if cython.compiled:
-        print("Running in Cython")
-    else:
-        print("Running in Python")
-
-    for subject in tests:
+def get_benchmarks():
+    def as_string(subject):
         try:
             len_ = len(subject)
         except TypeError:
             len_ = 1
-        toprint = subject if len_ <= 10 else ("long(%s) %s" % (len_, type(subject)))
-        times = []
-        timer = Timer(
-            "speed_test(subject)", globals=dict(speed_test=speed_test, subject=subject)
-        )
-        count, total_time = timer.autorange()
-        times.append(1e6 * total_time / count)
-        times.extend(1e6 * t / count for t in timer.repeat(4, count))
-        display_times = " ".join([f"{time:.3}" for time in times])
-        print(f"subject {toprint} - time (μs): {display_times}")
+        return repr(subject) if len_ <= 10 else f"long({len_}) {type(subject).__name__}"
+    def make_runner(subject):
+        def runner(number: cython.int, timer):
+            t = timer()
+            for _ in range(number):
+                speed_test(subject)
+            t = timer() - t
+            return t
+        return runner
+    return {
+        f'patma {as_string(subject)}': make_runner(subject) for subject in tests
+    }
 
 
-if __name__ == "__main__":
-    main()
+def run_benchmark(repeat=True, scale=100):
+    from util import repeat_to_accuracy, scale_subbenchmarks
+    import time
+
+    benchmarks = get_benchmarks()
+
+    timings = {
+        name: func(1000, time.perf_counter)
+        for name, func in benchmarks.items()
+    }
+    scales = scale_subbenchmarks(timings, scale)
+
+    collected_timings = {}
+
+    for name, func in benchmarks.items():
+        collected_timings[name] = repeat_to_accuracy(
+            func, scale=scales[name], repeat=repeat)[0]
+
+    for name, timings in collected_timings.items():
+        print(f"{name}: {timings}")
