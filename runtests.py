@@ -380,6 +380,8 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
 update_cpp11_extension = update_cpp_extension(11, min_gcc_version="4.9", min_macos_version="10.7")
 update_cpp17_extension = update_cpp_extension(17, min_gcc_version="5.0", min_macos_version="10.13")
 update_cpp20_extension = update_cpp_extension(20, min_gcc_version="11.0", min_clang_version="13.0", min_macos_version="10.13")
+# C++20 sync primitives (barrier, semaphore, stop_token, jthread) require macOS 11.0 runtime
+update_cpp20_sync_extension = update_cpp_extension(20, min_gcc_version="11.0", min_clang_version="13.0", min_macos_version="11.0")
 update_c11_extension = update_c_extension(11, min_gcc_version="4.7", min_clang_version="3.3")
 
 
@@ -477,6 +479,7 @@ EXT_EXTRAS = {
     'tag:cpp11': update_cpp11_extension,
     'tag:cpp17': update_cpp17_extension,
     'tag:cpp20': update_cpp20_extension,
+    'tag:cpp20_sync': update_cpp20_sync_extension,
     'tag:c11': update_c11_extension,
     'tag:trace' : update_linetrace_extension,
     'tag:cppexecpolicies': require_gcc("9.1"),
@@ -3147,7 +3150,7 @@ def runtests(options, cmd_args, coverage=None):
         sys.stderr.write("Backends: %s\n" % ','.join(backends))
     languages = backends
 
-    if 'CI' in os.environ and sys.platform == 'darwin' and 'cpp' in languages:
+    if sys.platform == 'darwin' and 'cpp' in languages:
         bugs_file_name = 'macos_cpp_bugs.txt'
         exclude_selectors += [
             FileListExcluder(os.path.join(ROOTDIR, bugs_file_name),

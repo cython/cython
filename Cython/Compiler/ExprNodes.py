@@ -4765,9 +4765,16 @@ class IndexNode(_IndexingBaseNode):
             else:
                 assert False, "unexpected base type in indexing: %s" % base_type
         elif base_type.is_cfunction:
+            def _template_arg_code(param):
+                # Function types must be represented as function pointers in template args.
+                # E.g. bool (char, char) -> bool (*)(char, char), otherwise libc++ instantiates
+                # __comp_ref_type<bool(char,char)> = bool(char,char)& which can't bind a pointer.
+                if param.is_cfunction:
+                    return param.declaration_code("*")
+                return param.empty_declaration_code()
             return "%s<%s>" % (
                 self.base.result(),
-                ",".join([param.empty_declaration_code() for param in self.type_indices]))
+                ",".join([_template_arg_code(param) for param in self.type_indices]))
         elif base_type.is_ctuple:
             index = self.index.constant_result
             if index < 0:

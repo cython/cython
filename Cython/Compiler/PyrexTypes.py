@@ -5581,9 +5581,15 @@ def best_match(arg_types, functions, fail_if_empty=False, arg_is_lvalue_array=No
             else:
                 type_list = [deductions[param] for param in func_type.templates]
                 from .Symtab import Entry
+                # Function types must appear as function pointer types in template args,
+                # e.g. bool(char,char) -> bool(*)(char,char). libc++ passes the comparator
+                # arg as __comp_ref_type<Compare> = Compare&, which can't bind a function
+                # pointer to a function-type reference.
+                def _tmpl_arg(t):
+                    return t.declaration_code("*") if t.is_cfunction else t.empty_declaration_code()
                 specialization = Entry(
                     name = func.name + "[%s]" % ",".join([str(t) for t in type_list]),
-                    cname = func.cname + "<%s>" % ",".join([t.empty_declaration_code() for t in type_list]),
+                    cname = func.cname + "<%s>" % ",".join([_tmpl_arg(t) for t in type_list]),
                     type = func_type.specialize(deductions),
                     pos = func.pos)
                 specialization.scope = func.scope
