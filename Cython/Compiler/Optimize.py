@@ -4680,6 +4680,188 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
 
 
+class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTransform):
+    """Optimize T(args) constructor calls for known extension types.
+
+    When T is an extension type whose __init__ is a cpdef method (func_cname
+    starts with '__pyx_f_'), transform:
+        var = T(args)
+    into:
+        var = T.__new__(T)       # direct tp_new slot (same-module) or __Pyx_tp_new
+        T.__init__(var, args)    # direct C function call / cross-module function pointer
+
+    This eliminates the Python type.__call__ dispatch and the __init__ Python
+    wrapper path.  Cross-module types use the same function-pointer mechanism
+    that auto_cpdef uses for all cpdef method calls.
+
+    Only applies to simple variable assignments; other expression contexts are
+    left unchanged.
+    """
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
+
+    # Reuse the same func-type as OptimizeBuiltinCalls._handle_any_slot__new__
+    Pyx_tp_new_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("type", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("args", PyrexTypes.py_object_type, None),
+        ])
+
+    def visit_SingleAssignmentNode(self, node):
+        self.visitchildren(node)
+        return self._maybe_split_ctor(node)
+
+    def _maybe_split_ctor(self, node):
+        rhs = node.rhs
+        if not isinstance(rhs, ExprNodes.SimpleCallNode):
+            return node
+        # arg_tuple is set only after AnalyseExpressionsTransform for Python calls
+        if rhs.arg_tuple is None:
+            return node
+
+        func = rhs.function
+        type_entry = getattr(func, 'type_entry', None)
+        if not type_entry:
+            return node
+        ext_type = type_entry.type
+        if not (ext_type and ext_type.is_extension_type and ext_type.scope):
+            return node
+
+        # Require a cpdef __init__ with a known C-level name (function pointer
+        # for cross-module auto_cpdef, or direct symbol for lto/same-module).
+        init_entry = ext_type.scope.lookup_here('__init__')
+        if not (init_entry and init_entry.is_cmethod):
+            return node
+        func_cname = getattr(init_entry, 'func_cname', None)
+        if not (func_cname and func_cname.startswith('__pyx_f_')):
+            return node
+
+        # Only handle simple variable LHS (subscript/attribute LHS unsupported)
+        lhs = node.lhs
+        if not lhs.is_name or not lhs.entry:
+            return node
+
+        pos = node.pos
+        env = self.current_env()
+
+        # --- Recover native-typed positional args ---
+        # SimpleCallNode has no keyword/star args by construction; the check below
+        # guards against optional-arg cpdef signatures where the positional count
+        # would not match the required param count.
+        if not isinstance(rhs.arg_tuple, ExprNodes.TupleNode):
+            return node
+        native_args = [self._unwrap_py_coercion(a) for a in rhs.arg_tuple.args]
+
+        # __init__ formal params (excluding self, excluding skip_dispatch which is
+        # appended automatically).  Optional args use a struct; skip those too.
+        init_formal_params = list(init_entry.type.args[1:])  # skip 'self'
+        required_params = len(init_formal_params) - init_entry.type.optional_arg_count
+        if len(native_args) != required_params:
+            # Positional arg count mismatch → keyword / optional args → skip
+            return node
+
+        # --- Build tp_new call: var = T.__new__(T) ---
+        same_module = ext_type.scope.global_scope() is env.global_scope()
+        new_rhs = self._build_tp_new_call(pos, ext_type, func, env, same_module)
+        if new_rhs is None:
+            return node
+
+        # --- Build direct __init__ call: T.__init__(var, args) ---
+        var_ref = ExprNodes.NameNode(pos, name=lhs.name)
+        var_ref.entry = lhs.entry
+        var_ref.type = lhs.entry.type
+
+        init_stat = self._build_init_call_stat(pos, ext_type, init_entry, func_cname, var_ref, native_args, env)
+        if init_stat is None:
+            return node
+
+        # Replace: var = T(args)  →  var = tp_new(T); T.__init__(var, args)
+        first = Nodes.SingleAssignmentNode(pos, lhs=node.lhs, rhs=new_rhs)
+        return Nodes.StatListNode(pos, stats=[first, init_stat])
+
+    @staticmethod
+    def _unwrap_py_coercion(node):
+        # Strip CoerceToPyTypeNode wrappers added by AnalyseExpressionsTransform
+        while isinstance(node, ExprNodes.CoerceToPyTypeNode):
+            node = node.arg
+        return node
+
+    def _build_tp_new_call(self, pos, ext_type, func_node, env, same_module):
+        from . import TypeSlots
+        null_args = ExprNodes.TupleNode(pos, args=[]).analyse_types(env, skip_children=True)
+
+        # Same-module: call the tp_new slot directly (no extern symbol needed)
+        if same_module:
+            tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
+            slot_func_cname = TypeSlots.get_slot_function(ext_type.scope, tp_slot)
+            if slot_func_cname:
+                cython_scope = self.context.cython_scope
+                PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)
+                call_type = PyrexTypes.CFuncType(
+                    ext_type, [
+                        PyrexTypes.CFuncTypeArg("type",   PyTypeObjectPtr,           None),
+                        PyrexTypes.CFuncTypeArg("args",   PyrexTypes.py_object_type, None),
+                        PyrexTypes.CFuncTypeArg("kwargs", PyrexTypes.py_object_type, None),
+                    ])
+                type_arg = ExprNodes.CastNode(func_node, PyTypeObjectPtr)
+                null_kw = ExprNodes.NullNode(pos, type=PyrexTypes.py_object_type)
+                return ExprNodes.PythonCapiCallNode(
+                    pos, slot_func_cname, call_type,
+                    args=[type_arg, null_args, null_kw],
+                    may_return_none=False,
+                    is_temp=True)
+
+        # Cross-module (or same-module slot not found): use __Pyx_tp_new.
+        # func_node is the type-object reference; coerce to py_object_type.
+        utility_code = UtilityCode.load_cached('tp_new', 'ObjectHandling.c')
+        type_arg = func_node.coerce_to(PyrexTypes.py_object_type, env)
+        return ExprNodes.PythonCapiCallNode(
+            pos, "__Pyx_tp_new", self.Pyx_tp_new_func_type,
+            args=[type_arg, null_args],
+            utility_code=utility_code,
+            may_return_none=False,
+            is_temp=True)
+
+    def _build_init_call_stat(self, pos, ext_type, init_entry, func_cname, var_ref, native_args, env):
+        orig_type = init_entry.type
+        # Build a call type where 'self' is ext_type.
+        # init_entry.type.args[0].type may be a base-class type due to cpdef inheritance
+        # (the entry is copied from the base), but the actual C function always takes
+        # ext_type* as its first argument.  We also append skip_dispatch explicitly so
+        # that c_call_code does not attempt to add it a second time.
+        formal_param_types = list(orig_type.args[1:])  # n, z, k, ... (skip inherited self)
+        formal_args = (
+            [PyrexTypes.CFuncTypeArg("self", ext_type, None)]
+            + formal_param_types
+            + [PyrexTypes.CFuncTypeArg("__pyx_skip_dispatch", PyrexTypes.c_int_type, None)])
+        call_type = PyrexTypes.CFuncType(
+            orig_type.return_type,
+            formal_args,
+            exception_value=orig_type.exception_value,
+            exception_check=orig_type.exception_check)
+        # is_overridable stays False → c_call_code won't append skip_dispatch again
+
+        # Coerce self to ext_type
+        self_arg = var_ref.coerce_to(ext_type, env)
+
+        # Coerce each constructor arg to its expected C type.
+        # native_args may still be py_object_type (e.g. Python literals), so we
+        # explicitly coerce each arg to the formal parameter type using Cython's
+        # CoerceFromPy helpers rather than relying on a raw C cast.
+        coerced_args = []
+        for arg, formal in zip(native_args, formal_param_types):
+            coerced_args.append(arg.coerce_to(formal.type, env))
+
+        skip_arg = ExprNodes.IntNode(pos, value='1', type=PyrexTypes.c_int_type)
+
+        call = ExprNodes.PythonCapiCallNode(
+            pos, func_cname, call_type,
+            args=[self_arg] + coerced_args + [skip_arg],
+            is_temp=False,
+            result_is_used=False)
+
+        return Nodes.ExprStatNode(pos, expr=call)
+
+
 def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
     """
     Optimise math operators for (likely) float or small integer operations.
