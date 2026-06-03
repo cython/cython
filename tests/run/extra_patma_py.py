@@ -229,10 +229,10 @@ def match_mystery_class_self(arg, cls):
     no match
     >>> match_mystery_class_self(None, Cls)
     no match
-    >>> match_mystery_class_self(None, type(None))
+    >>> match_mystery_class_self(None, type(None))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    TypeError: NoneType() accepts 0 positional sub-patterns (1 given)
+    TypeError: ... accepts 0 positional sub-patterns (1 given)
     """
     match arg:
         case cls(_):
