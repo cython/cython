@@ -4697,18 +4697,19 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
     """Optimize T(args) constructor calls for known extension types.
 
     When T is an extension type whose __init__ is a cpdef method (func_cname
-    starts with '__pyx_f_'), transform:
-        var = T(args)
-    into:
-        var = T.__new__(T)       # direct tp_new slot (same-module) or __Pyx_tp_new
-        T.__init__(var, args)    # direct C function call / cross-module function pointer
+    starts with '__pyx_f_'), transform every constructor call into a two-step
+    sequence: tp_new to allocate the object, then a direct C-level __init__ call,
+    bypassing Python's type.__call__ dispatch and __init__ wrapper path.
 
-    This eliminates the Python type.__call__ dispatch and the __init__ Python
-    wrapper path.  Cross-module types use the same function-pointer mechanism
-    that auto_cpdef uses for all cpdef method calls.
+    For simple variable assignments (var = T(args)), the split is done at the
+    statement level so no extra temp variable is introduced.  For all other
+    expression contexts (return T(args), func(T(args)), obj.attr = T(args), etc.)
+    the call is replaced with a TempResultFromStatNode that yields the
+    constructed object after inlining the same two steps.
 
-    Only applies to simple variable assignments; other expression contexts are
-    left unchanged.
+    Cross-module types use vtable dispatch for __init__ (the defining module's
+    __pyx_f_ symbol is not declared in the calling TU; only the vtable pointer
+    is guaranteed to be available via cimport).
     """
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
@@ -4720,24 +4721,71 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         ])
 
     def visit_SingleAssignmentNode(self, node):
+        lhs = node.lhs
+        # For a simple name LHS, try the statement-level split first.  This avoids
+        # introducing an extra temp that visit_SimpleCallNode would add below.
+        # Check BEFORE visitchildren so visit_SimpleCallNode doesn't transform the
+        # RHS first and make the split path unreachable.
+        if lhs.is_name and lhs.entry and isinstance(node.rhs, ExprNodes.SimpleCallNode):
+            result = self._maybe_split_ctor(node)
+            if result is not node:
+                # Optimisation applied; recurse so nested ctors in args are also transformed.
+                self.visitchildren(result)
+                return result
         self.visitchildren(node)
-        return self._maybe_split_ctor(node)
+        return node
 
-    def _maybe_split_ctor(self, node):
-        rhs = node.rhs
+    def visit_SimpleCallNode(self, node):
+        # Expression-level path: handles return T(args), func(T(args)),
+        # obj.attr = T(args), T(args) as a standalone statement, etc.
+        # visit_SingleAssignmentNode pre-empts this for simple name-LHS assignments.
+        original_self = node.self
+        self.visitchildren(node)
+        # When visitchildren transforms node.self (the receiver of a method call),
+        # the CloneNodes in node.function.obj and node.coerced_self still point to
+        # the original pre-transform node — whose temp_code is None (never allocated),
+        # producing literal "None" in generated C.  Sync all CloneNode.arg instances
+        # that still reference the old node to the already-transformed node.self.
+        if original_self is not None and node.self is not original_self:
+            new_self = node.self
+            if node.function is not None and node.function.is_attribute:
+                func_obj = node.function.obj
+                if isinstance(func_obj, ExprNodes.CloneNode) and func_obj.arg is original_self:
+                    func_obj.arg = new_self
+            for clone_attr in ('coerced_self',):
+                clone = getattr(node, clone_attr, None)
+                if clone is not None:
+                    if isinstance(clone, ExprNodes.CloneNode) and clone.arg is original_self:
+                        clone.arg = new_self
+                    elif (isinstance(clone, ExprNodes.CoercionNode)
+                            and isinstance(clone.arg, ExprNodes.CloneNode)
+                            and clone.arg.arg is original_self):
+                        clone.arg.arg = new_self
+        return self._maybe_transform_ctor_expr(node)
+
+    # ------------------------------------------------------------------
+    # Shared validation helper
+    # ------------------------------------------------------------------
+
+    def _extract_ctor_info(self, rhs, env):
+        """Validate that rhs is an optimisable constructor call.
+
+        Returns (pos, ext_type, init_entry, func_cname, native_args, same_module)
+        or None if the call cannot be optimised.
+        """
         if not isinstance(rhs, ExprNodes.SimpleCallNode):
-            return node
+            return None
         # arg_tuple is set only after AnalyseExpressionsTransform for Python calls
         if rhs.arg_tuple is None:
-            return node
+            return None
 
         func = rhs.function
         type_entry = getattr(func, 'type_entry', None)
         if not type_entry:
-            return node
+            return None
         ext_type = type_entry.type
         if not (ext_type and ext_type.is_extension_type and ext_type.scope):
-            return node
+            return None
 
         # Require a cpdef __init__ reachable via a C-level calling path.
         # Same-module: direct __pyx_f_ symbol.
@@ -4746,29 +4794,21 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         # only the vtable pointer is guaranteed to be imported).
         init_entry = ext_type.scope.lookup_here('__init__')
         if not (init_entry and init_entry.is_cmethod):
-            return node
+            return None
         func_cname = getattr(init_entry, 'func_cname', None)
         has_direct = bool(func_cname and func_cname.startswith('__pyx_f_'))
         has_vtable = bool(
             getattr(ext_type, 'vtabptr_cname', None)
             and getattr(init_entry, 'cname', None))
         if not (has_direct or has_vtable):
-            return node
-
-        # Only handle simple variable LHS (subscript/attribute LHS unsupported)
-        lhs = node.lhs
-        if not lhs.is_name or not lhs.entry:
-            return node
-
-        pos = node.pos
-        env = self.current_env()
+            return None
 
         # --- Recover native-typed positional args ---
         # SimpleCallNode has no keyword/star args by construction; the check below
         # guards against optional-arg cpdef signatures where the positional count
         # would not match the required param count.
         if not isinstance(rhs.arg_tuple, ExprNodes.TupleNode):
-            return node
+            return None
         native_args = [self._unwrap_py_coercion(a) for a in rhs.arg_tuple.args]
 
         # __init__ formal params (excluding self).  Accept calls that pass only
@@ -4776,20 +4816,37 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         init_formal_params = list(init_entry.type.args[1:])  # skip 'self'
         required_params = len(init_formal_params) - init_entry.type.optional_arg_count
         if not (required_params <= len(native_args) <= len(init_formal_params)):
-            return node
+            return None
 
-        # --- Build tp_new call: var = T.__new__(T) ---
         # Use same_module only when a direct __pyx_f_ symbol is available; for
         # cross-module imports func_cname is None and we always use vtable dispatch.
         same_module = has_direct and (ext_type.scope.global_scope() is env.global_scope())
-        new_rhs = self._build_tp_new_call(pos, ext_type, func, env, same_module)
+        return rhs.pos, ext_type, init_entry, func_cname, native_args, same_module
+
+    # ------------------------------------------------------------------
+    # Statement-level split (simple name LHS — no extra temp)
+    # ------------------------------------------------------------------
+
+    def _maybe_split_ctor(self, node):
+        lhs = node.lhs
+        env = self.current_env()
+        info = self._extract_ctor_info(node.rhs, env)
+        if info is None:
+            return node
+        pos, ext_type, init_entry, func_cname, native_args, same_module = info
+
+        new_rhs = self._build_tp_new_call(pos, ext_type, node.rhs.function, env, same_module)
         if new_rhs is None:
             return node
 
-        # --- Build direct __init__ call: T.__init__(var, args) ---
+        # Synthesised NameNode for the self arg in the __init__ call.
+        # cf_maybe_null=False: tp_new was already checked for null above, so the
+        # unbound-local-error guard that NameNode.generate_result_code would emit
+        # is redundant and should be suppressed.
         var_ref = ExprNodes.NameNode(pos, name=lhs.name)
         var_ref.entry = lhs.entry
         var_ref.type = lhs.entry.type
+        var_ref.cf_maybe_null = False
 
         init_stat = self._build_init_call_stat(
             pos, ext_type, init_entry, func_cname, var_ref, native_args, env, same_module)
@@ -4799,6 +4856,70 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         # Replace: var = T(args)  →  var = tp_new(T); T.__init__(var, args)
         first = Nodes.SingleAssignmentNode(pos, lhs=node.lhs, rhs=new_rhs)
         return Nodes.StatListNode(pos, stats=[first, init_stat])
+
+    # ------------------------------------------------------------------
+    # Expression-level transform (all other contexts)
+    # ------------------------------------------------------------------
+
+    def _maybe_transform_ctor_expr(self, call):
+        """Replace T(args) with a TempResultFromStatNode that inlines tp_new + __init__.
+
+        The TempResultFromStatNode allocates a temp, executes the body (which writes
+        the newly-constructed object into that temp via ResultRefNode), and yields
+        the temp as its result.  Reference counting:
+          - tp_new returns refcount=1 into the temp.
+          - __init__ uses it (no refcount change).
+          - Consumers (assignment, call arg, return) own the reference.
+          - ExprStatNode (discarded result) calls generate_disposal_code, which
+            decrefs the temp back to 0, triggering deallocation.
+          - ResultRefNode.generate_disposal_code/free_temps are explicit no-ops,
+            so the ResultRefNode inside the body does not double-decref.
+        """
+        env = self.current_env()
+        info = self._extract_ctor_info(call, env)
+        if info is None:
+            return call
+        pos, ext_type, init_entry, func_cname, native_args, same_module = info
+
+        new_rhs = self._build_tp_new_call(pos, ext_type, call.function, env, same_module)
+        if new_rhs is None:
+            return call
+
+        # ResultRefNode holds the allocated temp.  Use py_object_type so that
+        # ResultRefNode.ctype() returns "PyObject *", matching the PyObject*
+        # temp that TempResultFromStatNode.allocate_temp_result allocates.
+        # (allocate_temp_result always allocates PyObject* for pyobject types.)
+        # The TempResultFromStatNode's external type is overridden to ext_type
+        # so callers see the precise type and avoid spurious PyTypeTestNode wraps.
+        result_ref = UtilNodes.ResultRefNode(
+            pos=pos, type=PyrexTypes.py_object_type, may_hold_none=False)
+        result_ref.lhs_of_first_assignment = True  # skip spurious decref on first write
+
+        # The init call self arg must match the C function's declared self type —
+        # same logic as _build_init_call_stat uses for formal_self_type.
+        # CastNode generates an explicit C cast (PyObject* → struct *) without
+        # a runtime isinstance check; it satisfies C++ strict pointer typing.
+        own_func_cname = ext_type.scope.mangle(Naming.func_prefix, '__init__')
+        if func_cname and func_cname == own_func_cname:
+            self_type_for_cast = ext_type
+        elif init_entry.type.args:
+            self_type_for_cast = init_entry.type.args[0].type
+        else:
+            self_type_for_cast = ext_type
+        self_cast = ExprNodes.CastNode(result_ref, self_type_for_cast)
+
+        init_stat = self._build_init_call_stat(
+            pos, ext_type, init_entry, func_cname, self_cast, native_args, env, same_module)
+        if init_stat is None:
+            return call
+
+        first = Nodes.SingleAssignmentNode(pos, lhs=result_ref, rhs=new_rhs)
+        body = Nodes.StatListNode(pos, stats=[first, init_stat])
+        expr = UtilNodes.TempResultFromStatNode(result_ref, body)
+        # Override to the precise extension type so callers use C-level access
+        # without redundant PyTypeTestNode coercions.
+        expr.type = ext_type
+        return expr
 
     @staticmethod
     def _unwrap_py_coercion(node):
@@ -4848,14 +4969,33 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         orig_type = init_entry.type
         opt_count = orig_type.optional_arg_count
 
-        # Build a call type where 'self' is ext_type (the actual class being
-        # constructed, not the possibly-inherited base type in orig_type.args[0]).
+        # Determine the self type that the C function (direct or vtable slot) actually
+        # declares.  For a non-inherited __init__ the self parameter is ext_type.
+        # For an inherited __init__ the vtable slot was typed using the base class
+        # self type (orig_type.args[0].type), which may differ from ext_type.  In C,
+        # passing a derived pointer where a base pointer is expected is implicitly OK;
+        # in C++ it requires an explicit cast, which result_as(formal_self_type)
+        # emits.  Using the correct type here avoids spurious C++ type errors.
+        # Determine the self type that the C function actually declares.
+        # Strategy: if func_cname is the function that ext_type's scope would
+        # generate for __init__, the function takes ext_type * as self.
+        # Otherwise (inherited direct call from a different class, or vtable slot),
+        # use orig_type.args[0].type — the type the function was originally declared
+        # with.  This avoids C++ pointer-type errors (C allows implicit struct-pointer
+        # conversions; C++ requires an explicit cast that result_as() emits).
+        own_func_cname = ext_type.scope.mangle(Naming.func_prefix, '__init__')
+        if func_cname and func_cname == own_func_cname:
+            formal_self_type = ext_type
+        elif orig_type.args:
+            formal_self_type = orig_type.args[0].type
+        else:
+            formal_self_type = ext_type
         # Use is_overridable=True so that c_call_code inserts __pyx_skip_dispatch
         # before the optional-args struct pointer — matching the actual C ABI:
         #   func(self, req1, ..., __pyx_skip_dispatch, __pyx_opt_args* opt)
         # We set wrapper_call=True on the call node so skip_dispatch gets value 1.
         formal_params = list(orig_type.args[1:])  # all params (req + optional), skip orig self
-        formal_args = [PyrexTypes.CFuncTypeArg("self", ext_type, None)] + formal_params
+        formal_args = [PyrexTypes.CFuncTypeArg("self", formal_self_type, None)] + formal_params
         call_type = PyrexTypes.CFuncType(
             orig_type.return_type,
             formal_args,
@@ -4866,8 +5006,12 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         if opt_count and orig_type.op_arg_struct:
             call_type.op_arg_struct = orig_type.op_arg_struct
 
-        # Coerce self to ext_type
-        self_arg = var_ref.coerce_to(ext_type, env)
+        # Coerce self to formal_self_type.  For non-inherited __init__ this is a
+        # no-op (var_ref.type is already ext_type).  For inherited, var_ref.type is
+        # the base class or py_object_type; coerce_to(base) on a derived pointer is
+        # also a no-op (base is assignable_from derived), but c_call_code then emits
+        # an explicit C cast via result_as(), satisfying C++ strict pointer typing.
+        self_arg = var_ref.coerce_to(formal_self_type, env)
 
         # Coerce each provided arg (required + any optional supplied positionally)
         # to its expected C type, avoiding unnecessary PyObject boxing for typed params.

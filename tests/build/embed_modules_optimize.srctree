@@ -72,6 +72,8 @@ elif mode == 'auto_cpdef':
         "Expected vtable __init__ dispatch for BWithOptInit cross-module constructor")
     assert "__pyx_opt_args_1b_12BWithOptInit___init__" in a_c_content, (
         "Expected opt_args struct for BWithOptInit.__init__ optional-arg call in auto_cpdef mode")
+    assert '__Pyx_RaiseUnboundLocalError("bopt2")' not in a_c_content, (
+        "Expected no redundant unbound-local check for bopt2 after tp_new null-check")
     print("OK: auto_cpdef mode")
 
 elif mode == 'lto':
@@ -84,6 +86,8 @@ elif mode == 'lto':
         "Expected vtable __init__ dispatch for BWithOptInit cross-module constructor in lto mode")
     assert "__pyx_opt_args_1b_12BWithOptInit___init__" in a_c_content, (
         "Expected opt_args struct for BWithOptInit.__init__ optional-arg call in lto mode")
+    assert '__Pyx_RaiseUnboundLocalError("bopt2")' not in a_c_content, (
+        "Expected no redundant unbound-local check for bopt2 after tp_new null-check")
     print("OK: LTO mode")
 
 else:
@@ -344,8 +348,20 @@ def func_in_a():
     bopt2: BWithOptInit = BWithOptInit(5, 2.5)
     assert bopt2.x == 5, f"Expected BWithOptInit(5,2.5).x == 5, got {bopt2.x}"
     assert bopt2.y == 2.5, f"Expected BWithOptInit(5,2.5).y == 2.5, got {bopt2.y}"
+    # Test constructor in return and argument expression contexts
+    _bopt3: BWithOptInit = _make_bopt(7)
+    assert _bopt3.x == 7, f"Expected _make_bopt(7).x == 7, got {_bopt3.x}"
+    assert _take_bopt(BWithOptInit(9)) == 9, "Expected _take_bopt(BWithOptInit(9)) == 9"
 
     return func_in_b()
+
+@ccall
+def _make_bopt(x: int) -> BWithOptInit:
+    return BWithOptInit(x)
+
+@ccall
+def _take_bopt(b: BWithOptInit) -> int:
+    return b.x
 
 def func_with_for_loop():
     items = [Derived(), Derived2()]
