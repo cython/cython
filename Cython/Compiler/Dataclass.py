@@ -10,31 +10,38 @@ from . import PyrexTypes
 from . import Builtin
 from . import Naming
 from .Errors import error, warning
-from .Code import UtilityCode, TempitaUtilityCode
+from .Code import UtilityCode, PyxCodeWriter
 from .Visitor import VisitorTransform
 from .StringEncoding import EncodedString
 from .TreeFragment import TreeFragment
-from .ParseTreeTransforms import NormalizeTree, SkipDeclarations
+from .ParseTreeTransforms import NormalizeTree, SkipDeclarations, InterpretCompilerDirectives
 from .Options import copy_inherited_directives
 
-_dataclass_loader_utilitycode = None
-
 def make_dataclasses_module_callnode(pos):
-    global _dataclass_loader_utilitycode
-    if not _dataclass_loader_utilitycode:
-        python_utility_code = UtilityCode.load_cached("Dataclasses_fallback", "Dataclasses.py")
-        python_utility_code = EncodedString(python_utility_code.impl)
-        _dataclass_loader_utilitycode = TempitaUtilityCode.load(
-            "SpecificModuleLoader", "Dataclasses.c",
-            context={'cname': "dataclasses", 'py_code': python_utility_code.as_c_string_literal()})
+    dataclass_loader_utilitycode = UtilityCode.load_cached(
+            "LoadDataclassesModule", "Dataclasses.c")
     return ExprNodes.PythonCapiCallNode(
         pos, "__Pyx_Load_dataclasses_Module",
         PyrexTypes.CFuncType(PyrexTypes.py_object_type, []),
-        utility_code=_dataclass_loader_utilitycode,
+        utility_code=dataclass_loader_utilitycode,
         args=[],
     )
 
-_INTERNAL_DEFAULTSHOLDER_NAME = EncodedString('__pyx_dataclass_defaults')
+def make_dataclass_call_helper(pos, callable, kwds):
+    utility_code = UtilityCode.load_cached("DataclassesCallHelper", "Dataclasses.c")
+    func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("callable", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("kwds", PyrexTypes.py_object_type, None)
+        ],
+    )
+    return ExprNodes.PythonCapiCallNode(
+        pos,
+        function_name="__Pyx_DataclassesCallHelper",
+        func_type=func_type,
+        utility_code=utility_code,
+        args=[callable, kwds],
+    )
 
 
 class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
@@ -50,7 +57,7 @@ class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
     generated, while recording what it has removed so that it can be used in the initialization.
     """
     def __init__(self, names):
-        super(RemoveAssignmentsToNames, self).__init__()
+        super().__init__()
         self.names = names
         self.removed_assignments = {}
 
@@ -81,12 +88,91 @@ class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
         return node
 
 
-class _MISSING_TYPE(object):
+class TemplateCode:
+    """
+    Adds the ability to keep track of placeholder argument names to PyxCodeWriter.
+
+    Also adds extra_stats which are nodes bundled at the end when this
+    is converted to a tree.
+    """
+    _placeholder_count = 0
+
+    def __init__(self, writer=None, placeholders=None, extra_stats=None):
+        self.writer = PyxCodeWriter() if writer is None else writer
+        self.placeholders = {} if placeholders is None else placeholders
+        self.extra_stats = [] if extra_stats is None else extra_stats
+
+    def add_code_line(self, code_line):
+        self.writer.putln(code_line)
+
+    def add_code_chunk(self, code_chunk):
+        self.writer.put_chunk(code_chunk)
+
+    def reset(self):
+        # don't attempt to reset placeholders - it really doesn't matter if
+        # we have unused placeholders
+        self.writer.reset()
+
+    def empty(self):
+        return self.writer.empty()
+
+    def indent(self):
+        self.writer.indent()
+
+    def dedent(self):
+        self.writer.dedent()
+
+    def indenter(self, block_opener_line):
+        return self.writer.indenter(block_opener_line)
+
+    def new_placeholder(self, field_names, value):
+        name = self._new_placeholder_name(field_names)
+        self.placeholders[name] = value
+        return name
+
+    def add_extra_statements(self, statements):
+        if self.extra_stats is None:
+            assert False, "Can only use add_extra_statements on top-level writer"
+        self.extra_stats.extend(statements)
+
+    def _new_placeholder_name(self, field_names):
+        while True:
+            name = f"DATACLASS_PLACEHOLDER_{self._placeholder_count:d}"
+            if (name not in self.placeholders
+                    and name not in field_names):
+                # make sure name isn't already used and doesn't
+                # conflict with a variable name (which is unlikely but possible)
+                break
+            self._placeholder_count += 1
+        return name
+
+    def generate_tree(self, level='c_class'):
+        stat_list_node = TreeFragment(
+            self.writer.getvalue(),
+            level=level,
+            pipeline=[NormalizeTree(None)],
+        ).substitute(self.placeholders)
+
+        stat_list_node = InterpretCompilerDirectives(None, {})(stat_list_node)
+
+        stat_list_node.stats += self.extra_stats
+        return stat_list_node
+
+    def insertion_point(self):
+        new_writer = self.writer.insertion_point()
+        return TemplateCode(
+            writer=new_writer,
+            placeholders=self.placeholders,
+            extra_stats=self.extra_stats,
+        )
+
+
+class _MISSING_TYPE:
     pass
 MISSING = _MISSING_TYPE()
 
 
-class Field(object):
+class Field:
     """
     Field is based on the dataclasses.field class from the standard library module.
     It is used internally during the generation of Cython dataclasses to keep track
@@ -147,48 +233,51 @@ def process_class_get_fields(node):
     transform(node)
     default_value_assignments = transform.removed_assignments
 
-    if node.base_type and node.base_type.dataclass_fields:
-        fields = node.base_type.dataclass_fields.copy()
-    else:
-        fields = OrderedDict()
+    base_type = node.base_type
+    fields = OrderedDict()
+    while base_type:
+        if base_type.is_external or not base_type.scope.implemented:
+            warning(node.pos, "Cannot reliably handle Cython dataclasses with base types "
+                "in external modules since it is not possible to tell what fields they have", 2)
+        if base_type.dataclass_fields:
+            fields = base_type.dataclass_fields.copy()
+            break
+        base_type = base_type.base_type
 
     for entry in var_entries:
         name = entry.name
-        is_initvar = (entry.type.python_type_constructor_name == "dataclasses.InitVar")
+        is_initvar = entry.declared_with_pytyping_modifier("dataclasses.InitVar")
         # TODO - classvars aren't included in "var_entries" so are missed here
         # and thus this code is never triggered
-        is_classvar = (entry.type.python_type_constructor_name == "typing.ClassVar")
-        if is_initvar or is_classvar:
-            entry.type = entry.type.resolve()  # no longer need the special type
+        is_classvar = entry.declared_with_pytyping_modifier("typing.ClassVar")
         if name in default_value_assignments:
             assignment = default_value_assignments[name]
-            if (isinstance(assignment, ExprNodes.CallNode)
-                    and assignment.function.as_cython_attribute() == "dataclasses.field"):
+            if (isinstance(assignment, ExprNodes.CallNode) and (
+                    assignment.function.as_cython_attribute() == "dataclasses.field" or
+                    Builtin.exprnode_to_known_standard_library_name(
+                        assignment.function, node.scope) == "dataclasses.field")):
                 # I believe most of this is well-enforced when it's treated as a directive
                 # but it doesn't hurt to make sure
-                if (not isinstance(assignment, ExprNodes.GeneralCallNode)
-                        or not isinstance(assignment.positional_args, ExprNodes.TupleNode)
-                        or assignment.positional_args.args
-                        or not isinstance(assignment.keyword_args, ExprNodes.DictNode)):
+                valid_general_call = (isinstance(assignment, ExprNodes.GeneralCallNode)
+                        and isinstance(assignment.positional_args, ExprNodes.TupleNode)
+                        and not assignment.positional_args.args
+                        and (assignment.keyword_args is None or isinstance(assignment.keyword_args, ExprNodes.DictNode)))
+                valid_simple_call = (isinstance(assignment, ExprNodes.SimpleCallNode) and not assignment.args)
+                if not (valid_general_call or valid_simple_call):
                     error(assignment.pos, "Call to 'cython.dataclasses.field' must only consist "
                           "of compile-time keyword arguments")
                     continue
-                keyword_args = assignment.keyword_args.as_python_dict()
+                keyword_args = assignment.keyword_args.as_python_dict() if valid_general_call and assignment.keyword_args else {}
                 if 'default' in keyword_args and 'default_factory' in keyword_args:
                     error(assignment.pos, "cannot specify both default and default_factory")
                     continue
                 field = Field(node.pos, **keyword_args)
             else:
-                if isinstance(assignment, ExprNodes.CallNode):
-                    func = assignment.function
-                    if ((func.is_name and func.name == "field")
-                            or (func.is_attribute and func.attribute == "field")):
-                        warning(assignment.pos, "Do you mean cython.dataclasses.field instead?", 1)
                 if assignment.type in [Builtin.list_type, Builtin.dict_type, Builtin.set_type]:
                     # The standard library module generates a TypeError at runtime
                     # in this situation.
                     # Error message is copied from CPython
-                    error(assignment.pos, "mutable default <class '{0}'> for field {1} is not allowed: "
+                    error(assignment.pos, "mutable default <class '{}'> for field {} is not allowed: "
                           "use default_factory".format(assignment.type.name, name))
 
                 field = Field(node.pos, default=assignment)
@@ -207,21 +296,23 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     # default argument values from https://docs.python.org/3/library/dataclasses.html
     kwargs = dict(init=True, repr=True, eq=True,
                   order=False, unsafe_hash=False,
-                  frozen=False, kw_only=False)
+                  frozen=False, kw_only=False, match_args=True)
     if dataclass_args is not None:
         if dataclass_args[0]:
             error(node.pos, "cython.dataclasses.dataclass takes no positional arguments")
         for k, v in dataclass_args[1].items():
+            if k in kwargs and isinstance(v, ExprNodes.BoolNode):
+                kwargs[k] = v.value
+                continue
+
             if k not in kwargs:
                 error(node.pos,
                       "cython.dataclasses.dataclass() got an unexpected keyword argument '%s'" % k)
             if not isinstance(v, ExprNodes.BoolNode):
                 error(node.pos,
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
-            kwargs[k] = v
 
-    # remove everything that does not belong into _DataclassParams()
-    kw_only = kwargs.pop("kw_only")
+    kw_only = kwargs['kw_only']
 
     fields = process_class_get_fields(node)
 
@@ -235,12 +326,15 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     dataclass_params_keywords = ExprNodes.DictNode.from_pairs(
         node.pos,
         [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
-           ExprNodes.BoolNode(node.pos, value=v))
-          for k, v in kwargs.items() ])
-    dataclass_params = ExprNodes.GeneralCallNode(node.pos,
-                                                 function = dataclass_params_func,
-                                                 positional_args = ExprNodes.TupleNode(node.pos, args=[]),
-                                                 keyword_args = dataclass_params_keywords)
+           ExprNodes.BoolNode(node.pos, value=v, type=Builtin.bool_type))
+          for k, v in kwargs.items() ] +
+        [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
+           ExprNodes.BoolNode(node.pos, value=v, type=Builtin.bool_type))
+          for k, v in [('kw_only', kw_only),
+                       ('slots', False), ('weakref_slot', False)]
+        ])
+    dataclass_params = make_dataclass_call_helper(
+        node.pos, dataclass_params_func, dataclass_params_keywords)
     dataclass_params_assignment = Nodes.SingleAssignmentNode(
         node.pos,
         lhs = ExprNodes.NameNode(node.pos, name=EncodedString("__dataclass_params__")),
@@ -251,23 +345,30 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     stats = Nodes.StatListNode(node.pos,
                                stats=[dataclass_params_assignment] + dataclass_fields_stats)
 
-    code_lines = []
-    placeholders = {}
-    extra_stats = []
-    for cl, ph, es in [ generate_init_code(kwargs['init'], node, fields, kw_only),
-                        generate_repr_code(kwargs['repr'], node, fields),
-                        generate_eq_code(kwargs['eq'], node, fields),
-                        generate_order_code(kwargs['order'], node, fields),
-                        generate_hash_code(kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'], node, fields) ]:
-        code_lines.append(cl)
-        placeholders.update(ph)
-        extra_stats.extend(extra_stats)
+    critical_section_substitution = ExprNodes.NameNode(
+        node.pos,
+        name="critical_section",
+        cython_attribute="critical_section"
+    )
 
-    code_lines = "\n".join(code_lines)
-    code_tree = TreeFragment(code_lines, level='c_class', pipeline=[NormalizeTree(node.scope)]
-                            ).substitute(placeholders)
+    code = TemplateCode()
+    critical_section_placeholder_name = code.new_placeholder(
+        fields,
+        critical_section_substitution
+    )
+    generate_init_code(code, kwargs['init'], node, fields, kw_only,
+                       critical_section_placeholder_name=critical_section_placeholder_name)
+    generate_match_args(code, kwargs['match_args'], node, fields, kw_only)
+    generate_repr_code(code, kwargs['repr'], node, fields,
+                       critical_section_placeholder_name=critical_section_placeholder_name)
+    generate_eq_code(code, kwargs['eq'], node, fields,
+                     critical_section_placeholder_name=critical_section_placeholder_name)
+    generate_order_code(code, kwargs['order'], node, fields,
+                        critical_section_placeholder_name=critical_section_placeholder_name)
+    generate_hash_code(code, kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'], node, fields,
+                       critical_section_placeholder_name=critical_section_placeholder_name)
 
-    stats.stats += (code_tree.stats + extra_stats)
+    stats.stats += code.generate_tree().stats
 
     # turn off annotation typing, so all arguments to __init__ are accepted as
     # generic objects and thus can accept _HAS_DEFAULT_FACTORY.
@@ -285,14 +386,8 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     node.body.stats.append(comp_directives)
 
 
-def generate_init_code(init, node, fields, kw_only):
+def generate_init_code(code, init, node, fields, kw_only, *, critical_section_placeholder_name):
     """
-    All of these "generate_*_code" functions return a tuple of:
-    - code string
-    - placeholder dict (often empty)
-    - stat list (often empty)
-    which can then be combined later and processed once.
-
     Notes on CPython generated "__init__":
     * Implemented in `_init_fn`.
     * The use of the `dataclasses._HAS_DEFAULT_FACTORY` sentinel value as
@@ -304,9 +399,15 @@ def generate_init_code(init, node, fields, kw_only):
     * seen_default and the associated error message are copied directly from Python
     * Call to user-defined __post_init__ function (if it exists) is copied from
       CPython.
+
+    Cython behaviour deviates a little here (to be decided if this is right...)
+    Because the class variable from the assignment does not exist Cython fields will
+    return None (or whatever their type default is) if not initialized while Python
+    dataclasses will fall back to looking up the class variable.
     """
     if not init or node.scope.lookup_here("__init__"):
-        return "", {}, []
+        return
+
     # selfname behaviour copied from the cpython module
     selfname = "__dataclass_self__" if "self" in fields else "self"
     args = [selfname]
@@ -314,8 +415,10 @@ def generate_init_code(init, node, fields, kw_only):
     if kw_only:
         args.append("*")
 
-    placeholders = {}
-    placeholder_count = [0]
+    function_start_point = code.insertion_point()
+    code = code.insertion_point()
+    code.indent()
+    code.indent()  # second indent is for "with critical_section" block
 
     # create a temp to get _HAS_DEFAULT_FACTORY
     dataclass_module = make_dataclasses_module_callnode(node.pos)
@@ -325,81 +428,92 @@ def generate_init_code(init, node, fields, kw_only):
         attribute=EncodedString("_HAS_DEFAULT_FACTORY")
     )
 
-    def get_placeholder_name():
-        while True:
-            name = "INIT_PLACEHOLDER_%d" % placeholder_count[0]
-            if (name not in placeholders
-                    and name not in fields):
-                # make sure name isn't already used and doesn't
-                # conflict with a variable name (which is unlikely but possible)
-                break
-            placeholder_count[0] += 1
-        return name
-
-    default_factory_placeholder = get_placeholder_name()
-    placeholders[default_factory_placeholder] = has_default_factory
-
-    function_body_code_lines = []
+    default_factory_placeholder = code.new_placeholder(fields, has_default_factory)
 
     seen_default = False
     for name, field in fields.items():
-        if not field.init.value:
-            continue
         entry = node.scope.lookup(name)
         if entry.annotation:
-            annotation = u": %s" % entry.annotation.string.value
+            annotation = f": {entry.annotation.string.value}"
         else:
-            annotation = u""
-        assignment = u''
+            annotation = ""
+        assignment = ''
         if field.default is not MISSING or field.default_factory is not MISSING:
-            seen_default = True
+            if field.init.value:
+                seen_default = True
             if field.default_factory is not MISSING:
                 ph_name = default_factory_placeholder
             else:
-                ph_name = get_placeholder_name()
-                placeholders[ph_name] = field.default  # should be a node
-            assignment = u" = %s" % ph_name
-        elif seen_default and not kw_only:
+                ph_name = code.new_placeholder(fields, field.default)  # 'default' should be a node
+            assignment = f" = {ph_name}"
+        elif seen_default and not kw_only and field.init.value:
             error(entry.pos, ("non-default argument '%s' follows default argument "
                               "in dataclass __init__") % name)
-            return "", {}, []
+            code.reset()
+            return
 
-        args.append(u"%s%s%s" % (name, annotation, assignment))
+        if field.init.value:
+            args.append(f"{name}{annotation}{assignment}")
 
         if field.is_initvar:
             continue
         elif field.default_factory is MISSING:
             if field.init.value:
-                function_body_code_lines.append(u"    %s.%s = %s" % (selfname, name, name))
+                code.add_code_line(f"{selfname}.{name} = {name}")
+            elif assignment:
+                # not an argument to the function, but is still initialized
+                code.add_code_line(f"{selfname}.{name}{assignment}")
         else:
-            ph_name = get_placeholder_name()
-            placeholders[ph_name] = field.default_factory
+            ph_name = code.new_placeholder(fields, field.default_factory)
             if field.init.value:
                 # close to:
                 # def __init__(self, name=_PLACEHOLDER_VALUE):
                 #     self.name = name_default_factory() if name is _PLACEHOLDER_VALUE else name
-                function_body_code_lines.append(u"    %s.%s = %s() if %s is %s else %s" % (
-                    selfname, name, ph_name, name, default_factory_placeholder, name))
+                code.add_code_line(
+                    f"{selfname}.{name} = {ph_name}() if {name} is {default_factory_placeholder} else {name}"
+                )
             else:
                 # still need to use the default factory to initialize
-                function_body_code_lines.append(u"    %s.%s = %s()"
-                                  % (selfname, name, ph_name))
-
-    args = u", ".join(args)
-    func_def = u"def __init__(%s):" % args
-
-    code_lines = [func_def] + (function_body_code_lines or ["pass"])
+                code.add_code_line(f"{selfname}.{name} = {ph_name}()")
 
     if node.scope.lookup("__post_init__"):
         post_init_vars = ", ".join(name for name, field in fields.items()
                                    if field.is_initvar)
-        code_lines.append("    %s.__post_init__(%s)" % (selfname, post_init_vars))
-    return u"\n".join(code_lines), placeholders, []
+        code.add_code_line(f"{selfname}.__post_init__({post_init_vars})")
+
+    if code.empty():
+        code.add_code_line("pass")
+
+    args = ", ".join(args)
+    function_start_point.add_code_line(f"def __init__({args}):")
+    function_start_point.indent()
+    # Although __init__ is usually called on the only reference to self, it doesn't
+    # have to be.
+    function_start_point.add_code_line(f"with {critical_section_placeholder_name}({selfname}):")
 
 
-def generate_repr_code(repr, node, fields):
+def generate_match_args(code, match_args, node, fields, global_kw_only):
     """
-    The CPython implementation is just:
+    Generates a tuple containing what would be the positional args to __init__
+
+    Note that this is generated even if the user overrides init
+    """
+    if not match_args or node.scope.lookup_here("__match_args__"):
+        return
+    positional_arg_names = []
+    for field_name, field in fields.items():
+        # TODO hasattr and global_kw_only can be removed once full kw_only support is added
+        field_is_kw_only = global_kw_only or (
+            hasattr(field, 'kw_only') and field.kw_only.value
+        )
+        if not field_is_kw_only:
+            positional_arg_names.append(field_name)
+    code.add_code_line("__match_args__ = %s" % str(tuple(positional_arg_names)))
+
+
+def generate_repr_code(code, repr, node, fields, *, critical_section_placeholder_name):
+    """
+    The core of the CPython implementation is just:
     ['return self.__class__.__qualname__ + f"(' +
                      ', '.join([f"{f.name}={{self.{f.name}!r}}"
                                 for f in fields]) +
@@ -407,91 +521,117 @@ def generate_repr_code(repr, node, fields):
 
     The only notable difference here is self.__class__.__qualname__ -> type(self).__name__
     which is because Cython currently supports Python 2.
+
+    However, it also has some guards for recursive repr invocations. In the standard
+    library implementation they're done with a wrapper decorator that captures a set
+    (with the set keyed by id and thread). Here we create a set as a thread local
+    variable and key only by id.
     """
     if not repr or node.scope.lookup("__repr__"):
-        return "", {}, []
-    code_lines = ["def __repr__(self):"]
-    strs = [u"%s={self.%s!r}" % (name, name)
-            for name, field in fields.items()
-            if field.repr.value and not field.is_initvar]
-    format_string = u", ".join(strs)
-    code_lines.append(u'    name = getattr(type(self), "__qualname__", type(self).__name__)')
-    code_lines.append(u"    return f'{name}(%s)'" % format_string)
-    code_lines = u"\n".join(code_lines)
+        return
 
-    return code_lines, {}, []
+    # The recursive guard is likely a little costly, so skip it if possible.
+    # is_gc_simple defines where it can contain recursive objects
+    needs_recursive_guard = False
+    for name in fields.keys():
+        entry = node.scope.lookup(name)
+        type_ = entry.type
+        if type_.is_memoryviewslice:
+            type_ = type_.dtype
+        if not type_.is_pyobject:
+            continue  # no GC
+        if not type_.is_gc_simple:
+            needs_recursive_guard = True
+            break
+
+    if needs_recursive_guard:
+        code.add_code_chunk("""
+            __pyx_recursive_repr_guard = __import__('threading').local()
+            __pyx_recursive_repr_guard.running = set()
+        """)
+
+    with code.indenter("def __repr__(self):"):
+        if needs_recursive_guard:
+            code.add_code_chunk("""
+                key = id(self)
+                guard_set = self.__pyx_recursive_repr_guard.running
+                if key in guard_set: return '...'
+                guard_set.add(key)
+                try:
+            """)
+            code.indent()
+        code.add_code_line('name = getattr(type(self), "__qualname__", None) or type(self).__name__')
+        with code.indenter(f"with {critical_section_placeholder_name}(self):"):
+            strs = ["%s={self.%s!r}" % (name, name)
+                    for name, field in fields.items()
+                    if field.repr.value and not field.is_initvar]
+            format_string = ", ".join(strs)
+
+            code.add_code_line(f"return f'{{name}}({format_string})'")
+        if needs_recursive_guard:
+            code.dedent()
+            with code.indenter("finally:"):
+                code.add_code_line("guard_set.remove(key)")
 
 
-def generate_cmp_code(op, funcname, node, fields):
+def generate_cmp_code(code, op, funcname, node, fields, *, critical_section_placeholder_name):
     if node.scope.lookup_here(funcname):
-        return "", {}, []
+        return
 
     names = [name for name, field in fields.items() if (field.compare.value and not field.is_initvar)]
 
-    if not names:
-        return "", {}, []  # no comparable types
+    with code.indenter(f"def {funcname}(self, other):"):
+        code.add_code_line(f"cdef {node.class_name} other_cast")
+        code.add_code_chunk(f"""
+                if other.__class__ is not self.__class__: return NotImplemented
 
-    code_lines = [
-        "def %s(self, other):" % funcname,
-        "    cdef %s other_cast" % node.class_name,
-        "    if isinstance(other, %s):" % node.class_name,
-        "        other_cast = <%s>other" % node.class_name,
-        "    else:",
-        "        return NotImplemented"
-    ]
+                other_cast = <{node.class_name}>other
+            """)
+        with code.indenter(f"with {critical_section_placeholder_name}(self, other):"):
+            # The Python implementation of dataclasses.py does a tuple comparison
+            # (roughly):
+            #  return self._attributes_to_tuple() {op} other._attributes_to_tuple()
+            #
+            # For the Cython implementation a tuple comparison isn't an option because
+            # not all attributes can be converted to Python objects and stored in a tuple
+            #
+            # TODO - better diagnostics of whether the types support comparison before
+            #    generating the code. Plus, do we want to convert C structs to dicts and
+            #    compare them that way (I think not, but it might be in demand)?
+            op_without_equals = op.replace('=', '')
 
-    # The Python implementation of dataclasses.py does a tuple comparison
-    # (roughly):
-    #  return self._attributes_to_tuple() {op} other._attributes_to_tuple()
-    #
-    # For the Cython implementation a tuple comparison isn't an option because
-    # not all attributes can be converted to Python objects and stored in a tuple
-    #
-    # TODO - better diagnostics of whether the types support comparison before
-    #    generating the code. Plus, do we want to convert C structs to dicts and
-    #    compare them that way (I think not, but it might be in demand)?
-    checks = []
-    for name in names:
-        checks.append("(self.%s %s other_cast.%s)" % (
-            name, op, name))
-
-    if checks:
-        code_lines.append("    return " + " and ".join(checks))
-    else:
-        if "=" in op:
-            code_lines.append("    return True")  # "() == ()" is True
-        else:
-            code_lines.append("    return False")
-
-    code_lines = u"\n".join(code_lines)
-
-    return code_lines, {}, []
+            for name in names:
+                if op != '==':
+                    # tuple comparison rules - early elements take precedence
+                    code.add_code_line(f"if self.{name} {op_without_equals} other_cast.{name}: return True")
+                code.add_code_line(f"if self.{name} != other_cast.{name}: return False")
+            code.add_code_line(f"return {'True' if '=' in op else 'False'}")  # "() == ()" is True
 
 
-def generate_eq_code(eq, node, fields):
+def generate_eq_code(code, eq, node, fields, *, critical_section_placeholder_name):
     if not eq:
-        return code_lines, {}, []
-    return generate_cmp_code("==", "__eq__", node, fields)
+        return
+    generate_cmp_code(
+        code, "==", "__eq__", node, fields,
+        critical_section_placeholder_name=critical_section_placeholder_name
+    )
 
 
-def generate_order_code(order, node, fields):
+def generate_order_code(code, order, node, fields, *, critical_section_placeholder_name):
     if not order:
-        return "", {}, []
-    code_lines = []
-    placeholders = {}
-    stats = []
+        return
+
     for op, name in [("<", "__lt__"),
                      ("<=", "__le__"),
                      (">", "__gt__"),
                      (">=", "__ge__")]:
-        res = generate_cmp_code(op, name, node, fields)
-        code_lines.append(res[0])
-        placeholders.update(res[1])
-        stats.extend(res[2])
-    return "\n".join(code_lines), placeholders, stats
+        generate_cmp_code(
+            code, op, name, node, fields,
+            critical_section_placeholder_name=critical_section_placeholder_name
+        )
 
 
-def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
+def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields, *, critical_section_placeholder_name):
     """
     Copied from CPython implementation - the intention is to follow this as far as
     is possible:
@@ -536,35 +676,36 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
         if unsafe_hash:
             # error message taken from CPython dataclasses module
             error(node.pos, "Cannot overwrite attribute __hash__ in class %s" % node.class_name)
-        return "", {}, []
+        return
+
     if not unsafe_hash:
         if not eq:
             return
         if not frozen:
-            return "", {}, [Nodes.SingleAssignmentNode(
-                node.pos,
-                lhs=ExprNodes.NameNode(node.pos, name=EncodedString("__hash__")),
-                rhs=ExprNodes.NoneNode(node.pos),
-            )]
+            code.add_extra_statements([
+                Nodes.SingleAssignmentNode(
+                    node.pos,
+                    lhs=ExprNodes.NameNode(node.pos, name=EncodedString("__hash__")),
+                    rhs=ExprNodes.NoneNode(node.pos),
+                )
+            ])
+            return
 
     names = [
         name for name, field in fields.items()
-        if (not field.is_initvar and
-            (field.compare.value if field.hash.value is None else field.hash.value))
+        if not field.is_initvar and (
+            field.compare.value if field.hash.value is None else field.hash.value)
     ]
-    if not names:
-        return "", {}, []  # nothing to hash
 
     # make a tuple of the hashes
-    tpl = u", ".join(u"hash(self.%s)" % name for name in names )
+    hash_tuple_items = ", ".join("self.%s" % name for name in names)
+    if hash_tuple_items:
+        hash_tuple_items += ","  # ensure that one arg form is a tuple
 
     # if we're here we want to generate a hash
-    code_lines = dedent(u"""\
-        def __hash__(self):
-            return hash((%s))
-        """) % tpl
-
-    return code_lines, {}, []
+    with code.indenter("def __hash__(self):"):
+        with code.indenter(f"with {critical_section_placeholder_name}(self):"):
+            code.add_code_line(f"return hash(({hash_tuple_items}))")
 
 
 def get_field_type(pos, entry):
@@ -590,7 +731,7 @@ def get_field_type(pos, entry):
         #)
         #return ExprNodes.IndexNode(
         #    pos, base=annotations,
-        #    index=ExprNodes.StringNode(pos, value=entry.name)
+        #    index=ExprNodes.UnicodeNode(pos, value=entry.name)
         #)
     else:
         # it's slightly unclear what the best option is here - we could
@@ -598,7 +739,7 @@ def get_field_type(pos, entry):
         # attributes defined with cdef so Cython is free to make it's own
         # decision
         s = EncodedString(entry.type.declaration_code("", for_display=1))
-        return ExprNodes.StringNode(pos, value=s)
+        return ExprNodes.UnicodeNode(pos, value=s)
 
 
 class FieldRecordNode(ExprNodes.ExprNode):
@@ -613,7 +754,7 @@ class FieldRecordNode(ExprNodes.ExprNode):
     subexprs = ['arg']
 
     def __init__(self, pos, arg):
-        super(FieldRecordNode, self).__init__(pos, arg=arg)
+        super().__init__(pos, arg=arg)
 
     def analyse_types(self, env):
         self.arg.analyse_types(env)
@@ -633,7 +774,7 @@ class FieldRecordNode(ExprNodes.ExprNode):
         from .AutoDocTransforms import AnnotationWriter
         writer = AnnotationWriter(description="Dataclass field")
         string = writer.write(self.arg)
-        return ExprNodes.StringNode(self.pos, value=EncodedString(string))
+        return ExprNodes.UnicodeNode(self.pos, value=EncodedString(string))
 
     def generate_evaluation_code(self, code):
         return self.arg.generate_evaluation_code(code)
@@ -666,8 +807,11 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                 name)
             # create an entry in the global scope for this variable to live
             field_node = ExprNodes.NameNode(field_default.pos, name=EncodedString(module_field_name))
-            field_node.entry = global_scope.declare_var(field_node.name, type=field_default.type or PyrexTypes.unspecified_type,
-                                                pos=field_default.pos, cname=field_node.name, is_cdef=1)
+            field_node.entry = global_scope.declare_var(
+                field_node.name, type=field_default.type or PyrexTypes.unspecified_type,
+                pos=field_default.pos, cname=field_node.name, is_cdef=True,
+                # TODO: do we need to set 'pytyping_modifiers' here?
+            )
             # replace the field so that future users just receive the namenode
             setattr(field, attrname, field_node)
 
@@ -714,21 +858,20 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
               for k, v in field.iterate_record_node_arguments()]
 
         )
-        dc_field_call = ExprNodes.GeneralCallNode(
-            node.pos, function = field_func,
-            positional_args = ExprNodes.TupleNode(node.pos, args=[]),
-            keyword_args = dc_field_keywords)
+        dc_field_call = make_dataclass_call_helper(
+            node.pos, field_func, dc_field_keywords
+        )
         dc_fields.key_value_pairs.append(
             ExprNodes.DictItemNode(
                 node.pos,
                 key=ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(name)),
                 value=dc_field_call))
         dc_fields_namevalue_assignments.append(
-            dedent(u"""\
-                __dataclass_fields__[{0!r}].name = {0!r}
-                __dataclass_fields__[{0!r}].type = {1}
-                __dataclass_fields__[{0!r}]._field_type = {2}
-            """).format(name, type_placeholder_name, field_type_placeholder_name))
+            dedent(f"""\
+                __dataclass_fields__[{name!r}].name = {name!r}
+                __dataclass_fields__[{name!r}].type = {type_placeholder_name}
+                __dataclass_fields__[{name!r}]._field_type = {field_type_placeholder_name}
+            """))
 
     dataclass_fields_assignment = \
         Nodes.SingleAssignmentNode(node.pos,
@@ -736,7 +879,7 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                                         name=EncodedString("__dataclass_fields__")),
                         rhs = dc_fields)
 
-    dc_fields_namevalue_assignments = u"\n".join(dc_fields_namevalue_assignments)
+    dc_fields_namevalue_assignments = "\n".join(dc_fields_namevalue_assignments)
     dc_fields_namevalue_assignments = TreeFragment(dc_fields_namevalue_assignments,
                                                    level="c_class",
                                                    pipeline=[NormalizeTree(None)])

@@ -1,5 +1,3 @@
-# cython: language_level=3
-
 cdef class Action:
     cdef perform(self, token_stream, text)
 

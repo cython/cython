@@ -17,8 +17,7 @@ cimport cython
 import sys
 
 
-if sys.version_info[0] > 2:
-    __doc__ = u"""
+__doc__ = u"""
     >>> f()()
     2
     >>> f().__name__
@@ -70,8 +69,6 @@ if sys.version_info[0] > 2:
     >>> NormalizeAttrPy().get()
     5
     """
-else:
-    __doc__ = ""
 
 global_ναμε1 = None
 cdef double global_ναμε2 = 1.2
@@ -177,6 +174,12 @@ cdef class Γναμε2:
     cpdef εxciting_cpdef(self):
         """docstring"""
         return 2
+    cpdef cpdef_with_exciting_arg(self, ααα):
+        """
+        >>> Γναμε2().cpdef_with_exciting_arg(5)
+        5
+        """
+        return ααα
 
 cdef class Derived(Γναμε2):
     pass
@@ -237,7 +240,30 @@ cdef class NormalizeAttrCdef:
     def get(self):
         return self.ﬁ
 
-if sys.version_info[0]<=2:
-    # These symbols are causing problems for doctest
-    del NormalClassΓΓ
-    del globals()[u'Γναμε2'.encode('utf-8')]
+
+ctypedef long äntägär
+
+def use_typedef(x: äntägär):
+    """
+    >>> use_typedef(5)
+    10
+    """
+    cdef äntägär i = x
+    return i + x
+
+
+ctypedef fused nümbärs:
+    float
+    äntägär
+
+
+def use_fused_typedef(x: nümbärs):
+    """
+    >>> use_fused_typedef(4)
+    8
+    >>> use_fused_typedef(4.5)
+    9.0
+    """
+    cdef nümbärs i = x
+    assert cython.typeof(i) in ('float', 'äntägär'), cython.typeof(i)
+    return i + x

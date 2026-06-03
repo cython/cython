@@ -34,8 +34,15 @@ static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
     Py_ssize_t len = Py_SIZE(list);
     if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
         Py_INCREF(x);
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
+        // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
+        // However, extending the size *before* setting the value would not be correct,
+        // so we cannot call PyList_SET_ITEM().
+        L->ob_item[len] = x;
+        #else
         PyList_SET_ITEM(list, len, x);
-        __Pyx_SET_SIZE(list, len + 1);
+        #endif
+        Py_SET_SIZE(list, len + 1);
         return 0;
     }
     return PyList_Append(list, x);
@@ -52,8 +59,15 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
     Py_ssize_t len = Py_SIZE(list);
     if (likely(L->allocated > len)) {
         Py_INCREF(x);
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
+        // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
+        // However, extending the size *before* setting the value would not be correct,
+        // so we cannot call PyList_SET_ITEM().
+        L->ob_item[len] = x;
+        #else
         PyList_SET_ITEM(list, len, x);
-        __Pyx_SET_SIZE(list, len + 1);
+        #endif
+        Py_SET_SIZE(list, len + 1);
         return 0;
     }
     return PyList_Append(list, x);
@@ -65,7 +79,9 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
 //////////////////// ListExtend.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d00a2
+    return PyList_Extend(L, v);
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     PyObject* none = _PyList_Extend((PyListObject*)L, v);
     if (unlikely(!none))
         return -1;
@@ -80,7 +96,7 @@ static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v) {
 
 static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L); /*proto*/
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
 static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L); /*proto*/
 #define __Pyx_PyObject_Pop(L) (likely(PyList_CheckExact(L)) ? \
     __Pyx_PyList_Pop(L) : __Pyx__PyObject_Pop(L))
@@ -94,17 +110,17 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L); /*proto*/
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
-    if (__Pyx_IS_TYPE(L, &PySet_Type)) {
+    if (Py_IS_TYPE(L, &PySet_Type)) {
         return PySet_Pop(L);
     }
     return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
 }
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
 static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L) {
     /* Check that both the size is positive and no reallocation shrinking needs to be done. */
     if (likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
-        __Pyx_SET_SIZE(L, Py_SIZE(L) - 1);
+        Py_SET_SIZE(L, Py_SIZE(L) - 1);
         return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
     }
     return CALL_UNBOUND_METHOD(PyList_Type, "pop", L);
@@ -117,7 +133,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L) {
 static PyObject* __Pyx__PyObject_PopNewIndex(PyObject* L, PyObject* py_ix); /*proto*/
 static PyObject* __Pyx__PyObject_PopIndex(PyObject* L, PyObject* py_ix); /*proto*/
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
 static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t ix); /*proto*/
 
 #define __Pyx_PyObject_PopIndex(L, py_ix, ix, is_signed, type, to_py_func) ( \
@@ -157,7 +173,7 @@ static PyObject* __Pyx__PyObject_PopIndex(PyObject* L, PyObject* py_ix) {
     return __Pyx_PyObject_CallMethod1(L, PYIDENT("pop"), py_ix);
 }
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
 static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t ix) {
     Py_ssize_t size = PyList_GET_SIZE(L);
     if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
@@ -167,14 +183,14 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t
         }
         if (likely(__Pyx_is_valid_index(cix, size))) {
             PyObject* v = PyList_GET_ITEM(L, cix);
-            __Pyx_SET_SIZE(L, Py_SIZE(L) - 1);
+            Py_SET_SIZE(L, Py_SIZE(L) - 1);
             size -= 1;
             memmove(&PyList_GET_ITEM(L, cix), &PyList_GET_ITEM(L, cix+1), (size_t)(size-cix)*sizeof(PyObject*));
             return v;
         }
     }
     if (py_ix == Py_None) {
-        return __Pyx__PyObject_PopNewIndex(L, PyInt_FromSsize_t(ix));
+        return __Pyx__PyObject_PopNewIndex(L, PyLong_FromSsize_t(ix));
     } else {
         return __Pyx__PyObject_PopIndex(L, py_ix);
     }
@@ -190,7 +206,7 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 
 static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value) {
     PyObject* value;
-#if PY_MAJOR_VERSION >= 3 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07020000)
+#if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07020000
     value = PyDict_GetItemWithError(d, key);
     if (unlikely(!value)) {
         if (unlikely(PyErr_Occurred()))
@@ -201,7 +217,7 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
     // avoid C compiler warning about unused utility functions
     if ((1));
 #else
-    if (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key)) {
+    if (PyBytes_CheckExact(key) || PyUnicode_CheckExact(key) || PyLong_CheckExact(key)) {
         /* these presumably have safe hash functions */
         value = PyDict_GetItem(d, key);
         if (unlikely(!value)) {
@@ -220,54 +236,6 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 }
 
 
-/////////////// dict_setdefault.proto ///////////////
-
-static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type); /*proto*/
-
-/////////////// dict_setdefault ///////////////
-
-static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value,
-                                                       int is_safe_type) {
-    PyObject* value;
-    CYTHON_MAYBE_UNUSED_VAR(is_safe_type);
-#if PY_VERSION_HEX >= 0x030400A0
-    // we keep the method call at the end to avoid "unused" C compiler warnings
-    if ((1)) {
-        value = PyDict_SetDefault(d, key, default_value);
-        if (unlikely(!value)) return NULL;
-        Py_INCREF(value);
-#else
-    if (is_safe_type == 1 || (is_safe_type == -1 &&
-        /* the following builtins presumably have repeatably safe and fast hash functions */
-#if PY_MAJOR_VERSION >= 3 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07020000)
-            (PyUnicode_CheckExact(key) || PyString_CheckExact(key) || PyLong_CheckExact(key)))) {
-        value = PyDict_GetItemWithError(d, key);
-        if (unlikely(!value)) {
-            if (unlikely(PyErr_Occurred()))
-                return NULL;
-            if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
-                return NULL;
-            value = default_value;
-        }
-        Py_INCREF(value);
-#else
-            (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key) || PyLong_CheckExact(key)))) {
-        value = PyDict_GetItem(d, key);
-        if (unlikely(!value)) {
-            if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
-                return NULL;
-            value = default_value;
-        }
-        Py_INCREF(value);
-#endif
-#endif
-    } else {
-        value = CALL_UNBOUND_METHOD(PyDict_Type, "setdefault", d, key, default_value);
-    }
-    return value;
-}
-
-
 /////////////// py_dict_clear.proto ///////////////
 
 #define __Pyx_PyDict_Clear(d) (PyDict_Clear(d), 0)
@@ -280,126 +248,175 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyOb
 /////////////// py_dict_pop ///////////////
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyObject *default_value) {
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B3
-    if ((1)) {
-        return _PyDict_Pop(d, key, default_value);
-    } else
-    // avoid "function unused" warnings
-#endif
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d00A2 || defined(PyDict_Pop)
+    PyObject *value;
+    if (PyDict_Pop(d, key, &value) == 0) {
+        if (default_value) {
+            Py_INCREF(default_value);
+        } else {
+            PyErr_SetObject(PyExc_KeyError, key);
+        }
+        value = default_value;
+    }
+    // On error, PyDict_Pop() returns -1 and sets value to NULL (our own exception return value).
+    return value;
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+    return _PyDict_Pop(d, key, default_value);
+#else
     if (default_value) {
         return CALL_UNBOUND_METHOD(PyDict_Type, "pop", d, key, default_value);
     } else {
         return CALL_UNBOUND_METHOD(PyDict_Type, "pop", d, key);
     }
+#endif
 }
 
 
-/////////////// dict_iter.proto ///////////////
+/////////////// py_dict_pop_ignore.proto ///////////////
 
-static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, PyObject* method_name,
-                                                   Py_ssize_t* p_orig_length, int* p_is_dict);
+static CYTHON_INLINE int __Pyx_PyDict_Pop_ignore(PyObject *d, PyObject *key, PyObject *default_value); /*proto*/
+
+/////////////// py_dict_pop_ignore ///////////////
+
+static CYTHON_INLINE int __Pyx_PyDict_Pop_ignore(PyObject *d, PyObject *key, PyObject *default_value) {
+    // We take the "default_value" as argument to avoid "unused" warnings, but we ignore it here.
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d00A2 || defined(PyDict_Pop)
+    int result = PyDict_Pop(d, key, NULL);
+    CYTHON_UNUSED_VAR(default_value);
+    return (unlikely(result == -1)) ? -1 : 0;
+#else
+    PyObject *value;
+    CYTHON_UNUSED_VAR(default_value);
+
+    #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+    value = _PyDict_Pop(d, key, Py_None);
+    #else
+    value = CALL_UNBOUND_METHOD(PyDict_Type, "pop", d, key, Py_None);
+    #endif
+
+    if (unlikely(value == NULL))
+        return -1;
+    Py_DECREF(value);
+    return 0;
+#endif
+}
+
+
+/////////////// dict_iter_common.proto ///////////////
+static PyObject *__Pyx_dict_call_to_get_iterable(PyObject* iterable, PyObject* method_name); /* proto */
 static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t orig_length, Py_ssize_t* ppos,
                                               PyObject** pkey, PyObject** pvalue, PyObject** pitem, int is_dict);
 
-/////////////// dict_iter ///////////////
+/////////////// dict_iter_common ///////////////
 //@requires: ObjectHandling.c::UnpackTuple2
 //@requires: ObjectHandling.c::IterFinish
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
-static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
-                                                   Py_ssize_t* p_orig_length, int* p_source_is_dict) {
-    is_dict = is_dict || likely(PyDict_CheckExact(iterable));
-    *p_source_is_dict = is_dict;
-    if (is_dict) {
-#if !CYTHON_COMPILING_IN_PYPY
-        *p_orig_length = PyDict_Size(iterable);
-        Py_INCREF(iterable);
+static PyObject *__Pyx_dict_call_to_get_iterable(PyObject* iterable, PyObject* method_name) {
+    
+    PyObject* iter;
+    iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
+    if (!iterable)
+        return NULL;
+#if !CYTHON_AVOID_BORROWED_REFS
+    if (PyTuple_CheckExact(iterable) || PyList_CheckExact(iterable))
         return iterable;
-#elif PY_MAJOR_VERSION >= 3
-        // On PyPy3, we need to translate manually a few method names.
-        // This logic is not needed on CPython thanks to the fast case above.
-        static PyObject *py_items = NULL, *py_keys = NULL, *py_values = NULL;
-        PyObject **pp = NULL;
-        if (method_name) {
-            const char *name = PyUnicode_AsUTF8(method_name);
-            if (strcmp(name, "iteritems") == 0) pp = &py_items;
-            else if (strcmp(name, "iterkeys") == 0) pp = &py_keys;
-            else if (strcmp(name, "itervalues") == 0) pp = &py_values;
-            if (pp) {
-                if (!*pp) {
-                    *pp = PyUnicode_FromString(name + 4);
-                    if (!*pp)
-                        return NULL;
-                }
-                method_name = *pp;
-            }
-        }
 #endif
-    }
-    *p_orig_length = 0;
-    if (method_name) {
-        PyObject* iter;
-        iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
-        if (!iterable)
-            return NULL;
-#if !CYTHON_COMPILING_IN_PYPY
-        if (PyTuple_CheckExact(iterable) || PyList_CheckExact(iterable))
-            return iterable;
-#endif
-        iter = PyObject_GetIter(iterable);
-        Py_DECREF(iterable);
-        return iter;
-    }
-    return PyObject_GetIter(iterable);
+    iter = PyObject_GetIter(iterable);
+    Py_DECREF(iterable);
+    return iter;
 }
+
+#if !CYTHON_AVOID_BORROWED_REFS
+static CYTHON_INLINE int __Pyx_dict_iter_next_source_is_dict(
+        PyObject* iter_obj, CYTHON_NCP_UNUSED Py_ssize_t orig_length, CYTHON_NCP_UNUSED Py_ssize_t* ppos,
+        PyObject** pkey, PyObject** pvalue, PyObject** pitem) {
+    PyObject *key, *value;
+    if (unlikely(orig_length != PyDict_Size(iter_obj))) {
+        PyErr_SetString(PyExc_RuntimeError, "dictionary changed size during iteration");
+        return -1;
+    }
+    if (unlikely(!PyDict_Next(iter_obj, ppos, &key, &value))) {
+        return 0;
+    }
+    if (pitem) {
+        PyObject* tuple = PyTuple_New(2);
+        if (unlikely(!tuple)) {
+            return -1;
+        }
+        Py_INCREF(key);
+        Py_INCREF(value);
+        #if CYTHON_ASSUME_SAFE_MACROS
+        PyTuple_SET_ITEM(tuple, 0, key);
+        PyTuple_SET_ITEM(tuple, 1, value);
+        #else
+        if (unlikely(PyTuple_SetItem(tuple, 0, key) < 0)) {
+            // decref value; PyTuple_SetItem decrefs key on failure
+            Py_DECREF(value);
+            Py_DECREF(tuple);
+            return -1;
+        }
+        if (unlikely(PyTuple_SetItem(tuple, 1, value) < 0)) {
+            // PyTuple_SetItem decrefs value on failure
+            Py_DECREF(tuple);
+            return -1;
+        }
+        #endif
+        *pitem = tuple;
+    } else {
+        if (pkey) {
+            Py_INCREF(key);
+            *pkey = key;
+        }
+        if (pvalue) {
+            Py_INCREF(value);
+            *pvalue = value;
+        }
+    }
+    return 1;
+}
+#endif
 
 static CYTHON_INLINE int __Pyx_dict_iter_next(
         PyObject* iter_obj, CYTHON_NCP_UNUSED Py_ssize_t orig_length, CYTHON_NCP_UNUSED Py_ssize_t* ppos,
         PyObject** pkey, PyObject** pvalue, PyObject** pitem, int source_is_dict) {
     PyObject* next_item;
-#if !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_AVOID_BORROWED_REFS
     if (source_is_dict) {
-        PyObject *key, *value;
-        if (unlikely(orig_length != PyDict_Size(iter_obj))) {
-            PyErr_SetString(PyExc_RuntimeError, "dictionary changed size during iteration");
-            return -1;
-        }
-        if (unlikely(!PyDict_Next(iter_obj, ppos, &key, &value))) {
-            return 0;
-        }
-        if (pitem) {
-            PyObject* tuple = PyTuple_New(2);
-            if (unlikely(!tuple)) {
-                return -1;
-            }
-            Py_INCREF(key);
-            Py_INCREF(value);
-            PyTuple_SET_ITEM(tuple, 0, key);
-            PyTuple_SET_ITEM(tuple, 1, value);
-            *pitem = tuple;
-        } else {
-            if (pkey) {
-                Py_INCREF(key);
-                *pkey = key;
-            }
-            if (pvalue) {
-                Py_INCREF(value);
-                *pvalue = value;
-            }
-        }
-        return 1;
+        int result;
+#if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
+        Py_BEGIN_CRITICAL_SECTION(iter_obj);
+#endif
+        result = __Pyx_dict_iter_next_source_is_dict(iter_obj, orig_length, ppos, pkey, pvalue, pitem);
+#if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
+        Py_END_CRITICAL_SECTION();
+#endif
+        return result;
     } else if (PyTuple_CheckExact(iter_obj)) {
         Py_ssize_t pos = *ppos;
-        if (unlikely(pos >= PyTuple_GET_SIZE(iter_obj))) return 0;
+        Py_ssize_t tuple_size = __Pyx_PyTuple_GET_SIZE(iter_obj);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(tuple_size < 0)) return -1;
+        #endif
+        if (unlikely(pos >= tuple_size)) return 0;
         *ppos = pos + 1;
+        #if CYTHON_ASSUME_SAFE_MACROS
         next_item = PyTuple_GET_ITEM(iter_obj, pos);
+        #else
+        next_item = PyTuple_GetItem(iter_obj, pos);
+        if (unlikely(!next_item)) return -1;
+        #endif
         Py_INCREF(next_item);
     } else if (PyList_CheckExact(iter_obj)) {
         Py_ssize_t pos = *ppos;
-        if (unlikely(pos >= PyList_GET_SIZE(iter_obj))) return 0;
+        Py_ssize_t list_size = __Pyx_PyList_GET_SIZE(iter_obj);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(list_size < 0)) return -1;
+        #endif
+        if (unlikely(pos >= list_size)) return 0;
         *ppos = pos + 1;
-        next_item = PyList_GET_ITEM(iter_obj, pos);
-        Py_INCREF(next_item);
+        next_item = __Pyx_PyList_GetItemRef(iter_obj, pos);
+        if (unlikely(!next_item)) return -1;
     } else
 #endif
     {
@@ -421,6 +438,81 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
     return 1;
 }
 
+/////////////// dict_iter_legacy.proto //////////////
+
+// "legacy" handles old-style iter* methods
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator_legacy(PyObject* dict, int is_dict, PyObject* method_name,
+                                                          Py_ssize_t* p_orig_length, int* p_is_dict);
+
+/////////////// dict_iter_legacy //////////////////
+//@requires: dict_iter_common
+
+#if CYTHON_AVOID_BORROWED_REFS
+#include <string.h>
+#endif
+
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator_legacy(PyObject* iterable, int is_dict, PyObject* method_name,
+                                                          Py_ssize_t* p_orig_length, int* p_source_is_dict) {
+    int owned_method_name = 0;
+    // Don't include frozendict.
+    is_dict = is_dict || likely(PyDict_CheckExact(iterable));
+    *p_source_is_dict = is_dict;
+    if (is_dict) {
+#if !CYTHON_AVOID_BORROWED_REFS
+        *p_orig_length = PyDict_Size(iterable);
+        Py_INCREF(iterable);
+        return iterable;
+#else
+        // On PyPy3/GraalPy, we need to translate manually the method name.
+        // This logic is not needed on CPython thanks to the fast case above.
+        if (method_name) {
+            method_name = PyUnicode_Substring(method_name, 4, 10);  // longest is "itervalues" (len=10)
+            if (unlikely(!method_name))
+                return NULL;
+            owned_method_name = 1;
+        }
+#endif
+    }
+    *p_orig_length = 0;
+    if (method_name) {
+        iterable = __Pyx_dict_call_to_get_iterable(iterable, method_name);
+        if (owned_method_name) {
+            Py_DECREF(method_name);
+        }
+        return iterable;
+    } else {
+        return PyObject_GetIter(iterable);
+    }
+}
+
+/////////////// dict_iter.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, PyObject* method_name,
+                                                   Py_ssize_t* p_orig_length, int* p_is_dict);
+
+/////////////// dict_iter ///////////////
+//@requires: Builtins.c::PyFrozenDict
+//@requires: dict_iter_common
+
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
+                                                   Py_ssize_t* p_orig_length, int* p_source_is_dict) {
+    is_dict = is_dict || likely(__Pyx_PyAnyDict_CheckExact(iterable));
+    *p_source_is_dict = is_dict;
+#if !CYTHON_AVOID_BORROWED_REFS
+    if (is_dict) {
+        *p_orig_length = PyDict_Size(iterable);
+        Py_INCREF(iterable);
+        return iterable;
+    }
+#endif
+    *p_orig_length = 0;
+    if (method_name) {
+        return __Pyx_dict_call_to_get_iterable(iterable, method_name);
+    } else {
+        return PyObject_GetIter(iterable);
+    }
+}
+
 
 /////////////// set_iter.proto ///////////////
 
@@ -436,7 +528,7 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
 
 static CYTHON_INLINE PyObject* __Pyx_set_iterator(PyObject* iterable, int is_set,
                                                   Py_ssize_t* p_orig_length, int* p_source_is_set) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     is_set = is_set || likely(PySet_CheckExact(iterable) || PyFrozenSet_CheckExact(iterable));
     *p_source_is_set = is_set;
     if (likely(is_set)) {
@@ -445,7 +537,7 @@ static CYTHON_INLINE PyObject* __Pyx_set_iterator(PyObject* iterable, int is_set
         return iterable;
     }
 #else
-    (void)is_set;
+    CYTHON_UNUSED_VAR(is_set);
     *p_source_is_set = 0;
 #endif
     *p_orig_length = 0;
@@ -456,16 +548,16 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
         PyObject* iter_obj, Py_ssize_t orig_length,
         Py_ssize_t* ppos, PyObject **value,
         int source_is_set) {
-    if (!CYTHON_COMPILING_IN_CPYTHON || unlikely(!source_is_set)) {
+    if (!CYTHON_COMPILING_IN_CPYTHON || PY_VERSION_HEX >= 0x030d0000 || unlikely(!source_is_set)) {
         *value = PyIter_Next(iter_obj);
         if (unlikely(!*value)) {
             return __Pyx_IterFinish();
         }
-        (void)orig_length;
-        (void)ppos;
+        CYTHON_UNUSED_VAR(orig_length);
+        CYTHON_UNUSED_VAR(ppos);
         return 1;
     }
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     if (unlikely(PySet_GET_SIZE(iter_obj) != orig_length)) {
         PyErr_SetString(
             PyExc_RuntimeError,
@@ -568,15 +660,16 @@ static CYTHON_INLINE int __Pyx_init_unicode_iteration(
 
 static CYTHON_INLINE int __Pyx_init_unicode_iteration(
     PyObject* ustring, Py_ssize_t *length, void** data, int *kind) {
-#if CYTHON_PEP393_ENABLED
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // In the limited API we just point data to the unicode object
+    *kind   = 0;
+    *length = PyUnicode_GetLength(ustring);
+    *data   = (void*)ustring;
+#else
     if (unlikely(__Pyx_PyUnicode_READY(ustring) < 0)) return -1;
     *kind   = PyUnicode_KIND(ustring);
     *length = PyUnicode_GET_LENGTH(ustring);
     *data   = PyUnicode_DATA(ustring);
-#else
-    *kind   = 0;
-    *length = PyUnicode_GET_SIZE(ustring);
-    *data   = (void*)PyUnicode_AS_UNICODE(ustring);
 #endif
     return 0;
 }
@@ -588,11 +681,11 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
 #if CYTHON_COMPILING_IN_PYPY
 #define __Pyx_PyObject_AsDouble(obj) \
 (likely(PyFloat_CheckExact(obj)) ? PyFloat_AS_DOUBLE(obj) : \
- likely(PyInt_CheckExact(obj)) ? \
+ likely(PyLong_CheckExact(obj)) ? \
  PyFloat_AsDouble(obj) : __Pyx__PyObject_AsDouble(obj))
 #else
 #define __Pyx_PyObject_AsDouble(obj) \
-((likely(PyFloat_CheckExact(obj))) ?  PyFloat_AS_DOUBLE(obj) : \
+((likely(PyFloat_CheckExact(obj))) ?  __Pyx_PyFloat_AS_DOUBLE(obj) : \
  likely(PyLong_CheckExact(obj)) ? \
  PyLong_AsDouble(obj) : __Pyx__PyObject_AsDouble(obj))
 #endif
@@ -620,7 +713,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
         if (likely(nb) && likely(nb->nb_float)) {
             float_value = nb->nb_float(obj);
             if (likely(float_value) && unlikely(!PyFloat_Check(float_value))) {
-                __Pyx_TypeName float_value_type_name = __Pyx_PyType_GetName(Py_TYPE(float_value));
+                __Pyx_TypeName float_value_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(float_value));
                 PyErr_Format(PyExc_TypeError,
                     "__float__ returned non-float (type " __Pyx_FMT_TYPENAME ")",
                     float_value_type_name);
@@ -633,28 +726,13 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
         }
 #endif
         if (likely(float_value)) {
-            double value = PyFloat_AS_DOUBLE(float_value);
+            double value = __Pyx_PyFloat_AS_DOUBLE(float_value);
             Py_DECREF(float_value);
             return value;
         }
     }
 bad:
     return (double)-1;
-}
-
-
-/////////////// pystring_as_double.proto ///////////////
-//@requires: pyunicode_as_double
-//@requires: pybytes_as_double
-
-static CYTHON_INLINE double __Pyx_PyString_AsDouble(PyObject *obj) {
-    #if PY_MAJOR_VERSION >= 3
-    (void)__Pyx_PyBytes_AsDouble;
-    return __Pyx_PyUnicode_AsDouble(obj);
-    #else
-    (void)__Pyx_PyUnicode_AsDouble;
-    return __Pyx_PyBytes_AsDouble(obj);
-    #endif
 }
 
 
@@ -665,7 +743,7 @@ static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj);/*proto*/
 /////////////// pyunicode_as_double.proto ///////////////
 //@requires: pybytes_as_double
 
-#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_COMPILING_IN_PYPY && CYTHON_ASSUME_SAFE_MACROS
 static const char* __Pyx__PyUnicode_AsDouble_Copy(const void* data, const int kind, char* buffer, Py_ssize_t start, Py_ssize_t end) {
     int last_was_punctuation;
     Py_ssize_t i;
@@ -745,6 +823,7 @@ static double __Pyx_PyUnicode_AsDouble_WithSpaces(PyObject *obj) {
     double value;
     const char *last;
     char *end;
+    int valid_parse;
     Py_ssize_t start, length = PyUnicode_GET_LENGTH(obj);
     const int kind = PyUnicode_KIND(obj);
     const void* data = PyUnicode_DATA(obj);
@@ -760,16 +839,19 @@ static double __Pyx_PyUnicode_AsDouble_WithSpaces(PyObject *obj) {
 
     // parse NaN / inf
     value = __Pyx__PyUnicode_AsDouble_inf_nan(data, kind, start, length);
-    if (unlikely(value == -1.0)) goto fallback;
-    if (value != 0.0) return value;
+    if (value != 0.0) {
+        if (unlikely(value == -1.0)) goto fallback;
+        return value;
+    }
 
     if (length < 40) {
         char number[40];
         last = __Pyx__PyUnicode_AsDouble_Copy(data, kind, number, start, start + length);
         if (unlikely(!last)) goto fallback;
         value = PyOS_string_to_double(number, &end, NULL);
+        valid_parse = (end == last);
     } else {
-        char *number = (char*) PyMem_Malloc((length + 1) * sizeof(char));
+        char *number = (char*) PyMem_Malloc(((size_t) length + 1) * sizeof(char));
         if (unlikely(!number)) goto fallback;
         last = __Pyx__PyUnicode_AsDouble_Copy(data, kind, number, start, start + length);
         if (unlikely(!last)) {
@@ -777,9 +859,10 @@ static double __Pyx_PyUnicode_AsDouble_WithSpaces(PyObject *obj) {
             goto fallback;
         }
         value = PyOS_string_to_double(number, &end, NULL);
+        valid_parse = (end == last);
         PyMem_Free(number);
     }
-    if (likely(end == last) || (value == (double)-1 && PyErr_Occurred())) {
+    if (likely(valid_parse) || (value == (double)-1 && PyErr_Occurred())) {
         return value;
     }
 fallback:
@@ -789,7 +872,7 @@ fallback:
 
 static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj) {
     // Currently not optimised for Py2.7.
-#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_COMPILING_IN_PYPY && CYTHON_ASSUME_SAFE_MACROS
     if (unlikely(__Pyx_PyUnicode_READY(obj) == -1))
         return (double)-1;
     if (likely(PyUnicode_IS_ASCII(obj))) {
@@ -811,24 +894,41 @@ static double __Pyx_SlowPyString_AsDouble(PyObject *obj);/*proto*/
 static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length);/*proto*/
 
 static CYTHON_INLINE double __Pyx_PyBytes_AsDouble(PyObject *obj) {
-    return __Pyx__PyBytes_AsDouble(obj, PyBytes_AS_STRING(obj), PyBytes_GET_SIZE(obj));
+    char* as_c_string;
+    Py_ssize_t size;
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+    as_c_string = PyBytes_AS_STRING(obj);
+    size = PyBytes_GET_SIZE(obj);
+#else
+    if (PyBytes_AsStringAndSize(obj, &as_c_string, &size) < 0) {
+        return (double)-1;
+    }
+#endif
+    return __Pyx__PyBytes_AsDouble(obj, as_c_string, size);
 }
 static CYTHON_INLINE double __Pyx_PyByteArray_AsDouble(PyObject *obj) {
-    return __Pyx__PyBytes_AsDouble(obj, PyByteArray_AS_STRING(obj), PyByteArray_GET_SIZE(obj));
+    char* as_c_string;
+    Py_ssize_t size;
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+    as_c_string = PyByteArray_AS_STRING(obj);
+    size = PyByteArray_GET_SIZE(obj);
+#else
+    as_c_string = PyByteArray_AsString(obj);
+    if (as_c_string == NULL) {
+        return (double)-1;
+    }
+    size = PyByteArray_Size(obj);
+#endif
+    return __Pyx__PyBytes_AsDouble(obj, as_c_string, size);
 }
 
 
 /////////////// pybytes_as_double ///////////////
 
 static double __Pyx_SlowPyString_AsDouble(PyObject *obj) {
-    PyObject *float_value;
-#if PY_MAJOR_VERSION >= 3
-    float_value = PyFloat_FromString(obj);
-#else
-    float_value = PyFloat_FromString(obj, 0);
-#endif
+    PyObject *float_value = PyFloat_FromString(obj);
     if (likely(float_value)) {
-        double value = PyFloat_AS_DOUBLE(float_value);
+        double value = __Pyx_PyFloat_AS_DOUBLE(float_value);
         Py_DECREF(float_value);
         return value;
     }
@@ -838,22 +938,21 @@ static double __Pyx_SlowPyString_AsDouble(PyObject *obj) {
 static const char* __Pyx__PyBytes_AsDouble_Copy(const char* start, char* buffer, Py_ssize_t length) {
     // number must not start with punctuation
     int last_was_punctuation = 1;
+    int parse_error_found = 0;
     Py_ssize_t i;
     for (i=0; i < length; i++) {
         char chr = start[i];
         int is_punctuation = (chr == '_') | (chr == '.') | (chr == 'e') | (chr == 'E');
         *buffer = chr;
         buffer += (chr != '_');
-        // reject sequences of '_' and '.'
-        if (unlikely(last_was_punctuation & is_punctuation)) goto parse_failure;
+        // reject sequences of punctuation, e.g. '_.'
+        parse_error_found |= last_was_punctuation & is_punctuation;
         last_was_punctuation = is_punctuation;
     }
-    if (unlikely(last_was_punctuation)) goto parse_failure;
+    // number must not end with punctuation
+    parse_error_found |= last_was_punctuation;
     *buffer = '\0';
-    return buffer;
-
-parse_failure:
-    return NULL;
+    return unlikely(parse_error_found) ? NULL : buffer;
 }
 
 static double __Pyx__PyBytes_AsDouble_inf_nan(const char* start, Py_ssize_t length) {
@@ -904,11 +1003,12 @@ static CYTHON_INLINE int __Pyx__PyBytes_AsDouble_IsSpace(char ch) {
     return (ch == 0x20) | !((ch < 0x9) | (ch > 0xd));
 }
 
-static CYTHON_UNUSED double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length) {
+CYTHON_UNUSED static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length) {
     double value;
     Py_ssize_t i, digits;
     const char *last = start + length;
     char *end;
+    int valid_parse;
 
     // strip spaces at start and end
     while (__Pyx__PyBytes_AsDouble_IsSpace(*start))
@@ -920,8 +1020,10 @@ static CYTHON_UNUSED double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* s
 
     // parse NaN / inf
     value = __Pyx__PyBytes_AsDouble_inf_nan(start, length);
-    if (unlikely(value == -1.0)) goto fallback;
-    if (value != 0.0) return value;
+    if (value != 0.0) {
+        if (unlikely(value == -1.0)) goto fallback;
+        return value;
+    }
 
     // look for underscores
     digits = 0;
@@ -929,13 +1031,15 @@ static CYTHON_UNUSED double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* s
 
     if (likely(digits == length)) {
         value = PyOS_string_to_double(start, &end, NULL);
+        valid_parse = (end == last);
     } else if (digits < 40) {
         char number[40];
         last = __Pyx__PyBytes_AsDouble_Copy(start, number, length);
         if (unlikely(!last)) goto fallback;
         value = PyOS_string_to_double(number, &end, NULL);
+        valid_parse = (end == last);
     } else {
-        char *number = (char*) PyMem_Malloc((digits + 1) * sizeof(char));
+        char *number = (char*) PyMem_Malloc(((size_t) digits + 1) * sizeof(char));
         if (unlikely(!number)) goto fallback;
         last = __Pyx__PyBytes_AsDouble_Copy(start, number, length);
         if (unlikely(!last)) {
@@ -943,9 +1047,10 @@ static CYTHON_UNUSED double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* s
             goto fallback;
         }
         value = PyOS_string_to_double(number, &end, NULL);
+        valid_parse = (end == last);
         PyMem_Free(number);
     }
-    if (likely(end == last) || (value == (double)-1 && PyErr_Occurred())) {
+    if (likely(valid_parse) || (value == (double)-1 && PyErr_Occurred())) {
         return value;
     }
 fallback:
@@ -961,27 +1066,21 @@ fallback:
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace); /*proto*/
 
 /////////////// PyNumberPow2 ///////////////
+//@requires: Exceptions.c::IgnoreException
 
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace) {
 // in CPython, 1<<N is substantially faster than 2**N
 // see https://bugs.python.org/issue21420
 #if !CYTHON_COMPILING_IN_PYPY
     Py_ssize_t shiftby;
-#if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_CheckExact(exp))) {
-        shiftby = PyInt_AS_LONG(exp);
-    } else
-#endif
     if (likely(PyLong_CheckExact(exp))) {
         #if CYTHON_USE_PYLONG_INTERNALS
-        const Py_ssize_t size = Py_SIZE(exp);
-        // tuned to optimise branch prediction
-        if (likely(size == 1)) {
-            shiftby = ((PyLongObject*)exp)->ob_digit[0];
-        } else if (size == 0) {
-            return PyInt_FromLong(1L);
-        } else if (unlikely(size < 0)) {
+        if (__Pyx_PyLong_IsZero(exp)) {
+            return PyLong_FromLong(1L);
+        } else if (__Pyx_PyLong_IsNeg(exp)) {
             goto fallback;
+        } else if (__Pyx_PyLong_IsCompact(exp)) {
+            shiftby = __Pyx_PyLong_CompactValueUnsigned(exp);
         } else {
             shiftby = PyLong_AsSsize_t(exp);
         }
@@ -994,34 +1093,894 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
     if (likely(shiftby >= 0)) {
         if ((size_t)shiftby <= sizeof(long) * 8 - 2) {
             long value = 1L << shiftby;
-            return PyInt_FromLong(value);
-#ifdef HAVE_LONG_LONG
+            return PyLong_FromLong(value);
         } else if ((size_t)shiftby <= sizeof(unsigned PY_LONG_LONG) * 8 - 1) {
             unsigned PY_LONG_LONG value = ((unsigned PY_LONG_LONG)1) << shiftby;
             return PyLong_FromUnsignedLongLong(value);
-#endif
         } else {
-            PyObject *result, *one = PyInt_FromLong(1L);
+            PyObject *result, *one = PyLong_FromLong(1L);
             if (unlikely(!one)) return NULL;
             result = PyNumber_Lshift(one, exp);
             Py_DECREF(one);
             return result;
         }
-    } else if (shiftby == -1 && PyErr_Occurred()) {
-        PyErr_Clear();
+    } else if (shiftby == -1) {
+        PyObject *err = PyErr_Occurred();
+        if (err && !__Pyx_IgnoreGivenException(err, PyExc_Exception)) {
+            return NULL; // BaseException
+        }
     }
 fallback:
 #endif
     return (inplace ? PyNumber_InPlacePower : PyNumber_Power)(two, exp, none);
 }
 
+/////////////// PyNumberBinop.proto ///////////////
 
-/////////////// PyIntCompare.proto ///////////////
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API
+
+#define __Pyx_{{op_name}}_{{type1}}_{{type2}}(op1, op2)  {{op_name}}(op1, op2)
+#define __Pyx_{{inplace_op_name}}_{{type1}}_{{type2}}(op1, op2)  {{inplace_op_name}}(op1, op2)
+
+#else
+
+#define __Pyx_{{op_name}}_{{type1}}_{{type2}}(op1, op2)  __Pyx__{{op_name}}_{{type1}}_{{type2}}(op1, op2, 0)
+#define __Pyx_{{inplace_op_name}}_{{type1}}_{{type2}}(op1, op2)  __Pyx__{{op_name}}_{{type1}}_{{type2}}(op1, op2, 1)
+
+static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int inplace); /*proto*/
+#endif
+
+/////////////// PyNumberBinop ///////////////
+//@requires: ObjectHandling.c::FormatTypeName
+
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API)
+
+{{py: assert type1 in ('object', 'int', 'float'), type1 }}
+{{py: assert type2 in ('object', 'int', 'float'), type2 }}
+{{py: slot_name = {'+': 'add', '-': 'subtract', '*': 'multiply', '^': 'xor', '&': 'and', '|': 'or'}[c_op] }}
+{{py:
+def is_type(operand, expected, type1=type1, type2=type2):
+    assert operand in ('op1', 'op2'), operand
+    assert expected in ('int', 'float'), type
+    type = type1 if operand == 'op1' else type2
+    if type == expected:
+        check = f"likely({operand} != Py_None)"
+    else:
+        function = "PyFloat_CheckExact" if expected == 'float' else 'PyLong_CheckExact'
+        check = f"{function}({operand})"
+        other_type = type2 if operand == 'op1' else type1
+        if other_type == expected:
+            check = f"likely({check})"
+    return check
+}}
+
+{{if c_op in '+-*' or type1 != 'float'}}
+
+#if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+#ifndef __Pyx_DEFINED_BinopTypeError
+#define __Pyx_DEFINED_BinopTypeError
+
+static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op, int inplace) {
+    // op1 is either 'int' or 'float', op2 is unknown.
+    __Pyx_TypeName type_name_op1 = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(op1));
+    __Pyx_TypeName type_name_op2 = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(op2));
+    PyErr_Format(PyExc_TypeError,
+        "unsupported operand type(s) for %.2s%.1s: '%.5s' and '%.200s'",
+        op,
+        inplace ? "=" : "",
+        type_name_op1,
+        type_name_op2);
+    __Pyx_DECREF_TypeName(type_name_op1);
+    __Pyx_DECREF_TypeName(type_name_op2);
+}
+#endif
+#endif
+
+{{endif}}
+
+{{if c_op in '+-*'}}
+
+{{if type1 in ('object', 'float')}}
+#ifndef __Pyx_DEFINED_{{op_name}}_xfloat_{{type2}}
+#define __Pyx_DEFINED_{{op_name}}_xfloat_{{type2}}
+
+static PyObject* __Pyx_{{op_name}}_xfloat_{{type2}}(PyObject *op1, PyObject *op2, int inplace) {
+    {{if type2 in ('object', 'int')}}
+    if ({{is_type('op2', 'int')}}) {
+        double int_op2;
+        #if CYTHON_USE_PYLONG_INTERNALS
+        if (__Pyx_PyLong_IsCompact(op2)) {
+            Py_ssize_t compact_op2 = __Pyx_PyLong_CompactValue(op2);
+            {{if c_op in '+-'}}
+            if (compact_op2 == 0) return __Pyx_NewRef(op1);
+            {{endif}}
+            int_op2 = (double) compact_op2;
+        } else
+        #endif
+        {
+            int_op2 = PyLong_AsDouble(op2);
+            if (unlikely((int_op2 == -1.) && PyErr_Occurred())) return NULL;
+
+            {{if c_op in '+-'}}
+            #if !CYTHON_USE_PYLONG_INTERNALS
+            if (int_op2 == 0.) return __Pyx_NewRef(op1);
+            #endif
+            {{endif}}
+        }
+
+        double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely((float_op1 == -1.) && PyErr_Occurred())) return NULL;
+        #endif
+
+        {{if c_op == '*'}}
+        // "0 * op2" could be handled before extracting op2, but that has the potential
+        // to fail for very large numbers in op2 and we'd like to keep that error.
+        if (float_op1 == 0.) return __Pyx_NewRef(op1);
+        {{endif}}
+
+        return PyFloat_FromDouble(float_op1 {{c_op}} int_op2);
+    }
+    {{endif}}
+
+    {{if type2 == 'object'}}
+    if (PyLong_Check(op2)) {
+        // Pass PyLong subclasses to PyFloat-op1.
+        binaryfunc slot_func = __Pyx_PyType_GetSubSlot(&PyFloat_Type, tp_as_number, nb_{{slot_name}}, binaryfunc);
+        if (likely(slot_func)) {
+            return slot_func(op1, op2);
+        }
+    }
+    {{endif}}
+
+    // PyFloat-op1 only handles exact PyFloat/PyLong as op2, everything else is left to op2.
+    // PyLong-op2 is handled above, so we can always pass on to op2 here.
+
+    // Avoid running into non-heap-type problems in Py<3.10 Limited API.
+    #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+    {
+        PyTypeObject *type_op2 = Py_TYPE(op2);
+        // Reverse operation => ignore 'InPlace' operator since it applies to op1, not op2.
+        binaryfunc slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_number, nb_{{slot_name}}, binaryfunc);
+        if (likely(slot_func)) {
+            PyObject *result = slot_func(op1, op2);
+            if (likely(result != Py_NotImplemented)) {
+                return result;
+            }
+            Py_DECREF(result);
+        }
+        // No "sq_concat" since Python doesn't try it on op2 and 'float' definitely doesn't have it.
+
+        __Pyx_BinopTypeError(op1, op2, "{{c_op}}", inplace);
+        return NULL;
+
+    }
+    #else
+    return (inplace) ? {{inplace_op_name}}(op1, op2) : {{op_name}}(op1, op2);
+    #endif
+}
+#endif
+{{endif}}
+
+// c_op in '+-*'
+{{endif}}
+
+{{if type1 in ('object', 'int')}}
+#ifndef __Pyx_DEFINED_{{op_name}}_xint_{{type2}}
+#define __Pyx_DEFINED_{{op_name}}_xint_{{type2}}
+
+static PyObject* __Pyx_{{op_name}}_xint_{{type2}}(PyObject *op1, PyObject *op2, int inplace) {
+    {{if type2 in ('object', 'float') and c_op in '+-*'}}
+    if ({{is_type('op2', 'float')}}) {
+        double int_op1;
+        #if CYTHON_USE_PYLONG_INTERNALS
+        if (__Pyx_PyLong_IsCompact(op1)) {
+            Py_ssize_t compact_op1 = __Pyx_PyLong_CompactValue(op1);
+            {{if c_op == '+'}}
+            if (compact_op1 == 0) return __Pyx_NewRef(op2);
+            {{endif}}
+            int_op1 = (double) compact_op1;
+        } else
+        #endif
+        {
+            int_op1 = PyLong_AsDouble(op1);
+            if (unlikely((int_op1 == -1.) && PyErr_Occurred())) return NULL;
+
+            {{if c_op == '+'}}
+            #if !CYTHON_USE_PYLONG_INTERNALS
+            if (int_op1 == 0.) return __Pyx_NewRef(op2);
+            #endif
+            {{endif}}
+        }
+
+        double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely((float_op2 == -1.) && PyErr_Occurred())) return NULL;
+        #endif
+
+        return PyFloat_FromDouble(int_op1 {{c_op}} float_op2);
+    }
+    {{endif}}
+
+    // PyLong-op1 only handles exact PyLong as op2, everything else is left to op2.
+    // Thus, we can always pass on to op2 here.
+
+    // Avoid running into non-heap-type problems in Py<3.10 Limited API.
+    #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+    {
+        PyTypeObject *type_op2 = Py_TYPE(op2);
+        // Reverse operation => ignore 'InPlace' operator since it applies to op1, not op2.
+        binaryfunc slot_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_number, nb_{{slot_name}}, binaryfunc);
+        if (likely(slot_func)) {
+            PyObject *result = slot_func(op1, op2);
+            if (likely(result != Py_NotImplemented)) {
+                return result;
+            }
+            Py_DECREF(result);
+        }
+        // No "sq_concat" since Python doesn't try it on op2 and 'int' definitely doesn't have it.
+        {{if c_op == '*'}}
+        ssizeargfunc repeat_func = __Pyx_PyType_GetSubSlot(type_op2, tp_as_sequence, sq_repeat, ssizeargfunc);
+        if (likely(repeat_func)) {
+            Py_ssize_t count;
+            #if CYTHON_USE_PYLONG_INTERNALS
+            if (__Pyx_PyLong_IsCompact(op1)) {
+                count = __Pyx_PyLong_CompactValue(op1);
+            } else
+            #endif
+            {
+                count = PyLong_AsSsize_t(op1);
+                if (unlikely((count == -1) && PyErr_Occurred())) return NULL;
+            }
+            return repeat_func(op2, count);
+        }
+        {{endif}}
+
+        __Pyx_BinopTypeError(op1, op2, "{{c_op}}", inplace);
+        return NULL;
+
+    }
+    #else
+    return (inplace) ? {{inplace_op_name}}(op1, op2) : {{op_name}}(op1, op2);
+    #endif
+}
+#endif
+{{endif}}
+
+static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int inplace) {
+    {{if type1 in ('object', 'float') and c_op in '+-*'}}
+    if ({{is_type('op1', 'float')}}) {
+        {{if type2 in ('object', 'float')}}
+        if ({{is_type('op2', 'float')}}) {
+            double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
+            #if !CYTHON_ASSUME_SAFE_MACROS
+            if (unlikely((float_op2 == -1.) && PyErr_Occurred())) return NULL;
+            #endif
+            double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
+            #if !CYTHON_ASSUME_SAFE_MACROS
+            if (unlikely((float_op1 == -1.) && PyErr_Occurred())) return NULL;
+            #endif
+
+            return PyFloat_FromDouble(float_op1 {{c_op}} float_op2);
+        }
+        {{endif}}
+        return __Pyx_{{op_name}}_xfloat_{{type2}}(op1, op2, inplace);
+    }
+    {{endif}}
+
+    {{if type1 in ('object', 'int')}}
+    if ({{is_type('op1', 'int')}}) {
+        {{if type2 in ('object', 'int')}}
+        if ({{is_type('op2', 'int')}}) {
+            #if CYTHON_USE_PYLONG_INTERNALS
+            {{if c_op == '*'}}
+
+            if (__Pyx_PyLong_IsCompact(op1)) {
+                long long int_op1 = (long long) __Pyx_PyLong_CompactValue(op1);
+                if (int_op1 == 0) return __Pyx_NewRef(op1);
+
+                if (__Pyx_PyLong_IsCompact(op2)) {
+                    long long int_op2 = (long long) __Pyx_PyLong_CompactValue(op2);
+                    if (int_op2 == 0) return __Pyx_NewRef(op2);
+
+                    return PyLong_FromLongLong(int_op1 {{c_op}} int_op2);
+                }
+            }
+
+            {{else}}
+
+            if (__Pyx_PyLong_IsCompact(op1)) {
+                Py_ssize_t int_op1 = __Pyx_PyLong_CompactValue(op1);
+                {{if c_op in '+|^'}}
+                if (int_op1 == 0) return __Pyx_NewRef(op2);
+                {{elif c_op == '&'}}
+                if (int_op1 == 0) return __Pyx_NewRef(op1);
+                {{endif}}
+
+                if (__Pyx_PyLong_IsCompact(op2)) {
+                    Py_ssize_t int_op2 = __Pyx_PyLong_CompactValue(op2);
+                    {{if c_op in '+-|^'}}
+                    if (int_op2 == 0) return __Pyx_NewRef(op1);
+                    {{elif c_op == '&'}}
+                    if (int_op2 == 0) return __Pyx_NewRef(op2);
+                    {{endif}}
+
+                    return PyLong_FromSsize_t(int_op1 {{c_op}} int_op2);
+                }
+            }
+            {{endif}}
+
+            // op1 is not compact, but op2 might still hit the special case for '0':
+            // identity for '+-|^'  -> reuse op1
+            // zero     for '*&'    -> reuse op2
+            else if (__Pyx_PyLong_IsZero(op2)) return __Pyx_NewRef({{if c_op in '+-|^'}}op1{{else}}op2{{endif}});
+
+            #endif
+
+            binaryfunc slot_func = __Pyx_PyType_GetSubSlot(&PyLong_Type, tp_as_number, nb_{{slot_name}}, binaryfunc);
+            if (likely(slot_func)) {
+                return slot_func(op1, op2);
+            }
+        }
+        {{endif}}
+
+        return __Pyx_{{op_name}}_xint_{{type2}}(op1, op2, inplace);
+    }
+    {{endif}}
+
+    return (inplace) ? {{inplace_op_name}}(op1, op2) : {{op_name}}(op1, op2);
+}
+// !(PyPy/Graal/LimitedAPI)
+#endif
+
+
+/////////////// UnicodeEquals.proto ///////////////
+//@requires: PyObjectCompare{"return_obj": 0, "op": "Eq", "c_op": "==", "type1": "str", "type2": "str"}
+
+#define __Pyx_PyUnicode_Equals(s1, s2)  __Pyx_PyObject_CompareBoolEq_str_str(s1, s2, Py_EQ)
+
+
+/////////////// PyObjectCompare.proto ///////////////
+
+{{py: c_ret_type = 'PyObject*' if return_obj else 'int'}}
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if return_obj else 'Bool'}}{{op}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop); /*proto*/
+
+/////////////// PyObjectCompare ///////////////
+//@requires: StringTools.c::IncludeStringH
+
+{{py: c_ret_type = 'PyObject*' if return_obj else 'int'}}
+{{py: func_suffix = f"{'' if return_obj else 'Bool'}{op}"}}
+{{py: return_true = 'goto __pyx_return_true'}}
+{{py: return_false = 'goto __pyx_return_false'}}
+{{py: return_error = "return NULL" if return_obj else "return -1"}}
+{{py: c_op_reversed = {'==': '==', '!=': '!=', '<': '>=', '<=': '>', '>=': '<', '>': '<='}[c_op] }}
+{{py:
+check_functions = {
+    'float': "PyFloat_CheckExact",
+    'int': 'PyLong_CheckExact',
+    'str': 'PyUnicode_CheckExact',
+    'bytes': 'PyBytes_CheckExact',
+    'bytearray': 'PyByteArray_CheckExact',
+}
+}}
+{{py:
+def is_type(operand, expected, type1=type1, type2=type2, check_functions=check_functions):
+    assert operand in ('op1', 'op2'), operand
+    assert expected in check_functions, expected
+    type = type1 if operand == 'op1' else type2
+    if type == expected:
+        check = f"likely({operand} != Py_None)"
+    else:
+        function = check_functions[expected]
+        check = f"{function}({operand})"
+        other_type = type2 if operand == 'op1' else type1
+        if other_type == expected:
+            check = f"likely({check})"
+    return check
+}}
+
+// str comparisons
+
+{{if type1 in ('object', 'str') and type2 in ('object', 'str')}}
+#ifndef __Pyx_DEFINED_PyObject_CompareStrStr{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareStrStr{{func_suffix}}
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_CompareStrStr{{func_suffix}}(PyObject* s1, PyObject* s2) {
+    {{if op in 'EqNe'}}
+    #if __PYX_LIMITED_VERSION_HEX >= 0x030e0000
+    int result = PyUnicode_Equal(s1, s2);
+    #if !CYTHON_COMPILING_IN_CPYTHON
+    // Cannot fail in CPython, but might in others.
+    if (unlikely(result == -1)) {{return_error}};
+    #endif
+    if (result {{c_op}} 0) {{return_false}}; else {{return_true}};
+    #else
+    {{endif}}
+    int result = PyUnicode_Compare(s1, s2);
+    if (unlikely((result == -1) && PyErr_Occurred())) {{return_error}};
+    if (result {{c_op}} 0) {{return_true}}; else {{return_false}};
+    {{if op in 'EqNe'}}
+    #endif
+    {{endif}}
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
+}
+#endif
+// end of str comparisons
+{{endif}}
+
+// bytes/bytearray comparisons
+
+{{for s1_type in ('bytes', 'bytearray')}}
+{{for s2_type in ('bytes', 'bytearray')}}
+
+{{if type1 in ('object', s1_type) and type2 in ('object', s2_type)}}
+
+{{py: s1_prefix = "PyBytes" if s1_type == 'bytes' else "PyByteArray"}}
+{{py: s2_prefix = "PyBytes" if s2_type == 'bytes' else "PyByteArray"}}
+
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL)
+
+#ifndef __Pyx_DEFINED_PyObject_Compare{{s1_prefix}}{{s2_prefix}}{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_Compare{{s1_prefix}}{{s2_prefix}}{{func_suffix}}
+
+{{if op in 'EqNe'}}
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_prefix}}{{func_suffix}}(PyObject* s1, PyObject* s2) {
+    #if CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS
+    const char *ps1, *ps2;
+    Py_ssize_t length = {{s1_prefix}}_GET_SIZE(s1);
+    if (length != {{s2_prefix}}_GET_SIZE(s2)) {{return_false if op == 'Eq' else return_true}};
+
+    ps1 = {{s1_prefix}}_AS_STRING(s1);
+    ps2 = {{s2_prefix}}_AS_STRING(s2);
+
+    #else
+
+    char *ps1, *ps2;
+    Py_ssize_t length, length2;
+
+    {{if s1_type == 'bytes'}}
+    if (unlikely(PyBytes_AsStringAndSize(s1, &ps1, &length) == -1)) {{return_error}};
+    {{else}}
+    ps1 = __Pyx_PyByteArray_AsString(s1); if (unlikely(!ps1)) {{return_error}};
+    length = __Pyx_PyByteArray_GET_SIZE(s1); if (unlikely(length == -1)) {{return_error}};
+    {{endif}}
+
+    {{if s2_type == 'bytes'}}
+    if (unlikely(PyBytes_AsStringAndSize(s2, &ps2, &length2) == -1)) {{return_error}};
+    {{else}}
+    ps2 = __Pyx_PyByteArray_AsString(s2); if (unlikely(!ps2)) {{return_error}};
+    length2 = __Pyx_PyByteArray_GET_SIZE(s2); if (unlikely(length2 == -1)) {{return_error}};
+    {{endif}}
+
+    if (length != length2) {{return_false if op == 'Eq' else return_true}};
+
+    #endif
+
+    // len(s1) == len(s2)
+    {{if s1_type == 'bytearray'}}
+    if (length == 0) {{return_true if op == 'Eq' else return_false}};
+    {{else}}
+    // bytes: length >= 1  (empty bytes is singleton, and "s1 is not s2")
+    {{endif}}
+
+    if (ps1[0] != ps2[0]) {{return_false if op == 'Eq' else return_true}};
+    if (length == 1) {{return_true if op == 'Eq' else return_false}};
+
+    {
+        int cmp;
+        {{if s1_type == 'bytes' and s2_type == 'bytes'}}
+#if CYTHON_USE_UNICODE_INTERNALS && (PY_VERSION_HEX < 0x030B0000)
+        Py_hash_t hash1 = ((PyBytesObject*)s1)->ob_shash;
+        Py_hash_t hash2 = ((PyBytesObject*)s2)->ob_shash;
+        if (hash1 != hash2 && hash1 != -1 && hash2 != -1) {{return_false if op == 'Eq' else return_true}};
+#endif
+        {{endif}}
+        cmp = memcmp(ps1, ps2, (size_t)length);
+        if (cmp {{c_op}} 0) {{return_true}}; else {{return_false}};
+    }
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
+}
+
+{{else}}
+// !EqNe
+
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{s1_prefix}}{{s2_prefix}}{{func_suffix}}(PyObject* s1, PyObject* s2) {
+    Py_ssize_t cmp;
+    Py_ssize_t length1, length2, short_length;
+
+    #if CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS
+    const char *ps1, *ps2;
+    length1 = __Pyx_{{s1_prefix}}_GET_SIZE(s1);
+    length2 = __Pyx_{{s2_prefix}}_GET_SIZE(s2);
+
+    short_length = (length1 < length2) ? length1 : length2;
+    if (short_length == 0) {
+        if (length1 == 0) {{return_true if op in 'LtLe' else return_false}}; else {{return_false if op in 'LtLe' else return_true}};
+    }
+
+    ps1 = {{s1_prefix}}_AS_STRING(s1);
+    ps2 = {{s2_prefix}}_AS_STRING(s2);
+
+    #else
+    char *ps1, *ps2;
+
+    {{if s1_type == 'bytes'}}
+    if (unlikely(PyBytes_AsStringAndSize(s1, &ps1, &length1) == -1)) {{return_error}};
+    {{else}}
+    ps1 = __Pyx_PyByteArray_AsString(s1); if (unlikely(!ps1)) {{return_error}};
+    length1 = __Pyx_PyByteArray_GET_SIZE(s1); if (unlikely(length1 == -1)) {{return_error}};
+    {{endif}}
+
+    {{if s2_type == 'bytes'}}
+    if (unlikely(PyBytes_AsStringAndSize(s2, &ps2, &length2) == -1)) {{return_error}};
+    {{else}}
+    ps2 = __Pyx_PyByteArray_AsString(s2); if (unlikely(!ps2)) {{return_error}};
+    length2 = __Pyx_PyByteArray_GET_SIZE(s2); if (unlikely(length2 == -1)) {{return_error}};
+    {{endif}}
+
+    short_length = (length1 < length2) ? length1 : length2;
+    if (short_length == 0) {
+        if (length1 == 0) {{return_true if op in 'LtLe' else return_false}}; else {{return_false if op in 'LtLe' else return_true}};
+    }
+    #endif
+
+    cmp = (Py_ssize_t) ((const unsigned char*) ps1)[0] - (Py_ssize_t) ((const unsigned char*) ps2)[0];
+    if (cmp == 0 && short_length > 1) {
+        cmp = memcmp(ps1, ps2, (size_t)short_length);
+    }
+    if (cmp == 0) cmp = (length1 - length2);
+    if (cmp {{c_op}} 0) {{return_true}}; else {{return_false}};
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
+}
+{{endif}}
+
+// End of bytes/bytearray comparisons.
+#endif
+#endif
+{{endif}}
+
+{{endfor}}
+{{endfor}}
+
+// float/int comparisons
+
+{{if type1 in ('object', 'float') and type2 in ('object', 'int')}}
+// Less likely, non-inlined comparison of float and int.
+#ifndef __Pyx_DEFINED_PyObject_CompareFloatInt{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareFloatInt{{func_suffix}}
+static {{c_ret_type}} __Pyx_PyObject_CompareFloatInt{{func_suffix}}(PyObject *op1, PyObject *op2) {
+    double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
+    #if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(float_op1 == -1. && PyErr_Occurred())) {{return_error}};
+    #endif
+
+    #if CYTHON_USE_PYLONG_INTERNALS
+    if (__Pyx_PyLong_IsCompact(op2)) {
+        Py_ssize_t iop2 = __Pyx_PyLong_CompactValue(op2);
+        if (float_op1 {{c_op}} ((double)iop2)) {{return_true}}; else {{return_false}};
+    }
+    if (unlikely(!isfinite(float_op1))) {
+        // CPython just compares inf/nan to 0.0
+        if (float_op1 {{c_op}} 0.0) {{return_true}}; else {{return_false}};
+    } else {
+        // op2 != 0 (which would be compact)
+        int sign2 = __Pyx_PyLong_Sign(op2);
+        if (float_op1 >= 0.) {
+            if (sign2 < 0) {{return_true if op in 'NeGeGt' else return_false}};
+            // same sign - is float value compact while PyLong is not?
+            if (float_op1 < (double) (1L << PyLong_SHIFT)) {{return_true if op in 'NeLeLt' else return_false}};
+        } else {
+            if (sign2 > 0) {{return_true if op in 'NeLeLt' else return_false}};
+            // same sign - is float value compact while PyLong is not?
+            if (float_op1 > -(double) (1L << PyLong_SHIFT)) {{return_false if op in 'EqLeLt' else return_true}};
+        }
+    }
+    #else
+    if (unlikely(!isfinite(float_op1))) {
+        // CPython just compares inf/nan to 0.0
+        if (float_op1 {{c_op}} 0.0) {{return_true}}; else {{return_false}};
+    } else {
+        int overflow2;
+        // We know that we have an exact PyLong value, so we assume no exceptions.
+        long iop2 = PyLong_AsLongAndOverflow(op2, &overflow2);
+        if (likely(!overflow2)) {
+            if ((long long) iop2 >= (1LL << 53)) {
+                overflow2 = 1;
+            } else if ((long long) iop2 <= - (1LL << 53)) {
+                overflow2 = -1;
+            } else {
+                if (float_op1 {{c_op}} ((double) iop2)) {{return_true}}; else {{return_false}};
+            }
+        }
+        if (overflow2 > 0) {
+            if (float_op1 < ((double) (1LL << 53))) {{return_true if op in 'NeLeLt' else return_false}};
+        } else {
+            if (float_op1 > - ((double) (1LL << 53))) {{return_true if op in 'NeGeGt' else return_false}};
+        }
+    }
+    #endif
+
+    return {{'PyObject_RichCompare' if return_obj else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
+}
+#endif
+{{endif}}
+
+{{if type1 in ('object', 'int') and type2 in ('object', 'float')}}
+// Less likely, non-inlined comparison of int and float.
+#ifndef __Pyx_DEFINED_PyObject_CompareIntFloat{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareIntFloat{{func_suffix}}
+static {{c_ret_type}} __Pyx_PyObject_CompareIntFloat{{func_suffix}}(PyObject *op1, PyObject *op2) {
+    double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
+    #if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(float_op2 == -1. && PyErr_Occurred())) {{return_error}};
+    #endif
+
+    #if CYTHON_USE_PYLONG_INTERNALS
+    if (__Pyx_PyLong_IsCompact(op1)) {
+        Py_ssize_t iop1 = __Pyx_PyLong_CompactValue(op1);
+        if (((double)iop1) {{c_op}} float_op2) {{return_true}}; else {{return_false}};
+    }
+    if (unlikely(!isfinite(float_op2))) {
+        // CPython just compares inf/nan to 0.0
+        if (0.0 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
+    } else {
+        // op1 != 0 (which would be compact)
+        int sign1 = __Pyx_PyLong_Sign(op1);
+        if (float_op2 >= 0.) {
+            if (sign1 < 0) {{return_true if op in 'NeLeLt' else return_false}};
+            // same sign - is float value compact while PyLong is not?
+            if (float_op2 < (double) (1L << PyLong_SHIFT)) {{return_true if op in 'NeGeGt' else return_false}};
+        } else {
+            if (sign1 > 0) {{return_true if op in 'NeGeGt' else return_false}};
+            // same sign - is float value compact while PyLong is not?
+            if (float_op2 > -(double) (1L << PyLong_SHIFT)) {{return_false if op in 'EqGeGt' else return_true}};
+        }
+    }
+    #else
+    if (unlikely(!isfinite(float_op2))) {
+        // CPython just compares inf/nan to 0.0
+        if (0.0 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
+    } else {
+        int overflow1;
+        // We know that we have an exact PyLong value, so we assume no exceptions.
+        long iop1 = PyLong_AsLongAndOverflow(op1, &overflow1);
+        if (likely(!overflow1)) {
+            if ((long long) iop1 >= (1LL << 53)) {
+                overflow1 = 1;
+            } else if ((long long) iop1 <= - (1LL << 53)) {
+                overflow1 = -1;
+            } else {
+                if (((double) iop1) {{c_op}} float_op2) {{return_true}}; else {{return_false}};
+            }
+        }
+        if (overflow1 < 0) {
+            if (float_op2 > ((double) (1LL << 53))) {{return_true if op in 'NeLeLt' else return_false}};
+        } else {
+            if (float_op2 < - ((double) (1LL << 53))) {{return_true if op in 'NeGeGt' else return_false}};
+        }
+    }
+    #endif
+
+    return {{'PyObject_RichCompare' if return_obj else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
+}
+#endif
+{{endif}}
+
+{{if type1 in ('object', 'int') and type2 in ('object', 'int')}}
+{{py: from Cython.Utility import pylong_join }}
+
+#ifndef __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
+static {{c_ret_type}} __Pyx_PyObject_CompareIntInt{{func_suffix}}(PyObject *op1, PyObject *op2) {
+#if CYTHON_USE_PYLONG_INTERNALS
+    Py_ssize_t cmp = __Pyx_PyLong_CompareSignAndSize(op1, op2);
+    if (cmp == 0) {
+        Py_ssize_t size = __Pyx_PyLong_DigitCount(op1);
+        if (size > 0) {
+            const digit* digits1 = __Pyx_PyLong_Digits(op1);
+            const digit* digits2 = __Pyx_PyLong_Digits(op2);
+            if (size == 1) {
+                cmp = (Py_ssize_t) digits1[0] - (Py_ssize_t) digits2[0];
+            } else if ((size == 2) && (8 * sizeof(Py_ssize_t) >= 2 * PyLong_SHIFT)) {
+                cmp = (Py_ssize_t) {{pylong_join(2, 'digits1', 'size_t')}} - (Py_ssize_t) {{pylong_join(2, 'digits2', 'size_t')}};
+            } else {
+                for (Py_ssize_t i=size-1; i >= 0 && !cmp; --i) {
+                    cmp = (Py_ssize_t) digits1[i] - (Py_ssize_t) digits2[i];
+                }
+            }
+        }
+        if (cmp == 0) {{return_true if op in 'EqLeGe' else return_false}};
+        if (__Pyx_PyLong_IsNeg(op1)) cmp = -cmp;
+    }
+
+    {{if op == 'Eq'}}
+    {{return_false}};
+    {{elif op == 'Ne'}}
+    {{return_true}};
+    {{else}}
+    if (cmp < 0) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
+    {{endif}}
+
+#else
+    int overflow1, overflow2;
+    // We know that we have two exact PyLong values, so we assume no exceptions.
+    long long iop1 = PyLong_AsLongLongAndOverflow(op1, &overflow1);
+    long long iop2 = PyLong_AsLongLongAndOverflow(op2, &overflow2);
+    if (likely(!(overflow1 | overflow2))) {
+        if (iop1 {{c_op}} iop2) {{return_true}}; else {{return_false}};
+    } else if (overflow1 != overflow2) {
+        if (overflow1 {{c_op}} overflow2) {{return_true}}; else {{return_false}};
+    } else {
+        return {{'PyObject_RichCompare' if return_obj else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
+    }
+#endif
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
+}
+#endif
+
+// end of float/int comparisons
+{{endif}}
+
+// main comparison function
+
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{func_suffix}}_{{type1}}_{{type2}}(PyObject *op1, PyObject *op2, int pyop) {
+    CYTHON_UNUSED_VAR(pyop);
+
+    {{if type1 != 'object'}}
+    // For concrete types, the whole rest simplifies a lot if we handle None up front.
+    if (unlikely(op1 == Py_None)) {
+        {{if op == 'Eq'}}
+        if (op2 == Py_None) {{return_true}}; else {{if type2 != 'object'}}{{return_false}}{{else}}goto __pyx_richcmp{{endif}};
+        {{elif op == 'Ne'}}
+        if (op2 == Py_None) {{return_false}}; else {{if type2 != 'object'}}{{return_true}}{{else}}goto __pyx_richcmp{{endif}};
+        {{else}}
+        goto __pyx_richcmp;
+        {{endif}}
+    }
+    {{endif}}
+    {{if type2 != 'object'}}
+    if (unlikely(op2 == Py_None)) {
+        {{if op == 'Eq'}}
+        if (op1 == Py_None) {{return_true}}; else {{if type1 != 'object'}}{{return_false}}{{else}}goto __pyx_richcmp{{endif}};
+        {{elif op == 'Ne'}}
+        if (op1 == Py_None) {{return_false}}; else {{if type1 != 'object'}}{{return_true}}{{else}}goto __pyx_richcmp{{endif}};
+        {{else}}
+        goto __pyx_richcmp;
+        {{endif}}
+    }
+    {{endif}}
+
+    {{if (type1 == 'int' or type2 == 'int') and (type1 != 'float' and type2 != 'float')}}
+    if (op1 == op2) {{return_true if op in 'EqLeGe' else return_false}};
+    {{endif}}
+
+    {{if type1 in ('object', 'float')}}
+    if ({{is_type('op1', 'float')}}) {
+        {{if type2 in ('object', 'float')}}
+        if ({{is_type('op2', 'float')}}) {
+            double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
+            #if !CYTHON_ASSUME_SAFE_MACROS
+            if (unlikely(float_op1 == -1. && PyErr_Occurred())) {{return_error}};
+            #endif
+            double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
+            #if !CYTHON_ASSUME_SAFE_MACROS
+            if (unlikely(float_op2 == -1. && PyErr_Occurred())) {{return_error}};
+            #endif
+            if (float_op1 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
+        }
+        {{endif}}
+
+        {{if type2 in ('object', 'int')}}
+        if ({{is_type('op2', 'int')}}) {
+            return __Pyx_PyObject_CompareFloatInt{{func_suffix}}(op1, op2);
+        }
+        {{endif}}
+
+        goto __pyx_richcmp;
+    }
+    {{endif}}
+
+    {{if type1 in ('object', 'int')}}
+    if ({{is_type('op1', 'int')}}) {
+        if (op1 == op2) {{return_true if op in 'EqLeGe' else return_false}};
+
+        {{if type2 in ('object', 'int')}}
+        if ({{is_type('op2', 'int')}}) {
+            return __Pyx_PyObject_CompareIntInt{{func_suffix}}(op1, op2);
+        }
+        {{endif}}
+
+        {{if type2 in ('object', 'float')}}
+        if ({{is_type('op2', 'float')}}) {
+            return __Pyx_PyObject_CompareIntFloat{{func_suffix}}(op1, op2);
+        }
+        {{endif}}
+
+        goto __pyx_richcmp;
+    }
+    {{endif}}
+
+    {{for string_type in ('str', 'bytes', 'bytearray')}}
+    {{if type1 in ('object', string_type) and type2 in ('object', string_type)}}
+
+    {{if string_type != 'str'}}#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL){{endif}}
+    if ({{is_type('op1', string_type)}}) {
+        // Catch interned and identical strings as well as the empty string.
+        if (op1 == op2) {{return_true if op in 'EqLeGe' else return_false}};
+
+        if ({{is_type('op2', string_type)}}) {
+            {{if string_type == 'bytes'}}
+            return __Pyx_PyObject_ComparePyBytesPyBytes{{func_suffix}}(op1, op2);
+            {{elif string_type == 'bytearray'}}
+            return __Pyx_PyObject_ComparePyByteArrayPyByteArray{{func_suffix}}(op1, op2);
+            {{else}}
+            return __Pyx_PyObject_CompareStrStr{{func_suffix}}(op1, op2);
+            {{endif}}
+        }
+
+        {{if string_type == 'bytes' and type2 in ('object', 'bytearray')}}
+        if ({{is_type('op2', 'bytearray')}}) {
+            return __Pyx_PyObject_ComparePyBytesPyByteArray{{func_suffix}}(op1, op2);
+        }
+        {{elif string_type == 'bytearray' and type2 in ('object', 'bytes')}}
+        if ({{is_type('op2', 'bytes')}}) {
+            return __Pyx_PyObject_ComparePyByteArrayPyBytes{{func_suffix}}(op1, op2);
+        }
+        {{endif}}
+
+        goto __pyx_richcmp;
+    }
+    {{if string_type != 'str'}}#endif{{endif}}
+
+    {{endif}}
+    {{endfor}}
+
+    // avoid unused labels
+    if ((0)) goto __pyx_richcmp;
+    if ((0)) {{return_true}};
+    if ((0)) {{return_false}};
+
+__pyx_richcmp:
+    return {{'PyObject_RichCompare' if return_obj else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
+
+__pyx_return_true:
+    {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
+__pyx_return_false:
+    {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
+}
+
+
+/////////////// PyLongCompare.proto ///////////////
 
 {{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
-static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, long inplace); /*proto*/
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyLong_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, long inplace); /*proto*/
 
-/////////////// PyIntCompare ///////////////
+/////////////// PyLongCompare ///////////////
 
 {{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
 {{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
@@ -1038,40 +1997,29 @@ return_compare = (
     )
 }}
 
-static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, long inplace) {
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyLong_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, long inplace) {
     CYTHON_MAYBE_UNUSED_VAR(intval);
     CYTHON_UNUSED_VAR(inplace);
     if (op1 == op2) {
         {{return_true if op == 'Eq' else return_false}};
     }
 
-    #if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_CheckExact({{pyval}}))) {
-        const long {{'a' if order == 'CObj' else 'b'}} = intval;
-        long {{ival}} = PyInt_AS_LONG({{pyval}});
-        {{return_compare('a', 'b', c_op)}}
-    }
-    #endif
-
     #if CYTHON_USE_PYLONG_INTERNALS
     if (likely(PyLong_CheckExact({{pyval}}))) {
         int unequal;
         unsigned long uintval;
-        Py_ssize_t size = Py_SIZE({{pyval}});
-        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
+        Py_ssize_t size = __Pyx_PyLong_DigitCount({{pyval}});
+        const digit* digits = __Pyx_PyLong_Digits({{pyval}});
         if (intval == 0) {
-            // == 0  =>  Py_SIZE(pyval) == 0
-            {{return_compare('size', '0', c_op)}}
+            {{return_compare('__Pyx_PyLong_IsZero(%s)' % pyval, '1', c_op)}}
         } else if (intval < 0) {
-            // < 0  =>  Py_SIZE(pyval) < 0
-            if (size >= 0)
+            if (__Pyx_PyLong_IsNonNeg({{pyval}}))
                 {{return_false if op == 'Eq' else return_true}};
             // both are negative => can use absolute values now.
             intval = -intval;
-            size = -size;
         } else {
             // > 0  =>  Py_SIZE(pyval) > 0
-            if (size <= 0)
+            if (__Pyx_PyLong_IsNeg({{pyval}}))
                 {{return_false if op == 'Eq' else return_true}};
         }
         // After checking that the sign is the same (and excluding 0), now compare the absolute values.
@@ -1094,32 +2042,27 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
 
     if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
-#if CYTHON_COMPILING_IN_LIMITED_API
-        double {{ival}} = __pyx_PyFloat_AsDouble({{pyval}});
-#else
-        double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
-#endif
+        double {{ival}} = __Pyx_PyFloat_AS_DOUBLE({{pyval}});
         {{return_compare('(double)a', '(double)b', c_op)}}
     }
 
-    return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
-        PyObject_RichCompare(op1, op2, Py_{{op.upper()}}));
+    return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
 }
 
 
-/////////////// PyIntBinop.proto ///////////////
+/////////////// PyLongBinop.proto ///////////////
 
 {{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
 #if !CYTHON_COMPILING_IN_PYPY
-static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check); /*proto*/
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyLong_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check); /*proto*/
 #else
-#define __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(op1, op2, intval, inplace, zerodivision_check) \
-    {{if op in ('Eq', 'Ne')}}{{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(PyObject_RichCompare(op1, op2, Py_{{op.upper()}}))
+#define __Pyx_PyLong_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(op1, op2, intval, inplace, zerodivision_check) \
+    {{if op in ('Eq', 'Ne')}}{{'PyObject_RichCompare' if ret_type.is_pyobject else 'PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}})
     {{else}}(inplace ? PyNumber_InPlace{{op}}(op1, op2) : PyNumber_{{op}}(op1, op2))
     {{endif}}
 #endif
 
-/////////////// PyIntBinop ///////////////
+/////////////// PyLongBinop ///////////////
 
 #if !CYTHON_COMPILING_IN_PYPY
 {{py: from Cython.Utility import pylong_join }}
@@ -1128,7 +2071,7 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
 {{py: return_true = 'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}}
 {{py: return_false = 'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}}
 {{py: slot_name = {'TrueDivide': 'true_divide', 'FloorDivide': 'floor_divide'}.get(op, op.lower()) }}
-{{py: cfunc_name = '__Pyx_PyInt_%s%s%s' % ('' if ret_type.is_pyobject else 'Bool', op, order)}}
+{{py: cfunc_name = f"__Pyx_PyLong_{'' if ret_type.is_pyobject else 'Bool'}{op}{order}" }}
 {{py:
 c_op = {
     'Add': '+', 'Subtract': '-', 'Multiply': '*', 'Remainder': '%', 'TrueDivide': '/', 'FloorDivide': '/',
@@ -1146,9 +2089,260 @@ def zerodiv_check(operand, optype='integer', _is_mod=op == 'Remainder', _needs_c
     ) if _needs_check else '')
 }}
 
-static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check) {
-    CYTHON_MAYBE_UNUSED_VAR(intval);
+static {{c_ret_type}} __Pyx_Fallback_{{cfunc_name}}(PyObject *op1, PyObject *op2, int inplace) {
+    {{if op in ('Eq', 'Ne')}}
+    CYTHON_UNUSED_VAR(inplace);
+    return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
+    {{else}}
+    return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
+    {{endif}}
+}
+
+#if CYTHON_USE_PYLONG_INTERNALS
+{{if op == 'Lshift'}}
+#if __clang__ || __GNUC__
+// left-shift by more than the width of the number is undefined behaviour.
+// We do check it (and test that it gives the right answer though).
+__attribute__((no_sanitize("shift")))
+#endif
+{{endif}}
+static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check) {
     CYTHON_MAYBE_UNUSED_VAR(inplace);
+    CYTHON_UNUSED_VAR(zerodivision_check);
+
+    const long {{'a' if order == 'CObj' else 'b'}} = intval;
+    long {{ival}};
+    {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
+    const PY_LONG_LONG ll{{'a' if order == 'CObj' else 'b'}} = intval;
+    PY_LONG_LONG ll{{ival}};
+    {{endif}}
+    {{if op == 'Rshift' or op == 'Lshift'}}
+// shifting negative numbers is technically implementation defined on C, and
+// C++ before C++20. Most implementation do the right thing though so
+// special case ones we know are good.
+#if (defined(__cplusplus) && __cplusplus >= 202002L) \
+        || (defined(__GNUC__) || (defined(__clang__))) && \
+            (defined(__arm__) || defined(__x86_64__) || defined(__i386__)) \
+        || (defined(_MSC_VER) && \
+            (defined(_M_ARM) || defined(_M_AMD64) || defined(_M_IX86)))
+    const int negative_shift_works = 1;
+#else
+    const int negative_shift_works = 0;
+#endif
+    {{endif}}
+
+    // special cases for 0: + - * % / // | ^ & >> <<
+    if (unlikely(__Pyx_PyLong_IsZero({{pyval}}))) {
+        {{if order == 'CObj' and c_op in '%/'}}
+        // division by zero!
+        {{zerodiv_check('0')}}
+        {{elif order == 'CObj' and c_op in '+-|^>><<'}}
+        // x == x+0 == x-0 == x|0 == x^0 == x>>0 == x<<0
+        return __Pyx_NewRef(op1);
+        {{elif order == 'CObj' and c_op in '*&'}}
+        // 0 == x*0 == x&0
+        return __Pyx_NewRef(op2);
+        {{elif order == 'ObjC' and c_op in '+|^'}}
+        // x == 0+x == 0|x == 0^x
+        return __Pyx_NewRef(op2);
+        {{elif order == 'ObjC' and c_op == '-'}}
+        // -x == 0-x
+        return PyLong_FromLong(-intval);
+        {{elif order == 'ObjC' and (c_op in '*%&>><<' or op == 'FloorDivide')}}
+        // 0 == 0*x == 0%x == 0&x == 0>>x == 0<<x == 0//x
+        return __Pyx_NewRef(op1);
+        {{endif}}
+    }
+
+    // IsZero/IsPos/IsNeg are practically the same and can probably be decided almost for free.
+    const int is_positive = __Pyx_PyLong_IsPos({{pyval}});
+
+    {{if c_op == '&'}}
+    // special case for &-ing arbitrarily large numbers with known single digit operands
+    if ((intval & PyLong_MASK) == intval) {
+        // Calling PyLong_CompactValue() requires the PyLong value to be compact, we only need the last digit.
+        long last_digit = (long) __Pyx_PyLong_Digits({{pyval}})[0];
+        long result = intval & (likely(is_positive) ? last_digit : (PyLong_MASK - last_digit + 1));
+        return PyLong_FromLong(result);
+    }
+    {{endif}}
+
+    // Handle most common case (fits into 'long') first to avoid indirect branch and optimise branch prediction.
+    const digit* digits = __Pyx_PyLong_Digits({{pyval}});
+    const Py_ssize_t size = __Pyx_PyLong_DigitCount({{pyval}});
+    if (likely(size == 1)) {
+        {{ival}} = (long) digits[0];
+        if (!is_positive) {{ival}} *= -1;
+    } else {
+        {{for _size in range(2, 5)}}
+        if (size == {{_size}} && 8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
+            {{ival}} = (long) {{pylong_join(_size, 'digits')}};
+            if (!is_positive) {{ival}} *= -1;
+            goto calculate_long;
+        {{if op != 'TrueDivide'}}
+        } else if (size == {{_size}} && 8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}) {
+            ll{{ival}} = (PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
+            if (!is_positive) ll{{ival}} *= -1;
+            goto calculate_long_long;
+        {{endif}}
+        } else
+        // size doesn't fit into a long or PY_LONG_LONG any more
+        {{endfor}}
+        {}
+
+        {{if op in ('Eq', 'Ne')}}
+        #if PyLong_SHIFT < 30 && PyLong_SHIFT != 15
+        // unusual setup - your fault
+        return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
+            PyLong_Type.tp_richcompare({{'op1, op2' if order == 'ObjC' else 'op2, op1'}}, Py_{{op.upper()}}));
+        #else
+        // too large for the long values we allow => definitely not equal
+        {{return_false if op == 'Eq' else return_true}};
+        #endif
+        {{else}}
+        return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+        {{endif}}
+    }
+
+    calculate_long:
+
+    {{if op in ('Eq', 'Ne')}}
+        if (a {{c_op}} b) {
+            {{return_true}};
+        } else {
+            {{return_false}};
+        }
+    {{elif c_op == '*'}}
+        // Multiplying a 'long' value with a <= 30 bits constant can give a 'long long' value.
+        // Note that we constrain the bit count of the PyLong in the unpacking code above.
+        CYTHON_UNUSED_VAR(a);
+        CYTHON_UNUSED_VAR(b);
+        ll{{ival}} = {{ival}};
+        goto calculate_long_long;
+    {{elif c_op == '%'}}
+        {
+            // see CMath.c :: ModInt utility code
+            long x = a % b;
+            x += ((x != 0) & ((x ^ b) < 0)) * b;
+            return PyLong_FromLong(x);
+        }
+    {{elif op == 'TrueDivide'}}
+        if ((8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53)))
+                || __Pyx_PyLong_DigitCount({{pyval}}) <= 52 / PyLong_SHIFT) {
+            return PyFloat_FromDouble((double)a / (double)b);
+        }
+        return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+    {{elif op == 'FloorDivide'}}
+        {
+            long q, r;
+            // see CMath.c :: DivInt utility code
+            q = a / b;
+            r = a - q*b;
+            q -= ((r != 0) & ((r ^ b) < 0));
+            return PyLong_FromLong(q);
+        }
+    {{else}}
+        {{if op == 'Rshift' or op == 'Lshift'}}
+        if ((!negative_shift_works) && unlikely(a < 0)) goto fallback;
+        {{endif}}
+
+        {
+            long x;
+            {{if op == 'Rshift'}}
+            if (unlikely(b >= (long) (sizeof(long)*8))) {
+                x = (a < 0) ? -1 : 0;
+            } else
+            {{endif}}
+            x = a {{c_op}} b;
+
+            {{if op == 'Lshift'}}
+            if (unlikely(!(b < (long) (sizeof(long)*8) && a == x >> b)) && a) {
+                ll{{ival}} = {{ival}};
+                goto calculate_long_long;
+            }
+            {{endif}}
+
+            return PyLong_FromLong(x);
+        }
+    {{endif}}
+
+    {{if op != 'TrueDivide'}}
+    calculate_long_long:
+    {{if op == 'Eq'}}
+        // One operand fits into a 30 bit 'long', the other doesn't => not equal.
+        {{return_false}};
+    {{elif op == 'Ne'}}
+        // One operand fits into a 30 bit 'long', the other doesn't => not equal.
+        {{return_true}};
+    {{elif c_op == '%'}}
+        {
+            // see CMath.c :: ModInt utility code
+            PY_LONG_LONG llx = lla % llb;
+            llx += ((llx != 0) & ((llx ^ llb) < 0)) * llb;
+            return PyLong_FromLongLong(llx);
+        }
+    {{elif op == 'FloorDivide'}}
+        {
+            PY_LONG_LONG q, r;
+            // see CMath.c :: DivInt utility code
+            q = lla / llb;
+            r = lla - q*llb;
+            q -= ((r != 0) & ((r ^ llb) < 0));
+            return PyLong_FromLongLong(q);
+        }
+    {{else}}
+        {{if op == 'LShift' or op == 'Rshift'}}
+        if ((!negative_shift_works) && unlikely(lla < 0)) goto fallback;
+        {{endif}}
+
+        {
+            PY_LONG_LONG llx;
+            {{if op == 'Rshift'}}
+            if (unlikely(llb >= (long long) (sizeof(long long)*8))) {
+                llx = (lla < 0) ? -1 : 0;
+            } else
+            {{endif}}
+            llx = lla {{c_op}} llb;
+
+            {{if op == 'Lshift'}}
+            if (unlikely(lla != llx >> llb)) goto fallback;
+            {{endif}}
+            return PyLong_FromLongLong(llx);
+        }
+    {{endif}}
+
+{{if op == 'Lshift' or op == 'Rshift'}}
+    fallback:
+        return __Pyx_Fallback_{{cfunc_name}}(op1, op2, inplace);
+{{endif}}
+
+    {{endif}}{{# if op != 'TrueDivide' #}}
+}
+#endif
+
+{{if c_op in '+-*' or op in ('TrueDivide', 'Eq', 'Ne')}}
+static {{c_ret_type}} __Pyx_Float_{{cfunc_name}}(PyObject *float_val, long intval, int zerodivision_check) {
+    CYTHON_UNUSED_VAR(zerodivision_check);
+
+    const long {{'a' if order == 'CObj' else 'b'}} = intval;
+    double {{ival}} = __Pyx_PyFloat_AS_DOUBLE(float_val);
+    {{if op in ('Eq', 'Ne')}}
+        if ((double)a {{c_op}} (double)b) {
+            {{return_true}};
+        } else {
+            {{return_false}};
+        }
+    {{else}}
+        double result;
+        {{zerodiv_check('b', 'float')}}
+        result = ((double)a) {{c_op}} (double)b;
+        return PyFloat_FromDouble(result);
+    {{endif}}
+}
+{{endif}}
+
+static CYTHON_INLINE {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check) {
+    CYTHON_MAYBE_UNUSED_VAR(intval);
     CYTHON_UNUSED_VAR(zerodivision_check);
 
     {{if op in ('Eq', 'Ne')}}
@@ -1157,271 +2351,22 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
     }
     {{endif}}
 
-    #if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_CheckExact({{pyval}}))) {
-        const long {{'a' if order == 'CObj' else 'b'}} = intval;
-        {{if c_op in '+-%' or op == 'FloorDivide'}}
-        long x;
-        {{endif}}
-        long {{ival}} = PyInt_AS_LONG({{pyval}});
-        {{zerodiv_check('b')}}
-
-        {{if op in ('Eq', 'Ne')}}
-        if (a {{c_op}} b) {
-            {{return_true}};
-        } else {
-            {{return_false}};
-        }
-        {{elif c_op in '+-'}}
-            // adapted from intobject.c in Py2.7:
-            // casts in the line below avoid undefined behaviour on overflow
-            x = (long)((unsigned long)a {{c_op}} b);
-            if (likely((x^a) >= 0 || (x^{{ '~' if op == 'Subtract' else '' }}b) >= 0))
-                return PyInt_FromLong(x);
-            return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
-        {{elif c_op == '%'}}
-            // see ExprNodes.py :: mod_int_utility_code
-            x = a % b;
-            x += ((x != 0) & ((x ^ b) < 0)) * b;
-            return PyInt_FromLong(x);
-        {{elif op == 'TrueDivide'}}
-            if (8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53))) {
-                return PyFloat_FromDouble((double)a / (double)b);
-            }
-            // let Python do the rounding
-            return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
-        {{elif op == 'FloorDivide'}}
-            // INT_MIN / -1  is the only case that overflows
-            if (unlikely(b == -1 && ((unsigned long)a) == 0-(unsigned long)a))
-                return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
-            else {
-                long q, r;
-                // see ExprNodes.py :: div_int_utility_code
-                q = a / b;
-                r = a - q*b;
-                q -= ((r != 0) & ((r ^ b) < 0));
-                x = q;
-            }
-            return PyInt_FromLong(x);
-        {{elif op == 'Lshift'}}
-            if (likely(b < (long) (sizeof(long)*8) && a == (a << b) >> b) || !a) {
-                return PyInt_FromLong(a {{c_op}} b);
-            }
-        {{elif c_op == '*'}}
-#ifdef HAVE_LONG_LONG
-            if (sizeof(PY_LONG_LONG) > sizeof(long)) {
-                PY_LONG_LONG result = (PY_LONG_LONG)a {{c_op}} (PY_LONG_LONG)b;
-                return (result >= LONG_MIN && result <= LONG_MAX) ?
-                    PyInt_FromLong((long)result) : PyLong_FromLongLong(result);
-            }
-#endif
-#if CYTHON_USE_TYPE_SLOTS
-            return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
-#else
-            return PyNumber_{{op}}(op1, op2);
-#endif
-        {{else}}
-            // other operations are safe, no overflow
-            return PyInt_FromLong(a {{c_op}} b);
-        {{endif}}
-    }
-    #endif
-
     #if CYTHON_USE_PYLONG_INTERNALS
     if (likely(PyLong_CheckExact({{pyval}}))) {
-        const long {{'a' if order == 'CObj' else 'b'}} = intval;
-        long {{ival}}{{if op not in ('Eq', 'Ne')}}, x{{endif}};
-        {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
-#ifdef HAVE_LONG_LONG
-        const PY_LONG_LONG ll{{'a' if order == 'CObj' else 'b'}} = intval;
-        PY_LONG_LONG ll{{ival}}, llx;
-#endif
-        {{endif}}
-        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
-        const Py_ssize_t size = Py_SIZE({{pyval}});
-        {{if c_op == '&'}}
-        // special case for &-ing arbitrarily large numbers with known single digit operands
-        if ((intval & PyLong_MASK) == intval) {
-            long result = 0;
-            if(likely(size)) {
-                result = intval & (likely(size>0) ? digits[0] : (PyLong_MASK - digits[0] + 1));
-            }
-            return PyLong_FromLong(result);
-        }
-        {{endif}}
-        // special cases for 0: + - * % / // | ^ & >> <<
-        if (unlikely(size == 0)) {
-            {{if order == 'CObj' and c_op in '%/'}}
-            // division by zero!
-            {{zerodiv_check('0')}}
-            {{elif order == 'CObj' and c_op in '+-|^>><<'}}
-            // x == x+0 == x-0 == x|0 == x^0 == x>>0 == x<<0
-            return __Pyx_NewRef(op1);
-            {{elif order == 'CObj' and c_op in '*&'}}
-            // 0 == x*0 == x&0
-            return __Pyx_NewRef(op2);
-            {{elif order == 'ObjC' and c_op in '+|^'}}
-            // x == 0+x == 0|x == 0^x
-            return __Pyx_NewRef(op2);
-            {{elif order == 'ObjC' and c_op == '-'}}
-            // -x == 0-x
-            return PyLong_FromLong(-intval);
-            {{elif order == 'ObjC' and (c_op in '*%&>><<' or op == 'FloorDivide')}}
-            // 0 == 0*x == 0%x == 0&x == 0>>x == 0<<x == 0//x
-            return __Pyx_NewRef(op1);
-            {{endif}}
-        }
-        // handle most common case first to avoid indirect branch and optimise branch prediction
-        if (likely(__Pyx_sst_abs(size) <= 1)) {
-            {{ival}} = likely(size) ? digits[0] : 0;
-            if (size == -1) {{ival}} = -{{ival}};
-        } else {
-            switch (size) {
-                {{for _size in range(2, 5)}}
-                {{for _case in (-_size, _size)}}
-                case {{_case}}:
-                    if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
-                        {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
-                        break;
-                    {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
-                    #ifdef HAVE_LONG_LONG
-                    } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}) {
-                        ll{{ival}} = {{'-' if _case < 0 else ''}}(PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
-                        goto long_long;
-                    #endif
-                    {{endif}}
-                    }
-                    // if size doesn't fit into a long or PY_LONG_LONG anymore, fall through to default
-                    CYTHON_FALLTHROUGH;
-                {{endfor}}
-                {{endfor}}
-
-                {{if op in ('Eq', 'Ne')}}
-                #if PyLong_SHIFT < 30 && PyLong_SHIFT != 15
-                // unusual setup - your fault
-                default: return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
-                    PyLong_Type.tp_richcompare({{'op1, op2' if order == 'ObjC' else 'op2, op1'}}, Py_{{op.upper()}}));
-                #else
-                // too large for the long values we allow => definitely not equal
-                default: {{return_false if op == 'Eq' else return_true}};
-                #endif
-                {{else}}
-                default: return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
-                {{endif}}
-            }
-        }
-        {{if op in ('Eq', 'Ne')}}
-            if (a {{c_op}} b) {
-                {{return_true}};
-            } else {
-                {{return_false}};
-            }
-        {{else}}
-            {{if c_op == '*'}}
-                (void)a; (void)b;
-                #ifdef HAVE_LONG_LONG
-                ll{{ival}} = {{ival}};
-                goto long_long;
-                #else
-                return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
-                #endif
-            {{elif c_op == '%'}}
-                // see ExprNodes.py :: mod_int_utility_code
-                x = a % b;
-                x += ((x != 0) & ((x ^ b) < 0)) * b;
-            {{elif op == 'TrueDivide'}}
-                if ((8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53)))
-                        || __Pyx_sst_abs(size) <= 52 / PyLong_SHIFT) {
-                    return PyFloat_FromDouble((double)a / (double)b);
-                }
-                return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
-            {{elif op == 'FloorDivide'}}
-                {
-                    long q, r;
-                    // see ExprNodes.py :: div_int_utility_code
-                    q = a / b;
-                    r = a - q*b;
-                    q -= ((r != 0) & ((r ^ b) < 0));
-                    x = q;
-                }
-            {{else}}
-                x = a {{c_op}} b;
-                {{if op == 'Lshift'}}
-#ifdef HAVE_LONG_LONG
-                if (unlikely(!(b < (long) (sizeof(long)*8) && a == x >> b)) && a) {
-                    ll{{ival}} = {{ival}};
-                    goto long_long;
-                }
-#else
-                if (likely(b < (long) (sizeof(long)*8) && a == x >> b) || !a) /* execute return statement below */
-#endif
-                {{endif}}
-            {{endif}}
-            return PyLong_FromLong(x);
-
-        {{if op != 'TrueDivide'}}
-#ifdef HAVE_LONG_LONG
-        long_long:
-            {{if c_op == '%'}}
-                // see ExprNodes.py :: mod_int_utility_code
-                llx = lla % llb;
-                llx += ((llx != 0) & ((llx ^ llb) < 0)) * llb;
-            {{elif op == 'FloorDivide'}}
-                {
-                    PY_LONG_LONG q, r;
-                    // see ExprNodes.py :: div_int_utility_code
-                    q = lla / llb;
-                    r = lla - q*llb;
-                    q -= ((r != 0) & ((r ^ llb) < 0));
-                    llx = q;
-                }
-            {{else}}
-                llx = lla {{c_op}} llb;
-                {{if op == 'Lshift'}}
-                if (likely(lla == llx >> llb)) /* then execute 'return' below */
-                {{endif}}
-            {{endif}}
-            return PyLong_FromLongLong(llx);
-#endif
-        {{endif}}{{# if op != 'TrueDivide' #}}
-        {{endif}}{{# if op in ('Eq', 'Ne') #}}
+        return __Pyx_Unpacked_{{cfunc_name}}(op1, op2, intval, inplace, zerodivision_check);
     }
     #endif
 
     {{if c_op in '+-*' or op in ('TrueDivide', 'Eq', 'Ne')}}
     if (PyFloat_CheckExact({{pyval}})) {
-        const long {{'a' if order == 'CObj' else 'b'}} = intval;
-#if CYTHON_COMPILING_IN_LIMITED_API
-        double {{ival}} = __pyx_PyFloat_AsDouble({{pyval}});
-#else
-        double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
-#endif
-        {{if op in ('Eq', 'Ne')}}
-            if ((double)a {{c_op}} (double)b) {
-                {{return_true}};
-            } else {
-                {{return_false}};
-            }
-        {{else}}
-            double result;
-            {{zerodiv_check('b', 'float')}}
-            // copied from floatobject.c in Py3.5:
-            PyFPE_START_PROTECT("{{op.lower() if not op.endswith('Divide') else 'divide'}}", return NULL)
-            result = ((double)a) {{c_op}} (double)b;
-            PyFPE_END_PROTECT(result)
-            return PyFloat_FromDouble(result);
-        {{endif}}
+        return __Pyx_Float_{{cfunc_name}}({{pyval}}, intval, zerodivision_check);
     }
     {{endif}}
 
-    {{if op in ('Eq', 'Ne')}}
-    return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
-        PyObject_RichCompare(op1, op2, Py_{{op.upper()}}));
-    {{else}}
-    return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
-    {{endif}}
+    return __Pyx_Fallback_{{cfunc_name}}(op1, op2, inplace);
 }
-#endif
+#endif  /* !CYTHON_COMPILING_IN_PYPY */
+
 
 /////////////// PyFloatBinop.proto ///////////////
 
@@ -1430,7 +2375,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
 static {{c_ret_type}} __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace, int zerodivision_check); /*proto*/
 #else
 #define __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(op1, op2, floatval, inplace, zerodivision_check) \
-    {{if op in ('Eq', 'Ne')}}{{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(PyObject_RichCompare(op1, op2, Py_{{op.upper()}}))
+    {{if op in ('Eq', 'Ne')}}{{'PyObject_RichCompare' if ret_type.is_pyobject else 'PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}})
     {{elif op == 'Divide'}}((inplace ? __Pyx_PyNumber_InPlaceDivide(op1, op2) : __Pyx_PyNumber_Divide(op1, op2)))
     {{else}}(inplace ? PyNumber_InPlace{{op}}(op1, op2) : PyNumber_{{op}}(op1, op2))
     {{endif}}
@@ -1463,9 +2408,9 @@ def zerodiv_check(operand, _is_mod=op == 'Remainder', _needs_check=(order == 'CO
 
 static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatval, int inplace, int zerodivision_check) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
-    double {{fval}}{{if op not in ('Eq', 'Ne')}}, result{{endif}};
-    // Prevent "unused" warnings.
-    (void)inplace; (void)zerodivision_check;
+    double {{fval}};
+    CYTHON_UNUSED_VAR(inplace);
+    CYTHON_UNUSED_VAR(zerodivision_check);
 
     {{if op in ('Eq', 'Ne')}}
     if (op1 == op2) {
@@ -1474,53 +2419,54 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
     {{endif}}
 
     if (likely(PyFloat_CheckExact({{pyval}}))) {
-#if CYTHON_COMPILING_IN_LIMITED_API
-        {{fval}} = __pyx_PyFloat_AsDouble({{pyval}});
-#else
-        {{fval}} = PyFloat_AS_DOUBLE({{pyval}});
-#endif
+        {{fval}} = __Pyx_PyFloat_AS_DOUBLE({{pyval}});
         {{zerodiv_check(fval)}}
     } else
-
-    #if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_CheckExact({{pyval}}))) {
-        {{fval}} = (double) PyInt_AS_LONG({{pyval}});
-        {{zerodiv_check(fval)}}
-    } else
-    #endif
 
     if (likely(PyLong_CheckExact({{pyval}}))) {
         #if CYTHON_USE_PYLONG_INTERNALS
-        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
-        const Py_ssize_t size = Py_SIZE({{pyval}});
-        switch (size) {
-            case  0: {{fval}} = 0.0; {{zerodiv_check(fval)}} break;
-            case -1: {{fval}} = -(double) digits[0]; break;
-            case  1: {{fval}} = (double) digits[0]; break;
+        if (__Pyx_PyLong_IsZero({{pyval}})) {
+            {{fval}} = 0.0;
+            {{zerodiv_check(fval)}}
+            goto digits_done;
+        } else if (__Pyx_PyLong_IsCompact({{pyval}})) {
+            {{fval}} = (double) __Pyx_PyLong_CompactValue({{pyval}});
+            goto digits_done;
+        } else {
+            const digit* digits = __Pyx_PyLong_Digits({{pyval}});
+            const Py_ssize_t size = __Pyx_PyLong_DigitCount({{pyval}});
             {{for _size in (2, 3, 4)}}
-            case -{{_size}}:
-            case {{_size}}:
-                if (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT && ((8 * sizeof(unsigned long) < 53) || ({{_size-1}} * PyLong_SHIFT < 53))) {
-                    {{fval}} = (double) {{pylong_join(_size, 'digits')}};
-                    // let CPython do its own float rounding from 2**53 on (max. consecutive integer in double float)
-                    if ((8 * sizeof(unsigned long) < 53) || ({{_size}} * PyLong_SHIFT < 53) || ({{fval}} < (double) ((PY_LONG_LONG)1 << 53))) {
-                        if (size == {{-_size}})
-                            {{fval}} = -{{fval}};
-                        break;
-                    }
+            if (size <= {{_size}} && (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT && ((8 * sizeof(unsigned long) < 53) || ({{_size-1}} * PyLong_SHIFT < 53)))) {
+                {{fval}} = (double) {{pylong_join(_size, 'digits')}};
+                // let CPython do its own float rounding from 2**53 on (max. consecutive integer in double float)
+                if ((8 * sizeof(unsigned long) < 53) || ({{_size}} * PyLong_SHIFT < 53) || ({{fval}} < (double) ((PY_LONG_LONG)1 << 53))) {
+                    if (__Pyx_PyLong_IsNeg({{pyval}})) {{fval}} = -{{fval}};
+                    goto digits_done;
                 }
-                // Fall through if size doesn't fit safely into a double anymore.
-                // It may not be obvious that this is a safe fall-through given the "fval < 2**53"
-                // check above.  However, the number of digits that CPython uses for a given PyLong
-                // value is minimal, and together with the "(size-1) * SHIFT < 53" check above,
-                // this should make it safe.
-                CYTHON_FALLTHROUGH;
+            }
+            // Fall through if size doesn't fit safely into a double anymore.
+            // It may not be obvious that this is a safe fall-through given the "fval < 2**53"
+            // check above.  However, the number of digits that CPython uses for a given PyLong
+            // value is minimal, and together with the "(size-1) * SHIFT < 53" check above,
+            // this should make it safe.
             {{endfor}}
-            default:
+        }
         #endif
+
         {{if op in ('Eq', 'Ne')}}
-            return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
-                PyFloat_Type.tp_richcompare({{'op1, op2' if order == 'CObj' else 'op2, op1'}}, Py_{{op.upper()}}));
+        {
+                PyObject *res =
+            #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+                    // PyType_GetSlot only works on non-heap types from Python 3.10
+                    __Pyx_PyType_GetSlot((&PyFloat_Type), tp_richcompare, richcmpfunc)
+            #else
+                    PyObject_RichCompare
+            #endif
+                ({{'op1, op2' if order == 'CObj' else 'op2, op1'}},
+                    Py_{{op.upper()}});
+
+                return {{if ret_type.is_pyobject}}res{{else}}__Pyx_PyObject_IsTrueAndDecref(res){{endif}};
+        }
         {{else}}
             {{fval}} = PyLong_AsDouble({{pyval}});
             if (unlikely({{fval}} == -1.0 && PyErr_Occurred())) return NULL;
@@ -1530,19 +2476,19 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
             #endif
             {{endif}}
         {{endif}}
-        #if CYTHON_USE_PYLONG_INTERNALS
-        }
-        #endif
     } else {
         {{if op in ('Eq', 'Ne')}}
-        return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
-            PyObject_RichCompare(op1, op2, Py_{{op.upper()}}));
+        return {{'PyObject_RichCompare' if ret_type.is_pyobject else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
         {{elif op == 'Divide'}}
         return (inplace ? __Pyx_PyNumber_InPlaceDivide(op1, op2) : __Pyx_PyNumber_Divide(op1, op2));
         {{else}}
         return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
         {{endif}}
     }
+
+#if CYTHON_USE_PYLONG_INTERNALS
+digits_done:;
+#endif
 
     {{if op in ('Eq', 'Ne')}}
         if (a {{c_op}} b) {
@@ -1551,8 +2497,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
             {{return_false}};
         }
     {{else}}
-        // copied from floatobject.c in Py3.5:
-        PyFPE_START_PROTECT("{{op.lower() if not op.endswith('Divide') else 'divide'}}", return NULL)
+        double result;
         {{if c_op == '%'}}
         result = fmod(a, b);
         if (result)
@@ -1562,7 +2507,6 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
         {{else}}
         result = a {{c_op}} b;
         {{endif}}
-        PyFPE_END_PROTECT(result)
         return PyFloat_FromDouble(result);
     {{endif}}
 }

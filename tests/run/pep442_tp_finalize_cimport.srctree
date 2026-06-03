@@ -1,0 +1,67 @@
+"""
+PYTHON setup.py build_ext -i
+PYTHON runtests.py
+"""
+
+####### runtests.py #######
+
+import gc
+from testclasses import *
+import baseclasses
+
+def test_has_del():
+    inst = HasIndirectDel()
+    inst = None
+    gc.collect()
+    assert baseclasses.HasDel_del_called_count
+    
+def test_no_del():
+    inst = NoIndirectDel()
+    inst = None
+    gc.collect()
+    # The test here is that it doesn't crash
+    
+test_has_del()
+test_no_del()
+
+######## setup.py ########
+
+from setuptools import setup
+from Cython.Build import cythonize
+
+setup(ext_modules = cythonize('*.pyx'))
+
+####### baseclasses.pxd ######
+
+cdef class HasDel:
+    pass
+    
+cdef class DoesntHaveDel:
+    pass
+    
+####### baseclasses.pyx ######
+
+HasDel_del_called_count = 0
+
+cdef class HasDel:
+    def __del__(self):
+        global HasDel_del_called_count
+        HasDel_del_called_count += 1
+        
+cdef class DoesntHaveDel:
+    pass
+
+######## testclasses.pyx ######
+
+cimport cython
+from baseclasses cimport HasDel, DoesntHaveDel
+
+@cython.final
+cdef class HasIndirectDel(HasDel):
+    pass
+
+@cython.final
+cdef class NoIndirectDel(DoesntHaveDel):
+    # But Cython can't tell that we don't have __del__ until runtime,
+    # so has to generate code to call it (and not crash!)
+    pass

@@ -7,3 +7,5 @@ cdef inline index(list L):
     # See https://github.com/cython/cython/issues/1071
     return L[-1]
 
+cdef inline call_index(list L):
+    return index(L)

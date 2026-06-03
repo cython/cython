@@ -1,26 +1,26 @@
 # mode: run
-# tag: pure38, no-cpp
+# tag: pure3.8, no-cpp
 
 # copied from cpython with minimal modifications (mainly exec->cython_inline, and a few exception strings)
 # This is not currently run in C++ because all the cython_inline compilations fail for reasons that are unclear
-# FIXME pure38 seems to be ignored
 # cython: language_level=3
 
-import os
 import unittest
 import cython
 from Cython.Compiler.Main import CompileError
 from Cython.Build.Inline import cython_inline
+from Cython.TestUtils import TimedTest, py_parse_code
+import re
 import sys
 
 if cython.compiled:
+    try:
+        from StringIO import StringIO
+    except ImportError:
+        from io import StringIO
+
     class StdErrHider:
         def __enter__(self):
-            try:
-                from StringIO import StringIO
-            except ImportError:
-                from io import StringIO
-
             self.old_stderr = sys.stderr
             self.new_stderr = StringIO()
             sys.stderr = self.new_stderr
@@ -58,29 +58,43 @@ if cython.compiled:
                 # unhelpfully Cython sometimes raises a compile error and sometimes just raises the filename
                 raised_message = []
                 for line in err_messages.split("\n"):
-                    line = line.split(":",3)
+                    # search for the two line number groups (we can't just split by ':' because Windows
+                    # filenames contain ':')
+                    match = re.match(r"(.+?):\d+:\d+:(.*)", line)
                     # a usable error message with be filename:line:char: message
-                    if len(line) == 4 and line[0].endswith(".pyx"):
-                        raised_message.append(line[-1])
+                    if match and match.group(1).endswith(".pyx"):
+                        raised_message.append(match.group(2))
                 # output all the errors - we aren't worried about reproducing the exact order CPython
                 # emits errors in
                 raised_message = "; ".join(raised_message)
             raise SyntaxError(raised_message) from None
 
-if sys.version_info[0] < 3:
-    # some monkey patching
-    unittest.TestCase.assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
 
-    class FakeSubTest(object):
-        def __init__(self, *args, **kwds):
-            pass
-        def __enter__(self):
-            pass
-        def __exit__(self, *args):
-            pass
-    unittest.TestCase.subTest = FakeSubTest
+class NamedExpressionInvalidTest(TimedTest):
 
-class NamedExpressionInvalidTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+        # For syntax errors, call directly into the parser instead of generating a module.
+
+        def check_syntax(code, gl=None, loc=None):
+            assert not gl, gl
+            assert not loc, loc
+            if '[' in code:
+                # Comprehensions fail with scope attribute error in PostParse.
+                cls._orig_exec(code, gl, loc)
+            else:
+                py_parse_code(code)
+
+        cls._orig_exec = exec
+        globals()['exec'] = check_syntax
+
+    @classmethod
+    def tearDownClass(cls):
+        globals()['exec'] = cls._orig_exec
+        super().tearDownClass()
+
 
     def test_named_expression_invalid_01(self):
         code = """x := 0"""
@@ -250,7 +264,7 @@ class NamedExpressionInvalidTest(unittest.TestCase):
                     exec(f"lambda: {code}", {}) # Function scope
 
 
-class NamedExpressionAssignmentTest(unittest.TestCase):
+class NamedExpressionAssignmentTest(TimedTest):
 
     def test_named_expression_assignment_01(self):
         (a := 10)
@@ -354,7 +368,7 @@ class NamedExpressionAssignmentTest(unittest.TestCase):
         self.assertEqual(fib, {1: 2, 2: 3, 3: 5, 5: 8, 8: 13, 13: 21})
 
 
-class NamedExpressionScopeTest(unittest.TestCase):
+class NamedExpressionScopeTest(TimedTest):
 
     def test_named_expression_scope_01(self):
         code = """def spam():

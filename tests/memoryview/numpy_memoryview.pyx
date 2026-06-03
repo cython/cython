@@ -248,7 +248,7 @@ cdef extern from "bufaccess.h":
     ctypedef unsigned int td_h_ushort # Defined as unsigned short
 ctypedef td_h_short td_h_cy_short
 
-cdef void dealloc_callback(void *data):
+cdef void dealloc_callback(void *data) noexcept:
     print "deallocating..."
 
 def build_numarray(array array):
@@ -439,9 +439,7 @@ cdef packed struct StructArray:
 def test_memslice_structarray(data, dtype):
     """
     >>> def b(s): return s.encode('ascii')
-    >>> def to_byte_values(b):
-    ...     if sys.version_info[0] >= 3: return list(b)
-    ...     else: return map(ord, b)
+    >>> def to_byte_values(b): return list(b)
 
     >>> data = [(range(4), b('spam\\0')), (range(4, 8), b('ham\\0\\0')), (range(8, 12), b('eggs\\0'))]
     >>> dtype = np.dtype([('a', '4i'), ('b', '5b')])
@@ -676,9 +674,9 @@ def test_refcount_GH507():
     """
     >>> test_refcount_GH507()
     """
-    a = np.arange(12).reshape([3, 4])
-    cdef np.int_t[:,:] a_view = a
-    cdef np.int_t[:,:] b = a_view[1:2,:].T
+    a = np.arange(12, dtype='int32').reshape([3, 4])
+    cdef np.int32_t[:,:] a_view = a
+    cdef np.int32_t[:,:] b = a_view[1:2,:].T
 
 
 @cython.boundscheck(False)
@@ -727,10 +725,35 @@ ctypedef struct SameTypeAfterArraysStructComposite:
 
 def same_type_after_arrays_composite():
     """
-    >>> same_type_after_arrays_composite() if sys.version_info[:2] >= (3, 5) else None
-    >>> same_type_after_arrays_composite() if sys.version_info[:2] == (2, 7) else None
+    >>> same_type_after_arrays_composite()
     """
 
     cdef SameTypeAfterArraysStructComposite element
     arr = np.ones(2, np.asarray(<SameTypeAfterArraysStructComposite[:1]>&element).dtype)
     cdef SameTypeAfterArraysStructComposite[:] memview = arr
+
+ctypedef fused np_numeric_t:
+    np.float64_t
+
+def test_invalid_buffer_fused_memoryview(np_numeric_t[:] A):
+    """
+    >>> import numpy as np
+    >>> zz = np.zeros([5], dtype='M')
+    >>> test_invalid_buffer_fused_memoryview(zz)
+    Traceback (most recent call last):
+        ...
+    TypeError: No matching signature found
+    """
+    return
+
+ctypedef fused np_numeric_object_t:
+    np.float64_t[:]
+    object
+
+def test_valid_buffer_fused_memoryview(np_numeric_object_t A):
+    """
+    >>> import numpy as np
+    >>> zz = np.zeros([5], dtype='M')
+    >>> test_valid_buffer_fused_memoryview(zz)
+    """
+    return

@@ -24,9 +24,9 @@ def with_external_list(list L):
     """
     >>> with_external_list([1,2,3])
     [1, -10, 3]
-    >>> with_external_list(None)
+    >>> with_external_list(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'NoneType' object is not subscriptable
+    TypeError: 'NoneType' object ...
     """
     ob = 1L
     L[ob] = -10

@@ -1,9 +1,8 @@
+from Cython.TestUtils import TimedTest
 
-import sys
-import unittest
 
 # adapted from pyregr
-class TestCause(unittest.TestCase):
+class TestCause(TimedTest):
     def test_invalid_cause(self):
         try:
             raise IndexError from 5
@@ -17,8 +16,7 @@ class TestCause(unittest.TestCase):
             raise IndexError from None
         except IndexError as e:
             self.assertFalse(e.__cause__)
-            if sys.version_info[:2] >= (3,3):
-                self.assertTrue(e.__suppress_context__)
+            self.assertTrue(e.__suppress_context__)
         else:
             self.fail("No exception raised")
 
@@ -33,8 +31,7 @@ class TestCause(unittest.TestCase):
         except ValueError as e:
             self.assertFalse(e.__cause__)
             self.assertTrue(e.__context__)
-            if sys.version_info[:2] >= (3,3):
-                self.assertTrue(e.__suppress_context__)
+            self.assertTrue(e.__suppress_context__)
 
     def test_class_cause(self):
         try:

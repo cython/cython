@@ -4,6 +4,14 @@
 import sys
 import cython
 
+def skip_on_limited_api(why):
+    def skipper(f):
+        # CYTHON_COMPILING_IN_LIMITED_API is in pxd
+        if cython.compiled and CYTHON_COMPILING_IN_LIMITED_API:
+            return None
+        return f
+    return skipper
+
 
 def very_simple():
     """
@@ -140,7 +148,6 @@ def check_throw():
 
 def check_yield_in_except():
     """
-    >>> if sys.version_info[0] == 2: sys.exc_clear()
     >>> try:
     ...     raise TypeError("RAISED !")
     ... except TypeError as orig_exc:
@@ -164,8 +171,7 @@ def check_yield_in_except():
     except ValueError as exc:
         assert sys.exc_info()[1] is exc, sys.exc_info()
         yield
-        if cython.compiled or sys.version_info[0] > 2:
-            assert sys.exc_info()[1] is exc, sys.exc_info()
+        assert sys.exc_info()[1] is exc, sys.exc_info()
 
 
 def yield_in_except_throw_exc_type():
@@ -341,6 +347,7 @@ def test_lambda(n):
     for i in range(n):
         yield lambda : i
 
+@skip_on_limited_api("Can't call finalizer")
 def test_generator_cleanup():
     """
     >>> g = test_generator_cleanup()
@@ -387,3 +394,20 @@ def test_yield_in_const_conditional_true():
     """
     if True:
         print((yield 1))
+
+
+def test_generator_scope():
+    """
+    Tests that the function is run at the correct time
+    (i.e. when the generator is created, not when it's run)
+    >>> list(test_generator_scope())
+    inner running
+    generator created
+    [0, 10]
+    """
+    def inner(val):
+        print("inner running")
+        return [0, val]
+    gen = (a for a in inner(10))
+    print("generator created")
+    return gen

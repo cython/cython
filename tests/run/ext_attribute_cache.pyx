@@ -5,7 +5,6 @@ cimport cython
 
 
 cdef extern from *:
-    unsigned long PY_VERSION_HEX
     unsigned long Py_TPFLAGS_HAVE_VERSION_TAG
     ctypedef struct PyTypeObject:
         unsigned long tp_flags
@@ -28,7 +27,7 @@ cdef class ImplicitAttrCache(object):
 @cython.type_version_tag(True)
 cdef class ExplicitAttrCache(object):
     """
-    >>> flag = test_flag(ImplicitAttrCache)
+    >>> flag = test_flag(ExplicitAttrCache)
     >>> print(flag)
     True
     """

@@ -29,14 +29,32 @@ def del_item(L, o):
     del L[o]
     return L
 
+
 @cython.test_assert_path_exists('//DelStatNode//IndexNode//NoneCheckNode')
 def del_dict(dict D, o):
     """
     >>> del_dict({1: 'a', 2: 'b'}, 1)
     {2: 'b'}
+    >>> del_dict(None, 1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object ...
     """
     del D[o]
     return D
+
+
+@cython.test_fail_if_path_exists('//DelStatNode//IndexNode//NoneCheckNode')
+def del_dict_ann(D: dict, o):
+    """
+    >>> del_dict_ann({1: 'a', 2: 'b'}, 1)
+    {2: 'b'}
+    >>> del_dict_ann(None, 1)
+    Traceback (most recent call last):
+    TypeError: Argument 'D' has incorrect type (expected dict, got NoneType)
+    """
+    del D[o]
+    return D
+
 
 @cython.test_fail_if_path_exists('//NoneCheckNode')
 def del_dict_from_literal(o):

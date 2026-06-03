@@ -1,15 +1,13 @@
 Welcome to Cython!
 ==================
 
-Cython is a language that makes writing C extensions for
-Python as easy as Python itself.  Cython is based on
-Pyrex, but supports more cutting edge functionality and
-optimizations.
+Cython is an optimising Python compiler that makes writing C extensions for
+Python as easy as Python itself.
 
-The Cython language is very close to the Python language, but Cython
-additionally supports calling C functions and declaring C types on variables
-and class attributes.  This allows the compiler to generate very efficient C
-code from Cython code.
+Cython translates Python code to C/C++ code, but additionally supports calling
+C functions and declaring C types on variables and class attributes.
+This allows broad to fine-grained manual tuning that lets the compiler
+generate very efficient C code from Cython code.
 
 This makes Cython the ideal language for wrapping external C libraries, and
 for fast C modules that speed up the execution of Python code.
@@ -19,7 +17,8 @@ for fast C modules that speed up the execution of Python code.
 * Github repository: https://github.com/cython/cython
 * Wiki: https://github.com/cython/cython/wiki
 
-You can **support the Cython project** via
+Cython has `more than 70 million downloads <https://pypistats.org/packages/cython>`_
+per month on PyPI.  You can **support the Cython project** via
 `Github Sponsors <https://github.com/users/scoder/sponsorship>`_ or
 `Tidelift <https://tidelift.com/subscription/pkg/pypi-cython>`_.
 
@@ -37,7 +36,7 @@ otherwise, see `the installation page <https://docs.cython.org/en/latest/src/qui
 License:
 --------
 
-The original Pyrex program was licensed "free of restrictions" (see below).
+The original Pyrex program, which Cython is based on, was licensed "free of restrictions" (see below).
 Cython itself is licensed under the permissive **Apache License**.
 
 See `LICENSE.txt <https://github.com/cython/cython/blob/master/LICENSE.txt>`_.
@@ -48,10 +47,6 @@ Contributing:
 
 Want to contribute to the Cython project?
 Here is some `help to get you started <https://github.com/cython/cython/blob/master/docs/CONTRIBUTING.rst>`_.
-
-We are currently building the next great Cython edition:
-`Cython 3.0 <https://github.com/cython/cython/milestone/58>`_.
-You can help us make the life of Python 3.x users easier.
 
 
 Differences to other Python compilers
@@ -102,7 +97,9 @@ Similar projects that have a relevance today include:
 
   * Pros: highly language compliant, reasonable performance gains,
     support for static application linking (similar to
-    `cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_)
+    `cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_
+    but with the ability to bundle library dependencies into a self-contained
+    executable)
   * Cons: no support for low-level optimisations and typing
 
 In comparison to the above, Cython provides
@@ -118,23 +115,14 @@ In comparison to the above, Cython provides
 * seamless integration with C/C++ code
 * broad support for manual optimisation and tuning down to the C level
 * a large user base with thousands of libraries, packages and tools
-* almost two decades of bug fixing and static code optimisations
-
-
-Get the full source history:
-----------------------------
-
-Note that Cython used to ship the full version control repository in its source
-distribution, but no longer does so due to space constraints.  To get the
-full source history from a downloaded source archive, make sure you have git
-installed, then step into the base directory of the Cython source distribution
-and type::
-
-    make repo
+* more than two decades of bug fixing and static code optimisations
 
 
 The following is from Pyrex:
 ------------------------------------------------------
+Cython was originally based on `Pyrex <https://www.cosc.canterbury.ac.nz/~greg/python/Pyrex/>`_
+by Greg Ewing, with the following written in the Pyrex readme document:
+
 This is a development version of Pyrex, a language
 for writing Python extension modules.
 

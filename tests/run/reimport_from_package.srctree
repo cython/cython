@@ -36,9 +36,8 @@ import atest.package.module as module
 assert module in sys.modules.values(), sorted(sys.modules)
 assert sys.modules['atest.package.module'] is module, sorted(sys.modules)
 
-if sys.version_info >= (3, 5):
-    from . import pymodule
-    assert module is pymodule.import_without_package()
+from . import pymodule
+assert module is pymodule.import_without_package()
 
 ######## atest/package/pymodule.py ########
 

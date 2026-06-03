@@ -1,43 +1,25 @@
-### COPIED FROM CPython 3.9
+### COPIED FROM CPython 3.12 alpha (July 2022)
 ### Original part after ############
 # cython: language_level=3
 
 # new code
 import cython
-from Cython.Compiler.Main import compile as cython_compile, CompileError
-from Cython.Build.Inline import cython_inline
-import contextlib
-from tempfile import NamedTemporaryFile
+from Cython.TestUtils import TimedTest, py_parse_code
 
-@contextlib.contextmanager
-def hidden_stderr():
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
-
-    old_stderr = sys.stderr
-    try:
-        sys.stderr = StringIO()
-        yield
-    finally:
-        sys.stderr = old_stderr
-
-def _compile(code):
-    with NamedTemporaryFile(suffix='.py') as f:
-        f.write(code.encode('utf8'))
-        f.flush()
-
-        with hidden_stderr():
-            result = cython_compile(f.name, language_level=3)
-    return result
+import platform
 
 if cython.compiled:
     def compile(code, name, what):
         assert what == 'exec'
-        result = _compile(code)
-        if not result.c_file:
-            raise SyntaxError('unexpected EOF')  # compile is only used for testing errors
+        py_parse_code(code)
+
+
+def disable(func):
+    pass
+
+def disable_in_compiled_graalpy(func):
+    if not cython.compiled or platform.python_implementation() != 'GraalVM':
+        return func
 
 ############## SLIGHTLY MODIFIED ORIGINAL CODE
 import array
@@ -47,7 +29,7 @@ import inspect
 import sys
 import unittest
 
-if sys.version_info > (3, 10):
+if sys.version_info >= (3, 10):
     import dataclasses
     @dataclasses.dataclass
     class Point:
@@ -68,13 +50,147 @@ else:
             return self.x == other.x and self.y == other.y
 
 # TestCompiler removed - it's very CPython-specific
-# TestTracing also removed - doesn't seem like a core test
+"""
+class TestCompiler(unittest.TestCase):
 
-# FIXME - return all the "return"s added to cause code to be dropped
+    def test_refleaks(self):
+        # Hunting for leaks using -R doesn't catch leaks in the compiler itself,
+        # just the code under test. This test ensures that if there are leaks in
+        # the pattern compiler, those runs will fail:
+        with open(__file__) as file:
+            compile(file.read(), __file__, "exec")
+"""
+
+
+# TestTracing also mainly removed - doesn't seem like a core test
+#  except for one test that seems misplaced in CPython (which is below)
+class TestTracing(TimedTest):
+
+    """
+        @staticmethod
+    def _trace(func, *args, **kwargs):
+        actual_linenos = []
+
+        def trace(frame, event, arg):
+            if event == "line" and frame.f_code.co_name == func.__name__:
+                assert arg is None
+                relative_lineno = frame.f_lineno - func.__code__.co_firstlineno
+                actual_linenos.append(relative_lineno)
+            return trace
+
+        old_trace = sys.gettrace()
+        sys.settrace(trace)
+        try:
+            func(*args, **kwargs)
+        finally:
+            sys.settrace(old_trace)
+        return actual_linenos
+
+    def test_default_wildcard(self):
+        def f(command):                                         # 0
+            match command.split():                              # 1
+                case ["go", direction] if direction in "nesw":  # 2
+                    return f"go {direction}"                    # 3
+                case ["go", _]:                                 # 4
+                    return "no go"                              # 5
+                case _:                                         # 6
+                    return "default"                            # 7
+
+        self.assertListEqual(self._trace(f, "go n"), [1, 2, 3])
+        self.assertListEqual(self._trace(f, "go x"), [1, 2, 4, 5])
+        self.assertListEqual(self._trace(f, "spam"), [1, 2, 4, 6, 7])
+
+    def test_default_capture(self):
+        def f(command):                                         # 0
+            match command.split():                              # 1
+                case ["go", direction] if direction in "nesw":  # 2
+                    return f"go {direction}"                    # 3
+                case ["go", _]:                                 # 4
+                    return "no go"                              # 5
+                case x:                                         # 6
+                    return x                                    # 7
+
+        self.assertListEqual(self._trace(f, "go n"), [1, 2, 3])
+        self.assertListEqual(self._trace(f, "go x"), [1, 2, 4, 5])
+        self.assertListEqual(self._trace(f, "spam"), [1, 2, 4, 6, 7])
+
+    def test_no_default(self):
+        def f(command):                                         # 0
+            match command.split():                              # 1
+                case ["go", direction] if direction in "nesw":  # 2
+                    return f"go {direction}"                    # 3
+                case ["go", _]:                                 # 4
+                    return "no go"                              # 5
+
+        self.assertListEqual(self._trace(f, "go n"), [1, 2, 3])
+        self.assertListEqual(self._trace(f, "go x"), [1, 2, 4, 5])
+        self.assertListEqual(self._trace(f, "spam"), [1, 2, 4])
+
+    def test_only_default_wildcard(self):
+        def f(command):               # 0
+            match command.split():    # 1
+                case _:               # 2
+                    return "default"  # 3
+
+        self.assertListEqual(self._trace(f, "go n"), [1, 2, 3])
+        self.assertListEqual(self._trace(f, "go x"), [1, 2, 3])
+        self.assertListEqual(self._trace(f, "spam"), [1, 2, 3])
+
+    def test_only_default_capture(self):
+        def f(command):             # 0
+            match command.split():  # 1
+                case x:             # 2
+                    return x        # 3
+
+        self.assertListEqual(self._trace(f, "go n"), [1, 2, 3])
+        self.assertListEqual(self._trace(f, "go x"), [1, 2, 3])
+        self.assertListEqual(self._trace(f, "spam"), [1, 2, 3])
+
+    def test_unreachable_code(self):
+        def f(command):               # 0
+            match command:            # 1
+                case 1:               # 2
+                    if False:         # 3
+                        return 1      # 4
+                case _:               # 5
+                    if False:         # 6
+                        return 0      # 7
+
+        self.assertListEqual(self._trace(f, 1), [1, 2, 3])
+        self.assertListEqual(self._trace(f, 0), [1, 2, 5, 6])
+    """
+
+    def test_parser_deeply_nested_patterns(self):
+        # Deeply nested patterns can cause exponential backtracking when parsing.
+        # See CPython gh-93671 for more information.
+        #
+        # DW: Cython note - this doesn't break the parser but may cause a
+        # RecursionError later in the code-generation. I don't believe that's
+        # easily avoidable with the way Cython visitors currently work
+
+        levels = 100
+
+        patterns = [
+            "A" + "(" * levels + ")" * levels,
+            "{1:" * levels + "1" + "}" * levels,
+            "[" * levels + "1" + "]" * levels,
+        ]
+
+        for pattern in patterns:
+            with self.subTest(pattern):
+                code = inspect.cleandoc("""
+                    match None:
+                        case {}:
+                            pass
+                """.format(pattern))
+                compile(code, "<string>", "exec")
+
+
+# FIXME - remove all the "return"s added to cause code to be dropped
 ############## ORIGINAL PART FROM CPYTHON
 
 
-class TestInheritance(unittest.TestCase):
+class TestInheritance(TimedTest):
 
     @staticmethod
     def check_sequence_then_mapping(x):
@@ -132,6 +248,7 @@ class TestInheritance(unittest.TestCase):
         self.assertEqual(self.check_mapping_then_sequence(S3()), "seq")
         self.assertEqual(self.check_mapping_then_sequence(S4()), "seq")
 
+    @disable_in_compiled_graalpy
     def test_late_registration_mapping(self):
         class Parent:
             pass
@@ -155,6 +272,7 @@ class TestInheritance(unittest.TestCase):
         self.assertEqual(self.check_mapping_then_sequence(ChildPost()), "map")
         self.assertEqual(self.check_mapping_then_sequence(GrandchildPost()), "map")
 
+    @disable_in_compiled_graalpy
     def test_late_registration_sequence(self):
         class Parent:
             pass
@@ -179,7 +297,7 @@ class TestInheritance(unittest.TestCase):
         self.assertEqual(self.check_mapping_then_sequence(GrandchildPost()), "seq")
 
 
-class TestPatma(unittest.TestCase):
+class TestPatma(TimedTest):
 
     def test_patma_000(self):
         match 0:
@@ -1507,7 +1625,7 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_144(self):
-        x : object = 0.0  # Cython-specific change. Otherwise x is inferred as int 
+        x : object = 0.0  # Cython-specific change. Otherwise x is inferred as a C type 
                           # which makes assertIs(z, x) fail
         match x:
             case float(z):
@@ -2706,8 +2824,23 @@ class TestPatma(unittest.TestCase):
 
         self.assertEqual(y, 'bar')
 
+    def test_patma_249(self):
+        return  # disabled
+        class C:
+            __attr = "eggs"  # mangled to _C__attr
+            _Outer__attr = "bacon"
+        class Outer:
+            def f(self, x):
+                match x:
+                    # looks up __attr, not _C__attr or _Outer__attr
+                    case C(__attr=y):
+                        return y
+        c = C()
+        setattr(c, "__attr", "spam")  # setattr is needed because we're in a class scope
+        self.assertEqual(Outer().f(c), "spam")
 
-class TestSyntaxErrors(unittest.TestCase):
+
+class TestSyntaxErrors(TimedTest):
 
     def assert_syntax_error(self, code: str):
         with self.assertRaises(SyntaxError):
@@ -2727,7 +2860,7 @@ class TestSyntaxErrors(unittest.TestCase):
                 pass
         """)
 
-
+    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
     def test_attribute_name_repeated_in_class_pattern(self):
         self.assert_syntax_error("""
         match ...:
@@ -2967,6 +3100,7 @@ class TestSyntaxErrors(unittest.TestCase):
                 pass
         """)
 
+    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
     def test_mapping_pattern_duplicate_key(self):
         self.assert_syntax_error("""
         match ...:
@@ -2974,6 +3108,7 @@ class TestSyntaxErrors(unittest.TestCase):
                 pass
         """)
 
+    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
     def test_mapping_pattern_duplicate_key_edge_case0(self):
         self.assert_syntax_error("""
         match ...:
@@ -2981,6 +3116,7 @@ class TestSyntaxErrors(unittest.TestCase):
                 pass
         """)
 
+    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
     def test_mapping_pattern_duplicate_key_edge_case1(self):
         self.assert_syntax_error("""
         match ...:
@@ -2988,6 +3124,7 @@ class TestSyntaxErrors(unittest.TestCase):
                 pass
         """)
 
+    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
     def test_mapping_pattern_duplicate_key_edge_case2(self):
         self.assert_syntax_error("""
         match ...:
@@ -2995,6 +3132,7 @@ class TestSyntaxErrors(unittest.TestCase):
                 pass
         """)
 
+    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
     def test_mapping_pattern_duplicate_key_edge_case3(self):
         self.assert_syntax_error("""
         match ...:
@@ -3002,7 +3140,7 @@ class TestSyntaxErrors(unittest.TestCase):
                 pass
         """)
 
-class TestTypeErrors(unittest.TestCase):
+class TestTypeErrors(TimedTest):
 
     def test_accepts_positional_subpatterns_0(self):
         class Class:
@@ -3106,7 +3244,7 @@ class TestTypeErrors(unittest.TestCase):
         self.assertIs(z, None)
 
 
-class TestValueErrors(unittest.TestCase):
+class TestValueErrors(TimedTest):
 
     def test_mapping_pattern_checks_duplicate_key_1(self):
         class Keys:
@@ -3122,13 +3260,7 @@ class TestValueErrors(unittest.TestCase):
         self.assertIs(z, None)
 
 
-if __name__ == "__main__":
-    """
-    # From inside environment using this Python, with pyperf installed:
-    sudo $(which pyperf) system tune && \
-         $(which python) -m test.test_patma --rigorous; \
-    sudo $(which pyperf) system reset
-    """
+def run_pyperf():
     import pyperf
 
 
@@ -3157,3 +3289,13 @@ if __name__ == "__main__":
 
     runner = pyperf.Runner()
     runner.bench_time_func("patma", PerfPatma().run_perf)
+
+
+if __name__ == "__main__":
+    """
+    # From inside environment using this Python, with pyperf installed:
+    sudo $(which pyperf) system tune && \
+         $(which python) -m test.test_patma --rigorous; \
+    sudo $(which pyperf) system reset
+    """
+    run_pyperf()

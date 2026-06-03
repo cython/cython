@@ -12,5 +12,5 @@ gp = g
 fp = f
 
 _ERRORS = u"""
-12:5: Cannot assign type 'void (void)' to 'void (*)(void) nogil'
+12:5: Cannot assign type 'void (void) noexcept' to 'void (*)(void) noexcept nogil'
 """

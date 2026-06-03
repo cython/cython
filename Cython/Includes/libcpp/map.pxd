@@ -50,7 +50,9 @@ cdef extern from "<map>" namespace "std" nogil:
         cppclass reverse_iterator:
             reverse_iterator() except +
             reverse_iterator(reverse_iterator&) except +
-            value_type& operator*()
+            # correct would be value_type& but this does not work
+            # well with cython's code gen
+            pair[T, U]& operator*()
             reverse_iterator operator++()
             reverse_iterator operator--()
             reverse_iterator operator++(int)
@@ -63,7 +65,9 @@ cdef extern from "<map>" namespace "std" nogil:
             const_reverse_iterator() except +
             const_reverse_iterator(reverse_iterator&) except +
             operator=(reverse_iterator&) except +
-            const value_type& operator*()
+            # correct would be const value_type& but this does not work
+            # well with cython's code gen
+            const pair[T, U]& operator*()
             const_reverse_iterator operator++()
             const_reverse_iterator operator--()
             const_reverse_iterator operator++(int)
@@ -121,6 +125,8 @@ cdef extern from "<map>" namespace "std" nogil:
         iterator upper_bound(const T&)
         const_iterator const_upper_bound "upper_bound"(const T&)
         #value_compare value_comp()
+        # C++20
+        bint contains(const T&)
 
     cdef cppclass multimap[T, U, COMPARE=*, ALLOCATOR=*]:
         ctypedef T key_type
@@ -171,7 +177,9 @@ cdef extern from "<map>" namespace "std" nogil:
         cppclass reverse_iterator:
             reverse_iterator() except +
             reverse_iterator(reverse_iterator&) except +
-            value_type& operator*()
+            # correct would be value_type& but this does not work
+            # well with cython's code gen
+            pair[T, U]& operator*()
             reverse_iterator operator++()
             reverse_iterator operator--()
             reverse_iterator operator++(int)
@@ -184,7 +192,9 @@ cdef extern from "<map>" namespace "std" nogil:
             const_reverse_iterator() except +
             const_reverse_iterator(reverse_iterator&) except +
             operator=(reverse_iterator&) except +
-            const value_type& operator*()
+            # correct would be const value_type& but this does not work
+            # well with cython's code gen
+            const pair[T, U]& operator*()
             const_reverse_iterator operator++()
             const_reverse_iterator operator--()
             const_reverse_iterator operator++(int)
@@ -239,3 +249,4 @@ cdef extern from "<map>" namespace "std" nogil:
         iterator upper_bound(const T&)
         const_iterator const_upper_bound "upper_bound"(const T&)
         #value_compare value_comp()
+        bint contains(const T&)

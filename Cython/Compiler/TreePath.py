@@ -6,20 +6,13 @@ function selects a part of the expression, e.g. a child node, a
 specific descendant or a node that holds an attribute.
 """
 
-from __future__ import absolute_import
 
 import re
 import operator
-import sys
-
-if sys.version_info[0] >= 3:
-    _unicode = str
-else:
-    _unicode = unicode
 
 path_tokenizer = re.compile(
     r"("
-    r"'[^']*'|\"[^\"]*\"|"
+    r"b?'[^']*'|b?\"[^\"]*\"|"
     r"//?|"
     r"\(\)|"
     r"==?|"
@@ -41,12 +34,7 @@ def iterchildren(node, attr_name):
 
 def _get_first_or_none(it):
     try:
-        try:
-            _next = it.next
-        except AttributeError:
-            return next(it)
-        else:
-            return _next()
+        return next(it)
     except StopIteration:
         return None
 
@@ -97,8 +85,7 @@ def handle_star(next, token):
     def select(result):
         for node in result:
             for name in node.child_attrs:
-                for child in iterchildren(node, name):
-                    yield child
+                yield from iterchildren(node, name)
     return select
 
 def handle_dot(next, token):
@@ -119,8 +106,7 @@ def handle_descendants(next, token):
             for name in node.child_attrs:
                 for child in iterchildren(node, name):
                     yield child
-                    for c in iter_recursive(child):
-                        yield c
+                    yield from iter_recursive(child)
     elif not token[0]:
         node_name = token[1]
         def iter_recursive(node):
@@ -128,15 +114,13 @@ def handle_descendants(next, token):
                 for child in iterchildren(node, name):
                     if type_name(child) == node_name:
                         yield child
-                    for c in iter_recursive(child):
-                        yield c
+                    yield from iter_recursive(child)
     else:
         raise ValueError("Expected node name after '//'")
 
     def select(result):
         for node in result:
-            for child in iter_recursive(node):
-                yield child
+            yield from iter_recursive(node)
 
     return select
 
@@ -147,13 +131,11 @@ def handle_attribute(next, token):
         raise ValueError("Expected attribute name")
     name = token[1]
     value = None
-    try:
-        token = next()
-    except StopIteration:
-        pass
-    else:
-        if token[0] == '=':
-            value = parse_path_value(next)
+    token = next.peek()
+    if token[0] == '=':
+        next()
+        value = parse_path_value(next)
+
     readattr = operator.attrgetter(name)
     if value is None:
         def select(result):
@@ -173,7 +155,7 @@ def handle_attribute(next, token):
                     continue
                 if attr_value == value:
                     yield attr_value
-                elif (isinstance(attr_value, bytes) and isinstance(value, _unicode) and
+                elif (isinstance(attr_value, bytes) and isinstance(value, str) and
                         attr_value == value.encode()):
                     # allow a bytes-to-string comparison too
                     yield attr_value
@@ -186,7 +168,11 @@ def parse_path_value(next):
     value = token[0]
     if value:
         if value[:1] == "'" or value[:1] == '"':
+            assert value[-1] == value[0]
             return value[1:-1]
+        if value[:2] == "b'" or value[:2] == 'b"':
+            assert value[-1] == value[1]
+            return value[2:-1].encode('UTF-8')
         try:
             return int(value)
         except ValueError:
@@ -199,13 +185,17 @@ def parse_path_value(next):
             return True
         elif name == 'false':
             return False
-    raise ValueError("Invalid attribute predicate: '%s'" % value)
+    raise ValueError(f"Invalid attribute predicate: '{value}'")
+
 
 def handle_predicate(next, token):
     token = next()
-    selector = []
-    while token[0] != ']':
-        selector.append( operations[token[0]](next, token) )
+
+    and_conditions = [[]]
+    or_conditions = [and_conditions]
+
+    while token[0] not in (']', ')'):
+        and_conditions[-1].append( operations[token[0]](next, token) )
         try:
             token = next()
         except StopIteration:
@@ -214,30 +204,35 @@ def handle_predicate(next, token):
             if token[0] == "/":
                 token = next()
 
-        if not token[0] and token[1] == 'and':
-            return logical_and(selector, handle_predicate(next, token))
+        if not token[0]:
+            if token[1] == 'and':
+                and_conditions.append([])
+                token = next()
+            elif token[1] == 'or':
+                and_conditions = [[]]
+                or_conditions.append(and_conditions)
+                token = next()
+
+    if not and_conditions[-1]:
+        raise ValueError("Incomplete predicate")
 
     def select(result):
         for node in result:
-            subresult = iter((node,))
-            for select in selector:
-                subresult = select(subresult)
-            predicate_result = _get_first_or_none(subresult)
-            if predicate_result is not None:
-                yield node
-    return select
-
-def logical_and(lhs_selects, rhs_select):
-    def select(result):
-        for node in result:
-            subresult = iter((node,))
-            for select in lhs_selects:
-                subresult = select(subresult)
-            predicate_result = _get_first_or_none(subresult)
-            subresult = iter((node,))
-            if predicate_result is not None:
-                for result_node in rhs_select(subresult):
+            node_base = (node,)
+            for and_conditions in or_conditions:
+                for condition in and_conditions:
+                    subresult = iter(node_base)
+                    for select in condition:
+                        subresult = select(subresult)
+                    predicate_result = _get_first_or_none(subresult)
+                    if predicate_result is None:
+                        # Fail current 'and' condition and skip to next 'or' condition.
+                        break
+                else:
+                    # All 'and' conditions matched, report and skip following 'or' conditions.
                     yield node
+                    break
+
     return select
 
 
@@ -254,17 +249,29 @@ functions = {
     'not' : handle_func_not
     }
 
+
+class _LookAheadTokenizer:
+    def __init__(self, path):
+        self._tokens = [
+            (special, text)
+            for (special, text) in path_tokenizer(path)
+            if special or text
+        ]
+        self._tokens.reverse()  # allow efficient .pop()
+
+    def peek(self, default=(None, None)):
+        return self._tokens[-1] if self._tokens else default
+
+    def __call__(self):
+        try:
+            return self._tokens.pop()
+        except IndexError:
+            raise StopIteration from None
+
+
 def _build_path_iterator(path):
     # parse pattern
-    stream = iter([ (special,text)
-                    for (special,text) in path_tokenizer(path)
-                    if special or text ])
-    try:
-        _next = stream.next
-    except AttributeError:
-        # Python 3
-        def _next():
-            return next(stream)
+    _next = _LookAheadTokenizer(path)
     token = _next()
     selector = []
     while 1:

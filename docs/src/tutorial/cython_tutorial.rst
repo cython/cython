@@ -39,7 +39,7 @@ So lets start with the canonical python hello world::
 
     print("Hello World")
 
-Save this code in a file named :file:`helloworld.pyx`.  Now we need to create
+Save this code in a file named :file:`helloworld.py`.  Now we need to create
 the :file:`setup.py`, which is like a python Makefile (for more information
 see :ref:`compilation`). Your :file:`setup.py` should look like::
 
@@ -47,7 +47,7 @@ see :ref:`compilation`). Your :file:`setup.py` should look like::
     from Cython.Build import cythonize
 
     setup(
-        ext_modules = cythonize("helloworld.pyx")
+        ext_modules = cythonize("helloworld.py")
     )
 
 To use this to build your Cython file use the commandline options:
@@ -67,43 +67,16 @@ Congratulations! You now know how to build a Cython extension. But so far
 this example doesn't really give a feeling why one would ever want to use Cython, so
 lets create a more realistic example.
 
-:mod:`pyximport`: Cython Compilation for Developers
----------------------------------------------------
-
-If your module doesn't require any extra C libraries or a special
-build setup, then you can use the pyximport module, originally developed
-by Paul Prescod, to load .pyx files directly on import, without having
-to run your :file:`setup.py` file each time you change your code.
-It is shipped and installed with Cython and can be used like this::
-
-    >>> import pyximport; pyximport.install()
-    >>> import helloworld
-    Hello World
-
-The :ref:`Pyximport<pyximport>` module also has experimental
-compilation support for normal Python modules.  This allows you to
-automatically run Cython on every .pyx and .py module that Python
-imports, including the standard library and installed packages.
-Cython will still fail to compile a lot of Python modules, in which
-case the import mechanism will fall back to loading the Python source
-modules instead.  The .py import mechanism is installed like this::
-
-    >>> pyximport.install(pyimport=True)
-
-Note that it is not recommended to let :ref:`Pyximport<pyximport>` build code
-on end user side as it hooks into their import system.  The best way
-to cater for end users is to provide pre-built binary packages in the
-`wheel <https://wheel.readthedocs.io/>`_ packaging format.
 
 Fibonacci Fun
 ==============
 
 From the official Python tutorial a simple fibonacci function is defined as:
 
-.. literalinclude:: ../../examples/tutorial/cython_tutorial/fib.pyx
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/fibonacci.py
 
-Now following the steps for the Hello World example we first rename the file
-to have a `.pyx` extension, lets say :file:`fib.pyx`, then we create the
+Now following the steps for the Hello World example we first save this code
+to a Python file, let's say :file:`fibonacci.py`.  Next, we create the
 :file:`setup.py` file. Using the file created for the Hello World example, all
 that you need to change is the name of the Cython filename, and the resulting
 module name, doing this we have::
@@ -112,10 +85,10 @@ module name, doing this we have::
     from Cython.Build import cythonize
 
     setup(
-        ext_modules=cythonize("fib.pyx"),
+        ext_modules=cythonize("fibonacci.py"),
     )
 
-Build the extension with the same command used for the helloworld.pyx:
+Build the extension with the same command used for the "helloworld.py":
 
 .. code-block:: text
 
@@ -123,8 +96,8 @@ Build the extension with the same command used for the helloworld.pyx:
 
 And use the new extension with::
 
-    >>> import fib
-    >>> fib.fib(2000)
+    >>> import fibonacci
+    >>> fibonacci.fib(2000)
     1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597
 
 .. _primes:
@@ -135,7 +108,7 @@ Primes
 Here's a small example showing some of what can be done. It's a routine for
 finding prime numbers. You tell it how many primes you want, and it returns
 them as a Python list.
- 
+
 .. tabs::
     .. group-tab:: Pure Python
 
@@ -149,10 +122,28 @@ them as a Python list.
             :linenos:
             :caption: primes.pyx
 
-You'll see that it starts out just like a normal Python function definition,
-except that the parameter ``nb_primes`` is declared to be of type ``int``. This
-means that the object passed will be converted to a C integer (or a
-``TypeError.`` will be raised if it can't be).
+The two syntax variants ("Pure Python" and "Cython") represent different ways
+of annotating the code with C data types.  The first uses regular Python syntax
+with Cython specific type hints, thus allowing the code to run as a normal
+Python module.  Python type checkers will ignore most of the type details,
+but on compilation, Cython interprets them as C data types and uses them
+to generate tightly adapted C code.
+
+The second variant uses a Cython specific syntax.  This syntax is mostly used
+in older code bases and in Cython modules that need to make use of advanced
+C or C++ features when interacting with C/C++ libraries.  The additions to
+the syntax require a different file format, thus the ``.pyx`` extension:
+Python code 'extended'.
+
+For this tutorial, assuming you have a Python programming background,
+it's probably best to stick to the Python syntax examples
+and glimpse at the Cython specific syntax for comparison.
+
+You can see that the example above starts out just like a normal Python function
+definition, except that the parameter ``nb_primes`` is declared to be of Cython
+type ``int`` (not the Python type of the same name).  This means that the Python
+object passed into the function will be converted to a C integer on entry,
+or a ``TypeError`` will be raised if it cannot be converted.
 
 Now, let's dig into the core of the function:
 
@@ -168,7 +159,7 @@ Now, let's dig into the core of the function:
             :lines: 11,12
             :dedent:
             :lineno-start: 11
-        
+
         Lines 2, 3, 11 and 12 use the variable annotations
         to define some local C variables.
         The result is stored in the C array ``p`` during processing,
@@ -259,12 +250,17 @@ over a Python list or NumPy array.  If you don't slice the C array with
     :lineno-start: 19
 
 If no breaks occurred, it means that we found a prime, and the block of code
-after the ``else`` line 20 will be executed. We add the prime found to ``p``.
-If you find having an ``else`` after a for-loop strange, just know that it's a
-lesser known features of the Python language, and that Cython executes it at
-C speed for you.
-If the for-else syntax confuses you, see this excellent
-`blog post <https://shahriar.svbtle.com/pythons-else-clause-in-loops>`_.
+after the ``else`` line 20 will be executed.  We add the prime found to ``p``.
+
+The ``else`` clause after a for-loop is a lesser known features of the Python language
+that Cython executes at C speed for you.  If this syntax confuses you, the
+`Python documentation <https://docs.python.org/3/tutorial/controlflow.html#else-clauses-on-loops>`_
+presents a good way to think of the ``else`` clause:
+Imagine it paired with the ``if`` inside the loop.
+As the loop executes, it will run a sequence like ``if`` / ``if`` / ``if`` / ``else``.
+The ``if`` is inside the loop, encountered a number of times.
+If the condition is ever true, a ``break`` will happen.
+If the condition is never true, the ``else`` clause outside the loop will execute.
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
     :lines: 25-27
@@ -340,16 +336,18 @@ just like Python does. You can deactivate those checks by using the
 :ref:`compiler directives<compiler-directives>`.
 
 Now let's see if we get a speed increase even if there is a division check.
-Let's write the same program, but in Python:
+We can write the same program, but in simple Python, without type declarations:
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_python.py
     :caption: primes_python.py / primes_python_compiled.py
 
-It is possible to take a plain (unannotated) ``.py`` file and to compile it with Cython.
-Let's create a copy of ``primes_python`` and name it ``primes_python_compiled``
-to be able to compare it to the (non-compiled) Python module.
-Then we compile that file with Cython, without changing the code.
-Now the ``setup.py`` looks like this:
+Save it as ``primes_python.py``.
+
+For comparison, let's create a copy of ``primes_python.py`` and name it ``primes_python_compiled.py``.
+Then we can compile that module with Cython and compare it to the (non-compiled) Python module
+with the same code.
+
+Now change the ``setup.py`` as follows, to compile both the optimised and the new plain Python code module:
 
 .. tabs::
     .. group-tab:: Pure Python
@@ -358,12 +356,13 @@ Now the ``setup.py`` looks like this:
 
             from setuptools import setup
             from Cython.Build import cythonize
-            
+
             setup(
                 ext_modules=cythonize(
                     ['primes.py',                   # Cython code file with primes() function
                      'primes_python_compiled.py'],  # Python code file with primes() function
                     annotate=True),                 # enables generation of the html annotation file
+                py_modules=["primes_python.py"],    # Tells setuptools to include this Python module as well
             )
 
     .. group-tab:: Cython
@@ -378,9 +377,10 @@ Now the ``setup.py`` looks like this:
                     ['primes.pyx',                  # Cython code file with primes() function
                      'primes_python_compiled.py'],  # Python code file with primes() function
                     annotate=True),                 # enables generation of the html annotation file
+                py_modules=["primes_python.py"],    # Tells setuptools to include this Python module as well
             )
 
-Now we can ensure that those two programs output the same values::
+Now we can ensure that the two new modules output the same values as before::
 
     >>> import primes, primes_python, primes_python_compiled
     >>> primes_python.primes(1000) == primes.primes(1000)
@@ -388,15 +388,15 @@ Now we can ensure that those two programs output the same values::
     >>> primes_python_compiled.primes(1000) == primes.primes(1000)
     True
 
-It's possible to compare the speed now::
+Let's compare the speed of all three modules::
 
-    python -m timeit -s 'from primes_python import primes' 'primes(1000)'
+    python -m timeit -s "from primes_python import primes" "primes(1000)"
     10 loops, best of 3: 23 msec per loop
 
-    python -m timeit -s 'from primes_python_compiled import primes' 'primes(1000)'
+    python -m timeit -s "from primes_python_compiled import primes" "primes(1000)"
     100 loops, best of 3: 11.9 msec per loop
 
-    python -m timeit -s 'from primes import primes' 'primes(1000)'
+    python -m timeit -s "from primes import primes" "primes(1000)"
     1000 loops, best of 3: 1.65 msec per loop
 
 The cythonize version of ``primes_python`` is 2 times faster than the Python one,

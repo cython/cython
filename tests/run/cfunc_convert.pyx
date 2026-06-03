@@ -74,7 +74,7 @@ def test_global():
     >>> global_csqrt.__doc__
     'wrap(x: float) -> float'
     >>> test_global()
-    double (double) nogil
+    double (double) noexcept nogil
     Python object
     """
     print cython.typeof(sqrt)
@@ -266,3 +266,28 @@ def make_map():
         "f2": cfunc_dup_f2,
     }
     return map
+
+
+cdef class HasCdefFunc:
+    cdef int x
+    def __init__(self, x):
+        self.x = x
+
+    cdef int func(self, int y):
+        return self.x + y
+
+def test_unbound_methods():
+    """
+    >>> f = test_unbound_methods()
+    >>> f(HasCdefFunc(1), 2)
+    3
+    """
+    return HasCdefFunc.func
+
+def test_bound_methods():
+    """
+    >>> f = test_bound_methods()
+    >>> f(2)
+    3
+    """
+    return HasCdefFunc(1).func

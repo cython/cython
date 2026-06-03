@@ -17,12 +17,6 @@ from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
 
 
-try:
-    from __builtin__ import basestring
-except ImportError:
-    basestring = str
-
-
 # FIXME: the below does not work as intended since importing 'Cython.Distutils' already
 #        imports this module through 'Cython/Distutils/build_ext.py', so the condition is
 #        always false and never prints the warning.
@@ -52,7 +46,7 @@ extension_name_re = _build_ext.extension_name_re
 
 show_compilers = _build_ext.show_compilers
 
-class Optimization(object):
+class Optimization:
     def __init__(self):
         self.flags = (
             'OPT',
@@ -173,7 +167,7 @@ class old_build_ext(_build_ext.build_ext):
         _build_ext.build_ext.finalize_options(self)
         if self.cython_include_dirs is None:
             self.cython_include_dirs = []
-        elif isinstance(self.cython_include_dirs, basestring):
+        elif isinstance(self.cython_include_dirs, str):
             self.cython_include_dirs = \
                 self.cython_include_dirs.split(os.pathsep)
         if self.cython_directives is None:
@@ -321,8 +315,8 @@ class old_build_ext(_build_ext.build_ext):
         for source in cython_sources:
             target = cython_targets[source]
             depends = [source] + list(extension.depends or ())
-            if(source[-4:].lower()==".pyx" and os.path.isfile(source[:-3]+"pxd")):
-                depends += [source[:-3]+"pxd"]
+            if source[-4:].lower() == ".pyx" and os.path.isfile(source[:-3] + "pxd"):
+                depends += [source[:-3] + "pxd"]
             rebuild = self.force or newer_group(depends, target, 'newer')
             if not rebuild and newest_dependency is not None:
                 rebuild = newer(newest_dependency, target)

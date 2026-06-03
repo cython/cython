@@ -61,7 +61,7 @@ cdef public api void bar3()
 cdef inline     void* spam (object o) except NULL: return NULL
 cdef            void* spam0(object o) except NULL
 cdef public     void* spam1(object o) except NULL
-cdef        api void* spam2(object o) nogil except NULL
+cdef        api void* spam2(object o) except NULL nogil
 cdef public api void* spam3(object o) except NULL with gil
 
 # --

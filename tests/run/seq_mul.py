@@ -48,6 +48,27 @@ def list_times_cint(n: cython.int):
 
 @cython.test_fail_if_path_exists("//MulNode")
 @cython.test_assert_path_exists("//TupleNode[@mult_factor]")
+def const_times_tuple(v: cython.int):
+    """
+    >>> const_times_tuple(4)
+    ()
+    (None, None)
+    (4, 4)
+    (1, 2, 3, 1, 2, 3)
+    """
+    a = 2 * ()
+    b = 2 * (None,)
+    c = 2 * (v,)
+    d = 2 * (1, 2, 3)
+
+    print(a)
+    print(b)
+    print(c)
+    print(d)
+
+
+@cython.test_fail_if_path_exists("//MulNode")
+@cython.test_assert_path_exists("//TupleNode[@mult_factor]")
 def cint_times_tuple(n: cython.int):
     """
     >>> cint_times_tuple(3)
@@ -88,17 +109,18 @@ def tuple_times_cint(n: cython.int):
     print(d)
 
 
-# TODO: enable in Cython 3.1 when we can infer unsafe C int operations as PyLong
-#@cython.test_fail_if_path_exists("//MulNode")
+@cython.test_fail_if_path_exists("//MulNode")
 def list_times_pyint(n: cython.longlong):
     """
-    >>> list_times_cint(3)
+    >>> list_times_pyint(3)
     []
     [None, None, None]
     [3, 3, 3]
     [1, 2, 3, 1, 2, 3, 1, 2, 3]
     """
     py_n = n + 1  # might overflow => should be inferred as Python long!
+    py_n -= 1
+    assert cython.typeof(py_n) == ('int object' if cython.compiled else 'int'), cython.typeof(py_n)
 
     a = [] * py_n
     b = [None] * py_n

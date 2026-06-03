@@ -7,7 +7,7 @@ POSIX_PXDS_DIR = PROJECT_ROOT / "Cython/Includes/posix"
 TEST_PATH = PROJECT_ROOT / "tests/compile/posix_pxds.pyx"
 
 def main():
-    datas = [
+    data = [
         "# tag: posix\n"
         "# mode: compile\n"
         "\n"
@@ -32,10 +32,10 @@ def main():
             "from posix.{name} cimport *\n"
         ).format(name=name)
 
-        datas.append(s)
+        data.append(s)
 
     with open(TEST_PATH, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(datas))
+        f.write("\n".join(data))
 
 if __name__ == "__main__":
     main()

@@ -14,12 +14,13 @@ import copy
 #import types
 import pickle
 import os.path
-#import inspect
+import inspect
 import unittest
 import warnings
 import contextlib
 
 from Cython.Compiler import Errors
+from Cython.TestUtils import TimedTest
 
 
 try:
@@ -62,12 +63,12 @@ except ImportError:
 try:
     from sys import getrefcount
 except ImportError:
-    from cpython.ref cimport PyObject
-    def getrefcount(obj):
+    from cpython.ref cimport PyObject, Py_REFCNT
+    def getrefcount(obj, _exec=exec):
         gc.collect()
         # PyPy needs to execute a bytecode to run the finalizers
-        exec('', {}, {})
-        return (<PyObject*>obj).ob_refcnt
+        _exec('', {}, {})
+        return Py_REFCNT(obj)
 
 
 def no_pypy(f):
@@ -75,19 +76,21 @@ def no_pypy(f):
     if platform.python_implementation() == 'PyPy':
         return unittest.skip("excluded in PyPy")
 
+include "skip_limited_api_helper.pxi"
 
 # compiled exec()
 def exec(code_string, l, g):
-    from Cython.Shadow import inline
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from Cython.Build.Inline import cython_inline
+    from io import StringIO
 
     old_stderr = sys.stderr
     try:
         sys.stderr = StringIO()
-        ns = inline(code_string, locals=l, globals=g, lib_dir=os.path.dirname(__file__), language_level=3)
+        ns = cython_inline(
+            code_string, locals=l, globals=g,
+            lib_dir=os.path.dirname(__file__),
+            language_level=3,
+        )
     finally:
         sys.stderr = old_stderr
     g.update(ns)
@@ -123,7 +126,7 @@ def run_async(coro):
         try:
             buffer.append(coro.send(None))
         except StopIteration as ex:
-            result = ex.value if sys.version_info >= (3, 5) else ex.args[0] if ex.args else None
+            result = ex.value
             break
     return buffer, result
 
@@ -142,7 +145,7 @@ def run_async__await__(coro):
                 buffer.append(aw.send(None))
             i += 1
         except StopIteration as ex:
-            result = ex.value if sys.version_info >= (3, 5) else ex.args[0] if ex.args else None
+            result = ex.value
             break
     return buffer, result
 
@@ -171,7 +174,7 @@ def captured_stderr():
         sys.stderr = orig_stderr
 
 
-class AsyncBadSyntaxTest(unittest.TestCase):
+class AsyncBadSyntaxTest(TimedTest):
 
     @contextlib.contextmanager
     def assertRaisesRegex(self, exc_type, regex):
@@ -691,18 +694,8 @@ class AsyncBadSyntaxTest(unittest.TestCase):
             """]
 
         for code in samples:
-            # assertRaises() differs in Py2.6, so use our own assertRaisesRegex() instead
-            with self.subTest(code=code), self.assertRaisesRegex(Errors.CompileError, '.'):
+            with self.subTest(code=code), self.assertRaises(Errors.CompileError):
                 exec(code, {}, {})
-
-    if not hasattr(unittest.TestCase, 'subTest'):
-        @contextlib.contextmanager
-        def subTest(self, code, **kwargs):
-            try:
-                yield
-            except Exception:
-                print(code)
-                raise
 
     def test_goodsyntax_1(self):
         # Tests for issue 24619
@@ -754,11 +747,13 @@ class AsyncBadSyntaxTest(unittest.TestCase):
             async def g(): pass
             await z
         await = 1
-        #self.assertTrue(inspect.iscoroutinefunction(f))
+        if sys.version_info >= (3,10,6):
+            self.assertTrue(inspect.iscoroutinefunction(f))
 
 
-class TokenizerRegrTest(unittest.TestCase):
+class TokenizerRegrTest(TimedTest):
 
+    @unittest.skip("Very slow C code compilation.")
     def test_oneline_defs(self):
         buf = []
         for i in range(500):
@@ -777,10 +772,11 @@ class TokenizerRegrTest(unittest.TestCase):
         exec(buf, ns, ns)
         self.assertEqual(ns['i499'](), 499)
         self.assertEqual(type(ns['foo']()).__name__, 'coroutine')
-        #self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
+        if sys.version_info >= (3,10,6):
+            self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
 
 
-class CoroutineTest(unittest.TestCase):
+class CoroutineTest(TimedTest):
 
     @classmethod
     def setUpClass(cls):
@@ -992,6 +988,7 @@ class CoroutineTest(unittest.TestCase):
 
         self.assertEqual(run_async(bar()), ([], 'spam') )
 
+    @skip_if_limited_api("relies on finalizers")
     def test_func_9(self):
         async def foo(): pass
 
@@ -1240,10 +1237,7 @@ class CoroutineTest(unittest.TestCase):
 
         result = run_async__await__(foo())
         self.assertIsInstance(result[1], StopIteration)
-        if sys.version_info >= (3, 3):
-            self.assertEqual(result[1].value, 10)
-        else:
-            self.assertEqual(result[1].args[0], 10)
+        self.assertEqual(result[1].value, 10)
 
     def test_cr_await(self):
         @types_coroutine
@@ -1511,8 +1505,7 @@ class CoroutineTest(unittest.TestCase):
                 return await f()
 
         _, result = run_async(g())
-        if sys.version_info[0] >= 3:
-            self.assertIsNone(result.__context__)
+        self.assertIsNone(result.__context__)
 
     # removed from CPython ?
     def __test_await_iterator(self):
@@ -1661,9 +1654,8 @@ class CoroutineTest(unittest.TestCase):
         except TypeError as exc:
             self.assertRegex(
                 exc.args[0], "object int can't be used in 'await' expression")
-            if sys.version_info[0] >= 3:
-                self.assertTrue(exc.__context__ is not None)
-                self.assertTrue(isinstance(exc.__context__, ZeroDivisionError))
+            self.assertTrue(exc.__context__ is not None)
+            self.assertTrue(isinstance(exc.__context__, ZeroDivisionError))
         else:
             self.fail('invalid asynchronous context manager did not fail')
 
@@ -1756,8 +1748,7 @@ class CoroutineTest(unittest.TestCase):
         try:
             run_async(foo())
         except NotImplementedError as exc:
-            if sys.version_info[0] >= 3:
-                self.assertTrue(exc.__context__ is None)
+            self.assertTrue(exc.__context__ is None)
         else:
             self.fail('exception from __aenter__ did not propagate')
 
@@ -2122,16 +2113,12 @@ class CoroutineTest(unittest.TestCase):
             async for _ in F():
                 pass
 
-        if sys.version_info[0] < 3:
-            with self.assertRaises(ZeroDivisionError) as c:
-                main().send(None)
-        else:
-            with self.assertRaisesRegex(TypeError,
-                                        'an invalid object from __anext__') as c:
-                main().send(None)
+        with self.assertRaisesRegex(TypeError,
+                                    'an invalid object from __anext__') as c:
+            main().send(None)
 
-            err = c.exception
-            self.assertIsInstance(err.__cause__, ZeroDivisionError)
+        err = c.exception
+        self.assertIsInstance(err.__cause__, ZeroDivisionError)
 
     # old-style pre-Py3.5.2 protocol - no longer supported
     def __test_for_12(self):
@@ -2145,16 +2132,12 @@ class CoroutineTest(unittest.TestCase):
             async for _ in F():
                 pass
 
-        if sys.version_info[0] < 3:
-            with self.assertRaises(ZeroDivisionError) as c:
-                main().send(None)
-        else:
-            with self.assertRaisesRegex(TypeError,
-                                        'an invalid object from __aiter__') as c:
-                main().send(None)
+        with self.assertRaisesRegex(TypeError,
+                                    'an invalid object from __aiter__') as c:
+            main().send(None)
 
-            err = c.exception
-            self.assertIsInstance(err.__cause__, ZeroDivisionError)
+        err = c.exception
+        self.assertIsInstance(err.__cause__, ZeroDivisionError)
 
     def test_for_tuple(self):
         class Done(Exception): pass
@@ -2190,10 +2173,7 @@ class CoroutineTest(unittest.TestCase):
                 if self.i:
                     raise StopAsyncIteration
                 self.i += 1
-                if sys.version_info >= (3, 3):
-                    return self.value
-                else:
-                    return self.args[0]
+                return self.value
 
         result = []
         async def foo():
@@ -2425,7 +2405,7 @@ class CoroutineTest(unittest.TestCase):
         self.assertIn("was never awaited", stderr.getvalue())
 
 
-class CoroAsyncIOCompatTest(unittest.TestCase):
+class CoroAsyncIOCompatTest(TimedTest):
 
     def test_asyncio_1(self):
         import asyncio
@@ -2601,17 +2581,14 @@ class CAPITest(unittest.TestCase):
 # disable some tests that only apply to CPython
 
 # TODO?
-if True or sys.version_info < (3, 5):
+if True:
     SysSetCoroWrapperTest = None
     CAPITest = None
 
-if sys.version_info < (3, 5):  # (3, 4, 4)
+try:
+    import asyncio
+except ImportError:
     CoroAsyncIOCompatTest = None
-else:
-    try:
-        import asyncio
-    except ImportError:
-        CoroAsyncIOCompatTest = None
 
 if __name__=="__main__":
     unittest.main()

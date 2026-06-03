@@ -1,0 +1,52 @@
+# Test that we can set module name with --module-name arg to cython
+CYTHON a.pyx
+CYTHON --module-name w b.pyx
+CYTHON --module-name my_module.submod.x c.pyx
+PYTHON setup.py build_ext --inplace
+PYTHON checks.py
+
+######## checks.py ########
+
+from importlib import import_module
+
+try:
+    exc = ModuleNotFoundError
+except NameError:
+    exc = ImportError
+
+for module_name, should_import in (
+    ('a', True),
+    ('b', False),
+    ('w', True),
+    ('my_module.submod.x', True),
+    ('c', False),
+    ):
+    try:
+        import_module(module_name)
+    except exc:
+        if should_import:
+            assert False, "Cannot import module " + module_name
+    else:
+        if not should_import:
+            assert False, ("Can import module " + module_name +
+                           " but import should not be possible")
+
+
+######## setup.py ########
+
+from distutils.core import setup
+from distutils.extension import Extension
+
+setup(
+  ext_modules = [
+    Extension("a", ["a.c"]),
+    Extension("w", ["b.c"]),
+    Extension("my_module.submod.x", ["c.c"]),
+  ],
+)
+
+######## a.pyx ########
+######## b.pyx ########
+######## c.pyx ########
+######## my_module/__init__.py ########
+######## my_module/submod/__init__.py ########

@@ -1,11 +1,10 @@
-from __future__ import absolute_import
-
-import unittest
+from itertools import chain
 
 import Cython.Compiler.PyrexTypes as PT
+from ...TestUtils import TimedTest
 
 
-class TestMethodDispatcherTransform(unittest.TestCase):
+class TestMethodDispatcherTransform(TimedTest):
 
     def test_widest_numeric_type(self):
         def assert_widest(type1, type2, widest):
@@ -19,7 +18,47 @@ class TestMethodDispatcherTransform(unittest.TestCase):
         assert_widest(PT.c_int_type, cenum, PT.c_int_type)
 
 
-class TestTypeIdentifiers(unittest.TestCase):
+class TestBuiltinTypes(TimedTest):
+
+    BUILTIN_FLAGS_MAPPING = {
+        'is_pyint_type': ['int'],
+        'is_pyfloat_type': ['float'],
+        'is_pybool_type': ['bool'],
+        'is_pycomplex_type': ['complex'],
+        'is_pylist_type': ['list'],
+        'is_pytuple_type': ['tuple'],
+        'is_pydict_type': ['dict'],
+        'is_pyfrozendict_type': ['frozendict'],
+        'is_pyanydict_type': ['dict', 'frozendict'],
+        'is_pyset_type': ['set'],
+        'is_pyfrozenset_type': ['frozenset'],
+        'is_pyanyset_type': ['set', 'frozenset'],
+        'is_pybytes_type': ['bytes'],
+        'is_pystr_type': ['str'],
+        'is_pybytearray_type': ['bytearray'],
+        'is_pymemoryview_type': ['memoryview'],
+        'is_builtin_sequence': ['list', 'tuple', 'bytes', 'str', 'bytearray'],
+        'is_bytes_or_str_or_bytearray': ['bytes', 'str', 'bytearray'],
+        'supports_container_type': ['list', 'dict', 'frozendict', 'set', 'frozenset'],
+    }
+
+    def test_set_builtin_type_flags(self):
+        builtin_flags = set(chain.from_iterable(PT.BuiltinObjectType._builtin_type_flag_mapping.values()))
+        builtin_types = set(chain.from_iterable(self.BUILTIN_FLAGS_MAPPING.values()))
+
+        self.assertSetEqual(builtin_flags, set(self.BUILTIN_FLAGS_MAPPING))
+        self.assertSetEqual(set(PT.BuiltinObjectType._builtin_type_flag_mapping), builtin_types)
+
+        for attr in builtin_flags:
+            self.assertIs(getattr(PT.PyrexType, attr), False)
+            for type_name in self.BUILTIN_FLAGS_MAPPING[attr]:
+                self.assertIs(
+                    getattr(PT.BuiltinObjectType(type_name, f'c_{type_name}'), attr),
+                    True,
+                    f"{attr} should be set for {type_name}"
+                )
+
+class TestTypeIdentifiers(TimedTest):
 
     TEST_DATA = [
         ("char*", "char__ptr"),
@@ -61,9 +100,9 @@ class TestTypeIdentifiers(unittest.TestCase):
             ("const &&&std::vector", "const__fwref__refstd__in_vector"),
             ("const &&std::vector", "const__fwrefstd__in_vector"),
             ("void (*func)(int x, float y)",
-             "975d51__void__lParen__ptrfunc__rParen__lParenint__space_x__comma_float__space_y__rParen__etc"),
+             "975d51__void__lParen__ptrfunc__rParen__lParenint__spac__etc"),
             ("float ** (*func)(int x, int[:] y)",
-             "31883a__float__ptr__ptr__lParen__ptrfunc__rParen__lParenint__space_x__comma_int__lArr__D__rArry__rParen__etc"),
+             "31883a__float__ptr__ptr__lParen__ptrfunc__rParen__lPar__etc"),
         ]
         self._test_escape(function_name, test_data)
 
@@ -73,3 +112,5 @@ class TestTypeIdentifiers(unittest.TestCase):
             escaped_value = escape(declaration)
             self.assertEqual(escaped_value, expected, "%s('%s') == '%s' != '%s'" % (
                 func_name, declaration, escaped_value, expected))
+            # test that the length has been successfully capped
+            self.assertLessEqual(len(escaped_value), 64)

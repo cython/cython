@@ -1,20 +1,22 @@
 PACKAGENAME=Cython
-PYTHON?=python
+PYTHON?=python3
 TESTOPTS?=
 REPO = git://github.com/cython/cython.git
 VERSION?=$(shell sed -ne 's|^__version__\s*=\s*"\([^"]*\)".*|\1|p' Cython/Shadow.py)
-PARALLEL?=$(shell ${PYTHON} -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")' || true)
+PARALLEL?=-j5
 
 MANYLINUX_CFLAGS=-O3 -g0 -mtune=generic -pipe -fPIC
 MANYLINUX_LDFLAGS=
 MANYLINUX_IMAGES= \
-	manylinux1_x86_64 \
-	manylinux1_i686 \
+	manylinux2014_x86_64 \
+	manylinux2014_i686 \
 	musllinux_1_1_x86_64 \
 	musllinux_1_1_aarch64 \
 	manylinux_2_24_x86_64 \
 	manylinux_2_24_i686 \
 	manylinux_2_24_aarch64 \
+	manylinux_2_28_x86_64 \
+	manylinux_2_28_aarch64 \
 #	manylinux_2_24_ppc64le \
 #	manylinux_2_24_s390x
 
@@ -31,11 +33,11 @@ sdist: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 dist/$(PACKAGENAME)-$(VERSION).tar.gz:
 	$(PYTHON) setup.py sdist
 
-pywheel: dist/$(PACKAGENAME)-$(VERSION)-py2.py3-none-any.whl
+pywheel: dist/$(PACKAGENAME)-$(VERSION)-py3-none-any.whl
 
-dist/$(PACKAGENAME)-$(VERSION)-py2.py3-none-any.whl:
-	${PYTHON} setup.py bdist_wheel --no-cython-compile --universal
-	[ -f "$@" ]  # check that we generated the expected universal wheel
+dist/$(PACKAGENAME)-$(VERSION)-py3-none-any.whl:
+	${PYTHON} setup.py bdist_wheel --no-cython-compile
+	[ -f "$@" ]  # check that we generated the expected Py3-only wheel
 
 TMPDIR = .repo_tmp
 .git: .gitrev
@@ -94,12 +96,7 @@ wheel_%: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 		quay.io/pypa/$(subst wheel_,,$@) \
 		bash -c '\
 			rm -fr /opt/python/*pypy* ; \
-			for cpdir in /opt/python/*27* ; do \
-				if [ -d "$$cpdir" ]; \
-				then rm -fr /opt/python/*3[78912]; \
-				else rm -fr /opt/python/*{27*,3[456]*}; \
-				fi; break; \
-			done ; \
+			rm -fr /opt/python/*{27*,3[456]*} ; \
 			ls /opt/python/ ; \
 			for PYBIN in /opt/python/cp*/bin; do \
 		    $$PYBIN/python -V; \

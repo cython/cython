@@ -1,0 +1,171 @@
+# mode: run
+# tag: cpp
+# ticket: 1839
+
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON -c "from include_as_c_and_cpp import test; test()"
+PYTHON -c "from include_from_c_and_cpp import test; test()"
+PYTHON -c "from cdefines import test; test()"
+"""
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from Cython.Distutils.extension import Extension
+from distutils.core import setup
+import sys
+
+include_as_c_and_cpp = Extension(
+    "include_as_c_and_cpp",
+    ["include_as_c_and_cpp.pyx", "include_as_c.cpp", "include_as_cpp.cpp"],
+)
+include_from_c_and_cpp = Extension(
+    "include_from_c_and_cpp",
+    ["include_from_c_and_cpp.pyx", "include_from_c.c", "include_from_cpp.cpp"],
+)
+
+cdefines = Extension(
+    "cdefines",
+    ["cdefines.pyx", "cdefines_clean.c", "cdefines_plain.cpp"],
+    define_macros = [("CYTHON_EXTERN_C", 'extern "C"')],
+)
+
+ext_modules = [include_as_c_and_cpp, include_from_c_and_cpp]
+if sys.platform != "win32":
+    # It's very hard to get the command-line macro define to escape properly on Windows,
+    # so skip it
+    ext_modules.append(cdefines)
+
+setup(
+    ext_modules=cythonize(ext_modules),
+)
+
+
+######## include_as_c_and_cpp.pyx ########
+
+# distutils: language = c++
+
+from libcpp cimport vector
+
+cdef public vector.vector[int] get_vector():
+    return [1,2,3]
+
+cdef extern from "include_as_c_and_cpp_header.h":
+    cdef size_t size_vector1()
+    cdef size_t size_vector2()
+
+def test():
+    assert size_vector1() == 3
+    assert size_vector2() == 3
+
+######## include_as_c_and_cpp_header.h ########
+
+size_t size_vector1();
+size_t size_vector2();
+
+######## include_as_cpp.cpp ########
+
+#include <vector>
+#include "include_as_c_and_cpp.h"
+
+size_t size_vector1() {
+    return get_vector().size();
+}
+
+######## include_as_c.cpp ########
+
+#include <vector>
+extern "C" {
+// #include within `extern "C"` is legal.
+// We want to make sure here that Cython C++ functions are flagged as `extern "C++"`.
+// Otherwise they would be interpreted with C-linkage if the header is include within a `extern "C"` block.
+#include "include_as_c_and_cpp.h"
+}
+
+size_t size_vector2() {
+    return get_vector().size();
+}
+
+
+######## include_from_c_and_cpp.pyx ########
+
+cdef public char get_char():
+    return 42
+
+cdef extern from "include_from_c_and_cpp_header.h":
+    cdef int get_int1()
+    cdef int get_int2()
+
+def test():
+    assert get_int1() == 42
+    assert get_int2() == 42
+
+######## include_from_c_and_cpp_header.h ########
+
+int get_int1();
+int get_int2();
+
+######## include_from_c.c ########
+
+#include "include_from_c_and_cpp.h"
+
+int get_int1() { return (int)get_char(); }
+
+######## include_from_cpp.cpp ########
+
+extern "C" {
+#include "include_from_c_and_cpp.h"
+}
+
+extern "C" int get_int2() { return (int)get_char(); }
+
+
+######## cdefines.pyx ########
+
+# distutils: language = c++
+
+cdef public char get_char():
+    return 42
+
+cdef extern from "cdefines_header.h":
+    cdef int get_int1()
+    cdef int get_int2()
+
+def test():
+    assert get_int1() == 42
+    assert get_int2() == 42
+
+######## cdefines_header.h ########
+
+#ifdef __cplusplus
+  #define cdefines_EXTERN_C extern "C"
+#else
+  #define cdefines_EXTERN_C
+#endif
+
+cdefines_EXTERN_C int get_int1();
+int get_int2();
+
+######## cdefines_clean.c ########
+
+#undef CYTHON_EXTERN_C
+#define CYTHON_EXTERN_C
+#include "cdefines.h"
+
+int get_int1() { return (int)get_char(); }
+
+######## cdefines_plain.cpp ########
+
+#include "cdefines.h"
+
+int get_int2() { return (int)get_char(); }
+
+######## cdefines.py ##########
+
+# Dummy module so Windows test works
+import sys
+assert sys.platform == "win32"
+
+def test():
+    pass

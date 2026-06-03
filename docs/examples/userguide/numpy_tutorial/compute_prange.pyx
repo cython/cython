@@ -1,6 +1,4 @@
 # tag: openmp
-# You can ignore the previous line.
-# It's for internal testing of the cython documentation.
 
 # distutils: extra_compile_args=-fopenmp
 # distutils: extra_link_args=-fopenmp
@@ -16,7 +14,7 @@ ctypedef fused my_type:
 
 
 # We declare our plain c function nogil
-cdef my_type clip(my_type a, my_type min_value, my_type max_value) nogil:
+cdef my_type clip(my_type a, my_type min_value, my_type max_value) noexcept nogil:
     return min(max(a, min_value), max_value)
 
 
@@ -41,6 +39,7 @@ def compute(my_type[:, ::1] array_1, my_type[:, ::1] array_2, my_type a, my_type
 
     cdef my_type tmp
     cdef Py_ssize_t x, y
+
 
     # We use prange here.
     for x in prange(x_max, nogil=True):

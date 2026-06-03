@@ -1,4 +1,5 @@
 # mode: run
+# tag: threads
 
 """
 Test Python def functions without extern types
@@ -6,6 +7,8 @@ Test Python def functions without extern types
 
 cy = __import__("cython")
 cimport cython
+
+import inspect
 
 cdef extern from *:
     int __Pyx_CyFunction_Check(object)
@@ -134,6 +137,17 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7,
     """
     print cython.typeof(obj), cython.typeof(myf), cython.typeof(myi)
     print obj, "%.2f" % myf, myi, "%.2f" % f, i
+
+def non_fused_opt(fused_t obj, value=5):
+    """
+    PyObject constants as parts of fused functions weren't being created correctly
+    which would lead this to crash
+    >>> non_fused_opt(0)
+    5
+    >>> non_fused_opt("str", 10)
+    10
+    """
+    print value
 
 def run_cyfunction_check():
     """
@@ -402,7 +416,7 @@ def test_code_object(cython.floating dummy = 2.0):
     """
     A test for default arguments is in cyfunction_defaults
 
-    >>> getcode(test_code_object) is getcode(test_code_object[float])
+    >>> test_code_object.__code__ is not test_code_object[float].__code__
     True
     """
 
@@ -450,3 +464,62 @@ cdef class HasBound:
     func = bind_me[float]
 
     func_fused = bind_me
+
+
+
+ctypedef fused IntOrFloat1:
+    int
+    float
+
+ctypedef fused IntOrFloat2:
+    int
+    float
+
+ctypedef fused IntOrFloat3:
+    int
+    float
+
+def really_simple_fused_function(IntOrFloat1 a, IntOrFloat2 b, IntOrFloat3 c):
+    # Don't use this function for anything except the thread safety stress test.
+    # The first call should be from that.
+    return (a + 1) * 2 + (b*c)
+
+def run_really_simple_fused_function(start_barrier, n_iters, failed_list):
+    # Maximize the chance of failure by waiting until all threads are ready to start
+    args = [ n if n % 2 else float(n) for n in range(n_iters) ]
+    try:
+        start_barrier.wait()
+        for a in args:
+            really_simple_fused_function(a, a, a)
+    except:
+        failed_list.append(True)
+
+
+def stress_test_thread_safety(n_threads):
+    """
+    >>> stress_test_thread_safety(20)
+    """
+    from threading import Barrier, Thread
+    start_barrier = Barrier(n_threads)
+
+    failed_list = []
+
+    threads = [
+        Thread(
+            target=run_really_simple_fused_function,
+            args=[start_barrier, 30, failed_list]
+        ) for _ in range(n_threads) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not failed_list, len(failed_list)
+
+def test_signature(cython.floating arg1, cython.floating arg2):
+    """
+    >>> parameters = inspect.signature(test_signature).parameters
+    >>> len(parameters)
+    2
+    >>> list(parameters.keys())
+    ['arg1', 'arg2']
+    """

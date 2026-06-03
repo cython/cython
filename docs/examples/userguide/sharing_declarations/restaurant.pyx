@@ -1,4 +1,4 @@
-from __future__ import print_function
+ 
 cimport dishes
 from dishes cimport spamdish
 

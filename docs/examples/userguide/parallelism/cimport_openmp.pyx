@@ -1,6 +1,4 @@
 # tag: openmp
-# You can ignore the previous line.
-# It's for internal testing of the Cython documentation.
 
 from cython.parallel cimport parallel
 cimport openmp

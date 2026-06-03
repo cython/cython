@@ -8,3 +8,14 @@ private:
     int len_;
 };
 
+class DoublePointerIterDefaultConstructible: public DoublePointerIter {
+    // an alternate version that is default-constructible
+public:
+    DoublePointerIterDefaultConstructible() :
+        DoublePointerIter(0, 0)
+    {}
+    DoublePointerIterDefaultConstructible(double* start, int len) :
+        DoublePointerIter(start, len)
+    {}
+
+};

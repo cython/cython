@@ -2,10 +2,13 @@
 # cython: language_level=3
 
 import cython
+
 import contextlib
 from tempfile import NamedTemporaryFile
+
 from Cython.Compiler.Main import compile as cython_compile, CompileError
 from Cython.Build.Inline import cython_inline
+from Cython.TestUtils import TimedTest, compiled_eval
 
 
 @contextlib.contextmanager
@@ -58,14 +61,21 @@ if cython.compiled:
     def eval(code):
         try:
             with hidden_stderr():
+                # Fast track for simple constants.
+                return compiled_eval(code)
+        except CompileError as exc:
+            raise SyntaxError(str(exc))
+
+    def rt_eval(code):
+        try:
+            with hidden_stderr():
                 return cython_inline(code)
         except CompileError as exc:
             raise SyntaxError(str(exc))
 
 
 def use_old_parser():
-    # FIXME: currently disabling new PEG parser tests.
-    return True
+    return False
 
 
 import unittest
@@ -195,7 +205,7 @@ INVALID_UNDERSCORE_LITERALS = [
 ]
 
 
-class TokenTests(unittest.TestCase):
+class TokenTests(TimedTest):
 
     #from test.support import check_syntax_error
     check_syntax_error = check_syntax_error
@@ -376,19 +386,10 @@ class CNS:
         return self._dct[item]
 
 
-class GrammarTests(unittest.TestCase):
+class GrammarTests(TimedTest):
 
     #from test.support import check_syntax_error, check_syntax_warning
     check_syntax_error, check_syntax_warning = check_syntax_error, check_syntax_warning
-
-    if not hasattr(unittest.TestCase, 'subTest'):
-        @contextlib.contextmanager
-        def subTest(self, source=None, case=None, **kwargs):
-            try:
-                yield
-            except Exception:
-                print(source or case)
-                raise
 
     # single_input: NEWLINE | simple_stmt | compound_stmt NEWLINE
     # XXX can't test in a script -- this rule is only used when interactive
@@ -734,7 +735,7 @@ class GrammarTests(unittest.TestCase):
         self.assertEqual(f(1, x=2, *[3, 4], y=5), ((1, 3, 4),
                                                     {'x':2, 'y':5}))
         self.assertEqual(f(1, *(2,3), 4), ((1, 2, 3, 4), {}))
-        self.assertRaises(SyntaxError, eval, "f(1, x=2, *(3,4), x=5)")
+        self.assertRaises(SyntaxError, rt_eval, "f(1, x=2, *(3,4), x=5)")
         self.assertEqual(f(**{'eggs':'scrambled', 'spam':'fried'}),
                          ((), {'eggs':'scrambled', 'spam':'fried'}))
         self.assertEqual(f(spam='fried', **{'eggs':'scrambled'}),
@@ -798,8 +799,6 @@ class GrammarTests(unittest.TestCase):
         self.assertEqual(f.__annotations__, {'return': 'list'})
 
         # Test expressions as decorators (PEP 614):
-        # FIXME: implement PEP 614
-        """
         @False or null
         def f(x): pass
         @d := null
@@ -812,7 +811,6 @@ class GrammarTests(unittest.TestCase):
         def f(x): pass
         @[null][0].__call__.__call__
         def f(x): pass
-        """
 
         # test closures with a variety of opargs
         closure = 1
@@ -1706,8 +1704,6 @@ class GrammarTests(unittest.TestCase):
         class G: pass
 
         # Test expressions as decorators (PEP 614):
-        # FIXME: implement PEP 614
-        """
         @False or class_decorator
         class H: pass
         @d := class_decorator
@@ -1720,7 +1716,6 @@ class GrammarTests(unittest.TestCase):
         class L: pass
         @[class_decorator][0].__call__.__call__
         class M: pass
-        """
 
     def test_dictcomps(self):
         # dictorsetmaker: ( (test ':' test (comp_for |
@@ -1869,68 +1864,53 @@ class GrammarTests(unittest.TestCase):
         with manager() as x, manager():
             pass
 
-        if not use_old_parser():
-            test_cases = [
-                """if 1:
-                    with (
-                        manager()
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager() as x
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager() as (x, y),
-                        manager() as z,
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager(),
-                        manager()
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager() as x,
-                        manager() as y
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager() as x,
-                        manager()
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager() as x,
-                        manager() as y,
-                        manager() as z,
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager() as x,
-                        manager() as y,
-                        manager(),
-                    ):
-                        pass
-                """,
-            ]
-            for case in test_cases:
-                with self.subTest(case=case):
-                    compile(case, "<string>", "exec")
+        with (
+            manager()
+        ):
+            pass
+
+        with (
+            manager() as x
+        ):
+            pass
+
+        with (
+            manager() as (x, y),
+            manager() as z,
+        ):
+            pass
+
+        with (
+            manager(),
+            manager()
+        ):
+            pass
+
+        with (
+            manager() as x,
+            manager() as y
+        ):
+            pass
+
+        with (
+            manager() as x,
+            manager()
+        ):
+            pass
+
+        with (
+            manager() as x,
+            manager() as y,
+            manager() as z,
+        ):
+            pass
+
+        with (
+            manager() as x,
+            manager() as y,
+            manager(),
+        ):
+            pass
 
 
     def test_if_else_expr(self):
