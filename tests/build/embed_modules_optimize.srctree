@@ -304,8 +304,8 @@ print("DONE")
 
 ################# a.pyx ####################
 
-from b import B, Derived, Derived2, Derived3, IBase, BWithOptInit, func_in_b, func_with_parameter, Color
-from b cimport B, Derived, Derived2, Derived3, IBase, BWithOptInit, func_in_b, func_with_parameter, Color
+from b import B, Derived, Derived2, Derived3, IBase, BWithOptInit, func_in_b, func_with_parameter, Color, DataClass
+from b cimport B, Derived, Derived2, Derived3, IBase, BWithOptInit, func_in_b, func_with_parameter, Color, DataClass
 from cython import ccall, cclass, int, bint as bool
 
 cdef bint _helper = True
@@ -390,6 +390,19 @@ def func_in_a():
     _bopt3: BWithOptInit = _make_bopt(7)
     assert _bopt3.x == 7, f"Expected _make_bopt(7).x == 7, got {_bopt3.x}"
     assert _take_bopt(BWithOptInit(9)) == 9, "Expected _take_bopt(BWithOptInit(9)) == 9"
+
+    c = DataClass(1)
+    assert c.x == 1, f"Expected DataClass(1).x == 1, got {c.x}"
+    assert c.y == 2.5, f"Expected DataClass(1).y == 2.5, got {c.y}"
+    c = DataClass(1, 2.5)
+    assert c.x == 1, f"Expected DataClass(1).x == 1, got {c.x}"
+    assert c.y == 2.5, f"Expected DataClass(1).y == 2.5, got {c.y}"
+    c = DataClass(x=1)
+    assert c.x == 1, f"Expected DataClass(x=1).x == 1, got {c.x}"
+    assert c.y == 2.5, f"Expected DataClass(x=1).y == 2.5, got {c.y}"
+    c = DataClass(x=1, y=2.5)
+    assert c.x == 1, f"Expected DataClass(x=1,y=2.5).x == 1, got {c.x}"
+    assert c.y == 2.5, f"Expected DataClass(x=1,y=2.5).y == 2.5, got {c.y}"
 
     return func_in_b()
 
@@ -504,6 +517,7 @@ class DerivedWithCtorOverrideClosure(DerivedWithCtor):
 
 from enum import Enum
 from cython import cclass, ccall, final, int, float
+from cython.dataclasses import dataclass
 
 @cclass
 class Color(Enum):
@@ -536,7 +550,7 @@ class B:
 
     @property
     def prop_second(self) -> float:
-        return 3.14
+        return 2.5
 
 def func_with_parameter(p: B) -> int:
     return p.prop
@@ -575,3 +589,10 @@ class BWithOptInit:
     def __init__(self, x: int, y: float = 1.5) -> None:
         self.x = x
         self.y = y
+
+
+@dataclass
+class DataClass:
+    """Dataclass to test that dataclasses don't interfere with the optimization."""
+    x: int
+    y: float = 2.5

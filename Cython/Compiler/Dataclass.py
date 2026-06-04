@@ -378,10 +378,8 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     generated = code.generate_tree()
     for i, stat in enumerate(generated.stats):
         if isinstance(stat, Nodes.DefNode) and stat.name == '__init__':
-            # is_cdef_func_compatible rejects the one ordering that C can't represent:
-            # a required kw-only arg after an optional kw-only arg (e.g. *, a=1, b).
-            # Pure-Python kw-only allows this (ordering is irrelevant), but the
-            # __pyx_opt_args_* struct requires all required args before optional ones.
+            # is_cdef_func_compatible guards the one C-incompatible kw-only ordering:
+            # required kw-only after optional kw-only (e.g. *, a=1, b).
             if stat.is_cdef_func_compatible():
                 generated.stats[i] = stat.as_cfunction(overridable=True)
             break
@@ -394,7 +392,17 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
         directives=copy_inherited_directives(node.scope.directives, annotation_typing=False),
         body=stats)
 
+    # CClassScope.declare_cfunction rejects new cfuncs when scope.defined=1 (the
+    # "previously declared in pxd" check).  That fires when b.pyx is processed as a
+    # pxd-like declaration source via cimport_from_pyx=True.  The generated cpdef
+    # __init__ is legitimately new (not pre-declared), so temporarily clear
+    # scope.defined while we register it — this lets the entry land in cfunc_entries
+    # in BOTH pxd-extraction and normal-implementation contexts, keeping the struct
+    # layout (vtable pointer presence) identical in all compilation units.
+    orig_defined = node.scope.defined
+    node.scope.defined = 0
     comp_directives.analyse_declarations(node.scope)
+    node.scope.defined = orig_defined
     # probably already in this scope, but it doesn't hurt to make sure
     analyse_decs_transform.enter_scope(node, node.scope)
     analyse_decs_transform.visit(comp_directives)
