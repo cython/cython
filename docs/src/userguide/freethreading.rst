@@ -376,24 +376,21 @@ Consider the following code; if you expect a single ``NotThreadSafeClass`` insta
 Adding a critical section or lock around ``self.n_calls += 1`` is one option, but if it's in a hot inner loop the result will be a significant slowdown.
 
 Using a thread-local variable is often a faster option, and specifically C (or C++) thread-locals.
-Since Cython `does not yet expose the relevant specifiers <https://github.com/cython/cython/issues/6745>`_, you will need to create custom thread-local types yourself, e.g. in a ``mytls.h`` file:
+Since Cython `does not yet expose the relevant specifiers <https://github.com/cython/cython/issues/6745>`_, you will need to create custom thread-local types yourself::
 
-.. code-block:: C
-
-   #if defined(_MSC_VER)
-   // MS compiler doesn't do standardized _Thread_local until very recent versions:
-   #define tls_int __declspec(thread) int
-   #else
-   // _Thread_local is available in C11 and later:
-   #define tls_int _Thread_local int
-   #endif
-
-You can then modify your Cython code to use a thread-local variable with the ``tls_int`` type you defined::
-
-  cdef extern from "mytls.h":
-    # Generated code will use the version from ``mytls.h``,
-    # this is just a placeholder.
-    ctypedef int tls_int
+  cdef extern from "*":
+      """
+      #if defined(_MSC_VER)
+        // MS compiler doesn't do standardized _Thread_local until very recent
+        // versions:
+        #define tls_int __declspec(thread) int
+      #else
+        // _Thread_local is available in C11 and later:
+      #define tls_int _Thread_local int
+      #endif
+      """
+      # Generated code will use the version above, this is just a placeholder.
+      ctypedef int tls_int
 
   cimport cython
 
