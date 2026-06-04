@@ -2358,7 +2358,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     ).coerce_to(node.type, self.current_env())
         if arg.type.is_pyobject and isinstance(node.arg, ExprNodes.CoerceFromPyTypeNode):
             # skip Py->C->Py coercion
-            return arg.coerce_to(node.type, self.current_env())
+            return arg.coerce_to(node.type, self.current_env()).as_none_safe_node(
+                f'must be {node.type}, not NoneType'
+            )
         return node
 
     def visit_CoerceFromPyTypeNode(self, node):
