@@ -382,6 +382,27 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
             # required kw-only after optional kw-only (e.g. *, a=1, b).
             if stat.is_cdef_func_compatible():
                 generated.stats[i] = stat.as_cfunction(overridable=True)
+                # annotation_typing=False (applied below) prevents the arg-type
+                # inference that would give optional args their C types from
+                # annotations.  Pre-set the C type for optional args whose field
+                # has a plain default (not default_factory) so the opt_args struct
+                # uses the proper C type (e.g. "float y") rather than "PyObject *y".
+                # default_factory fields must stay as PyObject* because the wrapper
+                # must accept the _HAS_DEFAULT_FACTORY sentinel at runtime.
+                cfunc = generated.stats[i]
+                for arg in cfunc.declarator.args:
+                    if arg.default is None:
+                        continue
+                    arg_name = arg.declared_name()
+                    field = fields.get(arg_name)
+                    if field is None or field.default_factory is not MISSING:
+                        continue
+                    field_entry = node.scope.lookup_here(arg_name)
+                    if field_entry and not field_entry.type.is_pyobject:
+                        # name_declarator must be set alongside type so the
+                        # early-exit in CArgDeclNode.analyse returns a valid pair.
+                        arg.name_declarator = arg.declarator
+                        arg.type = field_entry.type
             break
     stats.stats += generated.stats
 

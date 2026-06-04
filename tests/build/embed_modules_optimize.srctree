@@ -88,6 +88,8 @@ elif mode == 'auto_cpdef':
         "Expected opt_args struct for BWithOptInit.__init__ optional-arg call in auto_cpdef mode")
     assert '__Pyx_RaiseUnboundLocalError("bopt2")' not in a_c_content, (
         "Expected no redundant unbound-local check for bopt2 after tp_new null-check")
+    assert "float y;" in a_c_content, (
+        "Expected DataClass.__init__ opt_args struct to use C float for 'y', not PyObject*")
     print("OK: auto_cpdef mode")
 
 elif mode == 'lto':
@@ -102,6 +104,8 @@ elif mode == 'lto':
         "Expected opt_args struct for BWithOptInit.__init__ optional-arg call in lto mode")
     assert '__Pyx_RaiseUnboundLocalError("bopt2")' not in a_c_content, (
         "Expected no redundant unbound-local check for bopt2 after tp_new null-check")
+    assert "float y;" in a_c_content, (
+        "Expected DataClass.__init__ opt_args struct to use C float for 'y', not PyObject*")
     print("OK: LTO mode")
 
 elif mode == 'lto_no_python_subclassing':
@@ -118,6 +122,8 @@ elif mode == 'lto_no_python_subclassing':
         "Expected opt_args struct for BWithOptInit.__init__ optional-arg call in lto+no_ps mode")
     assert '__Pyx_RaiseUnboundLocalError("bopt2")' not in a_c_content, (
         "Expected no redundant unbound-local check for bopt2 after tp_new null-check")
+    assert "float y;" in a_c_content, (
+        "Expected DataClass.__init__ opt_args struct to use C float for 'y', not PyObject*")
     # python_subclassing=False: cpdef/ccall methods must NOT contain the override-check block.
     # The __pyx_skip_dispatch *parameter* stays (vtable ABI), but it must be CYTHON_UNUSED
     # and the "Check if overridden in Python" block must be absent.
@@ -394,15 +400,15 @@ def func_in_a():
     c = DataClass(1)
     assert c.x == 1, f"Expected DataClass(1).x == 1, got {c.x}"
     assert c.y == 2.5, f"Expected DataClass(1).y == 2.5, got {c.y}"
-    c = DataClass(1, 2.5)
+    c = DataClass(1, 5.0)
     assert c.x == 1, f"Expected DataClass(1).x == 1, got {c.x}"
-    assert c.y == 2.5, f"Expected DataClass(1).y == 2.5, got {c.y}"
+    assert c.y == 5.0, f"Expected DataClass(1).y == 5.0, got {c.y}"
     c = DataClass(x=1)
     assert c.x == 1, f"Expected DataClass(x=1).x == 1, got {c.x}"
     assert c.y == 2.5, f"Expected DataClass(x=1).y == 2.5, got {c.y}"
-    c = DataClass(x=1, y=2.5)
+    c = DataClass(x=1, y=5.0)
     assert c.x == 1, f"Expected DataClass(x=1,y=2.5).x == 1, got {c.x}"
-    assert c.y == 2.5, f"Expected DataClass(x=1,y=2.5).y == 2.5, got {c.y}"
+    assert c.y == 5.0, f"Expected DataClass(1).y == 5.0, got {c.y}"
 
     return func_in_b()
 
