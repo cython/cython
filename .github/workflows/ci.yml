@@ -75,11 +75,13 @@ jobs:
           # Limited API
           - os: ubuntu-24.04
             backend: "c"
-            limited_api: "--limited-api --abi3audit"
+            limited_api: true
+            abi3audit: true
             extra_hash: "-limited_api"
           - os: ubuntu-24.04
             backend: "cpp"
-            limited_api: "--limited-api --abi3audit"
+            limited_api: true
+            abi3audit: true
             extra_hash: "-limited_api"
           # Cython Shared Module
           - os: ubuntu-24.04
@@ -97,6 +99,7 @@ jobs:
       os: ${{ matrix.os }}
       backend: ${{ matrix.backend }}
       limited_api: ${{ matrix.limited_api }}
+      abi3audit: ${{ matrix.abi3audit }}
       shared_utility: ${{ matrix.shared_utility }}
       extra_hash: ${{ matrix.extra_hash }}
       upload_testsources: ${{ startsWith(matrix.os, 'ubuntu') }}
@@ -127,7 +130,8 @@ jobs:
       #  python-version      the python version to use
       #  backend             the backend to use
       # Optional parameters:
-      #  limited_api         extra flags related to the limited api
+      #  limited_api         bool for use limited api
+      #  abi3audit           bool for use abi3audit
       #  shared_utility      extra flags relating to the shared utility
       #  gcc_version
       #  extra_cflags
@@ -349,8 +353,17 @@ jobs:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
       backend: ${{ matrix.backend }}
-      limited_api: ${{ endsWith(matrix.python-version, '-dev') && '--limited-api' || '--limited-api --abi3audit' }}
+      limited_api: true
+      abi3audit: ${{ !endsWith(matrix.python-version, '-dev') }}
       extra_hash: "-limited_api"
+      # skip 3.10 because it somehow ends up deleting most of the .so files
+      extra_python_versions: |-
+        ${{ case(
+          matrix.python-version == '3.9', '3.11 3.12 3.13 3.14 ',
+          matrix.python-version == '3.11', '3.12 3.13 3.14',
+          matrix.python-version == '3.12', '3.13 3.14',
+          matrix.python-version == '3.13', '3.14',
+          '') }}
 
 
   ci-noncpython:
