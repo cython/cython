@@ -2781,8 +2781,10 @@ class CFuncDefNode(FuncDefNode):
     # docs/design-cpdef-method-family-promotion.md.
     is_cpdef_trampoline = False
     is_cpdef_property_trampoline = False
+    is_cpdef_inheritance_trampoline = False
     trampoline_pydef = None
     trampoline_base_entry = None
+    trampoline_inherited_entry = None
 
     def unqualified_name(self):
         return self.entry.name
@@ -2804,6 +2806,8 @@ class CFuncDefNode(FuncDefNode):
             return self._analyse_trampoline_declarations(env)
         if self.is_cpdef_property_trampoline:
             return self._analyse_property_trampoline_declarations(env)
+        if self.is_cpdef_inheritance_trampoline:
+            return self._analyse_inheritance_trampoline_declarations(env)
         self.c_compile_guard = env.directives['c_compile_guard']
         self.is_c_class_method = env.is_c_class_scope
         if self.directive_locals is None:
@@ -2959,7 +2963,8 @@ class CFuncDefNode(FuncDefNode):
         # Reset scope entry the above cfunction
         env.entries[name] = self.entry
         if (not self.entry.is_final_cmethod and
-                (not env.is_module_scope or Options.lookup_module_cpdef)):
+                (not env.is_module_scope or Options.lookup_module_cpdef) and
+                getattr(env, 'python_subclassing', True)):
             if self.override:
                 # This is a hack: we shouldn't create the wrapper twice, but we do for fused functions.
                 assert self.entry.is_fused_specialized  # should not happen for non-fused cpdef functions
@@ -3070,8 +3075,11 @@ class CFuncDefNode(FuncDefNode):
 
         # Body: dispatch to a dynamic Python override if there is one, otherwise
         # forward straight to this class's Python implementation.
-        self.override = OverrideCheckNode(self.pos, py_func=pydef)
-        self.body = StatListNode(self.pos, stats=[self.override, self._make_trampoline_forward_node()])
+        if getattr(env, 'python_subclassing', True):
+            self.override = OverrideCheckNode(self.pos, py_func=pydef)
+            self.body = StatListNode(self.pos, stats=[self.override, self._make_trampoline_forward_node()])
+        else:
+            self.body = StatListNode(self.pos, stats=[self._make_trampoline_forward_node()])
         return self
 
     def _analyse_property_trampoline_declarations(self, env):
@@ -3170,6 +3178,104 @@ class CFuncDefNode(FuncDefNode):
         call = ExprNodes.SimpleCallNode(
             self.pos, function=func,
             args=[ExprNodes.NameNode(self.pos, name=arg.name) for arg in args])
+        if self.return_type.is_void or self.return_type.is_returncode:
+            return StatListNode(self.pos, stats=[
+                ExprStatNode(self.pos, expr=call),
+                ReturnStatNode(self.pos, value=None)])
+        return ReturnStatNode(self.pos, value=call)
+
+    def _analyse_inheritance_trampoline_declarations(self, env):
+        # Synthesise a cpdef trampoline for an inherited cpdef method when the
+        # current class re-enables python_subclassing=True after a False ancestor.
+        # The trampoline has OverrideCheckNode (so Python subclasses can override)
+        # and a direct vtable call to the defining base's implementation.
+        from . import ExprNodes
+        inherited_entry = self.trampoline_inherited_entry
+        inh_type = inherited_entry.type          # CFuncType; self is base-typed
+        name = inherited_entry.name
+
+        self.c_compile_guard = env.directives['c_compile_guard']
+        self.is_c_class_method = True
+        self.is_static_method = False
+        if self.directive_locals is None:
+            self.directive_locals = {}
+
+        # Retype self to the current (Derived) class; everything else stays.
+        args = [PyrexTypes.CFuncTypeArg(inh_type.args[0].name, env.parent_type,
+                                         inh_type.args[0].pos)]
+        args += [PyrexTypes.CFuncTypeArg(a.name, a.type, a.pos)
+                 for a in inh_type.args[1:]]
+        cfunc_type = PyrexTypes.CFuncType(
+            inh_type.return_type, args,
+            has_varargs=False,
+            exception_value=inh_type.exception_value,
+            exception_check=inh_type.exception_check,
+            calling_convention=inh_type.calling_convention,
+            nogil=inh_type.nogil, with_gil=inh_type.with_gil,
+            is_overridable=True)
+        self.type = cfunc_type
+        self.return_type = cfunc_type.return_type
+
+        self.args = []
+        for ta in cfunc_type.args:
+            arg_node = CArgDeclNode(self.pos, base_type=None, declarator=None,
+                                    default=None, annotation=None, name=ta.name)
+            arg_node.type = ta.type
+            self.args.append(arg_node)
+
+        # Register a new non-inherited C function entry for this trampoline.
+        self.entry = env.declare_cfunction(
+            name, cfunc_type, self.pos,
+            cname=None, visibility='private', api=False,
+            defining=True, modifiers=(), overridable=True)
+        self.entry.used = True
+        env.entries[name] = self.entry
+
+        # Wire the inherited vtable slot to our trampoline: the vtable init loop
+        # emits  vtable.<inherited_cname> = trampoline_func  for any entry whose
+        # func_cname is set, regardless of is_inherited.
+        inherited_entry.func_cname = self.entry.func_cname
+
+        self.create_local_scope(env)
+
+        # Walk up to find the first class that DEFINES (not inherits) this method;
+        # we call through its vtabptr to avoid re-entering our own trampoline.
+        defining_base_type = env.parent_type.base_type
+        defining_entry = inherited_entry  # fallback
+        while defining_base_type and defining_base_type.scope:
+            e = defining_base_type.scope.lookup(name)
+            if e and not e.is_inherited:
+                defining_entry = e
+                break
+            defining_base_type = defining_base_type.base_type
+
+        # OverrideCheckNode: use the inherited Python-wrapper Entry as py_func proxy.
+        # The comparison is against Base's __pyx_pw_ function; Python overrides in
+        # subclasses of Derived will differ from that → dispatch fires correctly.
+        py_wrapper_entry = inherited_entry.as_variable
+        fake_py_func = _MinimalPyFuncRef(py_wrapper_entry)
+        self.override = OverrideCheckNode(self.pos, py_func=fake_py_func)
+        self.body = StatListNode(
+            self.pos,
+            stats=[self.override,
+                   self._make_inheritance_forward_node(defining_base_type,
+                                                        defining_entry)])
+        return self
+
+    def _make_inheritance_forward_node(self, defining_base_type, defining_entry):
+        # Emit:  return defining_base_type.vtabptr->slot(self, args, 1 /*skip_dispatch*/)
+        # Using the defining base's static vtabptr avoids infinite recursion (we have
+        # just filled the derived vtable's slot with ourselves).
+        from . import ExprNodes
+        slot_cname = "%s->%s" % (defining_base_type.vtabptr_cname,
+                                  defining_entry.cname)
+        func = ExprNodes.RawCNameExprNode(self.pos, type=defining_entry.type,
+                                           cname=slot_cname)
+        call = ExprNodes.SimpleCallNode(
+            self.pos, function=func,
+            args=[ExprNodes.NameNode(self.pos, name=a.name)
+                  for a in self.type.args])
+        call.wrapper_call = True  # emit skip_dispatch=1
         if self.return_type.is_void or self.return_type.is_returncode:
             return StatListNode(self.pos, stats=[
                 ExprStatNode(self.pos, expr=call),
@@ -5385,6 +5491,21 @@ class GeneratorBodyDefNode(DefNode):
         code.exit_cfunc_scope()
 
 
+class _MinimalPyFuncRef:
+    """Minimal py_func stand-in for OverrideCheckNode used by inheritance trampolines.
+
+    OverrideCheckNode.generate_execution_code needs .entry (for name + func_cname),
+    .fused_py_func (checked for fused dispatch), and .is_module_scope (selects self arg).
+    For synthesised inheritance trampolines there is no DefNode; we wrap the inherited
+    Python-wrapper Entry directly.
+    """
+    fused_py_func = None
+    is_module_scope = False
+
+    def __init__(self, entry):
+        self.entry = entry
+
+
 class OverrideCheckNode(StatNode):
     # A Node for dispatching to the def method if it
     # is overridden.
@@ -5718,6 +5839,7 @@ class PyClassDefNode(ClassDefNode):
         self.class_result = class_result
         if self.bases:
             self.bases.analyse_declarations(env)
+            self._check_python_subclassing(env)
         if self.mkw:
             self.mkw.analyse_declarations(env)
         self.class_result.analyse_declarations(env)
@@ -5729,6 +5851,29 @@ class PyClassDefNode(ClassDefNode):
             self.doc_node.analyse_target_declaration(cenv)
         self.body.analyse_declarations(cenv)
         unwrapped_class_result.analyse_annotations(cenv)
+
+    def _check_python_subclassing(self, env):
+        """Warn if inheriting from a cclass that has python_subclassing=False."""
+        if not self.bases or not hasattr(self.bases, 'args'):
+            return
+        from .ExprNodes import NameNode, AttributeNode
+        for base_expr in self.bases.args:
+            # Resolve simple name and attribute references to their scope entries.
+            if isinstance(base_expr, NameNode):
+                entry = env.lookup(base_expr.name)
+            elif isinstance(base_expr, AttributeNode) and hasattr(base_expr, 'obj') and isinstance(base_expr.obj, NameNode):
+                outer = env.lookup(base_expr.obj.name)
+                entry = outer.as_module.lookup(base_expr.attribute) if outer and outer.as_module else None
+            else:
+                entry = None
+            if entry and entry.type and entry.type.is_extension_type:
+                scope = entry.type.scope
+                if scope and not getattr(scope, 'python_subclassing', True):
+                    error(self.pos,
+                          "Python class '%s' inherits from extension type '%s' which has "
+                          "python_subclassing=False; declare it as a cdef class or add "
+                          "@cython.python_subclassing(True) to the base type" % (
+                              self.name, entry.type.name))
 
     update_bases_functype = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
@@ -6048,6 +6193,49 @@ class CClassDefNode(ClassDefNode):
                 scope.directives.update(extra_directives)
             else:
                 scope.directives = env.directives
+            # Capture python_subclassing now, before body analysis temporarily resets
+            # scope.directives via the inner CompilerDirectivesNode wrapping the body.
+            #
+            # Inheritance-lock semantics:
+            #  - The lock STARTS when effective python_subclassing transitions False→True
+            #    (whether via ambient module directive or explicit decorator).
+            #  - Once locked, all descendants silently inherit True.
+            #  - If a descendant has an *explicit* @python_subclassing(False) decorator
+            #    (detected because _extract_directives only includes it when the decorator
+            #    *changes* the ambient value), that is a compile-time error.
+            #  - Explicit @python_subclassing(False) that merely echoes an ambient False
+            #    is not detectable here; it is silently forced to True when base is locked.
+            _base_scope = self.base_type.scope if self.base_type else None
+            _base_locked = getattr(_base_scope, 'python_subclassing_locked', False)
+            # _python_subclassing_explicit is set by InterpretCompilerDirectives only when
+            # the decorator *changes* the ambient value (False→explicit True, or True→False).
+            _explicit_ps = getattr(self, '_python_subclassing_explicit', None)
+            if _base_locked:
+                if _explicit_ps is False:
+                    # Decorator explicitly changes ambient True to False on a locked class.
+                    error(self.pos,
+                          "cannot disable python_subclassing on '%s': an ancestor "
+                          "class has it locked to True" % self.class_name)
+                scope.python_subclassing = True
+                scope.python_subclassing_locked = True
+            elif _explicit_ps is False:
+                scope.python_subclassing = False
+            elif _explicit_ps is True:
+                scope.python_subclassing = True
+            else:
+                scope.python_subclassing = scope.directives.get('python_subclassing', True)
+            # Start the lock on any False→True transition (explicit decorator or ambient).
+            if (scope.python_subclassing is True and
+                    getattr(_base_scope, 'python_subclassing', True) is False):
+                scope.python_subclassing_locked = True
+            # Flag whether this class needs inheritance trampolines (first class to
+            # re-enable True after a False ancestor) and a permissive __init_subclass__
+            # that overrides the blocking one inherited from the False ancestor.
+            _re_enabled = (
+                scope.python_subclassing is True and
+                getattr(_base_scope, 'python_subclassing', True) is False)
+            scope._needs_inheritance_trampolines = _re_enabled
+            scope.python_subclassing_re_enabled = _re_enabled
             if "dataclasses.dataclass" in scope.directives:
                 is_frozen = False
                 # Retrieve the @dataclass config (args, kwargs), as passed into the decorator.
@@ -6605,7 +6793,8 @@ class PropertyNode(StatNode):
 
             # Add override checking for getter
             if (not cfunc.entry.is_final_cmethod and
-                    (not env.is_module_scope or Options.lookup_module_cpdef)):
+                    (not env.is_module_scope or Options.lookup_module_cpdef) and
+                    getattr(env, 'python_subclassing', True)):
                 if cfunc.override:
                     assert cfunc.entry.is_fused_specialized
                     cfunc.override.py_func = py_func

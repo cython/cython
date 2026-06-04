@@ -1329,6 +1329,8 @@ class InterpretCompilerDirectives(CythonTransform):
 
     def visit_CClassDefNode(self, node):
         directives, contents_directives = self._extract_directives(node, 'cclass')
+        if 'python_subclassing' in directives:
+            node._python_subclassing_explicit = directives['python_subclassing']
         return self.visit_with_directives(node, directives, contents_directives)
 
     def visit_CppClassNode(self, node):
@@ -2349,6 +2351,9 @@ if VALUE is not None:
                     stats.append(property)
             if node.scope.cpdef_method_trampolines:
                 stats.extend(self._create_cpdef_method_trampolines(node))
+            if getattr(node.scope, '_needs_inheritance_trampolines', False):
+                stats.extend(self._create_inheritance_trampolines(node))
+                node.scope._needs_inheritance_trampolines = False
             self._create_property_getter_trampolines(node)
             if stats:
                 node.body.stats += stats
@@ -2380,6 +2385,44 @@ if VALUE is not None:
             self.visit(trampoline)
             trampolines.append(trampoline)
         node.scope.cpdef_method_trampolines = None
+        return trampolines
+
+    def _create_inheritance_trampolines(self, node):
+        # When a class re-enables python_subclassing=True after a False ancestor,
+        # every inherited cpdef/ccall method that was NOT explicitly overridden here
+        # needs a synthesised trampoline with OverrideCheckNode so Python subclasses
+        # of this class can override those methods.
+        scope = node.scope
+        trampolines = []
+        # Collect names already locally handled (non-inherited scope entries or
+        # existing cpdef-body trampolines) to avoid double-synthesis.
+        local_names = {
+            e.name for e in scope.cfunc_entries if not e.is_inherited
+        }
+        # Also skip entries queued as cpdef_method_trampoline bodies (def overrides).
+        if scope.cpdef_method_trampolines:
+            local_names.update(pydef.entry.name
+                                for pydef, _ in scope.cpdef_method_trampolines)
+        for entry in list(scope.cfunc_entries):
+            if not entry.is_inherited or not entry.is_overridable:
+                continue
+            if entry.is_final_cmethod:
+                continue
+            if entry.name in local_names:
+                continue
+            if not entry.as_variable:
+                # No Python wrapper → can't build OverrideCheckNode; skip.
+                continue
+            trampoline = Nodes.CFuncDefNode(
+                entry.pos,
+                base_type=None, declarator=None, body=None, doc=None,
+                modifiers=[], overridable=True, visibility='private',
+                is_cpdef_inheritance_trampoline=True)
+            trampoline.trampoline_inherited_entry = entry
+            trampoline.analyse_declarations(scope)
+            self.visit(trampoline)
+            trampolines.append(trampoline)
+            local_names.add(entry.name)  # prevent duplicate if name appears twice
         return trampolines
 
     def _create_property_getter_trampolines(self, node):

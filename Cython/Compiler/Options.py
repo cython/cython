@@ -276,6 +276,8 @@ _directive_defaults = {
 
 # experimental, subject to change
     'formal_grammar': False,
+
+    'python_subclassing': True,  # allow Python classes to subclass cclasses and override cpdef methods
 }
 
 # Extra warning directives
@@ -432,6 +434,7 @@ directive_scopes = {  # defaults to available everywhere
     'c_string_type': ('module',),
     'c_string_encoding': ('module',),
     'type_version_tag': ('module', 'cclass'),
+    'python_subclassing': ('module', 'cclass'),
     'language_level': ('module',),
     # globals() could conceivably be controlled at a finer granularity,
     # but that would complicate the implementation
@@ -462,7 +465,7 @@ immediate_decorator_directives = {
     'inline', 'exceptval', 'returns', 'with_gil',  # 'nogil',
     # class directives
     'freelist', 'no_gc', 'no_gc_clear', 'type_version_tag', 'final',
-    'auto_pickle', 'internal', 'collection_type', 'total_ordering',
+    'auto_pickle', 'internal', 'collection_type', 'total_ordering', 'python_subclassing',
     # testing directives
     'test_fail_if_path_exists', 'test_assert_path_exists',
     'test_body_needs_exception_handling',

@@ -726,7 +726,7 @@ class MethodTableSlot(SlotDescriptor):
     #  Slot descriptor for the method table.
 
     def slot_code(self, scope):
-        if scope.pyfunc_entries:
+        if scope.pyfunc_entries or getattr(scope, '_init_subclass_func_cname', None):
             return scope.method_table_cname
         else:
             return "0"

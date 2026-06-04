@@ -29,9 +29,23 @@ CYTHON --embed --embed-modules a,b main_module.pyx
 PYTHON build.py main_module main_module.c a.c b.c
 PYTHON run.py main_module
 
+# With lto=True (uses direct function call without python subclassing support)
+PYTHON cythonize_embed.py -f -X auto_cpdef=True -X lto=True -X python_subclassing=False a.pyx b.pyx
+PYTHON check_codegen.py lto a.c
+CYTHON --embed --embed-modules a,b main_module.pyx
+PYTHON build.py main_module main_module.c a.c b.c
+PYTHON run.py main_module
+
 # CPP With lto=True (uses direct function call)
 PYTHON cythonize_embed.py -+ -f -X auto_cpdef=True -X lto=True a.pyx b.pyx
 PYTHON check_codegen.py lto a.cpp
+CYTHON -+ --embed --embed-modules a,b main_module.pyx
+PYTHON build.py main_module main_module.cpp a.cpp b.cpp
+PYTHON run.py main_module
+
+# CPP With lto=True (uses direct function call without python subclassing support)
+PYTHON cythonize_embed.py -+ -f -X auto_cpdef=True -X lto=True -X python_subclassing=False a.pyx b.pyx
+PYTHON check_codegen.py lto_no_python_subclassing a.cpp
 CYTHON -+ --embed --embed-modules a,b main_module.pyx
 PYTHON build.py main_module main_module.cpp a.cpp b.cpp
 PYTHON run.py main_module
@@ -89,6 +103,30 @@ elif mode == 'lto':
     assert '__Pyx_RaiseUnboundLocalError("bopt2")' not in a_c_content, (
         "Expected no redundant unbound-local check for bopt2 after tp_new null-check")
     print("OK: LTO mode")
+
+elif mode == 'lto_no_python_subclassing':
+    # Same LTO checks as 'lto', plus verify that python_subclassing=False removes
+    # the __pyx_skip_dispatch / OverrideCheckNode dispatch block from cpdef methods.
+    assert "int __pyx_f_1b_1B_4prop___get__(struct __pyx_obj_1b_B *);" in a_c_content
+    assert "__pyx_vtabptr_1b_B->__pyx_f_1b_1B_4prop___get__" not in a_c_content, "Expected direct call to 'super().method', not vtable dispatch"
+    assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" not in a_c_content
+    assert "__pyx_vtab)->__pyx_f_1b_8Derived3_4prop___get__(" not in a_c_content, "Expected direct call to final method, not vtable dispatch"
+    assert "__Pyx_PyObject_FastCallMethod((PyObject*)__pyx_mstate_global->__pyx_n_u_init," not in a_c_content, "Expected no call to DerivedWithCtorOverride constructor skipping python"
+    assert "__pyx_vtabptr_1b_BWithOptInit->__pyx___init__" in a_c_content, (
+        "Expected vtable __init__ dispatch for BWithOptInit cross-module constructor in lto+no_ps mode")
+    assert "__pyx_opt_args_1b_12BWithOptInit___init__" in a_c_content, (
+        "Expected opt_args struct for BWithOptInit.__init__ optional-arg call in lto+no_ps mode")
+    assert '__Pyx_RaiseUnboundLocalError("bopt2")' not in a_c_content, (
+        "Expected no redundant unbound-local check for bopt2 after tp_new null-check")
+    # python_subclassing=False: cpdef/ccall methods must NOT contain the override-check block.
+    # The __pyx_skip_dispatch *parameter* stays (vtable ABI), but it must be CYTHON_UNUSED
+    # and the "Check if overridden in Python" block must be absent.
+    assert "CYTHON_UNUSED int __pyx_skip_dispatch" in a_c_content, (
+        "Expected CYTHON_UNUSED skip_dispatch parameter (vtable ABI) in cpdef methods")
+    # The dispatch block is anchored by the comment Cython always emits just before it.
+    assert "/* Check if overridden in Python */" not in a_c_content, (
+        "Expected no 'Check if overridden in Python' dispatch block with python_subclassing=False")
+    print("OK: LTO + python_subclassing=False mode")
 
 else:
     print(f"Unknown mode: {mode}")

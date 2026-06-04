@@ -1644,6 +1644,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             self.generate_binop_function(scope, slot, code, entry.pos)
 
                     self.generate_property_accessors(scope, code)
+                    if not getattr(scope, 'python_subclassing', True):
+                        self.generate_init_subclass_function(scope, code)
+                    elif getattr(scope, 'python_subclassing_re_enabled', False):
+                        # Class re-enables python_subclassing=True after a False ancestor.
+                        # Override the inherited blocking __init_subclass__ with a
+                        # permissive one so Python classes CAN subclass from here.
+                        self.generate_init_subclass_function(scope, code, permissive=True)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
                     code.putln("#if CYTHON_USE_TYPE_SPECS")
@@ -3076,8 +3083,42 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "};")
 
+    def generate_init_subclass_function(self, scope, code, permissive=False):
+        """Emit a __init_subclass__ classmethod.
+
+        permissive=False (default): rejects pure Python subclasses.
+          Uses Py_TPFLAGS_MANAGED_DICT (set only by type.__new__, i.e. pure Python
+          classes) to distinguish them from Cython heap types created via
+          PyType_FromSpec.  Falls back to tp_dictoffset != 0 for Python < 3.12.
+
+        permissive=True: always returns None, overriding a blocking __init_subclass__
+          inherited from a False ancestor when this class re-enables python_subclassing.
+        """
+        func_cname = scope.mangle_internal("init_subclass")
+        scope._init_subclass_func_cname = func_cname
+        code.putln("")
+        code.putln("static PyObject *%s(PyObject *cls, PyObject *args, PyObject *kwds) {" % func_cname)
+        if permissive:
+            code.putln("  Py_RETURN_NONE;")
+        else:
+            code.putln("  int __pyx_is_python_class = (((PyTypeObject*)cls)->tp_dictoffset != 0);")
+            code.putln("#ifdef Py_TPFLAGS_MANAGED_DICT")
+            code.putln("  __pyx_is_python_class = __pyx_is_python_class ||")
+            code.putln("      __Pyx_PyType_HasFeature((PyTypeObject*)cls, Py_TPFLAGS_MANAGED_DICT);")
+            code.putln("#endif")
+            code.putln("  if (__pyx_is_python_class) {")
+            code.putln('    PyErr_Format(PyExc_TypeError,')
+            code.putln('        "type \'%%s\' does not support subclassing by pure Python classes"')
+            code.putln('        " (python_subclassing=False)",')
+            code.putln('        ((PyTypeObject*)cls)->tp_name);')
+            code.putln("    return NULL;")
+            code.putln("  }")
+            code.putln("  Py_RETURN_NONE;")
+        code.putln("}")
+
     def generate_method_table(self, env, code):
-        if env.is_c_class_scope and not env.pyfunc_entries:
+        init_subclass_cname = getattr(env, '_init_subclass_func_cname', None)
+        if env.is_c_class_scope and not env.pyfunc_entries and not init_subclass_cname:
             return
         binding = env.directives['binding']
 
@@ -3090,6 +3131,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in env.pyfunc_entries:
             if not entry.fused_cfunction and not (binding and entry.is_overridable):
                 code.put_pymethoddef(entry, ",", wrapper_code_writer=wrapper_code_writer)
+        if init_subclass_cname:
+            code.putln(
+                '{"__init_subclass__", (PyCFunction)(void(*)(void))%s, '
+                'METH_CLASS|METH_VARARGS|METH_KEYWORDS, 0},' % init_subclass_cname)
         code.putln(
             "{0, 0, 0, 0}")
         code.putln(
