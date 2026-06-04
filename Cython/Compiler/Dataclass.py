@@ -368,7 +368,24 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     generate_hash_code(code, kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'], node, fields,
                        critical_section_placeholder_name=critical_section_placeholder_name)
 
-    stats.stats += code.generate_tree().stats
+    # Upgrade the generated def __init__ to cpdef so the constructor optimizer
+    # can fire.  We do this at tree level (via DefNode.as_cfunction) rather than
+    # by emitting "cpdef" in text, because the Cython parser rejects the bare "*"
+    # kw-only separator inside cpdef signatures.  as_cfunction() takes the already-
+    # parsed DefNode (whose args carry kw_only=True where needed) and wraps it in
+    # a CFuncDefNode without re-parsing, preserving all kw-only semantics in the
+    # Python wrapper while exposing a plain positional C signature.
+    generated = code.generate_tree()
+    for i, stat in enumerate(generated.stats):
+        if isinstance(stat, Nodes.DefNode) and stat.name == '__init__':
+            # is_cdef_func_compatible rejects the one ordering that C can't represent:
+            # a required kw-only arg after an optional kw-only arg (e.g. *, a=1, b).
+            # Pure-Python kw-only allows this (ordering is irrelevant), but the
+            # __pyx_opt_args_* struct requires all required args before optional ones.
+            if stat.is_cdef_func_compatible():
+                generated.stats[i] = stat.as_cfunction(overridable=True)
+            break
+    stats.stats += generated.stats
 
     # turn off annotation typing, so all arguments to __init__ are accepted as
     # generic objects and thus can accept _HAS_DEFAULT_FACTORY.
@@ -492,9 +509,7 @@ def generate_init_code(code, init, node, fields, kw_only, *, critical_section_pl
         code.add_code_line("pass")
 
     args = ", ".join(args)
-    # kw_only adds "*" to args, which is not cpdef-compatible; keep def for that case.
-    func_keyword = "def" if kw_only else "cpdef"
-    function_start_point.add_code_line(f"{func_keyword} __init__({args}):")
+    function_start_point.add_code_line(f"def __init__({args}):")
     function_start_point.indent()
     # Although __init__ is usually called on the only reference to self, it doesn't
     # have to be.
