@@ -2633,8 +2633,18 @@ class CClassScope(ClassScope):
         if name == "__new__":
             error(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
+        # DefNode.declare_pyfunction passes allow_redefine=not self.is_wrapper.
+        # When allow_redefine=False the caller IS the cpdef Python-wrapper creation
+        # inside CFuncDefNode.declare_cpdef_wrapper — not a user redeclaration.  In
+        # that case, if a cfunction entry already exists (just declared by the same
+        # cpdef statement), use 'ignore' visibility so Scope.declare doesn't emit a
+        # spurious level-0 "'<name>' redeclared" warning.  When allow_redefine=True
+        # the user IS overriding an existing cpdef with a def, which deserves the
+        # warning (generated at level 0 by handle_already_declared_name).
+        existing = self.lookup_here(name)
+        vis = 'ignore' if (not allow_redefine and existing and existing.is_cfunction) else 'extern'
         entry = self.declare_var(name, py_object_type, pos,
-                                 visibility='extern')
+                                 visibility=vis)
         special_sig = get_slot_table(self.directives).get_special_method_signature(name)
         if special_sig:
             # Special methods get put in the method table with a particular

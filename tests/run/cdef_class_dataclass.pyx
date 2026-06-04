@@ -281,3 +281,32 @@ True
 >>> get_dataclass_initvar() == InitVar
 True
 """
+
+
+# Verify that the constructor optimization fires for same-module dataclass types:
+# the SimpleCallNode for DataclassCtorOptTarget(x) should be split into
+# tp_new + direct __init__ call, leaving no SimpleCallNode in the body.
+@dataclass
+cdef class DataclassCtorOptTarget:
+    """
+    >>> obj = make_dataclass_ctor_opt(1, 'hi')
+    >>> obj.x, obj.y
+    (1, 'hi')
+    >>> obj2 = make_dataclass_ctor_opt_expr(2, 'there')
+    >>> obj2.x, obj2.y
+    (2, 'there')
+    """
+    x: cython.int
+    y: object = None
+
+
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+def make_dataclass_ctor_opt(x, y):
+    cdef DataclassCtorOptTarget obj
+    obj = DataclassCtorOptTarget(x, y)
+    return obj
+
+
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+def make_dataclass_ctor_opt_expr(x, y):
+    return DataclassCtorOptTarget(x, y)

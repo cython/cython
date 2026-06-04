@@ -383,6 +383,13 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     analyse_decs_transform.visit(comp_directives)
     analyse_decs_transform.exit_scope()
 
+    # allocate_vtable_names runs during CClassDefNode.analyse_declarations, before
+    # this dataclass code generation.  If we just added a cpdef __init__ to
+    # cfunc_entries, re-run allocation so the vtable struct/ptr cnames are set.
+    # Without this the generated __pyx_pf_ body calls through a null vtabptr_cname,
+    # producing literal "None->__pyx___init__" in the C output.
+    node.entry.scope.allocate_vtable_names(node.entry)
+
     node.body.stats.append(comp_directives)
 
 
@@ -485,7 +492,9 @@ def generate_init_code(code, init, node, fields, kw_only, *, critical_section_pl
         code.add_code_line("pass")
 
     args = ", ".join(args)
-    function_start_point.add_code_line(f"def __init__({args}):")
+    # kw_only adds "*" to args, which is not cpdef-compatible; keep def for that case.
+    func_keyword = "def" if kw_only else "cpdef"
+    function_start_point.add_code_line(f"{func_keyword} __init__({args}):")
     function_start_point.indent()
     # Although __init__ is usually called on the only reference to self, it doesn't
     # have to be.
