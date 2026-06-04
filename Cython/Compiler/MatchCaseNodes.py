@@ -1663,7 +1663,7 @@ class ClassPatternNode(PatternNode):
             if kw.name in seen:
                 error(
                     self.pos,
-                    "attribute name repeated in class pattern: '%s" % kw.name
+                    f"attribute name repeated in class pattern: '{kw.name}'"
                 )
             seen.add(kw.name)
 

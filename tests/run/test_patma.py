@@ -2887,7 +2887,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
+    @disable  # in e_patma_late instead
     def test_attribute_name_repeated_in_class_pattern(self):
         self.assert_syntax_error("""
         match ...:
@@ -3127,7 +3127,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
+    @disable  # in e_patma_late test instead
     def test_mapping_pattern_duplicate_key(self):
         self.assert_syntax_error("""
         match ...:
@@ -3135,7 +3135,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
+    @disable  # in e_patma_late test instead
     def test_mapping_pattern_duplicate_key_edge_case0(self):
         self.assert_syntax_error("""
         match ...:
@@ -3143,7 +3143,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
+    @disable  # in e_patma_late test instead
     def test_mapping_pattern_duplicate_key_edge_case1(self):
         self.assert_syntax_error("""
         match ...:
@@ -3151,7 +3151,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
+    @disable  # in e_patma_late test instead
     def test_mapping_pattern_duplicate_key_edge_case2(self):
         self.assert_syntax_error("""
         match ...:
@@ -3159,7 +3159,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # works, but emitted too late in compilation to be caught be the test mechanism
+    @disable  # in e_patma_late test instead
     def test_mapping_pattern_duplicate_key_edge_case3(self):
         self.assert_syntax_error("""
         match ...:
