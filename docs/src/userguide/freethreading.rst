@@ -378,7 +378,7 @@ Adding a critical section or lock around ``self.n_calls += 1`` is one option, bu
 Using a thread-local variable is often a faster option, and specifically C (or C++) thread-locals.
 Since Cython `does not yet expose the relevant specifiers <https://github.com/cython/cython/issues/6745>`_, you will need to create custom thread-local types yourself::
 
-  cdef extern from "*":
+  cdef extern from *:
       """
       #if defined(_MSC_VER)
         // MS compiler doesn't do standardized _Thread_local until very recent
