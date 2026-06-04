@@ -7494,7 +7494,13 @@ class GeneralCallNode(CallNode):
                 node = self.map_to_simple_call_node()
                 if node is not None and node is not self:
                     return node.analyse_types(env)
-                elif self.function.entry.as_variable:
+                elif (self.function.entry.as_variable or
+                        (self.function.entry.is_cmethod and
+                         (self.function.entry.is_overridable or
+                          getattr(self.function.type, 'is_overridable', False)))):
+                    # Fall back to Python dispatch. AttributeNode.coerce_to handles both
+                    # directly-defined cpdef (is_cfunction+as_variable) and inherited cpdef
+                    # (is_cmethod+is_overridable, as_variable=None) via analyse_as_python_attribute.
                     self.function = self.function.coerce_to_pyobject(env)
                 elif node is self:
                     error(self.pos,
@@ -7595,11 +7601,12 @@ class GeneralCallNode(CallNode):
                         first_missing_keyword = name
                     continue
                 elif first_missing_keyword:
-                    if entry.as_variable:
-                        # we might be able to convert the function to a Python
-                        # object, which then allows full calling semantics
-                        # with default values in gaps - currently, we only
-                        # support optional arguments at the end
+                    if entry.as_variable or (entry.is_cmethod and function_type.is_overridable):
+                        # Fall back to a Python call: either the function has a Python
+                        # form (as_variable), or it is an inherited cpdef whose
+                        # as_variable is None but that still has a Python wrapper.
+                        # We only support optional arguments at the end in the C ABI,
+                        # so gaps in keyword args require Python dispatch.
                         return self
                     # wasn't the last keyword => gaps are not supported
                     error(self.pos, "C function call is missing "
@@ -7995,6 +8002,10 @@ class AttributeNode(ExprNode):
 
     def infer_type(self, env):
         # FIXME: this is way too redundant with analyse_types()
+        if self.is_py_attr:
+            # Already converted to Python attribute access (e.g. via coerce_to_pyobject).
+            # Do not call analyse_attribute, which would reset is_py_attr = 0.
+            return py_object_type
         node = self.analyse_as_cimported_attribute_node(env, target=False)
         if node is not None:
             if node.entry.type and node.entry.type.is_cfunction:

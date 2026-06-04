@@ -1923,6 +1923,10 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             function=func_node,
             args=new_args
         )
+        # Same as cross-module path: super() must skip re-dispatch so the base
+        # method runs directly rather than re-dispatching to the furthest-derived
+        # override (a RawCNameExprNode has no entry, so skip_dispatch defaults to 0).
+        call_node.wrapper_call = True
         _set_optional_args_flag(call_node, resolved_fn.type, new_args)
         return call_node
 
@@ -4900,8 +4904,18 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         # CastNode generates an explicit C cast (PyObject* → struct *) without
         # a runtime isinstance check; it satisfies C++ strict pointer typing.
         own_func_cname = ext_type.scope.mangle(Naming.func_prefix, '__init__')
-        if func_cname and func_cname == own_func_cname:
+        if func_cname and func_cname == own_func_cname and same_module:
             self_type_for_cast = ext_type
+        elif not same_module and getattr(init_entry, 'cname', None):
+            # Cross-module vtable slot depth determines the self type (same logic as
+            # _build_init_call_stat).
+            depth = init_entry.cname.count(Naming.obj_base_cname + '.')
+            self_type_for_cast = ext_type
+            for _ in range(depth):
+                bt = getattr(self_type_for_cast, 'base_type', None)
+                if bt is None:
+                    break
+                self_type_for_cast = bt
         elif init_entry.type.args:
             self_type_for_cast = init_entry.type.args[0].type
         else:
@@ -4984,8 +4998,20 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         # with.  This avoids C++ pointer-type errors (C allows implicit struct-pointer
         # conversions; C++ requires an explicit cast that result_as() emits).
         own_func_cname = ext_type.scope.mangle(Naming.func_prefix, '__init__')
-        if func_cname and func_cname == own_func_cname:
+        if func_cname and func_cname == own_func_cname and same_module:
+            # Same-module own init: the C function's first parameter is ext_type*.
             formal_self_type = ext_type
+        elif not same_module and getattr(init_entry, 'cname', None):
+            # Cross-module vtable call: the slot lives in an ancestor's vtable section.
+            # '__pyx_base.__pyx___init__' has depth 1 → slot self type is the immediate
+            # parent; '__pyx_base.__pyx_base.__pyx___init__' depth 2 → grandparent, etc.
+            depth = init_entry.cname.count(Naming.obj_base_cname + '.')
+            formal_self_type = ext_type
+            for _ in range(depth):
+                bt = getattr(formal_self_type, 'base_type', None)
+                if bt is None:
+                    break
+                formal_self_type = bt
         elif orig_type.args:
             formal_self_type = orig_type.args[0].type
         else:

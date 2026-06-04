@@ -3213,7 +3213,8 @@ class CFuncDefNode(FuncDefNode):
     def needs_assignment_synthesis(self, env, code=None):
         return False
 
-    def generate_function_header(self, code, with_pymethdef, with_opt_args=1, with_dispatch=1, cname=None):
+    def generate_function_header(self, code, with_pymethdef, with_opt_args=1, with_dispatch=1, cname=None,
+                                 opt_arg_struct=None):
         scope = self.local_scope
         arg_decls = []
         type = self.type
@@ -3230,8 +3231,18 @@ class CFuncDefNode(FuncDefNode):
                 arg_decls.append(dispatch_arg)
             else:
                 arg_decls.append('CYTHON_UNUSED %s' % dispatch_arg)
-        if type.optional_arg_count and with_opt_args:
-            arg_decls.append(type.op_arg_struct.declaration_code(Naming.optional_args_cname))
+        if with_opt_args:
+            # opt_arg_struct overrides the current type's struct — used by wrappers
+            # that must match a prev-entry slot signature (e.g. parent __init__ with
+            # optional args) even though the current function has none.
+            struct = opt_arg_struct if opt_arg_struct is not None else (
+                type.op_arg_struct if type.optional_arg_count else None)
+            if struct is not None:
+                decl = struct.declaration_code(Naming.optional_args_cname)
+                if not type.optional_arg_count:
+                    # Wrapper receives but ignores the opt-args; mark CYTHON_UNUSED.
+                    decl = 'CYTHON_UNUSED ' + decl
+                arg_decls.append(decl)
         if type.has_varargs:
             arg_decls.append("...")
         if not arg_decls:
@@ -3384,11 +3395,19 @@ class CFuncDefNode(FuncDefNode):
             entry = entry.prev_entry
             entry.func_cname = "%s%swrap_%s" % (self.entry.func_cname, Naming.pyrex_prefix, k)
             code.putln()
+            # When the prev slot expects optional args but the current function has
+            # none, pass the prev entry's opt_arg_struct so the wrapper parameter
+            # list matches the slot signature (the arg is marked CYTHON_UNUSED).
+            opt_arg_struct_override = (
+                entry.type.op_arg_struct
+                if entry.type.optional_arg_count and not self.type.optional_arg_count
+                else None)
             self.generate_function_header(
                 code, 0,
                 with_dispatch=entry.type.is_overridable,
                 with_opt_args=entry.type.optional_arg_count,
-                cname=entry.func_cname)
+                cname=entry.func_cname,
+                opt_arg_struct=opt_arg_struct_override)
             if not self.return_type.is_void:
                 code.put('return ')
             args = self.type.args
@@ -3397,10 +3416,16 @@ class CFuncDefNode(FuncDefNode):
                 arglist.append(Naming.skip_dispatch_cname)
             elif func_type.is_overridable:
                 arglist.append('0')
-            if entry.type.optional_arg_count:
-                arglist.append(Naming.optional_args_cname)
-            elif func_type.optional_arg_count:
-                arglist.append('NULL')
+            if func_type.optional_arg_count:
+                # Current function takes optional args; pass them from the wrapper
+                # if the prev signature also had them, otherwise pass NULL.
+                if entry.type.optional_arg_count:
+                    arglist.append(Naming.optional_args_cname)
+                else:
+                    arglist.append('NULL')
+            # else: current function takes no optional args — don't pass any.
+            # This handles __init__ overrides where signatures differ completely
+            # (e.g. parent has optional kw args, child has different required args).
             code.putln('%s(%s);' % (self.entry.func_cname, ', '.join(arglist)))
             code.putln('}')
 
@@ -3601,6 +3626,17 @@ class DefNode(FuncDefNode):
 
         if self.is_classmethod or self.is_staticmethod or is_property:
             return False
+
+        # Required kw-only args after optional args cannot be represented in the
+        # C function ABI without reordering (C requires all required args before
+        # optional ones).  Python 3 allows *, a=1, b (kw-only required after
+        # kw-only optional), so stay as a plain def instead of erroring.
+        seen_optional = False
+        for arg in self.args:
+            if arg.default:
+                seen_optional = True
+            elif seen_optional and arg.kw_only:
+                return False
 
         return True
 
