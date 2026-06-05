@@ -261,6 +261,7 @@ class N:
 if cython.compiled:
     @cython.cclass
     class CDefFuncTest:
+        __slots__ = ()
         """
         >>> obj = CDefFuncTest()
         >>> obj.call_cfunc1().__name__

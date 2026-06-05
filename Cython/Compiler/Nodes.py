@@ -6317,13 +6317,12 @@ class CClassDefNode(ClassDefNode):
                 if dict_entry and dict_entry.is_variable:
                     dict_entry.getter_cname = self.scope.mangle_internal("__dict__getter")
                     self.scope.declare_property("__dict__", dict_entry.doc, dict_entry.pos)
-                elif not scope.var_entries:
-                    warning(self.pos,
-                            "'@cclass' class '%s' has no attribute declarations, which would require "
-                            "an implicit '__dict__'. Declare instance attributes with type annotations "
-                            "(e.g. 'x: int'), use '__slots__ = (...)' if the class intentionally has "
-                            "none, or add '__dict__: dict' explicitly to allow dynamic attributes." % self.class_name,
-                            level=1)
+                elif not scope.var_entries and self._body_uses_undeclared_self_attr(scope):
+                    error(self.pos,
+                          "'@cclass' class '%s' has no attribute declarations. "
+                          "Declare instance attributes with type annotations "
+                          "(e.g. 'x: int'), use '__slots__ = (...)' if the class intentionally has "
+                          "none, or add '__dict__: dict' explicitly to allow dynamic attributes." % self.class_name)
             if self.in_pxd:
                 scope.defined = 1
             else:
@@ -6355,6 +6354,45 @@ class CClassDefNode(ClassDefNode):
 
         for thunk in self.entry.type.defered_declarations:
             thunk()
+
+    def _body_uses_undeclared_self_attr(self, scope):
+        """Return True if the body contains self.X attribute accesses where X is not
+        declared in the scope chain (own entries + inherited C attrs, excluding module scope).
+        Pure method-container classes with no self.X accesses return False.
+        Classes that only access inherited C-level attrs also return False."""
+        from .ExprNodes import AttributeNode, NameNode
+        names = set()
+
+        def _collect(node):
+            if node is None:
+                return
+            if isinstance(node, AttributeNode):
+                if isinstance(node.obj, NameNode) and node.obj.name == 'self':
+                    names.add(node.attribute)
+            for attr in node.child_attrs:
+                child = getattr(node, attr, None)
+                if isinstance(child, list):
+                    for item in child:
+                        if hasattr(item, 'child_attrs'):
+                            _collect(item)
+                elif hasattr(child, 'child_attrs'):
+                    _collect(child)
+
+        _collect(self.body)
+        if not names:
+            return False
+
+        def _in_scope_chain(name):
+            s = scope
+            while s is not None:
+                if s.lookup_here(name) is not None:
+                    return True
+                parent_type = getattr(s, 'parent_type', None)
+                base_type = getattr(parent_type, 'base_type', None) if parent_type else None
+                s = getattr(base_type, 'scope', None) if base_type else None
+            return False
+
+        return any(not _in_scope_chain(n) for n in names)
 
     def analyse_expressions(self, env):
         if self.body:
