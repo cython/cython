@@ -20,7 +20,6 @@ class _ErrorsThreadLocals(_threadlocal):
 
     def __init__(self):
         # mutable defaults
-        self.cython_errors_warn_once_seen = set()
         self.cython_errors_stack = []
 
     def reset(self):
@@ -28,6 +27,14 @@ class _ErrorsThreadLocals(_threadlocal):
         self.__init__()
 
 threadlocal = _ErrorsThreadLocals()
+
+# Process-level dedup set: survives Errors.reset() so the same message is
+# not echoed to stderr more than once across multiple file compilations.
+_process_seen_messages: set = set()
+
+
+def reset_process_seen_messages() -> None:
+    _process_seen_messages.clear()
 
 from ..Utils import open_new_file
 from . import DebugFlags
@@ -176,7 +183,8 @@ def report_error(err, use_stack=True):
             except UnicodeEncodeError:
                 listing_file.write(line.encode('ASCII', 'replace'))
         echo_file = threadlocal.cython_errors_echo_file
-        if echo_file:
+        if echo_file and line not in _process_seen_messages:
+            _process_seen_messages.add(line)
             try: echo_file.write(line)
             except UnicodeEncodeError:
                 echo_file.write(line.encode('ASCII', 'replace'))
@@ -212,7 +220,8 @@ def performance_hint(position, message, env):
     if listing_file:
         _write_file_encode(listing_file, line)
     echo_file = threadlocal.cython_errors_echo_file
-    if echo_file:
+    if echo_file and line not in _process_seen_messages:
+        _process_seen_messages.add(line)
         _write_file_encode(echo_file, line)
     return warn
 
@@ -226,7 +235,8 @@ def message(position, message, level=1):
     if listing_file:
         _write_file_encode(listing_file, line)
     echo_file = threadlocal.cython_errors_echo_file
-    if echo_file:
+    if echo_file and line not in _process_seen_messages:
+        _process_seen_messages.add(line)
         _write_file_encode(echo_file, line)
     return warn
 
@@ -242,7 +252,8 @@ def warning(position, message, level=0):
     if listing_file:
         _write_file_encode(listing_file, line)
     echo_file = threadlocal.cython_errors_echo_file
-    if echo_file:
+    if echo_file and line not in _process_seen_messages:
+        _process_seen_messages.add(line)
         _write_file_encode(echo_file, line)
     return warn
 
@@ -250,18 +261,15 @@ def warning(position, message, level=0):
 def warn_once(position, message, level=0):
     if level < LEVEL:
         return
-    warn_once_seen = threadlocal.cython_errors_warn_once_seen
-    if message in warn_once_seen:
-        return
     warn = CompileWarning(position, message)
     line = "warning: %s\n" % warn
     listing_file = threadlocal.cython_errors_listing_file
     if listing_file:
         _write_file_encode(listing_file, line)
     echo_file = threadlocal.cython_errors_echo_file
-    if echo_file:
+    if echo_file and line not in _process_seen_messages:
+        _process_seen_messages.add(line)
         _write_file_encode(echo_file, line)
-    warn_once_seen.add(message)
     return warn
 
 

@@ -1139,13 +1139,21 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     except ImportError:
         nthreads = 0
 
+    Errors.reset_process_seen_messages()
+
     if nthreads:
+        seen_lines: set = set()
         with ProcessPoolExecutor(
             max_workers=nthreads,
             initializer=_init_multiprocessing_helper,
         ) as proc_pool:
             try:
-                list(proc_pool.map(cythonize_one_helper, to_compile, chunksize=1))
+                for captured in proc_pool.map(cythonize_one_helper, to_compile, chunksize=1):
+                    if captured:
+                        for line in captured.splitlines(keepends=True):
+                            if line not in seen_lines:
+                                seen_lines.add(line)
+                                sys.stderr.write(line)
             except KeyboardInterrupt:
                 proc_pool.terminate_workers()
                 proc_pool.shutdown(cancel_futures=True)
@@ -1269,11 +1277,21 @@ def cythonize_one(pyx_file, c_file,
 
 def cythonize_one_helper(m):
     import traceback
+    buf = StringIO()
+    old_stderr = sys.stderr
+    sys.stderr = buf
     try:
-        return cythonize_one(*m)
+        cythonize_one(*m)
     except Exception:
+        sys.stderr = old_stderr
+        captured = buf.getvalue()
+        if captured:
+            sys.stderr.write(captured)
         traceback.print_exc()
         raise
+    finally:
+        sys.stderr = old_stderr
+    return buf.getvalue()
 
 
 def _init_multiprocessing_helper():

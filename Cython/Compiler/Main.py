@@ -682,6 +682,7 @@ def compile_multiple(sources, options, cache=None):
     if len(sources) > 1 and options.module_name:
         raise RuntimeError('Full module name can only be set '
                            'for single source compilation')
+    Errors.reset_process_seen_messages()
     # run_pipeline creates the context
     # context = Context.from_options(options)
     sources = [os.path.abspath(source) for source in sources]
