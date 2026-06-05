@@ -1355,6 +1355,16 @@ class InterpretCompilerDirectives(CythonTransform):
         both = []
         current_opt_dict = dict(self.directives)
         missing = object()
+        # Pre-scan: if any decorator promotes scope to cclass (e.g. @cclass on a
+        # Python class), upgrade scope_name before checking other decorators so that
+        # directives legal only in cclass scope (e.g. @python_subclassing) pass
+        # regardless of their position relative to @cclass.
+        if scope_name == 'class':
+            for dec in node.decorators:
+                pre = self.try_to_parse_directives(dec.decorator)
+                if pre and any(d[0] == 'cclass' for d in pre):
+                    scope_name = 'cclass'
+                    break
         # Decorators coming first take precedence.
         for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)

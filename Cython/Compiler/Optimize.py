@@ -4724,13 +4724,27 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
             PyrexTypes.CFuncTypeArg("args", PyrexTypes.py_object_type, None),
         ])
 
+    def visit_ParallelAssignmentNode(self, node):
+        # _maybe_split_ctor would return a StatListNode, which cannot sit in
+        # ParallelAssignmentNode.stats (generate_rhs_evaluation_code would crash).
+        # Suppress the split path for direct children; the expression-level transform
+        # (_maybe_transform_ctor_expr via visit_SimpleCallNode) fires instead.
+        self._in_parallel_assignment = getattr(self, '_in_parallel_assignment', 0) + 1
+        self.visitchildren(node)
+        self._in_parallel_assignment -= 1
+        return node
+
     def visit_SingleAssignmentNode(self, node):
         lhs = node.lhs
         # For a simple name LHS, try the statement-level split first.  This avoids
         # introducing an extra temp that visit_SimpleCallNode would add below.
         # Check BEFORE visitchildren so visit_SimpleCallNode doesn't transform the
         # RHS first and make the split path unreachable.
-        if lhs.is_name and lhs.entry and isinstance(node.rhs, ExprNodes.SimpleCallNode):
+        # Exception: inside a ParallelAssignmentNode the split is illegal (result
+        # would be a StatListNode in stats); fall through to the expression-level path.
+        if (not getattr(self, '_in_parallel_assignment', 0)
+                and lhs.is_name and lhs.entry
+                and isinstance(node.rhs, ExprNodes.SimpleCallNode)):
             result = self._maybe_split_ctor(node)
             if result is not node:
                 # Optimisation applied; recurse so nested ctors in args are also transformed.
