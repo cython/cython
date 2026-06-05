@@ -5866,14 +5866,44 @@ class PyClassDefNode(ClassDefNode):
                 entry = outer.as_module.lookup(base_expr.attribute) if outer and outer.as_module else None
             else:
                 entry = None
-            if entry and entry.type and entry.type.is_extension_type:
-                scope = entry.type.scope
-                if scope and not getattr(scope, 'python_subclassing', True):
-                    error(self.pos,
-                          "Python class '%s' inherits from extension type '%s' which has "
-                          "python_subclassing=False; declare it as a cdef class or add "
-                          "@cython.python_subclassing(True) to the base type" % (
-                              self.name, entry.type.name))
+            scope = self._resolve_extension_scope(env, entry)
+            if scope and not getattr(scope, 'python_subclassing', True):
+                if entry and entry.type and entry.type.is_extension_type:
+                    type_name = entry.type.name
+                else:
+                    type_name = getattr(entry, 'python_import_name', entry.name if entry else '?')
+                error(self.pos,
+                      "Python class '%s' inherits from extension type '%s' which has "
+                      "python_subclassing=False; declare it as a cdef class or add "
+                      "@cython.python_subclassing(True) to the base type" % (
+                          self.name, type_name))
+
+    @staticmethod
+    def _resolve_extension_scope(env, entry):
+        """Return the cdef-class scope for entry, with pxd fallback for Python-imported names."""
+        if not entry:
+            return None
+        if entry.type and entry.type.is_extension_type:
+            return entry.type.scope
+        # entry may have been created by FromImportStatNode with py_object_type;
+        # try loading the pxd to get the real type.
+        module_name = getattr(entry, 'python_import_module', None)
+        if module_name is None:
+            return None
+        try:
+            module_scope = env.find_module(
+                module_name,
+                pos=entry.pos,
+                relative_level=getattr(entry, 'python_import_level', 0))
+        except Exception:
+            return None
+        if not module_scope:
+            return None
+        original_name = getattr(entry, 'python_import_name', entry.name)
+        pxd_entry = module_scope.lookup(original_name)
+        if pxd_entry and pxd_entry.type and pxd_entry.type.is_extension_type:
+            return pxd_entry.type.scope
+        return None
 
     update_bases_functype = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
@@ -10254,6 +10284,9 @@ class FromImportStatNode(StatNode):
                     if target.get_known_standard_library_import() is None:
                         target.entry.known_standard_library_import = EncodedString(
                             "%s.%s" % (self.module.module_name.value, name))
+                    target.entry.python_import_module = self.module.module_name.value
+                    target.entry.python_import_name = name
+                    target.entry.python_import_level = self.module.level
                 else:
                     # it isn't unambiguous
                     target.entry.known_standard_library_import = ""
