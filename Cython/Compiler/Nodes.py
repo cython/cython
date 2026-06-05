@@ -5742,16 +5742,25 @@ class PyClassDefNode(ClassDefNode):
     def _has_slots(self):
         """Check if the class body contains a __slots__ assignment."""
         from . import ExprNodes
-        body = self.body
-        stats = getattr(body, 'stats', None)
-        if stats is None:
+
+        def _check_stats(stats):
+            for stat in stats:
+                if isinstance(stat, CompilerDirectivesNode):
+                    inner = getattr(stat.body, 'stats', None)
+                    if inner and _check_stats(inner):
+                        return True
+                    stat = stat.body
+                if (isinstance(stat, SingleAssignmentNode) and
+                        isinstance(stat.lhs, ExprNodes.NameNode) and
+                        stat.lhs.name == '__slots__'):
+                    return True
             return False
-        for stat in stats:
-            if (isinstance(stat, SingleAssignmentNode) and
-                    isinstance(stat.lhs, ExprNodes.NameNode) and
-                    stat.lhs.name == '__slots__'):
-                return True
-        return False
+
+        body = self.body
+        if isinstance(body, CompilerDirectivesNode):
+            body = body.body
+        stats = getattr(body, 'stats', None)
+        return bool(stats and _check_stats(stats))
 
     def as_cclass(self, visibility):
         """
@@ -6302,24 +6311,19 @@ class CClassDefNode(ClassDefNode):
 
         if has_body:
             self.body.analyse_declarations(scope)
-            # For @cclass in .py files, automatically add __dict__ to preserve
-            # pure-Python semantics (dynamic attribute assignment) unless the
-            # class explicitly uses __slots__ to opt out.
             if (self.from_pure_python_needs_dict
-                    and not scope.lookup_here("__dict__")
                     and not scope.defined and not scope.implemented):
-                dict_type = Builtin.builtin_scope.lookup('dict').type
-                _dict_name = EncodedString('__dict__')
-                dict_entry = scope.declare_var(
-                    _dict_name, dict_type, self.pos,
-                    cname=_dict_name, is_cdef=True)
-                dict_entry.getter_cname = self.scope.mangle_internal("__dict__getter")
-                self.scope.declare_property(_dict_name, None, self.pos)
-            else:
-                dict_entry = self.scope.lookup_here("__dict__")
-                if dict_entry and dict_entry.is_variable and (not scope.defined and not scope.implemented):
+                dict_entry = scope.lookup_here("__dict__")
+                if dict_entry and dict_entry.is_variable:
                     dict_entry.getter_cname = self.scope.mangle_internal("__dict__getter")
                     self.scope.declare_property("__dict__", dict_entry.doc, dict_entry.pos)
+                elif not scope.var_entries:
+                    warning(self.pos,
+                            "'@cclass' class '%s' has no attribute declarations, which would require "
+                            "an implicit '__dict__'. Declare instance attributes with type annotations "
+                            "(e.g. 'x: int'), use '__slots__ = (...)' if the class intentionally has "
+                            "none, or add '__dict__: dict' explicitly to allow dynamic attributes." % self.class_name,
+                            level=1)
             if self.in_pxd:
                 scope.defined = 1
             else:

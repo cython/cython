@@ -85,6 +85,7 @@ class SetItemExtSequenceAnn:
     >>> implements_slot(s, 'sq_ass_item')
     True
     """
+    __slots__ = ()
     def __setitem__(self, i: cython.Py_ssize_t, x):
         print(i, x)
 
@@ -105,6 +106,7 @@ class SetItemExtCollectionTypeSequenceInt:
     >>> implements_slot(s, 'sq_ass_item')
     True
     """
+    __slots__ = ()
     def __setitem__(self, i: cython.Py_ssize_t, x):
         print(i, x)
 
@@ -125,6 +127,7 @@ class SetItemExtCollectionTypeSequenceObj:
     >>> implements_slot(s, 'sq_ass_item')
     True
     """
+    __slots__ = ()
     def __setitem__(self, i, x):
         print(i, x)
 
@@ -145,6 +148,7 @@ class SetItemExtCollectionTypeMappingInt:
     >>> implements_slot(s, 'sq_ass_item')
     True
     """
+    __slots__ = ()
     def __setitem__(self, i: cython.Py_ssize_t, x):
         print(i, x)
 
@@ -165,6 +169,7 @@ class SetItemExtCollectionTypeMappingObj:
     >>> implements_slot(s, 'sq_ass_item')  # not required but doesn't hurt since 'mp_ass_subscript' takes precedence
     True
     """
+    __slots__ = ()
     def __setitem__(self, i, x):
         print(i, x)
 
@@ -184,10 +189,11 @@ class SetItemExtSequenceSmallInt:
     >>> implements_slot(s, 'sq_ass_item')
     True
     """
+    __slots__ = ()
     def __setitem__(self, i: cython.int, x):
         print(i, x)
 
 
 _WARNINGS = """
-187:26: Smaller index type 'int' than 'Py_ssize_t' may get truncated in sequence protocol
+193:26: Smaller index type 'int' than 'Py_ssize_t' may get truncated in sequence protocol
 """
