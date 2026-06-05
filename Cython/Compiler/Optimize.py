@@ -4848,6 +4848,13 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
     def _maybe_split_ctor(self, node):
         lhs = node.lhs
         env = self.current_env()
+        # Module-level and Python-class-body variables live in dicts, not as local
+        # C variables.  The split path uses lhs.entry.cname directly as a C lvalue,
+        # which is undeclared outside LocalScope.  Fall through to the expression path.
+        scope = lhs.entry and lhs.entry.scope
+        if scope and (getattr(scope, 'is_module_scope', False) or
+                      getattr(scope, 'is_py_class_scope', False)):
+            return node
         info = self._extract_ctor_info(node.rhs, env)
         if info is None:
             return node
