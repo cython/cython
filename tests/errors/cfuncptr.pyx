@@ -48,7 +48,5 @@ _ERRORS = """
 30:13: Cannot assign type 'int (int) except *' to 'int (*)(int) except -1'. Exception values are incompatible.
 31:13: Cannot assign type 'int (int) except *' to 'int (*)(int) except? -1'. Exception values are incompatible.
 40:32: Cannot assign type 'int (*)(int) except? -1 nogil' to 'int (*)(int) noexcept nogil'. Exception values are incompatible. Suggest adding 'noexcept' to the type of the value being assigned.
-40:32: Cannot assign type 'int (*)(int) except? -1 nogil' to 'int (*)(int) noexcept nogil'. Exception values are incompatible. Suggest adding 'noexcept' to the type of the value being assigned.
-40:37: Cannot assign type 'void (*)(int) except * nogil' to 'void (*)(int) noexcept nogil'. Exception values are incompatible. Suggest adding 'noexcept' to the type of the value being assigned.
 40:37: Cannot assign type 'void (*)(int) except * nogil' to 'void (*)(int) noexcept nogil'. Exception values are incompatible. Suggest adding 'noexcept' to the type of the value being assigned.
 """

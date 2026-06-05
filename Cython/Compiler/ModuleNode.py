@@ -3091,14 +3091,53 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
           classes) to distinguish them from Cython heap types created via
           PyType_FromSpec.  Falls back to tp_dictoffset != 0 for Python < 3.12.
 
-        permissive=True: always returns None, overriding a blocking __init_subclass__
-          inherited from a False ancestor when this class re-enables python_subclassing.
+        permissive=True: overrides a blocking __init_subclass__ inherited from a
+          False ancestor when this class re-enables python_subclassing.  Propagates
+          __init_subclass__ to the first non-Cython-blocking type in the MRO so
+          that cooperative bases (e.g. typing.Generic) are still initialised.
+          Cython-blocking types are identified by '__pyx_blocking_init_subclass__'
+          being set on their tp_dict (done in generate_type_ready_code).
         """
         func_cname = scope.mangle_internal("init_subclass")
         scope._init_subclass_func_cname = func_cname
         code.putln("")
         code.putln("static PyObject *%s(PyObject *cls, PyObject *args, PyObject *kwds) {" % func_cname)
         if permissive:
+            typeptr_expr = code.name_in_slot_module_state(scope.parent_type.typeptr_cname)
+            code.putln("  /* Walk cls's MRO past our type, skipping Cython-blocking types,")
+            code.putln("     then call super(last_skipped, cls).__init_subclass__(**kwds). */")
+            code.putln("  PyObject *__pyx_super_from = (PyObject *)(%s);" % typeptr_expr)
+            code.putln("  if (__pyx_super_from) {")
+            code.putln("    PyObject *__pyx_mro = ((PyTypeObject*)cls)->tp_mro;")
+            code.putln("    Py_ssize_t __pyx_i, __pyx_n = PyTuple_GET_SIZE(__pyx_mro);")
+            code.putln("    for (__pyx_i = 0; __pyx_i < __pyx_n; __pyx_i++) {")
+            code.putln("      if (PyTuple_GET_ITEM(__pyx_mro, __pyx_i) == __pyx_super_from)")
+            code.putln("        { __pyx_i++; break; }")
+            code.putln("    }")
+            code.putln("    for (; __pyx_i < __pyx_n; __pyx_i++) {")
+            code.putln("      PyObject *__pyx_b = PyTuple_GET_ITEM(__pyx_mro, __pyx_i);")
+            code.putln('      if (PyObject_HasAttrString(__pyx_b, "__pyx_blocking_init_subclass__"))')
+            code.putln("        __pyx_super_from = __pyx_b;")
+            code.putln("    }")
+            code.putln("    {")
+            code.putln("      PyObject *__pyx_super = PyObject_CallFunctionObjArgs(")
+            code.putln("          (PyObject *)&PySuper_Type, __pyx_super_from, cls, NULL);")
+            code.putln("      if (!__pyx_super) return NULL;")
+            code.putln('      PyObject *__pyx_isc_m = PyObject_GetAttrString(__pyx_super, "__init_subclass__");')
+            code.putln("      Py_DECREF(__pyx_super);")
+            code.putln("      if (__pyx_isc_m) {")
+            code.putln("        PyObject *__pyx_empty = PyTuple_New(0);")
+            code.putln("        if (!__pyx_empty) { Py_DECREF(__pyx_isc_m); return NULL; }")
+            code.putln("        PyObject *__pyx_isc_r = PyObject_Call(__pyx_isc_m, __pyx_empty, kwds);")
+            code.putln("        Py_DECREF(__pyx_empty);")
+            code.putln("        Py_DECREF(__pyx_isc_m);")
+            code.putln("        if (!__pyx_isc_r) return NULL;")
+            code.putln("        Py_DECREF(__pyx_isc_r);")
+            code.putln("      } else if (PyErr_ExceptionMatches(PyExc_AttributeError)) {")
+            code.putln("        PyErr_Clear();")
+            code.putln("      } else { return NULL; }")
+            code.putln("    }")
+            code.putln("  }")
             code.putln("  Py_RETURN_NONE;")
         else:
             code.putln("  int __pyx_is_python_class = (((PyTypeObject*)cls)->tp_dictoffset != 0);")

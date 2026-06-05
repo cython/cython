@@ -5739,6 +5739,20 @@ class PyClassDefNode(ClassDefNode):
         self.target = ExprNodes.NameNode(pos, name=name)
         self.class_cell = ExprNodes.ClassCellInjectorNode(self.pos)
 
+    def _has_slots(self):
+        """Check if the class body contains a __slots__ assignment."""
+        from . import ExprNodes
+        body = self.body
+        stats = getattr(body, 'stats', None)
+        if stats is None:
+            return False
+        for stat in stats:
+            if (isinstance(stat, SingleAssignmentNode) and
+                    isinstance(stat.lhs, ExprNodes.NameNode) and
+                    stat.lhs.name == '__slots__'):
+                return True
+        return False
+
     def as_cclass(self, visibility):
         """
         Return this node as if it were declared as an extension class
@@ -5748,7 +5762,7 @@ class PyClassDefNode(ClassDefNode):
             return
 
         from . import ExprNodes
-        return CClassDefNode(self.pos,
+        node = CClassDefNode(self.pos,
                              visibility=visibility,
                              module_name=None,
                              class_name=self.name,
@@ -5757,6 +5771,10 @@ class PyClassDefNode(ClassDefNode):
                              body=self.body,
                              in_pxd=False,
                              doc=self.doc)
+        node.from_pure_python = True
+        # Preserve __dict__ unless the class explicitly uses __slots__
+        node.from_pure_python_needs_dict = not self._has_slots()
+        return node
 
     def as_cenum(self, visibility):
         """
@@ -6029,6 +6047,8 @@ class CClassDefNode(ClassDefNode):
     check_size = None
     decorators = None
     shadow = False
+    from_pure_python = False
+    from_pure_python_needs_dict = False
 
     @property
     def punycode_class_name(self):
@@ -6282,10 +6302,24 @@ class CClassDefNode(ClassDefNode):
 
         if has_body:
             self.body.analyse_declarations(scope)
-            dict_entry = self.scope.lookup_here("__dict__")
-            if dict_entry and dict_entry.is_variable and (not scope.defined and not scope.implemented):
+            # For @cclass in .py files, automatically add __dict__ to preserve
+            # pure-Python semantics (dynamic attribute assignment) unless the
+            # class explicitly uses __slots__ to opt out.
+            if (self.from_pure_python_needs_dict
+                    and not scope.lookup_here("__dict__")
+                    and not scope.defined and not scope.implemented):
+                dict_type = Builtin.builtin_scope.lookup('dict').type
+                _dict_name = EncodedString('__dict__')
+                dict_entry = scope.declare_var(
+                    _dict_name, dict_type, self.pos,
+                    cname=_dict_name, is_cdef=True)
                 dict_entry.getter_cname = self.scope.mangle_internal("__dict__getter")
-                self.scope.declare_property("__dict__", dict_entry.doc, dict_entry.pos)
+                self.scope.declare_property(_dict_name, None, self.pos)
+            else:
+                dict_entry = self.scope.lookup_here("__dict__")
+                if dict_entry and dict_entry.is_variable and (not scope.defined and not scope.implemented):
+                    dict_entry.getter_cname = self.scope.mangle_internal("__dict__getter")
+                    self.scope.declare_property("__dict__", dict_entry.doc, dict_entry.pos)
             if self.in_pxd:
                 scope.defined = 1
             else:
@@ -6622,6 +6656,18 @@ class CClassDefNode(ClassDefNode):
                     code.intern_identifier(scope.class_name),
                     typeptr_cname,
                 ))
+
+            if not getattr(scope, 'python_subclassing', True):
+                # Mark this type so that permissive __init_subclass__ overrides in
+                # subclasses can skip it when walking the MRO for super() propagation.
+                # Use PyDict_SetItemString+PyType_Modified rather than
+                # PyObject_SetAttrString because non-heap (static) types reject the
+                # latter with "cannot set attribute of immutable type".
+                code.put_error_if_neg(
+                    entry.pos,
+                    'PyDict_SetItemString(((PyTypeObject *)(%s))->tp_dict, '
+                    '"__pyx_blocking_init_subclass__", Py_True)' % typeptr_cname)
+                code.putln('PyType_Modified((PyTypeObject *)(%s));' % typeptr_cname)
 
             weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
             if weakref_entry:

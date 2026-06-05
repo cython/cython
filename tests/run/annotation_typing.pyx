@@ -621,8 +621,6 @@ _WARNINGS = """
 37:66: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 75:0: 'pytypes_cpdef' redeclared
 75:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
-75:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
-75:44: Unknown type declaration 'long' in annotation, ignoring
 75:44: Unknown type declaration 'long' in annotation, ignoring
 75:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 113:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
@@ -647,7 +645,6 @@ _WARNINGS = """
 509:69: Unknown type declaration in annotation, ignoring
 552:0: 'unknown_pyclass' redeclared
 560:0: 'none_as_type' redeclared
-561:20: Unknown type declaration in annotation, ignoring
 561:20: Unknown type declaration in annotation, ignoring
 561:29: Unknown type declaration in annotation, ignoring
 580:22: Unknown type declaration in annotation, ignoring

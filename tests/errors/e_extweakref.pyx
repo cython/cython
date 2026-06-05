@@ -16,8 +16,6 @@ cdef void f():
 	c.__weakref__ = x
 _ERRORS = u"""
 7:20: Illegal use of special attribute __weakref__
-7:20: Illegal use of special attribute __weakref__
-7:20: Illegal use of special attribute __weakref__
 7:20: Special attribute __weakref__ cannot be exposed to Python
 10:22: Illegal use of special attribute __weakref__
 10:22: Special attribute __weakref__ cannot be exposed to Python

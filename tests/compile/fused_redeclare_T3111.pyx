@@ -22,7 +22,4 @@ def foo(dtype_t[:] a, dtype_t_out[:, :] b):
 # "__pyxutil:16:4: '___pyx_npy_uint8' redeclared".  The remaining warnings are
 # unrelated to this test.
 _WARNINGS = """
-# cpdef redeclaration bug, from TestCythonScope.pyx
-26:4: 'cpdef_method' redeclared
-36:4: 'cpdef_cname_method' redeclared
 """

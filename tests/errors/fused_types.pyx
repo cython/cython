@@ -116,10 +116,6 @@ _ERRORS = u"""
 79:0: Return type is a fused type that cannot be determined from the function arguments
 82:0: Return type is a fused type that cannot be determined from the function arguments
 86:4: 'z' cannot be specialized since its type is not a fused argument to this function
-86:4: 'z' cannot be specialized since its type is not a fused argument to this function
-86:4: 'z' cannot be specialized since its type is not a fused argument to this function
-87:16: Type cannot be specialized since it is not a fused argument to this function
-87:16: Type cannot be specialized since it is not a fused argument to this function
 87:16: Type cannot be specialized since it is not a fused argument to this function
 93:0: Return type is a fused type that cannot be determined from the function arguments
 96:0: Invalid use of fused types, type cannot be specialized

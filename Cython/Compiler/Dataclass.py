@@ -224,6 +224,8 @@ class Field:
 
 def process_class_get_fields(node):
     var_entries = node.scope.var_entries
+    # filter out special cdef members that are not dataclass fields
+    var_entries = [e for e in var_entries if e.name not in ('__dict__', '__weakref__')]
     # order of definition is used in the dataclass
     var_entries = sorted(var_entries, key=operator.attrgetter('pos'))
     var_names = [entry.name for entry in var_entries]
