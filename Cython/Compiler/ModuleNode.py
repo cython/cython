@@ -3108,7 +3108,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
             code.putln("  if (__pyx_is_python_class) {")
             code.putln('    PyErr_Format(PyExc_TypeError,')
-            code.putln('        "type \'%%s\' does not support subclassing by pure Python classes"')
+            code.putln('        "type \'%s\' does not support subclassing by pure Python classes"')
             code.putln('        " (python_subclassing=False)",')
             code.putln('        ((PyTypeObject*)cls)->tp_name);')
             code.putln("    return NULL;")
