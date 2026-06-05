@@ -5894,7 +5894,8 @@ class PyClassDefNode(ClassDefNode):
             module_scope = env.find_module(
                 module_name,
                 pos=entry.pos,
-                relative_level=getattr(entry, 'python_import_level', 0))
+                relative_level=getattr(entry, 'python_import_level', 0),
+                need_pxd=0)  # silent: don't emit "pxd not found" for Python-import fallback
         except Exception:
             return None
         if not module_scope:

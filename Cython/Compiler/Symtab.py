@@ -1538,7 +1538,7 @@ class ModuleScope(Scope):
         entry.qualified_name = self.builtin_scope().qualify_name(name)
         return entry
 
-    def find_module(self, module_name, pos, relative_level=-1):
+    def find_module(self, module_name, pos, relative_level=-1, need_pxd=1):
         # Find a module in the import namespace, interpreting
         # relative imports relative to this module's parent.
         # Finds and parses the module's .pxd file if the module
@@ -1567,7 +1567,8 @@ class ModuleScope(Scope):
 
         module_scope = self.global_scope()
         return module_scope.context.find_module(
-            module_name, from_module=from_module, pos=pos, absolute_fallback=absolute_fallback, relative_import=is_relative_import)
+            module_name, from_module=from_module, pos=pos, need_pxd=need_pxd,
+            absolute_fallback=absolute_fallback, relative_import=is_relative_import)
 
     def find_submodule(self, name, as_package=False):
         # Find and return scope for a submodule of this module,
