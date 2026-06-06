@@ -19,8 +19,8 @@ class TestShadow(TimedTest):
                 if hasattr(Shadow, directive):
                     extra_directives.append(full_directive)
                 continue
-            if full_directive == "staticmethod":
-                # staticmethod is a weird special-case and not really intended to be
+            if full_directive in ("staticmethod", "classmethod"):
+                # staticmethod/classmethod are weird special-cases and not really intended to be
                 # used from the cython module
                 continue
 

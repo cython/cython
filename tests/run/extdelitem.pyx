@@ -85,7 +85,6 @@ class DelItemExtSequenceAnn:
     >>> implements_slot(s, 'sq_ass_item')
     True
     """
-    __slots__ = ()
     def __delitem__(self, i: cython.Py_ssize_t):
         print(i)
 
@@ -106,7 +105,6 @@ class DelItemExtCollectionTypeSequenceInt:
     >>> implements_slot(s, 'sq_ass_item')
     True
     """
-    __slots__ = ()
     def __delitem__(self, i: cython.Py_ssize_t):
         print(i)
 
@@ -127,7 +125,6 @@ class DelItemExtCollectionTypeSequenceObj:
     >>> implements_slot(s, 'sq_ass_item')
     True
     """
-    __slots__ = ()
     def __delitem__(self, i):
         print(i)
 
@@ -148,7 +145,6 @@ class DelItemExtCollectionTypeMppingInt:
     >>> implements_slot(s, 'sq_ass_item')
     True
     """
-    __slots__ = ()
     def __delitem__(self, i: cython.Py_ssize_t):
         print(i)
 
@@ -169,7 +165,6 @@ class DelItemExtCollectionTypeMppingObj:
     >>> implements_slot(s, 'sq_ass_item')
     True
     """
-    __slots__ = ()
     def __delitem__(self, i):
         print(i)
 
@@ -189,11 +184,10 @@ class DelItemExtSequenceSmallInt:
     >>> implements_slot(s, 'sq_ass_item')
     True
     """
-    __slots__ = ()
     def __delitem__(self, i: cython.int):
         print(i)
 
 
 _WARNINGS = """
-193:26: Smaller index type 'int' than 'Py_ssize_t' may get truncated in sequence protocol
+187:26: Smaller index type 'int' than 'Py_ssize_t' may get truncated in sequence protocol
 """

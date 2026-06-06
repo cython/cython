@@ -90,6 +90,9 @@ elif mode == 'auto_cpdef':
         "Expected no redundant unbound-local check for bopt2 after tp_new null-check")
     assert "float y;" in a_c_content, (
         "Expected DataClass.__init__ opt_args struct to use C float for 'y', not PyObject*")
+    # Keyword-arg constructor DataClass(x=1) must also be optimised (tp_new + vtable __init__)
+    assert "__pyx_vtabptr_1b_DataClass->__pyx___init__" in a_c_content, (
+        "Expected vtable __init__ dispatch for DataClass(x=1) keyword-arg constructor call")
     # cpdef classmethod: vtable slot call (not Python GetAttrStr) in calling module
     assert "__pyx_vtabptr_1b_B->class_tag" in a_c_content, (
         "Expected vtable slot call for cpdef classmethod in auto_cpdef mode")
@@ -424,6 +427,9 @@ def func_in_a():
     b_inst = B()
     assert B.class_tag() == 'B', f"Expected B.class_tag() == 'B', got {B.class_tag()}"
     assert b_inst.class_tag() == 'B', f"Expected b_inst.class_tag() == 'B', got {b_inst.class_tag()}"
+
+    tp: tuple[int, float] = (5, 2.5)
+    assert tp[0] == 5 and tp[1] == 2.5
 
     return func_in_b()
 

@@ -751,6 +751,12 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             if i == 0 and env.is_c_class_scope and type.is_unspecified:
                 # fix the type of self
                 type = env.parent_type
+            if (i == 0 and env.is_c_class_scope and 'classmethod' in env.directives
+                    and type.is_extension_type and not type.same_as(env.parent_type)
+                    and type.assignable_from(env.parent_type)):
+                # For classmethods, if the first arg type came from an inherited pxd entry
+                # (ancestor class type instead of current class type), use the current class type.
+                type = env.parent_type
             # Turn *[] argument into **
             if type.is_array:
                 type = PyrexTypes.c_ptr_type(type.base_type)
@@ -2294,7 +2300,8 @@ class FuncDefNode(StatNode, BlockNode):
             else:
                 trace_name = self.entry.name
             code.put_trace_start(
-                trace_name, self.pos, nogil=not code.funcstate.gil_owned, is_cpdef_func=self.py_func is not None)
+                trace_name, self.pos, nogil=not code.funcstate.gil_owned,
+                is_cpdef_func=self.py_func is not None and not self.is_classmethod)
             code.funcstate.can_trace = True
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
@@ -2828,6 +2835,12 @@ class CFuncDefNode(FuncDefNode):
             base_type = self.base_type.analyse(env)
         self.is_static_method = 'staticmethod' in env.directives and not env.lookup_here('staticmethod')
         self.is_classmethod = 'classmethod' in env.directives and not env.lookup_here('classmethod')
+        # When this CFuncDefNode was created from a pxd declaration (as_cfunction(pxd_def) sets
+        # self.type = cfunc_type), the pxd's classmethod status wins over any directive so that
+        # a @classmethod def implementation in a .py file does not conflict with a plain cpdef
+        # pxd declaration.
+        if self.is_classmethod and getattr(getattr(self, 'type', None), 'is_cfunction', False):
+            self.is_classmethod = self.type.is_classmethod
         # The 2 here is because we need both function and argument names.
         if isinstance(self.declarator, CFuncDeclaratorNode):
             name_declarator, typ = self.declarator.analyse(

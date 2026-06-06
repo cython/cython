@@ -4744,7 +4744,7 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         # would be a StatListNode in stats); fall through to the expression-level path.
         if (not getattr(self, '_in_parallel_assignment', 0)
                 and lhs.is_name and lhs.entry
-                and isinstance(node.rhs, ExprNodes.SimpleCallNode)):
+                and isinstance(node.rhs, (ExprNodes.SimpleCallNode, ExprNodes.GeneralCallNode))):
             result = self._maybe_split_ctor(node)
             if result is not node:
                 # Optimisation applied; recurse so nested ctors in args are also transformed.
@@ -4781,6 +4781,11 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
                         clone.arg.arg = new_self
         return self._maybe_transform_ctor_expr(node)
 
+    def visit_GeneralCallNode(self, node):
+        # Expression-level path for keyword-argument constructor calls T(x=1, ...).
+        self.visitchildren(node)
+        return self._maybe_transform_ctor_expr(node)
+
     # ------------------------------------------------------------------
     # Shared validation helper
     # ------------------------------------------------------------------
@@ -4791,6 +4796,8 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         Returns (pos, ext_type, init_entry, func_cname, native_args, same_module)
         or None if the call cannot be optimised.
         """
+        if isinstance(rhs, ExprNodes.GeneralCallNode):
+            return self._extract_ctor_info_kwds(rhs, env)
         if not isinstance(rhs, ExprNodes.SimpleCallNode):
             return None
         # arg_tuple is set only after AnalyseExpressionsTransform for Python calls
@@ -4838,6 +4845,71 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
 
         # Use same_module only when a direct __pyx_f_ symbol is available; for
         # cross-module imports func_cname is None and we always use vtable dispatch.
+        same_module = has_direct and (ext_type.scope.global_scope() is env.global_scope())
+        return rhs.pos, ext_type, init_entry, func_cname, native_args, same_module
+
+    def _extract_ctor_info_kwds(self, rhs, env):
+        """Handle GeneralCallNode (keyword-argument constructor calls like T(x=1))."""
+        if not (isinstance(rhs.positional_args, ExprNodes.TupleNode) and
+                rhs.keyword_args is not None and
+                rhs.keyword_args.is_dict_literal):
+            return None
+
+        func = rhs.function
+        type_entry = getattr(func, 'type_entry', None)
+        if not type_entry:
+            return None
+        ext_type = type_entry.type
+        if not (ext_type and ext_type.is_extension_type and ext_type.scope):
+            return None
+
+        init_entry = ext_type.scope.lookup_here('__init__')
+        if not (init_entry and init_entry.is_cmethod):
+            return None
+        func_cname = getattr(init_entry, 'func_cname', None)
+        has_direct = bool(func_cname and func_cname.startswith('__pyx_f_'))
+        has_vtable = bool(
+            getattr(ext_type, 'vtabptr_cname', None)
+            and getattr(init_entry, 'cname', None))
+        if not (has_direct or has_vtable):
+            return None
+
+        init_formal_params = list(init_entry.type.args[1:])  # skip 'self'
+        required_count = len(init_formal_params) - init_entry.type.optional_arg_count
+        param_index = {p.name: i for i, p in enumerate(init_formal_params)}
+
+        pos_args = [self._unwrap_py_coercion(a) for a in rhs.positional_args.args]
+        if len(pos_args) > len(init_formal_params):
+            return None
+
+        kw_by_index = {}
+        for item in rhs.keyword_args.key_value_pairs:
+            key_val = getattr(item.key, 'value', None)
+            if key_val is None:
+                return None
+            idx = param_index.get(key_val)
+            if idx is None:
+                return None  # unknown keyword
+            if idx < len(pos_args):
+                return None  # conflicts with positional arg
+            kw_by_index[idx] = self._unwrap_py_coercion(item.value)
+
+        max_idx = max(
+            len(pos_args) - 1 if pos_args else -1,
+            max(kw_by_index) if kw_by_index else -1
+        )
+        if max_idx < required_count - 1:
+            return None  # required param not provided
+
+        native_args = []
+        for i in range(max_idx + 1):
+            if i < len(pos_args):
+                native_args.append(pos_args[i])
+            elif i in kw_by_index:
+                native_args.append(kw_by_index[i])
+            else:
+                return None  # gap between provided optional params
+
         same_module = has_direct and (ext_type.scope.global_scope() is env.global_scope())
         return rhs.pos, ext_type, init_entry, func_cname, native_args, same_module
 
