@@ -295,6 +295,9 @@ class StringSourceDescriptor(SourceDescriptor):
 
 
 class SharedUtilitySourceDescriptor(FileSourceDescriptor):
+    """
+    A specialized source descriptor for shared utility code only. Not part of public API.
+    """
 
     def __init__(self, name):
         super().__init__(name)
