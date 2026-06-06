@@ -4,7 +4,7 @@ from Cython.Compiler import (
     MemoryView, Code, Options, Pipeline, Errors, Main, Symtab
 )
 from Cython.Compiler.StringEncoding import EncodedString
-from Cython.Compiler.Scanning import StringSourceDescriptor
+from Cython.Compiler.Scanning import SharedUtilitySourceDescriptor
 
 
 def create_shared_library_pipeline(context, scope, options, result):
@@ -74,7 +74,7 @@ def generate_shared_module(options):
     context = Main.Context.from_options(options)
     scope = Symtab.ModuleScope('MemoryView', parent_module = None, context = context, is_package=False)
 
-    source_desc = StringSourceDescriptor(pyx_file, '')
+    source_desc = SharedUtilitySourceDescriptor(pyx_file)
     comp_src = Main.CompilationSource(source_desc, EncodedString(module_name), os.getcwd())
     result = Main.create_default_resultobj(comp_src, options)
 

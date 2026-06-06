@@ -18,7 +18,7 @@ if sys.version_info[:2] < (3, 9):
 # import Parsing
 from . import Errors
 from .StringEncoding import EncodedString
-from .Scanning import PyrexScanner, FileSourceDescriptor, StringSourceDescriptor
+from .Scanning import PyrexScanner, FileSourceDescriptor
 from .Errors import PyrexError, CompileError, error, warning
 from .Symtab import ModuleScope
 from .. import Utils
@@ -375,7 +375,7 @@ class Context:
         return scope
 
     def parse(self, source_desc, scope, pxd, full_module_name):
-        if not isinstance(source_desc, (FileSourceDescriptor, StringSourceDescriptor)):
+        if not isinstance(source_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
         scope.cpp = self.cpp
         # Parse the given source file and return a parse tree.
@@ -752,7 +752,7 @@ def search_include_directories(dirs, qualified_name, suffix="", pos=None, includ
     """
     if pos and not source_file_path:
         file_desc = pos[0]
-        if not isinstance(file_desc, (FileSourceDescriptor, StringSourceDescriptor)):
+        if not isinstance(file_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
         source_file_path = file_desc.filename
     if source_file_path:
