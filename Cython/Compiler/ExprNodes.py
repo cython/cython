@@ -2402,7 +2402,8 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry.is_cfunction and entry.as_variable:
             # FIXME: unify "is_overridable" flags below
-            if (entry.is_overridable or entry.type.is_overridable) or not self.is_lvalue() and entry.fused_cfunction:
+            if (entry.is_overridable or entry.type.is_overridable or
+                    getattr(entry.type, 'is_classmethod', False)) or not self.is_lvalue() and entry.fused_cfunction:
                 # We need this for assigning to cpdef names and for the fused 'def' TreeFragment
                 entry = self.entry = entry.as_variable
                 self.type = entry.type
@@ -6491,6 +6492,23 @@ class SimpleCallNode(CallNode):
         else:
             args = self.args
 
+        # For cpdef classmethods called via the unbound-cmethod path without an explicit
+        # 'cls' argument (Python-level call: ClassName.method(x) not ClassName.method(cls, x)),
+        # auto-inject the defining class as 'cls'.
+        ubcm_function_entry = getattr(self.function, 'entry', None)
+        if (ubcm_function_entry and
+                getattr(ubcm_function_entry, 'is_unbound_cmethod', False) and
+                getattr(func_type, 'is_classmethod', False) and
+                func_type.args):
+            nargs_without_cls = len(func_type.args) - 1
+            nargs_min_without_cls = nargs_without_cls - func_type.optional_arg_count
+            if nargs_min_without_cls <= len(args) <= nargs_without_cls:
+                class_entry = ubcm_function_entry.scope.parent_type.entry
+                cls_node = NameNode(self.pos, name=class_entry.name)
+                cls_node.entry = class_entry
+                cls_node = cls_node.analyse_rvalue_entry(env)
+                args = [cls_node] + list(args)
+
         if func_type.is_cpp_class:
             overloaded_entry = self.function.type.scope.lookup("operator()")
             if overloaded_entry is None:
@@ -6558,11 +6576,17 @@ class SimpleCallNode(CallNode):
                         "descriptor '%s' requires a '%s' object but received a 'NoneType'",
                         format_args=[entry.name, formal_arg.type.name])
             if self.self:
-                if formal_arg.accept_builtin_subtypes:
+                if getattr(func_type, 'is_classmethod', False):
+                    # For cpdef classmethods called via a typed instance, pass
+                    # Py_TYPE(self) as 'cls', not the instance itself.
+                    arg = ClassmethodSelfNode(self.pos, self_arg=CloneNode(self.self))
+                    arg = self.coerced_self = arg.analyse_types(env)
+                elif formal_arg.accept_builtin_subtypes:
                     arg = CMethodSelfCloneNode(self.self)
+                    arg = self.coerced_self = arg.coerce_to(formal_arg.type, env)
                 else:
                     arg = CloneNode(self.self)
-                arg = self.coerced_self = arg.coerce_to(formal_arg.type, env)
+                    arg = self.coerced_self = arg.coerce_to(formal_arg.type, env)
             elif formal_arg.type.is_builtin_type:
                 # special case: unbound methods of builtins accept subtypes
                 arg = arg.coerce_to(formal_arg.type, env)
@@ -8123,6 +8147,10 @@ class AttributeNode(ExprNode):
             elif type.is_cpp_class:
                 error(self.pos, "%s not a static member of %s" % (entry.name, type))
                 ctype = PyrexTypes.error_type
+            elif getattr(entry.type, 'is_classmethod', False):
+                # For cpdef classmethods, args[0] is already py_object_type; keep it.
+                ctype = copy.copy(entry.type)
+                ctype.args = ctype.args[:]
             else:
                 # Fix self type.
                 ctype = copy.copy(entry.type)
@@ -15557,6 +15585,32 @@ class CMethodSelfCloneNode(CloneNode):
         if dst_type.is_builtin_type and self.type.subtype_of(dst_type):
             return self
         return CloneNode.coerce_to(self, dst_type, env)
+
+
+class ClassmethodSelfNode(ExprNode):
+    # Used when a cpdef classmethod is called via a typed instance.
+    # Generates ((PyObject *)Py_TYPE(self)) so the class object is
+    # passed as 'cls', not the instance.
+    subexprs = ['self_arg']
+    type = py_object_type
+    is_temp = False
+
+    def __init__(self, pos, self_arg):
+        ExprNode.__init__(self, pos)
+        self.self_arg = self_arg
+
+    def analyse_types(self, env):
+        self.self_arg = self.self_arg.analyse_types(env)
+        return self
+
+    def may_be_none(self):
+        return False
+
+    def calculate_result_code(self):
+        return "((PyObject *)Py_TYPE(%s))" % self.self_arg.result()
+
+    def generate_result_code(self, code):
+        pass
 
 
 class ModuleRefNode(ExprNode):

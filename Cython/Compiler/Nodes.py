@@ -732,7 +732,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         for i, arg_node in enumerate(self.args):
             name_declarator, type = arg_node.analyse(
                 env, nonempty=nonempty,
-                is_self_arg=(i == 0 and env.is_c_class_scope and 'staticmethod' not in env.directives))
+                is_self_arg=(i == 0 and env.is_c_class_scope and 'staticmethod' not in env.directives
+                             and 'classmethod' not in env.directives))
             name = name_declarator.name
             if name in directive_locals:
                 type_node = directive_locals[name]
@@ -2771,6 +2772,7 @@ class CFuncDefNode(FuncDefNode):
     override = None
     template_declaration = None
     is_const_method = False
+    is_classmethod = False
     py_func_stat = None
     _code_object = None
 
@@ -2825,6 +2827,7 @@ class CFuncDefNode(FuncDefNode):
         else:
             base_type = self.base_type.analyse(env)
         self.is_static_method = 'staticmethod' in env.directives and not env.lookup_here('staticmethod')
+        self.is_classmethod = 'classmethod' in env.directives and not env.lookup_here('classmethod')
         # The 2 here is because we need both function and argument names.
         if isinstance(self.declarator, CFuncDeclaratorNode):
             name_declarator, typ = self.declarator.analyse(
@@ -2842,7 +2845,7 @@ class CFuncDefNode(FuncDefNode):
         # may be different if we're overriding a C method inherited
         # from the base type of an extension type.
         self.type = typ
-        typ.is_overridable = self.overridable
+        typ.is_overridable = self.overridable and not self.is_classmethod
         declarator = self.declarator
         while not hasattr(declarator, 'args'):
             declarator = declarator.base
@@ -2894,13 +2897,20 @@ class CFuncDefNode(FuncDefNode):
 
         typ.is_const_method = self.is_const_method
         typ.is_static_method = self.is_static_method
+        typ.is_classmethod = self.is_classmethod
 
         self.entry = env.declare_cfunction(
             name, typ, self.pos,
             cname=cname, visibility=self.visibility, api=self.api,
             defining=self.body is not None, modifiers=self.modifiers,
-            overridable=self.overridable, in_pxd=self.inline_in_pxd)
+            overridable=self.overridable and not self.is_classmethod, in_pxd=self.inline_in_pxd)
         self.return_type = typ.return_type
+        if self.is_classmethod:
+            # The module-level analyse_declarations walk runs before CompilerDirectivesNode
+            # visitor sets the classmethod directive, so declare_cfunction may have created
+            # the entry with the wrong first-arg type (extension type instead of PyObject*).
+            # Force the entry type to match self.type which was built with the directive active.
+            self.entry.type = self.type
 
         if self.return_type.is_array and self.visibility != 'extern':
             error(self.pos, "Function cannot return an array")
@@ -2916,7 +2926,7 @@ class CFuncDefNode(FuncDefNode):
         self.create_local_scope(env)
 
     def declare_cpdef_wrapper(self, env):
-        if not self.overridable:
+        if not self.overridable and not self.is_classmethod:
             return
         if self.is_static_method:
             # TODO(robertwb): Finish this up, perhaps via more function refactoring.
@@ -2940,6 +2950,10 @@ class CFuncDefNode(FuncDefNode):
             from .ExprNodes import NameNode
             decorators = [DecoratorNode(self.pos, decorator=NameNode(self.pos, name=EncodedString('staticmethod')))]
             decorators[0].decorator.analyse_types(env)
+        elif self.is_classmethod:
+            from .ExprNodes import NameNode
+            decorators = [DecoratorNode(self.pos, decorator=NameNode(self.pos, name=EncodedString('classmethod')))]
+            decorators[0].decorator.analyse_types(env)
         else:
             decorators = []
 
@@ -2962,16 +2976,17 @@ class CFuncDefNode(FuncDefNode):
         self.entry.used = self.entry.as_variable.used = True
         # Reset scope entry the above cfunction
         env.entries[name] = self.entry
-        if (not self.entry.is_final_cmethod and
-                (not env.is_module_scope or Options.lookup_module_cpdef) and
-                getattr(env, 'python_subclassing', True)):
-            if self.override:
-                # This is a hack: we shouldn't create the wrapper twice, but we do for fused functions.
-                assert self.entry.is_fused_specialized  # should not happen for non-fused cpdef functions
-                self.override.py_func = self.py_func
-            else:
-                self.override = OverrideCheckNode(self.pos, py_func=self.py_func)
-                self.body = StatListNode(self.pos, stats=[self.override, self.body])
+        if not self.is_classmethod:
+            if (not self.entry.is_final_cmethod and
+                    (not env.is_module_scope or Options.lookup_module_cpdef) and
+                    getattr(env, 'python_subclassing', True)):
+                if self.override:
+                    # This is a hack: we shouldn't create the wrapper twice, but we do for fused functions.
+                    assert self.entry.is_fused_specialized  # should not happen for non-fused cpdef functions
+                    self.override.py_func = self.py_func
+                else:
+                    self.override = OverrideCheckNode(self.pos, py_func=self.py_func)
+                    self.body = StatListNode(self.pos, stats=[self.override, self.body])
 
     def _validate_type_visibility(self, type, pos, env):
         """
@@ -2999,13 +3014,18 @@ class CFuncDefNode(FuncDefNode):
             class_node = ExprNodes.NameNode(self.pos, name=class_entry.name)
             class_node.entry = class_entry
             cfunc = ExprNodes.AttributeNode(self.pos, obj=class_node, attribute=self.entry.name)
+        elif self.is_classmethod:
+            class_entry = self.entry.scope.parent_type.entry
+            class_node = ExprNodes.NameNode(self.pos, name=class_entry.name)
+            class_node.entry = class_entry
+            cfunc = ExprNodes.AttributeNode(self.pos, obj=class_node, attribute=self.entry.name)
         else:
             type_entry = self.type.args[0].type.entry
             type_arg = ExprNodes.NameNode(self.pos, name=type_entry.name)
             type_arg.entry = type_entry
             cfunc = ExprNodes.AttributeNode(self.pos, obj=type_arg, attribute=self.entry.name)
 
-        skip_dispatch = not (is_module_scope and Options.lookup_module_cpdef)
+        skip_dispatch = not (is_module_scope and Options.lookup_module_cpdef) and not self.is_classmethod
         c_call = ExprNodes.SimpleCallNode(
             self.pos,
             function=cfunc,
@@ -3330,7 +3350,7 @@ class CFuncDefNode(FuncDefNode):
             if not entry.cf_used:
                 arg_decl = 'CYTHON_UNUSED %s' % arg_decl
             arg_decls.append(arg_decl)
-        if with_dispatch and self.overridable:
+        if with_dispatch and self.overridable and not self.is_classmethod:
             dispatch_arg = PyrexTypes.c_int_type.declaration_code(
                 Naming.skip_dispatch_cname)
             if self.override:
@@ -3730,7 +3750,7 @@ class DefNode(FuncDefNode):
                     if func.attribute in ('setter', 'deleter'):
                         is_property = True
 
-        if self.is_classmethod or self.is_staticmethod or is_property:
+        if self.is_staticmethod or is_property:
             return False
 
         # Required kw-only args after optional args cannot be represented in the

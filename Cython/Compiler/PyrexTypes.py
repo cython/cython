@@ -3229,6 +3229,7 @@ class CFuncType(CType):
     #                               (used for optimisation overrides)
     #  is_const_method  boolean
     #  is_static_method boolean
+    #  is_classmethod   boolean
     #  op_arg_struct    CPtrType   Pointer to optional argument struct
 
     is_cfunction = 1
@@ -3282,7 +3283,7 @@ class CFuncType(CType):
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
-            is_const_method = False, is_static_method=False,
+            is_const_method = False, is_static_method=False, is_classmethod=False,
             templates = None, is_strict_signature = False):
         self.return_type = return_type
         self.args = args
@@ -3302,6 +3303,7 @@ class CFuncType(CType):
         self.is_overridable = is_overridable
         self.is_const_method = is_const_method
         self.is_static_method = is_static_method
+        self.is_classmethod = is_classmethod
         self.templates = templates
         self.is_strict_signature = is_strict_signature
 
@@ -3597,6 +3599,7 @@ class CFuncType(CType):
                            optional_arg_count = self.optional_arg_count,
                            is_const_method = self.is_const_method,
                            is_static_method = self.is_static_method,
+                           is_classmethod = self.is_classmethod,
                            templates = self.templates)
 
         result.from_fused = self.is_fused

@@ -891,7 +891,7 @@ class InterpretCompilerDirectives(CythonTransform):
     def __init__(self, context, compilation_directive_defaults):
         super().__init__(context)
         self.cython_module_names = set()
-        self.directive_names = {'staticmethod': 'staticmethod'}
+        self.directive_names = {'staticmethod': 'staticmethod', 'classmethod': 'classmethod'}
         self.parallel_directives = {}
         directives = copy.deepcopy(Options.get_directive_defaults())
         for key, value in compilation_directive_defaults.items():
@@ -1320,11 +1320,11 @@ class InterpretCompilerDirectives(CythonTransform):
         for name, value in directives.items():
             if name == 'locals':
                 node.directive_locals = value
-            elif name not in ('final', 'staticmethod'):
+            elif name not in ('final', 'staticmethod', 'classmethod'):
                 self.context.nonfatal_error(PostParseError(
                     node.pos,
                     "Cdef functions can only take cython.locals(), "
-                    "staticmethod, or final decorators, got %s." % name))
+                    "staticmethod, classmethod, or final decorators, got %s." % name))
         return self.visit_with_directives(node, directives, contents_directives=None)
 
     def visit_CClassDefNode(self, node):
@@ -1390,14 +1390,16 @@ class InterpretCompilerDirectives(CythonTransform):
                             # Exclude some decorators that people may leave around, but warn about useless ones.
                             warning(dec.pos, "Directive does not change previous value (%s%s)" % (
                                 name, '=%r' % value if value is not None else ''))
-                        if directive[0] == 'staticmethod':
+                        if directive[0] in ('staticmethod', 'classmethod'):
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
                     if directive[0] == 'cclass' and scope_name == 'class':
                         scope_name = 'cclass'
             else:
                 realdecs.append(dec)
-        node.decorators = realdecs[::-1] + both[::-1]
+        # Preserve the original decorator order; only drop directive-only decorators.
+        keep = {id(d) for d in realdecs} | {id(d) for d in both}
+        node.decorators = [d for d in node.decorators if id(d) in keep]
         # merge or override repeated directives
         optdict = {}
         contents_optdict = {}
@@ -1876,7 +1878,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             # at the moment cdef functions are very restricted in what decorators they can take
             # so it's simple to test for the small number of allowed decorators....
             if not (len(node.decorators) == 1 and node.decorators[0].decorator.is_name and
-                    node.decorators[0].decorator.name == "staticmethod"):
+                    node.decorators[0].decorator.name in ("staticmethod", "classmethod")):
                 error(node.decorators[0].pos, "Cdef functions cannot take arbitrary decorators.")
             return node
 
@@ -4307,7 +4309,7 @@ class TransformBuiltinMethods(EnvTransform):
                 node = ExprNodes.UnicodeNode(node.pos, value=EncodedString(version))
             elif attribute == 'NULL':
                 node = ExprNodes.NullNode(node.pos)
-            elif attribute in ('set', 'frozenset', 'staticmethod'):
+            elif attribute in ('set', 'frozenset', 'staticmethod', 'classmethod'):
                 node = ExprNodes.NameNode(node.pos, name=EncodedString(attribute),
                                           entry=self.current_env().builtin_scope().lookup_here(attribute))
             elif PyrexTypes.parse_basic_type(attribute):
@@ -4552,6 +4554,8 @@ class TransformBuiltinMethods(EnvTransform):
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('set'))
             elif function == 'staticmethod':
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('staticmethod'))
+            elif function == 'classmethod':
+                node.function = ExprNodes.NameNode(node.pos, name=EncodedString('classmethod'))
             elif self.context.cython_scope.lookup_qualified_name(function):
                 pass
             else:

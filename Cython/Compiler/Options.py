@@ -372,6 +372,7 @@ directive_types = {
     'cpow' : bool,
     'inline' : None,
     'staticmethod' : None,
+    'classmethod' : None,
     'cclass' : None,
     'no_gc_clear' : bool,
     'no_gc' : bool,
@@ -414,6 +415,7 @@ directive_scopes = {  # defaults to available everywhere
     'exceptval' : ('function',),
     'locals' : ('function',),
     'staticmethod' : ('function',),  # FIXME: analysis currently lacks more specific function scope
+    'classmethod' : ('function',),
     'no_gc_clear' : ('cclass',),
     'no_gc' : ('cclass',),
     'internal' : ('cclass',),

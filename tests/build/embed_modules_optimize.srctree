@@ -90,6 +90,9 @@ elif mode == 'auto_cpdef':
         "Expected no redundant unbound-local check for bopt2 after tp_new null-check")
     assert "float y;" in a_c_content, (
         "Expected DataClass.__init__ opt_args struct to use C float for 'y', not PyObject*")
+    # cpdef classmethod: vtable slot call (not Python GetAttrStr) in calling module
+    assert "__pyx_vtabptr_1b_B->class_tag" in a_c_content, (
+        "Expected vtable slot call for cpdef classmethod in auto_cpdef mode")
     print("OK: auto_cpdef mode")
 
 elif mode == 'lto':
@@ -302,6 +305,10 @@ assert tt.prop == 3
 
 assert u.prop == 2
 
+# Test cpdef classmethod
+assert b.B.class_tag() == 'B'
+assert u.class_tag() == 'B'
+
 # Test ccall functions
 assert a.func_in_a() == 9
 assert b.func_in_b() == 9
@@ -409,6 +416,14 @@ def func_in_a():
     c = DataClass(x=1, y=5.0)
     assert c.x == 1, f"Expected DataClass(x=1,y=2.5).x == 1, got {c.x}"
     assert c.y == 5.0, f"Expected DataClass(1).y == 5.0, got {c.y}"
+    c = DataClass.from_x(10)
+    assert c.x == 10, f"Expected DataClass.from_x(10).x == 10, got {c.x}"
+    assert c.y == 2.5, f"Expected DataClass.from_x(10).y == 2.5, got {c.y}"
+
+    # Test cpdef classmethod (auto-promoted in auto_cpdef mode)
+    b_inst = B()
+    assert B.class_tag() == 'B', f"Expected B.class_tag() == 'B', got {B.class_tag()}"
+    assert b_inst.class_tag() == 'B', f"Expected b_inst.class_tag() == 'B', got {b_inst.class_tag()}"
 
     return func_in_b()
 
@@ -558,6 +573,10 @@ class B:
     def prop_second(self) -> float:
         return 2.5
 
+    @classmethod
+    def class_tag(cls) -> object:
+        return cls.__name__
+
 def func_with_parameter(p: B) -> int:
     return p.prop
 
@@ -602,3 +621,7 @@ class DataClass:
     """Dataclass to test that dataclasses don't interfere with the optimization."""
     x: int
     y: float = 2.5
+
+    @classmethod
+    def from_x(cls, x: int) -> 'DataClass':
+        return DataClass(x=x)

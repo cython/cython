@@ -2684,7 +2684,7 @@ class CClassScope(ClassScope):
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
 
         args = type.args
-        if not type.is_static_method:
+        if not type.is_static_method and not type.is_classmethod:
             if not args:
                 error(pos, "C method has no self argument")
             elif not self.parent_type.assignable_from(args[0].type):
