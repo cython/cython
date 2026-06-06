@@ -391,6 +391,12 @@ def func_in_a():
     dw2 = DerivedWithCtorOverrideClosure.__new__(DerivedWithCtorOverrideClosure)
     #DerivedWithCtorOverrideClosure.__init__(dw2, 3, 3.0, "test")  # commented because it would require python call which check_codegen check against
     #assert dw2._prop == 9, f"Expected DerivedWithCtorOverrideClosure._prop to be 9, got {dw2._prop}"
+    dw3: DerivedWithCtor
+    dw3 = DerivedWithCtor(4, 5.0)
+    assert dw3._prop == 4, f"Expected DerivedWithCtor._prop to be 4, got {dw3._prop}"
+    dw3 = DerivedWithCtor.__new__(DerivedWithCtor)
+    DerivedWithCtor.__init__(dw3, 4, 5.0)
+    assert dw3._prop == 4, f"Expected DerivedWithCtor._prop to be 4, got {dw3._prop}"
 
     func_with_for_loop()
 

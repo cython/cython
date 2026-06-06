@@ -4818,15 +4818,18 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         # because the defining module's __pyx_f_ symbol is not declared here;
         # only the vtable pointer is guaranteed to be imported).
         init_entry = ext_type.scope.lookup_here('__init__')
-        if not (init_entry and init_entry.is_cmethod):
+        if init_entry and not init_entry.is_cmethod:
             return None
-        func_cname = getattr(init_entry, 'func_cname', None)
-        has_direct = bool(func_cname and func_cname.startswith('__pyx_f_'))
-        has_vtable = bool(
-            getattr(ext_type, 'vtabptr_cname', None)
-            and getattr(init_entry, 'cname', None))
-        if not (has_direct or has_vtable):
-            return None
+        if init_entry:
+            func_cname = getattr(init_entry, 'func_cname', None)
+            has_direct = bool(func_cname and func_cname.startswith('__pyx_f_'))
+            has_vtable = bool(
+                getattr(ext_type, 'vtabptr_cname', None)
+                and getattr(init_entry, 'cname', None))
+            if not (has_direct or has_vtable):
+                return None
+        else:
+            func_cname = None
 
         # --- Recover native-typed positional args ---
         # SimpleCallNode has no keyword/star args by construction; the check below
@@ -4836,16 +4839,22 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
             return None
         native_args = [self._unwrap_py_coercion(a) for a in rhs.arg_tuple.args]
 
-        # __init__ formal params (excluding self).  Accept calls that pass only
-        # the required args OR any number of optional args positionally.
-        init_formal_params = list(init_entry.type.args[1:])  # skip 'self'
-        required_params = len(init_formal_params) - init_entry.type.optional_arg_count
-        if not (required_params <= len(native_args) <= len(init_formal_params)):
-            return None
+        if init_entry is not None:
+            # __init__ formal params (excluding self).  Accept calls that pass only
+            # the required args OR any number of optional args positionally.
+            init_formal_params = list(init_entry.type.args[1:])  # skip 'self'
+            required_params = len(init_formal_params) - init_entry.type.optional_arg_count
+            if not (required_params <= len(native_args) <= len(init_formal_params)):
+                return None
+            # Use same_module only when a direct __pyx_f_ symbol is available; for
+            # cross-module imports func_cname is None and we always use vtable dispatch.
+            same_module = has_direct and (ext_type.scope.global_scope() is env.global_scope())
+        else:
+            # No cpdef __init__: only optimize zero-arg calls (tp_new only, no init).
+            if native_args:
+                return None
+            same_module = ext_type.scope.global_scope() is env.global_scope()
 
-        # Use same_module only when a direct __pyx_f_ symbol is available; for
-        # cross-module imports func_cname is None and we always use vtable dispatch.
-        same_module = has_direct and (ext_type.scope.global_scope() is env.global_scope())
         return rhs.pos, ext_type, init_entry, func_cname, native_args, same_module
 
     def _extract_ctor_info_kwds(self, rhs, env):
@@ -4945,13 +4954,16 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         var_ref.type = lhs.entry.type
         var_ref.cf_maybe_null = False
 
+        # Replace: var = T(args)  →  var = tp_new(T); T.__init__(var, args)
+        first = Nodes.SingleAssignmentNode(pos, lhs=node.lhs, rhs=new_rhs)
+        if init_entry is None:
+            return Nodes.StatListNode(pos, stats=[first])
+
         init_stat = self._build_init_call_stat(
             pos, ext_type, init_entry, func_cname, var_ref, native_args, env, same_module)
         if init_stat is None:
             return node
 
-        # Replace: var = T(args)  →  var = tp_new(T); T.__init__(var, args)
-        first = Nodes.SingleAssignmentNode(pos, lhs=node.lhs, rhs=new_rhs)
         return Nodes.StatListNode(pos, stats=[first, init_stat])
 
     # ------------------------------------------------------------------
@@ -4992,36 +5004,41 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
             pos=pos, type=PyrexTypes.py_object_type, may_hold_none=False)
         result_ref.lhs_of_first_assignment = True  # skip spurious decref on first write
 
-        # The init call self arg must match the C function's declared self type —
-        # same logic as _build_init_call_stat uses for formal_self_type.
-        # CastNode generates an explicit C cast (PyObject* → struct *) without
-        # a runtime isinstance check; it satisfies C++ strict pointer typing.
-        own_func_cname = ext_type.scope.mangle(Naming.func_prefix, '__init__')
-        if func_cname and func_cname == own_func_cname and same_module:
-            self_type_for_cast = ext_type
-        elif not same_module and getattr(init_entry, 'cname', None):
-            # Cross-module vtable slot depth determines the self type (same logic as
-            # _build_init_call_stat).
-            depth = init_entry.cname.count(Naming.obj_base_cname + '.')
-            self_type_for_cast = ext_type
-            for _ in range(depth):
-                bt = getattr(self_type_for_cast, 'base_type', None)
-                if bt is None:
-                    break
-                self_type_for_cast = bt
-        elif init_entry.type.args:
-            self_type_for_cast = init_entry.type.args[0].type
-        else:
-            self_type_for_cast = ext_type
-        self_cast = ExprNodes.CastNode(result_ref, self_type_for_cast)
-
-        init_stat = self._build_init_call_stat(
-            pos, ext_type, init_entry, func_cname, self_cast, native_args, env, same_module)
-        if init_stat is None:
-            return call
-
         first = Nodes.SingleAssignmentNode(pos, lhs=result_ref, rhs=new_rhs)
-        body = Nodes.StatListNode(pos, stats=[first, init_stat])
+
+        if init_entry is None:
+            # No cpdef __init__: just tp_new, no init call needed.
+            body = first
+        else:
+            # The init call self arg must match the C function's declared self type —
+            # same logic as _build_init_call_stat uses for formal_self_type.
+            # CastNode generates an explicit C cast (PyObject* → struct *) without
+            # a runtime isinstance check; it satisfies C++ strict pointer typing.
+            own_func_cname = ext_type.scope.mangle(Naming.func_prefix, '__init__')
+            if func_cname and func_cname == own_func_cname and same_module:
+                self_type_for_cast = ext_type
+            elif not same_module and getattr(init_entry, 'cname', None):
+                # Cross-module vtable slot depth determines the self type (same logic as
+                # _build_init_call_stat).
+                depth = init_entry.cname.count(Naming.obj_base_cname + '.')
+                self_type_for_cast = ext_type
+                for _ in range(depth):
+                    bt = getattr(self_type_for_cast, 'base_type', None)
+                    if bt is None:
+                        break
+                    self_type_for_cast = bt
+            elif init_entry.type.args:
+                self_type_for_cast = init_entry.type.args[0].type
+            else:
+                self_type_for_cast = ext_type
+            self_cast = ExprNodes.CastNode(result_ref, self_type_for_cast)
+
+            init_stat = self._build_init_call_stat(
+                pos, ext_type, init_entry, func_cname, self_cast, native_args, env, same_module)
+            if init_stat is None:
+                return call
+
+            body = Nodes.StatListNode(pos, stats=[first, init_stat])
         expr = UtilNodes.TempResultFromStatNode(result_ref, body)
         # Override to the precise extension type so callers use C-level access
         # without redundant PyTypeTestNode coercions.
