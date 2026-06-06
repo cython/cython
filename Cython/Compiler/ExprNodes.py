@@ -4514,15 +4514,11 @@ class IndexNode(_IndexingBaseNode):
 
         self.wrap_in_nonecheck_node(env, getting)
 
-        # Slicing keeps the container type (set above); a plain subscript
-        # narrows to the item type.
-        if not is_slice and base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
-            if getting:
-                # Coerce instead of setting self.type = base_type first: that
-                # would no-op for e.g. list[list] -> list and leak the
-                # container type into a nested subscript like m[i][j] = x.
+        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
+            if getting and not is_slice:
                 return self.coerce_to(sub_type, env)
-            self.type = sub_type
+            elif setting:
+                self.type = sub_type
 
         return self
 
@@ -5676,7 +5672,9 @@ class SliceIndexNode(ExprNode):
     def analyse_types(self, env, getting=True):
         self.base = self.base.analyse_types(env)
 
-        if self.base.type.is_buffer or self.base.type.is_pythran_expr or self.base.type.is_memoryviewslice:
+        if (self.base.type.is_buffer or self.base.type.is_pythran_expr or
+            self.base.type.is_memoryviewslice or self.base.type.is_pyanydict_type
+        ):
             none_node = NoneNode(self.pos)
             index = SliceNode(self.pos,
                               start=self.start or none_node,
@@ -15166,7 +15164,7 @@ class CoerceToBooleanNode(CoercionNode):
             return '__Pyx_PyList_GET_SIZE'
         if typ.is_pytuple_type:
             return '__Pyx_PyTuple_GET_SIZE'
-        if typ.is_pyset_type or typ.is_pyfrozenset_type:
+        if typ.is_pyanyset_type:
             return '__Pyx_PySet_GET_SIZE'
         if typ.is_pyanydict_type:
             return '__Pyx_PyDict_GET_SIZE'
@@ -15467,6 +15465,53 @@ class CloneNode(CoercionNode):
 
     def free_temps(self, code):
         pass
+
+
+class CompilerDirectivesExprNode(Nodes.CompilerDirectivesMixin, ProxyNode):
+    # Like compiler directives node, but for an expression
+    #  directives     {string:value}  A dictionary holding the right value for
+    #                                 *all* possible directives.
+    #  arg           ExprNode
+
+    def __init__(self, arg, directives):
+        super(CompilerDirectivesExprNode, self).__init__(arg)
+        self.directives = directives
+
+    @property
+    def is_temp(self):
+        return self.arg.is_temp
+
+    def infer_type(self, env):
+        with self.apply_directives(env):
+            return super(CompilerDirectivesExprNode, self).infer_type(env)
+
+    def analyse_declarations(self, env):
+        with self.apply_directives(env):
+            self.arg.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        with self.apply_directives(env):
+            return super(CompilerDirectivesExprNode, self).analyse_types(env)
+
+    def generate_result_code(self, code):
+        with self.apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).generate_result_code(code)
+
+    def generate_evaluation_code(self, code):
+        with self.apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).generate_evaluation_code(code)
+
+    def generate_disposal_code(self, code):
+        with self.apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).generate_disposal_code(code)
+
+    def free_temps(self, code):
+        with self.apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).free_temps(code)
+
+    def annotate(self, code):
+        with self.apply_directives(code.globalstate):
+            self.arg.annotate(code)
 
 
 class CppOptionalTempCoercion(CoercionNode):

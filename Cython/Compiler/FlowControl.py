@@ -1060,7 +1060,7 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_PatternNode(self, node):
         # avoid visiting anything that might be a target (since they're
         # handled elsewhere)
-        self.visitchildren(node, attrs=None, exclude=["as_targets", "target"])
+        self.visitchildren(node, attrs=None, exclude=["as_targets", "target", "double_star_capture_target"])
         return node
 
     def visit_AssertStatNode(self, node):
