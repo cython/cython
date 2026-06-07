@@ -2014,12 +2014,6 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         if is_setter:
             # Setters return int (c_returncode_type): 0 = success, -1 = error.
             # except_val=(-1, False): caller checks result == -1, no PyErr_Occurred() needed.
-            class _ReturnCodeReturns:
-                def __init__(self, pos):
-                    self.pos = pos
-                def analyse_as_type(self, env):
-                    return PyrexTypes.c_returncode_type
-
             exc_val_node = IntNode.for_int(node.pos, -1, type=PyrexTypes.c_returncode_type)
             node = node.as_cfunction(
                 overridable=False, modifiers=['inline'], nogil=False, with_gil=False,
@@ -3383,6 +3377,14 @@ class ExpandInplaceOperators(EnvTransform):
         return node
 
 
+class _ReturnCodeReturns:
+    """Pseudo-type node that resolves to c_returncode_type (int, -1 on error)."""
+    def __init__(self, pos):
+        self.pos = pos
+    def analyse_as_type(self, env):
+        return PyrexTypes.c_returncode_type
+
+
 class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     """
     Adjust function and class definitions by the decorator directives:
@@ -3470,6 +3472,15 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             if with_gil:
                 error(node.pos, "ccall functions cannot be declared 'with_gil'")
             visibility = 'public' if 'public' in self.directives else 'private'
+            # For auto-promoted __init__ inside a cclass, use int return code (like setter):
+            # 0 = success, -1 = error.  Avoids Py_None INCREF/DECREF on every construction.
+            if (is_ccall_promoted and node.name == '__init__'
+                    and isinstance(self.env, Nodes.CClassDefNode)):
+                exc_val_node = ExprNodes.IntNode.for_int(
+                    node.pos, -1, type=PyrexTypes.c_returncode_type)
+                return_type_node = _ReturnCodeReturns(node.pos)
+                except_val = (exc_val_node, False)
+                has_explicit_exc_clause = True
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
                 returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause,

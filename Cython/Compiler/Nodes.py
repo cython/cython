@@ -800,6 +800,11 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             # (equivalent to the "except*" declaration). In this case, the exception clause
             # is silently ignored for functions returning a Python object.
             self.exception_check = False
+            # Clear the explicit-clause flag too: this was an "except *" that got silenced
+            # (correct behaviour), not a user-declared "noexcept" — the warning below only
+            # makes sense for the latter, and legacy_implicit_noexcept was already checked
+            # before this point so the flag has served its purpose.
+            self.has_explicit_exc_clause = False
 
         if (return_type.is_pyobject
                 and (self.exception_value or self.exception_check)

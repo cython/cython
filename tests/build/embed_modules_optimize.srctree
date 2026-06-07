@@ -308,6 +308,26 @@ assert tt.prop == 3
 
 assert u.prop == 2
 
+t2 = a.A2()
+try:
+    t2.prop = 2
+    assert False, "Expected ValueError from A2.prop setter, but no exception was raised"
+except ValueError as e:
+    assert str(e) == "Test raise in setter", f"Expected ValueError with message 'Test raise in setter', got {e}"
+
+try:
+    assert t2.prop, "Expected ValueError from A2.prop getter, but no exception was raised"
+    assert False, "Expected ValueError from A2.prop setter, but no exception was raised"
+except ValueError as e:
+    assert str(e) == "Test raise in setter", f"Expected ValueError with message 'Test raise in setter', got {e}"
+
+try:
+    a.DerivedWithCtorRaise(1)
+    assert False, "Expected ValueError from DerivedWithCtorRaise constructor, but no exception was raised"
+except ValueError as e:
+    assert str(e) == "Test raise in constructor", f"Expected ValueError with message 'Test raise in constructor', got {e}"
+
+
 # Test cpdef classmethod
 assert b.B.class_tag() == 'B'
 assert u.class_tag() == 'B'
@@ -378,6 +398,12 @@ def func_in_a():
         assert False, "Expected ValueError from A2.prop setter, but no exception was raised"
     except ValueError as e:
         assert str(e) == "Test raise in setter", f"Expected ValueError with message 'Test raise in setter', got {e}"
+
+    try:
+        DerivedWithCtorRaise(1)
+        assert False, "Expected ValueError from DerivedWithCtorRaise constructor, but no exception was raised"
+    except ValueError as e:
+        assert str(e) == "Test raise in constructor", f"Expected ValueError with message 'Test raise in constructor', got {e}"
 
     # Test tp_descr_get generation with mixed return types
     bug_obj = TestBugDescrGet()
@@ -560,6 +586,11 @@ class IBaseWithCtor:
 @cclass
 class DerivedWithCtor(IBaseWithCtor):
     pass
+
+@cclass
+class DerivedWithCtorRaise(IBaseWithCtor):
+    def __init__(self, val: int) -> None:
+        raise ValueError("Test raise in constructor")
 
 @cclass
 class DerivedWithCtorOverride(DerivedWithCtor):

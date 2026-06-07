@@ -5179,7 +5179,7 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         call = ExprNodes.PythonCapiCallNode(
             pos, c_target, call_type,
             args=[self_arg] + coerced_args,
-            is_temp=False,
+            is_temp=True,
             result_is_used=False)
         call.wrapper_call = True  # skip_dispatch = 1
 
