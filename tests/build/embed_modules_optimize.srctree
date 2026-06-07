@@ -366,6 +366,13 @@ def func_in_a():
     # vtable dispatch through B* reference to A() instance
     assert tt.prop == 3
 
+    t2 = A2()
+    try:
+        t2.prop = 2
+        assert False, "Expected ValueError from A2.prop setter, but no exception was raised"
+    except ValueError as e:
+        assert str(e) == "Test raise in setter", f"Expected ValueError with message 'Test raise in setter', got {e}"
+
     # Test tp_descr_get generation with mixed return types
     bug_obj = TestBugDescrGet()
     assert bug_obj.prop_obj is None
@@ -433,6 +440,13 @@ def func_in_a():
     b_inst = B()
     assert B.class_tag() == 'B', f"Expected B.class_tag() == 'B', got {B.class_tag()}"
     assert b_inst.class_tag() == 'B', f"Expected b_inst.class_tag() == 'B', got {b_inst.class_tag()}"
+
+    # Classmethod called via a freshly-constructed no-__init__ receiver (crop-chronicles pattern:
+    # Size().from_tuple(...)).  The constructor optimiser transforms Size() into a
+    # TempResultFromStatNode; the ClassmethodSelfNode's inner CloneNode must be synced
+    # to the new node so Py_TYPE(<new_self>) is generated instead of Py_TYPE(None).
+    assert IBase().class_name() == 'IBase', f"Expected IBase().class_name() == 'IBase'"
+    assert Derived().class_name() == 'Derived', f"Expected Derived().class_name() == 'Derived'"
 
     tp: tuple[int, float] = (5, 2.5)
     assert tp[0] == 5 and tp[1] == 2.5
@@ -520,6 +534,23 @@ class A(B):
         pass  # no-op for testing
 
 @cclass
+class A2(B):
+
+    _prop_bool: bool
+
+    def __init__(self) -> None:
+        super().__init__()  # Can be a direct call to B.__init__ because it is known at compile time
+        self._prop_bool = False
+
+    @property
+    def prop(self) -> int:
+        return super().prop + 1*1
+
+    @prop.setter
+    def prop(self, int val) -> None:
+        raise ValueError("Test raise in setter")
+
+@cclass
 class IBaseWithCtor:
     _prop: int
 
@@ -597,6 +628,10 @@ class IBase:
     @property
     def prop(self) -> int:
         raise NotImplementedError()
+
+    @classmethod
+    def class_name(cls) -> object:
+        return cls.__name__
 
 @cclass
 class Derived(IBase):

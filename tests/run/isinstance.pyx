@@ -11,11 +11,9 @@ a_as_obj = A
 
 @cython.test_assert_path_exists(
     '//SimpleCallNode',
-    '//PyMethodCallNode',
-    '//SimpleCallNode//PyMethodCallNode',
 )
 @cython.test_fail_if_path_exists(
-    "//PythonCapiCallNode",
+    "//PyMethodCallNode",
 )
 def test_non_optimised():
     """

@@ -4779,6 +4779,13 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
                             and isinstance(clone.arg, ExprNodes.CloneNode)
                             and clone.arg.arg is original_self):
                         clone.arg.arg = new_self
+                    elif (isinstance(clone, ExprNodes.ClassmethodSelfNode)
+                            and isinstance(clone.self_arg, ExprNodes.CloneNode)
+                            and clone.self_arg.arg is original_self):
+                        # ClassmethodSelfNode holds CloneNode(original_self) as self_arg.
+                        # When the ctor optimiser replaces node.self, sync the inner clone
+                        # so Py_TYPE(<new_self>) is generated instead of Py_TYPE(None).
+                        clone.self_arg.arg = new_self
         return self._maybe_transform_ctor_expr(node)
 
     def visit_GeneralCallNode(self, node):
