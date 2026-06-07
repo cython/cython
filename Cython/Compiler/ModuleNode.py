@@ -2881,6 +2881,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             tmpvar = "__pyx_tmp_r"
             code.putln("    %s;" % return_type.declaration_code(tmpvar))
             code.putln("    %s = %s;" % (tmpvar, call_code))
+            code.putln("    if (PyErr_Occurred()) return NULL;")
             code.putln("    return %s(%s);" % (return_type.to_py_function, tmpvar))
         elif return_type and return_type.is_extension_type:
             # For extension types, the C function returns a struct pointer
@@ -2920,37 +2921,36 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 property_entry.setter_cname))
         code.putln("if (v) {")
         if use_struct_cast:
-            # Check if the C function returns void (property setter) or int
             set_type = set_entry.type
-            if set_type and hasattr(set_type, 'return_type') and set_type.return_type.is_void:
-                # Check if the setter has typed arguments (not PyObject*)
-                # If so, we need to convert the Python object to a C value
-                if len(set_type.args) >= 2:
-                    value_arg = set_type.args[1]
-                    if value_arg.type.is_extension_type:
-                        # Extension types: cast PyObject* to struct pointer
-                        value_type_cname = value_arg.type.empty_declaration_code()
-                        code.putln("    %s((%s)o, (%s)v);" % (set_entry.func_cname, parent_type_cname, value_type_cname))
-                    elif not value_arg.type.is_pyobject:
-                        # Generate conversion code: extract C value from PyObject*
-                        value_type_cname = value_arg.type.empty_declaration_code()
-                        code.putln("    %s __pyx_v_converted_value;" % value_type_cname)
-                        if value_arg.type.create_from_py_utility_code(property_scope.global_scope()):
-                            # Use the type's from_py conversion function (works for int, float,
-                            # bool, ctuple, string, memoryview, etc.)
-                            from_py_func = value_arg.type.from_py_function
-                            code.putln("    __pyx_v_converted_value = %s(v); if (PyErr_Occurred()) return -1;" % from_py_func)
-                        else:
-                            # Fallback for types without from_py_function (e.g. enums)
-                            code.putln(
-                                "    if ((__pyx_v_converted_value = (%s)PyLong_AsLong(v)) == -1 "
-                                "&& PyErr_Occurred()) return -1;" % value_type_cname)
-                        code.putln("    %s((%s)o, __pyx_v_converted_value);" % (set_entry.func_cname, parent_type_cname))
+            is_void_setter = set_type and hasattr(set_type, 'return_type') and set_type.return_type.is_void
+            if set_type and len(set_type.args) >= 2:
+                value_arg = set_type.args[1]
+                if value_arg.type.is_extension_type:
+                    value_type_cname = value_arg.type.empty_declaration_code()
+                    call = "%s((%s)o, (%s)v)" % (set_entry.func_cname, parent_type_cname, value_type_cname)
+                    if is_void_setter:
+                        code.putln("    %s;" % call)
+                        code.putln("    return 0;")
                     else:
-                        code.putln("    %s((%s)o, v);" % (set_entry.func_cname, parent_type_cname))
+                        code.putln("    return %s;" % call)
+                elif not value_arg.type.is_pyobject:
+                    value_type_cname = value_arg.type.empty_declaration_code()
+                    code.putln("    %s __pyx_v_converted_value;" % value_type_cname)
+                    if value_arg.type.create_from_py_utility_code(property_scope.global_scope()):
+                        from_py_func = value_arg.type.from_py_function
+                        code.putln("    __pyx_v_converted_value = %s(v); if (PyErr_Occurred()) return -1;" % from_py_func)
+                    else:
+                        code.putln(
+                            "    if ((__pyx_v_converted_value = (%s)PyLong_AsLong(v)) == -1 "
+                            "&& PyErr_Occurred()) return -1;" % value_type_cname)
+                    call = "%s((%s)o, __pyx_v_converted_value)" % (set_entry.func_cname, parent_type_cname)
+                    if is_void_setter:
+                        code.putln("    %s;" % call)
+                        code.putln("    return 0;")
+                    else:
+                        code.putln("    return %s;" % call)
                 else:
-                    code.putln("    %s((%s)o, v);" % (set_entry.func_cname, parent_type_cname))
-                code.putln("    return 0;")
+                    code.putln("    return %s((%s)o, v);" % (set_entry.func_cname, parent_type_cname))
             else:
                 code.putln("    return %s((%s)o, v);" % (set_entry.func_cname, parent_type_cname))
         else:

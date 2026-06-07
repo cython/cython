@@ -2009,25 +2009,32 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         # Setters must return void, getters return py_object_type (default)
         from . import Nodes as NodesMod
         from . import PyrexTypes
+        from .ExprNodes import IntNode
 
         if is_setter:
-            # Create a simple wrapper that provides analyse_as_type() for void return type
-            class _VoidReturns:
-                """Wrapper for void return type in directive_returns."""
+            # Setters return int (c_returncode_type): 0 = success, -1 = error.
+            # except_val=(-1, False): caller checks result == -1, no PyErr_Occurred() needed.
+            class _ReturnCodeReturns:
                 def __init__(self, pos):
                     self.pos = pos
                 def analyse_as_type(self, env):
-                    return PyrexTypes.c_void_type
+                    return PyrexTypes.c_returncode_type
 
+            exc_val_node = IntNode.for_int(node.pos, -1, type=PyrexTypes.c_returncode_type)
             node = node.as_cfunction(
                 overridable=False, modifiers=['inline'], nogil=False, with_gil=False,
-                returns=_VoidReturns(node.pos),
-                except_val=None, has_explicit_exc_clause=False,
+                returns=_ReturnCodeReturns(node.pos),
+                except_val=(exc_val_node, False), has_explicit_exc_clause=True,
                 visibility='private')
         else:
+            # Getters: use except* (PyErr_Occurred()) so any exception is propagated.
+            # For Python-object returns the null check already handles it; for C-type
+            # returns PyErr_Occurred() is the only safe sentinel-free option.
+            # has_explicit_exc_clause=True prevents legacy_implicit_noexcept stripping.
             node = node.as_cfunction(
                 overridable=False, modifiers=['inline'], nogil=False, with_gil=False,
-                returns=node.return_type_annotation, except_val=None, has_explicit_exc_clause=False,
+                returns=node.return_type_annotation,
+                except_val=(None, True), has_explicit_exc_clause=True,
                 visibility='private')
 
         return node

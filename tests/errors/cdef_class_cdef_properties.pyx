@@ -80,7 +80,7 @@ _ERRORS = """
 17:8: C property getter must have a single (self) argument
 21:8: C property setter must have two arguments (self and value)
 25:8: C property getter cannot return 'void'
-29:8: C property setter must return 'void'
+29:8: C property setter must return 'void' or int return code
 37:8: C property redeclared
 45:8: C property redeclared
 57:8: C property redeclared

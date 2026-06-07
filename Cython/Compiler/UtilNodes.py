@@ -413,6 +413,11 @@ class CPropertySetNode(ExprNodes.ExprNode):
             code.putln("%s;" % self.call_node.result())
             self.call_node.generate_subexpr_disposal_code(code)
             self.call_node.free_subexpr_temps(code)
+        else:
+            # is_temp=True: call already emitted with exception check inside
+            # generate_evaluation_code; release the result temp (no-op for void).
+            self.call_node.generate_disposal_code(code)
+            self.call_node.free_temps(code)
 
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)

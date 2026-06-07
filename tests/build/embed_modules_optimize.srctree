@@ -373,6 +373,12 @@ def func_in_a():
     except ValueError as e:
         assert str(e) == "Test raise in setter", f"Expected ValueError with message 'Test raise in setter', got {e}"
 
+    try:
+        assert t2.prop, "Expected ValueError from A2.prop getter, but no exception was raised"
+        assert False, "Expected ValueError from A2.prop setter, but no exception was raised"
+    except ValueError as e:
+        assert str(e) == "Test raise in setter", f"Expected ValueError with message 'Test raise in setter', got {e}"
+
     # Test tp_descr_get generation with mixed return types
     bug_obj = TestBugDescrGet()
     assert bug_obj.prop_obj is None
@@ -536,15 +542,9 @@ class A(B):
 @cclass
 class A2(B):
 
-    _prop_bool: bool
-
-    def __init__(self) -> None:
-        super().__init__()  # Can be a direct call to B.__init__ because it is known at compile time
-        self._prop_bool = False
-
     @property
     def prop(self) -> int:
-        return super().prop + 1*1
+        raise ValueError("Test raise in setter")
 
     @prop.setter
     def prop(self, int val) -> None:
