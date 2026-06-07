@@ -2011,24 +2011,40 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         from . import PyrexTypes
         from .ExprNodes import IntNode
 
+        # Check whether the author declared an explicit exception spec via @cython.exceptval.
+        author_exc_val = self.current_directives.get('exceptval')
+        has_explicit = author_exc_val is not None
+
         if is_setter:
             # Setters return int (c_returncode_type): 0 = success, -1 = error.
-            # except_val=(-1, False): caller checks result == -1, no PyErr_Occurred() needed.
-            exc_val_node = IntNode.for_int(node.pos, -1, type=PyrexTypes.c_returncode_type)
+            # Default: except_val=(-1, False) — caller checks result == -1.
+            if has_explicit:
+                exc_val_node_setter, exc_check_setter = author_exc_val
+                if exc_val_node_setter is None:
+                    exc_val_node_setter = IntNode.for_int(node.pos, -1, type=PyrexTypes.c_returncode_type)
+            else:
+                exc_val_node_setter = IntNode.for_int(node.pos, -1, type=PyrexTypes.c_returncode_type)
+                exc_check_setter = False
             node = node.as_cfunction(
                 overridable=False, modifiers=['inline'], nogil=False, with_gil=False,
                 returns=_ReturnCodeReturns(node.pos),
-                except_val=(exc_val_node, False), has_explicit_exc_clause=True,
+                except_val=(exc_val_node_setter, exc_check_setter),
+                has_explicit_exc_clause=has_explicit,
                 visibility='private')
         else:
-            # Getters: use except* (PyErr_Occurred()) so any exception is propagated.
-            # For Python-object returns the null check already handles it; for C-type
-            # returns PyErr_Occurred() is the only safe sentinel-free option.
+            # Getters: default except* (PyErr_Occurred()) so any exception is propagated.
+            # If author specified @cython.exceptval, use that instead.
+            if has_explicit:
+                getter_exc_val = author_exc_val
+            else:
+                getter_exc_val = (None, True)  # except *
             # has_explicit_exc_clause=True prevents legacy_implicit_noexcept stripping.
+            # Set False when using the default so subclass getters can inherit the spec.
             node = node.as_cfunction(
                 overridable=False, modifiers=['inline'], nogil=False, with_gil=False,
                 returns=node.return_type_annotation,
-                except_val=(None, True), has_explicit_exc_clause=True,
+                except_val=getter_exc_val,
+                has_explicit_exc_clause=has_explicit,
                 visibility='private')
 
         return node

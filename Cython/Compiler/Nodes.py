@@ -872,7 +872,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             calling_convention=self.base.calling_convention,
             nogil=self.nogil, with_gil=self.with_gil, is_overridable=self.overridable,
             is_const_method=self.is_const_method,
-            templates=self.templates)
+            templates=self.templates,
+            has_explicit_exc_clause=self.has_explicit_exc_clause)
 
         if self.optional_arg_count:
             if func_type.is_fused:

@@ -2703,29 +2703,55 @@ class CClassScope(ClassScope):
                 #print "CClassScope.declare_cfunction: checking signature" ###
                 if entry.is_final_cmethod and entry.is_inherited:
                     error(pos, "Overriding final methods is not allowed")
-                elif type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
-                    # Fix with_gil vs nogil.
-                    entry.type = entry.type.with_with_gil(type.with_gil)
-                elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
-                    if (self.defined and not in_pxd
-                            and not type.same_c_signature_as_resolved_type(
-                                entry.type, as_cmethod=1, as_pxd_definition=1)):
-                        # TODO(robertwb): Make this an error.
-                        warning(pos,
-                            "Compatible but non-identical C method '%s' not redeclared "
-                            "in definition part of extension type '%s'.  "
-                            "This may cause incorrect vtables to be generated." % (
-                                name, self.class_name), 2)
-                        warning(entry.pos, "Previous declaration is here", 2)
-                    entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
-                elif name in ('__init__', '<init>'):
-                    # __init__ always has different signatures per class across the
-                    # inheritance hierarchy, which is normal for Python constructors.
-                    entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
-                    entry.func_cname = self.mangle(Naming.func_prefix, name)
                 else:
-                    error(pos, "Signature not compatible with previous declaration")
-                    error(entry.pos, "Previous declaration is here")
+                    # §3: Inherit the base exception spec into an unannotated override.
+                    # This runs before the signature cascade so the inherited spec is
+                    # visible to both the compatibility check and the codegen path.
+                    # Note: is_overridable lives on entry.type (CFuncType), not entry itself.
+                    if (entry.is_inherited and entry.type.is_overridable
+                            and not type.has_explicit_exc_clause
+                            and name not in ('__init__', '<init>')
+                            and not type.is_static_method and not type.is_classmethod):
+                        type = type.with_exception_spec_of(entry.type)
+
+                    if type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
+                        # Fix with_gil vs nogil.
+                        entry.type = entry.type.with_with_gil(type.with_gil)
+                    elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
+                        if (self.defined and not in_pxd
+                                and not type.same_c_signature_as_resolved_type(
+                                    entry.type, as_cmethod=1, as_pxd_definition=1)):
+                            # TODO(robertwb): Make this an error.
+                            warning(pos,
+                                "Compatible but non-identical C method '%s' not redeclared "
+                                "in definition part of extension type '%s'.  "
+                                "This may cause incorrect vtables to be generated." % (
+                                    name, self.class_name), 2)
+                            warning(entry.pos, "Previous declaration is here", 2)
+                        entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
+                    elif name in ('__init__', '<init>'):
+                        # __init__ always has different signatures per class across the
+                        # inheritance hierarchy, which is normal for Python constructors.
+                        entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
+                        entry.func_cname = self.mangle(Naming.func_prefix, name)
+                    else:
+                        # §2: Check whether the incompatibility is in the exception spec
+                        # and emit a specific diagnostic if so.
+                        if (entry.is_inherited and entry.type.is_overridable
+                                and name not in ('__init__', '<init>')
+                                and not type.is_static_method and not type.is_classmethod
+                                and not type.compatible_cmethod_override_with(entry.type)):
+                            error(pos,
+                                "Exception specification of '%s' is wider than the base method "
+                                "(base: '%s', override: '%s'); an overriding method may not raise "
+                                "exceptions the base method's signature excludes." % (
+                                    name,
+                                    entry.type.exception_spec_string(),
+                                    type.exception_spec_string()))
+                            error(entry.pos, "Base method declared here")
+                        else:
+                            error(pos, "Signature not compatible with previous declaration")
+                            error(entry.pos, "Previous declaration is here")
         else:
             if self.defined:
                 error(pos,
@@ -2794,7 +2820,7 @@ class CClassScope(ClassScope):
 
     def declare_cproperty(self, name, type, cfunc_name, doc=None, pos=None, visibility='extern',
                           nogil=False, with_gil=False, exception_value=None, exception_check=False,
-                          utility_code=None):
+                          has_explicit_exc_clause=False, utility_code=None):
         """Internal convenience method to declare a C property function in one go.
         """
         property_entry = self.declare_property(name, doc=doc, ctype=type, pos=pos)
@@ -2807,6 +2833,7 @@ class CClassScope(ClassScope):
                 with_gil=with_gil,
                 exception_value=exception_value,
                 exception_check=exception_check,
+                has_explicit_exc_clause=has_explicit_exc_clause,
             ),
             cname=cfunc_name,
             utility_code=utility_code,

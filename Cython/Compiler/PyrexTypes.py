@@ -3237,6 +3237,7 @@ class CFuncType(CType):
     from_fused = False
     is_const_method = False
     op_arg_struct = None
+    has_explicit_exc_clause = False
 
     subtypes = ['return_type', 'args']
 
@@ -3284,7 +3285,8 @@ class CFuncType(CType):
             exception_value = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
             is_const_method = False, is_static_method=False, is_classmethod=False,
-            templates = None, is_strict_signature = False):
+            templates = None, is_strict_signature = False,
+            has_explicit_exc_clause = False):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
@@ -3306,6 +3308,7 @@ class CFuncType(CType):
         self.is_classmethod = is_classmethod
         self.templates = templates
         self.is_strict_signature = is_strict_signature
+        self.has_explicit_exc_clause = has_explicit_exc_clause
 
     def __repr__(self):
         arg_reprs = list(map(repr, self.args))
@@ -3328,13 +3331,20 @@ class CFuncType(CType):
             return self
         else:
             return CFuncType(
-                self.return_type, self.args, self.has_varargs,
-                self.exception_value, self.exception_check,
-                self.calling_convention, self.nogil,
-                with_gil,
-                self.is_overridable, self.optional_arg_count,
-                self.is_const_method, self.is_static_method,
-                self.templates, self.is_strict_signature)
+                return_type=self.return_type, args=self.args,
+                has_varargs=self.has_varargs,
+                exception_value=self.exception_value,
+                exception_check=self.exception_check,
+                calling_convention=self.calling_convention,
+                nogil=self.nogil, with_gil=with_gil,
+                is_overridable=self.is_overridable,
+                optional_arg_count=self.optional_arg_count,
+                is_const_method=self.is_const_method,
+                is_static_method=self.is_static_method,
+                is_classmethod=self.is_classmethod,
+                templates=self.templates,
+                is_strict_signature=self.is_strict_signature,
+                has_explicit_exc_clause=self.has_explicit_exc_clause)
 
     def calling_convention_prefix(self):
         cc = self.calling_convention
@@ -3463,6 +3473,72 @@ class CFuncType(CType):
                 # a redundant exception check doesn't make functions incompatible, but a missing one does
                 return 0
         return 1
+
+    def exception_spec_string(self):
+        """Return a short human-readable exception specification string."""
+        if not self.return_type.is_pyobject:
+            if self.exception_value is not None and self.exception_check:
+                return "except? %s" % self.exception_value
+            elif self.exception_value is not None and not self.exception_check:
+                return "except %s" % self.exception_value
+            elif self.exception_value is None and not self.exception_check:
+                return "noexcept"
+            elif self.exception_check == '+':
+                return "except +"
+            else:
+                return "except *"
+        return "except *"
+
+    def compatible_cmethod_override_with(self, base_type):
+        """Check whether self (override type) may override base_type (base cmethod type).
+
+        Returns True when the override is safe:
+          (a) The override does NOT widen the exception surface beyond what the
+              base signature promises the caller (base noexcept → override may
+              not be except*; base noexcept → override may not be except?/-1).
+          (b) The exception sentinel VALUE must match exactly in both directions
+              (base except -1, override except -2 is always rejected).
+
+        Safe narrowing (base checks → override noexcept) is always allowed.
+        """
+        # (a) widening check: self widens if base promises no check but self may raise
+        if not base_type.exception_check and base_type.exception_value is None:
+            # base is noexcept
+            if self.exception_check or self.exception_value is not None:
+                return False
+        elif base_type.exception_check == '+':
+            if self.exception_check != '+':
+                return False
+        # (b) sentinel value must match exactly (even on safe-narrowing path)
+        if base_type.exception_value is not None or self.exception_value is not None:
+            if not self._same_exception_value(base_type.exception_value):
+                return False
+        return True
+
+    def with_exception_spec_of(self, base_type):
+        """Return a copy of self with the exception spec inherited from base_type.
+
+        Returns self unchanged if the spec is already equal.
+        """
+        if (self.exception_check == base_type.exception_check
+                and self._same_exception_value(base_type.exception_value)
+                and self.has_explicit_exc_clause == base_type.has_explicit_exc_clause):
+            return self
+        return CFuncType(
+            return_type=self.return_type, args=self.args,
+            has_varargs=self.has_varargs,
+            exception_value=base_type.exception_value,
+            exception_check=base_type.exception_check,
+            calling_convention=self.calling_convention,
+            nogil=self.nogil, with_gil=self.with_gil,
+            is_overridable=self.is_overridable,
+            optional_arg_count=self.optional_arg_count,
+            is_const_method=self.is_const_method,
+            is_static_method=self.is_static_method,
+            is_classmethod=self.is_classmethod,
+            templates=self.templates,
+            is_strict_signature=self.is_strict_signature,
+            has_explicit_exc_clause=base_type.has_explicit_exc_clause)
 
     def narrower_c_signature_than(self, other_type, as_cmethod = 0):
         return self.narrower_c_signature_than_resolved_type(other_type.resolve(), as_cmethod)
@@ -3600,7 +3676,8 @@ class CFuncType(CType):
                            is_const_method = self.is_const_method,
                            is_static_method = self.is_static_method,
                            is_classmethod = self.is_classmethod,
-                           templates = self.templates)
+                           templates = self.templates,
+                           has_explicit_exc_clause = self.has_explicit_exc_clause)
 
         result.from_fused = self.is_fused
         return result
