@@ -392,6 +392,11 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                 # default_factory fields must stay as PyObject* because the wrapper
                 # must accept the _HAS_DEFAULT_FACTORY sentinel at runtime.
                 cfunc = generated.stats[i]
+                # as_cfunction() defaults to py_object return type; __init__ must
+                # return int (initproc ABI).  Fix the base_type before analyse_declarations
+                # runs so the vtable slot gets the correct signature.
+                cfunc.base_type = Nodes.CAnalysedBaseTypeNode(
+                    stat.pos, type=PyrexTypes.c_returncode_type)
                 for arg in cfunc.declarator.args:
                     if arg.default is None:
                         continue

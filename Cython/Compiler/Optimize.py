@@ -4860,6 +4860,16 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
             # No cpdef __init__: only optimize zero-arg calls (tp_new only, no init).
             if native_args:
                 return None
+            # Guard: if any base class defines __init__ we must NOT skip tp_init —
+            # the inherited __init__ would initialise C fields that tp_new leaves at zero.
+            # (In auto_cpdef mode the inherited cpdef __init__ IS in cfunc_entries and
+            # would be found by lookup_here above, so this path is only hit when no cpdef
+            # __init__ exists anywhere in the hierarchy.)
+            t = ext_type.base_type
+            while t is not None and getattr(t, 'scope', None) is not None:
+                if t.scope.lookup_here('__init__'):
+                    return None
+                t = getattr(t, 'base_type', None)
             same_module = ext_type.scope.global_scope() is env.global_scope()
 
         return rhs.pos, ext_type, init_entry, func_cname, native_args, same_module

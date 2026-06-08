@@ -390,7 +390,7 @@ class TestBugDescrGet:
 
 @ccall
 def func_in_a():
-    t: A = A()
+    t = A()
     tt: B = t
     t.prop = 2  # test setter (prop getter adds 1)
     t.prop_cenum = Color.RED  # test setter
