@@ -176,7 +176,7 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
                 return item.infer_type(env)
     if seq_node.is_sequence_constructor or seq_node.is_set_literal:
         # If we're lucky, all items have the same type (possibly with None).
-        args_without_none = [item for item in seq_node.args if not item.is_none]
+        args_without_none = [item for item in seq_node.args if not item.may_be_none()]
         has_none = len(args_without_none) < len(seq_node.args)
         item_types = {
             infer_sequence_item_type(env, item) if item.is_starred else item.infer_type(env)
