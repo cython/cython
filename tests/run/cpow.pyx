@@ -180,7 +180,7 @@ def pow_int_int_non_negative(int a, unsigned int b):
     exponent, which lets us fall back to int as a return type
     >>> pow_int_int_non_negative(5, 3)
     unsigned int
-    long
+    int
     """
     c1 = a**b
     c2 = a**5

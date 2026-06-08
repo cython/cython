@@ -25,5 +25,5 @@ _ERRORS="""
 14:10: Cannot take address of Python object attribute 'xyz'
 15:10: Cannot take address of Python object attribute 'o'
 18:10: Taking address of non-lvalue (type Python object)
-19:10: Taking address of non-lvalue (type long)
+19:10: Taking address of non-lvalue (type int)
 """
