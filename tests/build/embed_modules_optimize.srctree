@@ -58,6 +58,8 @@ Cython.Compiler.Options.cimport_from_pyx = True
 
 from Cython.Build.Cythonize import main
 sys.argv[0] = 'cythonize.py'
+sys.argv.append('-X')
+sys.argv.append('infer_types=True')
 main()
 
 ################### check_codegen.py ########################
@@ -72,6 +74,9 @@ with open(a_c_path, 'r') as f:
 
 if mode == 'default':
     assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" in a_c_content
+    # Python property access -> temp inferred as a Python object, not C int.
+    assert "int __pyx_v_temp;" not in a_c_content, (
+        "Expected temp to be a Python object in default mode (Python property access)")
     print("OK: default mode uses Python GetAttrStr call")
 
 elif mode == 'auto_cpdef':
@@ -96,6 +101,9 @@ elif mode == 'auto_cpdef':
     # cpdef classmethod: vtable slot call (not Python GetAttrStr) in calling module
     assert "__pyx_vtabptr_1b_B->class_tag" in a_c_content, (
         "Expected vtable slot call for cpdef classmethod in auto_cpdef mode")
+    # cproperty getter returns C int, so `temp = t.prop + t.prop` infers temp as int.
+    assert "int __pyx_v_temp;" in a_c_content, (
+        "Expected temp inferred as C int from cproperty getter return type")
     print("OK: auto_cpdef mode")
 
 elif mode == 'lto':
@@ -112,6 +120,8 @@ elif mode == 'lto':
         "Expected no redundant unbound-local check for bopt2 after tp_new null-check")
     assert "float y;" in a_c_content, (
         "Expected DataClass.__init__ opt_args struct to use C float for 'y', not PyObject*")
+    assert "int __pyx_v_temp;" in a_c_content, (
+        "Expected temp inferred as C int from cproperty getter return type")
     print("OK: LTO mode")
 
 elif mode == 'lto_no_python_subclassing':
@@ -138,6 +148,8 @@ elif mode == 'lto_no_python_subclassing':
     # The dispatch block is anchored by the comment Cython always emits just before it.
     assert "/* Check if overridden in Python */" not in a_c_content, (
         "Expected no 'Check if overridden in Python' dispatch block with python_subclassing=False")
+    assert "int __pyx_v_temp;" in a_c_content, (
+        "Expected temp inferred as C int from cproperty getter return type")
     print("OK: LTO + python_subclassing=False mode")
 
 else:
@@ -342,7 +354,7 @@ print("DONE")
 
 from b import B, Derived, Derived2, Derived3, IBase, BWithOptInit, func_in_b, func_with_parameter, Color, DataClass
 from b cimport B, Derived, Derived2, Derived3, IBase, BWithOptInit, func_in_b, func_with_parameter, Color, DataClass
-from cython import ccall, cclass, int, bint as bool
+from cython import ccall, cclass, int, bint as bool, typeof
 
 cdef bint _helper = True
 
@@ -385,6 +397,12 @@ def func_in_a():
     assert t.prop_closure == 14
     # vtable dispatch through B* reference to A() instance
     assert tt.prop == 3
+
+    temp = t.prop + t.prop
+    # In optimized modes (auto_cpdef/lto) t.prop is a cproperty returning a C int,
+    # so type inference resolves temp to int. In default mode t.prop is a Python
+    # property and temp stays a Python object. (Codegen checked in check_codegen.py.)
+    assert typeof(temp) in ('int', 'Python object'), typeof(temp)
 
     t2 = A2()
     try:

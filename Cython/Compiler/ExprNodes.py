@@ -8051,6 +8051,20 @@ class AttributeNode(ExprNode):
             # special case: bound methods should not be inferred
             # as their unbound method types
             return py_object_type
+        elif self.entry and self.entry.is_cproperty:
+            # The property entry's own type is generic (py_object); the precise
+            # type is the getter's return type, which analyse_types resolves via
+            # SimpleCallNode.for_cproperty_get. Mirror that here so inference of
+            # e.g. `obj.prop` matches the analysed type.
+            if (self.entry.scope and self.entry.scope.is_property_scope
+                    and self.entry.scope.is_overridable
+                    and obj_type.is_extension_type
+                    and not obj_type.vtabstruct_cname):
+                # Overridable property without vtable -> Python attribute access.
+                return py_object_type
+            getter_entry = self.entry.scope.lookup_here("__get__")
+            if getter_entry and getter_entry.type.is_cfunction:
+                return getter_entry.type.return_type
         return self.type
 
     def analyse_target_declaration(self, env):
