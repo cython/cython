@@ -399,10 +399,12 @@ def func_in_a():
     assert tt.prop == 3
 
     temp = t.prop + t.prop
+    temp3 = (temp // 2, temp)
     # In optimized modes (auto_cpdef/lto) t.prop is a cproperty returning a C int,
     # so type inference resolves temp to int. In default mode t.prop is a Python
     # property and temp stays a Python object. (Codegen checked in check_codegen.py.)
     assert typeof(temp) in ('int', 'Python object'), typeof(temp)
+    assert typeof(temp3) in ('tuple object', '(int, int)'), typeof(temp3)
 
     t2 = A2()
     try:

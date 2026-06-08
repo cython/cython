@@ -208,7 +208,7 @@ def arithmetic():
     f = 4 // 2
     assert typeof(f) == "long", typeof(f)
     g = 4 // <int>2
-    assert typeof(g) == "long", typeof(g)
+    assert typeof(g) == "int", typeof(g)  # 4 fits in int; <int>2 is explicitly int → int
     h = int(2) / 3.0
     assert typeof(h) == "double", typeof(h)
     i = 3.0 + int(5)

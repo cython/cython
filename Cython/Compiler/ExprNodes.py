@@ -1580,12 +1580,18 @@ class IntNode(ConstNode):
             if self.type:
                 suitable_type = PyrexTypes.widest_numeric_type(suitable_type, self.type)
         else:
-            # C literal or Python literal - split at 32bit boundary
+            # C literal or Python literal - map to the narrowest C type that fits.
+            # Values in [-2^31, 2^31) → c_long (same as Python's default int size).
+            # Values in [-2^63, 2^63) that don't fit 32-bit → c_longlong (avoids
+            # boxing to a Python object when mixing with C-typed expressions).
+            # Truly huge values stay as Python int objects.
             if -2**31 <= self.constant_result < 2**31:
                 if self.type and self.type.is_int:
                     suitable_type = self.type
                 else:
                     suitable_type = PyrexTypes.c_long_type
+            elif -2**63 <= self.constant_result < 2**63:
+                suitable_type = PyrexTypes.c_longlong_type
             else:
                 suitable_type = Builtin.int_type
         return suitable_type
@@ -12795,7 +12801,67 @@ class NumBinopNode(BinopNode):
     overflow_check = False
     overflow_bit_node = None
 
+    # Standard C integer bit-widths indexed by PyrexTypes rank (0=char … 2=int).
+    # rank 3 (long) is omitted: that is the literal's own default type, so no
+    # narrowing is needed.
+    _RANK_BITS = {0: 8, 1: 16, 2: 32}
+
+    @staticmethod
+    def _ambiguous_literal_narrowed_type(lit_node, partner_type):
+        """Return the narrowed type for an ambiguous integer literal operand.
+
+        If ``lit_node`` is an IntNode defaulted to ``c_long`` and
+        ``partner_type`` is a narrower C integer type that can hold the literal
+        value without loss, return ``partner_type`` so the operation is not
+        needlessly widened.  E.g. for ``cython.int_var // 2`` or ``4 // <int>2``
+        the literal is narrowed to ``c_int_type``.
+
+        ``4 // 2`` is not affected because the partner `2` is also ``c_long``
+        (rank 3 ≥ c_long rank), so the condition ``rank < c_long_type.rank``
+        does not trigger.
+        Returns ``None`` if no narrowing applies.
+        """
+        if not (isinstance(lit_node, IntNode)
+                and lit_node.is_c_literal is None       # ambiguous, not explicitly C
+                and lit_node.type is PyrexTypes.c_long_type
+                and partner_type.is_int
+                and partner_type.rank < PyrexTypes.c_long_type.rank
+                and lit_node.has_constant_result()
+                and partner_type.rank in NumBinopNode._RANK_BITS):
+            return None
+        bits = NumBinopNode._RANK_BITS[partner_type.rank]
+        v = lit_node.constant_result
+        if partner_type.signed:
+            lo, hi = -(1 << (bits - 1)), (1 << (bits - 1)) - 1
+        else:
+            lo, hi = 0, (1 << bits) - 1
+        return partner_type if lo <= v <= hi else None
+
+    def infer_type(self, env):
+        type1 = self.operand1.infer_type(env)
+        type2 = self.operand2.infer_type(env)
+        # Narrow ambiguous c_long literals to match a narrower typed partner.
+        narrow1 = self._ambiguous_literal_narrowed_type(self.operand1, type2)
+        narrow2 = self._ambiguous_literal_narrowed_type(self.operand2, type1)
+        if narrow1 is not None:
+            type1 = narrow1
+        if narrow2 is not None:
+            type2 = narrow2
+        return self.result_type(type1, type2, env)
+
+    def _coerce_ambiguous_literals(self, env):
+        """Coerce ambiguous IntNode literals to the partner's C int type in-place."""
+        for lit_attr, partner_attr in (('operand1', 'operand2'), ('operand2', 'operand1')):
+            lit = getattr(self, lit_attr)
+            partner = getattr(self, partner_attr)
+            narrowed = self._ambiguous_literal_narrowed_type(lit, partner.type)
+            if narrowed is not None:
+                setattr(self, lit_attr, lit.coerce_to(narrowed, env))
+
     def analyse_c_operation(self, env):
+        # Coerce ambiguous integer literals to the partner's narrower C type so
+        # the result type is not widened.  E.g. "cython.int // 2" → int not long.
+        self._coerce_ambiguous_literals(env)
         type1 = self.operand1.type
         type2 = self.operand2.type
         self.type = self.compute_c_result_type(type1, type2)
@@ -13214,9 +13280,7 @@ class DivNode(NumBinopNode):
 
     def infer_type(self, env):
         self._check_truedivision(env)
-        return self.result_type(
-            self.operand1.infer_type(env),
-            self.operand2.infer_type(env), env)
+        return super().infer_type(env)
 
     def infer_builtin_types_operation(self, type1, type2):
         result_type = super().infer_builtin_types_operation(type1, type2)
