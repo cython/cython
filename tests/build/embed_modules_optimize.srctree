@@ -104,6 +104,10 @@ elif mode == 'auto_cpdef':
     # cproperty getter returns C int, so `temp = t.prop + t.prop` infers temp as int.
     assert "int __pyx_v_temp;" in a_c_content, (
         "Expected temp inferred as C int from cproperty getter return type")
+    # Inherited cproperty: ADerivedFromB does not override B.prop; self.prop must use
+    # vtable dispatch (not Python GetAttrStr), so type inference makes inherited_val a C int.
+    assert "int __pyx_v_inherited_val;" in a_c_content, (
+        "Expected inherited_val inferred as C int from inherited cproperty (vtable dispatch)")
     print("OK: auto_cpdef mode")
 
 elif mode == 'lto':
@@ -122,6 +126,8 @@ elif mode == 'lto':
         "Expected DataClass.__init__ opt_args struct to use C float for 'y', not PyObject*")
     assert "int __pyx_v_temp;" in a_c_content, (
         "Expected temp inferred as C int from cproperty getter return type")
+    assert "int __pyx_v_inherited_val;" in a_c_content, (
+        "Expected inherited_val inferred as C int from inherited cproperty (vtable dispatch)")
     print("OK: LTO mode")
 
 elif mode == 'lto_no_python_subclassing':
@@ -150,6 +156,8 @@ elif mode == 'lto_no_python_subclassing':
         "Expected no 'Check if overridden in Python' dispatch block with python_subclassing=False")
     assert "int __pyx_v_temp;" in a_c_content, (
         "Expected temp inferred as C int from cproperty getter return type")
+    assert "int __pyx_v_inherited_val;" in a_c_content, (
+        "Expected inherited_val inferred as C int from inherited cproperty (vtable dispatch)")
     print("OK: LTO + python_subclassing=False mode")
 
 else:
@@ -459,6 +467,11 @@ def func_in_a():
 
     func_with_for_loop()
 
+    # Test inherited cproperty access: ADerivedFromB does not override B.prop,
+    # so self.prop must use vtable dispatch to get B.__prop_int (set to 2 in B.__init__).
+    d = ADerivedFromB()
+    assert d.get_inherited_prop_sum() == 4, f"Expected ADerivedFromB().get_inherited_prop_sum() == 4, got {d.get_inherited_prop_sum()}"
+
     # Test cross-module constructor with optional args (required-only call)
     bopt: BWithOptInit = BWithOptInit(5)
     assert bopt.x == 5, f"Expected BWithOptInit(5).x == 5, got {bopt.x}"
@@ -617,6 +630,16 @@ class DerivedWithCtorOverride(DerivedWithCtor):
     def __init__(self, n: int, z: float, k: str) -> None:
         super().__init__(n, z)
         self._prop = n + 2
+
+@cclass
+class ADerivedFromB(B):
+    """Inherits B.prop without overriding it.
+    self.prop access must use vtable dispatch (not Python GetAttrStr) so that
+    type inference resolves inherited_val as C int.
+    """
+    def get_inherited_prop_sum(self) -> int:
+        inherited_val = self.prop + self.prop
+        return inherited_val
 
 @cclass
 class DerivedWithCtorOverrideClosure(DerivedWithCtor):

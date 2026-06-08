@@ -6738,36 +6738,43 @@ class SimpleCallNode(CallNode):
                 if prop_name:
                     vtab_type = obj_type
                     slot_cname = None
+                    obj_type_has_own_override = False
                     t = obj_type
                     while t and t.scope:
                         prop = t.scope.lookup_here(prop_name)
                         if prop and prop.scope and prop.scope.is_property_scope:
-                            # Only use vtable dispatch if the property scope we found
-                            # matches the entry's property scope.  For super().prop,
-                            # the entry's scope (base class) differs from the one
-                            # found by walking from the object's type (derived class),
-                            # so we fall through to the direct function call.
                             if prop.scope is func_entry.scope:
                                 accessor = prop.scope.lookup_here(func_entry.name)
                                 if accessor and accessor.cname:
                                     vtab_type = t
                                     slot_cname = accessor.cname
                                     break
+                            elif t is obj_type:
+                                # obj_type has its own property with a *different* scope
+                                # from func_entry.scope — this is the super().prop pattern:
+                                # the caller's class overrides the property, and we're
+                                # trying to call the base implementation.
+                                obj_type_has_own_override = True
                         t = t.base_type
                 else:
                     slot_cname = func_entry.cname
 
                 if slot_cname:
-                    if vtab_type is not obj_type:
-                        # super() dispatch: use base class's static vtable pointer
-                        # to avoid dispatching through the object's vtable, which
-                        # may have been overridden by a subclass.
-                        vtab_code = "%s->%s" % (
-                            vtab_type.vtabptr_cname, slot_cname)
-                    else:
+                    if vtab_type is obj_type or not obj_type_has_own_override:
+                        # Dynamic vtable dispatch: either the property is defined directly
+                        # on obj_type (vtab_type == obj_type), or obj_type does not have
+                        # its own override (inherited property — dynamic dispatch correctly
+                        # calls any vtable override the runtime type may have).
                         vtab_code = "((struct %s *)%s->%s)->%s" % (
                             vtab_type.vtabstruct_cname, obj_code,
                             obj_type.vtabslot_cname, slot_cname)
+                    else:
+                        # obj_type has its own override (different property scope), so
+                        # this is a super()-like call that must bypass the override.
+                        # Dynamic dispatch would hit obj_type's own getter (infinite
+                        # recursion when inside a property getter calling super().prop).
+                        vtab_code = "%s->%s" % (
+                            vtab_type.vtabptr_cname, slot_cname)
                     arg_codes = [obj.move_result_rhs_as(func_type.args[0].type)]
                     if len(self.args) > 1:
                         for i in range(1, len(self.args)):
@@ -8317,6 +8324,17 @@ class AttributeNode(ExprNode):
                         entry = obj_type.scope.lookup_here(self.attribute)
                 if entry and entry.is_member:
                     entry = None
+                # Inherited cproperties are not copied to subclass scopes (unlike cmethods).
+                # Walk the base type chain to find them when lookup_here fails.
+                if entry is None and obj_type.is_extension_type:
+                    t = obj_type.base_type
+                    while t is not None and t.scope is not None:
+                        base_entry = t.scope.lookup_here(self.attribute)
+                        if base_entry is not None:
+                            if base_entry.is_cproperty:
+                                entry = base_entry
+                            break
+                        t = t.base_type
             else:
                 error(self.pos,
                     "Cannot select attribute of incomplete type '%s'"
