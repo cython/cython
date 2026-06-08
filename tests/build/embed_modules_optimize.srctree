@@ -360,8 +360,8 @@ print("DONE")
 
 ################# a.pyx ####################
 
-from b import B, Derived, Derived2, Derived3, IBase, BWithOptInit, func_in_b, func_with_parameter, Color, DataClass
-from b cimport B, Derived, Derived2, Derived3, IBase, BWithOptInit, func_in_b, func_with_parameter, Color, DataClass
+from b import B, Derived, Derived2, Derived3, IBase, BWithOptInit, func_in_b, func_with_parameter, Color, DataClass, DataClass2
+from b cimport B, Derived, Derived2, Derived3, IBase, BWithOptInit, func_in_b, func_with_parameter, Color, DataClass, DataClass2
 from cython import ccall, cclass, int, bint as bool, typeof
 
 cdef bint _helper = True
@@ -499,7 +499,13 @@ def func_in_a():
     assert c.y == 5.0, f"Expected DataClass(1).y == 5.0, got {c.y}"
     c = DataClass.from_x(10)
     assert c.x == 10, f"Expected DataClass.from_x(10).x == 10, got {c.x}"
-    assert c.y == 2.5, f"Expected DataClass.from_x(10).y == 2.5, got {c.y}"
+    assert c.y == 2.5, f"Expected DataClass.from_x(2.5).y == 2.5, got {c.y}"
+    c2 = DataClass2(1)
+    assert c2.x == 1, f"Expected DataClass2(1).x == 1, got {c2.x}"
+    assert c2.y == 2.5, f"Expected DataClass2(1).y == 2.5, got {c2.y}"
+    c2 = DataClass2.from_x(10)
+    assert c2.x == 10, f"Expected DataClass2.from_x(10).x == 10, got {c2.x}"
+    assert c2.y == 2.5, f"Expected DataClass2.from_x(10).y == 2.5, got {c2.y}"
 
     # Test cpdef classmethod (auto-promoted in auto_cpdef mode)
     b_inst = B()
@@ -654,8 +660,8 @@ class DerivedWithCtorOverrideClosure(DerivedWithCtor):
 ################# b.pyx ####################
 
 from enum import Enum
-from cython import cclass, ccall, final, int, float
-from cython.dataclasses import dataclass
+from cython import cclass, ccall, final, int, float, freelist
+from dataclasses import dataclass
 
 @cclass
 class Color(Enum):
@@ -737,7 +743,10 @@ class BWithOptInit:
         self.y = y
 
 
-@dataclass
+@final
+@freelist(64)
+@cclass
+@dataclass(frozen=True, repr=False)
 class DataClass:
     """Dataclass to test that dataclasses don't interfere with the optimization."""
     x: int
@@ -746,3 +755,17 @@ class DataClass:
     @classmethod
     def from_x(cls, x: int) -> 'DataClass':
         return DataClass(x=x)
+
+from cython.dataclasses import dataclass as dc
+
+
+@final
+@dc(frozen=True, repr=False)
+class DataClass2:
+    """Dataclass to test that dataclasses don't interfere with the optimization."""
+    x: int
+    y: float = 2.5
+
+    @classmethod
+    def from_x(cls, x: int) -> 'DataClass2':
+        return DataClass2(x=x)

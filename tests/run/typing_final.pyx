@@ -1,0 +1,53 @@
+# mode: run
+# tag: typing, final
+
+# typing.final must get the same compile semantics as cython.final:
+# final types (no subclassing) and final cdef/cpdef methods.
+
+from typing import final
+
+
+@final
+cdef class FinalClass:
+    """
+    >>> f = FinalClass()
+    >>> test_final_class(f)
+    Type tested
+
+    >>> try:
+    ...     class SubType(FinalClass): pass
+    ... except TypeError:
+    ...     print('PASSED!')
+    PASSED!
+    """
+
+
+@final
+cdef class FinalWithMethod:
+    """
+    >>> FinalWithMethod().value()
+    42
+    """
+    @final
+    cpdef int value(self):
+        return 42
+
+
+# aliased import still resolves to the `final` directive
+from typing import final as _final
+
+
+@_final
+cdef class FinalAliased:
+    """
+    >>> f = FinalAliased()
+    >>> try:
+    ...     class SubType(FinalAliased): pass
+    ... except TypeError:
+    ...     print('PASSED!')
+    PASSED!
+    """
+
+
+def test_final_class(FinalClass c):
+    print(u"Type tested")

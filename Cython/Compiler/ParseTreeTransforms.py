@@ -1064,6 +1064,11 @@ class InterpretCompilerDirectives(CythonTransform):
                 return None
 
             node.imported_names = newimp
+        elif not node.relative_level and module_name in ("typing", "typing_extensions"):
+            # `from typing cimport final` -> same `final` directive as cython.final.
+            for pos, name, as_name in node.imported_names:
+                if name == "final":
+                    self.directive_names[as_name or name] = "final"
         return node
 
     def visit_FromImportStatNode(self, node):
@@ -1092,6 +1097,14 @@ class InterpretCompilerDirectives(CythonTransform):
             if not newimp:
                 return None
             node.items = newimp
+        elif module_name in ("typing", "typing_extensions"):
+            # `typing.final` / `typing_extensions.final` get the same compile
+            # semantics as `cython.final`.  The import itself stays in place (it is
+            # a harmless runtime no-op), we just also register the local name as the
+            # `final` directive so a `@final` decorator is recognised.
+            for name, name_node in node.items:
+                if name == "final":
+                    self.directive_names[name_node.name] = "final"
         return node
 
     def _create_cimport_from_import(self, node_pos, module_name, level, imported_names):
@@ -1356,13 +1369,15 @@ class InterpretCompilerDirectives(CythonTransform):
         current_opt_dict = dict(self.directives)
         missing = object()
         # Pre-scan: if any decorator promotes scope to cclass (e.g. @cclass on a
-        # Python class), upgrade scope_name before checking other decorators so that
-        # directives legal only in cclass scope (e.g. @python_subclassing) pass
-        # regardless of their position relative to @cclass.
+        # Python class, or @dataclasses.dataclass / @total_ordering which also
+        # convert the class to a cclass), upgrade scope_name before checking other
+        # decorators so that directives legal only in cclass scope (e.g. @final,
+        # @python_subclassing) pass regardless of their position relative to it.
+        cclass_promoting_directives = ('cclass', 'dataclasses.dataclass', 'total_ordering')
         if scope_name == 'class':
             for dec in node.decorators:
                 pre = self.try_to_parse_directives(dec.decorator)
-                if pre and any(d[0] == 'cclass' for d in pre):
+                if pre and any(d[0] in cclass_promoting_directives for d in pre):
                     scope_name = 'cclass'
                     break
         # Decorators coming first take precedence.

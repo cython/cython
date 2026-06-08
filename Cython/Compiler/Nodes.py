@@ -6165,6 +6165,14 @@ class CClassDefNode(ClassDefNode):
                     error(decorator_call.pos, "total_ordering cannot be called.")
                 extra_directives["total_ordering"] = True
                 continue
+            elif known_name in ("typing.final", "typing_extensions.final"):
+                # `@typing.final` (attribute form) gets the same semantics as
+                # `@cython.final`.  The name form is handled earlier in
+                # InterpretCompilerDirectives.
+                if decorator_call:
+                    error(decorator_call.pos, "final cannot be called.")
+                extra_directives["final"] = True
+                continue
             elif known_name == "dataclasses.dataclass":
                 args = None
                 kwds = {}
@@ -6280,6 +6288,14 @@ class CClassDefNode(ClassDefNode):
             shadow=self.shadow)
         if self.bases and len(self.bases.args) > 1:
             self.entry.type.multiple_bases = True
+
+        # `final` from a stdlib attribute decorator (e.g. @typing.final) arrives via
+        # extra_directives, which is only merged into the class scope.directives below
+        # -- after declare_c_class has already consulted the enclosing directives for
+        # the `final` flag.  Apply it directly here (before method declarations) so the
+        # type is marked final, mirroring Symtab.CClassScope/declare_c_class.
+        if extra_directives.get('final'):
+            self.entry.type.is_final_type = True
 
         if self.shadow:
             home_scope.lookup(self.class_name).as_variable = self.entry

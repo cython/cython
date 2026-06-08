@@ -385,24 +385,37 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
             if stat.is_cdef_func_compatible():
                 generated.stats[i] = stat.as_cfunction(overridable=True)
                 # annotation_typing=False (applied below) prevents the arg-type
-                # inference that would give optional args their C types from
-                # annotations.  Pre-set the C type for optional args whose field
-                # has a plain default (not default_factory) so the opt_args struct
-                # uses the proper C type (e.g. "float y") rather than "PyObject *y".
-                # default_factory fields must stay as PyObject* because the wrapper
-                # must accept the _HAS_DEFAULT_FACTORY sentinel at runtime.
+                # inference that would give args their C types from annotations.
+                # Pre-set the C type for every arg whose field has a C type so the
+                # main signature / opt_args struct use the proper C type (e.g.
+                # "int row" or "float y") rather than "PyObject *".  Only
+                # default_factory optional fields must stay as PyObject* because the
+                # wrapper must accept the _HAS_DEFAULT_FACTORY sentinel at runtime.
                 cfunc = generated.stats[i]
                 # as_cfunction() defaults to py_object return type; __init__ must
                 # return int (initproc ABI).  Fix the base_type before analyse_declarations
                 # runs so the vtable slot gets the correct signature.
                 cfunc.base_type = Nodes.CAnalysedBaseTypeNode(
                     stat.pos, type=PyrexTypes.c_returncode_type)
+                # The c_returncode_type return needs an exception value (-1, like a
+                # property setter or `except -1`) so the error epilogue can signal a
+                # failure.  Without it the function has an error path it cannot
+                # propagate, producing a spurious "Unraisable exception in function
+                # '__init__'" warning.
+                cfunc.declarator.exception_value = ExprNodes.IntNode.for_int(
+                    stat.pos, -1, type=PyrexTypes.c_returncode_type)
+                cfunc.declarator.exception_check = False
                 for arg in cfunc.declarator.args:
-                    if arg.default is None:
-                        continue
                     arg_name = arg.declared_name()
                     field = fields.get(arg_name)
-                    if field is None or field.default_factory is not MISSING:
+                    if field is None:
+                        # 'self', or an InitVar with no stored class-scope entry.
+                        continue
+                    # Only optional args backed by a default_factory must stay
+                    # PyObject* (the wrapper receives the _HAS_DEFAULT_FACTORY
+                    # sentinel at runtime).  Required args -- and plain-default
+                    # optional args -- get their declared C type.
+                    if arg.default is not None and field.default_factory is not MISSING:
                         continue
                     field_entry = node.scope.lookup_here(arg_name)
                     if field_entry and not field_entry.type.is_pyobject:

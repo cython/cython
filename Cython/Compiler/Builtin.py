@@ -916,6 +916,17 @@ def get_known_standard_library_module_scope(module_name):
             var_entry.scope = mod
             entry.as_variable = var_entry
             entry.known_standard_library_import = "%s.%s" % (module_name, name)
+        # typing.final is recognised as the `final` compiler directive (same as
+        # cython.final) when used as a class/method decorator.
+        final_name = EncodedString("final")
+        final_entry = mod.declare_var(final_name, PyrexTypes.py_object_type, pos=None)
+        final_entry.known_standard_library_import = "%s.final" % module_name
+        _known_module_scopes[module_name] = mod
+    elif module_name == "typing_extensions":
+        mod = ModuleScope(module_name, None, None)
+        final_name = EncodedString("final")
+        final_entry = mod.declare_var(final_name, PyrexTypes.py_object_type, pos=None)
+        final_entry.known_standard_library_import = "%s.final" % module_name
         _known_module_scopes[module_name] = mod
     elif module_name == "dataclasses":
         mod = ModuleScope(module_name, None, None)

@@ -310,3 +310,58 @@ def make_dataclass_ctor_opt(x, y):
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def make_dataclass_ctor_opt_expr(x, y):
     return DataclassCtorOptTarget(x, y)
+
+
+# A frozen dataclass whose fields are all required and C-typed.  The generated
+# cpdef __init__ must take C-typed parameters (int row, ...), not PyObject*.
+# (See Dataclass.handle_cclass_dataclass: required args are re-typed from their
+# field entry.)  Behaviourally this round-trips C ints and stays optimized.
+@dataclass(frozen=True)
+cdef class TypedRequiredFields:
+    """
+    >>> obj = TypedRequiredFields(1, 2, 3, 4)
+    >>> obj.row, obj.column, obj.row_span, obj.column_span
+    (1, 2, 3, 4)
+    >>> TypedRequiredFields(1, 2, 3, 4) == TypedRequiredFields(1, 2, 3, 4)
+    True
+    >>> import dataclasses as _dc
+    >>> _dc.is_dataclass(TypedRequiredFields)
+    True
+    """
+    row: cython.int
+    column: cython.int
+    row_span: cython.int
+    column_span: cython.int
+
+
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+def make_typed_required(int a, int b, int c, int d):
+    return TypedRequiredFields(a, b, c, d)
+
+
+# Equivalence: stdlib @dataclasses.dataclass + @cython.cclass must behave the
+# same as @cython.dataclasses.dataclass for a frozen, C-typed dataclass.
+@py_dataclasses.dataclass(frozen=True)
+@cython.cclass
+class StdlibTypedRequired:
+    """
+    >>> obj = StdlibTypedRequired(5, 6, 7, 8)
+    >>> obj.row, obj.column, obj.row_span, obj.column_span
+    (5, 6, 7, 8)
+    >>> StdlibTypedRequired(5, 6, 7, 8) == StdlibTypedRequired(5, 6, 7, 8)
+    True
+    >>> import dataclasses as _dc
+    >>> _dc.is_dataclass(StdlibTypedRequired)
+    True
+    >>> [f.name for f in _dc.fields(StdlibTypedRequired)]
+    ['row', 'column', 'row_span', 'column_span']
+    """
+    row: cython.int
+    column: cython.int
+    row_span: cython.int
+    column_span: cython.int
+
+
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+def make_stdlib_typed_required(int a, int b, int c, int d):
+    return StdlibTypedRequired(a, b, c, d)
