@@ -4304,12 +4304,11 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
-        if (
-            base_type.supports_container_type and
-            not (self.base.is_sequence_constructor or self.base.is_dict_literal or self.base.is_set_literal) and
-            (sub_type := base_type.infer_indexed_type(self.index.constant_result))
-        ):
-            return sub_type
+        if base_type.supports_container_type:
+            if not (self.base.is_sequence_constructor or self.base.is_dict_literal or self.base.is_set_literal):
+                sub_type = base_type.infer_indexed_type(self.index.constant_result)
+                if sub_type:
+                    return sub_type
 
         index_type = self.index.infer_type(env)
         if index_type and index_type.is_int or isinstance(self.index, IntNode):
