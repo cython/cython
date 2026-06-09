@@ -2770,7 +2770,13 @@ class CClassScope(ClassScope):
         if 'inline' in modifiers:
             entry.is_inline_cmethod = True
 
-        if self.parent_type.is_final_type or entry.is_inline_cmethod or self.directives.get('final'):
+        final_directive = self.directives.get('final')
+        # An advisory `final` (from typing.final) on a method only takes effect when the
+        # enclosing type is itself final; otherwise it is a silent no-op (a strict
+        # cython.final would instead error in DefNode.declare_pyfunction).
+        if final_directive == Options.FINAL_ADVISORY:
+            final_directive = self.parent_type.is_final_type
+        if self.parent_type.is_final_type or entry.is_inline_cmethod or final_directive:
             entry.is_final_cmethod = True
             entry.final_func_cname = entry.func_cname
             if not type.is_fused:

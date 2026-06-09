@@ -892,6 +892,10 @@ class InterpretCompilerDirectives(CythonTransform):
         super().__init__(context)
         self.cython_module_names = set()
         self.directive_names = {'staticmethod': 'staticmethod', 'classmethod': 'classmethod'}
+        # Local names bound to `typing.final` / `typing_extensions.final`.  Unlike
+        # `cython.final`, these are advisory (pure-Python no-ops) and must NOT error
+        # when applied to a plain Python class -- only take effect on extension types.
+        self._typing_final_names = set()
         self.parallel_directives = {}
         directives = copy.deepcopy(Options.get_directive_defaults())
         for key, value in compilation_directive_defaults.items():
@@ -1069,6 +1073,7 @@ class InterpretCompilerDirectives(CythonTransform):
             for pos, name, as_name in node.imported_names:
                 if name == "final":
                     self.directive_names[as_name or name] = "final"
+                    self._typing_final_names.add(as_name or name)
         return node
 
     def visit_FromImportStatNode(self, node):
@@ -1105,6 +1110,7 @@ class InterpretCompilerDirectives(CythonTransform):
             for name, name_node in node.items:
                 if name == "final":
                     self.directive_names[name_node.name] = "final"
+                    self._typing_final_names.add(name_node.name)
         return node
 
     def _create_cimport_from_import(self, node_pos, module_name, level, imported_names):
@@ -1384,6 +1390,19 @@ class InterpretCompilerDirectives(CythonTransform):
         for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)
             if new_directives is not None:
+                # `typing.final` is advisory (unlike strict `@cython.final`): it must
+                # never raise.  On a scope where `final` is illegal (a plain Python
+                # `class`) drop it silently; where it is legal (cclass / method) tag its
+                # value with the FINAL_ADVISORY sentinel so the method-level consumer
+                # (Symtab.CClassScope.declare_cfunction) treats it as a no-op when the
+                # enclosing class is not itself final, rather than erroring.
+                if (dec.decorator.is_name and dec.decorator.name in self._typing_final_names):
+                    final_legal_scopes = Options.directive_scopes.get('final')
+                    if final_legal_scopes and scope_name not in final_legal_scopes:
+                        continue
+                    new_directives = [
+                        (dname, Options.FINAL_ADVISORY) if dname == 'final' else (dname, dvalue)
+                        for dname, dvalue in new_directives]
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
                         name, value = directive

@@ -49,5 +49,31 @@ cdef class FinalAliased:
     """
 
 
+# typing.final on a plain Python class is advisory (pure-Python no-op): it must NOT
+# raise "final not allowed in class scope" (unlike @cython.final) and must not make
+# the class un-subclassable.
+@final
+class PlainFinal:
+    """
+    >>> class Sub(PlainFinal): pass
+    >>> Sub is not None
+    True
+    """
+
+
+# typing.final on a method of a NON-final cdef class is also advisory: it must compile
+# without the "Only final types can have final Python (def/cpdef) methods" error that
+# strict @cython.final raises, and the method stays overridable.
+cdef class NonFinalBase:
+    """
+    >>> NonFinalBase().mtd()
+    1
+    >>> class PySub(NonFinalBase): pass   # still subclassable (not a final type)
+    """
+    @final
+    cpdef int mtd(self):
+        return 1
+
+
 def test_final_class(FinalClass c):
     print(u"Type tested")

@@ -349,6 +349,14 @@ class DEFER_ANALYSIS_OF_ARGUMENTS:
     pass
 DEFER_ANALYSIS_OF_ARGUMENTS = DEFER_ANALYSIS_OF_ARGUMENTS()
 
+# Sentinel value used as the `final` directive's value when it originates from the
+# advisory `typing.final` / `typing_extensions.final` decorator (as opposed to the
+# strict `cython.final`).  Advisory `final` applies on extension types but is a silent
+# no-op where it cannot apply (a plain Python class, or a method of a non-final class)
+# instead of raising an error.  It is a (truthy) string so it survives dict copies and
+# the existing `if directives.get('final')` truthiness checks keep working unchanged.
+FINAL_ADVISORY = "advisory"
+
 # Override types possibilities above, if needed
 directive_types = {
     'language_level': str,  # values can be None/2/3/'3str', where None == 2+warning
