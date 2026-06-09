@@ -247,3 +247,47 @@ def test_typed_method_explicit():
     """
     obj = TypedMethod()
     return obj.scale(5, 3.0)
+
+
+# ---------------------------------------------------------------------------
+# Self-referential constructor assignment: `v = T(... v.field ...)`.
+# The statement-level constructor split must NOT fire here, because it would
+# rebind `v` to the freshly-allocated (zeroed) object before evaluating the
+# arguments that read `v.field`.  The expression-level path (temp) is correct.
+# Regression for crop-chronicles `measure = Size(min(measure.width, ...), ...)`.
+# ---------------------------------------------------------------------------
+
+@cython.cclass
+class Size2D:
+    width: cython.int
+    height: cython.int
+
+    def __init__(self, width: cython.int, height: cython.int):
+        self.width = width
+        self.height = height
+
+
+def test_self_referential_ctor():
+    """
+    >>> test_self_referential_ctor()
+    (84, 88)
+    """
+    measure = Size2D(84, 88)
+    min_w, max_w = 0, 1073741823
+    min_h, max_h = 0, 1073741823
+    measure = Size2D(
+        max(min_w, min(measure.width, max_w)),
+        max(min_h, min(measure.height, max_h)),
+    )
+    return (measure.width, measure.height)
+
+
+def test_self_referential_ctor_swap():
+    """
+    >>> test_self_referential_ctor_swap()
+    (88, 84)
+    """
+    measure = Size2D(84, 88)
+    # Read both fields of the old object while building the new one.
+    measure = Size2D(measure.height, measure.width)
+    return (measure.width, measure.height)

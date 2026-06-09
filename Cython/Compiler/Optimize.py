@@ -4958,6 +4958,16 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
             return node
         pos, ext_type, init_entry, func_cname, native_args, same_module = info
 
+        # Self-reference guard: the split path assigns the freshly-allocated (zeroed)
+        # object to the LHS variable (`var = tp_new(T)`) BEFORE evaluating the
+        # constructor arguments (`T.__init__(var, args)`).  If any argument reads the
+        # LHS variable (e.g. `measure = Size(measure.width, ...)`), it would read the
+        # new uninitialised object instead of the old value.  Fall through to the
+        # expression path, which evaluates the args into a temp and only assigns to the
+        # LHS at the very end.
+        if any(self._references_entry(a, lhs.entry) for a in native_args):
+            return node
+
         new_rhs = self._build_tp_new_call(pos, ext_type, node.rhs.function, env, same_module)
         if new_rhs is None:
             return node
@@ -5061,6 +5071,23 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         # without redundant PyTypeTestNode coercions.
         expr.type = ext_type
         return expr
+
+    @staticmethod
+    def _references_entry(node, entry):
+        """True if `entry` is referenced by any NameNode within the `node` subtree."""
+        if node is None:
+            return False
+        if isinstance(node, ExprNodes.NameNode) and node.entry is entry:
+            return True
+        for attr in node.child_attrs:
+            child = getattr(node, attr, None)
+            if isinstance(child, (list, tuple)):
+                if any(OptimizeExtTypeConstructorCalls._references_entry(c, entry)
+                       for c in child):
+                    return True
+            elif OptimizeExtTypeConstructorCalls._references_entry(child, entry):
+                return True
+        return False
 
     @staticmethod
     def _unwrap_py_coercion(node):
