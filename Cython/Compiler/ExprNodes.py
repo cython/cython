@@ -3532,7 +3532,7 @@ class NextNode(AtomicExprNode):
             # Here we infer only non-literal sequences. Literals are inferred via special infer_sequence_item_type().
             sequence_type = sequence_node.infer_type(env)
             if sequence_type.supports_container_type:
-                iterator_type = sequence_type.infer_iterator_type():
+                iterator_type = sequence_type.infer_iterator_type()
                 if iterator_type:
                     return iterator_type
         # Avoid duplication of complicated logic.
