@@ -3,6 +3,11 @@
 PyObject *{{funcname}}({{enum_type}}); /*proto*/
 
 
+//////////////////// EnumToPyLTO.proto ////////////////////
+
+PyObject *{{funcname}}({{enum_type}}); /*proto*/
+
+
 //////////////////// EnumToPyLTO ////////////////////
 
 // Enum to_py function for LTO mode (non-static so it can be called from other modules)

@@ -164,6 +164,10 @@ Environment variables:
     parser.add_argument("--shared", dest='shared_utility_qualified_name', action='store', type=str,
                         help='Imports utility code from shared module specified by fully qualified module name.')
 
+    parser.add_argument('-j', '--parallel', dest='parallel', metavar='N',
+                        type=int, nargs='?', const=0, default=1,
+                        help='compile N sources in parallel processes (omit N to use CPU count)')
+
     parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help

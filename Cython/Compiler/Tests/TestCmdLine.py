@@ -96,6 +96,28 @@ class CmdLineParserTest(TimedTest):
         self.assertTrue(len(sources) == 1)
         self.assertFalse(options.timestamps)
 
+    def test_parallel_option(self):
+        # Default: sequential (1 worker).
+        options, sources = parse_command_line(['source.pyx'])
+        self.assertEqual(options.parallel, 1)
+
+        options, sources = parse_command_line(['-j4', 'file1.pyx', 'file2.pyx'])
+        self.assertEqual(options.parallel, 4)
+        self.assertEqual(sources, ['file1.pyx', 'file2.pyx'])
+
+        options, sources = parse_command_line(['--parallel', '8', 'file1.pyx'])
+        self.assertEqual(options.parallel, 8)
+
+        # 0 means "use CPU count".
+        options, sources = parse_command_line(['-j0', 'file1.pyx'])
+        self.assertEqual(options.parallel, 0)
+
+        # -j alone (no value, followed by another flag) uses const=0 → CPU count.
+        # This matches the common usage: cython -j --fast-fail sources...
+        options, sources = parse_command_line(['-j', '--fast-fail', 'file1.pyx'])
+        self.assertEqual(options.parallel, 0)
+        self.assertEqual(sources, ['file1.pyx'])
+
     def test_options_with_values(self):
         options, sources = parse_command_line([
             '--embed=huhu',

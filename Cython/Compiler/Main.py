@@ -671,6 +671,41 @@ def compile_single(source, options, full_module_name, cache=None, context=None, 
         return run_pipeline(source, options, full_module_name, context)
 
 
+def _init_multiprocessing_worker():
+    # KeyboardInterrupt kills workers, so don't let them get it
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
+def _compile_single_worker(task):
+    """
+    Worker entry point for parallel multi-source compilation. Runs in a
+    separate process (each worker creates its own Context, mirroring the
+    sequential path which resets ``context = None`` per source). Returns a
+    small picklable summary so the parent can rebuild a CompilationResultSet.
+    """
+    from io import StringIO
+
+    source, options, full_module_name, cache, options_global_state = task
+    # 'spawn' re-imports Options with its defaults, so re-apply module-level
+    # flags (e.g. cimport_from_pyx) captured in the parent process. Without
+    # this, e.g. --cimport-from-pyx compilation breaks in parallel mode.
+    Options.restore_global_state(options_global_state)
+    output_filename = get_output_filename(source, os.getcwd(), options)
+
+    buf = StringIO()
+    old_stderr = sys.stderr
+    sys.stderr = buf
+    num_errors = 0
+    try:
+        result = compile_single(source, options, full_module_name=full_module_name, cache=cache)
+        num_errors = result.num_errors
+        output_filename = result.c_file or output_filename
+    finally:
+        sys.stderr = old_stderr
+    return source, num_errors, output_filename, buf.getvalue()
+
+
 def compile_multiple(sources, options, cache=None):
     """
     compile_multiple(sources, options, cache)
@@ -682,27 +717,86 @@ def compile_multiple(sources, options, cache=None):
     if len(sources) > 1 and options.module_name:
         raise RuntimeError('Full module name can only be set '
                            'for single source compilation')
-    # run_pipeline creates the context
-    # context = Context.from_options(options)
     sources = [os.path.abspath(source) for source in sources]
-    processed = set()
     results = CompilationResultSet()
     timestamps = options.timestamps
-    context = None
     cwd = os.getcwd()
+
+    # A single context is used only for the planning phase (timestamp/dependency
+    # checks and module-name extraction). The actual compilation always uses a
+    # fresh context per source ("compiling multiple sources in one context
+    # doesn't quite work properly yet").
+    context = Context.from_options(options)
+
+    # Wire up compilation_sources for LTO: every compilation unit needs the full
+    # list of module names being built together so cross-module direct calls can
+    # be emitted. This must happen with or without parallelism.
+    seen = set()
+    unique_sources = []
     for source in sources:
-        if source not in processed:
-            output_filename = get_output_filename(source, cwd, options)
+        if source not in seen:
+            seen.add(source)
+            unique_sources.append(source)
+    options.compilation_sources = [
+        context.extract_module_name(source, options) for source in unique_sources]
+
+    # Determine which sources actually need (re)compilation.
+    to_compile = []
+    for source in unique_sources:
+        output_filename = get_output_filename(source, cwd, options)
+        if (not timestamps) or context.c_file_out_of_date(source, output_filename):
+            to_compile.append(source)
+
+    parallel = getattr(options, 'parallel', 1)
+    nthreads = (os.cpu_count() or 1) if parallel == 0 else parallel
+
+    use_parallel = nthreads > 1 and len(to_compile) > 1
+    if use_parallel:
+        try:
+            from concurrent.futures import ProcessPoolExecutor
+        except ImportError:
+            use_parallel = False
+
+    if use_parallel:
+        Errors.reset_process_seen_messages()
+        options_global_state = Options.capture_global_state()
+        tasks = [
+            (source, options, options.module_name, cache, options_global_state)
+            for source in to_compile]
+        seen_lines = set()
+        with ProcessPoolExecutor(
+            max_workers=nthreads,
+            initializer=_init_multiprocessing_worker,
+        ) as proc_pool:
+            try:
+                for source, num_errors, c_file, captured in proc_pool.map(
+                        _compile_single_worker, tasks, chunksize=1):
+                    if captured:
+                        for line in captured.splitlines(keepends=True):
+                            if line not in seen_lines:
+                                seen_lines.add(line)
+                                sys.stderr.write(line)
+                    result = CompilationResult()
+                    result.c_file = c_file
+                    result.num_errors = num_errors
+                    results.add(source, result)
+            except KeyboardInterrupt:
+                # terminate_workers() forcibly kills running workers (Python 3.14+);
+                # fall back to cancelling pending futures on older versions.
+                if hasattr(proc_pool, 'terminate_workers'):
+                    proc_pool.terminate_workers()
+                proc_pool.shutdown(cancel_futures=True)
+                raise
+    else:
+        # Sequential path: a fresh context per source.
+        context = None
+        for source in to_compile:
             if context is None:
                 context = Context.from_options(options)
-            out_of_date = context.c_file_out_of_date(source, output_filename)
-            if (not timestamps) or out_of_date:
-                result = compile_single(source, options, full_module_name=options.module_name, cache=cache, context=context)
-                results.add(source, result)
-                # Compiling multiple sources in one context doesn't quite
-                # work properly yet.
-                context = None
-            processed.add(source)
+            result = compile_single(source, options, full_module_name=options.module_name, cache=cache, context=context)
+            results.add(source, result)
+            context = None
+
     if cache:
         cache.cleanup_cache()
     return results

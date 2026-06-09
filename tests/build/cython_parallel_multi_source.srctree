@@ -1,0 +1,36 @@
+# Tests parallel multi-source compilation via the low-level `cython` CLI (-j).
+# Verifies that `cython -j2 a.pyx b.pyx c.pyx` generates a .c file for each
+# source, and that parallel output matches sequential output byte-for-byte.
+CYTHON -j2 a.pyx b.pyx c.pyx
+PYTHON check_parallel.py
+CYTHON a.pyx b.pyx c.pyx
+PYTHON check_identical.py
+
+######## a.pyx ########
+def fa(int x):
+    return x + 1
+
+######## b.pyx ########
+def fb(int y):
+    return y * 2
+
+######## c.pyx ########
+def fc(int z):
+    return z - 3
+
+######## check_parallel.py ########
+import os
+for name in ('a', 'b', 'c'):
+    c_file = name + '.c'
+    assert os.path.exists(c_file), "missing %s after parallel compilation" % c_file
+    os.rename(c_file, 'par_' + c_file)
+
+######## check_identical.py ########
+# The sequential CYTHON run regenerated a.c/b.c/c.c; compare to the parallel
+# outputs renamed to par_*.c by check_parallel.py.
+for name in ('a', 'b', 'c'):
+    with open(name + '.c') as f:
+        seq = f.read()
+    with open('par_' + name + '.c') as f:
+        par = f.read()
+    assert seq == par, "parallel output for %s.c differs from sequential" % name

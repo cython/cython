@@ -147,6 +147,30 @@ buffer_max_dims = 8
 closure_freelist_size = 8
 
 
+def capture_global_state():
+    # Snapshot the module-level option flags (e.g. cimport_from_pyx, embed,
+    # docstrings) that are stored as globals here rather than on a
+    # CompilationOptions instance. Needed to propagate them to worker
+    # processes spawned for parallel compilation, since 'spawn' re-imports
+    # this module with its defaults and would otherwise lose CLI/programmatic
+    # overrides. Only scalar toggles are captured: container globals (e.g.
+    # directive_types) hold unpicklable validators and are identical in the
+    # re-imported module anyway.
+    scalar_types = (bool, int, float, str, bytes, type(None))
+    return {
+        name: value
+        for name, value in globals().items()
+        if not name.startswith('_') and type(value) in scalar_types
+    }
+
+
+def restore_global_state(state):
+    # Re-apply a snapshot produced by capture_global_state() in a worker process.
+    g = globals()
+    for name, value in state.items():
+        g[name] = value
+
+
 def get_directive_defaults():
     # To add an item to this list, all accesses should be changed to use the new
     # directive, and the global option itself should be set to an instance of
@@ -856,4 +880,5 @@ default_options = dict(
     shared_c_file_path=None,
     shared_utility_qualified_name = None,
     compilation_sources=None,  # List of module names being compiled together (for LTO)
+    parallel=1,  # Number of parallel worker processes for multi-source compilation (0 = CPU count)
 )
