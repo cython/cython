@@ -25,9 +25,14 @@ CPDEF_PROMOTABLE_BINOP_METHODS = frozenset([
 CPDEF_PROMOTABLE_UNOP_METHODS = frozenset([
     '__neg__', '__pos__', '__invert__', '__abs__',
 ])
-# Full set: binop + unop + richcmp.
+# Zero-operand slot methods (self only, no operand).
+CPDEF_PROMOTABLE_ZEROARG_METHODS = frozenset([
+    '__repr__', '__str__', '__hash__',
+])
+# Full set: binop + unop + richcmp + zeroarg.
 CPDEF_PROMOTABLE_SPECIAL_METHODS = (
-    CPDEF_PROMOTABLE_BINOP_METHODS | CPDEF_PROMOTABLE_UNOP_METHODS | frozenset(richcmp_special_methods)
+    CPDEF_PROMOTABLE_BINOP_METHODS | CPDEF_PROMOTABLE_UNOP_METHODS
+    | frozenset(richcmp_special_methods) | CPDEF_PROMOTABLE_ZEROARG_METHODS
 )
 
 

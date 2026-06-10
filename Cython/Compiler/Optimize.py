@@ -2970,7 +2970,59 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             utility_code=utility_code,
             py_name="unicode")
 
-    _handle_simple_function_str = _handle_simple_function_unicode
+    def _handle_simple_function_str(self, node, function, pos_args):
+        """Optimise str(x) to a direct cpdef __str__ call when x is a
+        @final @cclass with a promoted __str__; otherwise fall back to
+        the generic unicode() optimisation.
+        """
+        if len(pos_args) == 1:
+            arg = pos_args[0]
+            entry = ExprNodes._lookup_cpdef_dunder(getattr(arg, 'type', None), '__str__')
+            if entry is not None:
+                call = ExprNodes.SimpleCallNode(
+                    node.pos,
+                    function=ExprNodes.AttributeNode(
+                        node.pos, obj=arg,
+                        attribute=EncodedString('__str__')),
+                    args=[])
+                return call.analyse_types(self.current_env())
+        return self._handle_simple_function_unicode(node, function, pos_args)
+
+    def _handle_simple_function_repr(self, node, function, pos_args):
+        """Optimise repr(x) to a direct cpdef __repr__ call when x is a
+        @final @cclass with a promoted __repr__.
+        """
+        if len(pos_args) != 1:
+            return node
+        arg = pos_args[0]
+        entry = ExprNodes._lookup_cpdef_dunder(getattr(arg, 'type', None), '__repr__')
+        if entry is None:
+            return node
+        call = ExprNodes.SimpleCallNode(
+            node.pos,
+            function=ExprNodes.AttributeNode(
+                node.pos, obj=arg,
+                attribute=EncodedString('__repr__')),
+            args=[])
+        return call.analyse_types(self.current_env())
+
+    def _handle_simple_function_hash(self, node, function, pos_args):
+        """Optimise hash(x) to a direct cpdef __hash__ call when x is a
+        @final @cclass with a promoted __hash__.
+        """
+        if len(pos_args) != 1:
+            return node
+        arg = pos_args[0]
+        entry = ExprNodes._lookup_cpdef_dunder(getattr(arg, 'type', None), '__hash__')
+        if entry is None:
+            return node
+        call = ExprNodes.SimpleCallNode(
+            node.pos,
+            function=ExprNodes.AttributeNode(
+                node.pos, obj=arg,
+                attribute=EncodedString('__hash__')),
+            args=[])
+        return call.analyse_types(self.current_env())
 
     def visit_FormattedValueNode(self, node):
         """Simplify or avoid plain string formatting of a unicode value.

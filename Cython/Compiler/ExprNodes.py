@@ -12684,7 +12684,8 @@ def _lookup_cpdef_dunder(type1, dunder_name, operand2_type=None):
     if not (entry.is_cfunction and entry.is_special and entry.type.is_overridable):
         return None
     is_richcmp = dunder_name in TypeSlots.richcmp_special_methods
-    if not is_richcmp:
+    is_zeroarg = dunder_name in TypeSlots.CPDEF_PROMOTABLE_ZEROARG_METHODS
+    if not is_richcmp and not is_zeroarg:
         # Binop/unop: require a specific (non-pyobject) return type so that
         # 'return NotImplemented' cannot escape through the C slot.
         if entry.type.return_type is py_object_type:

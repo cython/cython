@@ -8,25 +8,6 @@ from cython import cclass
 
 
 # ---------------------------------------------------------------------------
-# (a) @ccall on non-whitelisted dunders inside a cclass
-# ---------------------------------------------------------------------------
-
-@cclass
-class MyClass1:
-    @cython.ccall
-    def __repr__(self) -> str:      # __repr__ is not in CPDEF_PROMOTABLE_SPECIAL_METHODS
-        return "MyClass1()"
-
-    @cython.ccall
-    def __str__(self) -> str:       # __str__ is not promotable
-        return "MyClass1"
-
-    @cython.ccall
-    def __hash__(self) -> int:      # __hash__ is not promotable
-        return 0
-
-
-# ---------------------------------------------------------------------------
 # (b) Dunder with a non-object typed return AND a 'return NotImplemented' branch.
 # This is a general type error (NotImplemented cannot be converted to a C type),
 # caught by the return-statement analysis -- not a dunder-specific check.
@@ -46,10 +27,20 @@ class MyClass2:
             return NotImplemented
         return 1
 
+
+# ---------------------------------------------------------------------------
+# (c) cpdef __hash__ with a wrong (non-Py_hash_t) return type and a
+# 'return NotImplemented' branch -- general return-statement type error.
+# ---------------------------------------------------------------------------
+
+@cclass
+class MyClass3:
+    @cython.ccall
+    def __hash__(self) -> cython.int:
+        return NotImplemented  # NotImplemented cannot convert to int
+
 _ERRORS = """
-16:4: @ccall is not supported for dunder method '__repr__'; only whitelisted operator/richcmp dunders may be declared ccall
-20:4: @ccall is not supported for dunder method '__str__'; only whitelisted operator/richcmp dunders may be declared ccall
-24:4: @ccall is not supported for dunder method '__hash__'; only whitelisted operator/richcmp dunders may be declared ccall
-40:19: Cannot convert 'NotImplemented' to return type 'int'
-46:19: Cannot convert 'NotImplemented' to return type 'int'
+21:19: Cannot convert 'NotImplemented' to return type 'int'
+27:19: Cannot convert 'NotImplemented' to return type 'int'
+40:15: Cannot convert 'NotImplemented' to return type 'int'
 """
