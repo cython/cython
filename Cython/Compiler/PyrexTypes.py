@@ -4648,6 +4648,8 @@ class CppScopedEnumType(CType, EnumMixin):
 
     def create_type_wrapper(self, env):
         from .UtilityCode import CythonUtilityCode
+        env.use_utility_code(CythonUtilityCode.load_cached(
+            "CppScopedEnumBase", "CpdefEnums.pyx"))
         rst = CythonUtilityCode.load(
             "CppScopedEnumType", "CpdefEnums.pyx",
             context={
@@ -4766,6 +4768,8 @@ class CEnumType(CIntLike, CType, EnumMixin):
         enum_to_pyint_func = self.to_py_function
         self.to_py_function = old_to_py_function  # we don't actually want to overwrite this
 
+        env.use_utility_code(CythonUtilityCode.load_cached(
+            "EnumBase", "CpdefEnums.pyx"))
         env.use_utility_code(CythonUtilityCode.load(
             "EnumType", "CpdefEnums.pyx",
             context={"name": self.name,
