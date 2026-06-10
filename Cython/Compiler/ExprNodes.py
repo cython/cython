@@ -6227,6 +6227,9 @@ class CallNode(ExprNode):
                     elif func_name == 'bool':
                         return PyrexTypes.c_bint_type
                     elif func_name in Builtin.types_that_construct_their_instance:
+                        if self.args[0].type.supports_container_type:
+                            subscripted_types = self.args[0].infer_type(env).subscripted_types
+                            return result_type.specialize_here(self.pos, env, subscripted_types)
                         return result_type
         func_type = self.function.analyse_as_type(env)
         if func_type and (func_type.is_struct_or_union or func_type.is_cpp_class):
