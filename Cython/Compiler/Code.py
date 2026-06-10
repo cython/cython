@@ -1090,17 +1090,19 @@ def sub_tempita(s, context, file=None, name=None, __cache={}):
 
 
 class TempitaUtilityCode(UtilityCode):
-    def __init__(self, name=None, proto=None, impl=None, init=None, file=None, context=None, **kwargs):
+    def __init__(self, name=None, file=None, context=None, **kwargs):
         if context is None:
             context = {}
         else:
             # prevent changes propagating back if context is shared between multiple utility codes.
             context = context.copy()
-        proto = sub_tempita(proto, context, file, name)
-        impl = sub_tempita(impl, context, file, name)
-        init = sub_tempita(init, context, file, name)
+        for part in self.code_parts:
+            part_contents = kwargs.get(part, None)
+            part_contents = sub_tempita(part_contents, context, file, name)
+            if part_contents is not None:
+                kwargs[part] = part_contents
         super().__init__(
-            proto, impl, init=init, name=name, file=file, **kwargs)
+            name=name, file=file, **kwargs)
 
     @classmethod
     def load_cached(cls, utility_code_name, from_file=None, context=None, __cache={}):
@@ -3418,11 +3420,16 @@ class CCodeWriter:
     def put_acquire_freethreading_lock(self):
         self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
         self.putln(f"PyMutex_Lock(&{Naming.parallel_freethreading_mutex});")
+        self.putln("#elif CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING")
+        # module dict is just an arbitrary object to lock on
+        self.putln(f"Py_BEGIN_CRITICAL_SECTION({self.name_in_module_state(Naming.moddict_cname)});")
         self.putln("#endif")
 
     def put_release_freethreading_lock(self):
         self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
         self.putln(f"PyMutex_Unlock(&{Naming.parallel_freethreading_mutex});")
+        self.putln("#elif CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING")
+        self.putln("Py_END_CRITICAL_SECTION();")
         self.putln("#endif")
 
     def put_acquire_gil(self, variable=None, unknown_gil_state=True):

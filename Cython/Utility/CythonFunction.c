@@ -713,14 +713,19 @@ static void __Pyx_CyFunction_raise_type_error(PyObject *func, const char* messag
 static PyObject *
 __Pyx_CyFunction_get_module(PyObject *op_in, void *context) {
     CYTHON_UNUSED_VAR(context);
+    PyObject *result;
+    __Pyx_BEGIN_CRITICAL_SECTION(op_in);
     __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
     Py_INCREF(op->func_module);
-    return op->func_module;
+    result = op->func_module;
+    __Pyx_END_CRITICAL_SECTION();
+    return result;
 }
 
 static int
 __Pyx_CyFunction_set_module(PyObject *op_in, PyObject* value, void *context) {
     CYTHON_UNUSED_VAR(context);
+    __Pyx_BEGIN_CRITICAL_SECTION(op_in);
     __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
     if (value == NULL) {
         value = Py_None;
@@ -729,6 +734,7 @@ __Pyx_CyFunction_set_module(PyObject *op_in, PyObject* value, void *context) {
     PyObject *old = op->func_module;
     op->func_module = value;
     Py_DECREF(old);
+    __Pyx_END_CRITICAL_SECTION();
     return 0;
 }
 #endif
@@ -1570,8 +1576,7 @@ __pyx_FusedFunction_descr_get_locked(PyObject *self, PyObject *obj)
     PyObject *module;
     PyObject *meth;
     #if CYTHON_COMPILING_IN_LIMITED_API
-    module = __Pyx_CyFunction_get_module(self, NULL);
-    if ((unlikely(!module))) return NULL;
+    module = cyfunc->func_module;
     #else
     module = ((PyCFunctionObject *) func)->m_module;
     #endif
@@ -1588,9 +1593,6 @@ __pyx_FusedFunction_descr_get_locked(PyObject *self, PyObject *obj)
                     module,
                     cyfunc->func_globals,
                     cyfunc->func_code);
-    #if CYTHON_COMPILING_IN_LIMITED_API
-    Py_DECREF(module);
-    #endif
     if (unlikely(!meth))
         return NULL;
 

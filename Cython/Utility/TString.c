@@ -1,41 +1,12 @@
-//////////////////////////// InitializeTemplateLib.module_state_decls /////////////////////
-//@requires: Synchronization.c::Atomics
+//////////////////////////// GetTemplateLib.proto ///////////////////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
-__pyx_atomic_ptr_type __pyx_templatelib_Template;
-__pyx_atomic_ptr_type __pyx_templatelib_Interpolation;
-#else
-// If freethreading but not atomics then this is unguarded
-PyObject *__pyx_templatelib_Template;
-PyObject *__pyx_templatelib_Interpolation;
-#endif
-
-//////////////////////////// InitializeTemplateLib.module_state_traverse ////////////////////////////
-
-Py_VISIT((PyObject*)traverse_module_state->__pyx_templatelib_Template);
-Py_VISIT((PyObject*)traverse_module_state->__pyx_templatelib_Interpolation);
-
-//////////////////////////// InitializeTemplateLib.module_state_clear ////////////////////////////
-
-Py_XDECREF((PyObject*)clear_module_state->__pyx_templatelib_Template);
-clear_module_state->__pyx_templatelib_Template = 0;
-Py_XDECREF((PyObject*)clear_module_state->__pyx_templatelib_Interpolation);
-clear_module_state->__pyx_templatelib_Interpolation = 0;
-
-//////////////////////////// InitializeTemplateLib.proto ///////////////////////////
-
-// Returns Template if template, else Interpolation
-static PyObject* __Pyx__GetObjectFromTemplateLib(int is_template); /* proto */
-
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
-static PyObject* __Pyx_GetObjectFromTemplateLib(int is_template); /* proto */
-#else
-#define __Pyx_GetObjectFromTemplateLib __Pyx__GetObjectFromTemplateLib
-#endif
+// "Public" interface is __Pyx_GetTemplateLib, defined by GetLazyCachedObjec
+static PyObject* __Pyx_InitializeTemplateLib(void); /* proto */
 
 
-//////////////////////////// InitializeTemplateLib ///////////////////////////
+//////////////////////////// GetTemplateLib ///////////////////////////
 //@requires: Exceptions.c::IgnoreException
+//@requires: Synchronization.c::GetLazyCachedObject{"guard": 1, "object_cname": "__pyx_templatelib_module", "maker_cname": "__Pyx_InitializeTemplateLib", "getter_cname": "__Pyx_GetTemplateLib"}
 
 #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
 static PyObject *__Pyx_TemplateLibFallback(void) {
@@ -156,106 +127,39 @@ class Template:
 }
 #endif
 
-static int __Pyx_InitializeTemplateLib(void) {
+static PyObject* __Pyx_InitializeTemplateLib(void) {
     // Even in earlier versions of Python, still try the import. We're happy
     // to use what's there if someone's patched it with something compatible.
     PyObject *templatelib = PyImport_ImportModule("string.templatelib");
     if (!templatelib) {
 #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
         templatelib = __Pyx_TemplateLibFallback();
-        if (!templatelib)
 #endif
-        return -1;
     }
-    PyObject *template_=NULL, *interpolation=NULL;
-    int result = -1;
-    template_ = PyObject_GetAttrString(templatelib, "Template");
-    if (unlikely(!template_)) goto end;
-    interpolation = PyObject_GetAttrString(templatelib, "Interpolation");
-    if (unlikely(!interpolation)) goto end;
-
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
-    {
-        __pyx_nonatomic_ptr_type expected = 0;
-        if (!__pyx_atomic_pointer_cmp_exchange(&CGLOBAL(__pyx_templatelib_Template), &expected, (__pyx_nonatomic_ptr_type)template_)) {
-            // Already written - that's fine.
-            Py_DECREF(template_);
-        }
-        expected = 0;
-        if (!__pyx_atomic_pointer_cmp_exchange(&CGLOBAL(__pyx_templatelib_Interpolation), &expected, (__pyx_nonatomic_ptr_type)interpolation)) {
-            // Already written - that's fine.
-            Py_DECREF(interpolation);
-        }
-    }
-#else
-    if (unlikely(CGLOBAL(__pyx_templatelib_Template))) {
-        Py_DECREF(template_);
-    } else {
-        CGLOBAL(__pyx_templatelib_Template) = template_;
-    }
-    if (unlikely(CGLOBAL(__pyx_templatelib_Interpolation))) {
-        Py_DECREF(interpolation);
-    } else {
-        CGLOBAL(__pyx_templatelib_Interpolation) = interpolation;
-    }
-#endif
-    result = 0;
-
-  end:
-    Py_DECREF(templatelib);
-    Py_XDECREF(template_);
-    Py_XDECREF(interpolation);
-    return result;
+    return templatelib;
 }
-
-static PyObject* __Pyx__GetObjectFromTemplateLib(int is_template) {
-    PyObject *lookup;
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
-    __pyx_atomic_ptr_type* ptr;
-#else
-    PyObject **ptr;
-#endif
-    ptr = is_template ? &CGLOBAL(__pyx_templatelib_Template) : &CGLOBAL(__pyx_templatelib_Interpolation);
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
-    lookup = (PyObject*)__pyx_atomic_pointer_load_relaxed(ptr);
-#else
-    lookup = *ptr;
-#endif
-    if (unlikely(!lookup)) {
-        if (unlikely(__Pyx_InitializeTemplateLib()) < 0) return NULL;
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
-        lookup = (PyObject*)__pyx_atomic_pointer_load_acquire(ptr);
-#else
-        lookup = *ptr;
-#endif
-    }
-    Py_XINCREF(lookup);
-    return lookup;
-}
-
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
-static PyObject* __Pyx_GetObjectFromTemplateLib(int is_template) {
-    static PyMutex mutex = {0};
-    PyMutex_Lock(&mutex);
-    PyObject *result = __Pyx__GetObjectFromTemplateLib(is_template);
-    PyMutex_Unlock(&mutex);
-    return result;
-}
-#endif
-
-
 
 
 //////////////////////////// MakeTemplateLibInterpolation.proto //////////////////////
 
 static PyObject* __Pyx_MakeTemplateLibInterpolation(PyObject *value, PyObject *expression, PyObject *conversion_char, PyObject *format_spec); /* proto */
 
+static PyObject *__Pyx__GetTemplateInterpolationType(void); /* proto */
+
+
 //////////////////////////// MakeTemplateLibInterpolation ////////////////////////
-//@requires: InitializeTemplateLib
+//@requires: GetTemplateLib
 //@requires: ObjectHandling.c::PyObjectFastCall
+//@requires: Synchronization.c::GetLazyCachedObject{"guard": 1, "object_cname": "__pyx_templatelib_Interpolation", "maker_cname": "__Pyx__GetTemplateInterpolationType", "getter_cname": "__Pyx_GetTemplateInterpolationType"}
+
+static PyObject *__Pyx__GetTemplateInterpolationType(void) {
+    PyObject *lib = __Pyx_GetTemplateLib();
+    if (!lib) return NULL;
+    return PyObject_GetAttrString(lib, "Interpolation");
+}
 
 static PyObject* __Pyx_MakeTemplateLibInterpolation(PyObject *value, PyObject *expression, PyObject *conversion_char, PyObject *format_spec) {
-    PyObject *tp = __Pyx_GetObjectFromTemplateLib(0);
+    PyObject *tp = __Pyx_GetTemplateInterpolationType();
     if (unlikely(!tp)) return NULL;
     PyObject *args[] = {value, expression, conversion_char, format_spec};
 
@@ -269,9 +173,15 @@ static PyObject* __Pyx_MakeTemplateLibInterpolation(PyObject *value, PyObject *e
 
 static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *interpolations); /* proto */
 
+#if !(PY_VERSION_HEX >= 0x030E0000 && CYTHON_COMPILING_IN_CPYTHON)
+static PyObject *__Pyx__GetTemplateTemplateType(void); /* proto */
+#endif
+
 //////////////////////////// MakeTemplateLibTemplate ////////////////////////
-//@requires: InitializeTemplateLib
+//@requires: GetTemplateLib
 //@requires: ObjectHandling.c::PyObjectVectorCallKwBuilder
+//@requires: Synchronization.c::GetLazyCachedObject{"guard": "!(PY_VERSION_HEX >= 0x030E0000 && CYTHON_COMPILING_IN_CPYTHON)", "object_cname": "__pyx_templatelib_Template", "maker_cname": "__Pyx__GetTemplateTemplateType", "getter_cname": "__Pyx_GetTemplateTemplateType"}
+
 
 #if PY_VERSION_HEX >= 0x030E0000 && CYTHON_COMPILING_IN_CPYTHON
 #ifndef Py_BUILD_CORE
@@ -280,13 +190,18 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
 #include "internal/pycore_template.h"
 
 static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *interpolations) {
-    (void)__Pyx_GetObjectFromTemplateLib;
     return _PyTemplate_Build(strings, interpolations);
 }
 #else
 
+static PyObject *__Pyx__GetTemplateTemplateType(void) {
+    PyObject *lib = __Pyx_GetTemplateLib();
+    if (!lib) return NULL;
+    return PyObject_GetAttrString(lib, "Template");
+}
+
 static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *interpolations) {
-    PyObject *tp = __Pyx_GetObjectFromTemplateLib(1);
+    PyObject *tp = __Pyx_GetTemplateTemplateType();
     PyObject *result = NULL, *zipped_tuple = NULL;
     Py_ssize_t zipped_index = 0;
     if (unlikely(!tp)) return NULL;
