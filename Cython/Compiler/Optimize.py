@@ -5238,7 +5238,8 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                         # function self object was moved into a CloneNode => undo
                         function.obj = function.obj.arg
                     node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
-                        node, function=function, arg_tuple=node.arg_tuple, type=node.type,
+                        node, env=self.current_env(),
+                        function=function, arg_tuple=node.arg_tuple, type=node.type,
                         unpack=self._check_optimize_method_calls(node)))
         return node
 
@@ -5257,7 +5258,8 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
             return node
 
         node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
-            node, function=function, arg_tuple=node.positional_args, kwdict=node.keyword_args,
+            node, env=self.current_env(),
+            function=function, arg_tuple=node.positional_args, kwdict=node.keyword_args,
             type=node.type, unpack=self._check_optimize_method_calls(node)))
         return node
 
