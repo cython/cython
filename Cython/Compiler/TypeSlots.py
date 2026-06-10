@@ -15,6 +15,38 @@ invisible = ['__cinit__', '__dealloc__', '__richcmp__',
 
 richcmp_special_methods = ['__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__']
 
+# Dunder methods that can be promoted to cpdef/ccall inside cclasses.
+# Binop operators (+, -, *, //, /, %, @) plus inplace variants.
+CPDEF_PROMOTABLE_BINOP_METHODS = frozenset([
+    '__add__', '__sub__', '__mul__', '__truediv__', '__floordiv__', '__mod__', '__matmul__',
+    '__iadd__', '__isub__', '__imul__', '__itruediv__', '__ifloordiv__', '__imod__', '__imatmul__',
+])
+# Unary operators.
+CPDEF_PROMOTABLE_UNOP_METHODS = frozenset([
+    '__neg__', '__pos__', '__invert__', '__abs__',
+])
+# Full set: binop + unop + richcmp.
+CPDEF_PROMOTABLE_SPECIAL_METHODS = (
+    CPDEF_PROMOTABLE_BINOP_METHODS | CPDEF_PROMOTABLE_UNOP_METHODS | frozenset(richcmp_special_methods)
+)
+
+
+def get_slot_function_cname(entry):
+    """Return the C function name to call for a slot entry.
+
+    For cpdef entries the __pyx_pw_ wrapper (entry.as_variable.func_cname)
+    has the correct slot ABI signature.  For plain def entries func_cname
+    already points to the wrapper.  Falls back to pyfunc_cname for
+    entries that only have a Python-level body.
+    """
+    if entry.is_cfunction and entry.as_variable and entry.as_variable.func_cname:
+        return entry.as_variable.func_cname
+    if entry.func_cname:
+        return entry.func_cname
+    if entry.pyfunc_cname:
+        return entry.pyfunc_cname
+    return ""
+
 
 class Signature:
     #  Method slot signature descriptor.
@@ -384,23 +416,7 @@ class MethodSlot(SlotDescriptor):
             self.alternatives.append(fallback)
 
     def _get_slot_function(self, entry):
-        """Return the C function name to use for this slot.
-
-        For extension type slots like tp_init, the slot expects a
-        specific C signature (e.g., initproc returns int). For cpdef
-        functions, entry.func_cname is the __pyx_f_ function which
-        returns PyObject*. The correct slot function is the Python
-        wrapper in entry.as_variable.func_cname (__pyx_pw_ wrapper).
-        For regular def functions, entry.func_cname already points
-        to the correct wrapper.
-        """
-        if entry.is_cfunction and entry.as_variable and entry.as_variable.func_cname:
-            return entry.as_variable.func_cname
-        if entry.func_cname:
-            return entry.func_cname
-        if entry.pyfunc_cname:
-            return entry.pyfunc_cname
-        return ""
+        return get_slot_function_cname(entry)
 
     def slot_code(self, scope):
         entry = scope.lookup_here(self.method_name)
@@ -627,8 +643,8 @@ class BinopSlot(SyntheticSlot):
 class RichcmpSlot(MethodSlot):
     def slot_code(self, scope):
         entry = scope.lookup_here(self.method_name)
-        if entry and entry.is_special and entry.func_cname:
-            return entry.func_cname
+        if entry and entry.is_special and (entry.func_cname or entry.pyfunc_cname or (entry.as_variable and entry.as_variable.func_cname)):
+            return self._get_slot_function(entry)
         elif scope.defines_any_special(richcmp_special_methods):
             return scope.mangle_internal(self.slot_name)
         else:

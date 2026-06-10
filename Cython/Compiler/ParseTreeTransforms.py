@@ -19,6 +19,7 @@ from . import Nodes
 from . import Options
 from . import Builtin
 from . import Errors
+from . import TypeSlots
 
 from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
@@ -3505,17 +3506,28 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             # avoid conflicts with redeclared symbols
             if (not hasattr(self.env, "scope") or self.env.scope.is_module_scope) and node.name not in self.imported_names:
                 is_ccall_promoted = node.is_cdef_func_compatible()
-            # Block *dunder* (slot) method promotion inside cclasses, except
-            # __init__ which is handled separately with special slot-wrapper
-            # logic. Other dunders (__add__, __eq__, __repr__, etc.) get
-            # __pyx_skip_dispatch added to their signature by cpdef promotion,
-            # which conflicts with the fixed signatures expected by CPython slot
-            # wrappers. Regular methods MUST still promote so that
-            # `super().method()` calls can be optimised to vtable dispatch.
-            if (is_ccall_promoted and not hasattr(self.env, "scope")
+            # Dunder (slot) method promotion inside cclasses:
+            # - __init__ is always allowed (special slot-wrapper logic handles ABI).
+            # - Whitelisted operator/richcmp dunders are allowed.  A typed return
+            #   combined with 'return NotImplemented' in the body is caught later by
+            #   the general return-type check in ReturnStatNode.
+            # - All other dunders are blocked: their CPython slot wrappers have fixed
+            #   signatures that conflict with the __pyx_skip_dispatch arg cpdef adds.
+            if (is_ccall_promoted and isinstance(self.env, Nodes.CClassDefNode)
                     and node.name.startswith('__') and node.name.endswith('__')
                     and node.name != '__init__'):
-                is_ccall_promoted = False
+                if node.name not in TypeSlots.CPDEF_PROMOTABLE_SPECIAL_METHODS:
+                    is_ccall_promoted = False
+        # Validate explicit @ccall on dunders inside cclasses.
+        if (is_ccall and isinstance(self.env, Nodes.CClassDefNode)
+                and node.name.startswith('__') and node.name.endswith('__')
+                and node.name != '__init__'):
+            if node.name not in TypeSlots.CPDEF_PROMOTABLE_SPECIAL_METHODS:
+                error(node.pos,
+                      "@ccall is not supported for dunder method '%s'; "
+                      "only whitelisted operator/richcmp dunders may be declared ccall"
+                      % node.name)
+                is_ccall = False  # fall through to plain def
         if is_ccall or is_ccall_promoted:
             if is_ccall and is_cfunc:
                 error(node.pos, "cfunc and ccall directives cannot be combined")

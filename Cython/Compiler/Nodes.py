@@ -8021,6 +8021,18 @@ class ReturnStatNode(StatNode):
             if return_type.is_void or return_type.is_returncode:
                 error(self.value.pos, "Return with value in void function")
             else:
+                # 'return NotImplemented' is only meaningful for object-returning
+                # functions (it relies on the Python richcmp/binop fallback protocol).
+                # Returning it from a function with a non-object declared return type
+                # is a type mismatch -- the singleton cannot be converted to the
+                # target C type.
+                value = self.value
+                if (not return_type.is_pyobject
+                        and value.is_name and value.name == 'NotImplemented'
+                        and value.entry is not None and value.entry.name == 'NotImplemented'
+                        and value.entry.is_builtin):
+                    error(value.pos,
+                          "Cannot convert 'NotImplemented' to return type '%s'" % return_type)
                 self.value = self.value.coerce_to(env.return_type, env)
                 if env.directives['profile'] or env.directives['linetrace']:
                     if not return_type.is_pyobject and return_type.can_coerce_to_pyobject(env):

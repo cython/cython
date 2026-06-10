@@ -377,9 +377,15 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     # parsed DefNode (whose args carry kw_only=True where needed) and wraps it in
     # a CFuncDefNode without re-parsing, preserving all kw-only semantics in the
     # Python wrapper while exposing a plain positional C signature.
+    # Dunders to promote to cpdef so vtable dispatch + constructor optimizer fire.
+    # Order dunders are only generated when order=True.
+    _DATACLASS_PROMOTABLE_DUNDERS = frozenset(['__eq__', '__lt__', '__le__', '__gt__', '__ge__'])
+
     generated = code.generate_tree()
     for i, stat in enumerate(generated.stats):
-        if isinstance(stat, Nodes.DefNode) and stat.name == '__init__':
+        if not isinstance(stat, Nodes.DefNode):
+            continue
+        if stat.name == '__init__':
             # is_cdef_func_compatible guards the one C-incompatible kw-only ordering:
             # required kw-only after optional kw-only (e.g. *, a=1, b).
             if stat.is_cdef_func_compatible():
@@ -423,7 +429,12 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                         # early-exit in CArgDeclNode.analyse returns a valid pair.
                         arg.name_declarator = arg.declarator
                         arg.type = field_entry.type
-            break
+        elif stat.name in _DATACLASS_PROMOTABLE_DUNDERS and stat.is_cdef_func_compatible():
+            # Promote __eq__/__lt__/__le__/__gt__/__ge__ to cpdef so that vtable
+            # dispatch is available and the expression optimizer can fire on final
+            # types.  No return-type or exception fixup: they keep object return so
+            # that 'return NotImplemented' in the body remains valid.
+            generated.stats[i] = stat.as_cfunction(overridable=True)
     stats.stats += generated.stats
 
     # turn off annotation typing, so all arguments to __init__ are accepted as

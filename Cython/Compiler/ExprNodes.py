@@ -6607,9 +6607,18 @@ class SimpleCallNode(CallNode):
             formal_type = formal_arg.type
             arg = args[i].coerce_to(formal_type, env)
             if formal_arg.not_none:
-                # C methods must do the None checks at *call* time
-                arg = arg.as_none_safe_node(
-                    "cannot pass None into a C function argument that is declared 'not None'")
+                if args[i].is_none:
+                    # The argument is the statically-known 'None' literal being
+                    # passed to a parameter declared 'not None'.  This is a
+                    # guaranteed failure, so reject it at compile time rather
+                    # than emitting a runtime None check.
+                    error(args[i].pos,
+                          "Cannot pass None as argument '%s' which is declared 'not None'" % (
+                              formal_arg.name or ("%d" % (i + 1))))
+                else:
+                    # C methods must do the None checks at *call* time
+                    arg = arg.as_none_safe_node(
+                        "cannot pass None into a C function argument that is declared 'not None'")
             if arg.result_in_temp():
                 if i > 0:
                     # first argument in temp doesn't impact subsequent arguments
@@ -11578,19 +11587,31 @@ class UnopNode(ExprNode):
         except Exception as e:
             self.compile_time_value_error(e)
 
-    def infer_type(self, env):
-        operand_type = self.operand.infer_type(env)
-        if operand_type.is_cpp_class or operand_type.is_ptr:
-            cpp_type = operand_type.find_cpp_operation_type(self.operator)
-            if cpp_type is not None:
-                return cpp_type
-        return self.infer_unop_type(env, operand_type)
+    def _cpdef_dunder_entry(self, env):
+        """Return a cpdef entry if this unop can be dispatched as a direct C call."""
+        dunder = _UNOP_TO_DUNDER.get(self.operator)
+        if not dunder:
+            return None, None
+        operand_type = _safe_infer_type(self.operand, env)
+        entry = _lookup_cpdef_dunder(operand_type, dunder)
+        return entry, dunder
 
     def infer_unop_type(self, env, operand_type):
         if operand_type.is_pyobject and not operand_type.is_builtin_type:
             return py_object_type
         else:
             return operand_type
+
+    def infer_type(self, env):
+        operand_type = self.operand.infer_type(env)
+        if operand_type.is_cpp_class or operand_type.is_ptr:
+            cpp_type = operand_type.find_cpp_operation_type(self.operator)
+            if cpp_type is not None:
+                return cpp_type
+        entry, dunder = self._cpdef_dunder_entry(env)
+        if entry is not None:
+            return entry.type.return_type
+        return self.infer_unop_type(env, operand_type)
 
     def may_be_none(self):
         if self.operand.type and self.operand.type.is_builtin_type:
@@ -11599,6 +11620,13 @@ class UnopNode(ExprNode):
         return ExprNode.may_be_none(self)
 
     def analyse_types(self, env):
+        entry, dunder = self._cpdef_dunder_entry(env)
+        if entry is not None:
+            call = SimpleCallNode(self.pos,
+                function=AttributeNode(self.pos, obj=self.operand,
+                                       attribute=StringEncoding.EncodedString(dunder)),
+                args=[])
+            return call.analyse_types(env)
         self.operand = self.operand.analyse_types(env)
         if self.is_pythran_operation(env):
             self.type = PythranExpr(pythran_unaryop_type(self.operator, self.operand.type))
@@ -12578,6 +12606,96 @@ def get_compile_time_binop(node):
     return func
 
 
+# Maps Python binary operator symbols to their dunder names for cpdef optimization.
+_BINOP_TO_DUNDER = {
+    '+': '__add__',
+    '-': '__sub__',
+    '*': '__mul__',
+    '/': '__truediv__',
+    '//': '__floordiv__',
+    '%': '__mod__',
+    '@': '__matmul__',
+}
+_INPLACE_BINOP_TO_DUNDER = {
+    '+': '__iadd__',
+    '-': '__isub__',
+    '*': '__imul__',
+    '/': '__itruediv__',
+    '//': '__ifloordiv__',
+    '%': '__imod__',
+    '@': '__imatmul__',
+}
+_UNOP_TO_DUNDER = {
+    '-': '__neg__',
+    '+': '__pos__',
+    '~': '__invert__',
+}
+_RICHCMP_TO_DUNDER = {
+    '==': '__eq__',
+    '!=': '__ne__',
+    '<': '__lt__',
+    '>': '__gt__',
+    '<=': '__le__',
+    '>=': '__ge__',
+}
+
+
+def _safe_infer_type(node, env):
+    """Return the type of node without calling infer_type(), which may recurse into
+    children that haven't been analysed yet and raise InternalError.
+
+    Only the already-resolved .type/.entry attributes are inspected.  If neither is
+    set the type is unknowable at this point and py_object_type is returned, which
+    causes _lookup_cpdef_dunder to return None and skip the optimisation.
+    """
+    t = getattr(node, 'type', None)
+    if t is not None:
+        return t
+    entry = getattr(node, 'entry', None)
+    if entry is not None:
+        return entry.type
+    return py_object_type
+
+
+def _lookup_cpdef_dunder(type1, dunder_name, operand2_type=None):
+    """Return a cpdef entry for dunder_name on type1, or None if not optimisable.
+
+    Conditions: type1 must be a final extension type; the entry must be a
+    cpdef (is_cfunction + is_overridable) special method in the whitelist.
+
+    For binop/unop dunders: also requires a non-pyobject return type so that
+    'return NotImplemented' cannot escape the C slot with the wrong type.
+    For richcmp dunders: object return is accepted (NotImplemented fallback is
+    handled in generate_operation_code).
+
+    operand2_type is checked for assignment compatibility with the second arg
+    of the entry's CFuncType (binop only).
+    """
+    if not (type1.is_extension_type and getattr(type1, 'is_final_type', False)):
+        return None
+    scope = getattr(type1, 'scope', None)
+    if scope is None:
+        return None
+    if dunder_name not in TypeSlots.CPDEF_PROMOTABLE_SPECIAL_METHODS:
+        return None
+    entry = scope.lookup_here(dunder_name)
+    if entry is None:
+        return None
+    if not (entry.is_cfunction and entry.is_special and entry.type.is_overridable):
+        return None
+    is_richcmp = dunder_name in TypeSlots.richcmp_special_methods
+    if not is_richcmp:
+        # Binop/unop: require a specific (non-pyobject) return type so that
+        # 'return NotImplemented' cannot escape through the C slot.
+        if entry.type.return_type is py_object_type:
+            return None
+        # Check operand type compatibility for binary ops.
+        if operand2_type is not None and len(entry.type.args) >= 2:
+            if not entry.type.args[1].type.assignable_from(operand2_type):
+                return None
+    return entry
+
+
 class BinopNode(ExprNode):
     #  operator     string
     #  operand1     ExprNode
@@ -12609,11 +12727,43 @@ class BinopNode(ExprNode):
         except Exception as e:
             self.compile_time_value_error(e)
 
+    def _cpdef_dunder_entry(self, env):
+        """Return a cpdef entry if this binop can be dispatched as a direct C call."""
+        op = self.operator
+        dunder = (_INPLACE_BINOP_TO_DUNDER if self.inplace else {}).get(op) or _BINOP_TO_DUNDER.get(op)
+        if not dunder:
+            return None, None
+        type1 = _safe_infer_type(self.operand1, env)
+        type2 = _safe_infer_type(self.operand2, env)
+        entry = _lookup_cpdef_dunder(type1, dunder, type2)
+        if entry is not None:
+            return entry, dunder
+        # For inplace, also try the non-inplace dunder.
+        if self.inplace and op in _BINOP_TO_DUNDER:
+            regular = _BINOP_TO_DUNDER[op]
+            entry = _lookup_cpdef_dunder(type1, regular, type2)
+            if entry is not None:
+                return entry, regular
+        return None, None
+
     def infer_type(self, env):
+        entry, dunder = self._cpdef_dunder_entry(env)
+        if entry is not None:
+            return entry.type.return_type
         return self.result_type(self.operand1.infer_type(env),
                                 self.operand2.infer_type(env), env)
 
     def analyse_types(self, env):
+        entry, dunder = self._cpdef_dunder_entry(env)
+        if entry is not None:
+            # Rewrite as an attribute method call: operand1.dunder(operand2).
+            # SimpleCallNode/AttributeNode handle coercion, exception spec, and
+            # direct final_func_cname dispatch for free.
+            call = SimpleCallNode(self.pos,
+                function=AttributeNode(self.pos, obj=self.operand1,
+                                       attribute=StringEncoding.EncodedString(dunder)),
+                args=[self.operand2])
+            return call.analyse_types(env)
         self.operand1 = self.operand1.analyse_types(env)
         self.operand2 = self.operand2.analyse_types(env)
         return self.analyse_operation(env)
@@ -14493,6 +14643,14 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     coerced_operand2 = None
     is_memslice_nonecheck = False
 
+    def _richcmp_cpdef_entry(self, env):
+        """Return a cpdef entry for this comparison if both operands are statically known."""
+        dunder = _RICHCMP_TO_DUNDER.get(self.operator)
+        if not dunder:
+            return None
+        type1 = _safe_infer_type(self.operand1, env)
+        return _lookup_cpdef_dunder(type1, dunder)
+
     def infer_type(self, env):
         type1 = self.operand1.infer_type(env)
         type2 = self.operand2.infer_type(env)
@@ -14500,6 +14658,11 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         if is_pythran_expr(type1) or is_pythran_expr(type2):
             if is_pythran_supported_type(type1) and is_pythran_supported_type(type2):
                 return PythranExpr(pythran_binop_type(self.operator, type1, type2))
+
+        if not self.cascade:
+            entry = self._richcmp_cpdef_entry(env)
+            if entry is not None and entry.type.return_type is not py_object_type:
+                return entry.type.return_type
 
         # TODO: implement this for other types.
         return py_object_type
@@ -14536,6 +14699,37 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             if is_pythran_supported_type(type1) and is_pythran_supported_type(type2):
                 self.type = PythranExpr(pythran_binop_type(self.operator, type1, type2))
                 return self
+
+        # Optimise comparisons on final cclasses with cpdef richcmp dunders.
+        # Only for non-cascaded comparisons (cascade reuses operand2 across links).
+        if not self.cascade:
+            dunder = _RICHCMP_TO_DUNDER.get(self.operator)
+            if dunder:
+                entry = _lookup_cpdef_dunder(type1, dunder)
+                if entry is not None:
+                    # When the dunder has a typed (extension-type) second parameter
+                    # and the second operand is statically compatible with it,
+                    # rewrite as an attribute method call: operand1.dunder(operand2).
+                    # SimpleCallNode/AttributeNode then perform the normal argument
+                    # coercion and dispatch directly to the final C implementation --
+                    # exactly as BinopNode does.
+                    #
+                    # When the second operand is an incompatible/unknown object
+                    # (a different extension type, a generic py_object, etc.) we leave
+                    # the comparison alone so Python's richcmp slot handles runtime
+                    # polymorphism correctly.  The None literal is allowed through:
+                    # the call coerces it and raises the usual not-None TypeError.
+                    arg2_type = entry.type.args[1].type if len(entry.type.args) >= 2 else None
+                    if (arg2_type is not None and arg2_type.is_extension_type
+                            and (arg2_type.assignable_from(type2)
+                                 or getattr(self.operand2, 'is_none', False))):
+                        call = SimpleCallNode(
+                            self.pos,
+                            function=AttributeNode(
+                                self.pos, obj=self.operand1,
+                                attribute=StringEncoding.EncodedString(dunder)),
+                            args=[self.operand2])
+                        return call.analyse_types(env)
 
         if self.analyse_memoryviewslice_comparison(env):
             return self

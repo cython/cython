@@ -3353,6 +3353,23 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("arg", PyrexTypes.py_object_type, None)
             ])
 
+    def _handle_simple_function_abs(self, node, function, pos_args):
+        """Replace abs(x) with a direct C call to x.__abs__() for final cclasses with cpdef __abs__."""
+        if len(pos_args) != 1:
+            return node
+        arg = pos_args[0]
+        arg_type = arg.type
+        from .ExprNodes import _lookup_cpdef_dunder, AttributeNode, SimpleCallNode
+        entry = _lookup_cpdef_dunder(arg_type, '__abs__')
+        if entry is None:
+            return node
+        call = SimpleCallNode(
+            node.pos,
+            function=AttributeNode(node.pos, obj=arg,
+                                   attribute=EncodedString('__abs__')),
+            args=[])
+        return call.analyse_types(self.current_env())
+
     def _handle_simple_function_isinstance(self, node, function, pos_args):
         """Replace isinstance() checks against builtin types by the
         corresponding C-API call.

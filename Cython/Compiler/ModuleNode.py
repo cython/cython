@@ -2446,7 +2446,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
                 # First we always do the comparison.
                 code.putln("PyObject *ret;")
-                code.putln("ret = %s(o1, o2);" % comp_entry[ordering_source].func_cname)
+                code.putln("ret = %s(o1, o2);" % TypeSlots.get_slot_function_cname(comp_entry[ordering_source]))
                 code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
                 code.putln("int order_res = __Pyx_PyObject_IsTrue(ret);")
                 code.putln("Py_DECREF(ret);")
@@ -2471,7 +2471,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         eq_func = '__ne__'
                         invert_equals = not invert_equals
 
-                    code.putln("ret = %s(o1, o2);" % comp_entry[eq_func].func_cname)
+                    code.putln("ret = %s(o1, o2);" % TypeSlots.get_slot_function_cname(comp_entry[eq_func]))
                     code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
                     code.putln("int eq_res = __Pyx_PyObject_IsTrue(ret);")
                     code.putln("Py_DECREF(ret);")
@@ -2493,7 +2493,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("}")  # comp_op
                 code.putln("return ret;")
             else:
-                code.putln("return %s(o1, o2);" % entry.func_cname)
+                code.putln("return %s(o1, o2);" % TypeSlots.get_slot_function_cname(entry))
             code.putln("}")  # Case
 
         if '__eq__' in comp_entry and '__ne__' not in comp_entry and not extern_parent:
@@ -2501,7 +2501,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("PyObject *ret;")
             # Python itself does not do this optimisation, it seems...
             #code.putln("if (o1 == o2) return __Pyx_NewRef(Py_False);")
-            code.putln("ret = %s(o1, o2);" % comp_entry['__eq__'].func_cname)
+            code.putln("ret = %s(o1, o2);" % TypeSlots.get_slot_function_cname(comp_entry['__eq__']))
             code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
             code.putln("int b = __Pyx_PyObject_IsTrue(ret);")
             code.putln("Py_DECREF(ret);")
@@ -2542,7 +2542,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         def get_slot_method_cname(method_name):
             entry = scope.lookup(method_name)
-            return entry.func_cname if entry and entry.is_special else None
+            if entry and entry.is_special:
+                cname = TypeSlots.get_slot_function_cname(entry)
+                return cname if cname else None
+            return None
 
         def call_slot_method(method_name, reverse):
             func_cname = get_slot_method_cname(method_name)
