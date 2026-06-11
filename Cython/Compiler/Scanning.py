@@ -299,9 +299,6 @@ class SharedUtilitySourceDescriptor(FileSourceDescriptor):
     A specialized source descriptor for shared utility code only. Not part of public API.
     """
 
-    def __init__(self, name):
-        super().__init__(name)
-
     def get_file_object(self, encoding=None, error_handling=None):
         from io import StringIO
         return StringIO('')
