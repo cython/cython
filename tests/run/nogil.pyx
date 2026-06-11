@@ -239,7 +239,6 @@ def test_declared_in_pxd():
 _PERFORMANCE_HINTS = """
 5:18: No exception value declared for 'f_in_pxd1' in pxd file.
 6:18: No exception value declared for 'f_in_pxd2' in pxd file.
-20:9: Exception check after calling 'f' will always require the GIL to be acquired.
 24:0: Exception check on 'f' will always require the GIL to be acquired.
 34:0: Exception check on 'release_gil_in_nogil' will always require the GIL to be acquired.
 39:0: Exception check on 'release_gil_in_nogil2' will always require the GIL to be acquired.
@@ -253,6 +252,5 @@ _PERFORMANCE_HINTS = """
 154:0: Exception check on 'copy_array_exception' will always require the GIL to be acquired.
 205:28: Exception check after calling 'copy_array_exception' will always require the GIL to be acquired.
 208:0: Exception check on 'voidexceptnogil_in_pxd' will always require the GIL to be acquired.
-216:30: Exception check after calling 'voidexceptnogil_in_pxd' will always require the GIL to be acquired.
 219:36: Exception check after calling 'voidexceptnogil_in_other_pxd' will always require the GIL to be acquired.
 """

@@ -6916,7 +6916,7 @@ class SimpleCallNode(CallNode):
                             func_type.opt_arg_cname(formal_arg.name),
                             actual_arg.result_as(formal_arg.type)))
             exc_checks = []
-            if self.type.is_pyobject and self.is_temp:
+            if self.type.is_pyobject and self.is_temp and not func_type.never_raises:
                 exc_checks.append("!%s" % self.result())
             elif self.type.is_memoryviewslice:
                 assert self.is_temp

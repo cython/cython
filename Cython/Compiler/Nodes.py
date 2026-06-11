@@ -874,6 +874,11 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             is_const_method=self.is_const_method,
             templates=self.templates,
             has_explicit_exc_clause=self.has_explicit_exc_clause)
+        if getattr(self, 'synthesized_exc_clause', False):
+            # The exception clause was synthesized by the compiler (e.g. the
+            # auto_cpdef __init__ promotion), not written by the user; the
+            # noexcept inference may still override it.
+            func_type.synthesized_exc_clause = True
 
         if self.optional_arg_count:
             if func_type.is_fused:

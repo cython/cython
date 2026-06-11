@@ -1022,6 +1022,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     modules_by_cfile = collections.defaultdict(list)
     to_compile = []
+    noexcept_facts_sources = []  # (source, full_module_name, options) of every Cython module
     for m in module_list:
         if build_dir:
             for dep in m.depends:
@@ -1051,6 +1052,10 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         for source in m.sources:
             base, ext = os.path.splitext(source)
             if ext in ('.pyx', '.py'):
+                # Track every Cython source (recompiled or not): up-to-date
+                # dependencies still contribute noexcept facts to the
+                # consumers that ARE being recompiled.
+                noexcept_facts_sources.append((source, full_module_name, options))
                 c_file = base + ('.cpp' if m.language == 'c++' or np_pythran else '.c')
 
                 # setup for out of place build directory if enabled
@@ -1124,11 +1129,34 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     # This tells the compiler which modules are being compiled together
     module_names = [m.name for m in module_list]
 
+    # Cross-module noexcept facts phase (cimport_from_pyx builds): consumers
+    # only re-analyse the *declarations* of cimported .pyx modules, so the
+    # body-based noexcept inference cannot run there.  Collect the facts for
+    # every Cython module of this build (frontend-only pass), then inject the
+    # merged dict into each compilation.  Cache safety: transitive_fingerprint
+    # already hashes all dependencies, so a dependency body change invalidates
+    # the consumer's cached output.
+    noexcept_facts = None
+    if (to_compile and len(noexcept_facts_sources) > 1
+            and Options.cimport_from_pyx
+            and (options.compiler_directives or {}).get('infer_noexcept', True)):
+        from ..Compiler.Main import _collect_noexcept_facts_single
+        noexcept_facts = {}
+        for facts_source, facts_module_name, facts_options in noexcept_facts_sources:
+            facts_options = CompilationOptions(facts_options)
+            facts_options.compilation_sources = module_names
+            mod_name, facts = _collect_noexcept_facts_single(
+                facts_source, facts_options, full_module_name=facts_module_name)
+            if facts:
+                noexcept_facts[mod_name] = facts
+        if not noexcept_facts:
+            noexcept_facts = None
+
     # Drop "priority" sorting component of "to_compile" entries
     # and add a simple progress indicator and the remaining arguments.
     build_progress_indicator = ("[{0:%d}/%d] " % (len(str(N)), N)).format
     to_compile = [
-        task[1:] + (build_progress_indicator(i), cache, module_names)
+        task[1:] + (build_progress_indicator(i), cache, module_names, noexcept_facts)
         for i, task in enumerate(to_compile, 1)
     ]
 
@@ -1227,9 +1255,11 @@ def cythonize_one(pyx_file, c_file,
                   fingerprint=None, quiet=False, options=None,
                   raise_on_failure=True, embedded_metadata=None,
                   full_module_name=None, show_all_warnings=False,
-                  progress="", cache=None, module_names=None):
+                  progress="", cache=None, module_names=None,
+                  noexcept_facts=None):
     from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
+    from ..Compiler.NoexceptInference import set_external_facts
 
     if not quiet:
         if cache and fingerprint and cache.lookup_cache(c_file, fingerprint):
@@ -1242,6 +1272,8 @@ def cythonize_one(pyx_file, c_file,
     options.embedded_metadata = embedded_metadata
     if module_names:
         options.compilation_sources = module_names
+    if noexcept_facts:
+        set_external_facts(noexcept_facts)
 
     old_warning_level = Errors.LEVEL
     if show_all_warnings:
@@ -1267,6 +1299,8 @@ def cythonize_one(pyx_file, c_file,
     finally:
         if show_all_warnings:
             Errors.LEVEL = old_warning_level
+        if noexcept_facts:
+            set_external_facts(None)
 
     if any_failures:
         if raise_on_failure:

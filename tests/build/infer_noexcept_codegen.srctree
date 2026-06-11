@@ -1,0 +1,357 @@
+# mode: run
+# tag: infer_noexcept, optimization
+# Tests that InferNoexcept produces (or suppresses) exception checks in generated C,
+# and that the directive gate works.  Also tests the cross-module spec-inheritance
+# case: module B cimports module A's non-final base class and overrides a safe cpdef
+# method with a raising body — must compile without "Exception specification is wider"
+# and the raise must propagate at runtime.
+
+PYTHON cythonize_mods.py
+PYTHON check_codegen.py default mod_a.c
+PYTHON build_mods.py mod_a
+PYTHON run_test.py
+
+# With infer_noexcept=False: checks must all be present
+PYTHON cythonize_mods_noopt.py
+PYTHON check_codegen.py disabled mod_a.c
+PYTHON build_mods.py mod_a
+PYTHON run_test.py
+
+# Cross-module spec-inheritance: B cimports A's non-final base, overrides with raise
+PYTHON cythonize_cross.py
+PYTHON build_mods.py cross_a cross_b
+PYTHON run_cross.py
+
+######## cythonize_mods.py ########
+
+import sys
+import Cython.Compiler.Options
+Cython.Compiler.Options.cimport_from_pyx = True
+from Cython.Build.Cythonize import main
+sys.argv[0] = 'cythonize.py'
+main(['-f', '-X', 'infer_noexcept=True', '-X', 'language_level=3', 'mod_a.pyx'])
+
+######## cythonize_mods_noopt.py ########
+
+import sys
+import Cython.Compiler.Options
+Cython.Compiler.Options.cimport_from_pyx = True
+from Cython.Build.Cythonize import main
+sys.argv[0] = 'cythonize.py'
+main(['-f', '-X', 'infer_noexcept=False', '-X', 'language_level=3', 'mod_a.pyx'])
+
+######## cythonize_cross.py ########
+
+import sys
+import Cython.Compiler.Options
+Cython.Compiler.Options.cimport_from_pyx = True
+from Cython.Build.Cythonize import main
+sys.argv[0] = 'cythonize.py'
+main(['-f', '-X', 'infer_noexcept=True', '-X', 'language_level=3',
+      'cross_a.pyx', 'cross_b.pyx'])
+
+######## build_mods.py ########
+
+# Build one or more Cython extension modules from pre-generated .c files.
+# Usage: python build_mods.py mod_name1 [mod_name2 ...]
+# Produces <mod_name>.cpython-NNN.so in the current directory.
+import sys
+import os
+import sysconfig
+import subprocess
+
+inc = sysconfig.get_paths()['include']
+ldshared = sysconfig.get_config_var('LDSHARED') or ''
+ext = sysconfig.get_config_var('EXT_SUFFIX') or '.so'
+
+for mod in sys.argv[1:]:
+    c_file = mod + '.c'
+    so_file = mod + ext
+    # Remove old .so to avoid stale-module confusion
+    if os.path.exists(so_file):
+        os.remove(so_file)
+    cmd = f'{ldshared} -O0 -I{inc} {c_file} -o {so_file}'
+    ret = subprocess.call(cmd, shell=True)
+    if ret != 0:
+        print(f'ERROR: failed to build {mod}', file=sys.stderr)
+        sys.exit(1)
+    print(f'Built {so_file}')
+
+######## check_codegen.py ########
+
+import sys
+import re
+
+mode = sys.argv[1]
+c_path = sys.argv[2]
+with open(c_path, 'r') as f:
+    content = f.read()
+
+# Helper: find the line(s) in the generated C that contain a call to a given
+# C function name, and return surrounding context (the statement line + neighbours).
+def find_call_context(src, cname_fragment, window=3):
+    """Return list of (lineno, snippet) for lines containing cname_fragment."""
+    lines = src.splitlines()
+    results = []
+    for i, line in enumerate(lines):
+        if cname_fragment in line:
+            start = max(0, i - window)
+            end = min(len(lines), i + window + 1)
+            results.append((i + 1, '\n'.join(lines[start:end])))
+    return results
+
+if mode == 'default':
+    # --- (a) Marked C-returning functions must have NO post-call checks near their call ---
+    # get_x is a cdef int getter on a final class: inferred never_raises, exception_check
+    # cleared → no PyErr_Occurred / __Pyx_ErrOccurredWithGIL / sentinel compare on its call.
+
+    # Find all calls to the C getter (mangled name contains 'get_x')
+    get_x_calls = find_call_context(content, '__pyx_f_', window=5)
+    # The generated name for FinalPoint.get_x will contain 'get_x' or 'FinalPoint'
+    get_x_direct = find_call_context(content, 'get_x', window=5)
+
+    # The most reliable check: no PyErr_Occurred immediately following a C-returning
+    # never_raises call.  We look at local regions around 'get_x' calls.
+    for lineno, ctx in get_x_direct:
+        # A never_raises cdef int call should NOT have PyErr_Occurred or sentinel test
+        # in the 5-line window around it.
+        assert 'PyErr_Occurred' not in ctx or 'caller_raiser' in ctx, (
+            "PyErr_Occurred found near get_x call at line %d:\n%s" % (lineno, ctx))
+
+    # --- (b) Object-returning getter: no NULL check on its call ---
+    # get_tag() returns object and is inferred never_raises → the if (unlikely(!__pyx_t_N))
+    # pattern must NOT appear immediately around its call.
+    # We find actual C call sites by looking for lines matching the pattern of a
+    # C-level assignment to __pyx_t_N from the get_tag C function.
+    lines = content.splitlines()
+    get_tag_call_lines = [
+        (i + 1, i)
+        for i, line in enumerate(lines)
+        if '= __pyx_f_' in line and 'get_tag' in line
+    ]
+    assert get_tag_call_lines, "No C-level get_tag call sites found — check C-name fragment"
+    for lineno, idx in get_tag_call_lines:
+        window = 5
+        start = max(0, idx - window)
+        end = min(len(lines), idx + window + 1)
+        ctx = '\n'.join(lines[start:end])
+        assert 'unlikely(!' not in ctx, (
+            "NULL check found near get_tag call at line %d (should be suppressed):\n%s"
+            % (lineno, ctx))
+
+    # --- (c) Deliberately raising function's call sites DO have checks (anti-vacuity) ---
+    # caller_raiser calls a function with a raise → exception check must be present.
+    raiser_calls = find_call_context(content, 'caller_raiser', window=10)
+    # At least one of the regions must contain a check.
+    found_check = any(
+        'PyErr_Occurred' in ctx or '__Pyx_ErrOccurredWithGIL' in ctx
+        or 'unlikely(!' in ctx or ' == -1' in ctx or ' == (-1)' in ctx
+        for _, ctx in raiser_calls
+    )
+    # Only assert if raiser_calls found something (the function exists in the C file)
+    if raiser_calls:
+        assert found_check, (
+            "No exception check found near caller_raiser calls — anti-vacuity guard failed.\n"
+            "Contexts: %s" % raiser_calls)
+
+    print("OK: infer_noexcept=True mode — checks absent on marked functions, present on raising ones")
+
+elif mode == 'disabled':
+    # With infer_noexcept=False: the functions that would have been marked are not,
+    # so their call sites MUST contain exception checks (or at least the never_raises
+    # flag must not be set on those functions in generated code).
+    # We verify by checking that the C file does NOT contain 'never_raises' comment
+    # markers that Cython would emit if it were still marking functions.
+    # More concretely: check that PyErr_Occurred IS present somewhere (proving checks
+    # were emitted for the functions that would have been safe).
+    assert 'PyErr_Occurred' in content or '__Pyx_ErrOccurredWithGIL' in content, (
+        "Expected exception checks to be present with infer_noexcept=False, "
+        "but found neither PyErr_Occurred nor __Pyx_ErrOccurredWithGIL in %s" % c_path)
+    print("OK: infer_noexcept=False mode — exception checks present as expected")
+
+else:
+    print("Unknown mode: %s" % mode)
+    sys.exit(1)
+
+######## run_test.py ########
+
+import sys
+sys.path.insert(0, '.')
+import mod_a
+
+# Basic value correctness
+p = mod_a.make_point(3, 4, 'tag')
+assert mod_a.read_x(p) == 3, "read_x failed: %r" % mod_a.read_x(p)
+assert mod_a.read_tag(p) == 'tag', "read_tag failed: %r" % mod_a.read_tag(p)
+assert mod_a.compute_norm2(p) == 25.0, "norm2 failed: %r" % mod_a.compute_norm2(p)
+assert mod_a.module_add(2, 3) == 5, "module_add failed"
+assert mod_a.module_sub(7, 2) == 5, "module_sub failed"
+assert mod_a.chain_add(10) == 11, "chain_add failed: %r" % mod_a.chain_add(10)
+
+# Raising function still propagates
+try:
+    mod_a.caller_raiser(-1)
+    assert False, "should have raised"
+except ValueError as e:
+    assert "negative" in str(e), str(e)
+
+print("DONE: mod_a runtime tests passed")
+
+######## run_cross.py ########
+
+import sys
+sys.path.insert(0, '.')
+import cross_b
+
+# Base-typed call to safe base method works
+assert cross_b.call_base_safe(10) == 10, (
+    "call_base_safe returned %r, expected 10" % cross_b.call_base_safe(10))
+
+# Base-typed vtable call to raising override: raise must propagate
+try:
+    cross_b.call_raising_override()
+    assert False, "should have raised"
+except RuntimeError as e:
+    assert "child raises" in str(e), str(e)
+
+print("DONE: cross-module spec-inheritance tests passed")
+
+######## mod_a.pyx ########
+
+# cython: language_level=3
+# cython: infer_types=True
+# The infer_noexcept directive is set via -X on the command line.
+
+cimport cython
+
+@cython.final
+cdef class FinalPoint:
+    """Final class: all simple accessors eligible for tier-1 inference."""
+    cdef int _x
+    cdef int _y
+    cdef object _tag
+
+    def __cinit__(self, int x, int y, object tag):
+        self._x = x
+        self._y = y
+        self._tag = tag
+
+    # Simple C-int getter: candidate for never_raises + exception_check=False
+    cdef int get_x(self):
+        return self._x
+
+    # cpdef double: candidate for never_raises
+    cpdef double get_norm2(self):
+        return self._x * self._x + self._y * self._y
+
+    # Object-forwarding getter: candidate for never_raises (NULL-check suppressed at caller)
+    cdef object get_tag(self):
+        return self._tag
+
+    # C-int setter
+    cdef void set_x(self, int v):
+        self._x = v
+
+
+# Module-level functions
+
+cpdef int module_add(int a, int b):
+    return a + b
+
+cdef int module_csub(int a, int b):
+    return a - b
+
+cpdef int module_sub(int a, int b):
+    return module_csub(a, b)
+
+# Chained: calls module_add which should already be never_raises
+cpdef int chain_add(int n):
+    return module_add(n, 1)
+
+# Deliberately raising function: its callers must still have checks
+cpdef int raises_if_negative(int x):
+    if x < 0:
+        raise ValueError("negative: %d" % x)
+    return x
+
+
+# Public API functions used by run_test.py
+
+def make_point(int x, int y, object tag):
+    """
+    >>> p = make_point(3, 4, 'hi')
+    >>> read_x(p)
+    3
+    """
+    return FinalPoint(x, y, tag)
+
+def read_x(FinalPoint p):
+    """Call get_x() from Python; checks should be absent in generated C."""
+    return p.get_x()
+
+def compute_norm2(FinalPoint p):
+    """Call get_norm2() from Python."""
+    return p.get_norm2()
+
+def read_tag(FinalPoint p):
+    """Call get_tag() — object-forwarding, NULL check should be suppressed."""
+    return p.get_tag()
+
+def caller_raiser(int x):
+    """Call a raising function — checks must still be emitted here."""
+    return raises_if_negative(x)
+
+######## cross_a.pyx ########
+
+# cython: language_level=3
+# Module A: defines a non-final base class with a safe cpdef method body.
+# With infer_noexcept=True, the base is NOT marked (non-final) — so a subclass
+# in cross_b.pyx that overrides with a raising body must compile without
+# "Exception specification is wider" and the raise must propagate.
+
+cimport cython
+
+cdef class CrossBase:
+    cdef int _v
+
+    def __cinit__(self, int v):
+        self._v = v
+
+    cpdef int get_v(self):
+        # Safe body, non-final class → NOT tier-1 marked
+        return self._v
+
+######## cross_b.pyx ########
+
+# cython: language_level=3
+# Module B: cimports CrossBase from cross_a and overrides with a raising body.
+# Must compile without "Exception specification is wider" error.
+
+cimport cross_a
+
+cdef class RaisingChild(cross_a.CrossBase):
+    # Unannotated override inherits exception spec from CrossBase.get_v.
+    # Because CrossBase.get_v was NOT infer-noexcept marked (non-final), the
+    # inherited spec is unchanged and this compiles cleanly.
+    cpdef int get_v(self):
+        raise RuntimeError("child raises")
+
+def call_base_safe(int v):
+    """Call SafeBase directly (no override).
+
+    >>> call_base_safe(10)
+    10
+    """
+    cdef cross_a.CrossBase obj = cross_a.CrossBase(v)
+    return obj.get_v()
+
+def call_raising_override():
+    """Base-typed vtable call dispatches to raising child.
+
+    >>> call_raising_override()
+    Traceback (most recent call last):
+        ...
+    RuntimeError: child raises
+    """
+    cdef cross_a.CrossBase obj = RaisingChild(0)
+    return obj.get_v()

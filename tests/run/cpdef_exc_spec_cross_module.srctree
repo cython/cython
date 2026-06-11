@@ -2,7 +2,8 @@
 # Base in mod_a (declared in pxd), child in mod_b (inherits spec via cimport),
 # consumer in mod_c that calls statically typed as BaseA.
 #
-# Covers:
+
+# Covers
 #   - noexcept: inherited, no raise path (smoke test)
 #   - except -1: inherited, raising override, static dispatch in mod_c
 #   - except *:  inherited, raising override, static dispatch in mod_c

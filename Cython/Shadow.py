@@ -161,6 +161,7 @@ annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
     allow_none_for_extension_args = callspec = show_performance_hints = \
     py2_import = iterable_coroutine = remove_unreachable = \
     test_body_needs_exception_handling = python_subclassing = \
+    infer_noexcept = \
         lambda _: _EmptyDecoratorAndManager()
 
 binding = embedsignature = always_allow_keywords = unraisable_tracebacks = \

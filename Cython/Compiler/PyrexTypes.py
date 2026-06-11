@@ -3238,6 +3238,14 @@ class CFuncType(CType):
     is_const_method = False
     op_arg_struct = None
     has_explicit_exc_clause = False
+    # Internal inference flag set by NoexceptInference when the function body
+    # provably cannot raise.  For pyobject-returning functions it additionally
+    # means the result is never NULL.  Not user-settable; not part of the C ABI.
+    never_raises = False
+    # True when has_explicit_exc_clause was set by compiler synthesis (e.g.
+    # the auto_cpdef __init__ promotion), not by the user; the noexcept
+    # inference treats such specs as overridable.
+    synthesized_exc_clause = False
 
     subtypes = ['return_type', 'args']
 
@@ -3345,6 +3353,45 @@ class CFuncType(CType):
                 templates=self.templates,
                 is_strict_signature=self.is_strict_signature,
                 has_explicit_exc_clause=self.has_explicit_exc_clause)
+
+    def with_noexcept_spec(self):
+        """Return a copy with never_raises=True (and noexcept spec for non-pyobject returns).
+
+        Returns self unchanged if never_raises is already True.
+        For pyobject-returning functions the exception fields are kept as-is;
+        only the never_raises flag drives the NULL-check skip at call sites.
+        For non-pyobject returns, exception_value and exception_check are also
+        cleared so the caller emits no sentinel/PyErr check.
+        """
+        if self.never_raises:
+            return self
+        if self.return_type.is_pyobject:
+            exc_value = self.exception_value
+            exc_check = self.exception_check
+        else:
+            exc_value = None
+            exc_check = False
+        result = CFuncType(
+            return_type=self.return_type, args=self.args,
+            has_varargs=self.has_varargs,
+            exception_value=exc_value,
+            exception_check=exc_check,
+            calling_convention=self.calling_convention,
+            nogil=self.nogil, with_gil=self.with_gil,
+            is_overridable=self.is_overridable,
+            optional_arg_count=self.optional_arg_count,
+            is_const_method=self.is_const_method,
+            is_static_method=self.is_static_method,
+            is_classmethod=self.is_classmethod,
+            templates=self.templates,
+            is_strict_signature=self.is_strict_signature,
+            has_explicit_exc_clause=self.has_explicit_exc_clause)
+        result.never_raises = True
+        # Copy op_arg_struct so generate_result_code can build the optional-arg
+        # struct for calls with optional arguments.
+        result.op_arg_struct = self.op_arg_struct
+        result.entry = getattr(self, 'entry', None)
+        return result
 
     def calling_convention_prefix(self):
         cc = self.calling_convention

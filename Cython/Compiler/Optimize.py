@@ -1899,6 +1899,38 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             if not (base_type.vtabptr_cname and base_entry
                     and base_entry.cname and base_entry.type):
                 return node
+
+            # LTO: when the defining module is compiled together with this one,
+            # its `__pyx_f_` symbols are emitted non-static and a prototype is
+            # declared for cimported classes (generate_exttype_final_methods_
+            # declaration), so `super()` can call the C function directly
+            # instead of going through one vtable-pointer indirection.  Only
+            # when `base_type` itself defines the method (a non-inherited
+            # lookup_here hit): the direct symbol of the *defining* class is
+            # exactly what super() must call.
+            if self.current_directives.get('lto', False):
+                compilation_sources = self.current_env().global_scope().compilation_sources
+                base_module_scope = base_type.scope
+                while base_module_scope and not base_module_scope.is_module_scope:
+                    base_module_scope = base_module_scope.outer_scope
+                defining_entry = base_type.scope.lookup_here(function.attribute)
+                if (compilation_sources
+                        and base_module_scope
+                        and base_module_scope.qualified_name in compilation_sources
+                        and defining_entry is not None
+                        and defining_entry.is_cmethod
+                        and not getattr(defining_entry, 'is_inherited', False)
+                        and 'inline' not in (defining_entry.func_modifiers or ())):
+                    direct_cname = (defining_entry.func_cname
+                                    or base_type.scope.mangle(Naming.func_prefix, function.attribute))
+                    func_node = ExprNodes.RawCNameExprNode(
+                        node.pos, type=defining_entry.type, cname=direct_cname)
+                    call_node = ExprNodes.SimpleCallNode.from_node(
+                        node, function=func_node, args=new_args)
+                    call_node.wrapper_call = True
+                    _set_optional_args_flag(call_node, defining_entry.type, new_args)
+                    return call_node
+
             vtable_call = "%s->%s" % (base_type.vtabptr_cname, base_entry.cname)
             func_node = ExprNodes.RawCNameExprNode(
                 node.pos, type=base_entry.type, cname=vtable_call)
@@ -5254,6 +5286,10 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
             is_overridable=True)
         if opt_count and orig_type.op_arg_struct:
             call_type.op_arg_struct = orig_type.op_arg_struct
+        # Keep the identity of the called __init__ so the noexcept inference
+        # can match this direct call against cross-module facts.
+        call_type.entry = init_entry
+        call_type.never_raises = getattr(orig_type, 'never_raises', False)
 
         # Coerce self to formal_self_type.  For non-inherited __init__ this is a
         # no-op (var_ref.type is already ext_type).  For inherited, var_ref.type is
@@ -5276,11 +5312,29 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         if same_module:
             c_target = func_cname
         else:
-            vtabptr = getattr(ext_type, 'vtabptr_cname', None)
-            slot_cname = getattr(init_entry, 'cname', None)
-            if not (vtabptr and slot_cname):
-                return None  # no vtable available; caller bails
-            c_target = "%s->%s" % (vtabptr, slot_cname)
+            c_target = None
+            # LTO: the defining module is compiled together with this one, so
+            # the producer's __pyx_f_ symbol is non-static and a prototype is
+            # declared for cimported classes — call __init__ directly instead
+            # of through the vtable pointer.  Only for a non-inherited
+            # __init__ (the symbol belongs to ext_type itself).
+            if (self.current_directives.get('lto', False)
+                    and not getattr(init_entry, 'is_inherited', False)
+                    and 'inline' not in (init_entry.func_modifiers or ())):
+                compilation_sources = env.global_scope().compilation_sources
+                type_module_scope = ext_type.scope
+                while type_module_scope and not type_module_scope.is_module_scope:
+                    type_module_scope = type_module_scope.outer_scope
+                if (compilation_sources and type_module_scope
+                        and type_module_scope.qualified_name in compilation_sources):
+                    c_target = (init_entry.func_cname
+                                or ext_type.scope.mangle(Naming.func_prefix, '__init__'))
+            if not c_target:
+                vtabptr = getattr(ext_type, 'vtabptr_cname', None)
+                slot_cname = getattr(init_entry, 'cname', None)
+                if not (vtabptr and slot_cname):
+                    return None  # no vtable available; caller bails
+                c_target = "%s->%s" % (vtabptr, slot_cname)
 
         call = ExprNodes.PythonCapiCallNode(
             pos, c_target, call_type,

@@ -177,6 +177,12 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .Optimize import ConsolidateOverflowCheck
     from .Buffer import IntroduceBufferAuxiliaryVars
     from .ModuleNode import check_c_declarations, check_c_declarations_pxd
+    if mode in ('pyx', 'py'):
+        from .NoexceptInference import InferNoexcept as _InferNoexcept
+        from .NoexceptInference import ApplyCrossModuleNoexceptFacts as _ApplyNoexceptFacts
+    else:
+        _InferNoexcept = None
+        _ApplyNoexceptFacts = None
 
 
     if mode == 'pxd':
@@ -230,8 +236,12 @@ def create_pipeline(context, mode, exclude_classes=()):
         ExpandInplaceOperators(context),
         IterationTransform(context),
         SwitchTransform(context),
+        # Cross-module noexcept facts must land before the super()/constructor
+        # optimizers, which snapshot callee exception specs into fresh types.
+        _ApplyNoexceptFacts(context) if _ApplyNoexceptFacts is not None else None,
         OptimizeBuiltinCalls(context),  ## Necessary?
         OptimizeExtTypeConstructorCalls(context),
+        _InferNoexcept(context) if _InferNoexcept is not None else None,
         CreateClosureClasses(context),  ## After all lookups and type inference
         CalculateQualifiedNamesTransform(context),
         ConsolidateOverflowCheck(context),
@@ -278,6 +288,22 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
         [generate_pyx_code_stage_factory(options, result)],
         ctest_support,
     ))
+
+def create_noexcept_facts_pipeline(context, options, result):
+    """Frontend-only pyx pipeline truncated right after InferNoexcept.
+
+    Used by compile_multiple's cross-module phase: it runs parse/analysis and
+    the noexcept inference (no code generation) so the inferred facts of each
+    module can be shared with the other modules of the same compilation batch.
+    """
+    from .NoexceptInference import InferNoexcept
+    stages = []
+    for stage in create_pyx_pipeline(context, options, result):
+        stages.append(stage)
+        if isinstance(stage, InferNoexcept):
+            break
+    return stages
+
 
 def create_pxd_pipeline(context, scope, module_name):
     from .CodeGeneration import ExtractPxdCode

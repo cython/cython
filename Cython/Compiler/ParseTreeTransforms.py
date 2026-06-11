@@ -3698,6 +3698,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             visibility = 'public' if 'public' in self.directives else 'private'
             # For auto-promoted __init__ inside a cclass, use int return code (like setter):
             # 0 = success, -1 = error.  Avoids Py_None INCREF/DECREF on every construction.
+            synthesized_exc_clause = False
             if (is_ccall_promoted and node.name == '__init__'
                     and isinstance(self.env, Nodes.CClassDefNode)):
                 exc_val_node = ExprNodes.IntNode.for_int(
@@ -3705,10 +3706,16 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 return_type_node = _ReturnCodeReturns(node.pos)
                 except_val = (exc_val_node, False)
                 has_explicit_exc_clause = True
+                synthesized_exc_clause = True
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
                 returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause,
                 visibility=visibility)
+            if synthesized_exc_clause and getattr(node, 'declarator', None) is not None:
+                # Compiler-synthesized clause, not user intent: let the
+                # noexcept inference override it (flows onto the CFuncType in
+                # CFuncDeclaratorNode.analyse).
+                node.declarator.synthesized_exc_clause = True
             self.directives['auto_cpdef'] = False  # avoid auto_cpdef nested methods
             node = self.visit(node)
             self.directives['auto_cpdef'] = auto_cpdef

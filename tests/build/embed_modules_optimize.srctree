@@ -116,10 +116,32 @@ elif mode == 'lto':
     assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" not in a_c_content
     assert "__pyx_vtab)->__pyx_f_1b_8Derived3_4prop___get__(" not in a_c_content, "Expected direct call to final method, not vtable dispatch"
     assert "__Pyx_PyObject_FastCallMethod((PyObject*)__pyx_mstate_global->__pyx_n_u_init," not in a_c_content, "Expected no call to DerivedWithCtorOverride constructor skipping python"
-    assert "__pyx_vtabptr_1b_BWithOptInit->__pyx___init__" in a_c_content, (
-        "Expected vtable __init__ dispatch for BWithOptInit cross-module constructor in lto mode")
+    # LTO: cross-module __init__ must be a DIRECT call to the producer's
+    # non-static __pyx_f_ symbol, not a vtable-pointer indirection.
+    assert "__pyx_f_1b_12BWithOptInit___init__(" in a_c_content, (
+        "Expected direct __init__ call for BWithOptInit cross-module constructor in lto mode")
+    assert "__pyx_vtabptr_1b_BWithOptInit->__pyx___init__" not in a_c_content, (
+        "Expected NO vtable __init__ dispatch for BWithOptInit in lto mode (direct LTO call)")
+    assert "__pyx_f_1b_1B___init__(((struct __pyx_obj_1b_B *)__pyx_v_self), 1)" in a_c_content, (
+        "Expected direct super().__init__() call to B's C function in lto mode")
+    assert "__pyx_vtabptr_1b_B->__pyx___init__" not in a_c_content, (
+        "Expected NO vtable __init__ dispatch for B in lto mode (direct LTO call)")
     assert "__pyx_opt_args_1b_12BWithOptInit___init__" in a_c_content, (
         "Expected opt_args struct for BWithOptInit.__init__ optional-arg call in lto mode")
+    # Noexcept inference (cross-module facts): provably non-raising __init__
+    # calls must carry no error check; the raising ctor keeps its check.
+    assert "__pyx_f_1a_1A___init__(__pyx_v_t, 1); \n" in a_c_content or \
+           "__pyx_f_1a_1A___init__(__pyx_v_t, 1); " in a_c_content, (
+        "Expected check-free A() __init__ call (noexcept inference)")
+    assert "__pyx_f_1a_1A___init__(__pyx_v_t, 1); if (unlikely(" not in a_c_content, (
+        "Expected NO error check after A() __init__ call (noexcept inference)")
+    assert "__pyx_f_1b_1B___init__(((struct __pyx_obj_1b_B *)__pyx_v_self), 1); if (unlikely(" not in a_c_content, (
+        "Expected NO error check after super().__init__() call (cross-module noexcept facts)")
+    import re as _re
+    _raise_calls = [l for l in a_c_content.splitlines()
+                    if "__pyx_f_1a_20DerivedWithCtorRaise___init__(((" in l]
+    assert _raise_calls and all("unlikely(" in l for l in _raise_calls), (
+        "Expected the raising DerivedWithCtorRaise.__init__ call sites to KEEP their checks: %r" % _raise_calls)
     assert '__Pyx_RaiseUnboundLocalError("bopt2")' not in a_c_content, (
         "Expected no redundant unbound-local check for bopt2 after tp_new null-check")
     assert "float y;" in a_c_content, (
@@ -138,8 +160,10 @@ elif mode == 'lto_no_python_subclassing':
     assert "__Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_item), __pyx_mstate_global->__pyx_n_u_prop);" not in a_c_content
     assert "__pyx_vtab)->__pyx_f_1b_8Derived3_4prop___get__(" not in a_c_content, "Expected direct call to final method, not vtable dispatch"
     assert "__Pyx_PyObject_FastCallMethod((PyObject*)__pyx_mstate_global->__pyx_n_u_init," not in a_c_content, "Expected no call to DerivedWithCtorOverride constructor skipping python"
-    assert "__pyx_vtabptr_1b_BWithOptInit->__pyx___init__" in a_c_content, (
-        "Expected vtable __init__ dispatch for BWithOptInit cross-module constructor in lto+no_ps mode")
+    assert "__pyx_f_1b_12BWithOptInit___init__(" in a_c_content, (
+        "Expected direct __init__ call for BWithOptInit cross-module constructor in lto+no_ps mode")
+    assert "__pyx_vtabptr_1b_BWithOptInit->__pyx___init__" not in a_c_content, (
+        "Expected NO vtable __init__ dispatch for BWithOptInit in lto+no_ps mode (direct LTO call)")
     assert "__pyx_opt_args_1b_12BWithOptInit___init__" in a_c_content, (
         "Expected opt_args struct for BWithOptInit.__init__ optional-arg call in lto+no_ps mode")
     assert '__Pyx_RaiseUnboundLocalError("bopt2")' not in a_c_content, (

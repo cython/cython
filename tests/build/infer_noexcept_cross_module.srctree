@@ -1,0 +1,118 @@
+# Tests cross-module noexcept fact propagation in multi-source compilation
+# (compile_multiple) with --cimport-from-pyx, both sequential and parallel.
+# Module B cimports module A's final class / module-level functions from the
+# .pyx; the consumer cannot re-run the body inference (declarations-only
+# parse), so the facts phase must inject the producer's inference results.
+CYTHON --cimport-from-pyx mod_a.pyx mod_b.pyx
+PYTHON check_codegen.py sequential
+CYTHON --cimport-from-pyx -j2 mod_a.pyx mod_b.pyx
+PYTHON check_codegen.py parallel
+CYTHON --cimport-from-pyx pkg/mod_a.pyx pkg/sub/mod_b.pyx
+PYTHON check_pkg_codegen.py
+
+######## pkg/__init__.py ########
+######## pkg/sub/__init__.py ########
+
+######## pkg/mod_a.pyx ########
+import cython
+
+@cython.final
+cdef class PA:
+    cdef int _x
+    cpdef int get_x(self):
+        return self._x
+
+######## pkg/sub/mod_b.pyx ########
+from pkg.mod_a cimport PA
+
+def use(PA a):
+    return a.get_x()
+
+######## check_pkg_codegen.py ########
+# Dotted-package case: context.modules is keyed by top-level package only;
+# fact application must resolve submodules via lookup_submodule.
+with open('pkg/sub/mod_b.c') as f:
+    src = f.read()
+lines = [line for line in src.splitlines()
+         if '_2PA_get_x(' in line and 'proto' not in line
+         and not line.lstrip().startswith(('*', '/*', 'static', 'int '))]
+assert lines, "no call lines for PA.get_x (vacuous test)"
+for line in lines:
+    assert 'PyErr_Occurred' not in line and 'ErrOccurredWithGIL' not in line, \
+        "package case: unexpected exception check: %r" % line
+print("OK (package): cross-module noexcept facts applied through dotted modules")
+
+######## mod_a.pyx ########
+import cython
+
+@cython.final
+cdef class A:
+    cdef int _x
+    cdef object _o
+
+    def __init__(self, int x, o):
+        self._x = x
+        self._o = o
+
+    cpdef int get_x(self):
+        return self._x
+
+    cpdef object get_o(self):
+        return self._o
+
+    cpdef int risky(self, int v):
+        if v < 0:
+            raise ValueError("neg")
+        return v
+
+cpdef int amod(int v):
+    return v + 1
+
+######## mod_b.pyx ########
+from mod_a cimport A, amod
+
+def use(A a):
+    cdef int s = a.get_x() + amod(2)
+    o = a.get_o()
+    cdef int r = a.risky(s)
+    return s, o, r
+
+######## check_codegen.py ########
+import re
+import sys
+
+mode = sys.argv[1]
+with open('mod_b.c') as f:
+    src = f.read()
+
+
+def call_lines(symbol_part):
+    return [line for line in src.splitlines()
+            if symbol_part in line and '(' in line and 'proto' not in line
+            and not line.lstrip().startswith(('*', '/*', 'static', 'PyObject', 'int '))]
+
+
+def assert_no_check(symbol_part):
+    lines = call_lines(symbol_part)
+    assert lines, "%s: no call lines found for %s (vacuous test)" % (mode, symbol_part)
+    for line in lines:
+        assert 'PyErr_Occurred' not in line and 'ErrOccurredWithGIL' not in line, \
+            "%s: unexpected exception check after %s call: %r" % (mode, symbol_part, line)
+        assert 'unlikely(!' not in line, \
+            "%s: unexpected NULL check after %s call: %r" % (mode, symbol_part, line)
+
+
+def assert_has_check(symbol_part):
+    lines = call_lines(symbol_part)
+    assert lines, "%s: no call lines found for %s (vacuous test)" % (mode, symbol_part)
+    assert any('PyErr_Occurred' in line or 'ErrOccurredWithGIL' in line for line in lines), \
+        "%s: expected an exception check after %s call: %r" % (mode, symbol_part, lines)
+
+
+# Cross-module final method / module function / object getter: check-free.
+assert_no_check('_1A_get_x(')
+assert_no_check('_amod(')
+assert_no_check('_1A_get_o(')
+# Control: the raising method keeps its check (guards against over-marking).
+assert_has_check('_1A_risky(')
+print("OK (%s): cross-module noexcept facts applied" % mode)

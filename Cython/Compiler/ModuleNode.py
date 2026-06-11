@@ -1450,6 +1450,34 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 modifiers = code.build_function_modifiers(method_entry.func_modifiers)
                 code.putln("%s%s;" % (modifiers, declaration))
 
+        # LTO: for cimported extension types whose module is compiled together
+        # with this one, also declare the methods' direct C symbols (the
+        # producer emits them non-static under LTO), so optimized super()
+        # calls can bypass the vtable-pointer indirection.
+        if entry.defined_in_pxd and self.directives.get('lto', False):
+            compilation_sources = self.scope.global_scope().compilation_sources
+            if compilation_sources:
+                type_module_scope = entry.type.scope
+                while type_module_scope and not type_module_scope.is_module_scope:
+                    type_module_scope = type_module_scope.outer_scope
+                if (type_module_scope
+                        and type_module_scope.qualified_name in compilation_sources):
+                    for method_entry in entry.type.scope.cfunc_entries:
+                        if method_entry.final_func_cname:
+                            continue  # already declared above
+                        if getattr(method_entry, 'is_inherited', False):
+                            continue  # defined (and declared) in the base's module
+                        if 'inline' in (method_entry.func_modifiers or ()):
+                            continue  # no out-of-line symbol is emitted
+                        if not method_entry.type or not method_entry.type.is_cfunction:
+                            continue
+                        func_cname = (method_entry.func_cname
+                                      or entry.type.scope.mangle(Naming.func_prefix, method_entry.name))
+                        if not func_cname or '->' in func_cname:
+                            continue
+                        declaration = method_entry.type.declaration_code(func_cname)
+                        code.putln("%s;" % declaration)
+
     def generate_objstruct_predeclaration(self, type, code):
         if not type.scope:
             return

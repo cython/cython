@@ -677,6 +677,55 @@ def _init_multiprocessing_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
+def _collect_noexcept_facts_single(source, options, full_module_name=None):
+    """Run the frontend-only facts pipeline on one source.
+
+    Returns (module_name, facts_dict). Any error -> empty facts; real
+    diagnostics are produced by the normal compilation phase afterwards.
+    """
+    from io import StringIO
+    from . import Pipeline
+    from .NoexceptInference import InferNoexcept
+
+    context = Context.from_options(options)
+    module_name = full_module_name or context.extract_module_name(source, options)
+    old_stderr = sys.stderr
+    sys.stderr = StringIO()  # diagnostics are reported by the real compilation
+    try:
+        source_ext = os.path.splitext(source)[1]
+        options.configure_language_defaults(source_ext[1:])
+        source_obj = setup_source_object(source, source_ext, module_name, options, context)
+        result = create_default_resultobj(source_obj, options)
+        pipeline = Pipeline.create_noexcept_facts_pipeline(context, options, result)
+        context.setup_errors(options, result)
+        err, _ = Pipeline.run_pipeline(pipeline, source_obj, printtree=False)
+        context.teardown_errors(err, options, result)
+        if err is not None:
+            return module_name, {}
+        for stage in pipeline:
+            if isinstance(stage, InferNoexcept):
+                return module_name, getattr(stage, 'collected_facts', {}) or {}
+    except Exception:
+        pass
+    finally:
+        sys.stderr = old_stderr
+    return module_name, {}
+
+
+def _collect_noexcept_facts_worker(task):
+    """Parallel worker for the cross-module noexcept facts phase."""
+    from io import StringIO
+
+    source, options, options_global_state = task
+    Options.restore_global_state(options_global_state)
+    old_stderr = sys.stderr
+    sys.stderr = StringIO()
+    try:
+        return _collect_noexcept_facts_single(source, options)
+    finally:
+        sys.stderr = old_stderr
+
+
 def _compile_single_worker(task):
     """
     Worker entry point for parallel multi-source compilation. Runs in a
@@ -686,11 +735,14 @@ def _compile_single_worker(task):
     """
     from io import StringIO
 
-    source, options, full_module_name, cache, options_global_state = task
+    source, options, full_module_name, cache, options_global_state, noexcept_facts = task
     # 'spawn' re-imports Options with its defaults, so re-apply module-level
     # flags (e.g. cimport_from_pyx) captured in the parent process. Without
     # this, e.g. --cimport-from-pyx compilation breaks in parallel mode.
     Options.restore_global_state(options_global_state)
+    if noexcept_facts:
+        from .NoexceptInference import set_external_facts
+        set_external_facts(noexcept_facts)
     output_filename = get_output_filename(source, os.getcwd(), options)
 
     buf = StringIO()
@@ -757,11 +809,50 @@ def compile_multiple(sources, options, cache=None):
         except ImportError:
             use_parallel = False
 
+    # Cross-module noexcept facts phase (LTO / cimport_from_pyx builds):
+    # consumers re-parse only the *declarations* of cimported .pyx modules, so
+    # the body-based noexcept inference cannot run there. Collect the facts
+    # for every module of the batch first (frontend-only, no codegen), then
+    # compile with the merged facts injected. Facts cover ALL unique sources,
+    # not just the out-of-date ones: an up-to-date dependency's facts are
+    # still needed by the consumers being recompiled.
+    noexcept_facts = None
+    if (len(unique_sources) > 1 and Options.cimport_from_pyx
+            and (options.compiler_directives or {}).get('infer_noexcept', True)
+            and to_compile):
+        noexcept_facts = {}
+        if use_parallel:
+            facts_global_state = Options.capture_global_state()
+            facts_tasks = [
+                (source, options, facts_global_state) for source in unique_sources]
+            from concurrent.futures import ProcessPoolExecutor as _FactsPool
+            with _FactsPool(
+                max_workers=nthreads,
+                initializer=_init_multiprocessing_worker,
+            ) as facts_pool:
+                try:
+                    for module_name, facts in facts_pool.map(
+                            _collect_noexcept_facts_worker, facts_tasks, chunksize=1):
+                        if facts:
+                            noexcept_facts[module_name] = facts
+                except KeyboardInterrupt:
+                    if hasattr(facts_pool, 'terminate_workers'):
+                        facts_pool.terminate_workers()
+                    facts_pool.shutdown(cancel_futures=True)
+                    raise
+        else:
+            for source in unique_sources:
+                module_name, facts = _collect_noexcept_facts_single(source, options)
+                if facts:
+                    noexcept_facts[module_name] = facts
+        if not noexcept_facts:
+            noexcept_facts = None
+
     if use_parallel:
         Errors.reset_process_seen_messages()
         options_global_state = Options.capture_global_state()
         tasks = [
-            (source, options, options.module_name, cache, options_global_state)
+            (source, options, options.module_name, cache, options_global_state, noexcept_facts)
             for source in to_compile]
         seen_lines = set()
         with ProcessPoolExecutor(
@@ -789,6 +880,9 @@ def compile_multiple(sources, options, cache=None):
                 raise
     else:
         # Sequential path: a fresh context per source.
+        if noexcept_facts:
+            from .NoexceptInference import set_external_facts
+            set_external_facts(noexcept_facts)
         context = None
         for source in to_compile:
             if context is None:
@@ -796,6 +890,9 @@ def compile_multiple(sources, options, cache=None):
             result = compile_single(source, options, full_module_name=options.module_name, cache=cache, context=context)
             results.add(source, result)
             context = None
+        if noexcept_facts:
+            from .NoexceptInference import set_external_facts
+            set_external_facts(None)
 
     if cache:
         cache.cleanup_cache()
