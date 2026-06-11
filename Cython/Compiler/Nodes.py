@@ -3057,20 +3057,143 @@ class CFuncDefNode(FuncDefNode):
         return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
 
     def _analyse_trampoline_declarations(self, env):
-        # Declare a synthesised C trampoline that fills the vtable slot inherited
-        # from a cpdef base method, forwarding to the Python-bodied override
-        # (`self.trampoline_pydef`) that could not itself be promoted to cpdef.
-        # The slot signature mirrors the inherited cpdef method exactly (so the
-        # vtable stays ABI-compatible); only `self` is retyped to this class.
+        # Declare a synthesised C trampoline that forwards to a Python-bodied function
+        # (`self.trampoline_pydef`).  Two cases:
+        #
+        # 1. trampoline_base_entry is not None (cclass: def overrides inherited cpdef):
+        #    The slot signature mirrors the inherited cpdef exactly; `self` is retyped
+        #    to the subclass type.
+        #
+        # 2. trampoline_base_entry is None (module scope: is_ccall_generator):
+        #    A fresh cpdef entry is built from the generator def's own args.  The
+        #    __pyx_f_ function just calls __pyx_pf_ (the GeneratorDefNode's impl) with
+        #    a NULL dummy-self and returns the generator object.
         pydef = self.trampoline_pydef
-        base_type = self.trampoline_base_entry.type
         name = pydef.entry.name
 
-        self.c_compile_guard = env.directives['c_compile_guard']
-        self.is_c_class_method = True
-        self.is_static_method = False
+        self.c_compile_guard = env.directives.get('c_compile_guard', '')
         if self.directive_locals is None:
             self.directive_locals = {}
+
+        if self.trampoline_base_entry is None:
+            # --- Fresh-entry generator promotion (module-level OR cclass new vtable slot) ---
+            _is_cclass_fresh = env.is_c_class_scope
+
+            if _is_cclass_fresh:
+                self.is_c_class_method = True
+            else:
+                self.is_c_class_method = False
+            self.is_static_method = False
+
+            # Build CFuncType from the generator def's analysed args.  At this point
+            # analyse_argument_types has already run and arg.type is annotation-derived.
+            # For module-level: pydef.args has no self arg (pydef.__pyx_pf_ has a leading
+            # dummy PyObject* self arg that we handle separately in _make_trampoline_forward_node).
+            # For cclass: pydef.args[0] is the self arg; retype it to env.parent_type.
+            if _is_cclass_fresh:
+                # arg0 = self typed to the class; remaining args keep their analysed types.
+                cfunc_args = [
+                    PyrexTypes.CFuncTypeArg(pydef.args[0].name, env.parent_type, pydef.args[0].pos)
+                ] + [
+                    PyrexTypes.CFuncTypeArg(arg.name, arg.type, arg.pos)
+                    for arg in pydef.args[1:]
+                ]
+            else:
+                cfunc_args = [
+                    PyrexTypes.CFuncTypeArg(arg.name, arg.type, arg.pos)
+                    for arg in pydef.args
+                ]
+            # Generator trampolines use optional_arg_count=0: the __pyx_f_ function
+            # accepts all args as required C values (no opt_args struct).  The Python
+            # caller path uses __pyx_pf_ (which handles default arg parsing as usual);
+            # C callers must supply all args explicitly.  This avoids the need to
+            # synthesise an op_arg_struct for a fresh-declared CFuncType.
+            cfunc_type = PyrexTypes.CFuncType(
+                PyrexTypes.py_object_type, cfunc_args,
+                has_varargs=False,
+                exception_value=None,
+                exception_check=True,
+                nogil=False,
+                with_gil=False,
+                is_overridable=True,
+                optional_arg_count=0)
+            self.type = cfunc_type
+            self.return_type = PyrexTypes.py_object_type
+
+            # Lightweight arg nodes (control-flow analysis marks them initialised).
+            # We keep defaults as None here; the trampoline never parses arguments
+            # (the outer __pyx_pf_ wrapper does that).
+            self.args = []
+            for type_arg in cfunc_type.args:
+                arg_node = CArgDeclNode(self.pos, base_type=None, declarator=None,
+                                        default=None, annotation=None, name=type_arg.name)
+                arg_node.type = type_arg.type
+                self.args.append(arg_node)
+
+            # The pydef entry is currently the primary scope entry.  Remove it
+            # so declare_cfunction (which does lookup_here) doesn't see it and error
+            # on a signature mismatch.  We'll put it back as as_variable below.
+            # EXCEPTION: when the scope already holds a CFUNCTION entry for this
+            # name, it was declared by the .pxd / cimport-from-pyx declaration
+            # pass (fresh-slot entries are declared there too so the vtabstruct
+            # layout matches across modules).  Popping it would make
+            # declare_cfunction's lookup_here fail against the pxd-defined scope
+            # ("not previously declared in definition part"); leave it in place
+            # and let declare_cfunction match-and-define it instead.
+            pydef_entry = pydef.entry
+            existing_entry = env.entries.get(name)
+            if existing_entry is None or not existing_entry.is_cfunction:
+                env.entries.pop(name, None)
+
+            # In the declaration-only pass (.pxd / cimport-from-pyx, scope.defined
+            # already set but not implemented), we are synthesising part of the
+            # definition itself: the "not previously declared in definition part"
+            # strictness in CClassScope.declare_cfunction must not apply to the
+            # entry we are creating right now.
+            was_defined = getattr(env, 'defined', 0)
+            if not getattr(env, 'implemented', 1):
+                env.defined = 0
+            try:
+                self.entry = env.declare_cfunction(
+                    name, cfunc_type, self.pos,
+                    cname=None, visibility='private', api=False,
+                    defining=True, modifiers=(), overridable=True)
+            finally:
+                if not getattr(env, 'implemented', 1):
+                    env.defined = was_defined
+            # declare_cfunction(overridable=True) creates a generic as_variable; replace
+            # it with the real pydef entry so Python-side name resolution finds the
+            # generator function object.
+            self.entry.as_variable = pydef_entry
+            self.entry.used = pydef_entry.used = True
+            # Restore cfunction as the primary scope entry (Python wrapper is as_variable).
+            env.entries[name] = self.entry
+
+            self.create_local_scope(env)
+
+            if _is_cclass_fresh:
+                # OverrideCheckNode reads py_func.is_module_scope (set by CFuncDefNode.generate_function_definitions
+                # on the cpdef path; generator bodies never go through that). Set it explicitly.
+                pydef.is_module_scope = False
+                # cclass: OverrideCheckNode gated by python_subclassing directive.
+                if getattr(env, 'python_subclassing', True):
+                    self.override = OverrideCheckNode(self.pos, py_func=pydef)
+                    self.body = StatListNode(self.pos, stats=[self.override, self._make_trampoline_forward_node()])
+                else:
+                    self.body = StatListNode(self.pos, stats=[self._make_trampoline_forward_node()])
+            else:
+                # Module-level: OverrideCheckNode only when Options.lookup_module_cpdef.
+                if Options.lookup_module_cpdef:
+                    self.override = OverrideCheckNode(self.pos, py_func=pydef)
+                    self.body = StatListNode(self.pos, stats=[self.override, self._make_trampoline_forward_node()])
+                else:
+                    self.body = StatListNode(self.pos, stats=[self._make_trampoline_forward_node()])
+            return self
+
+        # --- cclass case: def overrides inherited cpdef (existing path) ---
+        base_type = self.trampoline_base_entry.type
+        self.is_c_class_method = True
+        self.is_static_method = False
 
         args = [PyrexTypes.CFuncTypeArg(base_type.args[0].name, env.parent_type, base_type.args[0].pos)]
         args += [PyrexTypes.CFuncTypeArg(arg.name, arg.type, arg.pos) for arg in base_type.args[1:]]
@@ -3202,21 +3325,46 @@ class CFuncDefNode(FuncDefNode):
         return self
 
     def _make_trampoline_forward_node(self):
-        # `return __pyx_pf_<class>_<name>(self, args...)` -- a direct C call to the
-        # Python body function (which holds the real closure/generator body). The
-        # result (a Python object) is coerced to the slot's return type by the
-        # enclosing ReturnStatNode.
+        # `return __pyx_pf_<name>(NULL, args...)` (module scope) or
+        # `return __pyx_pf_<class>_<name>(self, args...)` (cclass) -- a direct C call
+        # to the Python body function.  The result is coerced to the slot's return type
+        # by the enclosing ReturnStatNode.
         from . import ExprNodes
         pydef = self.trampoline_pydef
         args = self.type.args
+
+        # Module-level generator: __pyx_pf_ has a leading dummy PyObject* __pyx_self
+        # arg (see DefNode.generate_function_header, entry.signature.has_dummy_arg).
+        # Prepend it to the pf_type and pass NULL (as a NullNode — c_null_ptr_type —
+        # so SimpleCallNode does not try to INCREF/DECREF the literal NULL pointer).
+        # For cclass fresh-entry generators, trampoline_base_entry is also None but
+        # the pf_ has a real self arg (the class instance), so no dummy is needed.
+        has_dummy = (self.trampoline_base_entry is None
+                     and not self.is_c_class_method
+                     and pydef.entry.signature is not None
+                     and pydef.entry.signature.has_dummy_arg)
+        if has_dummy:
+            # The __pyx_pf_ for a module-level def has a leading CYTHON_UNUSED dummy
+            # PyObject* arg (__pyx_self).  We pass NULL for it.  To avoid Python
+            # reference-counting machinery attempting to INCREF(NULL), we type the
+            # dummy arg as c_void_ptr_type in both the CFuncType and the call arg.
+            # C implicitly converts void* to PyObject* for the actual call.
+            dummy_type = PyrexTypes.c_void_ptr_type
+            pf_args = ([PyrexTypes.CFuncTypeArg('__pyx_self', dummy_type, self.pos)]
+                       + [PyrexTypes.CFuncTypeArg(arg.name, arg.type, arg.pos) for arg in args])
+            call_args = (
+                [ExprNodes.RawCNameExprNode(self.pos, type=dummy_type, cname='NULL')]
+                + [ExprNodes.NameNode(self.pos, name=arg.name) for arg in args]
+            )
+        else:
+            pf_args = [PyrexTypes.CFuncTypeArg(arg.name, arg.type, arg.pos) for arg in args]
+            call_args = [ExprNodes.NameNode(self.pos, name=arg.name) for arg in args]
+
         pf_type = PyrexTypes.CFuncType(
-            PyrexTypes.py_object_type,
-            [PyrexTypes.CFuncTypeArg(arg.name, arg.type, arg.pos) for arg in args],
+            PyrexTypes.py_object_type, pf_args,
             exception_value=None, exception_check=True)
         func = ExprNodes.RawCNameExprNode(self.pos, type=pf_type, cname=pydef.entry.pyfunc_cname)
-        call = ExprNodes.SimpleCallNode(
-            self.pos, function=func,
-            args=[ExprNodes.NameNode(self.pos, name=arg.name) for arg in args])
+        call = ExprNodes.SimpleCallNode(self.pos, function=func, args=call_args)
         if self.return_type.is_void or self.return_type.is_returncode:
             return StatListNode(self.pos, stats=[
                 ExprStatNode(self.pos, expr=call),
@@ -3489,7 +3637,7 @@ class CFuncDefNode(FuncDefNode):
 
         # Move arguments into closure if required
         def put_into_closure(entry):
-            if entry.in_closure and not arg.default:
+            if entry.in_closure:
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.type.is_memoryviewslice:
                     code.putln(entry.type.get_incref_memoryviewslice_code(entry.cname, True))
@@ -3638,6 +3786,9 @@ class DefNode(FuncDefNode):
     # Set when this Python-bodied method overrides an inherited cpdef method and a
     # C trampoline (a CFuncDefNode) is synthesised to fill its vtable slot.
     is_cpdef_trampoline_body = False
+    # Set when this generator def is promoted to a module-level cpdef/ccall.  The
+    # __pyx_f_ entry is synthesised as a trampoline that forwards to __pyx_pf_.
+    is_ccall_generator = False
     no_assignment_synthesis = 0
     decorators = None
     return_type_annotation = None
@@ -3751,7 +3902,7 @@ class DefNode(FuncDefNode):
         cdef function.  This can be used before calling
         .as_cfunction() to see if that will be successful.
         """
-        if self.needs_closure:
+        if self.is_generator or self.is_async_def:
             return False
         if self.star_arg or self.starstar_arg:
             return False
@@ -3783,6 +3934,40 @@ class DefNode(FuncDefNode):
             elif seen_optional and arg.kw_only:
                 return False
 
+        return True
+
+    def is_cpdef_generator_compatible(self):
+        """Returns True if this generator function can be promoted to a module-level
+        cpdef/ccall generator.  Generators with default args ARE supported.
+        Async defs, star-args, decorators (other than @ccall itself which has already
+        been stripped at this point), and required kw-only-after-optional are rejected.
+        """
+        if not self.is_generator:
+            return False
+        # Reject async generators (AsyncGenNode: is_asyncgen=True) and coroutines.
+        if self.is_async_def or getattr(self, 'is_asyncgen', False) or getattr(self, 'is_coroutine', False):
+            return False
+        if self.star_arg or self.starstar_arg:
+            return False
+        # Decorators other than the @ccall one itself would complicate analysis;
+        # they may return non-functions and cannot be applied to the C wrapper.
+        from . import ExprNodes
+        if self.decorators:
+            for decorator in self.decorators:
+                func = decorator.decorator
+                if func.is_name:
+                    if func.name in ('property', 'staticmethod', 'classmethod'):
+                        return False
+                elif isinstance(func, ExprNodes.AttributeNode):
+                    if func.attribute in ('setter', 'deleter'):
+                        return False
+        # Required kw-only arg after optional: not representable in C ABI.
+        seen_optional = False
+        for arg in self.args:
+            if arg.default:
+                seen_optional = True
+            elif seen_optional and arg.kw_only:
+                return False
         return True
 
     def analyse_declarations(self, env):
@@ -4095,6 +4280,18 @@ class DefNode(FuncDefNode):
             if env.cpdef_method_trampolines is None:
                 env.cpdef_method_trampolines = []
             env.cpdef_method_trampolines.append((self, cpdef_trampoline_base))
+        elif self.is_ccall_generator and (env.is_module_scope or env.is_c_class_scope):
+            # Generator promoted to cpdef/ccall (module-level OR cclass fresh vtable slot).
+            # The Python body (GeneratorDefNode) stays and emits __pyx_pf_; a synthesised
+            # C trampoline CFuncDefNode will emit __pyx_f_ that just calls __pyx_pf_.
+            # Signal trampoline synthesis by passing None as the base_entry.
+            # NOTE: the inherited-base path (cpdef_trampoline_base) takes priority;
+            # if that fired above this branch won't be reached.
+            self.is_cpdef_trampoline_body = True
+            entry.used = True
+            if env.cpdef_method_trampolines is None:
+                env.cpdef_method_trampolines = []
+            env.cpdef_method_trampolines.append((self, None))
 
     def declare_lambda_function(self, env):
         entry = env.declare_lambda_function(self.lambda_name, self.pos)
@@ -5248,6 +5445,67 @@ class DefNodeWrapper(FuncDefNode):
         return self.signature.error_value
 
 
+def _analyse_declared_yield_type(def_node, env):
+    """Extract the declared item type from a generator's return annotation.
+
+    Handles:
+      -> Iterable[X]  / Iterator[X]  (from typing or collections.abc)
+      -> Generator[X, S, R]          (first tuple element is the yield type)
+
+    Returns the resolved Cython type for X, or None if not applicable.
+    """
+    annotation = def_node.return_type_annotation
+    if annotation is None:
+        return None
+
+    # AnnotationNode wraps the actual expression in .expr
+    expr = annotation.expr
+
+    # The expression must be a subscript (IndexNode): Base[Item]
+    if not getattr(expr, 'is_subscript', False):
+        return None
+
+    base = expr.base  # the Name/Attribute for Iterable/Iterator/Generator
+    index = expr.index  # the type argument(s)
+
+    # Resolve the base to a fully-qualified stdlib name.
+    from . import Builtin as _Builtin
+    from . import ExprNodes as _ExprNodes
+    qualified_name = None
+    if isinstance(base, _ExprNodes.NameNode):
+        entry = env.lookup(base.name)
+        if entry and getattr(entry, 'known_standard_library_import', None):
+            qualified_name = entry.known_standard_library_import
+    elif isinstance(base, _ExprNodes.AttributeNode):
+        qualified_name = _Builtin.exprnode_to_known_standard_library_name(base, env)
+
+    if qualified_name is None:
+        return None
+
+    _ITERABLE_NAMES = {
+        'typing.Iterable', 'typing.Iterator',
+        'typing.Generator',
+        'collections.abc.Iterable', 'collections.abc.Iterator',
+        'collections.abc.Generator',
+    }
+    if qualified_name not in _ITERABLE_NAMES:
+        return None
+
+    # For Generator[X, S, R], the index is a TupleNode — take the first element.
+    # For Iterable[X] / Iterator[X], the index IS the element type expression.
+    if qualified_name.endswith('.Generator'):
+        if isinstance(index, _ExprNodes.TupleNode) and index.args:
+            item_expr = index.args[0]
+        else:
+            # Malformed annotation — bail.
+            return None
+    else:
+        item_expr = index
+
+    item_type = item_expr.analyse_as_type(env)
+    return item_type  # may be None if unresolvable
+
+
 class GeneratorDefNode(DefNode):
     # Generator function node that creates a new generator instance when called.
     #
@@ -5270,6 +5528,24 @@ class GeneratorDefNode(DefNode):
         super().analyse_declarations(env)
         self.gbody.local_scope = self.local_scope
         self.gbody.analyse_declarations(env)
+        # C1/C2: Extract declared yield type from return annotation.
+        # Only for plain generators — not coroutines (async def) or async generators.
+        if (not getattr(self, 'is_coroutine', False)
+                and not getattr(self, 'is_asyncgen', False)
+                and env.directives.get('annotation_typing', True)):
+            declared_yield_type = _analyse_declared_yield_type(self, env)
+            if declared_yield_type is not None:
+                # Store on local_scope (for plain yield checks inside the body).
+                self.local_scope.declared_yield_type = declared_yield_type
+                # Store on the entry for yield-from cross-checking.
+                # Note: env.declare_pyfunction(allow_redefine=True) creates an anonymous
+                # entry that is returned as self.entry, while env.entries[name] holds a
+                # separate stub entry used for name lookups. Set declared_yield_type on
+                # both so yield-from checks (which go through env.lookup) find it.
+                self.entry.declared_yield_type = declared_yield_type
+                stub_entry = env.lookup_here(self.name)
+                if stub_entry is not None and stub_entry is not self.entry:
+                    stub_entry.declared_yield_type = declared_yield_type
 
     def generate_function_body(self, env, code):
         body_cname = self.gbody.entry.func_cname

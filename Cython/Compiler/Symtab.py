@@ -1399,6 +1399,10 @@ class ModuleScope(Scope):
     is_cython_builtin = 0
     old_style_globals = 0
     namespace_cname_is_type = False
+    # Generator def nodes that were promoted to module-level cpdef (is_ccall_generator).
+    # A C trampoline CFuncDefNode is synthesised for each by
+    # AnalyseDeclarationsTransform.visit_ModuleNode.  None means no promotions.
+    cpdef_method_trampolines = None
     scope_predefined_names = [
         '__builtins__', '__name__', '__file__', '__doc__', '__path__',
         '__spec__', '__loader__', '__package__', '__cached__',

@@ -1,0 +1,147 @@
+# mode: run
+# Tests cclass generator method trampolines and cross-module dispatch.
+# Module A defines a cclass with a generator method; module B cimports and uses it,
+# including a cross-module SUBCLASS (the case that detects vtabstruct layout
+# mismatches: fresh-slot generator entries must be declared in the consumer's
+# cimport-from-pyx declaration pass too, or the subclass embeds a SHORTER base
+# struct and dispatches through wrong slots at runtime).
+# check_codegen.py verifies the generated C has the expected __pyx_f_ and vtable
+# entries AND that the MyClass vtabstruct is byte-identical in both modules.
+
+PYTHON cythonize_a.py
+PYTHON check_codegen.py
+PYTHON build.py
+PYTHON run_test.py
+
+######## cythonize_a.py ########
+import sys, Cython.Compiler.Options
+Cython.Compiler.Options.cimport_from_pyx = True
+from Cython.Build.Cythonize import main
+sys.argv[0] = 'cythonize.py'
+main(['-f', '-X', 'auto_cpdef=True', '-X', 'language_level=3', 'a.pyx', 'b.pyx'])
+
+######## build.py ########
+from distutils.core import setup
+from Cython.Build import cythonize
+from setuptools import Extension
+import sys, os
+
+exts = [
+    Extension('a', ['a.pyx']),
+    Extension('b', ['b.pyx']),
+]
+setup(
+    ext_modules=cythonize(exts, language_level=3),
+    script_args=['build_ext', '--inplace'],
+)
+
+######## check_codegen.py ########
+import sys, re
+
+with open('a.c', 'r') as f:
+    a_c = f.read()
+with open('b.c', 'r') as f:
+    b_c = f.read()
+
+# The generator method 'items' must have a C trampoline __pyx_f_ function.
+assert '__pyx_f_1a_7MyClass_items' in a_c, (
+    "Expected __pyx_f_1a_7MyClass_items C trampoline in a.c\n"
+    "Got functions: %s" % [m.group(0) for m in re.finditer(r'__pyx_f_[a-zA-Z0-9_]+', a_c)][:10]
+)
+
+# The vtable must assign items slot.
+assert '__pyx_vtable_1a_MyClass.items' in a_c, (
+    "Expected vtable assignment for MyClass.items in a.c"
+)
+
+# REGRESSION CHECK: the MyClass vtabstruct must be IDENTICAL in defining and
+# consuming modules. Fresh-slot generator entries are declared during the
+# implementation pass AND the cimport-from-pyx declaration pass; if the latter
+# is skipped, b.c gets a shorter struct and cross-module subclasses dispatch
+# through wrong slots at runtime.
+def extract_vtabstruct(src, name):
+    m = re.search(r'struct %s \{.*?\n\};' % re.escape(name), src, re.S)
+    assert m, "vtabstruct %s not found" % name
+    return m.group(0)
+
+a_struct = extract_vtabstruct(a_c, '__pyx_vtabstruct_1a_MyClass')
+b_struct = extract_vtabstruct(b_c, '__pyx_vtabstruct_1a_MyClass')
+assert a_struct == b_struct, (
+    "MyClass vtabstruct differs between a.c and b.c!\n--- a.c:\n%s\n--- b.c:\n%s"
+    % (a_struct, b_struct)
+)
+assert 'items' in a_struct, "items slot missing from MyClass vtabstruct"
+
+print("OK: a.c has __pyx_f_ trampoline, vtable assignment, and matching vtabstructs")
+
+######## a.pyx ########
+# cython: auto_cpdef=True
+# cython: language_level=3
+
+cdef class MyClass:
+    """A cdef class with a generator method promoted to cpdef via auto_cpdef."""
+    cdef public int base_val
+
+    def __init__(self):
+        self.base_val = 7
+
+    def items(self):
+        yield 1
+        yield 2
+        yield 3
+
+    def call_items(self):
+        """Call self.items() via C vtable dispatch."""
+        return list(self.items())
+
+######## b.pyx ########
+# cython: auto_cpdef=True
+# cython: language_level=3
+
+cimport a as a_mod
+
+def use_a():
+    """Use MyClass from module a, iterating its generator method."""
+    obj = a_mod.MyClass()
+    return list(obj.items())
+
+def use_a_typed():
+    """Use MyClass with C-typed variable (vtable dispatch)."""
+    cdef a_mod.MyClass obj = a_mod.MyClass()
+    return obj.call_items()
+
+cdef class SubClass(a_mod.MyClass):
+    """Cross-module subclass: embeds MyClass's vtabstruct. If the consumer saw a
+    shorter base struct than the defining module, __init__/method slots would be
+    misaligned and base_val would never be set."""
+    cdef public int sub_val
+
+    def __init__(self):
+        super().__init__()
+        self.sub_val = 11
+
+    def more_items(self):
+        yield 4
+        yield from self.items()
+
+def use_subclass():
+    cdef SubClass obj = SubClass()
+    return (obj.base_val, obj.sub_val, list(obj.items()), list(obj.more_items()),
+            obj.call_items())
+
+######## run_test.py ########
+import sys
+sys.path.insert(0, '.')
+import b
+
+result = b.use_a()
+assert result == [1, 2, 3], "use_a() returned %r, expected [1, 2, 3]" % result
+
+result2 = b.use_a_typed()
+assert result2 == [1, 2, 3], "use_a_typed() returned %r, expected [1, 2, 3]" % result2
+
+result3 = b.use_subclass()
+assert result3 == (7, 11, [1, 2, 3], [4, 1, 2, 3], [1, 2, 3]), (
+    "use_subclass() returned %r" % (result3,))
+
+print("OK: cross-module generator method dispatch works correctly")

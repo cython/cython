@@ -2391,6 +2391,10 @@ if VALUE is not None:
         self.visitchildren(node)
         self.seen_vars_stack.pop()
         node.body.stats.extend(self.extra_module_declarations)
+        # Synthesise C trampoline CFuncDefNodes for module-level promoted generators.
+        if node.scope.cpdef_method_trampolines:
+            trampolines = self._create_cpdef_module_generator_trampolines(node)
+            node.body.stats.extend(trampolines)
         return node
 
     def visit_LambdaNode(self, node):
@@ -2425,9 +2429,17 @@ if VALUE is not None:
                     and not node.scope.lookup('__reduce__')
                     and not node.scope.lookup('__reduce_ex__')):
                 self._inject_pickle_methods(node)
+        elif node.scope and node.body and node.scope.cpdef_method_trampolines:
+            # Declaration-only pass (.pxd or cimport-from-pyx): fresh-slot generator
+            # trampolines add NEW vtable entries, so their cfunction entries must be
+            # declared here too — otherwise consumer modules build a SHORTER
+            # vtabstruct than the defining module and dispatch through wrong slots
+            # at runtime. Inherited-slot rows reuse existing entries (no layout
+            # change) and are skipped, matching previous behaviour.
+            self._create_cpdef_method_trampolines(node, fresh_only=True)
         return node
 
-    def _create_cpdef_method_trampolines(self, node):
+    def _create_cpdef_method_trampolines(self, node, fresh_only=False):
         # For each cclass method that overrides an inherited cpdef method but
         # could not itself be promoted to cpdef (a closure or generator), build a
         # C trampoline that fills the inherited vtable slot by forwarding to the
@@ -2436,8 +2448,56 @@ if VALUE is not None:
         # The Python body node stays in place and emits its normal __pyx_pf_/__pyx_pw_;
         # the trampoline only emits the __pyx_f_ slot function. See
         # docs/design-cpdef-method-family-promotion.md.
+        #
+        # Also handles fresh-slot trampolines (base_entry=None): a generator method in
+        # this class that gets a NEW vtable slot (Part B cclass, not an override).
+        has_fresh_entries = False
         trampolines = []
         for pydef, base_entry in node.scope.cpdef_method_trampolines:
+            if fresh_only and base_entry is not None:
+                # Declaration-only pass: inherited-slot trampolines do not change
+                # the vtabstruct layout, so they are only synthesised when the
+                # class is implemented.
+                continue
+            # When base_entry is None but the node is a cclass, it signals a fresh
+            # vtable slot for a generator method.  However, if a base class ALSO has
+            # a fresh-slot trampoline for the same name (just synthesised in an earlier
+            # visit_CClassDefNode call), this derived class should inherit that slot
+            # rather than allocate a new one — otherwise two separate slots for the
+            # same name would exist, breaking vtable-dispatch through a Base* pointer.
+            if base_entry is None and node.scope.is_c_class_scope:
+                base_cfunc_entry = self._find_base_cfunc_entry(node.scope, pydef.name)
+                if base_cfunc_entry is not None:
+                    # Switch to inherited-slot path.  The inherited-slot
+                    # _analyse_trampoline_declarations path expects the inherited cfunc
+                    # to be the primary scope entry, but since Derived.inherit_from(Base)
+                    # ran when Base.cfunc_entries was still empty, there is no inherited
+                    # copy in Derived's scope.  Synthesise one now using the Symtab Entry
+                    # constructor directly to avoid the 'redeclared' error from declare().
+                    scope = node.scope
+                    from . import Naming as _Naming
+                    from .Symtab import Entry
+                    inh_cname = "%s.%s" % (_Naming.obj_base_cname, base_cfunc_entry.cname)
+                    inh_entry = Entry(pydef.name, inh_cname, base_cfunc_entry.type,
+                                      pos=base_cfunc_entry.pos)
+                    inh_entry.scope = scope
+                    inh_entry.qualified_name = scope.qualify_name(pydef.name)
+                    inh_entry.visibility = 'private'
+                    inh_entry.is_cfunction = True
+                    inh_entry.is_cmethod = True
+                    inh_entry.is_c_class_method = True
+                    inh_entry.is_inherited = True
+                    # Add to cfunc_entries so the vtable uses the inherited slot cname.
+                    scope.cfunc_entries.append(inh_entry)
+                    # Link the existing pydef entry as as_variable.
+                    existing = scope.entries.get(pydef.name)
+                    if existing is not None and not existing.is_cfunction:
+                        inh_entry.as_variable = existing
+                    inh_entry.used = True
+                    scope.entries[pydef.name] = inh_entry
+                    base_entry = inh_entry
+            if base_entry is None:
+                has_fresh_entries = True
             trampoline = Nodes.CFuncDefNode(
                 pydef.pos,
                 base_type=None, declarator=None, body=None, doc=None,
@@ -2449,6 +2509,51 @@ if VALUE is not None:
             self.visit(trampoline)
             trampolines.append(trampoline)
         node.scope.cpdef_method_trampolines = None
+        # Fresh-slot trampolines (and synthesised inherited-slot entries) add new
+        # cfunc_entries AFTER allocate_vtable_names ran during
+        # CClassDefNode.analyse_declarations.  Re-run it so vtabslot_cname /
+        # vtabstruct_cname / vtabptr_cname are set (same fix as dataclass cpdef __init__).
+        # We always re-run for cclass scopes that had any trampolines; a no-vtable class
+        # that gained an inherited trampoline still needs a vtable struct to fill the slot.
+        if node.scope.is_c_class_scope:
+            node.scope.global_scope().allocate_vtable_names(node.entry)
+        return trampolines
+
+    def _find_base_cfunc_entry(self, scope, name):
+        """Search the base type hierarchy for a cfunc entry with the given name.
+        Returns the entry if found, None otherwise.
+        """
+        base_type = scope.parent_type.base_type
+        while base_type:
+            if base_type.scope:
+                entry = base_type.scope.lookup_here(name)
+                if entry and entry.is_cfunction and entry.type.is_overridable:
+                    return entry
+            base_type = base_type.base_type
+        return None
+
+    def _create_cpdef_module_generator_trampolines(self, module_node):
+        # For each module-level generator def that was promoted to cpdef/ccall
+        # (is_ccall_generator=True), synthesise a C trampoline CFuncDefNode that
+        # emits the __pyx_f_ function forwarding to the generator's __pyx_pf_.
+        # The Python-side GeneratorDefNode stays in place and emits __pyx_pf_ as
+        # usual; the trampoline only adds __pyx_f_ + module-dict assignment.
+        # All entries in the list have base_entry=None (fresh entry, not inherited).
+        scope = module_node.scope
+        trampolines = []
+        for pydef, base_entry in scope.cpdef_method_trampolines:
+            assert base_entry is None, "module-level generator trampolines must have base_entry=None"
+            trampoline = Nodes.CFuncDefNode(
+                pydef.pos,
+                base_type=None, declarator=None, body=None, doc=None,
+                modifiers=[], overridable=True, visibility='private',
+                is_cpdef_trampoline=True)
+            trampoline.trampoline_pydef = pydef
+            trampoline.trampoline_base_entry = None  # signal: fresh module-level entry
+            trampoline.analyse_declarations(scope)
+            self.visit(trampoline)
+            trampolines.append(trampoline)
+        scope.cpdef_method_trampolines = None
         return trampolines
 
     def _create_inheritance_trampolines(self, node):
@@ -3474,6 +3579,12 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         return node
 
     def visit_DefNode(self, node):
+        # GeneratorBodyDefNode is the internal implementation of a generator; directives
+        # from the outer generator def should not be applied to it (e.g., @ccall must
+        # not promote the body to a CFuncDefNode).
+        if node.is_generator_body:
+            self.visit_FuncDefNode(node)
+            return node
         modifiers = []
         if 'inline' in self.directives:
             modifiers.append('inline')
@@ -3528,6 +3639,57 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                       "only whitelisted operator/richcmp dunders may be declared ccall"
                       % node.name)
                 is_ccall = False  # fall through to plain def
+        # --- Generator routing (must come before as_cfunction path) ---
+        # A generator def cannot go through as_cfunction (that would produce an empty
+        # body).  Instead we keep the GeneratorDefNode as-is and synthesise a thin C
+        # trampoline in declare_pyfunction / visit_ModuleNode that forwards to __pyx_pf_.
+        # Async defs are never supported; cclass generator methods are TODO (skip here).
+        #
+        # Note: is_ccall_promoted was computed via is_cdef_func_compatible() which
+        # rejects generators (returns False).  So for auto_cpdef generators, we need
+        # a separate promotion check here using is_cpdef_generator_compatible().
+        is_generator_promoted = False
+        # Detect async generators (AsyncGenNode: is_generator=True but is_asyncgen=True).
+        # Plain async def (no yield) is not a generator and won't reach here.
+        _is_async = node.is_async_def or getattr(node, 'is_asyncgen', False) or getattr(node, 'is_coroutine', False)
+
+        if node.is_generator and not is_ccall:
+            # Auto_cpdef generator promotion.
+            # Dunders (including __init__) are excluded for generators: a generator
+            # __init__ makes no sense, and __iter__/__next__ have fixed slots.
+            _is_dunder = node.name.startswith('__') and node.name.endswith('__')
+            _is_cclass = isinstance(self.env, Nodes.CClassDefNode)
+            if (not _is_async and auto_cpdef and not no_ccall and not is_cfunc
+                    and not self.in_py_class
+                    and not _is_dunder
+                    and (not _is_cclass or not is_ccall_promoted)  # cclass: skip if already promoted
+                    and node.name not in self.imported_names):
+                is_generator_promoted = node.is_cpdef_generator_compatible()
+
+        if is_ccall and node.is_generator:
+            if _is_async:
+                error(node.pos, "@ccall is not supported for async functions")
+                is_ccall = False  # fall through to plain def
+            elif isinstance(self.env, Nodes.CClassDefNode):
+                # cclass generator method with explicit @ccall: synthesise fresh vtable slot.
+                # Dunders are excluded (includes __iter__/__next__ which have fixed slots).
+                _is_dunder = node.name.startswith('__') and node.name.endswith('__')
+                if not _is_dunder and node.is_cpdef_generator_compatible():
+                    node.is_ccall_generator = True
+                is_ccall = False  # keep as GeneratorDefNode; trampoline synthesis handles the rest
+            elif node.is_cpdef_generator_compatible():
+                # Module-level @ccall generator: mark for trampoline synthesis and fall
+                # through to the normal visit_FuncDefNode path (keeps the GeneratorDefNode).
+                node.is_ccall_generator = True
+                is_ccall = False
+                # (fall through to visit_FuncDefNode below)
+            else:
+                # Incompatible generator (star args, etc.) — error was already issued
+                # by is_cpdef_generator_compatible path or we silently skip.
+                is_ccall = False
+
+        if is_generator_promoted:
+            node.is_ccall_generator = True
         if is_ccall or is_ccall_promoted:
             if is_ccall and is_cfunc:
                 error(node.pos, "cfunc and ccall directives cannot be combined")
@@ -3884,7 +4046,13 @@ class MarkClosureVisitor(CythonTransform):
         node.needs_closure = self.needs_closure
         self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         if node.needs_closure and node.overridable:
-            error(node.pos, "closures inside cpdef functions not yet supported")
+            # Check for yield/await — generators cannot be cpdef (Part B, later).
+            collector = YieldNodeCollector(self.excludes)
+            collector.visitchildren(node)
+            if collector.has_yield or collector.has_await:
+                error(node.pos,
+                      "cpdef generators are not supported with 'cpdef' syntax; "
+                      "use a 'def' function with @cython.ccall (or auto_cpdef)")
         return node
 
     def visit_LambdaNode(self, node):
@@ -4056,9 +4224,22 @@ class CreateClosureClasses(CythonTransform):
     def visit_CFuncDefNode(self, node):
         if not node.overridable:
             return self.visit_FuncDefNode(node)
+        # Overridable (cpdef) node: same as visit_FuncDefNode but exclude
+        # py_func_stat from the "path active" traversal, then visit it
+        # separately with a clean path so its inner scope is not treated as
+        # nested inside the cpdef's closure.
+        if node.needs_closure or self.path:
+            self.create_class_from_scope(node, self.module_scope)
+            self.path.append(node)
+            self.visitchildren(node, exclude=('py_func_stat',))
+            self.path.pop()
+            if node.py_func_stat is not None:
+                saved_path, self.path = self.path, []
+                self.visitchildren(node, attrs=('py_func_stat',))
+                self.path = saved_path
         else:
             self.visitchildren(node)
-            return node
+        return node
 
     def visit_GeneratorExpressionNode(self, node):
         node = _HandleGeneratorArguments()(node)

@@ -11238,6 +11238,59 @@ class GeneratorExpressionNode(LambdaNode):
         self.generate_gotref(code)
 
 
+def _yield_type_definitely_incompatible(declared, actual):
+    """Return True ONLY when there is a definite type mismatch between
+    the declared yield type and the actual yielded value type.
+    Conservative: returns False (no error) whenever in doubt.
+    """
+    if declared is None or actual is None:
+        return False
+    if declared is error_type or actual is error_type:
+        return False
+    if declared is py_object_type or actual is py_object_type:
+        return False
+    if getattr(declared, 'is_fused', False) or getattr(actual, 'is_fused', False):
+        return False
+    if declared is unspecified_type or actual is unspecified_type:
+        return False
+
+    # Normalise C numeric types to Python builtins on both sides.
+    def _normalise(t):
+        if t is Builtin.bool_type:
+            return Builtin.bool_type
+        if getattr(t, 'is_complex', False):
+            return Builtin.complex_type
+        if getattr(t, 'is_float', False):
+            return Builtin.float_type
+        if getattr(t, 'is_int', False) and not getattr(t, 'is_enum', False):
+            return Builtin.int_type
+        return t
+
+    norm_declared = _normalise(declared)
+    norm_actual = _normalise(actual)
+
+    # After normalisation, if actual is still a non-pyobject (struct, pointer,
+    # ctuple, memoryview, etc.), skip the check in v1 — too complex.
+    if not getattr(norm_actual, 'is_pyobject', False):
+        return False
+    if not getattr(norm_declared, 'is_pyobject', False):
+        return False
+
+    # Special case: yielding int where float declared is allowed (numeric widening).
+    if norm_declared is Builtin.float_type and norm_actual is Builtin.int_type:
+        return False
+    # bool is a subtype of int — yielding bool where int declared is OK.
+    if norm_declared is Builtin.int_type and norm_actual is Builtin.bool_type:
+        return False
+
+    # Both are pyobject types; check bi-directional assignability.
+    if (norm_declared.assignable_from(norm_actual)
+            or norm_actual.assignable_from(norm_declared)):
+        return False
+    # Definite mismatch.
+    return True
+
+
 class YieldExprNode(ExprNode):
     # Yield expression node
     #
@@ -11259,6 +11312,12 @@ class YieldExprNode(ExprNode):
         self.is_temp = 1
         if self.arg is not None:
             self.arg = self.arg.analyse_types(env)
+            # C3: Check plain yield against declared yield type BEFORE coercion.
+            declared = getattr(env, 'declared_yield_type', None)
+            if declared is not None and _yield_type_definitely_incompatible(declared, self.arg.type):
+                error(self.arg.pos,
+                      "Generator declared as yielding '%s' cannot yield a value of type '%s'"
+                      % (str(declared), str(self.arg.type)))
             if not self.arg.type.is_pyobject:
                 self.coerce_yield_argument(env)
         return self
@@ -11406,6 +11465,55 @@ class YieldFromExprNode(_YieldDelegationExprNode):
     # "yield from GEN" expression
     is_yield_from = True
     expr_keyword = 'yield from'
+
+    def analyse_types(self, env):
+        # Call base (YieldExprNode.analyse_types) first — but YieldExprNode now checks
+        # declared_yield_type on plain yields; we override to do the yield-from check
+        # *instead* (different semantics: we check the SOURCE's item type, not self.arg's type).
+        # We must still do the label / is_temp setup, so call super() but suppress its
+        # yield-type check by temporarily clearing the env attribute.
+        declared = getattr(env, 'declared_yield_type', None)
+        if declared is not None:
+            env.declared_yield_type = None  # suppress YieldExprNode's plain-yield check
+        result = super().analyse_types(env)
+        if declared is not None:
+            env.declared_yield_type = declared  # restore
+
+        # C5: Check the delegated source's item type against declared.
+        if declared is not None and self.arg is not None:
+            source_yield_type = None
+
+            # --- Generator chaining: arg is a call to an annotated generator function ---
+            func_node = None
+            if isinstance(self.arg, SimpleCallNode):
+                func_node = self.arg.function
+            elif isinstance(self.arg, GeneralCallNode):
+                func_node = self.arg.function
+            if func_node is not None:
+                func_entry = getattr(func_node, 'entry', None)
+                if func_entry is not None:
+                    # Follow as_variable in both directions to find declared_yield_type.
+                    source_yield_type = getattr(func_entry, 'declared_yield_type', None)
+                    if source_yield_type is None:
+                        alt_entry = getattr(func_entry, 'as_variable', None)
+                        if alt_entry is not None:
+                            source_yield_type = getattr(alt_entry, 'declared_yield_type', None)
+
+            # --- Statically-known item sources (whitelist) ---
+            if source_yield_type is None:
+                arg_type = self.arg.type
+                if arg_type is bytes_type or arg_type is bytearray_type:
+                    source_yield_type = Builtin.int_type
+                elif arg_type is unicode_type:
+                    source_yield_type = unicode_type
+
+            if source_yield_type is not None:
+                if _yield_type_definitely_incompatible(declared, source_yield_type):
+                    error(self.arg.pos,
+                          "Generator declared as yielding '%s' cannot delegate to a generator "
+                          "yielding '%s'"
+                          % (str(declared), str(source_yield_type)))
+        return result
 
     def coerce_yield_argument(self, env):
         if not self.arg.type.is_string:
