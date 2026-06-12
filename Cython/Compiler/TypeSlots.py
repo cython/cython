@@ -91,7 +91,7 @@ class Signature:
     }
 
     # Describes whether to use fastcall, and what macro
-    # to use the guard the use of fastcall. 
+    # to use the guard the use of fastcall.
     class FastcallUsed(enum.IntEnum):
         NO = 0
         YES = 1  # guarded by CYTHON_FASTCALL
