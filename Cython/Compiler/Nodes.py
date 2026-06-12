@@ -12,6 +12,7 @@ cython.declare(os=object, copy=object, chain=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
                error_type=object)
 
+from contextlib import contextmanager
 import copy
 from itertools import chain
 import enum
@@ -343,13 +344,23 @@ class Node:
         return f'"{source_desc.get_escaped_description()}":{line:d}:{col:d}\n{code}\n'
 
 
-class CompilerDirectivesNode(Node):
+class CompilerDirectivesMixin:
+    #  directives     {string:value}  A dictionary holding the right value for
+    #                                 *all* possible directives.
+    @contextmanager
+    def apply_directives(self, obj):
+        # obj is usually a scope, but doesn't have to be.
+        old = obj.directives
+        obj.directives = self.directives
+        yield
+        obj.directives = old
+
+class CompilerDirectivesNode(CompilerDirectivesMixin, Node):
     """
     Sets compiler directives for the children nodes
     """
-    #  directives     {string:value}  A dictionary holding the right value for
-    #                                 *all* possible directives.
     #  body           Node
+    #  directives     from CompilerDirectivesMixin
     child_attrs = ["body"]
 
     @classmethod
@@ -363,37 +374,25 @@ class CompilerDirectivesNode(Node):
         return cls(body.pos, body=body, directives=new_directives, is_terminator=body.is_terminator)
 
     def analyse_declarations(self, env):
-        old = env.directives
-        env.directives = self.directives
-        self.body.analyse_declarations(env)
-        env.directives = old
+        with self.apply_directives(env):
+            self.body.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        old = env.directives
-        env.directives = self.directives
-        self.body = self.body.analyse_expressions(env)
-        env.directives = old
+        with self.apply_directives(env):
+            self.body = self.body.analyse_expressions(env)
         return self
 
     def generate_function_definitions(self, env, code):
-        env_old = env.directives
-        code_old = code.globalstate.directives
-        code.globalstate.directives = self.directives
-        self.body.generate_function_definitions(env, code)
-        env.directives = env_old
-        code.globalstate.directives = code_old
+        with self.apply_directives(env), self.apply_directives(code.globalstate):
+            self.body.generate_function_definitions(env, code)
 
     def generate_execution_code(self, code):
-        old = code.globalstate.directives
-        code.globalstate.directives = self.directives
-        self.body.generate_execution_code(code)
-        code.globalstate.directives = old
+        with self.apply_directives(code.globalstate):
+            self.body.generate_execution_code(code)
 
     def annotate(self, code):
-        old = code.globalstate.directives
-        code.globalstate.directives = self.directives
-        self.body.annotate(code)
-        code.globalstate.directives = old
+        with self.apply_directives(code.globalstate):
+            self.body.annotate(code)
 
 
 class BlockNode:
