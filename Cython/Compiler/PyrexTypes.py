@@ -3537,7 +3537,7 @@ class CFuncType(CType):
             cc = ''
         else:
             cc = self.calling_convention_prefix()
-            if (not entity_code and cc) or entity_code.startswith("*"):
+            if (not entity_code and cc) or (entity_code and entity_code.startswith("*")):
                 entity_code = "(%s%s)" % (cc, entity_code)
                 cc = ""
         if self.is_const_method:
