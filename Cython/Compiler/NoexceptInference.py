@@ -469,6 +469,14 @@ class _BodyRaiseAnalysis(TreeVisitor):
             return False
         return self._children_safe(node, ['base', 'index'])
 
+    def visit_TupleNode(self, node):
+        # A C-tuple result is a plain struct build (no allocation) — safe iff
+        # every component is safe.  A Python-tuple result allocates (PyTuple_New
+        # can raise MemoryError and gets a NULL check), so it stays unsafe.
+        if not node.type.is_ctuple:
+            return False
+        return self._children_safe(node, ['args'])
+
     # Coercion nodes that are safe:
     def visit_CoerceToTempNode(self, node):
         return self._node_safe(node.arg)
@@ -880,6 +888,14 @@ class InferNoexcept(CythonTransform):
                 _mark_cfunc_type(func_type)
                 if entry.type is not func_type:
                     _mark_cfunc_type(entry.type)
+                # Propagate the mark to the cpdef Python wrapper node so its own
+                # generated code (e.g. the __hash__ -1->-2 coercion) drops the
+                # now-dead PyErr_Occurred() guard.  The wrapper's type is the
+                # shared py_object_type, so we cannot mutate it — flag the nodes.
+                funcdef.inferred_noexcept = True
+                py_func = getattr(funcdef, 'py_func', None)
+                if py_func is not None:
+                    py_func.inferred_noexcept = True
                 if fact_key is not None:
                     self.collected_facts[fact_key] = 'entry'
             else:

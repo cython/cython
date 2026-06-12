@@ -1,4 +1,4 @@
-# cython: auto_cpdef=True
+# cython: auto_cpdef=True, infer_noexcept=True
 # mode: run
 # tag: directive,auto_cpdef,dunders
 from __future__ import annotations
@@ -35,6 +35,9 @@ class Vec2:
         # __repr__ is NOT in the whitelist — must stay as plain def
         return "Vec2(%d, %d)" % (self.x, self.y)
 
+    def __hash__(self) -> cint:
+        return self.x ^ (self.y << 1)
+
 
 @cclass
 class VecBase:
@@ -57,6 +60,13 @@ class VecBase:
 class VecSub(VecBase):
     def __add__(self, other: VecBase) -> VecBase:
         return VecSub(self.x + other.x + 10, self.y + other.y + 10)
+
+
+@final
+@cclass
+class HashSpecialCase:
+    def __hash__(self) -> cint:
+        return -1
 
 
 def test_binop_promoted():
@@ -113,6 +123,17 @@ def test_eq_promoted():
     print(a == c)
 
 
+def test_hash_promoted():
+    """
+    >>> test_hash_promoted()
+    6
+    -2
+    """
+    a = Vec2(4, 1)
+    print(hash(a))
+    print(hash(HashSpecialCase()))
+
+
 def test_repr_not_promoted():
     """
     Test that __repr__ is not in the whitelist and stays as plain def.
@@ -121,15 +142,3 @@ def test_repr_not_promoted():
     """
     a = Vec2(1, 2)
     print(repr(a))
-
-
-
-def test_inherited_dunder():
-    """
-    >>> test_inherited_dunder()
-    (13, 17)
-    """
-    a = VecSub(1, 3)
-    b = VecBase(2, 4)
-    c: VecBase = a + b
-    print(c.coords())

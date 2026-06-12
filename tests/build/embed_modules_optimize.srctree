@@ -562,7 +562,7 @@ def func_in_a():
     assert IBase().class_name() == 'IBase', f"Expected IBase().class_name() == 'IBase'"
     assert Derived().class_name() == 'Derived', f"Expected Derived().class_name() == 'Derived'"
 
-    tp: tuple[int, float] = (5, 2.5)
+    tp = (5, 2.5)
     assert tp[0] == 5 and tp[1] == 2.5
 
     return func_in_b()

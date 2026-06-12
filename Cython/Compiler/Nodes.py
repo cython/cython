@@ -2585,8 +2585,15 @@ class FuncDefNode(StatNode, BlockNode):
             # Returning -1 for __hash__ is supposed to signal an error
             # We do as Python instances and coerce -1 into -2.
             assure_gil('success')  # in special methods, the GIL is owned anyway
-            code.putln("if (unlikely(%s == -1) && !PyErr_Occurred()) %s = -2;" % (
-                Naming.retval_cname, Naming.retval_cname))
+            if getattr(getattr(self, 'type', None), 'never_raises', False) or getattr(self, 'inferred_noexcept', False):
+                # A noexcept __hash__ can never have set an exception here, so the
+                # PyErr_Occurred() guard is dead; the -1 -> -2 coercion is still
+                # required by the hash protocol (and by the optimized direct call).
+                code.putln("if (unlikely(%s == -1)) %s = -2;" % (
+                    Naming.retval_cname, Naming.retval_cname))
+            else:
+                code.putln("if (unlikely(%s == -1) && !PyErr_Occurred()) %s = -2;" % (
+                    Naming.retval_cname, Naming.retval_cname))
 
         if tracing:
             code.funcstate.can_trace = False
