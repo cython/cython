@@ -33,7 +33,7 @@ if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled():
 
 
 try:
-    from distutils import sysconfig
+    import sysconfig
     DISTUTILS_CFLAGS = sysconfig.get_config_var('CFLAGS')
 except ImportError:
     DISTUTILS_CFLAGS = ''
