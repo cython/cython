@@ -31,12 +31,10 @@ jobs:
       pull-requests: read
     outputs:
       ci-changes: |-
-        ${{
-          steps.positive-github == 'true' || steps.positive-docs == 'true' || 
+        ${{ steps.positive-github == 'true' || steps.positive-docs == 'true' || 
             (steps.filter.outputs.any-files == 'true' &&
               (steps.filter.outputs.negative-files_count + steps.filter.outputs.negative-docs_count) <
-                steps.filter.outputs.any-files_count)
-        }}
+                steps.filter.outputs.any-files_count) }}
     steps:
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
