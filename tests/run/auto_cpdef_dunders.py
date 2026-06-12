@@ -70,6 +70,15 @@ def test_binop_promoted():
     print(c.coords())
 
 
+def test_binop_promoted_expr():
+    """
+    >>> test_binop_promoted_expr()
+    (3, 7)
+    """
+    a = Vec2(1, 3) + Vec2(2, 4)
+    print(a.coords())
+
+
 def test_unop_promoted():
     """
     >>> test_unop_promoted()

@@ -108,6 +108,12 @@ elif mode == 'auto_cpdef':
     # vtable dispatch (not Python GetAttrStr), so type inference makes inherited_val a C int.
     assert "int __pyx_v_inherited_val;" in a_c_content, (
         "Expected inherited_val inferred as C int from inherited cproperty (vtable dispatch)")
+    # len(t) on a non-final cclass with __len__ must dispatch through the cpdef
+    # vtable slot, not the generic PyObject_Length C-API call.
+    assert "->__pyx___len__(__pyx_v_t, 0)" in a_c_content, (
+        "Expected vtable dispatch for len(t) via promoted cpdef __len__")
+    assert "PyObject_Length(((PyObject *)__pyx_v_t))" not in a_c_content, (
+        "Expected no PyObject_Length C-API call for len(t)")
     print("OK: auto_cpdef mode")
 
 elif mode == 'lto':
@@ -150,6 +156,12 @@ elif mode == 'lto':
         "Expected temp inferred as C int from cproperty getter return type")
     assert "int __pyx_v_inherited_val;" in a_c_content, (
         "Expected inherited_val inferred as C int from inherited cproperty (vtable dispatch)")
+    # len(t): non-final A, so vtable dispatch even under LTO (direct-call path is
+    # only for super()/ctor non-inherited targets, not a plain cpdef __len__ call).
+    assert "->__pyx___len__(__pyx_v_t, 0)" in a_c_content, (
+        "Expected vtable dispatch for len(t) via promoted cpdef __len__")
+    assert "PyObject_Length(((PyObject *)__pyx_v_t))" not in a_c_content, (
+        "Expected no PyObject_Length C-API call for len(t)")
     print("OK: LTO mode")
 
 elif mode == 'lto_no_python_subclassing':
@@ -182,6 +194,11 @@ elif mode == 'lto_no_python_subclassing':
         "Expected temp inferred as C int from cproperty getter return type")
     assert "int __pyx_v_inherited_val;" in a_c_content, (
         "Expected inherited_val inferred as C int from inherited cproperty (vtable dispatch)")
+    # len(t): vtable dispatch via promoted cpdef __len__ (no Python C-API call).
+    assert "->__pyx___len__(__pyx_v_t, 0)" in a_c_content, (
+        "Expected vtable dispatch for len(t) via promoted cpdef __len__")
+    assert "PyObject_Length(((PyObject *)__pyx_v_t))" not in a_c_content, (
+        "Expected no PyObject_Length C-API call for len(t)")
     print("OK: LTO + python_subclassing=False mode")
 
 else:
@@ -349,6 +366,7 @@ assert t.prop_bool is True
 assert t.prop_closure == 14
 # vtable dispatch: tt is A() typed as B, should correctly resolve to A's override
 assert tt.prop == 3
+assert len(t) == 42
 
 assert u.prop == 2
 
@@ -429,6 +447,7 @@ def func_in_a():
     assert t.prop_closure == 14
     # vtable dispatch through B* reference to A() instance
     assert tt.prop == 3
+    assert len(t) == 42
 
     temp = t.prop + t.prop
     temp3 = (temp // 2, temp)
@@ -628,6 +647,9 @@ class A(B):
     def prop_closure(self, val: int) -> None:
         pass  # no-op for testing
 
+    def __len__(self) -> int:
+        return 42
+
 @cclass
 class A2(B):
 
@@ -675,10 +697,6 @@ class ADerivedFromB(B):
 class DerivedWithCtorOverrideClosure(DerivedWithCtor):
     def __init__(self, n: int, z: float, k: str) -> None:
         super().__init__(n, z)
-        # this closure makes this constructor not cpdef-convertible
-        # however because this is a constructor, it is not an error
-        # Because the constructor are always called directly and never
-        # via vtable dispatch thus it should not be treated as an override
         self._prop = (lambda: n + 2 + len(k))()
 
 ################# b.pyx ####################

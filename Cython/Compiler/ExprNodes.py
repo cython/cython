@@ -12762,6 +12762,18 @@ def _safe_infer_type(node, env):
     entry = getattr(node, 'entry', None)
     if entry is not None:
         return entry.type
+    # Constructor-call expressions (e.g. Vec2(1, 3)) have no resolved .type yet
+    # during binop analyse_types, but their result type is statically known:
+    # calling an extension type's name constructs an instance of that type.
+    if isinstance(node, CallNode):
+        function = node.function
+        if function is not None and getattr(function, 'is_name', False):
+            func_entry = getattr(function, 'entry', None)
+            if func_entry is None and getattr(function, 'name', None):
+                func_entry = env.lookup(function.name)
+            if func_entry is not None and func_entry.type is not None \
+                    and func_entry.type.is_extension_type:
+                return func_entry.type
     return py_object_type
 
 
@@ -12779,8 +12791,16 @@ def _lookup_cpdef_dunder(type1, dunder_name, operand2_type=None):
     operand2_type is checked for assignment compatibility with the second arg
     of the entry's CFuncType (binop only).
     """
-    if not (type1.is_extension_type and getattr(type1, 'is_final_type', False)):
+    if not type1.is_extension_type:
         return None
+    # Self-only dunders (zeroarg + unary: len/str/repr/hash/neg/pos/invert/abs)
+    # have no reflected-operand hazard, so a non-final type can still be
+    # dispatched correctly through its cpdef vtable slot.  Binops/richcmp keep
+    # the final-only restriction (a subclass of the right operand may need
+    # priority via the reflected method).
+    if not getattr(type1, 'is_final_type', False):
+        if dunder_name not in TypeSlots.CPDEF_SELF_ONLY_DUNDERS:
+            return None
     scope = getattr(type1, 'scope', None)
     if scope is None:
         return None
@@ -13115,6 +13135,12 @@ class NumBinopNode(BinopNode):
         return partner_type if lo <= v <= hi else None
 
     def infer_type(self, env):
+        # A cpdef dunder (e.g. Vec2.__add__ returning Vec2) takes priority: the
+        # binop will be rewritten to a direct C call in analyse_types, so its
+        # inferred type must match the dunder's return type.
+        entry, dunder = self._cpdef_dunder_entry(env)
+        if entry is not None:
+            return entry.type.return_type
         type1 = self.operand1.infer_type(env)
         type2 = self.operand2.infer_type(env)
         # Narrow ambiguous c_long literals to match a narrower typed partner.

@@ -1,0 +1,79 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner; runner.main()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+import Cython.Compiler.Options
+Cython.Compiler.Options.cimport_from_pyx = True
+
+from distutils.core import setup
+
+# python_subclassing=False matches the real-world config that surfaced this bug.
+setup(ext_modules=cythonize(
+    "*.pyx",
+    compiler_directives={'auto_cpdef': True, 'python_subclassing': False}))
+
+######## igroup.pyx ########
+# cython: auto_cpdef=True, python_subclassing=False
+from __future__ import annotations
+
+# NOTE: `int` here is the *Python builtin* (no `from cython import int`), so the
+# `-> int` annotation on the promoted cpdef __len__ resolves to a Python object
+# (PyObject*).  The lenfunc slot return type must still be normalised to
+# Py_ssize_t so the vtable slot signature matches subclasses compiled in other
+# modules that resolve `int` to the C int type.
+from cython import cclass
+
+
+@cclass
+class IGroup:
+    def __len__(self) -> int:
+        raise NotImplementedError()
+
+
+@cclass
+class IObservableGroup(IGroup):
+    # intermediate class that does NOT override __len__
+    def tag(self) -> object:
+        return "obs"
+
+######## group.pyx ########
+# cython: auto_cpdef=True, python_subclassing=False
+from __future__ import annotations
+
+# Here `int` is the Cython C int type.  Before the slot-return normalisation
+# this produced "Signature not compatible with previous declaration" against
+# the cross-module inherited IGroup.__len__ (which returned PyObject*).
+from cython import cclass, final, int
+
+from igroup import IObservableGroup
+from igroup cimport IObservableGroup
+
+
+@final
+@cclass
+class Group(IObservableGroup):
+    _n: int
+
+    def __init__(self, n: int) -> None:
+        self._n = n
+
+    def __len__(self) -> int:
+        return self._n
+
+
+def group_len(g: Group) -> int:
+    # optimised to a direct/vtable cpdef __len__ call (no PyObject_Length)
+    return len(g)
+
+######## runner.py ########
+
+def main():
+    import group
+    g = group.Group(7)
+    assert len(g) == 7, len(g)
+    assert group.group_len(g) == 7, group.group_len(g)
+    # len() through the Python protocol still works on the base-typed handle.
+    assert isinstance(g, group.Group)
+    print("OK")

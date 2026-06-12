@@ -3375,6 +3375,20 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         arg = pos_args[0]
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             arg = arg.arg
+        # len(x) -> direct/vtable cpdef __len__ call when x is an extension
+        # type with a promoted __len__ slot (final: direct; non-final: vtable).
+        entry = ExprNodes._lookup_cpdef_dunder(getattr(arg, 'type', None), '__len__')
+        if entry is not None:
+            call = ExprNodes.SimpleCallNode(
+                node.pos,
+                function=ExprNodes.AttributeNode(
+                    node.pos, obj=arg,
+                    attribute=EncodedString('__len__')),
+                args=[])
+            new_node = call.analyse_types(self.current_env())
+            if node.type not in (PyrexTypes.c_size_t_type, PyrexTypes.c_py_ssize_t_type):
+                new_node = new_node.coerce_to(node.type, self.current_env())
+            return new_node
         if arg.type.is_string:
             new_node = ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_ssize_strlen", self.Pyx_ssize_strlen_func_type,

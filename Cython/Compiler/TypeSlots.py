@@ -27,8 +27,14 @@ CPDEF_PROMOTABLE_UNOP_METHODS = frozenset([
 ])
 # Zero-operand slot methods (self only, no operand).
 CPDEF_PROMOTABLE_ZEROARG_METHODS = frozenset([
-    '__repr__', '__str__', '__hash__',
+    '__repr__', '__str__', '__hash__', '__len__',
 ])
+# Dunders that take only `self` (no second operand), so there is no
+# reflected-operand hazard: they can be dispatched as a direct/vtable C call
+# even on a NON-final extension type (the cpdef vtable slot is always correct).
+CPDEF_SELF_ONLY_DUNDERS = (
+    CPDEF_PROMOTABLE_ZEROARG_METHODS | CPDEF_PROMOTABLE_UNOP_METHODS
+)
 # Full set: binop + unop + richcmp + zeroarg.
 CPDEF_PROMOTABLE_SPECIAL_METHODS = (
     CPDEF_PROMOTABLE_BINOP_METHODS | CPDEF_PROMOTABLE_UNOP_METHODS

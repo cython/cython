@@ -15,7 +15,8 @@ from . import PyrexTypes
 from .PyrexTypes import py_object_type, unspecified_type
 from .TypeSlots import (
     pyfunction_signature, pymethod_signature, richcmp_special_methods,
-    get_slot_table, get_property_accessor_signature)
+    get_slot_table, get_property_accessor_signature,
+    CPDEF_PROMOTABLE_SPECIAL_METHODS)
 from . import DebugFlags
 
 from . import Code
@@ -2694,6 +2695,25 @@ class CClassScope(ClassScope):
             elif not self.parent_type.assignable_from(args[0].type):
                 error(pos, "Self argument (%s) of C method '%s' does not match parent type (%s)" %
                       (args[0].type, name, self.parent_type))
+        # Promoted slot dunders with a fixed (non-object) C slot return type —
+        # e.g. __len__ (lenfunc -> Py_ssize_t), __hash__ (hashfunc -> Py_hash_t) —
+        # must carry that canonical slot return type rather than whatever `int`
+        # resolved to in the defining module.  A base module that imports `int`
+        # as the Python builtin (return PyObject*) and a subclass that imports
+        # `cython.int` (return C int) would otherwise produce incompatible vtable
+        # slot signatures and break cross-module inheritance ("Signature not
+        # compatible with previous declaration").  Normalise in place — this runs
+        # during analyse_declarations, before the body is analysed, so the body
+        # is type-checked against the canonical return type.
+        if overridable and name in CPDEF_PROMOTABLE_SPECIAL_METHODS:
+            special_sig = get_slot_table(self.directives).get_special_method_signature(name)
+            if special_sig is not None:
+                slot_ret = special_sig.return_type()
+                if (slot_ret is not None and not slot_ret.is_pyobject
+                        and not getattr(slot_ret, 'is_returncode', False)
+                        and type.return_type is not slot_ret
+                        and (type.return_type.is_pyobject or type.return_type.is_int)):
+                    type.return_type = slot_ret
         entry = self.lookup_here(name)
         if cname is None:
             cname = punycodify_name(c_safe_identifier(name), Naming.unicode_vtabentry_prefix)
