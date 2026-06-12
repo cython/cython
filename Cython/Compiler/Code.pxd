@@ -72,11 +72,11 @@ cdef class FunctionState:
 
     cpdef new_label(self, name=*)
     cpdef tuple get_loop_labels(self)
-    cpdef set_loop_labels(self, labels)
+    cpdef set_loop_labels(self, labels: tuple)
     cpdef tuple get_all_labels(self)
-    cpdef set_all_labels(self, labels)
+    cpdef set_all_labels(self, labels: tuple)
     cpdef start_collecting_temps(self)
-    cpdef stop_collecting_temps(self)
+    cpdef set stop_collecting_temps(self)
 
     cpdef list[tuple] temps_in_use(self)
 
@@ -92,7 +92,7 @@ cdef class StringConst:
     cdef readonly object cname
     cdef readonly object text
     cdef readonly object escaped_value
-    cdef readonly dict py_strings
+    cdef readonly dict[tuple, PyStringConst] py_strings
     cdef public bint c_used
 
     cpdef get_py_string_const(self, encoding, identifier=*)
