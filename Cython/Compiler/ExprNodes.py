@@ -14855,9 +14855,24 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                     # polymorphism correctly.  The None literal is allowed through:
                     # the call coerces it and raises the usual not-None TypeError.
                     arg2_type = entry.type.args[1].type if len(entry.type.args) >= 2 else None
-                    if (arg2_type is not None and arg2_type.is_extension_type
-                            and (arg2_type.assignable_from(type2)
-                                 or getattr(self.operand2, 'is_none', False))):
+                    # Case A: dunder has a typed extension-type second parameter and
+                    # operand2 is statically compatible (or the None literal).
+                    typed_arg2_ok = (
+                        arg2_type is not None and arg2_type.is_extension_type
+                        and (arg2_type.assignable_from(type2)
+                             or getattr(self.operand2, 'is_none', False)))
+                    # Case B: dunder has an *untyped* (PyObject) second parameter --
+                    # e.g. a @dataclass-generated __eq__/__lt__ -- but operand2 is
+                    # statically the same extension type as operand1.  type1 is final
+                    # (guaranteed by _lookup_cpdef_dunder for richcmp), so both
+                    # operands are exactly type1; the comparison is well-defined and
+                    # the dunder's `other.__class__ is not self.__class__` ->
+                    # NotImplemented fallback is unreachable, so a direct call is safe.
+                    untyped_same_type_ok = (
+                        arg2_type is py_object_type
+                        and type2.is_extension_type
+                        and type1.assignable_from(type2))
+                    if typed_arg2_ok or untyped_same_type_ok:
                         call = SimpleCallNode(
                             self.pos,
                             function=AttributeNode(
