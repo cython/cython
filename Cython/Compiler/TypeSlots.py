@@ -25,7 +25,7 @@ class Signature:
     #  fixed_arg_format   string
     #  ret_format         string
     #  error_value        string
-    #  use_fastcall       FastcallType enum
+    #  use_fastcall       FastcallUsed enum
     #
     #  The formats are strings made up of the following
     #  characters:
@@ -90,13 +90,15 @@ class Signature:
         'z': "-1",
     }
 
-    # Use METH_FASTCALL instead of METH_VARARGS
-    class FastcallType(enum.IntEnum):
+    # Describes whether to use fastcall, and what macro
+    # to use the guard the use of fastcall. 
+    class FastcallUsed(enum.IntEnum):
         NO = 0
-        YES = 1
-        TP_NEW = 2
+        YES = 1  # guarded by CYTHON_FASTCALL
+        TP_NEW = 2  # guarded by CYTHON_FASTCALL_TPNEW
 
-    use_fastcall = FastcallType.NO
+    # Use METH_FASTCALL instead of METH_VARARGS
+    use_fastcall = FastcallUsed.NO
 
     def __init__(self, arg_format, ret_format, nogil=False):
         self.has_dummy_arg = False
@@ -206,7 +208,7 @@ class Signature:
                 return "__Pyx_PyCFunction_FastCall" + kw
         return None
 
-    def with_fastcall(self, fastcall_type=FastcallType.YES):
+    def with_fastcall(self, fastcall_type=FastcallUsed.YES):
         # Return a copy of this Signature with use_fastcall=True
         sig = copy.copy(self)
         sig.use_fastcall = fastcall_type
@@ -216,19 +218,19 @@ class Signature:
     def fastvar(self):
         # Used to select variants of functions, one dealing with METH_VARARGS
         # and one dealing with __Pyx_METH_FASTCALL
-        if self.use_fastcall == self.FastcallType.YES:
+        if self.use_fastcall == self.FastcallUsed.YES:
             return "FASTCALL"
-        elif self.use_fastcall == self.FastcallType.TP_NEW:
+        elif self.use_fastcall == self.FastcallUsed.TP_NEW:
             return "FASTCALL_NEW"
         else:
             return "VARARGS"
 
     @property
     def fastcall_guard(self):
-        if self.use_fastcall == self.FastcallType.YES:
+        if self.use_fastcall == self.FastcallUsed.YES:
             return "CYTHON_VECTORCALL"
-        elif self.use_fastcall == self.FastcallType.TP_NEW:
-            return "CYTHON_VECTORCALL_NEW"
+        elif self.use_fastcall == self.FastcallUsed.TP_NEW:
+            return "CYTHON_VECTORCALL_TPNEW"
         else:
             return "1"
 
@@ -471,6 +473,14 @@ class ConstructorSlot(InternalMethodSlot):
     def __init__(self, slot_name, method=None, **kargs):
         InternalMethodSlot.__init__(self, slot_name, **kargs)
         self.method = method
+
+    def to_vectorcall_slot(self):
+        # Return a dummy slot used to implement tp_vectorcall.
+        # It has the same rules about when to generate it as tp_new.
+        assert self.slot_name == "tp_new"
+        self_copy = copy.copy(self)
+        self_copy.slot_name = "tp_newv"
+        return self_copy
 
     def _needs_own(self, scope):
         if (scope.parent_type.base_type
@@ -923,13 +933,6 @@ def get_slot_by_name(slot_name, compiler_directives):
     for slot in get_slot_table(compiler_directives).slot_table:
         if slot.slot_name == slot_name:
             return slot
-    # Special-case for hacky dummy slot used to implement tp_vectorcall.
-    # It has the same rules about when to generate it as tp_new.
-    if slot_name == "tp_newv":
-        slot = get_slot_by_name("tp_new", compiler_directives)
-        slot = copy.copy(slot)
-        slot.slot_name = "tp_newv"
-        return slot
     assert False, "Slot not found: %s" % slot_name
 
 
@@ -1237,7 +1240,7 @@ class SlotTable:
             TpVectorcallSlot("tp_vectorcall",
                             ifdef="(!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800) && "
                                   "(!CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030E0000)",
-                            used_ifdef="CYTHON_VECTORCALL_NEW"),
+                            used_ifdef="CYTHON_VECTORCALL_TPNEW"),
             EmptySlot("tp_print", ifdef="__PYX_NEED_TP_PRINT_SLOT == 1"),
             EmptySlot("tp_watched", ifdef="PY_VERSION_HEX >= 0x030C0000"),
             EmptySlot("tp_versions_used", ifdef="PY_VERSION_HEX >= 0x030d00A4"),

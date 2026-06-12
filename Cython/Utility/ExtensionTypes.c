@@ -969,14 +969,14 @@ int __Pyx_ApplySequenceOrMappingFlag(PyTypeObject *tp, int is_sequence) {
 
 ////////////////////////////// CallNewInitFromVectorcall.proto //////////////////////
 
-#if CYTHON_VECTORCALL_NEW
+#if CYTHON_VECTORCALL_TPNEW
 static PyObject *__Pyx_CallNewInitFromVectorcall(PyTypeObject *t, PyObject *const *args, size_t nargsf, PyObject *kwnames); /* proto */
 #endif
 
 ////////////////////////////// CallNewInitFromVectorcall //////////////////////
 //@requires: ObjectHandling.c::TupleFromArray
 
-#if CYTHON_VECTORCALL_NEW
+#if CYTHON_VECTORCALL_TPNEW
 static PyObject *__Pyx_CallNewInitFromVectorcall(PyTypeObject *t, PyObject *const *args, size_t nargsf, PyObject *kwnames) {
     newfunc tp_new = __Pyx_PyType_GetSlot(t, tp_new, newfunc);
     if (unlikely(!tp_new)) {
@@ -1044,7 +1044,7 @@ static PyObject *__Pyx_CallNewInitFromVectorcall(PyTypeObject *t, PyObject *cons
 
 ///////////////////////// CallSlotAsVectorcall.proto ////////////////////////////////////
 
-#if CYTHON_VECTORCALL_NEW
+#if CYTHON_VECTORCALL_TPNEW
 typedef {{ret_type}} (*__Pyx_{{name}}vectorcallfunc)({{obj_type}} o, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 static {{ret_type}} __Pyx_Call{{name.title()}}AsVectorcall(__Pyx_{{name}}vectorcallfunc f, {{obj_type}} o, PyObject *a, PyObject *k);
 #endif
@@ -1057,7 +1057,7 @@ static {{ret_type}} __Pyx_Call{{name.title()}}AsVectorcall(__Pyx_{{name}}vectorc
 // error checking, and the inability to optimize the common no-keywords case.
 // I think it might be possible to use a trampoline type and PyVectorcall_Call to
 // push this work into the Python interpreter (where they have access to the full C API).
-#if CYTHON_VECTORCALL_NEW
+#if CYTHON_VECTORCALL_TPNEW
 static {{ret_type}} __Pyx_Call{{name.title()}}AsVectorcall(__Pyx_{{name}}vectorcallfunc f, {{obj_type}} o, PyObject *a, PyObject *k) {
     Py_ssize_t k_size = k ? __Pyx_PyDict_GET_SIZE(k) : 0;
 #if !CYTHON_ASSUME_SAFE_SIZE

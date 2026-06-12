@@ -3808,7 +3808,7 @@ class DefNodeWrapper(FuncDefNode):
                 and TypeSlots.TpVectorcallSlot("tp_vectorcall").slot_code(env) != "0"):
             # At this stage we know enough about both __cinit__, __init__ and the class scopes
             # to know if we should prefer vectorcall for class creation.
-            self.signature = target_entry.signature = self.signature.with_fastcall(self.signature.FastcallType.TP_NEW)
+            self.signature = target_entry.signature = self.signature.with_fastcall(self.signature.FastcallUsed.TP_NEW)
 
         # This is only really required for Cython utility code at this time,
         # everything else can be done during code generation.  But we expand
@@ -3984,8 +3984,7 @@ class DefNodeWrapper(FuncDefNode):
                         Naming.args_cname, Naming.nargs_cname, Naming.kwds_cname)
                 fastcall_guard = sig.fastcall_guard
                 arg_code_list.append(
-                    "\n#if %s\n%s\n#else\n%s\n#endif\n" % (
-                        fastcall_guard, fastcall_args, varargs_args))
+                    f"\n#if {fastcall_guard}\n{fastcall_args}\n#else\n{varargs_args}\n#endif\n")
             else:
                 arg_code_list.append(varargs_args)
         if entry.is_special:

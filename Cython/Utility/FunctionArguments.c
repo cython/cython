@@ -927,9 +927,9 @@ static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_
     #define __Pyx_GetKwValue_FASTCALL __Pyx_GetKwValue_VARARGS
     #define __Pyx_KwargsAsDict_FASTCALL __Pyx_KwargsAsDict_VARARGS
 #endif
-#if CYTHON_VECTORCALL_NEW
+#if CYTHON_VECTORCALL_TPNEW
     #if !CYTHON_VECTORCALL
-        #error Enabling CYTHON_VECTORCALL_NEW without CYTHON_VECTORCALL is not supported
+        #error Enabling CYTHON_VECTORCALL_TPNEW without CYTHON_VECTORCALL is not supported
     #endif
     #define __Pyx_ArgRef_FASTCALL_NEW __Pyx_ArgRef_FASTCALL
     #define __Pyx_NumKwargs_FASTCALL_NEW __Pyx_NumKwargs_FASTCALL
