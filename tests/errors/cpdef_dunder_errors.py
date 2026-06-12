@@ -42,5 +42,5 @@ class MyClass3:
 _ERRORS = """
 21:19: Cannot convert 'NotImplemented' to return type 'int'
 27:19: Cannot convert 'NotImplemented' to return type 'int'
-40:15: Cannot convert 'NotImplemented' to return type 'int'
+40:15: Cannot convert 'NotImplemented' to return type 'Py_hash_t'
 """
