@@ -4045,11 +4045,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if type.vtabptr_cname:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached('GetVTable', 'ImportExport.c'))
-            code.putln("%s = (struct %s*)__Pyx_GetVtable(%s); %s" % (
-                type.vtabptr_cname,
-                type.vtabstruct_cname,
+            code.putln(code.error_goto_if("__Pyx_GetVtable(%s, (void**)&%s) != 1" % (
                 code.name_in_main_c_code_module_state(type.typeptr_cname),
-                code.error_goto_if_null(type.vtabptr_cname, pos)))
+                type.vtabptr_cname,
+            ), pos))
         env.types_imported.add(type)
 
     def generate_type_import_call(self, type, code, import_generator, error_code=None, error_pos=None, is_api=False):
