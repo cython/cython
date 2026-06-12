@@ -539,13 +539,13 @@ class TpVectorcallSlot(ConstructorSlot):
             # If we don't have the second overloaded alternative for __cinit__ or __init__
             # this means the signature was wrong and so we haven't generated code for the
             # vectorcall wrappers in DefNode.analyse_declarations
-            if (entry := tp.scope.lookup_here("__cinit__")):
-                if not entry.is_special or not entry.tp_new_can_be_vectorcall:
+            cinit_entry = tp.scope.lookup_here("__cinit__")
+            if cinit_entry and not (cinit_entry.is_special and cinit_entry.tp_new_can_be_vectorcall):
+                return "0"
+            if not seen_init and (init_entry := tp.scope.lookup_here("__init__")):
+                if not (init_entry.is_special and init_entry.tp_new_can_be_vectorcall):
                     return "0"
-            if not seen_init and (entry := tp.scope.lookup_here("__init__")):
                 seen_init = True
-                if not entry.is_special or not entry.tp_new_can_be_vectorcall:
-                    return "0"
             tp = tp.base_type
         return super().slot_code(scope)
 
@@ -660,10 +660,11 @@ class BinopSlot(SyntheticSlot):
 class InitSlot(MethodSlot):
     def slot_code(self, scope):
         super_slot_code = super().slot_code(scope)
-        if (super_slot_code != "0" and (entry := scope.lookup(self.method_name))
-                and entry.is_special and entry.signature.use_fastcall):
-            # we need a wrapper
-            return InternalMethodSlot.slot_code(self, scope)
+        if super_slot_code != "0":
+            entry = scope.lookup(self.method_name)
+            if entry and entry.is_special and entry.signature.use_fastcall:
+                # we need a wrapper
+                return InternalMethodSlot.slot_code(self, scope)
         return super_slot_code
 
 

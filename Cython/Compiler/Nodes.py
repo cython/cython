@@ -3803,11 +3803,12 @@ class DefNodeWrapper(FuncDefNode):
         self.np_args_idx = self.target.np_args_idx
 
     def prepare_argument_coercion(self, env):
-        if (self.target.entry.is_special and self.target.entry.name in ("__cinit__", "__init__")
+        target_entry = self.target.entry
+        if (target_entry.is_special and target_entry.name in ("__cinit__", "__init__")
                 and TypeSlots.TpVectorcallSlot("tp_vectorcall").slot_code(env) != "0"):
             # At this stage we know enough about both __cinit__, __init__ and the class scopes
             # to know if we should prefer vectorcall for class creation.
-            self.signature = self.target.entry.signature = self.signature.with_fastcall(self.signature.FastcallType.TP_NEW)
+            self.signature = target_entry.signature = self.signature.with_fastcall(self.signature.FastcallType.TP_NEW)
 
         # This is only really required for Cython utility code at this time,
         # everything else can be done during code generation.  But we expand

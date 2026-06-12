@@ -2420,7 +2420,8 @@ if VALUE is not None:
         self.visitchild(node, 'py_func')
         node.update_fused_defnode_entry(env)
         # For the moment, fused functions do not support METH_FASTCALL
-        node.py_func.entry.signature.use_fastcall = node.py_func.entry.signature.FastcallType.NO
+        call_signature = node.py_func.entry.signature
+        call_signature.use_fastcall = call_signature.FastcallType.NO
         pycfunc = ExprNodes.PyCFunctionNode.from_defnode(node.py_func, binding=True)
         pycfunc = ExprNodes.ProxyNode(pycfunc.coerce_to_temp(env))
         node.resulting_fused_function = pycfunc
