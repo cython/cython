@@ -2057,14 +2057,14 @@ class GlobalState:
         py_unicode_consts: list[tuple] = []
 
         # Split into buckets.
-        c: StringConst
-        for _, _, c in sorted([(len(c.cname), c.cname, c) for c in self.string_const_index.values()]):
-            if c.c_used:
-                c_consts.append((len(c.cname), c.cname, c.escaped_value))
-            if c.py_strings:
+        sc: StringConst
+        for _, _, sc in sorted([(len(sc.cname), sc.cname, sc) for sc in self.string_const_index.values()]):
+            if sc.c_used:
+                c_consts.append((len(sc.cname), sc.cname, sc.escaped_value))
+            if sc.py_strings:
                 py_string: PyStringConst
-                for py_string in c.py_strings.values():
-                    text = c.text
+                for py_string in sc.py_strings.values():
+                    text = sc.text
                     if py_string.is_unicode and not isinstance(text, str):
                         text = StringEncoding.EncodedString(text.decode(py_string.encoding or 'UTF-8'))
 
