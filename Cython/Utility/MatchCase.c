@@ -836,15 +836,10 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
     if (match_args) {
         match_self = 0;
         if (!PyTuple_CheckExact(match_args)) {
-            __Pyx_TypeName type_typename = __Pyx_PyType_GetFullyQualifiedName(type);
-            __Pyx_TypeName match_args_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(match_args));
-            PyErr_Format(PyExc_TypeError, __Pyx_FMT_TYPENAME ".__match_args__ must be a tuple (got " __Pyx_FMT_TYPENAME ")",
-                type_typename,
-                match_args_type_name
-            );
+            __Pyx_RaiseTypeErrorWithTypes(
+                __Pyx_FMT_TYPENAME ".__match_args__ must be a tuple (got " __Pyx_FMT_TYPENAME ")",
+                type, Py_TYPE(match_args));
             Py_DECREF(match_args);
-            __Pyx_DECREF_TypeName(type_typename);
-            __Pyx_DECREF_TypeName(match_args_type_name);
             return -1;
         }
     } else if (!match_args && match_self == -1) {
@@ -916,11 +911,9 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
         } 
 #endif
         if (!PyUnicode_CheckExact(name)) {
-            __Pyx_TypeName name_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(name));    
-            PyErr_Format(PyExc_TypeError,
-                         "__match_args__ elements must be strings "
-                         "(got " __Pyx_FMT_TYPENAME ")", name_type_name);
-            __Pyx_DECREF_TypeName(name_type_name);
+            __Pyx_RaiseTypeErrorWithObjectType(
+                     "__match_args__ elements must be strings (got " __Pyx_FMT_TYPENAME ")",
+                     name);
             result = -1;
             goto end;
         }

@@ -787,9 +787,7 @@ class MatchSequencePatternNode(PatternNode):
             if type.is_memoryviewslice or type.is_ctuple:
                 return True
             if (
-                type.is_pybytes_type or
-                type.is_pystr_type or
-                type.is_pybytearray_type or
+                type.is_bytes_or_str_or_bytearray or
                 type.is_pyanydict_type or
                 type.is_pyanyset_type
             ):
@@ -1501,9 +1499,7 @@ class ClassPatternNode(PatternNode):
                 "is_pylist_type",
                 "is_pyanydict_type",
                 "is_pyanyset_type",
-                "is_pybytes_type",
-                "is_pystr_type",
-                "is_pybytearray_type"
+                "is_bytes_or_str_or_bytearray",
             ]:
                 if getattr(self.class_known_type, type_attr):
                     return 1
