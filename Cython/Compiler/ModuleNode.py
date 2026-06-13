@@ -1687,7 +1687,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("}")
 
         code.putln("if (unlikely(!o)) return 0;")
-        code.putln(f'return {scope.mangle_internal("tp_new__init")}(o, a, k);')
+        code.putln(f'return {scope.mangle_internal("tp_new__initialisation")}(o, a, k);')
 
         code.putln(
             "}")
@@ -1782,7 +1782,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                           explicitly_constructable_attrs)
 
         code.start_slotfunc(
-            scope, PyrexTypes.py_objptr_type, "tp_new__init",
+            scope, PyrexTypes.py_objptr_type, "tp_new__initialisation",
             f"PyObject *o, {unused_marker}PyObject *a, {unused_marker}PyObject *k")
 
         if need_self_cast:
