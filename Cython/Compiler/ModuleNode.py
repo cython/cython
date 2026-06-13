@@ -1846,13 +1846,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "CallSlotAsVectorcall", "ExtensionTypes.c",
                     context=dict(ret_type="PyObject *", name="tpnew", obj_type="PyTypeObject*", error_value="NULL"))
             )
-            
+
             code.start_slotfunc(
                 scope, PyrexTypes.py_objptr_type,
                 "tp_new",
                 f"PyTypeObject *t, PyObject *a, PyObject *k",
                 needs_prototype=True, guard="CYTHON_VECTORCALL_TPNEW")
-            
+
             code.putln(f"return __Pyx_CallTpnewAsVectorcall({scope.mangle_internal('tp_new_vectorcall')}, t, a, k);")
             code.putln("}")
             code.exit_cfunc_scope()
