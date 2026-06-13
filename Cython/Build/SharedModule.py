@@ -1,13 +1,10 @@
 import os
-import re
-import shutil
-import tempfile
 
 from Cython.Compiler import (
     MemoryView, Code, Options, Pipeline, Errors, Main, Symtab
 )
 from Cython.Compiler.StringEncoding import EncodedString
-from Cython.Compiler.Scanning import FileSourceDescriptor
+from Cython.Compiler.Scanning import SharedUtilitySourceDescriptor
 
 
 def create_shared_library_pipeline(context, scope, options, result):
@@ -71,23 +68,17 @@ def generate_shared_module(options):
     Errors.reset()
 
     dest_c_file = options.shared_c_file_path
+    pyx_file = os.path.splitext(dest_c_file)[0] + '.pyx'
     module_name = os.path.splitext(os.path.basename(dest_c_file))[0]
 
     context = Main.Context.from_options(options)
     scope = Symtab.ModuleScope('MemoryView', parent_module = None, context = context, is_package=False)
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        pyx_file = os.path.join(tmpdirname, f'{module_name}.pyx')
-        c_file = os.path.join(tmpdirname, f'{module_name}.c')
-        with open(pyx_file, 'w'):
-            pass
-        source_desc = FileSourceDescriptor(pyx_file)
-        comp_src = Main.CompilationSource(source_desc, EncodedString(module_name), os.getcwd())
-        result = Main.create_default_resultobj(comp_src, options)
+    source_desc = SharedUtilitySourceDescriptor(pyx_file)
+    comp_src = Main.CompilationSource(source_desc, EncodedString(module_name), os.getcwd())
+    result = Main.create_default_resultobj(comp_src, options)
 
-        pipeline = create_shared_library_pipeline(context, scope, options, result)
-        err, enddata = Pipeline.run_pipeline(pipeline, comp_src)
-        if err is None:
-            shutil.copy(c_file, dest_c_file)
+    pipeline = create_shared_library_pipeline(context, scope, options, result)
+    err, enddata = Pipeline.run_pipeline(pipeline, comp_src)
 
     return err, enddata
