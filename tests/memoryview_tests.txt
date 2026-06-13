@@ -27,6 +27,7 @@ compile[.]except_clause_needs_exception
 run[.]cdef_class_dataclass
 run[.]cyfunction_defaults
 run[.]embedsignatures
+run[.]extra_patma
 run[.]extra_walrus
 run[.]fused_types
 run[.]nonecheck
