@@ -479,7 +479,7 @@ class ConstructorSlot(InternalMethodSlot):
         # It has the same rules about when to generate it as tp_new.
         assert self.slot_name == "tp_new"
         self_copy = copy.copy(self)
-        self_copy.slot_name = "tp_newv"
+        self_copy.slot_name = "tp_new_vectorcall"
         return self_copy
 
     def _needs_own(self, scope):
@@ -487,7 +487,7 @@ class ConstructorSlot(InternalMethodSlot):
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
                 and not scope.has_explicitly_constructable_attrs
-                and not (self.slot_name in ('tp_new', 'tp_newv') and scope.parent_type.vtabslot_cname)):
+                and not (self.slot_name in ('tp_new', 'tp_new_vectorcall') and scope.parent_type.vtabslot_cname)):
             entry = scope.lookup_here(self.method) if self.method else None
             if not (entry and entry.is_special):
                 return False

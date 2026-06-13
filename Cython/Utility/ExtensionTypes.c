@@ -1027,12 +1027,10 @@ static PyObject *__Pyx_CallNewInitFromVectorcall(PyTypeObject *t, PyObject *cons
     if (unlikely(!result)) {
         goto end;
     }
-    {
-        initproc tp_init;
-        if (PyObject_TypeCheck(result, t) && (tp_init = __Pyx_PyObject_GetSlot(result, tp_init, initproc))) {
-            if (unlikely(tp_init(result, args_tuple, kwds_dict) < 0)) {
-                Py_CLEAR(result);
-            }
+    if (PyObject_TypeCheck(result, t)) {
+        initproc tp_init = __Pyx_PyObject_GetSlot(result, tp_init, initproc);
+        if (tp_init && unlikely(tp_init(result, args_tuple, kwds_dict) < 0)) {
+            Py_CLEAR(result);
         }
     }
   end:
@@ -1091,18 +1089,18 @@ static {{ret_type}} __Pyx_Call{{name.title()}}AsVectorcall(__Pyx_{{name}}vectorc
             return {{error_value}};
         }
     }
+    {{ret_type}} result = {{error_value}};
+    PyObject *kwnames = NULL;
+    int unpack_dict_result;
     Py_ssize_t i = 0;
     for (; i < a_size; ++i) {
         args[i] = __Pyx_PyTuple_GET_ITEM(a, i);
 #if !CYTHON_ASSUME_SAFE_MACROS
-        if (unlikely(!args[i])) return {{error_value}};
+        if (unlikely(!args[i])) goto cleanup;
 #endif
     }
-    {{ret_type}} result = {{error_value}};
-    PyObject *kwnames = NULL;
-    int unpack_dict_result;
 #if !CYTHON_ASSUME_SAFE_MACROS
-    if (k)
+    if (k)  // There's a specific shortcut earlier for ASSUME_SAFE_MACROS with no keywords
 #endif
     {
         kwnames = PyTuple_New(k_size);
