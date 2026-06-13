@@ -262,3 +262,14 @@ def test_match_args_overrides_match_self(x):
     match x:
         case ListSubclass(v):
             return v
+
+def test_no_memoryview_match_self(x: memoryview):
+    """
+    >>> test_no_memoryview_match_self(memoryview(b'123'))
+    Traceback (most recent call last):
+        ...
+    TypeError: memoryview() accepts 0 positional sub-patterns (1 given)
+    """
+    match x:
+        case memoryview(_):
+            print("This shouldn't happen")

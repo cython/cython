@@ -3063,6 +3063,33 @@ static void __Pyx_RaiseErrorWithType1(PyObject* exc_type, const char* message, c
     __Pyx_DECREF_TypeName(type_name);
 }
 
+///////////// RaiseErrorWithTypeAndVarargs.proto ///////////////////////
+//@requires: FormatTypeName
+
+// The first argument of the variadic arguments must be the type name
+#define __Pyx_RaiseErrorWithTypeAndVarargs(exc_type, message, type_obj, ...) \
+    __Pyx__RaiseErrorWithTypeAndVarargs(exc_type, message, __Pyx_PyType_GetFullyQualifiedName(type_obj), __VA_ARGS__)
+
+static void __Pyx__RaiseErrorWithTypeAndVarargs(PyObject* exc_type, const char* message, ...); /* proto */
+
+///////////// RaiseErrorWithTypeAndVarargs ///////////////////////
+
+static void __Pyx__RaiseErrorWithTypeAndVarargs(PyObject* exc_type, const char* message, ...)
+{
+    va_list arg_list;
+    va_start(arg_list, message);
+    __Pyx_TypeName tp_name = va_arg(arg_list, __Pyx_TypeName);
+    va_end(arg_list);
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (!tp_name) return;
+#else
+    CYTHON_UNUSED_VAR(tp_name);
+#endif
+    va_start(arg_list, message);
+    PyErr_FormatV(exc_type, message, arg_list);
+    va_end(arg_list);
+    __Pyx_DECREF_TypeName(tp_name);
+}
 
 /////////////// RaiseErrorWithObjectTypes.proto ///////////////
 
