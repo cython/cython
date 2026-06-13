@@ -182,6 +182,9 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             infer_sequence_item_type(env, item) if item.is_starred else item.infer_type(env)
             for item in args_without_none
         }
+        if None in item_types or py_object_type in item_types:
+            # Could not infer all (starred) types to specific types.
+            return None
         if not allows_none:
             allows_none = any(tp.python_type_constructor_name and tp.allows_none() for tp in item_types)
         if not allows_none:
@@ -191,14 +194,6 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
                 for item_type in item_types
             ]
         item_type = PyrexTypes.reduce_spanning_types(item_types)
-        if None in item_types or py_object_type in item_types:
-            # Could not infer all (starred) types to specific types.
-            return None
-        item_type = PyrexTypes.reduce_spanning_types(
-            # Unpack the Python types to optimise and avoid a mix of inferred C and Python.
-            item_type.equivalent_type if item_type.is_pyobject and item_type.equivalent_type else item_type
-            for item_type in item_types
-        )
         if item_type is py_object_type:
             # Normalise "cannot infer anything specific" to "cannot infer".
             return None
