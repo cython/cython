@@ -1,0 +1,141 @@
+# mode: run
+# tag: value_type, dataclass, optimization, infer_noexcept
+# Asserts the value_type codegen contract: hot compiled functions stack-build
+# value structs (no heap alloc / tp_new / PyObject_Call), pass them by value,
+# dispatch operators through the value-ABI dunder, embed the value struct in the
+# objstruct, emit the box converter, and -- with infer_noexcept -- drop the
+# post-call exception check on the value ctor / __add__ hot path.
+
+PYTHON cythonize_mod.py
+PYTHON check_codegen.py vt.c
+PYTHON build_mod.py vt
+PYTHON run_test.py
+
+######## cythonize_mod.py ########
+
+import sys
+from Cython.Build.Cythonize import main
+sys.argv[0] = 'cythonize.py'
+main(['-f', '-X', 'infer_noexcept=True', '-X', 'language_level=3', 'vt.pyx'])
+
+######## build_mod.py ########
+
+import sys, os, sysconfig, subprocess
+
+inc = sysconfig.get_paths()['include']
+ldshared = sysconfig.get_config_var('LDSHARED') or ''
+ext = sysconfig.get_config_var('EXT_SUFFIX') or '.so'
+
+for mod in sys.argv[1:]:
+    c_file = mod + '.c'
+    so_file = mod + ext
+    if os.path.exists(so_file):
+        os.remove(so_file)
+    cmd = f'{ldshared} -O0 -I{inc} {c_file} -o {so_file}'
+    ret = subprocess.call(cmd, shell=True)
+    if ret != 0:
+        print(f'ERROR: failed to build {mod}', file=sys.stderr)
+        sys.exit(1)
+    print(f'Built {so_file}')
+
+######## check_codegen.py ########
+
+import sys, re
+
+c_path = sys.argv[1]
+with open(c_path) as f:
+    content = f.read()
+lines = content.splitlines()
+
+
+def function_body(src, signature_fragment):
+    """Return the text of the (definition) function whose opening line contains
+    signature_fragment and ends with '{', up to the matching closing brace."""
+    start = None
+    for i, line in enumerate(src.splitlines()):
+        if signature_fragment in line and line.rstrip().endswith('{'):
+            start = i
+            break
+    assert start is not None, "function not found: %s" % signature_fragment
+    body_lines = []
+    depth = 0
+    for line in src.splitlines()[start:]:
+        body_lines.append(line)
+        depth += line.count('{') - line.count('}')
+        if depth == 0 and len(body_lines) > 1:
+            break
+    return '\n'.join(body_lines)
+
+
+# --- (1) Hot function bodies must be heap-allocation free ------------------
+for frag in ('__pyx_f_2vt_make_and_sum(double', '__pyx_f_2vt_add_loop(int'):
+    body = function_body(content, frag)
+    for bad in ('__Pyx_tp_new', 'tp_new_2vt_Vec2', 'PyObject_Call', '__Pyx_PyObject_Call'):
+        assert bad not in body, "unexpected %s in %s body" % (bad, frag)
+
+# --- (2) Value struct passed/returned by value ----------------------------
+# make_and_sum / add_loop declare local value structs by value.
+add_loop = function_body(content, '__pyx_f_2vt_add_loop(int')
+assert '__pyx_val_2vt_Vec2 __pyx_v_acc;' in add_loop, \
+    "value struct not stack-allocated by value in add_loop"
+
+# --- (3) objstruct embeds the value struct member -------------------------
+assert '__pyx_val_2vt_Vec2 __pyx_value;' in content, \
+    "objstruct does not embed __pyx_value member"
+
+# --- (4) box converter emitted -------------------------------------------
+assert '__pyx_convert__to_py___pyx_val_2vt_Vec2' in content, \
+    "value-class to_py box converter not emitted"
+
+# --- (5) value-ABI dunder dispatch: __add__ called with &<value> ----------
+assert re.search(r'__pyx_f_2vt_4Vec2___add__\(\(&', content), \
+    "value-ABI __add__ call (taking address of value struct) not found"
+
+# --- (6) infer_noexcept: the hot __add__ call site has no PyErr check -----
+m = re.search(r'__pyx_t_\d+ = __pyx_f_2vt_4Vec2___add__\(\(&__pyx_v_acc\)[^\n]*\n([^\n]*)', add_loop)
+assert m, "add_loop __add__ call site not found"
+follow = m.group(1)
+assert 'PyErr_Occurred' not in follow and '__PYX_ERR' not in follow, \
+    "unexpected exception check after noexcept value __add__ call:\n%s" % follow
+
+print("OK: value_type codegen assertions passed")
+
+######## run_test.py ########
+
+import sys
+sys.path.insert(0, '.')
+import vt
+
+assert vt.make_and_sum(3.0, 4.0) == 7.0, vt.make_and_sum(3.0, 4.0)
+assert vt.add_loop(3) == 9.0, vt.add_loop(3)   # 3*(1+2) = 9
+print("DONE: value_type runtime tests passed")
+
+######## vt.pyx ########
+
+# cython: language_level=3
+cimport cython
+from dataclasses import dataclass
+
+
+@cython.value_type
+@cython.final
+@dataclass(frozen=True)
+cdef class Vec2:
+    x: cython.double
+    y: cython.double
+
+    def __add__(self, other: Vec2) -> Vec2:
+        return Vec2(self.x + other.x, self.y + other.y)
+
+
+cpdef double make_and_sum(double a, double b):
+    cdef Vec2 v = Vec2(a, b)
+    return v.x + v.y
+
+
+cpdef double add_loop(int n):
+    cdef Vec2 acc = Vec2(0.0, 0.0)
+    cdef int i
+    for i in range(n):
+        acc = acc + Vec2(1.0, 2.0)
+    return acc.x + acc.y

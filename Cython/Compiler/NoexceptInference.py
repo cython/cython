@@ -477,6 +477,18 @@ class _BodyRaiseAnalysis(TreeVisitor):
             return False
         return self._children_safe(node, ['args'])
 
+    def visit_DictNode(self, node):
+        # A value_type constructor `Vec2(...)` lowers to a DictNode coerced to
+        # the value-class struct: pure member stores (no allocation, no
+        # __init__ dispatch), so it cannot raise iff every value is safe.  A
+        # Python-dict result allocates (PyDict_New can raise) and stays unsafe.
+        if not getattr(node.type, 'is_value_class', False):
+            return False
+        for item in node.key_value_pairs:
+            if not self._node_safe(item.value):
+                return False
+        return True
+
     # Coercion nodes that are safe:
     def visit_CoerceToTempNode(self, node):
         return self._node_safe(node.arg)

@@ -757,6 +757,20 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 # For classmethods, if the first arg type came from an inherited pxd entry
                 # (ancestor class type instead of current class type), use the current class type.
                 type = env.parent_type
+            # Value-type classes: a user method's self is passed by value-struct
+            # pointer (__pyx_val_T *) so calls on a stack value need no boxing.
+            # Both the untyped self (resolved to the ext type) and an explicitly
+            # typed self (resolved to the value struct via equivalent_type) are
+            # normalised to a pointer to the value struct here.  Synthesized
+            # dataclass dunders are suppressed (see Dataclass.handle_cclass_dataclass)
+            # and keep ext-object self.
+            if (i == 0 and env.is_c_class_scope
+                    and getattr(env, 'is_value_class_scope', False)
+                    and not getattr(env, '_suppress_value_self_swap', False)
+                    and env.parent_type.equivalent_type is not None):
+                value_struct = env.parent_type.equivalent_type
+                if type.same_as(env.parent_type) or type.same_as(value_struct):
+                    type = PyrexTypes.c_ptr_type(value_struct)
             # Turn *[] argument into **
             if type.is_array:
                 type = PyrexTypes.c_ptr_type(type.base_type)
@@ -2949,7 +2963,14 @@ class CFuncDefNode(FuncDefNode):
             self.return_type.check_nullary_constructor(self.pos, "used as a return value")
 
         if self.overridable and not env.is_module_scope and not self.is_static_method:
-            if len(self.args) < 1 or not self.args[0].type.is_pyobject:
+            arg0_type = self.args[0].type if self.args else None
+            # value_type methods: self is a pointer to the value struct
+            # (__pyx_val_T *), not a pyobject — this is the value-self ABI and
+            # must NOT disable cpdef/overridable (the class is final, so the
+            # Python wrapper passes &obj->__pyx_value to the same C function).
+            is_value_self = (arg0_type is not None and arg0_type.is_ptr
+                             and getattr(arg0_type.base_type, 'is_value_class', False))
+            if len(self.args) < 1 or (not arg0_type.is_pyobject and not is_value_self):
                 # An error will be produced in the cdef function
                 self.overridable = False
 
@@ -3051,7 +3072,15 @@ class CFuncDefNode(FuncDefNode):
             class_node.entry = class_entry
             cfunc = ExprNodes.AttributeNode(self.pos, obj=class_node, attribute=self.entry.name)
         else:
-            type_entry = self.type.args[0].type.entry
+            self_type = self.type.args[0].type
+            if self_type.is_ptr and getattr(self_type.base_type, 'is_value_class', False):
+                # value_type method: the C self is __pyx_val_T *, but the Python
+                # wrapper's self is the boxed ext type.  Use the boxed type's entry
+                # for the attribute lookup; DefNodeWrapper.generate_function_body
+                # converts the boxed self to &obj->__pyx_value when calling the C fn.
+                type_entry = self_type.base_type.boxed_type.entry
+            else:
+                type_entry = self_type.entry
             type_arg = ExprNodes.NameNode(self.pos, name=type_entry.name)
             type_arg.entry = type_entry
             cfunc = ExprNodes.AttributeNode(self.pos, obj=type_arg, attribute=self.entry.name)
@@ -3589,6 +3618,12 @@ class CFuncDefNode(FuncDefNode):
                 # Keep inline on the declaration side, but avoid baking it into the
                 # emitted body so cimporters still get an exported symbol.
                 modifiers = [modifier for modifier in modifiers if modifier != 'inline']
+        elif not storage_class and self.entry.final_func_cname:
+            # A function emitted non-static because it fills a vtable / final slot
+            # (e.g. a value_type @property getter) must not be 'inline': a non-static
+            # GNU inline emits no external definition, so taking its address in the
+            # vtable yields an undefined symbol at link time.
+            modifiers = [modifier for modifier in modifiers if modifier != 'inline']
         modifiers = code.build_function_modifiers(modifiers)
 
         header = self.return_type.declaration_code(entity, dll_linkage=dll_linkage)
@@ -6649,6 +6684,37 @@ class CClassDefNode(ClassDefNode):
                     is_frozen = frozen_flag and frozen_flag.is_literal and frozen_flag.value
                 scope.is_c_dataclass_scope = "frozen" if is_frozen else True
 
+            # value_type directive (Stage 1: validation only; structurally a no-op).
+            # Read scope.directives here, BEFORE body.analyse_declarations: the
+            # immediate_decorator_directives machinery wraps the body in a
+            # CompilerDirectivesNode that resets env.directives during method analysis,
+            # so the only reliable place to capture this is on the scope object now.
+            scope.is_value_class_scope = bool(scope.directives.get('value_type', False))
+            if scope.is_value_class_scope:
+                # Class-level preconditions (fields validated after body analysis).
+                if scope.is_c_dataclass_scope != "frozen":
+                    error(self.pos, "value_type requires '@dataclass(frozen=True)'")
+                # is_final_type is truthy for both strict (cython.final) and advisory
+                # (typing.final / Options.FINAL_ADVISORY) finals. A value_type class
+                # only needs the *type* to be final, and is_final_type being set is the
+                # correct check for that regardless of which mechanism set it.
+                if not self.entry.type.is_final_type:
+                    error(self.pos, "value_type requires an explicitly 'final' class")
+                if self.base_type is not None:
+                    error(self.pos, "value_type classes cannot have base classes")
+                if self.in_pxd or getattr(self, 'visibility', None) == 'extern':
+                    error(self.pos,
+                          "value_type classes cannot be declared 'extern' or in a .pxd "
+                          "(cross-module value types are not supported yet)")
+                # Route Python-subclass attempts through the existing blocking machinery.
+                scope.python_subclassing = False
+                # Stage 4: create the value-struct TYPE SHELL now (before body
+                # analysis) so that ext_type.equivalent_type is set while the user
+                # methods are analysed — the self-ABI swap in
+                # CFuncDeclaratorNode.analyse reads it.  The struct's fields are
+                # populated after body analysis (they don't exist yet).
+                self._build_value_class_type_shell(home_scope, scope)
+
         if self.doc and Options.docstrings:
             scope.doc = embed_position(self.pos, self.doc)
 
@@ -6670,6 +6736,36 @@ class CClassDefNode(ClassDefNode):
                 scope.defined = 1
             else:
                 scope.implemented = 1
+
+            # value_type field/member validation (Stage 1: errors only).
+            # NOTE: default_factory validation lives in Dataclass.handle_cclass_dataclass
+            # because dataclass_fields metadata is not populated until that later transform.
+            if getattr(scope, 'is_value_class_scope', False):
+                value_fields_ok = True
+                for entry in scope.var_entries:
+                    etype = entry.type
+                    if etype.is_pyobject or etype.needs_refcounting or etype.is_memoryviewslice:
+                        value_fields_ok = False
+                        error(entry.pos,
+                              "value_type field '%s' must be a C type "
+                              "(int/float/bool/enum/ctuple/nested value type), "
+                              "not a Python object" % entry.name)
+                if scope.lookup_here("__dict__") or scope.lookup_here("__weakref__"):
+                    error(self.pos,
+                          "value_type classes cannot have __dict__ or __weakref__")
+                for dunder in ('__post_init__', '__cinit__', '__dealloc__'):
+                    if scope.lookup_here(dunder):
+                        error(self.pos,
+                              "value_type classes cannot define %s" % dunder)
+
+                # Stage 2: build the value form (a C struct type) and wire it to
+                # the boxed extension type.  The fields are now populated, so we
+                # can mirror them into the value struct scope and rewrite the
+                # ext-type field cnames to point inside the embedded member.
+                # Skip when a field is invalid (an error was already reported);
+                # building the value struct would emit a second, less useful one.
+                if value_fields_ok:
+                    self._build_value_class_type(home_scope, scope)
 
         if len(self.bases.args) > 1:
             if not has_body or self.in_pxd:
@@ -6697,6 +6793,94 @@ class CClassDefNode(ClassDefNode):
 
         for thunk in self.entry.type.defered_declarations:
             thunk()
+
+    def _build_value_class_type_shell(self, home_scope, scope):
+        """Stage 2/4: create the value-struct TYPE (empty scope) and wire
+        ext_type.equivalent_type <-> value_type.boxed_type, registering its module
+        type entry.  Called BEFORE body analysis so the equivalent_type is visible
+        while user methods are analysed (the self-ABI swap reads it).  Fields are
+        populated later by _build_value_class_type.
+        """
+        from .Symtab import Entry
+        ext_type = self.entry.type
+        if getattr(ext_type, 'equivalent_type', None) is not None:
+            return  # already built (defensive: only build once)
+
+        class_name = self.class_name
+        value_cname = home_scope.mangle(Naming.value_struct_prefix, class_name)
+        value_scope = StructOrUnionScope(class_name)
+        value_type = PyrexTypes.CValueClassType(
+            EncodedString(class_name), value_scope, value_cname, ext_type,
+            py_name=class_name)
+
+        # Register the value struct as a module type entry (emitted as a struct).
+        # Insert it before the class's own type entry so the typedef precedes the
+        # objstruct that embeds it.
+        value_entry = Entry(
+            EncodedString(class_name), value_cname, value_type, pos=self.pos)
+        value_entry.is_type = 1
+        value_entry.visibility = 'private'
+        value_entry.defined_in_pxd = False
+        # entry.scope is normally set by Scope.declare(); this entry is built
+        # directly, so set it here so type_identifier() (ctuple mangling etc.)
+        # can mangle the value-struct cname without crashing.
+        value_entry.scope = home_scope
+        value_type.entry = value_entry
+        try:
+            idx = home_scope.type_entries.index(self.entry)
+        except ValueError:
+            idx = len(home_scope.type_entries)
+        home_scope.type_entries.insert(idx, value_entry)
+
+        # Name-resolution hooks: the class name in a TYPE context resolves to the
+        # value type; boxing/unboxing goes through the ext type.
+        ext_type.equivalent_type = value_type
+
+    def _build_value_class_type(self, home_scope, scope):
+        """Stage 2: populate the value struct's data fields (after body analysis).
+
+        - Mirrors the class's data fields into the value StructOrUnionScope (short
+          cname).
+        - Rewrites each ext class-scope field cname to '__pyx_value.<field>' so the
+          existing AttributeNode.calculate_access_code generates obj->__pyx_value.x.
+        """
+        ext_type = self.entry.type
+        value_type = getattr(ext_type, 'equivalent_type', None)
+        if value_type is None:
+            # Shell not built (e.g. invalid class); nothing to populate.
+            return
+        value_scope = value_type.scope
+        if value_scope.var_entries:
+            return  # already populated (defensive: only populate once)
+
+        # Mirror the data fields into the value struct scope (short cname), and
+        # rewrite the ext-type entry cname to address the embedded member.
+        for entry in scope.var_entries:
+            field_cname = entry.cname
+            value_scope.declare_var(
+                entry.name, entry.type, entry.pos,
+                cname=field_cname, is_cdef=True)
+            entry.cname = "%s.%s" % (Naming.value_member_cname, field_cname)
+
+        # Reorder type_entries so the value struct is emitted AFTER any member
+        # types it depends on.  ctuple field structs are appended to type_entries
+        # during body analysis — after both the value struct and the class entry
+        # were inserted — so without this they forward-declare-but-define-late and
+        # the embedded value struct has an incomplete member type.  Move each
+        # dependency struct entry to just before the value struct entry (which is
+        # itself just before the class entry, keeping the objstruct embed valid).
+        type_entries = home_scope.type_entries
+        value_entry = value_type.entry
+        if value_entry in type_entries:
+            dep_types = set()
+            for entry in scope.var_entries:
+                ftype = entry.type
+                if ftype.is_ctuple or ftype.is_struct_or_union:
+                    dep_types.add(ftype)
+            for dep in [e for e in type_entries if e.type in dep_types]:
+                if type_entries.index(dep) > type_entries.index(value_entry):
+                    type_entries.remove(dep)
+                    type_entries.insert(type_entries.index(value_entry), dep)
 
     def _body_uses_undeclared_self_attr(self, scope):
         """Return True if the body contains self.X attribute accesses where X is not
@@ -8321,6 +8505,16 @@ class ReturnStatNode(StatNode):
                         and value.entry.is_builtin):
                     error(value.pos,
                           "Cannot convert 'NotImplemented' to return type '%s'" % return_type)
+                # value_type (Stage 4): `return self` inside a value method (self is
+                # __pyx_val_T *) -- dereference to the value struct, so it returns by
+                # value or boxes (*self) when crossing to a Python object context.
+                if (self.value.type.is_ptr
+                        and getattr(self.value.type.base_type, 'is_value_class', False)
+                        and (return_type.is_pyobject
+                             or return_type is self.value.type.base_type)):
+                    from .ExprNodes import DereferenceNode
+                    self.value = DereferenceNode(
+                        self.value.pos, operand=self.value).analyse_types(env)
                 self.value = self.value.coerce_to(env.return_type, env)
                 if env.directives['profile'] or env.directives['linetrace']:
                     if not return_type.is_pyobject and return_type.can_coerce_to_pyobject(env):

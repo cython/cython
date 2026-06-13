@@ -200,6 +200,7 @@ embedsignature.format = overflowcheck.fold = optimize.use_switch = \
     optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
 final = _empty_decorator
+value_type = _empty_decorator
 
 class warn:
     @staticmethod

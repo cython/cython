@@ -1754,6 +1754,13 @@ def _analyse_name_as_type(name, pos, env):
     global_entry = global_scope.lookup(name)
     if global_entry and global_entry.is_type:
         type = global_entry.type
+        # value_type: the class name resolves to the value struct (matching
+        # NameNode.analyse_as_type's equivalent_type swap, which is not gated on
+        # in_c_type_context), so string forward-ref annotations (e.g. -> "Vec2")
+        # agree with the direct form (-> Vec2).
+        if (type is not None
+                and getattr(getattr(type, 'equivalent_type', None), 'is_value_class', False)):
+            return type.equivalent_type
         if type and (type.is_pyobject or env.in_c_type_context):
             return type
         ctype = ctype or type
@@ -6178,6 +6185,23 @@ class SliceIntNode(SliceNode):
                 a.arg.result()
 
 
+def _retarget_pos(node, pos):
+    # Recursively reset the source position of a (deep-copied) expression tree
+    # to `pos`.  Used when a value_type field default is inlined at a ctor call
+    # site so its line-table entries stay in caller order.
+    if node is None:
+        return
+    if isinstance(node, (list, tuple)):
+        for child in node:
+            _retarget_pos(child, pos)
+        return
+    if not hasattr(node, 'child_attrs'):
+        return
+    node.pos = pos
+    for attr in node.child_attrs:
+        _retarget_pos(getattr(node, attr, None), pos)
+
+
 class CallNode(ExprNode):
 
     # allow overriding the default 'may_be_none' behaviour
@@ -6217,6 +6241,11 @@ class CallNode(ExprNode):
             if function.is_name and function.entry and function.entry.type:
                 result_type = function.entry.type
                 if result_type.is_extension_type:
+                    # value_type ctor: Vec2(...) in a type-inference context has
+                    # the value struct as its inferred type, not the boxed object.
+                    eq = getattr(result_type, 'equivalent_type', None)
+                    if eq is not None and getattr(eq, 'is_value_class', False):
+                        return eq
                     return result_type
                 elif result_type.is_builtin_type:
                     func_name = function.entry.name
@@ -6294,6 +6323,16 @@ class CallNode(ExprNode):
         Returns a replacement node or None
         """
         type = self.function.analyse_as_type(env)
+        if type and getattr(type, 'is_value_class', False):
+            # Stage 3: lower value_type construction Vec2(1, 2) to a direct,
+            # stack-allocated struct initialisation (zero heap allocation, no
+            # tp_new / tp_init).  Because value_type classes are frozen
+            # dataclasses with C-only fields and a pure field-assignment
+            # __init__ (no __post_init__ / default_factory), initialising the
+            # struct fields directly is semantically identical to calling
+            # __init__.  Must come BEFORE the generic struct branch so the
+            # dict-coercion path below never silently catches Vec2(1, 2).
+            return self._lower_value_class_construction(env, type)
         if type and type.is_struct_or_union:
             args, kwds = self.explicit_args_kwds()
             items = []
@@ -6318,6 +6357,142 @@ class CallNode(ExprNode):
             self.analyse_c_function_call(env)
             self.type = type
             return self
+
+    def _lower_value_class_construction(self, env, type):
+        # Lower Vec2(1, 2) / Vec2(x=1, y=2) / Vec2(1) (with a default) to a
+        # stack-init of the value struct `type`.  Args are mapped to dataclass
+        # fields (in declaration order), unfilled fields take their dataclass
+        # default, and the whole struct is built via a DictNode coerced to the
+        # struct type (same mechanism as the generic struct branch, which emits
+        # direct member assignment with no heap allocation).
+        import copy
+
+        def error_node():
+            # Return a well-formed, struct-typed placeholder after an error so
+            # later transforms don't choke on an unanalysed call node.  An empty
+            # DictNode coerced to the struct yields a valid (uninitialised) stack
+            # struct temp; the registered error aborts compilation regardless.
+            with local_errors(ignore=True):
+                placeholder = DictNode(self.pos, key_value_pairs=[])
+                placeholder = placeholder.analyse_types(env).coerce_to(type, env)
+            return ProxyNode(placeholder)
+
+        ext_type = type.boxed_type
+        dataclass_fields = getattr(ext_type, 'dataclass_fields', None)
+        if not dataclass_fields:
+            error(self.pos, "value_type class '%s' is not a dataclass" % type)
+            return error_node()
+
+        # Init fields in declaration order (skip ClassVar; InitVar has no struct
+        # member and is unsupported here in v1).
+        from .Dataclass import MISSING
+        init_fields = []
+        for name, field in dataclass_fields.items():
+            if field.is_classvar:
+                continue
+            if field.is_initvar:
+                error(self.pos,
+                      "value_type construction does not support InitVar field '%s'" % name)
+                return error_node()
+            init_fields.append((name, field))
+
+        try:
+            args, kwds = self.explicit_args_kwds()
+        except CompileError as e:
+            error(e.position or self.pos, e.message_only)
+            return error_node()
+        kwds_pairs = kwds.key_value_pairs if kwds else []
+
+        # Determine which fields are keyword-only.  A class-level kw_only=True
+        # (recorded on the boxed type by the dataclass transform) makes every
+        # init field keyword-only; per-field kw_only is honoured where recorded.
+        class_kw_only = bool(getattr(ext_type, 'dataclass_kw_only', False))
+        kw_only_names = set()
+        for name, field in init_fields:
+            if (class_kw_only
+                    or getattr(field, 'is_kw_only', False)
+                    or getattr(getattr(field, 'kw_only', None), 'value', False)):
+                kw_only_names.add(name)
+
+        # Map positional args to non-kw-only fields, left to right.
+        values = {}
+        positional_fields = [n for (n, f) in init_fields if n not in kw_only_names]
+        if len(args) > len(positional_fields):
+            if kw_only_names and len(args) > len(positional_fields):
+                error(self.pos,
+                      "%s() takes %d positional arguments but %d were given" % (
+                          type, len(positional_fields), len(args)))
+            else:
+                error(self.pos,
+                      "%s() takes at most %d positional arguments (%d given)" % (
+                          type, len(positional_fields), len(args)))
+            return error_node()
+        for i, arg in enumerate(args):
+            values[positional_fields[i]] = arg
+
+        # Map keyword args by name.
+        valid_names = {n for (n, f) in init_fields}
+        for item in kwds_pairs:
+            key = item.key
+            if isinstance(key, CoerceToPyTypeNode):
+                key = key.arg
+            if not key.is_string_literal:
+                error(key.pos, "Keyword argument name must be a string literal")
+                return error_node()
+            name = str(key.value)
+            if name not in valid_names:
+                error(item.pos,
+                      "%s() got an unexpected keyword argument '%s'" % (type, name))
+                return error_node()
+            if name in values:
+                error(item.pos,
+                      "%s() got multiple values for argument '%s'" % (type, name))
+                return error_node()
+            values[name] = item.value
+
+        # Fill remaining fields with their dataclass defaults; required fields
+        # that remain unfilled are an arity error.
+        missing = []
+        items = []
+        for name, field in init_fields:
+            if name in values:
+                value = values[name]
+            elif field.default is not MISSING:
+                # Deep-copy so per-call-site analysis state is not shared across
+                # construction sites that reuse the same default AST.
+                value = copy.deepcopy(field.default)
+                # Re-anchor the copied default tree to the call-site position.
+                # The original default expression is positioned at the field's
+                # definition line; emitted inside the caller's function it would
+                # produce out-of-order line-table entries (LineTable assertion).
+                _retarget_pos(value, self.pos)
+            else:
+                missing.append(name)
+                continue
+            items.append(DictItemNode(
+                self.pos, key=UnicodeNode(self.pos, value=StringEncoding.EncodedString(name)),
+                value=value))
+
+        if missing:
+            if len(missing) == 1:
+                error(self.pos,
+                      "%s() missing 1 required argument: '%s'" % (type, missing[0]))
+            else:
+                error(self.pos,
+                      "%s() missing %d required arguments: %s" % (
+                          type, len(missing),
+                          ", ".join("'%s'" % n for n in missing)))
+            return error_node()
+
+        node = DictNode(self.pos, key_value_pairs=items)
+        node = node.analyse_types(env).coerce_to(type, env)
+        # Wrap in a ProxyNode so the node no longer presents as a DictNode: in a
+        # Python-object context the struct must be coerced through the value
+        # class's exact to_py converter (boxing into a real instance), NOT
+        # through DictNode.coerce_to, which would turn the struct into a plain
+        # dict.  ProxyNode inherits ExprNode.coerce_to, so coercion-to-pyobject
+        # routes through the value struct's to_py_function.
+        return ProxyNode(node)
 
     def function_type(self):
         # Return the type of the function being called, coercing a function
@@ -6480,6 +6655,37 @@ class SimpleCallNode(CallNode):
 
         return self
 
+    def _coerce_value_self(self, actual, formal_ptr_type, env):
+        # value_type method self coercion: turn the actual self expression into a
+        # pointer to the value struct (formal_ptr_type = __pyx_val_T *).
+        actual = actual.analyse_types(env)
+        if getattr(actual.type, 'is_value_class', False):
+            # Actual is a value struct (by value).  Take its address.  A CloneNode
+            # wrapper is not addressable, so unwrap to the underlying lvalue; if
+            # that still isn't addressable, materialise to a temp.
+            inner = actual
+            while isinstance(inner, CloneNode):
+                inner = inner.arg
+            if actual.is_addressable():
+                # A value-class CloneNode/temp is addressable (its result is a
+                # C struct variable); take its address directly.
+                pass
+            elif inner.is_addressable():
+                actual = inner
+            else:
+                actual = actual.coerce_to_temp(env).analyse_types(env)
+            result = AmpersandNode(self.pos, operand=actual)
+            return result.analyse_types(env)
+        elif actual.type.is_extension_type or actual.type.is_pyobject:
+            # Actual is a boxed ext object: &((objstruct*)o)->__pyx_value.
+            node = BoxedValueSelfPtrNode(self.pos, operand=actual)
+            node.type = formal_ptr_type
+            return node.analyse_types(env)
+        else:
+            # Already a pointer to the value struct (e.g. self forwarded inside a
+            # value method) -- pass through.
+            return actual
+
     def analyse_c_function_call(self, env):
         func_type = self.function.type
         if func_type is error_type:
@@ -6582,7 +6788,15 @@ class SimpleCallNode(CallNode):
                         "descriptor '%s' requires a '%s' object but received a 'NoneType'",
                         format_args=[entry.name, formal_arg.type.name])
             if self.self:
-                if getattr(func_type, 'is_classmethod', False):
+                if (formal_arg.type.is_ptr
+                        and getattr(formal_arg.type.base_type, 'is_value_class', False)):
+                    # value_type method: formal self is __pyx_val_T *.  Build the
+                    # pointer from the actual self expression:
+                    #  - value struct (lvalue/temp) -> &v
+                    #  - boxed ext object           -> &((objstruct*)o)->__pyx_value
+                    arg = self.coerced_self = self._coerce_value_self(
+                        CloneNode(self.self), formal_arg.type, env)
+                elif getattr(func_type, 'is_classmethod', False):
                     # For cpdef classmethods called via a typed instance, pass
                     # Py_TYPE(self) as 'cls', not the instance itself.
                     arg = ClassmethodSelfNode(self.pos, self_arg=CloneNode(self.self))
@@ -6605,6 +6819,17 @@ class SimpleCallNode(CallNode):
         for i in range(min(max_nargs, actual_nargs)):
             formal_arg = func_type.args[i]
             formal_type = formal_arg.type
+            # value_type self ABI: the formal self param is __pyx_val_T *.  When
+            # called unbound (Type.method(self, ...) form — the auto-generated
+            # Python wrapper __pyx_pf_), coerce a boxed/value actual self into the
+            # value pointer (&obj->__pyx_value or &v) rather than a plain cast.
+            if (i == 0 and self.self is None
+                    and formal_type.is_ptr
+                    and getattr(formal_type.base_type, 'is_value_class', False)
+                    and not (getattr(args[i].type, 'is_ptr', False)
+                             and args[i].type.base_type is formal_type.base_type)):
+                args[i] = self._coerce_value_self(args[i], formal_type, env)
+                continue
             arg = args[i].coerce_to(formal_type, env)
             if formal_arg.not_none:
                 if args[i].is_none:
@@ -8142,6 +8367,10 @@ class AttributeNode(ExprNode):
         if self.obj.is_string_literal:
             return
         type = self.obj.analyse_as_type(env)
+        if type and getattr(type, 'is_value_class', False) and type.boxed_type is not None:
+            # value_type: methods live on the boxed extension type's scope, so an
+            # unbound C method reference (e.g. Vec2.__init__) must resolve there.
+            type = type.boxed_type
         if type:
             if type.is_extension_type or type.is_builtin_type or type.is_cpp_class:
                 entry = type.scope.lookup_here(self.attribute)
@@ -8187,6 +8416,11 @@ class AttributeNode(ExprNode):
                 # For cpdef classmethods, args[0] is already py_object_type; keep it.
                 ctype = copy.copy(entry.type)
                 ctype.args = ctype.args[:]
+            elif (entry.type.args and entry.type.args[0].type.is_ptr
+                    and getattr(entry.type.args[0].type.base_type, 'is_value_class', False)):
+                # value_type method: keep the value-pointer self ABI (__pyx_val_T *);
+                # the unbound call coerces the boxed/value actual self into that ptr.
+                ctype = entry.type
             else:
                 # Fix self type.
                 ctype = copy.copy(entry.type)
@@ -8270,6 +8504,13 @@ class AttributeNode(ExprNode):
                 self.result_ctype = py_object_type
         elif target and self.obj.type.is_builtin_type:
             error(self.pos, "Assignment to an immutable object field")
+        elif target and getattr(self.obj.type, 'is_value_class', False):
+            # value_type instances are frozen: a field of a value-typed
+            # expression cannot be assigned outside the class's own __init__
+            # (which writes through the boxed/ptr self form, not the value form).
+            error(self.pos,
+                  "cannot assign to field '%s' of frozen value type '%s'" % (
+                      self.attribute, self.obj.type))
         elif self.entry and self.entry.is_cproperty:
             if not target:
                 # Overridable properties on types without vtables must use
@@ -8321,6 +8562,17 @@ class AttributeNode(ExprNode):
         if obj_type.has_attributes:
             if obj_type.attributes_known():
                 entry = obj_type.scope.lookup_here(self.attribute)
+                # value_type (Stage 4): methods/properties live on the boxed ext
+                # type's scope, not the value struct's scope (which only carries
+                # data fields).  When the attribute is not a data field, fall back
+                # to the boxed scope so v.method() resolves to the cmethod entry.
+                if (entry is None and getattr(obj_type, 'is_value_class', False)
+                        and obj_type.boxed_type is not None
+                        and obj_type.boxed_type.scope is not None):
+                    boxed_entry = obj_type.boxed_type.scope.lookup_here(self.attribute)
+                    if boxed_entry is not None and (boxed_entry.is_cmethod
+                                                    or boxed_entry.is_cproperty):
+                        entry = boxed_entry
                 if obj_type.is_memoryviewslice and not entry:
                     if self.attribute == 'T':
                         self.is_memslice_transpose = True
@@ -8472,6 +8724,13 @@ class AttributeNode(ExprNode):
         obj_code = obj.result_as(obj.type)
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
+            # value_type (Stage 4): a method bound on a value struct (or on the
+            # boxed type via the value-class fallback) is always final by
+            # construction -> direct call through final_func_cname.
+            if (getattr(obj.type, 'is_value_class', False)
+                    or (obj.type.is_ptr and getattr(obj.type.base_type, 'is_value_class', False))):
+                if self.entry.final_func_cname:
+                    return self.entry.final_func_cname
             if obj.type.is_extension_type and not self.entry.is_builtin_cmethod:
                 if self.entry.final_func_cname:
                     return self.entry.final_func_cname
@@ -11736,6 +11995,16 @@ class UnopNode(ExprNode):
                 args=[])
             return call.analyse_types(env)
         self.operand = self.operand.analyse_types(env)
+        # Value-class operands only resolve to their value-struct type after the
+        # operand is analysed; retry the cpdef-dunder rewrite (e.g. `-v`).
+        if getattr(self.operand.type, 'is_value_class', False):
+            entry, dunder = self._cpdef_dunder_entry(env)
+            if entry is not None:
+                call = SimpleCallNode(self.pos,
+                    function=AttributeNode(self.pos, obj=self.operand,
+                                           attribute=StringEncoding.EncodedString(dunder)),
+                    args=[])
+                return call.analyse_types(env)
         if self.is_pythran_operation(env):
             self.type = PythranExpr(pythran_unaryop_type(self.operator, self.operand.type))
             self.is_temp = 1
@@ -12050,6 +12319,34 @@ class AmpersandNode(CUnopNode):
                 "%s = %s %s;" % (self.result(), self.operator, self.operand.result()),
                 self.result() if self.type.is_pyobject else None,
                 self.exception_value, self.in_nogil_context)
+
+
+class BoxedValueSelfPtrNode(ExprNode):
+    #  value_type (Stage 4): produces a pointer to the value struct embedded in a
+    #  boxed extension-type object: &((struct objstruct *)o)->__pyx_value.
+    #
+    #  operand   ExprNode      the boxed ext-type object (pyobject)
+    #  type      CPtrType      pointer to the value struct
+    subexprs = ['operand']
+
+    def analyse_types(self, env):
+        self.operand = self.operand.analyse_types(env)
+        return self
+
+    def is_addressable(self):
+        return False
+
+    def may_be_none(self):
+        return False
+
+    def calculate_result_code(self):
+        from . import Naming
+        objstruct = self.type.base_type.boxed_type.objstruct_cname
+        return "(&((struct %s *)%s)->%s)" % (
+            objstruct, self.operand.result(), Naming.value_member_cname)
+
+    def generate_result_code(self, code):
+        pass
 
 
 unop_node_classes = {
@@ -12773,6 +13070,9 @@ def _safe_infer_type(node, env):
                 func_entry = env.lookup(function.name)
             if func_entry is not None and func_entry.type is not None \
                     and func_entry.type.is_extension_type:
+                eq = getattr(func_entry.type, 'equivalent_type', None)
+                if eq is not None and getattr(eq, 'is_value_class', False):
+                    return eq
                 return func_entry.type
     return py_object_type
 
@@ -12791,6 +13091,24 @@ def _lookup_cpdef_dunder(type1, dunder_name, operand2_type=None):
     operand2_type is checked for assignment compatibility with the second arg
     of the entry's CFuncType (binop only).
     """
+    if getattr(type1, 'is_value_class', False):
+        # Value-class operands: resolve the dunder on the boxed extension type
+        # (value classes are final by construction, so the final-only gate
+        # passes).  Only optimize dunders that actually carry the value
+        # (struct-pointer) ABI -- i.e. USER-defined value methods.  The
+        # dataclass-synthesized dunders (__eq__/richcmp/__repr__/__hash__) keep
+        # ext-object self; dispatching a value struct into them with the wrong
+        # ABI is unsound, so fall back to the normal (boxing) path for those.
+        boxed = type1.boxed_type
+        if boxed is None:
+            return None
+        entry = _lookup_cpdef_dunder(boxed, dunder_name, operand2_type)
+        if entry is not None and entry.type.args:
+            self_arg_type = entry.type.args[0].type
+            if (self_arg_type.is_ptr
+                    and getattr(self_arg_type.base_type, 'is_value_class', False)):
+                return entry
+        return None
     if not type1.is_extension_type:
         return None
     # Self-only dunders (zeroarg + unary: len/str/repr/hash/neg/pos/invert/abs)
@@ -12895,6 +13213,19 @@ class BinopNode(ExprNode):
             return call.analyse_types(env)
         self.operand1 = self.operand1.analyse_types(env)
         self.operand2 = self.operand2.analyse_types(env)
+        # Value-class operands only resolve to their value-struct type AFTER the
+        # operands are analysed (e.g. a value_type def-arg infers as a boxed
+        # object pre-analysis).  Retry the cpdef-dunder rewrite now that the
+        # operand .type is set, so `a + b` on two value structs dispatches the
+        # direct value-ABI call instead of failing analyse_c_operation.
+        if getattr(self.operand1.type, 'is_value_class', False):
+            entry, dunder = self._cpdef_dunder_entry(env)
+            if entry is not None:
+                call = SimpleCallNode(self.pos,
+                    function=AttributeNode(self.pos, obj=self.operand1,
+                                           attribute=StringEncoding.EncodedString(dunder)),
+                    args=[self.operand2])
+                return call.analyse_types(env)
         return self.analyse_operation(env)
 
     def analyse_operation(self, env):
@@ -15964,6 +16295,14 @@ class CloneNode(CoercionNode):
         if self.arg.is_literal:
             return self.arg.coerce_to(dest_type, env)
         return super().coerce_to(dest_type, env)
+
+    def is_addressable(self):
+        # A value-class struct result lives in a plain C temp variable, so its
+        # address can be taken (needed for the value-ABI self pointer when a
+        # value_type ctor-expression is used directly as a binop/method operand).
+        if getattr(self.type, 'is_value_class', False):
+            return True
+        return self.arg.is_addressable()
 
     def is_simple(self):
         return True  # result is always in a temp (or a name)

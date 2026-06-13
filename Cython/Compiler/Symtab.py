@@ -1136,6 +1136,13 @@ class Scope:
         if entry and entry.is_type:
             if entry.type.is_fused and self.fused_to_specific:
                 return entry.type.specialize(self.fused_to_specific)
+            # value_type classes: the class name in a type context (e.g. 'cdef
+            # Vec2 x') resolves to the value struct, not the boxed ext type.
+            etype = entry.type
+            if (etype.is_extension_type
+                    and getattr(etype, 'equivalent_type', None) is not None
+                    and getattr(etype.equivalent_type, 'is_value_class', False)):
+                return etype.equivalent_type
             return entry.type
 
     def lookup_type(self, name):
@@ -2692,6 +2699,14 @@ class CClassScope(ClassScope):
         if not type.is_static_method and not type.is_classmethod:
             if not args:
                 error(pos, "C method has no self argument")
+            elif (getattr(self, 'is_value_class_scope', False)
+                  and args[0].type.is_ptr
+                  and args[0].type.base_type is self.parent_type.equivalent_type):
+                # value_type method: self is passed as a pointer to the value
+                # struct (__pyx_val_T *), not the boxed ext type — this is the
+                # value-self ABI (Stage 4), so it is intentionally not assignable
+                # from parent_type.
+                pass
             elif not self.parent_type.assignable_from(args[0].type):
                 error(pos, "Self argument (%s) of C method '%s' does not match parent type (%s)" %
                       (args[0].type, name, self.parent_type))

@@ -78,6 +78,8 @@ interned_prefixes = {
 
 carray_literal_prefix = pyrex_prefix + "literalcarray_"
 ctuple_type_prefix = pyrex_prefix + "ctuple_"
+value_struct_prefix = pyrex_prefix + "val_"
+value_member_cname = pyrex_prefix + "value"
 args_cname       = pyrex_prefix + "args"
 nargs_cname      = pyrex_prefix + "nargs"
 kwvalues_cname   = pyrex_prefix + "kwvalues"

@@ -8,6 +8,12 @@ Cython Changelog
 Features added
 --------------
 
+* A new ``@cython.value_type`` decorator gives a ``final`` frozen-dataclass
+  extension type with C-only fields value-type semantics: it is backed by a
+  plain C struct, stack-allocated and passed/returned by value in compiled
+  code, and boxed into a normal extension-type object only at Python
+  boundaries (identity is not preserved across boxings, like a ctuple).
+
 * Changes were made to adapt to Python 3.15 and its Limited API.
   (Github issues :issue:`7190`, :issue:`7347`, :issue:`7348`, :issue:`7358`)
 

@@ -263,6 +263,7 @@ class PyrexType(BaseType):
     is_volatile = 0
     is_cv_qualified = 0
     is_cfunction = 0
+    is_value_class = 0
     is_struct_or_union = 0
     is_cpp_class = 0
     is_optional_cpp_class = 0
@@ -5141,6 +5142,58 @@ def c_tuple_type(components):
         cname = Naming.ctuple_type_prefix + type_list_identifier(components)
     ctuple_type = CTupleType(cname, components)
     return ctuple_type
+
+
+class CValueClassType(CStructOrUnionType):
+    #  The value form of a @value_type cclass: a plain C struct that holds the
+    #  class's fields by value.  Inherits all struct ABI (by-value copy/assign,
+    #  passing by value, embedding) from CStructOrUnionType but resolves in type
+    #  contexts in place of the boxed extension type.
+    #
+    #  _boxed_ext_type   PyExtensionType   the heap representation this boxes into
+    #  py_name           string            the class's Python name (for typeof())
+
+    is_value_class = 1
+
+    def __init__(self, name, scope, cname, ext_type, py_name=None):
+        # kind='struct', typedef_flag=True so the cname is used directly.
+        CStructOrUnionType.__init__(
+            self, name, 'struct', scope, typedef_flag=True, cname=cname)
+        self._boxed_ext_type = ext_type
+        self.py_name = py_name or name
+        # Per-type exact converters (emitted in ModuleNode.generate_value_class_converters).
+        self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, cname)
+        self.from_py_function = "%s_from_py_%s" % (Naming.convert_func_prefix, cname)
+
+    @property
+    def boxed_type(self):
+        return self._boxed_ext_type
+
+    def __str__(self):
+        return self.py_name
+
+    def __repr__(self):
+        return "<CValueClassType %s %s>" % (self.py_name, self.cname)
+
+    # --- Exact-type converters --------------------------------------------
+    # We MUST NOT inherit CStructOrUnionType's dict-based converters, which
+    # accept/produce dicts.  The actual C of these converters is emitted
+    # unconditionally in ModuleNode for every value_type class; the function
+    # names are already set in __init__, so here we just report availability.
+
+    def can_coerce_to_pyobject(self, env):
+        return True
+
+    def can_coerce_from_pyobject(self, env):
+        return True
+
+    def create_to_py_utility_code(self, env):
+        # Converter C is emitted directly by ModuleNode; nothing to register.
+        return True
+
+    def create_from_py_utility_code(self, env):
+        # Converter C is emitted directly by ModuleNode; nothing to register.
+        return True
 
 
 class UnspecifiedType(PyrexType):

@@ -4933,6 +4933,13 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
         ext_type = type_entry.type
         if not (ext_type and ext_type.is_extension_type and ext_type.scope):
             return None
+        # value_type classes are lowered to direct stack-struct init in
+        # SimpleCallNode.analyse_as_type_constructor (which runs earlier), so we
+        # should never reach here with a value-class constructor.  Guard
+        # defensively so this transform never tries to split such a call into
+        # tp_new + __init__.
+        if getattr(getattr(ext_type, 'equivalent_type', None), 'is_value_class', False):
+            return None
 
         # Require a cpdef __init__ reachable via a C-level calling path.
         # Same-module: direct __pyx_f_ symbol.
@@ -5002,6 +5009,9 @@ class OptimizeExtTypeConstructorCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTr
             return None
         ext_type = type_entry.type
         if not (ext_type and ext_type.is_extension_type and ext_type.scope):
+            return None
+        # value_type classes are lowered to direct stack-struct init earlier.
+        if getattr(getattr(ext_type, 'equivalent_type', None), 'is_value_class', False):
             return None
 
         init_entry = ext_type.scope.lookup_here('__init__')

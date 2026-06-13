@@ -2672,6 +2672,11 @@ if VALUE is not None:
         if node.scope.directives['auto_pickle'] is False:   # None means attempt it.
             # Old behavior of not doing anything.
             return
+        if getattr(node.scope, 'is_value_class_scope', False):
+            # value_type classes box into a fresh object each time; auto-pickle of
+            # the value form is deferred (Stage 2) and its generated __set_state
+            # would also trip the frozen-field-write check.
+            return
         auto_pickle_forced = node.scope.directives['auto_pickle'] is True
 
         all_members = []
@@ -3566,6 +3571,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     def visit_ModuleNode(self, node):
         self.directives = node.directives
         self.in_py_class = False
+        self.in_value_class = False
         self.imported_names = set()
         self.env = node
         self.visitchildren(node)
@@ -3592,6 +3598,12 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         with_gil = self.directives.get('with_gil')
         except_val = self.directives.get('exceptval')
         auto_cpdef = self.directives.get('auto_cpdef')
+        # Value-type classes always promote their user methods (and whitelisted
+        # dunders) to cpdef so they get a __pyx_f_ with the value-pointer self ABI
+        # and a final_func_cname (the class is final by construction).  This is
+        # independent of the auto_cpdef directive.
+        if self.in_value_class and isinstance(self.env, Nodes.CClassDefNode):
+            auto_cpdef = True
         # `no_ccall` is a marker directive (the bare `@no_ccall` decorator stores
         # value None), so test for presence rather than a truthy value -- same as
         # `ccall`/`cfunc` below. Using `.get()` made `@no_ccall` a silent no-op.
@@ -3799,7 +3811,12 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     def visit_CClassDefNode(self, node):
         self.env, env = node, self.env
         self.in_py_class, old_in_pyclass = False, self.in_py_class
+        # value_type is an immediate decorator directive, so it is only visible
+        # in self.directives at the class node itself (the body is re-wrapped to
+        # reset directives before method visitation).  Record it for visit_DefNode.
+        self.in_value_class, old_in_value_class = bool(self.directives.get('value_type')), self.in_value_class
         self.visitchildren(node)
+        self.in_value_class = old_in_value_class
         self.in_py_class = old_in_pyclass
         self.env = env
         return node

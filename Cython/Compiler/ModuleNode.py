@@ -630,6 +630,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # generate extension types and methods
         code = globalstate['module_exttypes']
         self.generate_typeobj_definitions(env, code)
+        self.generate_value_class_converters(env, code)
         self.generate_method_table(env, code)
         if env.has_import_star:
             self.generate_import_star(env, code)
@@ -859,6 +860,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_exttype_vtable_struct(entry, code)
             self.generate_exttype_vtabptr_declaration(entry, code)
             self.generate_exttype_final_methods_declaration(entry, code)
+        for entry in env.c_class_entries:
+            self.generate_value_class_converter_protos(entry, code)
 
     def generate_declarations_for_modules(self, env, modules, globalstate):
         typecode = globalstate['type_declarations']
@@ -1483,6 +1486,65 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             return
         code.putln(self.sue_predeclaration(type, "struct", type.objstruct_cname))
 
+    @staticmethod
+    def _value_class_type(entry):
+        """Return the CValueClassType for a value_type c_class entry, else None."""
+        ext_type = entry.type
+        value_type = getattr(ext_type, 'equivalent_type', None)
+        if value_type is not None and getattr(value_type, 'is_value_class', False):
+            return value_type
+        return None
+
+    def generate_value_class_converter_protos(self, entry, code):
+        value_type = self._value_class_type(entry)
+        if value_type is None:
+            return
+        ext_type = entry.type
+        valstruct = value_type.empty_declaration_code()
+        code.putln("static PyObject *%s(%s); /*proto*/" % (
+            value_type.to_py_function, valstruct))
+        code.putln("static %s %s(PyObject *); /*proto*/" % (
+            valstruct, value_type.from_py_function))
+
+    def generate_value_class_converters(self, env, code):
+        for entry in env.c_class_entries:
+            value_type = self._value_class_type(entry)
+            if value_type is None:
+                continue
+            self._generate_value_class_converters(entry, value_type, code)
+
+    def _generate_value_class_converters(self, entry, value_type, code):
+        ext_type = entry.type
+        valstruct = value_type.empty_declaration_code()
+        objstruct = ext_type.objstruct_cname
+        typeptr = code.name_in_slot_module_state(ext_type.typeptr_cname)
+        empty_tuple = code.name_in_slot_module_state(Naming.empty_tuple)
+        member = Naming.value_member_cname
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("tp_new", "ObjectHandling.c"))
+
+        # to_py: box a value struct into a fresh boxed object (new object each call).
+        code.putln("static PyObject *%s(%s v) {" % (value_type.to_py_function, valstruct))
+        code.putln("PyObject *o = __Pyx_tp_new((PyObject *)%s, %s);" % (typeptr, empty_tuple))
+        code.putln("if (unlikely(!o)) return NULL;")
+        code.putln("((struct %s *)o)->%s = v;" % (objstruct, member))
+        code.putln("return o;")
+        code.putln("}")
+
+        # from_py: exact-type check, then copy out the embedded value struct.
+        code.putln("static %s %s(PyObject *o) {" % (valstruct, value_type.from_py_function))
+        code.putln("%s r;" % valstruct)
+        code.putln("if (unlikely(Py_TYPE(o) != (PyTypeObject *)%s)) {" % typeptr)
+        code.putln("PyErr_Format(PyExc_TypeError, "
+                   "\"Expected an exact instance of '%s', got %%.200s\", "
+                   "Py_TYPE(o)->tp_name);" % value_type.py_name)
+        code.putln("memset(&r, 0, sizeof(r));")
+        code.putln("return r;")
+        code.putln("}")
+        code.putln("return ((struct %s *)o)->%s;" % (objstruct, member))
+        code.putln("}")
+
     def generate_objstruct_definition(self, type, code):
         code.mark_pos(type.pos)
         # Generate object struct definition for an
@@ -1511,6 +1573,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "struct %s *%s;" % (
                     type.vtabstruct_cname,
                     type.vtabslot_cname))
+        value_type = getattr(type, 'equivalent_type', None)
+        if value_type is not None and getattr(value_type, 'is_value_class', False):
+            # value_type class: embed the value struct as a single member instead
+            # of laying out each field separately (the field entries' cnames have
+            # been rewritten to '__pyx_value.<field>').
+            code.putln("%s;" % value_type.declaration_code(Naming.value_member_cname))
+            code.putln(footer)
+            if type.objtypedef_cname is not None:
+                code.putln("typedef struct %s %s;" % (type.objstruct_cname, type.objtypedef_cname))
+            return
         for attr in type.scope.var_entries:
             if attr.is_declared_generic:
                 attr_type = py_object_type

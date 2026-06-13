@@ -291,6 +291,15 @@ def process_class_get_fields(node):
             field.private = True
         fields[name] = field
     node.entry.type.dataclass_fields = fields
+    # value_type (Stage 1): default_factory fields are not supported yet.  This is
+    # checked here rather than in CClassDefNode.analyse_declarations because the
+    # dataclass_fields metadata is only populated during the dataclass transform,
+    # which runs after analyse_declarations.
+    if getattr(node.scope, 'is_value_class_scope', False):
+        for name, field in fields.items():
+            if field.default_factory is not MISSING:
+                error(node.pos,
+                      "value_type does not support default_factory fields (yet)")
     return fields
 
 
@@ -315,6 +324,12 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
 
     kw_only = kwargs['kw_only']
+
+    # Record the class-level kw_only flag on the type so value_type constructor
+    # lowering (ExprNodes.SimpleCallNode._lower_value_class_construction) can
+    # reject positional args for kw_only value classes, matching what the
+    # generated Python-level __init__ enforces.
+    node.entry.type.dataclass_kw_only = kw_only
 
     fields = process_class_get_fields(node)
 
@@ -453,12 +468,22 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     # layout (vtable pointer presence) identical in all compilation units.
     orig_defined = node.scope.defined
     node.scope.defined = 0
+    # value_type (Stage 4): the dataclass-synthesized dunders (__init__, __repr__,
+    # __eq__, __hash__, richcmp) fundamentally need the boxed (ext-object) self —
+    # their bodies use self.__class__/type(self), cast other to the ext type, etc.
+    # Suppress the value-self-pointer ABI swap (Nodes.CFuncDeclaratorNode.analyse)
+    # for the duration of their declaration analysis so they keep ext-type self.
+    is_value_class = getattr(node.scope, 'is_value_class_scope', False)
+    if is_value_class:
+        node.scope._suppress_value_self_swap = True
     comp_directives.analyse_declarations(node.scope)
     node.scope.defined = orig_defined
     # probably already in this scope, but it doesn't hurt to make sure
     analyse_decs_transform.enter_scope(node, node.scope)
     analyse_decs_transform.visit(comp_directives)
     analyse_decs_transform.exit_scope()
+    if is_value_class:
+        node.scope._suppress_value_self_swap = False
 
     # allocate_vtable_names runs during CClassDefNode.analyse_declarations, before
     # this dataclass code generation.  If we just added a cpdef __init__ to
