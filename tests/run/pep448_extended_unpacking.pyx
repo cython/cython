@@ -1,6 +1,9 @@
 # mode: run
 # tag: all_language_levels
 
+# cython: test_assert_c_code_has = __Pyx_ListComp_Append\(
+# cython: test_assert_c_code_has = __Pyx_ListComp_AppendSteal\(
+
 cimport cython
 
 
@@ -237,6 +240,17 @@ def unpack_list_simple(it):
     [2, 1]
     """
     return [*it]
+
+
+@cython.test_assert_path_exists(
+    "//MergedSequenceNode",
+)
+def unpack_list_temps(it, x):
+    """
+    >>> unpack_list_temps([1, 2, 3], 4)
+    [1, 2, 3, 4, 5, 6, 1, 2, 3, 7, 8, 9]
+    """
+    return [*it, *[x, x+1, x+2], *it, *[x+3, x+4], *[x+5]]
 
 
 def unpack_list_from_iterable(it):

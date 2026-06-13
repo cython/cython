@@ -26,55 +26,107 @@ static CYTHON_INLINE int __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     return 0;
 }
 
+
+/////////////// ListAppendStealInternal ///////////////
+
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE void __Pyx__ListComp_AppendSteal(PyObject* list, Py_ssize_t len, PyObject* x) {
+    PyListObject* L = (PyListObject*) list;
+    #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
+    // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
+    // However, extending the size *before* setting the value would not be correct,
+    // so we cannot call PyList_SET_ITEM().
+    L->ob_item[len] = x;
+    #else
+    PyList_SET_ITEM(list, len, x);
+    #endif
+    Py_SET_SIZE(list, len + 1);
+}
+#endif
+
+
 /////////////// ListAppend.proto ///////////////
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
-static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
-    PyListObject* L = (PyListObject*) list;
-    Py_ssize_t len = Py_SIZE(list);
-    if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
-        Py_INCREF(x);
-        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
-        // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
-        // However, extending the size *before* setting the value would not be correct,
-        // so we cannot call PyList_SET_ITEM().
-        L->ob_item[len] = x;
-        #else
-        PyList_SET_ITEM(list, len, x);
-        #endif
-        Py_SET_SIZE(list, len + 1);
-        return 0;
-    }
-    return PyList_Append(list, x);
-}
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x); /*proto*/
 #else
 #define __Pyx_PyList_Append(L,x) PyList_Append(L,x)
 #endif
 
-/////////////// ListCompAppend.proto ///////////////
+/////////////// ListAppend ///////////////
+//@requires: ListAppendStealInternal
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
-static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
     PyListObject* L = (PyListObject*) list;
     Py_ssize_t len = Py_SIZE(list);
-    if (likely(L->allocated > len)) {
+
+    if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
         Py_INCREF(x);
-        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
-        // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
-        // However, extending the size *before* setting the value would not be correct,
-        // so we cannot call PyList_SET_ITEM().
-        L->ob_item[len] = x;
-        #else
-        PyList_SET_ITEM(list, len, x);
-        #endif
-        Py_SET_SIZE(list, len + 1);
+        __Pyx__ListComp_AppendSteal(list, len, x);
         return 0;
     }
     return PyList_Append(list, x);
 }
+#endif
+
+
+/////////////// ListCompAppend.proto ///////////////
+
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x); /*proto*/
 #else
 #define __Pyx_ListComp_Append(L,x) PyList_Append(L,x)
 #endif
+
+/////////////// ListCompAppend ///////////////
+//@requires: ListAppendStealInternal
+
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
+    PyListObject* L = (PyListObject*) list;
+    Py_ssize_t len = Py_SIZE(list);
+
+    if (likely(L->allocated > len)) {
+        Py_INCREF(x);
+        __Pyx__ListComp_AppendSteal(L, x, len);
+        return 0;
+    }
+    return PyList_Append(list, x);
+}
+#endif
+
+
+/////////////// ListCompAppendSteal.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_ListComp_AppendSteal(PyObject* list, PyObject* x); /*proto*/
+
+/////////////// ListCompAppendSteal ///////////////
+//@requires: ListAppendStealInternal
+
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_ListComp_AppendSteal(PyObject* list, PyObject* x) {
+    PyListObject* L = (PyListObject*) list;
+    Py_ssize_t len = Py_SIZE(list);
+
+    if (likely(L->allocated > len)) {
+        __Pyx__ListComp_AppendSteal(L, x, len);
+        return 0;
+    }
+
+    int result = PyList_Append(list, x);
+    Py_DECREF(x);
+    return result;
+}
+
+#else
+static CYTHON_INLINE int __Pyx_ListComp_AppendSteal(PyObject* list, PyObject* x) {
+    int result = PyList_Append(list, x);
+    Py_DECREF(x);
+    return result;
+}
+#endif
+
 
 //////////////////// ListExtend.proto ////////////////////
 
@@ -313,7 +365,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static PyObject *__Pyx_dict_call_to_get_iterable(PyObject* iterable, PyObject* method_name) {
-    
+
     PyObject* iter;
     iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
     if (!iterable)
