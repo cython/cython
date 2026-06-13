@@ -860,8 +860,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_exttype_vtable_struct(entry, code)
             self.generate_exttype_vtabptr_declaration(entry, code)
             self.generate_exttype_final_methods_declaration(entry, code)
-        for entry in env.c_class_entries:
-            self.generate_value_class_converter_protos(entry, code)
+        for module in modules:
+            for entry in module.c_class_entries:
+                self.generate_value_class_converter_protos(entry, code)
 
     def generate_declarations_for_modules(self, env, modules, globalstate):
         typecode = globalstate['type_declarations']
@@ -1507,11 +1508,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             valstruct, value_type.from_py_function))
 
     def generate_value_class_converters(self, env, code):
+        # Generate converters for locally-defined value_type classes.
         for entry in env.c_class_entries:
             value_type = self._value_class_type(entry)
             if value_type is None:
                 continue
             self._generate_value_class_converters(entry, value_type, code)
+        # Also regenerate converters for cimported value_type classes: the producer's
+        # converters are static and reference the producer's module-state typeptr, so
+        # the consumer must emit its own copy using its own cimported typeptr.
+        for module in self.referenced_modules:
+            if module is env:
+                continue  # already handled above
+            for entry in module.c_class_entries:
+                if not entry.used or not entry.defined_in_pxd:
+                    continue
+                value_type = self._value_class_type(entry)
+                if value_type is None:
+                    continue
+                self._generate_value_class_converters(entry, value_type, code)
 
     def _generate_value_class_converters(self, entry, value_type, code):
         ext_type = entry.type

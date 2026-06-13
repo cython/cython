@@ -703,6 +703,140 @@ statically sized freelist of ``N`` instances for a given type.  Example:
 
         .. literalinclude:: ../../examples/userguide/extension_types/penguin2.pyx
 
+.. _value_types:
+
+Value types
+===========
+
+The ``@cython.value_type`` decorator turns a small, immutable extension type
+into a **value type**: instead of a heap-allocated Python object, it is backed
+by a plain C struct that is stack-allocated and passed and returned *by value*
+in compiled code, exactly like a C ``struct`` or a :ref:`ctuple <typing_types>`.
+The object is only *boxed* into a regular Python object when it crosses into a
+Python context (assigned to an ``object``, returned to Python, stored in a
+list, etc.).  For small data holders such as a 2-D vector this means effectively
+zero heap allocation on the hot path.
+
+A value type must satisfy all of the following, each of which is enforced with a
+compile error if missing:
+
+* it is a ``cdef`` / ``@cython.cclass`` extension type,
+* it is explicitly ``final`` (``@cython.final``),
+* it is a frozen dataclass (``@dataclass(frozen=True)``),
+* it has no base classes, and
+* all of its fields are C types (int/float/bool, enums, ctuples, ...) -- Python
+  object fields are not allowed.
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            import cython
+            from cython import cclass, final, value_type
+            from dataclasses import dataclass
+
+            @value_type
+            @final
+            @cclass
+            @dataclass(frozen=True)
+            class Vec2:
+                x: cython.double
+                y: cython.double = 0.0
+
+                def length2(self) -> cython.double:
+                    return self.x * self.x + self.y * self.y
+
+                def __add__(self, other: Vec2) -> Vec2:
+                    return Vec2(self.x + other.x, self.y + other.y)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cimport cython
+            from dataclasses import dataclass
+
+            @cython.value_type
+            @cython.final
+            @dataclass(frozen=True)
+            cdef class Vec2:
+                x: cython.double
+                y: cython.double = 0.0
+
+                def length2(self) -> cython.double:
+                    return self.x * self.x + self.y * self.y
+
+                def __add__(self, other: "Vec2") -> "Vec2":
+                    return Vec2(self.x + other.x, self.y + other.y)
+
+In compiled code, ``Vec2(1.0, 2.0)`` builds the struct on the stack (no
+``tp_new`` / heap allocation), user methods and operators (``a + b``, ``-a``)
+dispatch directly to the struct-typed implementation with no boxing, and the
+fields are read as plain C struct members.
+
+**Value semantics and boxing identity.** Because each boxing produces a *new*
+Python object, object identity is *not* preserved across boxings -- two boxes of
+the same value are distinct objects (``box(v) is not box(v)``) that nonetheless
+compare equal (``==``).  This mirrors how a ctuple boxes into a fresh ``tuple``.
+Assigning a value type copies the struct.  At Python boundaries the type behaves
+like a normal frozen dataclass: ``isinstance``, ``dataclasses.fields()``,
+``repr``, ``==`` and ``hash`` all work on the boxed instances, and converting a
+Python object back to the value type performs an *exact*-type check (``None`` and
+even a ``dict`` with matching keys are rejected -- the value type does not accept
+the mapping coercion that a plain ``cython.struct`` would).
+
+**Cross-module value types.** A value type defined in one module can be used
+from another module by compiling both together with ``--cimport-from-pyx``::
+
+    # producer.pyx
+    @cython.value_type
+    @cython.final
+    @dataclass(frozen=True)
+    cdef class Vec2:
+        x: cython.double
+        y: cython.double
+
+        def __add__(self, other: "Vec2") -> "Vec2":
+            return Vec2(self.x + other.x, self.y + other.y)
+
+    # consumer.pyx
+    from producer cimport Vec2
+
+    @cython.cfunc
+    def hot_path(a: Vec2, b: Vec2) -> cython.double:
+        c: Vec2 = a + b     # direct extern call, no boxing
+        return c.x
+
+Then compile both together::
+
+    cython --cimport-from-pyx producer.pyx consumer.pyx
+
+The consumer reconstructs the value struct, regenerates the box/unbox
+converters using the imported type pointer, and makes direct C calls into the
+producer's value-ABI methods (``__add__``, custom methods) with zero boxing.
+Noexcept facts propagate from the producer so the consumer's call sites are
+also check-free for provably non-raising value methods.
+
+.. note::
+
+    Declaring a value type in a hand-written ``.pxd`` file is **not** supported
+    and produces a compile error.  Use ``--cimport-from-pyx`` instead.
+    The ``cdef extern class`` form is also not supported.
+
+**v1 limitations.** The following are not supported yet (and produce a clean
+compile error or are documented gaps):
+
+* object/``str``/``list`` (any Python-object) fields,
+* nested value-type fields (a value-type field whose type is another value
+  type) -- use a ctuple field instead,
+* ``__dict__`` / ``__weakref__``, ``default_factory`` fields, and user-defined
+  ``__post_init__`` / ``__cinit__`` / ``__dealloc__``,
+* pickling.
+
+``@property`` accessors are supported but route through the boxed accessor.
+
 .. _existing-pointers-instantiation:
 
 Instantiation from existing C/C++ pointers

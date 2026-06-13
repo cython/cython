@@ -710,10 +710,20 @@ def generate_cmp_code(code, op, funcname, node, fields, *, critical_section_plac
             op_without_equals = op.replace('=', '')
 
             for name in names:
+                # For value-class typed fields, C structs have no comparison operators.
+                # Box both sides via <object> cast so Python-level richcmp is used,
+                # which dispatches to the nested type's __eq__/__lt__/etc. dunders.
+                field_entry = node.scope.lookup(name)
+                if field_entry and getattr(field_entry.type, 'is_value_class', False):
+                    self_expr = f"<object>self.{name}"
+                    other_expr = f"<object>other_cast.{name}"
+                else:
+                    self_expr = f"self.{name}"
+                    other_expr = f"other_cast.{name}"
                 if op != '==':
                     # tuple comparison rules - early elements take precedence
-                    code.add_code_line(f"if self.{name} {op_without_equals} other_cast.{name}: return True")
-                code.add_code_line(f"if self.{name} != other_cast.{name}: return False")
+                    code.add_code_line(f"if {self_expr} {op_without_equals} {other_expr}: return True")
+                code.add_code_line(f"if {self_expr} != {other_expr}: return False")
             code.add_code_line(f"return {'True' if '=' in op else 'False'}")  # "() == ()" is True
 
 

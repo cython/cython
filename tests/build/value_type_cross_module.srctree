@@ -1,0 +1,471 @@
+# Tests cross-module value_type support via --cimport-from-pyx.
+# Three variants:
+#   1. Sequential compilation (baseline X1 case)
+#   2. Parallel -j2 compilation (Options.capture/restore_global_state survivor test)
+#   3. Dotted-package layout (pkg/mod_a.pyx + pkg/sub/mod_b.pyx)
+# Each variant checks that: the consumer reconstructs CValueClassType, regenerates
+# box/unbox converters, emits extern value-ABI method protos, and makes DIRECT
+# extern calls (zero boxing on the hot path).  A shared check_codegen.py validates
+# the generated C for all flat variants; a separate check_pkg_codegen.py handles
+# the dotted-package layout.
+CYTHON --cimport-from-pyx mod_a.pyx mod_b.pyx
+PYTHON check_codegen.py sequential
+CYTHON --cimport-from-pyx -j2 mod_a.pyx mod_b.pyx
+PYTHON check_codegen.py parallel
+PYTHON build_mods.py
+PYTHON run_test.py
+CYTHON --cimport-from-pyx pkg/mod_a.pyx pkg/sub/mod_b.pyx
+PYTHON check_pkg_codegen.py
+PYTHON build_pkg_mods.py
+PYTHON run_pkg_test.py
+
+######## pkg/__init__.py ########
+######## pkg/sub/__init__.py ########
+
+######## pkg/mod_a.pyx ########
+
+# cython: language_level=3
+cimport cython
+from dataclasses import dataclass
+
+
+@cython.value_type
+@cython.final
+@dataclass(frozen=True)
+cdef class Vec2:
+    x: cython.double
+    y: cython.double
+
+    def __add__(self, other: Vec2) -> Vec2:
+        return Vec2(self.x + other.x, self.y + other.y)
+
+    cpdef double dot(self, other: Vec2):
+        return self.x * other.x + self.y * other.y
+
+
+cpdef Vec2 make_vec(double x, double y):
+    return Vec2(x, y)
+
+######## pkg/sub/mod_b.pyx ########
+
+# cython: language_level=3
+cimport cython
+from pkg.mod_a cimport Vec2
+
+
+@cython.cfunc
+def _combine(a: Vec2, b: Vec2) -> cython.double:
+    c: Vec2 = a + b          # cross-module value-ABI __add__
+    return c.dot(a)          # cross-module value-ABI method
+
+
+def py_combine(a: Vec2, b: Vec2) -> object:
+    return _combine(a, b)
+
+
+def make(x: object, y: object) -> object:
+    # Construction of producer's value type in the consumer: lowers to a
+    # stack struct — no heap alloc.
+    return Vec2(x, y)
+
+######## mod_a.pyx ########
+
+# cython: language_level=3
+cimport cython
+from dataclasses import dataclass
+
+
+@cython.value_type
+@cython.final
+@dataclass(frozen=True)
+cdef class Vec2:
+    x: cython.double
+    y: cython.double
+
+    def __add__(self, other: Vec2) -> Vec2:
+        return Vec2(self.x + other.x, self.y + other.y)
+
+    cpdef double dot(self, other: Vec2):
+        return self.x * other.x + self.y * other.y
+
+
+cpdef Vec2 make_vec(double x, double y):
+    return Vec2(x, y)
+
+######## mod_b.pyx ########
+
+# cython: language_level=3
+cimport cython
+from mod_a cimport Vec2
+
+
+@cython.cfunc
+def _combine(a: Vec2, b: Vec2) -> cython.double:
+    c: Vec2 = a + b          # cross-module value-ABI __add__
+    return c.dot(a)          # cross-module value-ABI method
+
+
+def py_combine(a: Vec2, b: Vec2) -> object:
+    return _combine(a, b)
+
+
+def make(x: object, y: object) -> object:
+    # Construction of producer's value type in the consumer: lowers to a
+    # stack struct — no heap alloc.
+    return Vec2(x, y)
+
+######## check_codegen.py ########
+# Flat-module codegen assertions (used for both 'sequential' and 'parallel').
+# Locks in the cross-module value-type optimization:
+#   - hot _combine has NO boxing/heap alloc calls
+#   - cross-module __add__ and dot are DIRECT extern C calls
+#   - value struct typedef, embedded __pyx_value member, and regenerated
+#     box/unbox converters are present in the consumer TU
+#   - noexcept value-ABI calls have NO PyErr_Occurred check
+import re
+import sys
+
+mode = sys.argv[1]
+with open('mod_b.c') as f:
+    src = f.read()
+
+# ---------------------------------------------------------------------------
+# 1. Value struct typedef + struct definition present in consumer TU
+# ---------------------------------------------------------------------------
+assert '__pyx_val_5mod_a_Vec2' in src, \
+    "%s: consumer missing value struct typedef __pyx_val_5mod_a_Vec2" % mode
+
+typedef_lines = [l for l in src.splitlines()
+                 if 'typedef' in l and '__pyx_val_5mod_a_Vec2' in l]
+assert typedef_lines, \
+    "%s: no typedef line for __pyx_val_5mod_a_Vec2 (vacuous test)" % mode
+
+struct_lines = [l for l in src.splitlines()
+                if 'struct __pyx_val_5mod_a_Vec2' in l and '{' in l]
+assert struct_lines, \
+    "%s: no struct definition for __pyx_val_5mod_a_Vec2 in consumer" % mode
+
+# ---------------------------------------------------------------------------
+# 2. Objstruct embeds __pyx_value member
+# ---------------------------------------------------------------------------
+embed_lines = [l for l in src.splitlines() if '__pyx_value' in l and 'Vec2' in l]
+assert embed_lines, \
+    "%s: consumer objstruct missing embedded __pyx_value member" % mode
+
+# ---------------------------------------------------------------------------
+# 3. Regenerated box/unbox converters present in consumer TU (static, not extern)
+# ---------------------------------------------------------------------------
+assert '__pyx_convert__to_py___pyx_val_5mod_a_Vec2' in src, \
+    "%s: consumer missing regenerated to_py converter" % mode
+assert '__pyx_convert__from_py___pyx_val_5mod_a_Vec2' in src, \
+    "%s: consumer missing regenerated from_py converter" % mode
+
+# Converters must be STATIC (regenerated locally, not extern-imported).
+conv_to_lines = [l for l in src.splitlines()
+                 if '__pyx_convert__to_py___pyx_val_5mod_a_Vec2' in l
+                 and ('static' in l or '/*proto*/' in l)]
+assert conv_to_lines, \
+    "%s: to_py converter is not static/proto in consumer (should be regenerated)" % mode
+
+conv_from_lines = [l for l in src.splitlines()
+                   if '__pyx_convert__from_py___pyx_val_5mod_a_Vec2' in l
+                   and ('static' in l or '/*proto*/' in l)]
+assert conv_from_lines, \
+    "%s: from_py converter is not static/proto in consumer (should be regenerated)" % mode
+
+# ---------------------------------------------------------------------------
+# 4. Extern proto declarations for value-ABI methods
+# ---------------------------------------------------------------------------
+add_proto_lines = [l for l in src.splitlines()
+                   if '__pyx_f_5mod_a_4Vec2___add__' in l and 'proto' not in l.lower()]
+assert add_proto_lines, \
+    "%s: no extern proto or definition for __pyx_f_5mod_a_4Vec2___add__ in consumer" % mode
+
+dot_proto_lines = [l for l in src.splitlines()
+                   if '__pyx_f_5mod_a_4Vec2_dot' in l and 'proto' not in l.lower()]
+assert dot_proto_lines, \
+    "%s: no extern proto or definition for __pyx_f_5mod_a_4Vec2_dot in consumer" % mode
+
+# ---------------------------------------------------------------------------
+# 5. Hot _combine function: DIRECT extern calls, NO boxing
+# ---------------------------------------------------------------------------
+# Isolate the _combine function body (skip the /*proto*/ forward declaration).
+combine_match = re.search(
+    r'(static double __pyx_f_5mod_b__combine\b[^;]*?\{)(.*?)(?=\nstatic\s|\Z)',
+    src, re.DOTALL)
+assert combine_match, "%s: could not locate _combine function body in mod_b.c" % mode
+combine_body = combine_match.group(0)
+
+# Must have direct extern __add__ and dot calls.
+assert '__pyx_f_5mod_a_4Vec2___add__(' in combine_body, \
+    "%s: _combine body missing direct extern __add__ call" % mode
+assert '__pyx_f_5mod_a_4Vec2_dot(' in combine_body, \
+    "%s: _combine body missing direct extern dot call" % mode
+
+# Must NOT have any heap-alloc or Python-boxing calls.
+for forbidden in ('__Pyx_tp_new', '__Pyx_PyObject_Call', 'PyObject_Call',
+                  '__Pyx_PyObject_FastCall'):
+    assert forbidden not in combine_body, \
+        "%s: _combine body contains boxing/alloc call %r (zero-alloc violated)" % (mode, forbidden)
+
+# ---------------------------------------------------------------------------
+# 6. Noexcept: cross-module value-ABI calls have NO PyErr_Occurred check
+#    (noexcept facts propagate from producer to consumer via compile_multiple)
+# ---------------------------------------------------------------------------
+def call_lines_for(symbol_part):
+    """Lines that contain a call to symbol_part (not in comments/protos)."""
+    return [l for l in src.splitlines()
+            if symbol_part in l and '(' in l
+            and 'proto' not in l
+            and not l.lstrip().startswith(('*', '/*', 'static ', 'int ', 'double ', 'void '))]
+
+add_call_lines = call_lines_for('_4Vec2___add__(')
+assert add_call_lines, "%s: no __add__ call lines found (vacuous test)" % mode
+for line in add_call_lines:
+    assert 'PyErr_Occurred' not in line, \
+        "%s: unexpected exception check after cross-module __add__ call: %r" % (mode, line)
+
+dot_call_lines = call_lines_for('_4Vec2_dot(')
+assert dot_call_lines, "%s: no dot call lines found (vacuous test)" % mode
+for line in dot_call_lines:
+    assert 'PyErr_Occurred' not in line, \
+        "%s: unexpected exception check after cross-module dot call: %r" % (mode, line)
+
+print("OK (%s): cross-module value_type codegen assertions passed" % mode)
+
+######## check_pkg_codegen.py ########
+# Dotted-package codegen assertions (pkg.mod_a -> pkg.sub.mod_b).
+# Mirrors check_codegen.py but uses the pkg-mangled symbol prefix.
+import re
+
+with open('pkg/sub/mod_b.c') as f:
+    src = f.read()
+
+PKG_CNAME = '__pyx_val_3pkg_5mod_a_Vec2'
+ADD_FUNC   = '__pyx_f_3pkg_5mod_a_4Vec2___add__'
+DOT_FUNC   = '__pyx_f_3pkg_5mod_a_4Vec2_dot'
+CONV_TO    = '__pyx_convert__to_py___pyx_val_3pkg_5mod_a_Vec2'
+CONV_FROM  = '__pyx_convert__from_py___pyx_val_3pkg_5mod_a_Vec2'
+
+assert PKG_CNAME in src, \
+    "pkg: consumer missing value struct typedef %s" % PKG_CNAME
+
+typedef_lines = [l for l in src.splitlines()
+                 if 'typedef' in l and PKG_CNAME in l]
+assert typedef_lines, "pkg: no typedef line for %s" % PKG_CNAME
+
+struct_def_lines = [l for l in src.splitlines()
+                    if ('struct %s' % PKG_CNAME) in l and '{' in l]
+assert struct_def_lines, "pkg: no struct definition for %s in consumer" % PKG_CNAME
+
+embed_lines = [l for l in src.splitlines() if '__pyx_value' in l and 'Vec2' in l]
+assert embed_lines, "pkg: consumer objstruct missing embedded __pyx_value member"
+
+assert CONV_TO in src,   "pkg: consumer missing to_py converter %s"   % CONV_TO
+assert CONV_FROM in src, "pkg: consumer missing from_py converter %s" % CONV_FROM
+
+conv_to_static = [l for l in src.splitlines()
+                  if CONV_TO in l and ('static' in l or '/*proto*/' in l)]
+assert conv_to_static, "pkg: to_py converter not static/proto in consumer"
+
+conv_from_static = [l for l in src.splitlines()
+                    if CONV_FROM in l and ('static' in l or '/*proto*/' in l)]
+assert conv_from_static, "pkg: from_py converter not static/proto in consumer"
+
+add_lines = [l for l in src.splitlines()
+             if ADD_FUNC in l and 'proto' not in l.lower()]
+assert add_lines, "pkg: no extern proto/definition for %s" % ADD_FUNC
+
+dot_lines = [l for l in src.splitlines()
+             if DOT_FUNC in l and 'proto' not in l.lower()]
+assert dot_lines, "pkg: no extern proto/definition for %s" % DOT_FUNC
+
+# Hot _combine function body.
+combine_match = re.search(
+    r'(static double __pyx_f_3pkg_3sub_5mod_b__combine\b[^;]*?\{)(.*?)(?=\nstatic\s|\Z)',
+    src, re.DOTALL)
+assert combine_match, "pkg: could not locate _combine function body in pkg/sub/mod_b.c"
+combine_body = combine_match.group(0)
+
+assert ADD_FUNC + '(' in combine_body, \
+    "pkg: _combine body missing direct extern __add__ call %s" % ADD_FUNC
+assert DOT_FUNC + '(' in combine_body, \
+    "pkg: _combine body missing direct extern dot call %s" % DOT_FUNC
+
+for forbidden in ('__Pyx_tp_new', '__Pyx_PyObject_Call', 'PyObject_Call',
+                  '__Pyx_PyObject_FastCall'):
+    assert forbidden not in combine_body, \
+        "pkg: _combine body contains boxing/alloc call %r (zero-alloc violated)" % forbidden
+
+# Noexcept check on __add__ and dot calls.
+def pkg_call_lines(sym):
+    return [l for l in src.splitlines()
+            if sym in l and '(' in l
+            and 'proto' not in l
+            and not l.lstrip().startswith(('*', '/*', 'static ', 'int ', 'double ', 'void '))]
+
+for sym, name in [(ADD_FUNC + '(', '__add__'), (DOT_FUNC + '(', 'dot')]:
+    lines = pkg_call_lines(sym)
+    assert lines, "pkg: no call lines for %s (vacuous test)" % name
+    for line in lines:
+        assert 'PyErr_Occurred' not in line, \
+            "pkg: unexpected exception check after cross-module %s call: %r" % (name, line)
+
+print("OK (pkg): cross-module value_type dotted-package codegen assertions passed")
+
+######## build_mods.py ########
+
+import sys
+import os
+import sysconfig
+import subprocess
+
+inc = sysconfig.get_paths()['include']
+# Use LDSHARED to build each shared extension.
+ldshared = sysconfig.get_config_var('LDSHARED') or ''
+cc = sysconfig.get_config_var('CC') or 'cc'
+ccshared = sysconfig.get_config_var('CCSHARED') or '-fPIC'
+ext = sysconfig.get_config_var('EXT_SUFFIX') or '.so'
+# On macOS the linker needs -undefined dynamic_lookup for unresolved
+# Python-API symbols; that flag is normally baked into LDSHARED already.
+# To let mod_b.so call non-static symbols defined in mod_a.so we compile
+# mod_a.c to a relocatable object and link it into mod_b.so directly
+# (no separate symbol-resolution step needed at dlopen time then).
+
+# ---- Step 1: build mod_a.so (for Python import) -------------------------
+mod_a_so = 'mod_a' + ext
+if os.path.exists(mod_a_so):
+    os.remove(mod_a_so)
+cmd = f'{ldshared} -O0 -I{inc} mod_a.c -o {mod_a_so}'
+ret = subprocess.call(cmd, shell=True)
+if ret != 0:
+    print('ERROR: failed to build mod_a', file=sys.stderr)
+    sys.exit(1)
+print(f'Built {mod_a_so}')
+
+# ---- Step 2: compile mod_a.c to a .o (for linking into mod_b) -----------
+mod_a_obj = 'mod_a_pic.o'
+cmd = f'{cc} {ccshared} -O0 -I{inc} -c mod_a.c -o {mod_a_obj}'
+ret = subprocess.call(cmd, shell=True)
+if ret != 0:
+    print('ERROR: failed to compile mod_a.c to object', file=sys.stderr)
+    sys.exit(1)
+print(f'Compiled {mod_a_obj}')
+
+# ---- Step 3: build mod_b.so linked against mod_a's object ---------------
+mod_b_so = 'mod_b' + ext
+if os.path.exists(mod_b_so):
+    os.remove(mod_b_so)
+cmd = f'{ldshared} -O0 -I{inc} mod_b.c {mod_a_obj} -o {mod_b_so}'
+ret = subprocess.call(cmd, shell=True)
+if ret != 0:
+    print('ERROR: failed to build mod_b', file=sys.stderr)
+    sys.exit(1)
+print(f'Built {mod_b_so}')
+
+######## run_test.py ########
+
+import sys
+sys.path.insert(0, '.')
+
+import mod_a
+import mod_b
+
+# mod_a.make_vec returns a boxed Vec2.
+v1 = mod_a.make_vec(1.0, 2.0)
+v2 = mod_a.make_vec(3.0, 4.0)
+
+# Consumer's make() constructs a Vec2 from Python scalars (value-class ctor
+# lowering in the consumer TU).
+w1 = mod_b.make(1.0, 2.0)
+w2 = mod_b.make(3.0, 4.0)
+assert isinstance(w1, mod_a.Vec2), "make() did not return Vec2: %r" % type(w1)
+
+# py_combine: cross-module value-ABI __add__ + dot
+# _combine(a=(1,2), b=(3,4)): c = a+b = (4,6); c.dot(a) = 4*1 + 6*2 = 16.0
+result = mod_b.py_combine(v1, v2)
+assert result == 16.0, "py_combine(v1,v2) = %r, expected 16.0" % result
+
+result2 = mod_b.py_combine(w1, w2)
+assert result2 == 16.0, "py_combine(w1,w2) = %r, expected 16.0" % result2
+
+# Cross-boxing: result of make() IS a proper Vec2 instance (unboxed in consumer,
+# re-boxed via consumer-regenerated to_py converter).
+v3 = mod_b.make(5.0, 0.0)
+assert isinstance(v3, mod_a.Vec2), "make() result not Vec2: %r" % type(v3)
+
+print("DONE: value_type cross-module tests passed (flat layout)")
+
+######## build_pkg_mods.py ########
+
+import sys
+import os
+import sysconfig
+import subprocess
+
+inc = sysconfig.get_paths()['include']
+ldshared = sysconfig.get_config_var('LDSHARED') or ''
+cc = sysconfig.get_config_var('CC') or 'cc'
+ccshared = sysconfig.get_config_var('CCSHARED') or '-fPIC'
+ext = sysconfig.get_config_var('EXT_SUFFIX') or '.so'
+
+# ---- Step 1: build pkg/mod_a.so -----------------------------------------
+pkg_a_c = os.path.join('pkg', 'mod_a.c')
+pkg_a_so = os.path.join('pkg', 'mod_a' + ext)
+if os.path.exists(pkg_a_so):
+    os.remove(pkg_a_so)
+cmd = f'{ldshared} -O0 -I{inc} {pkg_a_c} -o {pkg_a_so}'
+ret = subprocess.call(cmd, shell=True)
+if ret != 0:
+    print('ERROR: failed to build pkg/mod_a', file=sys.stderr)
+    sys.exit(1)
+print(f'Built {pkg_a_so}')
+
+# ---- Step 2: compile pkg/mod_a.c to .o (for linking into pkg/sub/mod_b) -
+pkg_a_obj = 'pkg_mod_a_pic.o'
+cmd = f'{cc} {ccshared} -O0 -I{inc} -c {pkg_a_c} -o {pkg_a_obj}'
+ret = subprocess.call(cmd, shell=True)
+if ret != 0:
+    print('ERROR: failed to compile pkg/mod_a.c to object', file=sys.stderr)
+    sys.exit(1)
+print(f'Compiled {pkg_a_obj}')
+
+# ---- Step 3: build pkg/sub/mod_b.so linked against pkg/mod_a.o ----------
+pkg_b_c = os.path.join('pkg', 'sub', 'mod_b.c')
+pkg_b_so = os.path.join('pkg', 'sub', 'mod_b' + ext)
+if os.path.exists(pkg_b_so):
+    os.remove(pkg_b_so)
+cmd = f'{ldshared} -O0 -I{inc} {pkg_b_c} {pkg_a_obj} -o {pkg_b_so}'
+ret = subprocess.call(cmd, shell=True)
+if ret != 0:
+    print('ERROR: failed to build pkg/sub/mod_b', file=sys.stderr)
+    sys.exit(1)
+print(f'Built {pkg_b_so}')
+
+######## run_pkg_test.py ########
+
+import sys
+sys.path.insert(0, '.')
+
+# We need the package to be importable.
+import pkg.mod_a as mod_a
+import pkg.sub.mod_b as mod_b
+
+v1 = mod_a.make_vec(1.0, 2.0)
+v2 = mod_a.make_vec(3.0, 4.0)
+
+w1 = mod_b.make(1.0, 2.0)
+w2 = mod_b.make(3.0, 4.0)
+assert isinstance(w1, mod_a.Vec2), "pkg make() did not return Vec2: %r" % type(w1)
+
+# _combine(a=(1,2), b=(3,4)): c=a+b=(4,6); c.dot(a) = 4*1 + 6*2 = 16.0
+result = mod_b.py_combine(v1, v2)
+assert result == 16.0, "pkg py_combine(v1,v2) = %r, expected 16.0" % result
+
+result2 = mod_b.py_combine(w1, w2)
+assert result2 == 16.0, "pkg py_combine(w1,w2) = %r, expected 16.0" % result2
+
+v3 = mod_b.make(5.0, 0.0)
+assert isinstance(v3, mod_a.Vec2), "pkg make() result not Vec2: %r" % type(v3)
+
+print("DONE: value_type cross-module tests passed (dotted-package layout)")

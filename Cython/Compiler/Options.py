@@ -304,6 +304,7 @@ _directive_defaults = {
 
     'python_subclassing': True,  # allow Python classes to subclass cclasses and override cpdef methods
     'value_type': False,  # struct-backed value semantics for final frozen dataclasses
+    'disallow_implicit_narrowing': False,  # treat implicit object→narrower-type coercions as errors
 }
 
 # Extra warning directives

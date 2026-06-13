@@ -10,5 +10,5 @@ cdef extern class mymod.Vec:
 
 
 _ERRORS = """
-5:0: value_type classes cannot be declared 'extern' or in a .pxd (cross-module value types are not supported yet)
+5:0: value_type classes cannot be declared 'extern' (cross-module value types require '--cimport-from-pyx')
 """

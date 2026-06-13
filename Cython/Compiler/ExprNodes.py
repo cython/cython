@@ -3520,6 +3520,7 @@ class NextNode(AtomicExprNode):
     #  iterator   IteratorNode
 
     is_temp = True
+    is_for_loop_item = True  # exempts from disallow_implicit_narrowing
 
     def __init__(self, iterator):
         AtomicExprNode.__init__(self, iterator.pos)
@@ -8478,6 +8479,41 @@ class AttributeNode(ExprNode):
         node.entry.used = 1
         return node
 
+    def _frozen_dataclass_field_write(self, env):
+        # True when this is an assignment to a field of a *frozen* dataclass
+        # instance (a normal frozen @dataclass cclass OR a value_type, which is
+        # always a frozen dataclass).  The immutability comes from `frozen=True`,
+        # not from `value_type`.  Compiler-generated initialisers / state-setters
+        # (the synthesized __init__/__cinit__ and the pickle helpers) legitimately
+        # write the fields and are exempt.
+        obj_type = self.obj.type
+        if obj_type is None:
+            return False
+        if getattr(obj_type, 'is_value_class', False):
+            boxed = obj_type.boxed_type
+            scope = boxed.scope if boxed is not None else None
+        elif obj_type.is_extension_type:
+            scope = obj_type.scope
+        else:
+            return False
+        if scope is None or getattr(scope, 'is_c_dataclass_scope', False) != "frozen":
+            return False
+        # Exempt the field-initialising functions Cython generates for a frozen
+        # dataclass: the synthesized constructor and the (un)pickle state-setters.
+        # (is_self_arg is not yet set on the synthesized __init__'s self at this
+        # analysis point, so key off the enclosing function name instead.)
+        func_scope = env
+        while func_scope is not None and not func_scope.is_local_scope:
+            func_scope = func_scope.outer_scope
+        if func_scope is not None:
+            fname = func_scope.name or ''
+            if fname in ('__init__', '__cinit__',
+                         '__setstate_cython__', '__reduce_cython__'):
+                return False
+            if '__set_state' in fname or fname.startswith('__pyx_unpickle'):
+                return False
+        return True
+
     def analyse_as_ordinary_attribute_node(self, env, target):
         self.obj = self.obj.analyse_types(env)
         if self.obj.type.is_enum or self.obj.type.is_cpp_enum:
@@ -8504,13 +8540,11 @@ class AttributeNode(ExprNode):
                 self.result_ctype = py_object_type
         elif target and self.obj.type.is_builtin_type:
             error(self.pos, "Assignment to an immutable object field")
-        elif target and getattr(self.obj.type, 'is_value_class', False):
-            # value_type instances are frozen: a field of a value-typed
-            # expression cannot be assigned outside the class's own __init__
-            # (which writes through the boxed/ptr self form, not the value form).
+        elif target and self._frozen_dataclass_field_write(env):
+            type_name = getattr(self.obj.type, 'name', None) or str(self.obj.type)
             error(self.pos,
-                  "cannot assign to field '%s' of frozen value type '%s'" % (
-                      self.attribute, self.obj.type))
+                  "cannot assign to field '%s' of frozen dataclass '%s'" % (
+                      self.attribute, type_name))
         elif self.entry and self.entry.is_cproperty:
             if not target:
                 # Overridable properties on types without vtables must use
@@ -11808,6 +11842,8 @@ class AwaitIterNextExprNode(AwaitExprNode):
     # 'await' expression node as part of 'async for' iteration
     #
     # Breaks out of loop on StopAsyncIteration exception.
+
+    is_for_loop_item = True  # exempts from disallow_implicit_narrowing
 
     def _generate_break(self, code):
         code.putln("PyObject* exc_type = __Pyx_PyErr_CurrentExceptionType();")

@@ -6702,10 +6702,25 @@ class CClassDefNode(ClassDefNode):
                     error(self.pos, "value_type requires an explicitly 'final' class")
                 if self.base_type is not None:
                     error(self.pos, "value_type classes cannot have base classes")
-                if self.in_pxd or getattr(self, 'visibility', None) == 'extern':
+                if getattr(self, 'visibility', None) == 'extern':
+                    # Genuine 'cdef extern class' declarations have no .pyx body to
+                    # reconstruct the value struct from; cross-module value types via
+                    # hand-written cdef extern are not supported.
                     error(self.pos,
-                          "value_type classes cannot be declared 'extern' or in a .pxd "
-                          "(cross-module value types are not supported yet)")
+                          "value_type classes cannot be declared 'extern' "
+                          "(cross-module value types require '--cimport-from-pyx')")
+                # Genuine .pxd declarations (not from cimport_from_pyx) have no
+                # .pyx body with field/method implementations to reconstruct from.
+                # The cimport_from_pyx path marks nodes in_pxd via SetInPxdTransform
+                # BEFORE AnalyseDeclarationsTransform runs, but the source file is
+                # still a .pyx (pos._file_type == 'pyx').  A genuine hand-written .pxd
+                # has pos._file_type == 'pxd' — block those cleanly.
+                elif self.in_pxd and getattr(self.pos[0], '_file_type', 'pyx') == 'pxd':
+                    error(self.pos,
+                          "value_type classes cannot be declared in a hand-written .pxd file "
+                          "(cross-module value types require '--cimport-from-pyx')")
+                # The cimport_from_pyx consumer path sets in_pxd (via SetInPxdTransform)
+                # but the class has a full body to reconstruct from — allow it through.
                 # Route Python-subclass attempts through the existing blocking machinery.
                 scope.python_subclassing = False
                 # Stage 4: create the value-struct TYPE SHELL now (before body
@@ -6820,7 +6835,11 @@ class CClassDefNode(ClassDefNode):
             EncodedString(class_name), value_cname, value_type, pos=self.pos)
         value_entry.is_type = 1
         value_entry.visibility = 'private'
-        value_entry.defined_in_pxd = False
+        # In the cimport_from_pyx reconstruct path (in_pxd=True, body is from the
+        # producer .pyx), mark the value struct type entry as defined_in_pxd so that
+        # generate_type_header_code emits the struct typedef in the consumer TU.
+        # In the normal (same-module) path, False prevents double-emission.
+        value_entry.defined_in_pxd = self.in_pxd
         # entry.scope is normally set by Scope.declare(); this entry is built
         # directly, so set it here so type_identifier() (ctuple mangling etc.)
         # can mangle the value-struct cname without crashing.
@@ -7681,6 +7700,39 @@ class AssignmentNode(StatNode):
         self.generate_assignment_code(code)
 
 
+def _check_implicit_narrowing(pos, rhs, lhs_type, env):
+    """Raise an error if disallow_implicit_narrowing is set and the assignment
+    implicitly narrows a bare 'object' to a more specific type.
+
+    Only applies when:
+    - The RHS type is the generic Python object (py_object_type)
+    - The LHS type is strictly more specific (not py_object_type itself)
+    - The assignment is in user-written source (not compiler-generated fragments)
+    - The RHS is not a for-loop iteration item (NextNode / AwaitIterNextExprNode)
+    """
+    if not env.directives.get('disallow_implicit_narrowing', False):
+        return
+    if rhs.type is not py_object_type:
+        return
+    if lhs_type is py_object_type:
+        return
+    if getattr(rhs, 'is_for_loop_item', False):
+        return
+    # Skip compiler-generated assignments from tree fragments.
+    # FileSourceDescriptor (user source files, .pxi includes) has filename set to a path;
+    # StringSourceDescriptor (tree fragments / generated code) has filename == None.
+    if pos[0].filename is None:
+        return
+    # Skip property setter methods (__set__): the untyped 'value' parameter accepting
+    # any Python object and assigning it to a typed C attribute is the intended pattern,
+    # both for auto-generated properties (cdef public) and user-written ones.
+    if env.name == '__set__':
+        return
+    error(pos,
+          "Implicit narrowing of 'object' to '%s' requires an explicit cast"
+          " (disallow_implicit_narrowing is enabled)" % lhs_type)
+
+
 class SingleAssignmentNode(AssignmentNode):
     #  The simplest case:
     #
@@ -7831,6 +7883,7 @@ class SingleAssignmentNode(AssignmentNode):
                 lhs = ExprNodes.SliceIndexNode(self.lhs.pos, base=self.lhs, start=None, stop=None)
                 self.lhs = lhs.analyse_target_types(env)
 
+        _check_implicit_narrowing(self.rhs.pos, self.rhs, self.lhs.type, env)
         if self.lhs.type.is_cpp_class:
             op = env.lookup_operator_for_types(self.pos, '=', [self.lhs.type, self.rhs.type])
             if op:
