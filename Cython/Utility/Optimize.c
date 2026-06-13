@@ -27,10 +27,10 @@ static CYTHON_INLINE int __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
 }
 
 
-/////////////// ListAppendStealInternal ///////////////
+/////////////// ListAppendAndDecrefInternal ///////////////
 
 #if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
-static CYTHON_INLINE void __Pyx__ListComp_AppendSteal(PyObject* list, Py_ssize_t len, PyObject* x) {
+static CYTHON_INLINE void __Pyx__ListComp_AppendAndDecref(PyObject* list, Py_ssize_t len, PyObject* x) {
     PyListObject* L = (PyListObject*) list;
     #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
     // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
@@ -54,7 +54,7 @@ static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x); /*pro
 #endif
 
 /////////////// ListAppend ///////////////
-//@requires: ListAppendStealInternal
+//@requires: ListAppendAndDecrefInternal
 
 #if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
 static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
@@ -63,7 +63,7 @@ static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
 
     if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
         Py_INCREF(x);
-        __Pyx__ListComp_AppendSteal(list, len, x);
+        __Pyx__ListComp_AppendAndDecref(list, len, x);
         return 0;
     }
     return PyList_Append(list, x);
@@ -80,7 +80,7 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x); /*p
 #endif
 
 /////////////// ListCompAppend ///////////////
-//@requires: ListAppendStealInternal
+//@requires: ListAppendAndDecrefInternal
 
 #if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
 static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
@@ -89,7 +89,7 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
 
     if (likely(L->allocated > len)) {
         Py_INCREF(x);
-        __Pyx__ListComp_AppendSteal(list, len, x);
+        __Pyx__ListComp_AppendAndDecref(list, len, x);
         return 0;
     }
     return PyList_Append(list, x);
@@ -97,20 +97,20 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
 #endif
 
 
-/////////////// ListCompAppendSteal.proto ///////////////
+/////////////// ListCompAppendAndDecref.proto ///////////////
 
-static CYTHON_INLINE int __Pyx_ListComp_AppendSteal(PyObject* list, PyObject* x); /*proto*/
+static CYTHON_INLINE int __Pyx_ListComp_AppendAndDecref(PyObject* list, PyObject* x); /*proto*/
 
-/////////////// ListCompAppendSteal ///////////////
-//@requires: ListAppendStealInternal
+/////////////// ListCompAppendAndDecref ///////////////
+//@requires: ListAppendAndDecrefInternal
 
 #if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
-static CYTHON_INLINE int __Pyx_ListComp_AppendSteal(PyObject* list, PyObject* x) {
+static CYTHON_INLINE int __Pyx_ListComp_AppendAndDecref(PyObject* list, PyObject* x) {
     PyListObject* L = (PyListObject*) list;
     Py_ssize_t len = Py_SIZE(list);
 
     if (likely(L->allocated > len)) {
-        __Pyx__ListComp_AppendSteal(list, len, x);
+        __Pyx__ListComp_AppendAndDecref(list, len, x);
         return 0;
     }
 
@@ -120,7 +120,7 @@ static CYTHON_INLINE int __Pyx_ListComp_AppendSteal(PyObject* list, PyObject* x)
 }
 
 #else
-static CYTHON_INLINE int __Pyx_ListComp_AppendSteal(PyObject* list, PyObject* x) {
+static CYTHON_INLINE int __Pyx_ListComp_AppendAndDecref(PyObject* list, PyObject* x) {
     int result = PyList_Append(list, x);
     Py_DECREF(x);
     return result;

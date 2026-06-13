@@ -2,7 +2,7 @@
 # tag: all_language_levels
 
 # cython: test_assert_c_code_has = __Pyx_ListComp_Append\(
-# cython: test_assert_c_code_has = __Pyx_ListComp_AppendSteal\(
+# cython: test_assert_c_code_has = __Pyx_ListComp_AppendAndDecref\(
 
 cimport cython
 

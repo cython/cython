@@ -9556,8 +9556,8 @@ class ComprehensionAppendNode(Node):
         if self.target.type.is_pylist_type:
             steal_temp = self.expr.is_temp
             code.globalstate.use_utility_code(
-                UtilityCode.load_cached("ListCompAppendSteal" if steal_temp else "ListCompAppend", "Optimize.c"))
-            function = "__Pyx_ListComp_AppendSteal" if steal_temp else "__Pyx_ListComp_Append"
+                UtilityCode.load_cached("ListCompAppendAndDecref" if steal_temp else "ListCompAppend", "Optimize.c"))
+            function = "__Pyx_ListComp_AppendAndDecref" if steal_temp else "__Pyx_ListComp_Append"
         elif self.target.type.is_pyset_type:
             function = "PySet_Add"
         else:
@@ -9794,9 +9794,9 @@ class MergedSequenceNode(ExprNode):
                     arg.generate_evaluation_code(code)
                     can_steal_list_item = not is_set and arg.is_temp
                     if can_steal_list_item:
-                        helpers.add(("ListCompAppendSteal", "Optimize.c"))
+                        helpers.add(("ListCompAppendAndDecref", "Optimize.c"))
                     code.put_error_if_neg(arg.pos, "%s(%s, %s)" % (
-                        "__Pyx_ListComp_AppendSteal" if can_steal_list_item else add_func,
+                        "__Pyx_ListComp_AppendAndDecref" if can_steal_list_item else add_func,
                         self.result(),
                         arg.py_result()))
                     if can_steal_list_item:
