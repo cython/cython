@@ -3024,10 +3024,10 @@ static CYTHON_INLINE PyObject* __Pyx_{{typeobj}}_Multiply(PyObject *seq, Py_ssiz
 
 /////////////// RaiseErrorWithObjectType.proto ///////////////
 
-#define __Pyx_RaiseTypeErrorWithObjectType(message, obj)  __Pyx_RaiseTypeErrorWithType(message, Py_TYPE(obj))
-#define __Pyx_RaiseTypeErrorWithType(message, type_obj)  __Pyx_RaiseErrorWithType(PyExc_TypeError, message, type_obj)
-#define __Pyx_RaiseErrorWithObjectType(exc_type, message, obj)  __Pyx_RaiseErrorWithType(PyExc_TypeError, message, Py_TYPE(obj))
+#define __Pyx_RaiseTypeErrorWithObjectType(message, obj)  __Pyx_RaiseErrorWithObjectType(PyExc_TypeError, message, obj)
+#define __Pyx_RaiseErrorWithObjectType(exc_type, message, obj)  __Pyx_RaiseErrorWithType(exc_type, message, Py_TYPE(obj))
 
+CYTHON_UNUSED
 static void __Pyx_RaiseErrorWithType(PyObject* exc_type, const char* message, PyTypeObject *type_obj); /*proto*/
 
 /////////////// RaiseErrorWithObjectType ///////////////
@@ -3045,10 +3045,10 @@ static void __Pyx_RaiseErrorWithType(PyObject* exc_type, const char* message, Py
 
 /////////////// RaiseErrorWithObjectType1.proto ///////////////
 
-#define __Pyx_RaiseTypeErrorWithObjectType1(message, arg, obj) __Pyx_RaiseTypeErrorWithType1(message, arg, Py_TYPE(obj))
-#define __Pyx_RaiseTypeErrorWithType1(message, arg, type_obj) __Pyx_RaiseErrorWithType1(PyExc_TypeError, message, arg, type_obj)
+#define __Pyx_RaiseTypeErrorWithObjectType1(message, arg, obj) __Pyx_RaiseErrorWithObjectType1(PyExc_TypeError, message, arg, obj)
 #define __Pyx_RaiseErrorWithObjectType1(exc_type, message, arg, obj) __Pyx_RaiseErrorWithType1(exc_type, message, arg, Py_TYPE(obj))
 
+CYTHON_UNUSED
 static void __Pyx_RaiseErrorWithType1(PyObject* exc_type, const char* message, const char *arg, PyTypeObject *type_obj); /*proto*/
 
 /////////////// RaiseErrorWithObjectType1 ///////////////
@@ -3066,18 +3066,16 @@ static void __Pyx_RaiseErrorWithType1(PyObject* exc_type, const char* message, c
 
 /////////////// RaiseErrorWithObjectTypes.proto ///////////////
 
-#define __Pyx_RaiseTypeErrorWithObjectTypes1(message, arg, obj1, obj2) __Pyx_RaiseTypeErrorWithTypes1(message, arg, Py_TYPE(obj1), Py_TYPE(obj2))
-#define __Pyx_RaiseTypeErrorWithTypes1(message, arg, type_obj1, type_obj2) __Pyx_RaiseErrorWithObjectTypes1(PyExc_TypeError, message, arg, type_obj1, type_obj2)
+#define __Pyx_RaiseErrorWithObjectTypes1(exc_type, message, arg, obj1, obj2) __Pyx_RaiseErrorWithTypes1(exc_type, message, arg, Py_TYPE(obj1), Py_TYPE(obj2))
+#define __Pyx_RaiseTypeErrorWithTypes(message, type_obj1, type_obj2) __Pyx_RaiseErrorWithTypes1(PyExc_TypeError, "%s" message, "", type_obj1, type_obj2)
 
-#define __Pyx_RaiseTypeErrorWithObjectTypes(message, obj1, obj2) __Pyx_RaiseTypeErrorWithTypes(message, Py_TYPE(obj1), Py_TYPE(obj2))
-#define __Pyx_RaiseTypeErrorWithTypes(message, type_obj1, type_obj2) __Pyx_RaiseErrorWithObjectTypes1(PyExc_TypeError, "%s" message, "", type_obj1, type_obj2)
-
-static void __Pyx_RaiseErrorWithObjectTypes1(PyObject* exc_type, const char *message, const char *arg, PyTypeObject *type_obj1, PyTypeObject *type_obj2); /*proto*/
+CYTHON_UNUSED
+static void __Pyx_RaiseErrorWithTypes1(PyObject* exc_type, const char *message, const char *arg, PyTypeObject *type_obj1, PyTypeObject *type_obj2); /*proto*/
 
 /////////////// RaiseErrorWithObjectTypes ///////////////
 //@requires: FormatTypeName
 
-static void __Pyx_RaiseErrorWithObjectTypes1(PyObject* exc_type, const char *message, const char *arg, PyTypeObject *type_obj1, PyTypeObject *type_obj2) {
+static void __Pyx_RaiseErrorWithTypes1(PyObject* exc_type, const char *message, const char *arg, PyTypeObject *type_obj1, PyTypeObject *type_obj2) {
     __Pyx_TypeName type_name1 = __Pyx_PyType_GetFullyQualifiedName(type_obj1);
     #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
     if (unlikely(!type_name1)) return;

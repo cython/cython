@@ -69,8 +69,8 @@ static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset,
         b = (PyTypeObject*) b0;
         if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
         {
-            __Pyx_RaiseTypeErrorWithType(
-                "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b);
+            __Pyx_RaiseErrorWithType(
+                PyExc_TypeError, "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b);
 #if CYTHON_AVOID_BORROWED_REFS
             Py_DECREF(b0);
 #endif
@@ -86,7 +86,8 @@ static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset,
             if (b_dictoffset == -1 && PyErr_Occurred()) goto dictoffset_return;
 #endif
             if (b_dictoffset) {
-                __Pyx_RaiseTypeErrorWithType1(
+                __Pyx_RaiseErrorWithType1(
+                    PyExc_TypeError,
                     "extension type '%.200s' has no __dict__ slot, "
                     "but base type '" __Pyx_FMT_TYPENAME "' has: "
                     "either add 'cdef dict __dict__' to the extension type "
@@ -682,7 +683,8 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
         return -1;
 #endif
     if (itemsize) {
-        __Pyx_RaiseTypeErrorWithType(
+        __Pyx_RaiseErrorWithType(
+            PyExc_TypeError,
             "inheritance from PyVarObject types like '" __Pyx_FMT_TYPENAME "' not currently supported", base);
         return -1;
     }
