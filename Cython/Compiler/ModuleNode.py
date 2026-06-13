@@ -2331,7 +2331,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.exit_cfunc_scope()
 
     def generate_guarded_basetype_call(
-            self, base_type, substructure, slot, functype, args, code):
+            self, base_type, substructure, slot, functype, args, code, likely=True):
         if base_type:
             base_tpname = code.typeptr_cname_in_module_state(base_type)
             # Note that the limited API versions will only work for non-heaptypes on Python3.10+.
@@ -2342,8 +2342,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 code.putln(
                     f"{functype} f = __Pyx_PyType_TryGetSlot({base_tpname}, {slot}, {functype});")
-            code.putln("if (f)")
-            code.putln(f"return f({args});")
+            can_call = "likely(f)" if likely else "f"
+            code.putln(f"if ({can_call}) return f({args});")
 
     def generate_richcmp_function(self, scope, code):
         if scope.lookup_here("__richcmp__"):
@@ -2625,7 +2625,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     set_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code)
+                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code, likely=False)
             code.putln(
                 "return PyObject_GenericSetAttr(o, n, v);")
         code.putln(
@@ -2638,7 +2638,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code)
+                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code, likely=False)
             code.putln(
                 "return PyObject_GenericSetAttr(o, n, 0);")
         code.putln(
