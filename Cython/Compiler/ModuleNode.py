@@ -1860,7 +1860,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
             decls = code.globalstate['decls']
             decls.putln("#if !CYTHON_VECTORCALL_TPNEW")
-            decls.putln(f"#define {scope.mangle_internal('tp_new')} {scope.mangle_internal('tp_newv')}")
+            decls.putln(f"#define {scope.mangle_internal('tp_new')} {scope.mangle_internal('tp_new_vectorcall')}")
             decls.putln("#endif")
 
     def generate_vectorcall_new_function(self, scope, code):
