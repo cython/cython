@@ -1661,26 +1661,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         type = scope.parent_type
         base_type = type.base_type
-
-        have_entries, (py_attrs, py_buffers, memoryview_slices) = \
-                        scope.get_refcounted_entries()
         is_final_type = scope.parent_type.is_final_type
-        if scope.is_internal:
-            # internal classes (should) never need None inits, normal zeroing will do
-            py_attrs = []
-        explicitly_constructable_attrs = [
-            entry for entry in scope.var_entries
-            if entry.type.needs_explicit_construction(scope)
-        ]
 
-        cinit_func_entry = scope.lookup_here("__cinit__")
-        if cinit_func_entry and not cinit_func_entry.is_special:
-            cinit_func_entry = None
-
-        if base_type or (cinit_func_entry and not cinit_func_entry.trivial_signature):
-            unused_marker = ''
-        else:
-            unused_marker = 'CYTHON_UNUSED '
+        self.generate_tpnew_init_function(scope, code, cclass_entry)
 
         if base_type:
             freelist_size = 0  # not currently supported
@@ -1701,13 +1684,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.start_slotfunc(
             scope, PyrexTypes.py_objptr_type, "tp_new",
-            f"PyTypeObject *t, {unused_marker}PyObject *a, {unused_marker}PyObject *k", needs_prototype=True)
+            "PyTypeObject *t, PyObject *a, PyObject *k", needs_prototype=True)
 
-        need_self_cast = (type.vtabslot_cname or
-                          (py_buffers or memoryview_slices or py_attrs) or
-                          explicitly_constructable_attrs)
-        if need_self_cast:
-            code.putln("%s;" % scope.parent_type.declaration_code("p"))
         if base_type:
             tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
             base_type_typeptr_cname = base_type.typeptr_cname
@@ -1755,8 +1733,45 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("if (unlikely(!o)) return 0;")
         if freelist_size and not base_type:
             code.putln('}')
+
+        code.putln(f'return {scope.mangle_internal("tp_new__init")}(o, a, k);')
+
+        code.putln(
+            "}")
+        code.exit_cfunc_scope()
+
+    def generate_tpnew_init_function(self, scope, code, cclass_entry):
+        type = scope.parent_type
+
+        have_entries, (py_attrs, py_buffers, memoryview_slices) = \
+                        scope.get_refcounted_entries()
+        if scope.is_internal:
+            # internal classes (should) never need None inits, normal zeroing will do
+            py_attrs = []
+        explicitly_constructable_attrs = [
+            entry for entry in scope.var_entries
+            if entry.type.needs_explicit_construction(scope)
+        ]
+
+        cinit_func_entry = scope.lookup_here("__cinit__")
+        if cinit_func_entry and not cinit_func_entry.is_special:
+            cinit_func_entry = None
+
+        if cinit_func_entry and not cinit_func_entry.trivial_signature:
+            unused_marker = ''
+        else:
+            unused_marker = 'CYTHON_UNUSED '
+
+        need_self_cast = (type.vtabslot_cname or
+                          (py_buffers or memoryview_slices or py_attrs) or
+                          explicitly_constructable_attrs)
+
+        code.start_slotfunc(
+            scope, PyrexTypes.py_objptr_type, "tp_new__init",
+            f"PyObject *o, {unused_marker}PyObject *a, {unused_marker}PyObject *k")
+
         if need_self_cast:
-            code.putln("p = %s;" % type.cast_code("o"))
+            code.putln(f'{scope.parent_type.declaration_code("p")} = {type.cast_code("o")};')
         #if need_self_cast:
         #    self.generate_self_cast(scope, code)
 
