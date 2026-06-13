@@ -2258,10 +2258,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         is_sequence_del = del_entry and del_entry.signature == TypeSlots.sequence_subscript_signatures['__delitem__']
 
         def handle_not_supported(op_name):
-            code.putln("__Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
-            code.putln("PyErr_Format(PyExc_NotImplementedError,")
-            code.putln(f'  "Subscript %.10s not supported by " __Pyx_FMT_TYPENAME, "{op_name}", o_type_name);')
-            code.putln("__Pyx_DECREF_TypeName(o_type_name);")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseErrorWithObjectType1", "ObjectHandling.c"))
+            code.putln(
+                '__Pyx_RaiseErrorWithObjectType1(PyExc_NotImplementedError,'
+                ' "Subscript %.10s not supported by " __Pyx_FMT_TYPENAME,'
+                f' "{op_name}", o);'
+            )
             code.putln("return -1;")
 
         set_or_del = "likely(v)" if not del_entry else "unlikely(v)" if not set_entry else "v"

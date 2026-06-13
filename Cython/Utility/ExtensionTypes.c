@@ -6,6 +6,8 @@ static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset,
 
 /////////////// ValidateBasesTuple ///////////////
 //@requires: GetTypeDictOffset
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType1
 
 #if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_USE_TYPE_SPECS
 static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset, PyObject *bases) {
@@ -67,10 +69,8 @@ static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset,
         b = (PyTypeObject*) b0;
         if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
         {
-            __Pyx_TypeName b_name = __Pyx_PyType_GetFullyQualifiedName(b);
-            PyErr_Format(PyExc_TypeError,
-                "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
-            __Pyx_DECREF_TypeName(b_name);
+            __Pyx_RaiseErrorWithType(
+                PyExc_TypeError, "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b);
 #if CYTHON_AVOID_BORROWED_REFS
             Py_DECREF(b0);
 #endif
@@ -86,16 +86,13 @@ static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset,
             if (b_dictoffset == -1 && PyErr_Occurred()) goto dictoffset_return;
 #endif
             if (b_dictoffset) {
-                {
-                    __Pyx_TypeName b_name = __Pyx_PyType_GetFullyQualifiedName(b);
-                    PyErr_Format(PyExc_TypeError,
-                        "extension type '%.200s' has no __dict__ slot, "
-                        "but base type '" __Pyx_FMT_TYPENAME "' has: "
-                        "either add 'cdef dict __dict__' to the extension type "
-                        "or add '__slots__ = [...]' to the base type",
-                        type_name, b_name);
-                    __Pyx_DECREF_TypeName(b_name);
-                }
+                __Pyx_RaiseErrorWithType1(
+                    PyExc_TypeError,
+                    "extension type '%.200s' has no __dict__ slot, "
+                    "but base type '" __Pyx_FMT_TYPENAME "' has: "
+                    "either add 'cdef dict __dict__' to the extension type "
+                    "or add '__slots__ = [...]' to the base type",
+                    type_name, b);
 #if !CYTHON_USE_TYPE_SLOTS
               dictoffset_return:
 #endif
@@ -362,6 +359,7 @@ static int __Pyx_setup_reduce(PyObject* type_obj);
 /////////////// SetupReduce ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 //@requires: SetItemOnTypeDict
 //@requires: DelItemOnTypeDict
 
@@ -467,11 +465,10 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
 
 __PYX_BAD:
     if (!PyErr_Occurred()) {
-        __Pyx_TypeName type_obj_name =
-            __Pyx_PyType_GetFullyQualifiedName((PyTypeObject*)type_obj);
-        PyErr_Format(PyExc_RuntimeError,
-            "Unable to initialize pickling for " __Pyx_FMT_TYPENAME, type_obj_name);
-        __Pyx_DECREF_TypeName(type_obj_name);
+        __Pyx_RaiseErrorWithType(
+            PyExc_RuntimeError,
+            "Unable to initialize pickling for " __Pyx_FMT_TYPENAME,
+            (PyTypeObject*)type_obj);
     }
     ret = -1;
 __PYX_GOOD:
@@ -666,6 +663,7 @@ static int __Pyx_validate_extern_base(PyTypeObject *base); /* proto */
 
 /////////////// ValidateExternBase ///////////////
 //@requires: ObjectHandling.c::FormatTypeName
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 static int __Pyx_validate_extern_base(PyTypeObject *base) {
     Py_ssize_t itemsize;
@@ -685,10 +683,9 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
         return -1;
 #endif
     if (itemsize) {
-        __Pyx_TypeName b_name = __Pyx_PyType_GetFullyQualifiedName(base);
-        PyErr_Format(PyExc_TypeError,
-                "inheritance from PyVarObject types like '" __Pyx_FMT_TYPENAME "' not currently supported", b_name);
-        __Pyx_DECREF_TypeName(b_name);
+        __Pyx_RaiseErrorWithType(
+            PyExc_TypeError,
+            "inheritance from PyVarObject types like '" __Pyx_FMT_TYPENAME "' not currently supported", base);
         return -1;
     }
     return 0;

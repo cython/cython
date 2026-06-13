@@ -346,6 +346,10 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject* x) {
 
 static PyObject* __Pyx_PyNumber_LongWrongResultType(PyObject* result) {
     __Pyx_TypeName result_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(result));
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!result_type_name)) goto bad;
+    #endif
+
     if (PyLong_Check(result)) {
         // CPython issue #17576: warn if 'result' not of exact type int.
         if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
@@ -354,16 +358,19 @@ static PyObject* __Pyx_PyNumber_LongWrongResultType(PyObject* result) {
                 "and may be removed in a future version of Python.",
                 result_type_name)) {
             __Pyx_DECREF_TypeName(result_type_name);
-            Py_DECREF(result);
-            return NULL;
+            goto bad;
         }
         __Pyx_DECREF_TypeName(result_type_name);
         return result;
     }
+
     PyErr_Format(PyExc_TypeError,
                  "__int__ returned non-int (type " __Pyx_FMT_TYPENAME ")",
                  result_type_name);
+
     __Pyx_DECREF_TypeName(result_type_name);
+
+bad:
     Py_DECREF(result);
     return NULL;
 }
@@ -464,19 +471,26 @@ static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t ival) {
 }
 
 
+/////////////// pybuiltin_invalid.export ///////////////
+
+static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *builtin_type_name, const char *argname); /*proto*/
+
 /////////////// pybuiltin_invalid ///////////////
 
-static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *type_name, const char *argname) {
+static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *builtin_type_name, const char *argname) {
     __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!obj_type_name)) return;
+    #endif
     if (argname) {
         PyErr_Format(PyExc_TypeError,
-            "Argument '%.200s' has incorrect type (expected %.200s, got " __Pyx_FMT_TYPENAME ")",
-            argname, type_name, obj_type_name
+            "Argument '%.200s' has incorrect type (expected %.5s, got " __Pyx_FMT_TYPENAME ")",
+            argname, builtin_type_name, obj_type_name
         );
     } else {
         PyErr_Format(PyExc_TypeError,
-            "Expected %.200s, got " __Pyx_FMT_TYPENAME,
-            type_name, obj_type_name
+            "Expected %.5s, got " __Pyx_FMT_TYPENAME,
+            builtin_type_name, obj_type_name
         );
     }
     __Pyx_DECREF_TypeName(obj_type_name);
@@ -689,6 +703,9 @@ bad:
 static void __Pyx_seq_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
     if (unlikely(!PySequence_Check(o))) {
         __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
+        #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+        if (unlikely(!o_type_name)) goto bad;
+        #endif
         PyErr_Format(PyExc_TypeError,
                      "Expected a sequence of size %zd, got " __Pyx_FMT_TYPENAME, (Py_ssize_t) {{size}}, o_type_name);
         __Pyx_DECREF_TypeName(o_type_name);
