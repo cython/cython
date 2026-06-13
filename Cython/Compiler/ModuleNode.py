@@ -1659,88 +1659,103 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if tp_slot.slot_code(scope) != slot_func:
             return  # never used
 
-        type = scope.parent_type
-        base_type = type.base_type
-        is_final_type = scope.parent_type.is_final_type
-
-        self.generate_tpnew_init_function(scope, code, cclass_entry)
-
-        if base_type:
-            freelist_size = 0  # not currently supported
-        else:
-            freelist_size = scope.directives.get('freelist', 0)
-        freelist_name = scope.mangle_internal(Naming.freelist_name)
-        freecount_name = scope.mangle_internal(Naming.freecount_name)
-
-        if freelist_size:
-            module_state = code.globalstate['module_state_contents']
-            module_state.putln("")
-            module_state.putln("#if CYTHON_USE_FREELISTS")
-            module_state.putln("%s[%d];" % (
-                scope.parent_type.declaration_code(freelist_name),
-                freelist_size))
-            module_state.putln("int %s;" % freecount_name)
-            module_state.putln("#endif")
+        self._generate_tpnew_initialisation_function(scope, code, cclass_entry)
 
         code.start_slotfunc(
             scope, PyrexTypes.py_objptr_type, "tp_new",
             "PyTypeObject *t, PyObject *a, PyObject *k", needs_prototype=True)
 
+        code.putln("PyObject *o;")
+
+        base_type = scope.parent_type.base_type
         if base_type:
-            tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
-            base_type_typeptr_cname = base_type.typeptr_cname
-            if not base_type.is_builtin_type:
-                base_type_typeptr_cname = code.name_in_slot_module_state(base_type_typeptr_cname)
-            if tp_new is None:
-                tp_new = f"__Pyx_PyType_GetSlot({base_type_typeptr_cname}, tp_new, newfunc)"
-            code.putln("PyObject *o = %s(t, a, k);" % tp_new)
+            self._generate_allocation_from_basetype(scope, code, tp_slot, base_type)
         else:
-            code.putln("PyObject *o;")
+            freelist_size = scope.directives.get('freelist', 0)
             if freelist_size:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
-                code.putln("#if CYTHON_USE_FREELISTS")
-                freecount_name = code.name_in_slot_module_state(freecount_name)
-                freelist_name = code.name_in_slot_module_state(freelist_name)
-                self.generate_freelist_condition(code, f"{freecount_name} > 0", "t", type)
+                self._generate_allocation_from_freelist(scope, code, freelist_size)
+                # ends with a guarded "} else"
                 code.putln("{")
-                code.putln("o = (PyObject*)%s[--%s];" % (
-                    freelist_name,
-                    freecount_name))
-                obj_struct = type.declaration_code("", deref=True)
-                code.putln("#if CYTHON_USE_TYPE_SPECS")
-                # We still hold a reference to the type object held by the previous
-                # user of the freelist object - release it.
-                code.putln("Py_DECREF(Py_TYPE(o));")
-                code.putln("#endif")
-                code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
-                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                # Although PyObject_INIT should be part of the Limited API, it causes
-                # link errors on some combinations of Python versions and OSs.
-                code.putln("(void) PyObject_Init(o, t);")
-                code.putln("#else")
-                code.putln("(void) PyObject_INIT(o, t);")
-                code.putln("#endif")
-                if scope.needs_gc():
-                    code.putln("PyObject_GC_Track(o);")
-                code.putln("} else")
-                code.putln("#endif")
-                code.putln("{")
+
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("AllocateExtensionType", "ExtensionTypes.c")
             )
+            is_final_type = scope.parent_type.is_final_type
             code.putln(f"o = __Pyx_AllocateExtensionType(t, {is_final_type:d});")
-        code.putln("if (unlikely(!o)) return 0;")
-        if freelist_size and not base_type:
-            code.putln('}')
 
+            if freelist_size:
+                code.putln("}")
+
+        code.putln("if (unlikely(!o)) return 0;")
         code.putln(f'return {scope.mangle_internal("tp_new__init")}(o, a, k);')
 
         code.putln(
             "}")
         code.exit_cfunc_scope()
 
-    def generate_tpnew_init_function(self, scope, code, cclass_entry):
+    def _generate_allocation_from_basetype(self, scope, code, tp_slot, base_type):
+        base_type_typeptr_cname = base_type.typeptr_cname
+        if not base_type.is_builtin_type:
+            base_type_typeptr_cname = code.name_in_slot_module_state(base_type_typeptr_cname)
+
+        tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
+        if tp_new is None:
+            tp_new = f"__Pyx_PyType_GetSlot({base_type_typeptr_cname}, tp_new, newfunc)"
+
+        code.putln("o = %s(t, a, k);" % tp_new)
+
+    def _generate_allocation_from_freelist(self, scope, code, freelist_size):
+        freelist_name = scope.mangle_internal(Naming.freelist_name)
+        freecount_name = scope.mangle_internal(Naming.freecount_name)
+
+        module_state = code.globalstate['module_state_contents']
+        module_state.putln("")
+        module_state.putln("#if CYTHON_USE_FREELISTS")
+        module_state.putln("%s[%d];" % (
+            scope.parent_type.declaration_code(freelist_name),
+            freelist_size))
+        module_state.putln("int %s;" % freecount_name)
+        module_state.putln("#endif")
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+
+        code.putln("#if CYTHON_USE_FREELISTS")
+        freecount_name = code.name_in_slot_module_state(freecount_name)
+        freelist_name = code.name_in_slot_module_state(freelist_name)
+
+        type = scope.parent_type
+        self.generate_freelist_condition(code, f"{freecount_name} > 0", "t", type)
+        code.putln("{")
+
+        code.putln("o = (PyObject*)%s[--%s];" % (
+            freelist_name,
+            freecount_name))
+
+        code.putln("#if CYTHON_USE_TYPE_SPECS")
+        # We still hold a reference to the type object held by the previous
+        # user of the freelist object - release it.
+        code.putln("Py_DECREF(Py_TYPE(o));")
+        code.putln("#endif")
+
+        obj_struct = type.declaration_code("", deref=True)
+        code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
+
+        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        # Although PyObject_INIT should be part of the Limited API, it causes
+        # link errors on some combinations of Python versions and OSs.
+        code.putln("(void) PyObject_Init(o, t);")
+        code.putln("#else")
+        code.putln("(void) PyObject_INIT(o, t);")
+        code.putln("#endif")
+
+        if scope.needs_gc():
+            code.putln("PyObject_GC_Track(o);")
+
+        code.putln("} else")
+        code.putln("#endif")
+
+    def _generate_tpnew_initialisation_function(self, scope, code, cclass_entry):
         type = scope.parent_type
 
         have_entries, (py_attrs, py_buffers, memoryview_slices) = \
