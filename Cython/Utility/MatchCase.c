@@ -470,6 +470,7 @@ static int __Pyx_MatchCase_CheckMappingDuplicateKeys(PyObject *keys[], Py_ssize_
     // taking the keys out of the dictionary. I'm choosing to do it separately since the
     // majority of the time the keys will be known at compile-time so Cython can skip
     // this step completely.
+    // The step is also skipped when there's only a single key.
 
     PyObject *var_keys_set;
     PyObject *key;
@@ -742,7 +743,9 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyO
 static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, int match_self, PyObject **subjects[], Py_ssize_t n_subjects); /* proto */
 
 /////////////////////////// ClassPositionalPatterns //////////////////////////////
-//@requires: ObjectHandling.c::FormatTypeName
+//@requires: ObjectHandling.c::RaiseErrorWithObjectTypes
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
+//@requires: ObjectHandling.c::RaiseErrorWithTypeAndVarargs
 //@requires: Builtins.c::PyFrozenDict
 
 static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(PyTypeObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, PyObject *match_args,  Py_ssize_t num_args) {
@@ -757,13 +760,19 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(PyTypeObject *type, PyObject
     Py_ssize_t n, match_args_size;
     int contains;
 
-    attrs_set = PySet_New(NULL);
-    if (unlikely(!attrs_set)) return -1;
-
     match_args_size = __Pyx_PyTuple_GET_SIZE(match_args);
+    if (n_fixed == 0 && match_args_size == 1) {
+        // Trivial cases where there can be no duplicates.
+        // (In the match_args_size == 0 trivial case, this function is never called).
+        return 0;
+    }
 #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(match_args_size < 0)) return -1;
 #endif
+
+    attrs_set = PySet_New(NULL);
+    if (unlikely(!attrs_set)) return -1;
+
     num_args = match_args_size < num_args ? match_args_size : num_args;
     for (n=0; n < num_args; ++n) {
         attr = __Pyx_PyTuple_GET_ITEM(match_args, n);
@@ -794,12 +803,11 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(PyTypeObject *type, PyObject
     return 0;
 
     raise_error:
-    {
-        __Pyx_TypeName tp_name = __Pyx_PyType_GetFullyQualifiedName(type);
-        PyErr_Format(PyExc_TypeError, __Pyx_FMT_TYPENAME "() got multiple sub-patterns for attribute %R",
-                        tp_name, attr);
-        __Pyx_DECREF_TypeName(tp_name);
-    }
+    __Pyx_RaiseErrorWithTypeAndVarargs(
+        PyExc_TypeError,
+        __Pyx_FMT_TYPENAME "() got multiple sub-patterns for attribute %R",
+        type, attr
+    );
     bad:
     Py_DECREF(attrs_set);
     return -1;
@@ -816,6 +824,10 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
     PyObject *match_args = NULL;
     Py_ssize_t allowed, i;
     int result;
+
+#if !CYTHON_REFNANNY
+    CYTHON_UNUSED_VAR(__pyx_refnanny);
+#endif
 
     if (match_self != 1) {
 #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
@@ -836,22 +848,16 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
     if (match_args) {
         match_self = 0;
         if (!PyTuple_CheckExact(match_args)) {
-            __Pyx_TypeName type_typename = __Pyx_PyType_GetFullyQualifiedName(type);
-            __Pyx_TypeName match_args_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(match_args));
-            PyErr_Format(PyExc_TypeError, __Pyx_FMT_TYPENAME ".__match_args__ must be a tuple (got " __Pyx_FMT_TYPENAME ")",
-                type_typename,
-                match_args_type_name
-            );
+            __Pyx_RaiseTypeErrorWithTypes(
+                __Pyx_FMT_TYPENAME ".__match_args__ must be a tuple (got " __Pyx_FMT_TYPENAME ")",
+                type, Py_TYPE(match_args));
             Py_DECREF(match_args);
-            __Pyx_DECREF_TypeName(type_typename);
-            __Pyx_DECREF_TypeName(match_args_type_name);
             return -1;
         }
     } else if (!match_args && match_self == -1) {
         // Mysteriously, this private flag seems to have ended up defined in the Limited API
-        #if defined(_Py_TPFLAGS_MATCH_SELF) && !(CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000)
-        match_self = PyType_HasFeature(type,
-                                    _Py_TPFLAGS_MATCH_SELF);
+        #if defined(_Py_TPFLAGS_MATCH_SELF) && !CYTHON_COMPILING_IN_PYPY && !(CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000)
+        match_self = PyType_HasFeature(type, _Py_TPFLAGS_MATCH_SELF);
         #else
         // probably an earlier version of Python. Go off the known list in the specification
         match_self = ((PyType_GetFlags(type) &
@@ -861,8 +867,10 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
                         )) ||
                         PyType_IsSubtype(type, &PyByteArray_Type) ||
                         PyType_IsSubtype(type, &PyFloat_Type) ||
-                        PyType_IsSubtype(type, &PyFrozenSet_Type) ||
-                        PyType_IsSubtype(type, __Pyx_PyFrozenDict_TypePtr)
+                        PyType_IsSubtype(type, &PyFrozenSet_Type)
+        #if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX >= 0x030F0000
+                        || PyType_IsSubtype(type, __Pyx_PyFrozenDict_TypePtr)
+        #endif
                         );
         #endif
     }
@@ -877,14 +885,13 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
     } else {
         allowed = 0;
     }
-    if (allowed < n_subjects) {
+    if (unlikely(allowed < n_subjects)) {
         const char *plural = (allowed == 1) ? "" : "s";
-        __Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(type);
-        PyErr_Format(PyExc_TypeError,
-                     __Pyx_FMT_TYPENAME "() accepts %d positional sub-pattern%s (%d given)",
-                     type_name,
-                     allowed, plural, n_subjects);
-        __Pyx_DECREF_TypeName(type_name);
+        __Pyx_RaiseErrorWithTypeAndVarargs(
+            PyExc_TypeError,
+            __Pyx_FMT_TYPENAME "() accepts %d positional sub-pattern%s (%d given)",
+            type, allowed, plural, n_subjects
+        );
         Py_XDECREF(match_args);
         return -1;
     }
@@ -915,11 +922,9 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
         } 
 #endif
         if (!PyUnicode_CheckExact(name)) {
-            __Pyx_TypeName name_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(name));    
-            PyErr_Format(PyExc_TypeError,
-                         "__match_args__ elements must be strings "
-                         "(got " __Pyx_FMT_TYPENAME ")", name_type_name);
-            __Pyx_DECREF_TypeName(name_type_name);
+            __Pyx_RaiseTypeErrorWithObjectType(
+                     "__match_args__ elements must be strings (got " __Pyx_FMT_TYPENAME ")",
+                     name);
             result = -1;
             goto end;
         }
@@ -946,13 +951,13 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
     return result;
 }
 
-//////////////////////// MatchClassIsType.proto /////////////////////////////
+//////////////////////// MatchClassTypeGuard.proto /////////////////////////////
 
-static PyTypeObject* __Pyx_MatchCase_IsType(PyObject* type); /* proto */
+static PyTypeObject* __Pyx_MatchCase_TypeGuard(PyObject* type); /* proto */
 
-//////////////////////// MatchClassIsType /////////////////////////////
+//////////////////////// MatchClassTypeGuard /////////////////////////////
 
-static PyTypeObject* __Pyx_MatchCase_IsType(PyObject* type) {
+static PyTypeObject* __Pyx_MatchCase_TypeGuard(PyObject* type) {
     if (!PyType_Check(type)) {
         PyErr_Format(PyExc_TypeError, "called match pattern must be a type");
         return NULL;
