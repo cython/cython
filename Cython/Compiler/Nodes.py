@@ -3377,6 +3377,10 @@ class DefNode(FuncDefNode):
             starstar_arg=self.starstar_arg,
             return_type=self.return_type)
         self.py_wrapper.analyse_declarations(env)
+        if self.entry.is_special and self.entry.name in ("__cinit__", "__init__"):
+            # Assume that star_arg makes vectorcall a waste of time
+            # (but not starstar_arg because this is reasonably common just to sweep up arbitrary arguments)
+            self.entry.tp_new_can_be_vectorcall = not self.star_arg
 
     def analyse_argument_types(self, env):
         self.directive_locals = env.directives.get('locals', {})
@@ -3799,6 +3803,13 @@ class DefNodeWrapper(FuncDefNode):
         self.np_args_idx = self.target.np_args_idx
 
     def prepare_argument_coercion(self, env):
+        target_entry = self.target.entry
+        if (target_entry.is_special and target_entry.name in ("__cinit__", "__init__")
+                and TypeSlots.TpVectorcallSlot("tp_vectorcall").slot_code(env) != "0"):
+            # At this stage we know enough about both __cinit__, __init__ and the class scopes
+            # to know if we should prefer vectorcall for class creation.
+            self.signature = target_entry.signature = self.signature.with_fastcall(self.signature.FastcallUsed.TP_NEW)
+
         # This is only really required for Cython utility code at this time,
         # everything else can be done during code generation.  But we expand
         # all utility code here, simply because we cannot easily distinguish
@@ -3971,9 +3982,9 @@ class DefNodeWrapper(FuncDefNode):
             if sig.use_fastcall:
                 fastcall_args = "PyObject *const *%s, Py_ssize_t %s, PyObject *%s" % (
                         Naming.args_cname, Naming.nargs_cname, Naming.kwds_cname)
+                fastcall_guard = sig.fastcall_guard
                 arg_code_list.append(
-                    "\n#if CYTHON_VECTORCALL\n%s\n#else\n%s\n#endif\n" % (
-                        fastcall_args, varargs_args))
+                    f"\n#if {fastcall_guard}\n{fastcall_args}\n#else\n{varargs_args}\n#endif\n")
             else:
                 arg_code_list.append(varargs_args)
         if entry.is_special:
@@ -4044,7 +4055,7 @@ class DefNodeWrapper(FuncDefNode):
             # error handling for this is checked after the declarations
             nargs_code = "CYTHON_UNUSED Py_ssize_t %s;" % Naming.nargs_cname
             if self.signature.use_fastcall:
-                code.putln("#if !CYTHON_VECTORCALL")
+                code.putln(f"#if !{self.signature.fastcall_guard}")
                 code.putln(nargs_code)
                 code.putln("#endif")
             else:
@@ -4072,7 +4083,7 @@ class DefNodeWrapper(FuncDefNode):
         # Assign nargs variable as len(args).
         if self.signature_has_generic_args():
             if self.signature.use_fastcall:
-                code.putln("#if !CYTHON_VECTORCALL")
+                code.putln(f"#if !{self.signature.fastcall_guard}")
             code.putln("#if CYTHON_ASSUME_SAFE_SIZE")
             code.putln("%s = PyTuple_GET_SIZE(%s);" % (
                 Naming.nargs_cname, Naming.args_cname))
