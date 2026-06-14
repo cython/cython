@@ -221,7 +221,7 @@ class Signature:
         if self.use_fastcall == self.FastcallUsed.YES:
             return "FASTCALL"
         elif self.use_fastcall == self.FastcallUsed.TP_NEW:
-            return "FASTCALL_NEW"
+            return "FASTCALL_TPNEW"
         else:
             return "VARARGS"
 
@@ -666,7 +666,6 @@ class BinopSlot(SyntheticSlot):
         self.right_slot = MethodSlot(signature, "", right_method, method_name_to_slot, **kargs)
 
 
-
 class InitSlot(MethodSlot):
     def slot_code(self, scope):
         super_slot_code = super().slot_code(scope)
@@ -676,7 +675,6 @@ class InitSlot(MethodSlot):
                 # we need a wrapper
                 return InternalMethodSlot.slot_code(self, scope)
         return super_slot_code
-
 
 
 class RichcmpSlot(MethodSlot):

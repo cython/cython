@@ -975,14 +975,13 @@ static PyObject *__Pyx_CallNewInitFromVectorcall(PyTypeObject *t, PyObject *cons
 
 ////////////////////////////// CallNewInitFromVectorcall //////////////////////
 //@requires: ObjectHandling.c::TupleFromArray
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 #if CYTHON_VECTORCALL_TPNEW
 static PyObject *__Pyx_CallNewInitFromVectorcall(PyTypeObject *t, PyObject *const *args, size_t nargsf, PyObject *kwnames) {
     newfunc tp_new = __Pyx_PyType_GetSlot(t, tp_new, newfunc);
     if (unlikely(!tp_new)) {
-        __Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(t);
-        PyErr_Format(PyExc_TypeError, "cannot create " __Pyx_FMT_TYPENAME " instances", type_name);
-        __Pyx_DECREF_TypeName(type_name);
+        __Pyx_RaiseErrorWithType(PyExc_TypeError, "cannot create " __Pyx_FMT_TYPENAME " instances", t);
         return NULL;
     }
     Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(nargsf);
