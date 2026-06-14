@@ -530,6 +530,10 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnan
 /////////////////////////// ExtractExactDict ////////////////
 
 static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnanny, PyObject *dict, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
+#if !CYTHON_REFNANNY
+    CYTHON_UNUSED_VAR(__pyx_refnanny);
+#endif
+    
     Py_ssize_t i;
     Py_ssize_t size;
     size = PyDict_Size(dict);
@@ -583,6 +587,10 @@ static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObjec
     int result = 0;
 #if CYTHON_UNPACK_METHODS && CYTHON_VECTORCALL
     PyObject *get_method = NULL, *get_self = NULL;
+#endif
+
+#if !CYTHON_REFNANNY
+    CYTHON_UNUSED_VAR(__pyx_refnanny);
 #endif
 
     // Length check is undocumented but does take place in CPython and is probably worthwhile.

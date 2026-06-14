@@ -207,6 +207,7 @@ def class_typecheck_doesnt_exist(C x):
         case _:
             return False
 
+
 def simple_or_with_targets(x):
     """
     This was being mishandled by being converted to an if statement

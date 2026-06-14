@@ -1,7 +1,7 @@
 # mode: run
 # tag: pure3.10
 
-from __future__ import print_function, annotations
+from __future__ import annotations, print_function
 
 import array
 import sys
@@ -13,6 +13,7 @@ __doc__ = ""
 def skip_if_no_frozendict(f):
     if cython.compiled or sys.version_info >= (3, 15):
         return f
+
 
 def test_type_inference(x):
     """
