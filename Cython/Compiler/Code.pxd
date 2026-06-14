@@ -56,12 +56,12 @@ cdef class FunctionState:
     cdef public bint can_trace
     cdef public bint gil_owned
 
-    cdef list temps_allocated
-    cdef dict temps_free
-    cdef dict temps_used_type
+    cdef list[tuple] temps_allocated
+    cdef dict[tuple, tuple] temps_free
+    cdef dict[object, tuple] temps_used_type
     cdef set zombie_temps
     cdef size_t temp_counter
-    cdef list collect_temps_stack
+    cdef list[set[tuple]] collect_temps_stack
 
     cdef readonly object closure_temps
     cdef bint should_declare_error_indicator
@@ -72,13 +72,13 @@ cdef class FunctionState:
 
     cpdef new_label(self, name=*)
     cpdef tuple get_loop_labels(self)
-    cpdef set_loop_labels(self, labels)
+    cpdef set_loop_labels(self, labels: tuple)
     cpdef tuple get_all_labels(self)
-    cpdef set_all_labels(self, labels)
+    cpdef set_all_labels(self, labels: tuple)
     cpdef start_collecting_temps(self)
-    cpdef stop_collecting_temps(self)
+    cpdef set stop_collecting_temps(self)
 
-    cpdef list temps_in_use(self)
+    cpdef list[tuple] temps_in_use(self)
 
 
 @cython.final
@@ -92,7 +92,7 @@ cdef class StringConst:
     cdef readonly object cname
     cdef readonly object text
     cdef readonly object escaped_value
-    cdef readonly dict py_strings
+    cdef readonly dict[tuple, PyStringConst] py_strings
     cdef public bint c_used
 
     cpdef get_py_string_const(self, encoding, identifier=*)

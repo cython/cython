@@ -12,6 +12,7 @@ import subprocess
 from distutils import ccompiler
 
 import runtests
+import Cython
 #import Cython.Distutils.extension
 import Cython.Distutils.old_build_ext as build_ext
 from Cython.Debugger import Cygdb as cygdb

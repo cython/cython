@@ -1,7 +1,7 @@
 cimport cython
 
 cdef class TreeVisitor:
-    cdef public list access_path
+    cdef public list[tuple] access_path
     cdef dict dispatch_table
 
     cpdef visit(self, obj)

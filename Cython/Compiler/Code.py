@@ -774,7 +774,7 @@ class UtilityCode(UtilityCodeBase):
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
 
-    def parse_export_functions(self, export_proto: str) -> list:
+    def parse_export_functions(self, export_proto: str) -> list[SharedFunctionDecl]:
 
         assert '//' not in export_proto and '/*' not in export_proto and '*/' not in export_proto, \
             f'Export block must not contain comments:\n{export_proto.strip()}\n in file {self.file}'
@@ -1276,7 +1276,7 @@ class FunctionState:
 
     # temp handling
 
-    def allocate_temp(self, type, manage_ref, static=False, reusable=True):
+    def allocate_temp(self, type, manage_ref: bool, static: bool = False, reusable: bool = True):
         """
         Allocates a temporary (which may create a new one or get a previously
         allocated and released one of the same type). Type is simply registered
@@ -1808,7 +1808,7 @@ class GlobalState:
             self.dedup_const_index[dedup_key] = const
         return const
 
-    def get_argument_default_const(self, type):
+    def get_argument_default_const(self, type) -> PyObjectConst:
         cname = self.new_const_cname('')
         c = PyObjectConst(cname, type)
         self.arg_default_constants.append(c)
@@ -2052,17 +2052,19 @@ class GlobalState:
                 cleanup.putln(f"Py_CLEAR({init.name_in_main_c_code_module_state(cname)}.method);")
 
     def generate_string_constants(self):
-        c_consts = []
-        py_bytes_consts = []
-        py_unicode_consts = []
+        c_consts: list[tuple] = []
+        py_bytes_consts: list[tuple] = []
+        py_unicode_consts: list[tuple] = []
 
         # Split into buckets.
-        for _, _, c in sorted([(len(c.cname), c.cname, c) for c in self.string_const_index.values()]):
-            if c.c_used:
-                c_consts.append((len(c.cname), c.cname, c.escaped_value))
-            if c.py_strings:
-                for py_string in c.py_strings.values():
-                    text = c.text
+        sc: StringConst
+        for _, _, sc in sorted([(len(sc.cname), sc.cname, sc) for sc in self.string_const_index.values()]):
+            if sc.c_used:
+                c_consts.append((len(sc.cname), sc.cname, sc.escaped_value))
+            if sc.py_strings:
+                py_string: PyStringConst
+                for py_string in sc.py_strings.values():
+                    text = sc.text
                     if py_string.is_unicode and not isinstance(text, str):
                         text = StringEncoding.EncodedString(text.decode(py_string.encoding or 'UTF-8'))
 
@@ -2101,7 +2103,7 @@ class GlobalState:
 
         self.generate_pystring_constants(py_unicode_consts, py_bytes_consts)
 
-    def generate_pystring_constants(self, text_strings: list, byte_strings: list):
+    def generate_pystring_constants(self, text_strings: list[tuple], byte_strings: list[tuple]):
         # Concatenate all strings into one byte sequence and build a length index array.
         defines = self.parts['constant_name_defines']
 
@@ -2403,8 +2405,7 @@ class GlobalState:
         w = self.parts['init_constants']
         defines = self.parts['constant_name_defines']
 
-        def store_array(w, name: str, ctype: str, constants: list):
-            c: tuple
+        def store_array(w, name: str, ctype: str, constants: list[tuple]):
             values = ','.join([c[1] for c in constants])
             w.putln(f"{ctype} const {name}[] = {{{values}}};")
 
@@ -2827,16 +2828,24 @@ class CCodeWriter:
         if refnanny:
             self.put_declare_refcount_context()
 
-    def start_slotfunc(self, class_scope, return_type, c_slot_name, args_signature, needs_funcstate=True, needs_prototype=False):
+    def start_slotfunc(self, class_scope, return_type, c_slot_name, args_signature,
+                       needs_funcstate=True, needs_prototype=False,
+                       guard=None):
         # Slot functions currently live in the class scope as they don't have direct access to the module state.
         slotfunc_cname = class_scope.mangle_internal(c_slot_name)
         declaration = f"static {return_type.declaration_code(slotfunc_cname)}({args_signature})"
 
         if needs_prototype:
+            if guard:
+                self.globalstate['decls'].putln(f"#if {guard}")
             self.globalstate['decls'].putln(declaration.replace("CYTHON_UNUSED ", "") + "; /*proto*/")
+            if guard:
+                self.globalstate['decls'].putln("#endif")
         if needs_funcstate:
             self.enter_cfunc_scope(class_scope)
         self.putln("")
+        if guard:
+            self.putln(f"#if {guard}")
         self.putln(declaration + " {")
 
     # constant handling
@@ -2953,14 +2962,14 @@ class CCodeWriter:
             self.write_trace_line(pos)
 
     @cython.final
-    def write_trace_line(self, pos):
+    def write_trace_line(self, pos: tuple):
         if self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
             self.indent()
             self._write_lines(
                 f'__Pyx_TraceLine({pos[1]:d},{self.pos_to_offset(pos):d},{not self.funcstate.gil_owned:d},{self.error_goto(pos)})\n')
 
     @cython.final
-    def _build_marker(self, pos):
+    def _build_marker(self, pos: tuple):
         source_desc, line, col = pos
         assert isinstance(source_desc, SourceDescriptor)
         contents = self.globalstate.commented_file_contents(source_desc)
