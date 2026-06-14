@@ -8300,8 +8300,10 @@ class AttributeNode(ExprNode):
                     levels += 1
                 access_code = '.'.join([Naming.obj_base_cname]*levels)
                 obj_code = obj.result_as(obj.type)
-                obj_code = f'__PYX_SELECT_OPAQUE_OBJECT({obj_code}, &({obj_code}->{access_code}))'  
-            if access_type.opaque_pyobject is False:
+                obj_code = f'__PYX_SELECT_OPAQUE_OBJECT({obj_code}, &({obj_code}->{access_code}))'
+            # "is False" test here is deliberate - it means "explicitly not an opaque object"
+            # as opposed to "None" which might be depending on the CFLAGS.  
+            if not access_type.is_extension_type or access_type.opaque_pyobject is False:
                 return obj_code
             else:
                 has_gil = not self.in_nogil_context
