@@ -1216,6 +1216,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for attr in var_entries:
                 code.putln(
                     "%s;" % attr.type.declaration_code(attr.cname))
+            if getattr(type, 'is_value_class', False) and var_entries:
+                # C++ doesn't auto-generate comparison operators for structs.
+                # Value types with frozen-dataclass __eq__ need these for
+                # C-level comparisons like `if self.field != value:`.
+                cname = type.cname
+                member_eq = " && ".join(
+                    "this->%s == other.%s" % (a.cname, a.cname)
+                    for a in var_entries)
+                code.putln("#ifdef __cplusplus")
+                code.putln("  bool operator==(const %s& other) const { return %s; }" % (cname, member_eq))
+                code.putln("  bool operator!=(const %s& other) const { return !(*this == other); }" % cname)
+                code.putln("#endif")
             code.putln(footer)
             if packed:
                 code.putln("#if defined(__SUNPRO_C)")

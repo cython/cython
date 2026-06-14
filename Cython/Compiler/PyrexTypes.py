@@ -5195,6 +5195,13 @@ class CValueClassType(CStructOrUnionType):
         # Converter C is emitted directly by ModuleNode; nothing to register.
         return True
 
+    def same_as_resolved_type(self, other_type):
+        # Cross-module cimport_from_pyx creates separate CValueClassType objects
+        # for the same type; compare by cname so assignability works correctly.
+        return (other_type is error_type or
+                (getattr(other_type, 'is_value_class', False)
+                 and self.cname == other_type.cname))
+
 
 class UnspecifiedType(PyrexType):
     # Used as a placeholder until the type can be determined.

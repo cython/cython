@@ -1082,6 +1082,14 @@ class ExprNode(Node):
 
                     error(self.pos, msg % tup)
 
+        elif (src_type.is_ptr and not dst_type.is_ptr
+                and getattr(src_type.base_type, 'is_value_class', False)):
+            # Pointer-to-value-class (`self` inside a value_type method) used where
+            # the value itself or a Python object is expected: auto-dereference.
+            deref = DereferenceNode(src.pos, operand=src)
+            deref = deref.analyse_types(env)
+            src = deref.coerce_to(dst_type, env)
+
         elif dst_type.is_pyobject:
             # We never need a type check when assigning None to a Python object type.
             if src.is_none:
@@ -6219,7 +6227,7 @@ class CallNode(ExprNode):
             # function might have lied for safety => try to find better type
             if function.is_attribute:
                 method_obj_type = function.obj.infer_type(env)
-                if method_obj_type.is_builtin_type:
+                if method_obj_type is not None and method_obj_type.is_builtin_type:
                     result_type = Builtin.find_return_type_of_builtin_method(method_obj_type, function.attribute)
                     if result_type is not py_object_type:
                         return result_type
@@ -6397,11 +6405,22 @@ class CallNode(ExprNode):
                 return error_node()
             init_fields.append((name, field))
 
-        try:
-            args, kwds = self.explicit_args_kwds()
-        except CompileError as e:
-            error(e.position or self.pos, e.message_only)
-            return error_node()
+        # Detect star-arg / non-literal-kwarg calls without exception control flow.
+        # GeneralCallNode carries positional_args (a TupleNode or star-unpacking)
+        # and keyword_args; SimpleCallNode always has explicit positional args.
+        _has_star_args = (
+            hasattr(self, 'positional_args')
+            and not getattr(self.positional_args, 'is_sequence_constructor', True)
+        ) or (
+            hasattr(self, 'keyword_args')
+            and self.keyword_args is not None
+            and not getattr(self.keyword_args, 'is_dict_literal', True)
+        )
+        if _has_star_args:
+            # Star-args or non-literal kwargs: can't lower at compile time.
+            # Fall back to Python (boxed) construction so the call succeeds.
+            return None
+        args, kwds = self.explicit_args_kwds()
         kwds_pairs = kwds.key_value_pairs if kwds else []
 
         # Determine which fields are keyword-only.  A class-level kw_only=True
@@ -8289,6 +8308,8 @@ class AttributeNode(ExprNode):
         if node is not None:
             return node.entry.type
         obj_type = self.obj.infer_type(env)
+        if obj_type is None:
+            return py_object_type
         self.analyse_attribute(env, obj_type=obj_type)
         if obj_type.is_builtin_type and self.type.is_cfunction:
             # special case: C-API replacements for C methods of
@@ -10388,6 +10409,12 @@ class DictNode(ExprNode):
         return dict_type
 
     def analyse_types(self, env):
+        if self.type.is_struct_or_union:
+            # Already coerced to struct mode; items are typed for the struct
+            # members.  Re-running DictItemNode.analyse_types would re-box
+            # every C-typed item back to PyObject* (DictItemNode.analyse_types
+            # always calls coerce_to_pyobject), corrupting the struct init.
+            return self
         with local_errors(ignore=True) as errors:
             self.key_value_pairs = [
                 item.analyse_types(env)
@@ -12033,7 +12060,7 @@ class UnopNode(ExprNode):
         self.operand = self.operand.analyse_types(env)
         # Value-class operands only resolve to their value-struct type after the
         # operand is analysed; retry the cpdef-dunder rewrite (e.g. `-v`).
-        if getattr(self.operand.type, 'is_value_class', False):
+        if _value_class_of(self.operand.type) is not None:
             entry, dunder = self._cpdef_dunder_entry(env)
             if entry is not None:
                 call = SimpleCallNode(self.pos,
@@ -13113,6 +13140,18 @@ def _safe_infer_type(node, env):
     return py_object_type
 
 
+def _value_class_of(t):
+    # Return the value-class type for `t` if it is one, or a pointer to one
+    # (e.g. `self` inside a value_type method has type `__pyx_val_T *`), else None.
+    if t is None:
+        return None
+    if getattr(t, 'is_value_class', False):
+        return t
+    if t.is_ptr and getattr(t.base_type, 'is_value_class', False):
+        return t.base_type
+    return None
+
+
 def _lookup_cpdef_dunder(type1, dunder_name, operand2_type=None):
     """Return a cpdef entry for dunder_name on type1, or None if not optimisable.
 
@@ -13127,7 +13166,8 @@ def _lookup_cpdef_dunder(type1, dunder_name, operand2_type=None):
     operand2_type is checked for assignment compatibility with the second arg
     of the entry's CFuncType (binop only).
     """
-    if getattr(type1, 'is_value_class', False):
+    value_class = _value_class_of(type1)
+    if value_class is not None:
         # Value-class operands: resolve the dunder on the boxed extension type
         # (value classes are final by construction, so the final-only gate
         # passes).  Only optimize dunders that actually carry the value
@@ -13135,10 +13175,18 @@ def _lookup_cpdef_dunder(type1, dunder_name, operand2_type=None):
         # dataclass-synthesized dunders (__eq__/richcmp/__repr__/__hash__) keep
         # ext-object self; dispatching a value struct into them with the wrong
         # ABI is unsound, so fall back to the normal (boxing) path for those.
-        boxed = type1.boxed_type
+        # type1 may be a pointer to the value struct (`self` inside a value
+        # method, e.g. `self - other`); operand2 likewise (`other - self`).
+        boxed = value_class.boxed_type
         if boxed is None:
             return None
-        entry = _lookup_cpdef_dunder(boxed, dunder_name, operand2_type)
+        operand2_type = _value_class_of(operand2_type) or operand2_type
+        # For py_object operand2 (e.g. `vec * speed` where speed: int), skip the
+        # strict assignability check — SimpleCallNode will coerce at analysis time.
+        op2_check = (None if operand2_type is not None and
+                     getattr(operand2_type, 'is_pyobject', False)
+                     else operand2_type)
+        entry = _lookup_cpdef_dunder(boxed, dunder_name, op2_check)
         if entry is not None and entry.type.args:
             self_arg_type = entry.type.args[0].type
             if (self_arg_type.is_ptr
@@ -13233,8 +13281,21 @@ class BinopNode(ExprNode):
         entry, dunder = self._cpdef_dunder_entry(env)
         if entry is not None:
             return entry.type.return_type
-        return self.result_type(self.operand1.infer_type(env),
-                                self.operand2.infer_type(env), env)
+        t1 = self.operand1.infer_type(env)
+        t2 = self.operand2.infer_type(env)
+        # _safe_infer_type (used by _cpdef_dunder_entry) may have returned
+        # py_object_type for not-yet-analysed value-class operands.  Now that
+        # we have properly-inferred types, retry the dunder lookup so that
+        # e.g. `(a - b).length` where a/b are Vector2I reports the correct
+        # return type instead of returning None (which crashes the caller).
+        if _value_class_of(t1) is not None:
+            op = (_INPLACE_BINOP_TO_DUNDER if self.inplace else {}).get(self.operator) or _BINOP_TO_DUNDER.get(self.operator)
+            if op:
+                vc_entry = _lookup_cpdef_dunder(t1, op, t2)
+                if vc_entry is not None:
+                    return vc_entry.type.return_type
+        t = self.result_type(t1, t2, env)
+        return t if t is not None else py_object_type
 
     def analyse_types(self, env):
         entry, dunder = self._cpdef_dunder_entry(env)
@@ -13254,7 +13315,7 @@ class BinopNode(ExprNode):
         # object pre-analysis).  Retry the cpdef-dunder rewrite now that the
         # operand .type is set, so `a + b` on two value structs dispatches the
         # direct value-ABI call instead of failing analyse_c_operation.
-        if getattr(self.operand1.type, 'is_value_class', False):
+        if _value_class_of(self.operand1.type) is not None:
             entry, dunder = self._cpdef_dunder_entry(env)
             if entry is not None:
                 call = SimpleCallNode(self.pos,
@@ -13510,6 +13571,16 @@ class NumBinopNode(BinopNode):
             return entry.type.return_type
         type1 = self.operand1.infer_type(env)
         type2 = self.operand2.infer_type(env)
+        # Guard: infer_type can return None for unresolved/value-class nodes.
+        if type1 is None or type2 is None:
+            return py_object_type
+        # Also retry for value-class operands (same logic as BinopNode.infer_type).
+        if _value_class_of(type1) is not None:
+            op = (_INPLACE_BINOP_TO_DUNDER if self.inplace else {}).get(self.operator) or _BINOP_TO_DUNDER.get(self.operator)
+            if op:
+                vc_entry = _lookup_cpdef_dunder(type1, op, type2)
+                if vc_entry is not None:
+                    return vc_entry.type.return_type
         # Narrow ambiguous c_long literals to match a narrower typed partner.
         narrow1 = self._ambiguous_literal_narrowed_type(self.operand1, type2)
         narrow2 = self._ambiguous_literal_narrowed_type(self.operand2, type1)
@@ -13517,7 +13588,8 @@ class NumBinopNode(BinopNode):
             type1 = narrow1
         if narrow2 is not None:
             type2 = narrow2
-        return self.result_type(type1, type2, env)
+        t = self.result_type(type1, type2, env)
+        return t if t is not None else py_object_type
 
     def _coerce_ambiguous_literals(self, env):
         """Coerce ambiguous IntNode literals to the partner's C int type in-place."""
@@ -13819,6 +13891,17 @@ class MulNode(NumBinopNode):
         self.operand1 = self.operand1.analyse_types(env)
         self.operand2 = self.operand2.analyse_types(env)
         self.is_sequence_mul = self.calculate_is_sequence_mul()
+
+        # Value-class operands: dispatch through cpdef dunder before the
+        # sequence-mul and numeric paths, which cannot handle struct types.
+        if not self.is_sequence_mul and _value_class_of(self.operand1.type) is not None:
+            entry, dunder = self._cpdef_dunder_entry(env)
+            if entry is not None:
+                call = SimpleCallNode(self.pos,
+                    function=AttributeNode(self.pos, obj=self.operand1,
+                                           attribute=StringEncoding.EncodedString(dunder)),
+                    args=[self.operand2])
+                return call.analyse_types(env)
 
         # TODO: we could also optimise the case of "[...] * 2 * n", i.e. with an existing 'mult_factor'
         if self.is_sequence_mul:
@@ -16422,6 +16505,13 @@ class ClassmethodSelfNode(ExprNode):
         return False
 
     def calculate_result_code(self):
+        # Value class instances are C structs — Py_TYPE() cannot be applied.
+        # Use the statically known type pointer (always in module state) instead.
+        self_type = self.self_arg.type
+        if getattr(self_type, 'is_value_class', False):
+            from . import Naming
+            boxed = self_type.boxed_type
+            return "((PyObject *)%s->%s)" % (Naming.modulestateglobal_cname, boxed.typeptr_cname)
         return "((PyObject *)Py_TYPE(%s))" % self.self_arg.result()
 
     def generate_result_code(self, code):

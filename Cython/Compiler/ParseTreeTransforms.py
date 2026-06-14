@@ -3522,7 +3522,12 @@ class ExpandInplaceOperators(EnvTransform):
         # Manually analyse types for new node.
         lhs.is_target = True
         lhs = lhs.analyse_target_types(env)
-        binop.analyse_operation(env)
+        # Use analyse_types rather than analyse_operation so that value-type
+        # operands dispatch through cpdef dunders (e.g. pos += delta where
+        # pos: Vector2F).  When the operand types are already set (dup is
+        # pre-analysed), the first _cpdef_dunder_entry check in analyse_types
+        # fires immediately without re-analysing the operands.
+        binop = binop.analyse_types(env)
         node = Nodes.SingleAssignmentNode(
             node.pos,
             lhs = lhs,

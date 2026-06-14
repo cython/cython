@@ -521,6 +521,8 @@ class SimpleAssignmentTypeInferer:
 
 
 def find_spanning_type(type1, type2):
+    if type1 is None or type2 is None:
+        return py_object_type
     if type1 is type2:
         result_type = type1
     elif type1 is PyrexTypes.c_bint_type or type2 is PyrexTypes.c_bint_type:

@@ -7376,6 +7376,11 @@ class PropertyNode(StatNode):
                               is_wrapper=1)
             py_func.is_module_scope = False
             py_func.analyse_declarations(env)
+            # The py_func DefNode is never code-generated (no generate_function_header
+            # call), so no 'struct wrapperbase X;' declaration is emitted for it.
+            # Clear wrapperbase_cname to prevent the init loop from generating a
+            # CYTHON_UPDATE_DESCRIPTOR_DOC block that references an undeclared symbol.
+            py_func.entry.wrapperbase_cname = None
             py_func.entry.is_overridable = True
             # Fix signature: the wrapper has name "__get__" which gets the descrgetfunc
             # signature from ClassScope.declare_pyfunction(), but it should have the
