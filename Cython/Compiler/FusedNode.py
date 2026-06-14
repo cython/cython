@@ -903,7 +903,7 @@ class FusedCFuncDefNode(StatListNode):
         """
         # For the moment, fused functions do not support METH_FASTCALL
         for node in nodes:
-            node.entry.signature.use_fastcall = False
+            node.entry.signature.use_fastcall = node.entry.signature.FastcallUsed.NO
 
         signatures = [StringEncoding.EncodedString(node.specialized_signature_string)
                       for node in nodes]
