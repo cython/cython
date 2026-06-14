@@ -18,7 +18,8 @@ class MatchNode(StatNode):
 
     sequence_mapping_temp  None or AssignableTempNode  an int temp to store result of sequence/mapping tests
             sequence_mapping_temp is an optimization because determining whether something is a sequence or mapping
-            is slow on Python <3.10. It should be deleted once that's the lowest version supported
+            is slow on Python <3.10, the Limited API (in principle, although in practice we're able to retrieve
+            the flags at runtime), and PyPy. It should be deleted once no longer required.
     """
 
     child_attrs = ["subject", "cases"]
@@ -641,9 +642,9 @@ class OrPatternNode(PatternNode):
                     sequence_mapping_count += 1
             if sequence_mapping_count >= 2:
                 self.sequence_mapping_temp = AssignableTempNode(
-                    self.pos, PyrexTypes.c_uint_type
+                    self.pos, PyrexTypes.c_uint_type,
+                    is_addressable=True
                 )
-                self.sequence_mapping_temp.is_addressable = lambda: True
                 sequence_mapping_temp = self.sequence_mapping_temp
         return self
 
