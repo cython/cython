@@ -202,33 +202,15 @@ jobs:
     needs: [ci-early-success, file-changes]
     if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' }}
 
-    strategy:
-      # Allows for matrix sub-jobs to fail without canceling the rest
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, windows-2022]
-        # Keep the number of extra tests to a minimum (because very few people really use 32 bit)
-        # so only run C++ on the basis that it's usually pickier.
-        backend: [cpp]
-        python-version:
-          - "3.x"  # latest
-        architecture: [x86]
-        # The freethreaded build does fiddly things with reference counting so is probably worth
-        # testing specifically.
-        freethreaded: [false, true]
-
-        exclude:
-          # Windows and free-threading is difficult to build right now
-          - os: windows-2022
-            freethreaded: true
-
     uses: ./.github/workflows/ci-job.yml
     with:
-      os: ${{ matrix.os }}
-      python-version: ${{ matrix.python-version }}
-      backend: ${{ matrix.backend }}
-      architecture: ${{ matrix.architecture }}
-      freethreaded: ${{ matrix.freethreaded }}
+      # setup-python doesn't provide 32 bit Linux so Windows is our only test
+      os: windows-2022
+      python-version: "3.x"
+      # Keep the number of extra tests to a minimum (because very few people really use 32 bit)
+      # so only run C++ on the basis that it's usually pickie  
+      backend: "cpp"
+      architecture: "x86"
 
 
   ci-typespecs:
