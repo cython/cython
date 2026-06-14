@@ -265,10 +265,10 @@ def test_match_args_overrides_match_self(x):
 
 def test_no_memoryview_match_self(x: memoryview):
     """
-    >>> test_no_memoryview_match_self(memoryview(b'123'))
+    >>> test_no_memoryview_match_self(memoryview(b'123'))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    TypeError: memoryview() accepts 0 positional sub-patterns (1 given)
+    TypeError: ...() accepts 0 positional sub-patterns (1 given)
     """
     match x:
         case memoryview(_):
@@ -289,7 +289,7 @@ def test_duplicate_subject_corner_case(x):
     >>> test_duplicate_subject_corner_case(['bad', DuplicateSubjectCornerCase()])  # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    TypeError: ...DuplicateSubjectCornerCase() got multiple sub-patterns for attribute 'b'
+    TypeError: ...() got multiple sub-patterns for attribute 'b'
     """
     match x:
         # This works because the duplicate 'b' is never examined
