@@ -249,6 +249,7 @@ iso_c23_keywords = frozenset((
     'unsigned',
     'void',
     'volatile',
+    'restrict',  # (C99)
     'while',
     '_Alignas',  # (C11)
     '_Alignof',  # (C11)

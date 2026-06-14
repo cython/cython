@@ -244,7 +244,7 @@ class PostParse(ScopeTrackingTransform):
             newdecls = []
             for decl in node.declarators:
                 declbase = decl
-                while isinstance(declbase, (Nodes.CPtrDeclaratorNode, Nodes.CConstDeclaratorNode)):
+                while isinstance(declbase, (Nodes.CPtrDeclaratorNode, Nodes.CQualifierDeclaratorNode)):
                     declbase = declbase.base
                 if isinstance(declbase, Nodes.CNameDeclaratorNode):
                     if declbase.default is not None:
@@ -961,10 +961,9 @@ class InterpretCompilerDirectives(CythonTransform):
         node.cython_module_names = self.cython_module_names
         return node
 
-    def visit_CompilerDirectivesNode(self, node):
-        old_directives, self.directives = self.directives, node.directives
-        self.visitchildren(node)
-        self.directives = old_directives
+    def visit_CompilerDirectivesMixin(self, node):
+        with node.apply_directives(self):
+            self.visitchildren(node)
         return node
 
     # The following four functions track imports and cimports that
@@ -2090,12 +2089,10 @@ class ForwardDeclareTypes(CythonTransform):
     before declaring everything (else) in source code order.
     """
 
-    def visit_CompilerDirectivesNode(self, node):
+    def visit_CompilerDirectivesMixin(self, node):
         env = self.module_scope
-        old = env.directives
-        env.directives = node.directives
-        self.visitchildren(node)
-        env.directives = old
+        with node.apply_directives(env):
+            self.visitchildren(node)
         return node
 
     def visit_ModuleNode(self, node):
@@ -3124,11 +3121,9 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         self.visitchildren(node)
         return node
 
-    def visit_CompilerDirectivesNode(self, node):
-        old_directives = self.directives
-        self.directives = node.directives
-        self.visitchildren(node)
-        self.directives = old_directives
+    def visit_CompilerDirectivesMixin(self, node):
+        with node.apply_directives(self):
+            self.visitchildren(node)
         return node
 
     def visit_DefNode(self, node):

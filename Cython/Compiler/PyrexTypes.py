@@ -10,7 +10,7 @@ import re
 from functools import partial, reduce
 from itertools import product
 
-from Cython.Utils import cached_function
+from Cython.Utils import cached_function, set_dedup
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode, AbstractUtilityCode
 from . import StringEncoding
 from . import Naming
@@ -206,8 +206,10 @@ class PyrexType(BaseType):
     #  is_pylist_type        boolean     Is a Python list type
     #  is_pydict_type        boolean     Is a Python dict type
     #  is_pyfrozendict_type  boolean     Is a Python frozendict type
+    #  is_pyanydict_type     boolean     Is a Python dict or frozendict type
     #  is_pyset_type         boolean     Is a Python set type
     #  is_pyfrozenset_type   boolean     Is a Python frozenset type
+    #  is_pyanyset_type      boolean     Is a Python set or frozenset type
     #  is_pybytes_type       boolean     Is a Python bytes type
     #  is_pystr_type         boolean     Is a Python str type
     #  is_pybytearray_type   boolean     Is a Python bytearray type
@@ -302,6 +304,7 @@ class PyrexType(BaseType):
     is_pyanydict_type = False
     is_pyset_type = False
     is_pyfrozenset_type = False
+    is_pyanyset_type = False
 
     is_pybytes_type = False
     is_pystr_type = False
@@ -1523,11 +1526,11 @@ class BuiltinObjectType(PyObjectType):
         'bool': ['is_pybool_type'],
         'complex': ['is_pycomplex_type'],
         'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type'],
+        'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
         'dict': ['is_pydict_type', 'is_pyanydict_type', 'supports_container_type'],
         'frozendict': ['is_pyfrozendict_type', 'is_pyanydict_type', 'supports_container_type'],
-        'set': ['is_pyset_type', 'supports_container_type'],
-        'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
-        'frozenset': ['is_pyfrozenset_type', 'supports_container_type'],
+        'set': ['is_pyset_type', 'is_pyanyset_type', 'supports_container_type'],
+        'frozenset': ['is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type'],
         'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
@@ -1963,38 +1966,42 @@ class PythranExpr(CType):
         return hash(self.pythran_type)
 
 
-class CConstOrVolatileType(BaseType):
-    "A C const or volatile type"
+class CQualifierType(BaseType):
+    """A C qualifier type - currently const, restrict and volatile"""
 
     subtypes = ['cv_base_type']
 
     is_cv_qualified = 1
 
-    def __init__(self, base_type, is_const=0, is_volatile=0):
+    def __init__(self, base_type, is_const=False, is_volatile=False, is_restrict=False):
         self.cv_base_type = base_type
         self.is_const = is_const
         self.is_volatile = is_volatile
+        self.is_restrict = is_restrict
         if base_type.has_attributes and base_type.scope is not None:
-            from .Symtab import CConstOrVolatileScope
-            self.scope = CConstOrVolatileScope(base_type.scope, is_const, is_volatile)
+            from .Symtab import CQualifierScope
+            self.scope = CQualifierScope(base_type.scope, is_const, is_volatile)
 
-    def cv_string(self):
+    def cv_string(self, for_display=0):
         cvstring = ""
         if self.is_const:
             cvstring = "const " + cvstring
         if self.is_volatile:
             cvstring = "volatile " + cvstring
+        if self.is_restrict:
+            cvstring = "restrict " if for_display else "CYTHON_RESTRICT " + cvstring
+
         return cvstring
 
     def __repr__(self):
-        return "<CConstOrVolatileType %s%r>" % (self.cv_string(), self.cv_base_type)
+        return "<CQualifierType %s%r>" % (self.cv_string(), self.cv_base_type)
 
     def __str__(self):
         return self.declaration_code("", for_display=1)
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
-        cv = self.cv_string()
+        cv = self.cv_string(for_display=for_display)
         if for_display or pyrex:
             return cv + self.cv_base_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
         else:
@@ -2004,8 +2011,8 @@ class CConstOrVolatileType(BaseType):
         base_type = self.cv_base_type.specialize(values)
         if base_type == self.cv_base_type:
             return self
-        return CConstOrVolatileType(base_type,
-                self.is_const, self.is_volatile)
+        return CQualifierType(base_type,
+                self.is_const, self.is_volatile, self.is_restrict)
 
     def deduce_template_params(self, actual, is_value_type=True):
         if ((actual.is_const and self.is_const)
@@ -2037,10 +2044,10 @@ class CConstOrVolatileType(BaseType):
         return getattr(self.cv_base_type, name)
 
 
-def c_const_type(base_type):
+def c_const_type(base_type, is_const: bool = True):
     """Creates a C 'const ...' type but does not test for 'error_type'.
     """
-    return CConstOrVolatileType(base_type, is_const=True)
+    return CQualifierType(base_type, is_const=is_const)
 
 
 class FusedType(CType):
@@ -5861,6 +5868,15 @@ def widest_cpp_type(type1, type2):
         return None
 
 
+def reduce_spanning_types(types):
+    """Reduce a series of types to their common spanning type.
+    """
+    if not types:
+        return py_object_type
+    types = list(set_dedup(types))
+    return reduce(spanning_type, types) if types else py_object_type
+
+
 def simple_c_type(signed, longness, name):
     # Find type descriptor for simple type given name and modifiers.
     # Returns None if arguments don't make sense.
@@ -5876,12 +5892,13 @@ def parse_basic_type(name: str):
         base = parse_basic_type(name[:-1])
     if base:
         return CPtrType(base)
-    if name.startswith(('const_', 'volatile_')):
+    if name.startswith(('const_', 'volatile_', 'restrict_')):
         modifier, _, base_name = name.partition('_')
         base = parse_basic_type(base_name)
         if base:
-            return CConstOrVolatileType(
-                base, is_const=modifier == 'const', is_volatile=modifier == 'volatile')
+            return CQualifierType(
+                base, is_const=modifier == 'const', is_volatile=modifier == 'volatile',
+                is_restrict=modifier == 'restrict')
     #
     basic_type = parse_basic_ctype(name)
     if basic_type:
@@ -5950,9 +5967,9 @@ def cpp_rvalue_ref_type(base_type):
     # Construct a C++ rvalue reference type
     return _construct_type_from_base(CppRvalueReferenceType, base_type)
 
-def c_const_or_volatile_type(base_type, is_const=False, is_volatile=False):
-    # Construct a C const/volatile type.
-    return _construct_type_from_base(CConstOrVolatileType, base_type, is_const, is_volatile)
+def c_qualifier_type(base_type, is_const: bool = False, is_volatile: bool = False, is_restrict: bool = False):
+    # Construct a C const/volatile/restrict type.
+    return _construct_type_from_base(CQualifierType, base_type, is_const, is_volatile, is_restrict)
 
 
 def same_type(type1, type2):

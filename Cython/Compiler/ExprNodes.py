@@ -182,24 +182,25 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             infer_sequence_item_type(env, item) if item.is_starred else item.infer_type(env)
             for item in args_without_none
         }
-        if None in item_types:
-            # Could not infer all starred types.
+        if None in item_types or py_object_type in item_types:
+            # Could not infer all (starred) types to specific types.
             return None
-        # Unpack the Python types. Also avoids a mix of inferred C and Python.
-        item_types = {
+        item_type = PyrexTypes.reduce_spanning_types(
+            # Unpack the Python types to optimise and avoid a mix of inferred C and Python.
             item_type.equivalent_type if item_type.is_pyobject and item_type.equivalent_type else item_type
             for item_type in item_types
-        }
-        if len(item_types) == 1:
-            item_type = item_types.pop()
-            if has_none and not item_type.is_pyobject:
-                # Must be a Python type to cover 'None'.
-                item_type = item_type.equivalent_type  # 'equivalent_type' may be None => cannot infer type
-            elif not has_none and (item_type.is_pybytes_type or item_type.is_pystr_type):
-                # Infer special case of single character sequences as single character type.
-                if all(arg.is_string_literal and arg.can_coerce_to_char_literal() for arg in args_without_none):
-                    item_type = PyrexTypes.c_py_ucs4_type if item_type.is_pystr_type else PyrexTypes.c_uchar_type
-            return item_type
+        )
+        if item_type is py_object_type:
+            # Normalise "cannot infer anything specific" to "cannot infer".
+            return None
+        if has_none and not item_type.is_pyobject:
+            # Must be a Python type to cover 'None'.
+            item_type = item_type.equivalent_type  # 'equivalent_type' may be None => cannot infer type
+        elif not has_none and (item_type.is_pybytes_type or item_type.is_pystr_type):
+            # Infer special case of single character sequences as single character type.
+            if all(arg.is_string_literal and arg.can_coerce_to_char_literal() for arg in args_without_none):
+                item_type = PyrexTypes.c_py_ucs4_type if item_type.is_pystr_type else PyrexTypes.c_uchar_type
+        return item_type
     return None
 
 
@@ -4184,7 +4185,7 @@ class IndexNode(_IndexingBaseNode):
     def analyse_as_type(self, env):
         modifier = self.base.as_cython_attribute()
 
-        if modifier is not None and modifier in ('pointer', 'const', 'volatile'):
+        if modifier is not None and modifier in ('pointer', 'const', 'volatile', 'restrict'):
             base_type = self.index.analyse_as_type(env)
             if base_type is None:
                 error(self.base.pos, f"invalid use of '{modifier}', argument is not a type")
@@ -4195,7 +4196,8 @@ class IndexNode(_IndexingBaseNode):
 
             # const[base_type] or volatile[base_type]
             is_const = modifier == 'const'
-            is_volatile = not is_const
+            is_volatile = modifier == 'volatile'
+            is_restrict = modifier == 'restrict'
             if base_type.is_cv_qualified:
                 if base_type.is_const:
                     if is_const:
@@ -4205,12 +4207,16 @@ class IndexNode(_IndexingBaseNode):
                     if is_volatile:
                         error(self.base.pos, "Duplicate 'volatile'")
                     is_volatile = True
+                if base_type.is_restrict:
+                    if is_restrict:
+                        error(self.base.pos, "Duplicate 'restrict'")
+                    is_restrict = True
                 base_type = base_type.cv_base_type
             if base_type.is_memoryviewslice:
                 error(self.base.pos,
                       f"Cannot declare memory view variable as '{modifier}'. Did you mean '{modifier}[item_type][:]' ?")
-            return PyrexTypes.c_const_or_volatile_type(
-                base_type, is_const=is_const, is_volatile=not is_const)
+            return PyrexTypes.c_qualifier_type(
+                base_type, is_const=is_const, is_volatile=is_volatile, is_restrict=is_restrict)
 
         base_type = self.base.analyse_as_type(env)
         if base_type:
@@ -4509,8 +4515,10 @@ class IndexNode(_IndexingBaseNode):
         self.wrap_in_nonecheck_node(env, getting)
 
         if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
-            self.type = base_type
-            return self.coerce_to(sub_type, env)
+            if getting and not is_slice:
+                return self.coerce_to(sub_type, env)
+            elif setting:
+                self.type = sub_type
 
         return self
 
@@ -5664,7 +5672,9 @@ class SliceIndexNode(ExprNode):
     def analyse_types(self, env, getting=True):
         self.base = self.base.analyse_types(env)
 
-        if self.base.type.is_buffer or self.base.type.is_pythran_expr or self.base.type.is_memoryviewslice:
+        if (self.base.type.is_buffer or self.base.type.is_pythran_expr or
+            self.base.type.is_memoryviewslice or self.base.type.is_pyanydict_type
+        ):
             none_node = NoneNode(self.pos)
             index = SliceNode(self.pos,
                               start=self.start or none_node,
@@ -12331,7 +12341,7 @@ class TypeidNode(ExprNode):
             env_module = env_module.outer_scope
         typeinfo_module = env_module.find_module('libcpp.typeinfo', self.pos)
         typeinfo_entry = typeinfo_module.lookup('type_info')
-        return PyrexTypes.CFakeReferenceType(PyrexTypes.c_const_or_volatile_type(typeinfo_entry.type, is_const=True))
+        return PyrexTypes.CFakeReferenceType(PyrexTypes.c_qualifier_type(typeinfo_entry.type, is_const=True))
 
     cpp_message = 'typeid operator'
 
@@ -15181,7 +15191,7 @@ class CoerceToBooleanNode(CoercionNode):
             return '__Pyx_PyList_GET_SIZE'
         if typ.is_pytuple_type:
             return '__Pyx_PyTuple_GET_SIZE'
-        if typ.is_pyset_type or typ.is_pyfrozenset_type:
+        if typ.is_pyanyset_type:
             return '__Pyx_PySet_GET_SIZE'
         if typ.is_pyanydict_type:
             return '__Pyx_PyDict_GET_SIZE'
@@ -15482,6 +15492,53 @@ class CloneNode(CoercionNode):
 
     def free_temps(self, code):
         pass
+
+
+class CompilerDirectivesExprNode(Nodes.CompilerDirectivesMixin, ProxyNode):
+    # Like compiler directives node, but for an expression
+    #  directives     {string:value}  A dictionary holding the right value for
+    #                                 *all* possible directives.
+    #  arg           ExprNode
+
+    def __init__(self, arg, directives):
+        super(CompilerDirectivesExprNode, self).__init__(arg)
+        self.directives = directives
+
+    @property
+    def is_temp(self):
+        return self.arg.is_temp
+
+    def infer_type(self, env):
+        with self.apply_directives(env):
+            return super(CompilerDirectivesExprNode, self).infer_type(env)
+
+    def analyse_declarations(self, env):
+        with self.apply_directives(env):
+            self.arg.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        with self.apply_directives(env):
+            return super(CompilerDirectivesExprNode, self).analyse_types(env)
+
+    def generate_result_code(self, code):
+        with self.apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).generate_result_code(code)
+
+    def generate_evaluation_code(self, code):
+        with self.apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).generate_evaluation_code(code)
+
+    def generate_disposal_code(self, code):
+        with self.apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).generate_disposal_code(code)
+
+    def free_temps(self, code):
+        with self.apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).free_temps(code)
+
+    def annotate(self, code):
+        with self.apply_directives(code.globalstate):
+            self.arg.annotate(code)
 
 
 class CppOptionalTempCoercion(CoercionNode):
