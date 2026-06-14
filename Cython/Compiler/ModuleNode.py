@@ -3829,7 +3829,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
         code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
-        code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        code.putln("#if (CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || CYTHON_COMPILING_IN_LIMITED_API_FREETHREADING)")
         code.putln("{Py_mod_gil, __Pyx_FREETHREADING_COMPATIBLE},")
         code.putln("#endif")
         code.putln("#if PY_VERSION_HEX >= 0x030C0000 && CYTHON_USE_MODULE_STATE")
