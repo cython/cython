@@ -939,7 +939,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     #define $cur_scope_obj_cname $cur_scope_cname 
     #define $outer_scope_obj_cname $outer_scope_cname
 #endif
-// __Pyx_GetCClassTypeData_NoGil comes from ExtensionTypes.c::OpaqueStructLookup
+// __Pyx_PyObject_GetTypeData_NoGil comes from ExtensionTypes.c::OpaqueStructLookup
 // and is included if needed
 #define __Pyx_PyObject_GetTypeData(o, has_gil, cls, cls_offset, T) \
         ((T)(has_gil ? \
