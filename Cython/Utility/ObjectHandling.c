@@ -3077,18 +3077,18 @@ static void __Pyx__RaiseErrorWithTypeAndVarargs(PyObject* exc_type, const char* 
 static void __Pyx__RaiseErrorWithTypeAndVarargs(PyObject* exc_type, const char* message, ...)
 {
     va_list arg_list;
+#if CYTHON_COMPILING_IN_LIMITED_API
     va_start(arg_list, message);
     __Pyx_TypeName tp_name = va_arg(arg_list, __Pyx_TypeName);
     va_end(arg_list);
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+#if __PYX_LIMITED_VERSION_HEX < 0x030d0000
     if (!tp_name) return;
-#else
-    CYTHON_UNUSED_VAR(tp_name);
+#endif
 #endif
     va_start(arg_list, message);
     PyErr_FormatV(exc_type, message, arg_list);
     va_end(arg_list);
-    __Pyx_DECREF_TypeName(tp_name);
+    __Pyx_DECREF_TypeName(tp_name); // No-op outside Limited API so doesn't matter that it's undefined.
 }
 
 /////////////// RaiseErrorWithObjectTypes.proto ///////////////

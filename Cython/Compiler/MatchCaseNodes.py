@@ -1114,6 +1114,8 @@ class MatchMappingPatternNode(PatternNode):
         utility_code = UtilityCode.load_cached("MappingKeyCheck", "MatchCase.c")
         if n_fixed_keys == len(self.keys):
             return None  # nothing to check
+        if n_fixed_keys == 0 and len(self.keys) <= 1:
+            return None  # nothing to check
 
         return Nodes.ExprStatNode(
             self.pos,

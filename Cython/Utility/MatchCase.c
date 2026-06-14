@@ -470,6 +470,7 @@ static int __Pyx_MatchCase_CheckMappingDuplicateKeys(PyObject *keys[], Py_ssize_
     // taking the keys out of the dictionary. I'm choosing to do it separately since the
     // majority of the time the keys will be known at compile-time so Cython can skip
     // this step completely.
+    // The step is also skipped when there's only a single key.
 
     PyObject *var_keys_set;
     PyObject *key;
@@ -759,13 +760,19 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(PyTypeObject *type, PyObject
     Py_ssize_t n, match_args_size;
     int contains;
 
-    attrs_set = PySet_New(NULL);
-    if (unlikely(!attrs_set)) return -1;
-
     match_args_size = __Pyx_PyTuple_GET_SIZE(match_args);
+    if (n_fixed == 0 && match_args_size == 1) {
+        // Trivial cases where there can be no duplicates.
+        // (In the match_args_size == 0 trivial case, this function is never called).
+        return 0;
+    }
 #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(match_args_size < 0)) return -1;
 #endif
+
+    attrs_set = PySet_New(NULL);
+    if (unlikely(!attrs_set)) return -1;
+
     num_args = match_args_size < num_args ? match_args_size : num_args;
     for (n=0; n < num_args; ++n) {
         attr = __Pyx_PyTuple_GET_ITEM(match_args, n);
@@ -878,7 +885,7 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
     } else {
         allowed = 0;
     }
-    if (allowed < n_subjects) {
+    if (unlikely(allowed < n_subjects)) {
         const char *plural = (allowed == 1) ? "" : "s";
         __Pyx_RaiseErrorWithTypeAndVarargs(
             PyExc_TypeError,

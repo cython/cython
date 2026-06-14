@@ -1,7 +1,7 @@
 # mode: run
 # tag: pure3.10
 
-from __future__ import annotations
+from __future__ import annotations, print_function
 
 import array
 import sys
@@ -273,3 +273,27 @@ def test_no_memoryview_match_self(x: memoryview):
     match x:
         case memoryview(_):
             print("This shouldn't happen")
+
+
+class DuplicateSubjectCornerCase:
+    __match_args__ = ('a', 'b', 'b')  # Note duplicate b
+    a = 1
+    b = 2
+    c = 3
+
+
+def test_duplicate_subject_corner_case(x):
+    """
+    >>> test_duplicate_subject_corner_case(['good', DuplicateSubjectCornerCase()])
+    1 2 3
+    >>> test_duplicate_subject_corner_case(['bad', DuplicateSubjectCornerCase()])  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    TypeError: ...DuplicateSubjectCornerCase() got multiple sub-patterns for attribute 'b'
+    """
+    match x:
+        # This works because the duplicate 'b' is never examined
+        case ['good', DuplicateSubjectCornerCase(x, y, c=z) ]:
+            print(x, y, z)
+        case ['bad', DuplicateSubjectCornerCase(x, y, z)]:
+            print("Not allowed")
