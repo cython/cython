@@ -217,7 +217,7 @@ jobs:
         # testing specifically.
         freethreaded: [false, true]
 
-      exclude:
+        exclude:
           # Windows and free-threading is difficult to build right now
           - os: windows-2022
             freethreaded: true
