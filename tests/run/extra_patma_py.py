@@ -1,9 +1,18 @@
 # mode: run
 # tag: pure3.10
 
-from __future__ import annotations
+from __future__ import annotations, print_function
 
 import array
+import sys
+
+import cython
+
+__doc__ = ""
+
+def skip_if_no_frozendict(f):
+    if cython.compiled or sys.version_info >= (3, 15):
+        return f
 
 def test_array_is_sequence(x):
     """
@@ -138,3 +147,153 @@ def test_dict_without_subjects(arg: dict):
             print("ab")
         case _:
             print("unmatched")
+
+
+class PyClass(object):
+    pass
+
+
+class PrivateAttrLookupOuter:
+    """
+    CPython doesn't mangle private names in class patterns
+    (so Cython should do the same)
+
+    >>> py_class_inst = PyClass()
+    >>> py_class_inst._PyClass__something = 1
+    >>> py_class_inst._PrivateAttrLookupOuter__something = 2
+    >>> py_class_inst.__something = 3
+    >>> PrivateAttrLookupOuter().f(py_class_inst)
+    3
+    """
+    def f(self, x):
+        match x:
+            case PyClass(__something=y):
+                return y
+
+
+@skip_if_no_frozendict
+def match_untyped_frozendict_as_class(v):
+    """
+    >>> fd = make_frozendict()
+    >>> match_untyped_frozendict_as_class(fd) == fd
+    True
+    >>> match_untyped_frozendict_as_class("not a frozendict")
+    """
+    match v:
+        case frozendict(d):
+            return d
+
+@skip_if_no_frozendict
+def match_frozendict_as_class(v: frozendict):
+    """
+    >>> fd = make_frozendict()
+    >>> match_frozendict_as_class(fd) == fd
+    True
+    """
+    match v:
+        case frozendict(d):
+            return d
+
+@skip_if_no_frozendict
+def match_optional_frozendict_as_class(v: frozendict | None):
+    """
+    >>> fd = make_frozendict()
+    >>> match_optional_frozendict_as_class(fd) == fd
+    True
+    >>> match_optional_frozendict_as_class(None)
+    'unmatched'
+    """
+    match v:
+        case frozendict(d):
+            return d
+        case _:
+            return "unmatched"
+
+
+def match_mystery_class_self(arg, cls):
+    """
+    Most of the time, we're able to replace match-class with a
+    simple known type-check (i.e. `dict(_)` becomes PyDict_Check).
+    This does mean the generic test code is undertested.
+
+    >>> match_mystery_class_self([], list)
+    match
+    >>> match_mystery_class_self(10, list)
+    no match
+    >>> class Cls:
+    ...    __match_args__ = ('arg',)
+    ...    arg = 1
+    >>> match_mystery_class_self(Cls(), Cls)
+    match
+    >>> match_mystery_class_self([], Cls)
+    no match
+    >>> match_mystery_class_self(None, Cls)
+    no match
+    >>> match_mystery_class_self(None, type(None))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    TypeError: ... accepts 0 positional sub-patterns (1 given)
+    """
+    match arg:
+        case cls(_):
+            print("match")
+        case _:
+            print("no match")
+
+if sys.version_info >= (3, 15):
+    __doc__ += """
+    >>> match_mystery_class_self(frozendict(), frozendict)
+    match
+    >>> match_mystery_class_self({}, frozendict)
+    no match
+    """
+
+class ListSubclass(list):
+    __match_args__ = ("special_arg",)
+    special_arg = "SPECIAL!"
+
+def test_match_args_overrides_match_self(x):
+    """
+    >>> test_match_args_overrides_match_self(ListSubclass())
+    'SPECIAL!'
+    >>> test_match_args_overrides_match_self([])
+    >>> test_match_args_overrides_match_self(None)
+    """
+    match x:
+        case ListSubclass(v):
+            return v
+
+def test_no_memoryview_match_self(x: memoryview):
+    """
+    >>> test_no_memoryview_match_self(memoryview(b'123'))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    TypeError: ...() accepts 0 positional sub-patterns (1 given)
+    """
+    match x:
+        case memoryview(_):
+            print("This shouldn't happen")
+
+
+class DuplicateSubjectCornerCase:
+    __match_args__ = ('a', 'b', 'b')  # Note duplicate b
+    a = 1
+    b = 2
+    c = 3
+
+
+def test_duplicate_subject_corner_case(x):
+    """
+    >>> test_duplicate_subject_corner_case(['good', DuplicateSubjectCornerCase()])
+    1 2 3
+    >>> test_duplicate_subject_corner_case(['bad', DuplicateSubjectCornerCase()])  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    TypeError: ...() got multiple sub-patterns for attribute 'b'
+    """
+    match x:
+        # This works because the duplicate 'b' is never examined
+        case ['good', DuplicateSubjectCornerCase(x, y, c=z) ]:
+            print(x, y, z)
+        case ['bad', DuplicateSubjectCornerCase(x, y, z)]:
+            print("Not allowed")

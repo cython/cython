@@ -41,6 +41,13 @@ else:
         __match_args__ = ("x", "y")
         x: int
         y: int
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
+        def __eq__(self, other):
+            if not isinstance(other, Point):
+                return False
+            return self.x == other.x and self.y == other.y
 
 # TestCompiler removed - it's very CPython-specific
 """
@@ -1595,7 +1602,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, {})
 
     def test_patma_139(self):
-        return  # disabled
         x = False
         match x:
             case bool(z):
@@ -1605,7 +1611,6 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_140(self):
-        return  # disabled
         x = True
         match x:
             case bool(z):
@@ -1615,7 +1620,6 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_141(self):
-        return  # disabled
         x = bytearray()
         match x:
             case bytearray(z):
@@ -1625,7 +1629,6 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_142(self):
-        return  # disabled
         x = b""
         match x:
             case bytes(z):
@@ -1635,7 +1638,6 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_143(self):
-        return  # disabled
         x = {}
         match x:
             case dict(z):
@@ -1645,8 +1647,8 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_144(self):
-        return  # disabled
-        x = 0.0
+        x : object = 0.0  # Cython-specific change. Otherwise x is inferred as a C type 
+                          # which makes assertIs(z, x) fail
         match x:
             case float(z):
                 y = 0
@@ -1655,7 +1657,6 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_145(self):
-        return  # disabled
         x = frozenset()
         match x:
             case frozenset(z):
@@ -1665,7 +1666,6 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_146(self):
-        return  # disabled
         x = 0
         match x:
             case int(z):
@@ -1675,7 +1675,6 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_147(self):
-        return  # disabled
         x = []
         match x:
             case list(z):
@@ -1685,7 +1684,6 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_148(self):
-        return  # disabled
         x = set()
         match x:
             case set(z):
@@ -1695,7 +1693,6 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_149(self):
-        return  # disabled
         x = ""
         match x:
             case str(z):
@@ -1705,7 +1702,6 @@ class TestPatma(TimedTest):
         self.assertIs(z, x)
 
     def test_patma_150(self):
-        return  # disabled
         x = ()
         match x:
             case tuple(z):
@@ -1996,7 +1992,6 @@ class TestPatma(TimedTest):
         self.assertIs(http_error(401 | 403 | 404), None)  # 407
 
     def test_patma_176(self):
-        return  # disabled
         def whereis(point):
             match point:
                 case (0, 0):
@@ -2016,7 +2011,6 @@ class TestPatma(TimedTest):
         self.assertEqual(whereis(42), "Not a point")
 
     def test_patma_177(self):
-        return  # disabled
         def whereis(point):
             match point:
                 case Point(0, 0):
@@ -2040,7 +2034,6 @@ class TestPatma(TimedTest):
         self.assertEqual(whereis(42), "Not a point")
 
     def test_patma_178(self):
-        return  # disabled
         def whereis(point):
             match point:
                 case Point(1, var):
@@ -2049,7 +2042,6 @@ class TestPatma(TimedTest):
         self.assertIs(whereis(Point(0, 0)), None)
 
     def test_patma_179(self):
-        return  # disabled
         def whereis(point):
             match point:
                 case Point(1, y=var):
@@ -2058,7 +2050,6 @@ class TestPatma(TimedTest):
         self.assertIs(whereis(Point(0, 0)), None)
 
     def test_patma_180(self):
-        return  # disabled
         def whereis(point):
             match point:
                 case Point(x=1, y=var):
@@ -2067,7 +2058,6 @@ class TestPatma(TimedTest):
         self.assertIs(whereis(Point(0, 0)), None)
 
     def test_patma_181(self):
-        return  # disabled
         def whereis(point):
             match point:
                 case Point(y=var, x=1):
@@ -2076,7 +2066,6 @@ class TestPatma(TimedTest):
         self.assertIs(whereis(Point(0, 0)), None)
 
     def test_patma_182(self):
-        return  # disabled
         def whereis(points):
             match points:
                 case []:
@@ -2099,7 +2088,6 @@ class TestPatma(TimedTest):
         self.assertEqual(whereis([Point(0, 1), Point(0, 1), Point(0, 1)]), "Something else")
 
     def test_patma_183(self):
-        return  # disabled
         def whereis(point):
             match point:
                 case Point(x, y) if x == y:
@@ -2252,7 +2240,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_197(self):
-        return  # disabled
         w = [Point(-1, 0), Point(1, 2)]
         match w:
             case (Point(x1, y1), Point(x2, y2) as p2):
@@ -2318,7 +2305,6 @@ class TestPatma(TimedTest):
         self.assertIs(f(3.0), None)
 
     def test_patma_200(self):
-        return  # disabled
         class Class:
             __match_args__ = ("a", "b")
         c = Class()
@@ -2332,7 +2318,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_201(self):
-        return  # disabled
         class Class:
             __match_args__ = ("a", "b")
         c = Class()
@@ -2346,7 +2331,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_202(self):
-        return  # disabled
         class Parent:
             __match_args__ = "a", "b"
         class Child(Parent):
@@ -2362,7 +2346,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_203(self):
-        return  # disabled
         class Parent:
             __match_args__ = ("a", "b")
         class Child(Parent):
@@ -2483,7 +2466,6 @@ class TestPatma(TimedTest):
         self.assertIs(f(({"x": "x", "y": "y"})), None)
 
     def test_patma_212(self):
-        return  # disabled
         def f(w):
             match w:
                 case Point(int(xx), y="hello"):
@@ -2547,7 +2529,6 @@ class TestPatma(TimedTest):
         self.assertEqual(set(f()), {"a", "b"})
 
     def test_patma_220(self):
-        return  # disabled
         def f():
             match Point(..., ...):
                 case Point(x, y=y):
@@ -2906,8 +2887,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-
-    @disable  # validation will be added when class patterns are added
+    @disable  # in e_patma_late instead
     def test_attribute_name_repeated_in_class_pattern(self):
         self.assert_syntax_error("""
         match ...:
@@ -3006,7 +2986,6 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # will be implemented as part of sequence patterns
     def test_multiple_starred_names_in_sequence_pattern_0(self):
         self.assert_syntax_error("""
         match ...:
@@ -3014,7 +2993,6 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # will be implemented as part of sequence patterns
     def test_multiple_starred_names_in_sequence_pattern_1(self):
         self.assert_syntax_error("""
         match ...:
@@ -3149,7 +3127,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # validation will be added when class patterns are added
+    @disable  # in e_patma_late test instead
     def test_mapping_pattern_duplicate_key(self):
         self.assert_syntax_error("""
         match ...:
@@ -3157,7 +3135,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # validation will be added when class patterns are added
+    @disable  # in e_patma_late test instead
     def test_mapping_pattern_duplicate_key_edge_case0(self):
         self.assert_syntax_error("""
         match ...:
@@ -3165,7 +3143,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # validation will be added when class patterns are added
+    @disable  # in e_patma_late test instead
     def test_mapping_pattern_duplicate_key_edge_case1(self):
         self.assert_syntax_error("""
         match ...:
@@ -3173,7 +3151,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # validation will be added when class patterns are added
+    @disable  # in e_patma_late test instead
     def test_mapping_pattern_duplicate_key_edge_case2(self):
         self.assert_syntax_error("""
         match ...:
@@ -3181,7 +3159,7 @@ class TestSyntaxErrors(TimedTest):
                 pass
         """)
 
-    @disable  # validation will be added when class patterns are added
+    @disable  # in e_patma_late test instead
     def test_mapping_pattern_duplicate_key_edge_case3(self):
         self.assert_syntax_error("""
         match ...:
@@ -3192,7 +3170,6 @@ class TestSyntaxErrors(TimedTest):
 class TestTypeErrors(TimedTest):
 
     def test_accepts_positional_subpatterns_0(self):
-        return  # disabled
         class Class:
             __match_args__ = ()
         x = Class()
@@ -3205,7 +3182,6 @@ class TestTypeErrors(TimedTest):
         self.assertIs(z, None)
 
     def test_accepts_positional_subpatterns_1(self):
-        return  # disabled
         x = range(10)
         y = None
         with self.assertRaises(TypeError):
@@ -3216,7 +3192,6 @@ class TestTypeErrors(TimedTest):
         self.assertIs(y, None)
 
     def test_got_multiple_subpatterns_for_attribute_0(self):
-        return  # disabled
         class Class:
             __match_args__ = ("a", "a")
             a = None
@@ -3231,7 +3206,6 @@ class TestTypeErrors(TimedTest):
         self.assertIs(z, None)
 
     def test_got_multiple_subpatterns_for_attribute_1(self):
-        return  # disabled
         class Class:
             __match_args__ = ("a",)
             a = None
@@ -3246,7 +3220,6 @@ class TestTypeErrors(TimedTest):
         self.assertIs(z, None)
 
     def test_match_args_elements_must_be_strings(self):
-        return  # disabled
         class Class:
             __match_args__ = (None,)
         x = Class()
@@ -3259,7 +3232,6 @@ class TestTypeErrors(TimedTest):
         self.assertIs(z, None)
 
     def test_match_args_must_be_a_tuple_0(self):
-        return  # disabled
         class Class:
             __match_args__ = None
         x = Class()
@@ -3272,7 +3244,6 @@ class TestTypeErrors(TimedTest):
         self.assertIs(z, None)
 
     def test_match_args_must_be_a_tuple_1(self):
-        return  # disabled
         class Class:
             __match_args__ = "XYZ"
         x = Class()
@@ -3285,7 +3256,6 @@ class TestTypeErrors(TimedTest):
         self.assertIs(z, None)
 
     def test_match_args_must_be_a_tuple_2(self):
-        return  # disabled
         class Class:
             __match_args__ = ["spam", "eggs"]
             spam = 0
