@@ -2180,6 +2180,7 @@ class FuncDefNode(StatNode, BlockNode):
                 init))
 
         tempvardecl_code = code.insertion_point()
+        code.put_opaque_lookup_cache_declaration()
         self.generate_keyword_list(code)
 
         # ----- GIL acquisition
@@ -3898,6 +3899,7 @@ class DefNodeWrapper(FuncDefNode):
         self.generate_function_header(code, with_pymethdef)
         self.generate_argument_declarations(lenv, code)
         tempvardecl_code = code.insertion_point()
+        code.put_opaque_lookup_cache_declaration()
 
         if self.return_type.is_pyobject:
             retval_init = ' = 0'
@@ -4913,6 +4915,7 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Local variables
         code.putln("PyObject *%s = NULL;" % Naming.retval_cname)
         tempvardecl_code = code.insertion_point()
+        code.put_opaque_lookup_cache_declaration()
         code.put_declare_refcount_context()
         code.put_setup_refcount_context(self.entry.name or self.entry.qualified_name)
         tracing = code.is_tracing()
@@ -10004,6 +10007,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                     c.put(" private(%s, %s, %s)" % self.pos_info)
 
                 c.put(" shared(%s)" % ', '.join(shared_vars))
+            c.put(" private(__pyx_last_used_type_data)")
 
     def cleanup_temps(self, code):
         # Now clean up any memoryview slice and object temporaries

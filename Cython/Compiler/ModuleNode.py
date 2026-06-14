@@ -3322,6 +3322,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname} = NULL;")
 
         tempdecl_code = code.insertion_point()
+        code.put_opaque_lookup_cache_declaration()
 
         profile = code.globalstate.directives['profile']
         linetrace = code.globalstate.directives['linetrace']
@@ -3565,6 +3566,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     f"int {self.cfunc_name}({Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})",
                     scope, refnanny=True)
                 code.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
+                code.put_opaque_lookup_cache_declaration()
                 self.tempdecl_code = code.insertion_point()
                 code.put_setup_refcount_context(EncodedString(self.cfunc_name))
                 # Leave a grepable marker that makes it easy to find the generator source.

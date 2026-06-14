@@ -900,6 +900,8 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     #define __PYX_SHARED_RELATIVE_OFFSET 0
     #define CYTHON_OPAQUE_SHARED_TYPES 0
 #endif
+
+#define __PYX_LAST_USED_TYPE_DATA_DECL // May be redefined if needed though.
 #if CYTHON_OPAQUE_OBJECTS
     #define __PYX_C_CLASS_SIZEOF(T) -((int)sizeof(T))
     #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
@@ -913,13 +915,6 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     #define __PYX_SELECT_OPAQUE_OBJECT(first, second) first
     #define __PYX_C_CLASS_DECL(T) PyObject
     #define __Pyx_GetCClassTypeData_Gil(o, cls, T) ((T)PyObject_GetTypeData(o, cls))
-    // __Pyx_GetCClassTypeData_NoGil comes from ExtensionTypes.c::OpaqueStructLookup
-    // and is included if needed
-    #define __Pyx_GetCClassTypeData(o, has_gil, cls, cls_offset, T) \
-        ((T)(has_gil ? \
-            PyObject_GetTypeData(o, cls) : \
-            __Pyx_GetCClassTypeData_NoGil(o, cls, &cls_offset) \
-        ))
 
     #if CYTHON_USE_FREELISTS
     // It's a bit difficult (but not impossible) to work out how much memory to zero out in this case
@@ -935,18 +930,9 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     // Return first if opaque object, second if not
     #define __PYX_SELECT_OPAQUE_OBJECT(first, second) second
     #define __Pyx_GetCClassTypeData_Gil(o, cls, T) (o)
-    #define __Pyx_GetCClassTypeData(o, has_gil, cls, cls_offset, T) (o)
     #define $cur_scope_obj_cname $cur_scope_cname 
     #define $outer_scope_obj_cname $outer_scope_cname
 #endif
-// __Pyx_PyObject_GetTypeData_NoGil comes from ExtensionTypes.c::OpaqueStructLookup
-// and is included if needed
-#define __Pyx_PyObject_GetTypeData(o, has_gil, cls, cls_offset, T) \
-        ((T)(has_gil ? \
-            PyObject_GetTypeData((PyObject*)o, cls) : \
-            __Pyx_PyObject_GetTypeData_NoGil((PyObject*)o, cls, &cls_offset) \
-        ))
-#define __Pyx_PyObject_GetTypeData_Gil(o, cls, T) ((T)PyObject_GetTypeData((PyObject*)o, cls))
 
 #if CYTHON_USE_MODULE_STATE
 static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)

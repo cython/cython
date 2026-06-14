@@ -8140,8 +8140,8 @@ class AttributeNode(ExprNode):
             if obj_type.is_extension_type:
                 env.use_utility_code(
                     TempitaUtilityCode.load_cached(
-                        "OpaqueStructLookup", "ExtensionTypes.c",
-                        context={'explicit': obj_type.opaque_pyobject is True})
+                        "GetCClassTypeData", "ExtensionTypes.c",
+                        context={'explicit': bool(obj_type.opaque_pyobject)})
                 )
         elif obj_type.is_reference and obj_type.is_fake_reference:
             self.op = "->"
@@ -8309,8 +8309,10 @@ class AttributeNode(ExprNode):
                 typeoffset_cname = f"{Naming.modulestateglobal_cname}->{access_type.typeoffset_cname}"
                 typeptr_cname = f"(PyTypeObject*){Naming.modulestateglobal_cname}->{access_type.typeptr_cname}"
                 objstruct_cname = access_type.objstruct_cname if access_type.typedef_flag else f"struct {access_type.objstruct_cname}"
-                func_cname = "PyObject_GetTypeData" if access_type.opaque_pyobject is True else "GetCClassTypeData"
-                return f"__Pyx_{func_cname}({obj_code}, {has_gil:d}, {typeptr_cname}, {typeoffset_cname}, {objstruct_cname}*)"
+                func_cname = ("__Pyx_GetExplicitlyOpaqueCClasstypeData"
+                              if access_type.opaque_pyobject
+                              else "__Pyx_GetCClassTypeData")
+                return f"{func_cname}({obj_code}, {has_gil:d}, {typeptr_cname}, {typeoffset_cname}, {objstruct_cname}*)"
         else:
             return obj.result_as(obj.type)
 
@@ -11835,8 +11837,8 @@ class TypecastNode(ExprNode):
             self.type = PyrexTypes.c_void_ptr_type
             env.use_utility_code(
                 TempitaUtilityCode.load_cached(
-                    "OpaqueStructLookup", "ExtensionTypes.c",
-                    context={'explicit': self.original_type.opaque_pyobject is True})
+                    "GetCClassTypeData", "ExtensionTypes.c",
+                    context={'explicit': bool(self.original_type.opaque_pyobject)})
             )
         if self.operand.has_constant_result():
             # Must be done after self.type is resolved.
@@ -11929,8 +11931,10 @@ class TypecastNode(ExprNode):
             # FIXME - we really need Code to get to this
             typeoffset_cname = f"{Naming.modulestateglobal_cname}->{self.original_type.typeoffset_cname}"
             typeptr_cname = f"(PyTypeObject*){Naming.modulestateglobal_cname}->{self.original_type.typeptr_cname}"
-            func_cname = "PyObject_GetTypeData" if self.original_type.opaque_pyobject is True else "GetCClassTypeData"
-            return (f"__Pyx_{func_cname}({self.operand.result()}, {has_gil:d}, "
+            func_cname = ("__Pyx_GetExplicitlyOpaqueCClasstypeData"
+                          if self.original_type.opaque_pyobject
+                          else "__Pyx_GetCClassTypeData")
+            return (f"{func_cname}({self.operand.result()}, {has_gil:d}, "
                     f"{typeptr_cname}, {typeoffset_cname}, void*)")
         if self.type.is_complex:
             operand_result = self.operand.result()

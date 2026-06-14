@@ -3127,6 +3127,11 @@ class CCodeWriter:
             self.putln("%sconst char *%s = NULL;" % (unused, Naming.filename_cname))
             self.putln("%sint %s = 0;" % (unused, Naming.clineno_cname))
 
+    def put_opaque_lookup_cache_declaration(self):
+        # It's currently difficult to reason about where might be needed because
+        # of how AttributeNode is generated.
+        self.putln("__PYX_LAST_USED_TYPE_DATA_DECL;")
+
     def put_generated_by(self):
         self.putln(Utils.GENERATED_BY_MARKER)
         self.putln("")

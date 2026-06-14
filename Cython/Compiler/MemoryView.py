@@ -855,7 +855,8 @@ atomic_utility = load_memview_c_utility(
     "Atomics", util_code_filename="Synchronization.c", context=template_context)
 
 opaque_struct_lookup_utility = load_memview_c_utility(
-    "OpaqueStructLookup", util_code_filename="ExtensionTypes.c")
+    "GetCClassTypeData", util_code_filename="ExtensionTypes.c",
+    context={'explicit': True})
 
 memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")
 

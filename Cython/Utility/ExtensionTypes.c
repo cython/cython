@@ -992,11 +992,38 @@ static void __Pyx_ValidateTypeOffset(PyObject *o, PyTypeObject *tp, __pyx_atomic
 
 #endif
 
-//////////////////////////// OpaqueStructLookup.proto //////////////////////////////
-//@requires: Synchronization.c::Atomics
+//////////////////////////// GetCClassTypeDataCaching.proto ////////////////////////
+
+#ifndef CYTHON_CACHE_TYPEDATA
+#define CYTHON_CACHE_TYPEDATA 1
+#endif
+
+#if CYTHON_CACHE_TYPEDATA
+// It's likely that we're repeatedly looking up the same typedata, and this always gets the
+// same answer. Therefore define an LRU-cache of length 1 (that hopefully the C compiler can
+// easily see through in most cases) to optimize this case.
+#ifdef __cplusplus
+namespace {
+#endif
+typedef struct {
+    PyObject *o;
+    PyTypeObject *cls;
+    void *result;
+} __Pyx_LastUsedTypeData;
+#ifdef __cplusplus
+}
+#endif
+#undef __PYX_LAST_USED_TYPE_DATA_DECL
+#define __PYX_LAST_USED_TYPE_DATA_DECL CYTHON_UNUSED __Pyx_LastUsedTypeData __pyx_last_used_type_data = {0, 0, 0};
+#else
+#define __Pyx_LastUsedTypeData void
+#endif
+
+//////////////////////////// GetCClassTypeData.proto ///////////////////////////////
+//@requires: GetCClassTypeDataCaching
 
 {{py:guard = '1' if explicit else 'CYTHON_OPAQUE_OBJECTS'}}
-{{py:funcname = 'PyObject_GetTypeData' if explicit else 'GetCClassTypeData'}}
+{{py:funcname = 'GetExplicitlyOpaqueCClasstypeData' if explicit else 'GetCClassTypeData'}}
 
 #if {{guard}}
 #if !CYTHON_ATOMICS
@@ -1005,16 +1032,26 @@ static void __Pyx_ValidateTypeOffset(PyObject *o, PyTypeObject *tp, __pyx_atomic
     #error Cython with opaque objects requires atomics
 #endif
 
-static CYTHON_INLINE void* __Pyx_{{funcname}}_NoGil(PyObject *o, PyTypeObject *cls, __pyx_atomic_Py_ssize_t* cls_offset); /* proto */
+#if CYTHON_CACHE_TYPEDATA
+#define __Pyx_{{funcname}}(o, has_gil, cls, cls_offset, T) \
+    ((T)__Pyx__{{funcname}}(&__pyx_last_used_type_data, o, has_gil, cls, &cls_offset))
+#else
+#define __Pyx_{{funcname}}(o, has_gil, cls, cls_offset, T) \
+    ((T)__Pyx__{{funcname}}(NULL, o, has_gil, cls, &cls_offset))
 #endif
 
-//////////////////////////// OpaqueStructLookup //////////////////////////////
+static CYTHON_INLINE void* __Pyx__{{funcname}}(__Pyx_LastUsedTypeData *last_used, PyObject *op, int has_gil, PyTypeObject *cls, __pyx_atomic_Py_ssize_t* cls_offset); /* proto */
+#else
+#define __Pyx_{{funcname}}(o, has_gil, cls, cls_offset, T) (o)
+#endif
+
+//////////////////////////// GetCClassTypeData //////////////////////////
 
 {{py:guard = '1' if explicit else 'CYTHON_OPAQUE_OBJECTS'}}
-{{py:funcname = 'PyObject_GetTypeData' if explicit else 'GetCClassTypeData'}}
+{{py:funcname = 'GetExplicitlyOpaqueCClasstypeData' if explicit else 'GetCClassTypeData'}}
 
 #if {{guard}}
-static CYTHON_INLINE void* __Pyx_{{funcname}}_NoGil(PyObject *o, PyTypeObject *cls, __pyx_atomic_Py_ssize_t* cls_offset) {
+static CYTHON_INLINE void* __Pyx__{{funcname}}_NoGil(PyObject *o, PyTypeObject *cls, __pyx_atomic_Py_ssize_t* cls_offset) {
     Py_ssize_t offset = __pyx_atomic_load(cls_offset);
     if (likely(offset >= 0)) {
         return (((char*)(o)) + offset);
@@ -1028,6 +1065,26 @@ static CYTHON_INLINE void* __Pyx_{{funcname}}_NoGil(PyObject *o, PyTypeObject *c
     PyGILState_STATE gil = PyGILState_Ensure();
     result = PyObject_GetTypeData(o, cls);
     PyGILState_Release(gil);
+    return result;
+}
+
+static CYTHON_INLINE void* __Pyx__{{funcname}}(__Pyx_LastUsedTypeData *last_used, PyObject *o, int has_gil, PyTypeObject *cls, __pyx_atomic_Py_ssize_t* cls_offset) {
+#if CYTHON_CACHE_TYPEDATA
+    if (last_used->o == o && last_used->cls == cls) {
+        // Cache hit :)
+        return last_used->result;
+    }
+#else
+    CYTHON_UNUSED_VAR(last_used);
+#endif
+    void *result = (has_gil ?
+        PyObject_GetTypeData(o, cls) :
+        __Pyx__{{funcname}}_NoGil(o, cls, cls_offset));
+#if CYTHON_CACHE_TYPEDATA
+    last_used->o = o;
+    last_used->cls = cls;
+    last_used->result = result;
+#endif
     return result;
 }
 #endif
