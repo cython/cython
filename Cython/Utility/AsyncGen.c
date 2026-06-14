@@ -351,6 +351,7 @@ __Pyx_async_gen_aclose(PyObject *g, PyObject *arg)
 }
 
 
+// Not FASTCALL because the args end up being converted back to a tuple anyway.
 static PyObject *
 __Pyx_async_gen_athrow(PyObject *g, PyObject *args)
 {
@@ -599,7 +600,13 @@ __Pyx_async_gen_asend_iternext(PyObject *o)
 
 
 static PyObject *
-__Pyx_async_gen_asend_throw(PyObject *g, PyObject *args)
+__Pyx_async_gen_asend_throw(PyObject *g,
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    PyObject *args
+#else
+    PyObject *const *args, Py_ssize_t nargs
+#endif
+    )
 {
     PyObject *result;
     __pyx_PyAsyncGenASend *o = __Pyx_as_PyAsyncGenASend(g);
@@ -609,7 +616,11 @@ __Pyx_async_gen_asend_throw(PyObject *g, PyObject *args)
         return NULL;
     }
 
-    result = __Pyx_Coroutine_Throw(o->ags_gen, args);
+    result = __Pyx_Coroutine_Throw(o->ags_gen, args
+#if !(CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000)
+        , nargs
+#endif
+    );
     result = __Pyx_async_gen_unwrap_value(
         __Pyx_as_PyAsyncGenObject(o->ags_gen),
         result, 0);
@@ -633,7 +644,13 @@ __Pyx_async_gen_asend_close(PyObject *g, PyObject *args)
 
 static PyMethodDef __Pyx_async_gen_asend_methods[] = {
     {"send", (PyCFunction)__Pyx_async_gen_asend_send, METH_O, __Pyx_async_gen_send_doc},
-    {"throw", (PyCFunction)__Pyx_async_gen_asend_throw, METH_VARARGS, __Pyx_async_gen_throw_doc},
+    {"throw", __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_async_gen_asend_throw),
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        METH_VARARGS,
+#else
+        METH_FASTCALL,
+#endif
+        __Pyx_async_gen_throw_doc},
     {"close", (PyCFunction)__Pyx_async_gen_asend_close, METH_NOARGS, __Pyx_async_gen_close_doc},
     {"__await__", (PyCFunction)__Pyx_async_gen_self_method, METH_NOARGS, __Pyx_async_gen_await_doc},
     {0, 0, 0, 0}        /* Sentinel */
@@ -943,7 +960,13 @@ __Pyx_async_gen_athrow_send(PyObject *o, PyObject *arg)
 
 
 static PyObject *
-__Pyx_async_gen_athrow_throw(PyObject *g, PyObject *args)
+__Pyx_async_gen_athrow_throw(PyObject *g,
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    PyObject *args
+#else
+    PyObject *const *args, Py_ssize_t nargs
+#endif
+    )
 {
     PyObject *retval;
 
@@ -953,7 +976,11 @@ __Pyx_async_gen_athrow_throw(PyObject *g, PyObject *args)
         return NULL;
     }
 
-    retval = __Pyx_Coroutine_Throw(o->agt_gen, args);
+    retval = __Pyx_Coroutine_Throw(o->agt_gen, args
+#if !(CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000)
+        , nargs
+#endif
+    );
     if (o->agt_args) {
         return __Pyx_async_gen_unwrap_value(__Pyx_as_PyAsyncGenObject(o->agt_gen), retval, 0);
     } else {
@@ -998,7 +1025,13 @@ __Pyx_async_gen_athrow_close(PyObject *g, PyObject *args)
 
 static PyMethodDef __Pyx_async_gen_athrow_methods[] = {
     {"send", (PyCFunction)__Pyx_async_gen_athrow_send, METH_O, __Pyx_async_gen_send_doc},
-    {"throw", (PyCFunction)__Pyx_async_gen_athrow_throw, METH_VARARGS, __Pyx_async_gen_throw_doc},
+    {"throw", __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_async_gen_athrow_throw),
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        METH_VARARGS,
+#else
+        METH_FASTCALL,
+#endif
+        __Pyx_async_gen_throw_doc},
     {"close", (PyCFunction)__Pyx_async_gen_athrow_close, METH_NOARGS, __Pyx_async_gen_close_doc},
     {"__await__", (PyCFunction)__Pyx_async_gen_self_method, METH_NOARGS, __Pyx_async_gen_await_doc},
     {0, 0, 0, 0}        /* Sentinel */

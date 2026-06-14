@@ -21,6 +21,28 @@ import asyncio
 import cy_test
 import py_test
 from contextlib import closing
+import sys
+if sys.version_info > (3, 10, 6) and sys.version_info < (3, 16):
+    import inspect
+    def iscoroutinefunction(f):
+        # check both
+        return inspect.iscoroutinefunction(f) and asyncio.iscoroutinefunction(f)
+elif sys.version_info >= (3, 16):
+    from inspect import iscoroutinefunction
+else:
+    iscoroutinefunction = asyncio.iscoroutinefunction
+
+
+import sys
+if sys.version_info > (3, 10, 6) and sys.version_info < (3, 16):
+    import inspect
+    def iscoroutinefunction(f):
+        # check both
+        return inspect.iscoroutinefunction(f) and asyncio.iscoroutinefunction(f)
+elif sys.version_info >= (3, 16):
+    from inspect import iscoroutinefunction
+else:
+    iscoroutinefunction = asyncio.iscoroutinefunction
 
 async def main():
     await cy_test.say()
@@ -32,12 +54,12 @@ with closing(asyncio.new_event_loop()) as loop:
     print("Running Cython coroutine ...")
     loop.run_until_complete(cy_test.say())
 
-assert asyncio.iscoroutinefunction(cy_test.cy_async_def_example) == True
-assert asyncio.iscoroutinefunction(cy_test.cy_async_def_example) == True
-assert asyncio.iscoroutinefunction(py_test.py_async_def_example) == True
-assert asyncio.iscoroutinefunction(py_test.py_async_def_example) == True
-assert asyncio.iscoroutinefunction(cy_test.cy_def_example) == False
-assert asyncio.iscoroutinefunction(py_test.py_def_example) == False
+assert iscoroutinefunction(cy_test.cy_async_def_example) == True
+assert iscoroutinefunction(cy_test.cy_async_def_example) == True
+assert iscoroutinefunction(py_test.py_async_def_example) == True
+assert iscoroutinefunction(py_test.py_async_def_example) == True
+assert iscoroutinefunction(cy_test.cy_def_example) == False
+assert iscoroutinefunction(py_test.py_def_example) == False
 
 ######## cy_test.pyx ########
 
