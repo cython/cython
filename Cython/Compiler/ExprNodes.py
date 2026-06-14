@@ -6226,7 +6226,7 @@ class CallNode(ExprNode):
                         return PyrexTypes.c_double_type
                     elif func_name == 'bool':
                         return PyrexTypes.c_bint_type
-                    elif func_name in Builtin.types_that_construct_their_instance:
+                    elif func_name in [name for name, typ in Builtin.builtin_types.items() if typ.supports_container_type]:
                         func_arg_type = self.args[0].infer_type(env)
                         if func_arg_type.supports_container_type:
                             subscripted_types = func_arg_type.subscripted_types
