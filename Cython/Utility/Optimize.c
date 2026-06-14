@@ -31,11 +31,11 @@ static CYTHON_INLINE int __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
 
 #if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
 static CYTHON_INLINE void __Pyx__ListComp_AppendAndDecref(PyObject* list, Py_ssize_t len, PyObject* x) {
-    PyListObject* L = (PyListObject*) list;
     #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
     // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
     // However, extending the size *before* setting the value would not be correct,
     // so we cannot call PyList_SET_ITEM().
+    PyListObject* L = (PyListObject*) list;
     L->ob_item[len] = x;
     #else
     PyList_SET_ITEM(list, len, x);
