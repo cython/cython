@@ -2376,10 +2376,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         is_sequence_del = del_entry and del_entry.signature == TypeSlots.sequence_subscript_signatures['__delitem__']
 
         def handle_not_supported(op_name):
-            code.putln("__Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
-            code.putln("PyErr_Format(PyExc_NotImplementedError,")
-            code.putln(f'  "Subscript %.10s not supported by " __Pyx_FMT_TYPENAME, "{op_name}", o_type_name);')
-            code.putln("__Pyx_DECREF_TypeName(o_type_name);")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseErrorWithObjectType1", "ObjectHandling.c"))
+            code.putln(
+                '__Pyx_RaiseErrorWithObjectType1(PyExc_NotImplementedError,'
+                ' "Subscript %.10s not supported by " __Pyx_FMT_TYPENAME,'
+                f' "{op_name}", o);'
+            )
             code.putln("return -1;")
 
         set_or_del = "likely(v)" if not del_entry else "unlikely(v)" if not set_entry else "v"
@@ -2449,7 +2452,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.exit_cfunc_scope()
 
     def generate_guarded_basetype_call(
-            self, base_type, substructure, slot, functype, args, code):
+            self, base_type, substructure, slot, functype, args, code, likely=True):
         if base_type:
             base_tpname = code.typeptr_cname_in_module_state(base_type)
             # Note that the limited API versions will only work for non-heaptypes on Python3.10+.
@@ -2460,8 +2463,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 code.putln(
                     f"{functype} f = __Pyx_PyType_TryGetSlot({base_tpname}, {slot}, {functype});")
-            code.putln("if (f)")
-            code.putln(f"return f({args});")
+            can_call = "likely(f)" if likely else "f"
+            code.putln(f"if ({can_call}) return f({args});")
 
     def generate_richcmp_function(self, scope, code):
         if scope.lookup_here("__richcmp__"):
@@ -2743,7 +2746,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     set_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code)
+                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code, likely=False)
             code.putln(
                 "return PyObject_GenericSetAttr(o, n, v);")
         code.putln(
@@ -2756,7 +2759,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code)
+                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code, likely=False)
             code.putln(
                 "return PyObject_GenericSetAttr(o, n, 0);")
         code.putln(
