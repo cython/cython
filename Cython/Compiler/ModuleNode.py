@@ -1221,9 +1221,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # Value types with frozen-dataclass __eq__ need these for
                 # C-level comparisons like `if self.field != value:`.
                 cname = type.cname
-                member_eq = " && ".join(
-                    "this->%s == other.%s" % (a.cname, a.cname)
-                    for a in var_entries)
+                def _member_eq_expr(attr):
+                    # ctuples have no operator==; expand element-wise: m.f0==o.m.f0 && ...
+                    if attr.type.is_ctuple:
+                        return " && ".join(
+                            "this->%s.f%d == other.%s.f%d" % (attr.cname, i, attr.cname, i)
+                            for i in range(attr.type.size))
+                    return "this->%s == other.%s" % (attr.cname, attr.cname)
+                member_eq = " && ".join(_member_eq_expr(a) for a in var_entries)
                 code.putln("#ifdef __cplusplus")
                 code.putln("  bool operator==(const %s& other) const { return %s; }" % (cname, member_eq))
                 code.putln("  bool operator!=(const %s& other) const { return !(*this == other); }" % cname)
