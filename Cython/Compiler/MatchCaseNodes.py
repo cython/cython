@@ -518,7 +518,7 @@ class OrPatternNode(PatternNode):
     alternatives   list of PatternNodes
 
     generated:
-    which_alternative_temp  - an integer temp node. 0 for failed; 1, 2... 
+    which_alternative_temp  - an integer temp node. 0 for failed; 1, 2...
                               identify the alternative that succeeded
     """
     which_alternative_temp = None
@@ -614,7 +614,7 @@ class OrPatternNode(PatternNode):
                         false_val = ExprNodes.IntNode(self.pos, value="0")
                     )
                 )
-        
+
         expr = generate_binop_tree_from_list(self.pos, "or", cond_exprs)
 
         if self.which_alternative_temp:
