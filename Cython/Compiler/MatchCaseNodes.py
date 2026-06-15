@@ -523,7 +523,7 @@ class OrPatternNode(PatternNode):
     """
     which_alternative_temp = None
     sequence_mapping_temp = None  # used in a similar way to MatchCaseNode,
-                # to avoid recalcutating if we're a sequence or mapping
+                # to avoid recalculating if we're a sequence or mapping.
 
     child_attrs = PatternNode.child_attrs + ["alternatives"]
 
@@ -540,8 +540,8 @@ class OrPatternNode(PatternNode):
         return self.get_first_irrefutable().irrefutable_message()
 
     def is_sequence_or_mapping(self):
-        # this affects if the caller generates a temp for it. If so the
-        # this node can forward the temp to the relevant alternative
+        # This affects if the caller generates a temp for it. If so then
+        # this node can forward the temp to the relevant alternative.
         for a in self.alternatives:
             if a.is_sequence_or_mapping():
                 return True
@@ -636,16 +636,12 @@ class OrPatternNode(PatternNode):
             for a in self.alternatives
         ]
         if not sequence_mapping_temp:
-            sequence_mapping_count = 0
-            for a in self.alternatives:
-                if a.is_sequence_or_mapping():
-                    sequence_mapping_count += 1
-            if sequence_mapping_count >= 2:
+            sequence_mapping_condition_usage = sum(1 for a in self.alternatives if a.is_sequence_or_mapping())
+            if sequence_mapping_condition_usage >= 2:
                 self.sequence_mapping_temp = AssignableTempNode(
                     self.pos, PyrexTypes.c_uint_type,
                     is_addressable=True
                 )
-                sequence_mapping_temp = self.sequence_mapping_temp
         return self
 
     def create_main_pattern_assignment_list(self, subject_node, env):
@@ -680,14 +676,12 @@ class OrPatternNode(PatternNode):
     def allocate_subject_temps(self, code):
         if self.sequence_mapping_temp:
             self.sequence_mapping_temp.allocate(code)
-            code.putln(
-                "%s = 0; /* sequence/mapping test temp */"
-                % self.sequence_mapping_temp.result()
-            )
+            tempvar = self.sequence_mapping_temp.result()
+            code.putln(f"{tempvar} = 0; /* sequence/mapping test temp */")
             # For things that are a sequence at compile-time it's difficult
             # to avoid generating the sequence mapping temp. Therefore, silence
-            # an "unused error"
-            code.putln("(void)%s;" % self.sequence_mapping_temp.result())
+            # an "unused error".
+            code.putln(f"(void){tempvar}")
         if self.which_alternative_temp:
             self.which_alternative_temp.allocate(code)
         for a in self.alternatives:
