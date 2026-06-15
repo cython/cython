@@ -1877,7 +1877,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 noargs = code.name_in_slot_module_state(Naming.empty_tuple)
                 cinit_args = f"{noargs}, NULL"
 
-            if use_vectorcall:
+            if use_vectorcall and cinit_func_entry.trivial_signature:
                 code.putln(f"int cinit_result = {cinit_func_entry.func_cname}(")
                 code.putln("#if CYTHON_VECTORCALL_TPNEW")
                 code.putln(f"o, NULL, 0, NULL);")
