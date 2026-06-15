@@ -6229,7 +6229,10 @@ class CallNode(ExprNode):
                     elif func_name in [name for name, typ in Builtin.builtin_types.items() if typ.supports_container_type]:
                         func_arg_type = self.args[0].infer_type(env)
                         if func_arg_type.supports_container_type:
-                            subscripted_types = func_arg_type.subscripted_types
+                            if func_name in ['dict', 'frozendict']:
+                                subscripted_types = func_arg_type.subscripted_types
+                            else:
+                                subscripted_types = [func_arg_type.infer_iterator_type()]
                             return result_type.specialize_here(self.pos, env, subscripted_types)
                         return result_type
         func_type = self.function.analyse_as_type(env)
