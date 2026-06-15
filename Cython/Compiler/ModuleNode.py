@@ -1671,12 +1671,138 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             format_vectorcall_conditional = lambda vc, non_vc: non_vc
 
+        signature = format_vectorcall_conditional(
+            "{unused_marker}PyObject *const *args, {unused_marker}Py_ssize_t nargs, {unused_marker}PyObject *kwnames",
+            "{unused_marker}PyObject *a, {unused_marker}PyObject *k")
+        call_args = format_vectorcall_conditional(
+            "args, nargs, kwnames",
+            "a, k")
+
+        self._generate_tpnew_initialisation_function(scope, code, cclass_entry, is_vectorcall, signature, call_args)
+
+        code.start_slotfunc(
+            scope, PyrexTypes.py_objptr_type,
+            "tp_new_vectorcall" if is_vectorcall else "tp_new",
+            f"PyTypeObject *t, {signature.format(unused_marker='')}", needs_prototype=True)
+
+        code.putln("PyObject *o;")
+
+        base_type = scope.parent_type.base_type
+        if base_type:
+            self._generate_allocation_from_basetype(
+                scope, code, tp_new_vectorcall_slot if is_vectorcall else tp_slot, base_type, call_args)
+        else:
+            freelist_size = scope.directives.get('freelist', 0)
+            if freelist_size:
+                self._generate_allocation_from_freelist(scope, code, freelist_size)
+                # ends with a guarded "} else"
+                code.putln("{")
+
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("AllocateExtensionType", "ExtensionTypes.c")
+            )
+            is_final_type = scope.parent_type.is_final_type
+            code.putln(f"o = __Pyx_AllocateExtensionType(t, {is_final_type:d});")
+            if freelist_size:
+                code.putln('}')
+
+        code.putln("if (unlikely(!o)) return 0;")
+        code.putln(f'return {scope.mangle_internal("tp_new__initialisation")}(o, {call_args});')
+        code.putln("}")
+        code.exit_cfunc_scope()
+
+        if is_vectorcall:
+            self._generate_tpnew_to_vectorcall(scope, code)
+
+    def _generate_tpnew_to_vectorcall(self, scope, code):
+        code.globalstate.use_utility_code(
+            TempitaUtilityCode.load_cached(
+                "CallSlotAsVectorcall", "ExtensionTypes.c",
+                context=dict(ret_type="PyObject *", name="tpnew", obj_type="PyTypeObject*", error_value="NULL"))
+        )
+
+        code.start_slotfunc(
+            scope, PyrexTypes.py_objptr_type,
+            "tp_new",
+            f"PyTypeObject *t, PyObject *a, PyObject *k",
+            needs_prototype=True, guard="CYTHON_VECTORCALL_TPNEW")
+
+        code.putln(f"return __Pyx_CallTpnewAsVectorcall({scope.mangle_internal('tp_new_vectorcall')}, t, a, k);")
+        code.putln("}")
+        code.exit_cfunc_scope()
+        code.putln("#endif")  # CYTHON_VECTORCALL_TPNEW
+
+        decls = code.globalstate['decls']
+        decls.putln("#if !CYTHON_VECTORCALL_TPNEW")
+        decls.putln(f"#define {scope.mangle_internal('tp_new')} {scope.mangle_internal('tp_new_vectorcall')}")
+        decls.putln("#endif")
+
+    def _generate_allocation_from_basetype(self, scope, code, tp_slot, base_type, call_args):
+        base_type_typeptr_cname = base_type.typeptr_cname
+        if not base_type.is_builtin_type:
+            base_type_typeptr_cname = code.name_in_slot_module_state(base_type_typeptr_cname)
+
+        tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
+        if tp_new is None:
+            tp_new = f"__Pyx_PyType_GetSlot({base_type_typeptr_cname}, tp_new, newfunc)"
+
+        code.putln(f"o = {tp_new}(t, {call_args});")
+
+    def _generate_allocation_from_freelist(self, scope, code, freelist_size):
+        freelist_name = scope.mangle_internal(Naming.freelist_name)
+        freecount_name = scope.mangle_internal(Naming.freecount_name)
+
+        module_state = code.globalstate['module_state_contents']
+        module_state.putln("")
+        module_state.putln("#if CYTHON_USE_FREELISTS")
+        module_state.putln("%s[%d];" % (
+            scope.parent_type.declaration_code(freelist_name),
+            freelist_size))
+        module_state.putln("int %s;" % freecount_name)
+        module_state.putln("#endif")
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+
+        code.putln("#if CYTHON_USE_FREELISTS")
+        freecount_name = code.name_in_slot_module_state(freecount_name)
+        freelist_name = code.name_in_slot_module_state(freelist_name)
+
         type = scope.parent_type
-        base_type = type.base_type
+        self.generate_freelist_condition(code, f"{freecount_name} > 0", "t", type)
+        code.putln("{")
+
+        code.putln(f"o = (PyObject*){freelist_name}[--{freecount_name}];")
+
+        code.putln("#if CYTHON_USE_TYPE_SPECS")
+        # We still hold a reference to the type object held by the previous
+        # user of the freelist object - release it.
+        code.putln("Py_DECREF(Py_TYPE(o));")
+        code.putln("#endif")
+
+        obj_struct = type.declaration_code("", deref=True)
+        code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
+
+        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        # Although PyObject_INIT should be part of the Limited API, it causes
+        # link errors on some combinations of Python versions and OSs.
+        code.putln("(void) PyObject_Init(o, t);")
+        code.putln("#else")
+        code.putln("(void) PyObject_INIT(o, t);")
+        code.putln("#endif")
+
+        if scope.needs_gc():
+            code.putln("PyObject_GC_Track(o);")
+
+        code.putln("} else")
+        code.putln("#endif")
+
+    def _generate_tpnew_initialisation_function(self, scope, code, cclass_entry,
+                                                use_vectorcall: bool, signature: str, cinit_args: str):
+        type = scope.parent_type
 
         have_entries, (py_attrs, py_buffers, memoryview_slices) = \
                         scope.get_refcounted_entries()
-        is_final_type = scope.parent_type.is_final_type
         if scope.is_internal:
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
@@ -1689,97 +1815,24 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if cinit_func_entry and not cinit_func_entry.is_special:
             cinit_func_entry = None
 
-        if base_type or (cinit_func_entry and not cinit_func_entry.trivial_signature):
+        if cinit_func_entry and not cinit_func_entry.trivial_signature:
             unused_marker = ''
         else:
             unused_marker = 'CYTHON_UNUSED '
-
-        if base_type:
-            freelist_size = 0  # not currently supported
-        else:
-            freelist_size = scope.directives.get('freelist', 0)
-        freelist_name = scope.mangle_internal(Naming.freelist_name)
-        freecount_name = scope.mangle_internal(Naming.freecount_name)
-
-        if freelist_size:
-            module_state = code.globalstate['module_state_contents']
-            module_state.putln("")
-            module_state.putln("#if CYTHON_USE_FREELISTS")
-            module_state.putln("%s[%d];" % (
-                scope.parent_type.declaration_code(freelist_name),
-                freelist_size))
-            module_state.putln("int %s;" % freecount_name)
-            module_state.putln("#endif")
-
-        signature = format_vectorcall_conditional(
-            f"{unused_marker}PyObject *const *args, {unused_marker}Py_ssize_t nargs, {unused_marker}PyObject *kwnames",
-            f"{unused_marker}PyObject *a, {unused_marker}PyObject *k")
-        call_args = format_vectorcall_conditional(
-            "args, nargs, kwnames",
-            "a, k")
-
-        code.start_slotfunc(
-            scope, PyrexTypes.py_objptr_type,
-            "tp_new_vectorcall" if is_vectorcall else "tp_new",
-            f"PyTypeObject *t, {signature}", needs_prototype=True)
+        signature = signature.format(unused_marker=unused_marker)
 
         need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
                           explicitly_constructable_attrs)
+
+        code.start_slotfunc(
+            scope, PyrexTypes.py_objptr_type, "tp_new__initialisation",
+            f"PyObject *o, {signature}", needs_prototype=True)
+
         if need_self_cast:
-            code.putln("%s;" % scope.parent_type.declaration_code("p"))
-        if base_type:
-            tp_new = TypeSlots.get_base_slot_function(scope, tp_new_vectorcall_slot if is_vectorcall else tp_slot)
-            base_type_typeptr_cname = base_type.typeptr_cname
-            if not base_type.is_builtin_type:
-                base_type_typeptr_cname = code.name_in_slot_module_state(base_type_typeptr_cname)
-            if tp_new is None:
-                tp_new = f"__Pyx_PyType_GetSlot({base_type_typeptr_cname}, tp_new, newfunc)"
-            code.putln(f"PyObject *o = {tp_new}(t, {call_args});")
-        else:
-            code.putln("PyObject *o;")
-            if freelist_size:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
-                code.putln("#if CYTHON_USE_FREELISTS")
-                freecount_name = code.name_in_slot_module_state(freecount_name)
-                freelist_name = code.name_in_slot_module_state(freelist_name)
-                self.generate_freelist_condition(code, f"{freecount_name} > 0", "t", type)
-                code.putln("{")
-                code.putln("o = (PyObject*)%s[--%s];" % (
-                    freelist_name,
-                    freecount_name))
-                obj_struct = type.declaration_code("", deref=True)
-                code.putln("#if CYTHON_USE_TYPE_SPECS")
-                # We still hold a reference to the type object held by the previous
-                # user of the freelist object - release it.
-                code.putln("Py_DECREF(Py_TYPE(o));")
-                code.putln("#endif")
-                code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
-                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                # Although PyObject_INIT should be part of the Limited API, it causes
-                # link errors on some combinations of Python versions and OSs.
-                code.putln("(void) PyObject_Init(o, t);")
-                code.putln("#else")
-                code.putln("(void) PyObject_INIT(o, t);")
-                code.putln("#endif")
-                if scope.needs_gc():
-                    code.putln("PyObject_GC_Track(o);")
-                code.putln("} else")
-                code.putln("#endif")
-                code.putln("{")
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("AllocateExtensionType", "ExtensionTypes.c")
-            )
-            code.putln(f"o = __Pyx_AllocateExtensionType(t, {is_final_type:d});")
-        code.putln("if (unlikely(!o)) return 0;")
-        if freelist_size and not base_type:
-            code.putln('}')
-        if need_self_cast:
-            code.putln("p = %s;" % type.cast_code("o"))
+            code.putln(f'{scope.parent_type.declaration_code("p")} = {type.cast_code("o")};')
         #if need_self_cast:
         #    self.generate_self_cast(scope, code)
-
         # from this point on, ensure DECREF(o) on failure
         needs_error_cleanup = False
 
@@ -1818,20 +1871,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("p->from_slice.memview = NULL;")
 
         if cinit_func_entry:
-            if cinit_func_entry.trivial_signature:
-                cinit_args = format_vectorcall_conditional(
-                    "o, NULL, 0, NULL",
-                    f"o, {Naming.modulestateglobal_cname}->{Naming.empty_tuple}, NULL")
-            else:
-                cinit_args = f"o, {call_args}"
             needs_error_cleanup = True
             code.putln("{")
-            code.putln(f"int cinit_result = {cinit_func_entry.func_cname}({cinit_args});")
+            if cinit_func_entry.trivial_signature:
+                noargs = code.name_in_slot_module_state(Naming.empty_tuple)
+                cinit_args = f"{noargs}, NULL"
+
+            if use_vectorcall:
+                code.putln(f"int cinit_result = {cinit_func_entry.func_cname}(")
+                code.putln("#if CYTHON_VECTORCALL_TPNEW")
+                code.putln(f"o, NULL, 0, NULL);")
+                code.putln("#else")
+                code.putln(f"o, {cinit_args});")
+                code.putln("#endif")
+            else:
+                code.putln(f"int cinit_result = {cinit_func_entry.func_cname}(o, {cinit_args});")
+
             code.putln("if (unlikely(cinit_result)) goto bad;")
             code.putln("}")
 
         code.putln(
             "return o;")
+
         if needs_error_cleanup:
             code.putln("bad:")
             code.put_decref_clear("o", py_object_type, nanny=False)
@@ -1839,29 +1900,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "}")
         code.exit_cfunc_scope()
-
-        if is_vectorcall:
-            code.globalstate.use_utility_code(
-                TempitaUtilityCode.load_cached(
-                    "CallSlotAsVectorcall", "ExtensionTypes.c",
-                    context=dict(ret_type="PyObject *", name="tpnew", obj_type="PyTypeObject*", error_value="NULL"))
-            )
-
-            code.start_slotfunc(
-                scope, PyrexTypes.py_objptr_type,
-                "tp_new",
-                f"PyTypeObject *t, PyObject *a, PyObject *k",
-                needs_prototype=True, guard="CYTHON_VECTORCALL_TPNEW")
-
-            code.putln(f"return __Pyx_CallTpnewAsVectorcall({scope.mangle_internal('tp_new_vectorcall')}, t, a, k);")
-            code.putln("}")
-            code.exit_cfunc_scope()
-            code.putln("#endif")  # CYTHON_VECTORCALL_TPNEW
-
-            decls = code.globalstate['decls']
-            decls.putln("#if !CYTHON_VECTORCALL_TPNEW")
-            decls.putln(f"#define {scope.mangle_internal('tp_new')} {scope.mangle_internal('tp_new_vectorcall')}")
-            decls.putln("#endif")
 
     def generate_vectorcall_new_function(self, scope, code):
         tp_slot = TypeSlots.get_slot_by_name("tp_vectorcall", scope.directives)
