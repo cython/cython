@@ -332,3 +332,18 @@ def test_duplicate_subject_corner_case(x):
             print(x, y, z)
         case ['bad', DuplicateSubjectCornerCase(x, y, z)]:
             print("Not allowed")
+
+
+class Namespace:
+    pass
+
+def test_or_evaluation_failure(x):
+    """
+    >>> test_or_evaluation_failure(1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    AttributeError: ...'Namespace' has no attribute 'fake_name'
+    """
+    match x:
+        case Namespace.fake_name | _:
+            print("Here")

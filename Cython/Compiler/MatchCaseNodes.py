@@ -571,27 +571,26 @@ class OrPatternNode(PatternNode):
             alternative.validate_irrefutable()
 
     def is_simple_value_comparison(self):
-        return all(
-            # it turns out to be hard to generate correct assignment code
-            # for or patterns with targets
-            a.is_simple_value_comparison() and not a.get_targets()
-            for a in self.alternatives
-        )
+        # it turns out to be hard to generate correct assignment code
+        # for or patterns with targets
+        return self.is_really_simple_value_comparison()
 
     def is_really_simple_value_comparison(self):
         # like is_simple_value_comparison but also doesn't have any targets
-        return (self.is_simple_value_comparison() and
-                all(not a.get_targets() for a in self.alternatives))
+        return all(
+            a.is_simple_value_comparison() and not a.get_targets()
+            for a in self.alternatives
+        )
 
     def get_simple_comparison_node(self, subject_node):
         assert self.is_simple_value_comparison()
         assert len(self.alternatives) >= 2, self.alternatives
         checks = []
         for a in self.alternatives:
-            checks.append(a.get_simple_comparison_node(subject_node))
-        if any(isinstance(ch, ExprNodes.BoolNode) and ch.value for ch in checks):
-            # handle the obvious very simple case
-            return ExprNodes.BoolNode(self.pos, value=True)
+            check = a.get_simple_comparison_node(subject_node)
+            checks.append(check)
+            if isinstance(check, ExprNodes.BoolNode) and check.value:
+                break  # no point in going further
         return generate_binop_tree_from_list(self.pos, "or", checks)
 
     def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
@@ -601,17 +600,20 @@ class OrPatternNode(PatternNode):
         cond_exprs = []
         for n, a in enumerate(self.alternatives, start=1):
             a_test = a.get_comparison_node(subject_node, sequence_mapping_temp)
-            a_value = ExprNodes.IntNode(a.pos, value=str(n))
-            if isinstance(a_test, ExprNodes.BoolNode) and a_test.value:
-                cond_exprs.append(a_value)
-                break  # no point in going further
+            a_value = ExprNodes.IntNode.for_size(a.pos, n)
+            if isinstance(a_test, ExprNodes.BoolNode):
+                if a_test.value:
+                    cond_exprs.append(a_value)
+                    break
+                else:
+                    cond_exprs.append(ExprNodes.IntNode.for_size(self.pos, 0))
             else:
                 cond_exprs.append(
                     ExprNodes.CondExprNode(
                         self.pos,
                         test = a_test,
                         true_val = a_value,
-                        false_val = ExprNodes.IntNode(self.pos, value="0")
+                        false_val = ExprNodes.IntNode.for_size(self.pos, 0)
                     )
                 )
 
@@ -658,7 +660,7 @@ class OrPatternNode(PatternNode):
                         a.pos,
                         operator="==",
                         operand1=self.which_alternative_temp,
-                        operand2=ExprNodes.IntNode(a.pos, value=str(n))
+                        operand2=ExprNodes.IntNode.for_size(a.pos, n)
                     ),
                     body = a_assignment
                 )
@@ -1646,8 +1648,8 @@ class ClassPatternNode(PatternNode):
             for n in self.keyword_pattern_names
         ]
 
-        match_self = ExprNodes.IntNode(self.pos, value=str(self._calculate_match_self()))
-        n_subjects = ExprNodes.IntNode(self.pos, value=str(len(self.positional_patterns)))
+        match_self = ExprNodes.IntNode.for_size(self.pos, self._calculate_match_self())
+        n_subjects = ExprNodes.IntNode.for_size(self.pos, len(self.positional_patterns))
         return EvaluateWithKeysAndSubjectsArrays(
             self.pos,
             arg=ExprNodes.PythonCapiCallNode(
@@ -1659,7 +1661,7 @@ class ClassPatternNode(PatternNode):
                     subject_node,
                     class_node,
                     EvaluateWithKeysAndSubjectsArrays.make_keys_node(self.pos),
-                    ExprNodes.IntNode(self.pos, value=str(len(keynames))),
+                    ExprNodes.IntNode.for_size(self.pos, len(keynames)),
                     match_self,
                     EvaluateWithKeysAndSubjectsArrays.make_subjects_node(self.pos),
                     n_subjects,
