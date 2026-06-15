@@ -681,7 +681,7 @@ class OrPatternNode(PatternNode):
             # For things that are a sequence at compile-time it's difficult
             # to avoid generating the sequence mapping temp. Therefore, silence
             # an "unused error".
-            code.putln(f"(void){tempvar}")
+            code.putln(f"(void){tempvar};")
         if self.which_alternative_temp:
             self.which_alternative_temp.allocate(code)
         for a in self.alternatives:
