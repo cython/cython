@@ -342,7 +342,7 @@ def test_or_evaluation_failure(x):
     >>> test_or_evaluation_failure(1)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    AttributeError: ...'Namespace' has no attribute 'fake_name'
+    AttributeError: ...'Namespace'... has no attribute 'fake_name'
     """
     match x:
         case Namespace.fake_name | _:
