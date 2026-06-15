@@ -490,7 +490,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_025(self):
-        return  # disabled
         x = {0: 0}
         match x:
             case {0: (0 | 1 | 2 as z)}:
@@ -500,7 +499,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_026(self):
-        return  # disabled
         x = {0: 1}
         match x:
             case {0: (0 | 1 | 2 as z)}:
@@ -510,7 +508,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 1)
 
     def test_patma_027(self):
-        return  # disabled
         x = {0: 2}
         match x:
             case {0: (0 | 1 | 2 as z)}:
@@ -520,7 +517,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 2)
 
     def test_patma_028(self):
-        return  # disabled
         x = {0: 3}
         y = None
         match x:
@@ -591,7 +587,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 2)
 
     def test_patma_034(self):
-        return  # disabled
         x = {0: 0}
         match x:
             case {0: [1, 2, {}]}:
@@ -604,7 +599,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 1)
 
     def test_patma_035(self):
-        return  # disabled
         x = {0: 0}
         match x:
             case {0: [1, 2, {}]}:
@@ -650,7 +644,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_040(self):
-        return  # disabled
         x = 0
         match x:
             case (0 as z) | (1 as z) | (2 as z) if z == x % 2:
@@ -660,7 +653,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_041(self):
-        return  # disabled
         x = 1
         match x:
             case (0 as z) | (1 as z) | (2 as z) if z == x % 2:
@@ -670,7 +662,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 1)
 
     def test_patma_042(self):
-        return  # disabled
         x = 2
         y = None
         match x:
@@ -681,7 +672,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 2)
 
     def test_patma_043(self):
-        return  # disabled
         x = 3
         y = None
         match x:
@@ -723,7 +713,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_048(self):
-        return  # disabled
         x = [0, 1]
         match x:
             case [0, 1] | [1, 0]:
@@ -732,7 +721,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_049(self):
-        return  # disabled
         x = [1, 0]
         match x:
             case [0, 1] | [1, 0]:
@@ -741,7 +729,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_050(self):
-        return  # disabled
         x = [0, 0]
         y = None
         match x:
@@ -751,7 +738,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_051(self):
-        return  # disabled
         w = None
         x = [1, 0]
         match x:
@@ -1123,7 +1109,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_087(self):
-        return  # disabled
         x = 0
         match x:
             case (0 | 1) | 2:
@@ -1132,7 +1117,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_088(self):
-        return  # disabled
         x = 1
         match x:
             case (0 | 1) | 2:
@@ -1141,7 +1125,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_089(self):
-        return  # disabled
         x = 2
         match x:
             case (0 | 1) | 2:
@@ -1150,7 +1133,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_090(self):
-        return  # disabled
         x = 3
         y = None
         match x:
@@ -1160,7 +1142,6 @@ class TestPatma(TimedTest):
         self.assertIs(y, None)
 
     def test_patma_091(self):
-        return  # disabled
         x = 0
         match x:
             case 0 | (1 | 2):
@@ -1169,7 +1150,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_092(self):
-        return  # disabled
         x = 1
         match x:
             case 0 | (1 | 2):
@@ -1178,7 +1158,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_093(self):
-        return  # disabled
         x = 2
         match x:
             case 0 | (1 | 2):
@@ -1187,7 +1166,6 @@ class TestPatma(TimedTest):
         self.assertEqual(y, 0)
 
     def test_patma_094(self):
-        return  # disabled
         x = 3
         y = None
         match x:
@@ -2400,7 +2378,6 @@ class TestPatma(TimedTest):
         self.assertIs(f("1"), None)
 
     def test_patma_207(self):
-        return  # disabled
         def f(w):
             match w:
                 case [1, 2] | [3, 4]:
@@ -2741,7 +2718,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, {0: 1})
 
     def test_patma_241(self):
-        return  # disabled
         x = [[{0: 0}]]
         match x:
             case list([({-0-0j: int(real=0+0j, imag=0-0j) | (1) as z},)]):
@@ -2779,7 +2755,6 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_245(self):
-        return  # disabled
         x = {"y": 1}
         match x:
             case {"y": (0 as y) | (1 as y)}:
@@ -2789,14 +2764,13 @@ class TestPatma(TimedTest):
         self.assertEqual(z, 0)
 
     def test_patma_246(self):
-        return  # disabled
         def f(x):
             match x:
                 case ((a, b, c, d, e, f, g, h, i, 9) |
                       (h, g, i, a, b, d, e, c, f, 10) |
                       (g, b, a, c, d, -5, e, h, i, f) |
                       (-1, d, f, b, g, e, i, a, h, c)):
-                    w = 0
+                    w: object = 0  # annotation is for Cython, otherwise it's an int and it's always in locals
             out = locals()
             del out["x"]
             return out
@@ -2814,14 +2788,13 @@ class TestPatma(TimedTest):
         self.assertEqual(f(range(10, 20)), alts[4])
 
     def test_patma_247(self):
-        return  # disabled
         def f(x):
             match x:
                 case [y, (a, b, c, d, e, f, g, h, i, 9) |
                          (h, g, i, a, b, d, e, c, f, 10) |
                          (g, b, a, c, d, -5, e, h, i, f) |
                          (-1, d, f, b, g, e, i, a, h, c), z]:
-                    w = 0
+                    w: object = 0  # annotation is for Cython, otherwise it's an int and always in locals
             out = locals()
             del out["x"]
             return out

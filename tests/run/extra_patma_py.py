@@ -14,6 +14,41 @@ def skip_if_no_frozendict(f):
     if cython.compiled or sys.version_info >= (3, 15):
         return f
 
+
+def test_type_inference(x):
+    """
+    The type should not be inferred to be anything specific
+    >>> test_type_inference(1)
+    one 1
+    >>> test_type_inference([])
+    any object []
+    """
+    match x:
+        case 1 as a:
+            print("one", a)
+        case a:
+            print("any object", a)
+
+
+def test_assignment_and_guards(x):
+    """
+    Tests that the flow control is right. The second case can be
+    reached either by failing the pattern or by failing the guard,
+    and this affects whether variables are assigned
+    >>> test_assignment_and_guards([1])
+    ('first', 1)
+    >>> test_assignment_and_guards([1, 2])
+    ('second', 1)
+    >>> test_assignment_and_guards([-1, 2])
+    ('second', -1)
+    """
+    match x:
+        case [a] if a>0:
+            return "first", a
+        case [a, *_]:
+            return "second", a
+
+
 def test_array_is_sequence(x):
     """
     Because this has to be specifically special-cased on early Python versions
@@ -297,3 +332,18 @@ def test_duplicate_subject_corner_case(x):
             print(x, y, z)
         case ['bad', DuplicateSubjectCornerCase(x, y, z)]:
             print("Not allowed")
+
+
+class Namespace:
+    pass
+
+def test_or_evaluation_failure(x):
+    """
+    >>> test_or_evaluation_failure(1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    AttributeError: ...'Namespace'... has no attribute 'fake_name'
+    """
+    match x:
+        case Namespace.fake_name | _:
+            print("Here")
