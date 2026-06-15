@@ -333,3 +333,20 @@ def test_inference_of_dict_constructor():
     dd = dict(d)
 
     print(cython.typeof(dd) + ("[str object,int] object" if not cython.compiled else ""))
+
+
+if sys.version_info >= (3, 15) or cython.compiled:
+
+    def test_inference_of_frozendict_constructor():
+        """
+        >>> test_inference_of_frozendict_constructor()
+        frozendict[str object,int] object
+        frozendict[str object,int] object
+        """
+        d: dict[str, cython.int] = {'a': 1, 'b': 2}
+        fd: frozendict[str, cython.int] = frozendict({'a': 1, 'b': 2})
+        dd = frozendict(d)
+        fdd = frozendict(fd)
+
+        print(cython.typeof(dd) + ("[str object,int] object" if not cython.compiled else ""))
+        print(cython.typeof(fdd) + ("[str object,int] object" if not cython.compiled else ""))
