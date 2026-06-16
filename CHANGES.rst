@@ -11,7 +11,7 @@ Features added
 * Changes were made to adapt to Python 3.15 and its Limited API.
   (Github issues :issue:`7190`, :issue:`7347`, :issue:`7348`, :issue:`7358`)
 
-* PEP-634 Pattern Matching is being implemented.
+* PEP-634 Pattern Matching is implemented.
   (Github issue :issue:`4029`)
 
 * Extension types can declare themselves explicitly as sequence or mapping with
@@ -56,6 +56,9 @@ Features added
 * C arrays may now be declared with (``extern`` or internal) enum values as their size.
   (Github issues :issue:`7401`, :issue:`7406`)
 
+* ``prange(num_threads=0)`` automatically selects the maximum number of OpenMP threads.
+  (Github issue :issue:`7586`)
+
 * ``cython.pymutex`` and ``cython.pythread_type_lock`` now support a ``.locked()`` method
   to check if the lock is currently held without blocking. The method works on all Python
   versions using atomic reads on Python 3.13+ and a try-acquire approach on older versions.
@@ -80,8 +83,17 @@ Features added
 * Some internal call overhead in the memoryview code was removed.
   (Github issue :issue:`7609`)
 
+* Extension types use the vectorcall interface for their instantiation in many cases.
+  (Github issue :issue:`7698`)
+
 * Coroutine methods use the faster vectorcall interface.
   (Github issue :issue:`7678`)
+
+* List comprehensions that generate new objects avoid refcounting overhead for appending.
+  (Github issue :issue:`7748`)
+
+* Method calls in older Limited API versions are slightly faster.
+  (Github issue :issue:`7707`)
 
 * C arrays are substituted for sequence iteration in more cases, also inside of generators.
   Ad-hoc C array storage on the stack and in closures was reworked along the way.
@@ -128,6 +140,9 @@ Features added
 
 * Declarations for ``PyType_GetSlot()`` and the corresponding type slot IDs were added
   to ``cpython.type``.
+
+* Declarations for specialised byte-conversion functions were added to ``cpython.long`` and ``cpython.float``.
+  Patch by Valentin Valls.  (Github issue :issue:`7738`)
 
 * Error detection when assigning to ``const`` variables was improved.
   (Github issue :issue:`7359`)
@@ -184,6 +199,9 @@ Bugs fixed
   ``BaseException`` errors and only discard the expected exceptions.
   (Github issue :issue:`7600`)
 
+* In the Limited API, failures while formatting type names in exceptions are now uniformly handled.
+  (Github issue :issue:`7680`)
+
 * The global module state struct now lives in an anonymous namespace in C++ mode to
   allow linking multiple modules together in one shared library file.
   (Github issue :issue:`7159`)
@@ -214,7 +232,7 @@ Bugs fixed
   without changing the global/outer setting.  This avoids annoyance when users leave
   such redundant decorators in the code for occasional use.
 
-* Cached methods of builtin types were non GC-traversed and cleaned up as part of the module state.
+* Cached methods of builtin types were not GC-traversed and cleaned up as part of the module state.
   Patch by Maxwell Bernstein.  (Github issue :issue:`7468`)
 
 * Modules with non-ASCII names could end up with UTF-8 characters in their C code.
@@ -237,6 +255,9 @@ Other changes
   ``CYTHON_FAST_PYCALL`` and ``CYTHON_VECTORCALL`` all controlled different aspects of the
   implementation.
   (Github issue :issue:`7616`)
+
+* Coroutines no longer provide the legacy ``_is_coroutine`` property.
+  (Github issue :issue:`7709`)
 
 * ``Cython/Shadow.pyi`` has been merged into ``Cython/Shadow.py``.
   (Github issue :issue:`7376`)
