@@ -7855,7 +7855,7 @@ class AttributeNode(ExprNode):
     is_memslice_transpose = False
     is_special_lookup = False
     is_py_attr = 0
-    dont_mangle_private_names = False  # skip mangling class.__attr names
+    mangle_private_names = True  # perform mangling of class.__attr names
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -8204,7 +8204,7 @@ class AttributeNode(ExprNode):
     def analyse_as_python_attribute(self, env, obj_type=None, immutable_obj=False):
         if obj_type is None:
             obj_type = self.obj.type
-        if not self.dont_mangle_private_names:
+        if self.mangle_private_names:
             # mangle private '__*' Python attributes used inside of a class
             self.attribute = env.mangle_class_private_name(self.attribute)
         self.member = self.attribute
@@ -9552,10 +9552,12 @@ class ComprehensionAppendNode(Node):
         return self
 
     def generate_execution_code(self, code):
+        steal_temp = False
         if self.target.type.is_pylist_type:
+            steal_temp = self.expr.is_temp
             code.globalstate.use_utility_code(
-                UtilityCode.load_cached("ListCompAppend", "Optimize.c"))
-            function = "__Pyx_ListComp_Append"
+                UtilityCode.load_cached("ListCompAppendAndDecref" if steal_temp else "ListCompAppend", "Optimize.c"))
+            function = "__Pyx_ListComp_AppendAndDecref" if steal_temp else "__Pyx_ListComp_Append"
         elif self.target.type.is_pyset_type:
             function = "PySet_Add"
         else:
@@ -9563,12 +9565,16 @@ class ComprehensionAppendNode(Node):
                 "Invalid type for comprehension node: %s" % self.target.type)
 
         self.expr.generate_evaluation_code(code)
-        code.putln(code.error_goto_if("%s(%s, (PyObject*)%s)" % (
-            function,
-            self.target.result(),
-            self.expr.result()
-            ), self.pos))
-        self.expr.generate_disposal_code(code)
+        if steal_temp:
+            code.put_giveref(self.expr.result(), self.expr.ctype())
+
+        code.putln(code.error_goto_if(
+            f"{function}({self.target.result()}, {self.expr.py_result()})", self.pos))
+
+        if steal_temp:
+            self.expr.generate_post_assignment_code(code)
+        else:
+            self.expr.generate_disposal_code(code)
         self.expr.free_temps(code)
 
     def generate_function_definitions(self, env, code):
@@ -9786,11 +9792,18 @@ class MergedSequenceNode(ExprNode):
                     helpers.add(("ListCompAppend", "Optimize.c"))
                 for arg in item.args:
                     arg.generate_evaluation_code(code)
+                    can_steal_list_item = not is_set and arg.is_temp
+                    if can_steal_list_item:
+                        helpers.add(("ListCompAppendAndDecref", "Optimize.c"))
                     code.put_error_if_neg(arg.pos, "%s(%s, %s)" % (
-                        add_func,
+                        "__Pyx_ListComp_AppendAndDecref" if can_steal_list_item else add_func,
                         self.result(),
                         arg.py_result()))
-                    arg.generate_disposal_code(code)
+                    if can_steal_list_item:
+                        code.put_giveref(arg.result(), arg.ctype())
+                        arg.generate_post_assignment_code(code)
+                    else:
+                        arg.generate_disposal_code(code)
                     arg.free_temps(code)
                 continue
 

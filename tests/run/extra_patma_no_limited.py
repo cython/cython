@@ -1,4 +1,5 @@
 # mode: run
+# tag: pure3.10
 
 import cython
 

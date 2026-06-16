@@ -294,6 +294,15 @@ class StringSourceDescriptor(SourceDescriptor):
         return "<StringSourceDescriptor:%s>" % self.name
 
 
+class SharedUtilitySourceDescriptor(FileSourceDescriptor):
+    """
+    A specialized source descriptor for shared utility code only. Not part of public API.
+    """
+
+    def get_file_object(self, encoding=None, error_handling=None):
+        from io import StringIO
+        return StringIO('')
+
 #------------------------------------------------------------------
 
 class PyrexScanner(Scanner):

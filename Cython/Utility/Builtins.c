@@ -39,6 +39,7 @@ static PyObject* __Pyx_PyExec3(PyObject*, PyObject*, PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject*, PyObject*);
 
 //////////////////// PyExec ////////////////////
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject* o, PyObject* globals) {
     return __Pyx_PyExec3(o, globals, NULL);
@@ -57,12 +58,8 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 #if !CYTHON_COMPILING_IN_LIMITED_API
     // In Limited API we just use exec builtin which already has this
     else if (unlikely(!PyDict_Check(globals))) {
-        __Pyx_TypeName globals_type_name =
-            __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(globals));
-        PyErr_Format(PyExc_TypeError,
-                     "exec() arg 2 must be a dict, not " __Pyx_FMT_TYPENAME,
-                     globals_type_name);
-        __Pyx_DECREF_TypeName(globals_type_name);
+        __Pyx_RaiseTypeErrorWithObjectType(
+            "exec() arg 2 must be a dict, not " __Pyx_FMT_TYPENAME, globals);
         goto bad;
     }
 #endif
@@ -97,11 +94,8 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
             if (unlikely(!s)) goto bad;
             o = s;
         } else if (unlikely(!PyBytes_Check(o))) {
-            __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
-            PyErr_Format(PyExc_TypeError,
-                "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME,
-                o_type_name);
-            __Pyx_DECREF_TypeName(o_type_name);
+            __Pyx_RaiseTypeErrorWithObjectType(
+                "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME, o);
             goto bad;
         }
         code = PyBytes_AS_STRING(o);
@@ -487,6 +481,7 @@ static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
 static long __Pyx__PyObject_Ord(PyObject* c); /*proto*/
 
 //////////////////// object_ord ////////////////////
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 static long __Pyx__PyObject_Ord(PyObject* c) {
     Py_ssize_t size;
@@ -520,11 +515,8 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
 #endif
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
-        __Pyx_TypeName c_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(c));
-        PyErr_Format(PyExc_TypeError,
-            "ord() expected string of length 1, but " __Pyx_FMT_TYPENAME " found",
-            c_type_name);
-        __Pyx_DECREF_TypeName(c_type_name);
+        __Pyx_RaiseTypeErrorWithObjectType(
+            "ord() expected string of length 1, but " __Pyx_FMT_TYPENAME " found", c);
         return (long)(Py_UCS4)-1;
     }
     PyErr_Format(PyExc_TypeError,
