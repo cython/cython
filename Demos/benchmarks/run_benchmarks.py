@@ -26,7 +26,7 @@ PROCESSED_BENCHMARKS = frozenset({
 })
 
 BENCHMARK_MIN_VERSIONS = {
-    "bm_patma.py": (3, 3)
+    "bm_patma": (3, 3)
 }
 
 LIMITED_API_VERSION = max((3, 12), sys.version_info[:2])
@@ -133,13 +133,6 @@ def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None, cython_version=None):
         if benchmarks and bm_src_file.stem not in benchmarks:
             continue
         bm_file = bm_dir / bm_src_file.name
-
-        if cython_version and bm_src_file.name in BENCHMARK_MIN_VERSIONS:
-            _, *cy_version = cython_version
-            if tuple(cy_version) < BENCHMARK_MIN_VERSIONS[bm_src_file.name]:
-                if benchmarks and bm_src_file.stem in benchmarks:
-                    benchmarks.remove(bm_src_file.stem)
-                    continue
 
         if cython_version and bm_src_file.name in PROCESSED_BENCHMARKS:
             transform_file(bm_src_file, bm_file, cython_version)
@@ -576,9 +569,9 @@ def benchmark_revision(
     if with_profiler:
         cythonize_args = (cythonize_args or []) + ['--annotate']
 
-    benchmarks = benchmarks[:]
     benchmark_cythonize = 'cythonize' in benchmarks
     if benchmark_cythonize:
+        benchmarks = benchmarks[:]
         benchmarks.remove('cythonize')
 
     with tempfile.TemporaryDirectory() as base_dir_str:
@@ -589,6 +582,12 @@ def benchmark_revision(
         git_clone(cython_dir, revision=None if plain_python else revision)
         cython_version_str = read_cython_version(cython_dir)
         cython_version = (revision, *map(int, cython_version_str.split('.', 2)[:2])) if not plain_python else None
+
+        if cython_version:
+            benchmarks = [
+                bm for bm in benchmarks
+                if bm not in BENCHMARK_MIN_VERSIONS or cython_version[1:] >= BENCHMARK_MIN_VERSIONS[bm]
+            ]
 
         cythonize_times = None
         if benchmark_cythonize:
