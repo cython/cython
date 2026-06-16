@@ -25,6 +25,10 @@ PROCESSED_BENCHMARKS = frozenset({
     "bm_getitem.py",
 })
 
+BENCHMARK_MIN_VERSIONS = {
+    "bm_patma.py": (3, 3)
+}
+
 LIMITED_API_VERSION = max((3, 12), sys.version_info[:2])
 
 PYTHON_VERSION = "%d.%d.%d" % sys.version_info[:3]
@@ -132,6 +136,10 @@ def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None, cython_version=None):
 
         if cython_version and bm_src_file.name in PROCESSED_BENCHMARKS:
             transform_file(bm_src_file, bm_file, cython_version)
+        if cython_version and bm_src_file in BENCHMARK_MIN_VERSIONS:
+            _, *cy_version = cython_version
+            if BENCHMARK_MIN_VERSIONS[bm_src_file] < cy_version:
+                continue
         else:
             shutil.copy(bm_src_file, bm_file)
 
