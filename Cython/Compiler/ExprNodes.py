@@ -6226,20 +6226,20 @@ class CallNode(ExprNode):
                         return PyrexTypes.c_double_type
                     elif func_name == 'bool':
                         return PyrexTypes.c_bint_type
-                    elif (
-                        self.args and len(self.args) == 1 and
-                        func_name in [name for name, typ in Builtin.builtin_types.items() if typ.supports_container_type]
-                    ):
-                        func_arg_type = self.args[0].infer_type(env)
-                        if func_arg_type.supports_container_type:
-                            # FIXME: tuples needs to be handled here when supporting subscripts
-                            # list(tuple[int]) -> list[int] but list(tuple[int, float] -> list[common_type(int, float)])
-                            if func_name in ['dict', 'frozendict']:
-                                subscripted_types = func_arg_type.subscripted_types
-                            else:
-                                subscripted_types = [func_arg_type.infer_iterator_type()]
-                            return result_type.specialize_here(self.pos, env, subscripted_types)
                     elif func_name in Builtin.types_that_construct_their_instance:
+                        if (
+                            self.args and len(self.args) == 1 and
+                            func_name in [name for name, typ in Builtin.builtin_types.items() if typ.supports_container_type]
+                        ):
+                            func_arg_type = self.args[0].infer_type(env)
+                            if func_arg_type.supports_container_type:
+                                # FIXME: tuples needs to be handled here when supporting subscripts
+                                # list(tuple[int]) -> list[int] but list(tuple[int, float] -> list[common_type(int, float)])
+                                if func_name in ['dict', 'frozendict']:
+                                    subscripted_types = func_arg_type.subscripted_types
+                                else:
+                                    subscripted_types = [func_arg_type.infer_iterator_type()]
+                                return result_type.specialize_here(self.pos, env, subscripted_types)
                         return result_type
         func_type = self.function.analyse_as_type(env)
         if func_type and (func_type.is_struct_or_union or func_type.is_cpp_class):
