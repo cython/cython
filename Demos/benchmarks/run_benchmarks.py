@@ -137,7 +137,9 @@ def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None, cython_version=None):
         if cython_version and bm_src_file.name in BENCHMARK_MIN_VERSIONS:
             _, *cy_version = cython_version
             if tuple(cy_version) < BENCHMARK_MIN_VERSIONS[bm_src_file.name]:
-                continue
+                if benchmarks and bm_src_file.stem in benchmarks:
+                    benchmarks.remove(bm_src_file.stem)
+                    continue
 
         if cython_version and bm_src_file.name in PROCESSED_BENCHMARKS:
             transform_file(bm_src_file, bm_file, cython_version)
@@ -574,9 +576,9 @@ def benchmark_revision(
     if with_profiler:
         cythonize_args = (cythonize_args or []) + ['--annotate']
 
+    benchmarks = benchmarks[:]
     benchmark_cythonize = 'cythonize' in benchmarks
     if benchmark_cythonize:
-        benchmarks = benchmarks[:]
         benchmarks.remove('cythonize')
 
     with tempfile.TemporaryDirectory() as base_dir_str:
