@@ -73,6 +73,7 @@ slice2b
 trashcan
 unbound_special_methods
 unicode_formatting
+extra_patma_no_limited
 
 # Py_UNICODE
 builtin_ord
