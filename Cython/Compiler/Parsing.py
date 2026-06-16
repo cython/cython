@@ -4508,6 +4508,9 @@ def p_literal_pattern(s: PyrexScanner):
         sign_pos = s.position()
         s.next()
         next_must_be_a_number = True
+    elif s.sy == '+':
+        s.next()
+        next_must_be_a_number = True
 
     sy = s.sy
     pos = s.position()
@@ -4526,6 +4529,8 @@ def p_literal_pattern(s: PyrexScanner):
     if res is not None and s.sy in ['+', '-']:
         sign = s.sy
         s.next()
+        if s.sy == '+':
+            s.next()
         if s.sy != 'IMAG':
             s.error("Expected imaginary number")
         else:

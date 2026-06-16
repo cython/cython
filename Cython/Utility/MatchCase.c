@@ -748,7 +748,7 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyO
 #else
 #define __Pyx_MatchCase_ClassPositional(...) __Pyx__MatchCase_ClassPositional(NULL, __VA_ARGS__)
 #endif
-static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, int match_self, PyObject **subjects[], Py_ssize_t n_subjects); /* proto */
+static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, int match_self, PyObject **subjects[], Py_ssize_t n_subjects); /* proto */
 
 /////////////////////////// ClassPositionalPatterns //////////////////////////////
 //@requires: ObjectHandling.c::RaiseErrorWithObjectTypes
@@ -827,11 +827,15 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(PyTypeObject *type, PyObject
 //                                   0 for "known to be false"
 //                                  -1 for "unknown", runtime test
 // n_subjects is >= 0 otherwise this function will be skipped
-static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, int match_self, PyObject **subjects[], Py_ssize_t n_subjects)
+static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyObject *type_o, PyObject *fixed_names[], Py_ssize_t n_fixed, int match_self, PyObject **subjects[], Py_ssize_t n_subjects)
 {
     PyObject *match_args = NULL;
     Py_ssize_t allowed, i;
     int result;
+
+    assert(PyType_Check(type_o));
+
+    PyTypeObject *type = (PyTypeObject*)type_o;
 
 #if !CYTHON_REFNANNY
     CYTHON_UNUSED_VAR(__pyx_refnanny);
@@ -839,11 +843,11 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
 
     if (match_self != 1) {
 #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
-        if (PyObject_GetOptionalAttr((PyObject*)type, PYIDENT("__match_args__"), &match_args) == -1) {
+        if (PyObject_GetOptionalAttr(type_o, PYIDENT("__match_args__"), &match_args) == -1) {
             return -1;
         }
 #else
-        match_args = PyObject_GetAttr((PyObject*)type, PYIDENT("__match_args__"));
+        match_args = PyObject_GetAttr(type_o, PYIDENT("__match_args__"));
         if (!match_args) {
             if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
                 PyErr_Clear();
@@ -961,15 +965,15 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
 
 //////////////////////// MatchClassTypeGuard.proto /////////////////////////////
 
-static PyTypeObject* __Pyx_MatchCase_TypeGuard(PyObject* type); /* proto */
+static PyObject* __Pyx_MatchCase_TypeGuard(PyObject* type); /* proto */
 
 //////////////////////// MatchClassTypeGuard /////////////////////////////
 
-static PyTypeObject* __Pyx_MatchCase_TypeGuard(PyObject* type) {
+static PyObject* __Pyx_MatchCase_TypeGuard(PyObject* type) {
     if (!PyType_Check(type)) {
         PyErr_Format(PyExc_TypeError, "called match pattern must be a type");
         return NULL;
     }
     Py_INCREF(type);
-    return (PyTypeObject*)type;
+    return type;
 }
