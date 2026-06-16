@@ -266,6 +266,26 @@ Other changes
   Patch by Libor Jelínek.  (Github issue :issue:`7564`)
 
 
+3.2.6 (2026-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* A double-free in the t-string code was fixed.
+  (Github issue :issue:`7712`)
+
+* The ``-`` operator declarations for iterators in ``libcpp.vector`` we corrected.
+  Patch by Vadim Markovtsev.  (Github issue :issue:`7717`)
+
+* The shared utility code module no longer uses a temporary file path that
+  changed the C code on each generation.
+  (Github issue :issue:`7723`)
+
+* On 32 bit platforms, cached constants are no longer made immortal during module import.
+  (Github issue :issue:`7744`)
+
+
 3.2.5 (2026-05-23)
 ==================
 
