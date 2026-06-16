@@ -1,4 +1,4 @@
-### COPIED FROM CPython 3.12 alpha (July 2022)
+### COPIED FROM CPython 3.16 alpha (June 2026)
 ### Original part after ############
 # cython: language_level=3
 
