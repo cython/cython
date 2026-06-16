@@ -138,7 +138,7 @@ def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None, cython_version=None):
             transform_file(bm_src_file, bm_file, cython_version)
         if cython_version and bm_src_file in BENCHMARK_MIN_VERSIONS:
             _, *cy_version = cython_version
-            if BENCHMARK_MIN_VERSIONS[bm_src_file] < cy_version:
+            if cy_version < BENCHMARK_MIN_VERSIONS[bm_src_file]:
                 continue
         else:
             shutil.copy(bm_src_file, bm_file)
