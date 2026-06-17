@@ -2,6 +2,7 @@
 # mode: run
 # tag: cyfunction
 
+import platform
 cimport cython
 
 from functools import wraps
@@ -494,7 +495,9 @@ def test_annotate():
 __doc__ = """
 >>> test_module.__module__
 'cyfunction'
->>> type(test_module).__module__.startswith("_cython")
+
+# Our metaclass doesn't stick on PyPy unfortunately
+>>> type(test_module).__module__.startswith("_cython") if platform.python_implementation() != 'PyPy' else True
 True
 >>> test_module.__module__ = "something_else"
 >>> test_module.__module__
@@ -503,7 +506,7 @@ True
 >>> test_module.__module__
 >>> test_fused_module.__module__
 'cyfunction'
->>> type(test_fused_module).__module__.startswith("_cython")
+>>> type(test_fused_module).__module__.startswith("_cython") if platform.python_implementation() != 'PyPy' else True
 True
 >>> test_fused_module.__module__ = "something_else"
 >>> test_fused_module.__module__

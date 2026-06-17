@@ -93,8 +93,10 @@ typedef struct {
     PyObject *(*defaults_getter)(PyObject *);
     PyObject *func_annotations; /* function annotations dict */
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
     // Coroutine marker
     PyObject *func_is_coroutine;
+#endif
 } __pyx_CyFunctionObject;
 
 #undef __Pyx_CyOrPyCFunction_Check
@@ -652,6 +654,7 @@ __Pyx_CyFunction_set_annotate(PyObject *op_in, PyObject* value, void *context) {
     return result;
 }
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
 static PyObject *
 __Pyx_CyFunction_get_is_coroutine_value(__pyx_CyFunctionObject *op) {
     int is_coroutine = op->flags & __Pyx_CYFUNCTION_COROUTINE;
@@ -711,6 +714,7 @@ __Pyx_CyFunction_get_is_coroutine(PyObject *op_in, void *context) {
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
+#endif
 
 //static PyObject *
 //__Pyx_CyFunction_get_signature(__pyx_CyFunctionObject *op, void *context) {
@@ -820,7 +824,9 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {"__kwdefaults__", (getter)__Pyx_CyFunction_get_kwdefaults, (setter)__Pyx_CyFunction_set_kwdefaults, 0, 0},
     {"__annotations__", (getter)__Pyx_CyFunction_get_annotations, (setter)__Pyx_CyFunction_set_annotations, 0, 0},
     {"__annotate__", (getter)__Pyx_CyFunction_get_annotate, (setter)__Pyx_CyFunction_set_annotate, 0, 0},
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
     {"_is_coroutine", (getter)__Pyx_CyFunction_get_is_coroutine, 0, 0, 0},
+#endif
 //    {"__signature__", (getter)__Pyx_CyFunction_get_signature, 0, 0, 0},
 #if CYTHON_COMPILING_IN_LIMITED_API
     {"__module__", (getter)__Pyx_CyFunction_get_module, (setter)__Pyx_CyFunction_set_module, 0, 0},
@@ -867,7 +873,7 @@ __Pyx_CyFunction_reduce(PyObject *m_in, PyObject *args)
 }
 
 static PyMethodDef __pyx_CyFunction_methods[] = {
-    {"__reduce__", (PyCFunction)__Pyx_CyFunction_reduce, METH_VARARGS, 0},
+    {"__reduce__", (PyCFunction)__Pyx_CyFunction_reduce, METH_NOARGS, 0},
     {0, 0, 0, 0}
 };
 
@@ -928,7 +934,9 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
     op->defaults_kwdict = NULL;
     op->defaults_getter = NULL;
     op->func_annotations = NULL;
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
     op->func_is_coroutine = NULL;
+#endif
 #if CYTHON_VECTORCALL
     switch (ml->ml_flags & (METH_VARARGS | METH_FASTCALL | METH_NOARGS | METH_O | METH_KEYWORDS | METH_METHOD)) {
     case METH_NOARGS:
@@ -989,7 +997,9 @@ static int __Pyx__CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->defaults_tuple);
     Py_CLEAR(m->defaults_kwdict);
     Py_CLEAR(m->func_annotations);
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
     Py_CLEAR(m->func_is_coroutine);
+#endif
 
     Py_CLEAR(m->defaults);
 
@@ -1054,7 +1064,9 @@ static int __Pyx_CyFunction_traverse(PyObject *m_in, visitproc visit, void *arg)
     Py_VISIT(m->defaults_tuple);
     Py_VISIT(m->defaults_kwdict);
     Py_VISIT(m->func_annotations);
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
     Py_VISIT(m->func_is_coroutine);
+#endif
     Py_VISIT(m->defaults);
 
     return 0;

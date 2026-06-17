@@ -103,6 +103,8 @@ cdef const_array():
     cdef const object_var = [1, 2, 3]
     cdef const int int_not_list_var = [1, 2, 3]
 
+cdef int *restrict bar(int *restrict a):
+    pass
 
 _ERRORS = """
 5:4: Assignment to const 'x'
@@ -127,37 +129,38 @@ _ERRORS = """
 42:8: Assignment to const 't'
 46:8: Assignment to const 'y'
 48:5: Assignment to const dereference
-55:5: Const/volatile base type cannot be a Python object
+55:5: Const/volatile/restrict base type cannot be a Python object
 72:15: Array dimension cannot be const variable
 73:16: Array dimension cannot be const variable
 75:0: Assignment to const 'int_sum_constant3'
 76:0: Assignment to const 'float_sum_constant2'
 81:0: Assignment to const array 'global_const_carray_list'. Assign to a pointer variable instead.
 82:0: Assignment to const 'global_object_var_list'
-82:5: Const/volatile base type cannot be a Python object
+82:5: Const/volatile/restrict base type cannot be a Python object
 83:0: Non-const assignment to const 'global_int_not_list_var'
 83:41: Cannot coerce list to type 'const int'
 85:0: Assignment to const array 'global_const_carray_tuple'. Assign to a pointer variable instead.
 86:0: Assignment to const 'global_object_var_tuple'
-86:5: Const/volatile base type cannot be a Python object
+86:5: Const/volatile/restrict base type cannot be a Python object
 87:0: Non-const assignment to const 'global_int_not_tuple_var'
 89:0: Assignment to const array 'global_const_carray_set'. Assign to a pointer variable instead.
 90:0: Assignment to const 'global_object_var_set'
-90:5: Const/volatile base type cannot be a Python object
+90:5: Const/volatile/restrict base type cannot be a Python object
 91:0: Non-const assignment to const 'global_int_not_set_var'
 93:0: Assignment to const array 'global_const_carray_frozenset'. Assign to a pointer variable instead.
 94:0: Assignment to const 'global_object_var_frozenset'
-94:5: Const/volatile base type cannot be a Python object
+94:5: Const/volatile/restrict base type cannot be a Python object
 95:0: Non-const assignment to const 'global_int_not_frozenset_var'
 97:0: Assignment to const array 'global_const_carray_dict'. Assign to a pointer variable instead.
 98:0: Assignment to const 'global_object_var_dict'
-98:5: Const/volatile base type cannot be a Python object
+98:5: Const/volatile/restrict base type cannot be a Python object
 99:0: Non-const assignment to const 'global_int_not_dict_var'
 102:4: Assignment to const array 'const_carray'. Assign to a pointer variable instead.
 103:4: Assignment to const 'object_var'
-103:9: Const/volatile base type cannot be a Python object
+103:9: Const/volatile/restrict base type cannot be a Python object
 104:4: Assignment to const 'int_not_list_var'
 104:38: Cannot coerce list to type 'const int'
+106:10: Restrict qualifier cannot be applied to function type
 """
 
 _WARNINGS = """
