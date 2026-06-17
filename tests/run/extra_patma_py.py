@@ -425,3 +425,27 @@ def test_yield_from_case(x):
             yield x
         case C(a, None):
             yield a
+
+             
+def test_yield_from_case_if(x):
+    """
+    >>> g = test_yield_from_case_if([5])
+    >>> next(g)
+    >>> try:
+    ...    g.send(5)
+    ... except StopIteration:
+    ...    pass
+    A 5
+    >>> g = test_yield_from_case_if([5])
+    >>> next(g)
+    >>> try:
+    ...    g.send(6)
+    ... except StopIteration:
+    ...    pass
+    B
+    """
+    match x:
+        case [out] if out == (yield):
+            print(f"A {out}")
+        case _:
+            print("B")
