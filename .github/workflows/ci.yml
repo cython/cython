@@ -340,7 +340,7 @@ jobs:
         python-version:
           - pypy-3.9
           - pypy-3.10
-          - pypy-3.11-v7.3.21  # TODO remove pin when https://github.com/pypy/pypy/issues/5472 is fixed in a release
+          - pypy-3.11
           - graalpy25
         os: [ubuntu-24.04]
         backend: [c]
