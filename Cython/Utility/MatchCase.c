@@ -315,8 +315,8 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
 // Indices must be positive - there's no wraparound or boundschecking.
 
 static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
-    int total = end-start;
-    int i;
+    Py_ssize_t total = end-start;
+    Py_ssize_t i;
     PyObject *list;
     ssizeargfunc slot;
 
@@ -674,9 +674,9 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, 
 
 static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
     if (__Pyx_PyAnyDict_CheckExact(mapping)) {
-        return __Pyx_MatchCase_Mapping_ExtractDict(mapping, keys, nKeys, subjects);
+        return __Pyx__MatchCase_Mapping_ExtractDict(__pyx_refnanny, mapping, keys, nKeys, subjects);
     } else {
-        return __Pyx_MatchCase_Mapping_ExtractNonDict(mapping, keys, nKeys, subjects);
+        return __Pyx__MatchCase_Mapping_ExtractNonDict(__pyx_refnanny, mapping, keys, nKeys, subjects);
     }
 }
 
