@@ -210,8 +210,153 @@ def common_container_type(cond, list[float] a, list[int] b):
     result = a if cond else b
     print(result, cython.typeof(result))
 
+
+def bar():
+    return object()
+
+
+def test_initialised_subscripted_set():
+    """
+    >>> test_initialised_subscripted_set()
+    Testing set[int]:
+    ('set[int object] object', 'int object')
+    ('set[int object] object', 'int object')
+    ('set[int object] object', 'int object')
+    Testing set:
+    set object
+    Testing set with mixed types:
+    ('set object', 'Python object')
+    ('set object', 'Python object')
+    ('set object', 'Python object')
+    Testing set with inferable function call:
+    set[int object] object
+    Testing set with noninferrable function call:
+    set object
+    """
+    print("Testing set[int]:")
+    s1 = {1, 3, 5}
+    for i1 in s1:
+        print(cython.typeof(s1), cython.typeof(i1))
+    print("Testing set:")
+    s2 = set()
+    print(cython.typeof(s2))
+    print("Testing set with mixed types:")
+    s3 = {1, 3.0, "5"}
+    for i3 in s3:
+        print(cython.typeof(s3), cython.typeof(i3))
+    print("Testing set with inferable function call:")
+    s4 = {len(s3)}
+    print(cython.typeof(s4))
+    print("Testing set with noninferrable function call:")
+    s5 = {bar()}
+    print(cython.typeof(s5))
+
+
+def test_initialised_subscripted_list():
+    """
+    >>> test_initialised_subscripted_list()
+    Testing list[int]:
+    (1, 'list[int object] object', 'int object')
+    (3, 'list[int object] object', 'int object')
+    (5, 'list[int object] object', 'int object')
+    [1, 0, 5]
+    Testing list:
+    list object
+    Testing list with mixed types:
+    (1, 'list object', 'Python object')
+    (3.0, 'list object', 'Python object')
+    ('5', 'list object', 'Python object')
+    [1, 0, '5']
+    Testing list with inferable function call:
+    list[int object] object
+    Testing list with noninferrable function call:
+    list object
+    """
+    print("Testing list[int]:")
+    l1 = [1, 3, 5]
+    for i1 in l1:
+        print(i1, cython.typeof(l1), cython.typeof(i1))
+    l1[1] = 0
+    print(l1)
+    print("Testing list:")
+    l2 = []
+    print(cython.typeof(l2))
+    print("Testing list with mixed types:")
+    l3 = [1, 3.0, "5"]
+    for i3 in l3:
+        print(i3, cython.typeof(l3), cython.typeof(i3))
+    l3[1] = 0
+    print(l3)
+    print("Testing list with inferable function call:")
+    l4 = [len(l3)]
+    print(cython.typeof(l4))
+    print("Testing list with noninferrable function call:")
+    l5 = [bar()]
+    print(cython.typeof(l5))
+
+
+def test_initialised_subscripted_dict():
+    """
+    >>> test_initialised_subscripted_dict()
+    Testing dict[int, str]:
+    ('dict[int object,str object] object', 'int object', 'str object')
+    ('dict[int object,str object] object', 'int object', 'str object')
+    ('dict[int object,str object] object', 'int object', 'str object')
+    Testing dict:
+    dict object
+    Testing dict with mixed key types:
+    ('dict[Python object,int object] object', 'Python object', 'int object')
+    ('dict[Python object,int object] object', 'Python object', 'int object')
+    ('dict[Python object,int object] object', 'Python object', 'int object')
+    Testing dict with mixed value types:
+    ('dict[int object,Python object] object', 'int object', 'Python object')
+    ('dict[int object,Python object] object', 'int object', 'Python object')
+    ('dict[int object,Python object] object', 'int object', 'Python object')
+    Testing dict with mixed key and value types:
+    ('dict object', 'Python object', 'Python object')
+    ('dict object', 'Python object', 'Python object')
+    ('dict object', 'Python object', 'Python object')
+    Testing dict with inferable function call:
+    dict[int object,int object] object
+    Testing dict with noninferrable function call:
+    dict object
+    """
+    print("Testing dict[int, str]:")
+    d1 = {1: "a", 3: "b", 5: "c"}
+    for k1 in d1:
+        print(cython.typeof(d1), cython.typeof(k1), cython.typeof(d1[k1]))
+
+    print("Testing dict:")
+    d2 = {}
+    print(cython.typeof(d2))
+
+    print("Testing dict with mixed key types:")
+    d3 = {1: 1, 3.0: 3, "5": 5}
+    for k3 in d3:
+        print(cython.typeof(d3), cython.typeof(k3), cython.typeof(d3[k3]))
+
+    print("Testing dict with mixed value types:")
+    d4 = {1: 1.0, 3: "b", 5: "c"}
+    for k4 in d4:
+        print(cython.typeof(d4), cython.typeof(k4), cython.typeof(d4[k4]))
+
+    print("Testing dict with mixed key and value types:")
+    d5 = {1: 1.0, 3.0: "b", "5": "c"}
+    for k5 in d5:
+        print(cython.typeof(d5), cython.typeof(k5), cython.typeof(d5[k5]))
+
+    print("Testing dict with inferable function call:")
+    d6 = {len(d1): len(d2), len(d3): len(d5)}
+    print(cython.typeof(d6))
+
+    print("Testing dict with noninferrable function call:")
+    d7 = {bar(): bar()}
+    print(cython.typeof(d7))
+
+
 cdef class MyClass:
     pass
+
 
 def test_list_of_extensions(myclass):
     """
@@ -229,6 +374,7 @@ def test_list_of_extensions(myclass):
     print(cython.typeof(l))
     print(cython.typeof(l[0]))
     print(l[0])
+
 
 def test_dict_of_extensions(myclass):
     """
@@ -257,3 +403,4 @@ def test_list_slice():
     cdef list[int] l = [1, 2, 3]
     print(cython.typeof(l[::-1]))
     print(cython.typeof(l[::-1][0]))
+

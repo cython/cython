@@ -325,6 +325,13 @@ def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code, lhs_
     code.putln(code.error_goto(pos))
     code.putln('}')
 
+def infer_container_type(env, container_nodes):
+    for arg in container_nodes:
+        arg.type = arg.infer_type(env)
+    return PyrexTypes.reduce_spanning_types(
+        arg.type if arg.type.is_pyobject else arg.coerce_to_pyobject(env).type for arg in container_nodes
+    )
+
 
 class ExprNode(Node):
     #  subexprs     [string]     Class var holding names of subexpr node attrs
@@ -9257,6 +9264,10 @@ class ListNode(SequenceNode):
 
     def infer_type(self, env):
         # TODO: Infer non-object list arrays.
+        if len(self.args) > 0:
+            item_type = infer_container_type(env, self.args)
+            if item_type is not py_object_type:
+                return list_type.specialize_here(self.pos, env, [item_type])
         return list_type
 
     def analyse_expressions(self, env):
@@ -9850,6 +9861,13 @@ class SetNode(ExprNode):
     is_set_literal = True
     gil_message = "Constructing Python set"
 
+    def infer_type(self, env):
+        if len(self.args) > 0:
+            item_type = infer_container_type(env, self.args)
+            if item_type is not py_object_type:
+                return set_type.specialize_here(self.pos, env, [item_type])
+        return set_type
+
     def analyse_types(self, env):
         for i in range(len(self.args)):
             arg = self.args[i]
@@ -9928,6 +9946,11 @@ class DictNode(ExprNode):
 
     def infer_type(self, env):
         # TODO: Infer struct constructors.
+        if len(self.key_value_pairs) > 0:
+            key_type = infer_container_type(env, [item.key for item in self.key_value_pairs])
+            value_type = infer_container_type(env, [item.value for item in self.key_value_pairs])
+            if key_type is not py_object_type or value_type is not py_object_type:
+                return dict_type.specialize_here(self.pos, env, [key_type, value_type])
         return dict_type
 
     def analyse_types(self, env):
