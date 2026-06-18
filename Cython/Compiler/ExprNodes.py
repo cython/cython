@@ -3519,21 +3519,29 @@ class NextNode(AtomicExprNode):
             iterator_type = self.iterator.infer_type(env)
         if iterator_type.is_ptr or iterator_type.is_array:
             return iterator_type.base_type
-        elif iterator_type.is_cpp_class:
+        if iterator_type.is_cpp_class:
             item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
             item_type = PyrexTypes.remove_cv_ref(item_type, remove_fakeref=True)
             return item_type
-        elif (sequence_type := self.iterator.sequence.infer_type(env)).supports_container_type and \
-                (iterator_type := sequence_type.infer_iterator_type()):
-            return iterator_type
-        else:
-            # Avoid duplication of complicated logic.
-            fake_index_node = IndexNode(
-                self.pos,
-                base=self.iterator.sequence,
-                index=IntNode(self.pos, value='PY_SSIZE_T_MAX',
-                              type=PyrexTypes.c_py_ssize_t_type))
-            return fake_index_node.infer_type(env)
+        sequence_node = self.iterator.sequence
+        if not (
+            sequence_node.is_sequence_constructor or
+            sequence_node.is_dict_literal or
+            sequence_node.is_set_literal
+        ):
+            # Here we infer only non-literal sequences. Literals are inferred via special infer_sequence_item_type().
+            sequence_type = sequence_node.infer_type(env)
+            if sequence_type.supports_container_type:
+                iterator_type = sequence_type.infer_iterator_type()
+                if iterator_type:
+                    return iterator_type
+        # Avoid duplication of complicated logic.
+        fake_index_node = IndexNode(
+            self.pos,
+            base=self.iterator.sequence,
+            index=IntNode(self.pos, value='PY_SSIZE_T_MAX',
+                            type=PyrexTypes.c_py_ssize_t_type))
+        return fake_index_node.infer_type(env)
 
     def analyse_types(self, env):
         item_type = self.infer_type(env, self.iterator.type)
@@ -4285,6 +4293,10 @@ class IndexNode(_IndexingBaseNode):
             elif base_type.is_pyunicode_ptr:
                 # sliced Py_UNICODE* strings must coerce to Python
                 return unicode_type
+            elif base_type.supports_container_type and not base_type.has_uniform_element_type:
+                # Slicing a container with non-uniform element types (tuple[int, str]) depends on the slice indices,
+                # so we can't infer a more specific type here.
+                return base_type.get_container_type()
             elif base_type.is_builtin_sequence:
                 # slicing these returns the same type
                 return base_type
@@ -4294,8 +4306,11 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
-        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
-            return sub_type
+        if base_type.supports_container_type:
+            if not (self.base.is_sequence_constructor or self.base.is_dict_literal or self.base.is_set_literal):
+                sub_type = base_type.infer_indexed_type(self.index.constant_result)
+                if sub_type:
+                    return sub_type
 
         index_type = self.index.infer_type(env)
         if index_type and index_type.is_int or isinstance(self.index, IntNode):
@@ -4514,7 +4529,7 @@ class IndexNode(_IndexingBaseNode):
 
         self.wrap_in_nonecheck_node(env, getting)
 
-        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
+        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type(self.index.constant_result)):
             if getting and not is_slice:
                 return self.coerce_to(sub_type, env)
             elif setting:
@@ -5609,6 +5624,10 @@ class SliceIndexNode(ExprNode):
             return bytes_type
         elif base_type.is_pyunicode_ptr:
             return unicode_type
+        elif base_type.supports_container_type and not base_type.has_uniform_element_type:
+            # slicing a container with non-uniform element types (tuple[int, str]) depends on the slice indices,
+            # so we can't infer a more specific type here.
+            return base_type.get_container_type()
         elif base_type.is_builtin_sequence:
             return base_type
         elif base_type.is_ptr or base_type.is_array:
@@ -9095,7 +9114,7 @@ class TupleNode(SequenceNode):
         arg_types = [arg.infer_type(env) for arg in self.args]
         if any(type.is_pyobject or type.is_memoryviewslice or type.is_unspecified or type.is_fused
                for type in arg_types):
-            return tuple_type
+            return tuple_type.specialize_here(self.pos, env, arg_types)
         return env.declare_tuple_type(self.pos, arg_types).type
 
     def analyse_types(self, env, skip_children=False):
