@@ -367,7 +367,7 @@ class C:
         self.c = "string"
 
 
-@skip_in_pure_pypy  # crash
+@skip_in_pure_pypy  # crash, see https://github.com/pypy/pypy/issues/5506
 def test_yield_from_case(x):
     """
     >>> def test(x):
