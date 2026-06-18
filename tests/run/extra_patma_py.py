@@ -14,6 +14,10 @@ def skip_if_no_frozendict(f):
     if cython.compiled or sys.version_info >= (3, 15):
         return f
 
+def skip_in_pure_pypy(f):
+    if cython.compiled or sys.implementation.name != 'pypy':
+        return f
+
 
 def test_type_inference(x):
     """
@@ -363,6 +367,7 @@ class C:
         self.c = "string"
 
 
+@skip_in_pure_pypy  # crash
 def test_yield_from_case(x):
     """
     >>> def test(x):
@@ -426,7 +431,7 @@ def test_yield_from_case(x):
         case C(a, None):
             yield a
 
-             
+
 def test_yield_from_case_if(x):
     """
     >>> g = test_yield_from_case_if([5])
