@@ -6903,8 +6903,9 @@ class PyMethodCallNode(CallNode):
     # function    ExprNode      the function/method object to call
     # arg_tuple   TupleNode     the arguments for the args tuple
     # kwdict      ExprNode or None  keyword dictionary (if present)
+    # kwnames     TupleNode or None   names of keyword arguments
+    # kwvalues    list[ExprNode] | None  values of keyword arguments
     # Arguments to constructor only:
-    # kwargs_key_value_pairs  [ExprNode] or None  list of unpacked kwargs key-value pairs, if known
     # function_obj  ExprNode or None  == self.function.obj when using PyObject_VectorcallMethod()
     # unpack      bool
 
@@ -6916,21 +6917,7 @@ class PyMethodCallNode(CallNode):
     kwvalues = None
     function_obj = None
 
-    def __init__(self, pos, env, **kw):
-        # env is required with keyword args to analyse a newly created tuple
-        # and work out if it's literal.
-        kwdict = kw.get('kwdict', None)
-        kwargs_key_value_pairs = kw.pop('kwargs_key_value_pairs', None)
-        if kwdict and kwdict.is_dict_literal:
-            assert not kwargs_key_value_pairs
-            kwargs_key_value_pairs = kwdict.key_value_pairs
-            del kw['kwdict']
-        if kwargs_key_value_pairs:
-            kwnames = TupleNode(pos, args=[kvp.key for kvp in kwargs_key_value_pairs])
-            kwnames = kwnames.analyse_types(env, skip_children=True)
-            kw['kwnames'] = kwnames
-            kw['kwvalues'] = [kvp.value for kvp in kwargs_key_value_pairs]
-
+    def __init__(self, pos, **kw):
         super().__init__(pos, **kw)
         if self.can_avoid_attribute_lookup():
             self.use_method_vectorcall = True
