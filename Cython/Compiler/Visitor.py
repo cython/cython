@@ -304,7 +304,7 @@ class CythonTransform(VisitorTransform):
             self.current_directives = node.directives
         return super().__call__(node)
 
-    def visit_CompilerDirectivesNode(self, node):
+    def visit_CompilerDirectivesMixin(self, node):
         old = self.current_directives
         self.current_directives = node.directives
         self._process_children(node)
