@@ -37,7 +37,7 @@ def simple():
     L = [1,2,3]
     assert typeof(L) == "list object", typeof(L)
     t = (4,5,6,())
-    assert typeof(t) == "tuple object", typeof(t)
+    assert typeof(t) == "tuple[long,long,long,tuple object] object", typeof(t)
     t2 = (4, 5.0, 6)
     assert typeof(t2) == "(long, double, long)", typeof(t)
 
@@ -114,7 +114,7 @@ def slicing():
     assert typeof(L2) == "list object", typeof(L2)
 
     t = (4,5,6,())
-    assert typeof(t) == "tuple object", typeof(t)
+    assert typeof(t) == "tuple[long,long,long,tuple object] object", typeof(t)
     t1 = t[1:2]
     assert typeof(t1) == "tuple object", typeof(t1)
     t2 = t[1:2:2]
@@ -146,12 +146,12 @@ def indexing():
     assert typeof(L1) == "Python object", typeof(L1)
 
     t = (4,5,())
-    assert typeof(t) == "tuple object", typeof(t)
+    assert typeof(t) == "tuple[long,long,tuple object] object", typeof(t)
     t1 = t[1]
     assert typeof(t1) == "long", typeof(t1)
 
     t2 = ('abc', 'def', 'ghi')
-    assert typeof(t2) == "tuple object", typeof(t2)
+    assert typeof(t2) == "tuple[str object,str object,str object] object", typeof(t2)
     t2_1 = t2[1]
     assert typeof(t2_1) == "str object", typeof(t2_1)
     t2_2 = t2[t[0]-3]
@@ -302,7 +302,7 @@ def builtin_type_methods():
 
     u = u'abc def'
     split = u.split()
-    assert typeof(split) == 'list object', typeof(split)
+    assert typeof(split) == 'list[str object] object', typeof(split)
 
     str_result1 = u.upper()
     assert typeof(str_result1) == "str object", typeof(str_result1)

@@ -25,6 +25,10 @@ PROCESSED_BENCHMARKS = frozenset({
     "bm_getitem.py",
 })
 
+BENCHMARK_MIN_VERSIONS = {
+    "bm_patma": (3, 3)
+}
+
 LIMITED_API_VERSION = max((3, 12), sys.version_info[:2])
 
 PYTHON_VERSION = "%d.%d.%d" % sys.version_info[:3]
@@ -578,6 +582,12 @@ def benchmark_revision(
         git_clone(cython_dir, revision=None if plain_python else revision)
         cython_version_str = read_cython_version(cython_dir)
         cython_version = (revision, *map(int, cython_version_str.split('.', 2)[:2])) if not plain_python else None
+
+        if cython_version:
+            benchmarks = [
+                bm for bm in benchmarks
+                if bm not in BENCHMARK_MIN_VERSIONS or cython_version[1:] >= BENCHMARK_MIN_VERSIONS[bm]
+            ]
 
         cythonize_times = None
         if benchmark_cythonize:
