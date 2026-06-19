@@ -12,6 +12,12 @@ except ImportError:
     pass  # this should allow Cython to interpret the directives even when the module doesn't exist
 
 
+def min_plain_pyversion(major, minor):
+    if cython.compiled or sys.version_info() >= (major, minor):
+        return lambda func: func
+    else:
+        return lambda func: None
+
 
 def test_subscripted_types():
     """
@@ -37,45 +43,46 @@ def test_subscripted_types():
     print(cython.typeof(b3) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + ("[Python object] object" if not cython.compiled else ""))
 
-if sys.version_info >= (3, 11) or cython.compiled:
-    # This part of the test is failing in Python 3.9 and 3.10 with the following exception in Shadow.py:
-    # isinstance() argument 2 cannot be a parameterized generic
 
-    def test_casting_subscripted_types():
-        """
-        >>> test_casting_subscripted_types()
-        list[int] object 1
-        list object 1.0
-        dict[str object,float] object 2.0
-        dict object 2
-        float 3.0
-        Python object 3
-        """
-        # list
-        l: list[cython.float] = [1.0, 2.0]
-        x1 = cython.cast(list[cython.int], l)
-        y1 = cython.cast(list, l)
-        print(cython.typeof(x1) + ('[int] object' if not cython.compiled else ""), int(x1[0]) if not cython.compiled else x1[0])
-        print(cython.typeof(y1) + (' object' if not cython.compiled else ""), y1[0])
-        # dict
-        d: dict[str, cython.int] = {'a': 1, 'b': 2}
-        x2 = cython.cast(dict[str, cython.float], d)
-        y2 = cython.cast(dict, d)
+@min_plain_pyversion(3, 11)
+# This part of the test is failing in Python 3.9 and 3.10 with the following exception in Shadow.py:
+# isinstance() argument 2 cannot be a parameterized generic
+def test_casting_subscripted_types():
+    """
+    >>> test_casting_subscripted_types()
+    list[int] object 1
+    list object 1.0
+    dict[str object,float] object 2.0
+    dict object 2
+    float 3.0
+    Python object 3
+    """
+    # list
+    l: list[cython.float] = [1.0, 2.0]
+    x1 = cython.cast(list[cython.int], l)
+    y1 = cython.cast(list, l)
+    print(cython.typeof(x1) + ('[int] object' if not cython.compiled else ""), int(x1[0]) if not cython.compiled else x1[0])
+    print(cython.typeof(y1) + (' object' if not cython.compiled else ""), y1[0])
+    # dict
+    d: dict[str, cython.int] = {'a': 1, 'b': 2}
+    x2 = cython.cast(dict[str, cython.float], d)
+    y2 = cython.cast(dict, d)
+    print(
+        cython.typeof(x2) + ('[str object,float] object' if not cython.compiled else ""),
+        x2['b'] if cython.compiled else float(x2['b'])
+    )
+    print(cython.typeof(y2) + (' object' if not cython.compiled else ""), y2['b'])
+
+    d2: dict[cython.int, str] = {3: '3'}
+    for k1 in cython.cast(dict[cython.float, str], d2):
         print(
-            cython.typeof(x2) + ('[str object,float] object' if not cython.compiled else ""),
-            x2['b'] if cython.compiled else float(x2['b'])
+            cython.typeof(k1) if cython.compiled else 'float',
+            k1 if cython.compiled else float(k1)
         )
-        print(cython.typeof(y2) + (' object' if not cython.compiled else ""), y2['b'])
 
-        d2: dict[cython.int, str] = {3: '3'}
-        for k1 in cython.cast(dict[cython.float, str], d2):
-            print(
-                cython.typeof(k1) if cython.compiled else 'float',
-                k1 if cython.compiled else float(k1)
-            )
+    for k2 in cython.cast(dict, d2):
+        print(cython.typeof(k2) if cython.compiled else 'Python object', k2)
 
-        for k2 in cython.cast(dict, d2):
-            print(cython.typeof(k2) if cython.compiled else 'Python object', k2)
 
 def test_list_with_str_subscript():
     """
@@ -91,6 +98,7 @@ def test_list_with_str_subscript():
     print(cython.typeof(b[0]) + (" object" if not cython.compiled else ""))
     print(cython.typeof(a[0] + b[0]) + (" object" if not cython.compiled else ""))
     print(a[0] + b[0])
+
 
 def test_list_with_int_subscript():
     """
@@ -110,6 +118,7 @@ def test_list_with_int_subscript():
     print(cython.typeof(c))
     print(c)
 
+
 def test_dict_with_subscript():
     """
     >>> test_dict_with_subscript()
@@ -128,6 +137,7 @@ def test_dict_with_subscript():
     print(cython.typeof(c))
     print(c)
 
+
 def test_assignment_list_with_subscript():
     """
     >>> test_assignment_list_with_subscript()
@@ -143,6 +153,7 @@ def test_assignment_list_with_subscript():
     print(cython.typeof(b[0]) if cython.compiled else 'Python object')
     print(cython.typeof(c[0]) if cython.compiled else 'float')
     print(a[0], b[0], c[0] if cython.compiled else float(c[0]))
+
 
 def test_assignment_dict_with_subscript():
     """
@@ -160,23 +171,24 @@ def test_assignment_dict_with_subscript():
     print(cython.typeof(c['a']) if cython.compiled else 'float')
     print(a['a'], b['a'], c['a'] if cython.compiled else float(c['a']))
 
-if sys.version_info >= (3, 15) or cython.compiled:
 
-    def test_assignment_frozendict_with_subscript():
-        """
-        >>> test_assignment_frozendict_with_subscript()
-        int
-        Python object
-        float
-        5 5 5.0
-        """
-        a: frozendict[str, cython.int] = frozendict({'a': 5})
-        b: frozendict = a
-        c: frozendict[str, cython.float] = b
-        print(cython.typeof(a['a']))
-        print(cython.typeof(b['a']) if cython.compiled else 'Python object')
-        print(cython.typeof(c['a']) if cython.compiled else 'float')
-        print(a['a'], b['a'], c['a'] if cython.compiled else float(c['a']))
+@min_plain_pyversion(3, 15)
+def test_assignment_frozendict_with_subscript():
+    """
+    >>> test_assignment_frozendict_with_subscript()
+    int
+    Python object
+    float
+    5 5 5.0
+    """
+    a: frozendict[str, cython.int] = frozendict({'a': 5})
+    b: frozendict = a
+    c: frozendict[str, cython.float] = b
+    print(cython.typeof(a['a']))
+    print(cython.typeof(b['a']) if cython.compiled else 'Python object')
+    print(cython.typeof(c['a']) if cython.compiled else 'float')
+    print(a['a'], b['a'], c['a'] if cython.compiled else float(c['a']))
+
 
 @cython.infer_types(True)
 def test_iteration_over_list_with_subscript():
@@ -192,6 +204,7 @@ def test_iteration_over_list_with_subscript():
         print(cython.typeof(c))
         print(cython.typeof(b + c))
         print(b + c)
+
 
 @cython.infer_types(True)
 def test_iteration_over_set_with_subscript():
@@ -223,6 +236,7 @@ def test_iteration_over_frozenset_with_subscript():
         print(cython.typeof(b + c))
         print(b + c)
 
+
 @cython.infer_types(True)
 def test_iteration_over_dict_with_subscript():
     """
@@ -238,22 +252,23 @@ def test_iteration_over_dict_with_subscript():
         print(cython.typeof(b + c))
         print(b + c)
 
-if sys.version_info >= (3, 15) or cython.compiled:
 
-    @cython.infer_types(True)
-    def test_iteration_over_frozendict_with_subscript():
-        """
-        >>> test_iteration_over_frozendict_with_subscript()
-        int
-        int
-        3
-        """
-        b: cython.int = 1
-        a: frozendict[cython.int, cython.str] = frozendict({2: 'a'})
-        for c in a:
-            print(cython.typeof(c))
-            print(cython.typeof(b + c))
-            print(b + c)
+@min_plain_pyversion(3, 15)
+@cython.infer_types(True)
+def test_iteration_over_frozendict_with_subscript():
+    """
+    >>> test_iteration_over_frozendict_with_subscript()
+    int
+    int
+    3
+    """
+    b: cython.int = 1
+    a: frozendict[cython.int, cython.str] = frozendict({2: 'a'})
+    for c in a:
+        print(cython.typeof(c))
+        print(cython.typeof(b + c))
+        print(b + c)
+
 
 def test_inference_of_list_constructor():
     """
@@ -278,6 +293,7 @@ def test_inference_of_list_constructor():
     print(cython.typeof(ls) + ("[int] object" if not cython.compiled else ""))
     print(cython.typeof(lf) + ("[int] object" if not cython.compiled else ""))
 
+
 def test_inference_of_set_constructor():
     """
     >>> test_inference_of_set_constructor()
@@ -300,6 +316,7 @@ def test_inference_of_set_constructor():
     print(cython.typeof(sd) + ("[str object] object" if not cython.compiled else ""))
     print(cython.typeof(ss) + ("[int] object" if not cython.compiled else ""))
     print(cython.typeof(sf) + ("[int] object" if not cython.compiled else ""))
+
 
 def test_inference_of_frozenset_constructor():
     """
@@ -324,6 +341,7 @@ def test_inference_of_frozenset_constructor():
     print(cython.typeof(fs) + ("[int] object" if not cython.compiled else ""))
     print(cython.typeof(ff) + ("[int] object" if not cython.compiled else ""))
 
+
 def test_inference_of_dict_constructor():
     """
     >>> test_inference_of_dict_constructor()
@@ -335,18 +353,17 @@ def test_inference_of_dict_constructor():
     print(cython.typeof(dd) + ("[str object,int] object" if not cython.compiled else ""))
 
 
-if sys.version_info >= (3, 15) or cython.compiled:
+@min_plain_pyversion(3, 15)
+def test_inference_of_frozendict_constructor():
+    """
+    >>> test_inference_of_frozendict_constructor()
+    frozendict[str object,int] object
+    frozendict[str object,int] object
+    """
+    d: dict[str, cython.int] = {'a': 1, 'b': 2}
+    fd: frozendict[str, cython.int] = frozendict({'a': 1, 'b': 2})
+    dd = frozendict(d)
+    fdd = frozendict(fd)
 
-    def test_inference_of_frozendict_constructor():
-        """
-        >>> test_inference_of_frozendict_constructor()
-        frozendict[str object,int] object
-        frozendict[str object,int] object
-        """
-        d: dict[str, cython.int] = {'a': 1, 'b': 2}
-        fd: frozendict[str, cython.int] = frozendict({'a': 1, 'b': 2})
-        dd = frozendict(d)
-        fdd = frozendict(fd)
-
-        print(cython.typeof(dd) + ("[str object,int] object" if not cython.compiled else ""))
-        print(cython.typeof(fdd) + ("[str object,int] object" if not cython.compiled else ""))
+    print(cython.typeof(dd) + ("[str object,int] object" if not cython.compiled else ""))
+    print(cython.typeof(fdd) + ("[str object,int] object" if not cython.compiled else ""))
