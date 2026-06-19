@@ -708,7 +708,7 @@ static int __Pyx_GetVtable(PyTypeObject *type, void** table) {
     *table = ptr;
     return 1;
 no_attr:
-    if (PyErr_ExceptionMatches(PyExc_Exception)) {
+    if (PyErr_ExceptionMatches(CYTHON_COMPILING_IN_LIMITED_API ? PyExc_AttributeError : PyExc_KeyError)) {
         return 0;
     }
     Py_XDECREF(ob);
