@@ -384,38 +384,11 @@ def bench_raytrace(loops: cython.long, width, height, filename=None, timer=time.
     return dt
 
 
-def run_benchmark(repeat: cython.int = 10, count=3, timer=time.perf_counter):
-    return [
-        bench_raytrace(count, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, timer=timer)
-        for _ in range(repeat)
-    ]
+def run_benchmark(repeat=True, scale: cython.long = 1):
+    from util import repeat_to_accuracy
+    from functools import partial
 
+    def single_run(scale, timer):
+        return bench_raytrace(scale, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, timer=timer)
 
-def add_cmdline_args(cmd, args):
-    cmd.append("--width=%s" % args.width)
-    cmd.append("--height=%s" % args.height)
-    if args.filename:
-        cmd.extend(("--filename", args.filename))
-
-
-if __name__ == "__main__":
-    import pyperf
-    runner = pyperf.Runner(add_cmdline_args=add_cmdline_args)
-    cmd = runner.argparser
-    cmd.add_argument("--width",
-                     type=int, default=DEFAULT_WIDTH,
-                     help="Image width (default: %s)" % DEFAULT_WIDTH)
-    cmd.add_argument("--height",
-                     type=int, default=DEFAULT_HEIGHT,
-                     help="Image height (default: %s)" % DEFAULT_HEIGHT)
-    cmd.add_argument("--filename", metavar="FILENAME.PPM",
-                     help="Output filename of the PPM picture")
-
-    args = runner.parse_args()
-    runner.metadata['description'] = "Simple raytracer"
-    runner.metadata['raytrace_width'] = args.width
-    runner.metadata['raytrace_height'] = args.height
-
-    runner.bench_time_func('raytrace', bench_raytrace,
-                           args.width, args.height,
-                           args.filename)
+    return repeat_to_accuracy(single_run, scale=scale, repeat=repeat)[0]

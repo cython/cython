@@ -1,6 +1,9 @@
 # mode: run
 # tag: all_language_levels
 
+# cython: test_assert_c_code_has = __Pyx_ListComp_Append\(
+# cython: test_assert_c_code_has = __Pyx_ListComp_AppendAndDecref\(
+
 cimport cython
 
 
@@ -237,6 +240,17 @@ def unpack_list_simple(it):
     [2, 1]
     """
     return [*it]
+
+
+@cython.test_assert_path_exists(
+    "//MergedSequenceNode",
+)
+def unpack_list_temps(it, x):
+    """
+    >>> unpack_list_temps([1, 2, 3], 4)
+    [1, 2, 3, 4, 5, 6, 1, 2, 3, 7, 8, 9]
+    """
+    return [*it, *[x, x+1, x+2], *it, *[x+3, x+4], *[x+5]]
 
 
 def unpack_list_from_iterable(it):
@@ -601,3 +615,48 @@ def unpack_in_call(f):
     def wrapper(*args, **kwargs):
         return f(*args, more=2, **{**kwargs, 'test': 1})
     return wrapper
+
+
+def unpack_in_loop(a: list[float], b: list[float]):
+    """
+    >>> unpack_in_loop([1., 2., 3.], [4., 5.])
+    Python object
+    [1.0, 2.0, 3.0, 4.0, 5.0]
+    Python object
+    [4.0, 5.0, 1.0, 2.0, 3.0]
+    Python object
+    [1.0, 2.0, 3.0, [4.0, 5.0]]
+    Python object
+    [[1.0, 2.0, 3.0], 4.0, 5.0]
+    list[double] object
+    [[1.0, 2.0, 3.0], [4.0, 5.0]]
+    """
+    result = []
+    for x1 in [*a, *b]:
+        result.append(x1)
+    print(cython.typeof(x1))
+    print(result)
+
+    result = []
+    for x2 in (*b, *a):
+        result.append(x2)
+    print(cython.typeof(x2))
+    print(result)
+
+    result = []
+    for x3 in [*a, b]:
+        result.append(x3)
+    print(cython.typeof(x3))
+    print(result)
+
+    result = []
+    for x4 in (a, *b):
+        result.append(x4)
+    print(cython.typeof(x4))
+    print(result)
+
+    result = []
+    for x5 in (a, b):
+        result.append(x5)
+    print(cython.typeof(x5))
+    print(result)

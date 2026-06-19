@@ -482,11 +482,12 @@ class ExpressionWriter(TreeVisitor):
     A Cython code writer that is intentionally limited to expressions.
     """
 
-    def __init__(self, result=None):
+    def __init__(self, result=None, allow_unknown_nodes=False):
         super().__init__()
         if result is None:
             result = ""
         self.result = result
+        self.allow_unknown_nodes = allow_unknown_nodes
         self.precedence = [0]
 
     def write(self, tree):
@@ -508,7 +509,10 @@ class ExpressionWriter(TreeVisitor):
             self.visit(items[-1])
 
     def visit_Node(self, node):
-        raise AssertionError("Node not handled by serializer: %r" % node)
+        if self.allow_unknown_nodes:
+            self.put("...")
+        else:
+            raise AssertionError("Node not handled by serializer: %r" % node)
 
     # TODO: Remove redundancy below. Most constants serialise fine as just "repr(node.value)".
 

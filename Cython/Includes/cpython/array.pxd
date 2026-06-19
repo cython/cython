@@ -70,12 +70,14 @@ cdef extern from *:  # Hard-coded utility code hack.
     ctypedef object GETF(array a, Py_ssize_t ix)
     ctypedef object SETF(array a, Py_ssize_t ix, object o)
     ctypedef struct arraydescr:  # [object arraydescr]:
-            char typecode
-            int itemsize
-            GETF getitem    # PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
-            SETF setitem    # int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
+        char typecode "typecode_char"  # backwards compatibility only
+        char typecode_char             # Python <= 3.14
+        char typecode_array[3]         # Python 3.15+
+        int itemsize
+        GETF getitem    # PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
+        SETF setitem    # int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
 
-    ctypedef union __data_union:
+    ctypedef union __data_union "__Pyx_data_union":
         # views of ob_item:
         float* as_floats        # direct float pointer access to buffer
         double* as_doubles      # double ...
@@ -99,38 +101,14 @@ cdef extern from *:  # Hard-coded utility code hack.
         cdef:
             Py_ssize_t ob_size
             arraydescr* ob_descr    # struct arraydescr *ob_descr;
-            __data_union data
 
-        def __getbuffer__(self, Py_buffer* info, int flags):
-            # This implementation of getbuffer is geared towards Cython
-            # requirements, and does not yet fulfill the PEP.
-            # In particular strided access is always provided regardless
-            # of flags
-            item_count = Py_SIZE(self)
-
-            info.suboffsets = NULL
-            info.buf = self.data.as_chars
-            info.readonly = 0
-            info.ndim = 1
-            info.itemsize = self.ob_descr.itemsize   # e.g. sizeof(float)
-            info.len = info.itemsize * item_count
-
-            info.shape = <Py_ssize_t*> PyObject_Malloc(sizeof(Py_ssize_t) + 2)
-            if not info.shape:
-                raise MemoryError()
-            info.shape[0] = item_count      # constant regardless of resizing
-            info.strides = &info.itemsize
-
-            info.format = <char*> (info.shape + 1)
-            info.format[0] = self.ob_descr.typecode
-            info.format[1] = 0
-            info.obj = self
-
-        def __releasebuffer__(self, Py_buffer* info):
-            PyObject_Free(info.shape)
+        @property
+        cdef inline __data_union data(self) noexcept nogil:
+            return __Pyx_PyArray_Data(self)
 
     array newarrayobject(PyTypeObject* type, Py_ssize_t size, arraydescr *descr)
 
+    __data_union __Pyx_PyArray_Data(array self) noexcept nogil
     # fast resize/realloc
     # not suitable for small increments; reallocation 'to the point'
     int resize(array self, Py_ssize_t n) except -1

@@ -1,4 +1,5 @@
 # mode: run
+# tag: openmp, threads
 
 # Test the behaviour of memoryview slicing and indexing, contiguity, etc.
 

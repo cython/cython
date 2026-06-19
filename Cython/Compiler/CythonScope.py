@@ -6,6 +6,7 @@ from .Scanning import StringSourceDescriptor
 from . import MemoryView
 from .StringEncoding import EncodedString
 
+NON_TYPE_NAMES = {'pointer', 'const', 'volatile', 'restrict', 'struct', 'union', 'enum'}
 
 class CythonScope(ModuleScope):
     is_cython_builtin = 1
@@ -25,12 +26,16 @@ class CythonScope(ModuleScope):
                                          cname='<error>')
             entry.in_cinclude = True
 
+        cy_pymutex_type = get_cy_pymutex_type()
         entry = self.declare_type(
             "pymutex", cy_pymutex_type, None,
             cname="__Pyx_Locks_PyMutex")
+        entry.utility_code_definition = cy_pymutex_type.get_decl_utility_code()
+        cy_pythread_type_lock_type = get_cy_pythread_type_lock_type()
         entry = self.declare_type(
             "pythread_type_lock", cy_pythread_type_lock_type, None,
             cname="__Pyx_Locks_PyThreadTypeLock")
+        entry.utility_code_definition = cy_pythread_type_lock_type.get_decl_utility_code()
 
     def is_cpp(self):
         # Allow C++ utility code in C++ contexts.
@@ -38,6 +43,8 @@ class CythonScope(ModuleScope):
 
     def lookup_type(self, name):
         # This function should go away when types are all first-level objects.
+        if name in NON_TYPE_NAMES:
+            return None
         type = parse_basic_type(name)
         if type:
             return type

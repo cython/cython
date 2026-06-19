@@ -17,18 +17,18 @@ __doc__ = u"""
     1
     >>> b.spam.i
     2
-    >>> a.spam.eggs.i
+    >>> a.spam.eggs.i  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    AttributeError: 'Test' object has no attribute 'eggs'
+    AttributeError: 'Test' object has no attribute 'eggs'...
     >>> b.spam.eggs.i
     3
     >>> a.spam.spam.i
     2
     >>> b.spam.spam.i
     1
-    >>> a.spam.eggs.spam.i
+    >>> a.spam.eggs.spam.i  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    AttributeError: 'Test' object has no attribute 'eggs'
+    AttributeError: 'Test' object has no attribute 'eggs'...
     >>> b.spam.eggs.spam.i
     4
 
@@ -45,9 +45,9 @@ __doc__ = u"""
     1
     >>> b.spam.eggs.i
     3
-    >>> a.spam.spam.i
+    >>> a.spam.spam.i  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    AttributeError: 'Test' object has no attribute 'spam'
+    AttributeError: 'Test' object has no attribute 'spam'...
     >>> b.spam.spam.i
     1
     >>> a.spam.eggs.spam.i

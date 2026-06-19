@@ -27,7 +27,7 @@ cdef class ImplicitAttrCache(object):
 @cython.type_version_tag(True)
 cdef class ExplicitAttrCache(object):
     """
-    >>> flag = test_flag(ImplicitAttrCache)
+    >>> flag = test_flag(ExplicitAttrCache)
     >>> print(flag)
     True
     """

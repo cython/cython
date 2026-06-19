@@ -1,6 +1,16 @@
 from libcpp cimport bool
 
-cdef extern from "<stop_token>" namespace "std" nogil:
+cdef extern from * nogil:
+    """
+    // <thread> is defined in C++ and may define __cpp_lib_jthread
+    // Including it in this way lets us cimport it in the C++11 condition_variable wrappings
+    #include <thread>
+    #if defined(__cpp_lib_jthread)
+    #include <stop_token>
+    #endif
+    """
+
+cdef extern from * namespace "std" nogil:
     cdef cppclass stop_token:
         bool stop_requested() noexcept
         bool stop_possible() noexcept
@@ -30,6 +40,7 @@ cdef extern from "<stop_token>" namespace "std" nogil:
 
 cdef extern from *:
     """
+    #if defined(__cpp_lib_jthread)
     #include <optional>
     #include <utility>
 
@@ -93,9 +104,10 @@ cdef extern from *:
             }
         };
     }
+    #endif // defined(__cpp_lib_jthread)
     """
     # This is provided as a convenience mainly as a reminder to use nogil functions!
-    ctypedef stop_callback[void (*)() nogil noexcept] func_ptr_stop_callback "__pyx_func_ptr_stop_callback"
+    ctypedef stop_callback[void (*)() noexcept nogil] func_ptr_stop_callback "__pyx_func_ptr_stop_callback"
 
     # A fairly thin wrapper to let you create a stop callback with a Python object.
     # For most uses, it should be created empty and then filled with "initialize"

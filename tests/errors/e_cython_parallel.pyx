@@ -174,6 +174,7 @@ def bar():
     with nogil, parallel.parallel(use_threads_if=python_var):
         pass
 
+
 _ERRORS = u"""
 7:8: cython.parallel.parallel is not a module
 8:0: No such directive: cython.parallel.something
@@ -214,15 +215,4 @@ _ERRORS = u"""
 162:57: Calling gil-requiring function not allowed without gil
 171:51: use_threads_if may not be a Python object as we don't have the GIL
 174:49: use_threads_if may not be a Python object as we don't have the GIL
-
-# Spurious warnings that we aren't really interest in
-26:4: 'cpdef_method' redeclared
-36:4: 'cpdef_cname_method' redeclared
-# From memoryview code
-961:29: Ambiguous exception value, same as default return value: 0
-961:29: Ambiguous exception value, same as default return value: 0
-1002:46: Ambiguous exception value, same as default return value: 0
-1002:46: Ambiguous exception value, same as default return value: 0
-1092:29: Ambiguous exception value, same as default return value: 0
-1092:29: Ambiguous exception value, same as default return value: 0
 """

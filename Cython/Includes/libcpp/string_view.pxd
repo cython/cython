@@ -72,6 +72,8 @@ cdef extern from "<string_view>" namespace "std" nogil:
 
         # Assignment
         string_view& operator=(string_view)
+        # Not strictly operator= but work by implicit conversion
+        string_view& operator=(const string& s)
 
         # Iterators
         const_iterator begin()

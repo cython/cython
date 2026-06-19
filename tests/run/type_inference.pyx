@@ -37,7 +37,7 @@ def simple():
     L = [1,2,3]
     assert typeof(L) == "list object", typeof(L)
     t = (4,5,6,())
-    assert typeof(t) == "tuple object", typeof(t)
+    assert typeof(t) == "tuple[long,long,long,tuple object] object", typeof(t)
     t2 = (4, 5.0, 6)
     assert typeof(t2) == "(long, double, long)", typeof(t)
 
@@ -114,7 +114,7 @@ def slicing():
     assert typeof(L2) == "list object", typeof(L2)
 
     t = (4,5,6,())
-    assert typeof(t) == "tuple object", typeof(t)
+    assert typeof(t) == "tuple[long,long,long,tuple object] object", typeof(t)
     t1 = t[1:2]
     assert typeof(t1) == "tuple object", typeof(t1)
     t2 = t[1:2:2]
@@ -146,12 +146,12 @@ def indexing():
     assert typeof(L1) == "Python object", typeof(L1)
 
     t = (4,5,())
-    assert typeof(t) == "tuple object", typeof(t)
+    assert typeof(t) == "tuple[long,long,tuple object] object", typeof(t)
     t1 = t[1]
     assert typeof(t1) == "long", typeof(t1)
 
     t2 = ('abc', 'def', 'ghi')
-    assert typeof(t2) == "tuple object", typeof(t2)
+    assert typeof(t2) == "tuple[str object,str object,str object] object", typeof(t2)
     t2_1 = t2[1]
     assert typeof(t2_1) == "str object", typeof(t2_1)
     t2_2 = t2[t[0]-3]
@@ -302,7 +302,7 @@ def builtin_type_methods():
 
     u = u'abc def'
     split = u.split()
-    assert typeof(split) == 'list object', typeof(split)
+    assert typeof(split) == 'list[str object] object', typeof(split)
 
     str_result1 = u.upper()
     assert typeof(str_result1) == "str object", typeof(str_result1)
@@ -420,26 +420,28 @@ def increment():
     a += 1
     assert typeof(a) == "long"
 
+
 def loop():
     """
     >>> loop()
     """
     for a in range(10):
         pass
-    assert typeof(a) == "long"
+    assert typeof(a) == "long", typeof(a)
 
     b = 1.0
     for b in range(5):
         pass
-    assert typeof(b) == "double"
+    assert typeof(b) == "double", typeof(b)
 
     for c from 0 <= c < 10 by .5:
         pass
-    assert typeof(c) == "double"
+    assert typeof(c) == "double", typeof(c)
 
     for d in range(0, 10L, 2):
         pass
-    assert typeof(a) == "long"
+    assert typeof(d) == "long", typeof(d)
+
 
 def loop_over_charptr():
     """
@@ -502,6 +504,92 @@ def loop_over_unicode_literal():
         pass
     return typeof(uchar)
 
+
+def loop_over_sequence_literal_str():
+    """
+    >>> loop_over_sequence_literal_str()
+    """
+    for tuple_str_item in ("abc", "", "x"):
+        pass
+    assert typeof(tuple_str_item) == 'str object', typeof(tuple_str_item)
+
+    for list_str_item in ["abc", "", "x"]:
+        pass
+    assert typeof(list_str_item) == 'str object', typeof(list_str_item)
+
+    for set_str_item in {"abc", "", "x"}:
+        pass
+    assert typeof(set_str_item) == 'str object', typeof(set_str_item)
+
+
+def loop_over_sequence_literal_with_none():
+    """
+    >>> loop_over_sequence_literal_with_none()
+    """
+    for tuple_str_item in ("abc", "", None, "x"):
+        pass
+    assert typeof(tuple_str_item) == 'str object', typeof(tuple_str_item)
+
+    for list_str_item in ["abc", "", "x", None]:
+        pass
+    assert typeof(list_str_item) == 'str object', typeof(list_str_item)
+
+    for set_str_item in {None, "abc", "", "x"}:
+        pass
+    assert typeof(set_str_item) == 'str object', typeof(set_str_item)
+
+
+def loop_over_sequence_literal_int():
+    """
+    >>> loop_over_sequence_literal_int()
+    """
+    for tuple_int_item in (1, 2, 3, 4):
+        pass
+    assert typeof(tuple_int_item) == 'long', typeof(tuple_int_item)
+
+    for list_int_item in [1, 2, 3, 4]:
+        pass
+    assert typeof(list_int_item) == 'long', typeof(list_int_item)
+
+    for set_int_item in {1, 2, 3, 4}:
+        pass
+    assert typeof(set_int_item) == 'long', typeof(set_int_item)
+
+
+def loop_over_sequence_literal_float():
+    """
+    >>> loop_over_sequence_literal_float()
+    """
+    for tuple_float_item in (1., 2., 3., 4.):
+        pass
+    assert typeof(tuple_float_item) == 'double', typeof(tuple_float_item)
+
+    for list_float_item in [1., 2., 3., 4.]:
+        pass
+    assert typeof(list_float_item) == 'double', typeof(list_float_item)
+
+    for set_float_item in {1., 2., 3., 4.}:
+        pass
+    assert typeof(set_float_item) == 'double', typeof(set_float_item)
+
+
+def loop_over_sequence_literal_mixed():
+    """
+    >>> loop_over_sequence_literal_mixed()
+    """
+    for tuple_mixed_item in ("abc", b'', "x", None):
+        pass
+    assert typeof(tuple_mixed_item) == 'Python object', typeof(tuple_mixed_item)
+
+    for list_mixed_item in ["abc", b'', "x", None]:
+        pass
+    assert typeof(list_mixed_item) == 'Python object', typeof(list_mixed_item)
+
+    for set_mixed_item in {"abc", b'', "x", None}:
+        pass
+    assert typeof(set_mixed_item) == 'Python object', typeof(set_mixed_item)
+
+
 def loop_over_int_array():
     """
     >>> print( loop_over_int_array() )
@@ -511,6 +599,70 @@ def loop_over_int_array():
     for i in int_array:
         pass
     return typeof(i)
+
+
+@cython.test_assert_path_exists(
+    "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_ch']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_ch']",
+)
+def loop_over_character_list():
+    """
+    >>> loop_over_character_list()
+    Py_UCS4
+    str object
+    """
+    for c_ch in ['a', '\x0a', '\N{SNOWMAN}']:
+        assert not c_ch.isdigit()
+    print(typeof(c_ch))
+
+    for py_ch in ['a', '\x0a', None, '\N{SNOWMAN}']:
+        pass
+    print(typeof(py_ch))
+
+
+@cython.test_assert_path_exists(
+    "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_ch']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_ch']",
+)
+def loop_over_single_bytes_tuple():
+    """
+    >>> loop_over_single_bytes_tuple()
+    unsigned char
+    bytes object
+    """
+    for c_ch in (b'a', b'\x0a', b' '):
+        assert c_ch > 0
+    print(typeof(c_ch))
+
+    for py_ch in (b'a', b'\x0a', b' ', None):
+        assert py_ch or not py_ch
+    print(typeof(py_ch))
+
+
+@cython.test_assert_path_exists(
+    "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_b']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_b']",
+)
+def loop_over_bools():
+    """
+    >>> loop_over_bools()
+    bint
+    bool object
+    """
+    for c_b in True, False, False, True:
+        assert c_b or not c_b
+    print(typeof(c_b))
+
+    for py_b in None, True, False, False, True:
+        assert py_b or not py_b
+    print(typeof(py_b))
+
 
 cdef struct MyStruct:
     int a
@@ -611,19 +763,19 @@ def safe_only():
     # potentially overflowing arithmetic
     e = 1
     e += 1
-    assert typeof(e) == "Python object", typeof(e)
+    assert typeof(e) == "int object", typeof(e)
     f = 1
     res = f * 10
-    assert typeof(f) == "Python object", typeof(f)
+    assert typeof(f) == "int object", typeof(f)
     g = 1
     res = 10*(~g)
-    assert typeof(g) == "Python object", typeof(g)
+    assert typeof(g) == "int object", typeof(g)
     for j in range(10):
         res = -j
-    assert typeof(j) == "Python object", typeof(j)
+    assert typeof(j) == "int object", typeof(j)
     h = 1
     res = abs(h)
-    assert typeof(h) == "Python object", typeof(h)
+    assert typeof(h) == "int object", typeof(h)
     cdef int c_int = 1
     assert typeof(abs(c_int)) == "int", typeof(abs(c_int))
 
@@ -946,3 +1098,13 @@ def variable_with_name_of_type_exttype(SomeExtType x):
     SomeExtType = SomeExtType.get()
     assert typeof(SomeExtType) == "SomeExtType", typeof(SomeExtType)
     return SomeExtType
+
+def type_bitwise_or(actually_run_it, type t1, type t2):
+    """
+    >>> import sys
+    >>> type_bitwise_or(sys.version_info >= (3, 10), list, int)
+    """
+    if actually_run_it:
+        t3 = t1 | t2
+    # Generic object, not "type"
+    assert typeof(t3) == "Python object", typeof(t3)

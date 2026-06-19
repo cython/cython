@@ -21,7 +21,7 @@ Useful links
 * `PEP 703 <https://peps.python.org/pep-0703/>`_ - the initial proposal that lead
   to this feature existing in Python.
 * `Python documentation for free-threaded extensions <https://docs.python.org/3.13/howto/free-threading-extensions.html>`_.
-* `Quansight labs' documentation of the status of free-threading <https://py-free-threading.github.io/>`_.
+* `Python Free-Threading Guide <https://py-free-threading.github.io/>`_.
 
 Status
 ======
@@ -83,15 +83,17 @@ syntax::
     ...
     with cython.critical_section(o):
       ...
-      
-Critical sections can take one or two Python objects as arguments.  You are required to
+
+Critical sections can take either one or two Python objects as arguments, or take one or
+two ``cython.pymutex`` arguments (for convenience you can pass either the mutexes or
+pointers to the mutexes).  You are required to
 hold the GIL on entry to a critical section (you can release the GIL inside the critical
 section but that also temporarily releases the critical section so is unlikely to be
 a useful thing to do).
 
 We suggest reading the Python documentation to understand how critical sections work.
 
-* It is guaranteed that the lock will be held when executing code within the 
+* It is guaranteed that the lock will be held when executing code within the
   critical section. However, there is no guarantee that the code block will be executed
   in one atomic action.  This is very similar to the guarantee provided by
   a ``with gil`` block.
@@ -103,43 +105,6 @@ same guarantees simply from the fact you hold the GIL.  Our current experience i
 that this provides slightly less thread-safety than you get in freethreading builds
 simply because Python releases the GIL more readily than it releases a critical
 section.
-
-Locks
------
-
-Cython provides ``cython.pymutex`` as a more robust lock type.  Unlike
-``cython.critical_section`` this will never release the lock unless you explicitly
-ask it to (at the cost of losing ``critical_section``'s inbuilt protection against
-deadlocks).
-
-``cython.pymutex`` supports two operations: ``acquire`` and ``release``.
-``cython.pymutex`` can also be used in a ``with`` statement::
-
-  cdef cython.pymutex l
-  with l:
-      ...  # perform operations with the lock
-  
-  # or manually
-  l.acquire()
-  ...  # perform operations with the lock
-  l.release()
-
-``acquire`` will avoid deadlocks if the GIL is held (only relevant in 
-non-freethreading versions of Python).  However, you are at risk of deadlock
-if you attempt to acquire the GIL while holding a ``cython.pymutex`` lock.
-Be aware that it is also possible for Cython to acquire the GIL implicitly
-(for example by raising an exception) and this is also a deadlock risk.
-
-On Python 3.13+, ``cython.pymutex`` is just a
-`PyMutex <https://docs.python.org/3.13/c-api/init.html#synchronization-primitives>`_
-and so is very low-cost.  On earlier versions of Python, it uses the
-(undocumented) ``PyThread_type_lock``.
-
-``cython.pythread_type_lock`` exposes the same interface but always
-uses ``PyThread_type_lock``.  It is intended for sharing locks between
-modules with the Limited API (since ``PyMutex`` is unavailable in the
-Limited API).  Note that unlike the "raw" ``PyThread_type_lock`` our
-wrapping will avoid deadlocks with the GIL.
 
 As an alternative syntax, ``cython.critical_section`` can be used as a decorator
 or a function taking at least one argument.  In this case the critical section
@@ -158,6 +123,130 @@ lasts the duration of the function and locks on the first argument::
 
 Our expectation is that this will be most useful for locking on the ``self`` argument
 of methods in C classes.
+
+
+Locks
+-----
+
+Cython provides ``cython.pymutex`` as a more robust lock type.  Unlike
+``cython.critical_section`` this will never release the lock unless you explicitly
+ask it to (at the cost of losing ``critical_section``'s inbuilt protection against
+deadlocks).
+
+``cython.pymutex`` supports three operations: ``acquire``, ``release``,
+and the predicate ``locked``.
+``cython.pymutex`` can also be used in a ``with`` statement::
+
+  cdef cython.pymutex l
+  with l:
+      ...  # perform operations with the lock
+
+  # or manually
+  l.acquire()
+  ...  # perform operations with the lock
+  l.release()
+  
+  # check if the lock is currently held
+  if l.locked():
+      ...  # lock is held
+
+The ``locked()`` method returns ``True`` if the lock is currently held, ``False`` otherwise.
+It can be called with or without the GIL and is available on all Python versions. On Python 3.13+,
+it uses the native PyMutex API for efficient atomic reads. On older Python versions, it uses a
+try-acquire approach that temporarily acquires and releases the lock if it's available.
+
+``acquire`` will avoid deadlocks if the GIL is held (only relevant in
+non-freethreading versions of Python).  However, you are at risk of deadlock
+if you attempt to acquire the GIL while holding a ``cython.pymutex`` lock.
+Be aware that it is also possible for Cython to acquire the GIL implicitly
+(for example by raising an exception) and this is also a deadlock risk.
+
+On Python 3.13+, ``cython.pymutex`` is just a
+`PyMutex <https://docs.python.org/3.13/c-api/init.html#synchronization-primitives>`_
+and so is very low-cost.  On earlier versions of Python, it uses the
+(undocumented) ``PyThread_type_lock``.
+
+``cython.pythread_type_lock`` exposes the same interface but always
+uses ``PyThread_type_lock``.  It is intended for sharing locks between
+modules with the Limited API (since ``PyMutex`` is unavailable in the
+Limited API).  Note that unlike the "raw" ``PyThread_type_lock`` our
+wrapping will avoid deadlocks with the GIL.
+
+Thread-safe initialization of caches
+------------------------------------
+
+.. Note::
+
+   This relies on features that depend on the C++ standard library and will not
+   work if Cython is configured to generate C code. See :ref:`use_cpp` for why
+   this feature can only work in C++ extensions.
+
+Cython 3.2 and upwards has support for using C++ standard library atomics and
+synchronization primitives. This is very useful for a number of use-cases, but
+here we will focus on using Cython's wrappers for C++ synchronization primitives
+to initialize a cache that hangs off a cdef class.
+
+Consider the following code:
+
+.. literalinclude:: ../../examples/userguide/freethreading/buggy_init.pyx
+
+This pattern comes up often when caches or other kinds of expensive data are
+calculated lazily on first use. The ``obj`` property is backed by a private
+``_py_obj`` attribute. The ``expensive_function`` in this example calls Python
+code, but this pattern also comes up if an expensive native calculation needs
+to happen.
+
+Concurrently accessing the ``obj`` property of the ``A`` class from multiple
+threads could cause data races when one thread does ``if not self._py_obj`` and
+another thread assigns to ``self._py_obj`` in the if statement. This also wastes
+resources and could possibly cause a resource leak if more than one thread
+simultaneously tries to lazily-initialize the cache.
+
+A safe version of the above code might look like:
+
+.. literalinclude:: ../../examples/userguide/freethreading/correct_init.pyx
+
+This uses the ``py_safe_call_once`` function, which Cython provides as a wrapper
+around the C++ standard library ``call_once`` function. We're using the
+``py_safe`` variants to avoid explicitly writing code to handle possible
+deadlocks with the interpreter -- ``py_safe_call_once`` handles that possibility
+for us.
+
+Since ``py_safe_call_once`` cannot accept a Python object as an argument, this
+example casts to ``void *`` to work around that. This is safe because the
+calling function holds a reference to ``self`` for the entire duration of the
+``py_safe_call_once`` call.
+
+In cases where the expensive calculation happens in Python, or where you need to
+initialize a Python singleton, you can use ``py_safe_call_object_once``:
+
+.. literalinclude:: ../../examples/userguide/freethreading/correct_py_init.pyx
+
+The ``py_safe_call_object_once`` function accepts a Python object and no
+additional arguments and ensures the ``__call__`` method is invoked exactly
+once, so a closure or wrapper object with a ``__call__`` implementation is
+necessary to pass state to the initialization function.
+
+If more than one thread observes the atomic ``cache_flag`` to be unset, then
+each thread that observes this state will define a closure but only one thread
+will ever call the closure due to the guarantees provided by the C++ standard
+library ``call_once`` function. After the flag is set, then thereafter no thread
+will pay the cost of defining the closure.
+
+Automatically applied critical sections
+---------------------------------------
+
+From Cython 3.3, Cython adds critical sections to automatically generated functions.
+This includes properties on extension types (e.g. ``cdef public int x`` or
+``cdef readonly int x``), the auto-generated pickle functions of
+extension types, and functions of ``cython.dataclasses.dataclass`` class.
+The thread-safety here is achieved by adding ``with cython.critical_section(self[, other]):``
+where ``self`` is the instance of the extension type and ``other`` is the second argument
+for dataclass comparison functions only.  Therefore, if you are writing
+your own code interacting with the underlying data then you can use the same
+lock.  Remember that critical sections can be interrupted so this is mostly
+a no-crash guarantee - the auto-generated pickle function won't necessary be
+an atomic snapshot for example.
 
 Pitfalls
 ========
@@ -187,7 +276,7 @@ inconsistent and the interpreter will crash.
    When running pure Python code directly in the Python interpreter itself, the
    interpreter should ensure that reference counting is at least consistent and
    that the interpreter does not crash.  Cython doesn't currently even go this far.
-   
+
    By itself "not crashing" is not a useful level of thread safety for most algorithms.
    It will always be your own responsibility to use appropriate synchronization
    mechanisms so that your own algorithms work as you intend.
@@ -273,6 +362,80 @@ need there is for locking to control their interaction, and the less likely
 they are to slow each other down by invaliding the CPU cache for other
 threads.
 
+Use thread-locals to avoid interactions between threads
+-------------------------------------------------------
+
+In some situations, you can use thread-locals to preventing interactions between threads, and then (if necessary) combine them once you're done with the local calculation.
+This means you only need to use locking in a very limited part of your code, when copying data from thread-local to shared memory.
+
+Consider the following code; if you expect a single ``NotThreadSafeClass`` instance to have its ``query()`` method called from multiple threads at the same time, you will get incorrect results::
+
+  cdef class NotThreadSafeClass:
+
+      cdef int n_calls
+
+      def __cinit__(self):
+          self.n_calls = 0
+
+      def get_num_calls(self):
+          return self.n_calls
+
+      def query(self, param1, param2):
+          for i in range(param1):
+              # ... lots of logic ...
+              self.n_calls += 1
+              # ...
+          return result
+
+Adding a critical section or lock around ``self.n_calls += 1`` is one option, but if it's in a hot inner loop the result will be a significant slowdown.
+
+Using a thread-local variable is often a faster option, and specifically C (or C++) thread-locals.
+Since Cython `does not yet expose the relevant specifiers <https://github.com/cython/cython/issues/6745>`_, you will need to create custom thread-local types yourself::
+
+  cdef extern from *:
+      """
+      #if defined(_MSC_VER)
+        // MS compiler doesn't do standardized _Thread_local until very recent
+        // versions:
+        #define tls_int __declspec(thread) int
+      #else
+        // _Thread_local is available in C11 and later:
+      #define tls_int _Thread_local int
+      #endif
+      """
+      # Generated code will use the version above, this is just a placeholder.
+      ctypedef int tls_int
+
+  cimport cython
+
+  # A thread-local variable:
+  cdef tls_int tls_n_calls
+
+  cdef class ThreadSafeClass:
+
+      # ... the rest of the class is unchanged ...
+
+      def query(self, param1, param2):
+          # Initialize the thread-local counter:
+          global tls_n_calls
+          tls_n_calls = 0
+
+          for i in range(param1):
+              # ... lots of logic ...
+              # Increment the thread-local counter, no need for locking:
+              tls_n_calls += 1
+              # ...
+
+          # Safely increment the class state from the thread local. This is
+          # slow, but happens much less frequently:
+          with cython.critical_section(self):
+              self.n_calls += tls_n_calls
+
+          return result
+
+Note that you will not be able to pass the thread local to Python code.
+If you need to access it, copy it to normal ``cdef`` variable and then pass that to Python APIs.
+
 Should you use ``prange``?
 --------------------------
 
@@ -341,6 +504,8 @@ a function and just have the loop call the function::
 Since ``tmp`` is now local to the function scope, each function call has its own copy
 and thus there is no conflict of Python objects between threads.
 
+.. _use_cpp:
+
 Use C++ for low-level synchronization primitives
 ------------------------------------------------
 
@@ -402,7 +567,7 @@ Available library facilities include:
   (C++, wrapped in Cython 3.1+),
 
 * condition variables, allowing one thread to wait until a condition is met (C and C++,
-  as of Cython 3.1 only the C version is wrapped),
+  C version wrapped in Cython 3.1, C++ version in Cython 3.2),
 
 * ``call_once`` allowing an initialization function to be called safely from many threads
   (C and C++, wrapped in Cython 3.1+),
@@ -422,6 +587,30 @@ Available library facilities include:
 This list of non-exhaustive. And you can also use third-party libraries outside
 the language standard libraries for more options.
 
+In addition to the plain standard library features, Cython (3.2) also produces "py_safe" versions
+of some of these features (e.g. ``call_once``, mutex, ``lock``, ``condition_variable``).
+These ensure
+
+* The Python thread-state is released (if held) while blocking and then restored
+  to its initial state after the call.
+
+* Acquiring and releasing the Python thread-state does not deadlock with any C/C++ locks
+  used in the operation.
+
+* Any callbacks (e.g. the functions passed to ``call_once`` or the predicates passed to
+  ``condition_variable``) are called with the Python thread-state held).
+
+* Python exceptions from callbacks are handled.
+
+* For the C++ versions, you can use a callable Python object as a callback (where
+  applicable).  
+
+The "py_safe" functions are only effective if you use
+them consistently every time you try to acquire the lock while you might be holding the Python
+thread-state.  This means you should use the "py_safe" versions even in a function labelled
+as ``nogil`` - remember that this says that a function *may* be called without an attached
+Python thread-state rather than ensuring that it definitely is.
+
 ``cython.critical_section`` vs GIL
 ----------------------------------
 
@@ -439,7 +628,7 @@ the GIL (on non-freethreading builds) is reading and writing to
     cdef object attr
 
   ...
-  
+
   cdef C c_instance = C()
   with cython.critical_section(c_instance):
     c_instance.attr = something
@@ -482,7 +671,7 @@ the addition gets expanded to something like
 
   // this section is hidden inside a ``Py_SETREF`` or similar
   {
-    temp3 = c_instance->attr; 
+    temp3 = c_instance->attr;
     c_instance->attr = temp2;
     // May trigger arbitrary Python code through finalizers
     Py_DECREF(temp3);
@@ -491,7 +680,7 @@ the addition gets expanded to something like
 (we show normal addition rather than in-place addition for ease
 of explanation, but the result is similar).
 
-Practically there are some differences between ``critical_section`` 
+Practically there are some differences between ``critical_section``
 and the GIL:
 
 * Releasing the GIL happens at fairly regular intervals after
@@ -527,7 +716,7 @@ However, be wary of code like::
     cdef void add_one(self):
       with cython.critical_section(self):
         self.attr += 1
-  
+
   ...
 
   c_instance = C()
@@ -552,7 +741,7 @@ results on both free-threading and GIL builds::
       self.attr = 1
 
   ...
-  
+
   c_instance = C()
   with cython.critical_section(c_instance):
     c_instance.attr += 1

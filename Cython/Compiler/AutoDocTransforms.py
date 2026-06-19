@@ -50,7 +50,7 @@ class EmbedSignature(CythonTransform):
         self.class_node = None
 
     def _fmt_expr(self, node):
-        writer = ExpressionWriter()
+        writer = ExpressionWriter(allow_unknown_nodes=True)
         result = writer.write(node)
         # print(type(node).__name__, '-->', result)
         return result

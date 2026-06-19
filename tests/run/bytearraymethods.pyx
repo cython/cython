@@ -224,10 +224,14 @@ def bytearray_append(bytearray b, signed char c, int i, object o):
     c3
 
     >>> b = bytearray(b'abc')
-    >>> try:
-    ...     b = bytearray_append(b, ord('x'), ord('y'), b'zz')
-    ... except (TypeError, ValueError): pass  # (Py3, Py2)
-    ... else: print("FAIL")
+    >>> b = bytearray_append(b, ord('x'), 0xc3, 0xc3)
+    >>> print(b.decode('iso8859-1'))
+    abcX@xÃÃ
+
+    >>> b = bytearray(b'abc')
+    >>> b = bytearray_append(b, ord('x'), ord('y'), b'zz')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     >>> print(b.decode('ascii'))
     abcX@xy
 
