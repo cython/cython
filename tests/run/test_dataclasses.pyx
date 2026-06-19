@@ -2,6 +2,8 @@
 # DO NOT EDIT
 
 # cython: language_level=3
+# cython: auto_pickle=False
+
 include "test_dataclasses.pxi"
 
 @dataclass
@@ -412,18 +414,21 @@ class C_TestCase_test_field_metadata_default:
     i: int
 
 @dataclass
+@auto_pickle(True)
 @cclass
 class P_TestCase_test_dataclasses_pickleable:
     x: int
     y: int = 0
 
 @dataclass
+@auto_pickle(True)
 @cclass
 class Q_TestCase_test_dataclasses_pickleable:
     x: int
     y: int = field(default=0, init=False)
 
 @dataclass
+@auto_pickle(True)
 @cclass
 class R_TestCase_test_dataclasses_pickleable:
     x: int
@@ -677,7 +682,7 @@ class B_TestMatchArgs_test_match_args_argument(A_TestMatchArgs_test_match_args_a
 class CustomError(Exception):
     pass
 
-class TestCase(unittest.TestCase):
+class TestCase(TimedTest):
 
     def test_no_fields(self):
         C = C_TestCase_test_no_fields
@@ -1121,10 +1126,10 @@ class TestCase(unittest.TestCase):
                     self.assertEqual(new_sample.x, another_new_sample.x)
                     self.assertEqual(sample.y, another_new_sample.y)
 
-class TestFieldNoAnnotation(unittest.TestCase):
+class TestFieldNoAnnotation(TimedTest):
     pass
 
-class TestInit(unittest.TestCase):
+class TestInit(TimedTest):
 
     def test_overwriting_init(self):
         C = C_TestInit_test_overwriting_init
@@ -1134,7 +1139,7 @@ class TestInit(unittest.TestCase):
         C = C_TestInit_test_overwriting_init__
         self.assertEqual(C(5).x, 10)
 
-class TestRepr(unittest.TestCase):
+class TestRepr(TimedTest):
 
     def test_overwriting_repr(self):
         C = C_TestRepr_test_overwriting_repr
@@ -1144,7 +1149,7 @@ class TestRepr(unittest.TestCase):
         C = C_TestRepr_test_overwriting_repr__
         self.assertEqual(repr(C(0)), 'x')
 
-class TestEq(unittest.TestCase):
+class TestEq(TimedTest):
 
     def test_no_eq(self):
         C = C_TestEq_test_no_eq
@@ -1165,10 +1170,10 @@ class TestEq(unittest.TestCase):
         self.assertEqual(C(1), 5)
         self.assertNotEqual(C(1), 1)
 
-class TestOrdering(unittest.TestCase):
+class TestOrdering(TimedTest):
     pass
 
-class TestHash(unittest.TestCase):
+class TestHash(TimedTest):
 
     def test_unsafe_hash(self):
         C = C_TestHash_test_unsafe_hash
@@ -1188,10 +1193,10 @@ class TestHash(unittest.TestCase):
         self.assertEqual(hash(C(4)), hash((4,)))
         self.assertEqual(hash(C(42)), hash((42,)))
 
-class TestMakeDataclass(unittest.TestCase):
+class TestMakeDataclass(TimedTest):
     pass
 
-class TestReplace(unittest.TestCase):
+class TestReplace(TimedTest):
 
     def test(self):
         C = C_TestReplace_test
@@ -1283,10 +1288,10 @@ class TestReplace(unittest.TestCase):
         c.f = c
         self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_misc_attrs(f=..., g=1)')
 
-class TestAbstract(unittest.TestCase):
+class TestAbstract(TimedTest):
     pass
 
-class TestMatchArgs(unittest.TestCase):
+class TestMatchArgs(TimedTest):
 
     def test_match_args(self):
         C = C_TestMatchArgs_test_match_args
@@ -1307,7 +1312,7 @@ class TestMatchArgs(unittest.TestCase):
         B = B_TestMatchArgs_test_match_args_argument
         self.assertEqual(B.__match_args__, ('a', 'z'))
 
-class TestKeywordArgs(unittest.TestCase):
+class TestKeywordArgs(TimedTest):
     pass
 if __name__ == '__main__':
     unittest.main()

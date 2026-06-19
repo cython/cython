@@ -1,8 +1,8 @@
 from copy import deepcopy
-from unittest import TestCase
 
 from Cython.Compiler.FlowControl import (
     NameAssignment, StaticAssignment, Argument, NameDeletion)
+from Cython.TestUtils import TimedTest
 
 
 class FakeType:
@@ -22,7 +22,7 @@ class FakeEntry:
     type = FakeType()
 
 
-class TestGraph(TestCase):
+class TestGraph(TimedTest):
     def test_deepcopy(self):
         lhs, rhs = FakeNode(), FakeNode()
         entry = FakeEntry()

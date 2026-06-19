@@ -568,6 +568,7 @@ def format_decoded_bytes(bytes value):
 
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
+    "//CloneNode",  # No repeated formats.
 )
 def format_uchar(int x):
     """
@@ -634,6 +635,7 @@ def format_cint_padding(int x):
 @cython.test_fail_if_path_exists(
     "//AddNode",
     "//ModNode",
+    "//CloneNode",  # No repeated formats.
 )
 @cython.test_assert_path_exists(
     "//FormattedValueNode",
@@ -715,6 +717,20 @@ def dedup_same(x, int i, float f):
     'xabci5f5.5xabci5f5.5'
     """
     return f"x{x}i{i}f{f}x{x}i{i}f{f}"
+
+
+@cython.test_assert_path_exists(
+    "//JoinedStrNode",
+    "//JoinedStrNode/CloneNode",
+)
+def dedup_str(str x):
+    """
+    >>> dedup_str('abc')
+    'xabcxabcxabcxabcxabcxabc'
+    >>> dedup_str(None)
+    'xNonexNonexNonexNonexNonexNone'
+    """
+    return f"x{x}x{x}x{x}x{x}x{x}x{x}"
 
 
 @cython.test_assert_path_exists(

@@ -17,7 +17,7 @@ static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, 
 /////////////// ImportImpl ///////////////
 //@requires: StringTools.c::IncludeStringH
 //@requires: Builtins.c::HasAttr
-//@requires: ObjectHandling.c::TupleAndListFromArray
+//@requires: ObjectHandling.c::ListFromArray
 //@requires: ObjectHandling.c::PyObjectCallOneArg
 
 static int __Pyx__Import_GetModule(PyObject *qualname, PyObject **module) {
@@ -106,21 +106,18 @@ static PyObject *__Pyx__Import(PyObject *name, PyObject *const *imported_names, 
     } else if (unlikely(module_found == -1)) {
         return NULL;
     }
+    #if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030f00a6
+    // Prefer the empty frozendict singleton when we know it's faster to get than creating a new dict.
+    empty_dict = PyFrozenDict_New(NULL);
+    #else
     empty_dict = PyDict_New();
+    #endif
     if (unlikely(!empty_dict))
         goto bad;
     if (imported_names) {
-#if CYTHON_COMPILING_IN_CPYTHON
         from_list = __Pyx_PyList_FromArray(imported_names, len_imported_names);
         if (unlikely(!from_list))
             goto bad;
-#else
-        from_list = PyList_New(len_imported_names);
-        if (unlikely(!from_list)) goto bad;
-        for (Py_ssize_t i=0; i<len_imported_names; ++i) {
-            if (PyList_SetItem(from_list, i, __Pyx_NewRef(imported_names[i])) < 0) goto bad;
-        }
-#endif
     }
     if (level == -1) {
         const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');
@@ -147,7 +144,7 @@ bad:
 }
 
 
-/////////////// ImportFrom.proto ///////////////
+/////////////// ImportFrom.export ///////////////
 
 static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name); /*proto*/
 
@@ -269,17 +266,10 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
 
 
 static int ${import_star}(PyObject* m) {
-
-    int i;
     int ret = -1;
-    const char* s;
+    Py_ssize_t size;
     PyObject *locals = 0;
     PyObject *list = 0;
-    PyObject *utf8_name = 0;
-    PyObject *name;
-    PyObject *item;
-    PyObject *import_obj;
-    Py_ssize_t size;
     ${modulestatetype_cname} *mstate = __Pyx_PyModule_GetState(m);
 
     locals = PyDict_New();              if (!locals) goto bad;
@@ -290,23 +280,19 @@ static int ${import_star}(PyObject* m) {
     #if !CYTHON_ASSUME_SAFE_SIZE
     if (size < 0) goto bad;
     #endif
-    for(i=0; i<size; i++) {
+    for (Py_ssize_t i=0; i<size; i++) {
+        PyObject *import_obj, *name, *item;
         import_obj = __Pyx_PyList_GET_ITEM(list, i); if (!import_obj) goto bad;
         name = __Pyx_PyTuple_GET_ITEM(import_obj, 0); if (!name) goto bad;
         item = __Pyx_PyTuple_GET_ITEM(import_obj, 1); if (!item) goto bad;
 
-        utf8_name = PyUnicode_AsUTF8String(name);
-        if (!utf8_name) goto bad;
-        s = __Pyx_PyBytes_AsString(utf8_name); if (!s) goto bad;
-        if (${import_star_set}(mstate, item, name, s) < 0) goto bad;
-        Py_DECREF(utf8_name); utf8_name = 0;
+        if (${import_star_set}(mstate, item, name) < 0) goto bad;
     }
     ret = 0;
 
 bad:
     Py_XDECREF(locals);
     Py_XDECREF(list);
-    Py_XDECREF(utf8_name);
     return ret;
 }
 
@@ -722,18 +708,17 @@ bad:
 
 
 /////////////// MergeVTables.proto ///////////////
-//@requires: GetVTable
 
 static int __Pyx_MergeVtables(PyTypeObject *type); /*proto*/
 
 /////////////// MergeVTables ///////////////
+//@requires: ObjectHandling.c::RaiseErrorWithObjectTypes
+//@requires: GetVTable
 
 static int __Pyx_MergeVtables(PyTypeObject *type) {
     int i=0;
     Py_ssize_t size;
     void** base_vtables;
-    __Pyx_TypeName tp_base_name = NULL;
-    __Pyx_TypeName base_name = NULL;
     void* unknown = (void*)-1;
     PyObject* bases = __Pyx_PyType_GetSlot(type, tp_bases, PyObject*);
     int base_depth = 0;
@@ -797,30 +782,25 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
     return 0;
 bad:
     {
-        PyTypeObject* basei = NULL;
         PyTypeObject* tp_base = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
-        tp_base_name = __Pyx_PyType_GetFullyQualifiedName(tp_base);
+        PyTypeObject* basei;
 #if CYTHON_AVOID_BORROWED_REFS
         basei = (PyTypeObject*)PySequence_GetItem(bases, i);
-        if (unlikely(!basei)) goto really_bad;
+        if (unlikely(!basei)) goto other_failure;
 #elif !CYTHON_ASSUME_SAFE_MACROS
         basei = (PyTypeObject*)PyTuple_GetItem(bases, i);
-        if (unlikely(!basei)) goto really_bad;
+        if (unlikely(!basei)) goto other_failure;
 #else
         basei = (PyTypeObject*)PyTuple_GET_ITEM(bases, i);
 #endif
-        base_name = __Pyx_PyType_GetFullyQualifiedName(basei);
+
+    __Pyx_RaiseTypeErrorWithTypes(
+        "multiple bases have vtable conflict: '" __Pyx_FMT_TYPENAME "' and '" __Pyx_FMT_TYPENAME "'", tp_base, basei);
+
 #if CYTHON_AVOID_BORROWED_REFS
         Py_DECREF(basei);
 #endif
     }
-    PyErr_Format(PyExc_TypeError,
-        "multiple bases have vtable conflict: '" __Pyx_FMT_TYPENAME "' and '" __Pyx_FMT_TYPENAME "'", tp_base_name, base_name);
-#if CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
-really_bad: // bad has failed!
-#endif
-    __Pyx_DECREF_TypeName(tp_base_name);
-    __Pyx_DECREF_TypeName(base_name);
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
 other_failure:
 #endif
@@ -858,6 +838,7 @@ Py_CLEAR(CGLOBAL(__pyx_numpy_ndarray));
 
 /////////////// ImportNumPyArray ///////////////
 //@requires: ImportExport.c::Import
+//@requires: Exceptions.c::IgnoreException
 
 static PyObject* __Pyx__ImportNumPyArray(void) {
     PyObject *numpy_module, *ndarray_object = NULL;
@@ -867,8 +848,9 @@ static PyObject* __Pyx__ImportNumPyArray(void) {
         Py_DECREF(numpy_module);
     }
     if (unlikely(!ndarray_object)) {
-        // ImportError, AttributeError, ...
-        PyErr_Clear();
+        if (!__Pyx_IgnoreException(PyExc_Exception)) {
+            return NULL;
+        }
     }
     if (unlikely(!ndarray_object || !PyObject_TypeCheck(ndarray_object, &PyType_Type))) {
         Py_XDECREF(ndarray_object);
@@ -914,6 +896,6 @@ static CYTHON_INLINE PyObject* __Pyx__ImportNumPyArrayTypeIfAvailable(void) {
 
 static CYTHON_INLINE PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void) {
     PyObject *result = __Pyx__ImportNumPyArrayTypeIfAvailable();
-    Py_INCREF(result);
+    Py_XINCREF(result);
     return result;
 }

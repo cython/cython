@@ -20,6 +20,7 @@ import warnings
 import contextlib
 
 from Cython.Compiler import Errors
+from Cython.TestUtils import TimedTest
 
 
 try:
@@ -173,7 +174,7 @@ def captured_stderr():
         sys.stderr = orig_stderr
 
 
-class AsyncBadSyntaxTest(unittest.TestCase):
+class AsyncBadSyntaxTest(TimedTest):
 
     @contextlib.contextmanager
     def assertRaisesRegex(self, exc_type, regex):
@@ -693,18 +694,8 @@ class AsyncBadSyntaxTest(unittest.TestCase):
             """]
 
         for code in samples:
-            # assertRaises() differs in Py2.6, so use our own assertRaisesRegex() instead
-            with self.subTest(code=code), self.assertRaisesRegex(Errors.CompileError, '.'):
+            with self.subTest(code=code), self.assertRaises(Errors.CompileError):
                 exec(code, {}, {})
-
-    if not hasattr(unittest.TestCase, 'subTest'):
-        @contextlib.contextmanager
-        def subTest(self, code, **kwargs):
-            try:
-                yield
-            except Exception:
-                print(code)
-                raise
 
     def test_goodsyntax_1(self):
         # Tests for issue 24619
@@ -760,7 +751,7 @@ class AsyncBadSyntaxTest(unittest.TestCase):
             self.assertTrue(inspect.iscoroutinefunction(f))
 
 
-class TokenizerRegrTest(unittest.TestCase):
+class TokenizerRegrTest(TimedTest):
 
     @unittest.skip("Very slow C code compilation.")
     def test_oneline_defs(self):
@@ -785,7 +776,7 @@ class TokenizerRegrTest(unittest.TestCase):
             self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
 
 
-class CoroutineTest(unittest.TestCase):
+class CoroutineTest(TimedTest):
 
     @classmethod
     def setUpClass(cls):
@@ -2414,7 +2405,7 @@ class CoroutineTest(unittest.TestCase):
         self.assertIn("was never awaited", stderr.getvalue())
 
 
-class CoroAsyncIOCompatTest(unittest.TestCase):
+class CoroAsyncIOCompatTest(TimedTest):
 
     def test_asyncio_1(self):
         import asyncio
