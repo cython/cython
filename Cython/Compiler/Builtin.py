@@ -496,6 +496,8 @@ types_that_construct_their_instance = frozenset({
 
 # When updating this mapping, also update "unsafe_compile_time_methods" below
 # if methods are added that are not safe to evaluate at compile time.
+# 'T' - type identical to type in dictionary key
+# 'I' - type from subscript - e.g. for list[int], I is `int`
 inferred_method_return_types = {
     'complex': dict(
         conjugate='complex',
@@ -520,6 +522,7 @@ inferred_method_return_types = {
         copy='T',
         count='Py_ssize_t',
         index='Py_ssize_t',
+        pop='I',
     ),
     'tuple': dict(
         count='Py_ssize_t',
@@ -637,6 +640,7 @@ inferred_method_return_types = {
         issuperset='bint',
         symmetric_difference='T',
         union='T',
+        pop='I',
     ),
     'frozenset': dict(
         # Inherited from 'set' below.
@@ -645,6 +649,8 @@ inferred_method_return_types = {
         copy='T',
         fromkeys='T',  # classmethod
         popitem='tuple',
+        pop='I',
+        get='I',
     ),
     'frozendict': dict(
         copy='T',
@@ -656,24 +662,34 @@ inferred_method_return_types['bytearray'].update(inferred_method_return_types['b
 inferred_method_return_types['frozenset'].update(inferred_method_return_types['set'])
 
 
-def find_return_type_of_builtin_method(builtin_type, method_name):
-    type_name = builtin_type.name
+def find_return_type_of_builtin_method(pos, env, builtin_type, method_name):
+    container_type = builtin_type.get_container_type()
+    type_name = container_type.name if container_type else builtin_type.name
     if type_name in inferred_method_return_types:
         methods = inferred_method_return_types[type_name]
         if method_name in methods:
+            subscripted_type_names: str = ''
             return_type_name = methods[method_name]
             if '[' in return_type_name:
-                # TODO: Keep the "[...]" part when we add support for generics.
-                return_type_name = return_type_name.partition('[')[0]
+                return_type_name, _, subscripted_type_names = return_type_name[:-1].partition('[')
             if return_type_name == 'T':
                 return builtin_type
-            if 'T' in return_type_name:
-                return_type_name = return_type_name.replace('T', builtin_type.name)
+            if return_type_name == 'I':
+                return builtin_type.infer_indexed_type() or PyrexTypes.py_object_type
+            if 'T' in subscripted_type_names:
+                subscripted_type_names = subscripted_type_names.replace('T', builtin_type.name)
             if return_type_name == 'bint':
                 return PyrexTypes.c_bint_type
             elif return_type_name == 'Py_ssize_t':
                 return PyrexTypes.c_py_ssize_t_type
-            return builtin_scope.lookup(return_type_name).type
+            container_type = builtin_scope.lookup(return_type_name).type
+            if subscripted_type_names:
+                subscripted_types = [
+                    entry.type if entry else PyrexTypes.py_object_type
+                    for entry in map(builtin_scope.lookup, subscripted_type_names.split(','))
+                ]
+                container_type = container_type.specialize_here(pos, env, subscripted_types)
+            return container_type
     return PyrexTypes.py_object_type
 
 

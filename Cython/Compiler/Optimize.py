@@ -11,6 +11,7 @@ import copy
 import codecs
 import itertools
 from functools import partial, reduce
+from typing import Optional
 from operator import attrgetter
 
 from . import TypeSlots
@@ -224,7 +225,7 @@ class IterationTransform(Visitor.EnvTransform):
             if annotation.is_subscript:
                 annotation = annotation.base  # container base type
 
-        if iterable.type.is_pydict_type:
+        if iterable.type.is_pyanydict_type:
             # like iterating over dict.keys()
             if reversed:
                 # CPython raises an error here: not a sequence
@@ -232,7 +233,7 @@ class IterationTransform(Visitor.EnvTransform):
             return self._transform_dict_iteration(
                 node, dict_obj=iterable, method=None, keys=True, values=False)
 
-        if iterable.type.is_pyset_type or iterable.type.is_pyfrozenset_type:
+        if iterable.type.is_pyanyset_type:
             if reversed:
                 # CPython raises an error here: not a sequence
                 return node
@@ -1089,6 +1090,17 @@ class IterationTransform(Visitor.EnvTransform):
         temps.append(temp)
         pos_temp = temp.ref(node.pos)
 
+        legacy_method = False
+        if method and method.startswith('iter'):
+            assert method in ('iterkeys', 'itervalues', 'iteritems'), method
+            if dict_obj.type.is_pydict_type:
+                method = EncodedString(method[4:])
+            elif dict_obj.type.is_pyfrozendict_type:
+                # Don't apply legacy Python 2 behaviour to Python 3.15 types
+                return node
+            else:
+                legacy_method = True
+
         key_target = value_target = tuple_target = None
         if keys and values:
             if node.target.is_sequence_constructor:
@@ -1140,7 +1152,7 @@ class IterationTransform(Visitor.EnvTransform):
             method_node = ExprNodes.NullNode(dict_obj.pos)
             dict_obj = dict_obj.as_none_safe_node("'NoneType' object is not iterable")
 
-        is_dict = ExprNodes.IntNode.for_int(node.pos, int(dict_obj.type.is_pydict_type))
+        is_dict = ExprNodes.IntNode.for_int(node.pos, int(dict_obj.type.is_pyanydict_type))
 
         result_code = [
             Nodes.SingleAssignmentNode(
@@ -1153,9 +1165,11 @@ class IterationTransform(Visitor.EnvTransform):
                 lhs = dict_temp,
                 rhs = ExprNodes.PythonCapiCallNode(
                     dict_obj.pos,
-                    "__Pyx_dict_iterator",
+                    "__Pyx_dict_iterator_legacy" if legacy_method else "__Pyx_dict_iterator",
                     self.PyDict_Iterator_func_type,
-                    utility_code = UtilityCode.load_cached("dict_iter", "Optimize.c"),
+                    utility_code = UtilityCode.load_cached(
+                        "dict_iter_legacy" if legacy_method else "dict_iter",
+                        "Optimize.c"),
                     args = [dict_obj, is_dict, method_node, dict_len_temp_addr, is_dict_temp_addr],
                     is_temp=True,
                 )),
@@ -2588,7 +2602,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     PyDict_Copy_func_type = PyrexTypes.CFuncType(
         Builtin.dict_type, [
-            PyrexTypes.CFuncTypeArg("dict", Builtin.dict_type, None)
+            PyrexTypes.CFuncTypeArg("dict", PyrexTypes.py_object_type, None)
             ])
 
     def _handle_simple_function_dict(self, node, function, pos_args):
@@ -2869,18 +2883,28 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         ],
         exception_value=-1)
 
-    _map_to_capi_len_function = {
-        Builtin.unicode_type:    "__Pyx_PyUnicode_GET_LENGTH",
-        Builtin.bytes_type:      "__Pyx_PyBytes_GET_SIZE",
-        Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
-        Builtin.list_type:       "__Pyx_PyList_GET_SIZE",
-        Builtin.tuple_type:      "__Pyx_PyTuple_GET_SIZE",
-        Builtin.set_type:        "__Pyx_PySet_GET_SIZE",
-        Builtin.frozenset_type:  "__Pyx_PySet_GET_SIZE",
-        Builtin.dict_type:       "PyDict_Size",
-    }.get
-
     _ext_types_with_pysize = {"cpython.array.array"}
+
+    def _find_special_capi_len_function(self, typ) -> Optional[str]:
+        if typ.is_extension_type:
+            if typ.entry.qualified_name in self._ext_types_with_pysize:
+                return 'Py_SIZE'
+        elif typ.is_builtin_type:
+            if typ.is_pystr_type:
+                return "__Pyx_PyUnicode_GET_LENGTH"
+            if typ.is_pybytes_type:
+                return "__Pyx_PyBytes_GET_SIZE"
+            if typ.is_pybytearray_type:
+                return "__Pyx_PyByteArray_GET_SIZE"
+            if typ.is_pylist_type:
+                return "__Pyx_PyList_GET_SIZE"
+            if typ.is_pytuple_type:
+                return "__Pyx_PyTuple_GET_SIZE"
+            if typ.is_pyanyset_type:
+                return "__Pyx_PySet_GET_SIZE"
+            if typ.is_pyanydict_type:
+                return "PyDict_Size"
+        return None
 
     def _handle_simple_function_len(self, node, function, pos_args):
         """Replace len(char*) by the equivalent call to strlen(),
@@ -2913,14 +2937,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 node.pos, "__Pyx_MemoryView_Len", func_type,
                 args=[arg], is_temp=node.is_temp)
         elif arg.type.is_pyobject:
-            cfunc_name = self._map_to_capi_len_function(arg.type)
+            cfunc_name = self._find_special_capi_len_function(arg.type)
             if cfunc_name is None:
-                arg_type = arg.type
-                if ((arg_type.is_extension_type or arg_type.is_builtin_type)
-                        and arg_type.entry.qualified_name in self._ext_types_with_pysize):
-                    cfunc_name = 'Py_SIZE'
-                else:
-                    return node
+                return node
             arg = arg.as_none_safe_node(
                 "object of type 'NoneType' has no len()")
             new_node = ExprNodes.PythonCapiCallNode(
@@ -2977,7 +2996,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         # Map the separate type checks to check functions.
 
         if types and (allowed_none_node or len(types) > 1):
-            if arg.is_attribute or not arg.is_simple():
+            # Only literals and simple (non-temp) name lookups are safe to use multiple times
+            # without caching.  Everything else — attributes, calls, walrus operators, temps,
+            # etc. — must be evaluated exactly once and its result cached in a ResultRefNode
+            # to avoid repeated evaluation across the short-circuit OR branches.
+            if not (arg.is_literal or (arg.is_name and not arg.is_temp)):
                 arg = UtilNodes.ResultRefNode(arg)
                 temps.append(arg)
 
@@ -3406,6 +3429,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             'get', is_unbound_method, args,
             may_return_none = True,
             utility_code = load_c_utility("dict_getitem_default"))
+
+    # frozendict shares the read-only method handlers with dict.
+    # Mutating handlers (pop, setdefault) are intentionally NOT aliased:
+    # frozendict has no such methods, and we want those calls to fail loud.
+    _handle_simple_method_frozendict_get = _handle_simple_method_dict_get
 
     Pyx_PyDict_SetDefault_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
