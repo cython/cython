@@ -173,24 +173,6 @@ def class_attr_lookup(x):
 class PyClass(object):
     pass
 
-@cython.test_assert_path_exists("//PythonCapiFunctionNode[@cname='__Pyx_TypeCheck']")
-def class_typecheck_exists(x):
-    """
-    Test exists to confirm that the unoptimized case makes an isinstance check
-    (and thus the optimized class_typecheck_exists is testing the right thing).
-    If the implementation changes to not use a call to "isinstance" this test
-    can happily be deleted
-    >>> class_typecheck_exists(5)
-    False
-    >>> class_typecheck_exists(PyClass())
-    True
-    """
-    match x:
-        case PyClass():
-            return True
-        case _:
-            return False
-
 
 @cython.test_fail_if_path_exists("//NameNode[@name='isinstance']")
 @cython.test_fail_if_path_exists("//PythonCapiFunctionNode[@cname='__Pyx_TypeCheck']")
@@ -206,3 +188,20 @@ def class_typecheck_doesnt_exist(C x):
             return True
         case _:
             return False
+
+
+def simple_or_with_targets(x):
+    """
+    This was being mishandled by being converted to an if statement
+    without accounting for target assignment
+    >>> simple_or_with_targets(1)
+    1
+    >>> simple_or_with_targets(2)
+    2
+    >>> simple_or_with_targets(3)
+    3
+    >>> simple_or_with_targets(4)
+    """
+    match x:
+        case ((1 as y)|(2 as y)|(3 as y)):
+            return y

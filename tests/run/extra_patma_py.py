@@ -14,6 +14,45 @@ def skip_if_no_frozendict(f):
     if cython.compiled or sys.version_info >= (3, 15):
         return f
 
+def skip_in_pure_pypy(f):
+    if cython.compiled or sys.implementation.name != 'pypy':
+        return f
+
+
+def test_type_inference(x):
+    """
+    The type should not be inferred to be anything specific
+    >>> test_type_inference(1)
+    one 1
+    >>> test_type_inference([])
+    any object []
+    """
+    match x:
+        case 1 as a:
+            print("one", a)
+        case a:
+            print("any object", a)
+
+
+def test_assignment_and_guards(x):
+    """
+    Tests that the flow control is right. The second case can be
+    reached either by failing the pattern or by failing the guard,
+    and this affects whether variables are assigned
+    >>> test_assignment_and_guards([1])
+    ('first', 1)
+    >>> test_assignment_and_guards([1, 2])
+    ('second', 1)
+    >>> test_assignment_and_guards([-1, 2])
+    ('second', -1)
+    """
+    match x:
+        case [a] if a>0:
+            return "first", a
+        case [a, *_]:
+            return "second", a
+
+
 def test_array_is_sequence(x):
     """
     Because this has to be specifically special-cased on early Python versions
@@ -297,3 +336,121 @@ def test_duplicate_subject_corner_case(x):
             print(x, y, z)
         case ['bad', DuplicateSubjectCornerCase(x, y, z)]:
             print("Not allowed")
+
+
+class Namespace:
+    pass
+
+def test_or_evaluation_failure(x):
+    """
+    >>> test_or_evaluation_failure(1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    AttributeError: ...'Namespace'... has no attribute 'fake_name'
+    """
+    match x:
+        case Namespace.fake_name | _:
+            print("Here")
+
+
+class A:
+    b = 1
+    def __repr__(self):
+        return f'A({self.b})'
+
+class C:
+    __match_args__ = ("a", "b", "c")
+
+    def __init__(self):
+        self.a = 1
+        self.b = None
+        self.c = "string"
+
+
+@skip_in_pure_pypy  # crash, see https://github.com/pypy/pypy/issues/5506
+def test_yield_from_case(x):
+    """
+    >>> def test(x):
+    ...     return list(test_yield_from_case(x))
+
+    >>> class D(dict):
+    ...     def __repr__(self):
+    ...         return "D(%s)" % super(D, self).__repr__()
+
+    >>> test(D({"a": "xxx", 1: 500}))
+    [500]
+
+    >>> class E(dict):
+    ...     def __repr__(self):
+    ...         return "E(%s)" % super(E, self).__repr__()
+    ...     def get(self, key, default):
+    ...         return super().get(key, default)
+
+    >>> test(E({"a": "xxx", 1: 500}))
+    [500]
+
+    >>> test([0, 1, 2])
+    [[0, 1, 2]]
+    >>> test([])
+    []
+    >>> test([0] + list(range(10)) + [0])
+    [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]
+    >>> [result] = test((0,) + tuple(range(1000000)) + (0,)); print(len(result))
+    1000000
+
+    >>> from array import array
+    >>> test(array('i', range(1000000)))
+    []
+    >>> test(5)
+    [5]
+    >>> test(6)
+    []
+    >>> [result] = test(set(range(1000000))); print(type(result).__name__); print(len(result))
+    set
+    1000000
+    >>> test(A())
+    [A(1)]
+    >>> a = A(); a.b = 2; test(a)
+    []
+    >>> test(C)
+    []
+    """
+    match x:
+        case [0, 1, 2]:
+            yield x
+        case [0, *x, 0]:
+            yield x
+        case {"a": "xxx", A.b: x, **extra}:
+            yield x
+        case 5 as y:
+            yield y
+        case set(y):
+            yield y
+        case A(b=1):
+            yield x
+        case C(a, None):
+            yield a
+
+
+def test_yield_from_case_if(x):
+    """
+    >>> g = test_yield_from_case_if([5])
+    >>> next(g)
+    >>> try:
+    ...    g.send(5)
+    ... except StopIteration:
+    ...    pass
+    A 5
+    >>> g = test_yield_from_case_if([5])
+    >>> next(g)
+    >>> try:
+    ...    g.send(6)
+    ... except StopIteration:
+    ...    pass
+    B
+    """
+    match x:
+        case [out] if out == (yield):
+            print(f"A {out}")
+        case _:
+            print("B")

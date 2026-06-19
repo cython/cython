@@ -273,21 +273,25 @@ def test_iteration_over_frozendict_with_subscript():
 def test_inference_of_list_constructor():
     """
     >>> test_inference_of_list_constructor()
+    list[str object] object
     list[int] object
     list[str object] object
     list[int] object
     list[int] object
     """
+    t: tuple[str, str, str] = ('a', 'b', 'c')
     l: list[cython.int] = [1, 2, 3]
     d: dict[str, cython.int] = {'a': 1, 'b': 2}
     s: set[cython.int] = {1, 2, 3}
     f: frozenset[cython.int] = frozenset({1, 2, 3})
 
+    lt = list(t)
     ll = list(l)
     ld = list(d)
     ls = list(s)
     lf = list(f)
 
+    print(cython.typeof(lt) + ("[str object] object" if not cython.compiled else ""))
     print(cython.typeof(ll) + ("[int] object" if not cython.compiled else ""))
     print(cython.typeof(ld) + ("[str object] object" if not cython.compiled else ""))
     print(cython.typeof(ls) + ("[int] object" if not cython.compiled else ""))
@@ -297,21 +301,25 @@ def test_inference_of_list_constructor():
 def test_inference_of_set_constructor():
     """
     >>> test_inference_of_set_constructor()
+    set[str object] object
     set[int] object
     set[str object] object
     set[int] object
     set[int] object
     """
+    t: tuple[str, str, str] = ('a', 'b', 'c')
     l: list[cython.int] = [1, 2, 3]
     d: dict[str, cython.int] = {'a': 1, 'b': 2}
     s: set[cython.int] = {1, 2, 3}
     f: frozenset[cython.int] = frozenset({1, 2, 3})
 
+    st = set(t)
     sl = set(l)
     sd = set(d)
     ss = set(s)
     sf = set(f)
 
+    print(cython.typeof(st) + ("[str object] object" if not cython.compiled else ""))
     print(cython.typeof(sl) + ("[int] object" if not cython.compiled else ""))
     print(cython.typeof(sd) + ("[str object] object" if not cython.compiled else ""))
     print(cython.typeof(ss) + ("[int] object" if not cython.compiled else ""))
@@ -321,21 +329,25 @@ def test_inference_of_set_constructor():
 def test_inference_of_frozenset_constructor():
     """
     >>> test_inference_of_frozenset_constructor()
+    frozenset[str object] object
     frozenset[int] object
     frozenset[str object] object
     frozenset[int] object
     frozenset[int] object
     """
+    t: tuple[str, str, str] = ('a', 'b', 'c')
     l: list[cython.int] = [1, 2, 3]
     d: dict[str, cython.int] = {'a': 1, 'b': 2}
     s: set[cython.int] = {1, 2, 3}
     f: frozenset[cython.int] = frozenset({1, 2, 3})
 
+    ft = frozenset(t)
     fl = frozenset(l)
     fd = frozenset(d)
     fs = frozenset(s)
     ff = frozenset(f)
 
+    print(cython.typeof(ft) + ("[str object] object" if not cython.compiled else ""))
     print(cython.typeof(fl) + ("[int] object" if not cython.compiled else ""))
     print(cython.typeof(fd) + ("[str object] object" if not cython.compiled else ""))
     print(cython.typeof(fs) + ("[int] object" if not cython.compiled else ""))
@@ -367,3 +379,24 @@ def test_inference_of_frozendict_constructor():
 
     print(cython.typeof(dd) + ("[str object,int] object" if not cython.compiled else ""))
     print(cython.typeof(fdd) + ("[str object,int] object" if not cython.compiled else ""))
+
+
+@cython.cclass
+class A:
+    pass
+
+
+@cython.cclass
+class B(A):
+    pass
+
+
+def test_inference_of_tuple_common_subscripted_type():
+    """
+    >>> test_inference_of_tuple_common_subscripted_type()
+    list[A] object
+    """
+    t: tuple[A, B] = (A(), B())
+    l = list(t)
+    print(cython.typeof(l) + ("[A] object" if not cython.compiled else ""))
+

@@ -588,6 +588,72 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
     return result;
 }
 
+static PyObject *__Pyx_CyFunction_annotate_impl(PyObject *self, 
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    PyObject *args
+#else
+    PyObject* const* args, Py_ssize_t nargs
+#endif
+) {
+    // The signature of this function is 0 or 1 args, where arg should be an int (if passed).
+    // However, for this basic placeholder implementation, we don't care and don't check it.
+    CYTHON_UNUSED_VAR(args);
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+    CYTHON_UNUSED_VAR(nargs);
+#endif
+    if (unlikely(!self)) {
+        PyErr_SetString(PyExc_SystemError, "cython __annotate__ called without 'self' argument");
+    }
+    Py_XINCREF(self);
+    return self;
+}
+
+static PyMethodDef __Pyx_CyFunction_annotate_method = {
+    "__annotate__",
+    (PyCFunction)(void (*)(void))__Pyx_CyFunction_annotate_impl,
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    METH_VARARGS,
+#else
+    METH_FASTCALL,
+#endif
+    "Placeholder __annotate__ function to allow 'functools.wraps' to work "
+    "on Cython functions."
+};
+
+// We don't yet support PEP649 properly, so __annotate__ is
+// implemented in a minimal way, just so that functools.wraps works.
+// Essentially the effect of doing func.__annotate__ = other.__annotate__
+// is to copy the annotations dictionary.
+static PyObject *
+__Pyx_CyFunction_get_annotate(PyObject *op_in, void *context) {
+    CYTHON_UNUSED_VAR(context);
+    PyObject *annotations = __Pyx_CyFunction_get_annotations(op_in, NULL);
+    if (unlikely(!annotations)) return NULL;
+    PyObject *method = PyCFunction_New(
+        &__Pyx_CyFunction_annotate_method,
+        annotations);
+    Py_DECREF(annotations);
+    return method;
+}
+
+static int
+__Pyx_CyFunction_set_annotate(PyObject *op_in, PyObject* value, void *context) {
+    CYTHON_UNUSED_VAR(context);
+    if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError, "__annotate__ cannot be deleted");
+        return -1;
+    }
+    if (value == Py_None) {
+        // PEP 649 says "Setting o.__annotate__ to None has no effect on the cached annotations dict."
+        return 0;
+    }
+    PyObject *annotations = PyObject_CallObject(value, NULL);
+    if (!annotations) return -1;
+    int result = __Pyx_CyFunction_set_annotations(op_in, annotations, NULL);
+    Py_DECREF(annotations);
+    return result;
+}
+
 #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
 static PyObject *
 __Pyx_CyFunction_get_is_coroutine_value(__pyx_CyFunctionObject *op) {
@@ -757,6 +823,7 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {"__defaults__", (getter)__Pyx_CyFunction_get_defaults, (setter)__Pyx_CyFunction_set_defaults, 0, 0},
     {"__kwdefaults__", (getter)__Pyx_CyFunction_get_kwdefaults, (setter)__Pyx_CyFunction_set_kwdefaults, 0, 0},
     {"__annotations__", (getter)__Pyx_CyFunction_get_annotations, (setter)__Pyx_CyFunction_set_annotations, 0, 0},
+    {"__annotate__", (getter)__Pyx_CyFunction_get_annotate, (setter)__Pyx_CyFunction_set_annotate, 0, 0},
 #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
     {"_is_coroutine", (getter)__Pyx_CyFunction_get_is_coroutine, 0, 0, 0},
 #endif
