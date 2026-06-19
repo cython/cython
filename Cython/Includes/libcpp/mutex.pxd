@@ -158,7 +158,7 @@ cdef extern from *:
 
     namespace {
 
-    static PyGILState_STATE __pyx_libcpp_mutex_limited_api_ensure_gil() {
+    CYTHON_UNUSED PyGILState_STATE __pyx_libcpp_mutex_limited_api_ensure_gil() {
         #if CYTHON_COMPILING_IN_LIMITED_API
         if ((__PYX_LIMITED_VERSION_HEX < 0x030d0000) && __Pyx_get_runtime_version() < 0x030d0000) {
             return PyGILState_Ensure();
@@ -168,7 +168,7 @@ cdef extern from *:
     }
 
     #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
-    static void __pyx_libcpp_mutex_limited_api_release_gil(PyGILState_STATE gil_state) {
+    CYTHON_UNUSED void __pyx_libcpp_mutex_limited_api_release_gil(PyGILState_STATE gil_state) {
         if (__Pyx_get_runtime_version() < 0x030d0000)
             PyGILState_Release(gil_state);
     }
@@ -176,7 +176,7 @@ cdef extern from *:
     #define __pyx_libcpp_mutex_limited_api_release_gil(ignore) (void)ignore
     #endif
 
-    static int __pyx_libcpp_mutex_has_gil() {
+    CYTHON_UNUSED int __pyx_libcpp_mutex_has_gil() {
         #if CYTHON_COMPILING_IN_LIMITED_API
             if ((__PYX_LIMITED_VERSION_HEX >= 0x030d0000) || __Pyx_get_runtime_version() >= 0x030d0000) {
                 // In 3.13+ we can temporarily give up the GIL to find out what the thread state was
@@ -194,7 +194,7 @@ cdef extern from *:
             return 1;
         #elif PY_VERSION_HEX >= 0x030d0000
             return PyThreadState_GetUnchecked() != NULL;
-        #elif PY_VERSION_HEX >= 0x030b0000
+        #elif PY_VERSION_HEX >= 0x030C0000
             return _PyThreadState_UncheckedGet() != NULL;
         #else
             return PyGILState_Check();
@@ -232,7 +232,7 @@ cdef extern from *:
     }
 
     template <typename Callable, typename ... Args>
-    void __pyx_cpp_py_safe_call_once(std::once_flag& flag, Callable& callable, Args&&... args) {
+    void __pyx_cpp_py_safe_call_once(std::once_flag& flag, Callable&& callable, Args&&... args) {
         class PyException : public std::exception {
         public:
             using std::exception::exception;
@@ -246,7 +246,7 @@ cdef extern from *:
 
         try {
             std::call_once(flag,
-                [&](Args& ...args) {
+                [&](Args&& ...args) {
                     // Make sure we have the GIL
                     PyGILState_STATE gil_state;
                     int had_gil_on_call = __Pyx_UnknownThreadStateDefinitelyHadGil(thread_state);
@@ -296,6 +296,8 @@ cdef extern from *:
         std::lock(arg0, arg1, args...);
     }
 
+    CYTHON_UNUSED inline void __pyx_libcpp_mutex_unlock() {} // no-op
+
     template <typename Lockable0T, typename ... Lockables>
     void __pyx_libcpp_mutex_unlock(Lockable0T& arg0, Lockables&... locks) {
         arg0.unlock();
@@ -318,40 +320,23 @@ cdef extern from *:
     }
 
     template <typename... LockTs>
-    void __pyx_py_safe_std_lock_slow_loop(LockTs& ...locks) {
-        while (true) {
-            PyThreadState *_save;
-            Py_UNBLOCK_THREADS
-            try {
-                #if defined(__cpp_lib_scoped_lock)
-                auto scoped_lock = std::scoped_lock(locks...);
-                #else
-                __pyx_std_lock_wrapper(locks...);
-                __pyx_libcpp_mutex_unlock(locks...);
-                #endif
-            } catch (...) {
-                // In this case, we probably can't reason about the state of the locks but we can at least
-                // make sure the GIL is consistent.
-                Py_BLOCK_THREADS
-                throw;
-            }
+    void __pyx_py_safe_std_lock_release_lock_reacquire(LockTs& ...locks) {
+        // Release the GIL, acquire the lock, then reacquire the GIL.
+        // This is safe provided the user never holds the GIL while trying
+        // to reacquire the lock (i.e. it's safe provided they always use
+        // the py-safe wrappers).
+        PyThreadState *_save;
+        Py_UNBLOCK_THREADS
+        try {
+            __pyx_std_lock_wrapper(locks...);
+        } catch (...) {
+            // In this case, we probably can't reason about the state of the locks but we can at least
+            // make sure the GIL is consistent.
             Py_BLOCK_THREADS
-            if (__pyx_std_try_lock_wrapper(locks...) == -1) {
-                return; // success
-            }
+            throw;
         }
-    }
-
-    template <typename... LockTs>
-    void __pyx_py_safe_std_lock_fast_loop(LockTs& ...locks) {
-        for (int i=0; i<100; ++i) {
-            Py_BEGIN_ALLOW_THREADS
-            Py_END_ALLOW_THREADS
-            if (__pyx_std_try_lock_wrapper(locks...) == -1) {
-                return; // success
-            }
-        }
-        __pyx_py_safe_std_lock_slow_loop(locks...);
+        Py_BLOCK_THREADS
+        return;
     }
 
     template <typename... LockTs>
@@ -374,7 +359,7 @@ cdef extern from *:
             // success!
             return;
         }
-        __pyx_py_safe_std_lock_fast_loop(locks...);
+        __pyx_py_safe_std_lock_release_lock_reacquire(locks...);
     }
 
     template <typename MutexT>

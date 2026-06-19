@@ -39,6 +39,7 @@ static PyObject* __Pyx_PyExec3(PyObject*, PyObject*, PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject*, PyObject*);
 
 //////////////////// PyExec ////////////////////
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject* o, PyObject* globals) {
     return __Pyx_PyExec3(o, globals, NULL);
@@ -57,12 +58,8 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 #if !CYTHON_COMPILING_IN_LIMITED_API
     // In Limited API we just use exec builtin which already has this
     else if (unlikely(!PyDict_Check(globals))) {
-        __Pyx_TypeName globals_type_name =
-            __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(globals));
-        PyErr_Format(PyExc_TypeError,
-                     "exec() arg 2 must be a dict, not " __Pyx_FMT_TYPENAME,
-                     globals_type_name);
-        __Pyx_DECREF_TypeName(globals_type_name);
+        __Pyx_RaiseTypeErrorWithObjectType(
+            "exec() arg 2 must be a dict, not " __Pyx_FMT_TYPENAME, globals);
         goto bad;
     }
 #endif
@@ -90,20 +87,15 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     } else {
         PyCompilerFlags cf;
         cf.cf_flags = 0;
-#if PY_VERSION_HEX >= 0x030800A3
         cf.cf_feature_version = PY_MINOR_VERSION;
-#endif
         if (PyUnicode_Check(o)) {
             cf.cf_flags = PyCF_SOURCE_IS_UTF8;
             s = PyUnicode_AsUTF8String(o);
             if (unlikely(!s)) goto bad;
             o = s;
         } else if (unlikely(!PyBytes_Check(o))) {
-            __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
-            PyErr_Format(PyExc_TypeError,
-                "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME,
-                o_type_name);
-            __Pyx_DECREF_TypeName(o_type_name);
+            __Pyx_RaiseTypeErrorWithObjectType(
+                "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME, o);
             goto bad;
         }
         code = PyBytes_AS_STRING(o);
@@ -228,6 +220,7 @@ static PyObject* __Pyx_Intern(PyObject* s) {
 }
 
 //////////////////// abs_longlong.proto ////////////////////
+//@requires: ModuleSetupCode.c::IncludeStdlibH
 
 static CYTHON_INLINE PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
 #if defined (__cplusplus) && __cplusplus >= 201103L
@@ -286,7 +279,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
             ((PyLongObject*)copy)->long_value.lv_tag ^= ((PyLongObject*)copy)->long_value.lv_tag & _PyLong_SIGN_MASK;
             #else
             // negate the size to swap the sign
-            __Pyx_SET_SIZE(copy, -Py_SIZE(copy));
+            Py_SET_SIZE(copy, -Py_SIZE(copy));
             #endif
         }
         return copy;
@@ -305,7 +298,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 
 //////////////////// divmod_int.proto //////////////////
 
-const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}} = {-1, -1};
+static const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}} = {-1, -1};
 
 static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {{TYPE}} b); /*proto*/
 
@@ -345,7 +338,7 @@ static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {
 
 //////////////////// divmod_float.proto //////////////////
 
-const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}} = {-1.0, -1.0};
+static const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}} = {-1.0, -1.0};
 
 static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {{TYPE}} b); /*proto*/
 
@@ -488,6 +481,7 @@ static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
 static long __Pyx__PyObject_Ord(PyObject* c); /*proto*/
 
 //////////////////// object_ord ////////////////////
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 static long __Pyx__PyObject_Ord(PyObject* c) {
     Py_ssize_t size;
@@ -521,11 +515,8 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
 #endif
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
-        __Pyx_TypeName c_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(c));
-        PyErr_Format(PyExc_TypeError,
-            "ord() expected string of length 1, but " __Pyx_FMT_TYPENAME " found",
-            c_type_name);
-        __Pyx_DECREF_TypeName(c_type_name);
+        __Pyx_RaiseTypeErrorWithObjectType(
+            "ord() expected string of length 1, but " __Pyx_FMT_TYPENAME " found", c);
         return (long)(Py_UCS4)-1;
     }
     PyErr_Format(PyExc_TypeError,
@@ -544,6 +535,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d) {
     return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
 }
 
+//////////////////// py_frozendict_keys.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Keys(PyObject* d); /*proto*/
+
+//////////////////// py_frozendict_keys ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Keys(PyObject* d) {
+    return CALL_UNBOUND_METHOD_TYPEPTR(__Pyx_PyFrozenDict_TypePtr, "keys", d);
+}
+
 //////////////////// py_dict_values.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d); /*proto*/
@@ -554,6 +555,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d) {
     return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
 }
 
+//////////////////// py_frozendict_values.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Values(PyObject* d); /*proto*/
+
+//////////////////// py_frozendict_values ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Values(PyObject* d) {
+    return CALL_UNBOUND_METHOD_TYPEPTR(__Pyx_PyFrozenDict_TypePtr, "values", d);
+}
+
 //////////////////// py_dict_items.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
@@ -562,6 +573,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d) {
     return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
+}
+
+//////////////////// py_frozendict_items.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Items(PyObject* d); /*proto*/
+
+//////////////////// py_frozendict_items ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Items(PyObject* d) {
+    return CALL_UNBOUND_METHOD_TYPEPTR(__Pyx_PyFrozenDict_TypePtr, "items", d);
 }
 
 //////////////////// py_dict_iterkeys.proto ////////////////////
@@ -633,13 +654,13 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value) {
     PyObject* value;
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d00A4)
+    PyDict_SetDefaultRef(d, key, default_value, &value);
+#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030C0000
     PyObject *args[] = {d, key, default_value};
     value = PyObject_VectorcallMethod(PYIDENT("setdefault"), args, 3 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
 #elif CYTHON_COMPILING_IN_LIMITED_API
     value = PyObject_CallMethodObjArgs(d, PYIDENT("setdefault"), key, default_value, NULL);
-#elif PY_VERSION_HEX >= 0x030d0000
-    PyDict_SetDefaultRef(d, key, default_value, &value);
 #else
     value = PyDict_SetDefault(d, key, default_value);
     if (unlikely(!value)) return NULL;
@@ -795,8 +816,13 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
 #define __Pyx_PySlice_Start(o) PyObject_GetAttr(o, PYIDENT("start"))
 #define __Pyx_PySlice_Stop(o) PyObject_GetAttr(o, PYIDENT("stop"))
 #define __Pyx_PySlice_Step(o) PyObject_GetAttr(o, PYIDENT("step"))
-#elif CYTHON_COMPILING_IN_GRAAL
+#elif CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM > 0x19000000
 // Graal defines it's own accessor functions
+#define __Pyx_PySlice_Start(o) GraalPySlice_Start(o)
+#define __Pyx_PySlice_Stop(o) GraalPySlice_Stop(o)
+#define __Pyx_PySlice_Step(o) GraalPySlice_Step(o)
+#elif CYTHON_COMPILING_IN_GRAAL
+// Remove when GraalPy 24 goes EOL
 #define __Pyx_PySlice_Start(o) __Pyx_NewRef(PySlice_Start((PySliceObject*)o))
 #define __Pyx_PySlice_Stop(o) __Pyx_NewRef(PySlice_Stop((PySliceObject*)o))
 #define __Pyx_PySlice_Step(o) __Pyx_NewRef(PySlice_Step((PySliceObject*)o))
@@ -804,4 +830,104 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
 #define __Pyx_PySlice_Start(o) __Pyx_NewRef(((PySliceObject*)o)->start)
 #define __Pyx_PySlice_Stop(o) __Pyx_NewRef(((PySliceObject*)o)->stop)
 #define __Pyx_PySlice_Step(o) __Pyx_NewRef(((PySliceObject*)o)->step)
+#endif
+
+
+////////////// PyFrozenDict.proto /////////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+// PyFrozenDict is not currently in the Limited API.
+
+#define __Pyx_PyFrozenDict_TypePtr  ((PyTypeObject*) CGLOBAL(__Pyx_PyFrozenDictType))
+
+#define __Pyx_PyFrozenDict_New(it)  __Pyx__PyFrozenDict_New(CGLOBAL(__Pyx_PyFrozenDictType), it)
+static CYTHON_INLINE PyObject* __Pyx__PyFrozenDict_New(PyObject* frozendict_type, PyObject* it); /*proto*/
+
+#define __Pyx_PyFrozenDict_NewEmpty()  __Pyx_PyFrozenDict_New(NULL)
+#define __Pyx_PyFrozenDict_Check(obj)  PyObject_TypeCheck((obj), __Pyx_PyFrozenDict_TypePtr)
+#define __Pyx_PyFrozenDict_CheckExact(obj)  Py_IS_TYPE((obj), __Pyx_PyFrozenDict_TypePtr)
+
+#define __Pyx_PyAnyDict_Check(obj)   __Pyx__PyAnyDict_Check(obj, __Pyx_PyFrozenDict_TypePtr)
+static CYTHON_INLINE int __Pyx__PyAnyDict_Check(PyObject *obj, PyTypeObject* frozendict_type) {
+    return PyObject_TypeCheck(obj, &PyDict_Type) || PyObject_TypeCheck(obj, frozendict_type);
+}
+#define __Pyx_PyAnyDict_CheckExact(obj)  __Pyx__PyAnyDict_CheckExact(obj, __Pyx_PyFrozenDict_TypePtr)
+static CYTHON_INLINE int __Pyx__PyAnyDict_CheckExact(PyObject *obj, PyTypeObject* frozendict_type) {
+    return Py_IS_TYPE(obj, &PyDict_Type) || Py_IS_TYPE(obj, frozendict_type);
+}
+
+#elif PY_VERSION_HEX >= 0x030f00a6 || \
+    (defined(PyFrozenDict_Check) && defined(PyAnyDict_Check) && defined(PyFrozenDict_New))
+#define __Pyx_PyFrozenDict_TypePtr  (&PyFrozenDict_Type)
+#define __Pyx_PyFrozenDict_New(it)  PyFrozenDict_New(it)
+#define __Pyx_PyFrozenDict_NewEmpty()  PyFrozenDict_New(NULL)
+#define __Pyx_PyFrozenDict_Check(obj)  PyFrozenDict_Check(obj)
+#define __Pyx_PyFrozenDict_CheckExact(obj)  PyFrozenDict_CheckExact(obj)
+#define __Pyx_PyAnyDict_Check(obj)  PyAnyDict_Check(obj)
+#define __Pyx_PyAnyDict_CheckExact(obj)  PyAnyDict_CheckExact(obj)
+
+#else
+// Replacing PyFrozenDict with PyDict for older Python versions seems reasonable and helpful.
+#define __Pyx_PyFrozenDict_TypePtr  (&PyDict_Type)
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_New(PyObject* it) {
+    if (!it) {
+        return PyDict_New();
+    } else if (PyDict_Check(it)) {
+        return PyDict_Copy(it);
+    } else {
+        PyObject *dict = PyDict_New();
+        if (!dict) return NULL;
+        // PyDict_Merge() and friends do not handle arbitrary iterables. '|' does.
+        PyObject *result = PyNumber_InPlaceOr(dict, it);
+        Py_DECREF(dict);
+        return result;
+    }
+}
+#define __Pyx_PyFrozenDict_NewEmpty()  PyDict_New()
+#define __Pyx_PyFrozenDict_Check(obj)  PyDict_Check(obj)
+#define __Pyx_PyFrozenDict_CheckExact(obj)  PyDict_CheckExact(obj)
+#define __Pyx_PyAnyDict_Check(obj)  PyDict_Check(obj)
+#define __Pyx_PyAnyDict_CheckExact(obj)  PyDict_CheckExact(obj)
+#endif
+
+/////////////////// PyFrozenDict.module_state_decls //////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+PyObject *__Pyx_PyFrozenDictType;
+#endif
+
+////////////// PyFrozenDict /////////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static CYTHON_INLINE PyObject* __Pyx__PyFrozenDict_New(PyObject* frozendict_type, PyObject* it) {
+    return PyObject_CallFunctionObjArgs(frozendict_type, it, NULL);
+}
+#endif
+
+////////////////// PyFrozenDict.init ////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+{
+    PyObject *builtins = PyEval_GetBuiltins(); // borrowed
+    if (likely(builtins)) {
+        PyObject *type_name = PyUnicode_FromStringAndSize("frozendict", sizeof("frozendict")-1);
+        if (likely(type_name)) {
+            PyObject *frozendict_type = PyObject_GetItem(builtins, type_name);
+            Py_DECREF(type_name);
+            if (!frozendict_type && PyErr_ExceptionMatches(PyExc_KeyError)) {
+                PyErr_Clear();
+                frozendict_type = (PyObject*) &PyDict_Type;
+                Py_INCREF(frozendict_type);
+            }
+            CGLOBAL(__Pyx_PyFrozenDictType) = frozendict_type;
+        }
+    }
+} // error handling follows
+#endif
+
+/////////////// PyFrozenDict.cleanup ////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+Py_CLEAR(CGLOBAL(__Pyx_PyFrozenDictType));
 #endif

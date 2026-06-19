@@ -25,6 +25,7 @@ on:
       types: [labeled, opened, synchronize, reopened]
       paths:
         #- Cython/Build/**
+        - .github/cibuildwheel-requirement.txt
         - .github/workflows/wheels.yml
         - pyproject.toml
         - MANIFEST.in
@@ -32,6 +33,7 @@ on:
   push:
       paths:
         #- Cython/Build/**
+        - .github/cibuildwheel-requirement.txt
         - .github/workflows/wheels.yml
         - pyproject.toml
         - MANIFEST.in
@@ -62,21 +64,26 @@ jobs:
     outputs:
       include: ${{ steps.set-matrix.outputs.include }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Install cibuildwheel
-        # Nb. keep cibuildwheel version pin consistent with job below
-        run: pipx install cibuildwheel==2.23.3
+        # Nb. dependabot should keep cibuildwheel version pin consistent with job below
+        run: pipx install $(grep -v '^\s*#' .github/cibuildwheel-requirement.txt)
       - id: set-matrix
         run: |
           MATRIX=$(
             {
-              cibuildwheel --print-build-identifiers --prerelease-pythons --platform linux \
+              cibuildwheel --print-build-identifiers --platform linux --archs "x86_64,aarch64" \
+              | grep -v musllinux \
               | jq -nRc '{"only": inputs, "os": "ubuntu-latest"}' \
               | sed -e '/aarch64/s|ubuntu-latest|ubuntu-24.04-arm|' \
-              && cibuildwheel --print-build-identifiers --prerelease-pythons --platform macos \
+              && cibuildwheel --print-build-identifiers --platform macos --archs arm64 \
               | jq -nRc '{"only": inputs, "os": "macos-latest"}' \
-              && cibuildwheel --print-build-identifiers --prerelease-pythons --platform windows \
-              | jq -nRc '{"only": inputs, "os": "windows-2022"}'
+              && cibuildwheel --print-build-identifiers --platform windows --archs AMD64 \
+              | jq -nRc '{"only": inputs, "os": "windows-2022"}' \
+              # sed subsitution is unused but left in as a guide in case we want upgrade windows arm wheels in future
+              #| sed -e '/arm64/s|windows-2022|windows-11-arm|' \
             } | jq -sc
           )
           echo "$MATRIX"
@@ -102,20 +109,72 @@ jobs:
 
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
 
       - name: Build wheels
-        # Nb. keep cibuildwheel version pin consistent with generate-matrix job above
-        uses: pypa/cibuildwheel@v3.0.0
+        # Nb. dependabot should keep cibuildwheel version pin consistent with generate-matrix job above
+        uses: pypa/cibuildwheel@8d2b08b68458a16aeb24b64e68a09ab1c8e82084 # v3.4.1
         with:
           only: ${{ matrix.only }}
-        # TODO: Cython tests take a long time to complete
-        # consider running a subset in the future?
-        #CIBW_TEST_COMMAND: python {project}/runtests.py -vv
 
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.only }}
+          path: ./wheelhouse/*.whl
+
+  build_limited_api_wheels:
+    name: Build Stable ABI wheels on ${{ matrix.os }}
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'release' ||
+      (github.event_name == 'schedule' && github.repository == 'cython/cython') ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'Build System'))
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - 'ubuntu-latest'
+          - 'ubuntu-24.04-arm'
+          - 'windows-latest'
+          - 'windows-11-arm'
+          - 'macos-latest'
+
+    steps:
+      - name: Checkout Cython
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@8d2b08b68458a16aeb24b64e68a09ab1c8e82084 # v3.4.1
+        env:
+          # Smaller set of platforms that we only provide Stable ABI wheels for
+          CIBW_BUILD: |
+            ${{
+                matrix.os == 'ubuntu-24.04-arm' && '*armv7l *musllinux_aarch64' ||
+                matrix.os == 'ubuntu-latest' && '*linux_i686 *musllinux_x86_64' ||
+                matrix.os == 'windows-latest' && '*win32' ||
+                matrix.os == 'macos-latest' && '*macosx_x86_64' ||
+                matrix.os == 'windows-11-arm' && '*win_arm64' ||
+            '' }}
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: Stable-ABI-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
 
   build_sdist_pure_wheel:
@@ -130,13 +189,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # Used to push the built wheels
-      - uses: actions/setup-python@v5.6.0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           # Build sdist on lowest supported Python
-          python-version: '3.8'
+          python-version: '3.9'
 
       - name: Build sdist
         run: |
@@ -144,19 +205,51 @@ jobs:
           python setup.py sdist
           python setup.py bdist_wheel --no-cython-compile
 
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sdist
           path: ./dist/*.tar.gz
 
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pure-wheel
           path: ./dist/*.whl
 
+  # Keep abi3audit and twine checks out of the the wheel build step
+  # to minimize the dependencies that need to be installed.
+  inspect_wheels:
+    name: Inspect Release Assets
+    needs: [ build_sdist_pure_wheel, build_wheels, build_limited_api_wheels ]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: ./wheel_check
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: ls -la ./wheel_check
+
+      - name: Install tools
+        run: python -m pip install twine abi3audit
+
+      - name: Run tools on wheels
+        run: |
+          cd ./wheel_check
+          ERRORS=0
+          for filename in *.whl; do
+            twine check "$filename" || ERRORS=$((ERRORS + 1))
+            if [[ "$filename" == *"abi3"* ]]; then
+              abi3audit --strict --report "$filename" || ERRORS=$((ERRORS + 1))
+            fi
+          done
+          exit $ERRORS
+
   upload_release_assets:
     name: Upload Release Assets
-    needs: [ build_sdist_pure_wheel, build_wheels ]
+    needs: [ inspect_wheels ]
     runs-on: ubuntu-latest
 
     permissions:
@@ -164,7 +257,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: ./release_upload
           merge-multiple: true
@@ -173,13 +266,13 @@ jobs:
         run: ls -la ./release_upload
 
       - name: Upload wheels
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           path: ./release_upload/*.whl
           name: all_wheels
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         if: github.ref_type == 'tag'
         with:
           files: |

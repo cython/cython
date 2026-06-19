@@ -1,0 +1,121 @@
+name: coverage
+
+on:
+  push:
+    paths:
+      - '.github/workflows/coverage.yml'
+      - "Cython/**"
+      - '!Cython/Utility/**'
+      - "tests/**"
+  pull_request:
+    paths:
+      - '.github/workflows/coverage.yml'
+      - "Cython/**"
+      - '!Cython/Utility/**'
+      - "tests/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+jobs:
+  pycoverage:
+    runs-on: ubuntu-24.04
+
+    permissions:
+      # deploy HTML to GitHub pages
+      pages: write
+      id-token: write
+
+    env:
+      BACKEND: c,cpp
+      OS_NAME: ubuntu-24.04
+      PYTHON_VERSION: "3.12"
+      HEAD: "${{ github.head_ref || github.ref_name }}"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Run Coverage
+        env: { COVERAGE: 1, NO_CYTHON_COMPILE: 1 }
+        run: bash ./Tools/ci-run.sh
+
+      - name: Copy coverage HTML
+        run: |
+          if [ -d './coverage-report-html' ]; then
+            ESCAPED_HEAD=$(python3 -c "import sys; from urllib.parse import quote; print(quote(sys.argv[1], safe=''))" "$HEAD")
+            mkdir -p gh_pages_coverage/coverage/ \
+              && cp -r './coverage-report-html' "gh_pages_coverage/coverage/$ESCAPED_HEAD";
+          fi
+
+      - name: Upload Coverage HTML to GH Pages
+        if: github.repository == 'cython/cython' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: './gh_pages_coverage/'
+
+      - name: deploy to Github Pages
+        if: github.repository == 'cython/cython' && github.event_name != 'pull_request'
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+        id: htmldeploy
+
+      - name: Upload Coverage HTML Report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pycoverage_html
+          path: coverage-report-html
+
+      - name: Write summary
+        run: |
+          echo "## Python coverage results:" >> $GITHUB_STEP_SUMMARY
+          PAGES_URL="${{ steps.htmldeploy.outputs.page_url }}"
+          ESCAPED_HEAD=$(python3 -c "import sys; from urllib.parse import quote; print(quote(sys.argv[1], safe=''))" "$HEAD")
+          if [ -n "${PAGES_URL}" ]; then echo "[Coverage HTML](${PAGES_URL}/coverage/$ESCAPED_HEAD)" >> $GITHUB_STEP_SUMMARY; fi
+          if [ -f coverage-report.md ]; then { echo; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
+
+  cycoverage:
+    runs-on: ubuntu-24.04
+    needs: [ pycoverage ]  # order summary report output
+
+    env:
+      BACKEND: c,cpp
+      OS_NAME: ubuntu-24.04
+      PYTHON_VERSION: "3.12"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Run Coverage
+        env: { COVERAGE: 1 }
+        run: bash ./Tools/ci-run.sh
+
+      - name: Write summary
+        run: |
+          if [ -f coverage-report.md ]; then { echo "## Compiled coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
+
+      - name: Upload Coverage HTML Report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cycoverage_html
+          path: coverage-report-html

@@ -1,0 +1,4 @@
+# These all fail with undefined symbol: __ubsan_vptr_type_cache
+run[.]cpp_extern
+run[.]cpp_class_attrib
+run[.]cpp_custom_string

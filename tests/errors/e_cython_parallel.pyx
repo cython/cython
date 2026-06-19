@@ -184,8 +184,6 @@ _ERRORS = u"""
 33:8: Must be of numeric type, not int *
 36:33: Nested parallel with blocks are disallowed
 39:12: The parallel directive must be called
-45:8: local variable 'y' referenced before assignment
-55:8: local variable 'y' referenced before assignment
 60:4: Reduction operator '*' is inconsistent with previous reduction operator '+'
 62:36: cython.parallel.parallel() does not take positional arguments
 65:36: Invalid keyword argument: invalid

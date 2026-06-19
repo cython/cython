@@ -2,11 +2,10 @@
 # mode: run
 # tag: cyfunction
 
+import platform
 cimport cython
 
-include "skip_limited_api_helper.pxi"
-
-import sys
+from functools import wraps
 
 def inspect_isroutine():
     """
@@ -66,7 +65,6 @@ def inspect_signature(a, b, c=123, *, d=234):
 #     return inspect_signature.__signature__
 
 
-@skip_if_limited_api("tp_dictoffset not set", min_runtime_version=(3, 9))
 def test_dict():
     """
     >>> test_dict.foo = 123
@@ -430,10 +428,79 @@ def test_fused_module(cython.numeric arg):
     """
     pass
 
+
+def to_be_wrapped(a: int, b: float):
+    """
+    Hello from to_be_wrapped's docstring
+    """
+    pass
+
+to_be_wrapped.__module__ = "other_module"
+
+
+def test_wraps(f):
+    """
+    >>> wrapped_func = test_wraps(to_be_wrapped)
+    >>> wrapped_func.__module__
+    'other_module'
+    >>> wrapped_func.__name__
+    'to_be_wrapped'
+    >>> wrapped_func.__qualname__
+    'to_be_wrapped'
+    >>> wrapped_func.__annotations__ == to_be_wrapped.__annotations__
+    True
+    >>> wrapped_func.__doc__
+    "\\n    Hello from to_be_wrapped's docstring\\n    "
+
+    # __type_params__ should also be copied, but Cython doesn't support this at all
+    """
+    @wraps(f)
+    def wrapper(*args, **kwds):
+        return f(*args, **kwds)
+    return wrapper
+
+
+def test_annotate():
+    """
+    Currently we don't implement PEP 649 fully, so __annotate__ is a limited
+    placeholder version mainly to make `functools.wraps` work on Python 3.14+.
+    Therefore, we shouldn't worry too much if this test needs to change in
+    future.
+
+    >>> f = test_annotate()
+    >>> list(f.__annotate__().keys())
+    ['a', 'b']
+    >>> list(f.__annotate__(1).keys())
+    ['a', 'b']
+
+    Assigning should work
+    >>> f.__annotate__ = lambda arg=0: {'different_argument': 5}
+    >>> f.__annotations__
+    {'different_argument': 5}
+    
+    Assigning to None shouldn't change the annotations
+    >>> f = test_annotate()
+    >>> f.__annotate__ = None
+    >>> list(f.__annotate__().keys())
+    ['a', 'b']
+
+    Deleting is banned
+    >>> f = test_annotate()
+    >>> del f.__annotate__
+    Traceback (most recent call last):
+    TypeError: __annotate__ cannot be deleted
+    """
+    def inner(a: int, b: str):
+        pass
+    return inner
+
+
 __doc__ = """
 >>> test_module.__module__
 'cyfunction'
->>> type(test_module).__module__.startswith("_cython")
+
+# Our metaclass doesn't stick on PyPy unfortunately
+>>> type(test_module).__module__.startswith("_cython") if platform.python_implementation() != 'PyPy' else True
 True
 >>> test_module.__module__ = "something_else"
 >>> test_module.__module__
@@ -442,7 +509,7 @@ True
 >>> test_module.__module__
 >>> test_fused_module.__module__
 'cyfunction'
->>> type(test_fused_module).__module__.startswith("_cython")
+>>> type(test_fused_module).__module__.startswith("_cython") if platform.python_implementation() != 'PyPy' else True
 True
 >>> test_fused_module.__module__ = "something_else"
 >>> test_fused_module.__module__

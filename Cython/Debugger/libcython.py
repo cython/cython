@@ -163,7 +163,7 @@ def simple_repr(self, renamed=None, state=True):
             self.__class__.__qualname__, "(",
             ",".join(names_and_values("\n\t\t", init_attrs, init_arg_names)),
             "\n\t)", *names_and_values("\nself.", state_repr)
-        ])
+    ])
 
 
 class CythonModule:

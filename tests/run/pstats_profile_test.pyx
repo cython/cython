@@ -1,4 +1,4 @@
-# tag: pstats
+# tag: pstats, memoryview
 # cython: profile = True
 
 u"""
@@ -9,7 +9,11 @@ u"""
     >>> short_stats = dict([(k[2], v[1]) for k,v in s.stats.items()])
     >>> short_stats['f_def']
     100
+    >>> short_stats['f_def_no_value']
+    100
     >>> short_stats['f_cdef']
+    100
+    >>> short_stats['f_cdef_memoryview']
     100
     >>> short_stats['f_cpdef']
     200
@@ -53,7 +57,8 @@ u"""
     ...    pass
 
     >>> sorted(callees(s, 'test_profile'))  #doctest: +NORMALIZE_WHITESPACE
-    ['f_cdef', 'f_cpdef', 'f_def',
+    ['f_cdef', 'f_cdef_memoryview',
+     'f_cpdef', 'f_def', 'f_def_no_value',
      'f_inline', 'f_inline_prof',
      'f_raise',
      'm_cdef', 'm_cpdef', 'm_def',
@@ -130,9 +135,11 @@ def test_profile(long N):
     cdef A a = A()
     for i in range(N):
         n += f_def(i)
+        n += i if f_def_no_value() is None else 0
         n += f_cdef(i)
         n += f_cpdef(i)
         n += (<object>f_cpdef)(i)
+        n += f_cdef_memoryview(i)[0]
         n += f_inline(i)
         n += f_inline_prof(i)
         n += f_noprof(i)
@@ -154,8 +161,18 @@ def test_profile(long N):
 def f_def(long a):
     return a
 
+def f_def_no_value():
+    return
+
 cdef long f_cdef(long a):
     return a
+
+cdef long[1] global_array
+cdef long[:] f_cdef_memoryview(long a):
+    # obviously not thread-safe, but OK for this test
+    cdef long[::1] view = <long[:1:1]>global_array
+    view[0] = a
+    return view
 
 cpdef long f_cpdef(long a):
     return a

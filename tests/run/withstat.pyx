@@ -2,6 +2,8 @@
 
 from __future__ import with_statement
 
+from Cython.TestUtils import TimedTest
+
 def typename(t):
     name = type(t).__name__
     return u"<type '%s'>" % name
@@ -165,7 +167,7 @@ class ExitRaises(object):
     def __enter__(self): pass
     def __exit__(self, *exc_info): raise RuntimeError()
 
-class NestedWith(unittest.TestCase):
+class NestedWith(TimedTest):
     """
     >>> NestedWith().runTest()
     """
@@ -220,3 +222,384 @@ class NestedWith(unittest.TestCase):
             self.assertEqual(2, a2)
             self.assertEqual(10, b1)
             self.assertEqual(20, b2)
+
+
+def long_with_block(a):
+    """
+    https://github.com/cython/cython/issues/7122 - copying the with block
+    used to generate recursion error
+    >>> long_with_block(0)
+    enter
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    336
+    """
+    with ContextManager(None):
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+        a += 1
+    print(a)
+
+ctypedef fused numeric:
+    int
+    float
+
+def with_fused(numeric x, bint raise_something):
+    """
+    Both fused types and with block involve awkward deepcopies and
+    so combining them should be checked.
+
+    >>> with_fused(1, True)
+    Traceback (most recent call last):
+        ...
+    RuntimeError
+    >>> with_fused(1, False)
+    enter
+    1
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    >>> with_fused(2.5, True)
+    Traceback (most recent call last):
+        ...
+    RuntimeError
+    >>> with_fused(2.5, False)
+    enter
+    2.5
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    """
+    with ContextManager(None):
+        if raise_something:
+            raise RuntimeError()
+        else:
+            print(x)

@@ -250,12 +250,17 @@ over a Python list or NumPy array.  If you don't slice the C array with
     :lineno-start: 19
 
 If no breaks occurred, it means that we found a prime, and the block of code
-after the ``else`` line 20 will be executed. We add the prime found to ``p``.
-If you find having an ``else`` after a for-loop strange, just know that it's a
-lesser known features of the Python language, and that Cython executes it at
-C speed for you.
-If the for-else syntax confuses you, see this excellent
-`blog post <https://shahriar.svbtle.com/pythons-else-clause-in-loops>`_.
+after the ``else`` line 20 will be executed.  We add the prime found to ``p``.
+
+The ``else`` clause after a for-loop is a lesser known features of the Python language
+that Cython executes at C speed for you.  If this syntax confuses you, the
+`Python documentation <https://docs.python.org/3/tutorial/controlflow.html#else-clauses-on-loops>`_
+presents a good way to think of the ``else`` clause:
+Imagine it paired with the ``if`` inside the loop.
+As the loop executes, it will run a sequence like ``if`` / ``if`` / ``if`` / ``else``.
+The ``if`` is inside the loop, encountered a number of times.
+If the condition is ever true, a ``break`` will happen.
+If the condition is never true, the ``else`` clause outside the loop will execute.
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
     :lines: 25-27
@@ -331,16 +336,18 @@ just like Python does. You can deactivate those checks by using the
 :ref:`compiler directives<compiler-directives>`.
 
 Now let's see if we get a speed increase even if there is a division check.
-Let's write the same program, but in Python:
+We can write the same program, but in simple Python, without type declarations:
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_python.py
     :caption: primes_python.py / primes_python_compiled.py
 
-It is possible to take a plain (unannotated) ``.py`` file and to compile it with Cython.
-Let's create a copy of ``primes_python`` and name it ``primes_python_compiled``
-to be able to compare it to the (non-compiled) Python module.
-Then we compile that file with Cython, without changing the code.
-Now the ``setup.py`` looks like this:
+Save it as ``primes_python.py``.
+
+For comparison, let's create a copy of ``primes_python.py`` and name it ``primes_python_compiled.py``.
+Then we can compile that module with Cython and compare it to the (non-compiled) Python module
+with the same code.
+
+Now change the ``setup.py`` as follows, to compile both the optimised and the new plain Python code module:
 
 .. tabs::
     .. group-tab:: Pure Python
@@ -355,6 +362,7 @@ Now the ``setup.py`` looks like this:
                     ['primes.py',                   # Cython code file with primes() function
                      'primes_python_compiled.py'],  # Python code file with primes() function
                     annotate=True),                 # enables generation of the html annotation file
+                py_modules=["primes_python.py"],    # Tells setuptools to include this Python module as well
             )
 
     .. group-tab:: Cython
@@ -369,9 +377,10 @@ Now the ``setup.py`` looks like this:
                     ['primes.pyx',                  # Cython code file with primes() function
                      'primes_python_compiled.py'],  # Python code file with primes() function
                     annotate=True),                 # enables generation of the html annotation file
+                py_modules=["primes_python.py"],    # Tells setuptools to include this Python module as well
             )
 
-Now we can ensure that those two programs output the same values::
+Now we can ensure that the two new modules output the same values as before::
 
     >>> import primes, primes_python, primes_python_compiled
     >>> primes_python.primes(1000) == primes.primes(1000)
@@ -379,7 +388,7 @@ Now we can ensure that those two programs output the same values::
     >>> primes_python_compiled.primes(1000) == primes.primes(1000)
     True
 
-It's possible to compare the speed now::
+Let's compare the speed of all three modules::
 
     python -m timeit -s "from primes_python import primes" "primes(1000)"
     10 loops, best of 3: 23 msec per loop

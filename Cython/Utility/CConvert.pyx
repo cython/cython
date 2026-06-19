@@ -14,13 +14,23 @@ cdef {{struct_type}} {{funcname}}(obj) except *:
     if not PyMapping_Check(obj):
         __Pyx_RaiseUnexpectedTypeError(b"a mapping", obj)
 
-    {{for member in var_entries:}}
+    lookup_failed = False
+    key = ''
     try:
-        value = obj['{{member.name}}']
+        {{for member in var_entries:}}
+        key = '{{member.name}}'
+        value_{{member.name}} = obj[key]
+        {{endfor}}
     except KeyError:
-        raise ValueError("No value specified for struct attribute '{{member.name}}'")
-    result.{{member.name}} = value
+        lookup_failed = True
+
+    if lookup_failed:
+        raise ValueError(f"No value specified for struct attribute {repr(key)}")
+
+    {{for member in var_entries:}}
+    result.{{member.name}} = value_{{member.name}}
     {{endfor}}
+
     return result
 
 
@@ -42,21 +52,26 @@ cdef {{struct_type}} {{funcname}}(obj) except *:
         __Pyx_RaiseUnexpectedTypeError(b"a mapping", obj)
 
     last_found = None
+    repeated_key = None
     length = len(obj)
+    {{for member in var_entries:}}
     if length:
-        {{for member in var_entries:}}
         if '{{member.name}}' in obj:
             if last_found is not None:
-                raise ValueError("More than one union attribute passed: '%s' and '%s'" % (last_found, '{{member.name}}'))
-            last_found = '{{member.name}}'
-            result.{{member.cname}} = obj['{{member.name}}']
-            length -= 1
-            if not length:
-                return result
-        {{endfor}}
+                repeated_key = '{{member.name}}'
+                length = 0
+            else:
+                result.{{member.cname}} = obj['{{member.name}}']
+                length -= 1
+                if not length:
+                    return result
+                last_found = '{{member.name}}'
+    {{endfor}}
     if last_found is None:
         raise ValueError("No value specified for any of the union attributes (%s)" %
                          '{{", ".join(member.name for member in var_entries)}}')
+    else:
+        raise ValueError(f"More than one union attribute passed: {repr(last_found)} and {repr(repeated_key)}")
     return result
 
 
@@ -112,11 +127,11 @@ cdef extern from *:
 
 @cname("{{cname}}")
 cdef inline list {{cname}}({{base_type}} *v, Py_ssize_t length):
-    cdef size_t i
+    cdef Py_ssize_t i
     cdef object value
     l = PyList_New(length)
-    for i in range(<size_t>length):
-        value = v[i]
+    for i in range(length):
+        value = v[<size_t> i]
         Py_INCREF(value)
         __Pyx_PyList_SET_ITEM(l, i, value)
     return l
@@ -124,11 +139,11 @@ cdef inline list {{cname}}({{base_type}} *v, Py_ssize_t length):
 
 @cname("{{to_tuple_cname}}")
 cdef inline tuple {{to_tuple_cname}}({{base_type}} *v, Py_ssize_t length):
-    cdef size_t i
+    cdef Py_ssize_t i
     cdef object value
     t = PyTuple_New(length)
-    for i in range(<size_t>length):
-        value = v[i]
+    for i in range(length):
+        value = v[<size_t> i]
         Py_INCREF(value)
         __Pyx_PyTuple_SET_ITEM(t, i, value)
     return t

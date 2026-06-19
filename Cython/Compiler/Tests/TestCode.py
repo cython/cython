@@ -1,9 +1,11 @@
 import textwrap
-from unittest import TestCase
 
-from ..Code import _indent_chunk
+from .. import Naming
+from ..Code import _indent_chunk, UtilityCode, process_utility_ccode
+from ...TestUtils import TimedTest
 
-class TestIndent(TestCase):
+
+class TestIndent(TimedTest):
     def _test_indentations(self, chunk, expected):
         for indentation in range(16):
             expected_indented = textwrap.indent(expected, ' ' * indentation)
@@ -84,3 +86,60 @@ else:
     print("True")
 """
         self._test_indentations(chunk, expected)
+
+
+class TestUtilityCodeProcessing(TimedTest):
+    def _process(self, code):
+        utility_code = UtilityCode()
+        formatted_code, is_module_specific = process_utility_ccode(utility_code, None, code)
+        self.assertFalse(is_module_specific)  # cannot currently test this case
+        return formatted_code
+
+    def assert_formatted_code(self, code: str, expected: str, dedent=False):
+        if dedent:
+            expected = textwrap.dedent(expected)
+        expected = expected.strip() + '\n\n'
+        formatted = self._process(code)
+        self.assertEqual(formatted, expected)
+
+    def test_format_cstring(self):
+        self.assert_formatted_code('''
+        Some Text and a CSTRING("""
+        spanning "multiple" 'lines'.
+        Really.
+        """);   # end of C string
+        ''',
+        expected=r'''
+        Some Text and a "\n"
+        "        spanning \042multiple\042 'lines'.\n"
+        "        Really.\n"
+        "        \n"
+        ;   # end of C string
+        ''',
+        dedent=True)
+
+    def test_cglobal(self):
+        self.assert_formatted_code("""
+        CGLOBAL(name)
+        NAMED_CGLOBAL(empty_tuple)
+        """,
+        expected=f"""
+        {Naming.modulestateglobal_cname}->name
+        {Naming.modulestateglobal_cname}->{Naming.empty_tuple}
+        """)
+
+    def test_empty_builtin(self):
+        self.assert_formatted_code("""
+        EMPTY(tuple)EMPTY(bytes)
+        EMPTY(tuple);EMPTY(bytes)
+        EMPTY(unicode)
+        EMPTY(bytes)
+        EMPTY(tuple)
+        """,
+        expected=f"""
+        {Naming.modulestateglobal_cname}->{Naming.empty_tuple}{Naming.modulestateglobal_cname}->{Naming.empty_bytes}
+        {Naming.modulestateglobal_cname}->{Naming.empty_tuple};{Naming.modulestateglobal_cname}->{Naming.empty_bytes}
+        {Naming.modulestateglobal_cname}->{Naming.empty_unicode}
+        {Naming.modulestateglobal_cname}->{Naming.empty_bytes}
+        {Naming.modulestateglobal_cname}->{Naming.empty_tuple}
+        """)
