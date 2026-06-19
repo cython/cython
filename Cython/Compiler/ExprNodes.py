@@ -6255,7 +6255,7 @@ class CallNode(ExprNode):
                                 if func_arg_type.is_pyanydict_type:
                                     subscripted_types = func_arg_type.subscripted_types
                                 elif st and st.is_pytuple_type and len(st.subscripted_types) == 2:
-                                    subscripted_types = (st.subscripted_types[0], st.subscripted_types[1])
+                                    subscripted_types = st.subscripted_types
                                 elif st and len(st.subscripted_types) > 0:
                                     # The argument type does not reveal number of types like list[list[...]]
                                     # Hence, we just take first type and hope for the best. In any case,
