@@ -6245,10 +6245,7 @@ class CallNode(ExprNode):
                         return PyrexTypes.c_double_type
                     elif func_name == 'bool':
                         return PyrexTypes.c_bint_type
-                    elif (
-                        hasattr(self, 'args') and self.args and len(self.args) == 1 and
-                        func_name in [name for name, typ in Builtin.builtin_types.items() if typ.supports_container_type]
-                    ):
+                    elif result_type.supports_container_type and len(self.args) == 1:
                         func_arg_type = self.args[0].infer_type(env)
                         if func_arg_type.supports_container_type:
                             if func_name in ['dict', 'frozendict']:
