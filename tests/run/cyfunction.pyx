@@ -434,7 +434,9 @@ def to_be_wrapped(a: int, b: float):
     Hello from to_be_wrapped's docstring
     """
     pass
+
 to_be_wrapped.__module__ = "other_module"
+
 
 def test_wraps(f):
     """
@@ -456,6 +458,7 @@ def test_wraps(f):
     def wrapper(*args, **kwds):
         return f(*args, **kwds)
     return wrapper
+
 
 def test_annotate():
     """
