@@ -433,7 +433,7 @@ def compiled_eval(code, namespace=None):
     """
     Parse code and evaluate it in a compile time env.
     """
-    node = py_parse_code(code)
+    node = parse_python_code(code)
 
     if isinstance(node, Nodes.StatListNode):
         assert len(node.stats) == 1, node.stats
