@@ -104,6 +104,9 @@
   #ifndef CYTHON_VECTORCALL
     #define CYTHON_VECTORCALL 1
   #endif
+  #ifndef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW CYTHON_VECTORCALL
+  #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
   #endif
@@ -171,6 +174,10 @@
   #define CYTHON_FAST_GIL 0
   #ifndef CYTHON_VECTORCALL
     #define CYTHON_VECTORCALL 1
+  #endif
+  #ifndef CYTHON_VECTORCALL_TPNEW
+    // PyPy doesn't define the slot below 7.3.8.
+    #define CYTHON_VECTORCALL_TPNEW (PYPY_VERSION_NUM >= 0x07030800 && CYTHON_VECTORCALL)
   #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
@@ -249,6 +256,9 @@
   #define CYTHON_FAST_GIL 0
   #undef CYTHON_VECTORCALL
   #define CYTHON_VECTORCALL (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
+  #ifndef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW (CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030E0000)
+  #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
   #endif
@@ -371,6 +381,13 @@
   #endif
   #ifndef CYTHON_VECTORCALL
     #define CYTHON_VECTORCALL 1
+  #endif
+  #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX < 0x030E0000
+    // Py_tp_vectorcall slot unavailable
+    #undef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW 0
+  #elif !defined(CYTHON_VECTORCALL_TPNEW)
+    #define CYTHON_VECTORCALL_TPNEW CYTHON_VECTORCALL
   #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
@@ -730,6 +747,19 @@ static int __Pyx_init_co_variables(void); /* proto */
 #else
   #define __Pyx_PyObject_GC_IsFinalized(o) PyObject_GC_IsFinalized(o)
 #endif
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+// These can be deduced at runtime and are enough of an optimization that
+// it's worth doing (while still respecting the decision not to add them to
+// the Limited API).
+static unsigned long __Pyx_Runtime_TPFLAGS_SEQUENCE;
+static unsigned long __Pyx_Runtime_TPFLAGS_MAPPING;
+#else
+#define __Pyx_Runtime_TPFLAGS_SEQUENCE Py_TPFLAGS_SEQUENCE
+#define __Pyx_Runtime_TPFLAGS_MAPPING Py_TPFLAGS_MAPPING
+#endif
+
+static int __Pyx_init_tpflags_variables(void); /* proto */
 
 #ifndef Py_TPFLAGS_HAVE_FINALIZE
   #define Py_TPFLAGS_HAVE_FINALIZE 0
@@ -1315,8 +1345,82 @@ static int __Pyx_init_co_variables(void) {
     Py_DECREF(inspect);
     return result ? 0 : -1;
 }
+
+static int __Pyx_init_tpflags_bitcount(unsigned long flag) {
+    int count = 0;
+    while (flag) {
+        count += (flag & 1);
+        flag >>= 1;
+    }
+    return count;
+}
+
+// It's quite possible that the flags aren't reliably available at runtime.
+// Therefore most errors are ignored and we just leave the values as 0.
+static int __Pyx_init_tpflags_variables(void) {
+    if (__Pyx_Runtime_TPFLAGS_SEQUENCE != 0 && __Pyx_Runtime_TPFLAGS_MAPPING != 0) {
+        // Already set (possibly in another subinterpreter). Note that there's a
+        // harmless race here because the variables aren't atomic.
+        return 0;
+    }
+
+    PyObject *collections_abc = PyImport_ImportModule("collections.abc");
+    if (!collections_abc) return -1;
+
+    int result = 0;
+    PyObject *sequence = NULL, *mapping = NULL;
+#if __PYX_LIMITED_VERSION_HEX >= 0x030D0000
+    if (PyObject_GetOptionalAttrString(collections_abc, "Sequence", &sequence) != 1) goto fail;
+    if (PyObject_GetOptionalAttrString(collections_abc, "Mapping", &mapping) != 1) goto fail;
+#else
+    sequence = PyObject_GetAttrString(collections_abc, "Sequence");
+    if (!sequence) goto fail_attr_lookup;
+    mapping = PyObject_GetAttrString(collections_abc, "Mapping");
+    if (!mapping) goto fail_attr_lookup;
+#endif
+
+    // The assumption is that the the type flags for sequence and mapping
+    // should be identical except for a single bit on each class.
+    // If that isn't true then fail silently.
+
+    if (!PyType_Check(sequence) || !PyType_Check(mapping)) goto fail;
+    {
+        unsigned long sequence_flags = PyType_GetFlags((PyTypeObject*)sequence);
+        unsigned long mapping_flags = PyType_GetFlags((PyTypeObject*)mapping);
+        unsigned long mutual_flags = sequence_flags & mapping_flags;
+        sequence_flags = sequence_flags ^ mutual_flags;
+        mapping_flags = mapping_flags ^ mutual_flags;
+
+        if (__Pyx_Runtime_TPFLAGS_SEQUENCE == 0 && __Pyx_init_tpflags_bitcount(sequence_flags) == 1) {
+            __Pyx_Runtime_TPFLAGS_SEQUENCE = sequence_flags;
+        }
+        if (__Pyx_Runtime_TPFLAGS_MAPPING == 0 && __Pyx_init_tpflags_bitcount(sequence_flags) == 1) {
+            __Pyx_Runtime_TPFLAGS_MAPPING = mapping_flags;
+        }
+    }
+
+    cleanup:
+    Py_XDECREF(mapping);
+    Py_XDECREF(sequence);
+    Py_DECREF(collections_abc);
+
+    return result;
+#if __PYX_LIMITED_VERSION_HEX < 0x030D0000
+    fail_attr_lookup:
+    if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+        PyErr_Clear();
+    }
+#endif
+    fail:
+    result = PyErr_Occurred() ? -1 : 0;
+    goto cleanup;
+}
 #else
 static int __Pyx_init_co_variables(void) {
+    return 0;  // It's a limited API-only feature
+}
+
+static int __Pyx_init_tpflags_variables(void) {
     return 0;  // It's a limited API-only feature
 }
 #endif
@@ -1379,7 +1483,7 @@ static int __Pyx_init_co_variables(void) {
 
 /////////////// PythonCompatibility.init ///////////////
 
-if (likely(__Pyx_init_co_variables() == 0)); else
+if (likely(__Pyx_init_co_variables() == 0 && __Pyx_init_tpflags_variables() == 0)); else
 
 
 /////////////// IncludeStructmemberH.proto ///////////////

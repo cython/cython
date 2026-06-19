@@ -19,7 +19,11 @@ on:
       limited_api:
         required: false
         default: ""
-        type: string
+        type: string  # 1 or true to turn the limited API on
+      abi3audit:
+        required: false
+        default: ""
+        type: string  # 1 or true to turn abi3audit on
       shared_utility:
         required: false
         default: ""
@@ -40,9 +44,21 @@ on:
         required: false
         default: ""
         type: string
+      extra_python_versions:
+        required: false
+        default: ""
+        type: string  # space separated
       upload_testsources:
         required: false
         default: false
+        type: boolean
+      architecture:
+        required: false
+        default: ""
+        type: string
+      freethreaded:
+        required: false
+        default: false  # note that specifying a "t" in the version will override this (intentionally)
         type: boolean
 
 
@@ -53,6 +69,7 @@ jobs:
   build-and-test:
     env:
       LIMITED_API: ${{ inputs.limited_api }}
+      ABI3AUDIT: ${{ inputs.abi3audit }}
       SHARED_UTILITY: ${{ inputs.shared_utility }}
       BACKEND: ${{ inputs.backend }}
       PYTHON_VERSION: ${{ inputs.python-version }}
@@ -86,13 +103,28 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Write extra Python versions
+        if: ${{ inputs.extra_python_versions }}
+        run: |
+          for py_version in ${{ inputs.extra_python_versions }}; do
+            echo $py_version >> .python-versions
+          done
+
+      - name: Setup extra Python versions
+        if: ${{ inputs.extra_python_versions }}
+        uses: actions/setup-python@v6.2.0
+        with:
+          python-version-file: .python-versions
+
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ inputs.python-version }}
+          architecture: ${{ inputs.architecture }}
+          freethreaded: ${{ inputs.freethreaded }}
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@33522472633dbd32578e909b315f5ee43ba878ce # v1.2.22
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
         if: runner.os != 'Windows'  # There is currently no working sccache setup for Windows.
         with:
           variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
@@ -122,7 +154,7 @@ jobs:
           if [[ -s ci-slowtests.txt ]]; then \
             echo '| Slow tests | duration |'; \
             echo '|:---|---:|'; \
-            sed -e 's/^.*\[/|    / ; s/: SLOWTEST / | / ; s/\].*/ |/ ; s/_/\\\\_/g' ci-slowtests.txt | sort -nr -k4; \
+            sed -e 's/^.*\[/|    / ; s/: SLOWTEST / | / ; s/\].*/ |/' ci-slowtests.txt | sort -nr -k4; \
             echo; \
           fi >> $GITHUB_STEP_SUMMARY; \
           if [[ -s ci-summary.txt ]]; then \
@@ -130,8 +162,15 @@ jobs:
               sed -e '2,21s/^\(.*[^:]\)$/    \1/ ; s/^\(.*:\)$/\n\1\n/ ; 1,1s/: /:\n\n    / ; 1,1s/), /)\n    /g' ; \
           fi >> $GITHUB_STEP_SUMMARY
 
+      - name: Run extra versions
+        if: ${{ inputs.extra_python_versions }}
+        run: |
+          for py_version in ${{ inputs.extra_python_versions }}; do
+            PYTHON=python$py_version PYTHON_VERSION=$py_version NO_COMPILE_TESTS=1 NO_CYTHON_COMPILE=1 bash ./Tools/ci-run.sh
+          done
+
       - name: Upload wheels
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wheels-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}${{ inputs.extra_hash }}
           path: dist/*.whl
@@ -163,7 +202,7 @@ jobs:
           fi
 
       - name: Upload C/C++ test diff
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         # Run on master branch and on PRs against master.
         if: inputs.upload_testsources && (github.base_ref == 'master' || github.base_ref == 'refs/heads/master' || github.ref == 'refs/heads/master')
         with:
@@ -173,7 +212,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload C/C++ test sources
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: inputs.upload_testsources
         with:
           name: testsources-${{ github.ref_name == 'master' && 'master-' || 'branch-' }}${{ inputs.os }}-${{ inputs.backend }}${{ inputs.extra_hash }}

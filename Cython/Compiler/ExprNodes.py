@@ -3519,21 +3519,29 @@ class NextNode(AtomicExprNode):
             iterator_type = self.iterator.infer_type(env)
         if iterator_type.is_ptr or iterator_type.is_array:
             return iterator_type.base_type
-        elif iterator_type.is_cpp_class:
+        if iterator_type.is_cpp_class:
             item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
             item_type = PyrexTypes.remove_cv_ref(item_type, remove_fakeref=True)
             return item_type
-        elif (sequence_type := self.iterator.sequence.infer_type(env)).supports_container_type and \
-                (iterator_type := sequence_type.infer_iterator_type()):
-            return iterator_type
-        else:
-            # Avoid duplication of complicated logic.
-            fake_index_node = IndexNode(
-                self.pos,
-                base=self.iterator.sequence,
-                index=IntNode(self.pos, value='PY_SSIZE_T_MAX',
-                              type=PyrexTypes.c_py_ssize_t_type))
-            return fake_index_node.infer_type(env)
+        sequence_node = self.iterator.sequence
+        if not (
+            sequence_node.is_sequence_constructor or
+            sequence_node.is_dict_literal or
+            sequence_node.is_set_literal
+        ):
+            # Here we infer only non-literal sequences. Literals are inferred via special infer_sequence_item_type().
+            sequence_type = sequence_node.infer_type(env)
+            if sequence_type.supports_container_type:
+                iterator_type = sequence_type.infer_iterator_type()
+                if iterator_type:
+                    return iterator_type
+        # Avoid duplication of complicated logic.
+        fake_index_node = IndexNode(
+            self.pos,
+            base=self.iterator.sequence,
+            index=IntNode(self.pos, value='PY_SSIZE_T_MAX',
+                            type=PyrexTypes.c_py_ssize_t_type))
+        return fake_index_node.infer_type(env)
 
     def analyse_types(self, env):
         item_type = self.infer_type(env, self.iterator.type)
@@ -4285,6 +4293,10 @@ class IndexNode(_IndexingBaseNode):
             elif base_type.is_pyunicode_ptr:
                 # sliced Py_UNICODE* strings must coerce to Python
                 return unicode_type
+            elif base_type.supports_container_type and not base_type.has_uniform_element_type:
+                # Slicing a container with non-uniform element types (tuple[int, str]) depends on the slice indices,
+                # so we can't infer a more specific type here.
+                return base_type.get_container_type()
             elif base_type.is_builtin_sequence:
                 # slicing these returns the same type
                 return base_type
@@ -4294,8 +4306,11 @@ class IndexNode(_IndexingBaseNode):
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
 
-        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
-            return sub_type
+        if base_type.supports_container_type:
+            if not (self.base.is_sequence_constructor or self.base.is_dict_literal or self.base.is_set_literal):
+                sub_type = base_type.infer_indexed_type(self.index.constant_result)
+                if sub_type:
+                    return sub_type
 
         index_type = self.index.infer_type(env)
         if index_type and index_type.is_int or isinstance(self.index, IntNode):
@@ -4514,11 +4529,11 @@ class IndexNode(_IndexingBaseNode):
 
         self.wrap_in_nonecheck_node(env, getting)
 
-        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type()):
-            if getting:
-                self.type = base_type
+        if base_type.supports_container_type and (sub_type := base_type.infer_indexed_type(self.index.constant_result)):
+            if getting and not is_slice:
                 return self.coerce_to(sub_type, env)
-            self.type = sub_type
+            elif setting:
+                self.type = sub_type
 
         return self
 
@@ -5609,6 +5624,10 @@ class SliceIndexNode(ExprNode):
             return bytes_type
         elif base_type.is_pyunicode_ptr:
             return unicode_type
+        elif base_type.supports_container_type and not base_type.has_uniform_element_type:
+            # slicing a container with non-uniform element types (tuple[int, str]) depends on the slice indices,
+            # so we can't infer a more specific type here.
+            return base_type.get_container_type()
         elif base_type.is_builtin_sequence:
             return base_type
         elif base_type.is_ptr or base_type.is_array:
@@ -5672,7 +5691,9 @@ class SliceIndexNode(ExprNode):
     def analyse_types(self, env, getting=True):
         self.base = self.base.analyse_types(env)
 
-        if self.base.type.is_buffer or self.base.type.is_pythran_expr or self.base.type.is_memoryviewslice:
+        if (self.base.type.is_buffer or self.base.type.is_pythran_expr or
+            self.base.type.is_memoryviewslice or self.base.type.is_pyanydict_type
+        ):
             none_node = NoneNode(self.pos)
             index = SliceNode(self.pos,
                               start=self.start or none_node,
@@ -7853,6 +7874,7 @@ class AttributeNode(ExprNode):
     is_memslice_transpose = False
     is_special_lookup = False
     is_py_attr = 0
+    mangle_private_names = True  # perform mangling of class.__attr names
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -8201,8 +8223,9 @@ class AttributeNode(ExprNode):
     def analyse_as_python_attribute(self, env, obj_type=None, immutable_obj=False):
         if obj_type is None:
             obj_type = self.obj.type
-        # mangle private '__*' Python attributes used inside of a class
-        self.attribute = env.mangle_class_private_name(self.attribute)
+        if self.mangle_private_names:
+            # mangle private '__*' Python attributes used inside of a class
+            self.attribute = env.mangle_class_private_name(self.attribute)
         self.member = self.attribute
         self.type = py_object_type
         self.is_py_attr = 1
@@ -9091,7 +9114,7 @@ class TupleNode(SequenceNode):
         arg_types = [arg.infer_type(env) for arg in self.args]
         if any(type.is_pyobject or type.is_memoryviewslice or type.is_unspecified or type.is_fused
                for type in arg_types):
-            return tuple_type
+            return tuple_type.specialize_here(self.pos, env, arg_types)
         return env.declare_tuple_type(self.pos, arg_types).type
 
     def analyse_types(self, env, skip_children=False):
@@ -9548,10 +9571,12 @@ class ComprehensionAppendNode(Node):
         return self
 
     def generate_execution_code(self, code):
+        steal_temp = False
         if self.target.type.is_pylist_type:
+            steal_temp = self.expr.is_temp
             code.globalstate.use_utility_code(
-                UtilityCode.load_cached("ListCompAppend", "Optimize.c"))
-            function = "__Pyx_ListComp_Append"
+                UtilityCode.load_cached("ListCompAppendAndDecref" if steal_temp else "ListCompAppend", "Optimize.c"))
+            function = "__Pyx_ListComp_AppendAndDecref" if steal_temp else "__Pyx_ListComp_Append"
         elif self.target.type.is_pyset_type:
             function = "PySet_Add"
         else:
@@ -9559,12 +9584,16 @@ class ComprehensionAppendNode(Node):
                 "Invalid type for comprehension node: %s" % self.target.type)
 
         self.expr.generate_evaluation_code(code)
-        code.putln(code.error_goto_if("%s(%s, (PyObject*)%s)" % (
-            function,
-            self.target.result(),
-            self.expr.result()
-            ), self.pos))
-        self.expr.generate_disposal_code(code)
+        if steal_temp:
+            code.put_giveref(self.expr.result(), self.expr.ctype())
+
+        code.putln(code.error_goto_if(
+            f"{function}({self.target.result()}, {self.expr.py_result()})", self.pos))
+
+        if steal_temp:
+            self.expr.generate_post_assignment_code(code)
+        else:
+            self.expr.generate_disposal_code(code)
         self.expr.free_temps(code)
 
     def generate_function_definitions(self, env, code):
@@ -9782,11 +9811,18 @@ class MergedSequenceNode(ExprNode):
                     helpers.add(("ListCompAppend", "Optimize.c"))
                 for arg in item.args:
                     arg.generate_evaluation_code(code)
+                    can_steal_list_item = not is_set and arg.is_temp
+                    if can_steal_list_item:
+                        helpers.add(("ListCompAppendAndDecref", "Optimize.c"))
                     code.put_error_if_neg(arg.pos, "%s(%s, %s)" % (
-                        add_func,
+                        "__Pyx_ListComp_AppendAndDecref" if can_steal_list_item else add_func,
                         self.result(),
                         arg.py_result()))
-                    arg.generate_disposal_code(code)
+                    if can_steal_list_item:
+                        code.put_giveref(arg.result(), arg.ctype())
+                        arg.generate_post_assignment_code(code)
+                    else:
+                        arg.generate_disposal_code(code)
                     arg.free_temps(code)
                 continue
 
@@ -15117,7 +15153,7 @@ class CoerceToBooleanNode(CoercionNode):
             return '__Pyx_PyList_GET_SIZE'
         if typ.is_pytuple_type:
             return '__Pyx_PyTuple_GET_SIZE'
-        if typ.is_pyset_type or typ.is_pyfrozenset_type:
+        if typ.is_pyanyset_type:
             return '__Pyx_PySet_GET_SIZE'
         if typ.is_pyanydict_type:
             return '__Pyx_PyDict_GET_SIZE'
@@ -15418,6 +15454,53 @@ class CloneNode(CoercionNode):
 
     def free_temps(self, code):
         pass
+
+
+class CompilerDirectivesExprNode(Nodes.CompilerDirectivesMixin, ProxyNode):
+    # Like compiler directives node, but for an expression
+    #  directives     {string:value}  A dictionary holding the right value for
+    #                                 *all* possible directives.
+    #  arg           ExprNode
+
+    def __init__(self, arg, directives):
+        super(CompilerDirectivesExprNode, self).__init__(arg)
+        self.directives = directives
+
+    @property
+    def is_temp(self):
+        return self.arg.is_temp
+
+    def infer_type(self, env):
+        with self.apply_directives(env):
+            return super(CompilerDirectivesExprNode, self).infer_type(env)
+
+    def analyse_declarations(self, env):
+        with self.apply_directives(env):
+            self.arg.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        with self.apply_directives(env):
+            return super(CompilerDirectivesExprNode, self).analyse_types(env)
+
+    def generate_result_code(self, code):
+        with self.apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).generate_result_code(code)
+
+    def generate_evaluation_code(self, code):
+        with self.apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).generate_evaluation_code(code)
+
+    def generate_disposal_code(self, code):
+        with self.apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).generate_disposal_code(code)
+
+    def free_temps(self, code):
+        with self.apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).free_temps(code)
+
+    def annotate(self, code):
+        with self.apply_directives(code.globalstate):
+            self.arg.annotate(code)
 
 
 class CppOptionalTempCoercion(CoercionNode):

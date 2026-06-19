@@ -47,13 +47,13 @@ def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython
     """
     >>> test_tuple((1, 1.0), (1, 1.0), (1, 1.0))
     int
-    int
-    float
-    Python object
+    int object
+    double
+    double
     (int, float)
+    tuple[int object,double] object
     tuple object
-    tuple object
-    tuple object
+    tuple[int,Python object] object
     tuple object
     """
     x: typing.Tuple[int, float] = (a[0], a[1])  # note: Python int/float, not cython.int/float
@@ -63,18 +63,14 @@ def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython
     p = x[1]  # should infer to Python float -> C double
 
     print(cython.typeof(z))
-    print("int" if cython.compiled and cython.typeof(x[0]) == "Python object" else cython.typeof(x[0]))  # FIXME: infer Python int
-    if cython.compiled:
-        print(cython.typeof(p))
-    else:
-        print('float' if cython.typeof(p) == 'float' else cython.typeof(p))
-    print(cython.typeof(x[1]) if cython.compiled or cython.typeof(p) != 'float' else "Python object")  # FIXME: infer C double
+    print(cython.typeof(x[0]) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(p) if cython.compiled else 'double')
+    print(cython.typeof(x[1]) if cython.compiled else 'double')
     print(cython.typeof(a) if cython.compiled or cython.typeof(a) != 'tuple' else "(int, float)")
-    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(x) + ("[int object,double] object" if not cython.compiled else ""))
     print(cython.typeof(y) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(c) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(c) + ("[int,Python object] object" if not cython.compiled else ""))
     print(cython.typeof(plain_tuple) + (" object" if not cython.compiled else ""))
-
 
 # because tuple is specifically special cased to go to ctuple where possible
 def test_tuple_without_typing(a: tuple[cython.int, cython.float], b: tuple[cython.int, ...],
@@ -84,12 +80,12 @@ def test_tuple_without_typing(a: tuple[cython.int, cython.float], b: tuple[cytho
     >>> test_tuple_without_typing((1, 1.0), (1, 1.0), (1, 1.0))
     int
     int
-    float
-    Python object
+    double
+    double
     (int, float)
+    tuple[int object,double] object
     tuple object
-    tuple object
-    tuple object
+    tuple[int,Python object] object
     tuple object
     """
     x: tuple[int, float] = (a[0], a[1])  # note: Python int/float, not cython.int/float
@@ -99,15 +95,14 @@ def test_tuple_without_typing(a: tuple[cython.int, cython.float], b: tuple[cytho
     p = x[1]  # should infer to Python float -> C double
 
     print(cython.typeof(z))
-    print("int" if cython.compiled and cython.typeof(x[0]) == "Python object" else cython.typeof(x[0]))  # FIXME: infer Python int
-    print(cython.typeof(p) if cython.compiled or cython.typeof(p) != 'float' else "float")  # FIXME: infer C double/PyFloat from Py type
-    print(cython.typeof(x[1]) if cython.compiled or cython.typeof(p) != 'float' else "Python object")  # FIXME: infer C double
+    print("int" if cython.compiled and cython.typeof(x[0]) == "int object" else cython.typeof(x[0]))
+    print(cython.typeof(p) if cython.compiled or cython.typeof(p) != 'float' else "double")
+    print(cython.typeof(x[1]) if cython.compiled or cython.typeof(p) != 'float' else "double")
     print(cython.typeof(a) if cython.compiled or cython.typeof(a) != 'tuple' else "(int, float)")
-    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(x) + ("[int object,double] object" if not cython.compiled else ""))
     print(cython.typeof(y) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(c) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(c) + ("[int,Python object] object" if not cython.compiled else ""))
     print(cython.typeof(plain_tuple) + (" object" if not cython.compiled else ""))
-
 
 _WARNINGS = """
 """

@@ -11,7 +11,7 @@ Features added
 * Changes were made to adapt to Python 3.15 and its Limited API.
   (Github issues :issue:`7190`, :issue:`7347`, :issue:`7348`, :issue:`7358`)
 
-* PEP-634 Pattern Matching is being implemented.
+* PEP-634 Pattern Matching is implemented.
   (Github issue :issue:`4029`)
 
 * Extension types can declare themselves explicitly as sequence or mapping with
@@ -50,8 +50,14 @@ Features added
   The bit operations ``^``, ``|`` and ``&`` are additionally special cased for ``int``.
   (Github issues :issue:`7485`, :issue:`7541`)
 
+* The C ``restrict`` modifier can be used in declarations.
+  (Github issue :issue:`7617`)
+
 * C arrays may now be declared with (``extern`` or internal) enum values as their size.
   (Github issues :issue:`7401`, :issue:`7406`)
+
+* ``prange(num_threads=0)`` automatically selects the maximum number of OpenMP threads.
+  (Github issue :issue:`7586`)
 
 * ``cython.pymutex`` and ``cython.pythread_type_lock`` now support a ``.locked()`` method
   to check if the lock is currently held without blocking. The method works on all Python
@@ -62,7 +68,7 @@ Features added
   (Github issues :issue:`7388`, :issue:`7390`)
 
 * Type inference was improved for builtin Python types.
-  (Github issue :issue:`7536`)
+  (Github issues :issue:`7536`, :issue:`7644`)
 
 * Declared container item types (e.g. ``list[float]``) are now used by the type system.
   (Github issue :issue:`7288`)
@@ -76,6 +82,18 @@ Features added
 
 * Some internal call overhead in the memoryview code was removed.
   (Github issue :issue:`7609`)
+
+* Extension types use the vectorcall interface for their instantiation in many cases.
+  (Github issue :issue:`7698`)
+
+* Coroutine methods use the faster vectorcall interface.
+  (Github issue :issue:`7678`)
+
+* List comprehensions that generate new objects avoid refcounting overhead for appending.
+  (Github issue :issue:`7748`)
+
+* Method calls in older Limited API versions are slightly faster.
+  (Github issue :issue:`7707`)
 
 * C arrays are substituted for sequence iteration in more cases, also inside of generators.
   Ad-hoc C array storage on the stack and in closures was reworked along the way.
@@ -123,6 +141,9 @@ Features added
 * Declarations for ``PyType_GetSlot()`` and the corresponding type slot IDs were added
   to ``cpython.type``.
 
+* Declarations for specialised byte-conversion functions were added to ``cpython.long`` and ``cpython.float``.
+  Patch by Valentin Valls.  (Github issue :issue:`7738`)
+
 * Error detection when assigning to ``const`` variables was improved.
   (Github issue :issue:`7359`)
 
@@ -161,6 +182,9 @@ Bugs fixed
   leading to less optimised code in longer expressions.
   (Github issues :issue:`7363`, :issue:`7502`)
 
+* Slices as dictionary keys confused the type inference of item access.
+  (Github issue :issue:`7702`)
+
 * Cython still used ``(type, exc, traceback)`` for saving and restoring exception state,
   even though modern CPython versions only store the exception object itself internally.
   This is now modernised in many places to reduce overhead.
@@ -175,9 +199,15 @@ Bugs fixed
   ``BaseException`` errors and only discard the expected exceptions.
   (Github issue :issue:`7600`)
 
+* In the Limited API, failures while formatting type names in exceptions are now uniformly handled.
+  (Github issue :issue:`7680`)
+
 * The global module state struct now lives in an anonymous namespace in C++ mode to
   allow linking multiple modules together in one shared library file.
   (Github issue :issue:`7159`)
+
+* Dict iteration generates safer code in PyPy/GraalPy/free-threading.
+  (Github issue :issue:`7637`)
 
 * The floating point parsing code relied on C implementation specific "pointer compare after free" behaviour.
   Patch by stratakis.  (Github issue :issue:`7463`)
@@ -202,7 +232,7 @@ Bugs fixed
   without changing the global/outer setting.  This avoids annoyance when users leave
   such redundant decorators in the code for occasional use.
 
-* Cached methods of builtin types were non GC-traversed and cleaned up as part of the module state.
+* Cached methods of builtin types were not GC-traversed and cleaned up as part of the module state.
   Patch by Maxwell Bernstein.  (Github issue :issue:`7468`)
 
 * Modules with non-ASCII names could end up with UTF-8 characters in their C code.
@@ -226,6 +256,9 @@ Other changes
   implementation.
   (Github issue :issue:`7616`)
 
+* Coroutines no longer provide the legacy ``_is_coroutine`` property.
+  (Github issue :issue:`7709`)
+
 * ``Cython/Shadow.pyi`` has been merged into ``Cython/Shadow.py``.
   (Github issue :issue:`7376`)
 
@@ -233,7 +266,27 @@ Other changes
   Patch by Libor Jelínek.  (Github issue :issue:`7564`)
 
 
-3.2.5 (2026-0?-??)
+3.2.6 (2026-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* A double-free in the t-string code was fixed.
+  (Github issue :issue:`7712`)
+
+* The ``-`` operator declarations for iterators in ``libcpp.vector`` we corrected.
+  Patch by Vadim Markovtsev.  (Github issue :issue:`7717`)
+
+* The shared utility code module no longer uses a temporary file path that
+  changed the C code on each generation.
+  (Github issue :issue:`7723`)
+
+* On 32 bit platforms, cached constants are no longer made immortal during module import.
+  (Github issue :issue:`7744`)
+
+
+3.2.5 (2026-05-23)
 ==================
 
 Bugs fixed
@@ -241,6 +294,10 @@ Bugs fixed
 
 * A compile failure was fixed when using the walrus operator inside of try-except.
   (Github issue :issue:`7462`)
+
+* Expressions with side-effects as object argument to ``isinstance()`` could get
+  evaluated multiple times, e.g. when they use the walrus operator.
+  (Github issue :issue:`7670`)
 
 * Several problems generating the shared utility module were resolved, including
   a performance regression with memory views.
@@ -258,6 +315,10 @@ Bugs fixed
 
 * Calling ``.get_frame()`` on Cython coroutines could crash in freethreading Python.
   (Github issue :issue:`7632`)
+
+* The vectorcall protocol was not used correctly in ``.throw()`` of Cython coroutines
+  when raising the exception only by type (without value or traceback).
+  (Github issue :issue:`7677`)
 
 * A problem with cpdef enums in the Limited API of Python 3.11+ was resolved.
   (Github issue :issue:`7503`)
