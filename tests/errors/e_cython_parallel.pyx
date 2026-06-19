@@ -215,4 +215,8 @@ _ERRORS = u"""
 162:57: Calling gil-requiring function not allowed without gil
 171:51: use_threads_if may not be a Python object as we don't have the GIL
 174:49: use_threads_if may not be a Python object as we don't have the GIL
+
+# Unrelated warnings.
+26:4: 'cpdef_method' redeclared
+36:4: 'cpdef_cname_method' redeclared
 """
