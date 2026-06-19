@@ -740,6 +740,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
     }
     base_vtables = (void**) PyMem_Malloc(sizeof(void*) * (size_t)(base_depth + 1));
     if (unlikely(!base_vtables)) {
+        PyErr_NoMemory();
         return -1;
     }
     base_vtables[0] = unknown;
