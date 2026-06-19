@@ -52,6 +52,14 @@ on:
         required: false
         default: false
         type: boolean
+      architecture:
+        required: false
+        default: ""
+        type: string
+      freethreaded:
+        required: false
+        default: false  # note that specifying a "t" in the version will override this (intentionally)
+        type: boolean
 
 
 permissions:
@@ -112,6 +120,8 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ inputs.python-version }}
+          architecture: ${{ inputs.architecture }}
+          freethreaded: ${{ inputs.freethreaded }}
 
       - name: Compilation Cache
         uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
