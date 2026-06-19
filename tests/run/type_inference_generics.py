@@ -358,11 +358,28 @@ def test_inference_of_dict_constructor():
     """
     >>> test_inference_of_dict_constructor()
     dict[str object,int] object
+    dict[str object,int object] object
+    dict[str object,str object] object
+    dict object
+    dict object
     """
     d: dict[str, cython.int] = {'a': 1, 'b': 2}
+    lt: list[tuple[str, int]] = [('a', 1), ('b', 2)]
+    lls: list[list[str]] = [['a', 'b'], ['c', 'd']]
+    ll: list[list] = [['a', 'b'], ['c', 'd']]
+    l: list = [['a', 'b'], ['c', 'd']]
+
     dd = dict(d)
+    dlt = dict(lt)
+    dlls = dict(lls)
+    dll = dict(ll)
+    dl = dict(l)
 
     print(cython.typeof(dd) + ("[str object,int] object" if not cython.compiled else ""))
+    print(cython.typeof(dlt) + ("[str object,int object] object" if not cython.compiled else ""))
+    print(cython.typeof(dlls) + ("[str object,str object] object" if not cython.compiled else ""))
+    print(cython.typeof(dll) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(dl) + (" object" if not cython.compiled else ""))
 
 
 @min_plain_pyversion(3, 15)
@@ -371,14 +388,32 @@ def test_inference_of_frozendict_constructor():
     >>> test_inference_of_frozendict_constructor()
     frozendict[str object,int] object
     frozendict[str object,int] object
+    frozendict[str object,int object] object
+    frozendict[str object,str object] object
+    frozendict object
+    frozendict object
     """
     d: dict[str, cython.int] = {'a': 1, 'b': 2}
     fd: frozendict[str, cython.int] = frozendict({'a': 1, 'b': 2})
+    lt: list[tuple[str, int]] = [('a', 1), ('b', 2)]
+    lls: list[list[str]] = [['a', 'b'], ['c', 'd']]
+    ll: list[list] = [['a', 'b'], ['c', 'd']]
+    l: list = [['a', 'b'], ['c', 'd']]
+
+
     dd = frozendict(d)
     fdd = frozendict(fd)
+    fdlt = frozendict(lt)
+    fdlls = frozendict(lls)
+    fdll = frozendict(ll)
+    fdl = frozendict(l)
 
     print(cython.typeof(dd) + ("[str object,int] object" if not cython.compiled else ""))
     print(cython.typeof(fdd) + ("[str object,int] object" if not cython.compiled else ""))
+    print(cython.typeof(fdlt) + ("[str object,int object] object" if not cython.compiled else ""))
+    print(cython.typeof(fdlls) + ("[str object,str object] object" if not cython.compiled else ""))
+    print(cython.typeof(fdll) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(fdl) + (" object" if not cython.compiled else ""))
 
 
 @cython.cclass
