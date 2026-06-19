@@ -12,9 +12,9 @@ except ImportError:
 def test_subscripted_types():
     """
     >>> test_subscripted_types()
-    dict object
-    list object
-    set object
+    dict[int,float] object
+    list[int] object
+    set[Python object] object
     """
     cdef typing.Dict[int, float] a = {}
     cdef List[int] b = []

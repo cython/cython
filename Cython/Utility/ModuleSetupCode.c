@@ -101,10 +101,12 @@
   #define CYTHON_FAST_THREAD_STATE 0
   #undef CYTHON_FAST_GIL
   #define CYTHON_FAST_GIL 0
-  #undef CYTHON_METH_FASTCALL
-  #define CYTHON_METH_FASTCALL 0
-  #undef CYTHON_FAST_PYCALL
-  #define CYTHON_FAST_PYCALL 0
+  #ifndef CYTHON_VECTORCALL
+    #define CYTHON_VECTORCALL 1
+  #endif
+  #ifndef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW CYTHON_VECTORCALL
+  #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
   #endif
@@ -170,10 +172,13 @@
   #define CYTHON_FAST_THREAD_STATE 0
   #undef CYTHON_FAST_GIL
   #define CYTHON_FAST_GIL 0
-  #undef CYTHON_METH_FASTCALL
-  #define CYTHON_METH_FASTCALL 0
-  #undef CYTHON_FAST_PYCALL
-  #define CYTHON_FAST_PYCALL 0
+  #ifndef CYTHON_VECTORCALL
+    #define CYTHON_VECTORCALL 1
+  #endif
+  #ifndef CYTHON_VECTORCALL_TPNEW
+    // PyPy doesn't define the slot below 7.3.8.
+    #define CYTHON_VECTORCALL_TPNEW (PYPY_VERSION_NUM >= 0x07030800 && CYTHON_VECTORCALL)
+  #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
   #endif
@@ -204,7 +209,6 @@
   #define CYTHON_OPAQUE_OBJECTS 0
 
 #elif defined(CYTHON_LIMITED_API)
-  // EXPERIMENTAL !!
   #ifdef Py_LIMITED_API
     #undef __PYX_LIMITED_VERSION_HEX
     #define __PYX_LIMITED_VERSION_HEX Py_LIMITED_API
@@ -250,10 +254,11 @@
   #define CYTHON_FAST_THREAD_STATE 0
   #undef CYTHON_FAST_GIL
   #define CYTHON_FAST_GIL 0
-  #undef CYTHON_METH_FASTCALL
-  #define CYTHON_METH_FASTCALL (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
-  #undef CYTHON_FAST_PYCALL
-  #define CYTHON_FAST_PYCALL 0
+  #undef CYTHON_VECTORCALL
+  #define CYTHON_VECTORCALL (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
+  #ifndef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW (CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030E0000)
+  #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
   #endif
@@ -374,13 +379,15 @@
     // The gain is unclear, however, since the GIL handling itself became faster in recent CPython versions.
     #define CYTHON_FAST_GIL (PY_VERSION_HEX < 0x030C00A6)
   #endif
-  #ifndef CYTHON_METH_FASTCALL
-    // CPython 3.6 introduced METH_FASTCALL but with slightly different
-    // semantics. It became stable starting from CPython 3.7.
-    #define CYTHON_METH_FASTCALL 1
+  #ifndef CYTHON_VECTORCALL
+    #define CYTHON_VECTORCALL 1
   #endif
-  #ifndef CYTHON_FAST_PYCALL
-    #define CYTHON_FAST_PYCALL 1
+  #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX < 0x030E0000
+    // Py_tp_vectorcall slot unavailable
+    #undef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW 0
+  #elif !defined(CYTHON_VECTORCALL_TPNEW)
+    #define CYTHON_VECTORCALL_TPNEW CYTHON_VECTORCALL
   #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
@@ -431,23 +438,6 @@
   #ifndef CYTHON_OPAQUE_OBJECTS
     #define CYTHON_OPAQUE_OBJECTS 0
   #endif
-#endif
-
-#ifndef CYTHON_FAST_PYCCALL
-#define CYTHON_FAST_PYCCALL  CYTHON_FAST_PYCALL
-#endif
-
-#ifndef CYTHON_VECTORCALL
-#if CYTHON_COMPILING_IN_LIMITED_API
-// Possibly needs a bit of clearing up, however:
-//  the limited API doesn't define CYTHON_FAST_PYCCALL (because that involves
-//  a lot of access to internals) but does define CYTHON_VECTORCALL because
-//  that's available cleanly from Python 3.12. Note that only VectorcallDict isn't
-//  available though.
-#define CYTHON_VECTORCALL  (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
-#else
-#define CYTHON_VECTORCALL  (CYTHON_FAST_PYCCALL)
-#endif
 #endif
 
 #if CYTHON_USE_PYLONG_INTERNALS
@@ -758,6 +748,19 @@ static int __Pyx_init_co_variables(void); /* proto */
   #define __Pyx_PyObject_GC_IsFinalized(o) PyObject_GC_IsFinalized(o)
 #endif
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+// These can be deduced at runtime and are enough of an optimization that
+// it's worth doing (while still respecting the decision not to add them to
+// the Limited API).
+static unsigned long __Pyx_Runtime_TPFLAGS_SEQUENCE;
+static unsigned long __Pyx_Runtime_TPFLAGS_MAPPING;
+#else
+#define __Pyx_Runtime_TPFLAGS_SEQUENCE Py_TPFLAGS_SEQUENCE
+#define __Pyx_Runtime_TPFLAGS_MAPPING Py_TPFLAGS_MAPPING
+#endif
+
+static int __Pyx_init_tpflags_variables(void); /* proto */
+
 #ifndef Py_TPFLAGS_HAVE_FINALIZE
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
@@ -779,12 +782,13 @@ static int __Pyx_init_co_variables(void); /* proto */
   // Value if defined: Stackless Python < 3.6: 0x80 else 0x100.
   #define METH_STACKLESS 0
 #endif
-#ifndef METH_FASTCALL
+#if !defined(METH_FASTCALL) || CYTHON_COMPILING_IN_PYPY
   // new in CPython 3.6, but changed in 3.7 - see
   // positional-only parameters:
   //   https://bugs.python.org/issue29464
   // const args:
   //   https://bugs.python.org/issue32240
+  // PyPy doesn't have the const args.
   #ifndef METH_FASTCALL
      #define METH_FASTCALL 0x80
   #endif
@@ -802,7 +806,7 @@ static int __Pyx_init_co_variables(void); /* proto */
   #endif
 #endif
 
-#if CYTHON_METH_FASTCALL
+#if CYTHON_VECTORCALL
   #define __Pyx_METH_FASTCALL METH_FASTCALL
   #define __Pyx_PyCFunction_FastCall __Pyx_PyCFunctionFast
   #define __Pyx_PyCFunction_FastCallWithKeywords __Pyx_PyCFunctionFastWithKeywords
@@ -853,9 +857,13 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
 // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
   #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
-  typedef PyObject *(*__Pyx_PyCMethod)(PyObject *, PyTypeObject *, PyObject *const *, size_t, PyObject *);
 #else
   #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  PyType_FromModuleAndSpec(m, s, b)
+#endif
+#if CYTHON_COMPILING_IN_PYPY
+  // PyPy's internal definition misses the const
+  typedef PyObject *(*__Pyx_PyCMethod)(PyObject *, PyTypeObject *, PyObject *const *, size_t, PyObject *);
+#else
   #define __Pyx_PyCMethod  PyCMethod
 #endif
 #ifndef METH_METHOD
@@ -1337,8 +1345,82 @@ static int __Pyx_init_co_variables(void) {
     Py_DECREF(inspect);
     return result ? 0 : -1;
 }
+
+static int __Pyx_init_tpflags_bitcount(unsigned long flag) {
+    int count = 0;
+    while (flag) {
+        count += (flag & 1);
+        flag >>= 1;
+    }
+    return count;
+}
+
+// It's quite possible that the flags aren't reliably available at runtime.
+// Therefore most errors are ignored and we just leave the values as 0.
+static int __Pyx_init_tpflags_variables(void) {
+    if (__Pyx_Runtime_TPFLAGS_SEQUENCE != 0 && __Pyx_Runtime_TPFLAGS_MAPPING != 0) {
+        // Already set (possibly in another subinterpreter). Note that there's a
+        // harmless race here because the variables aren't atomic.
+        return 0;
+    }
+
+    PyObject *collections_abc = PyImport_ImportModule("collections.abc");
+    if (!collections_abc) return -1;
+
+    int result = 0;
+    PyObject *sequence = NULL, *mapping = NULL;
+#if __PYX_LIMITED_VERSION_HEX >= 0x030D0000
+    if (PyObject_GetOptionalAttrString(collections_abc, "Sequence", &sequence) != 1) goto fail;
+    if (PyObject_GetOptionalAttrString(collections_abc, "Mapping", &mapping) != 1) goto fail;
+#else
+    sequence = PyObject_GetAttrString(collections_abc, "Sequence");
+    if (!sequence) goto fail_attr_lookup;
+    mapping = PyObject_GetAttrString(collections_abc, "Mapping");
+    if (!mapping) goto fail_attr_lookup;
+#endif
+
+    // The assumption is that the the type flags for sequence and mapping
+    // should be identical except for a single bit on each class.
+    // If that isn't true then fail silently.
+
+    if (!PyType_Check(sequence) || !PyType_Check(mapping)) goto fail;
+    {
+        unsigned long sequence_flags = PyType_GetFlags((PyTypeObject*)sequence);
+        unsigned long mapping_flags = PyType_GetFlags((PyTypeObject*)mapping);
+        unsigned long mutual_flags = sequence_flags & mapping_flags;
+        sequence_flags = sequence_flags ^ mutual_flags;
+        mapping_flags = mapping_flags ^ mutual_flags;
+
+        if (__Pyx_Runtime_TPFLAGS_SEQUENCE == 0 && __Pyx_init_tpflags_bitcount(sequence_flags) == 1) {
+            __Pyx_Runtime_TPFLAGS_SEQUENCE = sequence_flags;
+        }
+        if (__Pyx_Runtime_TPFLAGS_MAPPING == 0 && __Pyx_init_tpflags_bitcount(sequence_flags) == 1) {
+            __Pyx_Runtime_TPFLAGS_MAPPING = mapping_flags;
+        }
+    }
+
+    cleanup:
+    Py_XDECREF(mapping);
+    Py_XDECREF(sequence);
+    Py_DECREF(collections_abc);
+
+    return result;
+#if __PYX_LIMITED_VERSION_HEX < 0x030D0000
+    fail_attr_lookup:
+    if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+        PyErr_Clear();
+    }
+#endif
+    fail:
+    result = PyErr_Occurred() ? -1 : 0;
+    goto cleanup;
+}
 #else
 static int __Pyx_init_co_variables(void) {
+    return 0;  // It's a limited API-only feature
+}
+
+static int __Pyx_init_tpflags_variables(void) {
     return 0;  // It's a limited API-only feature
 }
 #endif
@@ -1350,13 +1432,13 @@ static int __Pyx_init_co_variables(void) {
 #if CYTHON_COMPILING_IN_LIMITED_API
     // The limited API makes some significant changes to data structures, so we don't
     // want to share the implementations compiled with and without the limited API.
-    #if CYTHON_METH_FASTCALL
-        #define __PYX_FASTCALL_ABI_SUFFIX  "_fastcall"
+    #if CYTHON_VECTORCALL
+        #define __PYX_VECTORCALL_ABI_SUFFIX  "_vectorcall"
     #else
-        #define __PYX_FASTCALL_ABI_SUFFIX
+        #define __PYX_VECTORCALL_ABI_SUFFIX
     #endif
 
-    #define __PYX_LIMITED_ABI_SUFFIX "limited" __PYX_FASTCALL_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX
+    #define __PYX_LIMITED_ABI_SUFFIX "limited" __PYX_VECTORCALL_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX
 #else
     #define __PYX_LIMITED_ABI_SUFFIX
 #endif
@@ -1401,7 +1483,7 @@ static int __Pyx_init_co_variables(void) {
 
 /////////////// PythonCompatibility.init ///////////////
 
-if (likely(__Pyx_init_co_variables() == 0)); else
+if (likely(__Pyx_init_co_variables() == 0 && __Pyx_init_tpflags_variables() == 0)); else
 
 
 /////////////// IncludeStructmemberH.proto ///////////////
