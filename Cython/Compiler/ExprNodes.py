@@ -7069,7 +7069,7 @@ class PyMethodCallNode(CallNode):
 
         code.putln("#if CYTHON_VECTORCALL")
         code.putln(f"{kwnames_temp} = {kwnames.result()};")
-        code.putln(f"{code.error_goto_if_null(kwnames_temp, self.pos)}")
+        code.putln(code.error_goto_if_null(kwnames_temp, self.pos))
         code.put_incref(kwnames_temp, py_object_type)
         for arg_index in arg_indices_to_check:
             code.put_error_if_neg(kwnames.pos, f"__Pyx_CheckVectorcallKwarg({kwnames_temp}, {arg_index})")
@@ -7080,7 +7080,7 @@ class PyMethodCallNode(CallNode):
             code.put_error_if_neg(kwnames.pos, f"__Pyx_CheckVectorcallKwarg({Naming.quick_temp_cname}, {arg_index})")
         code.putln(f"{kwnames_temp} = __Pyx_MakeKwargDict({Naming.quick_temp_cname}, "
                    f"{Naming.callargs_cname}+{len(args)+1}, {len(kwvalues)});")
-        code.putln(f"{code.error_goto_if_null(kwnames_temp, self.pos)}")
+        code.putln(code.error_goto_if_null(kwnames_temp, self.pos))
         code.put_gotref(kwnames_temp, py_object_type)
         code.putln("}")
         code.putln("#endif")
@@ -7150,11 +7150,7 @@ class PyMethodCallNode(CallNode):
         # To avoid passing an out-of-bounds argument pointer in the no-args case,
         # we need at least two entries, so we pad with NULL and point to that.
         # See https://github.com/cython/cython/issues/5668
-        args_and_kwargs = []
-        if args:
-            args_and_kwargs.extend(args)
-        if kwvalues:
-            args_and_kwargs.extend(kwvalues)
+        args_and_kwargs = args + (kwvalues or [])
         args_list = ', '.join(arg.py_result() for arg in args_and_kwargs) if args_and_kwargs else "NULL"
         code.putln(
             f"PyObject *{Naming.callargs_cname}[{(len(args_and_kwargs) + 1) if args_and_kwargs else 2:d}] = {{{self_arg}, {args_list}}};"
@@ -8771,7 +8767,7 @@ class SequenceNode(ExprNode):
         # Currently only suitable for fixed-size sequences
         assert not self.mult_factor
         code.put(f"PyObject *{target}[{len(self.args)}] = {{")
-        code.put(f"{', '.join(arg.result() for arg in self.args)}")
+        code.put(', '.join(arg.result() for arg in self.args))
         code.putln("};")
 
     def generate_subexpr_disposal_code(self, code):
