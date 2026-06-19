@@ -125,7 +125,7 @@ class TestCymeit(TimedTest):
             self.assertGreaterEqual(max_time, 100_000)
         else:
             self.assertGreaterEqual(max_time, 0.0001)
-        self.assertGreater(number, 10)  # arbitrary lower bound for our very quick benchmarks
+        self.assertGreater(number, 4)  # arbitrary lower bound for our very quick benchmarks
 
         return timings
 

@@ -868,7 +868,6 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
         Py_DECREF(replace);
         return result;
     }
-    PyErr_Clear();
 
     return NULL;
 }
@@ -1022,10 +1021,13 @@ bad:
      (value) != (value))
 
 
-/////////////////// ExceptStar.proto /////////////////////////
+/////////////////// ExceptStar.export /////////////////////////
 
 static int __Pyx_ValidateStarCatchPattern(PyObject *pattern); /* proto */
 static int __Pyx_ExceptionGroupMatch(PyObject *, PyObject **, PyObject **); /* proto */
+static void __Pyx_RaisePreppedException(PyObject *exc); /* proto */
+
+/////////////////// ExceptStar.proto /////////////////////////
 
 #if CYTHON_USE_OWN_PREP_RERAISE_STAR
 // Our implementation, in Cython utility code
@@ -1033,8 +1035,6 @@ static int __Pyx_ExceptionGroupMatch(PyObject *, PyObject **, PyObject **); /* p
 #else
 #define __Pyx_PyExc_PrepReraiseStar PyUnstable_Exc_PrepReraiseStar
 #endif
-
-static void __Pyx_RaisePreppedException(PyObject *exc); /* proto */
 
 /////////////////// ExceptStar ///////////////////////////////
 
@@ -1191,4 +1191,23 @@ static void __Pyx_RaisePreppedException(PyObject *exc) {
     Py_INCREF(exc);
     PyErr_Restore((PyObject*)Py_TYPE(exc), exc, traceback);
 #endif
+}
+
+
+//////////////////// IgnoreException.proto /////////////////////////////////
+
+// Returns 1 if the exception was ignored, 0, otherwise.
+// given_exception may be NULL, in which case PyErr_Occurred() is used.
+static CYTHON_INLINE int __Pyx_IgnoreGivenException(PyObject *given_exception, PyObject *ignorable_exception); /* proto */
+
+#define __Pyx_IgnoreException(ignorable_exception) __Pyx_IgnoreGivenException(NULL, ignorable_exception)
+
+//////////////////// IgnoreException /////////////////////////////////
+
+static CYTHON_INLINE int __Pyx_IgnoreGivenException(PyObject *given_exception, PyObject *ignorable_exception) {
+    if (PyErr_GivenExceptionMatches(given_exception ? given_exception : PyErr_Occurred(), ignorable_exception)) {
+        PyErr_Clear();
+        return 1;
+    }
+    return 0;
 }

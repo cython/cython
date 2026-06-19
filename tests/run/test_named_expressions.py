@@ -9,7 +9,7 @@ import unittest
 import cython
 from Cython.Compiler.Main import CompileError
 from Cython.Build.Inline import cython_inline
-from Cython.TestUtils import TimedTest
+from Cython.TestUtils import TimedTest, py_parse_code
 import re
 import sys
 
@@ -71,6 +71,30 @@ if cython.compiled:
 
 
 class NamedExpressionInvalidTest(TimedTest):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+        # For syntax errors, call directly into the parser instead of generating a module.
+
+        def check_syntax(code, gl=None, loc=None):
+            assert not gl, gl
+            assert not loc, loc
+            if '[' in code:
+                # Comprehensions fail with scope attribute error in PostParse.
+                cls._orig_exec(code, gl, loc)
+            else:
+                py_parse_code(code)
+
+        cls._orig_exec = exec
+        globals()['exec'] = check_syntax
+
+    @classmethod
+    def tearDownClass(cls):
+        globals()['exec'] = cls._orig_exec
+        super().tearDownClass()
+
 
     def test_named_expression_invalid_01(self):
         code = """x := 0"""

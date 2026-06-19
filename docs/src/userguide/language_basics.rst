@@ -454,7 +454,7 @@ type declaration and let them be objects.
 Type qualifiers
 ---------------
 
-Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_
+Cython supports ``const``, ``volatile`` and ``restrict`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_
 
 .. tabs::
 
@@ -1709,8 +1709,8 @@ The following selection of builtin constants and functions are also available:
     list, long, map, max, min, oct, ord, pow, range, reduce, repr, reversed,
     round, set, slice, sorted, str, sum, tuple, xrange, zip
 
-Note that some of these builtins may not be available when compiling under
-Python 2.x or 3.x, or may behave differently in both.
+Note that some of these builtins may behave differently depending on the Python
+version, or may not even be available.
 
 A name defined using ``DEF`` can be used anywhere an identifier can appear,
 and it is replaced with its compile-time value as though it were written into
