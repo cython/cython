@@ -13,7 +13,7 @@ except ImportError:
 
 
 def min_plain_pyversion(major, minor):
-    if cython.compiled or sys.version_info() >= (major, minor):
+    if cython.compiled or sys.version_info >= (major, minor):
         return lambda func: func
     else:
         return lambda func: None
