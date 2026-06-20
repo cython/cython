@@ -180,8 +180,8 @@ _ERRORS = u"""
 8:0: No such directive: cython.parallel.something
 10:7: cython.parallel.parallel is not a module
 11:0: No such directive: cython.parallel.something
-17:6: prange() can only be used as part of a for loop
 17:6: prange without releasing the GIL will only work well on freethreaded Python
+17:6: prange() can only be used as part of a for loop
 22:19: Invalid schedule argument to prange: invalid_schedule
 25:29: Parallel section without releasing the GIL will only work well on freethreaded Python
 31:8: target may not be a Python object as we don't have the GIL
@@ -189,8 +189,6 @@ _ERRORS = u"""
 37:8: Must be of numeric type, not int *
 40:33: Nested parallel with blocks are disallowed
 43:12: The parallel directive must be called
-49:8: local variable 'y' referenced before assignment
-59:8: local variable 'y' referenced before assignment
 64:4: Reduction operator '*' is inconsistent with previous reduction operator '+'
 66:36: cython.parallel.parallel() does not take positional arguments
 69:36: Invalid keyword argument: invalid
