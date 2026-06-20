@@ -826,9 +826,7 @@ bad:
         Py_DECREF(basei);
 #endif
     }
-#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
 other_failure:
-#endif
     PyMem_Free(base_vtables);
     return -1;
 }
