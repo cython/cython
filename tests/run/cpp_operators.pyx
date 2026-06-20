@@ -357,6 +357,7 @@ def test_typeid_op():
     cdef TruthSubClass* test_2 = new TruthSubClass()
     cdef TruthClass* test_3 = <TruthClass*> test_2
     cdef TruthClass* test_4 = <TruthClass*> 0
+    cdef int[1] int_array
 
     assert typeid(TruthClass).name()
     assert typeid(test_1).name()
@@ -373,6 +374,7 @@ def test_typeid_op():
     assert typeid(TruthSubClass).name()
     assert typeid(deref(test_2)).name()
     assert typeid(int_ptr).name()
+    assert typeid(int_array[0]).name()
 
     try:
         typeid(deref(test_4))
