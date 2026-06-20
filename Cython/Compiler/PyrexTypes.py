@@ -15,7 +15,7 @@ from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode, AbstractUtil
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, CannotSpecialize, performance_hint
+from .Errors import error, warning, performance_hint, CannotSpecialize
 
 
 class BaseType:
@@ -4995,7 +4995,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
                 self.has_uniform_element_type and len(template_values) != 1 or
                 self.is_pyanydict_type and len(template_values) != 2
             ):
-                error(pos, f"Cannot specialise {self.name!r} with {len(template_values)} types")
+                warning(pos, f"Cannot specialise {self.name!r} with {len(template_values)} types, ignoring.")
                 return self
 
             typ = BuiltinTypeConstructorObjectType(
