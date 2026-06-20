@@ -1021,13 +1021,11 @@ bad:
      (value) != (value))
 
 
-/////////////////// ExceptStar.export /////////////////////////
+/////////////////// ExceptStar.proto /////////////////////////
 
 static int __Pyx_ValidateStarCatchPattern(PyObject *pattern); /* proto */
 static int __Pyx_ExceptionGroupMatch(PyObject *, PyObject **, PyObject **); /* proto */
 static void __Pyx_RaisePreppedException(PyObject *exc); /* proto */
-
-/////////////////// ExceptStar.proto /////////////////////////
 
 #if CYTHON_USE_OWN_PREP_RERAISE_STAR
 // Our implementation, in Cython utility code
