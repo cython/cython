@@ -15,7 +15,7 @@ from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode, AbstractUtil
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, warning, CannotSpecialize, performance_hint
+from .Errors import error, CannotSpecialize, performance_hint
 
 
 class BaseType:
