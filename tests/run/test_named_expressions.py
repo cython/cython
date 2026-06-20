@@ -9,7 +9,7 @@ import unittest
 import cython
 from Cython.Compiler.Main import CompileError
 from Cython.Build.Inline import cython_inline
-from Cython.TestUtils import TimedTest, py_parse_code
+from Cython.TestUtils import TimedTest, parse_python_code
 import re
 import sys
 
@@ -85,7 +85,7 @@ class NamedExpressionInvalidTest(TimedTest):
                 # Comprehensions fail with scope attribute error in PostParse.
                 cls._orig_exec(code, gl, loc)
             else:
-                py_parse_code(code)
+                parse_python_code(code)
 
         cls._orig_exec = exec
         globals()['exec'] = check_syntax
