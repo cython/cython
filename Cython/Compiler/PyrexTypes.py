@@ -5008,8 +5008,9 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         return f"{name}[{subscripted_types}]" if subscripted_types else name
 
     def __eq__(self, value):
+        if not isinstance(value, BuiltinTypeConstructorObjectType):
+            return NotImplemented
         return (
-            isinstance(value, BuiltinTypeConstructorObjectType) and
             self.name == value.name and
             self.subscripted_types == value.subscripted_types
         )
