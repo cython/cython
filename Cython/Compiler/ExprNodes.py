@@ -6243,35 +6243,73 @@ class CallNode(ExprNode):
                     func_name = function.entry.name
                     if func_name == 'float':
                         return PyrexTypes.c_double_type
-                    elif func_name == 'bool':
+                    if func_name == 'bool':
                         return PyrexTypes.c_bint_type
-                    elif result_type.supports_container_type and len(self.args) == 1:
-                        func_arg_type = self.args[0].infer_type(env)
-                        if func_arg_type.supports_container_type:
-                            if func_name in ['dict', 'frozendict']:
-                                # We infer subscripted type of new dictionary only if type of the argument
-                                # is CONTAINER[CONTAINER[...]]
-                                st = func_arg_type.subscripted_types[0] if len(func_arg_type.subscripted_types) == 1 else None
-                                if func_arg_type.is_pyanydict_type:
-                                    subscripted_types = func_arg_type.subscripted_types
-                                elif st and st.is_pytuple_type and len(st.subscripted_types) == 2:
-                                    subscripted_types = st.subscripted_types
-                                elif st and len(st.subscripted_types) > 0:
-                                    # The argument type does not reveal number of types like list[list[...]]
-                                    # Hence, we just take first type and hope for the best. In any case,
-                                    # the runtime will error out when there are more than two elements.
-                                    subscripted_types = (st.subscripted_types[0], st.subscripted_types[0])
-                                else:
-                                    subscripted_types = ()
-                            else:
-                                subscripted_types = [func_arg_type.infer_iterator_type()]
-                            return result_type.specialize_here(self.pos, env, subscripted_types)
-                    elif func_name in Builtin.types_that_construct_their_instance:
+                    # Handle both SimpleCallNode (.args) and GeneralCallNode (.positional_args / .keyword_args).
+                    posargs = getattr(self, 'args', getattr(self, 'positional_args', ()))
+                    if result_type.supports_container_type and len(posargs) == 1 and not getattr(self, 'keyword_args', None):
+                        arg = posargs[0]
+                        arg_type = arg.infer_type(env)
+                        if arg_type.supports_container_type:
+                            if result_type.is_pyanydict_type:
+                                if arg_type.is_pyanydict_type:
+                                    return result_type.specialize_here(self.pos, env, arg_type.subscripted_types)
+                                if arg_type.is_builtin_sequence:
+                                    return self._infer_dict_container_type_from_sequence(env, result_type, arg_type, arg)
+                            if len(arg_type.subscripted_types) == 1:
+                                return result_type.specialise_here(self.pos, env, arg_type.subscripted_types[0])
+                            # FIXME: Normally, "arg.infer_type()" should have called "infer_sequence_item_type()"
+                            # already if appropriate, but it looks like that's not yet implemented, e.g. for ListNode?
+                            item_type = infer_sequence_item_type(env, arg, seq_type=arg_type)
+                            if item_type is not None:
+                                return result_type.specialize_here(self.pos, env, [item_type])
+                    if func_name in Builtin.types_that_construct_their_instance:
                         return result_type
+
         func_type = self.function.analyse_as_type(env)
         if func_type and (func_type.is_struct_or_union or func_type.is_cpp_class):
             return func_type
         return py_object_type
+
+    def _infer_dict_container_type_from_sequence(self, env, dict_type, sequence_type, sequence):
+        """Infer the item types of a (frozen)dict construction from a key-value sequence.
+
+        This will usually be "list[tuple[x,y]]", but Python allows arbitrary sequence types.
+        """
+        def unpack_keyvalue_types(items_type):
+            if items_type.is_pytuple_type:
+                if len(items_type.subscripted_types) == 2:
+                    # Simple 2-tuple.
+                    return items_type.subscripted_types
+            elif items_type.is_builtin_sequence and len(items_type.subscripted_types) == 1:
+                # Homogeneous sequence. If the length is != 2 at runtime, the dict creation will fail,
+                # so it's safe to infer the item type from it.
+                return items_type.subscripted_types * 2
+            return None
+
+        key_value_type = None
+        if len(sequence_type.subscripted_types) == 1:
+            key_value_type = unpack_keyvalue_types(sequence_type.subscripted_types[0])
+
+        if key_value_type is None and sequence.is_sequence_constructor:
+            # Try to infer common key-value types.
+            key_types, value_types = set(), set()
+            for item in sequence.args:
+                kv_type = unpack_keyvalue_types(item.infer_type(env))
+                if kv_type is None:
+                    break
+                key_types.add(kv_type[0])
+                value_types.add(kv_type[1])
+            else:
+                key_value_type = (
+                    PyrexTypes.reduce_spanning_types(key_types),
+                    PyrexTypes.reduce_spanning_types(value_types)
+                )
+
+        if key_value_type is None or key_value_type == (py_object_type, py_object_type):
+            return dict_type
+
+        return dict_type.specialize_here(self.pos, env, key_value_type)
 
     def type_dependencies(self, env):
         # TODO: Update when Danilo's C++ code merged in to handle the
