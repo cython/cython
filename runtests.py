@@ -39,7 +39,7 @@ CAN_SYMLINK = sys.platform != 'win32' and hasattr(os, 'symlink')
 
 SHARED_UTILITY_MODULE_NAME = '_cython_shared'
 
-from io import open as StringIO
+from io import StringIO
 
 try:
     import threading
