@@ -5261,7 +5261,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
             kwvalues = [kvp.value for kvp in node.keyword_args.key_value_pairs]
         elif node.keyword_args:
             kwdict = node.keyword_args
-            
+
         node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
             node,
             function=function, arg_tuple=node.positional_args, kwdict=kwdict,
