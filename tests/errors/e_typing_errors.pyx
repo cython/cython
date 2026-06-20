@@ -226,6 +226,18 @@ def forbidden_tuple_assignments():
     b: tuple[int, str] = a
     c: tuple[None, int] = a
 
+
+def invalid_type_count():
+    list2: list[int, int]
+    list3: list[int, int, int]
+    set2: set[int, int]
+    set3: set[int, int, int]
+    frozenset2: frozenset[int, int]
+    frozenset3: frozenset[int, int, int]
+    dict1: dict[int]
+    dict2: dict[int, int, int]
+
+
 _ERRORS = """
 13:42: typing.Optional[...] cannot be applied to type int
 13:66: typing.Optional[...] cannot be applied to type double
@@ -326,4 +338,13 @@ _ERRORS = """
 221:27: Cannot convert 'bytes' object to str implicitly, decoding required
 226:25: Cannot assign type 'tuple[str object,int object] object' to 'tuple[int object,str object] object'
 227:26: Cannot assign type 'tuple[str object,int object] object' to 'tuple[int object] object'
+
+231:15: Cannot specialise 'list' with 2 types
+232:15: Cannot specialise 'list' with 3 types
+233:13: Cannot specialise 'set' with 2 types
+234:13: Cannot specialise 'set' with 3 types
+235:25: Cannot specialise 'frozenset' with 2 types
+236:25: Cannot specialise 'frozenset' with 3 types
+237:15: Cannot specialise 'dict' with 1 types
+238:15: Cannot specialise 'dict' with 3 types
 """
