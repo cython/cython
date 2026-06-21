@@ -572,4 +572,3 @@ def test_inference_of_tuple_common_subscripted_type():
     t: tuple[A, B] = (A(), B())
     l = list(t)
     print(cython.typeof(l) + ("[A] object" if not cython.compiled else ""))
-
