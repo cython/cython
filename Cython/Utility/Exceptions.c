@@ -1194,7 +1194,7 @@ static void __Pyx_RaisePreppedException(PyObject *exc) {
 #if !CYTHON_USE_OWN_PREP_RERAISE_STAR
 // Unfortunately c_compile_guard in Cython utility code still causes the proto to be created
 // leading to a "declared static but never defined" warning.  This looks hard to avoid so
-// create trivial defintions instead.
+// create trivial definitions instead.
 CYTHON_UNUSED static PyObject *__Pyx_exception_get_notes(CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *b) {
     return NULL;
 }
