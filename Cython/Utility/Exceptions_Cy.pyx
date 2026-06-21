@@ -6,9 +6,10 @@ cimport cython
 
 cdef extern from *:
     # All these functions can return NULL as a valid outcome, therefore wrap them
-    # in something that returns a dummy object in this case
+    # in something that returns a dummy object in this case.
+    # The """""" are to stop Cython stripping pre-processor macros like comments.
     """
-    #if CYTHON_USE_OWN_PREP_RERAISE_STAR
+    """"""#if CYTHON_USE_OWN_PREP_RERAISE_STAR
     static PyObject *__Pyx_Safe_PyException_GetTraceback(PyObject *exc, PyObject *dummy_null) {
         PyObject *out = PyException_GetTraceback(exc);
         if (out) return out;
@@ -29,7 +30,7 @@ cdef extern from *:
         if (PyErr_Occurred()) return NULL;
         return Py_NewRef(dummy_null);
     }
-    #endif
+    """"""#endif
     """
     object __Pyx_Safe_PyException_GetTraceback(object, object)
     object __Pyx_Safe_PyException_GetCause(object, object)
