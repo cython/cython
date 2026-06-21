@@ -1172,7 +1172,7 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
 }
 
 static void __Pyx_RaisePreppedException(PyObject *exc) {
-#if PY_VERSION_HEX >= 0x030C00A6
+#if __PYX_LIMITED_VERSION_HEX >= 0x030C0000
     Py_INCREF(exc);
     PyErr_SetRaisedException(exc);
 #else

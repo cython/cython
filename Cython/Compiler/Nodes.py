@@ -8805,7 +8805,7 @@ class ExceptStarChainNode(StatListNode):
                  self.internal_exception_set]
         for t in temps:
             t.allocate(code)
-        code.putln("#if PY_VERSION_HEX < 0x030B0000")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX < 0x030B0000")
         code.putln('#error "Starred exceptions require runtime support so only work on Python 3.11 or later"')
         code.putln("#endif")
         code.putln("%s = PyList_New(0); %s" % (
@@ -8865,7 +8865,7 @@ class StarExceptTestSetupNode(StatNode):
     def generate_set_internal_exception_code(self, code):
         # if we do hit an error, it doesn't override "internal exception set"
         code.putln("if (!%s) {" % self.internal_exception_set.result())
-        code.putln("#if Py_VERSION_HEX >= 0x030C00A6")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030C0000")
         code.putln("%s = PyErr_GetRaisedException();" % self.internal_exception_set.result())
         code.put_incref(self.internal_exception_set.result(), PyrexTypes.py_object_type)
         code.putln("PyErr_SetRaisedException(%s);" % self.internal_exception_set.result())
