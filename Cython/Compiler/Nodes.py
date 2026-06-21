@@ -8864,17 +8864,11 @@ class StarExceptTestSetupNode(StatNode):
 
     def generate_set_internal_exception_code(self, code):
         # if we do hit an error, it doesn't override "internal exception set"
-        code.putln("if (!%s) {" % self.internal_exception_set.result())
-        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030C0000")
-        code.putln("%s = PyErr_GetRaisedException();" % self.internal_exception_set.result())
-        code.put_incref(self.internal_exception_set.result(), PyrexTypes.py_object_type)
-        code.putln("PyErr_SetRaisedException(%s);" % self.internal_exception_set.result())
-        code.putln("#else")
+        code.putln(f"if (!{self.internal_exception_set.result()}) {{")
         code.putln("PyObject *tp, *tb;")
-        code.putln("PyErr_Fetch(&tp, &%s, &tb);" % self.internal_exception_set.result())
+        code.putln(f"__Pyx_PyErr_FetchException(&tp, &{self.internal_exception_set.result()}, &tb);")
         code.put_incref(self.internal_exception_set.result(), PyrexTypes.py_object_type)
-        code.putln("PyErr_Restore(tp, %s, tb);" % self.internal_exception_set.result())
-        code.putln("#endif")
+        code.putln(f"__Pyx_PyErr_RestoreException(tp, {self.internal_exception_set.result()}, tb);")
         code.putln("}")
 
     def generate_execution_code(self, code):
