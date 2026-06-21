@@ -36,6 +36,8 @@ cdef extern from *:
     object __Pyx_Safe_PyException_GetCause(object, object)
     object __Pyx_Safe_PyException_GetContext(object, object)
 
+    cdef void *PyExc_BaseExceptionGroup
+
 @cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
 @cname("__Pyx_exception_get_notes")
 cdef get_notes(exc, dummy_null):
@@ -79,7 +81,7 @@ cdef get_leafs(list keep):
     cdef list to_process = list(keep)
     cdef set leafs = set()
     for e_or_eg in to_process:
-        if not isinstance(e_or_eg, BaseExceptionGroup):
+        if not isinstance(e_or_eg, <type>PyExc_BaseExceptionGroup):
             leafs.add(id(e_or_eg))
         else:
             to_process.extend(e_or_eg.exceptions)
@@ -100,7 +102,7 @@ cdef prep_reraise_star(orig, list excs):
     cdef list reraised, raised
     if not excs:
         return None
-    if not isinstance(orig, BaseExceptionGroup):
+    if not isinstance(orig, <type>PyExc_BaseExceptionGroup):
         assert len(excs) == 1 or len(excs) == 2 and excs[1] is None
         return excs[0]
     reraised, raised = split_into_same_metadata(orig, excs)
@@ -110,5 +112,5 @@ cdef prep_reraise_star(orig, list excs):
     if reraised_eg is not None:
         raised.append(reraised_eg)
     if len(raised) > 1:
-        return BaseExceptionGroup("", raised)
+        return (<type>PyExc_BaseExceptionGroup)("", raised)
     return raised[0]
