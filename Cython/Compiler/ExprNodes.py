@@ -6247,6 +6247,7 @@ class CallNode(ExprNode):
                         return PyrexTypes.c_bint_type
                     # Handle both SimpleCallNode (.args) and GeneralCallNode (.positional_args / .keyword_args).
                     posargs = getattr(self, 'args', getattr(self, 'positional_args', ()))
+                    posargs = posargs.args if hasattr(posargs, 'args') else posargs
                     if result_type.supports_container_type and len(posargs) == 1 and not getattr(self, 'keyword_args', None):
                         arg = posargs[0]
                         arg_type = arg.infer_type(env)
