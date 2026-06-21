@@ -8677,7 +8677,7 @@ class ExceptStarChainNode(StatListNode):
     def __init__(self, pos, except_clauses):
         from . import ExprNodes
 
-        super(ExceptStarChainNode, self).__init__(pos, stats=[])
+        super().__init__(pos, stats=[])
 
         self.in_progress_exception_group = ExprNodes.PyTempNode(self.pos, None)
         self.original_exception_group = ExprNodes.PyTempNode(self.pos, None)
@@ -8794,7 +8794,7 @@ class ExceptStarChainNode(StatListNode):
     def analyse_expressions(self, env):
         from .UtilityCode import CythonUtilityCode
         env.use_utility_code(CythonUtilityCode.load_cached("ExceptStar", "Exceptions_Cy.pyx"))
-        return super(ExceptStarChainNode, self).analyse_expressions(env)
+        return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
         # generates special code to skip "add_traceback"
@@ -8820,7 +8820,7 @@ class ExceptStarChainNode(StatListNode):
         code.put_incref(self.original_exception_group.result(), PyrexTypes.py_object_type)
         code.put_incref(self.in_progress_exception_group.result(), PyrexTypes.py_object_type)
         code.putln("%s = NULL;" % self.internal_exception_set.result())
-        super(ExceptStarChainNode, self).generate_execution_code(code)
+        super().generate_execution_code(code)
         for t in temps:
             if t is self.matched_exception_group or t is self.internal_exception_set:
                 code.put_xdecref_clear(t.result(), t.type)
