@@ -9,6 +9,7 @@ if cython.compiled:
         assert what == 'exec'
         parse_python_code(code)
 
+
 # This is copied out of "support/testcase" just to avoid a dependency
 # on a module that's rarely installed
 class ExceptionIsLikeMixin:
@@ -607,6 +608,8 @@ class TestExceptStarReraise(ExceptStarTest):
 
 
 class TestExceptStarRaise(ExceptStarTest):
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_raise_named(self):
         orig = ExceptionGroup("eg", [ValueError(1), OSError(2)])
         try:
@@ -629,6 +632,8 @@ class TestExceptStarRaise(ExceptStarTest):
         self.assertMetadataNotEqual(orig, exc)
         self.assertMetadataEqual(orig, exc.exceptions[0].__context__)
 
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_raise_unnamed(self):
         orig = ExceptionGroup("eg", [ValueError(1), OSError(2)])
         try:
@@ -651,6 +656,8 @@ class TestExceptStarRaise(ExceptStarTest):
         self.assertMetadataNotEqual(orig, exc)
         self.assertMetadataEqual(orig, exc.exceptions[0].__context__)
 
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_raise_handle_all_raise_one_named(self):
         orig = ExceptionGroup("eg", [TypeError(1), ValueError(2)])
         try:
@@ -670,6 +677,8 @@ class TestExceptStarRaise(ExceptStarTest):
         self.assertMetadataNotEqual(orig, exc)
         self.assertMetadataEqual(orig, exc.__context__)
 
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_raise_handle_all_raise_one_unnamed(self):
         orig = ExceptionGroup("eg", [TypeError(1), ValueError(2)])
         try:
@@ -689,6 +698,8 @@ class TestExceptStarRaise(ExceptStarTest):
         self.assertMetadataNotEqual(orig, exc)
         self.assertMetadataEqual(orig, exc.__context__)
 
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_raise_handle_all_raise_two_named(self):
         orig = ExceptionGroup("eg", [TypeError(1), ValueError(2)])
         try:
@@ -716,6 +727,8 @@ class TestExceptStarRaise(ExceptStarTest):
         self.assertMetadataEqual(orig, exc.exceptions[0].__context__)
         self.assertMetadataEqual(orig, exc.exceptions[1].__context__)
 
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_raise_handle_all_raise_two_unnamed(self):
         orig = ExceptionGroup("eg", [TypeError(1), ValueError(2)])
         try:
@@ -745,6 +758,8 @@ class TestExceptStarRaise(ExceptStarTest):
 
 
 class TestExceptStarRaiseFrom(ExceptStarTest):
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_raise_named(self):
         orig = ExceptionGroup("eg", [ValueError(1), OSError(2)])
         try:
@@ -774,6 +789,8 @@ class TestExceptStarRaiseFrom(ExceptStarTest):
         self.assertMetadataNotEqual(orig, exc.exceptions[1].__context__)
         self.assertMetadataNotEqual(orig, exc.exceptions[1].__cause__)
 
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_raise_unnamed(self):
         orig = ExceptionGroup("eg", [ValueError(1), OSError(2)])
         try:
@@ -804,6 +821,8 @@ class TestExceptStarRaiseFrom(ExceptStarTest):
         self.assertMetadataNotEqual(orig, exc.exceptions[1].__context__)
         self.assertMetadataNotEqual(orig, exc.exceptions[1].__cause__)
 
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_raise_handle_all_raise_one_named(self):
         orig = ExceptionGroup("eg", [TypeError(1), ValueError(2)])
         try:
@@ -828,6 +847,8 @@ class TestExceptStarRaiseFrom(ExceptStarTest):
         self.assertMetadataEqual(orig, exc.__context__)
         self.assertMetadataEqual(orig, exc.__cause__)
 
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_raise_handle_all_raise_one_unnamed(self):
         orig = ExceptionGroup("eg", [TypeError(1), ValueError(2)])
         try:
@@ -853,6 +874,8 @@ class TestExceptStarRaiseFrom(ExceptStarTest):
         self.assertMetadataEqual(orig, exc.__context__)
         self.assertMetadataEqual(orig, exc.__cause__)
 
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_raise_handle_all_raise_two_named(self):
         orig = ExceptionGroup("eg", [TypeError(1), ValueError(2)])
         try:
@@ -888,6 +911,8 @@ class TestExceptStarRaiseFrom(ExceptStarTest):
         self.assertMetadataEqual(orig, exc.exceptions[0].__context__)
         self.assertMetadataEqual(orig, exc.exceptions[0].__cause__)
 
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_raise_handle_all_raise_two_unnamed(self):
         orig = ExceptionGroup("eg", [TypeError(1), ValueError(2)])
         try:
@@ -994,6 +1019,8 @@ class TestExceptStarExceptionGroupSubclass(ExceptStarTest):
 
 
 class TestExceptStarCleanup(ExceptStarTest):
+    @unittest.skipIf(sys.implementation.name == "graalpy",
+                     "GraalPy doesn't seem to set __context__ from C API exceptions")
     def test_sys_exception_restored(self):
         try:
             try:
