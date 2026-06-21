@@ -74,7 +74,7 @@ cdef split_into_same_metadata(original, list exceptions):
 
 @cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
 @cname("__Pyx_except_star_leafs")
-cdef get_leafs(keep):
+cdef get_leafs(list keep):
     # get a set with ids of all the leafs
     cdef list to_process = list(keep)
     cdef set leafs = set()
@@ -87,7 +87,7 @@ cdef get_leafs(keep):
 
 @cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
 @cname("__Pyx_exception_group_projection")
-cdef exception_group_projection(orig, keep):
+cdef exception_group_projection(orig, list keep):
     leafs = get_leafs(keep)
 
     # BaseExceptionGroup.split requires an actual Python function - a Cython callable won't do
@@ -96,7 +96,7 @@ cdef exception_group_projection(orig, keep):
 
 @cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
 @cname("__Pyx__PyExc_PrepReraiseStar")
-cdef prep_reraise_star(orig, excs):
+cdef prep_reraise_star(orig, list excs):
     cdef list reraised, raised
     if not excs:
         return None

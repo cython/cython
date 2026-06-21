@@ -8794,6 +8794,7 @@ class ExceptStarChainNode(StatListNode):
     def analyse_expressions(self, env):
         from .UtilityCode import CythonUtilityCode
         env.use_utility_code(CythonUtilityCode.load_cached("ExceptStar", "Exceptions_Cy.pyx"))
+        env.use_utility_code(UtilityCode.load_cached("ExceptStar", "Exceptions.c"))
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
@@ -8872,10 +8873,6 @@ class StarExceptTestSetupNode(StatNode):
         code.putln("}")
 
     def generate_execution_code(self, code):
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("ExceptStar", "Exceptions.c")
-        )
-
         match_result_found_label = code.new_label()
 
         # an exception handling block we can jump into in the event of an error
