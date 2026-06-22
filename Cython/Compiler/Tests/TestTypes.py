@@ -59,6 +59,7 @@ class TestBuiltinTypes(TimedTest):
                     f"{attr} should be set for {type_name}"
                 )
 
+
 class TestTypeIdentifiers(TimedTest):
 
     TEST_DATA = [
