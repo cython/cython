@@ -10683,7 +10683,7 @@ class ParallelRangeNode(ParallelStatNode):
             # a deadlock if we're using the GIL). So at very least we need
             # a barrier starting the loop
             acquire_gil_deadlock_avoidance_point.putln(
-                "PyThreadState *__pyx_parallel_loop_threadstate = PyEval_SaveThread();")
+                f"PyThreadState *{Naming.parallel_loop_threadstate} = PyEval_SaveThread();")
 
         for entry, op in sorted(self.privates.items()):
             # Don't declare the index variable as a reduction
@@ -10724,9 +10724,9 @@ class ParallelRangeNode(ParallelStatNode):
 
         if self.acquire_gil:
             code.putln("#ifdef _OPENMP")
-            code.putln("if (__pyx_parallel_loop_threadstate) {")
-            code.putln("PyEval_RestoreThread(__pyx_parallel_loop_threadstate);")
-            code.putln("__pyx_parallel_loop_threadstate = NULL;")
+            code.putln(f"if ({Naming.parallel_loop_threadstate}) {{")
+            code.putln(f"PyEval_RestoreThread({Naming.parallel_loop_threadstate});")
+            code.putln(f"{Naming.parallel_loop_threadstate} = NULL;")
             code.putln("}")
             code.putln("#endif")
 
@@ -10752,12 +10752,12 @@ class ParallelRangeNode(ParallelStatNode):
 
         if self.acquire_gil:
             code.putln("#ifdef _OPENMP")
-            code.putln("if (!__pyx_parallel_loop_threadstate) {")
-            code.putln("__pyx_parallel_loop_threadstate = PyEval_SaveThread();")
+            code.putln(f"if (!{Naming.parallel_loop_threadstate}) {{")
+            code.putln(f"{Naming.parallel_loop_threadstate} = PyEval_SaveThread();")
             code.putln("}")
             # synchronization point for all loops at the end of the thread but without the GIL
             code.putln("#pragma omp barrier")
-            code.putln("PyEval_RestoreThread(__pyx_parallel_loop_threadstate);")
+            code.putln(f"PyEval_RestoreThread({Naming.parallel_loop_threadstate});")
             code.putln("#endif")
 
         if self.is_parallel:
