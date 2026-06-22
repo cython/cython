@@ -19,24 +19,9 @@ import contextlib
 
 #from test.support import import_module
 
-#asyncio = import_module("asyncio")
+import asyncio
 
 ZERO = 0
-
-try:
-    import asyncio
-except ImportError:
-    try:
-        from unittest import skip
-    except ImportError:
-        def requires_asyncio(c):
-            return None
-    else:
-        requires_asyncio = skip("tests require asyncio")
-    asyncio = None
-else:
-    def requires_asyncio(c):
-        return c
 
 
 def not_pypy(f):
@@ -150,10 +135,7 @@ except NameError:
 def exec(code_string, l, g):
     from Cython.Compiler.Errors import CompileError
     from Cython.Shadow import inline
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from io import StringIO
 
     old_stderr = sys.stderr
     try:
@@ -552,7 +534,6 @@ class AsyncGenTest(TimedTest):
         self.assertTrue(inspect_isawaitable(g.aclose()))
 
 
-@requires_asyncio
 class AsyncGenAsyncioTest(TimedTest):
 
     def setUp(self):
