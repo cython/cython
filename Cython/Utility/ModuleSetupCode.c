@@ -73,8 +73,9 @@
 
   #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
-  #undef CYTHON_USE_TYPE_SLOTS
-  #define CYTHON_USE_TYPE_SLOTS 0
+  #ifndef CYTHON_USE_TYPE_SLOTS
+    #define CYTHON_USE_TYPE_SLOTS 0
+  #endif
   #undef CYTHON_USE_TYPE_SPECS
   #define CYTHON_USE_TYPE_SPECS 0
   #undef CYTHON_USE_PYTYPE_LOOKUP
@@ -104,7 +105,11 @@
   #ifndef CYTHON_VECTORCALL
     #define CYTHON_VECTORCALL 1
   #endif
-  #ifndef CYTHON_VECTORCALL_TPNEW
+  #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX < 0x030E0000
+    // Py_tp_vectorcall slot unavailable
+    #undef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW 0
+  #elif !defined(CYTHON_VECTORCALL_TPNEW)
     #define CYTHON_VECTORCALL_TPNEW CYTHON_VECTORCALL
   #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
@@ -175,7 +180,11 @@
   #ifndef CYTHON_VECTORCALL
     #define CYTHON_VECTORCALL 1
   #endif
-  #ifndef CYTHON_VECTORCALL_TPNEW
+  #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX < 0x030E0000
+    // Py_tp_vectorcall slot unavailable
+    #undef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW 0
+  #elif !defined(CYTHON_VECTORCALL_TPNEW)
     // PyPy doesn't define the slot below 7.3.8.
     #define CYTHON_VECTORCALL_TPNEW (PYPY_VERSION_NUM >= 0x07030800 && CYTHON_VECTORCALL)
   #endif

@@ -1518,22 +1518,22 @@ class BuiltinObjectType(PyObjectType):
     is_external = True
     decl_type = 'PyObject'
 
-    _builtin_type_flag_mapping = {
+    _get_type_flags_for = {
         'int': ['is_pyint_type'],
         'float': ['is_pyfloat_type'],
         'bool': ['is_pybool_type'],
         'complex': ['is_pycomplex_type'],
-        'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type'],
+        'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type', 'has_uniform_element_type'],
         'tuple': ['is_pytuple_type', 'is_builtin_sequence', 'supports_container_type'],
         'dict': ['is_pydict_type', 'is_pyanydict_type', 'supports_container_type'],
         'frozendict': ['is_pyfrozendict_type', 'is_pyanydict_type', 'supports_container_type'],
-        'set': ['is_pyset_type', 'is_pyanyset_type', 'supports_container_type'],
-        'frozenset': ['is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type'],
+        'set': ['is_pyset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type'],
+        'frozenset': ['is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type'],
         'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
-    }
+    }.get
 
     def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
@@ -1551,9 +1551,8 @@ class BuiltinObjectType(PyObjectType):
         self._init_builtin_type_flags(name)
 
     def _init_builtin_type_flags(self, type_name: str) -> None:
-        if type_name in self._builtin_type_flag_mapping:
-            for attribute in self._builtin_type_flag_mapping[type_name]:
-                setattr(self, attribute, True)
+        for attribute in (self._get_type_flags_for(type_name) or ()):
+            setattr(self, attribute, True)
 
     @property
     def typeptr_cname(self):
@@ -4981,8 +4980,6 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     def __init__(self, name, cname, objstruct_cname=None, **kwargs):
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
-        if name in {'list', 'set', 'frozenset'}:
-            self.has_uniform_element_type = True
         self.set_python_type_constructor_name(self.get_container_type().name)
         for attr_name, value in kwargs.items():
             setattr(self, attr_name, value)
@@ -5011,8 +5008,9 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         return f"{name}[{subscripted_types}]" if subscripted_types else name
 
     def __eq__(self, value):
+        if not isinstance(value, BuiltinTypeConstructorObjectType):
+            return NotImplemented
         return (
-            isinstance(value, BuiltinTypeConstructorObjectType) and
             self.name == value.name and
             self.subscripted_types == value.subscripted_types
         )
