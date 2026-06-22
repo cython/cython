@@ -323,6 +323,8 @@ class PyrexType(BaseType):
     refcounting_needs_gil = True
     supports_refnanny = False
     supports_container_type = False
+    # container has uniform elements (e.g. list[int], but not tuple[int, str])
+    has_uniform_element_type = False
     equivalent_type = None
     default_value = ""
     declaration_value = ""
@@ -1518,7 +1520,7 @@ class BuiltinObjectType(PyObjectType):
     is_external = True
     decl_type = 'PyObject'
 
-    _get_type_flags_for = {
+    _builtin_type_flag_mapping = {
         'int': ['is_pyint_type'],
         'float': ['is_pyfloat_type'],
         'bool': ['is_pybool_type'],
@@ -1533,7 +1535,8 @@ class BuiltinObjectType(PyObjectType):
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
-    }.get
+    }
+    _get_type_flags_for = _builtin_type_flag_mapping.get
 
     def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
@@ -4941,8 +4944,6 @@ class PythonTypeConstructorMixin:
     contains_none = False
     base_type = None
     subscripted_types = ()
-    # container has uniform elements (e.g. list[int], but not tuple[int, str])
-    has_uniform_element_type = False
 
     def get_subscripted_type(self, index: int):
         try:
