@@ -35,10 +35,13 @@ static PyObject* __Pyx_GetObjectFromTemplateLib(int is_template); /* proto */
 
 
 //////////////////////////// InitializeTemplateLib ///////////////////////////
+//@requires: Exceptions.c::IgnoreException
 
 #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
 static PyObject *__Pyx_TemplateLibFallback(void) {
-    PyErr_Clear();
+    if (!__Pyx_IgnoreException(PyExc_Exception)) {
+        return NULL; // BaseException
+    }
 
     // The assumption here is that Interpolation and Template are fairly simple classes
     // and the cost of compiling them with Cython (for all Python versions) is probably
@@ -268,7 +271,6 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
 
 //////////////////////////// MakeTemplateLibTemplate ////////////////////////
 //@requires: InitializeTemplateLib
-//@requires: ObjectHandling.c::PyObjectVectorCallKwBuilder
 
 #if PY_VERSION_HEX >= 0x030E0000 && CYTHON_COMPILING_IN_CPYTHON
 #ifndef Py_BUILD_CORE
@@ -293,23 +295,32 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
         // There's a high chance (but not certain) that we're using our internal
         // fallback version of template. In this case we can try to use a better
         // constructor.
-        PyObject *args[] = { NULL, NULL };
-        PyObject *kwargs_builder = __Pyx_MakeVectorcallBuilderKwds(2);
-        if (unlikely(!kwargs_builder)) goto failed_shortcut; 
-        if (unlikely(__Pyx_VectorcallBuilder_AddArg(PYIDENT("strings"), strings, kwargs_builder, args, 0)<0))
-            goto failed_shortcut;
-        if (unlikely(__Pyx_VectorcallBuilder_AddArg(PYIDENT("interpolations"), interpolations, kwargs_builder, args, 1)<0))
-            goto failed_shortcut;
-        result = __Pyx_Object_Vectorcall_CallFromBuilder(tp, args, 0, kwargs_builder);
-        Py_DECREF(kwargs_builder);
+        PyObject *kwds = NULL;
+        {
+#if CYTHON_VECTORCALL
+            PyObject *args[] = { strings, interpolations };
+            kwds = PyTuple_Pack(2, PYIDENT("strings"), PYIDENT("interpolations"));
+            if (unlikely(!kwds)) goto failed_shortcut;
+            result = PyObject_Vectorcall(tp, args, 0, kwds);
+#else
+            kwds = PyDict_New();
+            if (unlikely(!kwds)) goto failed_shortcut;
+            if (unlikely(PyDict_SetItem(kwds, PYIDENT("strings"), strings) < 0)) goto failed_shortcut;
+            if (unlikely(PyDict_SetItem(kwds, PYIDENT("interpolations"), interpolations) < 0)) goto failed_shortcut;
+            result = PyObject_Call(tp, EMPTY(tuple), kwds);
+#endif
+        }
         if (result) {
+            Py_DECREF(kwds);
             Py_DECREF(tp);
             return result;
         }
 
       failed_shortcut:
-        Py_CLEAR(kwargs_builder);
-        PyErr_Clear();
+        Py_XDECREF(kwds);
+        if (!__Pyx_IgnoreException(PyExc_Exception)) {
+            return NULL; // BaseException
+        }
     }
 #endif
 

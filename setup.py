@@ -61,7 +61,7 @@ setup_args['package_data'] = {
     'Cython.Compiler' : ['*.pxd'],
     'Cython.Runtime'  : ['*.pyx', '*.pxd'],
     'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
-    'Cython'          : [ p[7:] for p in pxd_include_patterns ] + ['py.typed', '__init__.pyi', 'Shadow.pyi'],
+    'Cython'          : [ p[7:] for p in pxd_include_patterns ] + ['py.typed'],
     'Cython.Debugger.Tests': ['codefile', 'cfuncs.c'],
 }
 
@@ -121,6 +121,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.ExprNodes",
             "Cython.Compiler.ModuleNode",
             "Cython.Compiler.Optimize",
+            "Cython.LZSS",
             ])
 
     from shutil import which
@@ -457,7 +458,6 @@ def run_build():
         classifiers=[
             dev_status(version),
             "Intended Audience :: Developers",
-            "License :: OSI Approved :: Apache Software License",
             "Operating System :: OS Independent",
             "Programming Language :: Python",
             "Programming Language :: Python :: 3",

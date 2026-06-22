@@ -4,6 +4,7 @@
 # that should be tested on PyPy?)
 
 run.starargs
+run.extstarargs
 
 # refcounting-specific tests
 double_dealloc_T796
@@ -17,6 +18,7 @@ run.generator_frame_cycle
 run.generators_in_refcycles
 run.generators_py
 run.parallel
+memoryview[.]borrowed_refs
 
 # tests for things that don't exist in cpyext
 compile.pylong

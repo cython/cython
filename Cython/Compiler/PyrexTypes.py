@@ -10,12 +10,12 @@ import re
 from functools import partial, reduce
 from itertools import product
 
-from Cython.Utils import cached_function
+from Cython.Utils import cached_function, set_dedup
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode, AbstractUtilityCode
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, CannotSpecialize, performance_hint
+from .Errors import error, warning, performance_hint, CannotSpecialize
 
 
 class BaseType:
@@ -110,7 +110,7 @@ class BaseType:
         # get_fused_types in subclasses.
         return self.get_fused_types()
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
         """
         Deduce any template params in this (argument) type given the actual
         argument type.
@@ -153,6 +153,14 @@ class BaseType:
         """
         return None
 
+    def get_container_type(self):
+        """Returns the basic container type of the (potentially subscripted) type,
+        or None if not a container type.
+
+        Similar to typing.get_origin().
+        """
+        return None
+
 
 class PyrexType(BaseType):
     #
@@ -170,6 +178,7 @@ class PyrexType(BaseType):
     #  is_ptr                boolean     Is a C pointer type
     #  is_null_ptr           boolean     Is the type of NULL
     #  is_reference          boolean     Is a C reference type
+    #  is_fake_reference     boolean
     #  is_rvalue_reference   boolean     Is a C++ rvalue reference type
     #  is_const              boolean     Is a C const type
     #  is_volatile           boolean     Is a C volatile type
@@ -190,6 +199,20 @@ class PyrexType(BaseType):
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
     #  is_buffer             boolean     Is buffer access type
+    #  is_ctuple             boolean     Is a Cython ctuple type
+    #  is_pytuple_type       boolean     Is a Python tuple type
+    #  is_pylist_type        boolean     Is a Python list type
+    #  is_pydict_type        boolean     Is a Python dict type
+    #  is_pyfrozendict_type  boolean     Is a Python frozendict type
+    #  is_pyanydict_type     boolean     Is a Python dict or frozendict type
+    #  is_pyset_type         boolean     Is a Python set type
+    #  is_pyfrozenset_type   boolean     Is a Python frozenset type
+    #  is_pyanyset_type      boolean     Is a Python set or frozenset type
+    #  is_pybytes_type       boolean     Is a Python bytes type
+    #  is_pystr_type         boolean     Is a Python str type
+    #  is_pybytearray_type   boolean     Is a Python bytearray type
+    #  is_pymemoryview_type  boolean     Is a Python memoryview type
+    #  is_memoryviewslice    boolean     Is a Cython memoryview slice type
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
     #  is_unowned_view       boolean     Is a pointer or a C++ class such as std::string_view
@@ -198,6 +221,7 @@ class PyrexType(BaseType):
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
     #  refcounting_needs_gil boolean     Reference counting needs GIL to be acquired.
+    #  supports_refnanny     boolean     This type can use refnanny to check its reference counting.
     #  equivalent_type       type        A C or Python type that is equivalent to this Python or C type.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
@@ -265,17 +289,67 @@ class PyrexType(BaseType):
     is_error = 0
     is_buffer = 0
     is_ctuple = 0
+
+    is_pyint_type = False
+    is_pyfloat_type = False
+    is_pybool_type = False
+    is_pycomplex_type = False
+
+    is_pytuple_type = False
+    is_pylist_type = False
+    is_pydict_type = False
+    is_pyfrozendict_type = False
+    is_pyanydict_type = False
+    is_pyset_type = False
+    is_pyfrozenset_type = False
+    is_pyanyset_type = False
+
+    is_pybytes_type = False
+    is_pystr_type = False
+    is_pybytearray_type = False
+    is_pymemoryview_type = False
+
+    # Combined type group flags, based on common needs in the code base.
+    is_builtin_sequence = False
+    is_bytes_or_str_or_bytearray = False
+
     is_memoryviewslice = 0
     is_pythran_expr = 0
     is_numpy_buffer = 0
     is_unowned_view = False
     is_cython_lock_type = False
     has_attributes = 0
-    needs_refcounting = 0
+    needs_refcounting = False
     refcounting_needs_gil = True
+    supports_refnanny = False
+    supports_container_type = False
     equivalent_type = None
     default_value = ""
     declaration_value = ""
+
+    @property
+    def is_c_or_cpp_string(self) -> bool:
+        return self.is_string or self.is_cpp_string
+
+    @property
+    def may_be_pyint_type(self) -> bool:
+        return self is py_object_type or self.is_pyint_type
+
+    @property
+    def may_be_pyfloat_type(self) -> bool:
+        return self is py_object_type or self.is_pyfloat_type
+
+    @property
+    def may_be_pybytes_type(self) -> bool:
+        return self is py_object_type or self.is_pybytes_type
+
+    @property
+    def may_be_pytuple_type(self) -> bool:
+        return self is py_object_type or self.is_pytuple_type
+
+    @property
+    def may_be_pylist_type(self) -> bool:
+        return self is py_object_type or self.is_pylist_type
 
     def resolve(self):
         # If a typedef, returns the base type.
@@ -366,23 +440,23 @@ class PyrexType(BaseType):
             convert_call,
             code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
-    def _generate_dummy_refcounting(self, code, *ignored_args, **ignored_kwds):
+    def _get_dummy_refcounting_code(self, *ignored_args, **ignored_kwds):
         if self.needs_refcounting:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
                                       self)
 
-    def _generate_dummy_refcounting_assignment(self, code, cname, rhs_cname, *ignored_args, **ignored_kwds):
+    def _get_dummy_refcounting_assignment_code(self, cname, rhs_cname, *ignored_args, **ignored_kwds):
         if self.needs_refcounting:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
                                       self)
-        code.putln("%s = %s" % (cname, rhs_cname))
+        return f"{cname} = {rhs_cname}"
 
-    generate_incref = generate_xincref = generate_decref = generate_xdecref \
-        = generate_decref_clear = generate_xdecref_clear \
-        = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref \
-            = _generate_dummy_refcounting
+    get_incref_code = get_xincref_code = get_decref_code = get_xdecref_code \
+        = get_decref_clear_code = get_xdecref_clear_code \
+        = get_gotref_code = get_xgotref_code = get_giveref_code = get_xgiveref_code \
+            = _get_dummy_refcounting_code
 
-    generate_decref_set = generate_xdecref_set = _generate_dummy_refcounting_assignment
+    get_decref_set_code = get_xdecref_set_code = _get_dummy_refcounting_assignment_code
 
     def nullcheck_string(self, code, cname):
         if self.needs_refcounting:
@@ -1142,32 +1216,31 @@ class MemoryViewSliceType(PyrexType):
 
     # When memoryviews are increfed currently seems heavily special-cased.
     # Therefore, use our own function for now
-    def generate_incref(self, code, name, **kwds):
+    def get_incref_code(self, name, **kwds):
         pass
 
-    def generate_incref_memoryviewslice(self, code, slice_cname, have_gil):
+    def get_incref_memoryviewslice_code(self, slice_cname, have_gil):
         # TODO ideally would be done separately
-        code.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
+        return f"__PYX_INC_MEMVIEW(&{slice_cname}, {have_gil:d});"
 
     # decref however did look to always apply for memoryview slices
     # with "have_gil" set to True by default
-    def generate_xdecref(self, code, cname, nanny, have_gil):
-        code.putln("__PYX_XCLEAR_MEMVIEW(&%s, %d);" % (cname, int(have_gil)))
+    def get_xdecref_code(self, cname, nanny, have_gil):
+        return f"__PYX_XCLEAR_MEMVIEW(&{cname}, {have_gil:d});"
 
-    def generate_decref(self, code, cname, nanny, have_gil):
+    def get_decref_code(self, cname, nanny, have_gil):
         # Fall back to xdecref since we don't care to have a separate decref version for this.
-        self.generate_xdecref(code, cname, nanny, have_gil)
+        return self.get_xdecref_code(cname, nanny, have_gil)
 
-    def generate_xdecref_clear(self, code, cname, clear_before_decref, **kwds):
-        self.generate_xdecref(code, cname, **kwds)
-        code.putln("%s.memview = NULL; %s.data = NULL;" % (cname, cname))
+    def get_xdecref_clear_code(self, cname, clear_before_decref, **kwds):
+        return f"{self.get_xdecref_code(cname, **kwds)}; {cname}.memview = NULL; {cname}.data = NULL;"
 
-    def generate_decref_clear(self, code, cname, **kwds):
+    def get_decref_clear_code(self, cname, **kwds):
         # memoryviews don't currently distinguish between xdecref and decref
-        self.generate_xdecref_clear(code, cname, **kwds)
+        return self.get_xdecref_clear_code(cname, **kwds)
 
     # memoryviews don't participate in giveref/gotref
-    generate_gotref = generate_xgotref = generate_xgiveref = generate_giveref = lambda *args: None
+    get_gotref_code = get_xgotref_code = get_xgiveref_code = get_giveref_code = lambda *args: None
 
 
 
@@ -1269,6 +1342,7 @@ class PyObjectType(PyrexType):
     is_gc_simple = False
     builtin_trashcan = False  # builtin type using trashcan
     needs_refcounting = True
+    supports_refnanny = True
 
     def __str__(self):
         return "Python object"
@@ -1328,83 +1402,70 @@ class PyObjectType(PyrexType):
     def check_for_null_code(self, cname):
         return cname
 
-    def generate_incref(self, code, cname, nanny):
+    def get_incref_code(self, cname, nanny):
         if nanny:
-            code.funcstate.needs_refnanny = True
-            code.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname))
+            return f"__Pyx_INCREF({self.as_pyobject(cname)});"
         else:
-            code.putln("Py_INCREF(%s);" % self.as_pyobject(cname))
+            return f"Py_INCREF({self.as_pyobject(cname)});"
 
-    def generate_xincref(self, code, cname, nanny):
+    def get_xincref_code(self, cname, nanny):
         if nanny:
-            code.funcstate.needs_refnanny = True
-            code.putln("__Pyx_XINCREF(%s);" % self.as_pyobject(cname))
+            return f"__Pyx_XINCREF({self.as_pyobject(cname)});"
         else:
-            code.putln("Py_XINCREF(%s);" % self.as_pyobject(cname))
+            return f"Py_XINCREF({self.as_pyobject(cname)});"
 
-    def generate_decref(self, code, cname, nanny, have_gil):
+    def get_decref_code(self, cname, nanny, have_gil):
         # have_gil is for the benefit of memoryviewslice - it's ignored here
         assert have_gil
-        self._generate_decref(code, cname, nanny, null_check=False, clear=False)
+        return self._get_decref_code(cname, nanny, null_check=False, clear=False)
 
-    def generate_xdecref(self, code, cname, nanny, have_gil):
+    def get_xdecref_code(self, cname, nanny, have_gil):
         # in this (and other) PyObjectType functions, have_gil is being
         # passed to provide a common interface with MemoryviewSlice.
         # It's ignored here
-        self._generate_decref(code, cname, nanny, null_check=True,
+        return self._get_decref_code(cname, nanny, null_check=True,
                          clear=False)
 
-    def generate_decref_clear(self, code, cname, clear_before_decref, nanny, have_gil):
-        self._generate_decref(code, cname, nanny, null_check=False,
+    def get_decref_clear_code(self, cname, clear_before_decref, nanny, have_gil):
+        return self._get_decref_code(cname, nanny, null_check=False,
                          clear=True, clear_before_decref=clear_before_decref)
 
-    def generate_xdecref_clear(self, code, cname, clear_before_decref=False, nanny=True, have_gil=None):
-        self._generate_decref(code, cname, nanny, null_check=True,
+    def get_xdecref_clear_code(self, cname, clear_before_decref=False, nanny=True, have_gil=None):
+        return self._get_decref_code(cname, nanny, null_check=True,
                          clear=True, clear_before_decref=clear_before_decref)
 
-    def generate_gotref(self, code, cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_GOTREF(%s);" % self.as_pyobject(cname))
+    def get_gotref_code(self, cname):
+        return f"__Pyx_GOTREF({self.as_pyobject(cname)});"
 
-    def generate_xgotref(self, code, cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_XGOTREF(%s);" % self.as_pyobject(cname))
+    def get_xgotref_code(self, cname):
+        return f"__Pyx_XGOTREF({self.as_pyobject(cname)});"
 
-    def generate_giveref(self, code, cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_GIVEREF(%s);" % self.as_pyobject(cname))
+    def get_giveref_code(self, cname):
+        return f"__Pyx_GIVEREF({self.as_pyobject(cname)});"
 
-    def generate_xgiveref(self, code, cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_XGIVEREF(%s);" % self.as_pyobject(cname))
+    def get_xgiveref_code(self, cname):
+        return f"__Pyx_XGIVEREF({self.as_pyobject(cname)});"
 
-    def generate_decref_set(self, code, cname, rhs_cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_DECREF_SET(%s, %s);" % (cname, rhs_cname))
+    def get_decref_set_code(self, cname, rhs_cname):
+        return f"__Pyx_DECREF_SET({cname}, {rhs_cname});"
 
-    def generate_xdecref_set(self, code, cname, rhs_cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_XDECREF_SET(%s, %s);" % (cname, rhs_cname))
+    def get_xdecref_set_code(self, cname, rhs_cname):
+        return f"__Pyx_XDECREF_SET({cname}, {rhs_cname});"
 
-    def _generate_decref(self, code, cname, nanny, null_check=False,
+    def _get_decref_code(self, cname, nanny, null_check=False,
                     clear=False, clear_before_decref=False):
         prefix = '__Pyx' if nanny else 'Py'
         X = 'X' if null_check else ''
-
-        if nanny:
-            code.funcstate.needs_refnanny = True
 
         if clear:
             if clear_before_decref:
                 if not nanny:
                     X = ''  # CPython doesn't have a Py_XCLEAR()
-                code.putln("%s_%sCLEAR(%s);" % (prefix, X, cname))
+                return f"{prefix}_{X}CLEAR({cname});"
             else:
-                code.putln("%s_%sDECREF(%s); %s = 0;" % (
-                    prefix, X, self.as_pyobject(cname), cname))
+                return f"{prefix}_{X}DECREF({self.as_pyobject(cname)}); {cname} = 0;"
         else:
-            code.putln("%s_%sDECREF(%s);" % (
-                prefix, X, self.as_pyobject(cname)))
+            return f"{prefix}_{X}DECREF({self.as_pyobject(cname)});"
 
     def nullcheck_string(self, cname):
         return cname
@@ -1432,6 +1493,7 @@ _special_type_check_functions = {
     'str': 'PyUnicode_Check',
     'bytearray': 'PyByteArray_Check',
     'frozenset': 'PyFrozenSet_Check',
+    'frozendict': '__Pyx_PyFrozenDict_Check',
     'memoryview': 'PyMemoryView_Check',
     'Exception': '__Pyx_PyException_Check',
     'BaseException': '__Pyx_PyBaseException_Check',
@@ -1456,9 +1518,26 @@ class BuiltinObjectType(PyObjectType):
     is_external = True
     decl_type = 'PyObject'
 
+    _get_type_flags_for = {
+        'int': ['is_pyint_type'],
+        'float': ['is_pyfloat_type'],
+        'bool': ['is_pybool_type'],
+        'complex': ['is_pycomplex_type'],
+        'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type', 'has_uniform_element_type'],
+        'tuple': ['is_pytuple_type', 'is_builtin_sequence', 'supports_container_type'],
+        'dict': ['is_pydict_type', 'is_pyanydict_type', 'supports_container_type'],
+        'frozendict': ['is_pyfrozendict_type', 'is_pyanydict_type', 'supports_container_type'],
+        'set': ['is_pyset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type'],
+        'frozenset': ['is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type'],
+        'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
+        'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
+        'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
+        'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
+    }.get
+
     def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
-        self.typeptr_cname = "(%s)" % cname
+        self.cname = cname
         self.objstruct_cname = objstruct_cname
         self.is_gc_simple = name in builtin_types_that_cannot_create_refcycles
         self.builtin_trashcan = name in builtin_types_with_trashcan
@@ -1469,6 +1548,15 @@ class BuiltinObjectType(PyObjectType):
         if is_exception_type_name(name):
             self.is_exception_type = True
             self.require_exact = False
+        self._init_builtin_type_flags(name)
+
+    def _init_builtin_type_flags(self, type_name: str) -> None:
+        for attribute in (self._get_type_flags_for(type_name) or ()):
+            setattr(self, attribute, True)
+
+    @property
+    def typeptr_cname(self):
+        return f"({self.cname})"
 
     def set_scope(self, scope):
         self.scope = scope
@@ -1482,11 +1570,11 @@ class BuiltinObjectType(PyObjectType):
         return "<%s>"% self.typeptr_cname
 
     def default_coerced_ctype(self):
-        if self.name in ('bytes', 'bytearray'):
+        if self.is_pybytes_type or self.is_pybytearray_type:
             return c_char_ptr_type
-        elif self.name == 'bool':
+        elif self.is_pybool_type:
             return c_bint_type
-        elif self.name == 'float':
+        elif self.is_pyfloat_type:
             return c_double_type
         return None
 
@@ -1514,7 +1602,10 @@ class BuiltinObjectType(PyObjectType):
         return type.is_pyobject and type.assignable_from(self)
 
     def type_check_function(self, exact=True):
-        type_name = self.name
+        if container_type := self.get_container_type():
+            type_name = container_type.name
+        else:
+            type_name = self.name
         if type_name in _special_type_check_functions:
             type_check = _special_type_check_functions[type_name]
         elif self.is_exception_type:
@@ -1542,10 +1633,10 @@ class BuiltinObjectType(PyObjectType):
 
         Replaces the C value in 'arg_cname' on conversion or error, decrefing the original value.
         """
-        if self.name == 'float':
+        if self.is_pyfloat_type:
             utility_code_name = "pyfloat_simplify"
             cfunc = "__Pyx_PyFloat_FromNumber"
-        elif self.name == 'int':
+        elif self.is_pyint_type:
             utility_code_name = "pyint_simplify"
             cfunc = "__Pyx_PyInt_FromNumber"
         else:
@@ -1608,6 +1699,7 @@ class PyExtensionType(PyObjectType):
     #  dataclass_fields  OrderedDict nor None   Used for inheriting from dataclasses
     #  multiple_bases    boolean          Does this class have multiple bases
     #  has_sequence_flag  boolean        Set Py_TPFLAGS_SEQUENCE
+    #  has_mapping_flag   boolean        Set Py_TPFLAGS_MAPPING
 
     is_extension_type = 1
     has_attributes = 1
@@ -1617,6 +1709,7 @@ class PyExtensionType(PyObjectType):
     dataclass_fields = None
     multiple_bases = False
     has_sequence_flag = False
+    has_mapping_flag = False
 
     def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
@@ -1845,38 +1938,42 @@ class PythranExpr(CType):
         return hash(self.pythran_type)
 
 
-class CConstOrVolatileType(BaseType):
-    "A C const or volatile type"
+class CQualifierType(BaseType):
+    """A C qualifier type - currently const, restrict and volatile"""
 
     subtypes = ['cv_base_type']
 
     is_cv_qualified = 1
 
-    def __init__(self, base_type, is_const=0, is_volatile=0):
+    def __init__(self, base_type, is_const=False, is_volatile=False, is_restrict=False):
         self.cv_base_type = base_type
         self.is_const = is_const
         self.is_volatile = is_volatile
+        self.is_restrict = is_restrict
         if base_type.has_attributes and base_type.scope is not None:
-            from .Symtab import CConstOrVolatileScope
-            self.scope = CConstOrVolatileScope(base_type.scope, is_const, is_volatile)
+            from .Symtab import CQualifierScope
+            self.scope = CQualifierScope(base_type.scope, is_const, is_volatile)
 
-    def cv_string(self):
+    def cv_string(self, for_display=0):
         cvstring = ""
         if self.is_const:
             cvstring = "const " + cvstring
         if self.is_volatile:
             cvstring = "volatile " + cvstring
+        if self.is_restrict:
+            cvstring = "restrict " if for_display else "CYTHON_RESTRICT " + cvstring
+
         return cvstring
 
     def __repr__(self):
-        return "<CConstOrVolatileType %s%r>" % (self.cv_string(), self.cv_base_type)
+        return "<CQualifierType %s%r>" % (self.cv_string(), self.cv_base_type)
 
     def __str__(self):
         return self.declaration_code("", for_display=1)
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
-        cv = self.cv_string()
+        cv = self.cv_string(for_display=for_display)
         if for_display or pyrex:
             return cv + self.cv_base_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
         else:
@@ -1886,11 +1983,17 @@ class CConstOrVolatileType(BaseType):
         base_type = self.cv_base_type.specialize(values)
         if base_type == self.cv_base_type:
             return self
-        return CConstOrVolatileType(base_type,
-                self.is_const, self.is_volatile)
+        return CQualifierType(base_type,
+                self.is_const, self.is_volatile, self.is_restrict)
 
-    def deduce_template_params(self, actual):
-        return self.cv_base_type.deduce_template_params(actual)
+    def deduce_template_params(self, actual, is_value_type=True):
+        if ((actual.is_const and self.is_const)
+                or (actual.is_volatile and self.is_volatile)):
+            # If we're "const T" and actual is "const int" then deduce "T=int".
+            # Also, if the type is being passed by value then deduce a non-const type.
+            return self.cv_base_type.deduce_template_params(actual.cv_base_type, is_value_type=is_value_type)
+        # Otherwise, if we're "const T" and actual is "int" then deduce "T=int"
+        return self.cv_base_type.deduce_template_params(actual, is_value_type=is_value_type)
 
     def can_coerce_to_pyobject(self, env):
         return self.cv_base_type.can_coerce_to_pyobject(env)
@@ -1913,10 +2016,10 @@ class CConstOrVolatileType(BaseType):
         return getattr(self.cv_base_type, name)
 
 
-def c_const_type(base_type):
+def c_const_type(base_type, is_const: bool = True):
     """Creates a C 'const ...' type but does not test for 'error_type'.
     """
-    return CConstOrVolatileType(base_type, is_const=True)
+    return CQualifierType(base_type, is_const=is_const)
 
 
 class FusedType(CType):
@@ -2824,9 +2927,9 @@ class CArrayType(CPointerBaseType):
         else:
             return CArrayType(base_type, self.size)
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
         if isinstance(actual, CArrayType):
-            return self.base_type.deduce_template_params(actual.base_type)
+            return self.base_type.deduce_template_params(actual.base_type, is_value_type=False)
         else:
             return {}
 
@@ -2865,10 +2968,9 @@ class CArrayType(CPointerBaseType):
             return super().to_py_call_code(source_code, result_code, result_type, to_py_function)
 
         func = self.to_py_function if to_py_function is None else to_py_function
-        target_is_tuple = result_type.is_builtin_type and result_type.name == 'tuple'
         return '%s = %s(%s, %s)' % (
             result_code,
-            self.to_tuple_function if target_is_tuple else func,
+            self.to_tuple_function if result_type.is_pytuple_type else func,
             source_code,
             self.size)
 
@@ -2995,9 +3097,9 @@ class CPtrType(CPointerBaseType):
         else:
             return CPtrType(base_type)
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
         if isinstance(actual, CPtrType):
-            return self.base_type.deduce_template_params(actual.base_type)
+            return self.base_type.deduce_template_params(actual.base_type, is_value_type=False)
         else:
             return {}
 
@@ -3038,8 +3140,8 @@ class CReferenceBaseType(BaseType):
         else:
             return type(self)(base_type)
 
-    def deduce_template_params(self, actual):
-        return self.ref_base_type.deduce_template_params(actual)
+    def deduce_template_params(self, actual, is_value_type=True):
+        return self.ref_base_type.deduce_template_params(actual, is_value_type=False)
 
     def __getattr__(self, name):
         return getattr(self.ref_base_type, name)
@@ -4283,7 +4385,7 @@ class CppClassType(CType):
                         specialized.scope.entries[bit_ref_returner].type.return_type = T
         return specialized
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
         if actual.is_cv_qualified:
             actual = actual.cv_base_type
         if actual.is_reference:
@@ -4579,7 +4681,10 @@ class TemplatePlaceholderType(CType):
         else:
             return self
 
-    def deduce_template_params(self, actual):
+    def deduce_template_params(self, actual, is_value_type=True):
+        if is_value_type and actual.is_cv_qualified:
+            # For value types, there's no reason to preserve const/volatile
+            return {self: actual.cv_base_type}
         return {self: actual}
 
     def same_as_resolved_type(self, other_type):
@@ -4689,6 +4794,8 @@ class CTupleType(CType):
 
     _convert_to_py_code = None
     _convert_from_py_code = None
+    to_py_function = None
+    from_py_function = None
 
     def __init__(self, cname, components):
         from .Builtin import tuple_type
@@ -4696,8 +4803,6 @@ class CTupleType(CType):
         self.components = components
         self.equivalent_type = tuple_type
         self.size = len(components)
-        self.to_py_function = f"{Naming.convert_func_prefix}_to_py_{self.cname}"
-        self.from_py_function = f"{Naming.convert_func_prefix}_from_py_{self.cname}"
 
     def __str__(self):
         return "(%s)" % ", ".join(str(c) for c in self.components)
@@ -4732,6 +4837,7 @@ class CTupleType(CType):
                 return False
 
         if self._convert_to_py_code is None:
+            self.to_py_function = f"{Naming.convert_func_prefix}_to_py_{self.cname}"
             context = dict(
                 struct_type_decl=self.empty_declaration_code(),
                 components=self.components,
@@ -4755,6 +4861,7 @@ class CTupleType(CType):
                 return False
 
         if self._convert_from_py_code is None:
+            self.from_py_function = f"{Naming.convert_func_prefix}_from_py_{self.cname}"
             context = dict(
                 struct_type_decl=self.empty_declaration_code(),
                 components=self.components,
@@ -4832,6 +4939,19 @@ class PythonTypeConstructorMixin:
     """
     modifier_name = None
     contains_none = False
+    base_type = None
+    subscripted_types = ()
+    # container has uniform elements (e.g. list[int], but not tuple[int, str])
+    has_uniform_element_type = False
+
+    def get_subscripted_type(self, index: int):
+        try:
+            return self.subscripted_types[index]
+        except IndexError:
+            return None
+
+    def get_common_item_type(self):
+        return reduce_spanning_types(self.subscripted_types)
 
     def allows_none(self):
         return (
@@ -4839,13 +4959,8 @@ class PythonTypeConstructorMixin:
             self.modifier_name == 'typing.Union' and self.contains_none
         )
 
-    def set_python_type_constructor_name(self, name):
+    def set_python_type_constructor_name(self, name: str) -> None:
         self.python_type_constructor_name = name
-
-    def specialize_here(self, pos, env, template_values=None):
-        # for a lot of the typing classes it doesn't really matter what the template is
-        # (i.e. typing.Dict[int] is really just a dict)
-        return self
 
     def __repr__(self):
         if self.base_type:
@@ -4861,10 +4976,98 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     """
     builtin types like list, dict etc which can be subscripted in annotations
     """
-    def __init__(self, name, cname, objstruct_cname=None):
+
+    def __init__(self, name, cname, objstruct_cname=None, **kwargs):
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
-        self.set_python_type_constructor_name(name)
+        self.set_python_type_constructor_name(self.get_container_type().name)
+        for attr_name, value in kwargs.items():
+            setattr(self, attr_name, value)
+
+    def specialize_here(self, pos, env, template_values=None):
+        if not self.supports_container_type:
+            return self
+        if template_values and None not in template_values:
+            if (
+                self.has_uniform_element_type and len(template_values) != 1 or
+                self.is_pyanydict_type and len(template_values) != 2
+            ):
+                warning(pos, f"Cannot specialise {self.name!r} with {len(template_values)} types, ignoring.")
+                return self
+
+            typ = BuiltinTypeConstructorObjectType(
+                name=self.name, cname=self.cname, objstruct_cname=self.objstruct_cname,
+                base_type=self, subscripted_types=tuple(template_values), scope=self.scope)
+            typ.entry = self.entry
+            return typ
+        return self
+
+    @staticmethod
+    def _full_type_name(name: str, subscripted_types) -> str:
+        subscripted_types = ','.join([str(tv) for tv in subscripted_types])
+        return f"{name}[{subscripted_types}]" if subscripted_types else name
+
+    def __eq__(self, value):
+        if not isinstance(value, BuiltinTypeConstructorObjectType):
+            return NotImplemented
+        return (
+            self.name == value.name and
+            self.subscripted_types == value.subscripted_types
+        )
+
+    def __hash__(self):
+        return hash(self.name) ^ hash(tuple(self.subscripted_types))
+
+    def __str__(self):
+        if self.subscripted_types:
+            return f"{self._full_type_name(self.name, self.subscripted_types)} object"
+        else:
+            return super().__str__()
+
+    def assignable_from(self, src_type):
+        if self.get_container_type() is src_type.get_container_type():
+            if not self.subscripted_types:
+                # Assignment to unqualified type is always fine, e.g. list[int] -> list
+                return True
+            if self.subscripted_types and not src_type.subscripted_types:
+                return True
+            if (
+                len(self.subscripted_types) == len(src_type.subscripted_types) and
+                all(dst_sc.assignable_from(src_sc)
+                    for dst_sc, src_sc in zip(self.subscripted_types, src_type.subscripted_types))
+            ):
+                return True
+            return False
+        return super().assignable_from(src_type)
+
+    def infer_indexed_type(self, at_index=None):
+        container_type = self.get_container_type()
+        if at_index is None:
+            return self.get_common_item_type()
+        if container_type.is_pytuple_type and isinstance(at_index, int):
+            return self.get_subscripted_type(at_index)
+        if container_type.is_pyanydict_type:
+            return self.get_subscripted_type(1)
+        if container_type.is_pylist_type or container_type.is_pyanyset_type:
+            return self.get_subscripted_type(0)
+        return self.get_common_item_type()
+
+    def infer_iterator_type(self):
+        container_type = self.get_container_type()
+        if container_type.is_pytuple_type:
+            return self.get_common_item_type()
+        return self.get_subscripted_type(0)
+
+    def get_container_type(self):
+        """Returns the basic container type of the (potentially subscripted) type,
+        or None if not a container type.
+
+        Similar to typing.get_origin().
+        """
+        base_type = self.base_type
+        if base_type:
+            return base_type.get_container_type()
+        return self
 
 
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
@@ -5267,7 +5470,7 @@ def map_argument_type(src_type, dst_type):
     # manually for overloaded and fused functions
     c_src_type = None
     if src_type.is_pyobject:
-        if src_type.is_builtin_type and src_type.name == 'str' and dst_type.resolve().is_string:
+        if src_type.is_pystr_type and dst_type.resolve().is_string:
             c_src_type = dst_type.resolve()
         else:
             c_src_type = src_type.default_coerced_ctype()
@@ -5435,7 +5638,13 @@ def merge_template_deductions(a, b):
         return None
     add_if_missing = a.setdefault
     for param, value in b.items():
-        if add_if_missing(param, value) != value:
+        value_in_a = add_if_missing(param, value)
+        if value_in_a != value:
+            if value_in_a.is_cv_qualified and value_in_a.cv_base_type == value:
+                continue  # This is fine
+            if value.is_cv_qualified and value.cv_base_type == value_in_a:
+                a[param] = value  # replace with the more restrictive qualified value
+                continue
             # Found mismatch, cannot merge.
             return None
     return a
@@ -5492,26 +5701,26 @@ def result_type_of_builtin_operation(builtin_type, type2):
     """
     Try to find a suitable (C) result type for a binary operation with a known builtin type.
     """
-    if builtin_type.name == 'float':
+    if builtin_type.is_pyfloat_type:
         if type2.is_numeric:
             return widest_numeric_type(c_double_type, type2)
-        elif type2.is_builtin_type and type2.name in ('int', 'float'):
+        elif type2.is_pyint_type or type2.is_pyfloat_type:
             return c_double_type
-        elif type2.is_builtin_type and type2.name == 'complex':
+        elif type2.is_pycomplex_type:
             return type2
-    elif builtin_type.name == 'int':
+    elif builtin_type.is_pyint_type:
         if type2 == builtin_type or type2.is_int:
             return builtin_type
-        elif type2.is_float or type2.is_builtin_type and type2.name == 'float':
+        elif type2.is_float or type2.is_pyfloat_type:
             return c_double_type
-        elif type2.is_builtin_type and type2.name == 'complex':
+        elif type2.is_pycomplex_type:
             return type2
-    elif builtin_type.name == 'complex':
+    elif builtin_type.is_pycomplex_type:
         if type2.is_complex:
             return CComplexType(widest_numeric_type(c_double_type, type2.real_type))
         elif type2.is_numeric:
             return CComplexType(widest_numeric_type(c_double_type, type2))
-        elif type2.is_builtin_type and type2.name in ('int', 'float', 'complex'):
+        elif type2.is_pyint_type or type2.is_pyfloat_type or type2.is_pycomplex_type:
             return CComplexType(c_double_type)
 
     return None
@@ -5553,11 +5762,19 @@ def independent_spanning_type(type1, type2):
         if resolved_type2.is_pyobject and resolved_type2.equivalent_type == resolved_type1:
             return resolved_type1
         # PyInt + C int => PyInt
-        if resolved_type1.is_int and resolved_type2.is_builtin_type and resolved_type2.name == 'int':
+        if resolved_type1.is_int and resolved_type2.is_pyint_type:
             return resolved_type2
-        if resolved_type2.is_int and resolved_type1.is_builtin_type and resolved_type1.name == 'int':
+        if resolved_type2.is_int and resolved_type1.is_pyint_type:
             return resolved_type1
         # e.g. PyInt + double => object
+        return py_object_type
+    elif resolved_type1.is_builtin_type and resolved_type2.is_builtin_type:
+        container_type = resolved_type1.get_container_type()
+        if container_type is not None and container_type == resolved_type2.get_container_type():
+            # list[float] + list[int] => list
+            return container_type
+        # Either numeric or incompatible. Do not try to find a widest Python type
+        # (e.g. int+float => float) as it would change one of the result types.
         return py_object_type
 
     span_type = _spanning_type(type1, type2)
@@ -5644,6 +5861,15 @@ def widest_cpp_type(type1, type2):
         return None
 
 
+def reduce_spanning_types(types):
+    """Reduce a series of types to their common spanning type.
+    """
+    if not types:
+        return py_object_type
+    types = list(set_dedup(types))
+    return reduce(spanning_type, types) if types else py_object_type
+
+
 def simple_c_type(signed, longness, name):
     # Find type descriptor for simple type given name and modifiers.
     # Returns None if arguments don't make sense.
@@ -5659,12 +5885,13 @@ def parse_basic_type(name: str):
         base = parse_basic_type(name[:-1])
     if base:
         return CPtrType(base)
-    if name.startswith(('const_', 'volatile_')):
+    if name.startswith(('const_', 'volatile_', 'restrict_')):
         modifier, _, base_name = name.partition('_')
         base = parse_basic_type(base_name)
         if base:
-            return CConstOrVolatileType(
-                base, is_const=modifier == 'const', is_volatile=modifier == 'volatile')
+            return CQualifierType(
+                base, is_const=modifier == 'const', is_volatile=modifier == 'volatile',
+                is_restrict=modifier == 'restrict')
     #
     basic_type = parse_basic_ctype(name)
     if basic_type:
@@ -5733,9 +5960,9 @@ def cpp_rvalue_ref_type(base_type):
     # Construct a C++ rvalue reference type
     return _construct_type_from_base(CppRvalueReferenceType, base_type)
 
-def c_const_or_volatile_type(base_type, is_const=False, is_volatile=False):
-    # Construct a C const/volatile type.
-    return _construct_type_from_base(CConstOrVolatileType, base_type, is_const, is_volatile)
+def c_qualifier_type(base_type, is_const: bool = False, is_volatile: bool = False, is_restrict: bool = False):
+    # Construct a C const/volatile/restrict type.
+    return _construct_type_from_base(CQualifierType, base_type, is_const, is_volatile, is_restrict)
 
 
 def same_type(type1, type2):
