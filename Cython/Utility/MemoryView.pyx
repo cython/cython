@@ -385,7 +385,8 @@ cdef class memoryview:
         else:
             self.dtype_is_object = dtype_is_object
 
-        assert <uintptr_t><void*>(&self.acquisition_count) % sizeof(__pyx_atomic_int_type) == 0
+        with cython.cdivision(True):
+            assert <uintptr_t>(&self.acquisition_count) % sizeof(__pyx_atomic_int_type) == 0
         self.typeinfo = NULL
 
     def __dealloc__(memoryview self):

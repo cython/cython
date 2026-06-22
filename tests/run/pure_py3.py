@@ -114,14 +114,15 @@ def test_cdef_return_object(x: object) -> object:
         raise RuntimeError()
 
 
-def test_pointer_const_volatile(c_string: cython.p_const_char):
+def test_pointer_qualifier(c_string: cython.p_const_char):
     """
-    >>> test_pointer_const_volatile(b'xyz')
+    >>> test_pointer_qualifier(b'xyz')
     const char *
     int
     volatile int
     int *
     const int *
+    restrict int *
     b'xyz'
     """
     # Using 'int' since that looks the same in Python and Cython.
@@ -129,6 +130,7 @@ def test_pointer_const_volatile(c_string: cython.p_const_char):
     a_v: cython.volatile[cython.int] = 7
     p: cython.pointer[cython.int] = cython.NULL
     p_c: cython.pointer[cython.const[cython.int]] = cython.NULL
+    p_r: cython.restrict[cython.pointer[cython.int]] = cython.NULL
 
     # additional compile test (cannot assign initial value):
     a_c: cython.const[cython.pointer[cython.const[cython.int]]]
@@ -139,4 +141,5 @@ def test_pointer_const_volatile(c_string: cython.p_const_char):
 
     print(cython.typeof(p) if cython.compiled else "int *")
     print(cython.typeof(p_c) if cython.compiled else "const int *")
+    print(cython.typeof(p_r) if cython.compiled else "restrict int *")
     return c_string

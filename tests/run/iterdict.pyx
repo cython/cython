@@ -1,6 +1,16 @@
 
 cimport cython
 
+import sys
+
+def skip_if_no_frozendict(f):
+    if sys.version_info >= (3, 15):
+        return f
+    return None
+
+
+__doc__ = ""
+
 dict_size = 4
 d = dict(zip(range(10,dict_size+10), range(dict_size)))
 fd = frozendict(d)
@@ -589,6 +599,60 @@ def iterfrozendict_listcomp(frozendict fd):
     cdef list l = [k for k in fd]
     l.sort()
     return l
+
+
+@skip_if_no_frozendict
+def frozendict_iteritems(frozendict fd):
+    """
+    >>> frozendict_iteritems(fd)
+    Traceback (most recent call last):
+        ...
+    AttributeError: type object 'frozendict' has no attribute 'iteritems'
+    """
+    for k, v in fd.iteritems():
+        print(f"This really shouldn't happen: {k}, {v}")
+
+
+@skip_if_no_frozendict
+def frozendict_iterkeys(frozendict fd):
+    """
+    >>> frozendict_iterkeys(fd)
+    Traceback (most recent call last):
+        ...
+    AttributeError: type object 'frozendict' has no attribute 'iterkeys'
+    """
+    for k, v in fd.iterkeys():
+        print(f"This really shouldn't happen: {k}, {v}")
+
+
+@skip_if_no_frozendict
+def frozendict_itervalues(frozendict fd):
+    """
+    >>> frozendict_itervalues(fd)
+    Traceback (most recent call last):
+        ...
+    AttributeError: type object 'frozendict' has no attribute 'itervalues'
+    """
+    for k, v in fd.itervalues():
+        print(f"This really shouldn't happen: {k}, {v}")
+
+
+if sys.version_info >= (3, 15):
+    from textwrap import dedent
+    __doc__ += dedent("""
+    >>> optimistic_iteritems(fd)
+    Traceback (most recent call last):
+        ...
+    AttributeError: 'frozendict' object has no attribute 'iteritems'
+    >>> optimistic_iterkeys(fd)
+    Traceback (most recent call last):
+        ...
+    AttributeError: 'frozendict' object has no attribute 'iterkeys'
+    >>> optimistic_itervalues(fd)
+    Traceback (most recent call last):
+        ...
+    AttributeError: 'frozendict' object has no attribute 'itervalues'
+    """)
 
 
 cdef class NotADict:
