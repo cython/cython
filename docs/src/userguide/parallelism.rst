@@ -20,7 +20,7 @@ module.  It currently supports OpenMP, but later on more backends might be suppo
 
 Historically, this kind of parallelism could only be used with the
 :term:`GIL<Global Interpreter Lock or GIL>` released (see :ref:`Releasing the GIL <nogil>`).
-However, from Cython 3.2 there is now some experimental support for running these parallel blocks with
+However, from Cython 3.3 there is now some experimental support for running these parallel blocks with
 the GIL.  This will only work well (i.e. actually run your code in parallel) on freethreaded
 builds of Python
 
