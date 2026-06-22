@@ -39,16 +39,8 @@ CAN_SYMLINK = sys.platform != 'win32' and hasattr(os, 'symlink')
 
 SHARED_UTILITY_MODULE_NAME = '_cython_shared'
 
-from io import open as io_open
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO  # doesn't accept 'str' in Py2
-
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+from io import open as io_open, StringIO
+import pickle
 
 try:
     import threading
