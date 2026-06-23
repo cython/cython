@@ -3419,6 +3419,9 @@ class DefNode(FuncDefNode):
                     arg.accept_none = True
                 elif arg.not_none:
                     arg.accept_none = False
+                    if arg.default and arg.default.constant_result is None:
+                        error(arg.pos,
+                              "Parameter '%s' is declared 'not None' but has a default value of None" % arg.name)
                 elif (arg.type.is_extension_type or arg.type.is_builtin_type
                         or arg.type.is_buffer or arg.type.is_memoryviewslice):
                     if arg.default and arg.default.constant_result is None:
