@@ -1403,7 +1403,7 @@ static int __Pyx_init_tpflags_variables(void) {
         if (__Pyx_Runtime_TPFLAGS_SEQUENCE == 0 && __Pyx_init_tpflags_bitcount(sequence_flags) == 1) {
             __Pyx_Runtime_TPFLAGS_SEQUENCE = sequence_flags;
         }
-        if (__Pyx_Runtime_TPFLAGS_MAPPING == 0 && __Pyx_init_tpflags_bitcount(sequence_flags) == 1) {
+        if (__Pyx_Runtime_TPFLAGS_MAPPING == 0 && __Pyx_init_tpflags_bitcount(mapping_flags) == 1) {
             __Pyx_Runtime_TPFLAGS_MAPPING = mapping_flags;
         }
     }
