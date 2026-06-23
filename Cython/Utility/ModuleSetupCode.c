@@ -978,7 +978,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject
     PyObject *res = __Pyx_PyDict_GetItemStrWithError(dict, name);
     if (res == NULL && PyErr_Occurred()) {
         // Like PyDict_GetItem, this is a bit indiscriminate about catching *all* errors.
-        // Recent versions of Python format any unraised exception so do that too here. 
+        // Recent versions of Python format any unraised exception so do that too here.
         PyErr_WriteUnraisable(NULL);
     }
     return res;
@@ -1358,7 +1358,7 @@ static int __Pyx_init_co_variables(void) {
 static int __Pyx_init_tpflags_bitcount(unsigned long flag) {
     int count = 0;
     while (flag) {
-        count += (flag & 1);
+        count += (int) (flag & 1);
         flag >>= 1;
     }
     return count;
@@ -1403,7 +1403,7 @@ static int __Pyx_init_tpflags_variables(void) {
         if (__Pyx_Runtime_TPFLAGS_SEQUENCE == 0 && __Pyx_init_tpflags_bitcount(sequence_flags) == 1) {
             __Pyx_Runtime_TPFLAGS_SEQUENCE = sequence_flags;
         }
-        if (__Pyx_Runtime_TPFLAGS_MAPPING == 0 && __Pyx_init_tpflags_bitcount(sequence_flags) == 1) {
+        if (__Pyx_Runtime_TPFLAGS_MAPPING == 0 && __Pyx_init_tpflags_bitcount(mapping_flags) == 1) {
             __Pyx_Runtime_TPFLAGS_MAPPING = mapping_flags;
         }
     }

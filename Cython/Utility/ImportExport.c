@@ -735,7 +735,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
         PyTypeObject* base = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
         while (base) {
             base_depth += 1;
-            base = __Pyx_PyType_GetSlot(base, tp_base, PyTypeObject*);
+            base = __Pyx_PyType_TryGetSlot(base, tp_base, PyTypeObject*);
         }
     }
     base_vtables = (void**) PyMem_Malloc(sizeof(void*) * (size_t)(base_depth + 1));
@@ -780,7 +780,10 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
         } else {
             assert(base_vtable != NULL);
             int j;
-            PyTypeObject* base = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
+            PyTypeObject* base = __Pyx_PyType_TryGetSlot(type, tp_base, PyTypeObject*);
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+            if (!base) goto bad;
+#endif
             for (j = 0; j < base_depth; j++) {
                 if (base_vtables[j] == unknown) {
                     switch (__Pyx_GetVtable(base, &base_vtables[j])) {
@@ -799,7 +802,10 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
                 if (base_vtables[j] == base_vtable) {
                     break;
                 }
-                base = __Pyx_PyType_GetSlot(base, tp_base, PyTypeObject*);
+                base = __Pyx_PyType_TryGetSlot(base, tp_base, PyTypeObject*);
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX <= 0x030A0000
+                if (!base) goto bad;
+#endif
             }
         }
     }

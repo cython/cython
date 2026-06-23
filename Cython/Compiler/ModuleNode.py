@@ -1744,7 +1744,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
         if tp_new is None:
-            tp_new = f"__Pyx_PyType_GetSlot({base_type_typeptr_cname}, tp_new, newfunc)"
+            code.putln(f"newfunc base_tp_new = __Pyx_PyType_TryGetSlot({base_type_typeptr_cname}, tp_new, newfunc);")
+            tp_new = "base_tp_new"
+            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_VEX < 0x030A0000")
+            code.putln(f"if (unlikely(!base_tp_new)) {{")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseErrorWithObjectTypes", "ObjectHandling.c"))
+            code.putln('__Pyx_RaiseTypeErrorWithTypes('
+                       '"Type " __Pyx_FMT_TYPENAME " cannot be instantiated because it '
+                       'cannot access tp_new of its base " __Pyx_FMT_TYPENAME ". '
+                       'This is probably because the base is not a heap type and is a '
+                       'restriction of the Limited API in Python<=3.9", '
+                       f"t, {base_type_typeptr_cname});")
+            code.putln("o = NULL;")
+            code.putln("} else")
+            code.putln("#endif")
 
         code.putln(f"o = {tp_new}(t, {call_args});")
 
