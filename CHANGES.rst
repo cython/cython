@@ -14,6 +14,9 @@ Features added
 * PEP-634 Pattern Matching is implemented.
   (Github issue :issue:`4029`)
 
+* Declared container item types (e.g. ``list[float]``) are now used by the type system.
+  (Github issue :issue:`7288`)
+
 * Extension types can declare themselves explicitly as sequence or mapping with
   ``@cython.collection_type("sequence")`` or ``@cython.collection_type("mapping")``.
   This has an effect on their behaviour in pattern matching and subscripting.
@@ -70,9 +73,6 @@ Features added
 * Type inference was improved for builtin Python types.
   (Github issues :issue:`7536`, :issue:`7644`)
 
-* Declared container item types (e.g. ``list[float]``) are now used by the type system.
-  (Github issue :issue:`7288`)
-
 * Repeated memoryview slicing inside of loops now avoids redundant reference counting,
   making it substantially faster.
   (Github issue :issue:`5507`)
@@ -84,10 +84,14 @@ Features added
   (Github issue :issue:`7609`)
 
 * Extension types use the vectorcall interface for their instantiation in many cases.
+  This can be configured with a new C feature macro ``CYTHON_VECTORCALL_TPNEW``.
   (Github issue :issue:`7698`)
 
 * Coroutine methods use the faster vectorcall interface.
   (Github issue :issue:`7678`)
+
+* Vectorcalls with literal keyword arguments use cached constant keyword name tuples.
+  (Github issue :issue:`7713`)
 
 * List comprehensions that generate new objects avoid refcounting overhead for appending.
   (Github issue :issue:`7748`)
@@ -178,12 +182,18 @@ Bugs fixed
 * A ``const`` modifier in C++ template type arguments could be mapped incorrectly.
   (Github issue :issue:`6294`)
 
+* C++ ``typeid()`` failed to compile on more complex expressions.
+  (Github issue :issue:`7069`)
+
 * Optimised Python ``int`` and ``float`` operations did not remember their result type,
   leading to less optimised code in longer expressions.
   (Github issues :issue:`7363`, :issue:`7502`)
 
 * Slices as dictionary keys confused the type inference of item access.
   (Github issue :issue:`7702`)
+
+* A race condition when ``return``ing from a ``cython.parallel.parallel`` section was fixed.
+  (Github issue :issue:`6521`)
 
 * Cython still used ``(type, exc, traceback)`` for saving and restoring exception state,
   even though modern CPython versions only store the exception object itself internally.
@@ -198,6 +208,16 @@ Bugs fixed
 * Several internal cases where exceptions are caught and discarded now propagate the
   ``BaseException`` errors and only discard the expected exceptions.
   (Github issue :issue:`7600`)
+
+* Error handling was improved when setting up the table of ``cdef`` methods for extension types
+  and unexpected errors are propagated.
+  (Github issue :issue:`7613`)
+
+* Exceptions while setting up the automatic pickle support are now propagated.
+  (Github issue :issue:`7613`)
+
+* Exceptions thrown into async generators could leave the generator in an unclosed state.
+  (Github issue :issue:`7618`)
 
 * In the Limited API, failures while formatting type names in exceptions are now uniformly handled.
   (Github issue :issue:`7680`)
@@ -216,8 +236,12 @@ Bugs fixed
   were not correctly reference counted by their instances.
   (Github issue :issue:`7483`)
 
-* The ``__signatures__`` dict of fused functions is no longer writable.
+* The ``.__signatures__`` dict of fused functions is no longer writable.
   (Github issue :issue:`7386`)
+
+* A minimal implementation of ``.__annotate__`` was added to Cython compiled functions to make
+  ``@functools.wraps`` work in Python 3.14+.
+  (Github issue :issue:`7675`)
 
 * The ``--embed-positions`` option no longer includes absolute file paths in the C code.
   (Github issue :issue:`6755`)

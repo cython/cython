@@ -1,7 +1,7 @@
 # mode: error
+# tag: warnings
 
 import cython
-
 try:
     from typing import Optional, ClassVar, Union
 except ImportError:
@@ -225,6 +225,29 @@ def forbidden_tuple_assignments():
     a: tuple[str, int] = ('bar', 1)
     b: tuple[int, str] = a
     c: tuple[None, int] = a
+
+
+def invalid_type_count():
+    list2: list[int, int]
+    list3: list[int, int, int]
+    set2: set[int, int]
+    set3: set[int, int, int]
+    frozenset2: frozenset[int, int]
+    frozenset3: frozenset[int, int, int]
+    dict1: dict[int]
+    dict2: dict[int, int, int]
+
+
+_WARNINGS = """
+231:15: Cannot specialise 'list' with 2 types, ignoring.
+232:15: Cannot specialise 'list' with 3 types, ignoring.
+233:13: Cannot specialise 'set' with 2 types, ignoring.
+234:13: Cannot specialise 'set' with 3 types, ignoring.
+235:25: Cannot specialise 'frozenset' with 2 types, ignoring.
+236:25: Cannot specialise 'frozenset' with 3 types, ignoring.
+237:15: Cannot specialise 'dict' with 1 types, ignoring.
+238:15: Cannot specialise 'dict' with 3 types, ignoring.
+"""
 
 _ERRORS = """
 13:42: typing.Optional[...] cannot be applied to type int
