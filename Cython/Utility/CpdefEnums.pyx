@@ -1,50 +1,61 @@
 #################### EnumBase ####################
 
-cimport cython
-
 cdef extern from *:
-    cdef enum:
-        __PYX_LIMITED_VERSION_HEX
-        CYTHON_COMPILING_IN_LIMITED_API
-    int __Pyx_get_runtime_version()
+    object PyImport_Import(object)
 
-# @cython.internal
-cdef object __Pyx_EnumBase
-from enum import IntEnum as __Pyx_EnumBase
+cdef object __Pyx_FlexibleEnumBase
+class __Pyx_FlexibleEnumBase(PyImport_Import("enum").IntEnum):
+    @classmethod
+    def _missing_(cls, value):
+        # This is a trimmed down version of "EnumFlag._missing_" with with
+        # the flag-specific details removed.
+        pseudo_member = int.__new__(cls, value)
+        if not hasattr(pseudo_member, '_value_'):
+            pseudo_member._value_ = value
+        pseudo_member._name_ = None
+        # _value2member_map_ is an undocumented detail of enum so don't fail
+        # if we can't use it to cache pseudo-members
+        if (value2member_map := getattr(cls, '_value2member_map_')) is not None:
+            pseudo_member = value2member_map.setdefault(value, pseudo_member)
+        return pseudo_member
 
-cdef object __Pyx_FlagBase
-from enum import IntFlag as __Pyx_FlagBase
+    def __repr__(self):
+        if self._name_ is None:
+            # arbitrary value pseudo member
+            return "<%s: %s>" % (self.__class__.__name__, repr(self._value_))
+        return super().__repr__()
+
 
 #################### EnumType ####################
-#@requires: EnumBase
+# requires EnumBase but this is done manually to avoid duplication
 
 cdef extern from *:
     object {{enum_to_pyint_func}}({{name}} value)
 
-# create new IntFlag() - the assumption is that C enums are sufficiently commonly
-# used as flags that this is the most appropriate base class
-{{name}} = __Pyx_FlagBase('{{name}}', [
+
+# Create new IntFlag() if possible:
+# the assumption is that C enums are sufficiently commonly
+# used as flags that this is the most appropriate base class.
+# On Python 3.15+ IntFlag doesn't accept negative numbers however.
+{{name}} = __Pyx_FlexibleEnumBase('{{name}}',  [
     {{for item in items}}
     ('{{item}}', {{enum_to_pyint_func}}({{item}})),
     {{endfor}}
     # Try to look up the module name dynamically if possible
 ], module=globals().get("__module__", '{{static_modname}}'))
 
-if (__PYX_LIMITED_VERSION_HEX >= 0x030B0000 or
-        (CYTHON_COMPILING_IN_LIMITED_API and __Pyx_get_runtime_version() >= 0x030B0000)):
-    # Python 3.11 starts making the behaviour of flags stricter
-    # (only including powers of 2 when iterating). Since we're using
-    # "flag" because C enums *might* be used as flags, not because
-    # we want strict flag behaviour, manually undo some of this.
-    {{name}}._member_names_ = list({{name}}.__members__)
-
 {{if enum_doc is not None}}
 {{name}}.__doc__ = {{ repr(enum_doc) }}
 {{endif}}
 
 
+#################### CppScopedEnumBase ####################
+
+cdef object __Pyx_EnumBase
+from enum import IntEnum as __Pyx_EnumBase
+
 #################### CppScopedEnumType ####################
-#@requires: EnumBase
+# requires CppScopedEnumBase (but this is done manually to avoid duplication)
 cdef dict __Pyx_globals = globals()
 
 __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', [
