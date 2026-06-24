@@ -1,0 +1,22 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; assert a.Sub().mtd() == 2"
+
+######## setup.py ########
+from Cython.Build.Dependencies import cythonize
+import Cython.Compiler.Options
+Cython.Compiler.Options.cimport_from_pyx = True
+from distutils.core import setup
+
+setup(ext_modules = cythonize("*.pyx"))
+
+######## a.pyx ########
+from b cimport Base
+
+cdef class Sub(Base):
+    cpdef int mtd(self):
+        return super().mtd() + 1
+
+######## b.pyx ########
+cdef class Base:
+    cpdef int mtd(self):
+        return 1
