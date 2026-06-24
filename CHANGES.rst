@@ -307,6 +307,7 @@ Other changes
 
 
 3.2.6 (2026-0?-??)
+3.2.6 (2026-06-24)
 ==================
 
 Bugs fixed
@@ -324,6 +325,12 @@ Bugs fixed
 
 * On 32 bit platforms, cached constants are no longer made immortal during module import.
   (Github issue :issue:`7744`)
+
+Other changes
+-------------
+
+* Binary wheels are now built with ``-DNDEBUG`` to discard runtime assertions from CPython's
+  inline functions.
 
 
 3.2.5 (2026-05-23)
