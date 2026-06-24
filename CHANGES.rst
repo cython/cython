@@ -313,6 +313,9 @@ Other changes
 Bugs fixed
 ----------
 
+* ``@functools.wraps()`` was broken in Py3.14+ for Cython compiled functions.
+  (Github issue :issue:`7675`)
+
 * A double-free in the t-string code was fixed.
   (Github issue :issue:`7712`)
 
