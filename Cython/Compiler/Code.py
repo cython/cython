@@ -102,7 +102,7 @@ basicsize_builtins_map = {
 }
 
 # Builtins as of Python version ...
-KNOWN_PYTHON_BUILTINS_VERSION = (3, 15, 0, 'alpha', 7)
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 15, 0, 'beta', 1)
 KNOWN_PYTHON_BUILTINS = frozenset([
     'ArithmeticError',
     'AssertionError',
@@ -250,6 +250,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'repr',
     'reversed',
     'round',
+    'sentinel',
     'set',
     'setattr',
     'slice',
@@ -267,6 +268,11 @@ KNOWN_PYTHON_BUILTINS = frozenset([
 uncachable_builtins = [
     # Global/builtin names that cannot be cached because they may or may not
     # be available at import time, for various reasons:
+    ## Python 3.15+
+    'frozendict',
+    'sentinel',
+    'ImportCycleError',
+    '__lazy_import__',
     ## Python 3.13+
     '_IncompleteInputError',
     'PythonFinalizationError',
@@ -277,11 +283,10 @@ uncachable_builtins = [
     'aiter',
     'anext',
     'EncodingWarning',
-    ## - Py3.7+
-    'breakpoint',  # might deserve an implementation in Cython
     ## - platform specific
     'WindowsError',
     ## - others
+    'breakpoint',  # Probably best left alone.
     '_',  # e.g. used by gettext
 ]
 
@@ -769,7 +774,7 @@ class UtilityCode(UtilityCodeBase):
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
 
-    def parse_export_functions(self, export_proto: str) -> list:
+    def parse_export_functions(self, export_proto: str) -> list[SharedFunctionDecl]:
 
         assert '//' not in export_proto and '/*' not in export_proto and '*/' not in export_proto, \
             f'Export block must not contain comments:\n{export_proto.strip()}\n in file {self.file}'
@@ -990,9 +995,10 @@ def _format_impl_code(utility_code: UtilityCode, _, impl):
 
 @add_macro_processor(
     'CALL_UNBOUND_METHOD',
+    'CALL_UNBOUND_METHOD_TYPEPTR',
     is_module_specific=True,
     regex=(
-        r'CALL_UNBOUND_METHOD\('
+        r'CALL_UNBOUND_METHOD(_TYPEPTR)?\('
         r'([a-zA-Z_]+),\s*'   # type cname
         r'"([^"]+)",\s*'      # method name
         r'([^),\s]+)'         # object cname
@@ -1003,10 +1009,11 @@ def _format_impl_code(utility_code: UtilityCode, _, impl):
 def _inject_unbound_method(output, matchobj):
     """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
     """
-    type_cname, method_name, obj_cname, args = matchobj.groups()
-    type_cname = '&%s' % type_cname
+    is_typeptr, type_cname, method_name, obj_cname, args = matchobj.groups()
+    type_cname = type_cname if is_typeptr else f'&{type_cname}'
     args = [arg.strip() for arg in args[1:].split(',')] if args else []
-    assert len(args) < 3, f"CALL_UNBOUND_METHOD() does not support {len(args):d} call arguments"
+    assert len(args) < 3, \
+        f"CALL_UNBOUND_METHOD{'_TYPEPTR' if is_typeptr else ''}() does not support {len(args):d} call arguments"
     return output.cached_unbound_method_call_code(
         f"{Naming.modulestateglobal_cname}->",
         obj_cname, type_cname, method_name, args)
@@ -1269,7 +1276,7 @@ class FunctionState:
 
     # temp handling
 
-    def allocate_temp(self, type, manage_ref, static=False, reusable=True):
+    def allocate_temp(self, type, manage_ref: bool, static: bool = False, reusable: bool = True):
         """
         Allocates a temporary (which may create a new one or get a previously
         allocated and released one of the same type). Type is simply registered
@@ -1801,7 +1808,7 @@ class GlobalState:
             self.dedup_const_index[dedup_key] = const
         return const
 
-    def get_argument_default_const(self, type):
+    def get_argument_default_const(self, type) -> PyObjectConst:
         cname = self.new_const_cname('')
         c = PyObjectConst(cname, type)
         self.arg_default_constants.append(c)
@@ -2045,17 +2052,19 @@ class GlobalState:
                 cleanup.putln(f"Py_CLEAR({init.name_in_main_c_code_module_state(cname)}.method);")
 
     def generate_string_constants(self):
-        c_consts = []
-        py_bytes_consts = []
-        py_unicode_consts = []
+        c_consts: list[tuple] = []
+        py_bytes_consts: list[tuple] = []
+        py_unicode_consts: list[tuple] = []
 
         # Split into buckets.
-        for _, _, c in sorted([(len(c.cname), c.cname, c) for c in self.string_const_index.values()]):
-            if c.c_used:
-                c_consts.append((len(c.cname), c.cname, c.escaped_value))
-            if c.py_strings:
-                for py_string in c.py_strings.values():
-                    text = c.text
+        sc: StringConst
+        for _, _, sc in sorted([(len(sc.cname), sc.cname, sc) for sc in self.string_const_index.values()]):
+            if sc.c_used:
+                c_consts.append((len(sc.cname), sc.cname, sc.escaped_value))
+            if sc.py_strings:
+                py_string: PyStringConst
+                for py_string in sc.py_strings.values():
+                    text = sc.text
                     if py_string.is_unicode and not isinstance(text, str):
                         text = StringEncoding.EncodedString(text.decode(py_string.encoding or 'UTF-8'))
 
@@ -2094,7 +2103,7 @@ class GlobalState:
 
         self.generate_pystring_constants(py_unicode_consts, py_bytes_consts)
 
-    def generate_pystring_constants(self, text_strings: list, byte_strings: list):
+    def generate_pystring_constants(self, text_strings: list[tuple], byte_strings: list[tuple]):
         # Concatenate all strings into one byte sequence and build a length index array.
         defines = self.parts['constant_name_defines']
 
@@ -2396,8 +2405,7 @@ class GlobalState:
         w = self.parts['init_constants']
         defines = self.parts['constant_name_defines']
 
-        def store_array(w, name: str, ctype: str, constants: list):
-            c: tuple
+        def store_array(w, name: str, ctype: str, constants: list[tuple]):
             values = ','.join([c[1] for c in constants])
             w.putln(f"{ctype} const {name}[] = {{{values}}};")
 
@@ -2510,19 +2518,26 @@ class GlobalState:
         writer.putln("{")
         writer.putln(f"PyObject **table = {array_cname};")
         writer.putln(f"for (Py_ssize_t i=0; i<{constant_count}; ++i) {{")
-        writer.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        writer.putln("#if PY_VERSION_HEX >= 0x030F0000")
+        writer.putln("PyUnstable_SetImmortal(table[i]);")
+        writer.putln("#elif CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
         # We don't want to set the refcount on shared constants (e.g. cached integers)
         # because setting the refcount isn't thread-safe. The chances are that most of the constants
         # that this applies to are already immortal though so that isn't a great loss.
+        # Overflow, e.g. on 32 bit systems.
+        writer.putln("if ((PY_SSIZE_T_MAX <= _Py_IMMORTAL_REFCNT_LOCAL)) break;")
         writer.putln("#if PY_VERSION_HEX < 0x030E0000")
         writer.putln("if (_Py_IsOwnedByCurrentThread(table[i]) && Py_REFCNT(table[i]) == 1)")
         writer.putln("#else")
         writer.putln("if (PyUnstable_Object_IsUniquelyReferenced(table[i]))")
         writer.putln("#endif")
         writer.putln("{")
-        writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_REFCNT_LOCAL);")
+        # Go one higher than we think we need to because of a bug in SET_REFCNT check in CPython
+        writer.putln("Py_SET_REFCNT(table[i], ((Py_ssize_t)_Py_IMMORTAL_REFCNT_LOCAL + 1));")
         writer.putln("}")
         writer.putln("#else")
+        # Overflow, e.g. on 32 bit systems.
+        writer.putln("if ((PY_SSIZE_T_MAX < _Py_IMMORTAL_INITIAL_REFCNT)) break;")
         writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_INITIAL_REFCNT);")
         writer.putln("#endif")
         writer.putln("}")  # for()
@@ -2820,16 +2835,24 @@ class CCodeWriter:
         if refnanny:
             self.put_declare_refcount_context()
 
-    def start_slotfunc(self, class_scope, return_type, c_slot_name, args_signature, needs_funcstate=True, needs_prototype=False):
+    def start_slotfunc(self, class_scope, return_type, c_slot_name, args_signature,
+                       needs_funcstate=True, needs_prototype=False,
+                       guard=None):
         # Slot functions currently live in the class scope as they don't have direct access to the module state.
         slotfunc_cname = class_scope.mangle_internal(c_slot_name)
         declaration = f"static {return_type.declaration_code(slotfunc_cname)}({args_signature})"
 
         if needs_prototype:
+            if guard:
+                self.globalstate['decls'].putln(f"#if {guard}")
             self.globalstate['decls'].putln(declaration.replace("CYTHON_UNUSED ", "") + "; /*proto*/")
+            if guard:
+                self.globalstate['decls'].putln("#endif")
         if needs_funcstate:
             self.enter_cfunc_scope(class_scope)
         self.putln("")
+        if guard:
+            self.putln(f"#if {guard}")
         self.putln(declaration + " {")
 
     # constant handling
@@ -2946,14 +2969,14 @@ class CCodeWriter:
             self.write_trace_line(pos)
 
     @cython.final
-    def write_trace_line(self, pos):
+    def write_trace_line(self, pos: tuple):
         if self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
             self.indent()
             self._write_lines(
                 f'__Pyx_TraceLine({pos[1]:d},{self.pos_to_offset(pos):d},{not self.funcstate.gil_owned:d},{self.error_goto(pos)})\n')
 
     @cython.final
-    def _build_marker(self, pos):
+    def _build_marker(self, pos: tuple):
         source_desc, line, col = pos
         assert isinstance(source_desc, SourceDescriptor)
         contents = self.globalstate.commented_file_contents(source_desc)

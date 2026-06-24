@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   pycoverage:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     permissions:
       # deploy HTML to GitHub pages
@@ -33,7 +33,7 @@ jobs:
 
     env:
       BACKEND: c,cpp
-      OS_NAME: ubuntu-22.04
+      OS_NAME: ubuntu-24.04
       PYTHON_VERSION: "3.12"
       HEAD: "${{ github.head_ref || github.ref_name }}"
 
@@ -62,7 +62,7 @@ jobs:
 
       - name: Upload Coverage HTML to GH Pages
         if: github.repository == 'cython/cython' && github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: './gh_pages_coverage/'
 
@@ -72,7 +72,7 @@ jobs:
         id: htmldeploy
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pycoverage_html
           path: coverage-report-html
@@ -86,12 +86,12 @@ jobs:
           if [ -f coverage-report.md ]; then { echo; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
   cycoverage:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [ pycoverage ]  # order summary report output
 
     env:
       BACKEND: c,cpp
-      OS_NAME: ubuntu-22.04
+      OS_NAME: ubuntu-24.04
       PYTHON_VERSION: "3.12"
 
     steps:
@@ -115,7 +115,7 @@ jobs:
           if [ -f coverage-report.md ]; then { echo "## Compiled coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cycoverage_html
           path: coverage-report-html

@@ -26,16 +26,21 @@ class TestBuiltinTypes(TimedTest):
         'is_pybool_type': ['bool'],
         'is_pycomplex_type': ['complex'],
         'is_pylist_type': ['list'],
-        'is_pydict_type': ['dict'],
-        'is_pyset_type': ['set'],
         'is_pytuple_type': ['tuple'],
+        'is_pydict_type': ['dict'],
+        'is_pyfrozendict_type': ['frozendict'],
+        'is_pyanydict_type': ['dict', 'frozendict'],
+        'is_pyset_type': ['set'],
         'is_pyfrozenset_type': ['frozenset'],
+        'is_pyanyset_type': ['set', 'frozenset'],
         'is_pybytes_type': ['bytes'],
         'is_pystr_type': ['str'],
         'is_pybytearray_type': ['bytearray'],
         'is_pymemoryview_type': ['memoryview'],
         'is_builtin_sequence': ['list', 'tuple', 'bytes', 'str', 'bytearray'],
         'is_bytes_or_str_or_bytearray': ['bytes', 'str', 'bytearray'],
+        'has_uniform_element_type': ['list', 'set', 'frozenset'],
+        'supports_container_type': ['list', 'dict', 'frozendict', 'set', 'frozenset'],
     }
 
     def test_set_builtin_type_flags(self):
@@ -53,6 +58,7 @@ class TestBuiltinTypes(TimedTest):
                     True,
                     f"{attr} should be set for {type_name}"
                 )
+
 
 class TestTypeIdentifiers(TimedTest):
 

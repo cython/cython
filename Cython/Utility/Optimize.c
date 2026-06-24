@@ -26,55 +26,107 @@ static CYTHON_INLINE int __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     return 0;
 }
 
+
+/////////////// ListAppendAndDecrefInternal ///////////////
+
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE void __Pyx__ListComp_AppendAndDecref(PyObject* list, Py_ssize_t len, PyObject* x) {
+    #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
+    // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
+    // However, extending the size *before* setting the value would not be correct,
+    // so we cannot call PyList_SET_ITEM().
+    PyListObject* L = (PyListObject*) list;
+    L->ob_item[len] = x;
+    #else
+    PyList_SET_ITEM(list, len, x);
+    #endif
+    Py_SET_SIZE(list, len + 1);
+}
+#endif
+
+
 /////////////// ListAppend.proto ///////////////
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
-static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
-    PyListObject* L = (PyListObject*) list;
-    Py_ssize_t len = Py_SIZE(list);
-    if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
-        Py_INCREF(x);
-        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
-        // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
-        // However, extending the size *before* setting the value would not be correct,
-        // so we cannot call PyList_SET_ITEM().
-        L->ob_item[len] = x;
-        #else
-        PyList_SET_ITEM(list, len, x);
-        #endif
-        Py_SET_SIZE(list, len + 1);
-        return 0;
-    }
-    return PyList_Append(list, x);
-}
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x); /*proto*/
 #else
 #define __Pyx_PyList_Append(L,x) PyList_Append(L,x)
 #endif
 
-/////////////// ListCompAppend.proto ///////////////
+/////////////// ListAppend ///////////////
+//@requires: ListAppendAndDecrefInternal
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
-static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
     PyListObject* L = (PyListObject*) list;
     Py_ssize_t len = Py_SIZE(list);
-    if (likely(L->allocated > len)) {
+
+    if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
         Py_INCREF(x);
-        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
-        // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
-        // However, extending the size *before* setting the value would not be correct,
-        // so we cannot call PyList_SET_ITEM().
-        L->ob_item[len] = x;
-        #else
-        PyList_SET_ITEM(list, len, x);
-        #endif
-        Py_SET_SIZE(list, len + 1);
+        __Pyx__ListComp_AppendAndDecref(list, len, x);
         return 0;
     }
     return PyList_Append(list, x);
 }
+#endif
+
+
+/////////////// ListCompAppend.proto ///////////////
+
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x); /*proto*/
 #else
 #define __Pyx_ListComp_Append(L,x) PyList_Append(L,x)
 #endif
+
+/////////////// ListCompAppend ///////////////
+//@requires: ListAppendAndDecrefInternal
+
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
+    PyListObject* L = (PyListObject*) list;
+    Py_ssize_t len = Py_SIZE(list);
+
+    if (likely(L->allocated > len)) {
+        Py_INCREF(x);
+        __Pyx__ListComp_AppendAndDecref(list, len, x);
+        return 0;
+    }
+    return PyList_Append(list, x);
+}
+#endif
+
+
+/////////////// ListCompAppendAndDecref.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_ListComp_AppendAndDecref(PyObject* list, PyObject* x); /*proto*/
+
+/////////////// ListCompAppendAndDecref ///////////////
+//@requires: ListAppendAndDecrefInternal
+
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_ListComp_AppendAndDecref(PyObject* list, PyObject* x) {
+    PyListObject* L = (PyListObject*) list;
+    Py_ssize_t len = Py_SIZE(list);
+
+    if (likely(L->allocated > len)) {
+        __Pyx__ListComp_AppendAndDecref(list, len, x);
+        return 0;
+    }
+
+    int result = PyList_Append(list, x);
+    Py_DECREF(x);
+    return result;
+}
+
+#else
+static CYTHON_INLINE int __Pyx_ListComp_AppendAndDecref(PyObject* list, PyObject* x) {
+    int result = PyList_Append(list, x);
+    Py_DECREF(x);
+    return result;
+}
+#endif
+
 
 //////////////////// ListExtend.proto ////////////////////
 
@@ -302,69 +354,30 @@ static CYTHON_INLINE int __Pyx_PyDict_Pop_ignore(PyObject *d, PyObject *key, PyO
 }
 
 
-/////////////// dict_iter.proto ///////////////
-
-static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, PyObject* method_name,
-                                                   Py_ssize_t* p_orig_length, int* p_is_dict);
+/////////////// dict_iter_common.proto ///////////////
+static PyObject *__Pyx_dict_call_to_get_iterable(PyObject* iterable, PyObject* method_name); /* proto */
 static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t orig_length, Py_ssize_t* ppos,
                                               PyObject** pkey, PyObject** pvalue, PyObject** pitem, int is_dict);
 
-/////////////// dict_iter ///////////////
+/////////////// dict_iter_common ///////////////
 //@requires: ObjectHandling.c::UnpackTuple2
 //@requires: ObjectHandling.c::IterFinish
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
-#if CYTHON_AVOID_BORROWED_REFS
-#include <string.h>
-#endif
+static PyObject *__Pyx_dict_call_to_get_iterable(PyObject* iterable, PyObject* method_name) {
 
-static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
-                                                   Py_ssize_t* p_orig_length, int* p_source_is_dict) {
-    is_dict = is_dict || likely(PyDict_CheckExact(iterable));
-    *p_source_is_dict = is_dict;
-    if (is_dict) {
+    PyObject* iter;
+    iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
+    if (!iterable)
+        return NULL;
 #if !CYTHON_AVOID_BORROWED_REFS
-        *p_orig_length = PyDict_Size(iterable);
-        Py_INCREF(iterable);
+    if (PyTuple_CheckExact(iterable) || PyList_CheckExact(iterable))
         return iterable;
-#else
-        // On PyPy3/GraalPy, we need to translate manually a few method names.
-        // This logic is not needed on CPython thanks to the fast case above.
-        static PyObject *py_items = NULL, *py_keys = NULL, *py_values = NULL;
-        PyObject **pp = NULL;
-        if (method_name) {
-            const char *name = PyUnicode_AsUTF8(method_name);
-            if (strcmp(name, "iteritems") == 0) pp = &py_items;
-            else if (strcmp(name, "iterkeys") == 0) pp = &py_keys;
-            else if (strcmp(name, "itervalues") == 0) pp = &py_values;
-            if (pp) {
-                if (!*pp) {
-                    *pp = PyUnicode_FromString(name + 4);
-                    if (!*pp)
-                        return NULL;
-                }
-                method_name = *pp;
-            }
-        }
 #endif
-    }
-    *p_orig_length = 0;
-    if (method_name) {
-        PyObject* iter;
-        iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
-        if (!iterable)
-            return NULL;
-#if !CYTHON_AVOID_BORROWED_REFS
-        if (PyTuple_CheckExact(iterable) || PyList_CheckExact(iterable))
-            return iterable;
-#endif
-        iter = PyObject_GetIter(iterable);
-        Py_DECREF(iterable);
-        return iter;
-    }
-    return PyObject_GetIter(iterable);
+    iter = PyObject_GetIter(iterable);
+    Py_DECREF(iterable);
+    return iter;
 }
-
 
 #if !CYTHON_AVOID_BORROWED_REFS
 static CYTHON_INLINE int __Pyx_dict_iter_next_source_is_dict(
@@ -475,6 +488,81 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         *pvalue = next_item;
     }
     return 1;
+}
+
+/////////////// dict_iter_legacy.proto //////////////
+
+// "legacy" handles old-style iter* methods
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator_legacy(PyObject* dict, int is_dict, PyObject* method_name,
+                                                          Py_ssize_t* p_orig_length, int* p_is_dict);
+
+/////////////// dict_iter_legacy //////////////////
+//@requires: dict_iter_common
+
+#if CYTHON_AVOID_BORROWED_REFS
+#include <string.h>
+#endif
+
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator_legacy(PyObject* iterable, int is_dict, PyObject* method_name,
+                                                          Py_ssize_t* p_orig_length, int* p_source_is_dict) {
+    int owned_method_name = 0;
+    // Don't include frozendict.
+    is_dict = is_dict || likely(PyDict_CheckExact(iterable));
+    *p_source_is_dict = is_dict;
+    if (is_dict) {
+#if !CYTHON_AVOID_BORROWED_REFS
+        *p_orig_length = PyDict_Size(iterable);
+        Py_INCREF(iterable);
+        return iterable;
+#else
+        // On PyPy3/GraalPy, we need to translate manually the method name.
+        // This logic is not needed on CPython thanks to the fast case above.
+        if (method_name) {
+            method_name = PyUnicode_Substring(method_name, 4, 10);  // longest is "itervalues" (len=10)
+            if (unlikely(!method_name))
+                return NULL;
+            owned_method_name = 1;
+        }
+#endif
+    }
+    *p_orig_length = 0;
+    if (method_name) {
+        iterable = __Pyx_dict_call_to_get_iterable(iterable, method_name);
+        if (owned_method_name) {
+            Py_DECREF(method_name);
+        }
+        return iterable;
+    } else {
+        return PyObject_GetIter(iterable);
+    }
+}
+
+/////////////// dict_iter.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, PyObject* method_name,
+                                                   Py_ssize_t* p_orig_length, int* p_is_dict);
+
+/////////////// dict_iter ///////////////
+//@requires: Builtins.c::PyFrozenDict
+//@requires: dict_iter_common
+
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
+                                                   Py_ssize_t* p_orig_length, int* p_source_is_dict) {
+    is_dict = is_dict || likely(__Pyx_PyAnyDict_CheckExact(iterable));
+    *p_source_is_dict = is_dict;
+#if !CYTHON_AVOID_BORROWED_REFS
+    if (is_dict) {
+        *p_orig_length = PyDict_Size(iterable);
+        Py_INCREF(iterable);
+        return iterable;
+    }
+#endif
+    *p_orig_length = 0;
+    if (method_name) {
+        return __Pyx_dict_call_to_get_iterable(iterable, method_name);
+    } else {
+        return PyObject_GetIter(iterable);
+    }
 }
 
 
@@ -658,6 +746,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
 //@requires: pybytes_as_double
 //@requires: pyunicode_as_double
 //@requires: ObjectHandling.c::PyObjectCallOneArg
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     if (PyUnicode_CheckExact(obj)) {
@@ -677,11 +766,9 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
         if (likely(nb) && likely(nb->nb_float)) {
             float_value = nb->nb_float(obj);
             if (likely(float_value) && unlikely(!PyFloat_Check(float_value))) {
-                __Pyx_TypeName float_value_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(float_value));
-                PyErr_Format(PyExc_TypeError,
+                __Pyx_RaiseTypeErrorWithObjectType(
                     "__float__ returned non-float (type " __Pyx_FMT_TYPENAME ")",
-                    float_value_type_name);
-                __Pyx_DECREF_TypeName(float_value_type_name);
+                    float_value);
                 Py_DECREF(float_value);
                 goto bad;
             }
@@ -1095,7 +1182,7 @@ static CYTHON_INLINE PyObject* __Pyx__{{op_name}}_{{type1}}_{{type2}}(PyObject *
 #endif
 
 /////////////// PyNumberBinop ///////////////
-//@requires: ObjectHandling.c::FormatTypeName
+//@requires: ObjectHandling.c::RaiseErrorWithObjectTypes
 
 #if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_GRAAL || CYTHON_COMPILING_IN_LIMITED_API)
 
@@ -1126,16 +1213,15 @@ def is_type(operand, expected, type1=type1, type2=type2):
 
 static void __Pyx_BinopTypeError(PyObject *op1, PyObject *op2, const char* op, int inplace) {
     // op1 is either 'int' or 'float', op2 is unknown.
-    __Pyx_TypeName type_name_op1 = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(op1));
-    __Pyx_TypeName type_name_op2 = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(op2));
-    PyErr_Format(PyExc_TypeError,
-        "unsupported operand type(s) for %.2s%.1s: '%.5s' and '%.200s'",
-        op,
-        inplace ? "=" : "",
-        type_name_op1,
-        type_name_op2);
-    __Pyx_DECREF_TypeName(type_name_op1);
-    __Pyx_DECREF_TypeName(type_name_op2);
+    // op has either 1 or 2 characters, ending with NUL.
+    char opname[4] = {op[0], op[1], 0, 0};
+    if (inplace) {
+        opname[op[1] ? 2 : 1] = '=';
+    }
+    __Pyx_RaiseErrorWithObjectTypes1(
+        PyExc_TypeError,
+        "unsupported operand type(s) for %.3s: '" __Pyx_FMT_TYPENAME "' and '" __Pyx_FMT_TYPENAME "'",
+        opname, op1, op2);
 }
 #endif
 #endif
