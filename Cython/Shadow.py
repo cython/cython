@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.3.0a0"
+__version__ = "3.3.0a1"
 
 from types import TracebackType
 from typing import (
