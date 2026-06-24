@@ -432,6 +432,14 @@ def test_fused_module(cython.numeric arg):
     pass
 
 
+if sys.version_info < (3, 9):
+    # In Limited API 3.8, @wraps() fails on a missing "__wrapped__" attribute.
+    def wraps(f):
+        def nowrap(func):
+            return f
+        return nowrap
+
+
 def to_be_wrapped(a: int, b: float):
     """
     Hello from to_be_wrapped's docstring
