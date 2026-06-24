@@ -261,6 +261,10 @@ Bugs fixed
 * Error reporting on missing braces in f-strings was misleading.
   (Github issue :issue:`7436`)
 
+* ``None`` default values for function arguments declared as ``not None`` are now rejected at compile time
+  rather than leading to errors at runtime.
+  Patch by Vyas Ramasubramani.  (Github issue :issue:`7762`)
+
 * Cython did not reject code with multiple contradicting type annotations on the same variable.
   (Github issue :issue:`7246`)
 
@@ -276,7 +280,7 @@ Bugs fixed
 
 * Several C compiler warnings related to mixed signed/unsigned C integer usage were resolved.
 
-* Includes all fixes as of Cython 3.2.x.
+* Includes all fixes as of Cython 3.2.6.
 
 Other changes
 -------------
