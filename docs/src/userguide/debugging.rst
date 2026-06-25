@@ -7,21 +7,17 @@ Debugging your Cython program
 **********************************
 
 Cython comes with an extension for the GNU Debugger that helps users debug
-Cython code. To use this functionality, you will need to install gdb 7.2 or
-higher, built with Python support (linked to Python 2.6 or higher).
-The debugger supports debuggees with versions 2.6 and higher. For Python 3,
-code should be built with Python 3 and the debugger should be run with
-Python 2 (or at least it should be able to find the Python 2 Cython
-installation). Note that in recent versions of Ubuntu, for instance, ``gdb``
-installed with ``apt-get`` is configured with Python 3. On such systems, the
-proper configuration of ``gdb`` can be obtained by downloading the ``gdb``
-source, and then running::
+Cython code. To use this functionality, you will need to install gdb, built with
+Python support, i.e. like this::
 
-    ./configure --with-python=python2
+    ./configure --with-python=python3
     make
     sudo make install
 
-Installing the Cython debugger can be quite tricky. `This installation script and example code <https://gitlab.com/volkerweissmann/cygdb_installation>`_ might be useful.
+Most distributions ship a gdb that was build this way.
+Please be aware that cygdb is not very well maintained and some things are
+broken. If you have trouble setting up cygdb you might want to consult `Volker
+Weißmann <volker.weissmann@gmx.de>`_.
 
 The debugger will need debug information that the Cython compiler can export.
 This can be achieved from within the setup script by passing ``gdb_debug=True``
