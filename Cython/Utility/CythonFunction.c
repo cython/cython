@@ -548,7 +548,7 @@ __Pyx_CyFunction_get_kwdefaults(PyObject *op, void *context) {
     return result;
 }
 
-static PyObject *__Pyx_CyFunction_get_annotate_from_dict(PyObject *op_in); /*proto*/
+static PyObject *__Pyx_CyFunction_get_annotate_from_dict_if_exists(PyObject *op_in); /*proto*/
 static int __Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value); /*proto*/
 
 static int
@@ -571,21 +571,47 @@ __Pyx_CyFunction_set_annotations(PyObject *op_in, PyObject* value, void *context
 }
 
 static PyObject *
-__Pyx_CyFunction_get_annotate_from_dict(PyObject *op_in) {
-    PyObject *dict = __Pyx_PyObject_GetAttrStr(op_in, PYIDENT("__dict__"));
-    if (unlikely(!dict)) return NULL;
+__Pyx_CyFunction_get_annotate_from_dict_if_exists(PyObject *op_in) {
+    PyObject *dict;
+#if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    PyObject **dictptr = _PyObject_GetDictPtr(op_in);
+    if (unlikely(!dictptr)) return NULL;
+    dict = *dictptr;
+#else
+    dict = __Pyx_as_CyFunctionObject(op_in)->func_dict;
+#endif
+    if (!dict) return NULL;
     PyObject *annotate = PyDict_GetItemString(dict, "__annotate__");
     Py_XINCREF(annotate);
-    Py_DECREF(dict);
     return annotate;
 }
 
 static int
 __Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value) {
-    PyObject *dict = __Pyx_PyObject_GetAttrStr(op_in, PYIDENT("__dict__"));
+    PyObject *dict;
+    int result;
+#if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    dict = __Pyx_PyObject_GetAttrStr(op_in, PYIDENT("__dict__"));
     if (unlikely(!dict)) return -1;
-    int result = PyDict_SetItemString(dict, "__annotate__", value);
+    result = PyDict_SetItemString(dict, "__annotate__", value);
     Py_DECREF(dict);
+#else
+    int decref_dict = 0;
+    __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
+    dict = op->func_dict;
+    if (!dict) {
+        dict = PyDict_New();
+        if (unlikely(!dict)) return -1;
+        op->func_dict = dict;
+    } else {
+        Py_INCREF(dict);
+        decref_dict = 1;
+    }
+    result = PyDict_SetItemString(dict, "__annotate__", value);
+    if (decref_dict) {
+        Py_DECREF(dict);
+    }
+#endif
     return result;
 }
 
@@ -614,7 +640,7 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
     __Pyx_END_CRITICAL_SECTION();
     if (result) return result;
 
-    annotate = __Pyx_CyFunction_get_annotate_from_dict(op_in);
+    annotate = __Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in);
     if (unlikely(!annotate && PyErr_Occurred())) return NULL;
     if (!annotate || annotate == Py_None) {
         Py_XDECREF(annotate);
@@ -684,7 +710,7 @@ static PyMethodDef __Pyx_CyFunction_annotate_method = {
 static PyObject *
 __Pyx_CyFunction_get_annotate(PyObject *op_in, void *context) {
     CYTHON_UNUSED_VAR(context);
-    PyObject *annotate = __Pyx_CyFunction_get_annotate_from_dict(op_in);
+    PyObject *annotate = __Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in);
     if (unlikely(!annotate && PyErr_Occurred())) return NULL;
     if (annotate) return annotate;
 
