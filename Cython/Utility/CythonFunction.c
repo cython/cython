@@ -254,6 +254,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: Exceptions.c::IgnoreException
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: ObjectHandling.c::PyObjectCallOneArg
 //@requires: ExtensionTypes.c::CallTypeTraverse
 //@requires: Synchronization.c::CriticalSections
 //@substitute: naming
@@ -547,6 +548,9 @@ __Pyx_CyFunction_get_kwdefaults(PyObject *op, void *context) {
     return result;
 }
 
+static PyObject *__Pyx_CyFunction_get_annotate_from_dict(PyObject *op_in); /*proto*/
+static int __Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value); /*proto*/
+
 static int
 __Pyx_CyFunction_set_annotations(PyObject *op_in, PyObject* value, void *context) {
     CYTHON_UNUSED_VAR(context);
@@ -562,7 +566,27 @@ __Pyx_CyFunction_set_annotations(PyObject *op_in, PyObject* value, void *context
     __Pyx_BEGIN_CRITICAL_SECTION(op_in);
     __Pyx_Py_XDECREF_SET(op->func_annotations, value);
     __Pyx_END_CRITICAL_SECTION();
+    if (unlikely(__Pyx_CyFunction_set_annotate_in_dict(op_in, Py_None) < 0)) return -1;
     return 0;
+}
+
+static PyObject *
+__Pyx_CyFunction_get_annotate_from_dict(PyObject *op_in) {
+    PyObject *dict = __Pyx_PyObject_GetAttrStr(op_in, PYIDENT("__dict__"));
+    if (unlikely(!dict)) return NULL;
+    PyObject *annotate = PyDict_GetItemString(dict, "__annotate__");
+    Py_XINCREF(annotate);
+    Py_DECREF(dict);
+    return annotate;
+}
+
+static int
+__Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value) {
+    PyObject *dict = __Pyx_PyObject_GetAttrStr(op_in, PYIDENT("__dict__"));
+    if (unlikely(!dict)) return -1;
+    int result = PyDict_SetItemString(dict, "__annotate__", value);
+    Py_DECREF(dict);
+    return result;
 }
 
 static PyObject *
@@ -579,11 +603,46 @@ __Pyx_CyFunction_get_annotations_locked(__pyx_CyFunctionObject *op) {
 
 static PyObject *
 __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
-    PyObject *result;
+    PyObject *annotate = NULL;
+    PyObject *result = NULL;
     __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
     CYTHON_UNUSED_VAR(context);
     __Pyx_BEGIN_CRITICAL_SECTION(op_in);
-    result = __Pyx_CyFunction_get_annotations_locked(op);
+    if (op->func_annotations) {
+        result = __Pyx_CyFunction_get_annotations_locked(op);
+    }
+    __Pyx_END_CRITICAL_SECTION();
+    if (result) return result;
+
+    annotate = __Pyx_CyFunction_get_annotate_from_dict(op_in);
+    if (unlikely(!annotate && PyErr_Occurred())) return NULL;
+    if (!annotate || annotate == Py_None) {
+        Py_XDECREF(annotate);
+        __Pyx_BEGIN_CRITICAL_SECTION(op_in);
+        result = __Pyx_CyFunction_get_annotations_locked(op);
+        __Pyx_END_CRITICAL_SECTION();
+        return result;
+    }
+
+    PyObject *format = PyLong_FromLong(1L);  // annotationlib.Format.VALUE
+    if (unlikely(!format)) {
+        Py_DECREF(annotate);
+        return NULL;
+    }
+    result = __Pyx_PyObject_CallOneArg(annotate, format);
+    Py_DECREF(format);
+    Py_DECREF(annotate);
+    if (unlikely(!result)) return NULL;
+    if (unlikely(!PyDict_Check(result))) {
+        PyErr_SetString(PyExc_TypeError, "__annotate__ must return a dict");
+        Py_DECREF(result);
+        return NULL;
+    }
+    __Pyx_BEGIN_CRITICAL_SECTION(op_in);
+    if (!op->func_annotations) {
+        Py_INCREF(result);
+        op->func_annotations = result;
+    }
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
@@ -622,11 +681,13 @@ static PyMethodDef __Pyx_CyFunction_annotate_method = {
 
 // We don't yet support PEP649 properly, so __annotate__ is
 // implemented in a minimal way, just so that functools.wraps works.
-// Essentially the effect of doing func.__annotate__ = other.__annotate__
-// is to copy the annotations dictionary.
 static PyObject *
 __Pyx_CyFunction_get_annotate(PyObject *op_in, void *context) {
     CYTHON_UNUSED_VAR(context);
+    PyObject *annotate = __Pyx_CyFunction_get_annotate_from_dict(op_in);
+    if (unlikely(!annotate && PyErr_Occurred())) return NULL;
+    if (annotate) return annotate;
+
     PyObject *annotations = __Pyx_CyFunction_get_annotations(op_in, NULL);
     if (unlikely(!annotations)) return NULL;
     PyObject *method = PyCFunction_New(
@@ -643,15 +704,15 @@ __Pyx_CyFunction_set_annotate(PyObject *op_in, PyObject* value, void *context) {
         PyErr_SetString(PyExc_TypeError, "__annotate__ cannot be deleted");
         return -1;
     }
-    if (value == Py_None) {
-        // PEP 649 says "Setting o.__annotate__ to None has no effect on the cached annotations dict."
-        return 0;
+    if (unlikely(value != Py_None && !PyCallable_Check(value))) {
+        PyErr_SetString(PyExc_TypeError, "__annotate__ must be callable or None");
+        return -1;
     }
-    PyObject *annotations = PyObject_CallObject(value, NULL);
-    if (!annotations) return -1;
-    int result = __Pyx_CyFunction_set_annotations(op_in, annotations, NULL);
-    Py_DECREF(annotations);
-    return result;
+    __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
+    __Pyx_BEGIN_CRITICAL_SECTION(op_in);
+    Py_CLEAR(op->func_annotations);
+    __Pyx_END_CRITICAL_SECTION();
+    return __Pyx_CyFunction_set_annotate_in_dict(op_in, value);
 }
 
 #if __PYX_LIMITED_VERSION_HEX < 0x030B0000

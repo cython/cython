@@ -477,12 +477,47 @@ def test_annotate():
     >>> f.__annotate__ = lambda arg=0: {'different_argument': 5}
     >>> f.__annotations__
     {'different_argument': 5}
-    
-    Assigning to None shouldn't change the annotations
+    >>> f.__annotate__(1)
+    {'different_argument': 5}
+
+    Assigning a Python 3.14 annotation function should pass the required
+    annotation format argument when annotations are evaluated.
+    >>> import sys
+    >>> if sys.version_info >= (3, 14):
+    ...     def py_function() -> int:
+    ...         pass
+    ...     f.__annotate__ = py_function.__annotate__
+    ...     f.__annotations__ == {'return': int}
+    ... else:
+    ...     True
+    True
+
+    Assignment itself should not evaluate the annotation function, since
+    evaluating annotations may fail normally when they contain forward
+    references.
+    >>> if sys.version_info >= (3, 14):
+    ...     def py_function_with_forward_ref(arg: MissingType) -> int:
+    ...         pass
+    ...     f.__annotate__ = py_function_with_forward_ref.__annotate__
+    ...     assigned = True
+    ...     try:
+    ...         f.__annotations__
+    ...     except NameError:
+    ...         failed_later = True
+    ...     else:
+    ...         failed_later = False
+    ... else:
+    ...     assigned = failed_later = True
+    >>> assigned, failed_later
+    (True, True)
+     
+    Assigning to None should clear the lazy annotation function.
     >>> f = test_annotate()
     >>> f.__annotate__ = None
-    >>> list(f.__annotate__().keys())
-    ['a', 'b']
+    >>> f.__annotate__ is None
+    True
+    >>> f.__annotations__
+    {}
 
     Deleting is banned
     >>> f = test_annotate()

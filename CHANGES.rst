@@ -255,6 +255,9 @@ Bugs fixed
   ``@functools.wraps`` work in Python 3.14+.
   (Github issue :issue:`7675`)
 
+* Assigning a Python 3.14+ ``.__annotate__`` function to a Cython compiled function no
+  longer evaluates annotations eagerly.
+
 * The ``--embed-positions`` option no longer includes absolute file paths in the C code.
   (Github issue :issue:`6755`)
 
