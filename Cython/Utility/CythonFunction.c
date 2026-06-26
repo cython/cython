@@ -548,7 +548,8 @@ __Pyx_CyFunction_get_kwdefaults(PyObject *op, void *context) {
     return result;
 }
 
-static PyObject *__Pyx_CyFunction_get_annotate_from_dict_if_exists(PyObject *op_in); /*proto*/
+static int __Pyx_CyFunction_get_dict_if_exists(PyObject *op_in, PyObject **dict); /*proto*/
+static int __Pyx_CyFunction_get_annotate_from_dict_if_exists(PyObject *op_in, PyObject **annotate); /*proto*/
 static int __Pyx_CyFunction_set_annotate_in_dict_if_exists(PyObject *op_in, PyObject *value); /*proto*/
 static int __Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value); /*proto*/
 
@@ -571,51 +572,45 @@ __Pyx_CyFunction_set_annotations(PyObject *op_in, PyObject* value, void *context
     return 0;
 }
 
-static PyObject *
-__Pyx_CyFunction_get_annotate_from_dict_if_exists(PyObject *op_in) {
-    PyObject *dict;
-#if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
+static int
+__Pyx_CyFunction_get_dict_if_exists(PyObject *op_in, PyObject **dict) {
+    *dict = NULL;
+#if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX < 0x030C0000
+    *dict = __Pyx_as_CyFunctionObject(op_in)->func_dict;
+#else
     PyObject **dictptr = _PyObject_GetDictPtr(op_in);
-    if (unlikely(!dictptr)) return NULL;
-    dict = *dictptr;
-#else
-    dict = __Pyx_as_CyFunctionObject(op_in)->func_dict;
+    if (unlikely(!dictptr)) return 0;
+    *dict = *dictptr;
 #endif
-    if (!dict) return NULL;
-#if (defined(Py_LIMITED_API) && Py_LIMITED_API >= 0x030d0000) || (!defined(Py_LIMITED_API) && PY_VERSION_HEX >= 0x030d0000)
-    PyObject *annotate = NULL;
-    if (unlikely(PyDict_GetItemStringRef(dict, "__annotate__", &annotate) < 0)) return NULL;
-#else
-    PyObject *annotate = PyDict_GetItemString(dict, "__annotate__");
-    Py_XINCREF(annotate);
-#endif
-    return annotate;
+    return *dict ? 1 : 0;
+}
+
+static int
+__Pyx_CyFunction_get_annotate_from_dict_if_exists(PyObject *op_in, PyObject **annotate) {
+    PyObject *dict;
+    int dict_found;
+    *annotate = NULL;
+    dict_found = __Pyx_CyFunction_get_dict_if_exists(op_in, &dict);
+    if (unlikely(dict_found < 0)) return -1;
+    if (!dict_found) return 0;
+    return __Pyx_PyDict_GetItemRef(dict, PYIDENT("__annotate__"), annotate);
 }
 
 static int
 __Pyx_CyFunction_set_annotate_in_dict_if_exists(PyObject *op_in, PyObject *value) {
     PyObject *dict;
-#if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
-    PyObject **dictptr = _PyObject_GetDictPtr(op_in);
-    if (unlikely(!dictptr)) return 0;
-    dict = *dictptr;
-#else
-    dict = __Pyx_as_CyFunctionObject(op_in)->func_dict;
-#endif
-    if (!dict) return 0;
-    return PyDict_SetItemString(dict, "__annotate__", value);
+    int dict_found;
+    dict_found = __Pyx_CyFunction_get_dict_if_exists(op_in, &dict);
+    if (unlikely(dict_found < 0)) return -1;
+    if (!dict_found) return 0;
+    return PyDict_SetItem(dict, PYIDENT("__annotate__"), value);
 }
 
 static int
 __Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value) {
     PyObject *dict;
     int result;
-#if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
-    dict = __Pyx_PyObject_GetAttrStr(op_in, PYIDENT("__dict__"));
-    if (unlikely(!dict)) return -1;
-    result = PyDict_SetItemString(dict, "__annotate__", value);
-    Py_DECREF(dict);
-#else
+#if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX < 0x030C0000
     __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
     dict = op->func_dict;
     if (!dict) {
@@ -624,7 +619,12 @@ __Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value) {
         op->func_dict = dict;
     }
     Py_INCREF(dict);
-    result = PyDict_SetItemString(dict, "__annotate__", value);
+    result = PyDict_SetItem(dict, PYIDENT("__annotate__"), value);
+    Py_DECREF(dict);
+#else
+    dict = __Pyx_PyObject_GetAttrStr(op_in, PYIDENT("__dict__"));
+    if (unlikely(!dict)) return -1;
+    result = PyDict_SetItem(dict, PYIDENT("__annotate__"), value);
     Py_DECREF(dict);
 #endif
     return result;
@@ -649,14 +649,11 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
     __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
     CYTHON_UNUSED_VAR(context);
     __Pyx_BEGIN_CRITICAL_SECTION(op_in);
-    if (op->func_annotations) {
-        result = __Pyx_CyFunction_get_annotations_locked(op);
-    }
+    result = __Pyx_XNewRef(op->func_annotations);
     __Pyx_END_CRITICAL_SECTION();
     if (result) return result;
 
-    annotate = __Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in);
-    if (unlikely(!annotate && PyErr_Occurred())) return NULL;
+    if (unlikely(__Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in, &annotate) < 0)) return NULL;
     if (!annotate || annotate == Py_None) {
         Py_XDECREF(annotate);
         __Pyx_BEGIN_CRITICAL_SECTION(op_in);
@@ -666,12 +663,10 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
     }
 
     PyObject *format = PyLong_FromLong(1L);  // annotationlib.Format.VALUE
-    if (unlikely(!format)) {
-        Py_DECREF(annotate);
-        return NULL;
+    if (likely(format)) {
+        result = __Pyx_PyObject_CallOneArg(annotate, format);
+        Py_DECREF(format);
     }
-    result = __Pyx_PyObject_CallOneArg(annotate, format);
-    Py_DECREF(format);
     Py_DECREF(annotate);
     if (unlikely(!result)) return NULL;
     if (unlikely(!PyDict_Check(result))) {
@@ -683,6 +678,9 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
     if (!op->func_annotations) {
         Py_INCREF(result);
         op->func_annotations = result;
+    } else {
+        Py_DECREF(result);
+        result = __Pyx_NewRef(op->func_annotations);
     }
     __Pyx_END_CRITICAL_SECTION();
     return result;
@@ -724,9 +722,9 @@ static PyMethodDef __Pyx_CyFunction_annotate_method = {
 // implemented in a minimal way, just so that functools.wraps works.
 static PyObject *
 __Pyx_CyFunction_get_annotate(PyObject *op_in, void *context) {
+    PyObject *annotate = NULL;
     CYTHON_UNUSED_VAR(context);
-    PyObject *annotate = __Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in);
-    if (unlikely(!annotate && PyErr_Occurred())) return NULL;
+    if (unlikely(__Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in, &annotate) < 0)) return NULL;
     if (annotate) return annotate;
 
     PyObject *annotations = __Pyx_CyFunction_get_annotations(op_in, NULL);

@@ -173,6 +173,10 @@ Features added
 Bugs fixed
 ----------
 
+* Assigning a Python 3.14+ ``.__annotate__`` function to a Cython compiled function no
+  longer evaluates annotations eagerly.
+  (Github issue :issue:`7767`)
+
 * Generated Cython language features like properties, auto-pickle or dataclasses
   now use a critical section (on the object itself) as guard for concurrent access.
   (Github issue :issue:`6621`)
@@ -254,9 +258,6 @@ Bugs fixed
 * A minimal implementation of ``.__annotate__`` was added to Cython compiled functions to make
   ``@functools.wraps`` work in Python 3.14+.
   (Github issue :issue:`7675`)
-
-* Assigning a Python 3.14+ ``.__annotate__`` function to a Cython compiled function no
-  longer evaluates annotations eagerly.
 
 * The ``--embed-positions`` option no longer includes absolute file paths in the C code.
   (Github issue :issue:`6755`)
