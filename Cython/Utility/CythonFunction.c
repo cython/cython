@@ -611,21 +611,16 @@ __Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value) {
     result = PyDict_SetItemString(dict, "__annotate__", value);
     Py_DECREF(dict);
 #else
-    int decref_dict = 0;
     __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
     dict = op->func_dict;
     if (!dict) {
         dict = PyDict_New();
         if (unlikely(!dict)) return -1;
         op->func_dict = dict;
-    } else {
-        Py_INCREF(dict);
-        decref_dict = 1;
     }
+    Py_INCREF(dict);
     result = PyDict_SetItemString(dict, "__annotate__", value);
-    if (decref_dict) {
-        Py_DECREF(dict);
-    }
+    Py_DECREF(dict);
 #endif
     return result;
 }
@@ -688,7 +683,7 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
     return result;
 }
 
-static PyObject *__Pyx_CyFunction_annotate_impl(PyObject *self, 
+static PyObject *__Pyx_CyFunction_annotate_impl(PyObject *self,
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
     PyObject *args
 #else
