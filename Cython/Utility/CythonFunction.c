@@ -631,39 +631,22 @@ __Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value) {
 }
 
 static PyObject *
-__Pyx_CyFunction_get_annotations_locked(PyObject *op_in) {
+__Pyx_CyFunction_get_annotations_or_annotate_locked(PyObject *op_in, PyObject **annotate) {
     __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
-    PyObject *annotate = NULL;
     PyObject *result = op->func_annotations;
+    *annotate = NULL;
     if (result) {
         Py_INCREF(result);
         return result;
     }
 
-    annotate = __Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in);
-    if (unlikely(!annotate && PyErr_Occurred())) return NULL;
-    if (annotate && annotate != Py_None) {
-        PyObject *format = PyLong_FromLong(1L);  // annotationlib.Format.VALUE
-        if (unlikely(!format)) {
-            Py_DECREF(annotate);
-            return NULL;
-        }
-        result = __Pyx_PyObject_CallOneArg(annotate, format);
-        Py_DECREF(format);
-        Py_DECREF(annotate);
-        if (unlikely(!result)) return NULL;
-        if (unlikely(!PyDict_Check(result))) {
-            PyErr_SetString(PyExc_TypeError, "__annotate__ must return a dict");
-            Py_DECREF(result);
-            return NULL;
-        }
-        if (!op->func_annotations) {
-            Py_INCREF(result);
-            op->func_annotations = result;
-        }
-        return result;
+    *annotate = __Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in);
+    if (unlikely(!*annotate && PyErr_Occurred())) return NULL;
+    if (*annotate && *annotate != Py_None) {
+        return NULL;
     }
-    Py_XDECREF(annotate);
+    Py_XDECREF(*annotate);
+    *annotate = NULL;
 
     result = op->func_annotations;
     if (unlikely(!result)) {
@@ -677,10 +660,35 @@ __Pyx_CyFunction_get_annotations_locked(PyObject *op_in) {
 
 static PyObject *
 __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
+    PyObject *annotate = NULL;
     PyObject *result = NULL;
+    __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
     CYTHON_UNUSED_VAR(context);
     __Pyx_BEGIN_CRITICAL_SECTION(op_in);
-    result = __Pyx_CyFunction_get_annotations_locked(op_in);
+    result = __Pyx_CyFunction_get_annotations_or_annotate_locked(op_in, &annotate);
+    __Pyx_END_CRITICAL_SECTION();
+    if (result) return result;
+    if (unlikely(!annotate)) return NULL;
+
+    PyObject *format = PyLong_FromLong(1L);  // annotationlib.Format.VALUE
+    if (unlikely(!format)) {
+        Py_DECREF(annotate);
+        return NULL;
+    }
+    result = __Pyx_PyObject_CallOneArg(annotate, format);
+    Py_DECREF(format);
+    Py_DECREF(annotate);
+    if (unlikely(!result)) return NULL;
+    if (unlikely(!PyDict_Check(result))) {
+        PyErr_SetString(PyExc_TypeError, "__annotate__ must return a dict");
+        Py_DECREF(result);
+        return NULL;
+    }
+    __Pyx_BEGIN_CRITICAL_SECTION(op_in);
+    if (!op->func_annotations) {
+        Py_INCREF(result);
+        op->func_annotations = result;
+    }
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
