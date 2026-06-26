@@ -631,24 +631,8 @@ __Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value) {
 }
 
 static PyObject *
-__Pyx_CyFunction_get_annotations_or_annotate_locked(PyObject *op_in, PyObject **annotate) {
-    __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
-    PyObject *result = op->func_annotations;
-    *annotate = NULL;
-    if (result) {
-        Py_INCREF(result);
-        return result;
-    }
-
-    *annotate = __Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in);
-    if (unlikely(!*annotate && PyErr_Occurred())) return NULL;
-    if (*annotate && *annotate != Py_None) {
-        return NULL;
-    }
-    Py_XDECREF(*annotate);
-    *annotate = NULL;
-
-    result = op->func_annotations;
+__Pyx_CyFunction_get_annotations_locked(__pyx_CyFunctionObject *op) {
+    PyObject* result = op->func_annotations;
     if (unlikely(!result)) {
         result = PyDict_New();
         if (unlikely(!result)) return NULL;
@@ -665,10 +649,21 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
     __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
     CYTHON_UNUSED_VAR(context);
     __Pyx_BEGIN_CRITICAL_SECTION(op_in);
-    result = __Pyx_CyFunction_get_annotations_or_annotate_locked(op_in, &annotate);
+    if (op->func_annotations) {
+        result = __Pyx_CyFunction_get_annotations_locked(op);
+    }
     __Pyx_END_CRITICAL_SECTION();
     if (result) return result;
-    if (unlikely(!annotate)) return NULL;
+
+    annotate = __Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in);
+    if (unlikely(!annotate && PyErr_Occurred())) return NULL;
+    if (!annotate || annotate == Py_None) {
+        Py_XDECREF(annotate);
+        __Pyx_BEGIN_CRITICAL_SECTION(op_in);
+        result = __Pyx_CyFunction_get_annotations_locked(op);
+        __Pyx_END_CRITICAL_SECTION();
+        return result;
+    }
 
     PyObject *format = PyLong_FromLong(1L);  // annotationlib.Format.VALUE
     if (unlikely(!format)) {
