@@ -549,6 +549,7 @@ __Pyx_CyFunction_get_kwdefaults(PyObject *op, void *context) {
 }
 
 static PyObject *__Pyx_CyFunction_get_annotate_from_dict_if_exists(PyObject *op_in); /*proto*/
+static int __Pyx_CyFunction_set_annotate_in_dict_if_exists(PyObject *op_in, PyObject *value); /*proto*/
 static int __Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value); /*proto*/
 
 static int
@@ -566,7 +567,7 @@ __Pyx_CyFunction_set_annotations(PyObject *op_in, PyObject* value, void *context
     __Pyx_BEGIN_CRITICAL_SECTION(op_in);
     __Pyx_Py_XDECREF_SET(op->func_annotations, value);
     __Pyx_END_CRITICAL_SECTION();
-    if (unlikely(__Pyx_CyFunction_set_annotate_in_dict(op_in, Py_None) < 0)) return -1;
+    if (unlikely(__Pyx_CyFunction_set_annotate_in_dict_if_exists(op_in, Py_None) < 0)) return -1;
     return 0;
 }
 
@@ -584,6 +585,20 @@ __Pyx_CyFunction_get_annotate_from_dict_if_exists(PyObject *op_in) {
     PyObject *annotate = PyDict_GetItemString(dict, "__annotate__");
     Py_XINCREF(annotate);
     return annotate;
+}
+
+static int
+__Pyx_CyFunction_set_annotate_in_dict_if_exists(PyObject *op_in, PyObject *value) {
+    PyObject *dict;
+#if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    PyObject **dictptr = _PyObject_GetDictPtr(op_in);
+    if (unlikely(!dictptr)) return 0;
+    dict = *dictptr;
+#else
+    dict = __Pyx_as_CyFunctionObject(op_in)->func_dict;
+#endif
+    if (!dict) return 0;
+    return PyDict_SetItemString(dict, "__annotate__", value);
 }
 
 static int

@@ -519,6 +519,15 @@ def test_annotate():
     >>> f.__annotations__
     {}
 
+    Setting __annotations__ should clear any assigned lazy annotation function.
+    >>> f = test_annotate()
+    >>> f.__annotate__ = lambda arg=0: {'different_argument': 5}
+    >>> f.__annotations__ = {'manual': str}
+    >>> f.__annotate__ is None
+    True
+    >>> f.__annotations__
+    {'manual': <class 'str'>}
+
     Deleting is banned
     >>> f = test_annotate()
     >>> del f.__annotate__
