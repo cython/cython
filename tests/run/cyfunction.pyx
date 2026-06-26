@@ -452,6 +452,30 @@ def test_wraps(f):
     >>> wrapped_func.__doc__
     "\\n    Hello from to_be_wrapped's docstring\\n    "
 
+    >>> def py_to_be_wrapped(a: int, b: float):
+    ...     return None
+    >>> py_to_be_wrapped.__module__ = "other_python_module"
+    >>> wrapped_py_func = test_wraps(py_to_be_wrapped)
+    >>> wrapped_py_func.__module__
+    'other_python_module'
+    >>> wrapped_py_func.__name__
+    'py_to_be_wrapped'
+    >>> wrapped_py_func.__annotations__ == py_to_be_wrapped.__annotations__
+    True
+
+    >>> def py_wraps(f):
+    ...     @wraps(f)
+    ...     def wrapper(*args, **kwds):
+    ...         return f(*args, **kwds)
+    ...     return wrapper
+    >>> py_wrapped_func = py_wraps(to_be_wrapped)
+    >>> py_wrapped_func.__module__
+    'other_module'
+    >>> py_wrapped_func.__name__
+    'to_be_wrapped'
+    >>> py_wrapped_func.__annotations__ == to_be_wrapped.__annotations__
+    True
+
     # __type_params__ should also be copied, but Cython doesn't support this at all
     """
     @wraps(f)
