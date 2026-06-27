@@ -534,14 +534,24 @@ def test_annotate():
     ...     assigned = failed_later = True
     >>> assigned, failed_later
     (True, True)
-     
-    Assigning to None should clear the lazy annotation function.
+
+    Setting __annotate__ to None should clear the lazy annotation function.
     >>> f = test_annotate()
     >>> f.__annotate__ = None
     >>> f.__annotate__ is None
     True
     >>> f.__annotations__
-    {}
+    {'a': 'int', 'b': 'str'}
+
+    Setting __annotate__ to None should not discard already materialized annotations.
+    >>> f = test_annotate()
+    >>> f.__annotations__
+    {'a': 'int', 'b': 'str'}
+    >>> f.__annotate__ = None
+    >>> f.__annotate__ is None
+    True
+    >>> f.__annotations__
+    {'a': 'int', 'b': 'str'}
 
     Setting __annotations__ should clear any assigned lazy annotation function.
     >>> f = test_annotate()

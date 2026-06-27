@@ -742,10 +742,12 @@ __Pyx_CyFunction_set_annotate(PyObject *op_in, PyObject* value, void *context) {
         PyErr_SetString(PyExc_TypeError, "__annotate__ must be callable or None");
         return -1;
     }
-    __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
-    __Pyx_BEGIN_CRITICAL_SECTION(op_in);
-    Py_CLEAR(op->func_annotations);
-    __Pyx_END_CRITICAL_SECTION();
+    if (value != Py_None) {
+        __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
+        __Pyx_BEGIN_CRITICAL_SECTION(op_in);
+        Py_CLEAR(op->func_annotations);
+        __Pyx_END_CRITICAL_SECTION();
+    }
     return __Pyx_CyFunction_set_annotate_in_dict(op_in, value);
 }
 
