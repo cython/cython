@@ -675,13 +675,8 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
         return NULL;
     }
     __Pyx_BEGIN_CRITICAL_SECTION(op_in);
-    if (!op->func_annotations) {
-        Py_INCREF(result);
-        op->func_annotations = result;
-    } else {
-        Py_DECREF(result);
-        result = __Pyx_NewRef(op->func_annotations);
-    }
+    Py_CLEAR(op->func_annotations);
+    op->func_annotations = __Pyx_NewRef(result);
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
