@@ -2,6 +2,17 @@
 Cython Changelog
 ================
 
+3.2.7 (2026-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* Assigning a Python 3.14+ ``.__annotate__`` function to a Cython compiled function no
+  longer evaluates annotations eagerly.
+  (Github issue :issue:`7767`)
+
+
 3.2.6 (2026-06-24)
 ==================
 
