@@ -573,13 +573,17 @@ static int
 __Pyx_CyFunction_get_dict_if_exists(PyObject *op_in, PyObject **dict) {
     /* Return 1 if the function dict exists, 0 otherwise.  This cannot fail:
      * _PyObject_GetDictPtr() may clear errors internally, but never reports them. */
-    *dict = NULL;
-#if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX < 0x030C0000
+#if CYTHON_COMPILING_IN_PYPY
+    *dict = PyObject_GenericGetDict(op_in, NULL);
+#elif CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX < 0x030C0000
     *dict = __Pyx_as_CyFunctionObject(op_in)->func_dict;
 #else
     PyObject **dictptr = _PyObject_GetDictPtr(op_in);
     if (unlikely(!dictptr)) return 0;
     *dict = *dictptr;
+#else
+    PyObject **dictptr = _PyObject_GetDictPtr(op_in);
+    *dict = likely(dictptr) ? *dictptr : NULL;
 #endif
     return *dict ? 1 : 0;
 }
