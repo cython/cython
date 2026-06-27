@@ -45,12 +45,13 @@ if (likely(__pyx_AsyncGen_init($module_cname) == 0)); else
 //@requires: Coroutine.c::Coroutine
 
 #define __Pyx_AsyncGen_USED
+
 typedef struct {
     __pyx_CoroutineObject coro;
     PyObject *ag_finalizer;
-    int ag_hooks_inited;
-    int ag_closed;
-    int ag_running_async;
+    char ag_hooks_inited;
+    char ag_closed;
+    char ag_running_async;
 } __pyx_PyAsyncGenObject;
 
 #define __Pyx_AsyncGen_CheckExact(obj) Py_IS_TYPE(obj, CGLOBAL(__pyx_AsyncGenType))
@@ -352,8 +353,6 @@ static PyGetSetDef __Pyx_async_gen_getsetlist[] = {
      PyDoc_STR("name of the async generator"), 0},
     {"__qualname__", (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
      PyDoc_STR("qualified name of the async generator"), 0},
-    //REMOVED: {(char*) "ag_await", (getter)coro_get_cr_await, NULL,
-    //REMOVED:  (char*) PyDoc_STR("object being awaited on, or None")},
     {0, 0, 0, 0, 0} /* Sentinel */
 };
 
@@ -361,7 +360,6 @@ static PyMemberDef __Pyx_async_gen_memberlist[] = {
     //REMOVED: {(char*) "ag_frame",   T_OBJECT, offsetof(__pyx_PyAsyncGenObject, ag_frame),   READONLY},
     {"ag_running", T_BOOL,   offsetof(__pyx_PyAsyncGenObject, ag_running_async), READONLY, NULL},
     //REMOVED: {(char*) "ag_code",    T_OBJECT, offsetof(__pyx_PyAsyncGenObject, ag_code),    READONLY},
-    //ADDED: "ag_await"
     {"ag_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
      PyDoc_STR("object being awaited on, or None")},
     {"__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
