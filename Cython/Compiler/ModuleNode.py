@@ -554,9 +554,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             type.module_name, type.name))
         i_code.indent()
         var_entries = type.scope.var_entries
-        if var_entries:
+        method_entries = [
+            entry for entry in type.scope.cfunc_entries
+            if not entry.is_inherited
+        ]
+        if var_entries or method_entries:
             for entry in var_entries:
                 i_code.putln("cdef %s" % (
+                    entry.type.declaration_code(entry.cname, pyrex=1)))
+            for entry in method_entries:
+                if entry.type.is_static_method:
+                    i_code.putln("@staticmethod")
+                i_code.putln("%s %s" % (
+                    "cpdef" if entry.is_overridable else "cdef",
                     entry.type.declaration_code(entry.cname, pyrex=1)))
         else:
             i_code.putln("pass")
