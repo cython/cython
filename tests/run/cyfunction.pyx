@@ -447,7 +447,8 @@ def test_wraps(f):
     'to_be_wrapped'
     >>> wrapped_func.__qualname__
     'to_be_wrapped'
-    >>> wrapped_func.__annotations__ == to_be_wrapped.__annotations__
+    >>> wrapped_func.__annotations__ == to_be_wrapped.__annotations__  or  (
+    ...     wrapped_func.__annotations__, to_be_wrapped.__annotations__)
     True
     >>> wrapped_func.__doc__
     "\\n    Hello from to_be_wrapped's docstring\\n    "
@@ -460,7 +461,8 @@ def test_wraps(f):
     'other_python_module'
     >>> wrapped_py_func.__name__
     'py_to_be_wrapped'
-    >>> wrapped_py_func.__annotations__ == py_to_be_wrapped.__annotations__
+    >>> wrapped_py_func.__annotations__ == py_to_be_wrapped.__annotations__  or  (
+    ...     wrapped_py_func.__annotations__, py_to_be_wrapped.__annotations__)
     True
 
     >>> def py_wraps(f):
@@ -473,7 +475,8 @@ def test_wraps(f):
     'other_module'
     >>> py_wrapped_func.__name__
     'to_be_wrapped'
-    >>> py_wrapped_func.__annotations__ == to_be_wrapped.__annotations__
+    >>> py_wrapped_func.__annotations__ == to_be_wrapped.__annotations__  or  (
+    ...     py_wrapped_func.__annotations__, to_be_wrapped.__annotations__)
     True
 
     # __type_params__ should also be copied, but Cython doesn't support this at all
@@ -499,7 +502,7 @@ def test_annotate():
 
     Assigning should work
     >>> f.__annotate__ = lambda arg=0: {'different_argument': 5}
-    >>> f.__annotations__
+    >>> f.__annotations__  # f.__annotate__ = lambda ...
     {'different_argument': 5}
     >>> f.__annotate__(1)
     {'different_argument': 5}
@@ -511,7 +514,7 @@ def test_annotate():
     ...     def py_function() -> int:
     ...         pass
     ...     f.__annotate__ = py_function.__annotate__
-    ...     f.__annotations__ == {'return': int}
+    ...     f.__annotations__ == {'return': int}  or  f.__annotations__
     ... else:
     ...     True
     True
@@ -538,7 +541,7 @@ def test_annotate():
     Setting __annotate__ to None should clear the lazy annotation function.
     >>> f = test_annotate()
     >>> f.__annotate__ = None
-    >>> f.__annotate__ is None
+    >>> f.__annotate__ is None  or  f.__annotate__
     True
     >>> f.__annotations__
     {'a': 'int', 'b': 'str'}
@@ -548,7 +551,7 @@ def test_annotate():
     >>> f.__annotations__
     {'a': 'int', 'b': 'str'}
     >>> f.__annotate__ = None
-    >>> f.__annotate__ is None
+    >>> f.__annotate__ is None  or  f.__annotate__
     True
     >>> f.__annotations__
     {'a': 'int', 'b': 'str'}
@@ -557,7 +560,7 @@ def test_annotate():
     >>> f = test_annotate()
     >>> f.__annotate__ = lambda arg=0: {'different_argument': 5}
     >>> f.__annotations__ = {'manual': str}
-    >>> f.__annotate__ is None
+    >>> f.__annotate__ is None  or  f.__annotate__
     True
     >>> f.__annotations__
     {'manual': <class 'str'>}
