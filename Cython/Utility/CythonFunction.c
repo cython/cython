@@ -574,6 +574,8 @@ __Pyx_CyFunction_set_annotations(PyObject *op_in, PyObject* value, void *context
 
 static int
 __Pyx_CyFunction_get_dict_if_exists(PyObject *op_in, PyObject **dict) {
+    /* Return 1 if the function dict exists, 0 otherwise.  This cannot fail:
+     * _PyObject_GetDictPtr() may clear errors internally, but never reports them. */
     *dict = NULL;
 #if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX < 0x030C0000
     *dict = __Pyx_as_CyFunctionObject(op_in)->func_dict;
@@ -591,7 +593,6 @@ __Pyx_CyFunction_get_annotate_from_dict_if_exists(PyObject *op_in, PyObject **an
     int dict_found;
     *annotate = NULL;
     dict_found = __Pyx_CyFunction_get_dict_if_exists(op_in, &dict);
-    if (unlikely(dict_found < 0)) return -1;
     if (!dict_found) return 0;
     return __Pyx_PyDict_GetItemRef(dict, PYIDENT("__annotate__"), annotate);
 }
@@ -601,7 +602,6 @@ __Pyx_CyFunction_set_annotate_in_dict_if_exists(PyObject *op_in, PyObject *value
     PyObject *dict;
     int dict_found;
     dict_found = __Pyx_CyFunction_get_dict_if_exists(op_in, &dict);
-    if (unlikely(dict_found < 0)) return -1;
     if (!dict_found) return 0;
     return PyDict_SetItem(dict, PYIDENT("__annotate__"), value);
 }
