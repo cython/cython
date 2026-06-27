@@ -548,10 +548,7 @@ __Pyx_CyFunction_get_kwdefaults(PyObject *op, void *context) {
     return result;
 }
 
-static int __Pyx_CyFunction_get_dict_if_exists(PyObject *op_in, PyObject **dict); /*proto*/
-static int __Pyx_CyFunction_get_annotate_from_dict_if_exists(PyObject *op_in, PyObject **annotate); /*proto*/
 static int __Pyx_CyFunction_set_annotate_in_dict_if_exists(PyObject *op_in, PyObject *value); /*proto*/
-static int __Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value); /*proto*/
 
 static int
 __Pyx_CyFunction_set_annotations(PyObject *op_in, PyObject* value, void *context) {
