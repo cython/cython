@@ -552,7 +552,9 @@ can group them into a :keyword:`cdef` block like this:
 Type inference
 --------------
 
-Cython can automatically deduce C types for:
+If Cython is able to infer a specific type then it may be able to generate faster code based on that type,
+in the same way that it can generate faster code when you manually tell it the type of an object.
+Cython can automatically infer C types for:
 
 * Local variables
 * Loop indices
