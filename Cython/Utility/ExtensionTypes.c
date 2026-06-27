@@ -295,6 +295,34 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 #define __Pyx_TRASHCAN_END
 #endif
 
+/////////////// DeallocKeepAlive.proto ///////////////
+
+// Keep `o` alive across a call into user __dealloc__ code, to prevent the user
+// code from triggering recursive deallocation, then drop the temporary reference.
+//
+// On the GIL build this is a plain refcount bump.  On free-threading we must NOT
+// use Py_SET_REFCNT(o, 1): the object reaching tp_dealloc is unowned and merged
+// (ob_ref_shared == _Py_REF_MERGED), so Py_SET_REFCNT takes the unowned branch and
+// writes ob_ref_shared = _Py_REF_SHARED(1, _Py_REF_MERGED), i.e. "merged, shared
+// count 1" -- indistinguishable from a live object.  A concurrent
+// PyUnstable_TryIncRef() would then succeed and resurrect the dying object
+// (use-after-free).  Instead we mirror CPython's _PyObject_ResurrectStart/End:
+// re-take ownership and keep the *shared* refcount at the refuse sentinel (0), so
+// the bump is invisible to other threads and TryIncRef keeps refusing.
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#define __Pyx_DeallocKeepAliveBegin(o) do {                                  \
+        _Py_atomic_store_uintptr_relaxed(&(o)->ob_tid, _Py_ThreadId());      \
+        _Py_atomic_store_uint32_relaxed(&(o)->ob_ref_local, 1);              \
+        _Py_atomic_store_ssize_relaxed(&(o)->ob_ref_shared, 0);             \
+    } while (0)
+#define __Pyx_DeallocKeepAliveEnd(o) \
+        _Py_atomic_store_uint32_relaxed(&(o)->ob_ref_local, 0)
+#else
+#define __Pyx_DeallocKeepAliveBegin(o) Py_SET_REFCNT(o, Py_REFCNT(o) + 1)
+#define __Pyx_DeallocKeepAliveEnd(o)   Py_SET_REFCNT(o, Py_REFCNT(o) - 1)
+#endif
+
 /////////////// CallNextTpDealloc.proto ///////////////
 
 static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_dealloc);
