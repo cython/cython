@@ -111,12 +111,7 @@ class FusedCFuncDefNode(StatListNode):
             copied_node.entry.used = True
             env.entries[copied_node.entry.name] = copied_node.entry
 
-            specialised_type_names = [
-                sarg.type.declaration_code('', for_display=True)
-                for (farg, sarg) in zip(self.node.args, copied_node.args)
-                if farg.type.is_fused
-            ]
-            copied_node.name = StringEncoding.EncodedString(f"{copied_node.name}[{','.join(specialised_type_names)}]")
+            copied_node.name = PyrexTypes.get_fused_specialized_name(copied_node.name, self.node.args, copied_node.args)
 
             if not self.replace_fused_typechecks(copied_node):
                 break
@@ -156,8 +151,14 @@ class FusedCFuncDefNode(StatListNode):
                       "be determined from the function arguments")
                 self.py_func = None  # this is just to let the compiler exit gracefully
                 return
+
+            # Make the argument types in the CFuncDeclarator specific
+            self._specialize_function_args(copied_node.cfunc_declarator.args,
+                                           fused_to_specific)
             entry = copied_node.entry
-            type.specialize_entry(entry, cname)
+            type.specialize_entry(
+                entry, cname,
+                name=PyrexTypes.get_fused_specialized_name(copied_node.declared_name(), self.node.args, copied_node.args))
 
             # Reuse existing Entries (e.g. from .pxd files).
             for orig_entry in env.cfunc_entries:
@@ -185,10 +186,6 @@ class FusedCFuncDefNode(StatListNode):
 
             copied_node.return_type = type.return_type
             self.create_new_local_scope(copied_node, env, fused_to_specific)
-
-            # Make the argument types in the CFuncDeclarator specific
-            self._specialize_function_args(copied_node.cfunc_declarator.args,
-                                           fused_to_specific)
 
             # If a cpdef, declare all specialized cpdefs (this
             # also calls analyse_declarations)
