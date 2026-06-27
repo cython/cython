@@ -353,8 +353,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code_main = globalstate.parts['type_declarations']
             h_code_end = globalstate.parts['end']
             if options.generate_pxi:
-                result.i_file = replace_suffix_encoded(result.c_file, ".pxi")
-                i_code = Code.PyrexCodeWriter(result.i_file)
+                from .. import __version__
+                if __version__.startswith('3.3.'):
+                    warning(self.pos, "'generate_pxi' is deprecated and will be removed in Cython 3.4.", 2)
+                    result.i_file = replace_suffix_encoded(result.c_file, ".pxi")
+                    i_code = Code.PyrexCodeWriter(result.i_file)
+                else:
+                    error(self.pos, "'generate_pxd' is no longer supported")
+                    i_code = None
             else:
                 i_code = None
 
