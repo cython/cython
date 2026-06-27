@@ -611,22 +611,13 @@ __Pyx_CyFunction_set_annotate_in_dict(PyObject *op_in, PyObject *value) {
     PyObject *dict;
     int result;
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-    __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
-    dict = op->func_dict;
-    if (!dict) {
-        dict = PyDict_New();
-        if (unlikely(!dict)) return -1;
-        op->func_dict = dict;
-    }
-    Py_INCREF(dict);
-    result = PyDict_SetItem(dict, PYIDENT("__annotate__"), value);
-    Py_DECREF(dict);
+    dict = __Pyx_CyFunction_get_dict(__Pyx_as_CyFunctionObject(op_in), NULL);
 #else
     dict = PyObject_GenericGetDict(op_in, NULL);
+#endif
     if (unlikely(!dict)) return -1;
     result = PyDict_SetItem(dict, PYIDENT("__annotate__"), value);
     Py_DECREF(dict);
-#endif
     return result;
 }
 
