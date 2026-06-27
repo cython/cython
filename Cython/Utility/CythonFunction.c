@@ -579,10 +579,6 @@ __Pyx_CyFunction_get_dict_if_exists(PyObject *op_in, PyObject **dict) {
     *dict = __Pyx_as_CyFunctionObject(op_in)->func_dict;
 #else
     PyObject **dictptr = _PyObject_GetDictPtr(op_in);
-    if (unlikely(!dictptr)) return 0;
-    *dict = *dictptr;
-#else
-    PyObject **dictptr = _PyObject_GetDictPtr(op_in);
     *dict = likely(dictptr) ? *dictptr : NULL;
 #endif
     return *dict ? 1 : 0;
