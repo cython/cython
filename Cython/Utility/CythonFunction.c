@@ -675,8 +675,7 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
         return NULL;
     }
     __Pyx_BEGIN_CRITICAL_SECTION(op_in);
-    Py_CLEAR(op->func_annotations);
-    op->func_annotations = __Pyx_NewRef(result);
+    __Pyx_Py_XDECREF_SET(op->func_annotations, __Pyx_NewRef(result));
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
