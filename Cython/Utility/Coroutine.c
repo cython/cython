@@ -1654,6 +1654,10 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
     Py_XINCREF(code);
     gen->gi_code = code;
     gen->gi_frame = NULL;
+#if CYTHON_USE_SYS_MONITORING && (CYTHON_PROFILE || CYTHON_TRACE)
+    memset(gen->$monitoring_states_cname, 0, sizeof(gen->$monitoring_states_cname));
+    gen->$monitoring_version_cname = 0;
+#endif
 
     PyObject_GC_Track(gen);
     return gen;
