@@ -186,6 +186,10 @@ Features added
 Bugs fixed
 ----------
 
+* Assigning a Python 3.14+ ``.__annotate__`` function to a Cython compiled function no
+  longer evaluates annotations eagerly.
+  (Github issue :issue:`7767`)
+
 * Generated Cython language features like properties, auto-pickle or dataclasses
   now use a critical section (on the object itself) as guard for concurrent access.
   (Github issue :issue:`6621`)
