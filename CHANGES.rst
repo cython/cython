@@ -8,8 +8,13 @@ Cython Changelog
 Features added
 --------------
 
+* Async generator objects are slightly smaller.
+  (Github issue :issue:`7776`)
+
 Bugs fixed
 ----------
+
+* Includes all fixes as of Cython 3.2.7.
 
 Other changes
 -------------
