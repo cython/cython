@@ -323,6 +323,22 @@ Other changes
   Patch by Libor Jelínek.  (Github issue :issue:`7564`)
 
 
+3.2.7 (2026-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* Assigning a Python 3.14+ ``.__annotate__`` function to a Cython compiled function no
+  longer evaluates annotations eagerly.  Fixes a regression in Cython 3.2.6.
+  (Github issue :issue:`7767`)
+
+* The local function state used by ``sys.monitoring`` read from uninitialised memory.
+  (Github issue :issue:`7774`)
+
+* The ``.ag_running`` flag attribute of async generators was always false on big-endian systems.
+
+
 3.2.6 (2026-06-24)
 ==================
 
