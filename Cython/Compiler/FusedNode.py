@@ -805,6 +805,13 @@ class FusedCFuncDefNode(StatListNode):
 
         return py_func
 
+    def attach_fused_py_funcs(self):
+        for node in self.nodes:
+            if isinstance(self.node, DefNode):
+                node.fused_py_func = self.py_func
+            else:
+                node.py_func.fused_py_func = self.py_func
+
     def update_fused_defnode_entry(self, env):
         copy_attributes = (
             'name', 'pos', 'cname', 'func_cname', 'pyfunc_cname',
@@ -834,10 +841,8 @@ class FusedCFuncDefNode(StatListNode):
         for node in self.nodes:
             if isinstance(self.node, DefNode):
                 def_nodes.append(node)
-                node.fused_py_func = self.py_func
             else:
                 def_nodes.append(node.py_func)
-                node.py_func.fused_py_func = self.py_func
                 node.entry.as_variable = entry
 
         self.synthesize_defnodes(def_nodes)
