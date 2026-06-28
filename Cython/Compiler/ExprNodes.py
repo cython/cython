@@ -3543,8 +3543,8 @@ class NextNode(AtomicExprNode):
             self.type = item_type.equivalent_type or py_object_type
             return self.coerce_to(item_type, env)
         else:
-            self.type = item_type
-            return self
+            self.type = py_object_type
+            return self.coerce_to(item_type, env)
 
     def generate_result_code(self, code):
         self.iterator.generate_iter_next_result_code(self.result(), code)
