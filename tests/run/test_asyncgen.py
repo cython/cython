@@ -10,7 +10,7 @@ from Cython.TestUtils import TimedTest
 
 import os
 import sys
-#import inspect
+import inspect
 #import types
 import unittest
 import contextlib
@@ -122,7 +122,7 @@ try:
 except ImportError:
     def inspect_isawaitable(o):
         return hasattr(o, '__await__')
-    
+
 try:
     anext
 except NameError:
@@ -526,12 +526,52 @@ class AsyncGenTest(TimedTest):
         g.__qualname__ = '123'
         self.assertEqual(g.__qualname__, '123')
 
-        #self.assertIsNone(g.ag_await)
+        self.assertIsNone(g.ag_await)
         #self.assertIsInstance(g.ag_frame, types.FrameType)
         self.assertFalse(g.ag_running)
         #self.assertIsInstance(g.ag_code, types.CodeType)
 
-        self.assertTrue(inspect_isawaitable(g.aclose()))
+        aclose = g.aclose()
+        self.assertTrue(inspect.isawaitable(aclose))
+        aclose.close()
+
+    def test_async_gen_api_ag_running(self):
+        async def gen():
+            self.assertTrue(g.ag_running)
+            try:
+                yield 123
+                self.assertTrue(g.ag_running)
+                yield 456
+            finally:
+                self.assertTrue(g.ag_running)
+
+        g = gen()
+
+        ai = g.__aiter__()
+        self.assertFalse(g.ag_running)
+
+        an = anext(ai)
+        self.assertFalse(g.ag_running)
+
+        try:
+            next(an)
+        except StopIteration as ex:
+            self.assertFalse(g.ag_running)
+            self.assertEqual(ex.args[0], 123)
+
+        an = anext(ai)
+        self.assertFalse(g.ag_running)
+
+        try:
+            next(an)
+        except StopIteration as ex:
+            self.assertFalse(g.ag_running)
+            self.assertEqual(ex.args[0], 456)
+
+        aclose = g.aclose()
+        self.assertFalse(g.ag_running)
+        aclose.close()
+        self.assertFalse(g.ag_running)
 
 
 class AsyncGenAsyncioTest(TimedTest):
