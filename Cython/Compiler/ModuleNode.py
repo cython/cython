@@ -2015,14 +2015,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not entry or not entry.is_special:
             return
 
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("DeallocKeepAlive", "ExtensionTypes.c"))
         code.putln("{")
         code.putln("PyObject *etype, *eval, *etb;")
         code.putln("PyErr_Fetch(&etype, &eval, &etb);")
-        # increase the refcount while we are calling into user code
-        # to prevent recursive deallocation
-        code.putln("__Pyx_SET_REFCNT(o, Py_REFCNT(o) + 1);")
+        # Keep the object alive while we are calling into user code, to prevent
+        # the user code from triggering recursive deallocation.  On free-threading
+        # this must not use Py_SET_REFCNT() (see DeallocKeepAlive in ExtensionTypes.c).
+        code.putln("__Pyx_DeallocKeepAliveBegin(o);")
         code.putln("%s(o);" % entry.func_cname)
-        code.putln("__Pyx_SET_REFCNT(o, Py_REFCNT(o) - 1);")
+        code.putln("__Pyx_DeallocKeepAliveEnd(o);")
         code.putln("PyErr_Restore(etype, eval, etb);")
         code.putln("}")
 
