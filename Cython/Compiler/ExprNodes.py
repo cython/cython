@@ -3541,10 +3541,9 @@ class NextNode(AtomicExprNode):
             # We definitely read a Python object from the iterable but inferred a C type for it,
             # probably by anticipating to unpack it.  Do the coercion outside to allow undoing it later.
             self.type = item_type.equivalent_type or py_object_type
-            return self.coerce_to(item_type, env)
         else:
             self.type = py_object_type
-            return self.coerce_to(item_type, env)
+        return self.coerce_to(item_type, env)
 
     def generate_result_code(self, code):
         self.iterator.generate_iter_next_result_code(self.result(), code)
