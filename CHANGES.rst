@@ -10,7 +10,7 @@ Bugs fixed
 
 * Assigning a Python 3.14+ ``.__annotate__`` function to a Cython compiled function no
   longer evaluates annotations eagerly.  Fixes a regression in Cython 3.2.6.
-  (Github issue :issue:`7767`)
+  Patch by Jelle Zijlstra.  (Github issue :issue:`7767`)
 
 * The local function state used by ``sys.monitoring`` read from uninitialised memory.
   (Github issue :issue:`7774`)
