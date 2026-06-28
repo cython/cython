@@ -2,20 +2,36 @@
 Cython Changelog
 ================
 
-3.3.0a1 (2026-??-??)
+3.3.0a2 (2026-??-??)
+====================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+Other changes
+-------------
+
+
+3.3.0a1 (2026-06-24)
 ====================
 
 Features added
 --------------
 
 * Changes were made to adapt to Python 3.15 and its Limited API.
-  (Github issues :issue:`7190`, :issue:`7347`, :issue:`7348`, :issue:`7358`)
+  (Github issues :issue:`6405`, :issue:`7190`, :issue:`7347`, :issue:`7348`, :issue:`7358`)
 
 * PEP-634 Pattern Matching is implemented.
   (Github issue :issue:`4029`)
 
 * Declared container item types (e.g. ``list[float]``) are now used by the type system.
   (Github issue :issue:`7288`)
+
+* Type inference was improved for builtin Python types.
+  (Github issues :issue:`7536`, :issue:`7644`)
 
 * Extension types can declare themselves explicitly as sequence or mapping with
   ``@cython.collection_type("sequence")`` or ``@cython.collection_type("mapping")``.
@@ -32,9 +48,6 @@ Features added
   This allows subscripting code to avoid creating Python index objects when the index
   is already available as C integer.
   (Github issue :issue:`7435`)
-
-* ``cdef`` property methods support setters.
-  (Github issue :issue:`7505`)
 
 * The Py3.15 ``frozendict`` builtin type is supported and has been backported as an alias
   for ``dict`` in older Python versions.
@@ -53,6 +66,12 @@ Features added
   The bit operations ``^``, ``|`` and ``&`` are additionally special cased for ``int``.
   (Github issues :issue:`7485`, :issue:`7541`)
 
+* ``<bool>`` casts can be used to convert C values to Python ``True`` / ``False``.
+  (Github issue :issue:`7513`)
+
+* ``cdef`` property methods support setters.
+  (Github issue :issue:`7505`)
+
 * The C ``restrict`` modifier can be used in declarations.
   (Github issue :issue:`7617`)
 
@@ -62,6 +81,11 @@ Features added
 * ``prange(num_threads=0)`` automatically selects the maximum number of OpenMP threads.
   (Github issue :issue:`7586`)
 
+* ``prange()`` and ``parallel()`` sections can be used without releasing the GIL, which
+  helps in freethreading builds.  When releasing the GIL as part of the section declaration,
+  re-acquiring it immediately inside is now faster, e.g. to do per-thread Python initialisations.
+  (Github issue :issue:`6562`)
+
 * ``cython.pymutex`` and ``cython.pythread_type_lock`` now support a ``.locked()`` method
   to check if the lock is currently held without blocking. The method works on all Python
   versions using atomic reads on Python 3.13+ and a try-acquire approach on older versions.
@@ -69,9 +93,6 @@ Features added
 
 * A simpler mechanism was added for implementing C++ exception handlers in Cython code.
   (Github issues :issue:`7388`, :issue:`7390`)
-
-* Type inference was improved for builtin Python types.
-  (Github issues :issue:`7536`, :issue:`7644`)
 
 * Repeated memoryview slicing inside of loops now avoids redundant reference counting,
   making it substantially faster.
@@ -205,6 +226,10 @@ Bugs fixed
   the Limited API.
   (Github issue :issue:`7602`)
 
+* In the Limited API, import time failures to create code objects for compiled functions,
+  e.g. due to future Python API changes, are no longer fatal but generate a warning.
+  (Github issue :issue:`5718`)
+
 * Several internal cases where exceptions are caught and discarded now propagate the
   ``BaseException`` errors and only discard the expected exceptions.
   (Github issue :issue:`7600`)
@@ -249,6 +274,10 @@ Bugs fixed
 * Error reporting on missing braces in f-strings was misleading.
   (Github issue :issue:`7436`)
 
+* ``None`` default values for function arguments declared as ``not None`` are now rejected at compile time
+  rather than leading to errors at runtime.
+  Patch by Vyas Ramasubramani.  (Github issue :issue:`7762`)
+
 * Cython did not reject code with multiple contradicting type annotations on the same variable.
   (Github issue :issue:`7246`)
 
@@ -264,7 +293,7 @@ Bugs fixed
 
 * Several C compiler warnings related to mixed signed/unsigned C integer usage were resolved.
 
-* Includes all fixes as of Cython 3.2.x.
+* Includes all fixes as of Cython 3.2.6.
 
 Other changes
 -------------
@@ -290,11 +319,14 @@ Other changes
   Patch by Libor Jelínek.  (Github issue :issue:`7564`)
 
 
-3.2.6 (2026-0?-??)
+3.2.6 (2026-06-24)
 ==================
 
 Bugs fixed
 ----------
+
+* ``@functools.wraps()`` was broken in Py3.14+ for Cython compiled functions.
+  (Github issue :issue:`7675`)
 
 * A double-free in the t-string code was fixed.
   (Github issue :issue:`7712`)
@@ -308,6 +340,12 @@ Bugs fixed
 
 * On 32 bit platforms, cached constants are no longer made immortal during module import.
   (Github issue :issue:`7744`)
+
+Other changes
+-------------
+
+* Binary wheels are now built with ``-DNDEBUG`` to discard runtime assertions from CPython's
+  inline functions.
 
 
 3.2.5 (2026-05-23)
