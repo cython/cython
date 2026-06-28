@@ -599,16 +599,16 @@ types in arithmetic expressions is avoided due to possible overflow.
 
             @cython.cfunc
             def add_multiply(i: cython.int, j: cython.int, k: cython.int) -> cython.int:
-                x = i + j           # x is Python object
-                return x * j        # not optimized
+                x = i + j           # x is a Python 'int' object
+                return x * j        # evaluated as object operation
 
     .. group-tab:: Cython
 
         .. code-block:: cython
 
             cdef int add_multiply(int i, int j, int k):
-                x = i + j           # x is Python object
-                return x * j        # not optimized
+                x = i + j           # x is a Python 'int' object
+                return x * j        # evaluated as object operation
 
 
 To allow more aggressive (unsafe) inference, enable the ``infer_types`` directive.
