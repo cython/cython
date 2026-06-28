@@ -346,11 +346,19 @@ __Pyx_async_gen_self_method(PyObject *g, PyObject *arg) {
 }
 
 
+static PyObject *
+__Pyx_async_gen_get_running(__pyx_PyAsyncGenObject *o, void *context) {
+    CYTHON_UNUSED_VAR(context);
+    return __Pyx_NewRef(o->ag_running_async ? Py_True : Py_False);
+}
+
+
 static PyGetSetDef __Pyx_async_gen_getsetlist[] = {
     {"__name__", (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
      PyDoc_STR("name of the async generator"), 0},
     {"__qualname__", (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
      PyDoc_STR("qualified name of the async generator"), 0},
+    {"ag_running", (getter)__Pyx_async_gen_get_running, NULL, NULL, 0},
     //REMOVED: {(char*) "ag_await", (getter)coro_get_cr_await, NULL,
     //REMOVED:  (char*) PyDoc_STR("object being awaited on, or None")},
     {0, 0, 0, 0, 0} /* Sentinel */
@@ -358,7 +366,6 @@ static PyGetSetDef __Pyx_async_gen_getsetlist[] = {
 
 static PyMemberDef __Pyx_async_gen_memberlist[] = {
     //REMOVED: {(char*) "ag_frame",   T_OBJECT, offsetof(__pyx_PyAsyncGenObject, ag_frame),   READONLY},
-    {"ag_running", T_BOOL,   offsetof(__pyx_PyAsyncGenObject, ag_running_async), READONLY, NULL},
     //REMOVED: {(char*) "ag_code",    T_OBJECT, offsetof(__pyx_PyAsyncGenObject, ag_code),    READONLY},
     //ADDED: "ag_await"
     {"ag_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
