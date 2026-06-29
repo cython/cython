@@ -426,8 +426,8 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 #define __Pyx_DeallocKeepAliveEnd(o) \
         _Py_atomic_store_uint32_relaxed(&(o)->ob_ref_local, 0)
 #else
-#define __Pyx_DeallocKeepAliveBegin(o) Py_SET_REFCNT(o, Py_REFCNT(o) + 1)
-#define __Pyx_DeallocKeepAliveEnd(o)   Py_SET_REFCNT(o, Py_REFCNT(o) - 1)
+#define __Pyx_DeallocKeepAliveBegin(o) __Pyx_SET_REFCNT(o, Py_REFCNT(o) + 1)
+#define __Pyx_DeallocKeepAliveEnd(o)   __Pyx_SET_REFCNT(o, Py_REFCNT(o) - 1)
 #endif
 
 /////////////// CallNextTpDealloc.proto ///////////////
