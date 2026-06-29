@@ -2,15 +2,19 @@
 Cython Changelog
 ================
 
-3.2.7 (2026-0?-??)
+3.2.7 (2026-06-29)
 ==================
 
 Bugs fixed
 ----------
 
-* Assigning a Python 3.14+ ``.__annotate__`` function to a Cython compiled function no
-  longer evaluates annotations eagerly.  Fixes a regression in Cython 3.2.6.
+* Assigning a Python 3.14+ ``.__annotate__`` function to a Cython compiled function no longer
+  evaluates annotations eagerly.  Fixes a regression with ``@functools.wraps()`` in Cython 3.2.6.
   Patch by Jelle Zijlstra.  (Github issue :issue:`7767`)
+
+* In freethreading Python, the necessary object keep-alive while executing user code in
+  ``.__dealloc__()`` uses a safer scheme.
+  Patch by Yaxing Cai.  (Github issue :issue:`7769`)
 
 * The local function state used by ``sys.monitoring`` read from uninitialised memory.
   (Github issue :issue:`7774`)
