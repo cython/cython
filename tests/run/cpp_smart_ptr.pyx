@@ -114,3 +114,66 @@ def test_dynamic_pointer_cast():
     a = shared_ptr[A](new A())
     b = dynamic_pointer_cast[B, A](a)
     assert b.get() == NULL
+
+
+cdef extern from *:
+    """
+    struct MyStruct {
+        int value;
+    };
+    """
+    cdef cppclass MyStruct:
+        int value
+
+
+cdef class Wrapper:
+    cdef unique_ptr[MyStruct] c_obj
+
+    def set_obj(self):
+        self.c_obj.reset(new MyStruct())
+
+
+def test_unique_ptr_null_comparison():
+    """
+    >>> test_unique_ptr_null_comparison()
+    True
+    False
+    True
+    """
+    cdef Wrapper w = Wrapper()
+    print(w.c_obj == NULL)
+    print(w.c_obj != NULL)
+    w.set_obj()
+    print(w.c_obj != NULL)
+
+
+def test_unique_ptr_nullptr_comparison():
+    """
+    >>> test_unique_ptr_nullptr_comparison()
+    True
+    False
+    True
+    """
+    cdef Wrapper w = Wrapper()
+    print(w.c_obj == nullptr)
+    print(w.c_obj != nullptr)
+    w.set_obj()
+    print(w.c_obj != nullptr)
+
+
+def test_unique_ptr_bool_context():
+    """
+    >>> test_unique_ptr_bool_context()
+    False
+    True
+    """
+    cdef Wrapper w = Wrapper()
+    if w.c_obj:
+        print(True)
+    else:
+        print(False)
+    w.set_obj()
+    if w.c_obj:
+        print(True)
+    else:
+        print(False)

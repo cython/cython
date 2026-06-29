@@ -14270,6 +14270,23 @@ class CmpNode:
                 operand1.result(),
                 operand2.result()))
 
+        elif self.is_cpp_comparison():
+            # C++ comparisons already had operands coerced in
+            # analyse_cpp_comparison(). Don't re-cast them to a
+            # common_type, as casting NULL to a C++ class type
+            # (e.g. unique_ptr) generates ambiguous code with GCC 14.
+            statement = f"{result_code} = {coerce_result}({operand1.result()} {self.c_operator(op)} {operand2.result()});"
+            if self.exception_check == '+':
+                translate_cpp_exception(
+                    code,
+                    self.pos,
+                    statement,
+                    result_code if self.type.is_pyobject else None,
+                    self.exception_value,
+                    self.in_nogil_context)
+            else:
+                code.putln(statement)
+
         else:
             type1 = operand1.type
             type2 = operand2.type
@@ -14282,22 +14299,7 @@ class CmpNode:
                 common_type = type1
             code1 = operand1.result_as(common_type)
             code2 = operand2.result_as(common_type)
-            statement = "%s = %s(%s %s %s);" % (
-                result_code,
-                coerce_result,
-                code1,
-                self.c_operator(op),
-                code2)
-            if self.is_cpp_comparison() and self.exception_check == '+':
-                translate_cpp_exception(
-                    code,
-                    self.pos,
-                    statement,
-                    result_code if self.type.is_pyobject else None,
-                    self.exception_value,
-                    self.in_nogil_context)
-            else:
-                code.putln(statement)
+            code.putln(f"{result_code} = {coerce_result}({code1} {self.c_operator(op)} {code2});")
 
     def c_operator(self, op):
         if op == 'is':
