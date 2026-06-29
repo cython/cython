@@ -3283,7 +3283,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         globalstate.use_utility_code(
             UtilityCode.load("MultiPhaseInitModuleState", "ModuleSetupCode.c")
         )
-        module_state.putln("#if CYTHON_USE_MODULE_STATE")
+        module_state.putln('#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 '
+                           '&& CYTHON_PEP489_MULTI_PHASE_INIT && defined(Py_TARGET_ABI3T)')
+        # Just an address to use for Py_mod_token
+        module_state.putln(f'static char {Naming.pymoduledef_cname};')
+        module_state.putln('#else')
         module_state.putln('#ifdef __cplusplus')
         module_state.putln('namespace {')
         module_state.putln('extern struct PyModuleDef %s;' % Naming.pymoduledef_cname)
@@ -3291,7 +3295,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('#else')
         module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
         module_state.putln('#endif')
+        module_state.putln('#endif')
         module_state.putln('')
+        module_state.putln("#if CYTHON_USE_MODULE_STATE")
         module_state.putln('#define %s (__Pyx_PyModule_GetState(__Pyx_State_FindModule(&%s)))' % (
             Naming.modulestateglobal_cname,
             Naming.pymoduledef_cname))
@@ -3369,10 +3375,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.put_code_here(UtilityCode.load("PyModInitFuncType", "ModuleSetupCode.c"))
 
+        # modinitfunc_cname is used for the refnanny context - no need to change it in PEP 793
         modinit_func_name = EncodedString(f"PyInit_{env.module_name}")
         header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
+        # for PEP 793 upwards
+        header_modexport = f"__Pyx_PyMODEXPORT_FUNC {self.mod_init_func_cname('PyModExport', env)}(void)"
         # Optimise for small code size as the module init function is only executed once.
-        code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header3)
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 "
+                   "&& CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln(f"{header_modexport} CYTHON_SMALL_CODE; /*proto*/")
+        code.putln("#endif")
+        # Always define PyInit_ (even with PEP 793) mainly because setuptools on Windows will
+        # try to export the symbol so it needs to exist.
+        code.putln(f"{header3} CYTHON_SMALL_CODE; /*proto*/")
         if self.scope.is_package:
             code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS))")
             code.putln("__Pyx_PyMODINIT_FUNC PyInit___init__(void) { return %s(); }" % (
@@ -3380,19 +3395,33 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
         # Hack for a distutils bug - https://bugs.python.org/issue39432
         # distutils attempts to make visible a slightly wrong PyInitU module name. Just create a dummy
-        # function to keep it quiet
+        # function to keep it quiet.
+        # Don't bother for PEP 793 - distutils has long since stopped being relevant.
         wrong_punycode_module_name = self.wrong_punycode_module_name(env.module_name)
         if wrong_punycode_module_name:
             code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS))")
             code.putln("void %s(void) {} /* workaround for https://bugs.python.org/issue39432 */" % wrong_punycode_module_name)
             code.putln("#endif")
-        code.putln(header3)
 
+        code.putln(header3)
         # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("{")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 "
+                   "&& defined(Py_TARGET_ABI3T)")
+        # We still define the PyInit function because setuptools will try to export it, but it's unusable with
+        # an opaque PyModuleDef.
+        code.putln(f'Py_FatalError("Python should use {self.mod_init_func_cname("PyModExport", env)} instead");')
+        code.putln("#else")
         code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
+        code.putln("#endif")
         code.putln("}")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1")
+        code.putln(header_modexport)
+        code.putln("{")
+        code.putln(f"return {Naming.module_pyslots_cname};")
+        code.putln("}")
+        code.putln("#endif")
 
         mod_create_func = UtilityCode.load("ModuleCreationPEP489", "ModuleSetupCode.c")
         code.put_code_here(mod_create_func)
@@ -3912,6 +3941,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
 
         code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
+
         code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
         code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
@@ -3927,6 +3957,29 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln("{0, NULL}")
         code.putln("};")
+
+        # PEP 803 and 793 initialization
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1")
+        code.putln(f"PyABIInfo_VAR({Naming.pyrex_prefix}abi_info);")
+        code.putln(f"static PySlot {Naming.module_pyslots_cname}[] = {{")
+        code.putln(f"PySlot_PTR_STATIC(Py_mod_name, {env.module_name.as_c_string_literal()}),")
+        code.putln(f"PySlot_PTR_STATIC(Py_mod_token, &{Naming.pymoduledef_cname}),")
+        code.putln(f"PySlot_PTR_STATIC(Py_mod_abi, &{Naming.pyrex_prefix}abi_info),")
+        code.putln(f"PySlot_PTR_STATIC(Py_mod_methods, &{env.method_table_cname}),")
+        if env.doc:
+            code.putln(f"PySlot_PTR_STATIC(Py_mod_doc, {doc}),")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
+        code.putln(f"  PySlot_PTR_STATIC(Py_mod_state_size, (void*)sizeof({Naming.modulestatetype_cname})),")
+        code.putln(f"  PySlot_PTR_STATIC(Py_mod_state_traverse, {Naming.module_cname}),")
+        code.putln(f"  PySlot_PTR_STATIC(Py_mod_state_clear, {Naming.module_cname}_clear),")
+        if Options.generate_cleanup_code:
+            code.putln("  PySlot_PTR_STATIC(Py_mod_state_free, {cleanup_func}),")
+        code.putln("#endif")
+        code.putln(f"PySlot_PTR_STATIC(Py_mod_slots, {Naming.pymoduledef_slots_cname}),")
+        code.putln("PySlot_PTR_STATIC(Py_slot_end, 0)")
+        code.putln("};")
+        code.putln("#endif")  # end of PEP 793 initialization
+
         if not env.module_name.isascii():
             code.putln("#else /* CYTHON_PEP489_MULTI_PHASE_INIT */")
             code.putln('#error "Unicode module names are only supported with multi-phase init'
@@ -3934,6 +3987,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("")
+        code.putln("#if !(__PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 "
+                   "&& CYTHON_PEP489_MULTI_PHASE_INIT && defined(Py_TARGET_ABI3T))")
         code.putln('#ifdef __cplusplus')
         code.putln('namespace {')
         code.putln("struct PyModuleDef %s =" % Naming.pymoduledef_cname)
@@ -3967,6 +4022,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("};")
         code.putln('#ifdef __cplusplus')
         code.putln('} /* anonymous namespace */')
+        code.putln("#endif")
         code.putln('#endif')
 
     def generate_module_creation_code(self, env, code):
