@@ -3537,7 +3537,8 @@ class NextNode(AtomicExprNode):
 
     def analyse_types(self, env):
         item_type = self.infer_type(env, self.iterator.type)
-        if self.iterator.type.is_pyobject:
+        if self.iterator.type.is_pyobject and \
+                not (item_type.is_builtin_type and item_type.name == 'type'):
             # We read an arbitrary Python object of unpredictable type from the iterable.
             # Coerce to the inferred type after reading it, allowing to undo the coercion later.
             self.type = py_object_type
