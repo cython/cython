@@ -177,7 +177,7 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
     if seq_node.is_sequence_constructor or seq_node.is_set_literal:
         # If we're lucky, all items have the same type (possibly with None).
         args_without_none = [item for item in seq_node.args if not item.is_none]
-        has_none = len(args_without_none) < len(seq_node.args)
+        allows_none = len(args_without_none) < len(seq_node.args)
         item_types = {
             infer_sequence_item_type(env, item) if item.is_starred else item.infer_type(env)
             for item in args_without_none
@@ -185,18 +185,22 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
         if None in item_types or py_object_type in item_types:
             # Could not infer all (starred) types to specific types.
             return None
-        item_type = PyrexTypes.reduce_spanning_types(
-            # Unpack the Python types to optimise and avoid a mix of inferred C and Python.
-            item_type.equivalent_type if item_type.is_pyobject and item_type.equivalent_type else item_type
-            for item_type in item_types
-        )
+        if not allows_none:
+            allows_none = any(tp.python_type_constructor_name and tp.allows_none() for tp in item_types)
+        if not allows_none:
+            item_types = [
+                # Unpack the Python types to optimise and avoid a mix of inferred C and Python.
+                item_type.equivalent_type if item_type.is_pyobject and item_type.equivalent_type else item_type
+                for item_type in item_types
+            ]
+        item_type = PyrexTypes.reduce_spanning_types(item_types)
         if item_type is py_object_type:
             # Normalise "cannot infer anything specific" to "cannot infer".
             return None
-        if has_none and not item_type.is_pyobject:
+        if allows_none and not item_type.is_pyobject:
             # Must be a Python type to cover 'None'.
             item_type = item_type.equivalent_type  # 'equivalent_type' may be None => cannot infer type
-        elif not has_none and (item_type.is_pybytes_type or item_type.is_pystr_type):
+        elif not allows_none and (item_type.is_pybytes_type or item_type.is_pystr_type):
             # Infer special case of single character sequences as single character type.
             if all(arg.is_string_literal and arg.can_coerce_to_char_literal() for arg in args_without_none):
                 item_type = PyrexTypes.c_py_ucs4_type if item_type.is_pystr_type else PyrexTypes.c_uchar_type
