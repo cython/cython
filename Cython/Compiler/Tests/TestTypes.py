@@ -41,6 +41,7 @@ class TestBuiltinTypes(TimedTest):
         'is_bytes_or_str_or_bytearray': ['bytes', 'str', 'bytearray'],
         'has_uniform_element_type': ['list', 'set', 'frozenset'],
         'supports_container_type': ['list', 'dict', 'frozendict', 'set', 'frozenset'],
+        'is_exception_type': PT.KNOWN_EXCEPTION_NAMES,
     }
 
     def test_set_builtin_type_flags(self):
