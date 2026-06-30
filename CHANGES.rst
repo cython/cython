@@ -14,7 +14,7 @@ Features added
 Bugs fixed
 ----------
 
-* Includes all fixes as of Cython 3.2.7.
+* Includes all fixes as of Cython 3.2.8.
 
 Other changes
 -------------
@@ -328,7 +328,7 @@ Other changes
   Patch by Libor Jelínek.  (Github issue :issue:`7564`)
 
 
-3.2.7 (2026-06-29)
+3.2.8 (2026-06-30)
 ==================
 
 Bugs fixed
