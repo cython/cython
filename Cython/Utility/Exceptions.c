@@ -1036,3 +1036,114 @@ static CYTHON_INLINE int __Pyx_IgnoreGivenException(PyObject *given_exception, P
     }
     return 0;
 }
+
+/////////////////// GuardPropertyAutocomplete.init /////////////////////////
+
+#if !(__PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX > 0x030F00B2)
+if (__pyx_interpreter_is_interactive == -1) {
+    __pyx_interpreter_is_interactive = __Pyx_GetInterpreterIsInteractive();
+}
+#endif
+
+/////////////////// GuardPropertyAutocomplete.proto ////////////////////////
+
+#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX > 0x030F00B2
+// In 3.15, we no longer need the guard
+#define __Pyx_GetInterpreterIsInteractive() (0)
+#define __Pyx_GuardPropertyAutocomplete()
+#else
+static int __pyx_interpreter_is_interactive = -1;
+
+static int __Pyx_GetInterpreterIsInteractive(void);
+static void __Pyx_GuardPropertyAutocomplete(void);
+#endif
+
+/////////////////// GuardPropertyAutocomplete //////////////////////////////
+
+#if !(__PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX > 0x030F00B2)
+static int __Pyx_GetInterpreterIsInteractive(void) {
+#if CYTHON_COMPILING_IN_LIMITED_API || (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000)
+    // Depending on the runtime version we may not need to do the guard.
+    // In this case, detect it early and mark the interpreter as "non-interactive".
+    unsigned long rt_version = __Pyx_get_runtime_version();
+    if (rt_version > 0x030d0d00 && rt_version < 0x030E0000) {
+        return 0;
+    }
+    if (rt_version > 0x030E0600 && rt_version < 0x030F0000) {
+        return 0;
+    }
+    // We can't handle beta versions in get_runtime_version so
+    // don't handle them for the Limited API
+    if (rt_version > 0x030F0000) {
+        return 0;
+    }
+#endif
+    return (PySys_GetObject("ps1") != NULL);
+}
+
+static void __Pyx_GuardPropertyAutocomplete(void) {
+    if (likely(!__pyx_interpreter_is_interactive)) {
+        return;
+    }
+    if (PyErr_ExceptionMatches(PyExc_AttributeError) || !PyErr_ExceptionMatches(PyExc_Exception)) {
+        // AttributeError is fine and doesn't need wrapping.
+        // Avoid changing BaseException on moral grounds.
+        return;
+    }
+    PyObject *typ, *val, *tb;
+    __Pyx_PyErr_FetchException(&typ, &val, &tb);
+
+    int is_attr_matches, is_rlcompleter;
+    PyObject *getframe, *frame, *f_code=NULL, *co_name, *co_filename;
+    getframe = PySys_GetObject("_getframe");
+    if (unlikely(!getframe)) goto fail;
+    frame = PyObject_CallObject(getframe, NULL);
+    if (unlikely(!frame)) goto fail;
+    f_code = PyObject_GetAttr(frame, PYIDENT("f_code"));
+    Py_CLEAR(frame);
+    if (unlikely(!f_code)) goto fail;
+    co_name = PyObject_GetAttr(f_code, PYIDENT("co_name"));
+    if (unlikely(!co_name)) goto fail;
+    is_attr_matches = (PyUnicode_CompareWithASCIIString(co_name, "attr_matches") == 0);
+    Py_DECREF(co_name);
+    if (!is_attr_matches) goto fail;
+    co_filename = PyObject_GetAttr(f_code, PYIDENT("co_filename"));
+    if (unlikely(!co_filename)) goto fail;
+    is_rlcompleter = PyUnicode_Tailmatch(
+        co_filename, PYUNICODE("rlcompleter.py"),
+        0, PY_SSIZE_T_MAX, 1);
+    Py_DECREF(co_filename);
+    Py_CLEAR(f_code);
+    if (unlikely(is_rlcompleter != 1)) goto fail;
+
+    // If we're here we've raised an exception while auto-completing.
+#if __PYX_LIMITED_VERSION_HEX < 0x030b0000
+    PyErr_SetExcInfo(typ, val, tb);
+#else
+    PyErr_SetHandledException(val);
+    Py_DECREF(val);
+#endif
+    // This exception should typically be swallowed inside the auto-completer.
+    // However, set a semi-useful message and keep the original exception around
+    // in "During handling of the above exception, another exception occurred"
+    // just in case it isn't. 
+    PyErr_SetString(
+        PyExc_AttributeError,
+        "Exception occurred in Cython property while attempting auto-complete");
+#if __PYX_LIMITED_VERSION_HEX < 0x030b0000
+    PyErr_SetExcInfo(NULL, NULL, NULL);
+#else
+    PyErr_SetHandledException(NULL);
+#endif
+    return;
+
+  fail:
+    Py_XDECREF(f_code);
+    if (!PyErr_Occurred() || PyErr_ExceptionMatches(PyExc_Exception)) {
+        __Pyx_PyErr_RestoreException(typ, val, tb);
+    } else {
+        // Don't swallow BaseException.
+        Py_XDECREF(typ); Py_XDECREF(val); Py_XDECREF(tb);
+    }
+}
+#endif
