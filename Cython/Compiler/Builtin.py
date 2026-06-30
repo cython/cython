@@ -5,7 +5,7 @@
 
 from .StringEncoding import EncodedString
 from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
-from .Code import UtilityCode, TempitaUtilityCode, KNOWN_PYTHON_BUILTINS, uncachable_builtins
+from .Code import UtilityCode, TempitaUtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
 
@@ -482,7 +482,7 @@ types_that_construct_their_instance = frozenset({
     'tuple', 'list', 'dict', 'frozendict', 'set', 'frozenset',
     'memoryview', 'range', 'slice', 'sentinel',
     # All builtin exception types create their own instance.
-    *filter(PyrexTypes.is_exception_type_name, KNOWN_PYTHON_BUILTINS),
+    *PyrexTypes.KNOWN_EXCEPTION_NAMES,
 
     # These types don't currently have a purpose and might become restrictive:
     #'object',
@@ -817,11 +817,9 @@ def init_builtin_types():
 def init_builtin_exceptions():
     """Declare known builtin Python exceptions as types.
     """
-    for name in KNOWN_PYTHON_BUILTINS:
-        if name in uncachable_builtins:
+    for name in PyrexTypes.KNOWN_EXCEPTION_NAMES:
+        if name in PyrexTypes.uncachable_builtins:
             # Exclude builtins specific to later Python versions or platforms.
-            continue
-        if not PyrexTypes.is_exception_type_name(name):
             continue
         if builtin_scope.lookup_here(name) is not None:
             # Already declared as builtin type above in a more specialised way.
@@ -832,6 +830,18 @@ def init_builtin_exceptions():
         )
         builtin_types[name] = builtin_scope.declare_builtin_type(
             name, f"((PyTypeObject*)PyExc_{name})", utility_code=utility_code)
+
+    for name in PyrexTypes.KNOWN_EXCEPTION_NAMES:
+        parents = PyrexTypes.exception_supertypes.get(name)
+        if not parents or name not in builtin_types:
+            continue
+        exc_type = builtin_types[name]
+        exc_type.exception_supertypes = [
+            # Collect super types bottom up.
+            builtin_types.get(parent) for parent in reversed(parents)
+        ]
+        while None in exc_type.exception_supertypes:
+            exc_type.exception_supertypes.remove(None)
 
 
 def init_builtin_structs():
