@@ -73,8 +73,9 @@
 
   #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
-  #undef CYTHON_USE_TYPE_SLOTS
-  #define CYTHON_USE_TYPE_SLOTS 0
+  #ifndef CYTHON_USE_TYPE_SLOTS
+    #define CYTHON_USE_TYPE_SLOTS 0
+  #endif
   #undef CYTHON_USE_TYPE_SPECS
   #define CYTHON_USE_TYPE_SPECS 0
   #undef CYTHON_USE_PYTYPE_LOOKUP
@@ -103,6 +104,13 @@
   #define CYTHON_FAST_GIL 0
   #ifndef CYTHON_VECTORCALL
     #define CYTHON_VECTORCALL 1
+  #endif
+  #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX < 0x030E0000
+    // Py_tp_vectorcall slot unavailable
+    #undef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW 0
+  #elif !defined(CYTHON_VECTORCALL_TPNEW)
+    #define CYTHON_VECTORCALL_TPNEW CYTHON_VECTORCALL
   #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
@@ -171,6 +179,14 @@
   #define CYTHON_FAST_GIL 0
   #ifndef CYTHON_VECTORCALL
     #define CYTHON_VECTORCALL 1
+  #endif
+  #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX < 0x030E0000
+    // Py_tp_vectorcall slot unavailable
+    #undef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW 0
+  #elif !defined(CYTHON_VECTORCALL_TPNEW)
+    // PyPy doesn't define the slot below 7.3.8.
+    #define CYTHON_VECTORCALL_TPNEW (PYPY_VERSION_NUM >= 0x07030800 && CYTHON_VECTORCALL)
   #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
@@ -249,6 +265,9 @@
   #define CYTHON_FAST_GIL 0
   #undef CYTHON_VECTORCALL
   #define CYTHON_VECTORCALL (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
+  #ifndef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW (CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030E0000)
+  #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
   #endif
@@ -262,7 +281,7 @@
   #define CYTHON_USE_SYS_MONITORING 0
   #ifndef CYTHON_USE_TP_FINALIZE
     // PyObject_CallFinalizerFromDealloc is missing and not easily replaced
-    #define CYTHON_USE_TP_FINALIZE 0
+    #define CYTHON_USE_TP_FINALIZE (__PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX > 0x030F00A8)
   #endif
   #ifndef CYTHON_USE_AM_SEND
     #define CYTHON_USE_AM_SEND (__PYX_LIMITED_VERSION_HEX >= 0x030A0000)
@@ -371,6 +390,13 @@
   #endif
   #ifndef CYTHON_VECTORCALL
     #define CYTHON_VECTORCALL 1
+  #endif
+  #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX < 0x030E0000
+    // Py_tp_vectorcall slot unavailable
+    #undef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW 0
+  #elif !defined(CYTHON_VECTORCALL_TPNEW)
+    #define CYTHON_VECTORCALL_TPNEW CYTHON_VECTORCALL
   #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
@@ -952,7 +978,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject
     PyObject *res = __Pyx_PyDict_GetItemStrWithError(dict, name);
     if (res == NULL && PyErr_Occurred()) {
         // Like PyDict_GetItem, this is a bit indiscriminate about catching *all* errors.
-        // Recent versions of Python format any unraised exception so do that too here. 
+        // Recent versions of Python format any unraised exception so do that too here.
         PyErr_WriteUnraisable(NULL);
     }
     return res;
@@ -1332,7 +1358,7 @@ static int __Pyx_init_co_variables(void) {
 static int __Pyx_init_tpflags_bitcount(unsigned long flag) {
     int count = 0;
     while (flag) {
-        count += (flag & 1);
+        count += (int) (flag & 1);
         flag >>= 1;
     }
     return count;
@@ -1377,7 +1403,7 @@ static int __Pyx_init_tpflags_variables(void) {
         if (__Pyx_Runtime_TPFLAGS_SEQUENCE == 0 && __Pyx_init_tpflags_bitcount(sequence_flags) == 1) {
             __Pyx_Runtime_TPFLAGS_SEQUENCE = sequence_flags;
         }
-        if (__Pyx_Runtime_TPFLAGS_MAPPING == 0 && __Pyx_init_tpflags_bitcount(sequence_flags) == 1) {
+        if (__Pyx_Runtime_TPFLAGS_MAPPING == 0 && __Pyx_init_tpflags_bitcount(mapping_flags) == 1) {
             __Pyx_Runtime_TPFLAGS_MAPPING = mapping_flags;
         }
     }
@@ -2537,10 +2563,6 @@ static PyObject* __Pyx_PyCode_New(
         PyObject *py_minor_version = NULL;
         #endif
         long minor_version = 0;
-        PyObject *type, *value, *traceback;
-
-        // we must be able to call this while an exception is happening - thus clear then restore the state
-        PyErr_Fetch(&type, &value, &traceback);
 
         #if __PYX_LIMITED_VERSION_HEX >= 0x030b0000
         minor_version = 11;
@@ -2557,16 +2579,8 @@ static PyObject* __Pyx_PyCode_New(
         if (!(types_module = PyImport_ImportModule("types"))) goto end;
         if (!(code_type = PyObject_GetAttrString(types_module, "CodeType"))) goto end;
 
-        if (minor_version <= 7) {
-            // 3.7:
-            // code(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring,
-            //        constants, names, varnames, filename, name, firstlineno,
-            //        lnotab[, freevars[, cellvars]])
-            (void)p;
-            result = PyObject_CallFunction(code_type, "iiiiiOOOOOOiOOO", a, k, l, s, f, code,
-                          c, n, v, fn, name, fline, lnos, fv, cell);
-        } else if (minor_version <= 10) {
-            // 3.8, 3.9, 3.10
+        if (minor_version <= 10) {
+            // [3.8], 3.9, 3.10
             // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
             //    flags, codestring, constants, names, varnames, filename, name,
             //    firstlineno, lnotab[, freevars[, cellvars]])
@@ -2588,9 +2602,25 @@ static PyObject* __Pyx_PyCode_New(
         Py_XDECREF(code_type);
         Py_XDECREF(exception_table);
         Py_XDECREF(types_module);
-        if (type) {
-            PyErr_Restore(type, value, traceback);
+
+        if (!result) {
+            // We use private API to create code objects and so it could fail in future.
+            // In this case it's probably best if they keep working with a warning:
+            // they're mostly just introspection decoration.
+            PyObject *exc_type, *exc_value, *exc_tb;
+            PyErr_Fetch(&exc_type, &exc_value, &exc_tb);
+            if (PyErr_WarnFormat(
+                    PyExc_RuntimeWarning, 1,
+                    "Code object creation failed in Cython module: %S\nTry recompiling with a more recent version of Cython.",
+                    exc_value ? exc_value : exc_type) == 0) {
+                result = Py_None;
+                Py_INCREF(result);
+            }
+            Py_DECREF(exc_type);
+            Py_XDECREF(exc_value);
+            Py_XDECREF(exc_tb);
         }
+
         return result;
     }
 

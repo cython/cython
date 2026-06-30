@@ -315,8 +315,8 @@ static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_
 // Indices must be positive - there's no wraparound or boundschecking.
 
 static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
-    int total = end-start;
-    int i;
+    Py_ssize_t total = end-start;
+    Py_ssize_t i;
     PyObject *list;
     ssizeargfunc slot;
 
@@ -458,11 +458,11 @@ static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping
 
 //////////////////////// MappingKeyCheck.proto /////////////////////////
 
-static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *keys[], Py_ssize_t nFixedKeys, Py_ssize_t nKeys); /*proto */
+static int __Pyx_MatchCase_CheckMappingDuplicateKeys(PyObject *keys[], Py_ssize_t nFixedKeys, Py_ssize_t nKeys);
 
-/////////////////////// MappingKeyCheck ////////////////////////////////
+//////////////////////// MappingKeyCheck ///////////////////////////////
 
-static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *keys[], Py_ssize_t nFixedKeys, Py_ssize_t nKeys) {
+static int __Pyx_MatchCase_CheckMappingDuplicateKeys(PyObject *keys[], Py_ssize_t nFixedKeys, Py_ssize_t nKeys) {
     // Inputs are arrays, and typically fairly small. It may be more efficient to
     // loop over the array than create a set.
 
@@ -470,6 +470,7 @@ static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *keys[], Py_ssize_t nFixe
     // taking the keys out of the dictionary. I'm choosing to do it separately since the
     // majority of the time the keys will be known at compile-time so Cython can skip
     // this step completely.
+    // The step is also skipped when there's only a single key.
 
     PyObject *var_keys_set;
     PyObject *key;
@@ -529,6 +530,10 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnan
 /////////////////////////// ExtractExactDict ////////////////
 
 static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnanny, PyObject *dict, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
+#if !CYTHON_REFNANNY
+    CYTHON_UNUSED_VAR(__pyx_refnanny);
+#endif
+    
     Py_ssize_t i;
     Py_ssize_t size;
     size = PyDict_Size(dict);
@@ -582,6 +587,10 @@ static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObjec
     int result = 0;
 #if CYTHON_UNPACK_METHODS && CYTHON_VECTORCALL
     PyObject *get_method = NULL, *get_self = NULL;
+#endif
+
+#if !CYTHON_REFNANNY
+    CYTHON_UNUSED_VAR(__pyx_refnanny);
 #endif
 
     // Length check is undocumented but does take place in CPython and is probably worthwhile.
@@ -665,9 +674,9 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, 
 
 static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, PyObject *mapping, PyObject *keys[], Py_ssize_t nKeys, PyObject **subjects[]) {
     if (__Pyx_PyAnyDict_CheckExact(mapping)) {
-        return __Pyx_MatchCase_Mapping_ExtractDict(mapping, keys, nKeys, subjects);
+        return __Pyx__MatchCase_Mapping_ExtractDict(__pyx_refnanny, mapping, keys, nKeys, subjects);
     } else {
-        return __Pyx_MatchCase_Mapping_ExtractNonDict(mapping, keys, nKeys, subjects);
+        return __Pyx__MatchCase_Mapping_ExtractNonDict(__pyx_refnanny, mapping, keys, nKeys, subjects);
     }
 }
 
@@ -730,4 +739,241 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyO
         }
     }
     return dict_out;
+}
+
+////////////////////////////// ClassPositionalPatterns.proto ////////////////////////
+
+#if CYTHON_REFNANNY
+#define __Pyx_MatchCase_ClassPositional(...) __Pyx__MatchCase_ClassPositional(__pyx_refnanny, __VA_ARGS__)
+#else
+#define __Pyx_MatchCase_ClassPositional(...) __Pyx__MatchCase_ClassPositional(NULL, __VA_ARGS__)
+#endif
+static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, int match_self, PyObject **subjects[], Py_ssize_t n_subjects); /* proto */
+
+/////////////////////////// ClassPositionalPatterns //////////////////////////////
+//@requires: ObjectHandling.c::RaiseErrorWithObjectTypes
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
+//@requires: ObjectHandling.c::RaiseErrorWithTypeAndVarargs
+//@requires: Builtins.c::PyFrozenDict
+
+static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(PyTypeObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, PyObject *match_args,  Py_ssize_t num_args) {
+    // a lot of the basic logic of this is shared with __Pyx_MatchCase_CheckMappingDuplicateKeys
+    // but they take different input types so it isn't easy to actually share the code.
+
+    // Inputs are tuples, and typically fairly small. It may be more efficient to
+    // loop over the tuple than create a set.
+ 
+    PyObject *attrs_set;
+    PyObject *attr = NULL;
+    Py_ssize_t n, match_args_size;
+    int contains;
+
+    match_args_size = __Pyx_PyTuple_GET_SIZE(match_args);
+    if (n_fixed == 0 && match_args_size == 1) {
+        // Trivial cases where there can be no duplicates.
+        // (In the match_args_size == 0 trivial case, this function is never called).
+        return 0;
+    }
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(match_args_size < 0)) return -1;
+#endif
+
+    attrs_set = PySet_New(NULL);
+    if (unlikely(!attrs_set)) return -1;
+
+    num_args = match_args_size < num_args ? match_args_size : num_args;
+    for (n=0; n < num_args; ++n) {
+        attr = __Pyx_PyTuple_GET_ITEM(match_args, n);
+#if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely(!attr)) goto bad;
+#endif
+        contains = PySet_Contains(attrs_set, attr);
+        if (contains < 0) {
+            goto bad;
+        } else if (contains == 1) {
+            goto raise_error;
+        } else {
+            if (PySet_Add(attrs_set, attr)) {
+                goto bad;
+            }
+        }
+    }
+    for (n=0; n < n_fixed; ++n) {
+        attr = fixed_names[n];
+        contains = PySet_Contains(attrs_set, attr);
+        if (contains < 0) {
+            goto bad;
+        } else if (contains == 1) {
+            goto raise_error;
+        }
+    }
+    Py_DECREF(attrs_set);
+    return 0;
+
+    raise_error:
+    __Pyx_RaiseErrorWithTypeAndVarargs(
+        PyExc_TypeError,
+        __Pyx_FMT_TYPENAME "() got multiple sub-patterns for attribute %R",
+        type, attr
+    );
+    bad:
+    Py_DECREF(attrs_set);
+    return -1;
+}
+
+// Adapted from ceval.c "match_class" in CPython
+//
+// The argument match_self can equal 1 for "known to be true"
+//                                   0 for "known to be false"
+//                                  -1 for "unknown", runtime test
+// n_subjects is >= 0 otherwise this function will be skipped
+static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyObject *type_o, PyObject *fixed_names[], Py_ssize_t n_fixed, int match_self, PyObject **subjects[], Py_ssize_t n_subjects)
+{
+    PyObject *match_args = NULL;
+    Py_ssize_t allowed, i;
+    int result;
+
+    assert(PyType_Check(type_o));
+
+    PyTypeObject *type = (PyTypeObject*)type_o;
+
+#if !CYTHON_REFNANNY
+    CYTHON_UNUSED_VAR(__pyx_refnanny);
+#endif
+
+    if (match_self != 1) {
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+        if (PyObject_GetOptionalAttr(type_o, PYIDENT("__match_args__"), &match_args) == -1) {
+            return -1;
+        }
+#else
+        match_args = PyObject_GetAttr(type_o, PYIDENT("__match_args__"));
+        if (!match_args) {
+            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyErr_Clear();
+            } else {
+                return -1;
+            }
+        }
+#endif
+    }
+    if (match_args) {
+        match_self = 0;
+        if (!PyTuple_CheckExact(match_args)) {
+            __Pyx_RaiseTypeErrorWithTypes(
+                __Pyx_FMT_TYPENAME ".__match_args__ must be a tuple (got " __Pyx_FMT_TYPENAME ")",
+                type, Py_TYPE(match_args));
+            Py_DECREF(match_args);
+            return -1;
+        }
+    } else if (!match_args && match_self == -1) {
+        // Mysteriously, this private flag seems to have ended up defined in the Limited API
+        #if defined(_Py_TPFLAGS_MATCH_SELF) && !CYTHON_COMPILING_IN_PYPY && !(CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000)
+        match_self = PyType_HasFeature(type, _Py_TPFLAGS_MATCH_SELF);
+        #else
+        // probably an earlier version of Python. Go off the known list in the specification
+        match_self = ((PyType_GetFlags(type) &
+                        // long should capture bool too
+                        (Py_TPFLAGS_LONG_SUBCLASS | Py_TPFLAGS_LIST_SUBCLASS | Py_TPFLAGS_TUPLE_SUBCLASS |
+                            Py_TPFLAGS_BYTES_SUBCLASS | Py_TPFLAGS_UNICODE_SUBCLASS | Py_TPFLAGS_DICT_SUBCLASS
+                        )) ||
+                        PyType_IsSubtype(type, &PyByteArray_Type) ||
+                        PyType_IsSubtype(type, &PyFloat_Type) ||
+                        PyType_IsSubtype(type, &PyFrozenSet_Type)
+        #if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX >= 0x030F0000
+                        || PyType_IsSubtype(type, __Pyx_PyFrozenDict_TypePtr)
+        #endif
+                        );
+        #endif
+    }
+
+    if (match_self) {
+        allowed = 1;
+    } else if (match_args) {
+        allowed = __Pyx_PyTuple_GET_SIZE(match_args);
+#if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(allowed < 0)) goto end;
+#endif
+    } else {
+        allowed = 0;
+    }
+    if (unlikely(allowed < n_subjects)) {
+        const char *plural = (allowed == 1) ? "" : "s";
+        __Pyx_RaiseErrorWithTypeAndVarargs(
+            PyExc_TypeError,
+            __Pyx_FMT_TYPENAME "() accepts %d positional sub-pattern%s (%d given)",
+            type, allowed, plural, n_subjects
+        );
+        Py_XDECREF(match_args);
+        return -1;
+    }
+    if (match_self) {
+        PyObject **self_subject = subjects[0];
+        if (self_subject) {
+            // Easy. Copy the subject itself, and move on to kwargs.
+            __Pyx_XDECREF_SET(*self_subject, subject);
+            __Pyx_INCREF(*self_subject);
+        }
+        result = 1;
+        goto end_match_self;
+    }
+    // next stage is to check for duplicate attributes.
+    if (__Pyx_MatchCase_ClassCheckDuplicateAttrs(type, fixed_names, n_fixed, match_args, n_subjects)) {
+        result = -1;
+        goto end;
+    }
+
+    for (i = 0; i < n_subjects; i++) {
+        PyObject *attr;
+        PyObject **subject_i;
+        PyObject *name = __Pyx_PyTuple_GET_ITEM(match_args, i);
+#if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely(!name)) {
+            result = -1;
+            goto end;
+        } 
+#endif
+        if (!PyUnicode_CheckExact(name)) {
+            __Pyx_RaiseTypeErrorWithObjectType(
+                     "__match_args__ elements must be strings (got " __Pyx_FMT_TYPENAME ")",
+                     name);
+            result = -1;
+            goto end;
+        }
+
+        attr = PyObject_GetAttr(subject, name);
+        if (attr == NULL && PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            PyErr_Clear();
+            result = 0;
+            goto end;
+        }
+        subject_i = subjects[i];
+        if (subject_i) {
+            __Pyx_XDECREF_SET(*subject_i, attr);
+            __Pyx_GOTREF(attr);
+        } else {
+            Py_DECREF(attr);
+        }
+    }
+    result = 1;
+
+    end:
+    Py_DECREF(match_args);
+    end_match_self:  // because match_args isn't set
+    return result;
+}
+
+//////////////////////// MatchClassTypeGuard.proto /////////////////////////////
+
+static PyObject* __Pyx_MatchCase_TypeGuard(PyObject* type); /* proto */
+
+//////////////////////// MatchClassTypeGuard /////////////////////////////
+
+static PyObject* __Pyx_MatchCase_TypeGuard(PyObject* type) {
+    if (!PyType_Check(type)) {
+        PyErr_Format(PyExc_TypeError, "called match pattern must be a type");
+        return NULL;
+    }
+    Py_INCREF(type);
+    return type;
 }

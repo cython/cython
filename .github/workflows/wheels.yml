@@ -119,7 +119,7 @@ jobs:
 
       - name: Build wheels
         # Nb. dependabot should keep cibuildwheel version pin consistent with generate-matrix job above
-        uses: pypa/cibuildwheel@8d2b08b68458a16aeb24b64e68a09ab1c8e82084 # v3.4.1
+        uses: pypa/cibuildwheel@294735312765b09d24a2fbec22660ce817587d55 # v4.1.0
         with:
           only: ${{ matrix.only }}
 
@@ -160,7 +160,7 @@ jobs:
           python-version: '3.13'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@8d2b08b68458a16aeb24b64e68a09ab1c8e82084 # v3.4.1
+        uses: pypa/cibuildwheel@294735312765b09d24a2fbec22660ce817587d55 # v4.1.0
         env:
           # Smaller set of platforms that we only provide Stable ABI wheels for
           CIBW_BUILD: |
@@ -240,7 +240,12 @@ jobs:
           cd ./wheel_check
           ERRORS=0
           for filename in *.whl; do
+            if [[ "${{ github.ref_type }}" == 'tag' ]]; then
+              [[ -z "${filename#cython-${{ contains(github.ref_name, '"') && 'FAIL' || github.ref_name }}-*}" ]] || ERRORS=$((ERRORS + 1))
+            fi
+
             twine check "$filename" || ERRORS=$((ERRORS + 1))
+
             if [[ "$filename" == *"abi3"* ]]; then
               abi3audit --strict --report "$filename" || ERRORS=$((ERRORS + 1))
             fi

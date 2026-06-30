@@ -5,6 +5,8 @@
 import platform
 cimport cython
 
+from functools import wraps
+
 def inspect_isroutine():
     """
     >>> inspect_isroutine()
@@ -425,6 +427,154 @@ def test_fused_module(cython.numeric arg):
     then we don't run the tests, and never find out about the failure!
     """
     pass
+
+
+def to_be_wrapped(a: int, b: float):
+    """
+    Hello from to_be_wrapped's docstring
+    """
+    pass
+
+to_be_wrapped.__module__ = "other_module"
+
+
+def test_wraps(f):
+    """
+    >>> wrapped_func = test_wraps(to_be_wrapped)
+    >>> wrapped_func.__module__
+    'other_module'
+    >>> wrapped_func.__name__
+    'to_be_wrapped'
+    >>> wrapped_func.__qualname__
+    'to_be_wrapped'
+    >>> wrapped_func.__annotations__ == to_be_wrapped.__annotations__  or  (
+    ...     wrapped_func.__annotations__, to_be_wrapped.__annotations__)
+    True
+    >>> wrapped_func.__doc__
+    "\\n    Hello from to_be_wrapped's docstring\\n    "
+
+    >>> def py_to_be_wrapped(a: int, b: float):
+    ...     return None
+    >>> py_to_be_wrapped.__module__ = "other_python_module"
+    >>> wrapped_py_func = test_wraps(py_to_be_wrapped)
+    >>> wrapped_py_func.__module__
+    'other_python_module'
+    >>> wrapped_py_func.__name__
+    'py_to_be_wrapped'
+    >>> wrapped_py_func.__annotations__ == py_to_be_wrapped.__annotations__  or  (
+    ...     wrapped_py_func.__annotations__, py_to_be_wrapped.__annotations__)
+    True
+
+    >>> def py_wraps(f):
+    ...     @wraps(f)
+    ...     def wrapper(*args, **kwds):
+    ...         return f(*args, **kwds)
+    ...     return wrapper
+    >>> py_wrapped_func = py_wraps(to_be_wrapped)
+    >>> py_wrapped_func.__module__
+    'other_module'
+    >>> py_wrapped_func.__name__
+    'to_be_wrapped'
+    >>> py_wrapped_func.__annotations__ == to_be_wrapped.__annotations__  or  (
+    ...     py_wrapped_func.__annotations__, to_be_wrapped.__annotations__)
+    True
+
+    # __type_params__ should also be copied, but Cython doesn't support this at all
+    """
+    @wraps(f)
+    def wrapper(*args, **kwds):
+        return f(*args, **kwds)
+    return wrapper
+
+
+def test_annotate():
+    """
+    Currently we don't implement PEP 649 fully, so __annotate__ is a limited
+    placeholder version mainly to make `functools.wraps` work on Python 3.14+.
+    Therefore, we shouldn't worry too much if this test needs to change in
+    future.
+
+    >>> f = test_annotate()
+    >>> list(f.__annotate__().keys())
+    ['a', 'b']
+    >>> list(f.__annotate__(1).keys())
+    ['a', 'b']
+
+    Assigning should work
+    >>> f.__annotate__ = lambda arg=0: {'different_argument': 5}
+    >>> f.__annotations__  # f.__annotate__ = lambda ...
+    {'different_argument': 5}
+    >>> f.__annotate__(1)
+    {'different_argument': 5}
+
+    Assigning a Python 3.14 annotation function should pass the required
+    annotation format argument when annotations are evaluated.
+    >>> import sys
+    >>> if sys.version_info >= (3, 14):
+    ...     def py_function() -> int:
+    ...         pass
+    ...     f.__annotate__ = py_function.__annotate__
+    ...     f.__annotations__ == {'return': int}  or  f.__annotations__
+    ... else:
+    ...     True
+    True
+
+    Assignment itself should not evaluate the annotation function, since
+    evaluating annotations may fail normally when they contain forward
+    references.
+    >>> if sys.version_info >= (3, 14):
+    ...     def py_function_with_forward_ref(arg: MissingType) -> int:
+    ...         pass
+    ...     f.__annotate__ = py_function_with_forward_ref.__annotate__
+    ...     assigned = True
+    ...     try:
+    ...         f.__annotations__
+    ...     except NameError:
+    ...         failed_later = True
+    ...     else:
+    ...         failed_later = False
+    ... else:
+    ...     assigned = failed_later = True
+    >>> assigned, failed_later
+    (True, True)
+
+    Setting __annotate__ to None should clear the lazy annotation function.
+    >>> f = test_annotate()
+    >>> f.__annotate__ = None
+    >>> f.__annotate__ is None  or  f.__annotate__
+    True
+    >>> f.__annotations__
+    {'a': 'int', 'b': 'str'}
+
+    Setting __annotate__ to None should not discard already materialized annotations.
+    >>> f = test_annotate()
+    >>> f.__annotations__
+    {'a': 'int', 'b': 'str'}
+    >>> f.__annotate__ = None
+    >>> f.__annotate__ is None  or  f.__annotate__
+    True
+    >>> f.__annotations__
+    {'a': 'int', 'b': 'str'}
+
+    Setting __annotations__ should clear any assigned lazy annotation function.
+    >>> f = test_annotate()
+    >>> f.__annotate__ = lambda arg=0: {'different_argument': 5}
+    >>> f.__annotations__ = {'manual': str}
+    >>> f.__annotate__ is None  or  f.__annotate__
+    True
+    >>> f.__annotations__
+    {'manual': <class 'str'>}
+
+    Deleting is banned
+    >>> f = test_annotate()
+    >>> del f.__annotate__
+    Traceback (most recent call last):
+    TypeError: __annotate__ cannot be deleted
+    """
+    def inner(a: int, b: str):
+        pass
+    return inner
+
 
 __doc__ = """
 >>> test_module.__module__

@@ -230,6 +230,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 /////////////// IterNext ///////////////
 //@requires: Exceptions.c::PyThreadStateGet
 //@requires: Exceptions.c::PyErrFetchRestore
+//@requires: RaiseErrorWithObjectType
 //@requires: GetBuiltinName
 //@requires: IterNextPlain
 
@@ -254,10 +255,8 @@ static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
 }
 
 static void __Pyx_PyIter_Next_ErrorNoIterator(PyObject *iterator) {
-    __Pyx_TypeName iterator_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(iterator));
-    PyErr_Format(PyExc_TypeError,
-        __Pyx_FMT_TYPENAME " object is not an iterator", iterator_type_name);
-    __Pyx_DECREF_TypeName(iterator_type_name);
+    __Pyx_RaiseTypeErrorWithObjectType(
+        __Pyx_FMT_TYPENAME " object is not an iterator", iterator);
 }
 
 // originally copied from Py3's builtin_next()
@@ -335,6 +334,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyObject_GetItem(PyObject *obj, PyObject *k
 // //@requires: GetItemInt - added in IndexNode as it uses templating.
 //@requires: PyObjectGetAttrStrNoError
 //@requires: PyObjectCallOneArg
+//@requires: RaiseErrorWithObjectType
 
 #if CYTHON_USE_TYPE_SLOTS
 static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject *index) {
@@ -349,16 +349,15 @@ static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject *index) {
     // Error handling code -- only manage OverflowError differently.
     if (PyErr_GivenExceptionMatches(runerr, PyExc_OverflowError)) {
         PyErr_Clear();
-        __Pyx_TypeName index_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(index));
-        PyErr_Format(PyExc_IndexError,
-            "cannot fit '" __Pyx_FMT_TYPENAME "' into an index-sized integer", index_type_name);
-        __Pyx_DECREF_TypeName(index_type_name);
+        __Pyx_RaiseErrorWithObjectType(
+            PyExc_IndexError,
+            "cannot fit '" __Pyx_FMT_TYPENAME "' into an index-sized integer",
+            index);
     }
     return NULL;
 }
 
 static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
-    __Pyx_TypeName obj_type_name;
     // Handles less common slow-path checks for GetItem
     if (likely(PyType_Check(obj))) {
         PyObject *meth = __Pyx_PyObject_GetAttrStrNoError(obj, PYIDENT("__class_getitem__"));
@@ -373,10 +372,8 @@ static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
         }
     }
 
-    obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
-        "'" __Pyx_FMT_TYPENAME "' object is not subscriptable", obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "'" __Pyx_FMT_TYPENAME "' object is not subscriptable", obj);
     return NULL;
 }
 
@@ -791,6 +788,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
 {{endif}}
 
 /////////////// SliceObject ///////////////
+//@requires: RaiseErrorWithObjectType
 
 {{if access == 'Get'}}
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetSlice(PyObject* obj,
@@ -800,7 +798,6 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
         Py_ssize_t cstart, Py_ssize_t cstop,
         PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
         int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
-    __Pyx_TypeName obj_type_name;
 #if CYTHON_USE_TYPE_SLOTS
     PyMappingMethods* mp = Py_TYPE(obj)->tp_as_mapping;
 {{if access == 'Get'}}
@@ -862,15 +859,16 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
         }
         return result;
     } else {
-        obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-        PyErr_Format(PyExc_TypeError,
 {{if access == 'Get'}}
-            "'" __Pyx_FMT_TYPENAME "' object is unsliceable", obj_type_name);
+        __Pyx_RaiseTypeErrorWithObjectType(
+            "'" __Pyx_FMT_TYPENAME "' object is unsliceable", obj);
 {{else}}
-            "'" __Pyx_FMT_TYPENAME "' object does not support slice %.10s",
-            obj_type_name, value ? "assignment" : "deletion");
+        __Pyx_RaiseTypeErrorWithObjectType(
+            (value) ?
+                "'" __Pyx_FMT_TYPENAME "' object does not support slice assignment" :
+                "'" __Pyx_FMT_TYPENAME "' object does not support slice deletion",
+            obj);
 {{endif}}
-        __Pyx_DECREF_TypeName(obj_type_name);
     }
 
 bad:
@@ -1372,23 +1370,19 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
 static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*proto*/
 
 /////////////// ExtTypeTest ///////////////
+//@requires: RaiseErrorWithObjectTypes
 
 static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
-    __Pyx_TypeName obj_type_name;
-    __Pyx_TypeName type_name;
     if (unlikely(!type)) {
         PyErr_SetString(PyExc_SystemError, "Missing type object");
         return 0;
     }
     if (likely(__Pyx_TypeCheck(obj, type)))
         return 1;
-    obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    type_name = __Pyx_PyType_GetFullyQualifiedName(type);
-    PyErr_Format(PyExc_TypeError,
-                 "Cannot convert " __Pyx_FMT_TYPENAME " to " __Pyx_FMT_TYPENAME,
-                 obj_type_name, type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
-    __Pyx_DECREF_TypeName(type_name);
+
+    __Pyx_RaiseTypeErrorWithTypes(
+        "Cannot convert " __Pyx_FMT_TYPENAME " to " __Pyx_FMT_TYPENAME,
+        Py_TYPE(obj), type);
     return 0;
 }
 
@@ -2283,83 +2277,78 @@ static PyObject *__Pyx_PyObject_FastCallMethod(PyObject *name, PyObject *const *
 }
 #endif
 
-/////////////// PyObjectVectorCallKwBuilder.proto ////////////////
+/////////////// PyObjectVectorcallKwds.proto ////////////////////
 //@requires: PyObjectFastCall
-// For versions that define PyObject_Vectorcall, use PyObject_Vectorcall and define functions to build a kwnames tuple and add arguments to args.
-// For versions that don't, use __Pyx_PyObject_FastCallDict and functions to build a keyword dictionary
-
-CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
 
 #if CYTHON_VECTORCALL
-#define __Pyx_Object_Vectorcall_CallFromBuilder PyObject_Vectorcall
-
-#define __Pyx_MakeVectorcallBuilderKwds(n) PyTuple_New(n)
-
-static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
-static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
+#define __Pyx_Object_VectorcallKwds PyObject_Vectorcall
+CYTHON_UNUSED static int __Pyx_CheckVectorcallKwarg(PyObject *kwnames, Py_ssize_t i); /* proto */
 #else
-#define __Pyx_Object_Vectorcall_CallFromBuilder __Pyx_PyObject_FastCallDict
-
-#define __Pyx_MakeVectorcallBuilderKwds(n) __Pyx_PyDict_NewPresized(n)
-
-#define __Pyx_VectorcallBuilder_AddArg(key, value, builder, args, n) PyDict_SetItem(builder, key, value)
-#define __Pyx_VectorcallBuilder_AddArgStr(key, value, builder, args, n) PyDict_SetItemString(builder, key, value)
+#define __Pyx_Object_VectorcallKwds __Pyx_PyObject_FastCallDict
+CYTHON_UNUSED static PyObject *__Pyx_MakeKwargDict(PyObject **keys, PyObject **values, Py_ssize_t n); /* proto */
+CYTHON_UNUSED static int __Pyx_CheckVectorcallKwarg(PyObject **kwnames, Py_ssize_t i); /* proto */
 #endif
 
-/////////////// PyObjectVectorCallKwBuilder ////////////////
+/////////////// PyObjectVectorcallKwds ////////////////////
 
 #if CYTHON_VECTORCALL
-static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
-    (void)__Pyx_PyObject_FastCallDict;
+CYTHON_UNUSED static int __Pyx_CheckVectorcallKwarg(PyObject *kwnames, Py_ssize_t i) {
+    PyObject *key = __Pyx_PyTuple_GET_ITEM(kwnames, i);
+#if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(!key)) return -1;
+#endif
 
-    Py_INCREF(key);
-    if (__Pyx_PyTuple_SET_ITEM(builder, n, key) != (0)) return -1;
-    args[n] = value;
+    if (unlikely(!PyUnicode_Check(key))) {
+        PyErr_SetString(PyExc_TypeError, "keywords must be strings");
+        return -1;
+    }
     return 0;
 }
 
-CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
-    (void)__Pyx_VectorcallBuilder_AddArgStr;
-    if (unlikely(!PyUnicode_Check(key))) {
-        PyErr_SetString(PyExc_TypeError, "keywords must be strings");
-        return -1;
+#else
+
+CYTHON_UNUSED static PyObject *__Pyx_MakeKwargDict(PyObject **keys, PyObject **values, Py_ssize_t n) {
+    PyObject *out = PyDict_New();
+    if (unlikely(!out)) return NULL;
+    for (Py_ssize_t i=0; i<n; ++i) {
+        if (unlikely(PyDict_SetItem(out, keys[i], values[i]) < 0)) {
+            Py_DECREF(out);
+            return NULL;
+        }
     }
-    return __Pyx_VectorcallBuilder_AddArg(key, value, builder, args, n);
+    return out;
 }
 
-static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
-    PyObject *pyKey = PyUnicode_FromString(key);
-    if (!pyKey) return -1;
-    return __Pyx_VectorcallBuilder_AddArg(pyKey, value, builder, args, n);
-}
-#else // CYTHON_VECTORCALL
-CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, CYTHON_UNUSED PyObject **args, CYTHON_UNUSED int n) {
+CYTHON_UNUSED static int __Pyx_CheckVectorcallKwarg(PyObject **kwnames, Py_ssize_t i) {
+    PyObject *key = kwnames[i];
+
     if (unlikely(!PyUnicode_Check(key))) {
         PyErr_SetString(PyExc_TypeError, "keywords must be strings");
         return -1;
     }
-    return PyDict_SetItem(builder, key, value);
+    return 0;
 }
+
 #endif
 
-/////////////// PyObjectVectorCallMethodKwBuilder.proto ////////////////
+/////////////// PyObjectVectorcallMethodKwds.proto /////////////////
+//@requires: PyObjectVectorcallKwds
 
 #if CYTHON_VECTORCALL
-#define __Pyx_Object_VectorcallMethod_CallFromBuilder PyObject_VectorcallMethod
+#define __Pyx_Object_VectorcallMethodKwds PyObject_VectorcallMethod
 #else
-static PyObject *__Pyx_Object_VectorcallMethod_CallFromBuilder(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames); /* proto */
+static PyObject *__Pyx_Object_VectorcallMethodKwds(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames); /* proto */
 #endif
 
-/////////////// PyObjectVectorCallMethodKwBuilder ////////////////
-//@requires: PyObjectVectorCallKwBuilder
+/////////////// PyObjectVectorcallMethodKwds ///////////////////
 
 #if !CYTHON_VECTORCALL
-static PyObject *__Pyx_Object_VectorcallMethod_CallFromBuilder(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames) {
+static PyObject *__Pyx_Object_VectorcallMethodKwds(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames) {
     PyObject *result;
     PyObject *obj = PyObject_GetAttr(args[0], name);
     if (unlikely(!obj))
         return NULL;
-    result = __Pyx_Object_Vectorcall_CallFromBuilder(obj, args+1, nargsf-1, kwnames);
+    result = __Pyx_Object_VectorcallKwds(obj, args+1, nargsf-1, kwnames);
     Py_DECREF(obj);
     return result;
 }
@@ -3027,18 +3016,124 @@ static CYTHON_INLINE PyObject* __Pyx_{{typeobj}}_Multiply(PyObject *seq, Py_ssiz
     return slot(seq, mul);
 }
 
+
+/////////////// RaiseErrorWithObjectType.proto ///////////////
+
+#define __Pyx_RaiseTypeErrorWithObjectType(message, obj)  __Pyx_RaiseErrorWithObjectType(PyExc_TypeError, message, obj)
+#define __Pyx_RaiseErrorWithObjectType(exc_type, message, obj)  __Pyx_RaiseErrorWithType(exc_type, message, Py_TYPE(obj))
+
+CYTHON_UNUSED
+static void __Pyx_RaiseErrorWithType(PyObject* exc_type, const char* message, PyTypeObject *type_obj); /*proto*/
+
+/////////////// RaiseErrorWithObjectType ///////////////
+//@requires: FormatTypeName
+
+static void __Pyx_RaiseErrorWithType(PyObject* exc_type, const char* message, PyTypeObject *type_obj) {
+    __Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(type_obj);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!type_name)) return;
+    #endif
+    PyErr_Format(exc_type, message, type_name);
+    __Pyx_DECREF_TypeName(type_name);
+}
+
+
+/////////////// RaiseErrorWithObjectType1.proto ///////////////
+
+#define __Pyx_RaiseTypeErrorWithObjectType1(message, arg, obj) __Pyx_RaiseErrorWithObjectType1(PyExc_TypeError, message, arg, obj)
+#define __Pyx_RaiseErrorWithObjectType1(exc_type, message, arg, obj) __Pyx_RaiseErrorWithType1(exc_type, message, arg, Py_TYPE(obj))
+
+CYTHON_UNUSED
+static void __Pyx_RaiseErrorWithType1(PyObject* exc_type, const char* message, const char *arg, PyTypeObject *type_obj); /*proto*/
+
+/////////////// RaiseErrorWithObjectType1 ///////////////
+//@requires: FormatTypeName
+
+static void __Pyx_RaiseErrorWithType1(PyObject* exc_type, const char* message, const char *arg, PyTypeObject *type_obj) {
+    __Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(type_obj);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!type_name)) return;
+    #endif
+    PyErr_Format(exc_type, message, arg, type_name);
+    __Pyx_DECREF_TypeName(type_name);
+}
+
+///////////// RaiseErrorWithTypeAndVarargs.proto ///////////////////////
+//@requires: FormatTypeName
+
+// The first argument of the variadic arguments must be the type name
+#define __Pyx_RaiseErrorWithTypeAndVarargs(exc_type, message, type_obj, ...) \
+    __Pyx__RaiseErrorWithTypeAndVarargs(exc_type, message, __Pyx_PyType_GetFullyQualifiedName(type_obj), __VA_ARGS__)
+
+static void __Pyx__RaiseErrorWithTypeAndVarargs(PyObject* exc_type, const char* message, ...); /* proto */
+
+///////////// RaiseErrorWithTypeAndVarargs ///////////////////////
+
+static void __Pyx__RaiseErrorWithTypeAndVarargs(PyObject* exc_type, const char* message, ...)
+{
+    va_list arg_list;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    va_start(arg_list, message);
+    __Pyx_TypeName tp_name = va_arg(arg_list, __Pyx_TypeName);
+    va_end(arg_list);
+#if __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (!tp_name) return;
+#endif
+#endif
+    va_start(arg_list, message);
+    PyErr_FormatV(exc_type, message, arg_list);
+    va_end(arg_list);
+    __Pyx_DECREF_TypeName(tp_name); // No-op outside Limited API so doesn't matter that it's undefined.
+}
+
+/////////////// RaiseErrorWithObjectTypes.proto ///////////////
+
+#define __Pyx_RaiseErrorWithObjectTypes1(exc_type, message, arg, obj1, obj2) __Pyx_RaiseErrorWithTypes1(exc_type, message, arg, Py_TYPE(obj1), Py_TYPE(obj2))
+#define __Pyx_RaiseTypeErrorWithTypes(message, type_obj1, type_obj2) __Pyx_RaiseErrorWithTypes1(PyExc_TypeError, "%s" message, "", type_obj1, type_obj2)
+
+CYTHON_UNUSED
+static void __Pyx_RaiseErrorWithTypes1(PyObject* exc_type, const char *message, const char *arg, PyTypeObject *type_obj1, PyTypeObject *type_obj2); /*proto*/
+
+/////////////// RaiseErrorWithObjectTypes ///////////////
+//@requires: FormatTypeName
+
+static void __Pyx_RaiseErrorWithTypes1(PyObject* exc_type, const char *message, const char *arg, PyTypeObject *type_obj1, PyTypeObject *type_obj2) {
+    __Pyx_TypeName type_name1 = __Pyx_PyType_GetFullyQualifiedName(type_obj1);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!type_name1)) return;
+    #endif
+    __Pyx_TypeName type_name2 = __Pyx_PyType_GetFullyQualifiedName(type_obj2);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!type_name2)) goto type2_failed;
+    #endif
+
+    PyErr_Format(exc_type, message, arg, type_name1, type_name2);
+
+    __Pyx_DECREF_TypeName(type_name2);
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+type2_failed:
+#endif
+    __Pyx_DECREF_TypeName(type_name1);
+}
+
+
 /////////////// FormatTypeName.proto ///////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+// For these versions we can just pass the type, use the %N format code and
+// Python handles the whole thing internally.
+typedef PyObject *__Pyx_TypeName;
+#define __Pyx_FMT_TYPENAME "%N"
+#define __Pyx_PyType_GetFullyQualifiedName(tp) Py_NewRef((PyObject*)tp)
+#define __Pyx_DECREF_TypeName(obj) Py_DECREF(obj)
+
+#elif CYTHON_COMPILING_IN_LIMITED_API
 typedef PyObject *__Pyx_TypeName;
 #define __Pyx_FMT_TYPENAME "%U"
 #define __Pyx_DECREF_TypeName(obj) Py_XDECREF(obj)
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
-#define __Pyx_PyType_GetFullyQualifiedName PyType_GetFullyQualifiedName
-#else
 static __Pyx_TypeName __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp); /*proto*/
-#endif
+
 #else  // !LIMITED_API
 typedef const char *__Pyx_TypeName;
 #define __Pyx_FMT_TYPENAME "%.200s"
@@ -3098,14 +3193,12 @@ __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp)
 static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj); /*proto*/
 
 /////////////// RaiseUnexpectedTypeError ///////////////
+//@requires: RaiseErrorWithObjectType1
 
-static int
-__Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj)
-{
-    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError, "Expected %s, got " __Pyx_FMT_TYPENAME,
-                 expected, obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
+static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj) {
+    __Pyx_RaiseTypeErrorWithObjectType1(
+        "Expected %s, got " __Pyx_FMT_TYPENAME,
+        expected, obj);
     return 0;
 }
 

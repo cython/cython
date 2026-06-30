@@ -15,7 +15,7 @@ from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode, AbstractUtil
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, CannotSpecialize, performance_hint
+from .Errors import error, warning, performance_hint, CannotSpecialize
 
 
 class BaseType:
@@ -323,6 +323,8 @@ class PyrexType(BaseType):
     refcounting_needs_gil = True
     supports_refnanny = False
     supports_container_type = False
+    # container has uniform elements (e.g. list[int], but not tuple[int, str])
+    has_uniform_element_type = False
     equivalent_type = None
     default_value = ""
     declaration_value = ""
@@ -1523,17 +1525,18 @@ class BuiltinObjectType(PyObjectType):
         'float': ['is_pyfloat_type'],
         'bool': ['is_pybool_type'],
         'complex': ['is_pycomplex_type'],
-        'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type'],
-        'tuple': ['is_pytuple_type', 'is_builtin_sequence'],
+        'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type', 'has_uniform_element_type'],
+        'tuple': ['is_pytuple_type', 'is_builtin_sequence', 'supports_container_type'],
         'dict': ['is_pydict_type', 'is_pyanydict_type', 'supports_container_type'],
         'frozendict': ['is_pyfrozendict_type', 'is_pyanydict_type', 'supports_container_type'],
-        'set': ['is_pyset_type', 'is_pyanyset_type', 'supports_container_type'],
-        'frozenset': ['is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type'],
+        'set': ['is_pyset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type'],
+        'frozenset': ['is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type'],
         'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
     }
+    _get_type_flags_for = _builtin_type_flag_mapping.get
 
     def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
@@ -1551,9 +1554,8 @@ class BuiltinObjectType(PyObjectType):
         self._init_builtin_type_flags(name)
 
     def _init_builtin_type_flags(self, type_name: str) -> None:
-        if type_name in self._builtin_type_flag_mapping:
-            for attribute in self._builtin_type_flag_mapping[type_name]:
-                setattr(self, attribute, True)
+        for attribute in (self._get_type_flags_for(type_name) or ()):
+            setattr(self, attribute, True)
 
     @property
     def typeptr_cname(self):
@@ -4949,6 +4951,9 @@ class PythonTypeConstructorMixin:
         except IndexError:
             return None
 
+    def get_common_item_type(self):
+        return reduce_spanning_types(self.subscripted_types)
+
     def allows_none(self):
         return (
             self.modifier_name == 'typing.Optional' or
@@ -4983,7 +4988,14 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     def specialize_here(self, pos, env, template_values=None):
         if not self.supports_container_type:
             return self
-        if template_values and None not in template_values and len(template_values) <= 2:
+        if template_values and None not in template_values:
+            if (
+                self.has_uniform_element_type and len(template_values) != 1 or
+                self.is_pyanydict_type and len(template_values) != 2
+            ):
+                warning(pos, f"Cannot specialise {self.name!r} with {len(template_values)} types, ignoring.")
+                return self
+
             typ = BuiltinTypeConstructorObjectType(
                 name=self.name, cname=self.cname, objstruct_cname=self.objstruct_cname,
                 base_type=self, subscripted_types=tuple(template_values), scope=self.scope)
@@ -4997,8 +5009,9 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         return f"{name}[{subscripted_types}]" if subscripted_types else name
 
     def __eq__(self, value):
+        if not isinstance(value, BuiltinTypeConstructorObjectType):
+            return NotImplemented
         return (
-            isinstance(value, BuiltinTypeConstructorObjectType) and
             self.name == value.name and
             self.subscripted_types == value.subscripted_types
         )
@@ -5028,14 +5041,22 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             return False
         return super().assignable_from(src_type)
 
-    def infer_indexed_type(self):
+    def infer_indexed_type(self, at_index=None):
         container_type = self.get_container_type()
-        if container_type.is_pydict_type or container_type.is_pyfrozendict_type:
+        if at_index is None:
+            return self.get_common_item_type()
+        if container_type.is_pytuple_type and isinstance(at_index, int):
+            return self.get_subscripted_type(at_index)
+        if container_type.is_pyanydict_type:
             return self.get_subscripted_type(1)
-        else:
+        if container_type.is_pylist_type or container_type.is_pyanyset_type:
             return self.get_subscripted_type(0)
+        return self.get_common_item_type()
 
     def infer_iterator_type(self):
+        container_type = self.get_container_type()
+        if container_type.is_pytuple_type:
+            return self.get_common_item_type()
         return self.get_subscripted_type(0)
 
     def get_container_type(self):

@@ -79,6 +79,8 @@ class BasicStarship(object):
     def __init__(self, damage):
         self.damage = damage
 
+    def __repr__(self):
+        return f"BasicStarship(damage={self.damage})"
 
 @cython.cclass
 class BasicStarshipExt(object):
@@ -97,6 +99,14 @@ class BasicStarshipExt(object):
 
     def test(self):
         return self.damage, self.captain, self.stats
+
+    def __repr__(self):
+        return f"BasicStarshipExt(damage={self.damage})"
+
+@cython.cclass
+class AdvancedStarshipExt(BasicStarshipExt):
+    def __repr__(self):
+        return f"AdvancedStarshipExt(damage={self.damage})"
 
 
 T = TypeVar('T')
@@ -180,6 +190,8 @@ def test_subscripted_types():
     list[int] object
     list object
     set[Python object] object
+    tuple[int,Python object,float] object
+    tuple[int,Python object,float] object
     """
     a1: typing.Dict[cython.int, cython.float] = {}
     a2: dict[cython.int, cython.float] = {}
@@ -187,6 +199,9 @@ def test_subscripted_types():
     b2: list[cython.int] = []
     b3: List = []  # doesn't need to be subscripted
     c: _SET_[object] = set()
+    t1: Tuple[cython.int, object, cython.float] = (1, 'a', 1.0)
+    t2: tuple[cython.int, object, cython.float] = (1, 'a', 1.0)
+
 
     print(cython.typeof(a1) + ("[int,float] object" if not cython.compiled else ""))
     print(cython.typeof(a2) + ("[int,float] object" if not cython.compiled else ""))
@@ -194,28 +209,45 @@ def test_subscripted_types():
     print(cython.typeof(b2) + ("[int] object" if not cython.compiled else ""))
     print(cython.typeof(b3) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + ("[Python object] object" if not cython.compiled else ""))
+    print(cython.typeof(t1) + ("[int,Python object,float] object" if not cython.compiled else ""))
+    print(cython.typeof(t2) + ("[int,Python object,float] object" if not cython.compiled else ""))
 
-if sys.version_info >= (3, 11) or cython.compiled:
+if sys.version_info >= (3, 11):
     # This part of the test is failing in Python 3.9 and 3.10 with the following exception in Shadow.py:
     # isinstance() argument 2 cannot be a parameterized generic
 
     def test_casting_subscripted_types():
         """
         >>> test_casting_subscripted_types()
+        tuple:
+        tuple[list object,int,int] object 1 2
+        tuple object 1.0 2.0
+        list:
         list[int] object 1
         list object 1.0
+        dict:
         dict[str object,float] object 2.0
         dict object 2
         float 3.0
         Python object 3
         """
-        # list
+        print('tuple:')
+        t: tuple[list, cython.float, cython.float] = ([], 1.0, 2.0)
+        x0 = cython.cast(tuple[list, cython.int, cython.int], t)
+        y0 = cython.cast(tuple, t)
+        print(
+            cython.typeof(x0) + ('[list object,int,int] object' if not cython.compiled else ''),
+            x0[1] if cython.compiled else int(x0[1]),
+            x0[2] if cython.compiled else int(x0[2]),
+        )
+        print(cython.typeof(y0) + (' object' if not cython.compiled else ''), y0[1], y0[2])
+        print('list:')
         l: list[cython.float] = [1.0, 2.0]
         x1 = cython.cast(list[cython.int], l)
         y1 = cython.cast(list, l)
         print(cython.typeof(x1) + ('[int] object' if not cython.compiled else ""), int(x1[0]) if not cython.compiled else x1[0])
         print(cython.typeof(y1) + (' object' if not cython.compiled else ""), y1[0])
-        # dict
+        print('dict:')
         d: dict[str, cython.int] = {'a': 1, 'b': 2}
         x2 = cython.cast(dict[str, cython.float], d)
         y2 = cython.cast(dict, d)
@@ -283,6 +315,29 @@ def test_use_typing_attributes_as_non_annotations():
     print(name_of(q1), str(q2) in ["typing.Union[typing.FrozenSet, NoneType]", "typing.FrozenSet | None"] or str(q2))
     print(name_of(w1), str(w2) in ["typing.Union[typing.Dict, NoneType]", "typing.Dict | None"] or str(w2))
 
+def test_tuple_with_int_str_subscript():
+    """
+    >>> test_tuple_with_int_str_subscript()
+    str object
+    int object
+    str object
+    int object
+    str object
+    int object
+    FooBar
+    3
+    """
+    a: tuple[str, int] = ("Foo", 1)
+    b: Tuple[str, int] = ("Bar", 2)
+    print(cython.typeof(a[0]) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(a[1]) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(b[0]) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(b[1]) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(a[0] + b[0]) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(a[1] + b[1]) + (" object" if not cython.compiled else ""))
+    print(a[0] + b[0])
+    print(a[1] + b[1])
+
 def test_list_with_str_subscript():
     """
     >>> test_list_with_str_subscript()
@@ -334,6 +389,31 @@ def test_dict_with_subscript():
     print(cython.typeof(c))
     print(c)
 
+def test_assignment_tuple_with_subscript():
+    """
+    >>> test_assignment_tuple_with_subscript()
+    int int
+    Python object Python object
+    float float
+    5 5 5.0
+    6 6 6.0
+    """
+    a: tuple[cython.int, cython.int] = (5, 6)
+    b: tuple = a
+    c: tuple[cython.float, cython.float] = b
+    print(cython.typeof(a[0]), cython.typeof(a[1])
+    )
+    print(
+        cython.typeof(b[0]) if cython.compiled else "Python object",
+        cython.typeof(b[1]) if cython.compiled else "Python object"
+    )
+    print(
+        cython.typeof(c[0]) if cython.compiled else "float",
+        cython.typeof(c[1]) if cython.compiled else "float"
+    )
+    print(a[0], b[0], c[0] if cython.compiled else float(c[0]))
+    print(a[1], b[1], c[1] if cython.compiled else float(c[1]))
+
 def test_assignment_list_with_subscript():
     """
     >>> test_assignment_list_with_subscript()
@@ -384,6 +464,24 @@ if sys.version_info >= (3, 15) or cython.compiled:
         print(cython.typeof(c['a']) if cython.compiled else 'float')
         print(a['a'], b['a'], c['a'] if cython.compiled else float(c['a']))
 
+def test_failed_assignment_tuple_with_subscript():
+    """
+    >>> test_failed_assignment_tuple_with_subscript()
+    5 5 5
+    """
+    a: tuple[cython.int, cython.int] = (5, 5)
+    b: tuple = a
+    c: tuple[str, str] = b
+    print(a[0], b[0], c[0])
+
+if cython.compiled:
+    test_failed_assignment_tuple_with_subscript.__doc__ = """
+    >>> test_failed_assignment_tuple_with_subscript()  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+       ...
+    TypeError: Expected str, got int
+    """
+
 def test_failed_assignment_list_with_subscript():
     """
     >>> test_failed_assignment_list_with_subscript()
@@ -400,6 +498,32 @@ if cython.compiled:
     Traceback (most recent call last):
        ...
     TypeError: Expected str, got int
+    """
+
+@cython.infer_types(True)
+def test_iteration_over_tuple_with_subscript():
+    """
+    >>> test_iteration_over_tuple_with_subscript()
+    2 int
+    bar str
+    BasicStarshipExt(damage=5) BasicStarshipExt
+    AdvancedStarshipExt(damage=6) AdvancedStarshipExt
+    """
+    a: tuple[cython.int, str] = (2, 'bar')
+    for c in a:
+        print(c, cython.typeof(c))
+    # Iterating must use spanning type, not subscripted type, so that it works even when the tuple is heterogeneous.
+    b: tuple[BasicStarshipExt, AdvancedStarshipExt] = (BasicStarshipExt(5), AdvancedStarshipExt(6))
+    for s in b:
+        print(s, cython.typeof(s))
+
+if cython.compiled:
+    test_iteration_over_tuple_with_subscript.__doc__ = """
+    >>> test_iteration_over_tuple_with_subscript()
+    2 Python object
+    bar Python object
+    BasicStarshipExt(damage=5) BasicStarshipExt
+    AdvancedStarshipExt(damage=6) BasicStarshipExt
     """
 
 @cython.infer_types(True)

@@ -72,7 +72,7 @@ def p_ident(s: PyrexScanner, message="Expected an identifier"):
 
 
 @cython.cfunc
-def p_ident_list(s: PyrexScanner):
+def p_ident_list(s: PyrexScanner) -> list:
     names = []
     while s.sy == 'IDENT':
         names.append(s.context.intern_ustring(s.systring))
@@ -600,7 +600,7 @@ def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tupl
 
 
 @cython.cfunc
-def p_call_build_packed_args(pos, positional_args, keyword_args) -> tuple:
+def p_call_build_packed_args(pos, positional_args: list, keyword_args: list) -> tuple:
     keyword_dict = None
 
     subtuples = [
@@ -2317,7 +2317,7 @@ def p_with_items(s: PyrexScanner, is_async: cython.bint = False):
 
 
 @cython.cfunc
-def p_with_items_list(s: PyrexScanner, is_async: cython.bint) -> list:
+def p_with_items_list(s: PyrexScanner, is_async: cython.bint) -> list[tuple]:
     items = []
     while True:
         items.append(p_with_item(s, is_async))
@@ -4508,6 +4508,9 @@ def p_literal_pattern(s: PyrexScanner):
         sign_pos = s.position()
         s.next()
         next_must_be_a_number = True
+    elif s.sy == '+':
+        s.next()
+        next_must_be_a_number = True
 
     sy = s.sy
     pos = s.position()
@@ -4526,6 +4529,8 @@ def p_literal_pattern(s: PyrexScanner):
     if res is not None and s.sy in ['+', '-']:
         sign = s.sy
         s.next()
+        if s.sy == '+':
+            s.next()
         if s.sy != 'IMAG':
             s.error("Expected imaginary number")
         else:

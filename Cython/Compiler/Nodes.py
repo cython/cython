@@ -3377,6 +3377,10 @@ class DefNode(FuncDefNode):
             starstar_arg=self.starstar_arg,
             return_type=self.return_type)
         self.py_wrapper.analyse_declarations(env)
+        if self.entry.is_special and self.entry.name in ("__cinit__", "__init__"):
+            # Assume that star_arg makes vectorcall a waste of time
+            # (but not starstar_arg because this is reasonably common just to sweep up arbitrary arguments)
+            self.entry.tp_new_can_be_vectorcall = not self.star_arg
 
     def analyse_argument_types(self, env):
         self.directive_locals = env.directives.get('locals', {})
@@ -3415,6 +3419,9 @@ class DefNode(FuncDefNode):
                     arg.accept_none = True
                 elif arg.not_none:
                     arg.accept_none = False
+                    if arg.default and arg.default.constant_result is None:
+                        error(arg.pos,
+                              "Parameter '%s' is declared 'not None' but has a default value of None" % arg.name)
                 elif (arg.type.is_extension_type or arg.type.is_builtin_type
                         or arg.type.is_buffer or arg.type.is_memoryviewslice):
                     if arg.default and arg.default.constant_result is None:
@@ -3799,6 +3806,13 @@ class DefNodeWrapper(FuncDefNode):
         self.np_args_idx = self.target.np_args_idx
 
     def prepare_argument_coercion(self, env):
+        target_entry = self.target.entry
+        if (target_entry.is_special and target_entry.name in ("__cinit__", "__init__")
+                and TypeSlots.TpVectorcallSlot("tp_vectorcall").slot_code(env) != "0"):
+            # At this stage we know enough about both __cinit__, __init__ and the class scopes
+            # to know if we should prefer vectorcall for class creation.
+            self.signature = target_entry.signature = self.signature.with_fastcall(self.signature.FastcallUsed.TP_NEW)
+
         # This is only really required for Cython utility code at this time,
         # everything else can be done during code generation.  But we expand
         # all utility code here, simply because we cannot easily distinguish
@@ -3971,9 +3985,9 @@ class DefNodeWrapper(FuncDefNode):
             if sig.use_fastcall:
                 fastcall_args = "PyObject *const *%s, Py_ssize_t %s, PyObject *%s" % (
                         Naming.args_cname, Naming.nargs_cname, Naming.kwds_cname)
+                fastcall_guard = sig.fastcall_guard
                 arg_code_list.append(
-                    "\n#if CYTHON_VECTORCALL\n%s\n#else\n%s\n#endif\n" % (
-                        fastcall_args, varargs_args))
+                    f"\n#if {fastcall_guard}\n{fastcall_args}\n#else\n{varargs_args}\n#endif\n")
             else:
                 arg_code_list.append(varargs_args)
         if entry.is_special:
@@ -4044,7 +4058,7 @@ class DefNodeWrapper(FuncDefNode):
             # error handling for this is checked after the declarations
             nargs_code = "CYTHON_UNUSED Py_ssize_t %s;" % Naming.nargs_cname
             if self.signature.use_fastcall:
-                code.putln("#if !CYTHON_VECTORCALL")
+                code.putln(f"#if !{self.signature.fastcall_guard}")
                 code.putln(nargs_code)
                 code.putln("#endif")
             else:
@@ -4072,7 +4086,7 @@ class DefNodeWrapper(FuncDefNode):
         # Assign nargs variable as len(args).
         if self.signature_has_generic_args():
             if self.signature.use_fastcall:
-                code.putln("#if !CYTHON_VECTORCALL")
+                code.putln(f"#if !{self.signature.fastcall_guard}")
             code.putln("#if CYTHON_ASSUME_SAFE_SIZE")
             code.putln("%s = PyTuple_GET_SIZE(%s);" % (
                 Naming.nargs_cname, Naming.args_cname))
@@ -5748,13 +5762,13 @@ class CClassDefNode(ClassDefNode):
                     trial_type, first_base))
                 # trial_type is a heaptype so GetSlot works in all versions of the limited API
                 trial_type_base = "__Pyx_PyType_GetSlot((PyTypeObject*) %s, tp_base, PyTypeObject*)" % trial_type
-                code.putln("__Pyx_TypeName base_name = __Pyx_PyType_GetFullyQualifiedName(%s);" % trial_type_base)
-                code.putln("__Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(%s);" % first_base)
-                code.putln("PyErr_Format(PyExc_TypeError, "
-                    "\"best base '\" __Pyx_FMT_TYPENAME \"' must be equal to first base '\" __Pyx_FMT_TYPENAME \"'\",")
-                code.putln("             base_name, type_name);")
-                code.putln("__Pyx_DECREF_TypeName(base_name);")
-                code.putln("__Pyx_DECREF_TypeName(type_name);")
+
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("RaiseErrorWithObjectTypes", "ObjectHandling.c"))
+                code.putln('__Pyx_RaiseTypeErrorWithTypes('
+                    '"best base \'" __Pyx_FMT_TYPENAME "\' must be equal to first base \'" __Pyx_FMT_TYPENAME "\'",'
+                    f' {trial_type_base}, {first_base}'
+                    ');')
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
 
@@ -7076,14 +7090,36 @@ class ReturnStatNode(StatNode):
             return
 
         value = self.value
-        if self.return_type.is_pyobject:
-            code.put_xdecref(Naming.retval_cname, self.return_type)
+        if value:
+            value.generate_evaluation_code(code)
+
+        if self.return_type.needs_refcounting:
+            code.putln("{")
+            code.putln(f"{self.return_type.declaration_code(Naming.quick_temp_cname)};")
+
+        if self.in_parallel:
+            # If we have the GIL we can rely on it for locking (unless in freethreading).
+            # Where we use a critical section, we do our best to keep the contents as
+            # simple as possible.
+            if code.funcstate.gil_owned:
+                code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+            code.putln_openmp(
+                # For scalar types this could be omp atomic (at least on semi-recent versions
+                # of OpenMP). However, MSVC doesn't look to support that.
+                "#pragma omp critical(__pyx_returning)")
+            if code.funcstate.gil_owned:
+                code.putln("#endif")
+        code.putln("{")
+
+        if self.return_type.needs_refcounting:
+            # decref must come after assignment because it can trigger
+            # arbitrary code execution (and thus release the GIL).
+            code.putln(f"{Naming.quick_temp_cname} = {Naming.retval_cname};")
             if value and value.is_none:
                 # Use specialised default handling for "return None".
                 value = None
 
         if value:
-            value.generate_evaluation_code(code)
             if self.return_type.is_memoryviewslice:
                 from . import MemoryView
                 MemoryView.put_acquire_memoryviewslice(
@@ -7092,22 +7128,30 @@ class ReturnStatNode(StatNode):
                     lhs_pos=value.pos,
                     rhs=value,
                     code=code,
-                    have_gil=self.in_nogil_context)
-                value.generate_post_assignment_code(code)
+                    have_gil=code.funcstate.gil_owned)
             else:
                 value.make_owned_reference(code)
                 code.putln("%s = %s;" % (
                     Naming.retval_cname,
                     value.result_as(self.return_type)))
-                value.generate_post_assignment_code(code)
-            value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
                 code.put_init_to_py_none(Naming.retval_cname, self.return_type)
             elif self.return_type.is_returncode:
                 self.put_return(code, self.return_type.default_value)
 
-        if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
+        code.putln("}")  # end of omp critical section
+        if self.return_type.needs_refcounting:
+            code.put_xdecref(
+                Naming.quick_temp_cname, self.return_type, have_gil=code.funcstate.gil_owned)
+            code.putln("}")  # end of quick_temp scope
+
+        if value:
+            value.generate_post_assignment_code(code)
+            value.free_temps(code)
+        if (  # for now, avoid thread-safety issues in parallel blocks by not tracing the return value.
+                not self.in_parallel and
+                (code.globalstate.directives['profile'] or code.globalstate.directives['linetrace'])):
             code.put_trace_return(
                 Naming.retval_cname,
                 self.pos,
@@ -7121,8 +7165,6 @@ class ReturnStatNode(StatNode):
         code.put_goto(code.return_label)
 
     def put_return(self, code, value):
-        if self.in_parallel:
-            code.putln_openmp("#pragma omp critical(__pyx_returning)")
         code.putln("%s = %s;" % (Naming.retval_cname, value))
 
     def generate_function_definitions(self, env, code):
@@ -8932,11 +8974,14 @@ class GILStatNode(NogilTryFinallyStatNode):
     child_attrs = ["condition"] + NogilTryFinallyStatNode.child_attrs
     state_temp = None
     scope_gil_state_known = True
+    internally_generated = False
 
-    def __init__(self, pos, state, body, condition=None):
+    def __init__(self, pos, state, body, condition=None, internally_generated=False):
         self.state = state
         self.condition = condition
         self.create_state_temp_if_needed(pos, state, body)
+        if internally_generated:
+            self.internally_generated = internally_generated
         TryFinallyStatNode.__init__(
             self, pos,
             body=body,
@@ -10025,16 +10070,18 @@ class ParallelStatNode(StatNode, ParallelNode):
         begin_code = self.begin_of_parallel_block
         self.begin_of_parallel_block = None
 
-        if self.error_label_used:
+        if self.error_label_used or self.acquire_gil:
             end_code = code
 
             begin_code.putln("#ifdef _OPENMP")
             begin_code.put_ensure_gil(declare_gilstate=True)
-            begin_code.putln("Py_BEGIN_ALLOW_THREADS")
+            if not self.acquire_gil:
+                begin_code.putln("Py_BEGIN_ALLOW_THREADS")
             begin_code.putln("#endif /* _OPENMP */")
 
             end_code.putln("#ifdef _OPENMP")
-            end_code.putln("Py_END_ALLOW_THREADS")
+            if not self.acquire_gil:
+                end_code.putln("Py_END_ALLOW_THREADS")
             end_code.putln("#else")
             end_code.put_safe("{\n")
             end_code.put_ensure_gil()
@@ -10297,6 +10344,7 @@ class ParallelWithBlockNode(ParallelStatNode):
 
     num_threads = None
     threading_condition = None
+    acquire_gil = False
 
     def analyse_declarations(self, env):
         super().analyse_declarations(env)
@@ -10380,6 +10428,7 @@ class ParallelRangeNode(ParallelStatNode):
     is_prange = True
 
     nogil = None
+    acquire_gil = False
     schedule = None
 
     valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize', 'use_threads_if']
@@ -10633,7 +10682,8 @@ class ParallelRangeNode(ParallelStatNode):
             code.putln("#ifdef _OPENMP")
 
         if not self.is_parallel:
-            code.put("#pragma omp for")
+            acquire_gil_deadlock_avoidance_point = code.insertion_point()
+            code.put("#pragma omp for nowait")
             self.privatization_insertion_point = code.insertion_point()
             reduction_codepoint = self.parent.privatization_insertion_point
         else:
@@ -10656,7 +10706,15 @@ class ParallelRangeNode(ParallelStatNode):
                 code.putln("#if 0")
             else:
                 code.putln("#ifdef _OPENMP")
-            code.put("#pragma omp for")
+            acquire_gil_deadlock_avoidance_point = code.insertion_point()
+            code.put("#pragma omp for nowait")
+
+        if self.acquire_gil:
+            # Any firstprivate creates a barrier at least on GCC (and thus
+            # a deadlock if we're using the GIL). So at very least we need
+            # a barrier starting the loop
+            acquire_gil_deadlock_avoidance_point.putln(
+                f"PyThreadState *{Naming.parallel_loop_threadstate} = PyEval_SaveThread();")
 
         for entry, op in sorted(self.privates.items()):
             # Don't declare the index variable as a reduction
@@ -10695,6 +10753,14 @@ class ParallelRangeNode(ParallelStatNode):
         # at least it doesn't spoil indentation
         code.begin_block()
 
+        if self.acquire_gil:
+            code.putln("#ifdef _OPENMP")
+            code.putln(f"if ({Naming.parallel_loop_threadstate}) {{")
+            code.putln(f"PyEval_RestoreThread({Naming.parallel_loop_threadstate});")
+            code.putln(f"{Naming.parallel_loop_threadstate} = NULL;")
+            code.putln("}")
+            code.putln("#endif")
+
         code.putln("%(target)s = (%(target_type)s)(%(start)s + %(step)s * %(i)s);" % fmt_dict)
 
         if self.is_parallel and not self.is_nested_prange:
@@ -10714,6 +10780,16 @@ class ParallelRangeNode(ParallelStatNode):
 
         code.end_block()  # end guard around loop body
         code.end_block()  # end for loop block
+
+        if self.acquire_gil:
+            code.putln("#ifdef _OPENMP")
+            code.putln(f"if (!{Naming.parallel_loop_threadstate}) {{")
+            code.putln(f"{Naming.parallel_loop_threadstate} = PyEval_SaveThread();")
+            code.putln("}")
+            # synchronization point for all loops at the end of the thread but without the GIL
+            code.putln("#pragma omp barrier")
+            code.putln(f"PyEval_RestoreThread({Naming.parallel_loop_threadstate});")
+            code.putln("#endif")
 
         if self.is_parallel:
             # Release the GIL and deallocate the thread state
