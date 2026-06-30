@@ -6091,6 +6091,8 @@ def independent_spanning_type(type1, type2):
         # e.g. PyInt + double => object
         return py_object_type
     elif resolved_type1.is_builtin_type and resolved_type2.is_builtin_type:
+        if resolved_type1.is_exception_type or resolved_type2.is_exception_type:
+            return spanning_exception_type(type1, type2)
         container_type = resolved_type1.get_container_type()
         if container_type is not None and container_type == resolved_type2.get_container_type():
             # list[float] + list[int] => list
@@ -6125,6 +6127,8 @@ def spanning_type(type1, type2):
 def _spanning_type(type1, type2):
     if type1.is_numeric and type2.is_numeric:
         return widest_numeric_type(type1, type2)
+    elif type1.is_exception_type or type2.is_exception_type:
+        return spanning_exception_type(type1, type2)
     elif type1.is_builtin_type:
         return result_type_of_builtin_operation(type1, type2) or py_object_type
     elif type2.is_builtin_type:
@@ -6152,6 +6156,15 @@ def _spanning_type(type1, type2):
         return c_void_ptr_type
     else:
         return None
+
+def spanning_exception_type(type1, type2):
+    lowest_parent = py_object_type
+    if type1.is_exception_type and type2.is_exception_type:
+        for parent1, parent2 in zip(type1.exception_supertypes, type2.exception_supertypes):
+            if parent1.name != parent2.name:
+                break
+            lowest_parent = parent1
+    return lowest_parent
 
 def widest_extension_type(type1, type2):
     if type1.typeobj_is_imported() or type2.typeobj_is_imported():
