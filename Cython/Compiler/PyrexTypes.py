@@ -1577,8 +1577,8 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     '_IncompleteInputError',
     '__build_class__',
     '__debug__',
-    '__lazy_import__',
     '__import__',
+    '__lazy_import__',
     'abs',
     'aiter',
     'all',
@@ -1659,25 +1659,32 @@ KNOWN_PYTHON_BUILTINS = frozenset([
 ])
 
 
-# Builtin exception hierarchy as of CPython 3.16.0a0
+# Builtin exception hierarchy.
 # To rebuild the dict items, use:
 """
 def list_exception_subtypes(exc=BaseException):
-    import builtins
-    builtins = set(vars(builtins))
-    subtypes = [subtype for subtype in exc.__subclasses__() if subtype.__qualname__ in builtins]
+    subtypes = [subtype for subtype in exc.__subclasses__() if subtype.__module__ == 'builtins']
     if subtypes:
+        subtypes.sort(key=lambda t: t.__name__)
         print(f"    '{exc.__name__}' : [")
         for subtype in subtypes:
             print(f"        '{subtype.__name__}',")
+        if exc.__name__ == 'OSError':
+            print("        # Aliases of OSError:")
+            for name in ['IOError', 'EnvironmentError', 'WindowsError']:
+                print(f"        '{name}',")
         print("    ],")
         for subtype in subtypes:
             list_exception_subtypes(subtype)
 
+import sys
+print(f"# BEGIN: generated dict entries\n# Generated from Python {sys.version.partition(' ')[0]}")
 list_exception_subtypes()
+print("# END: generated dict entries")
 """
 exception_subtypes = {
 # BEGIN: generated dict entries
+# Generated from Python 3.16.0a0
     'BaseException' : [
         'BaseExceptionGroup',
         'Exception',
@@ -1694,6 +1701,7 @@ exception_subtypes = {
         'AttributeError',
         'BufferError',
         'EOFError',
+        'ExceptionGroup',
         'ImportError',
         'LookupError',
         'MemoryError',
@@ -1708,7 +1716,6 @@ exception_subtypes = {
         'TypeError',
         'ValueError',
         'Warning',
-        'ExceptionGroup',
     ],
     'ArithmeticError' : [
         'FloatingPointError',
@@ -1738,6 +1745,10 @@ exception_subtypes = {
         'PermissionError',
         'ProcessLookupError',
         'TimeoutError',
+        # Aliases of OSError:
+        'IOError',
+        'EnvironmentError',
+        'WindowsError',
     ],
     'ConnectionError' : [
         'BrokenPipeError',
@@ -1781,7 +1792,10 @@ exception_subtypes = {
 # END: generated dict entries
 }
 
-KNOWN_EXCEPTION_NAMES = frozenset(chain(['BaseException'], chain.from_iterable(exception_subtypes.values())))
+KNOWN_EXCEPTION_NAMES = frozenset(chain(
+    ['BaseException'],
+    chain.from_iterable(exception_subtypes.values()),
+))
 
 exception_supertypes = {'BaseException': ['BaseException']}
 exception_supertypes.update(
