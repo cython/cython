@@ -81,6 +81,23 @@ def builtin_exceptions():
     assert typeof(f) == "DeprecationWarning object", typeof(f)
 
 
+def exception_hierarchy_inference(x):
+    """
+    >>> exception_hierarchy_inference(True)
+    BaseException object
+    Exception object
+    ArithmeticError object
+    """
+    base_exc = BaseException() if x else Exception()
+    print(cython.typeof(base_exc))
+
+    exc = Exception() if x else KeyError()
+    print(cython.typeof(exc))
+
+    arith_exc = FloatingPointError() if x else OverflowError()
+    print(cython.typeof(arith_exc))
+
+
 def slicing():
     """
     >>> slicing()

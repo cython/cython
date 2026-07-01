@@ -22,6 +22,7 @@ NEWER_EXCEPTIONS = {
     'ExceptionGroup': (3, 11),
     'BaseExceptionGroup': (3, 11),
     'PythonFinalizationError': (3, 13),
+    'ImportCycleError': (3, 15),
 }
 
 
@@ -40,7 +41,8 @@ def gen_tests():
     test_code.append(f"# generated from the builtin exceptions in Python {tuple(sys.version_info)}\n")
 
     # Construct the list of all exception subtypes.
-    subclasses = defaultdict(list)
+    all_subclasses = defaultdict(list)
+    direct_subclasses = defaultdict(set)
     for exc_name, exc_type in vars(builtins).items():
         if exc_name.startswith('_'):
             continue
@@ -53,15 +55,16 @@ def gen_tests():
         try:
             exc_type("message")
         except TypeError:
-            # Needs arguments - ignore.
+            test_code.append(f"# Ignored {exc_type.__name__}: needs arguments to instantiate\n")
             continue
+        direct_subclasses[exc_type.__mro__[1].__name__].add(exc_name)
         for base_type in exc_type.__mro__:
-            subclasses[base_type.__name__].append(exc_name)
+            all_subclasses[base_type.__name__].append(exc_name)
             if base_type.__name__ == 'BaseException':
                 break
 
     # Generate tests that pass all subtypes into a typed base type argument.
-    for exc_name, subclass_names in sorted(subclasses.items()):
+    for exc_name, subclass_names in sorted(all_subclasses.items()):
         test_code.append("\n")
         test_code.append(f"def accept_{exc_name}(exc: {exc_name}):\n")
 
@@ -77,6 +80,17 @@ def gen_tests():
         func_code.append(f"if cython.compiled: assert cython.typeof(inferred_var) == '{exc_name} object', "
             "cython.typeof(inferred_var)")
         func_code.append(f"assert isinstance(inferred_var, {exc_name})")
+
+        if len(direct_subclasses[exc_name]) > 1:
+            construct_subtypes = ' if exc else '.join(
+                f"{name}('message')"
+                for name in all_subclasses[exc_name]
+                if name != exc_name
+            )
+            func_code.append(f"inferred_subtypes_var = {construct_subtypes}")
+            func_code.append(f"if cython.compiled: assert cython.typeof(inferred_subtypes_var) == '{exc_name} object', "
+                "cython.typeof(inferred_subtypes_var)")
+            func_code.append(f"assert isinstance(inferred_subtypes_var, {exc_name})")
 
         func_code.append(f"exc_var: {exc_name} = {{exc}}.pop()")  # test runtime assignment with untyped RHS
         func_code.append(f"assert isinstance(exc_var, {exc_name})")
@@ -103,7 +117,10 @@ def gen_tests():
         test_file.write(test_code_str)
 
 ##### BEGIN GENERATED TESTS
-# generated from the builtin exceptions in Python (3, 15, 0, 'alpha', 0)
+# generated from the builtin exceptions in Python (3, 16, 0, 'alpha', 0)
+# Ignored UnicodeDecodeError: needs arguments to instantiate
+# Ignored UnicodeEncodeError: needs arguments to instantiate
+# Ignored UnicodeTranslateError: needs arguments to instantiate
 
 def accept_ArithmeticError(exc: ArithmeticError):
     """
@@ -123,6 +140,9 @@ def accept_ArithmeticError(exc: ArithmeticError):
     inferred_var = ArithmeticError('message')
     if cython.compiled: assert cython.typeof(inferred_var) == 'ArithmeticError object', cython.typeof(inferred_var)
     assert isinstance(inferred_var, ArithmeticError)
+    inferred_subtypes_var = FloatingPointError('message') if exc else OverflowError('message') if exc else ZeroDivisionError('message')
+    if cython.compiled: assert cython.typeof(inferred_subtypes_var) == 'ArithmeticError object', cython.typeof(inferred_subtypes_var)
+    assert isinstance(inferred_subtypes_var, ArithmeticError)
     exc_var: ArithmeticError = {exc}.pop()
     assert isinstance(exc_var, ArithmeticError)
     try: raise exc_var
@@ -369,6 +389,9 @@ def accept_BaseException(exc: BaseException):
     inferred_var = BaseException('message')
     if cython.compiled: assert cython.typeof(inferred_var) == 'BaseException object', cython.typeof(inferred_var)
     assert isinstance(inferred_var, BaseException)
+    inferred_subtypes_var = Exception('message') if exc else GeneratorExit('message') if exc else KeyboardInterrupt('message') if exc else SystemExit('message') if exc else ArithmeticError('message') if exc else AssertionError('message') if exc else AttributeError('message') if exc else BufferError('message') if exc else EOFError('message') if exc else ImportError('message') if exc else LookupError('message') if exc else MemoryError('message') if exc else NameError('message') if exc else OSError('message') if exc else ReferenceError('message') if exc else RuntimeError('message') if exc else StopAsyncIteration('message') if exc else StopIteration('message') if exc else SyntaxError('message') if exc else SystemError('message') if exc else TypeError('message') if exc else ValueError('message') if exc else Warning('message') if exc else FloatingPointError('message') if exc else OverflowError('message') if exc else ZeroDivisionError('message') if exc else BytesWarning('message') if exc else DeprecationWarning('message') if exc else FutureWarning('message') if exc else ImportWarning('message') if exc else PendingDeprecationWarning('message') if exc else ResourceWarning('message') if exc else RuntimeWarning('message') if exc else SyntaxWarning('message') if exc else UnicodeWarning('message') if exc else UserWarning('message') if exc else BlockingIOError('message') if exc else ChildProcessError('message') if exc else ConnectionError('message') if exc else FileExistsError('message') if exc else FileNotFoundError('message') if exc else InterruptedError('message') if exc else IsADirectoryError('message') if exc else NotADirectoryError('message') if exc else PermissionError('message') if exc else ProcessLookupError('message') if exc else TimeoutError('message') if exc else IndentationError('message') if exc else IndexError('message') if exc else KeyError('message') if exc else ModuleNotFoundError('message') if exc else NotImplementedError('message') if exc else RecursionError('message') if exc else UnboundLocalError('message') if exc else UnicodeError('message') if exc else BrokenPipeError('message') if exc else ConnectionAbortedError('message') if exc else ConnectionRefusedError('message') if exc else ConnectionResetError('message') if exc else TabError('message') if exc else EnvironmentError('message') if exc else IOError('message')
+    if cython.compiled: assert cython.typeof(inferred_subtypes_var) == 'BaseException object', cython.typeof(inferred_subtypes_var)
+    assert isinstance(inferred_subtypes_var, BaseException)
     exc_var: BaseException = {exc}.pop()
     assert isinstance(exc_var, BaseException)
     try: raise exc_var
@@ -521,6 +544,9 @@ def accept_ConnectionError(exc: ConnectionError):
     inferred_var = ConnectionError('message')
     if cython.compiled: assert cython.typeof(inferred_var) == 'ConnectionError object', cython.typeof(inferred_var)
     assert isinstance(inferred_var, ConnectionError)
+    inferred_subtypes_var = BrokenPipeError('message') if exc else ConnectionAbortedError('message') if exc else ConnectionRefusedError('message') if exc else ConnectionResetError('message')
+    if cython.compiled: assert cython.typeof(inferred_subtypes_var) == 'ConnectionError object', cython.typeof(inferred_subtypes_var)
+    assert isinstance(inferred_subtypes_var, ConnectionError)
     exc_var: ConnectionError = {exc}.pop()
     assert isinstance(exc_var, ConnectionError)
     try: raise exc_var
@@ -795,6 +821,9 @@ def accept_Exception(exc: Exception):
     inferred_var = Exception('message')
     if cython.compiled: assert cython.typeof(inferred_var) == 'Exception object', cython.typeof(inferred_var)
     assert isinstance(inferred_var, Exception)
+    inferred_subtypes_var = ArithmeticError('message') if exc else AssertionError('message') if exc else AttributeError('message') if exc else BufferError('message') if exc else EOFError('message') if exc else ImportError('message') if exc else LookupError('message') if exc else MemoryError('message') if exc else NameError('message') if exc else OSError('message') if exc else ReferenceError('message') if exc else RuntimeError('message') if exc else StopAsyncIteration('message') if exc else StopIteration('message') if exc else SyntaxError('message') if exc else SystemError('message') if exc else TypeError('message') if exc else ValueError('message') if exc else Warning('message') if exc else FloatingPointError('message') if exc else OverflowError('message') if exc else ZeroDivisionError('message') if exc else BytesWarning('message') if exc else DeprecationWarning('message') if exc else FutureWarning('message') if exc else ImportWarning('message') if exc else PendingDeprecationWarning('message') if exc else ResourceWarning('message') if exc else RuntimeWarning('message') if exc else SyntaxWarning('message') if exc else UnicodeWarning('message') if exc else UserWarning('message') if exc else BlockingIOError('message') if exc else ChildProcessError('message') if exc else ConnectionError('message') if exc else FileExistsError('message') if exc else FileNotFoundError('message') if exc else InterruptedError('message') if exc else IsADirectoryError('message') if exc else NotADirectoryError('message') if exc else PermissionError('message') if exc else ProcessLookupError('message') if exc else TimeoutError('message') if exc else IndentationError('message') if exc else IndexError('message') if exc else KeyError('message') if exc else ModuleNotFoundError('message') if exc else NotImplementedError('message') if exc else RecursionError('message') if exc else UnboundLocalError('message') if exc else UnicodeError('message') if exc else BrokenPipeError('message') if exc else ConnectionAbortedError('message') if exc else ConnectionRefusedError('message') if exc else ConnectionResetError('message') if exc else TabError('message') if exc else EnvironmentError('message') if exc else IOError('message')
+    if cython.compiled: assert cython.typeof(inferred_subtypes_var) == 'Exception object', cython.typeof(inferred_subtypes_var)
+    assert isinstance(inferred_subtypes_var, Exception)
     exc_var: Exception = {exc}.pop()
     assert isinstance(exc_var, Exception)
     try: raise exc_var
@@ -1087,6 +1116,9 @@ def accept_LookupError(exc: LookupError):
     inferred_var = LookupError('message')
     if cython.compiled: assert cython.typeof(inferred_var) == 'LookupError object', cython.typeof(inferred_var)
     assert isinstance(inferred_var, LookupError)
+    inferred_subtypes_var = IndexError('message') if exc else KeyError('message')
+    if cython.compiled: assert cython.typeof(inferred_subtypes_var) == 'LookupError object', cython.typeof(inferred_subtypes_var)
+    assert isinstance(inferred_subtypes_var, LookupError)
     exc_var: LookupError = {exc}.pop()
     assert isinstance(exc_var, LookupError)
     try: raise exc_var
@@ -1261,6 +1293,9 @@ def accept_OSError(exc: OSError):
     inferred_var = OSError('message')
     if cython.compiled: assert cython.typeof(inferred_var) == 'OSError object', cython.typeof(inferred_var)
     assert isinstance(inferred_var, OSError)
+    inferred_subtypes_var = BlockingIOError('message') if exc else ChildProcessError('message') if exc else ConnectionError('message') if exc else FileExistsError('message') if exc else FileNotFoundError('message') if exc else InterruptedError('message') if exc else IsADirectoryError('message') if exc else NotADirectoryError('message') if exc else PermissionError('message') if exc else ProcessLookupError('message') if exc else TimeoutError('message') if exc else BrokenPipeError('message') if exc else ConnectionAbortedError('message') if exc else ConnectionRefusedError('message') if exc else ConnectionResetError('message') if exc else EnvironmentError('message') if exc else IOError('message')
+    if cython.compiled: assert cython.typeof(inferred_subtypes_var) == 'OSError object', cython.typeof(inferred_subtypes_var)
+    assert isinstance(inferred_subtypes_var, OSError)
     exc_var: OSError = {exc}.pop()
     assert isinstance(exc_var, OSError)
     try: raise exc_var
@@ -1427,6 +1462,9 @@ def accept_RuntimeError(exc: RuntimeError):
     inferred_var = RuntimeError('message')
     if cython.compiled: assert cython.typeof(inferred_var) == 'RuntimeError object', cython.typeof(inferred_var)
     assert isinstance(inferred_var, RuntimeError)
+    inferred_subtypes_var = NotImplementedError('message') if exc else RecursionError('message')
+    if cython.compiled: assert cython.typeof(inferred_subtypes_var) == 'RuntimeError object', cython.typeof(inferred_subtypes_var)
+    assert isinstance(inferred_subtypes_var, RuntimeError)
     exc_var: RuntimeError = {exc}.pop()
     assert isinstance(exc_var, RuntimeError)
     try: raise exc_var
@@ -1786,6 +1824,9 @@ def accept_Warning(exc: Warning):
     inferred_var = Warning('message')
     if cython.compiled: assert cython.typeof(inferred_var) == 'Warning object', cython.typeof(inferred_var)
     assert isinstance(inferred_var, Warning)
+    inferred_subtypes_var = BytesWarning('message') if exc else DeprecationWarning('message') if exc else FutureWarning('message') if exc else ImportWarning('message') if exc else PendingDeprecationWarning('message') if exc else ResourceWarning('message') if exc else RuntimeWarning('message') if exc else SyntaxWarning('message') if exc else UnicodeWarning('message') if exc else UserWarning('message')
+    if cython.compiled: assert cython.typeof(inferred_subtypes_var) == 'Warning object', cython.typeof(inferred_subtypes_var)
+    assert isinstance(inferred_subtypes_var, Warning)
     exc_var: Warning = {exc}.pop()
     assert isinstance(exc_var, Warning)
     try: raise exc_var
