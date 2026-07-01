@@ -15,10 +15,12 @@ cdef test(object register=None, object length=None):
     return length, _on_done()
 
 
-cdef test_multi(object device_index, object register=2, object tdi_data=3):
-    def inner():
-        return (device_index, register, tdi_data)
-    return inner()
+def run_default():
+    """
+    >>> run_default()
+    (None, None)
+    """
+    return test(0)
 
 
 def run_passed():
@@ -29,20 +31,40 @@ def run_passed():
     return test(0, 196883)
 
 
-def run_default():
-    """
-    >>> run_default()
-    (None, None)
-    """
-    return test(0)
+cdef test_ctype(int register=7):
+    def inner():
+        return (register)
+    return register, inner()
 
 
-def run_multi_all():
+def run_ctype_default():
     """
-    >>> run_multi_all()
-    (1, 20, 30)
+    >>> run_ctype_default()
+    (7, 7)
     """
-    return test_multi(1, 20, 30)
+    return test_ctype(7)
+
+
+def run_ctype_passed():
+    """
+    >>> run_ctype_passed()
+    (17, 17)
+    """
+    return test_ctype(17)
+
+
+cdef test_multi(object device_index, object register=2, object tdi_data=3):
+    def inner():
+        return (device_index, register, tdi_data)
+    return inner()
+
+
+def run_multi_defaults():
+    """
+    >>> run_multi_defaults()
+    (1, 2, 3)
+    """
+    return test_multi(1)
 
 
 def run_multi_partial():
@@ -53,9 +75,9 @@ def run_multi_partial():
     return test_multi(1, 20)
 
 
-def run_multi_defaults():
+def run_multi_all():
     """
-    >>> run_multi_defaults()
-    (1, 2, 3)
+    >>> run_multi_all()
+    (1, 20, 30)
     """
-    return test_multi(1)
+    return test_multi(1, 20, 30)
