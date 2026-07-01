@@ -9,11 +9,11 @@ from ..Builtin import (
     builtin_scope,
 )
 from ..Symtab import ModuleScope
-from ..PyrexTypes import py_object_type
-
-from ..Code import (
+from ..PyrexTypes import (
+    py_object_type,
     KNOWN_PYTHON_BUILTINS_VERSION, KNOWN_PYTHON_BUILTINS,
     uncachable_builtins,
+    KNOWN_EXCEPTION_NAMES, exception_supertypes,
 )
 
 from ...TestUtils import TimedTest
@@ -115,3 +115,26 @@ class TestBuiltinCompatibility(TimedTest):
                 if builtin_method is None:
                     self.assertIn(method_name, unsafe_methods)  # Non-portable methods are always unsafe.
                     continue
+
+
+class TestExceptions(TimedTest):
+    def test_hierarchy_completeness(self):
+        self.assertSetEqual(KNOWN_EXCEPTION_NAMES, set(exception_supertypes.keys()))
+        self.assertFalse(KNOWN_EXCEPTION_NAMES - set(KNOWN_PYTHON_BUILTINS))
+
+    def test_parents(self):
+        for exc_name, supertype_names in exception_supertypes.items():
+            exc_type = getattr(builtins, exc_name, None)
+            if exc_type is None:
+                # Older Python version?
+                self.assertIn(exc_name, uncachable_builtins)
+                continue
+
+            for supertype_name in supertype_names:
+                supertype = getattr(builtins, supertype_name, None)
+                if supertype is None:
+                    # Older Python version?
+                    self.assertIn(supertype_name, uncachable_builtins)
+                    continue
+
+                self.assertTrue(issubclass(exc_type, supertype), (exc_type, supertype))
