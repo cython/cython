@@ -120,6 +120,7 @@ class TestBuiltinCompatibility(TimedTest):
 class TestExceptions(TimedTest):
     def test_hierarchy_completeness(self):
         self.assertSetEqual(KNOWN_EXCEPTION_NAMES, set(exception_supertypes.keys()))
+        self.assertFalse(KNOWN_EXCEPTION_NAMES - set(KNOWN_PYTHON_BUILTINS))
 
     def test_parents(self):
         for exc_name, supertype_names in exception_supertypes.items():
@@ -136,5 +137,4 @@ class TestExceptions(TimedTest):
                     self.assertIn(supertype_name, uncachable_builtins)
                     continue
 
-                self.assertTrue(issubclass(supertype, supertype), supertype)
                 self.assertTrue(issubclass(exc_type, supertype), (exc_type, supertype))
