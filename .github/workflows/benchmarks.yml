@@ -45,7 +45,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -60,7 +60,7 @@ jobs:
           max-size: 250M
 
       - name: Setup python
-        uses: actions/setup-python@v6.2.0
+        uses: actions/setup-python@v6.3.0
         with:
           # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
           python-version: |

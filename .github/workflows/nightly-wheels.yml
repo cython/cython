@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - uses: deadsnakes/action@v3.2.0
         with:
