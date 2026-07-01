@@ -85,7 +85,7 @@ def gen_tests():
             func_code.append("inferred_subtypes_var = (")
             subclass_names = [name for name in all_subclasses[exc_name] if name != exc_name]
             for i, subclass_name in enumerate(subclass_names):
-                    func_code.append(f"    {'if exc else ' if i > 0 else ''}{subclass_name}('message')")
+                func_code.append(f"    {'if exc else ' if i > 0 else ''}{subclass_name}('message')")
             func_code.append(")")
             func_code.append(f"if cython.compiled: assert cython.typeof(inferred_subtypes_var) == '{exc_name} object', "
                 "cython.typeof(inferred_subtypes_var)")
