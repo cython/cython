@@ -23,7 +23,7 @@ cdef extern from *:
             pass
 
         @property
-        cdef inline double wrong_return(self):
+        cdef inline void wrong_return(self):
             pass
 
         @wrong_return.setter
