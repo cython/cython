@@ -13,17 +13,33 @@ cdef extern from *:
         return PyObject_GetAttrString(ex, "args");
     }
 
-    static int PyException_SetArgs(PyObject *ex, PyObject *value) {
+    static void PyException_SetArgs(PyObject *ex, PyObject *value) {
+        if (PyObject_SetAttrString(ex, "args", value) < 0) {
+            PyErr_WriteUnraisable(NULL);
+            PyErr_Clear();
+        }
+    }
+    #endif
+
+    static int PyException_SetArgs_Raising(PyObject *ex, PyObject *value) {
+        if (PyTuple_Check(value) && PyTuple_Size(value) == 0) {
+            PyErr_SetString(PyExc_RuntimeError, "expected failure");
+            return -1;
+        }
+        #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
+        PyException_SetArgs(ex, value);
+        #else
         if (PyObject_SetAttrString(ex, "args", value) < 0) {
             return -1;
         }
+        #endif
         return 0;
     }
-    #endif
     """
 
     object PyException_GetArgs(object)
     void PyException_SetArgs(object, object) noexcept
+    int PyException_SetArgs_Raising(object, object) except -1
 
     # Exception is just an easy class to use to test arbitrary getters/setters
     # without needing to define our own class.
@@ -33,8 +49,16 @@ cdef extern from *:
             return PyException_GetArgs(self)
 
         @args_obj.setter
-        cdef inline int args_obj(self, obj):
+        cdef inline void args_obj(self, obj):
             PyException_SetArgs(self, obj)
+
+        @property
+        cdef inline args_raising(self):
+            return PyException_GetArgs(self)
+
+        @args_raising.setter
+        cdef inline int args_raising(self, obj):
+            PyException_SetArgs_Raising(self, obj)
             return 0
 
         @property
@@ -43,9 +67,8 @@ cdef extern from *:
             return PyException_GetArgs(self)[0]
 
         @arg0_int.setter
-        cdef inline int arg0_int(self, int value):
+        cdef inline void arg0_int(self, int value):
             PyException_SetArgs(self, (value,))
-            return 0
 
         # This property returns the first arg whatever it is,
         # but only accepts a C string.
@@ -55,9 +78,8 @@ cdef extern from *:
             return PyException_GetArgs(self)[0]
 
         @arg0_mixed_str.setter
-        cdef inline int arg0_mixed_str(self, const char* value):
+        cdef inline void arg0_mixed_str(self, const char* value):
             PyException_SetArgs(self, (value,))
-            return 0
 
         # This property returns the first argument as a double,
         # but accepts any Python object
@@ -67,9 +89,8 @@ cdef extern from *:
             return PyException_GetArgs(self)[0]
 
         @arg0_mixed_double.setter
-        cdef inline int arg0_mixed_double(self, value):
+        cdef inline void arg0_mixed_double(self, value):
             PyException_SetArgs(self, (value,))
-            return 0
 
 
 @cython.test_assert_path_exists("//SimpleCallNode")
@@ -105,6 +126,21 @@ def test_set_obj(o):
     """
     e = Exception()
     e.args_obj = o
+    return e
+
+@cython.test_assert_path_exists("//SimpleCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def test_set_raising(o):
+    """
+    >>> test_set_raising((1, 2))
+    Exception(1, 2)
+    >>> test_set_raising(())
+    Traceback (most recent call last):
+        ...
+    RuntimeError: expected failure
+    """
+    e = Exception()
+    e.args_raising = o
     return e
 
 def forward(o):

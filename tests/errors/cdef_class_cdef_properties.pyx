@@ -23,7 +23,7 @@ cdef extern from *:
             pass
 
         @property
-        cdef inline void wrong_return(self):
+        cdef inline double wrong_return(self):
             pass
 
         @wrong_return.setter
@@ -80,7 +80,7 @@ _ERRORS = """
 17:8: C property getter must have a single (self) argument
 21:8: C property setter must have two arguments (self and value)
 25:8: C property getter cannot return 'void'
-29:8: C property setter must return an 'int' error code, -1 (error) or 0 (ok)
+29:8: C property setter must return void or an 'int' error code, -1 (error) or 0 (ok)
 37:8: C property redeclared
 45:8: C property redeclared
 57:8: C property redeclared

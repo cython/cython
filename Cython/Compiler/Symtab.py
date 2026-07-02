@@ -3035,8 +3035,8 @@ class PropertyScope(Scope):
                 error(pos, "C property getter must have a single (self) argument")
 
         if name=="__set__":
-            if not type.return_type.is_int:
-                error(pos, "C property setter must return an 'int' error code, -1 (error) or 0 (ok)")
+            if not (type.return_type.is_void or type.return_type.is_int):
+                error(pos, "C property setter must return void or an 'int' error code, -1 (error) or 0 (ok)")
             if len(type.args) != 2:
                 error(pos, "C property setter must have two arguments (self and value)")
 
