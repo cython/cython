@@ -335,23 +335,23 @@ class PyrexType(BaseType):
 
     @property
     def may_be_pyint_type(self) -> bool:
-        return self is py_object_type or self.is_pyint_type
+        return self is py_object_type or self.is_pyint_type or self.resolve() is py_object_type
 
     @property
     def may_be_pyfloat_type(self) -> bool:
-        return self is py_object_type or self.is_pyfloat_type
+        return self is py_object_type or self.is_pyfloat_type or self.resolve() is py_object_type
 
     @property
     def may_be_pybytes_type(self) -> bool:
-        return self is py_object_type or self.is_pybytes_type
+        return self is py_object_type or self.is_pybytes_type or self.resolve() is py_object_type
 
     @property
     def may_be_pytuple_type(self) -> bool:
-        return self is py_object_type or self.is_pytuple_type
+        return self is py_object_type or self.is_pytuple_type or self.resolve() is py_object_type
 
     @property
     def may_be_pylist_type(self) -> bool:
-        return self is py_object_type or self.is_pylist_type
+        return self is py_object_type or self.is_pylist_type or self.resolve() is py_object_type
 
     def resolve(self):
         # If a typedef, returns the base type.

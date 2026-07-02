@@ -1946,7 +1946,7 @@ class UnicodeNode(ConstNode):
                   "Unicode literals do not support coercion to C types other "
                   "than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* "
                   "(for strings) or char*/void* (for auto-encoded strings).")
-        elif dst_type is not py_object_type:
+        elif dst_type.resolve() is not py_object_type:
             self.check_for_coercion_error(dst_type, env, fail=True)
         return self
 
