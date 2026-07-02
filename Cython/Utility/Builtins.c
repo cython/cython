@@ -931,3 +931,56 @@ static CYTHON_INLINE PyObject* __Pyx__PyFrozenDict_New(PyObject* frozendict_type
 #if CYTHON_COMPILING_IN_LIMITED_API
 Py_CLEAR(CGLOBAL(__Pyx_PyFrozenDictType));
 #endif
+
+
+/////////////// ExceptionGetArgs.proto ////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetArgs(PyObject *exception); /*proto*/
+
+/////////////// ExceptionGetArgs ////////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
+
+static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetArgs(PyObject *exception) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (likely(Py_TYPE(exception) == (PyTypeObject*) &PyExc_{{NAME}})) {
+        PyObject *result;
+        __Pyx_BEGIN_CRITICAL_SECTION(exception);
+        result = __Pyx_NewRef(((PyBaseExceptionObject*)exception)->args);
+        __Pyx_END_CRITICAL_SECTION();
+        return result;
+    }
+#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030c0000
+    if (likely(Py_TYPE(exception) == (PyTypeObject*) &PyExc_{{NAME}})) {
+        return PyException_GetArgs(exception);
+    }
+#endif
+    return __Pyx_PyObject_GetAttrStr(exception, PYIDENT("args"));
+}
+
+
+/////////////// ExceptionSetArgs.proto ////////////////
+
+static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetArgs(PyObject *exception, PyObject *value); /*proto*/
+
+/////////////// ExceptionSetArgs ////////////////
+//@requires: ObjectHandling.c::PyObjectSetAttrStr
+
+static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetArgs(PyObject *exception, PyObject *value) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (likely(Py_TYPE(exception) == (PyTypeObject*) &PyExc_{{NAME}})) {
+        PyObject *orig_args;
+        Py_INCREF(value);
+        __Pyx_BEGIN_CRITICAL_SECTION(exception);
+        orig_args = ((PyBaseExceptionObject*)exception)->args;
+        ((PyBaseExceptionObject*)exception)->args = value;
+        __Pyx_END_CRITICAL_SECTION();
+        Py_XDECREF(orig_args);
+        return 0;
+    }
+#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030c0000
+    if (likely(Py_TYPE(exception) == (PyTypeObject*) &PyExc_{{NAME}})) {
+        return PyException_SetArgs(exception, value);
+    }
+#endif
+    return __Pyx_PyObject_SetAttrStr(exception, PYIDENT("args"), value);
+}

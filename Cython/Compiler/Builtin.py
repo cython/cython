@@ -824,12 +824,20 @@ def init_builtin_exceptions():
         if builtin_scope.lookup_here(name) is not None:
             # Already declared as builtin type above in a more specialised way.
             continue
+
         utility_code = UtilityCode(
             proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
             name=f"Py{name}_Check",
         )
-        builtin_types[name] = builtin_scope.declare_builtin_type(
+        exc_type = builtin_types[name] = builtin_scope.declare_builtin_type(
             name, f"((PyTypeObject*)PyExc_{name})", utility_code=utility_code)
+
+        exc_type.scope.declare_cproperty(
+            "args", PyrexTypes.py_object_type,
+            f"__Pyx_Py{name}_GetArgs", f"__Pyx_Py{name}_SetArgs",
+            utility_code=TempitaUtilityCode.load("ExceptionGetArgs", "Builtins.c", context={'NAME': name}),
+            setter_utility_code=TempitaUtilityCode.load("ExceptionSetArgs", "Builtins.c", context={'NAME': name}),
+        )
 
     for name in PyrexTypes.KNOWN_EXCEPTION_NAMES:
         parents = PyrexTypes.exception_supertypes.get(name)
