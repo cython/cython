@@ -74,6 +74,23 @@ cdef extern from *:
         cdef inline void has_deleter(self):
             pass
 
+        @property
+        cdef inline wrong_setter_exceptval(self):
+            return 1
+
+        @wrong_setter_exceptval.setter
+        cdef inline int wrong_setter_exceptval(self, value) except 0:
+            return 1
+
+        @property
+        cdef inline void_setter_lacks_noexcept(self):
+            return 1
+
+        @void_setter_lacks_noexcept.setter
+        cdef inline void void_setter_lacks_noexcept(self, value):
+            pass
+
+
 _ERRORS = """
 5:8: C property method must be declared 'inline'
 13:8: C property method must be declared 'inline'
@@ -86,6 +103,8 @@ _ERRORS = """
 57:8: C property redeclared
 65:8: Mismatching C property names, expected 'mismatched_name', got 'hmmmmm'
 73:8: Cannot have deleter for C property
+81:8: C property setter with 'int' return needs explicit 'except -1' or 'except? -1'
+89:8: C property setter needs 'noexcept' if declared 'void'
 
 # Spurious
 69:8: Previous declaration is here

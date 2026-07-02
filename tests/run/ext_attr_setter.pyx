@@ -49,7 +49,7 @@ cdef extern from *:
             return PyException_GetArgs(self)
 
         @args_obj.setter
-        cdef inline void args_obj(self, obj):
+        cdef inline void args_obj(self, obj) noexcept:
             PyException_SetArgs(self, obj)
 
         @property
@@ -57,7 +57,7 @@ cdef extern from *:
             return PyException_GetArgs(self)
 
         @args_raising.setter
-        cdef inline int args_raising(self, obj):
+        cdef inline int args_raising(self, obj) except -1:
             PyException_SetArgs_Raising(self, obj)
             return 0
 
@@ -67,7 +67,7 @@ cdef extern from *:
             return PyException_GetArgs(self)[0]
 
         @arg0_int.setter
-        cdef inline void arg0_int(self, int value):
+        cdef inline void arg0_int(self, int value) noexcept:
             PyException_SetArgs(self, (value,))
 
         # This property returns the first arg whatever it is,
@@ -78,7 +78,7 @@ cdef extern from *:
             return PyException_GetArgs(self)[0]
 
         @arg0_mixed_str.setter
-        cdef inline void arg0_mixed_str(self, const char* value):
+        cdef inline void arg0_mixed_str(self, const char* value) noexcept:
             PyException_SetArgs(self, (value,))
 
         # This property returns the first argument as a double,
@@ -89,8 +89,19 @@ cdef extern from *:
             return PyException_GetArgs(self)[0]
 
         @arg0_mixed_double.setter
-        cdef inline void arg0_mixed_double(self, value):
+        cdef inline void arg0_mixed_double(self, value) noexcept:
             PyException_SetArgs(self, (value,))
+
+        @property
+        cdef inline maybe_raising(self):
+            return 1
+
+        @maybe_raising.setter
+        cdef inline int maybe_raising(self, value) except? -1:
+            if value == 1:
+                raise TypeError()
+            PyException_SetArgs(self, (value,))
+            return -1
 
 
 @cython.test_assert_path_exists("//SimpleCallNode")
@@ -104,6 +115,7 @@ def test_get_obj(Exception e):
     """
     return e.args_obj
 
+
 @cython.test_assert_path_exists("//SimpleCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
 def test_get_obj_temp(*args):
@@ -114,6 +126,7 @@ def test_get_obj_temp(*args):
     ()
     """
     return Exception(*args).args_obj
+
 
 @cython.test_assert_path_exists("//SimpleCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
@@ -127,6 +140,7 @@ def test_set_obj(o):
     e = Exception()
     e.args_obj = o
     return e
+
 
 @cython.test_assert_path_exists("//SimpleCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
@@ -142,6 +156,7 @@ def test_set_raising(o):
     e = Exception()
     e.args_raising = o
     return e
+
 
 def forward(o):
     return o
@@ -159,6 +174,7 @@ def test_set_obj_from_temp(o):
     e.args_obj = forward(o)
     return e
 
+
 @cython.test_assert_path_exists("//SimpleCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
 def test_set_obj_temp(*args):
@@ -170,6 +186,7 @@ def test_set_obj_temp(*args):
     """
     Exception().args_obj = args
 
+
 @cython.test_assert_path_exists("//SimpleCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
 def test_get_int(Exception e):
@@ -178,14 +195,13 @@ def test_get_int(Exception e):
     10
     >>> test_get_int(Exception())  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-        ...
     IndexError: ...
     >>> test_get_int(Exception(None))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-        ...
     TypeError: ...
     """
     return e.arg0_int
+
 
 @cython.test_assert_path_exists("//SimpleCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
@@ -195,12 +211,12 @@ def test_set_int(value):
     Exception(10)
     >>> test_set_int(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-        ...
     TypeError: ...
     """
     e = Exception()
     e.arg0_int = value
     return e
+
 
 @cython.test_assert_path_exists("//SimpleCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
@@ -213,16 +229,17 @@ def test_mixed_str(const char* s):
     e.arg0_mixed_str = s
     return e.arg0_mixed_str
 
+
 @cython.test_assert_path_exists("//SimpleCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
 def test_fail_mixed_str(v):
     """
     >>> test_fail_mixed_str([1, 2, 3])  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-        ...
     TypeError: ...
     """
     Exception().arg0_mixed_str = v
+
 
 @cython.test_assert_path_exists("//SimpleCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
@@ -235,13 +252,25 @@ def test_mixed_double(v):
     e.arg0_mixed_double = v
     return e.arg0_mixed_double
 
+
 @cython.test_assert_path_exists("//SimpleCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
 def test_fail_mixed_double(Exception e):
     """
     >>> test_fail_mixed_double(Exception("not a double"))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-        ...
     TypeError: ...
     """
     return e.arg0_mixed_double
+
+
+@cython.test_assert_path_exists("//SimpleCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def test_setter_maybe_raising(x):
+    """
+    >>> test_setter_maybe_raising(0)
+    >>> test_setter_maybe_raising(1)
+    Traceback (most recent call last):
+    TypeError
+    """
+    Exception().maybe_raising = x

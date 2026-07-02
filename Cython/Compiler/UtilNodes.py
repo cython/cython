@@ -408,6 +408,9 @@ class CPropertySetNode(ExprNodes.ExprNode):
         self.arg1.set_cname(rhs.result())
 
         self.call_node.generate_evaluation_code(code)
+        if not self.call_node.is_temp:
+            assert self.call_node.type.is_void, self.call_node.type
+            code.putln(f"{self.call_node.result()};")  # actually call the (void) setter
         self.call_node.generate_disposal_code(code)
         self.call_node.free_temps(code)
 

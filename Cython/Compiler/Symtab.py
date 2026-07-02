@@ -3055,12 +3055,19 @@ class PropertyScope(Scope):
                 error(pos, "C property getter must have a single (self) argument")
 
         if name=="__set__":
-            if not (type.return_type.is_void or type.return_type.is_int):
+            # Allow only 'void noexcept' and 'int except(?) -1'.
+            if type.return_type.is_void:
+                if type.exception_check or type.exception_value is not None:
+                    error(pos, "C property setter needs 'noexcept' if declared 'void'")
+            elif type.return_type in (PyrexTypes.c_int_type, PyrexTypes.c_returncode_type):
+                if type.exception_value is not None and type.exception_value.python_value != -1:
+                    error(pos, f"C property setter with 'int' return needs explicit 'except -1' or 'except? -1'")
+            else:
                 error(pos, "C property setter must return void or an 'int' error code, -1 (error) or 0 (ok)")
             if len(type.args) != 2:
                 error(pos, "C property setter must have two arguments (self and value)")
 
-        if not (type.args[0].type.is_pyobject or type.args[0].type is self.parent_scope.parent_type):
+        if type.args and not (type.args[0].type.is_pyobject or type.args[0].type is self.parent_scope.parent_type):
             error(pos, "self argument of C property method must be an object")
         if type.args and type.args[0].type is py_object_type:
             # Set 'self' argument type to extension type.
