@@ -939,6 +939,7 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetArgs(PyObject *exception); /*
 
 /////////////// ExceptionGetArgs ////////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: Synchronization.c::CriticalSections
 
 static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetArgs(PyObject *exception) {
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -964,6 +965,7 @@ static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetArgs(PyObject *exception, PyObject 
 
 /////////////// ExceptionSetArgs ////////////////
 //@requires: ObjectHandling.c::PyObjectSetAttrStr
+//@requires: Synchronization.c::CriticalSections
 
 static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetArgs(PyObject *exception, PyObject *value) {
 #if CYTHON_COMPILING_IN_CPYTHON
