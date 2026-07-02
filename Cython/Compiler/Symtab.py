@@ -2756,13 +2756,15 @@ class CClassScope(ClassScope):
         self.property_entries.append(entry)
         return entry
 
-    def declare_cproperty(self, name, type, cfunc_name, doc=None, pos=None, visibility='extern',
-                          nogil=False, with_gil=False, exception_value=None, exception_check=False,
-                          utility_code=None):
+    def declare_cproperty(self, name, type, cfunc_name, setter_cfunc_name=None,
+                          doc=None, pos=None, visibility='extern',
+                          nogil=False, with_gil=False,
+                          exception_value=None, exception_check=False, setter_raises=True,
+                          utility_code=None, setter_utility_code=None):
         """Internal convenience method to declare a C property function in one go.
         """
         property_entry = self.declare_property(name, doc=doc, ctype=type, pos=pos)
-        cfunc_entry = property_entry.scope.declare_cfunction(
+        getter_cfunc_entry = property_entry.scope.declare_cfunction(
             name="__get__",
             type=PyrexTypes.CFuncType(
                 type,
@@ -2777,7 +2779,25 @@ class CClassScope(ClassScope):
             visibility=visibility,
             pos=pos,
         )
-        return property_entry, cfunc_entry
+        setter_cfunc_entry = None
+        if setter_cfunc_name:
+            setter_cfunc_entry = property_entry.scope.declare_cfunction(
+                name="__set__",
+                type=PyrexTypes.CFuncType(
+                    PyrexTypes.c_returncode_type if setter_raises else PyrexTypes.c_void_type,
+                    [PyrexTypes.CFuncTypeArg("self", self.parent_type, pos=None),
+                     PyrexTypes.CFuncTypeArg("value", type, pos=None)],
+                    nogil=nogil,
+                    with_gil=with_gil,
+                    exception_value=-1 if setter_raises else None,
+                ),
+                cname=setter_cfunc_name,
+                # Allow getter+setter in one utility code section.
+                utility_code=setter_utility_code or utility_code,
+                visibility=visibility,
+                pos=pos,
+            )
+        return property_entry, getter_cfunc_entry, setter_cfunc_entry
 
     def declare_inherited_c_attributes(self, base_scope):
         # Declare entries for all the C attributes of an
