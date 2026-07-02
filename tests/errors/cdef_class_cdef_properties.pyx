@@ -11,24 +11,24 @@ cdef extern from *:
             return 1
 
         @no_inline2.setter
-        cdef void no_inline2(self, arg):
-            pass
+        cdef int no_inline2(self, arg):
+            return 0
 
         @property
         cdef inline wrong_args(self, arg):
             return 1
 
         @wrong_args.setter
-        cdef inline void wrong_args(self):
+        cdef inline int wrong_args(self):
             pass
-        
+
         @property
         cdef inline void wrong_return(self):
             pass
 
         @wrong_return.setter
-        cdef inline int wrong_return(self, arg):
-            return 0
+        cdef inline float wrong_return(self, arg):
+            return .0
 
         @property
         cdef inline multiple_defs1(self):
@@ -51,9 +51,9 @@ cdef extern from *:
             return 1
 
         @multiple_defs3.setter
-        cdef inline void multiple_defs3(self, arg):
-            pass
-        
+        cdef inline int multiple_defs3(self, arg):
+            return 0
+
         @multiple_defs3.setter
         cdef inline multiple_defs3(self, arg):
             pass
@@ -80,7 +80,7 @@ _ERRORS = """
 17:8: C property getter must have a single (self) argument
 21:8: C property setter must have two arguments (self and value)
 25:8: C property getter cannot return 'void'
-29:8: C property setter must return 'void'
+29:8: C property setter must return an 'int' error code, -1 (error) or 0 (ok)
 37:8: C property redeclared
 45:8: C property redeclared
 57:8: C property redeclared
@@ -91,4 +91,4 @@ _ERRORS = """
 69:8: Previous declaration is here
 73:8: 'has_deleter' redeclared
 """
-            
+

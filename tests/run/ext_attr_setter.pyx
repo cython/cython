@@ -13,11 +13,11 @@ cdef extern from *:
         return PyObject_GetAttrString(ex, "args");
     }
 
-    static void PyException_SetArgs(PyObject *ex, PyObject *value) {
+    static int PyException_SetArgs(PyObject *ex, PyObject *value) {
         if (PyObject_SetAttrString(ex, "args", value) < 0) {
-            PyErr_WriteUnraisable(NULL);
-            PyErr_Clear();
+            return -1;
         }
+        return 0;
     }
     #endif
     """
@@ -33,8 +33,9 @@ cdef extern from *:
             return PyException_GetArgs(self)
 
         @args_obj.setter
-        cdef inline void args_obj(self, obj):
+        cdef inline int args_obj(self, obj):
             PyException_SetArgs(self, obj)
+            return 0
 
         @property
         cdef inline int arg0_int(self):
@@ -42,8 +43,9 @@ cdef extern from *:
             return PyException_GetArgs(self)[0]
 
         @arg0_int.setter
-        cdef inline void arg0_int(self, int value):
+        cdef inline int arg0_int(self, int value):
             PyException_SetArgs(self, (value,))
+            return 0
 
         # This property returns the first arg whatever it is,
         # but only accepts a C string.
@@ -53,8 +55,9 @@ cdef extern from *:
             return PyException_GetArgs(self)[0]
 
         @arg0_mixed_str.setter
-        cdef inline void arg0_mixed_str(self, const char* value):
+        cdef inline int arg0_mixed_str(self, const char* value):
             PyException_SetArgs(self, (value,))
+            return 0
 
         # This property returns the first argument as a double,
         # but accepts any Python object
@@ -64,8 +67,9 @@ cdef extern from *:
             return PyException_GetArgs(self)[0]
 
         @arg0_mixed_double.setter
-        cdef inline void arg0_mixed_double(self, value):
+        cdef inline int arg0_mixed_double(self, value):
             PyException_SetArgs(self, (value,))
+            return 0
 
 
 @cython.test_assert_path_exists("//SimpleCallNode")

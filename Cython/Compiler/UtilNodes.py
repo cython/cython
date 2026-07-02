@@ -408,6 +408,8 @@ class CPropertySetNode(ExprNodes.ExprNode):
         self.arg1.set_cname(rhs.result())
 
         self.call_node.generate_evaluation_code(code)
+        self.call_node.generate_disposal_code(code)
+        self.call_node.free_temps(code)
 
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
