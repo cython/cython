@@ -1,7 +1,7 @@
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Symtab import ModuleScope
-from Cython.TestUtils import TransformTest
-from Cython.Compiler.Visitor import MethodDispatcherTransform
+from Cython.TestUtils import TransformTest, TimedTest
+from Cython.Compiler.Visitor import MethodDispatcherTransform, _test_flatten_list as test_flatten_list
 from Cython.Compiler.ParseTreeTransforms import (
     NormalizeTree, AnalyseDeclarationsTransform,
     AnalyseExpressionsTransform, InterpretCompilerDirectives)
@@ -59,3 +59,61 @@ class TestMethodDispatcherTransform(TransformTest):
         Test(None)(tree)
         self.assertEqual(1, calls['bytes'])
         self.assertEqual(0, calls['object'])
+
+
+class TestVisitorTransform(TimedTest):
+    def test_flatten_list_unchanged(self):
+        for test_list in [[], [1], [1,2], [0], [0,0]]:
+            self.assertIs(test_flatten_list(test_list), test_list)
+
+    def test_flatten_list_unchanged_sublist(self):
+        for test_list in [
+                [[1]],
+                [[1,2]],
+                [[1,2], 3],
+                [[1,2], None, []],
+            ]:
+            self.assertIs(test_flatten_list(test_list), test_list[0])
+
+        for test_list in [
+                [None, [1]],
+                [[], [1,2]],
+                [[], [1,2], []],
+                [[], [1,2], None],
+                [[], [1,2], 3],
+                [None, [1,2], None, []],
+                [None, [1,2], None, [3]],
+            ]:
+            self.assertIs(test_flatten_list(test_list), test_list[1])
+
+    def test_flatten_list_mixed(self):
+        self.assertListEqual(test_flatten_list([1, []]), [1])
+        self.assertListEqual(test_flatten_list([[], [], []]), [])
+        self.assertListEqual(test_flatten_list([[], None, []]), [])
+        self.assertListEqual(test_flatten_list([None, [], None]), [])
+        self.assertListEqual(test_flatten_list([1, [2]]), [1, 2])
+        self.assertListEqual(test_flatten_list([[1], [2]]), [1, 2])
+        self.assertListEqual(test_flatten_list([[1,2], [3,4]]), [1, 2, 3, 4])
+        self.assertListEqual(test_flatten_list([[1,2], [0], [], 0, [4]]), [1, 2, 0, 0, 4])
+
+    def test_flatten_list_fuzzer(self):
+        def flatten(l):
+            return [
+                item
+                for item_or_list in filter(None, l)
+                for item in (item_or_list if type(item_or_list) is list else [item_or_list])
+            ]
+
+        from itertools import chain, combinations as mixer
+        test_items = [None, [], None, 1, [2], [], 3, None, [4], [5, 6], [], None]
+
+        from collections import defaultdict
+        counter = defaultdict(int)
+
+        for test_list in chain.from_iterable(mixer(test_items, length) for length in range(2, 7)):
+            counter[len(test_list)] += 1
+            test_list = list(test_list)
+            expected = flatten(test_list)
+            self.assertListEqual(test_flatten_list(test_list), expected)
+
+        #print("FUZZER TEST COUNTS:", dict(counter))

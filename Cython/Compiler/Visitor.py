@@ -223,6 +223,60 @@ class TreeVisitor:
         return result
 
 
+@cython.cfunc
+def _flatten_list(orig_list: list) -> list:
+    """
+    Flatten the list one level and remove any None.
+
+    Assumes input lists to be reusable and mutable.
+    May return the original list if it remains unchanged.
+    """
+    # Start lazy until we know that we really have to construct a different list.
+    newlist = None
+    i: cython.Py_ssize_t
+    use_before: cython.Py_ssize_t = 0
+
+    for i, x in enumerate(orig_list):
+        if x is None:
+            # Exclude x by not appending it to 'newlist' and not increasing 'use_before'.
+            pass
+        elif type(x) is list:
+            if x:
+                # Replace list object x by its content.
+                if newlist is not None:
+                    newlist.extend(x)
+                elif use_before == 0:
+                    # Stop being lazy and start newlist from x.
+                    newlist = x  # May mutate the input list in x.
+                else:
+                    # Stop being lazy and build newlist up to the last used item.
+                    newlist = orig_list[:use_before]
+                    newlist.extend(x)
+        elif newlist is not None:
+            newlist.append(x)
+        elif use_before == i:
+            # Keep counting items lazily.
+            use_before = i + 1
+        else:
+            # Stop being lazy and close the gap.
+            newlist = orig_list[:use_before]
+            newlist.append(x)
+
+    if newlist is not None:
+        return newlist
+    elif use_before < len(orig_list):
+        return orig_list[:use_before]
+    else:
+        return orig_list  # Original input list, no copy.
+
+
+def _test_flatten_list(orig_list: list) -> list:
+    """
+    Test entry point when compiled.
+    """
+    return _flatten_list(orig_list)
+
+
 class VisitorTransform(TreeVisitor):
     """
     A tree transform is a base class for visitors that wants to do stream
@@ -253,21 +307,9 @@ class VisitorTransform(TreeVisitor):
         result = self._visitchildren(parent, attrs, exclude)
         for attr, newnode in result.items():
             if type(newnode) is list:
-                newnode = self._flatten_list(newnode)
+                newnode = _flatten_list(newnode)
             setattr(parent, attr, newnode)
         return result
-
-    @cython.final
-    def _flatten_list(self, orig_list):
-        # Flatten the list one level and remove any None
-        newlist = []
-        for x in orig_list:
-            if x is not None:
-                if type(x) is list:
-                    newlist.extend(x)
-                else:
-                    newlist.append(x)
-        return newlist
 
     def visitchild(self, parent, attr, idx=0):
         # Helper to visit specific children from Python subclasses
