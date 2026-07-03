@@ -43,7 +43,7 @@ cdef extern from *:
 
     # Exception is just an easy class to use to test arbitrary getters/setters
     # without needing to define our own class.
-    ctypedef class __builtin__.Exception[object PyBaseExceptionObject, check_size ignore]:
+    ctypedef class __builtin__.Exception[object PyObject, check_size ignore]:
         @property
         cdef inline args_obj(self):
             return PyException_GetArgs(self)
