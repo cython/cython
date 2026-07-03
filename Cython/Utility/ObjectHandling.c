@@ -506,7 +506,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
     if ((CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS)) {
         // Note that there's a minor thread-safety issue where the size for wraparound may change before we use it.
         // CPython doesn't worry about it and serious violations will be caught by boundschecking anyway.
-        return __Pyx_PyList_GetItemRefFast(o, wrapped_i, unsafe_shared);
+        return __Pyx_PyList_GetItemRefFast(o, wrapped_i, boundscheck, unsafe_shared);
     } else
     {{endif}}
     if ((!boundscheck) || likely(__Pyx_is_valid_index(wrapped_i, Py{{type}}_GET_SIZE(o)))) {
@@ -545,7 +545,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
     #endif
 #else
     if ((!wraparound || i >= 0) & PyList_CheckExact(o)) {
-        return __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared);
+        return __Pyx_PyList_GetItemRefFast(o, i, boundscheck, unsafe_shared);
     } else
 #endif
 #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY

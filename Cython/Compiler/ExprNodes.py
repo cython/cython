@@ -3284,7 +3284,8 @@ class IteratorNode(ScopedExprNode):
         if test_name == 'List':
             code.putln(
                 f"{result_name} = __Pyx_PyList_GetItemRefFast("
-                f"{self.py_result()}, {self.counter_cname}, {self.may_be_unsafe_shared()});")
+                # We checked the size => disable bounds checking for safely owned lists (refcount == 1).
+                f"{self.py_result()}, {self.counter_cname}, 0, {self.may_be_unsafe_shared()});")
         else:  # Tuple
             code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
             code.putln(f"{result_name} = __Pyx_NewRef(PyTuple_GET_ITEM({self.py_result()}, {self.counter_cname}));")
@@ -8889,8 +8890,9 @@ class SequenceNode(ExprNode):
             code.putln("if (likely(Py%s_CheckExact(sequence))) {" % sequence_types[0])
         for i, item in enumerate(self.unpacked_items):
             if sequence_types[0] == "List":
+                # We checked the size => disable bounds checking for safely owned lists (refcount == 1).
                 code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast"
-                           f"(sequence, {i}, {self.may_be_unsafe_shared()});")
+                           f"(sequence, {i}, 0, {self.may_be_unsafe_shared()});")
                 code.putln(code.error_goto_if_null(item.result(), self.pos))
                 code.put_xgotref(item.result(), item.ctype())
             else:  # Tuple
@@ -8900,7 +8902,8 @@ class SequenceNode(ExprNode):
             code.putln("} else {")
             for i, item in enumerate(self.unpacked_items):
                 if sequence_types[1] == "List":
-                    code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast(sequence, {i}, {self.may_be_unsafe_shared()});")
+                    # We checked the size => disable bounds checking for safely owned lists (refcount == 1).
+                    code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast(sequence, {i}, 0, {self.may_be_unsafe_shared()});")
                     code.putln(code.error_goto_if_null(item.result(), self.pos))
                     code.put_xgotref(item.result(), item.ctype())
                 else:  # Tuple
