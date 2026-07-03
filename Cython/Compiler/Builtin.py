@@ -832,12 +832,25 @@ def init_builtin_exceptions():
         exc_type = builtin_types[name] = builtin_scope.declare_builtin_type(
             name, f"((PyTypeObject*)PyExc_{name})", utility_code=utility_code)
 
-        exc_type.scope.declare_cproperty(
-            "args", PyrexTypes.py_object_type,
-            f"__Pyx_Py{name}_GetArgs", f"__Pyx_Py{name}_SetArgs",
-            utility_code=TempitaUtilityCode.load("ExceptionGetArgs", "Builtins.c", context={'NAME': name}),
-            setter_utility_code=TempitaUtilityCode.load("ExceptionSetArgs", "Builtins.c", context={'NAME': name}),
-        )
+        # Also cover known subtypes, but avoid overly long chains of type pointer comparisons.
+        subtypes = [
+            tpname for tpname in PyrexTypes.exception_subtypes.get(name, ())
+            if tpname not in PyrexTypes.uncachable_builtins
+        ]
+        if len(subtypes) > 4:
+            subtypes = ()
+        utility_code_config = {'NAME': name, 'SUBTYPES': subtypes}
+
+        for property_name in ['Args', 'Context', 'Cause', 'Traceback']:
+            exc_type.scope.declare_cproperty(
+                "args" if property_name == 'Args' else f'__{property_name.lower()}__',
+                PyrexTypes.py_object_type,
+                f"__Pyx_Py{name}_Get{property_name}", f"__Pyx_Py{name}_Set{property_name}",
+                utility_code=TempitaUtilityCode.load(
+                    f"ExceptionGet{property_name}", "Builtins.c", context=utility_code_config),
+                setter_utility_code=TempitaUtilityCode.load(
+                    f"ExceptionSet{property_name}", "Builtins.c", context=utility_code_config),
+            )
 
     for name in PyrexTypes.KNOWN_EXCEPTION_NAMES:
         parents = PyrexTypes.exception_supertypes.get(name)

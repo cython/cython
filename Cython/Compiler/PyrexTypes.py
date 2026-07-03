@@ -1807,7 +1807,7 @@ exception_supertypes.update(
 )
 
 
-uncachable_builtins = [
+uncachable_builtins = frozenset([
     # Global/builtin names that cannot be cached because they may or may not
     # be available at import time, for various reasons:
     ## Python 3.15+
@@ -1830,7 +1830,7 @@ uncachable_builtins = [
     ## - others
     'breakpoint',  # Probably best left alone.
     '_',  # e.g. used by gettext
-]
+])
 
 
 class BuiltinObjectType(PyObjectType):
