@@ -154,6 +154,7 @@ static void __Pyx_RaiseDoubleKeywordsError(
 static void __Pyx_RaiseMappingExpectedError(PyObject* arg); /*proto*/
 
 //////////////////// RaiseMappingExpected ////////////////////
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
     __Pyx_RaiseTypeErrorWithObjectType(
