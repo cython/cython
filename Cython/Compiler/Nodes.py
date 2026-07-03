@@ -5,7 +5,7 @@
 
 import cython
 
-cython.declare(os=object, copy=object, chain=object,
+cython.declare(os=object, copy=object, chain=object, reduce=object,
                Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
                StructOrUnionScope=object, PyClassScope=object,
@@ -14,6 +14,7 @@ cython.declare(os=object, copy=object, chain=object,
 
 from contextlib import contextmanager
 import copy
+from functools import reduce
 from itertools import chain
 import enum
 
@@ -8509,14 +8510,20 @@ class ExceptClauseNode(Node):
         return self
 
     def infer_exception_type(self, env):
-        if self.pattern and len(self.pattern) == 1:
-            # Infer target type for simple "except XyzError as exc".
-            pattern = self.pattern[0]
-            if pattern.is_name:
+        exc_type = None
+        if self.pattern:
+            pattern_types = []
+            for pattern in self.pattern:
+                if not pattern.is_name:
+                    break
                 entry = env.lookup(pattern.name)
-                if entry and entry.is_type and entry.scope.is_builtin_scope:
-                    return entry.type
-        return Builtin.builtin_types["BaseException"]
+                if not entry or not entry.type.is_exception_type:
+                    break
+                pattern_types.append(entry.type)
+            else:
+                exc_type = reduce(PyrexTypes.spanning_exception_type, pattern_types)
+
+        return exc_type or Builtin.builtin_types["BaseException"]
 
     def body_may_need_exception(self):
         from .ParseTreeTransforms import HasNoExceptionHandlingVisitor
