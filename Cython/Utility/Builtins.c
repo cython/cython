@@ -943,7 +943,7 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetArgs(PyObject *exception); /*
 
 static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetArgs(PyObject *exception) {
 #if CYTHON_COMPILING_IN_CPYTHON
-    PyObject *exc_type = Py_TYPE(exception);
+    PyTypeObject *exc_type = Py_TYPE(exception);
     if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         PyObject *result;
         __Pyx_BEGIN_CRITICAL_SECTION(exception);
@@ -971,7 +971,7 @@ static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetArgs(PyObject *exception, PyObject 
 
 static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetArgs(PyObject *exception, PyObject *value) {
 #if CYTHON_COMPILING_IN_CPYTHON
-    PyObject *exc_type = Py_TYPE(exception);
+    PyTypeObject *exc_type = Py_TYPE(exception);
     if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         PyObject *orig_args;
         Py_INCREF(value);
@@ -983,7 +983,7 @@ static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetArgs(PyObject *exception, PyObject 
         return 0;
     }
 #elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030c0000
-    PyObject *exc_type = Py_TYPE(exception);
+    PyTypeObject *exc_type = Py_TYPE(exception);
     if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         PyException_SetArgs(exception, value);
         return 0;
@@ -1002,7 +1002,7 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetContext(PyObject *exception);
 //@requires: Synchronization.c::CriticalSections
 
 static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetContext(PyObject *exception) {
-    PyObject *exc_type = Py_TYPE(exception);
+    PyTypeObject *exc_type = Py_TYPE(exception);
     if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         return PyException_GetContext(exception);
     }
@@ -1019,7 +1019,7 @@ static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetContext(PyObject *exception, PyObje
 //@requires: Synchronization.c::CriticalSections
 
 static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetContext(PyObject *exception, PyObject *value) {
-    PyObject *exc_type = Py_TYPE(exception);
+    PyTypeObject *exc_type = Py_TYPE(exception);
     if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         Py_INCREF(value);
         PyException_SetContext(exception, value);
@@ -1038,7 +1038,7 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetCause(PyObject *exception); /
 //@requires: Synchronization.c::CriticalSections
 
 static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetCause(PyObject *exception) {
-    PyObject *exc_type = Py_TYPE(exception);
+    PyTypeObject *exc_type = Py_TYPE(exception);
     if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         return PyException_GetCause(exception);
     }
@@ -1055,7 +1055,7 @@ static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetCause(PyObject *exception, PyObject
 //@requires: Synchronization.c::CriticalSections
 
 static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetCause(PyObject *exception, PyObject *value) {
-    PyObject *exc_type = Py_TYPE(exception);
+    PyTypeObject *exc_type = Py_TYPE(exception);
     if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         Py_INCREF(value);
         PyException_SetCause(exception, value);
@@ -1074,7 +1074,7 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetTraceback(PyObject *exception
 //@requires: Synchronization.c::CriticalSections
 
 static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetTraceback(PyObject *exception) {
-    PyObject *exc_type = Py_TYPE(exception);
+    PyTypeObject *exc_type = Py_TYPE(exception);
     if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         PyObject *traceback = PyException_GetTraceback(exception);
         if (!traceback) {
@@ -1095,7 +1095,7 @@ static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetTraceback(PyObject *exception, PyOb
 //@requires: Synchronization.c::CriticalSections
 
 static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetTraceback(PyObject *exception, PyObject *value) {
-    PyObject *exc_type = Py_TYPE(exception);
+    PyTypeObject *exc_type = Py_TYPE(exception);
     if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         return PyException_SetTraceback(exception, value);
     }
