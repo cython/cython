@@ -1797,14 +1797,18 @@ KNOWN_EXCEPTION_NAMES = frozenset(chain(
     chain.from_iterable(exception_subtypes.values()),
 ))
 
-exception_supertypes = {'BaseException': ['BaseException']}
-exception_supertypes.update(
-    # Rebuild the exception type MRO, knowing that the 'exception_subtypes' dict
+def _build_exception_mros(subtypes):
+    # Rebuild the exception type MRO, knowing that the 'subtypes' dict
     # was built breadth-first, listing all parents before their children.
-    (child, [child] + exception_supertypes[parent])
-    for parent, children in exception_subtypes.items()
-    for child in children
-)
+    supertypes = {'BaseException': ['BaseException']}
+    for parent, children in subtypes.items():
+        parent_supertypes = supertypes[parent]
+        for child in children:
+            supertypes[child] = [child] + parent_supertypes
+    return supertypes
+
+exception_supertypes = _build_exception_mros(exception_subtypes)
+del _build_exception_mros
 
 
 uncachable_builtins = frozenset([
