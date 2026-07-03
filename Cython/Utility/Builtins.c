@@ -933,171 +933,96 @@ Py_CLEAR(CGLOBAL(__Pyx_PyFrozenDictType));
 #endif
 
 
-/////////////// ExceptionGetArgs.proto ////////////////
+/////////////// ExceptionGetProperty.proto ////////////////
 
-static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetArgs(PyObject *exception); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx_Py{{EXC_NAME}}_get_{{PROPERTY_NAME}}(PyObject *exception); /*proto*/
 
-/////////////// ExceptionGetArgs ////////////////
+/////////////// ExceptionGetProperty ////////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: Synchronization.c::CriticalSections
 
-static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetArgs(PyObject *exception) {
+{{ py: assert PROPERTY_NAME in ('args', 'cause', 'context', 'traceback'), PROPERTY_NAME }}
+
+static CYTHON_INLINE PyObject* __Pyx_Py{{EXC_NAME}}_get_{{PROPERTY_NAME}}(PyObject *exception) {
 #if CYTHON_COMPILING_IN_CPYTHON
     PyTypeObject *exc_type = Py_TYPE(exception);
-    if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
+    if (likely(exc_type == (PyTypeObject*) &PyExc_{{EXC_NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         PyObject *result;
         __Pyx_BEGIN_CRITICAL_SECTION(exception);
-        result = __Pyx_NewRef(((PyBaseExceptionObject*)exception)->args);
+        result = __Pyx_NewRef(((PyBaseExceptionObject*)exception)->{{PROPERTY_NAME}});
         __Pyx_END_CRITICAL_SECTION();
         return result;
     }
+
+{{if PROPERTY_NAME == 'args'}}
 #elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030c0000
-    PyObject *exc_type = Py_TYPE(exception);
-    if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
-        return PyException_GetArgs(exception);
-    }
-#endif
-    return __Pyx_PyObject_GetAttrStr(exception, PYIDENT("args"));
-}
+{{else}}
+#else
+{{endif}}
 
-
-/////////////// ExceptionSetArgs.proto ////////////////
-
-static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetArgs(PyObject *exception, PyObject *value); /*proto*/
-
-/////////////// ExceptionSetArgs ////////////////
-//@requires: ObjectHandling.c::PyObjectSetAttrStr
-//@requires: Synchronization.c::CriticalSections
-
-static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetArgs(PyObject *exception, PyObject *value) {
-#if CYTHON_COMPILING_IN_CPYTHON
     PyTypeObject *exc_type = Py_TYPE(exception);
-    if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
-        PyObject *orig_args;
-        Py_INCREF(value);
-        __Pyx_BEGIN_CRITICAL_SECTION(exception);
-        orig_args = ((PyBaseExceptionObject*)exception)->args;
-        ((PyBaseExceptionObject*)exception)->args = value;
-        __Pyx_END_CRITICAL_SECTION();
-        Py_XDECREF(orig_args);
-        return 0;
-    }
-#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030c0000
-    PyTypeObject *exc_type = Py_TYPE(exception);
-    if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
-        PyException_SetArgs(exception, value);
-        return 0;
-    }
-#endif
-    return __Pyx_PyObject_SetAttrStr(exception, PYIDENT("args"), value);
-}
-
-
-/////////////// ExceptionGetContext.proto ////////////////
-
-static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetContext(PyObject *exception); /*proto*/
-
-/////////////// ExceptionGetContext ////////////////
-//@requires: ObjectHandling.c::PyObjectGetAttrStr
-//@requires: Synchronization.c::CriticalSections
-
-static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetContext(PyObject *exception) {
-    PyTypeObject *exc_type = Py_TYPE(exception);
-    if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
-        return PyException_GetContext(exception);
-    }
-    return __Pyx_PyObject_GetAttrStr(exception, PYIDENT("__context__"));
-}
-
-
-/////////////// ExceptionSetContext.proto ////////////////
-
-static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetContext(PyObject *exception, PyObject *value); /*proto*/
-
-/////////////// ExceptionSetContext ////////////////
-//@requires: ObjectHandling.c::PyObjectSetAttrStr
-//@requires: Synchronization.c::CriticalSections
-
-static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetContext(PyObject *exception, PyObject *value) {
-    PyTypeObject *exc_type = Py_TYPE(exception);
-    if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
-        Py_INCREF(value);
-        PyException_SetContext(exception, value);
-        return 0;
-    }
-    return __Pyx_PyObject_SetAttrStr(exception, PYIDENT("__context__"), value);
-}
-
-
-/////////////// ExceptionGetCause.proto ////////////////
-
-static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetCause(PyObject *exception); /*proto*/
-
-/////////////// ExceptionGetCause ////////////////
-//@requires: ObjectHandling.c::PyObjectGetAttrStr
-//@requires: Synchronization.c::CriticalSections
-
-static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetCause(PyObject *exception) {
-    PyTypeObject *exc_type = Py_TYPE(exception);
-    if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
-        return PyException_GetCause(exception);
-    }
-    return __Pyx_PyObject_GetAttrStr(exception, PYIDENT("__cause__"));
-}
-
-
-/////////////// ExceptionSetCause.proto ////////////////
-
-static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetCause(PyObject *exception, PyObject *value); /*proto*/
-
-/////////////// ExceptionSetCause ////////////////
-//@requires: ObjectHandling.c::PyObjectSetAttrStr
-//@requires: Synchronization.c::CriticalSections
-
-static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetCause(PyObject *exception, PyObject *value) {
-    PyTypeObject *exc_type = Py_TYPE(exception);
-    if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
-        Py_INCREF(value);
-        PyException_SetCause(exception, value);
-        return 0;
-    }
-    return __Pyx_PyObject_SetAttrStr(exception, PYIDENT("__cause__"), value);
-}
-
-
-/////////////// ExceptionGetTraceback.proto ////////////////
-
-static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetTraceback(PyObject *exception); /*proto*/
-
-/////////////// ExceptionGetTraceback ////////////////
-//@requires: ObjectHandling.c::PyObjectGetAttrStr
-//@requires: Synchronization.c::CriticalSections
-
-static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetTraceback(PyObject *exception) {
-    PyTypeObject *exc_type = Py_TYPE(exception);
-    if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
+    if (likely(exc_type == (PyTypeObject*) &PyExc_{{EXC_NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
+        {{if PROPERTY_NAME == 'traceback'}}
         PyObject *traceback = PyException_GetTraceback(exception);
         if (!traceback) {
             traceback = __Pyx_NewRef(Py_None);
         }
         return traceback;
+        {{else}}
+        return PyException_Get{{ PROPERTY_NAME.capitalize() }}(exception);
+        {{endif}}
     }
-    return __Pyx_PyObject_GetAttrStr(exception, PYIDENT("__traceback__"));
+#endif
+
+    return __Pyx_PyObject_GetAttrStr(exception, PYIDENT("{{ 'args' if PROPERTY_NAME == 'args' else f'__{PROPERTY_NAME}__' }}"));
 }
 
 
-/////////////// ExceptionSetTraceback.proto ////////////////
+/////////////// ExceptionSetProperty.proto ////////////////
 
-static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetTraceback(PyObject *exception, PyObject *value); /*proto*/
+static CYTHON_INLINE int __Pyx_Py{{EXC_NAME}}_set_{{PROPERTY_NAME}}(PyObject *exception, PyObject *value); /*proto*/
 
-/////////////// ExceptionSetTraceback ////////////////
+/////////////// ExceptionSetProperty ////////////////
 //@requires: ObjectHandling.c::PyObjectSetAttrStr
 //@requires: Synchronization.c::CriticalSections
 
-static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetTraceback(PyObject *exception, PyObject *value) {
+{{ py: assert PROPERTY_NAME in ('args', 'cause', 'context', 'traceback'), PROPERTY_NAME }}
+
+static CYTHON_INLINE int __Pyx_Py{{EXC_NAME}}_set_{{PROPERTY_NAME}}(PyObject *exception, PyObject *value) {
+#if CYTHON_COMPILING_IN_CPYTHON
     PyTypeObject *exc_type = Py_TYPE(exception);
-    if (likely(exc_type == (PyTypeObject*) &PyExc_{{NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
-        return PyException_SetTraceback(exception, value);
+    if (likely(exc_type == (PyTypeObject*) &PyExc_{{EXC_NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
+        PyObject *orig_value;
+        Py_INCREF(value);
+        __Pyx_BEGIN_CRITICAL_SECTION(exception);
+        orig_value = ((PyBaseExceptionObject*)exception)->{{PROPERTY_NAME}};
+        ((PyBaseExceptionObject*)exception)->{{PROPERTY_NAME}} = value;
+        __Pyx_END_CRITICAL_SECTION();
+        Py_XDECREF(orig_value);
+        return 0;
     }
-    return __Pyx_PyObject_SetAttrStr(exception, PYIDENT("__traceback__"), value);
+
+{{if PROPERTY_NAME == 'args'}}
+#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030c0000
+{{else}}
+#else
+{{endif}}
+
+    PyTypeObject *exc_type = Py_TYPE(exception);
+    if (likely(exc_type == (PyTypeObject*) &PyExc_{{EXC_NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
+        {{if PROPERTY_NAME == 'traceback'}}
+        return PyException_SetTraceback(exception, value);
+        {{else}}
+
+        {{if PROPERTY_NAME in ('cause', 'context')}}
+        Py_INCREF(value);
+        {{endif}}
+
+        PyException_Set{{ PROPERTY_NAME.capitalize() }}(exception, value);
+        return 0;
+        {{endif}}
+    }
+#endif
+
+    return __Pyx_PyObject_SetAttrStr(exception, PYIDENT("{{ 'args' if PROPERTY_NAME == 'args' else f'__{PROPERTY_NAME}__' }}"), value);
 }

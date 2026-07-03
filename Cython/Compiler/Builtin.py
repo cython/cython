@@ -839,17 +839,21 @@ def init_builtin_exceptions():
         ]
         if len(subtypes) > 4:
             subtypes = ()
-        utility_code_config = {'NAME': name, 'SUBTYPES': subtypes}
 
-        for property_name in ['Args', 'Context', 'Cause', 'Traceback']:
+        utility_code_config = {'EXC_NAME': name, 'SUBTYPES': subtypes, 'PROPERTY_NAME': ''}
+
+        for property_name in ['args', 'context', 'cause', 'traceback']:
+            utility_code_config['PROPERTY_NAME'] = property_name
+
             exc_type.scope.declare_cproperty(
-                "args" if property_name == 'Args' else f'__{property_name.lower()}__',
+                "args" if property_name == 'args' else f'__{property_name}__',
                 PyrexTypes.py_object_type,
-                f"__Pyx_Py{name}_Get{property_name}", f"__Pyx_Py{name}_Set{property_name}",
+                f"__Pyx_Py{name}_get_{property_name}",
+                f"__Pyx_Py{name}_set_{property_name}",
                 utility_code=TempitaUtilityCode.load(
-                    f"ExceptionGet{property_name}", "Builtins.c", context=utility_code_config),
+                    f"ExceptionGetProperty", "Builtins.c", context=utility_code_config),
                 setter_utility_code=TempitaUtilityCode.load(
-                    f"ExceptionSet{property_name}", "Builtins.c", context=utility_code_config),
+                    f"ExceptionSetProperty", "Builtins.c", context=utility_code_config),
             )
 
     for name in PyrexTypes.KNOWN_EXCEPTION_NAMES:
