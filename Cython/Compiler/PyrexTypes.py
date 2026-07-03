@@ -3232,6 +3232,9 @@ class CFuncType(CType):
             # things like "-1 == -1.0" to be treated as the same function signature
             return self.python_value == other.python_value
 
+        def __repr__(self):
+            return f"{type(self).__name__}({self.python_value!r}, {self.c_repr!r}, {self.type})"
+
         def __str__(self):
             # Called for C code generation.
             return str(self.c_repr)
