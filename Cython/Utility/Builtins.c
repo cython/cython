@@ -950,7 +950,8 @@ obj_struct_name = (
 }}
 
 static CYTHON_INLINE PyObject* __Pyx_Py{{EXC_NAME}}_get_{{PROPERTY_NAME}}(PyObject *exception) {
-#if CYTHON_COMPILING_IN_CPYTHON
+
+#if CYTHON_COMPILING_IN_CPYTHON{{if EXC_NAME in ('AttributeError', 'NameError') and PROPERTY_NAME in ('obj', 'name')}} && PY_VERSION_HEX >= 0x030a0000{{endif}}
     PyTypeObject *exc_type = Py_TYPE(exception);
     if (likely(exc_type == (PyTypeObject*) &PyExc_{{EXC_NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         PyObject *result;
@@ -1003,7 +1004,8 @@ obj_struct_name = (
 }}
 
 static CYTHON_INLINE int __Pyx_Py{{EXC_NAME}}_set_{{PROPERTY_NAME}}(PyObject *exception, PyObject *value) {
-#if CYTHON_COMPILING_IN_CPYTHON
+
+#if CYTHON_COMPILING_IN_CPYTHON{{if EXC_NAME in ('AttributeError', 'NameError') and PROPERTY_NAME in ('obj', 'name')}} && PY_VERSION_HEX >= 0x030a0000{{endif}}
     PyTypeObject *exc_type = Py_TYPE(exception);
     if (likely(exc_type == (PyTypeObject*) &PyExc_{{EXC_NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         PyObject *orig_value;
