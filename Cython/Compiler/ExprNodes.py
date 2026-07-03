@@ -8150,10 +8150,11 @@ class AttributeNode(ExprNode):
         elif target and self.obj.type.is_builtin_type:
             error(self.pos, "Assignment to an immutable object field")
         elif self.entry and self.entry.is_cproperty:
-            if not target:
-                return SimpleCallNode.for_cproperty_get(self.pos, self.obj, self.entry).analyse_types(env)
+            if target:
+                call_node = SimpleCallNode.for_cproperty_set(self.pos, self.obj, self.entry)
             else:
-                return SimpleCallNode.for_cproperty_set(self.pos, self.obj, self.entry).analyse_types(env)
+                call_node = SimpleCallNode.for_cproperty_get(self.pos, self.obj, self.entry)
+            return call_node.analyse_types(env) if call_node is not None else None
         #elif self.type.is_memoryviewslice and not target:
         #    self.is_temp = True
         return self
