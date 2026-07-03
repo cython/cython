@@ -2,6 +2,7 @@
 #   Builtin Definitions
 #
 
+from itertools import chain
 
 from .StringEncoding import EncodedString
 from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
@@ -817,20 +818,32 @@ def init_builtin_types():
 def init_builtin_exceptions():
     """Declare known builtin Python exceptions as types.
     """
+    special_properties = {
+        'StopIteration': ['value'],
+        'NameError': ['name'],
+        'AttributeError': ['name', 'obj'],
+        'SystemExit': ['code'],
+    }
+    unicode_error_properties = ['encoding', 'object', 'reason']
+    for name in ['UnicodeError', 'UnicodeDecodeError', 'UnicodeEncodeError', 'UnicodeTranslateError']:
+        special_properties[name] = unicode_error_properties
+
     for name in PyrexTypes.KNOWN_EXCEPTION_NAMES:
         if name in PyrexTypes.uncachable_builtins:
             # Exclude builtins specific to later Python versions or platforms.
             continue
-        if builtin_scope.lookup_here(name) is not None:
-            # Already declared as builtin type above in a more specialised way.
-            continue
 
-        utility_code = UtilityCode(
-            proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
-            name=f"Py{name}_Check",
-        )
-        exc_type = builtin_types[name] = builtin_scope.declare_builtin_type(
-            name, f"((PyTypeObject*)PyExc_{name})", utility_code=utility_code)
+        # Some builtins are already declared above in a more specialised way.
+        type_entry = builtin_scope.lookup_here(name)
+        if type_entry is None:
+            utility_code = UtilityCode(
+                proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
+                name=f"Py{name}_Check",
+            )
+            exc_type = builtin_types[name] = builtin_scope.declare_builtin_type(
+                name, f"((PyTypeObject*)PyExc_{name})", utility_code=utility_code)
+        else:
+            exc_type = type_entry.type
 
         # Also cover known subtypes, but avoid overly long chains of type pointer comparisons.
         subtypes = [
@@ -842,11 +855,11 @@ def init_builtin_exceptions():
 
         utility_code_config = {'EXC_NAME': name, 'SUBTYPES': subtypes, 'PROPERTY_NAME': ''}
 
-        for property_name in ['args', 'context', 'cause', 'traceback']:
+        for property_name in chain(('args', 'context', 'cause', 'traceback'), special_properties.get(name, ())):
             utility_code_config['PROPERTY_NAME'] = property_name
 
             exc_type.scope.declare_cproperty(
-                "args" if property_name == 'args' else f'__{property_name}__',
+                f'__{property_name}__' if property_name in ('context', 'cause', 'traceback') else property_name,
                 PyrexTypes.py_object_type,
                 f"__Pyx_Py{name}_get_{property_name}",
                 f"__Pyx_Py{name}_set_{property_name}",

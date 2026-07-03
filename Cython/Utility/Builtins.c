@@ -941,7 +941,13 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{EXC_NAME}}_get_{{PROPERTY_NAME}}(PyObje
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: Synchronization.c::CriticalSections
 
-{{ py: assert PROPERTY_NAME in ('args', 'cause', 'context', 'traceback'), PROPERTY_NAME }}
+{{py:
+obj_struct_name = (
+    'PyBaseExceptionObject' if PROPERTY_NAME in ('args', 'cause', 'context', 'traceback') else
+    'PyUnicodeErrorObject' if EXC_NAME.startswith('Unicode') and EXC_NAME.endswith('Error') else
+    f'Py{EXC_NAME}Object'
+)
+}}
 
 static CYTHON_INLINE PyObject* __Pyx_Py{{EXC_NAME}}_get_{{PROPERTY_NAME}}(PyObject *exception) {
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -949,12 +955,13 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{EXC_NAME}}_get_{{PROPERTY_NAME}}(PyObje
     if (likely(exc_type == (PyTypeObject*) &PyExc_{{EXC_NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
         PyObject *result;
         __Pyx_BEGIN_CRITICAL_SECTION(exception);
-        result = __Pyx_NewRef(((PyBaseExceptionObject*)exception)->{{PROPERTY_NAME}});
+        result = __Pyx_NewRef((({{obj_struct_name}}*) exception)->{{PROPERTY_NAME}});
         __Pyx_END_CRITICAL_SECTION();
         return result;
     }
 
-{{if PROPERTY_NAME == 'args'}}
+{{if PROPERTY_NAME in ('args', 'cause', 'context', 'traceback') }}
+{{if PROPERTY_NAME == 'args' }}
 #elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030c0000
 {{else}}
 #else
@@ -972,9 +979,10 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{EXC_NAME}}_get_{{PROPERTY_NAME}}(PyObje
         return PyException_Get{{ PROPERTY_NAME.capitalize() }}(exception);
         {{endif}}
     }
+{{endif}}
 #endif
 
-    return __Pyx_PyObject_GetAttrStr(exception, PYIDENT("{{ 'args' if PROPERTY_NAME == 'args' else f'__{PROPERTY_NAME}__' }}"));
+    return __Pyx_PyObject_GetAttrStr(exception, PYIDENT("{{ f'__{PROPERTY_NAME}__' if PROPERTY_NAME in ('cause', 'context', 'traceback') else PROPERTY_NAME }}"));
 }
 
 
@@ -986,7 +994,13 @@ static CYTHON_INLINE int __Pyx_Py{{EXC_NAME}}_set_{{PROPERTY_NAME}}(PyObject *ex
 //@requires: ObjectHandling.c::PyObjectSetAttrStr
 //@requires: Synchronization.c::CriticalSections
 
-{{ py: assert PROPERTY_NAME in ('args', 'cause', 'context', 'traceback'), PROPERTY_NAME }}
+{{py:
+obj_struct_name = (
+    'PyBaseExceptionObject' if PROPERTY_NAME in ('args', 'cause', 'context', 'traceback') else
+    'PyUnicodeErrorObject' if EXC_NAME.startswith('Unicode') and EXC_NAME.endswith('Error') else
+    f'Py{EXC_NAME}Object'
+)
+}}
 
 static CYTHON_INLINE int __Pyx_Py{{EXC_NAME}}_set_{{PROPERTY_NAME}}(PyObject *exception, PyObject *value) {
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -995,14 +1009,15 @@ static CYTHON_INLINE int __Pyx_Py{{EXC_NAME}}_set_{{PROPERTY_NAME}}(PyObject *ex
         PyObject *orig_value;
         Py_INCREF(value);
         __Pyx_BEGIN_CRITICAL_SECTION(exception);
-        orig_value = ((PyBaseExceptionObject*)exception)->{{PROPERTY_NAME}};
-        ((PyBaseExceptionObject*)exception)->{{PROPERTY_NAME}} = value;
+        orig_value = (({{obj_struct_name}}*) exception)->{{PROPERTY_NAME}};
+        (({{obj_struct_name}}*) exception)->{{PROPERTY_NAME}} = value;
         __Pyx_END_CRITICAL_SECTION();
         Py_XDECREF(orig_value);
         return 0;
     }
 
-{{if PROPERTY_NAME == 'args'}}
+{{if PROPERTY_NAME in ('args', 'cause', 'context', 'traceback') }}
+{{if PROPERTY_NAME == 'args' }}
 #elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030c0000
 {{else}}
 #else
@@ -1022,7 +1037,8 @@ static CYTHON_INLINE int __Pyx_Py{{EXC_NAME}}_set_{{PROPERTY_NAME}}(PyObject *ex
         return 0;
         {{endif}}
     }
+{{endif}}
 #endif
 
-    return __Pyx_PyObject_SetAttrStr(exception, PYIDENT("{{ 'args' if PROPERTY_NAME == 'args' else f'__{PROPERTY_NAME}__' }}"), value);
+    return __Pyx_PyObject_SetAttrStr(exception, PYIDENT("{{ f'__{PROPERTY_NAME}__' if PROPERTY_NAME in ('cause', 'context', 'traceback') else PROPERTY_NAME }}"), value);
 }
