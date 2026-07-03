@@ -1033,7 +1033,7 @@ static CYTHON_INLINE int __Pyx_Py{{NAME}}_SetContext(PyObject *exception, PyObje
 
 static CYTHON_INLINE PyObject* __Pyx_Py{{NAME}}_GetCause(PyObject *exception); /*proto*/
 
-/////////////// ExceptionGetContext ////////////////
+/////////////// ExceptionGetCause ////////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: Synchronization.c::CriticalSections
 
