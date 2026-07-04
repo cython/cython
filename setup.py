@@ -159,10 +159,6 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     if sysconfig.get_config_var('Py_GIL_DISABLED') and platform.system() == "Windows":
         defines.append(('Py_GIL_DISABLED', 1))
 
-    if is_cpython:
-        # Reduce module sizes.
-        defines.append(('CYTHON_USE_TYPE_SPECS', '1'))
-
     extra_defines = []
     if cython_with_refnanny:
         extra_defines.append(('CYTHON_REFNANNY', '1'))
