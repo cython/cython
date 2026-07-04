@@ -125,6 +125,8 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.Optimize",
             ])
 
+    shared_utility_module = 'Cython._shared'
+
     from shutil import which
     from sysconfig import get_path
     pgen = which(
@@ -209,6 +211,16 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
 
     for ext in extensions:
         ext.cython_directives = cython_directives
+
+    # Add the shared utility module.
+    extensions.append(Extension(
+        shared_utility_module, sources=[shared_utility_module.replace('.', '/') + '.c'],
+        define_macros=defines + extra_defines,
+        **extra_extension_args,
+    ))
+
+    for ext in extensions:
+        ext.shared_utility_qualified_name = shared_utility_module
 
     # Make 'build_ext' use Cython.
     from Cython.Distutils.build_ext import build_ext as cy_build_ext
