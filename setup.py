@@ -107,9 +107,11 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.Code",
             "Cython.Compiler.FusedNode",
             "Cython.Compiler.Parsing",
+            "Cython.Compiler.StringEncoding",
             "Cython.Tempita._tempita",
             "Cython.StringIOTree",
             "Cython.Utils",
+            "Cython.LZSS",
         ])
     if compile_more and not compile_minimal:
         compiled_modules.extend([
@@ -121,7 +123,6 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.ExprNodes",
             "Cython.Compiler.ModuleNode",
             "Cython.Compiler.Optimize",
-            "Cython.LZSS",
             ])
 
     from shutil import which
