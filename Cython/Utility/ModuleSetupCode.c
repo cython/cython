@@ -1166,12 +1166,16 @@ enum __Pyx_ReferenceSharing {
 #endif
 
 
-#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && !CYTHON_COMPILING_IN_LIMITED_API && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
-  #define __Pyx_PyList_GetItemRefFast(o, i, boundscheck, unsafe_shared) ( \
-    (__Pyx_IS_UNIQUELY_REFERENCED(o, unsafe_shared) && ((!boundscheck) || likely(__Pyx_is_valid_index(i, PyList_GET_SIZE(o))))) ? \
-    __Pyx_NewRef(PyList_GET_ITEM(o, i)) : __Pyx_PyList_GetItemRef(o, i))
+#if CYTHON_AVOID_BORROWED_REFS || CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
+  #define __Pyx_PyList_GET_ITEM_REF(o, i, unsafe_shared)  ((void)(unsafe_shared), \
+      __Pyx_PyList_GetItemRef(o, i))
+#elif CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+  #define __Pyx_PyList_GET_ITEM_REF(o, i, unsafe_shared) ( \
+      __Pyx_IS_UNIQUELY_REFERENCED(o, unsafe_shared) ? \
+      __Pyx_NewRef(PyList_GET_ITEM(o, i)) : __Pyx_PyList_GetItemRef(o, i))
 #else
-  #define __Pyx_PyList_GetItemRefFast(o, i, boundscheck, unsafe_shared) __Pyx_PyList_GetItemRef(o, i)
+  #define __Pyx_PyList_GET_ITEM_REF(o, i, unsafe_shared)  ((void)(unsafe_shared), \
+      __Pyx_NewRef(PyList_GET_ITEM(o, i)))
 #endif
 
 #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
