@@ -513,8 +513,18 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
     }
     {{if type == 'List'}}
     return __Pyx_PyList_GetItemRef(o, wrapped_i);
+
     {{else}}
+    #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_COMPILING_IN_LIMITED_API
     return PySequence_ITEM(o, wrapped_i);
+    #else
+    // PySequence_GetItem() handles wrap-around, but we already did above.
+    if (unlikely(wrapped_i < 0)) {
+        PyErr_SetString(PyExc_IndexError, "tuple index out of range");
+        return NULL;
+    }
+    return PySequence_GetItem(o, wrapped_i);
+    #endif
     {{endif}}
 
 #elif CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS
