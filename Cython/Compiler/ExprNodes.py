@@ -640,15 +640,16 @@ class ExprNode(Node):
             # If it's a refcounted variable, we hold a reference to it. Therefore, if
             # the reference count is 1, we trust that we're the unique owner.
             return "__Pyx_ReferenceSharing_OwnStrongReference"
-        if not hasattr(self, "entry") or self.entry is None:
+        entry = getattr(self, "entry", None)
+        if entry is None:
             return "__Pyx_ReferenceSharing_SharedReference"  # Not sure if we can reason about it
-        if self.entry.is_arg:
+        if entry.is_arg:
             # Arguments are a little hard to reason about so need an extra level of check
             return "__Pyx_ReferenceSharing_FunctionArgument"
-        if (self.entry.scope.is_local_scope and
+        if (entry.scope.is_local_scope and
                 # TODO - in principle a generator closure should be "non shared" because
                 # only one thread can run the generator at once.
-                not self.entry.in_closure and not self.entry.from_closure):
+                not entry.in_closure and not entry.from_closure):
             return "__Pyx_ReferenceSharing_OwnStrongReference"
         # Most likely a global, or a class attribute
         return "__Pyx_ReferenceSharing_SharedReference"
