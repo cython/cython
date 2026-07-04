@@ -239,23 +239,28 @@ def _flatten_list(orig_list: list) -> list:
     for i, x in enumerate(orig_list):
         if x is None:
             # Exclude x by not appending it to 'newlist' and not increasing 'use_before'.
-            pass
-        elif type(x) is list:
-            if x:
-                # Replace list object x by its content.
-                if newlist is not None:
-                    newlist.extend(x)
-                elif use_before == 0:
-                    # Stop being lazy and start newlist from x.
-                    newlist = x  # May mutate the input list in x.
-                else:
-                    # Stop being lazy and build newlist up to the last used item.
-                    newlist = orig_list[:use_before]
-                    newlist.extend(x)
-        elif newlist is not None:
-            newlist.append(x)
+            continue
+        x_is_list: bool = type(x) is list
+        if x_is_list and not x:
+            continue
+
+        if newlist is not None:
+            # Non-lazy list building.
+            if x_is_list:
+                newlist.extend(x)
+            else:
+                newlist.append(x)
+        elif x_is_list:
+            # Stop being lazy and replace list object x by its content.
+            if use_before == 0:
+                # Start newlist from x.
+                newlist = x  # May mutate the input list in x.
+            else:
+                # Build newlist up to the last used item.
+                newlist = orig_list[:use_before]
+                newlist.extend(x)
         elif use_before == i:
-            # Keep counting items lazily.
+            # Keep counting single items lazily.
             use_before = i + 1
         else:
             # Stop being lazy and close the gap.
