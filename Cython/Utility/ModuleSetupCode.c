@@ -1146,36 +1146,42 @@ enum __Pyx_ReferenceSharing {
 #endif
 
 
-#if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-  #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
-    #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
-  #elif CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
+// __Pyx_PyList_GetItemRef(): return safely owned reference, bounds checking, no wraparound
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+  #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
+#elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+  #if CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
     #define __Pyx_PyList_GetItemRef(o, i) (likely((i) >= 0) ? PySequence_GetItem(o, i) : (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL))
   #else
     #define __Pyx_PyList_GetItemRef(o, i) PySequence_ITEM(o, i)
   #endif
-#elif CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
-  #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
-    #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
-  #else
-    #define __Pyx_PyList_GetItemRef(o, i) __Pyx_XNewRef(PyList_GetItem(o, i))
-  #endif
+#elif CYTHON_COMPILING_IN_LIMITED_API || !(CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE)
+  #define __Pyx_PyList_GetItemRef(o, i) __Pyx_XNewRef(PyList_GetItem(o, i))
 #else
-  // Note: no bounds checking!
-  #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
+  #define __Pyx_PyList_GetItemRef(o, i) (likely(__Pyx_is_valid_index(i, PyList_GET_SIZE(o))) ? \
+    __Pyx_NewRef(PyList_GET_ITEM(o, i)) : (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL))
 #endif
 
-
-#if CYTHON_AVOID_BORROWED_REFS || CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
+// __Pyx_PyList_GET_ITEM_REF(): return safely owned reference, no bounds checking (if avoidable), no wraparound
+#if CYTHON_AVOID_BORROWED_REFS || CYTHON_COMPILING_IN_LIMITED_API
   #define __Pyx_PyList_GET_ITEM_REF(o, i, unsafe_shared)  ((void)(unsafe_shared), \
       __Pyx_PyList_GetItemRef(o, i))
 #elif CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+  #if CYTHON_ASSUME_SAFE_MACROS
   #define __Pyx_PyList_GET_ITEM_REF(o, i, unsafe_shared) ( \
       __Pyx_IS_UNIQUELY_REFERENCED(o, unsafe_shared) ? \
       __Pyx_NewRef(PyList_GET_ITEM(o, i)) : __Pyx_PyList_GetItemRef(o, i))
-#else
+  #else
+  #define __Pyx_PyList_GET_ITEM_REF(o, i, unsafe_shared) ( \
+      __Pyx_IS_UNIQUELY_REFERENCED(o, unsafe_shared) ? \
+      __Pyx_XNewRef(PyList_GetItem(o, i)) : __Pyx_PyList_GetItemRef(o, i))
+  #endif
+#elif CYTHON_ASSUME_SAFE_MACROS
   #define __Pyx_PyList_GET_ITEM_REF(o, i, unsafe_shared)  ((void)(unsafe_shared), \
       __Pyx_NewRef(PyList_GET_ITEM(o, i)))
+#else
+  #define __Pyx_PyList_GET_ITEM_REF(o, i, unsafe_shared)  ((void)(unsafe_shared), \
+      __Pyx_XNewRef(PyList_GetItem(o, i)))
 #endif
 
 #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
@@ -1219,6 +1225,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   #define __Pyx_PyList_SET_ITEM(o, i, v) (PyList_SET_ITEM(o, i, v), (0))
   #define __Pyx_PyList_GET_ITEM(o, i) PyList_GET_ITEM(o, i)
 #else
+  // NOTE: implements wrap-around
   #define __Pyx_PySequence_ITEM(o, i) PySequence_GetItem(o, i)
   // NOTE: might fail with exception => check for -1
   #define __Pyx_PySequence_SIZE(seq)  PySequence_Size(seq)
