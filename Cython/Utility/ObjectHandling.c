@@ -502,10 +502,19 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
                                                               int wraparound, int boundscheck, int unsafe_shared) {
     CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
 #if CYTHON_AVOID_BORROWED_REFS
+    CYTHON_UNUSED_VAR(boundscheck);
+    Py_ssize_t wrapped_i = i;
+    if (wraparound & unlikely(i < 0)) {
+        Py_ssize_t size = __Pyx_Py{{type}}_GET_SIZE(o);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(size < 0)) return NULL;
+        #endif
+        wrapped_i += size;
+    }
     {{if type == 'List'}}
-    return __Pyx_PyList_GetItemRef(o, i);
+    return __Pyx_PyList_GetItemRef(o, wrapped_i);
     {{else}}
-    return PySequence_ITEM(o, i);
+    return PySequence_ITEM(o, wrapped_i);
     {{endif}}
 
 #elif CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS
