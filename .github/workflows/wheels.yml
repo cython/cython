@@ -62,7 +62,7 @@ jobs:
     outputs:
       include: ${{ steps.set-matrix.outputs.include }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v7.0.0
       - name: Install cibuildwheel
         # Nb. dependabot should keep cibuildwheel version pin consistent with job below
         run: pipx install $(grep -v '^\s*#' .github/cibuildwheel-requirement.txt)
@@ -105,9 +105,9 @@ jobs:
 
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
-      - uses: actions/setup-python@v6.2.0
+      - uses: actions/setup-python@v6.3.0
         with:
           python-version: '3.13'
 
@@ -145,9 +145,9 @@ jobs:
 
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
-      - uses: actions/setup-python@v6.2.0
+      - uses: actions/setup-python@v6.3.0
         with:
           python-version: '3.13'
 
@@ -181,10 +181,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       # Used to push the built wheels
-      - uses: actions/setup-python@v6.2.0
+      - uses: actions/setup-python@v6.3.0
         with:
           # Build sdist on lowest supported Python
           python-version: '3.8'
