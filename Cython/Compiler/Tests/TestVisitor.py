@@ -72,7 +72,7 @@ class TestVisitorTransform(TimedTest):
                 [[1,2]],
                 [[1,2], 3],
                 [[1,2], None, []],
-            ]:
+                ]:
             self.assertIs(test_flatten_list(test_list), test_list[0])
 
         for test_list in [
@@ -83,7 +83,7 @@ class TestVisitorTransform(TimedTest):
                 [[], [1,2], 3],
                 [None, [1,2], None, []],
                 [None, [1,2], None, [3]],
-            ]:
+                ]:
             self.assertIs(test_flatten_list(test_list), test_list[1])
 
     def test_flatten_list_mixed(self):
