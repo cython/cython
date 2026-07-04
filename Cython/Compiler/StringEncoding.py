@@ -2,13 +2,18 @@
 #   Cython -- encoding related tools
 #
 
+# cython: infer_types=True
 
 import re
+import cython
 
-
+@cython.final
+@cython.cclass
 class UnicodeLiteralBuilder:
     """Assemble a unicode string.
     """
+    chars: list
+
     def __init__(self):
         self.chars = []
 
@@ -29,9 +34,14 @@ class UnicodeLiteralBuilder:
         return (None, self.getstring())
 
 
+@cython.final
+@cython.cclass
 class BytesLiteralBuilder:
     """Assemble a byte string or char value.
     """
+    chars: list
+    target_encoding: str
+
     def __init__(self, target_encoding):
         self.chars = []
         self.target_encoding = target_encoding
@@ -60,9 +70,14 @@ class BytesLiteralBuilder:
         return (self.getstring(), None)
 
 
+@cython.final
+@cython.cclass
 class StrLiteralBuilder:
     """Assemble both a bytes and a unicode representation of a string.
     """
+    _bytes: BytesLiteralBuilder
+    _unicode: UnicodeLiteralBuilder
+
     def __init__(self, target_encoding):
         self._bytes   = BytesLiteralBuilder(target_encoding)
         self._unicode = UnicodeLiteralBuilder()
@@ -142,7 +157,7 @@ class BytesLiteral(bytes):
         return bytes(self)
 
     def utf8encode(self):
-        assert False, "this is not a unicode string: %r" % self
+        assert False, f"this is not a unicode string: {self!r}"
 
     def __str__(self):
         """Fake-decode the byte string to unicode to support %
@@ -154,9 +169,10 @@ class BytesLiteral(bytes):
 
     def as_c_string_literal(self):
         value = split_string_literal(escape_byte_string(self))
-        return '"%s"' % value
+        return f'"{value}"'
 
 
+@cython.ccall
 def bytes_literal(s, encoding):
     assert isinstance(s, bytes)
     s = BytesLiteral(s)
@@ -164,6 +180,7 @@ def bytes_literal(s, encoding):
     return s
 
 
+@cython.ccall
 def encoded_string(s, encoding):
     assert isinstance(s, (str, bytes))
     s = EncodedString(s)
@@ -188,10 +205,9 @@ char_from_escape_sequence = {
     r'\v' : '\v',
     }.get
 
-_c_special = ('\\', '??', '"') + tuple(map(chr, range(32)))
 
-
-def _to_escape_sequence(s):
+@cython.cfunc
+def _to_escape_sequence(s: str) -> str:
     if s in '\n\r\t':
         return repr(s)[1:-1]
     elif s == '"':
@@ -203,13 +219,19 @@ def _to_escape_sequence(s):
         return ''.join([f'\\{ord(c):03o}' for c in s])
 
 
+@cython.cfunc
 def _build_specials_replacer():
     subexps = []
     replacements = {}
+
+    _c_special: tuple = ('\\', '??', '"') + tuple(map(chr, range(32)))
+
+    special: str
     for special in _c_special:
         regexp = ''.join(['[%s]' % c.replace('\\', '\\\\') for c in special])
         subexps.append(regexp)
         replacements[special.encode('ASCII')] = _to_escape_sequence(special).encode('ASCII')
+
     sub = re.compile(('(%s)' % '|'.join(subexps)).encode('ASCII')).sub
     def replace_specials(m):
         return replacements[m.group(1)]
@@ -217,11 +239,11 @@ def _build_specials_replacer():
         return sub(replace_specials, s)
     return replace
 
-_replace_specials = _build_specials_replacer()
+_replace_specials = cython.declare(object, _build_specials_replacer())
 
 
-def escape_char(c):
-    c = c.decode('ISO-8859-1')
+def escape_char(char):
+    c: cython.Py_UCS4 = char.decode('ISO-8859-1')
     if c in '\n\r\t\\':
         return repr(c)[1:-1]
     elif c == "'":
@@ -229,19 +251,21 @@ def escape_char(c):
     n = ord(c)
     if n < 32 or n >= 127:
         # hex works well for characters
-        return "\\x%02X" % n
+        return f"\\x{n:02X}"
     else:
         # strictly £, @ and ` (which fall in this list) are only allowed
         # in C23. But practically they're well-supported earlier.
         return c
 
-def escape_byte_string(s):
+
+@cython.ccall
+def escape_byte_string(bytestring) -> str:
     """Escape a byte string so that it can be written into C code.
     Note that this returns a Unicode string instead which, when
     encoded as ASCII, will result in the correct byte sequence
     being written.
     """
-    s = _replace_specials(s)
+    s: bytes = _replace_specials(bytestring)
     try:
         return s.decode("ASCII")  #  trial decoding: plain ASCII => done
     except UnicodeDecodeError:
@@ -255,7 +279,9 @@ def escape_byte_string(s):
             append(b)
     return s_new.decode('ASCII')
 
-def split_string_literal(s, limit=2000):
+
+@cython.ccall
+def split_string_literal(s: str, limit: cython.int = 2000) -> str:
     # MSVC can't handle long string literals.
     if len(s) < limit:
         return s
@@ -277,10 +303,10 @@ def split_string_literal(s, limit=2000):
         return '""'.join(chunks)
 
 
-def encode_pyunicode_string(characters):
+def encode_pyunicode_string(string):
     """Create Py_UNICODE[] representation of a given unicode string.
     """
-    characters = list(map(ord, characters))
+    characters = list(map(ord, string))
     characters.append(0)
 
     utf16, utf32 = [], characters
