@@ -334,11 +334,14 @@ Other changes
 Bugs fixed
 ----------
 
-* Assignments of builtin string types to typedefs of `object` could erroneously be rejected.
-  (Github issue :issue:`7789`)
+* Function arguments with default values could end up uninitialised in closures, leading to crashes.
+  Patch by Anthony Donlon.  (Github issue :issue:`7782`)
 
 * ``bytearray.append(None)`` could crash. The optimised code was also lacking concurrency guards.
   (Github issue :issue:`7796`)
+
+* Assignments of builtin string types to typedefs of `object` could erroneously be rejected.
+  (Github issue :issue:`7789`)
 
 
 3.2.8 (2026-06-30)
