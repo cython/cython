@@ -3313,6 +3313,39 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             new_node = new_node.coerce_to(node.type, self.current_env())
         return new_node
 
+    PyByteArray_Extend_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_returncode_type, [
+            PyrexTypes.CFuncTypeArg("bytearray", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type, None),
+            ],
+        exception_value=-1)
+
+    def _handle_simple_method_bytearray_extend(self, node, function, args, is_unbound_method):
+        if len(args) != 2:
+            return node
+
+        value = unwrap_coerced_node(args[1])
+        arg_type = value.type
+        if arg_type.is_pybytes_type:
+            utility_code = UtilityCode.load_cached("ByteArrayExtendBytes", "StringTools.c")
+            func_name = "__Pyx_PyByteArray_ExtendBytes"
+            func_type = self.PyByteArray_Extend_func_type
+        else:
+            return node
+
+        value = value.as_none_safe_node("can't extend bytearray with NoneType")
+
+        new_node = ExprNodes.PythonCapiCallNode(
+            node.pos, func_name, func_type,
+            args=[args[0], value],
+            may_return_none=False,
+            is_temp=node.is_temp,
+            utility_code=utility_code,
+        )
+        if node.result_is_used:
+            new_node = new_node.coerce_to(node.type, self.current_env())
+        return new_node
+
     PyObject_Pop_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),

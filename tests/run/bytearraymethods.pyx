@@ -307,3 +307,64 @@ def fromhex(bytearray b):
     >>> fromhex(bytearray(b""))
     """
     assert b.fromhex('2Ef0 F1f2  ') == b'.\xf0\xf1\xf2'
+
+
+def bytearray_extend(bytearray b, value):
+    """
+    >>> bytearray_extend(bytearray(b''), b'xyz')
+    b'xyz'
+    >>> bytearray_extend(bytearray(b'abc'), b'xyz')
+    b'abcxyz'
+    >>> bytearray_extend(bytearray(b''), b'')
+    b''
+    >>> bytearray_extend(bytearray(b'abc'), b'')
+    b'abc'
+
+    >>> b = bytearray(b'')
+    >>> bytearray_extend(b, b)
+    b''
+    >>> b = bytearray(b'xyz')
+    >>> bytearray_extend(b, b)
+    b'xyzxyz'
+
+    >>> bytearray_extend(bytearray(b'abc'), None)
+    Traceback (most recent call last):
+    TypeError: can't extend bytearray with NoneType
+   """
+    b.extend(value)
+    return bytes(b)
+
+
+@cython.test_fail_if_path_exists('//SimpleCallNode[@function.attribute = "extend"]')
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+def bytearray_extend_bytes(bytearray b, bytes arg):
+    """
+    >>> bytearray_extend_bytes(bytearray(b''), b'')
+    b'aabcdefg'
+    >>> bytearray_extend_bytes(bytearray(b'xx'), b'yy')
+    b'xxaabcdefgyy'
+    >>> bytearray_extend_bytes(bytearray(b'xx'), None)
+    Traceback (most recent call last):
+    TypeError: can't extend bytearray with NoneType
+    """
+    b.extend(b'')
+    b.extend(b'a')
+    b.extend(b'')
+    b.extend(b'abcdefg')
+    b.extend(b'')
+    b.extend(arg)
+    return bytes(b)
+
+
+def bytearray_extend_bytearray(bytearray b):
+    """
+    >>> b = bytearray(b'')
+    >>> bytearray_extend_bytearray(b)
+    b'aabcdefg'
+    """
+    b.extend(bytearray(b''))
+    b.extend(bytearray(b'a'))
+    b.extend(bytearray(b''))
+    b.extend(bytearray(b'abcdefg'))
+    b.extend(bytearray(b''))
+    return bytes(b)
