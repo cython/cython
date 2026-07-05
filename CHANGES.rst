@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+3.2.9 (2026-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* Assignments of builtin string types to typedefs of `object` could erroneously be rejected.
+  (Github issue :issue:`7789`)
+
+
 3.2.8 (2026-06-30)
 ==================
 
