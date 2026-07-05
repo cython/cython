@@ -319,6 +319,10 @@ def bytearray_extend(bytearray b, value):
     b''
     >>> bytearray_extend(bytearray(b'abc'), b'')
     b'abc'
+    >>> bytearray_extend(bytearray(b'abc'), bytearray(b''))
+    b'abc'
+    >>> bytearray_extend(bytearray(b'abc'), bytearray(b'xyz'))
+    b'abcxyz'
 
     >>> b = bytearray(b'')
     >>> bytearray_extend(b, b)
@@ -330,6 +334,9 @@ def bytearray_extend(bytearray b, value):
     >>> bytearray_extend(bytearray(b'abc'), None)
     Traceback (most recent call last):
     TypeError: can't extend bytearray with NoneType
+    >>> bytearray_extend(None, b'abc')
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'extend'
    """
     b.extend(value)
     return bytes(b)
@@ -346,6 +353,9 @@ def bytearray_extend_bytes(bytearray b, bytes arg):
     >>> bytearray_extend_bytes(bytearray(b'xx'), None)
     Traceback (most recent call last):
     TypeError: can't extend bytearray with NoneType
+    >>> bytearray_extend_bytes(None, b'abc')
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'extend'
     """
     b.extend(b'')
     b.extend(b'a')
@@ -361,6 +371,9 @@ def bytearray_extend_bytearray(bytearray b):
     >>> b = bytearray(b'')
     >>> bytearray_extend_bytearray(b)
     b'aabcdefg'
+    >>> bytearray_extend_bytearray(None)
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'extend'
     """
     b.extend(bytearray(b''))
     b.extend(bytearray(b'a'))
