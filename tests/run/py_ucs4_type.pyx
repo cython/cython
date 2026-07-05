@@ -1,4 +1,3 @@
-# -*- coding: iso-8859-1 -*-
 # mode: run
 # tag: warnings
 
@@ -384,6 +383,14 @@ def uchar_cast_to_int(Py_UCS4 uchar):
     >>> uchar_cast_to_int(u'A')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: invalid literal for int() with base 10: ...A...
+    >>> uchar_cast_to_int('²')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: invalid literal for int() with base 10: ...²...
+
+    # Verify against Python
+    >>> int('²')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: invalid literal for int() with base 10: ...²...
     """
     cdef object ustr_object = uchar
     cdef str ustr_str = str(uchar)
@@ -400,6 +407,25 @@ def uchar_cast_to_float(Py_UCS4 uchar):
     >>> uchar_cast_to_float(u'A')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: could not convert string to float: ...A...
+    >>> uchar_cast_to_float('²')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: could not convert string to float: ...²...
+
+    # Verify against Python
+    >>> float('²')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: could not convert string to float: ...²...
+
+    # Test consistency with Python - which is a shame because the Py_UNICODE_TONUMERIC
+    # behaviour is actually nicer in some ways.
+    >>> uchar_cast_to_float('½')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: could not convert string to float: ...½...
+
+    # Verify against Python
+    >>> float('½')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: could not convert string to float: ...½...
     """
     cdef object ustr_object = uchar
     cdef str ustr_str = str(uchar)
@@ -417,6 +443,48 @@ def const_str_index(int n):
     return str(n)[0]
 
 
+def concat(Py_UCS4 a, Py_UCS4 b):
+    """
+    >>> concat('a', 'b')
+    'ab'
+    """
+    return a + b
+
+
+def plus_int(Py_UCS4 a, int b):
+    """
+    >>> plus_int('a', ord('b'))  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: can only concatenate str (not "int") to str
+    """
+    return a + b
+
+
+def plus_int_const(Py_UCS4 a):
+    """
+    >>> plus_int_const('a')  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: can only concatenate str (not "int") to str
+    """
+    return a + 1
+
+
+def multiply(Py_UCS4 a, int m):
+    """
+    >>> multiply('a', 5)
+    'aaaaa'
+    """
+    return a * m
+
+
+def multiply_const(Py_UCS4 a):
+    """
+    >>> multiply_const('a')
+    'aaa'
+    """
+    return a * 3
+
+
 _WARNINGS = """
-374:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
+373:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
 """

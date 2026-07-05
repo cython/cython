@@ -18,6 +18,8 @@ import warnings
 # from test import support, string_tests
 from contextlib import contextmanager
 
+from Cython.TestUtils import TimedTest
+
 
 class support(object):
     @staticmethod
@@ -78,7 +80,7 @@ class StrSubclass(str):
 class UnicodeTest(CommonTest,
         MixinStrUnicodeUserStringTest,
         MixinStrUnicodeTest,
-        unittest.TestCase):
+        TimedTest):
 
     type2test = str
 
@@ -840,10 +842,7 @@ class UnicodeTest(CommonTest,
         self.assertEqual('h\u0130'.capitalize(), 'H\u0069\u0307')
         exp = '\u0399\u0308\u0300\u0069\u0307'
         self.assertEqual('\u1fd2\u0130'.capitalize(), exp)
-        if sys.version_info < (3, 8):
-            self.assertEqual('ﬁnnish'.capitalize(), 'FInnish')
-        else:
-            self.assertEqual('ﬁnnish'.capitalize(), 'Finnish')
+        self.assertEqual('ﬁnnish'.capitalize(), 'Finnish')
         self.assertEqual('A\u0345\u03a3'.capitalize(), 'A\u0345\u03c2')
 
     def test_title(self):
@@ -1449,11 +1448,43 @@ class UnicodeTest(CommonTest,
         self.assertEqual('%X' % letter_m, '6D')
         self.assertEqual('%o' % letter_m, '155')
         self.assertEqual('%c' % letter_m, 'm')
-        self.assertRaisesRegex(TypeError, '%x format: an integer is required, not float', operator.mod, '%x', 3.14),
-        self.assertRaisesRegex(TypeError, '%X format: an integer is required, not float', operator.mod, '%X', 2.11),
-        self.assertRaisesRegex(TypeError, '%o format: an integer is required, not float', operator.mod, '%o', 1.79),
-        self.assertRaisesRegex(TypeError, '%x format: an integer is required, not PseudoFloat', operator.mod, '%x', pi),
-        self.assertRaises(TypeError, operator.mod, '%c', pi),
+        """
+        # Error message differs in Py3.15+
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %x requires an integer, not float'):
+            '%x' % 3.14
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %X requires an integer, not float'):
+            '%X' % 2.11
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %o requires an integer, not float'):
+            '%o' % 1.79
+        with self.assertRaisesRegex(TypeError,
+                r'format argument: %x requires an integer, not .*\.PseudoFloat'):
+            '%x' % pi
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %x requires an integer, not complex'):
+            '%x' % 3j
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %X requires an integer, not complex'):
+            '%X' % 2j
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %o requires an integer, not complex'):
+            '%o' % 1j
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %u requires a real number, not complex'):
+            '%u' % 3j
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %i requires a real number, not complex'):
+            '%i' % 2j
+        with self.assertRaisesRegex(TypeError,
+                'format argument: %d requires a real number, not complex'):
+            '%d' % 1j
+        with self.assertRaisesRegex(TypeError,
+                r'format argument: %c requires an integer or a unicode character, '
+                r'not .*\.PseudoFloat'):
+            '%c' % pi
+        """
 
     def test_formatting_with_enum(self):
         # issue18780
@@ -1664,10 +1695,9 @@ class UnicodeTest(CommonTest,
         for c in set_o:
             self.assertEqual(c.encode('ascii').decode('utf7'), c)
 
-        if sys.version_info >= (3, 8):
-            with self.assertRaisesRegex(UnicodeDecodeError,
-                                        'ill-formed sequence'):
-                b'+@'.decode('utf-7')
+        with self.assertRaisesRegex(UnicodeDecodeError,
+                                    'ill-formed sequence'):
+            b'+@'.decode('utf-7')
 
     def test_codecs_utf8(self):
         self.assertEqual(''.encode('utf-8'), b'')
@@ -2304,8 +2334,10 @@ class UnicodeTest(CommonTest,
         self.assertEqual(repr(s2()), '\\n')
 
     def test_printable_repr(self):
-        self.assertEqual(repr('\U00010000'), "'%c'" % (0x10000,)) # printable
-        self.assertEqual(repr('\U00014000'), "'\\U00014000'")     # nonprintable
+        # printable
+        self.assertEqual(repr('\U00010000'), "'%c'" % (0x10000,))
+        # nonprintable (private use area)
+        self.assertEqual(repr('\U00100001'), "'\\U00100001'")
 
     # This test only affects 32-bit platforms because expandtabs can only take
     # an int as the max value, not a 64-bit C long.  If expandtabs is changed
@@ -2381,7 +2413,6 @@ class UnicodeTest(CommonTest,
         self.assertEqual(args[0], text)
         self.assertEqual(len(args), 1)
 
-    @unittest.skipIf(sys.version_info < (3, 8), 'resize test requires Py3.8+')
     @support.cpython_only
     def test_resize(self):
         from _testcapi import getargs_u

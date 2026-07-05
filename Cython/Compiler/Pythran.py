@@ -156,7 +156,7 @@ def to_pythran(op, ptype=None):
     if op_type.is_int:
         # Make sure that integer literals always have exactly the type that the templates expect.
         return op_type.cast_code(op.result())
-    if is_pythran_expr(op_type) and (op.is_temp or getattr(op, "entry", None)):
+    if is_pythran_expr(op_type) and (op.result_in_temp() or getattr(op, "entry", None)):
         # Currently Pythran seems to generate different code for lvalve and rvalue references.
         # The inferred variable types are all in terms of rvalue references (std::declval).
         # Anything pythran expression written in terms of lvalue references ends up not

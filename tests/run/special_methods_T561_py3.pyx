@@ -33,31 +33,49 @@ cdef class VerySpecial:
 
     def __init__(self, v):
         self.value = v
-        print "VS __init__ %d" % self.value
+        print(f"VS __init__ {self.value}")
 
     def __nonzero__(self):
-        print "VS __nonzero__ %d" % self.value
+        print(f"VS __nonzero__ {self.value}")
 
     def __oct__(self):
-        print "VS __oct__ %d" % self.value
+        print(f"VS __oct__ {self.value}")
 
     def __hex__(self):
-        print "VS __hex__ %d" % self.value
+        print(f"VS __hex__ {self.value}")
 
     def __cmp__(self, other):
-        print "VS __cmp__ %d %d" % (self.value, other.value)
+        print(f"VS __cmp__ {self.value} {other.value}")
 
     def __div__(self, other):
-        print "VS __div__ %d %d" % (self.value, other.value)
+        print(f"VS __div__ {self.value} / {other.value}")
 
     def __idiv__(self, other):
-        print "VS __idiv__ %d /= %d" % (self.value, other.value)
+        print(f"VS __idiv__ {self.value} /= {other.value}")
+
+
+cdef class Bool:
+    """
+    >>> b = Bool()
+    >>> bool(b)
+    VS __bool__
+    False
+    """
+    def __bool__(self):
+        print("VS __bool__")
+
+    def __nonzero__(self):
+        print("VS __nonzero__")
+        return self.__bool__()
+
 
 cdef class Long:
     def __long__(self):
-        print "Long __long__"
+        print("Long __long__")
+
 
 _WARNINGS = """
 38:4: __nonzero__ was removed in Python 3; use __bool__ instead
-57:4: __long__ was removed in Python 3; use __int__ instead
+67:4: __nonzero__ was removed in Python 3; ignoring it and using __bool__ instead
+73:4: __long__ was removed in Python 3; use __int__ instead
 """

@@ -276,6 +276,7 @@ def test_normal_class_refcount():
     0
     """
     import sys
+    import gc
     x = NormalClass()
     c = sys.getrefcount(x)
     x.method[pure_cython.short](10)

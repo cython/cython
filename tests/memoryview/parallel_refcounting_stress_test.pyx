@@ -1,5 +1,5 @@
 # mode: run
-# tag: openmp
+# tag: openmp, threads
 
 from cython.parallel cimport prange
 cimport cython

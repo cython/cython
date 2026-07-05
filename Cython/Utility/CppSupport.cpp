@@ -111,6 +111,14 @@ public:
     using __Pyx_Optional_BaseType<T>::operator*;
     using __Pyx_Optional_BaseType<T>::operator->;
 #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1600)
+    __Pyx_Optional_Type(const __Pyx_Optional_Type& rhs)
+        : __Pyx_Optional_BaseType<T>(rhs)
+    {}
+
+    __Pyx_Optional_Type(__Pyx_Optional_Type&& rhs)
+        : __Pyx_Optional_BaseType<T>(std::move(rhs))
+    {}
+
     __Pyx_Optional_Type& operator=(const __Pyx_Optional_Type& rhs) {
         this->emplace(*rhs);
         return *this;
@@ -131,3 +139,13 @@ public:
     using __Pyx_Optional_BaseType<T>::operator=; // the chances are emplace can't work...
 #endif
 };
+
+//////////////////////// DefaultPlacementNew.proto ///////////////////////
+
+#include <new>
+
+// avoid having to know the name of the class being constructed (e.g. when user is accessing through a typedef)
+template<typename T>
+void __Pyx_default_placement_construct(T* x) {
+    new (static_cast<void*>(x)) T();
+}

@@ -1,10 +1,10 @@
 import contextlib
-import os.path
+import os
 import tempfile
-import unittest
 from os.path import join as pjoin
 
 from ..Dependencies import extended_iglob
+from ...TestUtils import TimedTest
 
 
 @contextlib.contextmanager
@@ -13,7 +13,7 @@ def writable_file(dir_path, filename):
         yield f
 
 
-class TestGlobbing(unittest.TestCase):
+class TestGlobbing(TimedTest):
     @classmethod
     def setUpClass(cls):
         cls._orig_dir = os.getcwd()

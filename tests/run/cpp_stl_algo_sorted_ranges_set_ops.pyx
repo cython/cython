@@ -2,7 +2,7 @@
 # tag: cpp, werror, cpp11
 
 from libcpp cimport bool
-from libcpp.algorithm cimport (includes, set_difference, set_intersection, 
+from libcpp.algorithm cimport (includes, set_difference, set_intersection,
                                set_symmetric_difference, set_union)
 from libcpp.vector cimport vector
 

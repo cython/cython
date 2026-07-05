@@ -268,3 +268,19 @@ def index_join_loop(unicode ustring):
     """
     cdef int i
     return u''.join([ ustring[i] for i in range(len(ustring)) ])
+
+
+def nogil_indexing(unicode ustring, int index):
+    """
+    >>> nogil_indexing("abc", 0)
+    'a'
+    >>> nogil_indexing("abc", -1)
+    'c'
+    >>> nogil_indexing("abc", 100)
+    Traceback (most recent call last):
+        ...
+    IndexError: string index out of range
+    """
+    with nogil:
+        u = ustring[index]
+    return u

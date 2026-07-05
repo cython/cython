@@ -18,29 +18,7 @@ import io
 import glob
 import shutil
 import tempfile
-
-
-
-if sys.version_info < (3, 9):
-    # Work around a limited API bug in these Python versions
-    # where it isn't possible to make __module__ of CyFunction
-    # writeable. This means that wraps fails when applied to
-    # cyfunctions.
-    # The objective here is just to make limited API builds
-    # testable.
-
-    from functools import update_wrapper, partial
-
-    def _update_wrapper(wrapper, wrapped):
-        try:
-            return update_wrapper(wrapper, wrapped)
-        except AttributeError:
-            return wrapper  # worse, but it still works
-
-    def wraps(wrapped):
-        return partial(_update_wrapper, wrapped=wrapped)
-else:
-    from functools import wraps
+from functools import wraps
 
 
 from . import __version__ as cython_version
@@ -567,6 +545,16 @@ class OrderedSet:
     __nonzero__ = __bool__
 
 
+def set_dedup(it):
+    """Deduplicate the items in an iterable using a set.
+    """
+    seen = set()
+    for item in it:
+        if item not in seen:
+            seen.add(item)
+            yield item
+
+
 # Class decorator that adds a metaclass and recreates the class with it.
 # Copied from 'six'.
 def add_metaclass(metaclass):
@@ -635,6 +623,8 @@ def write_depfile(target, source, dependencies):
             # if they are on different Windows drives, absolute is fine
             newpath = os.path.abspath(fname)
 
+        # Escape spaces
+        newpath = newpath.replace(" ", "\\ ")
         paths.append(newpath)
 
     depline = os.path.relpath(target, cwd) + ": \\\n  "

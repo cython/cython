@@ -1,13 +1,25 @@
 # mode: run
-# tag: cpp, cpp17
+# tag: cpp, cpp17, no-cpp-locals, threads
+
+# cython: language_level=3
 
 from libcpp.mutex cimport (
     mutex, once_flag, unique_lock, call_once,
-    adopt_lock, scoped_lock
+    adopt_lock, scoped_lock,
+    py_safe_call_once, py_safe_call_object_once, py_safe_once_flag,
+    py_safe_construct_unique_lock, py_safe_lock,
 )
 from libcpp.shared_mutex cimport (
-    shared_mutex, shared_lock
+    shared_mutex, shared_lock,
+    py_safe_construct_shared_lock,
 )
+
+from threading import Thread, Barrier
+
+# Note to readers: some of these tests are a bit lazy
+# with the GIL because they know the lock is only being
+# used from one thread. Be very careful with the GIL and
+# C++ locks to avoid deadlocks!
 
 def test_mutex():
     """
@@ -33,7 +45,102 @@ def test_unique_lock_more():
     # unlocked automatically when it exits scope
 
 
-cdef void call_me_once() noexcept:
+def test_py_safe_construct_unique_lock(n_threads):
+    """
+    >>> test_py_safe_construct_unique_lock(4)
+    4
+    """
+
+    cdef mutex m
+    cdef count = 0
+
+    barrier = Barrier(n_threads)
+    def thread_func():
+        nonlocal count
+
+        barrier.wait()
+        # lock is released on function exit
+        lock = py_safe_construct_unique_lock(m)
+        count += 1
+    threads = [ Thread(target=thread_func) for _ in range(n_threads) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    print(count)
+
+def test_py_safe_lock(n_threads):
+    """
+    >>> test_py_safe_lock(4)
+    4
+    """
+
+    cdef mutex m1
+    cdef mutex m2
+    cdef count = 0
+
+    barrier = Barrier(n_threads)
+    def thread_func():
+        nonlocal count
+
+        barrier.wait()
+        # lock is released on function exit
+        py_safe_lock(m1, m2)
+        try:
+            count += 1
+        finally:
+            m1.unlock()
+            m2.unlock()
+
+    threads = [ Thread(target=thread_func) for _ in range(n_threads) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    print(count)
+
+def test_py_safe_lock_nogil():
+    """
+    >>> test_py_safe_lock_nogil()
+    """
+    cdef mutex m
+    with nogil:
+        py_safe_lock(m)
+        m.unlock()
+
+def py_safe_lock_stress_test():
+    """
+    >>> py_safe_lock_stress_test()
+    2000
+    """
+    cdef mutex m
+    cdef int count = 0
+
+    def thread_func():
+        nonlocal count
+        for i in range(500):
+            if i%2:
+                with nogil:
+                    py_safe_lock(m)
+                    count += 1
+                    m.unlock()
+            else:
+                py_safe_lock(m)
+                count += 1
+                m.unlock()
+
+    threads = [ Thread(target=thread_func) for _ in range(4) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    print(count)
+
+
+
+# Note that it is only safe to acquire the GIL because we aren't actually running the
+# tests from multiple threads.
+cdef void call_me_once() noexcept with gil:
     print("Listen very carefully, I shall say this only once.")
 
 cdef extern from *:
@@ -56,16 +163,20 @@ def test_once_flag1():
     Listen very carefully, I shall say this only once.
     """
     cdef once_flag flag
-    call_once(flag, call_me_once)
-    call_once(flag, call_me_once)  # This shouldn't do anything.
+    with nogil:
+        call_once(flag, call_me_once)
+        call_once(flag, call_me_once)  # This shouldn't do anything.
 
 def test_once_flag2():
     """
-    >>> test_once_flag2()
+    # Test disabled - this usage is correct and works but GCCs libstdc++ is broken on every
+    # non-x86 platform (and more...) https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66146
+    # >>> test_once_flag2()
     """
     cdef once_flag flag
     try:
-        call_once(flag, call_once_unsuccessfully_cpp)
+        with nogil:
+            call_once(flag, call_once_unsuccessfully_cpp)
         assert False
     except RuntimeError:
         pass
@@ -75,7 +186,161 @@ def test_once_flag3():
     >>> test_once_flag3()
     """
     cdef once_flag flag
-    call_once(flag, call_with_int, 1)
+    with nogil:
+        call_once(flag, call_with_int, 1)
+
+def test_py_safe_once_object():
+    """
+    >>> test_py_safe_once_object()
+    Listen very carefully, I shall say this only once.
+    """
+    cdef py_safe_once_flag flag
+
+    def py_func():
+        print("Listen very carefully, I shall say this only once.")
+
+    n_threads = 4
+    barrier = Barrier(n_threads)
+    def thread_func():
+        barrier.wait()
+        py_safe_call_object_once(flag, py_func)
+    threads = [ Thread(target=thread_func) for _ in range(n_threads) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+def test_py_safe_once_object_fail():
+    """
+    >>> test_py_safe_once_object_fail()
+    Good
+    """
+    cdef py_safe_once_flag flag
+    try:
+        py_safe_call_object_once(flag, None)
+    except TypeError:
+        pass
+    else:
+        assert False
+    py_safe_call_object_once(flag, lambda: print("Good"))
+
+cdef object global_value = 0
+
+cdef void increment_global_value():
+    global global_value
+    global_value += 1
+
+def test_py_safe_once_cdef():
+    """
+    >>> test_py_safe_once_cdef()
+    1
+    """
+    global global_value
+    global_value = 0
+
+    cdef py_safe_once_flag flag
+
+    n_threads = 4
+    barrier = Barrier(n_threads)
+    def thread_func():
+        barrier.wait()
+        py_safe_call_once(flag, increment_global_value)
+    threads = [ Thread(target=thread_func) for _ in range(n_threads) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    print(global_value)
+
+def test_py_safe_once_cdef_nogil():
+    """
+    >>> test_py_safe_once_cdef_nogil()
+    1
+    """
+    global global_value
+    global_value = 0
+
+    cdef py_safe_once_flag flag
+    with nogil:
+        # function is called with the GIL, but GIL state
+        # on exit is the same as on entry.
+        py_safe_call_once(flag, increment_global_value)
+
+    print(global_value)
+
+
+cdef void _do_lazy_init(void *o):
+    as_py = <SomeCdefClass>o
+    as_py._lazy_init_value = as_py.initial_value * 2
+    as_py.initial_value = -1  # change it so it doesn't work a second time
+
+cdef class SomeCdefClass:
+    cdef py_safe_once_flag flag
+    cdef double initial_value
+    cdef double _lazy_init_value
+
+    def __cinit__(self, initial_value):
+        self.initial_value = initial_value
+
+    @property
+    def lazy_init_value(self):
+        # Pass as void* because we can't pass object to variadic functions
+        py_safe_call_once(self.flag, _do_lazy_init, <void*>self)
+        return self._lazy_init_value
+
+    @property
+    def lazy_init_lvalue(self):
+        # Pass as void* because we can't pass object to variadic functions
+        cdef void* self_v = <void*>self
+        py_safe_call_once(self.flag, _do_lazy_init, self_v)
+        return self._lazy_init_value
+
+def test_py_safe_call_once_with_arg_passing(v):
+    """
+    >>> test_py_safe_call_once_with_arg_passing(20)
+    40.0
+    >>> test_py_safe_call_once_with_arg_passing(1)
+    2.0
+    """
+    inst = SomeCdefClass(v)
+    v1 = inst.lazy_init_value
+    v2 = inst.lazy_init_value
+    assert v1 == v2
+    return v1
+
+def test_py_safe_call_once_with_lvalue_arg_passing(v):
+    """
+    >>> test_py_safe_call_once_with_lvalue_arg_passing(20)
+    40.0
+    >>> test_py_safe_call_once_with_lvalue_arg_passing(1)
+    2.0
+    """
+    inst = SomeCdefClass(v)
+    v1 = inst.lazy_init_lvalue
+    v2 = inst.lazy_init_lvalue
+    assert v1 == v2
+    return v1
+
+
+cdef void print_arg(int arg) noexcept:
+    print(arg)
+
+ctypedef void (*void_int_func)(int) noexcept
+
+cdef void_int_func get_print_arg() noexcept:
+    return print_arg
+
+def test_py_safe_call_once_rvalue_func(int arg):
+    """
+    >>> test_py_safe_call_once_rvalue_func(5)
+    5
+    >>> test_py_safe_call_once_rvalue_func(0)
+    0
+    """
+    cdef py_safe_once_flag flag
+    py_safe_call_once(flag, get_print_arg(), arg)
+    py_safe_call_once(flag, get_print_arg(), arg)
 
 
 def test_scoped_lock():
@@ -97,3 +362,25 @@ def test_shared_mutex():
     cdef shared_lock[shared_mutex] l2
     l1 = shared_lock[shared_mutex](m)
     l2 = shared_lock[shared_mutex](m)  # fine - it's shared.
+
+def test_py_safe_construct_shared_lock(n_threads):
+    """
+    >>> test_py_safe_construct_shared_lock(4)
+    Good news - we didn't deadlock
+    """
+
+    cdef shared_mutex m
+
+    barrier1 = Barrier(n_threads)
+    barrier2 = Barrier(n_threads)
+    def thread_func():
+        barrier1.wait()
+        # lock is released on function exit
+        lock = py_safe_construct_shared_lock(m)
+        barrier2.wait()
+    threads = [ Thread(target=thread_func) for _ in range(n_threads) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    print("Good news - we didn't deadlock")

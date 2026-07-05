@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp20, span
+# tag: cpp, cpp20, no-cpp-locals, span
 
 # cython: language_level=3
 

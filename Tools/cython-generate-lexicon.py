@@ -38,8 +38,9 @@ def main():
 """)
         return
 
+    from unicodedata import unidata_version
     generated_code = (
-        f"# Generated with 'cython-generate-lexicon.py' based on:\n"
+        f"# Generated with 'cython-generate-lexicon.py' based on Unicode {unidata_version}:\n"
         f"# {sys.implementation.name} {sys.version.splitlines()[0].strip()}\n"
         "\n"
         f"{generate_character_sets()}\n"
@@ -71,11 +72,11 @@ def main():
 # An alternative approach for getting character sets is at https://stackoverflow.com/a/49332214/4657412
 @functools.lru_cache()
 def get_start_characters_as_number():
-    return [ i for i in range(sys.maxunicode) if str.isidentifier(chr(i)) ]
+    return [ i for i in range(sys.maxunicode + 1) if str.isidentifier(chr(i)) ]
 
 
 def get_continue_characters_as_number():
-    return [ i for i in range(sys.maxunicode) if str.isidentifier('a'+chr(i)) ]
+    return [ i for i in range(sys.maxunicode + 1) if str.isidentifier('a'+chr(i)) ]
 
 
 def get_continue_not_start_as_number():
@@ -91,6 +92,7 @@ def to_ranges(char_num_list):
     #  list of characters
     #  a list pairs of characters representing closed ranges
     char_num_list = sorted(char_num_list)
+    char_num_list.append(-1)  # ensure the last range is added
     first_good_val = char_num_list[0]
 
     single_chars = []
