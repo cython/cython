@@ -3075,7 +3075,7 @@ class CFuncDefNode(FuncDefNode):
 
         # Move arguments into closure if required
         def put_into_closure(entry):
-            if entry.in_closure and not arg.default:
+            if entry.in_closure:
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.type.is_memoryviewslice:
                     code.putln(entry.type.get_incref_memoryviewslice_code(entry.cname, True))
