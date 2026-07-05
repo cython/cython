@@ -421,7 +421,6 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("py_frozendict_values", "Builtins.c")),
                                     ]),
 
-    ("ellipsis",  "&PyEllipsis_Type",    []),
     ("range",  "&PyRange_Type",    []),
 
     ("slice",  "&PySlice_Type",    [BuiltinProperty("start", PyrexTypes.py_object_type, '__Pyx_PySlice_Start',
@@ -862,8 +861,6 @@ def init_builtins():
     global bytes_type, unicode_type, bytearray_type
     global float_type, int_type, bool_type, complex_type
     global memoryview_type, py_buffer_type
-    global ellipsis_type
-    ellipsis_type  = builtin_scope.lookup('ellipsis').type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type

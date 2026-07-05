@@ -1403,8 +1403,6 @@ class EllipsisNode(PyConstNode):
     def compile_time_value(self, denv):
         return Ellipsis
 
-    def analyse_as_type(self, env):
-        return Builtin.ellipsis_type
 
 class ConstNode(AtomicExprNode):
     # Abstract base type for literal constant nodes.

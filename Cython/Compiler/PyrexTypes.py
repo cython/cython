@@ -4999,13 +4999,12 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
                 warning(pos, f"Cannot specialise {self.name!r} with {len(template_values)} types, ignoring.", level=1)
                 return self
 
-            from .Builtin import ellipsis_type
             set_uniform_element_type = False
-            if ellipsis_type in template_values:
+            if Ellipsis in template_values:
                 # ellipsis is allowed only as tuple[TYP, ...]
                 if (
                     self.is_pytuple_type and len(template_values) == 2 and
-                    template_values[0] is not ellipsis_type and template_values[1] is ellipsis_type
+                    template_values[0] is not Ellipsis and template_values[1] is Ellipsis
                 ):
                     set_uniform_element_type = True
                 else:
@@ -5023,7 +5022,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
 
     @staticmethod
     def _full_type_name(name: str, subscripted_types) -> str:
-        subscripted_types = ','.join([str(tv) for tv in subscripted_types])
+        subscripted_types = ','.join(['...' if tv is Ellipsis else str(tv) for tv in subscripted_types])
         return f"{name}[{subscripted_types}]" if subscripted_types else name
 
     def __eq__(self, value):
@@ -5095,6 +5094,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
     def specialize_here(self, pos, env, template_values=None):
         if (template_values and None not in template_values and
+                Ellipsis not in template_values and
                 not any(v.is_pyobject for v in template_values)):
             entry = env.declare_tuple_type(pos, template_values)
             if entry:
