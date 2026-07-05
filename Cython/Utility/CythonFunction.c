@@ -890,23 +890,13 @@ __Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
     }
 
     #if CYTHON_COMPILING_IN_LIMITED_API
-    {
-        PyObject *f = ((__pyx_CyFunctionObject*)m)->func;
-        cfunc = PyCFunction_GetFunction(f);
-    }
+    cfunc = m->func_methoddef->ml_meth;
     #else
     // it'd be nice to use "PyCFunction_GetFunction" here but cyfunction doesn't actually
     // inherit from PyCFunction
     cfunc = ((PyCFunctionObject*)m)->m_ml->ml_meth;
     #endif
-    if (!cfunc) {
-        goto fail;
-    }
-    module_globals = PyObject_GetAttrString((PyObject*)m, "__globals__");
-    if (!module_globals) {
-        additional_error_info = ": failed to get '__globals__'";
-        goto fail;
-    }
+    module_globals = m->func_globals;
     lookup_func = PyDict_GetItemString(module_globals, "$cyfunction_pickle_lookup_ptr");
     if (!lookup_func) {
         additional_error_info = ": failed to find '$cyfunction_pickle_lookup_ptr' attribute; "
@@ -978,7 +968,6 @@ __Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
         PyErr_Format(PyExc_AttributeError, "Can't pickle cyfunction object '%S'%s",
                         m->func_qualname, additional_error_info);
     }
-    Py_XDECREF(module_globals);
     Py_XDECREF(cfunc_as_obj);
     Py_XDECREF(lookup_value);
     Py_XDECREF(reduced_closure);
@@ -2019,14 +2008,6 @@ bad:
     Py_XDECREF(new_func);
     return result;
 }
-
-#if CYTHON_COMPILING_IN_LIMITED_API
-PyObject *__Pyx_FusedFunction_get_module(PyObject *func, void *context) {
-    CYTHON_UNUSED_VAR(context);
-    __pyx_CyFunctionObject *cy_func = (__pyx_CyFunctionObject *) func;
-    return PyObject_GetAttrString(cy_func->func, "__module__");
-}
-#endif
 
 static PyMemberDef __pyx_FusedFunction_members[] = {
     {"__self__", T_OBJECT_EX, offsetof(__pyx_FusedFunctionObject, self), __PYX_SHARED_RELATIVE_OFFSET | READONLY, 0},
