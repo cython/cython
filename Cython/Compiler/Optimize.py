@@ -3324,12 +3324,15 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if len(args) != 2:
             return node
 
+        func_type = self.PyByteArray_Extend_func_type
+        utility_code = UtilityCode.load_cached("ByteArrayExtendBytes", "StringTools.c")
+
         value = unwrap_coerced_node(args[1])
         arg_type = value.type
         if arg_type.is_pybytes_type:
-            utility_code = UtilityCode.load_cached("ByteArrayExtendBytes", "StringTools.c")
             func_name = "__Pyx_PyByteArray_ExtendBytes"
-            func_type = self.PyByteArray_Extend_func_type
+        elif arg_type.may_be_pybytes_type:
+            func_name = "__Pyx_PyByteArray_ExtendObject"
         else:
             return node
 

@@ -1367,6 +1367,10 @@ static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBuffer(PyObject* bytearray, PyO
 
 static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBytes(PyObject* bytearray, PyObject* value); /*proto*/
 
+#define __Pyx_PyByteArray_ExtendObject(bytearray, value)  (PyBytes_CheckExact(value) ? \
+    __Pyx_PyByteArray_ExtendBytes(bytearray, value) : \
+    __Pyx_PyByteArray_Extend_fallback(bytearray, value))
+
 //////////////////// ByteArrayExtendBytes ////////////////////
 //@requires: ByteArrayExtend
 
