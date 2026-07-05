@@ -3177,6 +3177,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             value = value.coerce_to(PyrexTypes.c_char_type, self.current_env())
             utility_code = UtilityCode.load_cached("ByteArrayAppend", "StringTools.c")
         elif value.type.is_pyobject:
+            value = value.as_none_safe_node("'NoneType' object cannot be interpreted as an integer")
             func_name = "__Pyx_PyByteArray_AppendObject"
             func_type = self.PyByteArray_AppendObject_func_type
             utility_code = UtilityCode.load_cached("ByteArrayAppendObject", "StringTools.c")

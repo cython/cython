@@ -269,6 +269,13 @@ def bytearray_append(bytearray b, signed char c, int i, object o):
     ValueError: ...
     >>> print(b.decode('ascii'))
     abcX@xy
+
+    >>> b = bytearray(b'abc')
+    >>> b = bytearray_append(b, ord('x'), ord('y'), None)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> print(b.decode('ascii'))
+    abcX@xy
     """
     assert b.append('X') is None
     b.append(64)
