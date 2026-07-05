@@ -67,17 +67,36 @@ class SetAnnotateCoverageAction(Action):
         namespace.annotate = True
         namespace.annotate_coverage_xml = values
 
+
+class CythonArgumentParser(ArgumentParser):
+    # Build the epilog lazily at request as it may take time to produce.
+    @property
+    def epilog(self):
+        import textwrap
+        from ..Build import SharedModule
+        return (
+            '\nValid feature names for the shared module:\n  FEATURES: ' +
+            '\n'.join(textwrap.wrap(
+                ' , '.join(SharedModule.list_of_features()),
+                subsequent_indent=" "*12,
+            )) + '\n' +
+            "\nEnvironment variables:\n"
+            "  CYTHON_CACHE_DIR: the base directory containing Cython's caches.\n"
+        )
+
+    @epilog.setter
+    def epilog(self, value):
+        pass
+
+
 def create_cython_argparser():
     description = "Cython (https://cython.org/) is a compiler for code written in the "\
                   "Cython language.  Cython is based on Pyrex by Greg Ewing."
 
-    parser = ArgumentParser(
+    parser = CythonArgumentParser(
         description=description,
         argument_default=SUPPRESS,
         formatter_class=RawDescriptionHelpFormatter,
-        epilog="""\
-Environment variables:
-  CYTHON_CACHE_DIR: the base directory containing Cython's caches."""
     )
 
     parser.add_argument("-V", "--version", dest='show_version', action='store_const', const=1,
@@ -159,10 +178,18 @@ Environment variables:
                            'deduced from the import path if source file is in '
                            'a package, or equals the filename otherwise.')
     parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
+
+    # Shared module setup.
+
     parser.add_argument("--generate-shared", dest='shared_c_file_path', action='store', type=str,
                         help='Generates shared module with specified name.')
     parser.add_argument("--shared", dest='shared_utility_qualified_name', action='store', type=str,
                         help='Imports utility code from shared module specified by fully qualified module name.')
+    parser.add_argument("--shared-only", dest='shared_utility_features_enabled', action='store', type=str, metavar='FEATURES',
+                        help='Comma separate list of features to move to the shared module exclusively.')
+    parser.add_argument("--shared-exclude", dest='shared_utility_features_disabled',
+                        action='store', type=str, metavar='FEATURES',
+                        help='Comma separate list of features to exclude from the shared module.')
 
     parser.add_argument('sources', nargs='*', default=[])
 
