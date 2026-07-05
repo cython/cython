@@ -8,7 +8,7 @@ import hashlib
 import re
 
 from functools import partial, reduce
-from itertools import product
+from itertools import product, chain, repeat
 
 from Cython.Utils import cached_function, set_dedup
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode, AbstractUtilityCode
@@ -310,6 +310,7 @@ class PyrexType(BaseType):
     is_pymemoryview_type = False
 
     # Combined type group flags, based on common needs in the code base.
+    is_exception_type = False
     is_builtin_sequence = False
     is_bytes_or_str_or_bytearray = False
 
@@ -1482,14 +1483,6 @@ builtin_types_with_trashcan = frozenset({
     'dict', 'list', 'set', 'frozenset', 'tuple', 'type',
 })
 
-is_exception_type_name = re.compile(
-    ".*(?:Exception|Error|Warning|ExceptionGroup)"
-    "|KeyboardInterrupt"
-    "|GeneratorExit"
-    "|SystemExit"
-    "|Stop(?:Async)?Iteration"
-).match
-
 _special_type_check_functions = {
     'int': 'PyLong_Check',
     'str': 'PyUnicode_Check',
@@ -1501,6 +1494,348 @@ _special_type_check_functions = {
     'BaseException': '__Pyx_PyBaseException_Check',
 }
 
+# Builtins as of Python version ...
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 15, 0, 'beta', 1)
+KNOWN_PYTHON_BUILTINS = frozenset([
+    'ArithmeticError',
+    'AssertionError',
+    'AttributeError',
+    'BaseException',
+    'BaseExceptionGroup',
+    'BlockingIOError',
+    'BrokenPipeError',
+    'BufferError',
+    'BytesWarning',
+    'ChildProcessError',
+    'ConnectionAbortedError',
+    'ConnectionError',
+    'ConnectionRefusedError',
+    'ConnectionResetError',
+    'DeprecationWarning',
+    'EOFError',
+    'Ellipsis',
+    'EncodingWarning',
+    'EnvironmentError',
+    'Exception',
+    'ExceptionGroup',
+    'False',
+    'FileExistsError',
+    'FileNotFoundError',
+    'FloatingPointError',
+    'FutureWarning',
+    'GeneratorExit',
+    'IOError',
+    'ImportCycleError',
+    'ImportError',
+    'ImportWarning',
+    'IndentationError',
+    'IndexError',
+    'InterruptedError',
+    'IsADirectoryError',
+    'KeyError',
+    'KeyboardInterrupt',
+    'LookupError',
+    'MemoryError',
+    'ModuleNotFoundError',
+    'NameError',
+    'None',
+    'NotADirectoryError',
+    'NotImplemented',
+    'NotImplementedError',
+    'OSError',
+    'OverflowError',
+    'PendingDeprecationWarning',
+    'PermissionError',
+    'ProcessLookupError',
+    'PythonFinalizationError',
+    'RecursionError',
+    'ReferenceError',
+    'ResourceWarning',
+    'RuntimeError',
+    'RuntimeWarning',
+    'StopAsyncIteration',
+    'StopIteration',
+    'SyntaxError',
+    'SyntaxWarning',
+    'SystemError',
+    'SystemExit',
+    'TabError',
+    'TimeoutError',
+    'True',
+    'TypeError',
+    'UnboundLocalError',
+    'UnicodeDecodeError',
+    'UnicodeEncodeError',
+    'UnicodeError',
+    'UnicodeTranslateError',
+    'UnicodeWarning',
+    'UserWarning',
+    'ValueError',
+    'Warning',
+    'WindowsError',
+    'ZeroDivisionError',
+    '_IncompleteInputError',
+    '__build_class__',
+    '__debug__',
+    '__import__',
+    '__lazy_import__',
+    'abs',
+    'aiter',
+    'all',
+    'anext',
+    'any',
+    'ascii',
+    'bin',
+    'bool',
+    'breakpoint',
+    'bytearray',
+    'bytes',
+    'callable',
+    'chr',
+    'classmethod',
+    'compile',
+    'complex',
+    'copyright',
+    'credits',
+    'delattr',
+    'dict',
+    'dir',
+    'divmod',
+    'enumerate',
+    'eval',
+    'exec',
+    'exit',
+    'filter',
+    'float',
+    'format',
+    'frozendict',
+    'frozenset',
+    'getattr',
+    'globals',
+    'hasattr',
+    'hash',
+    'help',
+    'hex',
+    'id',
+    'input',
+    'int',
+    'isinstance',
+    'issubclass',
+    'iter',
+    'len',
+    'license',
+    'list',
+    'locals',
+    'map',
+    'max',
+    'memoryview',
+    'min',
+    'next',
+    'object',
+    'oct',
+    'open',
+    'ord',
+    'pow',
+    'print',
+    'property',
+    'quit',
+    'range',
+    'repr',
+    'reversed',
+    'round',
+    'sentinel',
+    'set',
+    'setattr',
+    'slice',
+    'sorted',
+    'staticmethod',
+    'str',
+    'sum',
+    'super',
+    'tuple',
+    'type',
+    'vars',
+    'zip',
+])
+
+
+# Builtin exception hierarchy.
+# To rebuild the dict items, use:
+"""
+def list_exception_subtypes(exc=BaseException):
+    subtypes = [subtype for subtype in exc.__subclasses__() if subtype.__module__ == 'builtins']
+    if subtypes:
+        subtypes.sort(key=lambda t: t.__name__)
+        print(f"    '{exc.__name__}' : [")
+        for subtype in subtypes:
+            print(f"        '{subtype.__name__}',")
+        if exc.__name__ == 'OSError':
+            print("        # Aliases of OSError:")
+            for name in ['IOError', 'EnvironmentError', 'WindowsError']:
+                print(f"        '{name}',")
+        print("    ],")
+        for subtype in subtypes:
+            list_exception_subtypes(subtype)
+
+import sys
+print(f"# BEGIN: generated dict entries\n# Generated from Python {sys.version.partition(' ')[0]}")
+list_exception_subtypes()
+print("# END: generated dict entries")
+"""
+exception_subtypes = {
+# BEGIN: generated dict entries
+# Generated from Python 3.16.0a0
+    'BaseException' : [
+        'BaseExceptionGroup',
+        'Exception',
+        'GeneratorExit',
+        'KeyboardInterrupt',
+        'SystemExit',
+    ],
+    'BaseExceptionGroup' : [
+        'ExceptionGroup',
+    ],
+    'Exception' : [
+        'ArithmeticError',
+        'AssertionError',
+        'AttributeError',
+        'BufferError',
+        'EOFError',
+        'ExceptionGroup',
+        'ImportError',
+        'LookupError',
+        'MemoryError',
+        'NameError',
+        'OSError',
+        'ReferenceError',
+        'RuntimeError',
+        'StopAsyncIteration',
+        'StopIteration',
+        'SyntaxError',
+        'SystemError',
+        'TypeError',
+        'ValueError',
+        'Warning',
+    ],
+    'ArithmeticError' : [
+        'FloatingPointError',
+        'OverflowError',
+        'ZeroDivisionError',
+    ],
+    'ImportError' : [
+        'ImportCycleError',
+        'ModuleNotFoundError',
+    ],
+    'LookupError' : [
+        'IndexError',
+        'KeyError',
+    ],
+    'NameError' : [
+        'UnboundLocalError',
+    ],
+    'OSError' : [
+        'BlockingIOError',
+        'ChildProcessError',
+        'ConnectionError',
+        'FileExistsError',
+        'FileNotFoundError',
+        'InterruptedError',
+        'IsADirectoryError',
+        'NotADirectoryError',
+        'PermissionError',
+        'ProcessLookupError',
+        'TimeoutError',
+        # Aliases of OSError:
+        'IOError',
+        'EnvironmentError',
+        'WindowsError',
+    ],
+    'ConnectionError' : [
+        'BrokenPipeError',
+        'ConnectionAbortedError',
+        'ConnectionRefusedError',
+        'ConnectionResetError',
+    ],
+    'RuntimeError' : [
+        'NotImplementedError',
+        'PythonFinalizationError',
+        'RecursionError',
+    ],
+    'SyntaxError' : [
+        'IndentationError',
+        '_IncompleteInputError',
+    ],
+    'IndentationError' : [
+        'TabError',
+    ],
+    'ValueError' : [
+        'UnicodeError',
+    ],
+    'UnicodeError' : [
+        'UnicodeDecodeError',
+        'UnicodeEncodeError',
+        'UnicodeTranslateError',
+    ],
+    'Warning' : [
+        'BytesWarning',
+        'DeprecationWarning',
+        'EncodingWarning',
+        'FutureWarning',
+        'ImportWarning',
+        'PendingDeprecationWarning',
+        'ResourceWarning',
+        'RuntimeWarning',
+        'SyntaxWarning',
+        'UnicodeWarning',
+        'UserWarning',
+    ],
+# END: generated dict entries
+}
+
+KNOWN_EXCEPTION_NAMES = frozenset(chain(
+    ['BaseException'],
+    chain.from_iterable(exception_subtypes.values()),
+))
+
+def _build_exception_mros(subtypes):
+    # Rebuild the exception type MRO, knowing that the 'subtypes' dict
+    # was built breadth-first, listing all parents before their children.
+    supertypes = {'BaseException': ['BaseException']}
+    for parent, children in subtypes.items():
+        parent_supertypes = supertypes[parent]
+        for child in children:
+            supertypes[child] = [child] + parent_supertypes
+    return supertypes
+
+exception_supertypes = _build_exception_mros(exception_subtypes)
+del _build_exception_mros
+
+
+uncachable_builtins = frozenset([
+    # Global/builtin names that cannot be cached because they may or may not
+    # be available at import time, for various reasons:
+    ## Python 3.15+
+    'frozendict',
+    'sentinel',
+    'ImportCycleError',
+    '__lazy_import__',
+    ## Python 3.13+
+    '_IncompleteInputError',
+    'PythonFinalizationError',
+    ## Python 3.11+
+    'BaseExceptionGroup',
+    'ExceptionGroup',
+    ## - Py3.10+
+    'aiter',
+    'anext',
+    'EncodingWarning',
+    ## - platform specific
+    'WindowsError',
+    ## - others
+    'breakpoint',  # Probably best left alone.
+    '_',  # e.g. used by gettext
+])
+
 
 class BuiltinObjectType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct
@@ -1510,7 +1845,7 @@ class BuiltinObjectType(PyObjectType):
     base_type = None
     module_name = '__builtin__'
     require_exact = True
-    is_exception_type = False
+    exception_supertypes = ()
 
     # fields that let it look like an extension type
     vtabslot_cname = None
@@ -1536,6 +1871,10 @@ class BuiltinObjectType(PyObjectType):
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
     }
+    _builtin_type_flag_mapping.update(
+        # Extended to set '.is_exception_type' for all builtin exception types.
+        zip(KNOWN_EXCEPTION_NAMES, repeat(['is_exception_type'])))
+
     _get_type_flags_for = _builtin_type_flag_mapping.get
 
     def __init__(self, name, cname, objstruct_cname=None):
@@ -1548,10 +1887,10 @@ class BuiltinObjectType(PyObjectType):
             # Special case the type type, as many C API calls (and other
             # libraries) actually expect a PyTypeObject* for type arguments.
             self.decl_type = objstruct_cname
-        if is_exception_type_name(name):
-            self.is_exception_type = True
-            self.require_exact = False
+
         self._init_builtin_type_flags(name)
+        if self.is_exception_type:
+            self.require_exact = False
 
     def _init_builtin_type_flags(self, type_name: str) -> None:
         for attribute in (self._get_type_flags_for(type_name) or ()):
@@ -5773,6 +6112,8 @@ def independent_spanning_type(type1, type2):
         # e.g. PyInt + double => object
         return py_object_type
     elif resolved_type1.is_builtin_type and resolved_type2.is_builtin_type:
+        if resolved_type1.is_exception_type or resolved_type2.is_exception_type:
+            return spanning_exception_type(type1, type2)
         container_type = resolved_type1.get_container_type()
         if container_type is not None and container_type == resolved_type2.get_container_type():
             # list[float] + list[int] => list
@@ -5807,6 +6148,8 @@ def spanning_type(type1, type2):
 def _spanning_type(type1, type2):
     if type1.is_numeric and type2.is_numeric:
         return widest_numeric_type(type1, type2)
+    elif type1.is_exception_type or type2.is_exception_type:
+        return spanning_exception_type(type1, type2)
     elif type1.is_builtin_type:
         return result_type_of_builtin_operation(type1, type2) or py_object_type
     elif type2.is_builtin_type:
@@ -5834,6 +6177,15 @@ def _spanning_type(type1, type2):
         return c_void_ptr_type
     else:
         return None
+
+def spanning_exception_type(type1, type2):
+    lowest_parent = py_object_type
+    if type1.is_exception_type and type2.is_exception_type:
+        for parent1, parent2 in zip(type1.exception_supertypes, type2.exception_supertypes):
+            if parent1.name != parent2.name:
+                break
+            lowest_parent = parent1
+    return lowest_parent
 
 def widest_extension_type(type1, type2):
     if type1.typeobj_is_imported() or type2.typeobj_is_imported():
