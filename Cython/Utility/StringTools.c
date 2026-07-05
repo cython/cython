@@ -1270,6 +1270,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
         }
     }
     return __Pyx_PyByteArray_Append(bytearray, (int) ival);
+
 bad_range:
     PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
     return -1;
@@ -1282,22 +1283,8 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
 //////////////////// ByteArrayAppend ////////////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 
-static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
+static int __Pyx_PyByteArray_Append_fallback(PyObject* bytearray, int value) {
     PyObject *pyval, *retval;
-#if CYTHON_COMPILING_IN_CPYTHON
-    if (likely(__Pyx_is_valid_index(value, 256))) {
-        Py_ssize_t n = Py_SIZE(bytearray);
-        if (likely(n != PY_SSIZE_T_MAX)) {
-            if (unlikely(PyByteArray_Resize(bytearray, n + 1) < 0))
-                return -1;
-            PyByteArray_AS_STRING(bytearray)[n] = (char) (unsigned char) value;
-            return 0;
-        }
-    } else {
-        PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
-        return -1;
-    }
-#endif
     pyval = PyLong_FromLong(value);
     if (unlikely(!pyval))
         return -1;
@@ -1307,6 +1294,31 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
         return -1;
     Py_DECREF(retval);
     return 0;
+}
+
+static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (likely(__Pyx_is_valid_index(value, 256))) {
+        int retval = 1;
+        __Pyx_BEGIN_CRITICAL_SECTION(bytearray);
+        Py_ssize_t n = Py_SIZE(bytearray);
+        if (likely(n != PY_SSIZE_T_MAX)) {
+            retval = PyByteArray_Resize(bytearray, n + 1);
+            if (likely(retval == 0)) {
+                PyByteArray_AS_STRING(bytearray)[n] = (char) (unsigned char) value;
+            }
+        }
+        __Pyx_END_CRITICAL_SECTION();
+        if (likely(retval != 1)) {
+            return retval;
+        }
+    } else {
+        PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
+        return -1;
+    }
+#endif
+
+    return __Pyx_PyByteArray_Append_fallback(bytearray, value);
 }
 
 
