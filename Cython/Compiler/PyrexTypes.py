@@ -4996,12 +4996,27 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
                 self.has_uniform_element_type and len(template_values) != 1 or
                 self.is_pyanydict_type and len(template_values) != 2
             ):
-                warning(pos, f"Cannot specialise {self.name!r} with {len(template_values)} types, ignoring.")
+                warning(pos, f"Cannot specialise {self.name!r} with {len(template_values)} types, ignoring.", level=1)
                 return self
 
+            from .Builtin import ellipsis_type
+            set_uniform_element_type = False
+            if ellipsis_type in template_values:
+                # ellipsis is allowed only as tuple[TYP, ...]
+                if (
+                    self.is_pytuple_type and len(template_values) == 2 and
+                    template_values[0] is not ellipsis_type and template_values[1] is ellipsis_type
+                ):
+                    set_uniform_element_type = True
+                else:
+                    warning(pos, f"Cannot specialise {self._full_type_name(self.name, template_values)} type, ignoring.", level=1)
+                    return self
             typ = BuiltinTypeConstructorObjectType(
                 name=self.name, cname=self.cname, objstruct_cname=self.objstruct_cname,
                 base_type=self, subscripted_types=tuple(template_values), scope=self.scope)
+
+            if set_uniform_element_type:
+                typ.has_uniform_element_type = True
             typ.entry = self.entry
             return typ
         return self
@@ -5048,6 +5063,9 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         container_type = self.get_container_type()
         if at_index is None:
             return self.get_common_item_type()
+        if container_type.is_pytuple_type and self.has_uniform_element_type:
+            # tuple[TYP, ...]
+            return self.get_subscripted_type(0)
         if container_type.is_pytuple_type and isinstance(at_index, int):
             return self.get_subscripted_type(at_index)
         if container_type.is_pyanydict_type:
