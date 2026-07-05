@@ -3725,7 +3725,7 @@ class CreateClosureClasses(CythonTransform):
                     def_node.local_scope.scope_class
                 )
                 self.classes_made_pickleable.add(def_node.local_scope.scope_class)
-            cname = def_node.entry.func_cname
+            cname = EncodedString(def_node.entry.func_cname)
             def_node.local_scope.global_scope().pickleable_functions.append(
                     (cname, def_node, lambda_node))
 

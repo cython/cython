@@ -472,7 +472,6 @@ class Scope:
                     self_entries.append(entry)
 
         self.pickleable_functions.extend(other.pickleable_functions)
-        self.pickeable_cnames_to_indices.update(other.pickeable_cnames_to_indices)
 
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
@@ -1401,7 +1400,6 @@ class ModuleScope(Scope):
     # is_package           boolean            Is this a package module? (__init__)
     # pickleable_functions [(cname, DefNode, LambdaNode or None)]
     #                                         list of functions with closures that require pickle support
-    # pickeable_cnames_to_indices   dict
 
     is_module_scope = 1
     has_import_star = 0
@@ -1442,7 +1440,6 @@ class ModuleScope(Scope):
         self._cached_defaults_c_class_entries = {}
         self.process_include(Code.IncludeCode("Python.h", initial=True))
         self.pickleable_functions = []
-        self.pickeable_cnames_to_indices = {}
 
     def qualifying_scope(self):
         return self.parent_module
@@ -2061,12 +2058,10 @@ class ModuleScope(Scope):
         from .UtilityCode import CythonUtilityCode
         from .Code import UtilityCode
         pickleable_function_cnames, a, b = zip(*self.pickleable_functions)
-        self.pickeable_cnames_to_indices = { i: n for n, i in enumerate(pickleable_function_cnames) }
 
         self.use_utility_code(CythonUtilityCode.load(
             "function_pickling", "FunctionPickling.pyx",
-            context = { "cnames": pickleable_function_cnames,
-                        "cnames_to_index": self.pickeable_cnames_to_indices },
+            context = { "cnames": pickleable_function_cnames },
             name = self.name,  # so that the qualname for the functions will be right
         ))
 

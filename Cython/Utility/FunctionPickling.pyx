@@ -5,7 +5,7 @@
 cdef extern from *:
     void *PyLong_AsVoidPtr(object pylong) except ?NULL
     # implementation function - implemented in C
-    object $cyfunction_unpickle_impl_cname(int, object, object, object, object)
+    object $cyfunction_unpickle_impl_cname(object, object, object, object)
 
 {{for cname in cnames}}
     void *{{cname}}  # tell Cython that all cnames are an extern void pointer
@@ -22,18 +22,14 @@ def $cyfunction_pickle_lookup_ptr(ptr_as_py):
     cdef void *ptr = PyLong_AsVoidPtr(ptr_as_py)
 {{for cname in cnames}}
     if ptr == <void*>{{cname}}:
-        # Return a tuple of an index and a name string. The index is used for lookup
-        # (and should be quick since the lookup can be a switch). The name for a sanity check.
-        result = ({{cnames_to_index[cname]}}, "{{cname}}")
-        ${cyfunction_pickle_lookup_ptr}_cache[ptr_as_py] = result
-        return result
+        ${cyfunction_pickle_lookup_ptr}_cache[ptr_as_py] = "{{cname}}"
+        return "{{cname}}"
 {{endfor}}
     raise ValueError()  # __reduce__ ignores this anyway
 
-def $cyfunction_unpickle_name(index_and_name, reduced_closure, defaults_tuple, defaults_kwdict):
+def $cyfunction_unpickle_name(key, reduced_closure, defaults_tuple, defaults_kwdict):
     try:
-        keyindex, key = index_and_name
-        return $cyfunction_unpickle_impl_cname(<int>keyindex, key, reduced_closure, defaults_tuple, defaults_kwdict)
+        return $cyfunction_unpickle_impl_cname(key, reduced_closure, defaults_tuple, defaults_kwdict)
     except BaseException as e:
         try:
             from pickle import UnpicklingError
