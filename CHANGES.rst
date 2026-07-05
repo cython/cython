@@ -11,6 +11,9 @@ Bugs fixed
 * Assignments of builtin string types to typedefs of `object` could erroneously be rejected.
   (Github issue :issue:`7789`)
 
+* ``bytearray.append(None)`` could crash. The optimised code was also lacking concurrency guards.
+  (Github issue :issue:`7796`)
+
 
 3.2.8 (2026-06-30)
 ==================
