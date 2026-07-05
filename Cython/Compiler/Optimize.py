@@ -3184,9 +3184,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         else:
             return node
 
+        ba_obj = args[0].as_none_safe_node(
+            "'NoneType' object has no attribute '%.30s'",
+            error="PyExc_AttributeError",
+            format_args=['append'])
+
         new_node = ExprNodes.PythonCapiCallNode(
             node.pos, func_name, func_type,
-            args=[args[0], value],
+            args=[ba_obj, value],
             may_return_none=False,
             is_temp=node.is_temp,
             utility_code=utility_code,
