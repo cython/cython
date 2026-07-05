@@ -10,8 +10,6 @@ cython.declare(hashlib=object, json=object, operator=object, os=object, re=objec
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, defaultdict=object,
                closing=object, partial=object, wraps=object,
-               zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object,
-               lzss_compress=object,
 )
 
 import hashlib
@@ -76,6 +74,8 @@ compression_algorithms = [
     # and the default output tends to be quite large.
     #(4, 'lzma', lzma_compress),
 ]
+
+del lzss_compress, zlib_compress, bz2_compress, zstd_compress  # , lzma_compress
 
 
 renamed_py2_builtins_map = {

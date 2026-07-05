@@ -14,7 +14,7 @@ Features added
 Bugs fixed
 ----------
 
-* Includes all fixes as of Cython 3.2.8.
+* Includes all fixes as of Cython 3.2.9.
 
 Other changes
 -------------
@@ -326,6 +326,16 @@ Other changes
 
 * The documentation now uses the "Clarity" Sphinx theme.
   Patch by Libor Jelínek.  (Github issue :issue:`7564`)
+
+
+3.2.9 (2026-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* Assignments of builtin string types to typedefs of `object` could erroneously be rejected.
+  (Github issue :issue:`7789`)
 
 
 3.2.8 (2026-06-30)
