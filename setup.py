@@ -190,7 +190,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     cython_directives = dict(
         language_level=3,
         auto_pickle=False,
-        binding=False,
+        #binding=False,
         always_allow_keywords=False,
         autotestdict=False,
     )
