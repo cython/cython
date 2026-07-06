@@ -322,18 +322,26 @@ def split_string_literal(s: str, limit: cython.int = 2000) -> str:
 def encode_pyunicode_string(string):
     """Create Py_UNICODE[] representation of a given unicode string.
     """
-    characters = list(map(ord, string))
-    characters.append(0)
+    utf16 = None  # Start lazy, we won't need it for BMP strings.
+    utf32 = []
 
-    utf16, utf32 = [], characters
+    characters = cython.cast(str, string)  # was EncodedString or str
+    code_point: cython.Py_UCS4
+
     for code_point in characters:
+        charval = ord(code_point)
+        ch = f"{charval:d}"
         if code_point >= 0x10000:  # outside of BMP
-            high, low = divmod(code_point - 0x10000, 1024)
-            utf16.append(high + 0xD800)
-            utf16.append(low + 0xDC00)
-        else:
-            utf16.append(code_point)
+            if utf16 is None:
+                utf16 = utf32[:]
+            high, low = divmod(charval - 0x10000, 1024)
+            utf16.append(f"{high + 0xD800:d}")
+            utf16.append(f"{low + 0xDC00:d}")
+        elif utf16 is not None:
+            utf16.append(ch)
+        utf32.append(ch)
 
-    if utf16 == utf32:
-        utf16 = []
-    return ",".join(map(str, utf16)), ",".join(map(str, utf32))
+    return (
+        ",".join(utf16) if utf16 is not None else "",
+        ",".join(utf32),
+    )
