@@ -30,6 +30,19 @@ class ParseOptionsAction(Action):
         setattr(namespace, self.dest, options)
 
 
+class ParseCommaListAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        options = list(getattr(namespace, self.dest, []))
+
+        seen = set(options)
+        for opt in values.split(','):
+            if opt not in seen:
+                seen.add(opt)
+                options.append(opt)
+
+        setattr(namespace, self.dest, options)
+
+
 class ParseCompileTimeEnvAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
         old_env = dict(getattr(namespace, self.dest, {}))
@@ -185,10 +198,11 @@ def create_cython_argparser():
                         help='Generates shared module with specified name.')
     parser.add_argument("--shared", dest='shared_utility_qualified_name', action='store', type=str,
                         help='Imports utility code from shared module specified by fully qualified module name.')
-    parser.add_argument("--shared-only", dest='shared_utility_features_enabled', action='store', type=str, metavar='FEATURES',
+    parser.add_argument("--shared-only", dest='shared_utility_features_enabled',
+                        action=ParseCommaListAction, type=str, metavar='FEATURES',
                         help='Comma separate list of features to move to the shared module exclusively.')
     parser.add_argument("--shared-exclude", dest='shared_utility_features_disabled',
-                        action='store', type=str, metavar='FEATURES',
+                        action=ParseCommaListAction, type=str, metavar='FEATURES',
                         help='Comma separate list of features to exclude from the shared module.')
 
     parser.add_argument('sources', nargs='*', default=[])

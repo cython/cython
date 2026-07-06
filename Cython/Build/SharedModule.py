@@ -5,6 +5,7 @@ from Cython.Compiler import (
 )
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Scanning import SharedUtilitySourceDescriptor
+from Cython.Compiler.Errors import warning
 
 
 def list_of_features(included=None, excluded=None, _list_of_features=[]):
@@ -17,12 +18,25 @@ def list_of_features(included=None, excluded=None, _list_of_features=[]):
     return _select_features(feature_names, included, excluded)
 
 
-def _select_features(names, included, excluded):
+def _select_features(all_names, included, excluded):
+    names = all_names
     if included:
         included = set(included)
+        unknown = included.difference(all_names)
+        if unknown:
+            warning(None, f"Unknown shared module features selected: {', '.join(sorted(unknown))}")
+
         names = [name for name in names if name in included]
+
     if excluded:
         excluded = set(excluded)
+        unknown = excluded.difference(all_names)
+        if unknown:
+            warning(None, f"Unknown shared module features excluded: {', '.join(sorted(unknown))}")
+        unused = excluded.difference(names)
+        if unused:
+            warning(None, f"Shared module features excluded that was not included: {', '.join(sorted(unused))}")
+
         names = [name for name in names if name not in excluded]
 
     return names
