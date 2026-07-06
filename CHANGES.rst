@@ -14,6 +14,9 @@ Bugs fixed
 * ``bytearray.append(None)`` could crash. The optimised code was also lacking concurrency guards.
   (Github issue :issue:`7796`)
 
+* Some rare corner cases when concatenating text strings were resolved.
+  (Github issue :issue:`7799`)
+
 * Assignments of builtin string types to typedefs of `object` could erroneously be rejected.
   (Github issue :issue:`7789`)
 
