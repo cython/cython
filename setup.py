@@ -186,6 +186,26 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     # optimise build parallelism by starting with the largest modules
     extensions.sort(key=lambda ext: os.path.getsize(ext.sources[0]), reverse=True)
 
+    # Set up Cython directives.
+    cython_directives = dict(
+        language_level=3,
+        auto_pickle=False,
+        #binding=False,  # used via @functools.wraps()
+        always_allow_keywords=False,
+        autotestdict=False,
+    )
+
+    if profile:
+        cython_directives['profile'] = True
+        sys.stderr.write("Enabled profiling for the Cython binary modules\n")
+    if coverage:
+        cython_directives['linetrace'] = True
+        sys.stderr.write("Enabled line tracing and profiling for the Cython binary modules\n")
+
+    for ext in extensions:
+        ext.cython_directives = cython_directives
+
+    # Make 'build_ext' use Cython.
     from Cython.Distutils.build_ext import build_ext as cy_build_ext
     build_ext = None
     try:
@@ -198,21 +218,6 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             build_ext = cy_build_ext
     except ImportError:
         build_ext = cy_build_ext
-
-    from Cython.Compiler.Options import get_directive_defaults
-    get_directive_defaults().update(
-        language_level=3,
-        auto_pickle=False,
-        binding=False,
-        always_allow_keywords=False,
-        autotestdict=False,
-    )
-    if profile:
-        get_directive_defaults()['profile'] = True
-        sys.stderr.write("Enabled profiling for the Cython binary modules\n")
-    if coverage:
-        get_directive_defaults()['linetrace'] = True
-        sys.stderr.write("Enabled line tracing and profiling for the Cython binary modules\n")
 
     # not using cythonize() directly to let distutils decide whether building extensions was requested
     add_command_class("build_ext", build_ext)
