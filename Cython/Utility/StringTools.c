@@ -1322,6 +1322,75 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
 }
 
 
+//////////////////// ByteArrayExtend.proto ////////////////////
+
+static int __Pyx_PyByteArray_Extend_fallback(PyObject* bytearray, PyObject* value); /*proto*/
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBuffer(PyObject* bytearray, PyObject *value, const char* bytes, Py_ssize_t length); /*proto*/
+#endif
+
+//////////////////// ByteArrayExtend ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
+//@requires: IncludeStringH
+
+static int __Pyx_PyByteArray_Extend_fallback(PyObject* bytearray, PyObject* value) {
+    PyObject *retval = __Pyx_PyObject_CallMethod1(bytearray, PYIDENT("extend"), value);
+    if (unlikely(!retval))
+        return -1;
+    Py_DECREF(retval);
+    return 0;
+}
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBuffer(PyObject* bytearray, PyObject *value, const char* bytes, Py_ssize_t length) {
+    int retval = 1;
+    __Pyx_BEGIN_CRITICAL_SECTION(bytearray);
+    Py_ssize_t n = Py_SIZE(bytearray);
+    if (likely(n < PY_SSIZE_T_MAX - length)) {
+        retval = PyByteArray_Resize(bytearray, n + length);
+        if (likely(retval == 0)) {
+            char *buffer = PyByteArray_AS_STRING(bytearray) + n;
+            memcpy(buffer, bytes, (size_t) length);
+        }
+    }
+    __Pyx_END_CRITICAL_SECTION();
+    if (likely(retval != 1)) {
+        return retval;
+    }
+
+    return __Pyx_PyByteArray_Extend_fallback(bytearray, value);
+}
+#endif
+
+
+//////////////////// ByteArrayExtendBytes.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBytes(PyObject* bytearray, PyObject* value); /*proto*/
+
+#define __Pyx_PyByteArray_ExtendObject(bytearray, value)  (PyBytes_CheckExact(value) ? \
+    __Pyx_PyByteArray_ExtendBytes(bytearray, value) : \
+    __Pyx_PyByteArray_Extend_fallback(bytearray, value))
+
+//////////////////// ByteArrayExtendBytes ////////////////////
+//@requires: ByteArrayExtend
+
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBytes(PyObject* bytearray, PyObject* value) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    char* bytes;
+    Py_ssize_t length;
+    if (unlikely(PyBytes_AsStringAndSize(value, &bytes, &length) == -1)) {
+        return -1;
+    }
+    if (unlikely(length == 0)) {
+        return 0;
+    }
+    return __Pyx_PyByteArray_ExtendBuffer(bytearray, value, bytes, length);
+#else
+    return __Pyx_PyByteArray_Extend_fallback(bytearray, value);
+#endif
+}
+
+
 //////////////////// PyObjectFormat.proto ////////////////////
 
 #if CYTHON_USE_UNICODE_WRITER
