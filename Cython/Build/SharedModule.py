@@ -51,21 +51,39 @@ def _iter_exports(selected_features=None):
             continue
 
         file_base_name = os.path.splitext(os.path.basename(c_utility_file))[0]
-        feature_name = file_base_name.partition('_')[0]
+        current_feature_name = file_base_name.partition('_')[0]
 
-        if selected_features is not None and feature_name not in selected_features:
+        if selected_features is not None and current_feature_name not in selected_features:
             continue
 
+        next_match = []  # Look-ahead to allow parsing "//@tags".
         for line in Code.read_utilities_hook(c_utility_file):
-            if '////' not in line:
+            if '//' not in line or not line.startswith('//'):
                 continue
-            if not ((m := match_special(line)) and (name := m.group('name'))):
+            match = match_special(line)
+            if match is None:
                 continue
-            if not (section_title := UtilityCode.match_section_title(name)):
-                continue
-            name, section_type = section_title.groups()
-            if section_type == 'export':
-                yield (feature_name, name, c_utility_file)
+
+            name = match.group('name')
+            if name:
+                if '.export' not in name:
+                    continue
+                section_title = UtilityCode.match_section_title(name)
+                if not section_title:
+                    continue
+                name, section_type = section_title.groups()
+                if section_type == 'export':
+                    if next_match:
+                        yield next_match
+                    next_match = [current_feature_name, name, c_utility_file]
+
+            elif (tag := match.group('tag')) and tag.startswith('feature') and next_match:
+                # Overwrite the file based feature name with the explicit @feature name.
+                explicit_feature_name = tag.split(':', 1)[-1].strip()
+                next_match[0] = explicit_feature_name
+
+        if next_match:
+            yield next_match
 
 
 def create_shared_library_pipeline(context, scope, options, result, selected_features=None):
