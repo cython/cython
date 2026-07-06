@@ -12965,7 +12965,7 @@ class AddNode(NumBinopNode):
                 if self.inplace or self.operand1.result_in_temp():
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("UnicodeConcatInPlace", "ObjectHandling.c"))
-                    func += self.may_be_unsafe_shared()
+                    func += self.operand1.may_be_unsafe_shared()
 
         if func:
             # any necessary utility code will be got by "NumberAdd" in generate_evaluation_code
