@@ -5007,8 +5007,8 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
 
     @staticmethod
     def _full_type_name(name: str, subscripted_types) -> str:
-            subscripted_types = ','.join([str(tv) for tv in subscripted_types])
-            return f"{name}[{subscripted_types}]" if subscripted_types else name
+        subscripted_types = ','.join([str(tv) for tv in subscripted_types])
+        return f"{name}[{subscripted_types}]" if subscripted_types else name
 
     def __eq__(self, value):
         if not isinstance(value, BuiltinTypeConstructorObjectType):
