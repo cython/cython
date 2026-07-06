@@ -63,7 +63,6 @@ assert pathlib.Path("pkg2/CythonShared.c").exists()
 
 from Cython.Build import cythonize
 from setuptools import setup, Extension
-import numpy
 
 extensions = [
     Extension("*", ["**/*.pyx"]),
@@ -88,7 +87,6 @@ assert not pathlib.Path("pkg2/CythonShared.c").exists()
 
 from Cython.Build import cythonize
 from setuptools import setup, Extension
-import numpy
 
 extensions = [
     Extension("*", ["**/*.pyx"]),
