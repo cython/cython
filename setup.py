@@ -193,11 +193,21 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     # optimise build parallelism by starting with the largest modules
     extensions.sort(key=lambda ext: os.path.getsize(ext.sources[0]), reverse=True)
 
+    # Add the shared utility module.
+    extensions.append(Extension(
+        shared_utility_module, sources=[shared_utility_module.replace('.', '/') + '.c'],
+        define_macros=defines + extra_defines,
+        **extra_extension_args,
+    ))
+
+    for ext in extensions:
+        ext.shared_utility_qualified_name = shared_utility_module
+
     # Set up Cython directives.
     cython_directives = dict(
         language_level=3,
         auto_pickle=False,
-        #binding=False,
+        #binding=False,  # used via @functools.wraps()
         always_allow_keywords=False,
         autotestdict=False,
     )
@@ -211,16 +221,6 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
 
     for ext in extensions:
         ext.cython_directives = cython_directives
-
-    # Add the shared utility module.
-    extensions.append(Extension(
-        shared_utility_module, sources=[shared_utility_module.replace('.', '/') + '.c'],
-        define_macros=defines + extra_defines,
-        **extra_extension_args,
-    ))
-
-    for ext in extensions:
-        ext.shared_utility_qualified_name = shared_utility_module
 
     # Make 'build_ext' use Cython.
     from Cython.Distutils.build_ext import build_ext as cy_build_ext
