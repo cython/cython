@@ -366,5 +366,5 @@ _ERRORS = """
 221:27: Cannot convert 'bytes' object to str implicitly, decoding required
 226:25: Cannot assign type 'tuple[str object,int object] object' to 'tuple[int object,str object] object'
 227:26: Cannot assign type 'tuple[str object,int object] object' to 'tuple[int object] object'
-228:25: Cannot assign type 'tuple[str object,int object] object' to 'tuple[str object,ellipsis object] object'
+228:25: Cannot assign type 'tuple[str object,int object] object' to 'tuple[str object,...] object'
 """
