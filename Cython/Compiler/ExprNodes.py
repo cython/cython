@@ -8148,14 +8148,14 @@ class AttributeNode(ExprNode):
             if not target:
                 self.is_temp = 1
                 self.result_ctype = py_object_type
-        elif target and self.obj.type.is_builtin_type:
-            error(self.pos, "Assignment to an immutable object field")
         elif self.entry and self.entry.is_cproperty:
             if target:
                 call_node = SimpleCallNode.for_cproperty_set(self.pos, self.obj, self.entry)
             else:
                 call_node = SimpleCallNode.for_cproperty_get(self.pos, self.obj, self.entry)
             return call_node.analyse_types(env) if call_node is not None else None
+        elif target and self.obj.type.is_builtin_type:
+            error(self.pos, "Assignment to an immutable object field")
         #elif self.type.is_memoryviewslice and not target:
         #    self.is_temp = True
         return self
@@ -12965,7 +12965,7 @@ class AddNode(NumBinopNode):
                 if self.inplace or self.operand1.result_in_temp():
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("UnicodeConcatInPlace", "ObjectHandling.c"))
-                    func += self.may_be_unsafe_shared()
+                    func += self.operand1.may_be_unsafe_shared()
 
         if func:
             # any necessary utility code will be got by "NumberAdd" in generate_evaluation_code

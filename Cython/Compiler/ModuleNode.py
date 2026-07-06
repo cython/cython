@@ -4114,6 +4114,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # (signature, name, cname)
             (entry.type.signature_string(), entry.name, entry.cname)
             for entry in entries
+        ] + [
+            # Repeat exports under the old name for fused functions
+            (entry.type.signature_string(), entry.legacy_capi_name, entry.cname)
+            for entry in entries if entry.is_fused_specialized
         ]
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
@@ -4175,9 +4179,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not entries:
             return
 
-        imports = [
+        fused_imports = [
             # (signature, name, cname)
             (entry.type.signature_string(), entry.name, entry.cname)
+            for entry in entries if entry.is_fused_specialized
+        ]
+        if fused_imports:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("FunctionImportFused", "ImportExport.c"))
+            _generate_import_code(
+                code, self.pos, fused_imports, module.qualified_name,
+                f"__Pyx_ImportFusedFunction_{Naming.cyversion}", "void (**{name})(void)")
+
+        imports = [
+            # (signature, name, cname)
+            (entry.type.signature_string(),
+             entry.legacy_capi_name if entry.is_fused_specialized else entry.name,
+             entry.cname)
             for entry in entries
         ]
         code.globalstate.use_utility_code(

@@ -5,7 +5,7 @@
 
 import cython
 
-cython.declare(os=object, copy=object, chain=object,
+cython.declare(os=object, copy=object, chain=object, reduce=object,
                Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
                StructOrUnionScope=object, PyClassScope=object,
@@ -14,6 +14,7 @@ cython.declare(os=object, copy=object, chain=object,
 
 from contextlib import contextmanager
 import copy
+from functools import reduce
 from itertools import chain
 import enum
 
@@ -2881,7 +2882,7 @@ class CFuncDefNode(FuncDefNode):
 
         name = self.entry.name
         self.py_func = DefNode(pos=self.pos,
-                               name=self.entry.name,
+                               name=self.entry.cname if self.entry.is_fused_specialized else self.entry.name,
                                args=self.args,
                                star_arg=None,
                                starstar_arg=None,
@@ -3076,7 +3077,7 @@ class CFuncDefNode(FuncDefNode):
 
         # Move arguments into closure if required
         def put_into_closure(entry):
-            if entry.in_closure and not arg.default:
+            if entry.in_closure:
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.type.is_memoryviewslice:
                     code.putln(entry.type.get_incref_memoryviewslice_code(entry.cname, True))
@@ -3374,6 +3375,7 @@ class DefNode(FuncDefNode):
             self.pos,
             target=self,
             name=self.entry.name,
+            cname=self.entry.cname,
             args=self.args,
             star_arg=self.star_arg,
             starstar_arg=self.starstar_arg,
@@ -3798,10 +3800,10 @@ class DefNodeWrapper(FuncDefNode):
 
     def analyse_declarations(self, env):
         target_entry = self.target.entry
-        name = self.name
+        cname = self.cname
         prefix = env.next_id(env.scope_prefix)
-        target_entry.func_cname = punycodify_name(Naming.pywrap_prefix + prefix + name)
-        target_entry.pymethdef_cname = punycodify_name(Naming.pymethdef_prefix + prefix + name)
+        target_entry.func_cname = punycodify_name(Naming.pywrap_prefix + prefix + cname)
+        target_entry.pymethdef_cname = punycodify_name(Naming.pymethdef_prefix + prefix + cname)
 
         self.signature = target_entry.signature
 
@@ -8511,14 +8513,20 @@ class ExceptClauseNode(Node):
         return self
 
     def infer_exception_type(self, env):
-        if self.pattern and len(self.pattern) == 1:
-            # Infer target type for simple "except XyzError as exc".
-            pattern = self.pattern[0]
-            if pattern.is_name:
+        exc_type = None
+        if self.pattern:
+            pattern_types = []
+            for pattern in self.pattern:
+                if not pattern.is_name:
+                    break
                 entry = env.lookup(pattern.name)
-                if entry and entry.is_type and entry.scope.is_builtin_scope:
-                    return entry.type
-        return Builtin.builtin_types["BaseException"]
+                if not entry or not entry.type.is_exception_type:
+                    break
+                pattern_types.append(entry.type)
+            else:
+                exc_type = reduce(PyrexTypes.spanning_exception_type, pattern_types)
+
+        return exc_type or Builtin.builtin_types["BaseException"]
 
     def body_may_need_exception(self):
         from .ParseTreeTransforms import HasNoExceptionHandlingVisitor
