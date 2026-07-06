@@ -12,23 +12,30 @@ import cython
 class UnicodeLiteralBuilder:
     """Assemble a unicode string.
     """
-    chars: list
+    _chars: list
 
     def __init__(self):
-        self.chars = []
+        self._chars = []
 
+    @property
+    def chars(self) -> list:
+        return self._chars
+
+    @cython.ccall
     def append(self, characters):
         assert isinstance(characters, str), f"Expected str, got {type(characters)}"
-        self.chars.append(characters)
+        self._chars.append(characters)
 
+    @cython.ccall
     def append_charval(self, char_number):
-        self.chars.append( chr(char_number) )
+        self._chars.append( chr(char_number) )
 
     def append_uescape(self, char_number, escape_string):
         self.append_charval(char_number)
 
+    @cython.ccall
     def getstring(self):
-        return EncodedString(''.join(self.chars))
+        return EncodedString(''.join(self._chars))
 
     def getstrings(self):
         return (None, self.getstring())
@@ -39,28 +46,35 @@ class UnicodeLiteralBuilder:
 class BytesLiteralBuilder:
     """Assemble a byte string or char value.
     """
-    chars: list
-    target_encoding: str
+    _chars: list
+    _target_encoding: str
 
     def __init__(self, target_encoding):
-        self.chars = []
-        self.target_encoding = target_encoding
+        self._chars = []
+        self._target_encoding = target_encoding
 
+    @property
+    def chars(self) -> list:
+        return self._chars
+
+    @cython.ccall
     def append(self, characters):
         if isinstance(characters, str):
-            characters = characters.encode(self.target_encoding)
+            characters = characters.encode(self._target_encoding)
         assert isinstance(characters, bytes), str(type(characters))
-        self.chars.append(characters)
+        self._chars.append(characters)
 
+    @cython.ccall
     def append_charval(self, char_number):
-        self.chars.append( chr(char_number).encode('ISO-8859-1') )
+        self._chars.append( chr(char_number).encode('ISO-8859-1') )
 
     def append_uescape(self, char_number, escape_string):
         self.append(escape_string)
 
+    @cython.ccall
     def getstring(self):
         # this *must* return a byte string!
-        return bytes_literal(b''.join(self.chars), self.target_encoding)
+        return bytes_literal(b''.join(self._chars), self._target_encoding)
 
     def getchar(self):
         # this *must* return a byte string!
@@ -82,10 +96,12 @@ class StrLiteralBuilder:
         self._bytes   = BytesLiteralBuilder(target_encoding)
         self._unicode = UnicodeLiteralBuilder()
 
+    @cython.ccall
     def append(self, characters):
         self._bytes.append(characters)
         self._unicode.append(characters)
 
+    @cython.ccall
     def append_charval(self, char_number):
         self._bytes.append_charval(char_number)
         self._unicode.append_charval(char_number)
