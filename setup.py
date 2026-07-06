@@ -200,13 +200,15 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
         **extra_extension_args,
     ))
 
+    unused_features = ['MemoryView']
     for ext in extensions:
         ext.shared_utility_qualified_name = shared_utility_module
+        ext.shared_utility_features_disabled = unused_features
 
     # Set up Cython directives.
     cython_directives = dict(
         language_level=3,
-        auto_pickle=False,
+        auto_pickle=False,  # activated in FlowControl.py
         #binding=False,  # used via @functools.wraps()
         always_allow_keywords=False,
         autotestdict=False,
