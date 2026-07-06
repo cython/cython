@@ -553,9 +553,9 @@ if cython.compiled:
     bar Python object
     BasicStarshipExt(damage=5) BasicStarshipExt
     AdvancedStarshipExt(damage=6) BasicStarshipExt
-    a Python object
-    b Python object
-    c Python object
+    a str object
+    b str object
+    c str object
     """
 
 @cython.infer_types(True)

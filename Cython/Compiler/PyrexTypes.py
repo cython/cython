@@ -4992,38 +4992,23 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         if not self.supports_container_type:
             return self
         if template_values and None not in template_values:
-            if (
-                self.has_uniform_element_type and len(template_values) != 1 or
-                self.is_pyanydict_type and len(template_values) != 2
-            ):
+            if Ellipsis in template_values:
+                # Ellipsis is allowed only in tuples.
                 warning(pos, f"Cannot specialise {self.name!r} with {len(template_values)} types, ignoring.", level=1)
                 return self
 
-            set_uniform_element_type = False
-            if Ellipsis in template_values:
-                # ellipsis is allowed only as tuple[TYP, ...]
-                if (
-                    self.is_pytuple_type and len(template_values) == 2 and
-                    template_values[0] is not Ellipsis and template_values[1] is Ellipsis
-                ):
-                    set_uniform_element_type = True
-                else:
-                    warning(pos, f"Cannot specialise {self._full_type_name(self.name, template_values)} type, ignoring.", level=1)
-                    return self
-            typ = BuiltinTypeConstructorObjectType(
+            typ = type(self)(
                 name=self.name, cname=self.cname, objstruct_cname=self.objstruct_cname,
                 base_type=self, subscripted_types=tuple(template_values), scope=self.scope)
 
-            if set_uniform_element_type:
-                typ.has_uniform_element_type = True
             typ.entry = self.entry
             return typ
         return self
 
     @staticmethod
     def _full_type_name(name: str, subscripted_types) -> str:
-        subscripted_types = ','.join(['...' if tv is Ellipsis else str(tv) for tv in subscripted_types])
-        return f"{name}[{subscripted_types}]" if subscripted_types else name
+            subscripted_types = ','.join([str(tv) for tv in subscripted_types])
+            return f"{name}[{subscripted_types}]" if subscripted_types else name
 
     def __eq__(self, value):
         if not isinstance(value, BuiltinTypeConstructorObjectType):
@@ -5092,6 +5077,14 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
 
 
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
+
+    def __str__(self):
+        if self.subscripted_types and self.has_uniform_element_type:
+            subscripted_types = [self.subscripted_types[0], "..."]
+            return f"{self._full_type_name(self.name, subscripted_types)} object"
+        else:
+            return super().__str__()
+
     def specialize_here(self, pos, env, template_values=None):
         if (template_values and None not in template_values and
                 Ellipsis not in template_values and
@@ -5100,7 +5093,16 @@ class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
             if entry:
                 entry.used = True
                 return entry.type
-        return super().specialize_here(pos, env, template_values)
+        if (len(template_values) == 2 and template_values[0] is not Ellipsis and template_values[1] is Ellipsis):
+            # ellipsis is allowed only as tuple[TYP, ...]
+            set_uniform_element_type = True
+            template_values = template_values[0:1]
+        else:
+            set_uniform_element_type = False
+        typ = super().specialize_here(pos, env, template_values)
+        if set_uniform_element_type:
+            typ.has_uniform_element_type = True
+        return typ
 
 
 class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
