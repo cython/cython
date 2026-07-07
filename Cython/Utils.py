@@ -1,3 +1,6 @@
+# uses @functools.wraps()
+# cython: binding=True
+
 """
 Cython -- Things that don't belong anywhere else in particular
 """

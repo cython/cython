@@ -2456,6 +2456,8 @@ if VALUE is not None:
 
         decorators = getattr(node, 'decorators', None)
         node = FusedNode.FusedCFuncDefNode(node, env)
+        if node.py_func:
+            node.attach_fused_py_funcs()
         self.fused_function = node
         self.visitchildren(node)
         self.fused_function = None
