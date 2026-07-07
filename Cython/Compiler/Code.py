@@ -2,6 +2,8 @@
 #   Code output module
 #
 
+# uses @functools.wraps()
+# cython: binding=True
 
 import cython
 cython.declare(hashlib=object, json=object, operator=object, os=object, re=object,

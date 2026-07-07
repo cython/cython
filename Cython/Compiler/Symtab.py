@@ -2,6 +2,8 @@
 #   Symbol Table
 #
 
+# uses @try_finally_contextmanager
+# cython: binding=True
 
 import re
 import copy
