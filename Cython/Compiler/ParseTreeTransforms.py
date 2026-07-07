@@ -867,7 +867,8 @@ class InterpretCompilerDirectives(CythonTransform):
     special_methods = {
         'declare', 'union', 'struct', 'typedef',
         'sizeof', 'cast', 'pointer', 'compiled',
-        'NULL', 'fused_type', 'parallel', 'likely'
+        'NULL', 'fused_type', 'parallel', 'likely',
+        'unlikely'
     }
     special_methods.update(unop_method_nodes)
 
