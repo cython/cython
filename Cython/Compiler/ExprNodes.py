@@ -14716,6 +14716,36 @@ def binop_node(pos, operator, operand1, operand2, inplace=False, **kwargs):
         **kwargs)
 
 
+class LikelyNode(ExprNode):
+    #  arg       ExprNode
+    #  expect    string
+
+    subexprs = ['arg']
+    type =PyrexTypes.c_bint_type
+
+    def __init__(self, arg, expect):
+        super().__init__(arg.pos)
+        self.arg = arg
+        self.expect = expect
+
+    def is_simple(self):
+        return 1
+
+    def analyse_types(self, env):
+        self.arg = self.arg.analyse_types(env)
+        self.arg = self.arg.coerce_to_boolean(env)
+        return self
+
+    def calculate_result_code(self):
+        return self.arg.result()
+
+    def result(self):
+        return f'{self.expect}({super().result()})'
+
+    def generate_result_code(self, code):
+        pass
+
+
 #-------------------------------------------------------------------
 #
 #  Coercion nodes

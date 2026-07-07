@@ -867,7 +867,7 @@ class InterpretCompilerDirectives(CythonTransform):
     special_methods = {
         'declare', 'union', 'struct', 'typedef',
         'sizeof', 'cast', 'pointer', 'compiled',
-        'NULL', 'fused_type', 'parallel',
+        'NULL', 'fused_type', 'parallel', 'likely'
     }
     special_methods.update(unop_method_nodes)
 
@@ -4235,6 +4235,15 @@ class TransformBuiltinMethods(EnvTransform):
     def visit_GeneratorBodyDefNode(self, node):
         node = super().visit_GeneratorBodyDefNode(node)
         self._do_body_insertion(node)
+        return node
+
+    def visit_IfClauseNode(self, node):
+        condition = node.condition
+        if isinstance(condition, ExprNodes.SimpleCallNode):
+            function = condition.function.as_cython_attribute()
+            if function in ('likely', 'unlikely'):
+                node.condition = ExprNodes.LikelyNode(condition.args[0], expect=function)
+        self.visitchildren(node)
         return node
 
     def visit_SimpleCallNode(self, node):
