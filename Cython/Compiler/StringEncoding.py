@@ -341,7 +341,13 @@ def encode_pyunicode_string(string):
             utf16.append(ch)
         utf32.append(ch)
 
-    return (
-        ",".join(utf16) if utf16 is not None else "",
-        ",".join(utf32),
-    )
+    if utf16 is not None:
+        utf16.append('0')
+        utf16_string = ','.join(utf16)
+    else:
+        utf16_string = None
+
+    utf32.append('0')
+    utf32_string = ','.join(utf32)
+
+    return (utf16_string, utf32_string)
