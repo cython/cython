@@ -254,3 +254,143 @@ def conditional_inplace(value, a, condition, b):
     """
     value += a if condition else b
     return value
+
+
+# Unicode inplace concatenation is special because it attempts to do a
+# resize for uniquely referenced objects
+
+def unicode_concat_local(a: unicode):
+    """
+    >>> s = "123"
+    >>> unicode_concat_local(s)
+    '123abc'
+    >>> s
+    '123'
+    >>> unicode_concat_local("123456")
+    '123456abc'
+    """
+    local = a
+    local += 'abc'
+    return local
+
+def unicode_concat_unique_local(deuniquify):
+    """
+    >>> unicode_concat_unique_local(True)
+    'some string?'
+    >>> unicode_concat_unique_local(False)
+    'some string?'
+    """
+    a = "some string"
+    if deuniquify:
+        b = a
+    a += "?"
+    return a
+
+
+def unicode_concat_arg(a: unicode):
+    """
+    >>> s = "an argument"
+    >>> unicode_concat_arg(s)
+    'an argument with some extra stuff'
+    >>> s
+    'an argument'
+    >>> unicode_concat_arg('another argument')
+    'another argument with some extra stuff'
+    """
+    a += ' with some extra stuff'
+    return a
+
+def unicode_concat_arg_self(a: unicode):
+    """
+    >>> unicode_concat_arg_self('babababababa')
+    'babababababababababababa'
+    >>> s = '0987654321'
+    >>> unicode_concat_arg_self(s)
+    '09876543210987654321'
+    >>> s
+    '0987654321'
+    """
+    a += a
+    return a
+
+cdef unicode global_unicode = "glglgl"
+
+def get_global_unicode():
+    return global_unicode
+
+def reset_global_unicode():
+    global global_unicode
+    global_unicode = "glglgl"
+
+def unicode_concat_global():
+    """
+    >>> unicode_concat_global()
+    'glglgl xxxx'
+    >>> get_global_unicode()
+    'glglgl xxxx'
+    """
+    global global_unicode
+    global_unicode += ' xxxx'
+    return global_unicode
+
+cdef class UnicodeAttr:
+    cdef public unicode u
+    def do_concat(self):
+        """
+        >>> inst = UnicodeAttr()
+        >>> inst.u = 'attr_string'
+        >>> inst.do_concat()
+        >>> inst.u
+        'attr_string!'
+        >>> old = inst.u
+        >>> inst.do_concat()
+        >>> inst.u
+        'attr_string!!'
+        >>> old
+        'attr_string!'
+        """
+        self.u += "!"
+
+    def do_concat_self(self):
+        """
+        >>> inst = UnicodeAttr()
+        >>> inst.u = 'attr_string'
+        >>> inst.do_concat_self()
+        >>> inst.u
+        'attr_stringattr_string'
+        >>> old = inst.u
+        >>> inst.do_concat_self()
+        >>> inst.u
+        'attr_stringattr_stringattr_stringattr_string'
+        >>> old
+        'attr_stringattr_string'
+        """
+        self.u += self.u
+
+def unicode_concat_closure():
+    """
+    >>> reset_global_unicode()
+    >>> f = unicode_concat_closure()
+    >>> f('get')
+    'hmmmmm'
+    >>> f('concat')
+    'hmmmmm?'
+    >>> f('concat')
+    'hmmmmm??'
+    >>> f('get')
+    'hmmmmm??'
+    >>> f = unicode_concat_closure()
+    >>> (old := f('get'))
+    'hmmmmm'
+    >>> f('concat')
+    'hmmmmm?'
+    >>> old
+    'hmmmmm'
+    """
+    s = "hmmmmm"
+    def cl(op):
+        nonlocal s
+        if op == 'concat':
+            s += '?'
+        return s
+    return cl
