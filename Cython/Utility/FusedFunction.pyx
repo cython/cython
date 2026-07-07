@@ -1,9 +1,11 @@
 #################### match_signatures_single ####################
 
+cimport cython
+
 @cname("__pyx_ff_match_signatures_single")
 cdef object match_signatures_single(signatures: dict, dest_type):
     found_match = signatures.get(dest_type)
-    if found_match is None:
+    if cython.unlikely(found_match is None):
         raise TypeError("No matching signature found")
     return found_match
 
@@ -24,11 +26,11 @@ cdef object index_signature(dest_sig: tuple, signatures: dict, sigindex: dict):
             if dest_type != type_name:
                 break
         else:
-            if matched_function is not None:
+            if cython.unlikely(matched_function is not None):
                 raise TypeError("Function call with ambiguous argument types")
             matched_function = function
 
-    if matched_function is None:
+    if cython.unlikely(matched_function is None):
         raise TypeError("No matching signature found")
 
     sigindex[dest_sig] = matched_function
