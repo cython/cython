@@ -4,14 +4,14 @@
 
 # new code
 import cython
-from Cython.TestUtils import TimedTest, py_parse_code
+from Cython.TestUtils import TimedTest, parse_python_code
 
 import platform
 
 if cython.compiled:
     def compile(code, name, what):
         assert what == 'exec'
-        py_parse_code(code)
+        parse_python_code(code)
 
 
 def disable(func):
