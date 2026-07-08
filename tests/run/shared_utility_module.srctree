@@ -12,6 +12,10 @@ PYTHON -c "import test_shared_utility"
 PYTHON delete_generated_files.py
 PYTHON setup_without_sources.py build_ext --inplace --force -j3
 PYTHON -c "import test_shared_utility"
+
+PYTHON delete_generated_files.py
+PYTHON setup_memoryview_without_extensions.py build_ext --inplace --force -j3
+PYTHON -c "import pkg1.pkg11.feature_memoryview as mv; x = mv.test([1,2,3]); assert x == 6, x"
 """
 
 
@@ -106,6 +110,26 @@ assert pathlib.Path("pkg2/CythonShared.c").exists()
 assert not pathlib.Path("build/pkg2/CythonShared.c").exists()
 
 
+######## setup_memoryview_without_extensions.py ########
+# Memoryviews depend on (some) extension type support themselves.
+
+from Cython.Build import cythonize
+from setuptools import setup, Extension
+
+extensions = [
+    Extension("*", ["pkg1/pkg11/feature*.pyx"]),
+    Extension("pkg2.CythonShared", sources=["pkg2/CythonShared.c"]),
+]
+
+setup(
+    ext_modules = cythonize(
+        extensions,
+        shared_utility_qualified_name = 'pkg2.CythonShared',
+        shared_utility_features_disabled = ['ExtensionTypes'],
+    )
+)
+
+
 ######## test_shared_utility.py ########
 
 from pkg1.pkg11.add_one import add_one, imported_func
@@ -124,14 +148,14 @@ s = fstring()
 assert s == ' 5 != 10 ', s
 
 try:
-    from pkg1.pkg11.missing_feature_ExtensionTypes import ExtensionType
+    from pkg1.pkg11.feature_extensiontypes import ExtensionType
 except ImportError:
     pass
 else:
     assert False, "Import with missing feature 'ExtensionTypes' succeeded !"
 
 try:
-    from pkg1.pkg11.missing_feature_MemoryView import memview_func
+    from pkg1.pkg11.feature_memoryview import memview_func
 except ImportError:
     pass
 else:
@@ -173,18 +197,23 @@ def imported_func():
     return 1
 
 
-######## pkg1/pkg11/missing_feature_ExtensionTypes.pyx ########
-# Using a disabled feature.
+######## pkg1/pkg11/feature_extensiontypes.pyx ########
+# Using feature "ExtensionTypes".
 
 cdef class ExtensionType:
     cdef int x
 
 
-######## pkg1/pkg11/missing_feature_MemoryViews.pyx ########
-# Using a disabled feature.
+######## pkg1/pkg11/feature_memoryview.pyx ########
+# Using feature "MemoryViews".
+
+def test(ints):
+    from array import array
+    a = array('i', ints)
+    return memview_func(a)
 
 def memview_func(int[:] ints):
-    return sum(i for i in range(len(ints)))
+    return sum(ints[i] for i in range(len(ints)))
 
 
 ######## pkg2/__init__.py ########
