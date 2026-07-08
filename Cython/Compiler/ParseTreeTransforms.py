@@ -4245,7 +4245,7 @@ class TransformBuiltinMethods(EnvTransform):
         if isinstance(condition, ExprNodes.SimpleCallNode):
             function = condition.function.as_cython_attribute()
             if function in ('likely', 'unlikely'):
-                node.condition = ExprNodes.LikelyNode(condition.args[0], expect=function)
+                node.condition = ExprNodes.BranchHintNode(condition.args[0], expect=function)
         self.visitchildren(node)
         return node
 

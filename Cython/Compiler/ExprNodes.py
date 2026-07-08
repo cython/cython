@@ -14716,7 +14716,7 @@ def binop_node(pos, operator, operand1, operand2, inplace=False, **kwargs):
         **kwargs)
 
 
-class LikelyNode(ExprNode):
+class BranchHintNode(ExprNode):
     #  arg       ExprNode
     #  expect    string ("likely" or "unlikely")
 
