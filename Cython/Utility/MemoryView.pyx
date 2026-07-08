@@ -168,12 +168,12 @@ cdef class array:
         self._shape = <Py_ssize_t *> PyObject_Malloc(sizeof(Py_ssize_t) * 2 * <size_t> self.ndim)
         self._strides = self._shape + self.ndim
 
-        if cython.unlikely(not self._shape):
+        if not self._shape:
             raise MemoryError, "unable to allocate shape and strides."
 
         # cdef Py_ssize_t dim, stride
         for idx, dim in enumerate(shape):
-            if cython.unlikely(dim <= 0):
+            if dim <= 0:
                 raise ValueError, f"Invalid shape in axis {idx}: {dim}."
             self._shape[idx] = dim
 
