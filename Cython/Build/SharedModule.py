@@ -54,9 +54,10 @@ def _iter_exports(selected_features=None):
         current_feature_name = file_base_name.partition('_')[0]
 
         if selected_features is not None and current_feature_name not in selected_features:
+            # Disable whole file feature, including any @features declared therein.
             continue
 
-        next_match = []  # Look-ahead to allow parsing "//@tags".
+        current_section = None
         for line in Code.read_utilities_hook(c_utility_file):
             if '//' not in line or not line.startswith('//'):
                 continue
@@ -66,24 +67,29 @@ def _iter_exports(selected_features=None):
 
             name = match.group('name')
             if name:
-                if '.export' not in name:
-                    continue
-                section_title = UtilityCode.match_section_title(name)
-                if not section_title:
-                    continue
-                name, section_type = section_title.groups()
-                if section_type == 'export':
-                    if next_match:
-                        yield next_match
-                    next_match = [current_feature_name, name, c_utility_file]
+                if current_section:
+                    if selected_features is None or current_section[0] in selected_features:
+                        yield current_section
+                current_section = None
 
-            elif (tag := match.group('tag')) and tag.startswith('feature') and next_match:
-                # Overwrite the file based feature name with the explicit @feature name.
+                section_title = UtilityCode.match_section_title(name) if '.export' in name else None
+                if section_title:
+                    name, section_type = section_title.groups()
+                    if section_type == 'export':
+                        current_section = [current_feature_name, name, c_utility_file]
+
+            elif (tag := match.group('tag')) and tag.startswith('feature') and current_section:
+                if current_section[0] != current_feature_name:
+                    # Ignore file feature name if at least one tag was declared.
+                    if selected_features is None or current_section[0] in selected_features:
+                        yield current_section
+
                 explicit_feature_name = tag.split(':', 1)[-1].strip()
-                next_match[0] = explicit_feature_name
+                current_section[0] = explicit_feature_name
 
-        if next_match:
-            yield next_match
+        if current_section:
+            if selected_features is None or current_section[0] in selected_features:
+                yield current_section
 
 
 def create_shared_library_pipeline(context, scope, options, result, selected_features=None):

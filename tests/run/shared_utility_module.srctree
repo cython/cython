@@ -16,6 +16,10 @@ PYTHON -c "import test_shared_utility"
 PYTHON delete_generated_files.py
 PYTHON setup_memoryview_without_extensions.py build_ext --inplace --force -j3
 PYTHON -c "import pkg1.pkg11.feature_memoryview as mv; x = mv.test([1,2,3]); assert x == 6, x"
+
+PYTHON delete_generated_files.py
+PYTHON setup_extensions_without_autopickle.py build_ext --inplace --force -j3
+PYTHON -c "import pkg1.pkg11.feature_extensiontypes as ext; assert hasattr(ext.ExtensionType(), 'x')"
 """
 
 
@@ -61,6 +65,8 @@ setup(
 
 import pathlib
 assert pathlib.Path("pkg2/CythonShared.c").exists()
+with open("pkg2/CythonShared.c") as f:
+    assert '__Pyx_setup_reduce' not in f.read()  # AutoPickle indirectly disabled
 
 
 ######## setup_with_builddir.py ########
@@ -86,6 +92,9 @@ import pathlib
 assert pathlib.Path("build/pkg2/CythonShared.c").exists()
 assert not pathlib.Path("pkg2/CythonShared.c").exists()
 
+with open("build/pkg2/CythonShared.c") as f:
+    assert '__Pyx_setup_reduce' not in f.read()  # AutoPickle indirectly disabled
+
 
 ######## setup_without_sources.py ########
 
@@ -109,6 +118,9 @@ import pathlib
 assert pathlib.Path("pkg2/CythonShared.c").exists()
 assert not pathlib.Path("build/pkg2/CythonShared.c").exists()
 
+with open("pkg2/CythonShared.c") as f:
+    assert '__Pyx_setup_reduce' not in f.read()  # AutoPickle indirectly disabled
+
 
 ######## setup_memoryview_without_extensions.py ########
 # Memoryviews depend on (some) extension type support themselves.
@@ -128,6 +140,38 @@ setup(
         shared_utility_features_disabled = ['ExtensionTypes'],
     )
 )
+
+import pathlib
+assert pathlib.Path("pkg2/CythonShared.c").exists()
+
+with open("pkg2/CythonShared.c") as f:
+    assert '__Pyx_setup_reduce' in f.read()  # MemoryViews use AutoPickle
+
+
+######## setup_extensions_without_autopickle.py ########
+
+from Cython.Build import cythonize
+from setuptools import setup, Extension
+
+extensions = [
+    Extension("*", ["pkg1/pkg11/feature*.pyx"]),
+    Extension("pkg2.CythonShared", sources=["pkg2/CythonShared.c"]),
+]
+
+setup(
+    ext_modules = cythonize(
+        extensions,
+        shared_utility_qualified_name = 'pkg2.CythonShared',
+        shared_utility_features_disabled = ['AutoPickle', 'MemoryView'],
+        compiler_directives={'auto_pickle': False},
+    )
+)
+
+import pathlib
+assert pathlib.Path("pkg2/CythonShared.c").exists()
+
+with open("pkg2/CythonShared.c") as f:
+    assert '__Pyx_setup_reduce' not in f.read()
 
 
 ######## test_shared_utility.py ########
@@ -201,7 +245,7 @@ def imported_func():
 # Using feature "ExtensionTypes".
 
 cdef class ExtensionType:
-    cdef int x
+    cdef public int x
 
 
 ######## pkg1/pkg11/feature_memoryview.pyx ########
