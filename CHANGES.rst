@@ -8,6 +8,9 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Indexing into freshly created lists with an out-of-bounds index could crash.
+  (Github issue :issue:`7793`)
+
 * Function arguments with default values could end up uninitialised in closures, leading to crashes.
   Patch by Anthony Donlon.  (Github issue :issue:`7782`)
 
