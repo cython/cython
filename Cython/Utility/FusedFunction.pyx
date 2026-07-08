@@ -1,7 +1,5 @@
 #################### match_signatures_single ####################
 
-cimport cython
-
 @cname("__pyx_ff_match_signatures_single")
 cdef object match_signatures_single(signatures: dict, dest_type):
     found_match = signatures.get(dest_type)
