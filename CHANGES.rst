@@ -8,11 +8,51 @@ Cython Changelog
 Features added
 --------------
 
+* Cython now uses a new export/import naming scheme for fused C functions that
+  increases the resilience against seemingly compatible user code changes.
+  The original names are kept for backwards compatibility.
+  (Github issue :issue:`7656`)
+
+* Exception base types are inferred for the target variable of multi-exception ``except``
+  clauses and for collections of exceptions.  Properties like ``.args`` and ``.context``
+  use direct C access in CPython.
+  (Github issue :issue:`7783`)
+
+* C property setters can now explicitly propagate exceptions, instead of always triggering
+  a call to ``PyErr_Occurred()`` by returning ``void``.
+  (Github issue :issue:`7791`)
+
+* ``bytearray.extend(bytes)`` is faster.
+  (Github issue :issue:`7797`)
+
 * Async generator objects are slightly smaller.
   (Github issue :issue:`7776`)
 
+* Two more Cython modules are compiled in the binary wheels, which should improve the
+  translation speed for modules with many strings.
+  (Github issue :issue:`7795`)
+
 Bugs fixed
 ----------
+
+* Several issues with ``.close()`` or ``.throw()`` of Async generator asend/athrow
+  objects were resolved, following fixes in CPython.
+  (Github issue :issue:`7777`)
+
+* ``cpdef fused`` functions generated redundant code.
+  (Github issue :issue:`7778`)
+
+* Subscripting frozendicts with integer keys could fail in 3.3.0a1.
+
+* ``NULL`` pointer comparisons could fail to compile with C++ in 3.3.0a1.
+  Patch by Vyas Ramasubramani.  (Github issue :issue:`7766`)
+
+* A C helper function for mapping function arguments could be missing in 3.3.0a1.
+  (Github issue :issue:`7785`)
+
+* Some compiler directives failed to apply to Cython's build, which lead to
+  unintentionally (slightly) increased wheel sizes.
+  (Github issue :issue:`7801`)
 
 * Includes all fixes as of Cython 3.2.9.
 
