@@ -1,3 +1,5 @@
+import cython
+
 def f(a, b):
     """
     >>> f(0,0)
@@ -68,3 +70,45 @@ def i(a, b):
     if builtins.str(a+b).lower() not in (u"1", u"3"):
         x = 2
     return x
+
+
+@cython.test_assert_path_exists(
+    '//IfClauseNode',
+    '//IfClauseNode//BranchHintNode',
+)
+def branch_hint_likely(int a, int b):
+    """
+    >>> branch_hint_likely(5, 3)
+    'a > b'
+    >>> branch_hint_likely(3, 5)
+    'a < b'
+    """
+    if cython.likely(a > b):
+        return "a > b"
+    return "a < b"
+
+@cython.test_assert_path_exists(
+    '//IfClauseNode',
+    '//IfClauseNode//BranchHintNode',
+)
+def branch_hint_unlikely(int a, int b):
+    """
+    >>> branch_hint_unlikely(5, 5)
+    'a == b'
+    >>> branch_hint_unlikely(3, 5)
+    'a != b'
+    """
+    if cython.unlikely(a == b):
+        return "a == b"
+    return "a != b"
+
+@cython.test_assert_path_exists(
+    '//IfClauseNode',
+    '//IfClauseNode//BranchHintNode',
+)
+def branch_hint_comprehension_cmp(int a, int b):
+    """
+    >>> branch_hint_comprehension_cmp(5, 3)
+    [3]
+    """
+    return [i for i in range(a) if cython.unlikely(b == i)]
