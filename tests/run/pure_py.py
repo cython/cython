@@ -89,6 +89,29 @@ def test_boundscheck(x):
     with cython.boundscheck(True):
         return x[2]
 
+def test_likely(x):
+    """
+    >>> test_likely(1)
+    'positive'
+    >>> test_likely(-1)
+    'negative'
+    """
+    if cython.likely(x >= 0):
+        return 'positive'
+    else:
+        return 'negative'
+
+def test_unlikely(x):
+    """
+    >>> test_unlikely(1)
+    'positive'
+    >>> test_unlikely(-1)
+    'negative'
+    """
+    if cython.unlikely(x >= 0):
+        return 'positive'
+    else:
+        return 'negative'
 
 ## CURRENTLY BROKEN - FIXME!!
 ## Is this test make sense? Implicit conversion in pure Python??
