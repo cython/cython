@@ -14718,7 +14718,7 @@ def binop_node(pos, operator, operand1, operand2, inplace=False, **kwargs):
 
 class LikelyNode(ExprNode):
     #  arg       ExprNode
-    #  expect    string
+    #  expect    string ("likely" or "unlikely")
 
     subexprs = ['arg']
     type =PyrexTypes.c_bint_type
