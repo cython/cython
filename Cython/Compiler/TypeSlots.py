@@ -534,6 +534,8 @@ class TpVectorcallSlot(ConstructorSlot):
         return True  # never inherited
 
     def slot_code(self, scope):
+        if scope.needs_pickleable_closure_constructor:
+            return "0"
         tp = scope.parent_type
         seen_init = False
         while tp:

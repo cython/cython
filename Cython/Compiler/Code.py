@@ -381,7 +381,7 @@ class UtilityCodeBase(AbstractUtilityCode):
                 tag_name = tag_name.rstrip()
                 tag_value = tag_value.strip()
 
-                if tag_name not in ('requires', 'substitute', 'proto_block', 'init_block'):
+                if tag_name not in ('requires', 'substitute', 'proto_block', 'init_block', 'merge_at_end'):
                     raise RuntimeError(f"Found unknown tag name '{tag_name}' in utility section {name}.{type}")
                 if not re.match(r'\S+(\{[^\}]*\})?$', tag_value):
                     raise RuntimeError(f"Found invalid tag value '{tag_value}' in utility section {name}.{type}")
