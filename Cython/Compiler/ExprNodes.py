@@ -14721,7 +14721,7 @@ class LikelyNode(ExprNode):
     #  expect    string ("likely" or "unlikely")
 
     subexprs = ['arg']
-    type =PyrexTypes.c_bint_type
+    type = PyrexTypes.c_bint_type
 
     def __init__(self, arg, expect):
         super().__init__(arg.pos)
