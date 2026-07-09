@@ -53,10 +53,6 @@ def _iter_exports(selected_features=None):
         file_base_name = os.path.splitext(os.path.basename(c_utility_file))[0]
         current_feature_name = file_base_name.partition('_')[0]
 
-        if selected_features is not None and current_feature_name not in selected_features:
-            # Disable whole file feature, including any @features declared therein.
-            continue
-
         current_section = None
         for line in Code.read_utilities_hook(c_utility_file):
             if '//' not in line or not line.startswith('//'):
@@ -80,7 +76,8 @@ def _iter_exports(selected_features=None):
 
             elif (tag := match.group('tag')) and tag.startswith('feature') and current_section:
                 if current_section[0] != current_feature_name:
-                    # Ignore file feature name if at least one tag was declared.
+                    # Allow multiple feature name tags for a section, but ignore the main file
+                    # feature name if at least one feature name was explicitly declared.
                     if selected_features is None or current_section[0] in selected_features:
                         yield current_section
 
