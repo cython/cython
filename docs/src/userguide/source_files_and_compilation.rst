@@ -151,12 +151,12 @@ module which is automatically cimported and used by the user-written extension m
 
 There are a few things to bear in mind when deciding whether to use the shared utility module:
 
-* The bulk of the shared utility module is the memoryview utility code, with some
-  additional frequently-needed code as bonus.  Using the shared utility module is only
+* A large part of the shared utility module is the memoryview utility code, with some
+  additional frequently-needed code as bonus.  Using the shared utility module is most
   likely to be worthwhile if you use :ref:`typed memoryviews<memoryviews>`.
 * The contents and interfaces of the shared utility module are not designed to be
   stable across Python versions.  That means that you must build the shared utility
-  module with the same version of Cython as you build you extension modules.
+  module with the same version of Cython as you build your extension modules.
   In practice that means that each package will ship its own shared utility
   module rather than using a global system module.
 * The shared utility module should be compiled with the same
@@ -233,6 +233,35 @@ The :file:`setup.py` file would be:
     setup(
       ext_modules = cythonize(extensions, shared_utility_qualified_name = 'mypkg.shared._cyutility')
     )
+
+Selecting features to be shared
+-------------------------------
+
+Since Cython 3.3, the content of the shared utility can be controlled via feature selection.
+The list of named features can be found in the output of ``cython --help``, which includes
+names like ``MemoryView`` or ``AutoPickle``.  Cython accepts a positive list and a negative
+list as follows.  If both options are provided, excludes override the positive list.
+
+* via the ``cython`` command:
+
+   .. code-block:: console
+
+       $ cython --generate-shared=shared.c \
+                --shared-only MemoryView,AutoPickle  # positive list
+
+       $ cython --generate-shared=shared.c \
+                --shared-exclude MemoryView  # negative list
+
+via ``cythonize()`` in ``setup.py``:
+
+   .. code-block:: python
+
+       cythonize(
+           extensions,
+           shared_utility_qualified_name='mypkg.shared._cyutility',
+           shared_utility_features_enabled=['MemoryView'],  # positive list
+           shared_utility_features_disabled=['AutoPickle'],  # negative list
+       )
 
 
 .. _integrating_multiple_modules:
@@ -1123,7 +1152,7 @@ most important to least important:
     at compile-time.  Otherwise ``assert`` statements behave like in Python and
     depend on if the interpreter is in debug mode.
     Unlike most other macros here, the behaviour of ``CYTHON_WITHOUT_ASSERTIONS``
-    depends only on whether it is defined and not what it is defined to.  
+    depends only on whether it is defined and not what it is defined to.
 
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstances Cython enables these automatically based on the
