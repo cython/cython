@@ -75,13 +75,10 @@ def _iter_exports(selected_features=None):
                         current_section = [current_feature_name, name, c_utility_file]
 
             elif (tag := match.group('tag')) and tag.startswith('feature') and current_section:
-                if current_section[0] != current_feature_name:
-                    # Allow multiple feature name tags for a section, but ignore the main file
-                    # feature name if at least one feature name was explicitly declared.
-                    if selected_features is None or current_section[0] in selected_features:
-                        yield current_section
-
                 explicit_feature_name = tag.split(':', 1)[-1].strip()
+                assert current_section[0] == current_feature_name, (
+                    "Conflicting feature names given to the same utility code section: "
+                    f"{current_section[0]!r} and {explicit_feature_name!r}")
                 current_section[0] = explicit_feature_name
 
         if current_section:
