@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* The feature set of the shared module can be selected at build time.
+  (Github issue :issue:`7800`)
+
 * Cython now uses a new export/import naming scheme for fused C functions that
   increases the resilience against seemingly compatible user code changes.
   The original names are kept for backwards compatibility.

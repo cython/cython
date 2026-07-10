@@ -381,6 +381,7 @@ static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear) {
 
 
 /////////////// SetupReduce.export ///////////////
+//@feature: AutoPickle
 
 static int __Pyx_setup_reduce(PyObject* type_obj);
 
@@ -576,6 +577,7 @@ static int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long check
 
 
 /////////////// UpdateUnpickledDict.export ///////////////
+//@feature: AutoPickle
 
 static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index); /*proto*/
 
