@@ -98,6 +98,10 @@ Bugs fixed
   It now uses a dedicated enum implementation class to allow this.
   (Github issue :issue:`7185`)
 
+* Casting to an unresolved ``typeof()`` type (e.g. ``cython.cast(cython.typeof(x), ...)``
+  where the type could not be inferred) crashed the compiler instead of reporting an error.
+  (Github issue :issue:`7683`)
+
 * ``cpdef fused`` functions generated redundant code.
   (Github issue :issue:`7778`)
 

@@ -12044,6 +12044,12 @@ class TypecastNode(ExprNode):
             error(self.pos,
                 "Cannot cast to a function type")
             self.type = PyrexTypes.error_type
+        elif self.type.is_unspecified:
+            # e.g. cython.cast(cython.typeof(x), ...) where typeof() could not
+            # be resolved to a concrete type; report an error instead of crashing.
+            error(self.pos,
+                "Unable to determine the type to cast to")
+            self.type = PyrexTypes.error_type
         self.operand = self.operand.analyse_types(env)
         if self.type is PyrexTypes.c_bint_type:
             # short circuit this to a coercion
