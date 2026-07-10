@@ -179,6 +179,8 @@ class PostParse(ScopeTrackingTransform):
     """
     def __init__(self, context):
         super().__init__(context)
+        self.scope_type = 'module'
+        self.scope_node = None
         self.specialattribute_handlers = {
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
