@@ -373,31 +373,29 @@ class ScopeTrackingTransform(CythonTransform):
         self.scope_type = 'module'
         self.scope_node = None
 
-    def visit_ModuleNode(self, node):
-        self.scope_type = 'module'
-        self.scope_node = node
-        self._process_children(node)
-        return node
-
-    def visit_scope(self, node, scope_type):
-        prev = self.scope_type, self.scope_node
+    @cython.final
+    def _visit_scope(self, node, scope_type):
+        outer_scope_type, outer_scope_node = self.scope_type, self.scope_node
         self.scope_type = scope_type
         self.scope_node = node
         self._process_children(node)
-        self.scope_type, self.scope_node = prev
+        self.scope_type, self.scope_node = outer_scope_type, outer_scope_node
         return node
 
+    def visit_ModuleNode(self, node):
+        return self._visit_scope(node, 'module')
+
     def visit_CClassDefNode(self, node):
-        return self.visit_scope(node, 'cclass')
+        return self._visit_scope(node, 'cclass')
 
     def visit_PyClassDefNode(self, node):
-        return self.visit_scope(node, 'pyclass')
+        return self._visit_scope(node, 'pyclass')
 
     def visit_FuncDefNode(self, node):
-        return self.visit_scope(node, 'function')
+        return self._visit_scope(node, 'function')
 
     def visit_CStructOrUnionDefNode(self, node):
-        return self.visit_scope(node, 'struct')
+        return self._visit_scope(node, 'struct')
 
 
 class EnvTransform(CythonTransform):
