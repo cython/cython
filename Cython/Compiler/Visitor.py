@@ -368,6 +368,11 @@ class ScopeTrackingTransform(CythonTransform):
     #scope_type: can be either of 'module', 'function', 'cclass', 'pyclass', 'struct'
     #scope_node: the node that owns the current scope
 
+    def __init__(self, context):
+        super().__init__(context)
+        self.scope_type = 'module'
+        self.scope_node = None
+
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
         self.scope_node = node
