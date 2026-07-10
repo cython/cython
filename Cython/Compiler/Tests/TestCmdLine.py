@@ -585,3 +585,68 @@ class CmdLineParserTest(TimedTest):
               "Source file not allowed when using --generate-shared")
         error(['--generate-shared'],
               "argument --generate-shared: expected one argument")
+
+    def test_compile_subcommand(self):
+        options, sources = parse_command_line([
+            'compile', 'source.pyx',
+        ])
+        self.assertEqual(sources, ['source.pyx'])
+        self.check_default_global_options()
+        self.check_default_options(options)
+
+        options, sources = parse_command_line([
+            'compile', '--cplus', '-3', 'source.pyx',
+        ])
+        self.assertEqual(sources, ['source.pyx'])
+        self.assertTrue(options.cplus)
+        self.assertEqual(options.language_level, 3)
+
+    def test_generate_shared_subcommand(self):
+        options, sources = parse_command_line([
+            'generate-shared', 'foo/shared.c',
+        ])
+        self.assertEqual(sources, [])
+        self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
+
+        options, sources = parse_command_line([
+            'generate-shared', '--shared-exclude', 'MemoryView', 'foo/shared.c',
+        ])
+        self.assertEqual(sources, [])
+        self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
+        self.assertEqual(options.shared_utility_features_disabled, ['MemoryView'])
+
+    @patch('Cython.Build.Cythonize.main')
+    @patch('sys.exit')
+    def test_build_subcommand(self, mock_exit, mock_cythonize_main):
+        try:
+            parse_command_line(['build', '-fi', 'source.pyx'])
+        except SystemExit:
+            pass
+        mock_cythonize_main.assert_called_once_with(['-fi', 'source.pyx'])
+        mock_exit.assert_called_once_with(0)
+
+    def test_shared_defaulting(self):
+        options, sources = parse_command_line([
+            'compile', '--shared', 'source.pyx',
+        ])
+        self.assertEqual(sources, ['source.pyx'])
+        self.assertEqual(options.shared_utility_qualified_name, 'cyshared')
+
+        options, sources = parse_command_line([
+            'compile', '--shared', 'my_custom_shared', 'source.pyx',
+        ])
+        self.assertEqual(sources, ['source.pyx'])
+        self.assertEqual(options.shared_utility_qualified_name, 'my_custom_shared')
+
+        options, sources = parse_command_line([
+            '--shared', 'source.pyx',
+        ])
+        self.assertEqual(sources, ['source.pyx'])
+        self.assertEqual(options.shared_utility_qualified_name, 'cyshared')
+
+        options, sources = parse_command_line([
+            '--shared', 'my_custom_shared', 'source.pyx',
+        ])
+        self.assertEqual(sources, ['source.pyx'])
+        self.assertEqual(options.shared_utility_qualified_name, 'my_custom_shared')
+

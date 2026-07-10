@@ -4,6 +4,7 @@
 
 
 import os
+import sys
 from argparse import ArgumentParser, Action, SUPPRESS, RawDescriptionHelpFormatter
 from . import Options
 
@@ -102,16 +103,7 @@ class CythonArgumentParser(ArgumentParser):
         pass
 
 
-def create_cython_argparser():
-    description = "Cython (https://cython.org/) is a compiler for code written in the "\
-                  "Cython language.  Cython is based on Pyrex by Greg Ewing."
-
-    parser = CythonArgumentParser(
-        description=description,
-        argument_default=SUPPRESS,
-        formatter_class=RawDescriptionHelpFormatter,
-    )
-
+def add_compile_arguments(parser, include_sources=True):
     parser.add_argument("-V", "--version", dest='show_version', action='store_const', const=1,
                       help='Display version number of cython compiler')
     parser.add_argument("-l", "--create-listing", dest='use_listing_file', action='store_const', const=1,
@@ -193,19 +185,11 @@ def create_cython_argparser():
     parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
 
     # Shared module setup.
-
-    parser.add_argument("--generate-shared", dest='shared_c_file_path', action='store', type=str,
-                        help='Generates shared module with specified name.')
     parser.add_argument("--shared", dest='shared_utility_qualified_name', action='store', type=str,
                         help='Imports utility code from shared module specified by fully qualified module name.')
-    parser.add_argument("--shared-only", dest='shared_utility_features_enabled',
-                        action=ParseCommaListAction, type=str, metavar='FEATURES',
-                        help='Comma separate list of features to move to the shared module exclusively.')
-    parser.add_argument("--shared-exclude", dest='shared_utility_features_disabled',
-                        action=ParseCommaListAction, type=str, metavar='FEATURES',
-                        help='Comma separate list of features to exclude from the shared module.')
 
-    parser.add_argument('sources', nargs='*', default=[])
+    if include_sources:
+        parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help
     parser.add_argument("-z", "--pre-import", dest='pre_import', action='store', type=str, help=SUPPRESS)
@@ -221,10 +205,102 @@ def create_cython_argparser():
             option_name = name.replace('_', '-')
             parser.add_argument("--" + option_name, action='store_true', help=SUPPRESS)
 
+
+def create_cython_argparser():
+    description = "Cython (https://cython.org/) is a compiler for code written in the "\
+                  "Cython language.  Cython is based on Pyrex by Greg Ewing."
+
+    parser = CythonArgumentParser(
+        description=description,
+        argument_default=SUPPRESS,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    add_compile_arguments(parser, include_sources=True)
+
+    parser.add_argument("--generate-shared", dest='shared_c_file_path', action='store', type=str,
+                        help='Generates shared module with specified name.')
+    parser.add_argument("--shared-only", dest='shared_utility_features_enabled',
+                        action=ParseCommaListAction, type=str, metavar='FEATURES',
+                        help='Comma separate list of features to move to the shared module exclusively.')
+    parser.add_argument("--shared-exclude", dest='shared_utility_features_disabled',
+                        action=ParseCommaListAction, type=str, metavar='FEATURES',
+                        help='Comma separate list of features to exclude from the shared module.')
+
     return parser
+
+
+def create_cython_subcommand_parser():
+    description = "Cython (https://cython.org/) is a compiler for code written in the "\
+                  "Cython language.  Cython is based on Pyrex by Greg Ewing."
+
+    parser = CythonArgumentParser(
+        description=description,
+        argument_default=SUPPRESS,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+
+    subparsers = parser.add_subparsers(dest='command', help='Subcommands')
+
+    # 1. Compile subcommand
+    compile_parser = subparsers.add_parser(
+        'compile',
+        help='Compile Cython source files to C/C++',
+        argument_default=SUPPRESS,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    add_compile_arguments(compile_parser, include_sources=True)
+
+    # 2. Generate-shared subcommand
+    generate_parser = subparsers.add_parser(
+        'generate-shared',
+        help='Generate shared module C/C++ file',
+        argument_default=SUPPRESS,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    generate_parser.add_argument('shared_c_file_path', metavar='OUTPUT_FILE', type=str,
+                                 help='Path to the generated shared C/C++ file.')
+    generate_parser.add_argument("--shared-only", dest='shared_utility_features_enabled',
+                                 action=ParseCommaListAction, type=str, metavar='FEATURES',
+                                 help='Comma separate list of features to move to the shared module exclusively.')
+    generate_parser.add_argument("--shared-exclude", dest='shared_utility_features_disabled',
+                                 action=ParseCommaListAction, type=str, metavar='FEATURES',
+                                 help='Comma separate list of features to exclude from the shared module.')
+    add_compile_arguments(generate_parser, include_sources=False)
+
+    # 3. Build subcommand
+    from ..Build.Cythonize import create_args_parser as create_cythonize_parser
+    build_parent_parser = create_cythonize_parser(add_help=False)
+    build_parser = subparsers.add_parser(
+        'build',
+        parents=[build_parent_parser],
+        help='Build extension modules using distutils/setuptools',
+        formatter_class=RawDescriptionHelpFormatter,
+        add_help=False,
+    )
+
+    return parser
+
 
 def comma_list(string):
     return string.split(',')
+
+
+def preprocess_shared_args(args):
+    new_args = []
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        new_args.append(arg)
+        if arg == '--shared':
+            if i + 1 < len(args):
+                next_arg = args[i + 1]
+                if next_arg.startswith('-') or next_arg.endswith(('.py', '.pyx', '.pyw')):
+                    new_args.append('cyshared')
+            else:
+                new_args.append('cyshared')
+        i += 1
+    return new_args
+
 
 def parse_command_line_raw(parser, args):
     # special handling for --embed and --embed=xxxx as they aren't correctly parsed
@@ -241,8 +317,11 @@ def parse_command_line_raw(parser, args):
 
     arguments, unknown = parser.parse_known_args(args_without_embed)
 
-    sources = arguments.sources
-    del arguments.sources
+    try:
+        sources = arguments.sources
+        del arguments.sources
+    except AttributeError:
+        sources = []
 
     # unknown can be either debug, embed or input files or really unknown
     for option in unknown:
@@ -263,8 +342,87 @@ def parse_command_line_raw(parser, args):
 
 
 def parse_command_line(args):
-    parser = create_cython_argparser()
+    args = preprocess_shared_args(args)
+
+    OPTIONS_WITH_ARGS = {
+        '-I', '--include-dir', '-o', '--output-file', '--cleanup', '-w', '--working',
+        '--gdb-outdir', '--annotate-coverage', '--embed-modules', '-X', '--directive',
+        '-E', '--compile-time-env', '--module-name', '--generate-shared', '--shared',
+        '--shared-only', '--shared-exclude', '-z', '--pre-import'
+    }
+
+    is_subcommand = False
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in ('compile', 'generate-shared', 'build'):
+            is_subcommand = True
+            break
+        elif arg.startswith('-'):
+            has_val_attached = False
+            for opt in OPTIONS_WITH_ARGS:
+                if arg.startswith(opt) and (len(arg) > len(opt) and arg[len(opt)] in ('=',)):
+                    has_val_attached = True
+                    break
+                if len(opt) == 2 and arg.startswith(opt) and len(arg) > 2:
+                    has_val_attached = True
+                    break
+
+            if not has_val_attached:
+                opt_name = arg.split('=', 1)[0]
+                if opt_name in OPTIONS_WITH_ARGS:
+                    i += 2
+                    continue
+        else:
+            break
+        i += 1
+
+    if is_subcommand:
+        try:
+            build_idx = args.index('build')
+            temp_i = 0
+            is_build_subcmd = False
+            while temp_i < len(args):
+                temp_arg = args[temp_i]
+                if temp_arg == 'build':
+                    is_build_subcmd = True
+                    break
+                elif temp_arg in ('compile', 'generate-shared'):
+                    break
+                elif temp_arg.startswith('-'):
+                    has_val_attached = False
+                    for opt in OPTIONS_WITH_ARGS:
+                        if temp_arg.startswith(opt) and (len(temp_arg) > len(opt) and temp_arg[len(opt)] in ('=',)):
+                            has_val_attached = True
+                            break
+                        if len(opt) == 2 and temp_arg.startswith(opt) and len(temp_arg) > 2:
+                            has_val_attached = True
+                            break
+                    if not has_val_attached:
+                        opt_name = temp_arg.split('=', 1)[0]
+                        if opt_name in OPTIONS_WITH_ARGS:
+                            temp_i += 2
+                            continue
+                else:
+                    break
+                temp_i += 1
+
+            if is_build_subcmd:
+                from ..Build.Cythonize import main as cythonize_main
+                cythonize_main(args[build_idx + 1:])
+                sys.exit(0)
+        except ValueError:
+            pass
+
+        parser = create_cython_subcommand_parser()
+    else:
+        parser = create_cython_argparser()
+
     arguments, sources = parse_command_line_raw(parser, args)
+
+    command = getattr(arguments, 'command', None)
+    if command:
+        del arguments.command
 
     work_dir = getattr(arguments, 'working_path', '')
     for source in sources:
