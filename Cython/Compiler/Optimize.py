@@ -5360,7 +5360,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         last_non_unlikely_clause = None
         for i, if_clause in enumerate(node.if_clauses):
             self._set_ifclause_branch_hint(if_clause, if_clause.body)
-            if not if_clause.branch_hint:
+            if not isinstance(if_clause.condition, ExprNodes.BranchHintNode):
                 last_non_unlikely_clause = if_clause
         if node.else_clause and last_non_unlikely_clause:
             # If the 'else' clause is 'unlikely', then set the preceding 'if' clause to 'likely' to reflect that.
@@ -5392,7 +5392,8 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
             if not isinstance(node, non_branch_nodes):
                 if next_node_pos == len(statements) and isinstance(node, (Nodes.RaiseStatNode, Nodes.ReraiseStatNode)):
                     # Anything that unconditionally raises exceptions at the end should be considered unlikely.
-                    clause.branch_hint = 'likely' if inverse else 'unlikely'
+                    if not isinstance(clause.condition, ExprNodes.BranchHintNode):
+                        clause.condition = ExprNodes.BranchHintNode(clause.condition, 'likely' if inverse else 'unlikely')
                 break
 
     def visit_JoinedStrNode(self, node: ExprNodes.JoinedStrNode):

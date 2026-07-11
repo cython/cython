@@ -106,6 +106,61 @@ def branch_hint_unlikely(int a, int b):
     '//IfClauseNode',
     '//IfClauseNode//BranchHintNode',
 )
+def branch_hint_likely_exception(int a, int b):
+    # Cython automatically injects `unlikely()` in
+    # if conditions having branch with single raise line.
+    # This tests verifies that Cython correctly injects likely()
+    """
+    >>> branch_hint_likely_exception(5, 5)   # doctest:+IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    ValueError
+    >>> branch_hint_likely_exception(3, 5)
+    'not raised'
+    """
+    if cython.likely(a == b):
+        raise ValueError()
+    return 'not raised'
+
+@cython.test_assert_path_exists(
+    '//IfClauseNode',
+    '//IfClauseNode//BranchHintNode',
+)
+def branch_hint_exception(int a, int b):
+    """
+    >>> branch_hint_exception(5, 5)   # doctest:+IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    ValueError
+    >>> branch_hint_exception(3, 5)
+    'not raised'
+    """
+    if a == b:
+        raise ValueError()
+    return 'not raised'
+
+@cython.test_assert_path_exists(
+    '//IfClauseNode',
+    '//IfClauseNode//BranchHintNode',
+)
+def branch_hint_else_exception(int a, int b):
+    """
+    >>> branch_hint_else_exception(5, 5)
+    'not raised'
+    >>> branch_hint_else_exception(3, 5)   # doctest:+IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    ValueError
+    """
+    if a == b:
+        return 'not raised'
+    else:
+        raise ValueError()
+
+@cython.test_assert_path_exists(
+    '//IfClauseNode',
+    '//IfClauseNode//BranchHintNode',
+)
 def branch_hint_comprehension_cmp(int a, int b):
     """
     >>> branch_hint_comprehension_cmp(5, 3)
