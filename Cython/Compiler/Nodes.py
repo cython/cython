@@ -7445,6 +7445,7 @@ class IfClauseNode(Node):
     #  body        StatNode
 
     child_attrs = ["condition", "body"]
+    branch_hint = None
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
@@ -7458,6 +7459,8 @@ class IfClauseNode(Node):
         self.condition.generate_evaluation_code(code)
         code.mark_pos(self.pos)
         condition = self.condition.result()
+        if self.branch_hint:
+            condition = '%s(%s)' % (self.branch_hint, condition)
         code.putln("if (%s) {" % condition)
         self.condition.generate_disposal_code(code)
         self.condition.free_temps(code)
