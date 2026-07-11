@@ -649,4 +649,3 @@ class CmdLineParserTest(TimedTest):
         ])
         self.assertEqual(sources, ['source.pyx'])
         self.assertEqual(options.shared_utility_qualified_name, 'my_custom_shared')
-
