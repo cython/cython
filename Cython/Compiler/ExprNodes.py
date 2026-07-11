@@ -14715,6 +14715,7 @@ def binop_node(pos, operator, operand1, operand2, inplace=False, **kwargs):
         inplace=inplace,
         **kwargs)
 
+
 #-------------------------------------------------------------------
 #
 #  Coercion nodes

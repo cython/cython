@@ -1,5 +1,3 @@
-import cython
-
 def f(a, b):
     """
     >>> f(0,0)
