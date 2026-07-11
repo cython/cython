@@ -51,3 +51,51 @@ cpdef type pass_type(type x):
     TypeError: Argument 'x' has incorrect type (expected type, got object)
     """
     return x
+
+
+def test_exact_type_getitem(val):
+    """
+    >>> test_exact_type_getitem(int)
+    type[int]
+    >>> test_exact_type_getitem(float)
+    type[float]
+    >>> test_exact_type_getitem(1)
+    type[1]
+    """
+    return type[val]
+
+
+def test_maybe_type_getitem(tp, val):
+    """
+    >>> test_maybe_type_getitem(type, int)
+    type[int]
+    >>> test_maybe_type_getitem(type, float)
+    type[float]
+    >>> test_maybe_type_getitem(type, 1)
+    type[1]
+    >>> test_maybe_type_getitem(list, int)
+    list[int]
+    >>> test_maybe_type_getitem(str, int)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    TypeError: ...
+    """
+    return tp[val]
+
+
+def test_typed_type_getitem(tp: type, val):
+    """
+    >>> test_typed_type_getitem(type, int)
+    type[int]
+    >>> test_typed_type_getitem(type, float)
+    type[float]
+    >>> test_typed_type_getitem(type, 1)
+    type[1]
+    >>> test_typed_type_getitem(list, int)
+    list[int]
+    >>> test_typed_type_getitem(str, int)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    TypeError: ...
+    """
+    return tp[val]
