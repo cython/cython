@@ -715,7 +715,7 @@ cdef int _err_invalid_index(item) except -1:
     return -1
 
 
-cdef tuple _unellipsify_index_tuple(index_tuple: tuple, int ndim):
+cdef tuple[bint, tuple] _unellipsify_index_tuple(index_tuple: tuple, int ndim):
     """
     Replace all ellipses with full slices and fill incomplete indices with full slices.
     """
@@ -760,7 +760,7 @@ cdef tuple _unellipsify_index_tuple(index_tuple: tuple, int ndim):
     return have_slices, index_tuple
 
 
-cdef tuple _unellipsify(object index, int ndim):
+cdef tuple[bint, tuple] _unellipsify(object index, int ndim):
     """
     Replace all ellipses with full slices and fill incomplete indices with full slices.
     """
@@ -804,7 +804,7 @@ cdef int assert_direct_dimensions(Py_ssize_t *suboffsets, int ndim) except -1:
 #
 
 @cname('__pyx_memview_slice')
-cdef memoryview memview_slice(memoryview memview, object indices):
+cdef memoryview memview_slice(memoryview memview, tuple indices):
     cdef int new_ndim = 0, suboffset_dim = -1, dim
     cdef bint negative_step
     cdef {{memviewslice_name}} src, dst
