@@ -65,6 +65,26 @@ def test_exact_type_getitem(val):
     return type[val]
 
 
+def test_exact_type_instance_getitem1(val):
+    """
+    >>> test_exact_type_instance_getitem1(int)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    TypeError: ... is not subscriptable
+    """
+    return str[val]
+
+
+def test_exact_type_instance_getitem2(val):
+    """
+    >>> test_exact_type_instance_getitem2(int)
+    list[int]
+    >>> test_exact_type_instance_getitem2(1)
+    list[1]
+    """
+    return list[val]
+
+
 def test_maybe_type_getitem(tp, val):
     """
     >>> test_maybe_type_getitem(type, int)
@@ -78,7 +98,7 @@ def test_maybe_type_getitem(tp, val):
     >>> test_maybe_type_getitem(str, int)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    TypeError: ...
+    TypeError: ... is not subscriptable
     """
     return tp[val]
 
@@ -96,6 +116,6 @@ def test_typed_type_getitem(tp: type, val):
     >>> test_typed_type_getitem(str, int)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    TypeError: ...
+    TypeError: ... is not subscriptable
     """
     return tp[val]
