@@ -7365,15 +7365,21 @@ class AssertStatNode(StatNode):
             UtilityCode.load_cached("AssertionsEnabled", "Exceptions.c"))
         code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
         code.putln("if (unlikely(__pyx_assertions_enabled())) {")
-        code.mark_pos(self.pos)
-        self.condition.generate_evaluation_code(code)
-        code.putln(
-            "if (unlikely(!%s)) {" % self.condition.result())
+
+        if self.condition.constant_result is not False:
+            code.mark_pos(self.pos)
+            self.condition.generate_evaluation_code(code)
+            code.putln(
+                "if (unlikely(!%s)) {" % self.condition.result())
+
         self.exception.generate_execution_code(code)
-        code.putln(
-            "}")
-        self.condition.generate_disposal_code(code)
-        self.condition.free_temps(code)
+
+        if self.condition.constant_result is not False:
+            code.putln(
+                "}")
+            self.condition.generate_disposal_code(code)
+            self.condition.free_temps(code)
+
         code.putln(
             "}")
         code.putln("#else")
