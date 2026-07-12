@@ -2211,7 +2211,7 @@ static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject * con
 static CYTHON_INLINE vectorcallfunc __Pyx_PyVectorcall_Function(PyObject *callable) {
     PyTypeObject *tp = Py_TYPE(callable);
 
-    #if defined(__Pyx_CyFunction_USED)
+    #if defined(__Pyx_CyFunction_USED) && CYTHON_METH_FASTCALL
     if (__Pyx_CyFunction_CheckExact(callable)) {
         return __Pyx_CyFunction_func_vectorcall(callable);
     }
