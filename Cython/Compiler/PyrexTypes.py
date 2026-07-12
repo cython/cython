@@ -3972,7 +3972,7 @@ class CFuncType(CType):
         original_args = [arg for arg in self.args]
         for cname, fused_to_specific in permutations:
             specialized_args = [
-                fused_to_specific[arg.type] if arg.is_fused else arg
+                arg.type.specialize(fused_to_specific) if arg.is_fused else arg
                 for arg in original_args
             ]
             func_name = _get_fused_specialized_name_from_arg_types(
