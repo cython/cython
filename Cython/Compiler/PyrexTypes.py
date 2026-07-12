@@ -5461,6 +5461,7 @@ class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
 
     def specialize_here(self, pos, env, template_values=None):
         if (template_values and None not in template_values and
+                Ellipsis not in template_values and
                 not any(v.is_pyobject for v in template_values)):
             entry = env.declare_tuple_type(pos, template_values)
             if entry:
