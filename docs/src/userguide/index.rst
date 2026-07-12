@@ -12,7 +12,7 @@ Contents:
    sharing_declarations
    external_C_code
    source_files_and_compilation
-   early_binding_for_speed
+   performance_optimization
    wrapping_CPlusPlus
    fusedtypes
    pypy
