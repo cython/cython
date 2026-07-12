@@ -13892,8 +13892,8 @@ class CondExprNode(ExprNode):
         self.test.generate_evaluation_code(code)
         condition = self.test.result()
         if self.branch_hint:
-            condition = '%s(%s)' % (self.branch_hint, condition)
-        code.putln("if (%s) {" % condition)
+            condition = f'{self.branch_hint}({condition})'
+        code.putln(f"if ({condition}) {{")
         self.eval_and_get(code, self.true_val)
         code.putln("} else {")
         self.eval_and_get(code, self.false_val)
