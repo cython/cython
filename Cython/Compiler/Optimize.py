@@ -67,6 +67,7 @@ def filter_none_node(node):
     return node
 
 
+@cython.cfunc
 def _unpack_union_type_nodes(union_type_nodes: list):
     # Unpack 'int | float | None' etc.
     BitwiseOrNode = ExprNodes.BitwiseOrNode
@@ -137,14 +138,16 @@ class _YieldNodeCollector(Visitor.TreeVisitor):
         pass
 
 
-def _find_single_yield_expression(node):
+@cython.cfunc
+def _find_single_yield_expression(node) -> tuple:
     yield_statements = _find_yield_statements(node)
     if len(yield_statements) != 1:
         return None, None
     return yield_statements[0]
 
 
-def _find_yield_statements(node):
+@cython.cfunc
+def _find_yield_statements(node) -> list[tuple]:
     collector = _YieldNodeCollector()
     collector.visitchildren(node)
     try:
