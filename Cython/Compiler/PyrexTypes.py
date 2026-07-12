@@ -5467,14 +5467,14 @@ class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
             if entry:
                 entry.used = True
                 return entry.type
-        if (len(template_values) == 2 and template_values[0] is not Ellipsis and template_values[1] is Ellipsis):
+        if len(template_values) == 2 and template_values[1] is Ellipsis and template_values[0] is not Ellipsis:
             # ellipsis is allowed only as tuple[TYP, ...]
-            set_uniform_element_type = True
+            has_uniform_element_type = True
             template_values = template_values[0:1]
         else:
-            set_uniform_element_type = False
+            has_uniform_element_type = False
         typ = super().specialize_here(pos, env, template_values)
-        if set_uniform_element_type:
+        if has_uniform_element_type:
             typ.has_uniform_element_type = True
         return typ
 
