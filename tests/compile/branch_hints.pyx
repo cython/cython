@@ -127,3 +127,17 @@ def branch_hint_likely_exception(int a, int b):
 )
 def branch_hint_comprehension_cmp(int a, int b):
     return [i for i in range(a) if cython.unlikely(b == i)]
+
+@cython.test_assert_path_exists(
+    "//CondExprNode",
+    "//CondExprNode[@branch_hint = 'likely']",
+)
+def branch_hint_likely_cond_expr(int i, int j):
+    return i if cython.likely(j > 5) else -i
+
+@cython.test_assert_path_exists(
+    "//CondExprNode",
+    "//CondExprNode[@branch_hint = 'unlikely']",
+)
+def branch_hint_unlikely_cond_expr(int i, int j):
+    return i if cython.unlikely(j > 5) else -i

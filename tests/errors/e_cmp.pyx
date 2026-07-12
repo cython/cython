@@ -22,7 +22,6 @@ cdef void likely_foo(int j):
 
     bol = cython.likely(i == j)
     bol = cython.unlikely(i == j)
-    a = i if cython.likely(j > 5) else -i
 
 _ERRORS = u"""
 12:16: Invalid types for '==' (int *, Python object)
@@ -32,6 +31,4 @@ _ERRORS = u"""
 23:16: 'likely' not a valid cython language construct
 24:16: 'unlikely' not a valid cython attribute or is being used incorrectly
 24:16: 'unlikely' not a valid cython language construct
-25:19: 'likely' not a valid cython attribute or is being used incorrectly
-25:19: 'likely' not a valid cython language construct
 """

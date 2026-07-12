@@ -13786,6 +13786,7 @@ class CondExprNode(ExprNode):
     true_val = None
     false_val = None
     is_temp = True
+    branch_hint = None
 
     subexprs = ['test', 'true_val', 'false_val']
 
@@ -13889,7 +13890,10 @@ class CondExprNode(ExprNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
         self.test.generate_evaluation_code(code)
-        code.putln("if (%s) {" % self.test.result())
+        condition = self.test.result()
+        if self.branch_hint:
+            condition = '%s(%s)' % (self.branch_hint, condition)
+        code.putln("if (%s) {" % condition)
         self.eval_and_get(code, self.true_val)
         code.putln("} else {")
         self.eval_and_get(code, self.false_val)

@@ -4250,6 +4250,16 @@ class TransformBuiltinMethods(EnvTransform):
         self.visitchildren(node)
         return node
 
+    def visit_CondExprNode(self, node):
+        condition = node.test
+        if isinstance(condition, ExprNodes.SimpleCallNode):
+            function = condition.function.as_cython_attribute()
+            if function in ('likely', 'unlikely'):
+                node.branch_hint = function
+                node.test = condition.args[0]
+        self.visitchildren(node)
+        return node
+
     def visit_SimpleCallNode(self, node):
         # cython.foo
         function = node.function.as_cython_attribute()
