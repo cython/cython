@@ -4348,7 +4348,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 # cimport/export code for functions and pointers.
 
 @cython.cfunc
-def _deduplicate_inout_signatures(item_tuples) -> tuple[list[str], tuple[str], tuple[str]]:
+def _deduplicate_inout_signatures(item_tuples) -> tuple[list[str], tuple[str, ...], tuple[str, ...]]:
     # We can save runtime space for identical signatures by reusing the same C strings.
     # To deduplicate the signatures, we sort by them and store duplicates as empty C strings.
     signatures, names, items = zip(*sorted(item_tuples))
