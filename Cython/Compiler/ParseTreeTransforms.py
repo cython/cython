@@ -4240,7 +4240,7 @@ class TransformBuiltinMethods(EnvTransform):
         self._do_body_insertion(node)
         return node
 
-    def visit_IfClauseNode(self, node):
+    def _inject_branch_hint(self, node):
         condition = node.condition
         if isinstance(condition, ExprNodes.SimpleCallNode):
             function = condition.function.as_cython_attribute()
@@ -4250,15 +4250,11 @@ class TransformBuiltinMethods(EnvTransform):
         self.visitchildren(node)
         return node
 
+    def visit_IfClauseNode(self, node):
+        return self._inject_branch_hint(node)
+
     def visit_CondExprNode(self, node):
-        condition = node.test
-        if isinstance(condition, ExprNodes.SimpleCallNode):
-            function = condition.function.as_cython_attribute()
-            if function in ('likely', 'unlikely'):
-                node.branch_hint = function
-                node.test = condition.args[0]
-        self.visitchildren(node)
-        return node
+        return self._inject_branch_hint(node)
 
     def visit_SimpleCallNode(self, node):
         # cython.foo

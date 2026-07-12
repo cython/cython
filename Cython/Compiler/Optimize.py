@@ -1431,7 +1431,7 @@ class SwitchTransform(Visitor.EnvTransform):
             return node
 
         not_in, common_var, conditions = self.extract_common_conditions(
-            None, node.test, True)
+            None, node.condition, True)
         if common_var is None \
                 or len(conditions) < 2 \
                 or self.has_duplicate_values(conditions):
@@ -2111,7 +2111,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                 arg_node.pos,
                 true_val = arg_node,
                 false_val = result_ref,
-                test = ExprNodes.PrimaryCmpNode(
+                condition = ExprNodes.PrimaryCmpNode(
                     arg_node.pos,
                     operand1 = arg_node,
                     operator = operator,
@@ -5070,9 +5070,9 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_CondExprNode(self, node):
         self._calculate_const(node)
-        if not node.test.has_constant_result():
+        if not node.condition.has_constant_result():
             return node
-        if node.test.constant_result:
+        if node.condition.constant_result:
             return node.true_val
         else:
             return node.false_val
