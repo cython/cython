@@ -79,7 +79,8 @@ class NotConstant:
 not_a_constant = NotConstant()
 constant_value_not_set = object()
 
-def _type_to_itself(tp):
+@cython.cfunc
+def _type_to_itself(tp) -> tuple:
     return tp, tp
 
 # error messages when coercing from key[0] to key[1]
@@ -1740,6 +1741,7 @@ class FloatNode(ConstNode):
             self.result_code = c_value
 
 
+@cython.cfunc
 def _analyse_name_as_type(name, pos, env):
     ctype = PyrexTypes.parse_basic_type(name)
     if ctype is not None and env.in_c_type_context:
