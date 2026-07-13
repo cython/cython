@@ -109,6 +109,10 @@ html_permalinks_icon = "#"
 # Output file base name for HTML help builder.
 htmlhelp_basename = "Cythondoc"
 
+redirects = {
+     "early_binding_for_speed": "performance_optimization.rst"
+}
+
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
     "setuptools": ("https://setuptools.pypa.io/en/latest/", None),
@@ -120,6 +124,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx_issues",  # if this is missing, pip install sphinx-issues
     "sphinx_tabs.tabs",  # if this is missing, pip install sphinx-tabs
+    'sphinx_reredirects',
 ]
 try:
     import rst2pdf
