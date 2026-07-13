@@ -25,7 +25,17 @@ Features added
   a call to ``PyErr_Occurred()`` by returning ``void``.
   (Github issue :issue:`7791`)
 
+* Conditions in strongly predictable if-clauses or if-else expressions can be wrapped in
+  ``cython.likely(condition)`` or ``cython.unlikely(condition)`` to help the C compiler
+  optimise the branch.  Note that Cython automatically detects ``raise`` and ``assert``
+  statements as terminators already and marks if-clauses that directly lead to them as
+  ``unlikely()``, without user interaction.
+  (Github issue :issue:`7667`)
+
 * ``bytearray.extend(bytes)`` is faster.
+  (Github issue :issue:`7797`)
+
+* ``assert`` conditions are constant-folded.
   (Github issue :issue:`7797`)
 
 * Async generator objects are slightly smaller.
