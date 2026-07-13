@@ -37,31 +37,44 @@ cdef class NameAssignment:
     cdef public object rhs_scope
     cdef public object assignment_type
 
+@cython.final
 cdef class AssignmentList:
-    cdef public object bit
-    cdef public object mask
-    cdef public list stats
+    cdef object bit
+    cdef object mask
+    cdef list[NameAssignment] stats
 
 cdef class AssignmentCollector(TreeVisitor):
     cdef list[tuple] assignments
 
 @cython.final
+cdef class LoopDescr:
+    cdef ControlBlock next_block
+    cdef ControlBlock loop_block
+    cdef list[ExceptionDescr] exceptions
+
+@cython.final
+cdef class ExceptionDescr:
+    cdef ControlBlock entry_point
+    cdef ControlBlock finally_enter
+    cdef ControlBlock finally_exit
+
+@cython.final
 cdef class ControlFlow:
     cdef public set[ControlBlock] blocks
     cdef public set entries
-    cdef public list loops
-    cdef public list exceptions
+    cdef list[LoopDescr] loops
+    cdef list[ExceptionDescr] exceptions
 
     cdef public ControlBlock entry_point
     cdef public ExitBlock exit_point
     cdef public ControlBlock block
 
-    cdef public dict assmts
+    cdef dict[object, AssignmentList] assmts
 
     cdef public Py_ssize_t in_try_block
 
-    cpdef newblock(self, ControlBlock parent=*)
-    cpdef nextblock(self, ControlBlock parent=*)
+    cpdef ControlBlock newblock(self, ControlBlock parent=*)
+    cpdef ControlBlock nextblock(self, ControlBlock parent=*)
     cpdef bint is_tracked(self, entry)
     cpdef bint is_statically_assigned(self, entry)
     cpdef mark_position(self, node)

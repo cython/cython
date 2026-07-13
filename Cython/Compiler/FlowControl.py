@@ -137,7 +137,7 @@ class ControlFlow:
         self.block = self.entry_point
         self.in_try_block = 0
 
-    def newblock(self, parent=None):
+    def newblock(self, parent=None) -> ControlBlock:
         """Create floating block linked to `parent` if given.
 
            NOTE: Block is NOT added to self.blocks
@@ -148,7 +148,7 @@ class ControlFlow:
             parent.add_child(block)
         return block
 
-    def nextblock(self, parent=None):
+    def nextblock(self, parent=None) -> ControlBlock:
         """Create block children block linked to current or `parent` if given.
 
            NOTE: Block is added to self.blocks
@@ -1424,12 +1424,14 @@ class ControlFlowAnalysis(CythonTransform):
         self.visitchildren(node)
 
         outer_exception_handlers = iter(self.flow.exceptions[::-1])
+        handler: ExceptionDescr
         for handler in outer_exception_handlers:
             if handler.finally_enter:
                 self.flow.block.add_child(handler.finally_enter)
                 if handler.finally_exit:
                     # 'return' goes to function exit, or to the next outer 'finally' clause
                     exit_point = self.flow.exit_point
+                    next_handler: ExceptionDescr
                     for next_handler in outer_exception_handlers:
                         if next_handler.finally_enter:
                             exit_point = next_handler.finally_enter
