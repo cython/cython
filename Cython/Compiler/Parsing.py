@@ -159,7 +159,7 @@ def p_test_allow_walrus_after(s: PyrexScanner):
         test = p_or_test(s)
         s.expect('else')
         other = p_test(s)
-        return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
+        return ExprNodes.CondExprNode(pos, condition=test, true_val=expr, false_val=other)
     else:
         return expr
 

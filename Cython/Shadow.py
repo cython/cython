@@ -290,6 +290,12 @@ def cast(t, *args, **kwargs):
 
     return args[0]
 
+def likely(cond: _T) -> _T:
+    return cond
+
+def unlikely(cond: _T) -> _T:
+    return cond
+
 def sizeof(obj: object) -> int:
     return 1
 

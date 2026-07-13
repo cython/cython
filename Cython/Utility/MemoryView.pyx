@@ -153,10 +153,10 @@ cdef class array:
         self.ndim = <int> len(shape)
         self.itemsize = itemsize
 
-        if not self.ndim:
+        if cython.unlikely(not self.ndim):
             _err_ValueError("Empty shape tuple for cython.array")
 
-        if itemsize <= 0:
+        if cython.unlikely(itemsize <= 0):
             _err_ValueError("itemsize <= 0 for cython.array")
 
         if not isinstance(format, bytes):
@@ -203,7 +203,7 @@ cdef class array:
                 bufmode = PyBUF_C_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
             elif self.mode == u"fortran":
                 bufmode = PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
-            if not (flags & bufmode):
+            if cython.unlikely(not (flags & bufmode)):
                 _err_ValueError("Can only create a buffer that is contiguous in memory.")
         info.buf = self.data
         info.len = self.len
@@ -558,7 +558,7 @@ cdef class memoryview:
 
     @cname('getbuffer')
     def __getbuffer__(self, Py_buffer *info, int flags):
-        if flags & PyBUF_WRITABLE and self.view.readonly:
+        if cython.unlikely(flags & PyBUF_WRITABLE and self.view.readonly):
             _err_ValueError("Cannot create writable memory view from read-only memoryview")
 
         if flags & PyBUF_ND:
@@ -608,7 +608,7 @@ cdef class memoryview:
 
     @property
     def strides(self):
-        if self.view.strides == NULL:
+        if cython.unlikely(self.view.strides == NULL):
             # Note: we always ask for strides, so if this is not set it's a bug
             _err_ValueError("Buffer view does not expose strides")
 
@@ -732,7 +732,7 @@ cdef tuple[bint, tuple] _unellipsify_index_tuple(index_tuple: tuple, int ndim):
                 first_ellipsis_index = idx
         elif isinstance(item, slice):
             have_slices = True
-        elif not PyIndex_Check(item):
+        elif cython.unlikely(not PyIndex_Check(item)):
             _err_invalid_index(item)
         idx += 1
 
@@ -777,7 +777,7 @@ cdef tuple[bint, tuple] _unellipsify(object index, int ndim):
     else:
         if isinstance(index, slice):
             have_slices = True
-        elif not PyIndex_Check(index):
+        elif cython.unlikely(not PyIndex_Check(index)):
             _err_invalid_index(index)
 
         # 1-2 dim are so common that they merit a special case.
@@ -795,7 +795,7 @@ cdef tuple[bint, tuple] _unellipsify(object index, int ndim):
 
 cdef int assert_direct_dimensions(Py_ssize_t *suboffsets, int ndim) except -1:
     for suboffset in suboffsets[:ndim]:
-        if suboffset >= 0:
+        if cython.unlikely(suboffset >= 0):
             _err_ValueError("Indirect dimensions not supported")
     return 0  # return type just used as an error flag
 
@@ -902,10 +902,10 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
 
     if index < 0:
         index += view.shape[dim]
-        if index < 0:
+        if cython.unlikely(index < 0):
             _err_IndexError("Out of bounds on buffer access (axis %zd)", dim)
 
-    if index >= shape:
+    if cython.unlikely(index >= shape):
         _err_IndexError("Out of bounds on buffer access (axis %zd)", dim)
 
     resultp = bufp + index * stride
@@ -931,7 +931,7 @@ cdef int transpose_memslice({{memviewslice_name}} *memslice) except -1 nogil:
         strides[i], strides[j] = strides[j], strides[i]
         shape[i], shape[j] = shape[j], shape[i]
 
-        if memslice.suboffsets[i] >= 0 or memslice.suboffsets[j] >= 0:
+        if cython.unlikely(memslice.suboffsets[i] >= 0 or memslice.suboffsets[j] >= 0):
             _err(PyExc_ValueError, "Cannot transpose memoryview with indirect dimensions")
 
     return 0
@@ -1211,7 +1211,7 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
     cdef size_t size = slice_get_size(src, ndim)
 
     result = malloc(size)
-    if not result:
+    if cython.unlikely(not result):
         _err_no_memory()
 
     # tmpslice[0] = src
@@ -1300,13 +1300,13 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
 
     for i in range(ndim):
         if src.shape[i] != dst.shape[i]:
-            if src.shape[i] == 1:
+            if cython.likely(src.shape[i] == 1):
                 broadcasting = True
                 src.strides[i] = 0
             else:
                 _err_extents(i, dst.shape[i], src.shape[i])
 
-        if src.suboffsets[i] >= 0:
+        if cython.unlikely(src.suboffsets[i] >= 0):
             _err_dim(PyExc_ValueError, "Dimension %d is not direct", i)
 
     if slices_overlap(&src, &dst, ndim, itemsize):

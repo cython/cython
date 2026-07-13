@@ -1,5 +1,7 @@
 #################### FromPyStructUtility ####################
 
+import cython
+
 cdef extern from *:
     ctypedef struct PyTypeObject:
         char* tp_name
@@ -11,7 +13,7 @@ cdef extern from *:
 @cname("{{funcname}}")
 cdef {{struct_type}} {{funcname}}(obj) except *:
     cdef {{struct_type}} result
-    if not PyMapping_Check(obj):
+    if cython.unlikely(not PyMapping_Check(obj)):
         __Pyx_RaiseUnexpectedTypeError(b"a mapping", obj)
 
     lookup_failed = False
@@ -36,6 +38,8 @@ cdef {{struct_type}} {{funcname}}(obj) except *:
 
 #################### FromPyUnionUtility ####################
 
+import cython
+
 cdef extern from *:
     ctypedef struct PyTypeObject:
         char* tp_name
@@ -48,7 +52,7 @@ cdef extern from *:
 cdef {{struct_type}} {{funcname}}(obj) except *:
     cdef {{struct_type}} result
     cdef Py_ssize_t length
-    if not PyMapping_Check(obj):
+    if cython.unlikely(not PyMapping_Check(obj)):
         __Pyx_RaiseUnexpectedTypeError(b"a mapping", obj)
 
     last_found = None

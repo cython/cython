@@ -1552,7 +1552,7 @@ class ControlFlowAnalysis(CythonTransform):
 
     def visit_CondExprNode(self, node):
         assert len(node.subexprs) == 3
-        self._visit(node.test)
+        self._visit(node.condition)
         parent = self.flow.block
         next_block = self.flow.newblock()
         self.flow.nextblock()

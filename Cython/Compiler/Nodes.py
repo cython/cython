@@ -7466,8 +7466,8 @@ class IfClauseNode(Node):
         code.mark_pos(self.pos)
         condition = self.condition.result()
         if self.branch_hint:
-            condition = '%s(%s)' % (self.branch_hint, condition)
-        code.putln("if (%s) {" % condition)
+            condition = f'{self.branch_hint}({condition})'
+        code.putln(f"if ({condition}) {{")
         self.condition.generate_disposal_code(code)
         self.condition.free_temps(code)
         self.body.generate_execution_code(code)
