@@ -869,6 +869,37 @@ Configurable optimisations
     completely wrong.
     Disabling this option can also reduce the code size.
 
+Branch hints
+^^^^^^^^^^^^
+
+Branch hints tell the compiler which path of a conditional branch is more commonly taken.
+This information helps the compiler and CPU generate better machine code:
+
+- ``cython.likely()`` - Marks a condition as expected to be true
+- ``cython.unlikely()`` - Marks a condition as expected to be false
+
+.. code-block:: python
+
+    if cython.likely(x > threshold):
+        # This branch is expected to execute frequently
+        process_common_case(x)
+    else:
+        process_rare_case(x)
+
+The compiler uses these hints to optimize instruction layout and branch prediction, potentially
+improving cache hit rates and reducing pipeline flushes.
+
+.. warning::
+
+   Branch hints are for **rare and very clear use cases**, not for guessing. Only use them when:
+
+   - You have concrete profiling data showing the actual branch frequency
+   - You have domain knowledge that makes the prediction obvious
+
+   Incorrect hints can make code slower, not faster. The compiler's own heuristics (e.g.
+   `PGO <https://en.wikipedia.org/wiki/Profile-guided_optimization>`_) are often
+   better than manual guessing.
+
 
 .. _warnings:
 
