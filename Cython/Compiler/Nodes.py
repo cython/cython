@@ -1341,6 +1341,8 @@ class TemplatedTypeNode(CBaseTypeNode):
                     error(template_node.pos, "unknown type in template argument")
                     ttype = error_type
                 # For Python generics we can be a bit more flexible and allow None.
+                if template_node.constant_result is Ellipsis:
+                    ttype = Ellipsis
             template_types.append(ttype)
 
         if base_type.python_type_constructor_name:
