@@ -23,6 +23,12 @@ Bugs fixed
 * Assignments of builtin string types to typedefs of `object` could erroneously be rejected.
   (Github issue :issue:`7789`)
 
+* Subscripting ``type`` failed with a ``TypeError``.
+  (Github issue :issue:`5563`)
+
+* Manually disabling ``CYTHON_VECTORCALL`` in CPython could lead to invalid C code.
+  Patch by Florent Gallaire.  (Github issue :issue:`7807`)
+
 
 3.2.8 (2026-06-30)
 ==================
