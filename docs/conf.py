@@ -110,7 +110,7 @@ html_permalinks_icon = "#"
 htmlhelp_basename = "Cythondoc"
 
 redirects = {
-     "early_binding_for_speed": "performance_optimization.rst"
+     "src/userguide/early_binding_for_speed": "performance_optimization.html"
 }
 
 intersphinx_mapping = {
