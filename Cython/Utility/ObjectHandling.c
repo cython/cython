@@ -361,6 +361,10 @@ static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
     __Pyx_TypeName obj_type_name;
     // Handles less common slow-path checks for GetItem
     if (likely(PyType_Check(obj))) {
+        if ((PyTypeObject*)obj == &PyType_Type) {
+            return Py_GenericAlias(obj, key);
+        }
+
         PyObject *meth = __Pyx_PyObject_GetAttrStrNoError(obj, PYIDENT("__class_getitem__"));
         if (!meth) {
             PyErr_Clear();
