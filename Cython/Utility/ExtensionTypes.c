@@ -6,6 +6,8 @@ static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset,
 
 /////////////// ValidateBasesTuple ///////////////
 //@requires: GetTypeDictOffset
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType1
 
 #if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_USE_TYPE_SPECS
 static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset, PyObject *bases) {
@@ -67,10 +69,8 @@ static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset,
         b = (PyTypeObject*) b0;
         if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
         {
-            __Pyx_TypeName b_name = __Pyx_PyType_GetFullyQualifiedName(b);
-            PyErr_Format(PyExc_TypeError,
-                "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
-            __Pyx_DECREF_TypeName(b_name);
+            __Pyx_RaiseErrorWithType(
+                PyExc_TypeError, "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b);
 #if CYTHON_AVOID_BORROWED_REFS
             Py_DECREF(b0);
 #endif
@@ -86,16 +86,13 @@ static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset,
             if (b_dictoffset == -1 && PyErr_Occurred()) goto dictoffset_return;
 #endif
             if (b_dictoffset) {
-                {
-                    __Pyx_TypeName b_name = __Pyx_PyType_GetFullyQualifiedName(b);
-                    PyErr_Format(PyExc_TypeError,
-                        "extension type '%.200s' has no __dict__ slot, "
-                        "but base type '" __Pyx_FMT_TYPENAME "' has: "
-                        "either add 'cdef dict __dict__' to the extension type "
-                        "or add '__slots__ = [...]' to the base type",
-                        type_name, b_name);
-                    __Pyx_DECREF_TypeName(b_name);
-                }
+                __Pyx_RaiseErrorWithType1(
+                    PyExc_TypeError,
+                    "extension type '%.200s' has no __dict__ slot, "
+                    "but base type '" __Pyx_FMT_TYPENAME "' has: "
+                    "either add 'cdef dict __dict__' to the extension type "
+                    "or add '__slots__ = [...]' to the base type",
+                    type_name, b);
 #if !CYTHON_USE_TYPE_SLOTS
               dictoffset_return:
 #endif
@@ -114,7 +111,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, int has_dictoffset,
 #endif
 
 
-/////////////// PyType_Ready.proto ///////////////
+/////////////// PyType_Ready.export ///////////////
 
 // unused when using type specs
 CYTHON_UNUSED static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
@@ -298,6 +295,34 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 #define __Pyx_TRASHCAN_END
 #endif
 
+/////////////// DeallocKeepAlive.proto ///////////////
+
+// Keep `o` alive across a call into user __dealloc__ code, to prevent the user
+// code from triggering recursive deallocation, then drop the temporary reference.
+//
+// On the GIL build this is a plain refcount bump.  On free-threading we must NOT
+// use Py_SET_REFCNT(o, 1): the object reaching tp_dealloc is unowned and merged
+// (ob_ref_shared == _Py_REF_MERGED), so Py_SET_REFCNT takes the unowned branch and
+// writes ob_ref_shared = _Py_REF_SHARED(1, _Py_REF_MERGED), i.e. "merged, shared
+// count 1" -- indistinguishable from a live object.  A concurrent
+// PyUnstable_TryIncRef() would then succeed and resurrect the dying object
+// (use-after-free).  Instead we mirror CPython's _PyObject_ResurrectStart/End:
+// re-take ownership and keep the *shared* refcount at the refuse sentinel (0), so
+// the bump is invisible to other threads and TryIncRef keeps refusing.
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#define __Pyx_DeallocKeepAliveBegin(o) do {                                  \
+        _Py_atomic_store_uintptr_relaxed(&(o)->ob_tid, _Py_ThreadId());      \
+        _Py_atomic_store_uint32_relaxed(&(o)->ob_ref_local, 1);              \
+        _Py_atomic_store_ssize_relaxed(&(o)->ob_ref_shared, 0);             \
+    } while (0)
+#define __Pyx_DeallocKeepAliveEnd(o) \
+        _Py_atomic_store_uint32_relaxed(&(o)->ob_ref_local, 0)
+#else
+#define __Pyx_DeallocKeepAliveBegin(o) Py_SET_REFCNT(o, Py_REFCNT(o) + 1)
+#define __Pyx_DeallocKeepAliveEnd(o)   Py_SET_REFCNT(o, Py_REFCNT(o) - 1)
+#endif
+
 /////////////// CallNextTpDealloc.proto ///////////////
 
 static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_dealloc);
@@ -355,13 +380,16 @@ static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear) {
 }
 
 
-/////////////// SetupReduce.proto ///////////////
+/////////////// SetupReduce.export ///////////////
+//@feature: AutoPickle
 
 static int __Pyx_setup_reduce(PyObject* type_obj);
 
 /////////////// SetupReduce ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
+//@requires: Exceptions.c::IgnoreException
 //@requires: SetItemOnTypeDict
 //@requires: DelItemOnTypeDict
 
@@ -376,13 +404,26 @@ static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
       ret = -1;
   }
 
-  if (unlikely(ret < 0)) {
-      PyErr_Clear();
-      ret = 0;
+  if (unlikely(ret < 0) && __Pyx_IgnoreException(PyExc_Exception)) {
+      ret = 0;  // But BaseException is still propagated.
   }
 
   Py_XDECREF(name_attr);
   return ret;
+}
+
+// Returns a borrowed reference with CYTHON_USE_PYTYPE_LOOKUP
+static PyObject *__Pyx_setup_reduce_get_reduce_attribute(PyObject *type_obj, PyObject *name, int allow_not_present) {
+#if CYTHON_USE_PYTYPE_LOOKUP
+    CYTHON_UNUSED_VAR(allow_not_present);
+    return _PyType_Lookup((PyTypeObject*)type_obj, name);
+#else
+    if (allow_not_present) {
+        return __Pyx_PyObject_GetAttrStrNoError(type_obj, name);
+    } else {
+        return __Pyx_PyObject_GetAttrStr(type_obj, name);
+    }
+#endif
 }
 
 static int __Pyx_setup_reduce(PyObject* type_obj) {
@@ -397,46 +438,38 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     PyObject *setstate_cython = NULL;
     PyObject *getstate = NULL;
 
-#if CYTHON_USE_PYTYPE_LOOKUP
-    getstate = _PyType_Lookup((PyTypeObject*)type_obj, PYIDENT("__getstate__"));
-#else
-    getstate = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__getstate__"));
+    getstate = __Pyx_setup_reduce_get_reduce_attribute(type_obj, PYIDENT("__getstate__"), 1);
     if (!getstate && PyErr_Occurred()) {
         goto __PYX_BAD;
     }
-#endif
     if (getstate) {
         // Python 3.11 introduces object.__getstate__. Because it's version-specific failure to find it should not be an error
-#if CYTHON_USE_PYTYPE_LOOKUP
-        object_getstate = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__getstate__"));
-#else
-        object_getstate = __Pyx_PyObject_GetAttrStrNoError((PyObject*)&PyBaseObject_Type, PYIDENT("__getstate__"));
+        object_getstate = __Pyx_setup_reduce_get_reduce_attribute((PyObject*)&PyBaseObject_Type, PYIDENT("__getstate__"), 1);
         if (!object_getstate && PyErr_Occurred()) {
             goto __PYX_BAD;
         }
-#endif
         if (object_getstate != getstate) {
             goto __PYX_GOOD;
         }
     }
 
-#if CYTHON_USE_PYTYPE_LOOKUP
-    object_reduce_ex = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto __PYX_BAD;
-#else
-    object_reduce_ex = __Pyx_PyObject_GetAttrStr((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto __PYX_BAD;
-#endif
-
+    object_reduce_ex = __Pyx_setup_reduce_get_reduce_attribute((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce_ex__"), 0);
+    if (unlikely(!object_reduce_ex)) goto __PYX_BAD;
     reduce_ex = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce_ex__")); if (unlikely(!reduce_ex)) goto __PYX_BAD;
     if (reduce_ex == object_reduce_ex) {
-
-#if CYTHON_USE_PYTYPE_LOOKUP
-        object_reduce = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__reduce__")); if (!object_reduce) goto __PYX_BAD;
-#else
-        object_reduce = __Pyx_PyObject_GetAttrStr((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce__")); if (!object_reduce) goto __PYX_BAD;
-#endif
+        object_reduce = __Pyx_setup_reduce_get_reduce_attribute((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce__"), 0);
+        if (!object_reduce) goto __PYX_BAD;
         reduce = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce__")); if (unlikely(!reduce)) goto __PYX_BAD;
 
-        if (reduce == object_reduce || __Pyx_setup_reduce_is_named(reduce, PYIDENT("__reduce_cython__"))) {
+        int try_to_replace_reduce = (reduce == object_reduce);
+        if (!try_to_replace_reduce) {
+            try_to_replace_reduce = __Pyx_setup_reduce_is_named(reduce, PYIDENT("__reduce_cython__"));
+            if (unlikely(try_to_replace_reduce < 0)) {
+                goto __PYX_BAD;
+            }
+        }
+
+        if (try_to_replace_reduce) {
             reduce_cython = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__reduce_cython__"));
             if (likely(reduce_cython)) {
                 ret = __Pyx_SetItemOnTypeDict((PyTypeObject*)type_obj, PYIDENT("__reduce__"), reduce_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
@@ -448,8 +481,21 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
             }
 
             setstate = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__setstate__"));
-            if (!setstate) PyErr_Clear();
-            if (!setstate || __Pyx_setup_reduce_is_named(setstate, PYIDENT("__setstate_cython__"))) {
+            int try_to_replace_setstate;
+            if (!setstate) {
+                PyObject *exc = PyErr_Occurred();
+                if (exc && !__Pyx_IgnoreGivenException(exc, PyExc_Exception)) {
+                    goto __PYX_BAD;
+                }
+                try_to_replace_setstate = 1;
+            } else {
+                try_to_replace_setstate = __Pyx_setup_reduce_is_named(setstate, PYIDENT("__setstate_cython__"));
+                if (unlikely(try_to_replace_setstate < 0)) {
+                    goto __PYX_BAD;
+                }
+            }
+
+            if (try_to_replace_setstate) {
                 setstate_cython = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__setstate_cython__"));
                 if (likely(setstate_cython)) {
                     ret = __Pyx_SetItemOnTypeDict((PyTypeObject*)type_obj, PYIDENT("__setstate__"), setstate_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
@@ -467,11 +513,10 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
 
 __PYX_BAD:
     if (!PyErr_Occurred()) {
-        __Pyx_TypeName type_obj_name =
-            __Pyx_PyType_GetFullyQualifiedName((PyTypeObject*)type_obj);
-        PyErr_Format(PyExc_RuntimeError,
-            "Unable to initialize pickling for " __Pyx_FMT_TYPENAME, type_obj_name);
-        __Pyx_DECREF_TypeName(type_obj_name);
+        __Pyx_RaiseErrorWithType(
+            PyExc_RuntimeError,
+            "Unable to initialize pickling for " __Pyx_FMT_TYPENAME,
+            (PyTypeObject*)type_obj);
     }
     ret = -1;
 __PYX_GOOD:
@@ -531,7 +576,8 @@ static int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long check
 }
 
 
-/////////////// UpdateUnpickledDict.proto ///////////////
+/////////////// UpdateUnpickledDict.export ///////////////
+//@feature: AutoPickle
 
 static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index); /*proto*/
 
@@ -666,6 +712,7 @@ static int __Pyx_validate_extern_base(PyTypeObject *base); /* proto */
 
 /////////////// ValidateExternBase ///////////////
 //@requires: ObjectHandling.c::FormatTypeName
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 static int __Pyx_validate_extern_base(PyTypeObject *base) {
     Py_ssize_t itemsize;
@@ -685,10 +732,9 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
         return -1;
 #endif
     if (itemsize) {
-        __Pyx_TypeName b_name = __Pyx_PyType_GetFullyQualifiedName(base);
-        PyErr_Format(PyExc_TypeError,
-                "inheritance from PyVarObject types like '" __Pyx_FMT_TYPENAME "' not currently supported", b_name);
-        __Pyx_DECREF_TypeName(b_name);
+        __Pyx_RaiseErrorWithType(
+            PyExc_TypeError,
+            "inheritance from PyVarObject types like '" __Pyx_FMT_TYPENAME "' not currently supported", base);
         return -1;
     }
     return 0;
@@ -795,10 +841,12 @@ static PyObject *__Pyx_GetTypeTypeDict(PyTypeObject *tp) {
 #endif
 
 
-////////////////// SetItemOnTypeDict.proto //////////////////////////
-//@requires: LimitedApiGetTypeTypeDict
+////////////////// SetItemOnTypeDict.export //////////////////////////
 
 static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v); /* proto */
+
+////////////////// SetItemOnTypeDict.proto //////////////////////////
+//@requires: LimitedApiGetTypeTypeDict
 
 #define __Pyx_SetItemOnTypeDict(tp, k, v) __Pyx__SetItemOnTypeDict((PyTypeObject*)tp, k, v)
 
@@ -825,9 +873,11 @@ static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v) 
     return result;
 }
 
-////////////////// DelItemOnTypeDict.proto //////////////////////////
+////////////////// DelItemOnTypeDict.export //////////////////////////
 
 static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k); /* proto */
+
+////////////////// DelItemOnTypeDict.proto //////////////////////////
 
 #define __Pyx_DelItemOnTypeDict(tp, k) __Pyx__DelItemOnTypeDict((PyTypeObject*)tp, k)
 
@@ -962,3 +1012,177 @@ int __Pyx_ApplySequenceOrMappingFlag(PyTypeObject *tp, int is_sequence) {
     );
 }
 #endif
+
+////////////////////////////// CallNewInitFromVectorcall.proto //////////////////////
+
+#if CYTHON_VECTORCALL_TPNEW
+static PyObject *__Pyx_CallNewInitFromVectorcall(PyTypeObject *t, PyObject *const *args, size_t nargsf, PyObject *kwnames); /* proto */
+#endif
+
+////////////////////////////// CallNewInitFromVectorcall //////////////////////
+//@requires: ObjectHandling.c::TupleFromArray
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
+
+#if CYTHON_VECTORCALL_TPNEW
+static PyObject *__Pyx_CallNewInitFromVectorcall(PyTypeObject *t, PyObject *const *args, size_t nargsf, PyObject *kwnames) {
+    newfunc tp_new = __Pyx_PyType_GetSlot(t, tp_new, newfunc);
+    if (unlikely(!tp_new)) {
+        __Pyx_RaiseErrorWithType(PyExc_TypeError, "cannot create " __Pyx_FMT_TYPENAME " instances", t);
+        return NULL;
+    }
+    Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(nargsf);
+
+    PyObject *result = NULL, *args_tuple = NULL, *kwds_dict = NULL;
+    Py_ssize_t kw_size = kwnames ? __Pyx_PyTuple_GET_SIZE(kwnames) : 0;
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(kw_size == -1)) {
+        return NULL;
+    }
+#endif
+    if (kw_size) {
+        kwds_dict = __Pyx_PyDict_NewPresized(kw_size);
+        if (unlikely(!kwds_dict)) {
+            return NULL;
+        }
+        for (Py_ssize_t i=0; i<kw_size; ++i) {
+            PyObject *v = args[nargs + i];
+            PyObject *k = __Pyx_PyTuple_GET_ITEM(kwnames, i);
+#if !CYTHON_ASSUME_SAFE_MACROS
+            if (unlikely(!k)) {
+                goto end;
+            }
+#endif
+
+            if (unlikely(PyDict_SetItem(kwds_dict, k, v) < 0)) {
+                goto end;
+            }
+        }
+    }
+
+    if (nargs) {
+        args_tuple = __Pyx_PyTuple_FromArray(args, nargs);
+        if (unlikely(!args_tuple)) {
+            goto end;
+        }
+    } else {
+        args_tuple = __Pyx_NewRef(EMPTY(tuple));
+    }
+
+    result = tp_new(t, args_tuple, kwds_dict);
+    if (unlikely(!result)) {
+        goto end;
+    }
+    if (PyObject_TypeCheck(result, t)) {
+        initproc tp_init = __Pyx_PyObject_GetSlot(result, tp_init, initproc);
+        if (tp_init && unlikely(tp_init(result, args_tuple, kwds_dict) < 0)) {
+            Py_CLEAR(result);
+        }
+    }
+  end:
+    Py_XDECREF(args_tuple);
+    Py_XDECREF(kwds_dict);
+    return result;
+}
+#endif
+
+///////////////////////// CallSlotAsVectorcall.proto ////////////////////////////////////
+
+#if CYTHON_VECTORCALL_TPNEW
+typedef {{ret_type}} (*__Pyx_{{name}}vectorcallfunc)({{obj_type}} o, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+static {{ret_type}} __Pyx_Call{{name.title()}}AsVectorcall(__Pyx_{{name}}vectorcallfunc f, {{obj_type}} o, PyObject *a, PyObject *k);
+#endif
+
+///////////////////////// CallSlotAsVectorcall ////////////////////////////////////
+//@requires: Synchronization.c::CriticalSections
+//@requires: CallSlotAsVectorcallUnpackDict
+
+// Possible TODO - the !ASSUME_SAFE_MACROS case is inefficient due to a lot of
+// error checking, and the inability to optimize the common no-keywords case.
+// I think it might be possible to use a trampoline type and PyVectorcall_Call to
+// push this work into the Python interpreter (where they have access to the full C API).
+#if CYTHON_VECTORCALL_TPNEW
+static {{ret_type}} __Pyx_Call{{name.title()}}AsVectorcall(__Pyx_{{name}}vectorcallfunc f, {{obj_type}} o, PyObject *a, PyObject *k) {
+    Py_ssize_t k_size = k ? __Pyx_PyDict_GET_SIZE(k) : 0;
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(k_size < 0)) return {{error_value}};
+#endif
+    Py_ssize_t a_size = __Pyx_PyTuple_GET_SIZE(a);
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(a_size < 0)) return {{error_value}};
+#endif
+#if CYTHON_ASSUME_SAFE_MACROS
+    if (k_size == 0) {
+        return f(o, &PyTuple_GET_ITEM(a, 0), a_size, NULL);
+    }
+#else
+    if (k_size == 0 && a_size == 0) {
+        return f(o, NULL, 0, NULL);
+    }
+#endif
+    PyObject *stack_args[5];
+    PyObject **args = stack_args;
+    Py_ssize_t maxnargs = PY_SSIZE_T_MAX / sizeof(PyObject*) - 1;
+    if (a_size > maxnargs - k_size) {
+        PyErr_NoMemory();
+        return {{error_value}};
+    }
+    Py_ssize_t total_size = a_size + k_size;
+    if (total_size > 5) {
+        args = (PyObject**)PyMem_Malloc(((size_t)total_size)*sizeof(PyObject*));
+        if (unlikely(!args)) {
+            PyErr_NoMemory();
+            return {{error_value}};
+        }
+    }
+    {{ret_type}} result = {{error_value}};
+    PyObject *kwnames = NULL;
+    int unpack_dict_result;
+    Py_ssize_t i = 0;
+    for (; i < a_size; ++i) {
+        args[i] = __Pyx_PyTuple_GET_ITEM(a, i);
+#if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely(!args[i])) goto cleanup;
+#endif
+    }
+#if !CYTHON_ASSUME_SAFE_MACROS
+    if (k)  // There's a specific shortcut earlier for ASSUME_SAFE_MACROS with no keywords
+#endif
+    {
+        kwnames = PyTuple_New(k_size);
+        if (unlikely(!kwnames)) goto cleanup;
+        __Pyx_BEGIN_CRITICAL_SECTION(k);
+        unpack_dict_result = __Pyx_CallSlotAsVectorcallUnpackDict(a_size, k, args, kwnames);
+        __Pyx_END_CRITICAL_SECTION();
+        if (unlikely(unpack_dict_result == -1)) goto cleanup;
+    }
+    result = f(o, args, a_size, kwnames);
+  cleanup:
+    Py_XDECREF(kwnames);
+    for (i=a_size; i<total_size; ++i) {
+        Py_XDECREF(args[i]);
+    }
+    if (args != stack_args) {
+        PyMem_Free(args);
+    }
+    return result;
+}
+#endif
+
+///////////////////////// CallSlotAsVectorcallUnpackDict ////////////////////////////////////
+
+static CYTHON_INLINE int __Pyx_CallSlotAsVectorcallUnpackDict(Py_ssize_t args_size, PyObject *keys_dict, PyObject **args, PyObject *kwnames) {
+    Py_ssize_t pos = 0, i = 0;
+    PyObject *key, *value;
+    while (PyDict_Next(keys_dict, &pos, &key, &value)) {
+        Py_INCREF(value);
+        args[args_size+i] = value;
+        Py_INCREF(key);
+        if (unlikely(__Pyx_PyTuple_SET_ITEM(kwnames, i, key) == -1)) {
+            return -1;
+        }
+        // CPython puts a check that the key is a string here. Cython skips this
+        // because it's checked later in our function wrappers.
+        ++i;
+    }
+    return 0;
+}

@@ -39,16 +39,7 @@ CAN_SYMLINK = sys.platform != 'win32' and hasattr(os, 'symlink')
 
 SHARED_UTILITY_MODULE_NAME = '_cython_shared'
 
-from io import open as io_open
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO  # doesn't accept 'str' in Py2
-
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+from io import StringIO
 
 try:
     import threading
@@ -72,6 +63,7 @@ except NameError:
     basestring = str
 
 WITH_CYTHON = True
+WITH_COMPILE = True
 
 try:
     # Py3.12+ doesn't have distutils any more and requires setuptools to provide it.
@@ -544,7 +536,7 @@ def memoize(f):
 def parse_tags(filepath):
     tags = defaultdict(list)
     parse_tag = re.compile(r'#\s*(\w+)\s*:(.*)$').match
-    with io_open(filepath, encoding='ISO-8859-1', errors='ignore') as f:
+    with open(filepath, encoding='ISO-8859-1', errors='ignore') as f:
         for line in f:
             if line[0] != '#':
                 # ignore BOM-like bytes and whitespace
@@ -854,7 +846,7 @@ class TestBuilder(object):
                 mode = 'pyregr'
 
             if ext == '.srctree':
-                if self.cython_only:
+                if self.cython_only or not WITH_COMPILE:
                     # EndToEnd tests always execute arbitrary build and test code
                     continue
                 if skip_limited(tags):
@@ -1085,6 +1077,9 @@ class CythonCompileTestCase(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
+        if not WITH_COMPILE:
+            return self.description_name()
+
         extra_directives = ''
         if self.extra_directives:
             extra_directives = '/'.join(
@@ -1118,6 +1113,9 @@ class CythonCompileTestCase(unittest.TestCase):
             )
         ]
         Options.warning_errors = self.warning_errors
+
+        if IS_GRAAL:
+            gc.collect()
 
         os.makedirs(self.workdir, exist_ok=True)
         if self.workdir not in sys.path:
@@ -1158,7 +1156,7 @@ class CythonCompileTestCase(unittest.TestCase):
 
         cleanup = self.cleanup_failures or self.success
         cleanup_c_files = WITH_CYTHON and self.cleanup_workdir and cleanup
-        cleanup_lib_files = self.cleanup_sharedlibs and cleanup
+        cleanup_lib_files = WITH_COMPILE and self.cleanup_sharedlibs and cleanup
         is_cygwin = sys.platform == 'cygwin'
 
         if os.path.exists(self.workdir):
@@ -1269,14 +1267,14 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def split_source_and_output(self, source_file, workdir, add_cython_import=False):
         from Cython.Utils import detect_opened_file_encoding
-        with io_open(source_file, 'rb') as f:
+        with open(source_file, 'rb') as f:
             # encoding is passed to ErrorWriter but not used on the source
             # since it is sometimes deliberately wrong
             encoding = detect_opened_file_encoding(f, default=None)
 
-        with io_open(source_file, 'r', encoding='ISO-8859-1') as source_and_output:
+        with open(source_file, 'r', encoding='ISO-8859-1') as source_and_output:
             error_writer = warnings_writer = perf_hint_writer = None
-            out = io_open(os.path.join(workdir, os.path.basename(source_file)),
+            out = open(os.path.join(workdir, os.path.basename(source_file)),
                           'w', encoding='ISO-8859-1')
             try:
                 for line in source_and_output:
@@ -1483,6 +1481,8 @@ class CythonCompileTestCase(unittest.TestCase):
             test_directory = workdir
             module_path = os.path.join(workdir, os.path.basename(module_path))
 
+        tostderr = sys.__stderr__.write
+
         if WITH_CYTHON:
             old_stderr = sys.stderr
             try:
@@ -1518,24 +1518,23 @@ class CythonCompileTestCase(unittest.TestCase):
                 if diffs:
                     self.fail('Nondeterministic file generation: %s' % ', '.join(diffs))
 
-        tostderr = sys.__stderr__.write
-        if 'cerror' in self.tags['tag']:
-            if errors:
-                tostderr("\n=== Expected C compile error ===\n")
-                tostderr("\n=== Got Cython errors: ===\n")
-                tostderr('\n'.join(errors))
-                tostderr('\n\n')
-                raise RuntimeError('should have generated extension code')
-        elif errors or expected_errors:
-            self._match_output(expected_errors, errors, tostderr)
-            return None
-        if expected_warnings or (expect_warnings and warnings):
-            self._match_output(expected_warnings, warnings, tostderr)
-        if expected_perf_hints or (expect_perf_hints and perf_hints):
-            self._match_output(expected_perf_hints, perf_hints, tostderr)
+            if 'cerror' in self.tags['tag']:
+                if errors:
+                    tostderr("\n=== Expected C compile error ===\n")
+                    tostderr("\n=== Got Cython errors: ===\n")
+                    tostderr('\n'.join(errors))
+                    tostderr('\n\n')
+                    raise RuntimeError('should have generated extension code')
+            elif errors or expected_errors:
+                self._match_output(expected_errors, errors, tostderr)
+                return None
+            if expected_warnings or (expect_warnings and warnings):
+                self._match_output(expected_warnings, warnings, tostderr)
+            if expected_perf_hints or (expect_perf_hints and perf_hints):
+                self._match_output(expected_perf_hints, perf_hints, tostderr)
 
         so_path = None
-        if not self.cython_only:
+        if not self.cython_only and WITH_COMPILE:
             from Cython.Utils import captured_fd, print_bytes
             from distutils.errors import CCompilerError
             show_output = True
@@ -1573,6 +1572,23 @@ class CythonCompileTestCase(unittest.TestCase):
                             end=None, file=sys.__stderr__)
                     if stdout or stderr:
                         tostderr("\n====================================\n")
+        elif not WITH_COMPILE and self.__class__ == CythonCompileTestCase:
+            self.skipTest("Compile-only test")
+        elif not WITH_COMPILE:
+            # We do want to run the doctests so we need to find an so path.
+            files = glob.glob(
+                f"{module}.*{sysconfig.get_config_var('SHLIB_SUFFIX')}",
+                root_dir=workdir
+            ) + glob.glob(
+                f"{module}{sysconfig.get_config_var('SHLIB_SUFFIX')}",
+                root_dir=workdir
+            )
+            if len(files) == 1:
+                so_path = os.path.join(workdir, files[0])
+            elif len(files) == 0:
+                self.skipTest(f"No module found for {module}")
+            else:
+                self.skipTest(f"Multiple modules found for {module}")
         return so_path
 
     def _match_output(self, expected_output, actual_output, write):
@@ -1603,7 +1619,8 @@ class CythonRunTestCase(CythonCompileTestCase):
         super().setUp()
 
     def description_name(self):
-        return self.name if self.cython_only else "and running %s" % self.name
+        and_ = "and " if WITH_COMPILE else ""
+        return self.name if self.cython_only else f"{and_}running {self.name}"
 
     def run(self, result=None):
         if result is None:
@@ -2007,6 +2024,7 @@ class TestCodeFormat(unittest.TestCase):
             exclude=[
                 "*badindent*",
                 "*tabspace*",
+                "fstring.pyx"
             ],
         )
         print("")  # Fix the first line of the report.
@@ -2166,9 +2184,15 @@ class EndToEndTest(TimedTest):
             if command[0] == "UNSET":
                 try:
                     envvar = command[1]
-                except KeyError:
-                    envvar = None
-                env.pop(envvar, None)
+                except IndexError:
+                    continue
+                old_value = env.pop(envvar, None)
+                if len(command) > 2:
+                    # Unset specific flags only
+                    old_value = old_value.split()
+                    for flag in command[2:]:
+                        old_value = [part for part in old_value if not part.startswith(flag)]
+                    env[envvar] = " ".join(old_value)
                 continue
             elif command[0] == "CD":
                 if len(command) == 1:
@@ -2456,7 +2480,7 @@ def flush_and_terminate(status):
 
 def main():
 
-    global DISTDIR, WITH_CYTHON
+    global DISTDIR, WITH_CYTHON, WITH_COMPILE
 
     # Set an environment variable to the top directory
     os.environ['CYTHON_PROJECT_DIR'] = os.path.abspath(os.path.dirname(__file__))
@@ -2489,6 +2513,10 @@ def main():
         "--no-cython", dest="with_cython",
         action="store_false", default=True,
         help="do not run the Cython compiler, only the C compiler")
+    parser.add_argument(
+        "--no-compile", dest="with_compile",
+        action="store_false", default=True,
+        help="do not run either Cython or the C compiler")
     parser.add_argument(
         "--compiler", dest="compiler", default=None,
         help="C compiler type")
@@ -2689,7 +2717,8 @@ def main():
     if cmd_args:
         options.code_style = False
 
-    WITH_CYTHON = options.with_cython
+    WITH_CYTHON = options.with_cython and options.with_compile
+    WITH_COMPILE = options.with_compile
 
     coverage = None
     if options.coverage or options.coverage_formats:
@@ -2715,12 +2744,17 @@ def main():
     else:
         keep_alive_interval = None
     setup_test_directory(options)
-    if options.shard_count > 1 and options.shard_num == -1:
+    if (options.shard_count > 1 or IS_GRAAL) and options.shard_num == -1:
         if "PYTHONIOENCODING" not in os.environ:
             # Make sure subprocesses can print() Unicode text.
             os.environ["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
         from concurrent.futures import ProcessPoolExecutor, as_completed
-        pool = ProcessPoolExecutor(options.shard_count)
+        # GraalPy seems to like using all the memory and crashing the GitHub workflow runner.
+        # This is a shot-in-the dark attempt to keep it down on the assumption that cleanup of
+        # Cython modules is poor. Because of this, always run the GraalPy tests in the executor
+        # even with -j1.
+        executor_args = {'max_tasks_per_child': 10} if IS_GRAAL else {}
+        pool = ProcessPoolExecutor(options.shard_count, **executor_args)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
         open_shards = list(range(options.shard_count))
         error_shards = []
@@ -2761,7 +2795,7 @@ def main():
             _, stats, merged_pipeline_stats, return_code, _ = runtests(options, cmd_args, coverage)
 
     if coverage:
-        if options.shard_count > 1 and options.shard_num == -1:
+        if (options.shard_count > 1 or IS_GRAAL) and options.shard_num == -1:
             coverage.combine()
         coverage.stop()
 
@@ -2857,14 +2891,14 @@ def generate_shared_utility(options):
         shared_utility_c_file = os.path.join(workdir, f'{SHARED_UTILITY_MODULE_NAME}.c')
         utility_gen_result = subprocess.run(
             [
-                'python', 'cython.py', '--generate-shared', shared_utility_c_file
+                sys.executable, 'cython.py', '--generate-shared', shared_utility_c_file
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
         if utility_gen_result.returncode != 0:
             raise RuntimeError(f"Shared utility generation failed:\n{utility_gen_result.stdout}")
 
         compilation_result = subprocess.run(
             [
-                'python', 'cythonize.py', '-bi', shared_utility_c_file
+                sys.executable, 'cythonize.py', '-bi', shared_utility_c_file
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
         if compilation_result.returncode != 0:
             raise RuntimeError(f"Shared utility compilation failed:\n{compilation_result.stdout}")
@@ -2915,8 +2949,9 @@ def save_coverage(coverage, options):
 
 def setup_test_directory(options):
     WITH_CYTHON = options.with_cython
+    WITH_COMPILE = options.with_compile
     WORKDIR = os.path.abspath(options.work_dir)
-    if WITH_CYTHON:
+    if WITH_CYTHON and WITH_COMPILE:
         if os.path.exists(WORKDIR):
             for path in os.listdir(WORKDIR):
                 if path in ("support", "Cy3"): continue
@@ -2956,6 +2991,8 @@ def runtests_callback(args):
 
 
 def runtests(options, cmd_args, coverage=None):
+    global WITH_CYTHON, WITH_COMPILE, WORKDIR
+
     # faulthandler should be able to provide a limited traceback
     # in the event of a segmentation fault. Only available on Python 3.3+
     try:
@@ -2965,7 +3002,8 @@ def runtests(options, cmd_args, coverage=None):
     else:
         faulthandler.enable()
 
-    WITH_CYTHON = options.with_cython
+    WITH_CYTHON = options.with_cython and options.with_compile
+    WITH_COMPILE = options.with_compile
     ROOTDIR = os.path.abspath(options.root_dir)
     WORKDIR = os.path.abspath(options.work_dir)
 
@@ -3082,10 +3120,11 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
+            ('limited_api_314_bugs.txt', options.limited_api and sys.version_info[:2] <= (3, 14)),
             ('windows_bugs.txt', sys.platform == 'win32'),
-            ('windows_arm_bugs.txt', sys.platform == 'win32' and platform.machine().lower() == "arm64"),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
+            ('exclude_limited_api_rerun.txt', options.limited_api and not WITH_COMPILE),
         ]
 
         exclude_selectors += [

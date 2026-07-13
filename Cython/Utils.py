@@ -1,3 +1,6 @@
+# uses @functools.wraps()
+# cython: binding=True
+
 """
 Cython -- Things that don't belong anywhere else in particular
 """
@@ -543,6 +546,16 @@ class OrderedSet:
         return bool(self._set)
 
     __nonzero__ = __bool__
+
+
+def set_dedup(it):
+    """Deduplicate the items in an iterable using a set.
+    """
+    seen = set()
+    for item in it:
+        if item not in seen:
+            seen.add(item)
+            yield item
 
 
 # Class decorator that adds a metaclass and recreates the class with it.

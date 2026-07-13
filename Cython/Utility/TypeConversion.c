@@ -346,6 +346,10 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject* x) {
 
 static PyObject* __Pyx_PyNumber_LongWrongResultType(PyObject* result) {
     __Pyx_TypeName result_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(result));
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!result_type_name)) goto bad;
+    #endif
+
     if (PyLong_Check(result)) {
         // CPython issue #17576: warn if 'result' not of exact type int.
         if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
@@ -354,16 +358,19 @@ static PyObject* __Pyx_PyNumber_LongWrongResultType(PyObject* result) {
                 "and may be removed in a future version of Python.",
                 result_type_name)) {
             __Pyx_DECREF_TypeName(result_type_name);
-            Py_DECREF(result);
-            return NULL;
+            goto bad;
         }
         __Pyx_DECREF_TypeName(result_type_name);
         return result;
     }
+
     PyErr_Format(PyExc_TypeError,
                  "__int__ returned non-int (type " __Pyx_FMT_TYPENAME ")",
                  result_type_name);
+
     __Pyx_DECREF_TypeName(result_type_name);
+
+bad:
     Py_DECREF(result);
     return NULL;
 }
@@ -464,19 +471,26 @@ static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t ival) {
 }
 
 
+/////////////// pybuiltin_invalid.export ///////////////
+
+static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *builtin_type_name, const char *argname); /*proto*/
+
 /////////////// pybuiltin_invalid ///////////////
 
-static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *type_name, const char *argname) {
+static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *builtin_type_name, const char *argname) {
     __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!obj_type_name)) return;
+    #endif
     if (argname) {
         PyErr_Format(PyExc_TypeError,
-            "Argument '%.200s' has incorrect type (expected %.200s, got " __Pyx_FMT_TYPENAME ")",
-            argname, type_name, obj_type_name
+            "Argument '%.200s' has incorrect type (expected %.5s, got " __Pyx_FMT_TYPENAME ")",
+            argname, builtin_type_name, obj_type_name
         );
     } else {
         PyErr_Format(PyExc_TypeError,
-            "Expected %.200s, got " __Pyx_FMT_TYPENAME,
-            type_name, obj_type_name
+            "Expected %.5s, got " __Pyx_FMT_TYPENAME,
+            builtin_type_name, obj_type_name
         );
     }
     __Pyx_DECREF_TypeName(obj_type_name);
@@ -689,6 +703,9 @@ bad:
 static void __Pyx_seq_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
     if (unlikely(!PySequence_Check(o))) {
         __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
+        #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+        if (unlikely(!o_type_name)) goto bad;
+        #endif
         PyErr_Format(PyExc_TypeError,
                      "Expected a sequence of size %zd, got " __Pyx_FMT_TYPENAME, (Py_ssize_t) {{size}}, o_type_name);
         __Pyx_DECREF_TypeName(o_type_name);
@@ -841,7 +858,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
 
 /////////////// CIntToPy ///////////////
 //@requires: GCCDiagnostics
-//@requires: ObjectHandling.c::PyObjectVectorCallKwBuilder
+//@requires: ObjectHandling.c::PyObjectVectorcallMethodKwds
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
@@ -887,31 +904,41 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 #else
         // call int.from_bytes()
         int one = 1; int little = (int)*(unsigned char *)&one;
-        PyObject *from_bytes, *result = NULL, *kwds = NULL;
-        PyObject *py_bytes = NULL, *order_str = NULL;
-        from_bytes = PyObject_GetAttrString((PyObject*)&PyLong_Type, "from_bytes");
-        if (!from_bytes) return NULL;
+        PyObject *result = NULL, *kwds = NULL;
+        PyObject *py_bytes = NULL, *order_str = NULL, *from_bytes_str = NULL;;
         py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof({{TYPE}}));
         if (!py_bytes) goto limited_bad;
         // I'm deliberately not using PYIDENT here because this code path is very unlikely
         // to ever run so it seems a pessimization mostly.
+        from_bytes_str = PyUnicode_FromStringAndSize("from_bytes", 10);
+        if (!from_bytes_str) goto limited_bad;
         order_str = PyUnicode_FromString(little ? "little" : "big");
         if (!order_str) goto limited_bad;
         {
-            PyObject *args[3+(CYTHON_VECTORCALL ? 1 : 0)] = { NULL, py_bytes, order_str };
+            PyObject *args[] = { (PyObject*)&PyLong_Type, py_bytes, order_str, Py_True };
             if (!is_unsigned) {
-                kwds = __Pyx_MakeVectorcallBuilderKwds(1);
-                if (!kwds) goto limited_bad;
-                if (__Pyx_VectorcallBuilder_AddArgStr("signed", __Pyx_NewRef(Py_True), kwds, args+3, 0) < 0) goto limited_bad;
+                PyObject *signed_str = PyUnicode_FromStringAndSize("signed", 6);
+                if (!signed_str) goto limited_bad;
+#if CYTHON_VECTORCALL
+                kwds = PyTuple_Pack(1, signed_str);
+#else
+                {
+                    PyObject *keys[] = {signed_str};
+                    PyObject *values[] = {Py_True};
+                    kwds = __Pyx_MakeKwargDict(keys, values, 1);
+                }
+#endif
+                Py_DECREF(signed_str);
+                if (unlikely(!kwds)) goto limited_bad;
             }
-            result = __Pyx_Object_Vectorcall_CallFromBuilder(from_bytes, args+1, 2 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET, kwds);
+            result = __Pyx_Object_VectorcallMethodKwds(from_bytes_str, args, 3 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET, kwds);
         }
 
         limited_bad:
         Py_XDECREF(kwds);
         Py_XDECREF(order_str);
         Py_XDECREF(py_bytes);
-        Py_XDECREF(from_bytes);
+        Py_XDECREF(from_bytes_str);
         return result;
 #endif
     }

@@ -29,7 +29,8 @@ copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
 safe_makedirs_once = cached_function(safe_makedirs)
 
 
-def _make_relative(file_paths, base=None):
+@cython.cfunc
+def _make_relative(file_paths, base=None) -> list[str]:
     if not base:
         base = os.getcwd()
     if base[-1] != os.path.sep:
@@ -52,7 +53,7 @@ def extended_iglob(pattern):
     # because '/' is generally common for relative paths.
     if '**/' in pattern or os.sep == '\\' and '**\\' in pattern:
         seen = set()
-        first, rest = re.split(r'\*\*[%s]' % ('/\\\\' if os.sep == '\\' else '/'), pattern, 1)
+        first, rest = re.split(r'\*\*[%s]' % ('/\\\\' if os.sep == '\\' else '/'), pattern, maxsplit=1)
         if first:
             first = iglob(first + os.sep)
         else:
@@ -158,6 +159,7 @@ distutils_settings = {
 }
 
 
+@cython.cfunc
 def _legacy_strtobool(val):
     # Used to be "distutils.util.strtobool", adapted for deprecation warnings.
     if val == "True":

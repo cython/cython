@@ -2,11 +2,12 @@
 #   Symbol Table
 #
 
+# uses @try_finally_contextmanager
+# cython: binding=True
 
 import re
 import copy
 import operator
-import math
 
 from ..Utils import try_finally_contextmanager
 from .Errors import warning, error, InternalError, performance_hint
@@ -1292,7 +1293,7 @@ class BuiltinScope(Scope):
         return Scope.lookup(self, name)
 
     def declare_builtin(self, name, pos):
-        if name not in Code.KNOWN_PYTHON_BUILTINS:
+        if name not in PyrexTypes.KNOWN_PYTHON_BUILTINS:
             if self.outer_scope is not None:
                 return self.outer_scope.declare_builtin(name, pos)
             else:
@@ -1409,8 +1410,7 @@ class ModuleScope(Scope):
         outer_scope = Builtin.builtin_scope
         Scope.__init__(self, name, outer_scope, parent_module)
         self.is_package = is_package
-        self.module_name = name
-        self.module_name = EncodedString(self.module_name)
+        self.module_name = EncodedString(name)
         self._context = context
         self.module_cname = Naming.module_cname
         self.module_dict_cname = Naming.moddict_cname
@@ -1500,9 +1500,9 @@ class ModuleScope(Scope):
         return entry
 
     def declare_builtin(self, name, pos):
-        if name not in Code.KNOWN_PYTHON_BUILTINS \
+        if name not in PyrexTypes.KNOWN_PYTHON_BUILTINS \
                and name not in Code.renamed_py2_builtins_map \
-               and name not in Code.uncachable_builtins:
+               and name not in PyrexTypes.uncachable_builtins:
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)
                 return entry
@@ -1523,7 +1523,7 @@ class ModuleScope(Scope):
             return self.outer_scope.lookup('__Pyx_Globals')
         else:
             entry = self.declare(None, None, py_object_type, pos, 'private')
-        if Options.cache_builtins and name not in Code.uncachable_builtins:
+        if Options.cache_builtins and name not in PyrexTypes.uncachable_builtins:
             entry.is_builtin = 1
             entry.is_const = 1  # cached
             entry.name = name
@@ -2758,13 +2758,15 @@ class CClassScope(ClassScope):
         self.property_entries.append(entry)
         return entry
 
-    def declare_cproperty(self, name, type, cfunc_name, doc=None, pos=None, visibility='extern',
-                          nogil=False, with_gil=False, exception_value=None, exception_check=False,
-                          utility_code=None):
+    def declare_cproperty(self, name, type, cfunc_name, setter_cfunc_name=None,
+                          doc=None, pos=None, visibility='extern',
+                          nogil=False, with_gil=False,
+                          exception_value=None, exception_check=False, setter_raises=True,
+                          utility_code=None, setter_utility_code=None):
         """Internal convenience method to declare a C property function in one go.
         """
         property_entry = self.declare_property(name, doc=doc, ctype=type, pos=pos)
-        cfunc_entry = property_entry.scope.declare_cfunction(
+        getter_cfunc_entry = property_entry.scope.declare_cfunction(
             name="__get__",
             type=PyrexTypes.CFuncType(
                 type,
@@ -2779,7 +2781,25 @@ class CClassScope(ClassScope):
             visibility=visibility,
             pos=pos,
         )
-        return property_entry, cfunc_entry
+        setter_cfunc_entry = None
+        if setter_cfunc_name:
+            setter_cfunc_entry = property_entry.scope.declare_cfunction(
+                name="__set__",
+                type=PyrexTypes.CFuncType(
+                    PyrexTypes.c_returncode_type if setter_raises else PyrexTypes.c_void_type,
+                    [PyrexTypes.CFuncTypeArg("self", self.parent_type, pos=None),
+                     PyrexTypes.CFuncTypeArg("value", type, pos=None)],
+                    nogil=nogil,
+                    with_gil=with_gil,
+                    exception_value=-1 if setter_raises else None,
+                ),
+                cname=setter_cfunc_name,
+                # Allow getter+setter in one utility code section.
+                utility_code=setter_utility_code or utility_code,
+                visibility=visibility,
+                pos=pos,
+            )
+        return property_entry, getter_cfunc_entry, setter_cfunc_entry
 
     def declare_inherited_c_attributes(self, base_scope):
         # Declare entries for all the C attributes of an
@@ -3037,12 +3057,19 @@ class PropertyScope(Scope):
                 error(pos, "C property getter must have a single (self) argument")
 
         if name=="__set__":
-            if not type.return_type.is_void:
-                error(pos, "C property setter must return 'void'")
+            # Allow only 'void noexcept' and 'int except(?) -1'.
+            if type.return_type.is_void:
+                if type.exception_check or type.exception_value is not None:
+                    error(pos, "C property setter needs 'noexcept' if declared 'void'")
+            elif type.return_type in (PyrexTypes.c_int_type, PyrexTypes.c_returncode_type):
+                if type.exception_value is not None and type.exception_value.python_value != -1:
+                    error(pos, f"C property setter with 'int' return needs explicit 'except -1' or 'except? -1'")
+            else:
+                error(pos, "C property setter must return void or an 'int' error code, -1 (error) or 0 (ok)")
             if len(type.args) != 2:
                 error(pos, "C property setter must have two arguments (self and value)")
 
-        if not (type.args[0].type.is_pyobject or type.args[0].type is self.parent_scope.parent_type):
+        if type.args and not (type.args[0].type.is_pyobject or type.args[0].type is self.parent_scope.parent_type):
             error(pos, "self argument of C property method must be an object")
         if type.args and type.args[0].type is py_object_type:
             # Set 'self' argument type to extension type.
@@ -3066,9 +3093,9 @@ class PropertyScope(Scope):
             return None
 
 
-class CConstOrVolatileScope(Scope):
+class CQualifierScope(Scope):
 
-    def __init__(self, base_type_scope, is_const=0, is_volatile=0):
+    def __init__(self, base_type_scope, is_const=False, is_volatile=False, is_restrict=False):
         Scope.__init__(
             self,
             'cv_' + base_type_scope.name,
@@ -3077,13 +3104,14 @@ class CConstOrVolatileScope(Scope):
         self.base_type_scope = base_type_scope
         self.is_const = is_const
         self.is_volatile = is_volatile
+        self.is_restrict = is_restrict
 
     def lookup_here(self, name):
         entry = self.base_type_scope.lookup_here(name)
         if entry is not None:
             entry = copy.copy(entry)
-            entry.type = PyrexTypes.c_const_or_volatile_type(
-                    entry.type, self.is_const, self.is_volatile)
+            entry.type = PyrexTypes.c_qualifier_type(
+                    entry.type, self.is_const, self.is_volatile, is_restrict=False)
             return entry
 
 

@@ -37,7 +37,7 @@ def simple():
     L = [1,2,3]
     assert typeof(L) == "list object", typeof(L)
     t = (4,5,6,())
-    assert typeof(t) == "tuple object", typeof(t)
+    assert typeof(t) == "tuple[long,long,long,tuple object] object", typeof(t)
     t2 = (4, 5.0, 6)
     assert typeof(t2) == "(long, double, long)", typeof(t)
 
@@ -81,6 +81,66 @@ def builtin_exceptions():
     assert typeof(f) == "DeprecationWarning object", typeof(f)
 
 
+def exception_hierarchy_inference(x):
+    """
+    >>> exception_hierarchy_inference(True)
+    BaseException object
+    Exception object
+    ArithmeticError object
+    ArithmeticError object
+    ArithmeticError object
+    """
+    base_exc = BaseException() if x else Exception()
+    print(cython.typeof(base_exc))
+
+    exc = Exception() if x else KeyError()
+    print(cython.typeof(exc))
+
+    arith_exc = FloatingPointError() if x else OverflowError()
+    print(cython.typeof(arith_exc))
+
+    arith_exc_or = OverflowError() or FloatingPointError()
+    print(cython.typeof(arith_exc_or))
+
+    arith_exc_cascade = OverflowError() or FloatingPointError() and ZeroDivisionError()
+    print(cython.typeof(arith_exc_cascade))
+
+
+def try_except_target(call):
+    """
+    >>> try_except_target(list)
+    TypeError object
+    Exception object
+    LookupError object
+    Exception object
+    BaseException object
+    """
+    try:
+        call(123)
+    except TypeError as except_exc1:
+        print(cython.typeof(except_exc1))
+
+    try:
+        call(123)
+    except (ValueError, TypeError) as except_exc2:
+        print(cython.typeof(except_exc2))
+
+    try:
+        call()[1]
+    except (IndexError, KeyError) as except_exc2_lookup:
+        print(cython.typeof(except_exc2_lookup))
+
+    try:
+        call(123)
+    except (ValueError, TypeError, OverflowError) as except_exc3:
+        print(cython.typeof(except_exc3))
+
+    try:
+        call(123)
+    except (ValueError, TypeError, KeyError, GeneratorExit) as except_exc4:
+        print(cython.typeof(except_exc4))
+
+
 def slicing():
     """
     >>> slicing()
@@ -114,7 +174,7 @@ def slicing():
     assert typeof(L2) == "list object", typeof(L2)
 
     t = (4,5,6,())
-    assert typeof(t) == "tuple object", typeof(t)
+    assert typeof(t) == "tuple[long,long,long,tuple object] object", typeof(t)
     t1 = t[1:2]
     assert typeof(t1) == "tuple object", typeof(t1)
     t2 = t[1:2:2]
@@ -146,12 +206,12 @@ def indexing():
     assert typeof(L1) == "Python object", typeof(L1)
 
     t = (4,5,())
-    assert typeof(t) == "tuple object", typeof(t)
+    assert typeof(t) == "tuple[long,long,tuple object] object", typeof(t)
     t1 = t[1]
     assert typeof(t1) == "long", typeof(t1)
 
     t2 = ('abc', 'def', 'ghi')
-    assert typeof(t2) == "tuple object", typeof(t2)
+    assert typeof(t2) == "tuple[str object,str object,str object] object", typeof(t2)
     t2_1 = t2[1]
     assert typeof(t2_1) == "str object", typeof(t2_1)
     t2_2 = t2[t[0]-3]
@@ -302,7 +362,7 @@ def builtin_type_methods():
 
     u = u'abc def'
     split = u.split()
-    assert typeof(split) == 'list object', typeof(split)
+    assert typeof(split) == 'list[str object] object', typeof(split)
 
     str_result1 = u.upper()
     assert typeof(str_result1) == "str object", typeof(str_result1)

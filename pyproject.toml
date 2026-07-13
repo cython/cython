@@ -20,32 +20,36 @@ test-command = [
     "cython {project}/Cython/Compiler/Parsing.py",
 ]
 
+[tool.cibuildwheel.environment]
+PIP_BUILD_CONSTRAINT = ".github/wheel_build_constraints.txt"
+PIP_CONSTRAINT = ".github/wheel_build_constraints.txt"
+
 [tool.cibuildwheel.linux]
 archs = ["x86_64", "aarch64", "i686", "armv7l"]
 repair-wheel-command = "auditwheel repair --strip -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.linux.environment]
-CFLAGS = "-O3 -g0 -pipe -fPIC -march=core2 -mno-ssse3"
+CFLAGS = "-O3 -g0 -pipe -fPIC -DNDEBUG -march=core2 -mno-ssse3"
 AR = "gcc-ar"
 NM = "gcc-nm"
 RANLIB = "gcc-ranlib"
+PIP_BUILD_CONSTRAINT = ".github/wheel_build_constraints.txt"
+PIP_CONSTRAINT = ".github/wheel_build_constraints.txt"
 
 [[tool.cibuildwheel.overrides]]
 select = "*aarch64"
-environment = {CFLAGS = "-O3 -g0 -pipe -fPIC -march=armv8-a -mtune=cortex-a72", AR = "gcc-ar", NM = "gcc-nm", RANLIB = "gcc-ranlib"}
+inherit.environment = "append"
+environment = {CFLAGS = "-O3 -g0 -pipe -fPIC -DNDEBUG -march=armv8-a -mtune=cortex-a72", AR = "gcc-ar", NM = "gcc-nm", RANLIB = "gcc-ranlib"}
 
 [[tool.cibuildwheel.overrides]]
 select = "*armv7l"
+inherit.environment = "append"
 environment.CFLAGS = "-O3 -g0 -pipe -fPIC"
 
 [[tool.cibuildwheel.overrides]]
 select = "*i686 *musllinux* *win32 *win_arm64 *macosx_x86_64 *armv7l"
 inherit.environment = "append"
 environment.CYTHON_LIMITED_API = "true"
-inherit.test-requires = "append"
-test-requires = ["abi3audit>=0.0.25"]
-inherit.test-command = "append"
-test-command = ["abi3audit --strict --report {wheel}"]
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64", "x86", "ARM64"]

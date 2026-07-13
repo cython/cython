@@ -2,12 +2,11 @@ import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
                LetRefNode=object, TreeFragment=object, EncodedString=object,
-               error=object, warning=object, copy=object, hashlib=object, sys=object,
+               error=object, warning=object, copy=object, hashlib=object,
                itemgetter=object)
 
 import copy
 import hashlib
-import sys
 from operator import itemgetter
 
 from . import Code
@@ -245,7 +244,7 @@ class PostParse(ScopeTrackingTransform):
             newdecls = []
             for decl in node.declarators:
                 declbase = decl
-                while isinstance(declbase, (Nodes.CPtrDeclaratorNode, Nodes.CConstDeclaratorNode)):
+                while isinstance(declbase, (Nodes.CPtrDeclaratorNode, Nodes.CQualifierDeclaratorNode)):
                     declbase = declbase.base
                 if isinstance(declbase, Nodes.CNameDeclaratorNode):
                     if declbase.default is not None:
@@ -962,10 +961,9 @@ class InterpretCompilerDirectives(CythonTransform):
         node.cython_module_names = self.cython_module_names
         return node
 
-    def visit_CompilerDirectivesNode(self, node):
-        old_directives, self.directives = self.directives, node.directives
-        self.visitchildren(node)
-        self.directives = old_directives
+    def visit_CompilerDirectivesMixin(self, node):
+        with node.apply_directives(self):
+            self.visitchildren(node)
         return node
 
     # The following four functions track imports and cimports that
@@ -2091,12 +2089,10 @@ class ForwardDeclareTypes(CythonTransform):
     before declaring everything (else) in source code order.
     """
 
-    def visit_CompilerDirectivesNode(self, node):
+    def visit_CompilerDirectivesMixin(self, node):
         env = self.module_scope
-        old = env.directives
-        env.directives = node.directives
-        self.visitchildren(node)
-        env.directives = old
+        with node.apply_directives(env):
+            self.visitchildren(node)
         return node
 
     def visit_ModuleNode(self, node):
@@ -2424,7 +2420,8 @@ if VALUE is not None:
         self.visitchild(node, 'py_func')
         node.update_fused_defnode_entry(env)
         # For the moment, fused functions do not support METH_FASTCALL
-        node.py_func.entry.signature.use_fastcall = False
+        call_signature = node.py_func.entry.signature
+        call_signature.use_fastcall = call_signature.FastcallUsed.NO
         pycfunc = ExprNodes.PyCFunctionNode.from_defnode(node.py_func, binding=True)
         pycfunc = ExprNodes.ProxyNode(pycfunc.coerce_to_temp(env))
         node.resulting_fused_function = pycfunc
@@ -2459,6 +2456,8 @@ if VALUE is not None:
 
         decorators = getattr(node, 'decorators', None)
         node = FusedNode.FusedCFuncDefNode(node, env)
+        if node.py_func:
+            node.attach_fused_py_funcs()
         self.fused_function = node
         self.visitchildren(node)
         self.fused_function = None
@@ -3125,11 +3124,9 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         self.visitchildren(node)
         return node
 
-    def visit_CompilerDirectivesNode(self, node):
-        old_directives = self.directives
-        self.directives = node.directives
-        self.visitchildren(node)
-        self.directives = old_directives
+    def visit_CompilerDirectivesMixin(self, node):
+        with node.apply_directives(self):
+            self.visitchildren(node)
         return node
 
     def visit_DefNode(self, node):
@@ -3696,7 +3693,7 @@ class InjectGilHandling(VisitorTransform, SkipDeclarations):
     def _inject_gil_in_nogil(self, node):
         """Allow the (Python statement) node in nogil sections by wrapping it in a 'with gil' block."""
         if self.nogil:
-            node = Nodes.GILStatNode(node.pos, state='gil', body=node)
+            node = Nodes.GILStatNode(node.pos, state='gil', body=node, internally_generated=True)
         return node
 
     visit_RaiseStatNode = _inject_gil_in_nogil
@@ -3821,38 +3818,79 @@ class GilCheck(VisitorTransform):
         nogil_state = Nodes.NoGilState.NoGil if is_nogil else Nodes.NoGilState.HasGil
         self._visit_scoped_children(node, nogil_state)
         self.nogil_state_at_current_gilstatnode = nogil_state_at_current_gilstatnode
+
+        # Drop pointless nested `with gil: with nogil:` blocks.
+        # These can occur during the generation of prange/parallel sections for example.
+        node_body = node.body
+        if (isinstance(node_body, Nodes.StatListNode) and len(node_body.stats) == 1):
+            node_body = node_body.stats[0]
+        if isinstance(node_body, Nodes.GILStatNode) and node_body.state != node.state and (
+                # Don't optimize out user-inserted `with nogil` for now. They have the
+                # side-effect of deliberately allowing a thread-switch even if they might
+                # appear useless, so they might be deliberate.
+                (node_body.state == "nogil" and node_body.internally_generated) or
+                (node.state == "nogil" and node.internally_generated)):
+            if not node.scope_gil_state_known:
+                node_body.scope_gil_state_known = False
+                node_body.finally_clause.scope_gil_state_known = False
+                if node_body.finally_except_clause is not None:
+                    node_body.finally_except_clause.scope_gil_state_known = False
+                return node_body
+            else:
+                return node_body.body
+
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.nogil or self.nogil_state == Nodes.NoGilState.NoGilScope:
+        if self.nogil_state == Nodes.NoGilState.HasGil and not node.nogil:
+            # We still release the GIL then reacquire it to avoid deadlocks.
+            node.acquire_gil = True
+        if (node.nogil or self.nogil_state == Nodes.NoGilState.NoGilScope or
+                (self.nogil_state == Nodes.NoGilState.HasGil and not node.parent)):
             node_was_nogil, node.nogil = node.nogil, False
-            node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
+            node = Nodes.GILStatNode(node.pos, state='nogil', body=node, internally_generated=True)
             if not node_was_nogil and self.nogil_state == Nodes.NoGilState.NoGilScope:
                 # We're in a "nogil" function, but that doesn't prove we
                 # didn't have the gil
                 node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)
 
-        if not self.nogil_state:
-            error(node.pos, "prange() can only be used without the GIL")
-            # Forget about any GIL-related errors that may occur in the body
-            return None
+        if node.acquire_gil:
+            if not self.env_stack[-1].directives['freethreading_compatible']:
+                warning(
+                    node.pos,
+                    "prange without releasing the GIL will only work well on freethreaded Python",
+                    level=2)
+            was_nogil = self.nogil_state
+            self.nogil_state = Nodes.NoGilState.HasGil
 
         node.nogil_check(self.env_stack[-1])
         self.visitchildren(node)
+
+        if node.acquire_gil:
+            self.nogil_state = was_nogil
         return node
 
     def visit_ParallelWithBlockNode(self, node):
-        if not self.nogil_state:
-            error(node.pos, "The parallel section may only be used without "
-                            "the GIL")
-            return None
-        if self.nogil_state == Nodes.NoGilState.NoGilScope:
-            # We're in a "nogil" function but that doesn't prove we didn't
-            # have the gil, so release it
-            node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
-            node.scope_gil_state_known = False
+        if self.nogil_state != Nodes.NoGilState.NoGil:
+            # Ensure that the GIL is released
+            if self.nogil_state == Nodes.NoGilState.HasGil:
+                # Even if we intend the block to have the GIL it's easier to release
+                # and reacquire it to void deadlocks.
+                node.acquire_gil = True
+            node = Nodes.GILStatNode(node.pos, state='nogil', body=node, internally_generated=True)
+            if self.nogil_state == Nodes.NoGilState.NoGilScope:
+                node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)
+
+        if node.acquire_gil:
+            if not self.env_stack[-1].directives['freethreading_compatible']:
+                warning(
+                    node.pos,
+                    "Parallel section without releasing the GIL will only work well on freethreaded Python",
+                    level=2)
+            was_nogil = self.nogil_state
+            self.nogil_state = Nodes.NoGilState.HasGil
 
         if node.nogil_check:
             # It does not currently implement this, but test for it anyway to
@@ -3860,6 +3898,8 @@ class GilCheck(VisitorTransform):
             node.nogil_check(self.env_stack[-1])
 
         self.visitchildren(node)
+        if node.acquire_gil:
+            self.nogil_state = was_nogil
         return node
 
     def visit_TryFinallyStatNode(self, node):

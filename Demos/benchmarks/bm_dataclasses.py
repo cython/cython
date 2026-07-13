@@ -56,8 +56,8 @@ def benchmark_repr(points: list[Point]):
 
 
 def benchmark_compare(points: list[Point]):
-    all_results: bint = False
-    result: bint
+    all_results: cython.bint = False
+    result: cython.bint
 
     for p1, p2 in pairwise(points):
         result = False

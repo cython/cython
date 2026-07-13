@@ -28,15 +28,15 @@ cdef class PyrexScanner(Scanner):
     cdef public bint in_python_file
     cdef public source_encoding
     cdef dict keywords
-    cdef public list indentation_stack
+    cdef public list[Py_ssize_t] indentation_stack
     cdef public Py_UCS4 indentation_char
-    cdef public int bracket_nesting_level
+    cdef public Py_ssize_t bracket_nesting_level
     cdef readonly bint async_enabled
     cdef public unicode sy
     cdef public systring  # EncodedString
     cdef public list put_back_on_failure
     # fstrings/tstrings
-    cdef list ft_string_state_stack
+    cdef list[FTStringState] ft_string_state_stack
     cdef int in_ft_string_expr_prescan
 
     cdef Py_ssize_t current_level(self)
@@ -55,5 +55,16 @@ cdef class PyrexScanner(Scanner):
 
 
 cdef class FTStringState:
-    cdef list bracket_states
+    cdef list[FTStringBracketState] bracket_states
     cdef readonly str scanner_state
+
+    cdef bracket_nesting_level(self)
+    cdef bint in_format_specifier(self)
+    cdef set_in_format_specifier(self)
+    cdef push_bracket_state(self, Py_ssize_t bracket_nesting_level)
+    cdef pop_bracket_state(self)
+
+@cython.final
+cdef class FTStringBracketState:
+    cdef Py_ssize_t bracket_nesting_level
+    cdef bint in_format_specifier

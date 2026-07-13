@@ -25,6 +25,10 @@ PROCESSED_BENCHMARKS = frozenset({
     "bm_getitem.py",
 })
 
+BENCHMARK_MIN_VERSIONS = {
+    "bm_patma": (3, 3)
+}
+
 LIMITED_API_VERSION = max((3, 12), sys.version_info[:2])
 
 PYTHON_VERSION = "%d.%d.%d" % sys.version_info[:3]
@@ -249,7 +253,7 @@ def read_cython_version(cython_dir: pathlib.Path):
     raise RuntimeError("Cython '__version__' not found in Shadow.py")
 
 
-def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
+def cythonize_cython(cython_dir: pathlib.Path, c_macros=None, cythonize_only=False):
     compiled_modules = [
         "Cython.Plex.Actions",
         "Cython.Plex.Scanners",
@@ -297,6 +301,9 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None):
     t = times['user']
     logging.info(f"    Cythonize modules in Python: {t:.2f} sec user ({times['elapsed']} sec)")
     cythonize_times['cythonize_python'] = [t]
+
+    if cythonize_only:
+        return cythonize_times
 
     # Build binary modules (without cythonize).
     # To avoid partially compiled imports, import all non-compiled Cython modules before compiling them.
@@ -576,10 +583,16 @@ def benchmark_revision(
         cython_version_str = read_cython_version(cython_dir)
         cython_version = (revision, *map(int, cython_version_str.split('.', 2)[:2])) if not plain_python else None
 
+        if cython_version:
+            benchmarks = [
+                bm for bm in benchmarks
+                if bm not in BENCHMARK_MIN_VERSIONS or cython_version[1:] >= BENCHMARK_MIN_VERSIONS[bm]
+            ]
+
         cythonize_times = None
         if benchmark_cythonize:
             logging.info(f"### Running cythonize benchmarks for {revision} (Cython {cython_version_str}).")
-            cythonize_times = cythonize_cython(cython_dir, c_macros)
+            cythonize_times = cythonize_cython(cython_dir, c_macros, cythonize_only=plain_python)
 
         timings = {}
         sizes = {}

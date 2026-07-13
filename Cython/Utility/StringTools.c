@@ -52,13 +52,21 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 
 
 //////////////////// DecompressString.proto ////////////////////
+// TODO: Move to the shared module if we can import that before initialising the strings.
 
 static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo); /*proto*/
 
 //////////////////// DecompressString ////////////////////
 //@requires: TypeConversion.c::GCCDiagnostics
 
-static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
+CYTHON_UNUSED
+static CYTHON_SMALL_CODE PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
+#ifdef __Pyx_DecompressString_UNUSED
+    CYTHON_UNUSED_VAR(s);
+    CYTHON_UNUSED_VAR(length);
+    CYTHON_UNUSED_VAR(algo);
+    return NULL;
+#else
     PyObject *module = NULL, *decompress, *compressed_bytes, *decompressed;
 
     const char* module_name = algo == 3 ? "compression.zstd" : algo == 2 ? "bz2" : "zlib";
@@ -135,8 +143,93 @@ bad:
     Py_XDECREF(module);
     Py_DECREF(methodname);
     return NULL;
+#endif
 }
 
+
+//////////////////// DecompressString_LZSS.proto ////////////////////
+// TODO: Move to the shared module if we can import that before initialising the strings.
+
+static PyObject *__Pyx_DecompressString_LZSS(const char *s, size_t compressed_length, size_t uncompressed_length); /*proto*/
+
+//////////////////// DecompressString_LZSS ////////////////////
+//@requires: IncludeStringH
+
+#ifndef __Pyx_DecompressString_LZSS_UNUSED
+// Depends on <stdint.h>, which is globally included in the module preamble.
+CYTHON_UNUSED
+static CYTHON_SMALL_CODE size_t __pyx_lzss_decompress(const uint8_t* src, uint8_t* dst, size_t dst_len) {
+    size_t pos = 0, out_pos = 0;
+
+    while (1) {
+        // Process 8 bytes/backreferences at a time.
+        uint32_t flags = src[pos++] | 0xFF00;
+        while (flags & 0x100) {
+            if (flags & 1) {
+                // plain byte
+                dst[out_pos++] = src[pos++];
+            } else {
+                // back reference, 2 or 3 bytes
+                uint32_t lo = src[pos++], hi = src[pos++];
+                uint32_t end_offset_of_last_occurrence, match_length;
+                if (!(lo & 0x80)) {
+                    // 7 bit offset + 8 bit length
+                    end_offset_of_last_occurrence = lo;
+                    match_length = hi;
+                } else if (!(hi & 0x80)) {
+                    // 2+7 bit offset + 5 bit length
+                    end_offset_of_last_occurrence = ((hi << 2) & 0x180) | (lo & 0x7F);
+                    match_length = hi & 0x1F;
+                } else {
+                    // 7+7 bit offset + 8 bit length
+                    end_offset_of_last_occurrence = (hi & 0x7F) << 7 | (lo & 0x7F);
+                    match_length = src[pos++];
+                }
+
+                match_length += 3;
+                size_t ref_pos = out_pos - end_offset_of_last_occurrence - match_length;
+
+                memcpy(dst + out_pos, dst + ref_pos, match_length);
+                out_pos += match_length;
+            }
+
+            if (out_pos >= dst_len) return pos;
+            flags >>= 1;
+        }
+    }
+}
+#endif
+
+static CYTHON_SMALL_CODE PyObject *__Pyx_DecompressString_LZSS(const char *s, size_t compressed_length, size_t uncompressed_length) {
+#ifdef __Pyx_DecompressString_LZSS_UNUSED
+    CYTHON_UNUSED_VAR(s);
+    CYTHON_UNUSED_VAR(compressed_length);
+    CYTHON_UNUSED_VAR(uncompressed_length);
+    return NULL;
+#else
+    PyObject *result;
+    unsigned char *result_data;
+    size_t src_length;
+
+    result = PyBytes_FromStringAndSize(NULL, (Py_ssize_t) uncompressed_length);
+    if (unlikely(!result)) return NULL;
+
+    result_data = __Pyx_PyBytes_AsWritableUString(result);
+    if (unlikely(!result_data)) goto bad;
+
+    src_length = __pyx_lzss_decompress((const uint8_t*) s, result_data, uncompressed_length);
+    if (unlikely(src_length != compressed_length)) goto decompression_failed;
+
+    return result;
+
+decompression_failed:
+    PyErr_SetString(PyExc_RuntimeError, "LZSS string data decompression failed");
+
+bad:
+    Py_DECREF(result);
+    return NULL;
+#endif
+}
 
 //////////////////// BytesContains.proto ////////////////////
 
@@ -704,7 +797,8 @@ static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar) {
     return Py_UNICODE_ISTITLE(uchar) || Py_UNICODE_ISUPPER(uchar);
 }
 {{else}}
-#define __Pyx_Py_UNICODE_{{method_name.upper()}}(u)  Py_UNICODE_{{method_name.upper()}}(u)
+// Use bitwise and to try to make it clear to the compiler that -1 error code will never be seen.
+#define __Pyx_Py_UNICODE_{{method_name.upper()}}(u)  (Py_UNICODE_{{method_name.upper()}}(u) & 1)
 {{endif}}
 #endif
 
@@ -752,18 +846,14 @@ static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar) {
         return 0;
     }
     ustring = PyUnicode_FromOrdinal(uchar);
-    if (!ustring) goto bad;
+    if (!ustring) return -1;
     py_result = PyObject_CallMethod(ustring, "{{method_name}}", NULL);
     Py_DECREF(ustring);
-    if (!py_result) goto bad;
+    if (!py_result) return -1;
     result = PyObject_IsTrue(py_result);
     Py_DECREF(py_result);
-    if (result == -1) goto bad;
+    if (result == -1) return -1;
     return result != 0;
-
-bad:
-    PyErr_Clear();
-    return 0; /* cannot fail */
 }
 #endif
 
@@ -1062,8 +1152,8 @@ bad:
     CYTHON_UNUSED_VAR(result_ulength);
 
     for (i=0; i<value_count; i++) {
-        if (__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) != (0)) goto bad;
         Py_INCREF(values[i]);
+        if (__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) != (0)) goto bad;
     }
 
     result = PyUnicode_Join(EMPTY(unicode), value_tuple);
@@ -1180,6 +1270,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
         }
     }
     return __Pyx_PyByteArray_Append(bytearray, (int) ival);
+
 bad_range:
     PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
     return -1;
@@ -1192,22 +1283,8 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
 //////////////////// ByteArrayAppend ////////////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 
-static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
+static int __Pyx_PyByteArray_Append_fallback(PyObject* bytearray, int value) {
     PyObject *pyval, *retval;
-#if CYTHON_COMPILING_IN_CPYTHON
-    if (likely(__Pyx_is_valid_index(value, 256))) {
-        Py_ssize_t n = Py_SIZE(bytearray);
-        if (likely(n != PY_SSIZE_T_MAX)) {
-            if (unlikely(PyByteArray_Resize(bytearray, n + 1) < 0))
-                return -1;
-            PyByteArray_AS_STRING(bytearray)[n] = (char) (unsigned char) value;
-            return 0;
-        }
-    } else {
-        PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
-        return -1;
-    }
-#endif
     pyval = PyLong_FromLong(value);
     if (unlikely(!pyval))
         return -1;
@@ -1217,6 +1294,100 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
         return -1;
     Py_DECREF(retval);
     return 0;
+}
+
+static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (likely(__Pyx_is_valid_index(value, 256))) {
+        int retval = 1;
+        __Pyx_BEGIN_CRITICAL_SECTION(bytearray);
+        Py_ssize_t n = Py_SIZE(bytearray);
+        if (likely(n != PY_SSIZE_T_MAX)) {
+            retval = PyByteArray_Resize(bytearray, n + 1);
+            if (likely(retval == 0)) {
+                PyByteArray_AS_STRING(bytearray)[n] = (char) (unsigned char) value;
+            }
+        }
+        __Pyx_END_CRITICAL_SECTION();
+        if (likely(retval != 1)) {
+            return retval;
+        }
+    } else {
+        PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
+        return -1;
+    }
+#endif
+
+    return __Pyx_PyByteArray_Append_fallback(bytearray, value);
+}
+
+
+//////////////////// ByteArrayExtend.proto ////////////////////
+
+static int __Pyx_PyByteArray_Extend_fallback(PyObject* bytearray, PyObject* value); /*proto*/
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBuffer(PyObject* bytearray, PyObject *value, const char* bytes, Py_ssize_t length); /*proto*/
+#endif
+
+//////////////////// ByteArrayExtend ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
+//@requires: IncludeStringH
+
+static int __Pyx_PyByteArray_Extend_fallback(PyObject* bytearray, PyObject* value) {
+    PyObject *retval = __Pyx_PyObject_CallMethod1(bytearray, PYIDENT("extend"), value);
+    if (unlikely(!retval))
+        return -1;
+    Py_DECREF(retval);
+    return 0;
+}
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBuffer(PyObject* bytearray, PyObject *value, const char* bytes, Py_ssize_t length) {
+    int retval = 1;
+    __Pyx_BEGIN_CRITICAL_SECTION(bytearray);
+    Py_ssize_t n = Py_SIZE(bytearray);
+    if (likely(n < PY_SSIZE_T_MAX - length)) {
+        retval = PyByteArray_Resize(bytearray, n + length);
+        if (likely(retval == 0)) {
+            char *buffer = PyByteArray_AS_STRING(bytearray) + n;
+            memcpy(buffer, bytes, (size_t) length);
+        }
+    }
+    __Pyx_END_CRITICAL_SECTION();
+    if (likely(retval != 1)) {
+        return retval;
+    }
+
+    return __Pyx_PyByteArray_Extend_fallback(bytearray, value);
+}
+#endif
+
+
+//////////////////// ByteArrayExtendBytes.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBytes(PyObject* bytearray, PyObject* value); /*proto*/
+
+#define __Pyx_PyByteArray_ExtendObject(bytearray, value)  (PyBytes_CheckExact(value) ? \
+    __Pyx_PyByteArray_ExtendBytes(bytearray, value) : \
+    __Pyx_PyByteArray_Extend_fallback(bytearray, value))
+
+//////////////////// ByteArrayExtendBytes ////////////////////
+//@requires: ByteArrayExtend
+
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBytes(PyObject* bytearray, PyObject* value) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    char* bytes;
+    Py_ssize_t length;
+    if (unlikely(PyBytes_AsStringAndSize(value, &bytes, &length) == -1)) {
+        return -1;
+    }
+    if (unlikely(length == 0)) {
+        return 0;
+    }
+    return __Pyx_PyByteArray_ExtendBuffer(bytearray, value, bytes, length);
+#else
+    return __Pyx_PyByteArray_Extend_fallback(bytearray, value);
+#endif
 }
 
 

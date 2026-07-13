@@ -454,7 +454,7 @@ type declaration and let them be objects.
 Type qualifiers
 ---------------
 
-Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_
+Cython supports ``const``, ``volatile`` and ``restrict`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_
 
 .. tabs::
 
@@ -548,6 +548,71 @@ can group them into a :keyword:`cdef` block like this:
 
 .. literalinclude:: ../../examples/userguide/language_basics/cdef_block.pyx
 
+
+Type inference
+--------------
+
+If Cython is able to infer a specific type then it may be able to generate faster code based on that type,
+in the same way that it can generate faster code when you manually tell it the type of an object.
+Cython can automatically infer C types for:
+
+* Local variables
+* Loop indices
+* Temporary expressions
+* Element types for typed Python builtin containers
+
+It uses assignments and operations to infer the most specific type possible::
+
+    def f():
+        x = "hello"                # Python str
+        y = 2.0                    # C double
+        print(y * y, x + "world")  # arithmetic and string ops are optimized
+
+
+Cython supports subscripted builtin container types, enabling element type inference:
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def ask(questions: list[str]):
+                for q in questions:
+                    print(q + '?')  # q inferred as Python str, concatenation operation is optimized
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def ask(list[str] questions):
+                for q in questions:
+                    print(q + '?')  # q inferred as Python str, concatenation operation is optimized
+
+
+By default, Cython performs only *safe* inference. In particular, inferring C integer
+types in arithmetic expressions is avoided due to possible overflow.
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def add_multiply(i: cython.int, j: cython.int, k: cython.int) -> cython.int:
+                x = i + j           # x is a Python 'int' object
+                return x * j        # evaluated as object operation
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int add_multiply(int i, int j, int k):
+                x = i + j           # x is a Python 'int' object
+                return x * j        # evaluated as object operation
+
+
+To allow more aggressive (unsafe) inference, enable the ``infer_types`` directive.
+See :ref:`compiler-directives` for details.
 
 .. _cpdef:
 .. _cdef:
@@ -1709,8 +1774,8 @@ The following selection of builtin constants and functions are also available:
     list, long, map, max, min, oct, ord, pow, range, reduce, repr, reversed,
     round, set, slice, sorted, str, sum, tuple, xrange, zip
 
-Note that some of these builtins may not be available when compiling under
-Python 2.x or 3.x, or may behave differently in both.
+Note that some of these builtins may behave differently depending on the Python
+version, or may not even be available.
 
 A name defined using ``DEF`` can be used anywhere an identifier can appear,
 and it is replaced with its compile-time value as though it were written into
