@@ -3,19 +3,19 @@ cimport cython
 from .Visitor cimport CythonTransform, TreeVisitor
 
 cdef class ControlBlock:
-    cdef public set[ControlBlock] children
-    cdef public set[ControlBlock] parents
-    cdef public set positions
-    cdef public list stats
-    cdef public dict gen
-    cdef public set bounded
+    cdef readonly set[ControlBlock] children
+    cdef readonly set[ControlBlock] parents
+    cdef readonly set positions
+    cdef readonly list stats
+    cdef readonly dict gen
+    cdef readonly set bounded
 
     # Big integer bitsets
-    cdef public object i_input
-    cdef public object i_output
-    cdef public object i_gen
-    cdef public object i_kill
-    cdef public object i_state
+    cdef object i_input
+    cdef object i_output
+    cdef object i_gen
+    cdef object i_kill
+    cdef object i_state
 
     cpdef bint empty(self)
     cpdef detach(self)
@@ -27,15 +27,15 @@ cdef class ExitBlock(ControlBlock):
 cdef class NameAssignment:
     cdef public bint is_arg
     cdef public bint is_deletion
-    cdef public object lhs
-    cdef public object rhs
-    cdef public object entry
-    cdef public object pos
-    cdef public set refs
+    cdef readonly object lhs
+    cdef readonly object rhs
+    cdef readonly object entry
+    cdef readonly object pos
+    cdef readonly set refs
     cdef public object bit
     cdef public object inferred_type
-    cdef public object rhs_scope
-    cdef public object assignment_type
+    cdef readonly object rhs_scope
+    cdef readonly object assignment_type
 
 @cython.final
 cdef class AssignmentList:
@@ -61,7 +61,7 @@ cdef class ExceptionDescr:
 @cython.final
 cdef class ControlFlow:
     cdef set[ControlBlock] blocks
-    cdef public set entries
+    cdef set entries
     cdef list[LoopDescr] loops
     cdef list[ExceptionDescr] exceptions
 
