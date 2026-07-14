@@ -42,7 +42,7 @@ cdef class PyrexScanner(Scanner):
     cdef Py_ssize_t current_level(self)
 
     cpdef int next(self) except -1
-    cpdef tuple peek(self)
+    cpdef tuple[unicode, object] peek(self)
     cpdef int error_at_scanpos(self, message) except -1
     cpdef int expect(self, what: str, message=*) except -1
     cpdef int expect_keyword(self, what: str, message=*) except -1

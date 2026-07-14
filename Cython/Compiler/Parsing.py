@@ -89,7 +89,7 @@ def p_ident_list(s: PyrexScanner) -> list:
 #------------------------------------------
 
 @cython.cfunc
-def p_binop_operator(s: PyrexScanner) -> tuple:
+def p_binop_operator(s: PyrexScanner) -> tuple[unicode, object]:
     pos = s.position()
     op = s.sy
     s.next()
@@ -549,7 +549,7 @@ def p_trailer(s: PyrexScanner, node1):
 #             star_expr )
 
 @cython.cfunc
-def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tuple:
+def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tuple[list, list]:
     # s.sy == '('
     s.next()
     positional_args = []
@@ -683,7 +683,7 @@ def p_index(s: PyrexScanner, base):
 
 
 @cython.cfunc
-def p_subscript_list(s: PyrexScanner) -> tuple:
+def p_subscript_list(s: PyrexScanner) -> tuple[list[list], cython.bint]:
     is_single_value = True
     items = [p_subscript(s)]
     while s.sy == ',':
@@ -934,7 +934,7 @@ def wrap_compile_time_constant(pos, value):
 
 
 @cython.cfunc
-def p_cat_string_literal(s: PyrexScanner) -> tuple:
+def p_cat_string_literal(s: PyrexScanner) -> tuple[str, object, object]:
     # A sequence of one or more adjacent string literals.
     # Returns (kind, bytes_value, unicode_value)
     # where kind in ('b', 'c', 'u', 'f', 't', '')
@@ -1012,7 +1012,7 @@ def check_for_non_ascii_characters(string) -> cython.bint:
 
 @cython.cfunc
 def p_string_literal_shared_read(
-        s: PyrexScanner, pos, chars, kind,
+        s: PyrexScanner, pos, chars, kind: str,
         is_raw: cython.bint):
     """
     Returns a string of non-escaped characters (if handled) or none.
@@ -1058,7 +1058,7 @@ def _validate_kind_string(pos, systring: str) -> str:
     return ''
 
 @cython.cfunc
-def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
+def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple[str, object, object]:
     # A single string or char literal.  Returns (kind, bvalue, uvalue)
     # where kind in ('b', 'c', 'u', 'f', '').  The 'bvalue' is the source
     # code byte sequence of the string literal, 'uvalue' is the
@@ -1302,7 +1302,7 @@ def p_ft_string_middles(s: PyrexScanner,
     return middles
 
 @cython.cfunc
-def p_ft_string_literal(s: PyrexScanner) -> tuple:
+def p_ft_string_literal(s: PyrexScanner) -> tuple[cython.Py_UCS4, object, object]:
     # s.sy == BEGIN_FT_STRING
     kind_string = _validate_kind_string(s.position(), s.systring)
     tf_string_kind: cython.Py_UCS4 = 't' if 't' in kind_string else 'f'
@@ -1317,7 +1317,7 @@ def p_ft_string_literal(s: PyrexScanner) -> tuple:
 
 
 @cython.cfunc
-def _append_escape_sequence(kind, builder, escape_sequence: str, s: PyrexScanner):
+def _append_escape_sequence(kind: str, builder, escape_sequence: str, s: PyrexScanner):
     if len(escape_sequence) < 2:
         builder.append("\\")  # invalid escape sequence, warned earlier
         return
@@ -1336,7 +1336,7 @@ def _append_escape_sequence(kind, builder, escape_sequence: str, s: PyrexScanner
         else:
             s.error("Invalid hex escape '%s'" % escape_sequence, fatal=False)
     elif c in 'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
-        chrval = -1
+        chrval: cython.py_int = -1
         if c == 'N':
             uchar = None
             try:
@@ -2684,7 +2684,7 @@ def p_suite_with_docstring(s: PyrexScanner, ctx, with_doc_only: cython.bint = Fa
 
 
 @cython.cfunc
-def p_positional_and_keyword_args(s: PyrexScanner, end_sy_set, templates = None) -> tuple:
+def p_positional_and_keyword_args(s: PyrexScanner, end_sy_set, templates = None) -> tuple[list, list]:
     """
     Parses positional and keyword arguments. end_sy_set
     should contain any s.sy that terminate the argument list.
@@ -3030,17 +3030,20 @@ def looking_at_dotted_name(s: PyrexScanner) -> cython.bint:
 basic_c_type_names = cython.declare(frozenset, frozenset((
     "void", "char", "int", "float", "double", "bint")))
 
-special_basic_c_types = cython.declare(dict, {
-    # name : (signed, longness)
-    "Py_UNICODE" : (0, 0),
-    "Py_UCS4"    : (0, 0),
-    "Py_hash_t"  : (2, 0),
-    "Py_ssize_t" : (2, 0),
-    "ssize_t"    : (2, 0),
-    "size_t"     : (0, 0),
-    "ptrdiff_t"  : (2, 0),
-    "Py_tss_t"   : (1, 0),
-})
+special_basic_c_types = cython.declare(
+    dict[str, tuple[cython.py_int, cython.py_int]],
+    {
+        # name : (signed, longness)
+        "Py_UNICODE" : (0, 0),
+        "Py_UCS4"    : (0, 0),
+        "Py_hash_t"  : (2, 0),
+        "Py_ssize_t" : (2, 0),
+        "ssize_t"    : (2, 0),
+        "size_t"     : (0, 0),
+        "ptrdiff_t"  : (2, 0),
+        "Py_tss_t"   : (1, 0),
+    }
+)
 
 sign_and_longness_words = cython.declare(frozenset, frozenset((
     "short", "long", "signed", "unsigned")))
@@ -3056,7 +3059,7 @@ struct_enum_union = cython.declare(frozenset, frozenset((
 
 
 @cython.cfunc
-def p_sign_and_longness(s: PyrexScanner) -> tuple:
+def p_sign_and_longness(s: PyrexScanner) -> tuple[cython.py_int, cython.py_int]:
     signed = 1
     longness = 0
     while s.sy == 'IDENT' and s.systring in sign_and_longness_words:
