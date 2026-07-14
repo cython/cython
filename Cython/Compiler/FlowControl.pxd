@@ -60,18 +60,18 @@ cdef class ExceptionDescr:
 
 @cython.final
 cdef class ControlFlow:
-    cdef public set[ControlBlock] blocks
+    cdef set[ControlBlock] blocks
     cdef public set entries
     cdef list[LoopDescr] loops
     cdef list[ExceptionDescr] exceptions
 
-    cdef public ControlBlock entry_point
-    cdef public ExitBlock exit_point
-    cdef public ControlBlock block
+    cdef ControlBlock entry_point
+    cdef ExitBlock exit_point
+    cdef ControlBlock block
 
     cdef dict[object, AssignmentList] assmts
 
-    cdef public Py_ssize_t in_try_block
+    cdef Py_ssize_t in_try_block
 
     cpdef ControlBlock newblock(self, ControlBlock parent=*)
     cpdef ControlBlock nextblock(self, ControlBlock parent=*)
