@@ -27,13 +27,13 @@ cdef class ExitBlock(ControlBlock):
 cdef class NameAssignment:
     cdef public bint is_arg
     cdef public bint is_deletion
+    cdef public object bit
+    cdef public object inferred_type
     cdef readonly object lhs
     cdef readonly object rhs
     cdef readonly object entry
     cdef readonly object pos
     cdef readonly set refs
-    cdef public object bit
-    cdef public object inferred_type
     cdef readonly object rhs_scope
     cdef readonly object assignment_type
 
