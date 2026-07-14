@@ -9,7 +9,7 @@ Features added
 --------------
 
 * The feature set of the shared module can be selected at build time.
-  (Github issue :issue:`7800`)
+  (Github issue :issue:`7759`)
 
 * Cython now uses a new export/import naming scheme for fused C functions that
   increases the resilience against seemingly compatible user code changes.
@@ -31,6 +31,9 @@ Features added
   statements as terminators already and marks if-clauses that directly lead to them as
   ``unlikely()``, without user interaction.
   (Github issue :issue:`7667`)
+
+* The typed tuple syntax ``tuple[atype, ...]`` for homogeneous tuples is supported.
+  (Github issue :issue:`7798`)
 
 * ``bytearray.extend(bytes)`` is faster.
   (Github issue :issue:`7797`)
