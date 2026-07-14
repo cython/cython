@@ -898,6 +898,48 @@ Configurable optimisations
     completely wrong.
     Disabling this option can also reduce the code size.
 
+Branch hints
+^^^^^^^^^^^^
+
+Cython automatically inserts branch hints in some places where the result of a condition
+is clearly skewed, e.g. when an if-condition can only lead to an exception being raised
+and is therefore very unlikely to be taken and not a performance critical path.
+Branch hints tell the C/C++ compiler which path of a conditional branch is more likely
+and should be translated into a more efficient binary code sequence than the other
+(unlikely) branch, if it can.
+
+In performance critical cases where neither Cython nor the C compiler can decide this
+themselves because the outcome is not obvious from the code (they cannot know the
+data that the code will commonly process), users can manually provide branch hints
+for an if-clause since Cython 3.3:
+
+- ``cython.likely()`` - Marks a condition as expected to be true
+- ``cython.unlikely()`` - Marks a condition as expected to be false
+
+.. code-block:: python
+
+    if cython.likely(x > threshold):
+        # This branch is expected to execute frequently.
+        process_common_case(x)
+    else:
+        process_rare_case(x)
+
+The compiler can use these hints to optimize instruction layout and branch prediction,
+potentially improving cache hit rates and reducing pipeline flushes.
+
+.. warning::
+
+   Branch hints are for **rare and very clear use cases**, not for guessing. Only use them when:
+
+   - You have concrete profiling data showing the actual branch frequency
+   - You have domain knowledge that makes the prediction obvious
+
+   Incorrect hints will make your code slower instead of faster, and can silently become
+   misleading over time when data, requirements or surrounding/calling code change.
+   The compiler's own heuristics are often better than manual guessing, especially
+   when based on real profiling data with
+   `PGO <https://en.wikipedia.org/wiki/Profile-guided_optimization>`_.
+
 
 .. _warnings:
 
