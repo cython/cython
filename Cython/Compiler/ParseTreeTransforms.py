@@ -867,7 +867,8 @@ class InterpretCompilerDirectives(CythonTransform):
     special_methods = {
         'declare', 'union', 'struct', 'typedef',
         'sizeof', 'cast', 'pointer', 'compiled',
-        'NULL', 'fused_type', 'parallel',
+        'NULL', 'fused_type', 'parallel', 'likely',
+        'unlikely'
     }
     special_methods.update(unop_method_nodes)
 
@@ -2456,6 +2457,8 @@ if VALUE is not None:
 
         decorators = getattr(node, 'decorators', None)
         node = FusedNode.FusedCFuncDefNode(node, env)
+        if node.py_func:
+            node.attach_fused_py_funcs()
         self.fused_function = node
         self.visitchildren(node)
         self.fused_function = None
@@ -4236,6 +4239,22 @@ class TransformBuiltinMethods(EnvTransform):
         node = super().visit_GeneratorBodyDefNode(node)
         self._do_body_insertion(node)
         return node
+
+    def _inject_branch_hint(self, node):
+        condition = node.condition
+        if isinstance(condition, ExprNodes.SimpleCallNode):
+            function = condition.function.as_cython_attribute()
+            if function in ('likely', 'unlikely'):
+                node.branch_hint = function
+                node.condition = condition.args[0]
+        self.visitchildren(node)
+        return node
+
+    def visit_IfClauseNode(self, node):
+        return self._inject_branch_hint(node)
+
+    def visit_CondExprNode(self, node):
+        return self._inject_branch_hint(node)
 
     def visit_SimpleCallNode(self, node):
         # cython.foo

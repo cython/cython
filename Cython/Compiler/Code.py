@@ -2,6 +2,8 @@
 #   Code output module
 #
 
+# uses @functools.wraps()
+# cython: binding=True
 
 import cython
 cython.declare(hashlib=object, json=object, operator=object, os=object, re=object,
@@ -10,8 +12,6 @@ cython.declare(hashlib=object, json=object, operator=object, os=object, re=objec
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, defaultdict=object,
                closing=object, partial=object, wraps=object,
-               zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object,
-               lzss_compress=object,
 )
 
 import hashlib
@@ -77,6 +77,8 @@ compression_algorithms = [
     #(4, 'lzma', lzma_compress),
 ]
 
+del lzss_compress, zlib_compress, bz2_compress, zstd_compress  # , lzma_compress
+
 
 renamed_py2_builtins_map = {
     # builtins that had different names in Py2 code
@@ -100,195 +102,6 @@ basicsize_builtins_map = {
     # builtins whose type has a different tp_basicsize than sizeof(...)
     'PyTypeObject': 'PyHeapTypeObject',
 }
-
-# Builtins as of Python version ...
-KNOWN_PYTHON_BUILTINS_VERSION = (3, 15, 0, 'beta', 1)
-KNOWN_PYTHON_BUILTINS = frozenset([
-    'ArithmeticError',
-    'AssertionError',
-    'AttributeError',
-    'BaseException',
-    'BaseExceptionGroup',
-    'BlockingIOError',
-    'BrokenPipeError',
-    'BufferError',
-    'BytesWarning',
-    'ChildProcessError',
-    'ConnectionAbortedError',
-    'ConnectionError',
-    'ConnectionRefusedError',
-    'ConnectionResetError',
-    'DeprecationWarning',
-    'EOFError',
-    'Ellipsis',
-    'EncodingWarning',
-    'EnvironmentError',
-    'Exception',
-    'ExceptionGroup',
-    'False',
-    'FileExistsError',
-    'FileNotFoundError',
-    'FloatingPointError',
-    'FutureWarning',
-    'GeneratorExit',
-    'IOError',
-    'ImportCycleError',
-    'ImportError',
-    'ImportWarning',
-    'IndentationError',
-    'IndexError',
-    'InterruptedError',
-    'IsADirectoryError',
-    'KeyError',
-    'KeyboardInterrupt',
-    'LookupError',
-    'MemoryError',
-    'ModuleNotFoundError',
-    'NameError',
-    'None',
-    'NotADirectoryError',
-    'NotImplemented',
-    'NotImplementedError',
-    'OSError',
-    'OverflowError',
-    'PendingDeprecationWarning',
-    'PermissionError',
-    'ProcessLookupError',
-    'PythonFinalizationError',
-    'RecursionError',
-    'ReferenceError',
-    'ResourceWarning',
-    'RuntimeError',
-    'RuntimeWarning',
-    'StopAsyncIteration',
-    'StopIteration',
-    'SyntaxError',
-    'SyntaxWarning',
-    'SystemError',
-    'SystemExit',
-    'TabError',
-    'TimeoutError',
-    'True',
-    'TypeError',
-    'UnboundLocalError',
-    'UnicodeDecodeError',
-    'UnicodeEncodeError',
-    'UnicodeError',
-    'UnicodeTranslateError',
-    'UnicodeWarning',
-    'UserWarning',
-    'ValueError',
-    'Warning',
-    'WindowsError',
-    'ZeroDivisionError',
-    '_IncompleteInputError',
-    '__build_class__',
-    '__debug__',
-    '__lazy_import__',
-    '__import__',
-    'abs',
-    'aiter',
-    'all',
-    'anext',
-    'any',
-    'ascii',
-    'bin',
-    'bool',
-    'breakpoint',
-    'bytearray',
-    'bytes',
-    'callable',
-    'chr',
-    'classmethod',
-    'compile',
-    'complex',
-    'copyright',
-    'credits',
-    'delattr',
-    'dict',
-    'dir',
-    'divmod',
-    'enumerate',
-    'eval',
-    'exec',
-    'exit',
-    'filter',
-    'float',
-    'format',
-    'frozendict',
-    'frozenset',
-    'getattr',
-    'globals',
-    'hasattr',
-    'hash',
-    'help',
-    'hex',
-    'id',
-    'input',
-    'int',
-    'isinstance',
-    'issubclass',
-    'iter',
-    'len',
-    'license',
-    'list',
-    'locals',
-    'map',
-    'max',
-    'memoryview',
-    'min',
-    'next',
-    'object',
-    'oct',
-    'open',
-    'ord',
-    'pow',
-    'print',
-    'property',
-    'quit',
-    'range',
-    'repr',
-    'reversed',
-    'round',
-    'sentinel',
-    'set',
-    'setattr',
-    'slice',
-    'sorted',
-    'staticmethod',
-    'str',
-    'sum',
-    'super',
-    'tuple',
-    'type',
-    'vars',
-    'zip',
-])
-
-uncachable_builtins = [
-    # Global/builtin names that cannot be cached because they may or may not
-    # be available at import time, for various reasons:
-    ## Python 3.15+
-    'frozendict',
-    'sentinel',
-    'ImportCycleError',
-    '__lazy_import__',
-    ## Python 3.13+
-    '_IncompleteInputError',
-    'PythonFinalizationError',
-    ## Python 3.11+
-    'BaseExceptionGroup',
-    'ExceptionGroup',
-    ## - Py3.10+
-    'aiter',
-    'anext',
-    'EncodingWarning',
-    ## - platform specific
-    'WindowsError',
-    ## - others
-    'breakpoint',  # Probably best left alone.
-    '_',  # e.g. used by gettext
-]
 
 special_py_methods = cython.declare(frozenset, frozenset((
     '__cinit__', '__dealloc__', '__richcmp__', '__next__',
@@ -566,10 +379,14 @@ class UtilityCodeBase(AbstractUtilityCode):
 
                 tag_name, _, tag_value = tag_value.partition(':')
                 tag_name = tag_name.rstrip()
-                tag_value = tag_value.strip()
 
+                if tag_name == 'feature':
+                    # Only used for shared module code selection.
+                    continue
                 if tag_name not in ('requires', 'substitute', 'proto_block', 'init_block'):
                     raise RuntimeError(f"Found unknown tag name '{tag_name}' in utility section {name}.{type}")
+
+                tag_value = tag_value.strip()
                 if not re.match(r'\S+(\{[^\}]*\})?$', tag_value):
                     raise RuntimeError(f"Found invalid tag value '{tag_value}' in utility section {name}.{type}")
 

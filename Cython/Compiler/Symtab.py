@@ -2,6 +2,8 @@
 #   Symbol Table
 #
 
+# uses @try_finally_contextmanager
+# cython: binding=True
 
 import re
 import copy
@@ -1291,7 +1293,7 @@ class BuiltinScope(Scope):
         return Scope.lookup(self, name)
 
     def declare_builtin(self, name, pos):
-        if name not in Code.KNOWN_PYTHON_BUILTINS:
+        if name not in PyrexTypes.KNOWN_PYTHON_BUILTINS:
             if self.outer_scope is not None:
                 return self.outer_scope.declare_builtin(name, pos)
             else:
@@ -1498,9 +1500,9 @@ class ModuleScope(Scope):
         return entry
 
     def declare_builtin(self, name, pos):
-        if name not in Code.KNOWN_PYTHON_BUILTINS \
+        if name not in PyrexTypes.KNOWN_PYTHON_BUILTINS \
                and name not in Code.renamed_py2_builtins_map \
-               and name not in Code.uncachable_builtins:
+               and name not in PyrexTypes.uncachable_builtins:
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)
                 return entry
@@ -1521,7 +1523,7 @@ class ModuleScope(Scope):
             return self.outer_scope.lookup('__Pyx_Globals')
         else:
             entry = self.declare(None, None, py_object_type, pos, 'private')
-        if Options.cache_builtins and name not in Code.uncachable_builtins:
+        if Options.cache_builtins and name not in PyrexTypes.uncachable_builtins:
             entry.is_builtin = 1
             entry.is_const = 1  # cached
             entry.name = name

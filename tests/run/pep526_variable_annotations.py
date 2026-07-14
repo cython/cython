@@ -318,25 +318,40 @@ def test_use_typing_attributes_as_non_annotations():
 def test_tuple_with_int_str_subscript():
     """
     >>> test_tuple_with_int_str_subscript()
+    a:
     str object
     int object
+    b:
     str object
     int object
+    c:
+    str object
+    str object
+    concat:
     str object
     int object
     FooBar
     3
+    MontiPython
     """
     a: tuple[str, int] = ("Foo", 1)
     b: Tuple[str, int] = ("Bar", 2)
+    c: Tuple[str, ...] = ("Monti", "Python")
+    print('a:')
     print(cython.typeof(a[0]) + (" object" if not cython.compiled else ""))
     print(cython.typeof(a[1]) + (" object" if not cython.compiled else ""))
+    print('b:')
     print(cython.typeof(b[0]) + (" object" if not cython.compiled else ""))
     print(cython.typeof(b[1]) + (" object" if not cython.compiled else ""))
+    print('c:')
+    print(cython.typeof(c[0]) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(c[1]) + (" object" if not cython.compiled else ""))
+    print('concat:')
     print(cython.typeof(a[0] + b[0]) + (" object" if not cython.compiled else ""))
     print(cython.typeof(a[1] + b[1]) + (" object" if not cython.compiled else ""))
     print(a[0] + b[0])
     print(a[1] + b[1])
+    print(c[0] + c[1])
 
 def test_list_with_str_subscript():
     """
@@ -395,12 +410,14 @@ def test_assignment_tuple_with_subscript():
     int int
     Python object Python object
     float float
+    int int
     5 5 5.0
     6 6 6.0
     """
     a: tuple[cython.int, cython.int] = (5, 6)
     b: tuple = a
     c: tuple[cython.float, cython.float] = b
+    d: tuple[cython.int, ...] = a
     print(cython.typeof(a[0]), cython.typeof(a[1])
     )
     print(
@@ -410,6 +427,10 @@ def test_assignment_tuple_with_subscript():
     print(
         cython.typeof(c[0]) if cython.compiled else "float",
         cython.typeof(c[1]) if cython.compiled else "float"
+    )
+    print(
+        cython.typeof(d[0]),
+        cython.typeof(d[1])
     )
     print(a[0], b[0], c[0] if cython.compiled else float(c[0]))
     print(a[1], b[1], c[1] if cython.compiled else float(c[1]))
@@ -508,14 +529,22 @@ def test_iteration_over_tuple_with_subscript():
     bar str
     BasicStarshipExt(damage=5) BasicStarshipExt
     AdvancedStarshipExt(damage=6) AdvancedStarshipExt
+    a str
+    b str
+    c str
     """
     a: tuple[cython.int, str] = (2, 'bar')
-    for c in a:
-        print(c, cython.typeof(c))
+    for x in a:
+        print(x, cython.typeof(x))
     # Iterating must use spanning type, not subscripted type, so that it works even when the tuple is heterogeneous.
     b: tuple[BasicStarshipExt, AdvancedStarshipExt] = (BasicStarshipExt(5), AdvancedStarshipExt(6))
-    for s in b:
-        print(s, cython.typeof(s))
+    for y in b:
+        print(y, cython.typeof(y))
+
+    c: tuple[str, ...] = ('a', 'b', 'c')
+    for z in c:
+        print(z, cython.typeof(z))
+
 
 if cython.compiled:
     test_iteration_over_tuple_with_subscript.__doc__ = """
@@ -524,6 +553,9 @@ if cython.compiled:
     bar Python object
     BasicStarshipExt(damage=5) BasicStarshipExt
     AdvancedStarshipExt(damage=6) BasicStarshipExt
+    a str object
+    b str object
+    c str object
     """
 
 @cython.infer_types(True)

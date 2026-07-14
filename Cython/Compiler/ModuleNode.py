@@ -4114,6 +4114,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # (signature, name, cname)
             (entry.type.signature_string(), entry.name, entry.cname)
             for entry in entries
+        ] + [
+            # Repeat exports under the old name for fused functions
+            (entry.type.signature_string(), entry.legacy_capi_name, entry.cname)
+            for entry in entries if entry.is_fused_specialized
         ]
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
@@ -4175,9 +4179,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not entries:
             return
 
-        imports = [
+        fused_imports = [
             # (signature, name, cname)
             (entry.type.signature_string(), entry.name, entry.cname)
+            for entry in entries if entry.is_fused_specialized
+        ]
+        if fused_imports:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("FunctionImportFused", "ImportExport.c"))
+            _generate_import_code(
+                code, self.pos, fused_imports, module.qualified_name,
+                f"__Pyx_ImportFusedFunction_{Naming.cyversion}", "void (**{name})(void)")
+
+        imports = [
+            # (signature, name, cname)
+            (entry.type.signature_string(),
+             entry.legacy_capi_name if entry.is_fused_specialized else entry.name,
+             entry.cname)
             for entry in entries
         ]
         code.globalstate.use_utility_code(
@@ -4329,7 +4347,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 # cimport/export code for functions and pointers.
 
-def _deduplicate_inout_signatures(item_tuples):
+@cython.cfunc
+def _deduplicate_inout_signatures(item_tuples) -> tuple[list[str], tuple[str, ...], tuple[str, ...]]:
     # We can save runtime space for identical signatures by reusing the same C strings.
     # To deduplicate the signatures, we sort by them and store duplicates as empty C strings.
     signatures, names, items = zip(*sorted(item_tuples))
@@ -4345,6 +4364,7 @@ def _deduplicate_inout_signatures(item_tuples):
     return signatures, names, items
 
 
+@cython.cfunc
 def _generate_import_export_code(code: Code.CCodeWriter, pos, inout_item_tuples, per_item_func, target, pointer_decl, use_pybytes, is_import):
     signatures, names, inout_items = _deduplicate_inout_signatures(inout_item_tuples)
 
@@ -4387,6 +4407,7 @@ def _generate_import_export_code(code: Code.CCodeWriter, pos, inout_item_tuples,
     code.putln("}")  # while
 
 
+@cython.cfunc
 def _generate_export_code(code: Code.CCodeWriter, pos, exports, export_func, pointer_decl):
     """Generate function/pointer export code.
 
@@ -4411,6 +4432,7 @@ def _generate_export_code(code: Code.CCodeWriter, pos, exports, export_func, poi
     code.putln("}")
 
 
+@cython.cfunc
 def _generate_import_code(code, pos, imports, qualified_module_name, import_func, pointer_decl):
     """Generate function/pointer import code.
 
