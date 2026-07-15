@@ -8206,6 +8206,8 @@ class AttributeNode(ExprNode):
                 return
             self.entry = entry
             if entry:
+                if obj_type.is_extension_type and entry.name == "__dict__":
+                    error(self.pos, "Illegal use of special attribute __dict__")
                 if obj_type.is_extension_type and entry.name == "__weakref__":
                     error(self.pos, "Illegal use of special attribute __weakref__")
 

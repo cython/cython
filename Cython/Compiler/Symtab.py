@@ -2587,6 +2587,8 @@ class CClassScope(ClassScope):
                 # so do conversion ourself rather than rely on the CPython mechanism (through
                 # a property; made in AnalyseDeclarationsTransform).
                 entry.needs_property = True
+                if not self.is_closure_class_scope and name == "__dict__":
+                    error(pos, "Special attribute __dict__ cannot be exposed to Python")
                 if not self.is_closure_class_scope and name == "__weakref__":
                     error(pos, "Special attribute __weakref__ cannot be exposed to Python")
                 if not (type.is_pyobject or type.can_coerce_to_pyobject(self)):
