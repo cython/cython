@@ -1897,7 +1897,7 @@ class GlobalState:
         for _, cname, escaped_value in c_consts:
             cliteral = StringEncoding.split_string_literal(escaped_value)
             decls_writer.putln(
-                f'static const char {cname}[] = "{cliteral}";',
+                f'static const char {cname}[] = {cliteral};',
                 safe=True,  # Braces in user strings are not for indentation.
             )
 
@@ -2020,7 +2020,7 @@ class GlobalState:
             has_if = True
             escaped_bytes = StringEncoding.split_string_literal(
                 StringEncoding.escape_byte_string(compressed_bytes))
-            w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
+            w.putln(f'static const char cstring[] = {escaped_bytes};', safe=True)
             if algo_name == 'lzss':
                 self.use_utility_code(UtilityCode.load_cached("DecompressString_LZSS", "StringTools.c"))
                 w.putln(f'PyObject *data = __Pyx_DecompressString_LZSS(cstring, {len(compressed_bytes)}, {len(concat_bytes)});')
@@ -2040,7 +2040,7 @@ class GlobalState:
         w.putln(f"{'#else ' if has_if else ''}/* compression: none ({len(concat_bytes)} bytes) */")
         escaped_bytes = StringEncoding.split_string_literal(
             StringEncoding.escape_byte_string(concat_bytes))
-        w.putln(f'const char* const bytes = "{escaped_bytes}";', safe=True)
+        w.putln(f'static const char bytes[] = {escaped_bytes};', safe=True)
         w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
 
         if compressions:
@@ -2313,7 +2313,7 @@ class GlobalState:
             w.putln("{")
             w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)} + {constant_offset};")
             c_string = b'\\000'.join([to_base32(c[1]) for c in large_constants]).decode('ascii')
-            w.putln(f'const char* c_constant = "{StringEncoding.split_string_literal(c_string)}";')
+            w.putln(f'static const char c_constant[] = {StringEncoding.split_string_literal(c_string)};')
             define_constants(defines, large_constants, constant_offset)
 
             generate_forloop_start(w, len(large_constants))

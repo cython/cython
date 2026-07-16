@@ -184,8 +184,7 @@ class BytesLiteral(bytes):
     is_unicode = False
 
     def as_c_string_literal(self):
-        value = split_string_literal(escape_byte_string(self))
-        return f'"{value}"'
+        return split_string_literal(escape_byte_string(self), long_limit=-1)
 
 
 @cython.ccall
@@ -297,11 +296,11 @@ def escape_byte_string(bytestring) -> str:
 
 
 @cython.ccall
-def split_string_literal(s: str, limit: cython.int = 2000) -> str:
+def split_string_literal(s: str, limit: cython.int = 2000, long_limit: cython.int = 65000) -> str:
     # MSVC can't handle long string literals.
     if len(s) < limit:
-        return s
-    else:
+        return f'"{s}"'
+    elif len(s) < long_limit or long_limit < 0 or True:
         start = 0
         chunks = []
         while start < len(s):
@@ -316,7 +315,22 @@ def split_string_literal(s: str, limit: cython.int = 2000) -> str:
                         break
             chunks.append(s[start:end])
             start = end
-        return '""'.join(chunks)
+        return f'"{"\"\"".join(chunks)}"'
+    else:
+        # Microsoft doesn't make it easy. For really long strings they fail
+        # even when split into multiple smaller literals. In this case you
+        # initialize a char[] as `{ 'a', 'b', 'c' }` at tthe cost of more C
+        # code.
+        msvc_version = f"{{ '{'\', \''.join(s)}' }}"
+        # This split array version compiles incredibly slowly on GCC
+        other_compiler_version = split_string_literal(s, long_limit=-1)
+        return f"""
+#ifdef _MSC_VER
+{msvc_version}
+#else
+{other_compiler_version}
+#endif
+"""
 
 
 def encode_pyunicode_string(string):
