@@ -1,5 +1,9 @@
+# mode: run
+# tag: builtins, set, frozenset
 
 cimport cython
+
+import sys
 
 
 def cython_set():
@@ -328,8 +332,10 @@ def test_set_of_list():
     return set([1, 2, 3])
 
 
-@cython.test_assert_path_exists("//PythonCapiCallNode")
-@cython.test_fail_if_path_exists("//SetNode")
+@cython.test_fail_if_path_exists(
+    "//SetNode",
+    "//PythonCapiCallNode",
+)
 def test_frozenset_of_list():
     """
     >>> s = test_frozenset_of_list()
@@ -354,8 +360,7 @@ def test_set_of_tuple():
     return set((1, 2, 3))
 
 
-@cython.test_assert_path_exists("//PythonCapiCallNode")
-@cython.test_fail_if_path_exists("//SetNode")
+@cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
 def test_frozenset_of_tuple():
     """
     >>> s = test_frozenset_of_tuple()
@@ -383,10 +388,10 @@ def test_set_of_iterable(x):
     return set(x)
 
 
-@cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//SetNode"
+    "//SetNode",
+    "//PythonCapiCallNode"
 )
 def test_frozenset_of_iterable(x):
     """
@@ -405,10 +410,98 @@ def test_frozenset_of_iterable(x):
     return frozenset(x)
 
 
-@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_assert_path_exists(
+    "//FrozenSetNode",
+    "//FrozenSetNode[@is_literal=True]",
+)
+def test_create_frozenset_from_characters():
+    """
+    >>> s = test_create_frozenset_from_characters()
+    >>> isinstance(s, frozenset)
+    True
+    >>> sorted(s)
+    ['1', '2', '3']
+    """
+    return frozenset(("1", "2", "3"))
+
+
+@cython.test_assert_path_exists(
+    "//FrozenSetNode",
+    "//FrozenSetNode[@is_literal=True]",
+)
+def test_create_frozenset_from_string():
+    """
+    >>> s = test_create_frozenset_from_string()
+    >>> isinstance(s, frozenset)
+    True
+    >>> sorted(s)
+    ['1', '2', '3']
+    """
+    return frozenset("1231")
+
+
+@cython.test_assert_path_exists("//FrozenSetNode")
+def test_create_frozenset_from_bytes():
+    """
+    >>> s = test_create_frozenset_from_string()
+    >>> isinstance(s, frozenset)
+    True
+    >>> sorted(s)
+    ['1', '2', '3']
+    """
+    b = bytes(b"1231")
+    return frozenset(b)
+
+
+@cython.test_fail_if_path_exists(
+    "//SetNode",
+    "//PythonCapiCallNode",
+)
+@cython.test_assert_path_exists(
+    "//FrozenSetNode",
+    "//FrozenSetNode[@is_literal=True]",
+)
+def test_frozenset_of_None_value():
+    """
+    >>> s = test_frozenset_of_None_value()
+    >>> isinstance(s, frozenset)
+    True
+    >>> len(s)
+    3
+    >>> None in s
+    True
+    """
+    return frozenset((1, 2, None, 1, None))
+
+
+@cython.test_fail_if_path_exists(
+    "//FrozenSetNode[@is_literal=False]",
+)
+@cython.test_assert_path_exists(
+    "//FrozenSetNode",
+    "//FrozenSetNode[@is_literal=True]",
+)
+def test_frozenset_dedup_mixed_values():
+    """
+    >>> test_frozenset_dedup_mixed_values()
+    1
+    """
+    efs = [
+        frozenset((1, 2, None, 1, None, "b")),
+        frozenset(frozenset([1, 2, None, "b", 1, None])),
+        frozenset((2, None, "b", 1, "b"))
+    ]
+    return len(set(map(id, efs)))
+
+
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//SetNode"
+    "//SetNode",
+    "//PythonCapiCallNode"
+)
+@cython.test_assert_path_exists(
+    "//FrozenSetNode",
+    "//FrozenSetNode[@is_literal=True]",
 )
 def test_empty_frozenset():
     """
@@ -418,7 +511,7 @@ def test_empty_frozenset():
     >>> len(s)
     0
     >>> import sys
-    >>> sys.version_info >= (3, 10) or s is frozenset()   # singleton (in Python < 3.10)!
+    >>> sys.version_info >= (3, 10) or s is frozenset()   # singleton in Python < 3.10
     True
     """
     return frozenset()
@@ -429,18 +522,25 @@ def test_empty_frozenset():
     '//ListNode//PythonCapiCallNode//PythonCapiCallNode',
     '//ListNode//SimpleCallNode//SimpleCallNode',
 )
+@cython.test_assert_path_exists(
+    "//FrozenSetNode",
+    "//FrozenSetNode[@is_literal=True]",
+)
 def test_singleton_empty_frozenset():
     """
     >>> import sys
-    >>> test_singleton_empty_frozenset() if sys.version_info < (3, 10) else 1  # from CPython's test_set.py
+    >>> test_singleton_empty_frozenset()
     1
     """
     f = frozenset()
     efs = [frozenset(), frozenset([]), frozenset(()), frozenset(''),
            frozenset(), frozenset([]), frozenset(()), frozenset(''),
-           frozenset(range(0)), frozenset(frozenset()),
+           frozenset(), frozenset([] * 2), frozenset(() * 3), frozenset('' * 4),
+           frozenset(frozenset()), frozenset(frozenset(f)),
            frozenset(f), f]
-    return len(set(map(id, efs)))  # note, only a singleton in Python <3.10
+
+    # By optimisation, these should all use the same constant frozenset.
+    return len(set(map(id, efs)))
 
 
 def sorted(it):

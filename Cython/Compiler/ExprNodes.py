@@ -12,7 +12,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                unicode_type=object, bytes_type=object, type_type=object, int_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
-               bytearray_type=object, slice_type=object,
+               frozenset_type=object, bytearray_type=object, slice_type=object,
                builtin_sequence_types=object, build_line_table=object,
                inspect=object, copy=object, os=object, re=object, sys=object,
                itertools=object, defaultdict=object,
@@ -43,7 +43,7 @@ from .PyrexTypes import c_char_ptr_type, py_object_type, typecast, error_type, \
     unspecified_type
 from . import TypeSlots
 from .Builtin import (
-    list_type, tuple_type, set_type, dict_type, type_type,
+    list_type, tuple_type, set_type, frozenset_type, dict_type, type_type,
     unicode_type, bytes_type, bytearray_type, int_type, bool_type,
     slice_type
 )
@@ -212,7 +212,9 @@ def make_dedup_key(outer_type, item_nodes):
 
     @param outer_type: The type of the outer container.
     @param item_nodes: A sequence of constant nodes that will be traversed recursively.
-    @return: A tuple that can be used as a dict key for deduplication.
+    @return: A 2-tuple that can be used as a dict key for deduplication.
+             The first element is "outer_type", as passed in.
+             The second element is a hashable, constant data container, specific to the "outer_type".
     """
     item_keys = [
         (py_object_type, None, type(None)) if node is None
@@ -227,7 +229,8 @@ def make_dedup_key(outer_type, item_nodes):
     ]
     if None in item_keys:
         return None
-    return outer_type, tuple(item_keys)
+    key_type = frozenset if outer_type.is_pyfrozenset_type else tuple
+    return outer_type, key_type(item_keys)
 
 
 # Returns a block of code to translate the exception,
@@ -9206,6 +9209,10 @@ class TupleNode(SequenceNode):
         else:
             return SequenceNode.coerce_to(self, dst_type, env)
 
+    def as_tuple(self):
+        # Dummy for compatibility with ListNode.
+        return self
+
     def as_list(self):
         constant_result = self.constant_result
         if isinstance(constant_result, tuple):
@@ -9890,7 +9897,6 @@ class SetNode(ExprNode):
             arg = self.args[i]
             arg = arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
-        self.type = set_type
         self.is_temp = 1
         return self
 
@@ -9922,6 +9928,104 @@ class SetNode(ExprNode):
                 "PySet_Add(%s, %s)" % (self.result(), arg.py_result()))
             arg.generate_disposal_code(code)
             arg.free_temps(code)
+
+
+class FrozenSetNode(ExprNode):
+    """
+    Frozenset constructor.
+
+    Only created for analysed args in transforms.
+    """
+    subexprs = ["arg"]
+
+    gil_message = "Constructing Python frozenset"
+    is_literal = False
+    is_temp = False
+    type = frozenset_type
+
+    def __init__(self, pos, env, arg, **kwargs):
+        kwargs['arg'] = arg
+        super().__init__(pos, **kwargs)
+
+        if arg is None:
+            self.is_literal = True
+        elif arg.is_string_literal:
+            # Avoid unpacking strings into characters. frozenset("...") is efficient and constant.
+            self.is_literal = True
+        elif arg.is_sequence_constructor:
+            if all(item.is_literal for item in arg.args):
+                # Since all arguments are literals (and we're building a set),
+                # we also ignore the sequence ".mult_factor" in this case.
+                self.is_literal = True
+            else:
+                # Not constant, so use at least an efficient tuple for the sequence argument.
+                self.arg = self.arg.as_tuple().analyse_types(env, skip_children=True)
+                self.is_temp = True
+        else:
+            self.is_temp = True
+
+    def may_be_none(self):
+        return False
+
+    def _generate_frozenset_code(self, code, frozenset_target, arg_py_result):
+        code.globalstate.use_utility_code(UtilityCode.load_cached(
+            'pyfrozenset_new', 'Builtins.c'))
+        code.mark_pos(self.pos)
+        code.putln(
+            "%s = __Pyx_PyFrozenSet_New(%s); %s" % (
+                frozenset_target,
+                arg_py_result,
+                code.error_goto_if_null(frozenset_target, self.pos)))
+
+    def _create_shared_frozenset_object(self, code):
+        assert not self.is_temp
+
+        arg = self.arg
+        if arg is None:
+            dedup_key = (frozenset_type, frozenset())
+        elif arg.is_string_literal:
+            dedup_key = (frozenset_type, frozenset(arg.value))
+        else:
+            dedup_key = make_dedup_key(
+                frozenset_type,
+                arg.args if self.arg.is_sequence_constructor else [arg],
+            )
+        self.result_code = code.get_py_const('frozenset', dedup_key=dedup_key)
+
+        const_code = code.get_cached_constants_writer(self.result_code)
+        if const_code is None:
+            return
+
+        # Initialise constant at module init time.
+        if arg is not None:
+            arg.generate_evaluation_code(const_code)
+            arg_result = arg.py_result()
+        else:
+            arg_result = "NULL"
+
+        self._generate_frozenset_code(const_code, self.result(), arg_result)
+
+        if arg is not None:
+            arg.generate_disposal_code(const_code)
+            arg.free_temps(const_code)
+
+    def calculate_result_code(self):
+        return self.result_code
+
+    def free_temps(self, code):
+        # Avoid double-freeing the subexpr temps for the prepared constant case.
+        if self.is_temp:
+            super().free_temps(code)
+
+    def generate_evaluation_code(self, code):
+        if self.is_literal:
+            self._create_shared_frozenset_object(code)
+        else:
+            super().generate_evaluation_code(code)
+
+    def generate_result_code(self, code):
+        self._generate_frozenset_code(code, self.result(), self.arg.py_result())
+        self.generate_gotref(code)
 
 
 class DictNode(ExprNode):

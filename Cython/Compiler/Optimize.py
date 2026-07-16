@@ -2146,14 +2146,17 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         return node
 
     def _handle_simple_function_frozenset(self, node, pos_args):
-        """Replace frozenset([...]) by frozenset((...)) as tuples are more efficient.
+        """Clear the argument for empty frozenset([]) etc.
         """
         if len(pos_args) != 1:
             return node
-        if pos_args[0].is_sequence_constructor and not pos_args[0].args:
+        arg = pos_args[0]
+        if arg.is_sequence_constructor and not arg.args:
             del pos_args[0]
-        elif isinstance(pos_args[0], ExprNodes.ListNode):
-            pos_args[0] = pos_args[0].as_tuple()
+            return node
+        if arg.is_string_literal and not arg.value:
+            del pos_args[0]
+            return node
         return node
 
     def _handle_simple_function_list(self, node, pos_args):
@@ -2702,26 +2705,18 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 is_temp=node.is_temp,
                 py_name="set"))
 
-    PyFrozenSet_New_func_type = PyrexTypes.CFuncType(
-        Builtin.frozenset_type, [
-            PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)
-        ])
-
     def _handle_simple_function_frozenset(self, node, function, pos_args):
+        """Replace frozenset(...) with a dedicated FrozenSetNode that handles all special cases.
+        """
         if not pos_args:
-            pos_args = [ExprNodes.NullNode(node.pos)]
-        elif len(pos_args) > 1:
+            return ExprNodes.FrozenSetNode.from_node(node, arg=None, env=self.current_env())
+        if len(pos_args) > 1:
             return node
-        elif pos_args[0].type.is_pyfrozenset_type and not pos_args[0].may_be_none():
+        if pos_args[0].type.is_pyfrozenset_type and not pos_args[0].may_be_none():
+            # Redundant frozenset(afrozenset) -> afrozenset
             return pos_args[0]
-        # PyFrozenSet_New(it) is better than a generic Python call to frozenset(it)
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_PyFrozenSet_New",
-            self.PyFrozenSet_New_func_type,
-            args=pos_args,
-            is_temp=node.is_temp,
-            utility_code=UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'),
-            py_name="frozenset")
+
+        return ExprNodes.FrozenSetNode.from_node(node, arg=pos_args[0], env=self.current_env())
 
     PyObject_AsDouble_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type, [
