@@ -1895,7 +1895,7 @@ class GlobalState:
         c_consts.sort()
         decls_writer = self.parts['string_decls']
         for _, cname, escaped_value in c_consts:
-            _write_cstring_const(decls_writer, escaped_value, cname)
+            _write_cstring_const(decls_writer, escaped_value, cname, len(escaped_value))
 
         # Generate legacy Py_UNICODE[] constants.
         for c, cname in sorted(self.pyunicode_ptr_const_index.items()):
@@ -2014,7 +2014,7 @@ class GlobalState:
 
             w.putln(f"#{'if' if not has_if else 'elif'} {guard} /* compression: {algo_name} ({len(compressed_bytes)} bytes) */")
             has_if = True
-            _write_cstring_const(w, StringEncoding.escape_byte_string(compressed_bytes), 'cstring', length=len(compressed_bytes))
+            _write_escaped_cstring_const(w, compressed_bytes, 'cstring')
             if algo_name == 'lzss':
                 self.use_utility_code(UtilityCode.load_cached("DecompressString_LZSS", "StringTools.c"))
                 w.putln(f'PyObject *data = __Pyx_DecompressString_LZSS(cstring, {len(compressed_bytes)}, {len(concat_bytes)});')
@@ -2032,7 +2032,7 @@ class GlobalState:
             w.putln('#endif')
 
         w.putln(f"{'#else ' if has_if else ''}/* compression: none ({len(concat_bytes)} bytes) */")
-        _write_cstring_const(w, StringEncoding.escape_byte_string(concat_bytes), 'bytes', length=len(concat_bytes))
+        _write_escaped_cstring_const(w, concat_bytes, 'bytes')
         w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
 
         if compressions:
@@ -2434,19 +2434,29 @@ _split_characters = cython.declare(
     object, re.compile(r'(\\[0-7][0-7][0-7]|\\.|.)', re.DOTALL).findall)
 
 @cython.cfunc
-def _write_cstring_const(code, escaped_bytes: str, c_var_name: str, length: cython.Py_ssize_t = -1):
-    if length < 0:
-        length = len(escaped_bytes)
+def _write_cstring_const(code, escaped_bytes: str, c_var_name: str, length: cython.Py_ssize_t) -> cython.int:
+    strings: str = StringEncoding.split_string_literal(escaped_bytes)
 
     if length < 65536:
-        strings: str = StringEncoding.split_string_literal(escaped_bytes)
         code.putln(f'static const char {c_var_name}[] = "{strings}";', safe=True)
-    else:
-        # MSVC silently truncates long string literals >= 64K, so we store them
-        # as C array of single characters.
-        escaped_characters: list[str] = _split_characters(escaped_bytes)
-        cchars = ','.join([f"'{c}'" for c in escaped_characters])
-        code.putln(f'static const char {c_var_name}[] = {{{cchars}}};', safe=True)
+        return
+
+    # MSVC silently truncates long string literals >= 64K, so we store them as
+    # C array of single characters.  But we try not to put the burden of parsing
+    # a very long C array on other compilers when a simple C string will do.
+    escaped_characters: list[str] = _split_characters(escaped_bytes)
+    cchars = ','.join([f"'{c}'" for c in escaped_characters])
+    code.putln("#ifdef _MSC_VER")
+    code.putln(f'static const char {c_var_name}[] = {{{cchars}}};', safe=True)
+    code.putln("#else")
+    code.putln(f'static const char {c_var_name}[] = "{strings}";', safe=True)
+    code.putln("#endif")
+
+
+@cython.cfunc
+def _write_escaped_cstring_const(code, cstring_bytes, c_var_name: str) -> cython.int:
+    escaped_bytes: str = StringEncoding.escape_byte_string(cstring_bytes)
+    _write_cstring_const(code, escaped_bytes, c_var_name, len(cstring_bytes))
 
 
 def funccontext_property(func):
