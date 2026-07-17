@@ -1260,10 +1260,3 @@ hidden by default since most users will be uninterested in changing them.
             one interpreter will not be importing your module at the same time as another
             is using it.  Values greater than 1 can be used to select a specific implementation
             for debugging purposes.
-
-        ``CYTHON_SKIP_NONCPYTHON_DETECTION``
-            If this is set then Cython will not use specialized PyPy or GraalPy code paths.
-            This is mainly provided to make it possible to test and develop Limited API mode
-            on these alternatives implementation (note that as of 2026 neither of these implement
-            Limited API mode so the macro is provided for development and not as a way to build
-            working code). 

@@ -62,11 +62,7 @@
 // when doing version checks.
 #define __PYX_LIMITED_VERSION_HEX PY_VERSION_HEX
 
-#ifndef CYTHON_SKIP_NONCPYTHON_DETECTION
-#define CYTHON_SKIP_NONCPYTHON_DETECTION 0
-#endif
-
-#if defined(GRAALVM_PYTHON) && !CYTHON_SKIP_NONCPYTHON_DETECTION
+#if defined(GRAALVM_PYTHON)
   /* For very preliminary testing purposes. Most variables are set the same as PyPy.
      The existence of this section does not imply that anything works or is even tested */
   // GRAALVM_PYTHON test comes before PyPy test because GraalPython unhelpfully defines PYPY_VERSION
@@ -143,7 +139,7 @@
   #undef CYTHON_OPAQUE_OBJECTS
   #define CYTHON_OPAQUE_OBJECTS 0
 
-#elif defined(PYPY_VERSION) && !CYTHON_SKIP_NONCPYTHON_DETECTION
+#elif defined(PYPY_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 1
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 0
