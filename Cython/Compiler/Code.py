@@ -2439,7 +2439,7 @@ def _write_cstring_const(code, escaped_bytes: str, c_var_name: str, length: cyth
 
     if length < 65536:
         code.putln(f'static const char {c_var_name}[] = "{strings}";', safe=True)
-        return
+        return 0
 
     # MSVC silently truncates long string literals >= 64K, so we store them as
     # C array of single characters.  But we try not to put the burden of parsing
