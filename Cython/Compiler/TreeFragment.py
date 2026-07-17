@@ -79,10 +79,12 @@ def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
                      scope = scope, context = context, initial_pos = initial_pos)
     ctx = Parsing.Ctx(allow_struct_enum_decorator=allow_struct_enum_decorator)
 
-    if level is None:
-        tree = Parsing.p_module(scanner, 0, module_name, ctx=ctx)
+    if level is None or level in ("module", "module_pxd"):
+        scanner.parse_comments = False
+        in_pxd = (level == "module_pxd")
+        tree = Parsing.p_module(scanner, in_pxd, module_name, ctx=ctx)
         tree.scope = scope
-        tree.is_pxd = False
+        tree.is_pxd = in_pxd
     else:
         tree = Parsing.p_code(scanner, level=level, ctx=ctx)
 
