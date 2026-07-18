@@ -240,7 +240,7 @@ def _build_specials_replacer():
     subexps = []
     replacements = {}
 
-    _c_special: tuple = ('\\', '??', '"') + tuple(map(chr, range(32)))
+    _c_special: tuple = ('\\', '??', '"', "'") + tuple(map(chr, range(32)))
 
     special: str
     for special in _c_special:
@@ -286,6 +286,7 @@ def escape_byte_string(bytestring) -> str:
         return s.decode("ASCII")  #  trial decoding: plain ASCII => done
     except UnicodeDecodeError:
         pass
+
     s_new = bytearray()
     append, extend = s_new.append, s_new.extend
     for b in s:
