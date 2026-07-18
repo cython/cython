@@ -988,6 +988,7 @@ class FunctionState:
         self.can_trace = False
         self.gil_owned = True
 
+        self.temp_decl_writer = None  # if set, insertion point for temp declarations
         self.temps_allocated = []  # of (name, type, manage_ref, static)
         self.temps_free = {}  # (type, manage_ref) -> list of free vars with same type/managed status
         self.temps_used_type = {}  # name -> (type, manage_ref)
@@ -2660,6 +2661,8 @@ class CCodeWriter:
     def exit_cfunc_scope(self):
         if self.funcstate is None:
             return
+        if self.funcstate.temp_decl_writer:
+            self.funcstate.temp_decl_writer.put_temp_declarations(self.funcstate)
         self.funcstate.validate_exit()
         self.funcstate = None
 
@@ -2675,6 +2678,7 @@ class CCodeWriter:
         self.putln(f"static {signature} {{")
         if refnanny:
             self.put_declare_refcount_context()
+        self.funcstate.temp_decl_writer = self.insertion_point()
 
     def start_slotfunc(self, class_scope, return_type, c_slot_name, args_signature,
                        needs_funcstate=True, needs_prototype=False,

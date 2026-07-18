@@ -3658,7 +3658,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     f"int {self.cfunc_name}({Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})",
                     scope, refnanny=True)
                 code.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
-                self.tempdecl_code = code.insertion_point()
                 code.put_setup_refcount_context(EncodedString(self.cfunc_name))
                 # Leave a grepable marker that makes it easy to find the generator source.
                 code.putln("/*--- %s ---*/" % self.description)
@@ -3667,15 +3666,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             def __exit__(self, exc_type, exc_value, exc_tb):
                 if exc_type is not None:
                     # Don't generate any code or do any validations on errors.
-                    self.tempdecl_code = self.call_code = None
+                    self.call_code = None
                     return
 
                 code = function_code
                 code.put_finish_refcount_context()
                 code.putln("return 0;")
-
-                self.tempdecl_code.put_temp_declarations(code.funcstate)
-                self.tempdecl_code = None
 
                 needs_error_handling = code.label_used(code.error_label)
                 if needs_error_handling:
