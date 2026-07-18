@@ -10125,6 +10125,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
         self.any_label_used = False
         self.breaking_label_used = False
+        self.return_label_used = False
         self.error_label_used = False
 
         self.parallel_private_temps = []
@@ -10136,6 +10137,8 @@ class ParallelStatNode(StatNode, ParallelNode):
             if code.label_used(label):
                 self.breaking_label_used = (self.breaking_label_used or
                                             label != code.continue_label)
+                self.return_label_used = (self.return_label_used or
+                                            label == code.return_label)
                 self.any_label_used = True
 
         if self.any_label_used:
@@ -10675,7 +10678,10 @@ class ParallelRangeNode(ParallelStatNode):
             code.end_block()  # end else block
 
         # ------ cleanup ------
-        self.end_parallel_control_flow_block(code)  # end parallel control flow block
+        self.end_parallel_control_flow_block(
+            code,
+            return_=self.return_label_used
+        )  # end parallel control flow block
 
         # And finally, release our privates and write back any closure
         # variables
