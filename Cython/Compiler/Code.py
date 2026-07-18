@@ -1895,6 +1895,9 @@ class GlobalState:
         c_consts.sort()
         decls_writer = self.parts['string_decls']
         for _, cname, escaped_value in c_consts:
+            # In theory, we'd better use the length of the unescaped string here to decide
+            # the cut-off, but we don't have that here and it simply means that we'll start
+            # earlier with splitting the C string representation than strictly necessary.
             _write_cstring_const(decls_writer, escaped_value, cname, len(escaped_value))
 
         # Generate legacy Py_UNICODE[] constants.
