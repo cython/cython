@@ -22,9 +22,9 @@ cdef class CythonTransform(VisitorTransform):
     cdef public current_directives
 
 cdef class ScopeTrackingTransform(CythonTransform):
-    cdef public scope_type
+    cdef public str scope_type
     cdef public scope_node
-    cdef visit_scope(self, node, scope_type)
+    cdef _visit_scope(self, node, scope_type: str)
 
 cdef class EnvTransform(CythonTransform):
     cdef public list env_stack

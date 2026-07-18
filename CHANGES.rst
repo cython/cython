@@ -9,7 +9,7 @@ Features added
 --------------
 
 * The feature set of the shared module can be selected at build time.
-  (Github issue :issue:`7800`)
+  (Github issue :issue:`7759`)
 
 * Cython now uses a new export/import naming scheme for fused C functions that
   increases the resilience against seemingly compatible user code changes.
@@ -25,7 +25,20 @@ Features added
   a call to ``PyErr_Occurred()`` by returning ``void``.
   (Github issue :issue:`7791`)
 
+* Conditions in strongly predictable if-clauses or if-else expressions can be wrapped in
+  ``cython.likely(condition)`` or ``cython.unlikely(condition)`` to help the C compiler
+  optimise the branch.  Note that Cython automatically detects ``raise`` and ``assert``
+  statements as terminators already and marks if-clauses that directly lead to them as
+  ``unlikely()``, without user interaction.
+  (Github issue :issue:`7667`)
+
+* The typed tuple syntax ``tuple[atype, ...]`` for homogeneous tuples is supported.
+  (Github issue :issue:`7798`)
+
 * ``bytearray.extend(bytes)`` is faster.
+  (Github issue :issue:`7797`)
+
+* ``assert`` conditions are constant-folded.
   (Github issue :issue:`7797`)
 
 * Async generator objects are slightly smaller.
@@ -391,6 +404,12 @@ Bugs fixed
 
 * Assignments of builtin string types to typedefs of `object` could erroneously be rejected.
   (Github issue :issue:`7789`)
+
+* Subscripting ``type`` failed with a ``TypeError``.
+  (Github issue :issue:`5563`)
+
+* Manually disabling ``CYTHON_VECTORCALL`` in CPython could lead to invalid C code.
+  Patch by Florent Gallaire.  (Github issue :issue:`7807`)
 
 
 3.2.8 (2026-06-30)

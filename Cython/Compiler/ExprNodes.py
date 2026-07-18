@@ -79,7 +79,8 @@ class NotConstant:
 not_a_constant = NotConstant()
 constant_value_not_set = object()
 
-def _type_to_itself(tp):
+@cython.cfunc
+def _type_to_itself(tp) -> tuple:
     return tp, tp
 
 # error messages when coercing from key[0] to key[1]
@@ -1740,6 +1741,7 @@ class FloatNode(ConstNode):
             self.result_code = c_value
 
 
+@cython.cfunc
 def _analyse_name_as_type(name, pos, env):
     ctype = PyrexTypes.parse_basic_type(name)
     if ctype is not None and env.in_c_type_context:
@@ -5766,7 +5768,7 @@ class SliceIndexNode(ExprNode):
                         constant_result=int(default_value) if default_value.isdigit() else not_a_constant,
                     ),
                     false_val=node_ref.coerce_to(c_int, env),
-                    test=PrimaryCmpNode(
+                    condition=PrimaryCmpNode(
                         node.pos,
                         operand1=node_ref,
                         operator='is',
@@ -13779,15 +13781,16 @@ class BoolBinopResultNode(ExprNode):
 class CondExprNode(ExprNode):
     #  Short-circuiting conditional expression.
     #
-    #  test        ExprNode
+    #  condition   ExprNode
     #  true_val    ExprNode
     #  false_val   ExprNode
 
     true_val = None
     false_val = None
     is_temp = True
+    branch_hint = None
 
-    subexprs = ['test', 'true_val', 'false_val']
+    subexprs = ['condition', 'true_val', 'false_val']
 
     def type_dependencies(self, env):
         return self.true_val.type_dependencies(env) + self.false_val.type_dependencies(env)
@@ -13798,7 +13801,7 @@ class CondExprNode(ExprNode):
             self.false_val.infer_type(env))
 
     def calculate_constant_result(self):
-        if self.test.constant_result:
+        if self.condition.constant_result:
             self.constant_result = self.true_val.constant_result
         else:
             self.constant_result = self.false_val.constant_result
@@ -13807,7 +13810,7 @@ class CondExprNode(ExprNode):
         return self.true_val.is_ephemeral() or self.false_val.is_ephemeral()
 
     def analyse_types(self, env):
-        self.test = self.test.analyse_temp_boolean_expression(env)
+        self.condition = self.condition.analyse_temp_boolean_expression(env)
         self.true_val = self.true_val.analyse_types(env)
         self.false_val = self.false_val.analyse_types(env)
         return self.analyse_result_type(env)
@@ -13878,7 +13881,7 @@ class CondExprNode(ExprNode):
         self.type = PyrexTypes.error_type
 
     def check_const(self):
-        return (self.test.check_const()
+        return (self.condition.check_const()
             and self.true_val.check_const()
             and self.false_val.check_const())
 
@@ -13888,14 +13891,17 @@ class CondExprNode(ExprNode):
 
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
-        self.test.generate_evaluation_code(code)
-        code.putln("if (%s) {" % self.test.result())
+        self.condition.generate_evaluation_code(code)
+        condition = self.condition.result()
+        if self.branch_hint:
+            condition = f'{self.branch_hint}({condition})'
+        code.putln(f"if ({condition}) {{")
         self.eval_and_get(code, self.true_val)
         code.putln("} else {")
         self.eval_and_get(code, self.false_val)
         code.putln("}")
-        self.test.generate_disposal_code(code)
-        self.test.free_temps(code)
+        self.condition.generate_disposal_code(code)
+        self.condition.free_temps(code)
 
     def eval_and_get(self, code, expr):
         expr.generate_evaluation_code(code)
