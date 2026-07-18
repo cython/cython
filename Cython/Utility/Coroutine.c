@@ -59,13 +59,12 @@ static CYTHON_INLINE __Pyx_PySendResult __Pyx_Generator_Yield_From(__pyx_Corouti
 //@requires: Generator
 //@requires: CoroutineSetYieldFrom
 //@requires: ObjectHandling.c::IterNextPlain
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 #if CYTHON_USE_TYPE_SLOTS
 static void __Pyx_PyIter_CheckErrorAndDecref(PyObject *source) {
-    __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
-    PyErr_Format(PyExc_TypeError,
-        "iter() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", source_type_name);
-    __Pyx_DECREF_TypeName(source_type_name);
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "iter() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", source);
     Py_DECREF(source);
 }
 #endif
@@ -199,6 +198,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *o); /*proto*/
 //@requires: ObjectHandling.c::PyObjectGetMethod
 //@requires: ObjectHandling.c::PyObjectCallNoArg
 //@requires: ObjectHandling.c::PyObjectCallOneArg
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 //@requires: Coro_CheckExact
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
@@ -217,28 +217,31 @@ static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
     _PyErr_FormatFromCause(PyExc_TypeError,
         "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
     __Pyx_DECREF_TypeName(source_type_name);
+
 #else
     PyObject *exc, *val, *val2, *tb;
-    __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
     assert(PyErr_Occurred());
-    PyErr_Fetch(&exc, &val, &tb);
+    __Pyx_PyErr_FetchException(&exc, &val, &tb);
+#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
     PyErr_NormalizeException(&exc, &val, &tb);
     if (tb != NULL) {
         PyException_SetTraceback(val, tb);
         Py_DECREF(tb);
     }
     Py_DECREF(exc);
+#endif
     assert(!PyErr_Occurred());
-    PyErr_Format(PyExc_TypeError,
-        "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
-    __Pyx_DECREF_TypeName(source_type_name);
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source);
 
-    PyErr_Fetch(&exc, &val2, &tb);
+    __Pyx_PyErr_FetchException(&exc, &val2, &tb);
+#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
     PyErr_NormalizeException(&exc, &val2, &tb);
+#endif
     Py_INCREF(val);
     PyException_SetCause(val2, val);
     PyException_SetContext(val2, val);
-    PyErr_Restore(exc, val2, tb);
+    __Pyx_PyErr_RestoreException(exc, val2, tb);
 #endif
 }
 
@@ -252,25 +255,26 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     } else
 #if CYTHON_COMPILING_IN_CPYTHON && defined(CO_ITERABLE_COROUTINE)
 #if PY_VERSION_HEX >= 0x030C00A6
-    if (PyGen_CheckExact(obj) && (PyGen_GetCode((PyGenObject*)obj)->co_flags & CO_ITERABLE_COROUTINE)) {
+    if (PyGen_CheckExact(obj) && (PyGen_GetCode((PyGenObject*)obj)->co_flags & CO_ITERABLE_COROUTINE))
 #else
-    if (PyGen_CheckExact(obj) && ((PyGenObject*)obj)->gi_code && ((PyCodeObject *)((PyGenObject*)obj)->gi_code)->co_flags & CO_ITERABLE_COROUTINE) {
+    if (PyGen_CheckExact(obj) && ((PyGenObject*)obj)->gi_code && ((PyCodeObject *)((PyGenObject*)obj)->gi_code)->co_flags & CO_ITERABLE_COROUTINE)
 #endif
+    {
         // Python generator marked with "@types.coroutine" decorator
         return __Pyx_NewRef(obj);
     } else
 #endif
     {
-#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000))
+#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || !CYTHON_COMPILING_IN_LIMITED_API)
         PyObject *args[] = { obj };
         res = PyObject_VectorcallMethod(PYIDENT("__await__"), args, 1 |  PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
         if (unlikely(!res)) {
             // We need to distinguish between "doesn't have __await__" vs "__await__ failed"
             if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
                 PyObject *type, *value, *traceback;
-                PyErr_Fetch(&type, &value, &traceback);
+                __Pyx_PyErr_FetchException(&type, &value, &traceback);
                 int has_attr = PyObject_HasAttr(obj, PYIDENT("__await__"));
-                PyErr_Restore(type, value, traceback);
+                __Pyx_PyErr_RestoreException(type, value, traceback);
                 if (!has_attr) goto slot_error;
             }
         }
@@ -292,10 +296,8 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         goto bad;
     }
     if (unlikely(!PyIter_Check(res))) {
-        __Pyx_TypeName res_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(res));
-        PyErr_Format(PyExc_TypeError,
-            "__await__() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", res_type_name);
-        __Pyx_DECREF_TypeName(res_type_name);
+        __Pyx_RaiseTypeErrorWithObjectType(
+            "__await__() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", res);
         Py_CLEAR(res);
     } else {
         int is_coroutine = 0;
@@ -313,12 +315,8 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     }
     return res;
 slot_error:
-    {
-        __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-        PyErr_Format(PyExc_TypeError,
-            "object " __Pyx_FMT_TYPENAME " can't be used in 'await' expression", obj_type_name);
-        __Pyx_DECREF_TypeName(obj_type_name);
-    }
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "object " __Pyx_FMT_TYPENAME " can't be used in 'await' expression", obj);
 bad:
     return NULL;
 }
@@ -330,14 +328,12 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *o); /*prot
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*proto*/
 
 //////////////////// AsyncIter ////////////////////
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 //@requires: GetAwaitIter
 
-static PyObject *__Pyx_Coroutine_GetAsyncIter_Fail(PyObject *obj) {
-    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
-                 "'async for' requires an object with __aiter__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
-    return NULL;
+static void __Pyx_Coroutine_GetAsyncIter_Fail(PyObject *obj) {
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "'async for' requires an object with __aiter__ method, got " __Pyx_FMT_TYPENAME, obj);
 }
 
 
@@ -353,16 +349,14 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
             return (*am_aiter)(obj);
         }
     }
-    return __Pyx_Coroutine_GetAsyncIter_Fail(obj);
+    __Pyx_Coroutine_GetAsyncIter_Fail(obj);
+    return NULL;
 }
 
 
-static PyObject *__Pyx_Coroutine_AsyncIterNext_Fail(PyObject *obj) {
-    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
-        "'async for' requires an object with __anext__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
-    return NULL;
+static void __Pyx_Coroutine_AsyncIterNext_Fail(PyObject *obj) {
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "'async for' requires an object with __anext__ method, got " __Pyx_FMT_TYPENAME, obj);
 }
 
 
@@ -378,7 +372,8 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
             return (*am_anext)(obj);
         }
     }
-    return __Pyx_Coroutine_AsyncIterNext_Fail(obj);
+    __Pyx_Coroutine_AsyncIterNext_Fail(obj);
+    return NULL;
 }
 
 
@@ -480,7 +475,13 @@ static int __Pyx_Coroutine_clear(PyObject *self); /*proto*/
 static __Pyx_PySendResult __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval); /*proto*/
 static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value); /*proto*/
 static __Pyx_PySendResult __Pyx_Coroutine_Close(PyObject *self, PyObject **retval); /*proto*/
-static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
+static PyObject *__Pyx_Coroutine_Throw(PyObject *gen,
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    PyObject *args
+#else
+    PyObject *const *args, Py_ssize_t nargs
+#endif
+    ); /*proto*/
 
 // macros for exception state swapping instead of inline functions to make use of the local thread state context
 #if CYTHON_USE_EXC_INFO_STACK
@@ -521,10 +522,10 @@ static PyObject *__Pyx_Coroutine_fail_reduce_ex(PyObject *self, PyObject *arg); 
 //////////////////// Coroutine.proto ////////////////////
 
 #define __Pyx_Coroutine_USED
-#define __Pyx_Coroutine_CheckExact(obj) __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_CoroutineType))
+#define __Pyx_Coroutine_CheckExact(obj) Py_IS_TYPE(obj, CGLOBAL(__pyx_CoroutineType))
 // __Pyx_Coroutine_Check(obj): see override for IterableCoroutine below
 #define __Pyx_Coroutine_Check(obj) __Pyx_Coroutine_CheckExact(obj)
-#define __Pyx_CoroutineAwait_CheckExact(obj) __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_CoroutineAwaitType))
+#define __Pyx_CoroutineAwait_CheckExact(obj) Py_IS_TYPE(obj, CGLOBAL(__pyx_CoroutineAwaitType))
 
 #define __Pyx_Coroutine_New(body, code, closure, name, qualname, module_name)  \
     __Pyx__Coroutine_New(CGLOBAL(__pyx_CoroutineType), body, code, closure, name, qualname, module_name)
@@ -543,7 +544,7 @@ static __Pyx_PySendResult __Pyx_CoroutineAwait_Close(__pyx_CoroutineAwaitObject 
 //////////////////// Generator.proto ////////////////////
 
 #define __Pyx_Generator_USED
-#define __Pyx_Generator_CheckExact(obj) __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_GeneratorType))
+#define __Pyx_Generator_CheckExact(obj) Py_IS_TYPE(obj, CGLOBAL(__pyx_GeneratorType))
 
 #define __Pyx_Generator_New(body, code, closure, name, qualname, module_name)  \
     __Pyx__Coroutine_New(CGLOBAL(__pyx_GeneratorType), body, code, closure, name, qualname, module_name)
@@ -572,6 +573,7 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self);
 //@requires: ObjectHandling.c::PyObjectFastCall
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 //@requires: ObjectHandling.c::IterNextPlain
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: CommonStructures.c::CommonTypesMetaclass
@@ -624,7 +626,7 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
             Py_INCREF(Py_None);
             value = Py_None;
         }
-        else if (likely(__Pyx_IS_TYPE(ev, (PyTypeObject*)PyExc_StopIteration))) {
+        else if (likely(Py_IS_TYPE(ev, (PyTypeObject*)PyExc_StopIteration))) {
             #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
             value = PyObject_GetAttr(ev, PYIDENT("value"));
             if (unlikely(!value)) goto limited_api_failure;
@@ -1068,12 +1070,9 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
         #endif
       #endif
         {
-            #if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x03080000
-            // PyIter_Check() is needed here but broken in the Py3.7 Limited API.
             if (value == Py_None && PyIter_Check(yf))
                 ret = __Pyx_PyIter_Next_Plain(yf);
             else
-            #endif
                 ret = __Pyx_PyObject_CallMethod1(yf, PYIDENT("send"), value);
         }
         if (likely(ret)) {
@@ -1308,7 +1307,7 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
                 __Pyx_Coroutine_Undelegate(gen);
                 goto throw_here;
             }
-            if (likely(args)) {
+            if (args) {
                 ret = __Pyx_PyObject_Call(meth, args, NULL);
             } else {
                 // "tb" or even "val" might be NULL.
@@ -1340,15 +1339,44 @@ propagate_exception:
     }
 }
 
-static PyObject *__Pyx_Coroutine_Throw(PyObject *self, PyObject *args) {
+static PyObject *__Pyx_Coroutine_Throw(PyObject *self,
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    PyObject *args
+#else
+    PyObject *const *args, Py_ssize_t nargs
+#endif
+) {
     PyObject *typ;
     PyObject *val = NULL;
     PyObject *tb = NULL;
 
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
     if (unlikely(!PyArg_UnpackTuple(args, "throw", 1, 3, &typ, &val, &tb)))
         return NULL;
+#else
+    switch (nargs) {
+    case 3:
+        tb = args[2];
+        CYTHON_FALLTHROUGH;
+    case 2:
+        val = args[1];
+        CYTHON_FALLTHROUGH;
+    case 1:
+        typ = args[0];
+        break;
+    default:
+        PyErr_SetString(PyExc_TypeError, "throw takes between 1 and 3 positional arguments");
+        return NULL;
+    }
+#endif
 
-    return __Pyx__Coroutine_Throw(self, typ, val, tb, args, 1);
+    return __Pyx__Coroutine_Throw(self, typ, val, tb,
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+                                  args,
+#else
+                                  NULL,
+#endif
+                                  1);
 }
 
 static CYTHON_INLINE int __Pyx_Coroutine_traverse_excstate(__Pyx_ExcInfoStruct *exc_state, visitproc visit, void *arg) {
@@ -1405,21 +1433,15 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
 
     if (gen->resume_label >= 0) {
         // Generator is paused or unstarted, so we need to close
-        PyObject_GC_Track(self);
 #if CYTHON_USE_TP_FINALIZE
+        PyObject_GC_Track(self);
         if (unlikely(PyObject_CallFinalizerFromDealloc(self)))
-#else
-        {
-            destructor del = __Pyx_PyObject_GetSlot(gen, tp_del, destructor);
-            if (del) del(self);
-        }
-        if (unlikely(Py_REFCNT(self) > 0))
-#endif
         {
             // resurrected.  :(
             return;
         }
         PyObject_GC_UnTrack(self);
+#endif
     }
 
 #ifdef __Pyx_AsyncGen_USED
@@ -1654,6 +1676,10 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
     Py_XINCREF(code);
     gen->gi_code = code;
     gen->gi_frame = NULL;
+#if CYTHON_USE_SYS_MONITORING && (CYTHON_PROFILE || CYTHON_TRACE)
+    memset(gen->$monitoring_states_cname, 0, sizeof(gen->$monitoring_states_cname));
+    gen->$monitoring_version_cname = 0;
+#endif
 
     PyObject_GC_Track(gen);
     return gen;
@@ -1722,11 +1748,8 @@ static void __Pyx_SetBackportTypeAmSend(PyTypeObject *type, __Pyx_PyAsyncMethods
 // #if CYTHON_USE_TYPE_SPECS
 static PyObject *__Pyx_Coroutine_fail_reduce_ex(PyObject *self, PyObject *arg) {
     CYTHON_UNUSED_VAR(arg);
-
-    __Pyx_TypeName self_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE((PyObject*)self));
-    PyErr_Format(PyExc_TypeError, "cannot pickle '" __Pyx_FMT_TYPENAME "' object",
-                         self_type_name);
-    __Pyx_DECREF_TypeName(self_type_name);
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "cannot pickle '" __Pyx_FMT_TYPENAME "' object", self);
     return NULL;
 }
 // #endif
@@ -1790,9 +1813,15 @@ static __Pyx_PySendResult __Pyx_CoroutineAwait_AmSend(PyObject *self, PyObject *
 }
 #endif
 
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
 static PyObject *__Pyx_CoroutineAwait_Throw(__pyx_CoroutineAwaitObject *self, PyObject *args) {
     return __Pyx_Coroutine_Throw(self->coroutine, args);
 }
+#else
+static PyObject *__Pyx_CoroutineAwait_Throw(__pyx_CoroutineAwaitObject *self, PyObject *const *args, Py_ssize_t nargs) {
+    return __Pyx_Coroutine_Throw(self->coroutine, args, nargs);
+}
+#endif
 
 static __Pyx_PySendResult __Pyx_CoroutineAwait_Close(__pyx_CoroutineAwaitObject *self) {
     PyObject *retval = NULL;
@@ -1830,7 +1859,12 @@ static PyObject *__Pyx_CoroutineAwait_no_new(PyTypeObject *type, PyObject *args,
 static PyMethodDef __pyx_CoroutineAwait_methods[] = {
     {"send", (PyCFunction) __Pyx_CoroutineAwait_Send, METH_O,
      PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration.")},
-    {"throw", (PyCFunction) __Pyx_CoroutineAwait_Throw, METH_VARARGS,
+    {"throw", __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_CoroutineAwait_Throw),
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        METH_VARARGS,
+#else
+        METH_FASTCALL,
+#endif
      PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next yielded value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_CoroutineAwait_Close_Method, METH_NOARGS, PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
 // only needed with type-specs, but included in all versions for clarity
@@ -1890,7 +1924,12 @@ static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
 static PyMethodDef __pyx_Coroutine_methods[] = {
     {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
      PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next iterated value or raise StopIteration.")},
-    {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS,
+    {"throw", __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_Coroutine_Throw),
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        METH_VARARGS,
+#else
+        METH_FASTCALL,
+#endif
      PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next iterated value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_Coroutine_Close_Method, METH_NOARGS, PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
     {"__reduce_ex__", (PyCFunction) __Pyx_Coroutine_fail_reduce_ex, METH_O, 0},
@@ -2004,7 +2043,7 @@ if (likely(__pyx_IterableCoroutine_init($module_cname) == 0)); else
 #define __Pyx_IterableCoroutine_USED
 
 #undef __Pyx_Coroutine_Check
-#define __Pyx_Coroutine_Check(obj) (__Pyx_Coroutine_CheckExact(obj) || __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_IterableCoroutineType)))
+#define __Pyx_Coroutine_Check(obj) (__Pyx_Coroutine_CheckExact(obj) || Py_IS_TYPE(obj, CGLOBAL(__pyx_IterableCoroutineType)))
 
 #define __Pyx_IterableCoroutine_New(body, code, closure, name, qualname, module_name)  \
     __Pyx__Coroutine_New(CGLOBAL(__pyx_IterableCoroutineType), body, code, closure, name, qualname, module_name)
@@ -2086,7 +2125,12 @@ if (likely(__pyx_Generator_init($module_cname) == 0)); else
 static PyMethodDef __pyx_Generator_methods[] = {
     {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
      PyDoc_STR("send(arg) -> send 'arg' into generator,\nreturn next yielded value or raise StopIteration.")},
-    {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS,
+    {"throw", __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_Coroutine_Throw),
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        METH_VARARGS,
+#else
+        METH_FASTCALL,
+#endif
      PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in generator,\nreturn next yielded value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_Coroutine_Close_Method, METH_NOARGS,
      PyDoc_STR("close() -> raise GeneratorExit inside generator.")},

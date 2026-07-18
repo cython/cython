@@ -423,6 +423,56 @@ def if_in_try_block_4(x):
     except:
         return f'Except return {a}'
 
+def case_in_try_block_1(x):
+    """
+    >>> case_in_try_block_1(True)
+    'Except return True'
+    >>> case_in_try_block_1(False)
+    'Normal return False'
+    """
+    try:
+        match x:
+            case _ if (a := return_x(x)):
+                raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def case_in_try_block_2(x):
+    """
+    >>> case_in_try_block_2(True)
+    'Except return True'
+    >>> case_in_try_block_2(False)
+    'Normal return False'
+    """
+    try:
+        match x:
+            case _ if (a := return_x(x)):
+                raise RuntimeError
+            case _:
+                pass
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
+def match_in_try_block_2(x):
+    """
+    >>> match_in_try_block_2(True)
+    'Except return True'
+    >>> match_in_try_block_2(False)
+    'Normal return False'
+    """
+    try:
+        # Note that pycodestyle on older versions of Python
+        # enforces a weird spacing here and can't be turned
+        # off with noqa.  Undo this in future...
+        match(a := return_x(x)):
+            case True:
+                raise RuntimeError
+        return f'Normal return {a}'
+    except:
+        return f'Except return {a}'
+
 def while_in_try_block(x):
     """
     >>> while_in_try_block(True)

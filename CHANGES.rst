@@ -2,6 +2,465 @@
 Cython Changelog
 ================
 
+3.3.0a2 (2026-??-??)
+====================
+
+Features added
+--------------
+
+* The feature set of the shared module can be selected at build time.
+  (Github issue :issue:`7759`)
+
+* Cython now uses a new export/import naming scheme for fused C functions that
+  increases the resilience against seemingly compatible user code changes.
+  The original names are kept for backwards compatibility.
+  (Github issue :issue:`7656`)
+
+* Exception base types are inferred for the target variable of multi-exception ``except``
+  clauses and for collections of exceptions.  Properties like ``.args`` and ``.context``
+  use direct C access in CPython.
+  (Github issue :issue:`7783`)
+
+* C property setters can now explicitly propagate exceptions, instead of always triggering
+  a call to ``PyErr_Occurred()`` by returning ``void``.
+  (Github issue :issue:`7791`)
+
+* Conditions in strongly predictable if-clauses or if-else expressions can be wrapped in
+  ``cython.likely(condition)`` or ``cython.unlikely(condition)`` to help the C compiler
+  optimise the branch.  Note that Cython automatically detects ``raise`` and ``assert``
+  statements as terminators already and marks if-clauses that directly lead to them as
+  ``unlikely()``, without user interaction.
+  (Github issue :issue:`7667`)
+
+* The typed tuple syntax ``tuple[atype, ...]`` for homogeneous tuples is supported.
+  (Github issue :issue:`7798`)
+
+* ``bytearray.extend(bytes)`` is faster.
+  (Github issue :issue:`7797`)
+
+* ``assert`` conditions are constant-folded.
+  (Github issue :issue:`7797`)
+
+* Async generator objects are slightly smaller.
+  (Github issue :issue:`7776`)
+
+* Two more Cython modules are compiled in the binary wheels, which should improve the
+  translation speed for modules with many strings.
+  (Github issue :issue:`7795`)
+
+Bugs fixed
+----------
+
+* Several issues with ``.close()`` or ``.throw()`` of Async generator asend/athrow
+  objects were resolved, following fixes in CPython.
+  (Github issue :issue:`7777`)
+
+* ``cpdef fused`` functions generated redundant code.
+  (Github issue :issue:`7778`)
+
+* Subscripting frozendicts with integer keys could fail in 3.3.0a1.
+
+* ``NULL`` pointer comparisons could fail to compile with C++ in 3.3.0a1.
+  Patch by Vyas Ramasubramani.  (Github issue :issue:`7766`)
+
+* A C helper function for mapping function arguments could be missing in 3.3.0a1.
+  (Github issue :issue:`7785`)
+
+* Some compiler directives failed to apply to Cython's build, which lead to
+  unintentionally (slightly) increased wheel sizes.
+  (Github issue :issue:`7801`)
+
+* Includes all fixes as of Cython 3.2.9.
+
+Other changes
+-------------
+
+
+3.3.0a1 (2026-06-24)
+====================
+
+Features added
+--------------
+
+* Changes were made to adapt to Python 3.15 and its Limited API.
+  (Github issues :issue:`6405`, :issue:`7190`, :issue:`7347`, :issue:`7348`, :issue:`7358`)
+
+* PEP-634 Pattern Matching is implemented.
+  (Github issue :issue:`4029`)
+
+* Declared container item types (e.g. ``list[float]``) are now used by the type system.
+  (Github issue :issue:`7288`)
+
+* Type inference was improved for builtin Python types.
+  (Github issues :issue:`7536`, :issue:`7644`)
+
+* Extension types can declare themselves explicitly as sequence or mapping with
+  ``@cython.collection_type("sequence")`` or ``@cython.collection_type("mapping")``.
+  This has an effect on their behaviour in pattern matching and subscripting.
+  (Github issue :issue:`5027`)
+
+* Sequence types that have their ``Py_TPFLAGS_SEQUENCE`` type flag set can benefit from
+  faster subscripting via the sequence protocol as Cython now bypasses the mapping protocol
+  for them if both protocols are implemented.
+  (Github issue :issue:`7432`)
+
+* Sequence types marked as ``@cython.collection_type("sequence")`` that use C integers
+  in the subscript special methods now implement only the sequence and not the mapping protocol.
+  This allows subscripting code to avoid creating Python index objects when the index
+  is already available as C integer.
+  (Github issue :issue:`7435`)
+
+* The Py3.15 ``frozendict`` builtin type is supported and has been backported as an alias
+  for ``dict`` in older Python versions.
+  Patches to adapt existing ``dict`` optimisations were contributed by Omkar Kabde.
+  (Github issues :issue:`7545`, :issue:`7647`)
+
+* The Py3.15 ``sentinel`` builtin is supported and its C-API declarations are available in
+  ``cpython.sentinel``.
+
+* The builtin Python types ``int``, ``float``, ``str``, ``bytes`` and ``bytearray``
+  are special cased in comparisons to speed them up.
+  (Github issues :issue:`7452`, :issue:`7474`)
+
+* The builtin Python types ``int`` and ``float`` are special cased in ``+``, ``-`` and ``*``
+  operations with (compile-time) unknown Python types in order to speed them up.
+  The bit operations ``^``, ``|`` and ``&`` are additionally special cased for ``int``.
+  (Github issues :issue:`7485`, :issue:`7541`)
+
+* ``<bool>`` casts can be used to convert C values to Python ``True`` / ``False``.
+  (Github issue :issue:`7513`)
+
+* ``cdef`` property methods support setters.
+  (Github issue :issue:`7505`)
+
+* The C ``restrict`` modifier can be used in declarations.
+  (Github issue :issue:`7617`)
+
+* C arrays may now be declared with (``extern`` or internal) enum values as their size.
+  (Github issues :issue:`7401`, :issue:`7406`)
+
+* ``prange(num_threads=0)`` automatically selects the maximum number of OpenMP threads.
+  (Github issue :issue:`7586`)
+
+* ``prange()`` and ``parallel()`` sections can be used without releasing the GIL, which
+  helps in freethreading builds.  When releasing the GIL as part of the section declaration,
+  re-acquiring it immediately inside is now faster, e.g. to do per-thread Python initialisations.
+  (Github issue :issue:`6562`)
+
+* ``cython.pymutex`` and ``cython.pythread_type_lock`` now support a ``.locked()`` method
+  to check if the lock is currently held without blocking. The method works on all Python
+  versions using atomic reads on Python 3.13+ and a try-acquire approach on older versions.
+  (Github issue :issue:`7275`)
+
+* A simpler mechanism was added for implementing C++ exception handlers in Cython code.
+  (Github issues :issue:`7388`, :issue:`7390`)
+
+* Repeated memoryview slicing inside of loops now avoids redundant reference counting,
+  making it substantially faster.
+  (Github issue :issue:`5507`)
+
+* Indexing into Cython memoryview objects from Python is faster.
+  (Github issue :issue:`7529`)
+
+* Some internal call overhead in the memoryview code was removed.
+  (Github issue :issue:`7609`)
+
+* Extension types use the vectorcall interface for their instantiation in many cases.
+  This can be configured with a new C feature macro ``CYTHON_VECTORCALL_TPNEW``.
+  (Github issue :issue:`7698`)
+
+* Coroutine methods use the faster vectorcall interface.
+  (Github issue :issue:`7678`)
+
+* Vectorcalls with literal keyword arguments use cached constant keyword name tuples.
+  (Github issue :issue:`7713`)
+
+* List comprehensions that generate new objects avoid refcounting overhead for appending.
+  (Github issue :issue:`7748`)
+
+* Method calls in older Limited API versions are slightly faster.
+  (Github issue :issue:`7707`)
+
+* C arrays are substituted for sequence iteration in more cases, also inside of generators.
+  Ad-hoc C array storage on the stack and in closures was reworked along the way.
+  (Github issues :issue:`7323`, :issue:`7339`)
+
+* Unicode string comparisons to single character literals are faster.
+  (Github issue :issue:`7418`)
+
+* F-strings are a little faster in some cases.
+  (Github issues :issue:`7495`, :issue:`7526`)
+
+* PyPy and GraalPython use the vectorcall protocol to enable faster Python calls in future releases.
+  (Github issue :issue:`7614`)
+
+* The runtime conversion from a Python mapping to a C struct/union uses less code.
+  (Github issue :issue:`7343`)
+
+* The error handling of memoryviews uses less code.
+  (Github issue :issue:`7525`)
+
+* The runtime dispatch code of fused types uses less code.
+  (Github issue :issue:`7501`)
+
+* More code is extracted to the shared utility code module.
+  (Github issues :issue:`7556`, :issue:`7570`)
+
+* Cython compiled functions have a more efficient memory layout in the Limited API.
+  (Github issue :issue:`7519`)
+
+* Module string content is now compressed with LZSS by default, which reduces the footprint of the
+  decompressor code compared to the 3.2.x default ``zlib``.  This also avoids a runtime dependency
+  on the ``zlib`` module since the tiny LZSS decompressor can be embedded in the module.
+  (Github issue :issue:`7577`)
+
+* The Py2 ``print`` statement is now implemented in Cython instead of C to make it
+  thread-safe and uses a vectorcall into Python.
+  (Github issue :issue:`7642`)
+
+* Several C++ exception declarations were added to ``libcpp.exceptions``.
+  (Github issue :issue:`7389`)
+
+* Missing Python type flag declarations were added to ``cpython.object``.
+  (Github issue :issue:`7441`)
+
+* Declarations for ``PyType_GetSlot()`` and the corresponding type slot IDs were added
+  to ``cpython.type``.
+
+* Declarations for specialised byte-conversion functions were added to ``cpython.long`` and ``cpython.float``.
+  Patch by Valentin Valls.  (Github issue :issue:`7738`)
+
+* Error detection when assigning to ``const`` variables was improved.
+  (Github issue :issue:`7359`)
+
+* Some cases of likely misuse of ``critical_section`` now generate warnings.
+  (Github issue :issue:`6766`)
+
+* Programmatic use of Cython has become easier by avoiding the need to manually set up
+  the error reporting.
+  (Github issue :issue:`7235`)
+
+* Autoscaling in ``cymeit`` is a little faster.
+
+* Unicode 17.0.0 is used to parse identifiers.
+
+Bugs fixed
+----------
+
+* Assigning a Python 3.14+ ``.__annotate__`` function to a Cython compiled function no
+  longer evaluates annotations eagerly.
+  (Github issue :issue:`7767`)
+
+* Generated Cython language features like properties, auto-pickle or dataclasses
+  now use a critical section (on the object itself) as guard for concurrent access.
+  (Github issue :issue:`6621`)
+
+* The star-import implementation needlessly rejected several names in internal use.
+  They are now allowed and become regular Python module attributes.
+  (Github issue :issue:`4931`)
+
+* Mixing function signature declarations in Python modules and their ``.pxd`` modules could fail.
+  (Github issues :issue:`5970`, :issue:`4388`)
+
+* C array declarations with type and size could fail with an exception in pure Python code.
+  (Github issue :issue:`7372`)
+
+* A ``const`` modifier in C++ template type arguments could be mapped incorrectly.
+  (Github issue :issue:`6294`)
+
+* C++ ``typeid()`` failed to compile on more complex expressions.
+  (Github issue :issue:`7069`)
+
+* Optimised Python ``int`` and ``float`` operations did not remember their result type,
+  leading to less optimised code in longer expressions.
+  (Github issues :issue:`7363`, :issue:`7502`)
+
+* Slices as dictionary keys confused the type inference of item access.
+  (Github issue :issue:`7702`)
+
+* A race condition when ``return``ing from a ``cython.parallel.parallel`` section was fixed.
+  (Github issue :issue:`6521`)
+
+* Cython still used ``(type, exc, traceback)`` for saving and restoring exception state,
+  even though modern CPython versions only store the exception object itself internally.
+  This is now modernised in many places to reduce overhead.
+  (Github issue :issue:`7481`)
+
+* Exceptions originating from the ``Py_UNICODE_IS*()`` character classification macros and
+  the corresponding ``str.is*()`` methods, which they alias, were not handled but ignored in
+  the Limited API.
+  (Github issue :issue:`7602`)
+
+* In the Limited API, import time failures to create code objects for compiled functions,
+  e.g. due to future Python API changes, are no longer fatal but generate a warning.
+  (Github issue :issue:`5718`)
+
+* Several internal cases where exceptions are caught and discarded now propagate the
+  ``BaseException`` errors and only discard the expected exceptions.
+  (Github issue :issue:`7600`)
+
+* Error handling was improved when setting up the table of ``cdef`` methods for extension types
+  and unexpected errors are propagated.
+  (Github issue :issue:`7613`)
+
+* Exceptions while setting up the automatic pickle support are now propagated.
+  (Github issue :issue:`7613`)
+
+* Exceptions thrown into async generators could leave the generator in an unclosed state.
+  (Github issue :issue:`7618`)
+
+* In the Limited API, failures while formatting type names in exceptions are now uniformly handled.
+  (Github issue :issue:`7680`)
+
+* The global module state struct now lives in an anonymous namespace in C++ mode to
+  allow linking multiple modules together in one shared library file.
+  (Github issue :issue:`7159`)
+
+* Dict iteration generates safer code in PyPy/GraalPy/free-threading.
+  (Github issue :issue:`7637`)
+
+* The floating point parsing code relied on C implementation specific "pointer compare after free" behaviour.
+  Patch by stratakis.  (Github issue :issue:`7463`)
+
+* When non-heap types were used as base classes of extension heap types, the heap types
+  were not correctly reference counted by their instances.
+  (Github issue :issue:`7483`)
+
+* The ``.__signatures__`` dict of fused functions is no longer writable.
+  (Github issue :issue:`7386`)
+
+* A minimal implementation of ``.__annotate__`` was added to Cython compiled functions to make
+  ``@functools.wraps`` work in Python 3.14+.
+  (Github issue :issue:`7675`)
+
+* The ``--embed-positions`` option no longer includes absolute file paths in the C code.
+  (Github issue :issue:`6755`)
+
+* Error reporting on missing braces in f-strings was misleading.
+  (Github issue :issue:`7436`)
+
+* ``None`` default values for function arguments declared as ``not None`` are now rejected at compile time
+  rather than leading to errors at runtime.
+  Patch by Vyas Ramasubramani.  (Github issue :issue:`7762`)
+
+* Cython did not reject code with multiple contradicting type annotations on the same variable.
+  (Github issue :issue:`7246`)
+
+* Cython no longer warns if ``@profile`` or ``@linetrace`` is applied to a function
+  without changing the global/outer setting.  This avoids annoyance when users leave
+  such redundant decorators in the code for occasional use.
+
+* Cached methods of builtin types were not GC-traversed and cleaned up as part of the module state.
+  Patch by Maxwell Bernstein.  (Github issue :issue:`7468`)
+
+* Modules with non-ASCII names could end up with UTF-8 characters in their C code.
+  (Github issue :issue:`7588`)
+
+* Several C compiler warnings related to mixed signed/unsigned C integer usage were resolved.
+
+* Includes all fixes as of Cython 3.2.6.
+
+Other changes
+-------------
+
+* Support for Python 3.8 has been removed.
+  As a side-effekt, support for StacklessPython and Pyston (last release was 3.8) was also removed.
+  Python 3.9 is planned to remain supported for several years due to its use in LTS Linux distributions.
+  (Github issue :issue:`7271`)
+
+* The vectorcall feature macros were unified to make ``CYTHON_VECTORCALL`` the only way to
+  disable this feature (if need arises).  Previously the option macros ``CYTHON_METH_FASTCALL``,
+  ``CYTHON_FAST_PYCALL`` and ``CYTHON_VECTORCALL`` all controlled different aspects of the
+  implementation.
+  (Github issue :issue:`7616`)
+
+* Coroutines no longer provide the legacy ``_is_coroutine`` property.
+  (Github issue :issue:`7709`)
+
+* ``Cython/Shadow.pyi`` has been merged into ``Cython/Shadow.py``.
+  (Github issue :issue:`7376`)
+
+* The documentation now uses the "Clarity" Sphinx theme.
+  Patch by Libor Jelínek.  (Github issue :issue:`7564`)
+
+
+3.2.9 (2026-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* Indexing into freshly created lists with an out-of-bounds index could crash.
+  (Github issue :issue:`7793`)
+
+* Function arguments with default values could end up uninitialised in closures, leading to crashes.
+  Patch by Anthony Donlon.  (Github issue :issue:`7782`)
+
+* ``bytearray.append(None)`` could crash. The optimised code was also lacking concurrency guards.
+  (Github issue :issue:`7796`)
+
+* Some rare corner cases when concatenating text strings were resolved.
+  (Github issue :issue:`7799`)
+
+* Assignments of builtin string types to typedefs of `object` could erroneously be rejected.
+  (Github issue :issue:`7789`)
+
+* Subscripting ``type`` failed with a ``TypeError``.
+  (Github issue :issue:`5563`)
+
+* Manually disabling ``CYTHON_VECTORCALL`` in CPython could lead to invalid C code.
+  Patch by Florent Gallaire.  (Github issue :issue:`7807`)
+
+
+3.2.8 (2026-06-30)
+==================
+
+Bugs fixed
+----------
+
+* Assigning a Python 3.14+ ``.__annotate__`` function to a Cython compiled function no longer
+  evaluates annotations eagerly.  Fixes a regression with ``@functools.wraps()`` in Cython 3.2.6.
+  Patch by Jelle Zijlstra.  (Github issue :issue:`7767`)
+
+* In freethreading Python, the necessary object keep-alive while executing user code in
+  ``.__dealloc__()`` uses a safer scheme.
+  Patch by Yaxing Cai.  (Github issue :issue:`7769`)
+
+* The local function state used by ``sys.monitoring`` read from uninitialised memory.
+  (Github issue :issue:`7774`)
+
+* The ``.ag_running`` flag attribute of async generators was always false on big-endian systems.
+
+
+3.2.6 (2026-06-24)
+==================
+
+Bugs fixed
+----------
+
+* ``@functools.wraps()`` was broken in Py3.14+ for Cython compiled functions.
+  (Github issue :issue:`7675`)
+
+* A double-free in the t-string code was fixed.
+  (Github issue :issue:`7712`)
+
+* The ``-`` operator declarations for iterators in ``libcpp.vector`` we corrected.
+  Patch by Vadim Markovtsev.  (Github issue :issue:`7717`)
+
+* The shared utility code module no longer uses a temporary file path that
+  changed the C code on each generation.
+  (Github issue :issue:`7723`)
+
+* On 32 bit platforms, cached constants are no longer made immortal during module import.
+  (Github issue :issue:`7744`)
+
+Other changes
+-------------
+
+* Binary wheels are now built with ``-DNDEBUG`` to discard runtime assertions from CPython's
+  inline functions.
+
+
 3.2.5 (2026-05-23)
 ==================
 
@@ -336,7 +795,6 @@ Features added
   (Github issue :issue:`7228`)
 
 * Unicode 16.0.0 is used to parse identifiers.
-  (Github issue :issue:`6836`)
 
 Bugs fixed
 ----------
@@ -792,7 +1250,6 @@ Features added
 --------------
 
 * Declarations for the new ``PyUnstable_*()`` refcounting C-API functions in Py3.14 were added.
-  (Github issue :issue:`6836`)
 
 Bugs fixed
 ----------

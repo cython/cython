@@ -59,9 +59,10 @@ low.  This includes code that makes heavy use of typed memoryviews, or code that
 an external C library.
 
 Where the majority of the work involves interacting with Python objects the cost is likely to
-be more significant.  As an example, compiling the Cython compiler with the regular C API
-gives a ~35% speed-up compared to not compiling the Cython compiler.  Compiling the Cython
-compiler in the Limited API gives a 0-10% speed-up (depending on the exact version used).
+be greater.  As an example, compiling the Cython compiler with the regular C API
+gives a 38% speed-up compared to not compiling the Cython compiler.  Compiling the Cython
+compiler in the Limited API gives a 18-33% speed-up (depending on the exact Limited API
+version used).
 
 If you are prepared to restrict yourself to Python versions 3.12+, then Cython will use
 the "vectorcall" interface in Limited API mode.  This doesn't enable any new functionality,
@@ -75,7 +76,8 @@ Cython's usage of the Limited API is controlled by setting the ``Py_LIMITED_API`
 when running the C compiler.  This macro should be set to the version-hex for the
 minimum Python version that you want to support.  Useful version-hexes are:
 
-* ``0x03080000`` - Python 3.8 - the minimum version that Cython supports.
+* ``0x03080000`` - Python 3.8 - the minimum version that Cython 3.1 supports.
+* ``0x03090000`` - Python 3.9 - the minimum version that Cython 3.3+ supports.
 * ``0x030B0000`` - Python 3.11 - the first version to support typed memoryviews.
 * ``0x030C0000`` - Python 3.12 - the first version to support vectorcall (performance
   improvement).

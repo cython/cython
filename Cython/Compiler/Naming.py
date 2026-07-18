@@ -73,8 +73,10 @@ interned_prefixes = {
     'slice': pyrex_prefix + "slice_",
     'ustring': pyrex_prefix + "ustring_",
     'umethod': pyrex_prefix + "umethod_",
+    'carray': pyrex_prefix + "carray_",
 }
 
+carray_literal_prefix = pyrex_prefix + "literalcarray_"
 ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
 nargs_cname      = pyrex_prefix + "nargs"
@@ -178,6 +180,7 @@ parallel_filename = pyrex_prefix + "parallel_filename"
 parallel_lineno = pyrex_prefix + "parallel_lineno"
 parallel_clineno = pyrex_prefix + "parallel_clineno"
 parallel_why = pyrex_prefix + "parallel_why"
+parallel_loop_threadstate = pyrex_prefix + "parallel_loop_threadstate"
 
 # Python itself used _Py_cs so loosely follow that convention
 critical_section_variable = pyrex_prefix + "cs"
@@ -242,6 +245,7 @@ iso_c23_keywords = frozenset((
     'unsigned',
     'void',
     'volatile',
+    'restrict',  # (C99)
     'while',
     '_Alignas',  # (C11)
     '_Alignof',  # (C11)

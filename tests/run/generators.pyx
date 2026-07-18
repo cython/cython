@@ -597,9 +597,19 @@ def test_generator_frame(a=1):
 # GH issue 7323 - optimised array iteration vs. temps in generator closures
 # https://github.com/cython/cython/issues/7323
 
+def call_next(it, count=11):
+    # Recursively exhaust an iterator to help finding issues with stack array storage.
+    if count > 0:
+        yield from call_next(it, count - 1)
+    try:
+        yield next(it)
+    except StopIteration:
+        pass
+
+
 def iter_literal_str():
     """
-    >>> for ch in iter_literal_str():
+    >>> for ch in call_next(iter_literal_str()):
     ...     print(ch)
     89
     88
@@ -613,7 +623,7 @@ def iter_literal_str():
 
 def iter_literal_bytes():
     """
-    >>> for ch in iter_literal_bytes():
+    >>> for ch in call_next(iter_literal_bytes()):
     ...     print(ch)
     80
     89
@@ -627,7 +637,7 @@ def iter_literal_bytes():
 
 def iter_literal_list():
     """
-    >>> list(iter_literal_list())
+    >>> list(call_next(iter_literal_list()))
     [1, 2, 3, 4]
     """
     cdef int number
@@ -637,10 +647,21 @@ def iter_literal_list():
 
 def iter_array_items():
     """
-    >>> list(iter_array_items())
+    >>> list(call_next(iter_array_items()))
     [1, 2, 3, 4]
     """
     cdef int[4] numbers = [1,2,3,4]
 
     for number in numbers:
+        yield number
+
+
+def literal_array_as_pointer():
+    """
+    >>> list(call_next(literal_array_as_pointer()))
+    [1, 2, 3, 4]
+    """
+    cdef int *numbers = [1, 2, 3, 4]
+
+    for number in numbers[:4]:
         yield number

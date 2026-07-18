@@ -13,6 +13,7 @@ import io
 
 
 class NonManglingModuleScope(Symtab.ModuleScope):
+    is_internal = True
 
     def __init__(self, prefix, *args, **kw):
         self.prefix = prefix

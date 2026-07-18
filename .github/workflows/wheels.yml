@@ -25,6 +25,7 @@ on:
       types: [labeled, opened, synchronize, reopened]
       paths:
         #- Cython/Build/**
+        - .github/cibuildwheel-requirement.txt
         - .github/workflows/wheels.yml
         - pyproject.toml
         - MANIFEST.in
@@ -32,6 +33,7 @@ on:
   push:
       paths:
         #- Cython/Build/**
+        - .github/cibuildwheel-requirement.txt
         - .github/workflows/wheels.yml
         - pyproject.toml
         - MANIFEST.in
@@ -62,7 +64,9 @@ jobs:
     outputs:
       include: ${{ steps.set-matrix.outputs.include }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
       - name: Install cibuildwheel
         # Nb. dependabot should keep cibuildwheel version pin consistent with job below
         run: pipx install $(grep -v '^\s*#' .github/cibuildwheel-requirement.txt)
@@ -105,19 +109,21 @@ jobs:
 
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-python@v6.2.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.13'
 
       - name: Build wheels
         # Nb. dependabot should keep cibuildwheel version pin consistent with generate-matrix job above
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@294735312765b09d24a2fbec22660ce817587d55 # v4.1.0
         with:
           only: ${{ matrix.only }}
 
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.only }}
           path: ./wheelhouse/*.whl
@@ -145,14 +151,16 @@ jobs:
 
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-python@v6.2.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.13'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@294735312765b09d24a2fbec22660ce817587d55 # v4.1.0
         env:
           # Smaller set of platforms that we only provide Stable ABI wheels for
           CIBW_BUILD: |
@@ -164,7 +172,7 @@ jobs:
                 matrix.os == 'windows-11-arm' && '*win_arm64' ||
             '' }}
 
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: Stable-ABI-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
@@ -181,13 +189,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       # Used to push the built wheels
-      - uses: actions/setup-python@v6.2.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           # Build sdist on lowest supported Python
-          python-version: '3.8'
+          python-version: '3.9'
 
       - name: Build sdist
         run: |
@@ -195,12 +205,12 @@ jobs:
           python setup.py sdist
           python setup.py bdist_wheel --no-cython-compile
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sdist
           path: ./dist/*.tar.gz
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pure-wheel
           path: ./dist/*.whl
@@ -230,7 +240,12 @@ jobs:
           cd ./wheel_check
           ERRORS=0
           for filename in *.whl; do
+            if [[ "${{ github.ref_type }}" == 'tag' ]]; then
+              [[ -z "${filename#cython-${{ contains(github.ref_name, '"') && 'FAIL' || github.ref_name }}-*}" ]] || ERRORS=$((ERRORS + 1))
+            fi
+
             twine check "$filename" || ERRORS=$((ERRORS + 1))
+
             if [[ "$filename" == *"abi3"* ]]; then
               abi3audit --strict --report "$filename" || ERRORS=$((ERRORS + 1))
             fi
@@ -256,13 +271,13 @@ jobs:
         run: ls -la ./release_upload
 
       - name: Upload wheels
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           path: ./release_upload/*.whl
           name: all_wheels
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         if: github.ref_type == 'tag'
         with:
           files: |

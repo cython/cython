@@ -32,7 +32,9 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Set compiler
         if: ${{inputs.compiler}}
@@ -49,7 +51,6 @@ jobs:
           fi
           echo "CC=$CC" >> $GITHUB_ENV
           echo "CXX=$CXX" >> $GITHUB_ENV
-
 
       - name: Set up sanitizer args
         if: ${{inputs.sanitize}}
@@ -112,11 +113,11 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -y -q
-          sudo apt-get install -y -q libbz2-dev lzma-dev libreadline-dev libgmp-dev
+          sudo apt-get install -y -q libbz2-dev liblzma-dev libreadline-dev libgmp-dev
 
       - name: Build Python
         run: |
-          git clone https://github.com/python/cpython/ cpython_main
+          git clone --branch main --depth 1 https://github.com/python/cpython/ cpython_main
           cd cpython_main
           ./configure ${CONFIGURE_ARGS} --prefix=${GITHUB_WORKSPACE}/cpython_install CFLAGS="-O2 $EXTRA_CONFIGURE_CFLAGS"
           make -j8
@@ -131,7 +132,7 @@ jobs:
 
       - name: Archive logs
         if: ${{ inputs.sanitize && always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{inputs.sanitize}}-logs
           path: san_log.*

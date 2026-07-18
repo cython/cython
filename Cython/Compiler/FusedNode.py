@@ -111,12 +111,7 @@ class FusedCFuncDefNode(StatListNode):
             copied_node.entry.used = True
             env.entries[copied_node.entry.name] = copied_node.entry
 
-            specialised_type_names = [
-                sarg.type.declaration_code('', for_display=True)
-                for (farg, sarg) in zip(self.node.args, copied_node.args)
-                if farg.type.is_fused
-            ]
-            copied_node.name = StringEncoding.EncodedString(f"{copied_node.name}[{','.join(specialised_type_names)}]")
+            copied_node.name = PyrexTypes.get_fused_specialized_name(copied_node.name, self.node.args, copied_node.args)
 
             if not self.replace_fused_typechecks(copied_node):
                 break
@@ -156,8 +151,14 @@ class FusedCFuncDefNode(StatListNode):
                       "be determined from the function arguments")
                 self.py_func = None  # this is just to let the compiler exit gracefully
                 return
+
+            # Make the argument types in the CFuncDeclarator specific
+            self._specialize_function_args(copied_node.cfunc_declarator.args,
+                                           fused_to_specific)
             entry = copied_node.entry
-            type.specialize_entry(entry, cname)
+            type.specialize_entry(
+                entry, cname,
+                name=PyrexTypes.get_fused_specialized_name(copied_node.declared_name(), self.node.args, copied_node.args))
 
             # Reuse existing Entries (e.g. from .pxd files).
             for orig_entry in env.cfunc_entries:
@@ -185,10 +186,6 @@ class FusedCFuncDefNode(StatListNode):
 
             copied_node.return_type = type.return_type
             self.create_new_local_scope(copied_node, env, fused_to_specific)
-
-            # Make the argument types in the CFuncDeclarator specific
-            self._specialize_function_args(copied_node.cfunc_declarator.args,
-                                           fused_to_specific)
 
             # If a cpdef, declare all specialized cpdefs (this
             # also calls analyse_declarations)
@@ -591,11 +588,11 @@ class FusedCFuncDefNode(StatListNode):
 
         return normal_types, buffer_types, pythran_types, has_object_fallback
 
-    def _unpack_argument(self, pyx_code, arg, arg_tuple_idx, min_positional_args, default_idx):
+    def _unpack_argument(self, pyx_code, arg, arg_tuple_idx, min_positional_args, default_idx, env):
         pyx_code.put_chunk(
             f"""
                 # PROCESSING ARGUMENT {arg_tuple_idx}
-                if {arg_tuple_idx} < len(<tuple>args):
+                if {arg_tuple_idx} < arg_count:
                     arg = (<tuple>args)[{arg_tuple_idx}]
                 elif kwargs is not None and '{arg.name}' in <dict>kwargs:
                     arg = (<dict>kwargs)['{arg.name}']
@@ -606,13 +603,12 @@ class FusedCFuncDefNode(StatListNode):
         if arg.default:
             pyx_code.putln(
                 f"arg = (<tuple>defaults)[{default_idx}]")
-        elif arg_tuple_idx < min_positional_args:
-            pyx_code.putln(
-                'raise TypeError("Expected at least %d argument%s, got %d" % ('
-                f'''{min_positional_args}, {'"s"' if min_positional_args != 1 else '""'}, len(<tuple>args)))'''
-            )
         else:
-            pyx_code.putln(f"""raise TypeError("Missing keyword-only argument: '%s'" % "{arg.name}")""")
+            from .Code import UtilityCode
+            env.use_utility_code(
+                UtilityCode.load_cached("FusedFunctionArgTypeError", "CythonFunction.c"))
+            pyx_code.putln(
+                f'__Pyx_RaiseFusedFunctionArgTypeError("{arg.name}", {arg_tuple_idx}, {min_positional_args}, arg_count)')
         pyx_code.dedent()
 
     def make_fused_cpdef(self, orig_py_func, env, is_def):
@@ -641,6 +637,10 @@ class FusedCFuncDefNode(StatListNode):
                     # from FusedFunction utility code
                     object __pyx_ff_match_signatures_single(dict signatures, dest_type)
                     object __pyx_ff_match_signatures(dict signatures, tuple dest_sig, dict sigindex)
+
+                    # always raises:
+                    int __Pyx_RaiseFusedFunctionArgTypeError(
+                        object arg_name, Py_ssize_t arg_tuple_idx, Py_ssize_t min_positional_args, Py_ssize_t arg_count) except -1
             """)
         decl_code.indent()
 
@@ -650,8 +650,10 @@ class FusedCFuncDefNode(StatListNode):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
 
-                    if kwargs is not None and not kwargs:
+                    if kwargs is not None and not <dict> kwargs:
                         kwargs = None
+
+                    arg_count = len(<tuple> args)
 
                     # instance check body
             """)
@@ -675,7 +677,7 @@ class FusedCFuncDefNode(StatListNode):
                 seen_fused_types.add(fused_type)
 
                 normal_types, buffer_types, pythran_types, has_object_fallback = self._split_fused_types(arg)
-                self._unpack_argument(pyx_code, arg, i, min_positional_args, default_idx)
+                self._unpack_argument(pyx_code, arg, i, min_positional_args, default_idx, env)
 
                 mapper_arg_types = ['object', 'type']
                 mapper_arg_names = ['arg']
@@ -800,6 +802,13 @@ class FusedCFuncDefNode(StatListNode):
 
         return py_func
 
+    def attach_fused_py_funcs(self):
+        for node in self.nodes:
+            if isinstance(self.node, DefNode):
+                node.fused_py_func = self.py_func
+            else:
+                node.py_func.fused_py_func = self.py_func
+
     def update_fused_defnode_entry(self, env):
         copy_attributes = (
             'name', 'pos', 'cname', 'func_cname', 'pyfunc_cname',
@@ -829,10 +838,8 @@ class FusedCFuncDefNode(StatListNode):
         for node in self.nodes:
             if isinstance(self.node, DefNode):
                 def_nodes.append(node)
-                node.fused_py_func = self.py_func
             else:
                 def_nodes.append(node.py_func)
-                node.py_func.fused_py_func = self.py_func
                 node.entry.as_variable = entry
 
         self.synthesize_defnodes(def_nodes)
@@ -898,7 +905,7 @@ class FusedCFuncDefNode(StatListNode):
         """
         # For the moment, fused functions do not support METH_FASTCALL
         for node in nodes:
-            node.entry.signature.use_fastcall = False
+            node.entry.signature.use_fastcall = node.entry.signature.FastcallUsed.NO
 
         signatures = [StringEncoding.EncodedString(node.specialized_signature_string)
                       for node in nodes]
@@ -947,7 +954,7 @@ class FusedCFuncDefNode(StatListNode):
             fused_func.generate_evaluation_code(code)
 
             code.putln(
-                f"((__pyx_FusedFunctionObject *) {fused_func.result()})->__signatures__ = {signatures.result()};")
+                f"__Pyx_as_FusedFunctionObject({fused_func.result()})->__signatures__ = {signatures.result()};")
 
             signatures.generate_giveref(code)
             signatures.generate_post_assignment_code(code)

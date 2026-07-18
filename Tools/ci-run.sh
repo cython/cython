@@ -3,22 +3,23 @@
 set -x
 
 GCC_VERSION=${GCC_VERSION:=10}
+PYTHON=${PYTHON:=python}
 
 # Set up compilers
-if [[ $TEST_CODE_STYLE == "1" ]]; then
-  echo "Skipping compiler setup: Code style run"
-elif [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
+if [[ $OSTYPE == "linux-gnu"* && ! "$EXTERNAL_OVERRIDE_CC" ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
-  sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
-  sudo apt update -y -q
-  sudo apt install -y -q gdb python3-dbg gcc-$GCC_VERSION || exit 1
+  #sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
+  sudo apt-get update -y -q
+  sudo apt-get install -y -q gdb python3-dbg gcc-$GCC_VERSION libopenblas-dev || exit 1
 
   ALTERNATIVE_ARGS=""
   if [[ $BACKEND == *"cpp"* ]]; then
-    sudo apt install -y -q g++-$GCC_VERSION || exit 1
+    sudo apt-get install -y -q g++-$GCC_VERSION || exit 1
     ALTERNATIVE_ARGS="--slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"
   fi
+
+  sudo apt-get clean
 
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
@@ -31,11 +32,6 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
-
-  if [[ $PYTHON_VERSION == "3."[78]* ]]; then
-    # see https://trac.macports.org/ticket/62757
-    unset MACOSX_DEPLOYMENT_TARGET
-  fi
 else
   echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
@@ -60,15 +56,7 @@ else
   ln -s ccache /usr/local/bin/clang++
 fi
 
-# Set up miniconda
-if [[ $STACKLESS == "true" ]]; then
-  echo "Installing stackless python"
-  #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
-  conda config --add channels stackless
-  conda install --quiet --yes stackless || exit 1
-fi
-
-PYTHON_SYS_VERSION=$(python -c 'import sys; print(sys.version)')
+PYTHON_SYS_VERSION=$($PYTHON -c 'import sys; print(sys.version)')
 
 # Log versions in use
 echo "===================="
@@ -90,46 +78,44 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ $PYTHON_VERSION == "3.1"[2-9]* || $PYTHON_VERSION == *"-dev" || $PYTHON_VERSION == "pypy-3.11"* ]]; then
-  python -m pip install -U pip wheel setuptools || exit 1
+if [[ $PYTHON_VERSION == *"3.9"* || $PYTHON_VERSION == "3.1"[01]* || $PYTHON_VERSION == "pypy-3.10"* ]]; then
+  # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.10.
+  $PYTHON -m pip install --no-cache-dir -U pip "setuptools<60" "wheel<0.46" "twine" "cryptography<42" "nh3<0.2.19" || exit 1
 else
-  # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.8.
-  python -m pip install -U pip "setuptools<60" wheel twine "cryptography<42" "nh3<0.2.19" || exit 1
+  $PYTHON -m pip install --no-cache-dir -U pip wheel setuptools || exit 1
 fi
-if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" ]]; then
+if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" && $PYTHON_VERSION != "graalpy"* ]]; then
   # twine is not installable on freethreaded Python due to cryptography requirement
-  python -m pip install -U twine || exit 1
+  # On GraalPython, it is useless and takes long to install due to its binary dependencies.
+  $PYTHON -m pip install --no-cache-dir -U twine || exit 1
 fi
 if [[ $PYTHON_VERSION != *"-dev" ]]; then
-  python -m pip install --pre -r test-requirements.txt || exit 1
+  $PYTHON -m pip install --no-cache-dir --pre -r test-requirements.txt || exit 1
 elif [[ ! "$SANITIZER_CFLAGS" ]]; then
   # Install packages one by one, allowing failures due to missing recent wheels.
-  cat test-requirements.txt | while read package; do python -m pip install --pre --only-binary ":all:" "$package" || true; done
+  cat test-requirements.txt | while read package; do python -m pip install --no-cache-dir --pre --only-binary ":all:" "$package" || true; done
 fi
 if [[ $PYTHON_VERSION == "3.13"* ]]; then
-  python -m pip install --pre -r test-requirements-313.txt || exit 1
+  $PYTHON -m pip install --no-cache-dir --pre -r test-requirements-313.txt || exit 1
 fi
 if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VERSION != *"-dev" ]]; then
-  python -m pip install -r test-requirements-cpython.txt || exit 1
+  $PYTHON -m pip install --no-cache-dir -r test-requirements-cpython.txt || exit 1
 fi
 
-if [[ $TEST_CODE_STYLE == "1" ]]; then
-  STYLE_ARGS="--no-unit --no-doctest --no-file --no-pyregr --no-examples"
-  python -m pip install -r doc-requirements.txt || exit 1
-else
-  STYLE_ARGS="--no-code-style"
-
-  # Install more requirements
-  if [[ $PYTHON_VERSION != *"-dev" ]]; then
-    if [[ $BACKEND == *"cpp"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]]; then
-      python -m pip install pythran || exit 1
-    fi
-
-    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* ]]; then
-      python -m pip install mypy || exit 1
-    fi
+# Install more requirements
+if [[ $PYTHON_VERSION != *"-dev" ]]; then
+  if [[ $BACKEND == *"cpp"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]]; then
+    $PYTHON -m pip install --no-cache-dir pythran || exit 1
   fi
+
+  if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
+    $PYTHON -m pip install --no-cache-dir mypy || exit 1
+  fi
+
 fi
+
+echo "==== Runner resources ===="
+df -h
 
 # Run tests
 echo "==== Running tests ===="
@@ -155,7 +141,7 @@ fi
 # extra jobs. Therefore, odd-numbered minor versions of Python
 # running C++ jobs get NDEBUG undefined, and even-numbered
 # versions running C jobs get NDEBUG undefined.
-ODD_VERSION=$(python3 -c "import sys; print(sys.version_info[1]%2)")
+ODD_VERSION=$($PYTHON -c "import sys; print(sys.version_info[1]%2)")
 if [[ $BACKEND == *"cpp"* && $ODD_VERSION == "1" ]]; then
     CFLAGS="$CFLAGS -UNDEBUG"
 elif [[ $ODD_VERSION == "0" ]]; then
@@ -172,9 +158,6 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   if [[ $CYTHON_COMPILE_ALL == "1" && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]]; then
     BUILD_CFLAGS="$CFLAGS -O3 -g0 -mtune=generic"  # make wheel sizes comparable to standard wheel build
   fi
-  if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
-    BUILD_CFLAGS="$BUILD_CFLAGS -fno-strict-aliasing"
-  fi
 
   SETUP_ARGS=""
   if [[ $COVERAGE == "1" ]]; then
@@ -183,7 +166,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
-  if [[ $LIMITED_API != "" && $NO_LIMITED_COMPILE != "1" ]]; then
+  if [[ ( $LIMITED_API == "true" || $LIMITED_API == "1" ) && $NO_LIMITED_COMPILE != "1" ]]; then
     # in the limited API tests, also build Cython in this mode.
     SETUP_ARGS="$SETUP_ARGS --cython-limited-api"
   fi
@@ -191,16 +174,14 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   # "with exit code 1158". DW isn't completely sure of this, but has disabled it in
   # the hope it helps
   SETUP_ARGS="$SETUP_ARGS
-    $(python -c 'import sys; print("-j5" if not sys.platform.startswith("win") else "")')"
+    $($PYTHON -c 'import sys; print("-j5" if not sys.platform.startswith("win") else "")')"
 
   CFLAGS=$BUILD_CFLAGS \
-    python setup.py build_ext -i $SETUP_ARGS || exit 1
+    $PYTHON setup.py build_ext -i $SETUP_ARGS || exit 1
 
   # COVERAGE can be either "" (empty or not set) or "1" (when we set it)
-  # STACKLESS can be either  "" (empty or not set) or "true" (when we set it)
-  if [[ $COVERAGE != "1" && $STACKLESS != "true" && $BACKEND != *"cpp"* &&
-        $EXTRA_CFLAGS == "" ]]; then
-    python setup.py bdist_wheel || exit 1
+  if [[ $COVERAGE != "1" && $BACKEND != *"cpp"* && $EXTRA_CFLAGS == "" ]]; then
+    $PYTHON setup.py bdist_wheel || exit 1
     ls -l dist/ || true
 
     # Check for changelog entry in wheel metadata, except for "...-dev" or "...a0" dev versions.
@@ -215,12 +196,10 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   find Cython -name "*.so" -ls | sort -k11
 fi
 
-if [[ $TEST_CODE_STYLE == "1" ]]; then
-  make -C docs html || exit 1
-elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]]; then
+if [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]]; then
   # Run the debugger tests in python-dbg if available
   # (but don't fail, because they currently do fail)
-  PYTHON_DBG=$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])')
+  PYTHON_DBG=$($PYTHON -c 'import sys; print("%d.%d" % sys.version_info[:2])')
   PYTHON_DBG="python$PYTHON_DBG-dbg"
   if $PYTHON_DBG -V >&2; then
     CFLAGS=$CFLAGS $PYTHON_DBG \
@@ -228,33 +207,45 @@ elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]
   fi
 fi
 
+if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+  # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
+  # JIT actually makes it faster! And reduces the number of cores each process uses.
+  GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
+  TEST_PARALLELISM=-j2
+fi
+
 RUNTESTS_ARGS=""
 if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --coverage-md --cython-only"
 fi
-if [[ $TEST_CODE_STYLE != "1" ]]; then
-  if [[ ! $TEST_PARALLELISM ]]; then
-    TEST_PARALLELISM=-j7
-  fi
-  RUNTESTS_ARGS="$RUNTESTS_ARGS $TEST_PARALLELISM"
+if [[ ! $TEST_PARALLELISM ]]; then
+  TEST_PARALLELISM=-j7
 fi
+RUNTESTS_ARGS="$RUNTESTS_ARGS $TEST_PARALLELISM"
 
-
-if [[ $PYTHON_VERSION == "graalpy"* ]]; then
-  # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
-  # JIT actually makes it faster! And reduces the number of cores each process uses.
-  export GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
+if [[ $LIMITED_API == "true" || $LIMITED_API == "1" ]]; then
+  # don't cleanup to give us the opportunity to rerun at higher Python versions
+  RUNTESTS_ARGS="$RUNTESTS_ARGS --limited-api --no-cleanup --no-cleanup-sharedlib"
+fi
+if [[ $ABI3AUDIT == "true" || $ABI3AUDIT == "1" ]]; then
+  RUNTESTS_ARGS="$RUNTESTS_ARGS --abi3audit"
+fi
+if [[ $NO_COMPILE_TESTS == "1" ]]; then
+  # --no-unit because they often do significant "inline" compilation and we're trying to
+  # keep this quick.
+  RUNTESTS_ARGS="$RUNTESTS_ARGS --no-compile --no-cleanup --no-cleanup-sharedlib --no-unit"
 fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
 if [[ $PYTHON_VERSION == *"t" ]]; then
   export PYTHON_GIL=0
 fi
-python runtests.py \
-  -vv $STYLE_ARGS \
+$PYTHON $GRAAL_PYTHON_ARGS runtests.py \
+  -vv --no-code-style \
+  --no-cleanup \
   -x Debugger \
   --backends=$BACKEND \
-  $LIMITED_API \
+  $SHARED_UTILITY \
   $EXCLUDE \
   $RUNTESTS_ARGS
 

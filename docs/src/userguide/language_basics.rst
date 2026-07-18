@@ -454,7 +454,7 @@ type declaration and let them be objects.
 Type qualifiers
 ---------------
 
-Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_
+Cython supports ``const``, ``volatile`` and ``restrict`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_
 
 .. tabs::
 
@@ -495,7 +495,7 @@ Similar to pointers Cython supports shortcut types that can be used in pure pyth
      - ``cython.pp_const_long``
 
 
-For full list of shortcut types see the ``Shadow.pyi`` file.
+For full list of shortcut types see the ``Shadow.py`` file.
 
 The ``const`` qualifier supports declaration of global constants::
 
@@ -548,6 +548,71 @@ can group them into a :keyword:`cdef` block like this:
 
 .. literalinclude:: ../../examples/userguide/language_basics/cdef_block.pyx
 
+
+Type inference
+--------------
+
+If Cython is able to infer a specific type then it may be able to generate faster code based on that type,
+in the same way that it can generate faster code when you manually tell it the type of an object.
+Cython can automatically infer C types for:
+
+* Local variables
+* Loop indices
+* Temporary expressions
+* Element types for typed Python builtin containers
+
+It uses assignments and operations to infer the most specific type possible::
+
+    def f():
+        x = "hello"                # Python str
+        y = 2.0                    # C double
+        print(y * y, x + "world")  # arithmetic and string ops are optimized
+
+
+Cython supports subscripted builtin container types, enabling element type inference:
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def ask(questions: list[str]):
+                for q in questions:
+                    print(q + '?')  # q inferred as Python str, concatenation operation is optimized
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def ask(list[str] questions):
+                for q in questions:
+                    print(q + '?')  # q inferred as Python str, concatenation operation is optimized
+
+
+By default, Cython performs only *safe* inference. In particular, inferring C integer
+types in arithmetic expressions is avoided due to possible overflow.
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def add_multiply(i: cython.int, j: cython.int, k: cython.int) -> cython.int:
+                x = i + j           # x is a Python 'int' object
+                return x * j        # evaluated as object operation
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int add_multiply(int i, int j, int k):
+                x = i + j           # x is a Python 'int' object
+                return x * j        # evaluated as object operation
+
+
+To allow more aggressive (unsafe) inference, enable the ``infer_types`` directive.
+See :ref:`compiler-directives` for details.
 
 .. _cpdef:
 .. _cdef:
@@ -661,14 +726,21 @@ with string attributes if they are to be used after the function returns.
 C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
-C Functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
-Python object return type, like Python functions, will return a ``None``
-value when execution leaves the function body without an explicit return value. This is in
-contrast to C/C++, which leaves the return value undefined.
-In the case of non-Python object return types, the equivalent of zero is returned, for example, 0 for ``int``, ``False`` for ``bint`` and ``NULL`` for pointer types.
-
 A more complete comparison of the pros and cons of these different method
 types can be found at :ref:`early-binding-for-speed`.
+
+.. _default_return_values:
+
+Default return values
+---------------------
+
+C functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
+Python object return type, like Python functions, will return a ``None``
+value when execution leaves the function body without an explicit return value.
+This is in contrast to C/C++, which leaves the return value undefined.
+
+In the case of non-Python object return types, the equivalent of zero is returned,
+for example, 0 for ``int``, ``False`` for ``bint`` and ``NULL`` for pointer types.
 
 
 Python objects as parameters and return values
@@ -906,9 +978,10 @@ occurred and can now process or propagate it. Calling ``spam()`` is roughly tran
     if (ret_val == -1) goto error_handler;
 
 When you declare an exception value for a function, you should never explicitly
-or implicitly return that value.  This includes empty :keyword:`return`
-statements, without a return value, for which Cython inserts the default return
-value (e.g. ``0`` for C number types).  In general, exception return values
+or implicitly return that value.  This includes the case where the execution
+leaves the function body without returning a value, for which Cython
+inserts the default return value (e.g. ``0`` for C number types,
+see :ref:`default_return_values`). In general, exception return values
 are best chosen from invalid or very unlikely return values of the function,
 such as a negative value for functions that return only non-negative results,
 or a very large value like ``INT_MAX`` for a function that "usually" only
@@ -1059,8 +1132,8 @@ Some things to note:
   function returning nothing (C ``void``).  Simple workarounds are to mark the
   function as ``noexcept`` if you're certain that exceptions cannot be thrown, or
   to change the return type to ``int`` and just let Cython use the return value
-  as an error flag (by default, ``-1`` triggers the exception check).
-
+  as an error flag (by default, ``-1`` triggers the exception check, i.e.
+  functions returning ``int`` use ``except? -1`` by default)
 
 .. _checking_return_values_of_non_cython_functions:
 
@@ -1701,8 +1774,8 @@ The following selection of builtin constants and functions are also available:
     list, long, map, max, min, oct, ord, pow, range, reduce, repr, reversed,
     round, set, slice, sorted, str, sum, tuple, xrange, zip
 
-Note that some of these builtins may not be available when compiling under
-Python 2.x or 3.x, or may behave differently in both.
+Note that some of these builtins may behave differently depending on the Python
+version, or may not even be available.
 
 A name defined using ``DEF`` can be used anywhere an identifier can appear,
 and it is replaced with its compile-time value as though it were written into

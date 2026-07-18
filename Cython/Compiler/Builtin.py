@@ -2,10 +2,11 @@
 #   Builtin Definitions
 #
 
+from itertools import chain
 
 from .StringEncoding import EncodedString
-from .Symtab import BuiltinScope, CClassScope, StructOrUnionScope, ModuleScope, Entry
-from .Code import UtilityCode, TempitaUtilityCode, KNOWN_PYTHON_BUILTINS, uncachable_builtins
+from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
+from .Code import UtilityCode, TempitaUtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
 
@@ -21,6 +22,8 @@ globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
 range_utility_code = UtilityCode.load("PyRange_Check", "Builtins.c")
 include_std_lib_h_utility_code = UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")
 slice_accessor_utility_code = UtilityCode.load("PySliceAccessors", "Builtins.c")
+frozendict_utility_code = UtilityCode.load("PyFrozenDict", "Builtins.c")
+
 
 def make_sequence_multiply_method(typeobj_cname):
     pysequence_multiply_utility_code = TempitaUtilityCode.load(
@@ -346,29 +349,6 @@ builtin_function_table = [
 
 
 # Builtin types
-#  bool
-#  bytearray
-#  bytes
-#  classmethod
-#  complex
-#  dict
-#  enumerate
-#  float
-#  frozenset
-#  int
-#  list
-#  long
-#  memoryview
-#  object
-#  property
-#  range
-#  set
-#  slice
-#  staticmethod
-#  str
-#  super
-#  tuple
-#  type
 
 builtin_types_table = [
 
@@ -432,6 +412,16 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("py_dict_clear", "Optimize.c")),
                                     BuiltinMethod("copy",   "T",   "T", "PyDict_Copy")]),
 
+    ("frozendict", "__Pyx_PyFrozenDict_TypePtr", [
+                                    BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
+                                    BuiltinMethod("items",  "T",   "O", "__Pyx_PyFrozenDict_Items",
+                                                  utility_code=UtilityCode.load("py_frozendict_items", "Builtins.c")),
+                                    BuiltinMethod("keys",   "T",   "O", "__Pyx_PyFrozenDict_Keys",
+                                                  utility_code=UtilityCode.load("py_frozendict_keys", "Builtins.c")),
+                                    BuiltinMethod("values", "T",   "O", "__Pyx_PyFrozenDict_Values",
+                                                  utility_code=UtilityCode.load("py_frozendict_values", "Builtins.c")),
+                                    ]),
+
     ("range",  "&PyRange_Type",    []),
 
     ("slice",  "&PySlice_Type",    [BuiltinProperty("start", PyrexTypes.py_object_type, '__Pyx_PySlice_Start',
@@ -490,15 +480,25 @@ types_that_construct_their_instance = frozenset({
     # themselves - these do:
     'type', 'bool', 'int', 'float', 'complex',
     'bytes', 'unicode', 'bytearray', 'str',
-    'tuple', 'list', 'dict', 'set', 'frozenset',
-    'memoryview', 'range',
+    'tuple', 'list', 'dict', 'frozendict', 'set', 'frozenset',
+    'memoryview', 'range', 'slice', 'sentinel',
     # All builtin exception types create their own instance.
-    *filter(PyrexTypes.is_exception_type_name, KNOWN_PYTHON_BUILTINS),
+    *PyrexTypes.KNOWN_EXCEPTION_NAMES,
+
+    # These types don't currently have a purpose and might become restrictive:
+    #'object',
+    #'property',
+    #'classmethod',
+    #'staticmethod',
+    #'super',
+    #'zip',
 })
 
 
 # When updating this mapping, also update "unsafe_compile_time_methods" below
 # if methods are added that are not safe to evaluate at compile time.
+# 'T' - type identical to type in dictionary key
+# 'I' - type from subscript - e.g. for list[int], I is `int`
 inferred_method_return_types = {
     'complex': dict(
         conjugate='complex',
@@ -523,6 +523,7 @@ inferred_method_return_types = {
         copy='T',
         count='Py_ssize_t',
         index='Py_ssize_t',
+        pop='I',
     ),
     'tuple': dict(
         count='Py_ssize_t',
@@ -640,6 +641,7 @@ inferred_method_return_types = {
         issuperset='bint',
         symmetric_difference='T',
         union='T',
+        pop='I',
     ),
     'frozenset': dict(
         # Inherited from 'set' below.
@@ -648,6 +650,12 @@ inferred_method_return_types = {
         copy='T',
         fromkeys='T',  # classmethod
         popitem='tuple',
+        pop='I',
+        get='I',
+    ),
+    'frozendict': dict(
+        copy='T',
+        fromkeys='T',  # classmethod
     ),
 }
 
@@ -655,24 +663,34 @@ inferred_method_return_types['bytearray'].update(inferred_method_return_types['b
 inferred_method_return_types['frozenset'].update(inferred_method_return_types['set'])
 
 
-def find_return_type_of_builtin_method(builtin_type, method_name):
-    type_name = builtin_type.name
+def find_return_type_of_builtin_method(pos, env, builtin_type, method_name):
+    container_type = builtin_type.get_container_type()
+    type_name = container_type.name if container_type else builtin_type.name
     if type_name in inferred_method_return_types:
         methods = inferred_method_return_types[type_name]
         if method_name in methods:
+            subscripted_type_names: str = ''
             return_type_name = methods[method_name]
             if '[' in return_type_name:
-                # TODO: Keep the "[...]" part when we add support for generics.
-                return_type_name = return_type_name.partition('[')[0]
+                return_type_name, _, subscripted_type_names = return_type_name[:-1].partition('[')
             if return_type_name == 'T':
                 return builtin_type
-            if 'T' in return_type_name:
-                return_type_name = return_type_name.replace('T', builtin_type.name)
+            if return_type_name == 'I':
+                return builtin_type.infer_indexed_type() or PyrexTypes.py_object_type
+            if 'T' in subscripted_type_names:
+                subscripted_type_names = subscripted_type_names.replace('T', builtin_type.name)
             if return_type_name == 'bint':
                 return PyrexTypes.c_bint_type
             elif return_type_name == 'Py_ssize_t':
                 return PyrexTypes.c_py_ssize_t_type
-            return builtin_scope.lookup(return_type_name).type
+            container_type = builtin_scope.lookup(return_type_name).type
+            if subscripted_type_names:
+                subscripted_types = [
+                    entry.type if entry else PyrexTypes.py_object_type
+                    for entry in map(builtin_scope.lookup, subscripted_type_names.split(','))
+                ]
+                container_type = container_type.specialize_here(pos, env, subscripted_types)
+            return container_type
     return PyrexTypes.py_object_type
 
 
@@ -781,12 +799,15 @@ def init_builtin_types():
 
         utility_code = None
         type_class = PyrexTypes.BuiltinObjectType
-        if name in ['dict', 'list', 'set', 'frozenset']:
+        if name in ['dict', 'list', 'set', 'frozenset', 'frozendict']:
             type_class = PyrexTypes.BuiltinTypeConstructorObjectType
+            if name == 'frozendict':
+                utility_code = frozendict_utility_code
         elif name == 'tuple':
             type_class = PyrexTypes.PythonTupleTypeConstructor
         elif name == 'range':
             utility_code = range_utility_code
+
         the_type = builtin_scope.declare_builtin_type(
             name, cname, objstruct_cname=objstruct_cname, type_class=type_class, utility_code=utility_code)
         builtin_types[name] = the_type
@@ -797,21 +818,68 @@ def init_builtin_types():
 def init_builtin_exceptions():
     """Declare known builtin Python exceptions as types.
     """
-    for name in KNOWN_PYTHON_BUILTINS:
-        if name in uncachable_builtins:
+    special_properties = {
+        'StopIteration': ['value'],
+        'NameError': ['name'],
+        'AttributeError': ['name', 'obj'],
+        'SystemExit': ['code'],
+    }
+    unicode_error_properties = ['encoding', 'object', 'reason']
+    for name in ['UnicodeError', 'UnicodeDecodeError', 'UnicodeEncodeError', 'UnicodeTranslateError']:
+        special_properties[name] = unicode_error_properties
+
+    for name in PyrexTypes.KNOWN_EXCEPTION_NAMES:
+        if name in PyrexTypes.uncachable_builtins:
             # Exclude builtins specific to later Python versions or platforms.
             continue
-        if not PyrexTypes.is_exception_type_name(name):
+
+        # Some builtins are already declared above in a more specialised way.
+        type_entry = builtin_scope.lookup_here(name)
+        if type_entry is None:
+            utility_code = UtilityCode(
+                proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
+                name=f"Py{name}_Check",
+            )
+            exc_type = builtin_types[name] = builtin_scope.declare_builtin_type(
+                name, f"((PyTypeObject*)PyExc_{name})", utility_code=utility_code)
+        else:
+            exc_type = type_entry.type
+
+        # Also cover known subtypes, but avoid overly long chains of type pointer comparisons.
+        subtypes = [
+            tpname for tpname in PyrexTypes.exception_subtypes.get(name, ())
+            if tpname not in PyrexTypes.uncachable_builtins
+        ]
+        if len(subtypes) > 4:
+            subtypes = ()
+
+        utility_code_config = {'EXC_NAME': name, 'SUBTYPES': subtypes, 'PROPERTY_NAME': ''}
+
+        for property_name in chain(('args', 'context', 'cause', 'traceback'), special_properties.get(name, ())):
+            utility_code_config['PROPERTY_NAME'] = property_name
+
+            exc_type.scope.declare_cproperty(
+                f'__{property_name}__' if property_name in ('context', 'cause', 'traceback') else property_name,
+                PyrexTypes.py_object_type,
+                f"__Pyx_Py{name}_get_{property_name}",
+                f"__Pyx_Py{name}_set_{property_name}",
+                utility_code=TempitaUtilityCode.load(
+                    f"ExceptionGetProperty", "Builtins.c", context=utility_code_config),
+                setter_utility_code=TempitaUtilityCode.load(
+                    f"ExceptionSetProperty", "Builtins.c", context=utility_code_config),
+            )
+
+    for name in PyrexTypes.KNOWN_EXCEPTION_NAMES:
+        parents = PyrexTypes.exception_supertypes.get(name)
+        if not parents or name not in builtin_types:
             continue
-        if builtin_scope.lookup_here(name) is not None:
-            # Already declared as builtin type above in a more specialised way.
-            continue
-        utility_code = UtilityCode(
-            proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
-            name=f"Py{name}_Check",
-        )
-        builtin_types[name] = builtin_scope.declare_builtin_type(
-            name, f"((PyTypeObject*)PyExc_{name})", utility_code=utility_code)
+        exc_type = builtin_types[name]
+        exc_type.exception_supertypes = [
+            # Collect super types bottom up.
+            builtin_types.get(parent) for parent in reversed(parents)
+        ]
+        while None in exc_type.exception_supertypes:
+            exc_type.exception_supertypes.remove(None)
 
 
 def init_builtin_structs():
@@ -825,7 +893,6 @@ def init_builtin_structs():
 
 
 def init_builtins():
-    #Errors.init_thread()  # hopefully not needed - we should not emit warnings ourselves
     init_builtin_structs()
     init_builtin_types()
     init_builtin_exceptions()
@@ -836,16 +903,17 @@ def init_builtins():
         pos=None, cname='__pyx_assertions_enabled()', is_cdef=True)
     entry.utility_code = UtilityCode.load_cached("AssertionsEnabled", "Exceptions.c")
 
-    global type_type, list_type, tuple_type, dict_type, set_type, frozenset_type
+    global type_type, list_type, tuple_type, dict_type, frozendict_type
+    global set_type, frozenset_type
     global slice_type, range_type
     global bytes_type, unicode_type, bytearray_type
     global float_type, int_type, bool_type, complex_type
     global memoryview_type, py_buffer_type
-    global sequence_types
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
     dict_type  = builtin_scope.lookup('dict').type
+    frozendict_type  = builtin_scope.lookup('frozendict').type
     set_type   = builtin_scope.lookup('set').type
     frozenset_type = builtin_scope.lookup('frozenset').type
     slice_type   = builtin_scope.lookup('slice').type
@@ -860,15 +928,6 @@ def init_builtins():
     int_type = builtin_scope.lookup('int').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
-
-    sequence_types = (
-        list_type,
-        tuple_type,
-        bytes_type,
-        unicode_type,
-        bytearray_type,
-        memoryview_type,
-    )
 
     # Set up type inference links between equivalent Python/C types
     assert bool_type.name == 'bool', bool_type.name

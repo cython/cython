@@ -18,6 +18,8 @@ import warnings
 # from test import support, string_tests
 from contextlib import contextmanager
 
+from Cython.TestUtils import TimedTest
+
 
 class support(object):
     @staticmethod
@@ -78,7 +80,7 @@ class StrSubclass(str):
 class UnicodeTest(CommonTest,
         MixinStrUnicodeUserStringTest,
         MixinStrUnicodeTest,
-        unittest.TestCase):
+        TimedTest):
 
     type2test = str
 
@@ -1693,10 +1695,9 @@ class UnicodeTest(CommonTest,
         for c in set_o:
             self.assertEqual(c.encode('ascii').decode('utf7'), c)
 
-        if sys.version_info >= (3, 8):
-            with self.assertRaisesRegex(UnicodeDecodeError,
-                                        'ill-formed sequence'):
-                b'+@'.decode('utf-7')
+        with self.assertRaisesRegex(UnicodeDecodeError,
+                                    'ill-formed sequence'):
+            b'+@'.decode('utf-7')
 
     def test_codecs_utf8(self):
         self.assertEqual(''.encode('utf-8'), b'')
@@ -2412,7 +2413,6 @@ class UnicodeTest(CommonTest,
         self.assertEqual(args[0], text)
         self.assertEqual(len(args), 1)
 
-    @unittest.skipIf(sys.version_info < (3, 8), 'resize test requires Py3.8+')
     @support.cpython_only
     def test_resize(self):
         from _testcapi import getargs_u

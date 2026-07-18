@@ -1,4 +1,4 @@
-# cython: auto_cpdef=True, infer_types=True, py2_import=True
+# cython: binding=False, auto_cpdef=True, infer_types=True, py2_import=True
 #
 #   Parser
 #
@@ -10,7 +10,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                bytes_literal=object, StringEncoding=object,
                FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
-               Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
+               Builtin=object, ModuleNode=object, _unicode=object, _bytes=object,
                re=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
                partial=object, reduce=object,
                _CDEF_MODIFIERS=tuple, COMMON_BINOP_MISTAKES=dict)
@@ -28,8 +28,7 @@ from . import Builtin
 from . import StringEncoding
 from .StringEncoding import EncodedString, bytes_literal
 from .ModuleNode import ModuleNode
-from .Errors import error, warning, CompileError
-from .. import Utils
+from .Errors import error, warning
 from . import Future
 from . import Options
 
@@ -73,7 +72,7 @@ def p_ident(s: PyrexScanner, message="Expected an identifier"):
 
 
 @cython.cfunc
-def p_ident_list(s: PyrexScanner):
+def p_ident_list(s: PyrexScanner) -> list:
     names = []
     while s.sy == 'IDENT':
         names.append(s.context.intern_ustring(s.systring))
@@ -160,7 +159,7 @@ def p_test_allow_walrus_after(s: PyrexScanner):
         test = p_or_test(s)
         s.expect('else')
         other = p_test(s)
-        return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
+        return ExprNodes.CondExprNode(pos, condition=test, true_val=expr, false_val=other)
     else:
         return expr
 
@@ -397,7 +396,7 @@ def p_typecast(s: PyrexScanner):
     is_memslice = isinstance(base_type, Nodes.MemoryViewSliceTypeNode)
     is_other_unnamed_type = isinstance(base_type, (
         Nodes.TemplatedTypeNode,
-        Nodes.CConstOrVolatileTypeNode,
+        Nodes.CQualifierTypeNode,
         Nodes.CTupleBaseTypeNode,
     ))
     if not (is_memslice or is_other_unnamed_type) and base_type.name is None:
@@ -560,7 +559,7 @@ def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tupl
     while s.sy != ')':
         if s.sy == '*':
             if starstar_seen:
-                s.error("Non-keyword arg following keyword arg", pos=s.position())
+                s.error("Non-keyword arg following keyword arg")
             s.next()
             positional_args.append(p_test(s))
             last_was_tuple_unpack = True
@@ -601,7 +600,7 @@ def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tupl
 
 
 @cython.cfunc
-def p_call_build_packed_args(pos, positional_args, keyword_args) -> tuple:
+def p_call_build_packed_args(pos, positional_args: list, keyword_args: list) -> tuple:
     keyword_dict = None
 
     subtuples = [
@@ -837,6 +836,7 @@ def p_atom_ident_constants(s: PyrexScanner):
     # s.sy == 'IDENT'
     pos = s.position()
     name = s.systring
+    result = None
     if name == "None":
         result = ExprNodes.NoneNode(pos)
     elif name == "True":
@@ -1198,7 +1198,7 @@ def p_ft_string_replacement_field(s: PyrexScanner,
             # validate the conversion char
             if conversion_char in ['}', ':', '']:
                 error(s.position(), "missing conversion character")
-            elif not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
+            elif ExprNodes.FormattedValueNode.find_conversion_func(conversion_char) is None:
                 error(s.position(), "invalid conversion character '%s'" % conversion_char)
                 s.next()
             elif s.position()[2] != (previous_pos[2] + 1):
@@ -2317,7 +2317,7 @@ def p_with_items(s: PyrexScanner, is_async: cython.bint = False):
 
 
 @cython.cfunc
-def p_with_items_list(s: PyrexScanner, is_async: cython.bint) -> list:
+def p_with_items_list(s: PyrexScanner, is_async: cython.bint) -> list[tuple]:
     items = []
     while True:
         items.append(p_with_item(s, is_async))
@@ -2818,10 +2818,10 @@ def p_c_simple_base_type(s: PyrexScanner, nonempty: cython.bint, templates=None)
         base_type = p_c_base_type(s, nonempty=nonempty, templates=templates)
         if isinstance(base_type, Nodes.MemoryViewSliceTypeNode):
             # reverse order to avoid having to write "(const int)[:]"
-            base_type.base_type_node = Nodes.CConstOrVolatileTypeNode(pos,
+            base_type.base_type_node = Nodes.CQualifierTypeNode(pos,
                 base_type=base_type.base_type_node, is_const=is_const, is_volatile=is_volatile)
             return base_type
-        return Nodes.CConstOrVolatileTypeNode(pos,
+        return Nodes.CQualifierTypeNode(pos,
             base_type=base_type, is_const=is_const, is_volatile=is_volatile)
 
     if s.sy != 'IDENT':
@@ -3180,15 +3180,23 @@ def p_c_simple_declarator(s: PyrexScanner, ctx,
         s.next()
 
         const_pos = s.position()
-        is_const = s.systring == 'const' and s.sy == 'IDENT'
-        if is_const:
+        is_restrict = is_const = False
+        while s.sy == 'IDENT':
+            if s.systring == 'const':
+                if is_const: error(pos, "Duplicate 'const'")
+                is_const = True
+            elif s.systring == 'restrict':
+                if is_restrict: error(pos, "Duplicate 'restrict'")
+                is_restrict = True
+            else:
+                break
             s.next()
 
         base = p_c_declarator(s, ctx, empty=empty, is_type=is_type,
                               cmethod_flag=cmethod_flag,
                               assignable=assignable, nonempty=nonempty)
-        if is_const:
-            base = Nodes.CConstDeclaratorNode(const_pos, base=base)
+        if is_const or is_restrict:
+            base = Nodes.CQualifierDeclaratorNode(const_pos, base=base, is_const=is_const, is_restrict=is_restrict)
         if is_ptrptr:
             base = Nodes.CPtrDeclaratorNode(pos, base=base)
         result = Nodes.CPtrDeclaratorNode(pos, base=base)
@@ -4017,7 +4025,7 @@ def p_c_class_definition(s: PyrexScanner, pos,  ctx):
         visibility = ctx.visibility,
         typedef_flag = ctx.typedef_flag,
         api = ctx.api,
-        module_name = ".".join(module_path),
+        module_name = EncodedString(".".join(module_path)),
         class_name = class_name,
         as_name = as_name,
         bases = bases,
@@ -4454,8 +4462,8 @@ def p_closed_pattern(s: PyrexScanner):
     | class_pattern
 
     For the sake avoiding too much backtracking, we know:
-    * starts with "{" is a sequence_pattern
-    * starts with "[" is a mapping_pattern
+    * starts with "{" is a mapping_pattern
+    * starts with "[" is a sequence_pattern
     * starts with "(" is a group_pattern or sequence_pattern
     * wildcard pattern is just identifier=='_'
     The rest are then tried in order with backtracking
@@ -4500,6 +4508,9 @@ def p_literal_pattern(s: PyrexScanner):
         sign_pos = s.position()
         s.next()
         next_must_be_a_number = True
+    elif s.sy == '+':
+        s.next()
+        next_must_be_a_number = True
 
     sy = s.sy
     pos = s.position()
@@ -4518,6 +4529,8 @@ def p_literal_pattern(s: PyrexScanner):
     if res is not None and s.sy in ['+', '-']:
         sign = s.sy
         s.next()
+        if s.sy == '+':
+            s.next()
         if s.sy != 'IMAG':
             s.error("Expected imaginary number")
         else:
@@ -4535,8 +4548,6 @@ def p_literal_pattern(s: PyrexScanner):
         value = s.systring[:-1]
         s.next()
         res = ExprNodes.ImagNode(pos, value=sign+value)
-        if sign == "-":
-            res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
 
     if res is not None:
         return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
@@ -4594,25 +4605,21 @@ def p_group_pattern(s: PyrexScanner):
 
 @cython.cfunc
 def p_sequence_pattern(s: PyrexScanner):
-    opener = s.sy
     pos = s.position()
-    if opener in ['[', '(']:
-        closer = ']' if opener == '[' else ')'
+    assert s.sy in ('(', '[')
+    closer = ')' if s.sy == '(' else ']'
+    s.next()
+    # maybe_sequence_pattern and open_sequence_pattern
+    patterns = []
+    while s.sy != closer:
+        patterns.append(p_maybe_star_pattern(s))
+        if s.sy != ",":
+            if closer == ')' and len(patterns) == 1:
+                s.error("tuple-like pattern of length 1 must finish with ','")
+            break
         s.next()
-        # maybe_sequence_pattern and open_sequence_pattern
-        patterns = []
-        while s.sy != closer:
-            patterns.append(p_maybe_star_pattern(s))
-            if s.sy == ",":
-                s.next()
-            else:
-                if opener == '(' and len(patterns) == 1:
-                    s.error("tuple-like pattern of length 1 must finish with ','")
-                break
-        s.expect(closer)
-        return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
-    else:
-        s.error("Expected '[' or '('")
+    s.expect(closer)
+    return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
 
 
 @cython.cfunc
@@ -4626,12 +4633,16 @@ def p_mapping_pattern(s: PyrexScanner):
 
     double_star_capture_target = None
     items_patterns = []
+    double_star_set_twice_pos = None
+    pattern_after_double_star_pos = None
     star_star_arg_pos = None
     while s.sy != '}':
         if double_star_capture_target and not star_star_arg_pos:
             star_star_arg_pos = s.position()
         if s.sy == '**':
             s.next()
+            if double_star_capture_target:
+                double_star_set_twice_pos = s.position()
             double_star_capture_target = p_pattern_capture_target(s)
         else:
             # key=(literal_expr | attr)
@@ -4644,10 +4655,16 @@ def p_mapping_pattern(s: PyrexScanner):
             s.expect(':')
             value = p_pattern(s)
             items_patterns.append((key, value))
+            if double_star_capture_target:
+                pattern_after_double_star_pos = value.pos
         if s.sy != ',':
             break
         s.next()
     s.expect('}')
+    if double_star_set_twice_pos is not None:
+        return Nodes.ErrorNode(double_star_set_twice_pos, what = "Double star capture set twice")
+    if pattern_after_double_star_pos is not None:
+        return Nodes.ErrorNode(pattern_after_double_star_pos, what = "pattern follows ** capture")
 
     if star_star_arg_pos is not None:
         return Nodes.ErrorNode(

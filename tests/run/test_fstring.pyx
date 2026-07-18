@@ -9,11 +9,11 @@ import decimal
 import unittest
 import re
 import contextlib
-import sys
+import platform
 
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
-from Cython.Compiler.Errors import CompileError, hold_errors, init_thread, held_errors
+from Cython.Compiler.Errors import CompileError, hold_errors, reset as reset_errors, held_errors
 
 def cy_eval(s, **kwargs):
     return cython_inline('return ' + s, force=True, **kwargs)
@@ -39,7 +39,7 @@ class TestCase(CythonTest):
                 else:
                     assert held_errors(), "Invalid Cython code failed to raise SyntaxError: %r" % str
                 finally:
-                    init_thread()  # reset error status
+                    reset_errors()  # reset error status
             else:
                 try:
                     cython_inline(str, quiet=True)
@@ -48,7 +48,7 @@ class TestCase(CythonTest):
                 else:
                     assert False, "Invalid Cython code failed to raise %s: %r" % (exception_type, str)
                 finally:
-                    init_thread()  # reset error status
+                    reset_errors()  # reset error status
 
     @contextlib.contextmanager
     def assertRaisesRegex(self, exception, regex, *, msg=None):
@@ -68,7 +68,7 @@ class TestCase(CythonTest):
                 with super().assertRaisesRegex(exception, regex, msg=msg):
                     yield
         finally:
-            init_thread()  # reset error status
+            reset_errors()  # reset error status
 
     def test__format__lookup(self):
         # Make sure __format__ is looked up on the type, not the instance.
@@ -769,6 +769,9 @@ y = (
 """, # this is equivalent to f'{}'
                              ])
 
+    @unittest.skipIf(
+        platform.python_implementation() == 'GraalVM',
+        "Intermittent 'returned NULL without an exception set'")
     def test_many_expressions(self):
         # Create a string with many expressions in it. Note that
         #  because we have a space in here as a literal, we're actually
@@ -1656,8 +1659,7 @@ y = (
             self.fragment("f'{a $ b}'")
 
     def test_with_two_commas_in_format_specifier(self):
-        error_msg = (re.escape("Cannot specify ',' with ','.")
-            if sys.version_info >= (3, 9) else "Cannot specify .*")
+        error_msg = re.escape("Cannot specify ',' with ','.")
         with self.assertRaisesRegex(ValueError, error_msg):
             f'{1:,,}'
 

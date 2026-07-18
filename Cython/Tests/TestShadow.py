@@ -1,9 +1,12 @@
-import unittest
-
 from Cython import Shadow
 from Cython.Compiler import Options, CythonScope, PyrexTypes, Errors
+from Cython.TestUtils import TimedTest
 
-class TestShadow(unittest.TestCase):
+
+class TestShadow(TimedTest):
+    def tearDown(self):
+        Errors.reset()  # help out any future tests
+
     def test_all_directives_in_shadow(self):
         missing_directives = []
         extra_directives = []
@@ -81,13 +84,12 @@ class TestShadow(unittest.TestCase):
         # present (because they're obtained by on-the-fly string parsing in `cython_scope.lookup_type`)
 
         cython_scope = CythonScope.create_cython_scope(None)
-        # Set up just enough of "Context" and "Errors" that CythonScope.lookup_type can fail
+        # Set up just enough of "Context" that CythonScope.lookup_type can fail
         class Context:
             cpp = False
             language_level = 3
             future_directives = []
         cython_scope._context = Context
-        Errors.init_thread()
 
         missing_types = []
         missing_lookups = []
