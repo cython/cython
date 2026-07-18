@@ -2358,8 +2358,6 @@ class ClassScope(Scope):
 
 class PyClassScope(ClassScope):
     #  Namespace of a Python class.
-    #
-    #  class_obj_cname     string   C variable holding class object
 
     is_py_class_scope = 1
     namespace_cname_is_type = False
