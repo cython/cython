@@ -52,7 +52,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
             # This will work best if the virtual environment is the same Python version as
             # the interpreter linked into GDB.
             sitepackages = site.getsitepackages()
-            sitepackages = [ p for p in sitepackages if pathlib.Path(p).is_relative_to(virtualenv) ] 
+            sitepackages = [ p for p in sitepackages if pathlib.Path(p).is_relative_to(virtualenv) ]
             virtualenv_code = (
                 f'import sys; sys.path[:0] = {sitepackages!r}; '
                 f'import site; {"; ".join(f"site.addsitedir({p!r})" for p in sitepackages)}; '
