@@ -3641,7 +3641,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 assert re.match("^[a-zA-Z0-9_]+$", cname)
                 self.cfunc_name = "__Pyx_modinit_%s" % cname
                 self.description = code_type
-                self.tempdecl_code = None
                 self.call_code = None
 
             def set_call_code(self, code):
