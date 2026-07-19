@@ -9291,6 +9291,7 @@ class ListNode(SequenceNode):
     obj_conversion_errors = []
     type = list_type
     in_module_scope = False
+    is_temp = True
 
     gil_message = "Constructing Python list"
 
@@ -9890,6 +9891,8 @@ class SetNode(ExprNode):
     subexprs = ['args']
     type = set_type
     is_set_literal = True
+    is_temp = True
+    read_only = False
     gil_message = "Constructing Python set"
 
     def analyse_types(self, env):
@@ -9897,7 +9900,11 @@ class SetNode(ExprNode):
             arg = self.args[i]
             arg = arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
-        self.is_temp = 1
+
+        if self.read_only and all(item.is_literal for item in self.args):
+            arg = ListNode.from_node(self, args=self.args)
+            return FrozenSetNode.from_node(self, arg=arg, env=env)
+
         return self
 
     def may_be_none(self):
@@ -9943,7 +9950,7 @@ class FrozenSetNode(ExprNode):
     is_temp = False
     type = frozenset_type
 
-    def __init__(self, pos, env, arg, **kwargs):
+    def __init__(self, pos, arg, env=None, **kwargs):
         kwargs['arg'] = arg
         super().__init__(pos, **kwargs)
 
@@ -9957,9 +9964,14 @@ class FrozenSetNode(ExprNode):
                 # Since all arguments are literals (and we're building a set),
                 # we also ignore the sequence ".mult_factor" in this case.
                 self.is_literal = True
+                # Use a non-constant list instead of a tuple during module init to avoid keeping
+                # an unused tuple constant around.
+                self.arg = self.arg.as_list()
             else:
                 # Not constant, so use at least an efficient tuple for the sequence argument.
-                self.arg = self.arg.as_tuple().analyse_types(env, skip_children=True)
+                self.arg = self.arg.as_tuple()
+                if env is not None:
+                    self.arg = self.arg.analyse_types(env, skip_children=True)
                 self.is_temp = True
         else:
             self.is_temp = True

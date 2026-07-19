@@ -5150,6 +5150,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
+
         sequence = node.iterator.sequence
         if isinstance(sequence, ExprNodes.SequenceNode):
             if not sequence.args:
@@ -5161,6 +5162,11 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             # iterating over a list literal? => tuples are more efficient
             if isinstance(sequence, ExprNodes.ListNode):
                 node.iterator.sequence = sequence.as_tuple()
+
+        elif isinstance(sequence, ExprNodes.SetNode):
+            # frozensets are more efficient to store than sets.
+            sequence.read_only = True
+
         return node
 
     def visit_WhileStatNode(self, node):

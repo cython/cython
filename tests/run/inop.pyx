@@ -80,6 +80,7 @@ def m_tuple(int a):
     cdef int result = a in (1,2,3,4)
     return result
 
+
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
 def m_set(int a):
@@ -91,6 +92,26 @@ def m_set(int a):
     """
     cdef int result = a in {1,2,3,4}
     return result
+
+
+@cython.test_assert_path_exists(
+    "//BoolBinopNode",
+    "//PrimaryCmpNode",
+#    "//FrozenSetNode",
+)
+@cython.test_fail_if_path_exists(
+    "//SwitchStatNode",
+)
+def m_set_of_str(a):
+    """
+    >>> m_set_of_str("a")
+    1
+    >>> m_set_of_str("x")
+    0
+    """
+    cdef int result = a in {"a", "ab", "b", "bb"}
+    return result
+
 
 cdef bytes bytes_string = b'ab\0cde\0f\0g'
 py_bytes_string = bytes_string
