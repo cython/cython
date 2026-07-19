@@ -7255,7 +7255,7 @@ class RaiseStatNode(StatNode):
             return
         elif self.builtin_exc_name == 'StopIteration' and not self.exc_type:
             code.putln('%s = 1;' % Naming.error_without_exception_cname)
-            code.putln('%s;' % code.error_goto(None))
+            code.putln(code.error_goto(self.pos))
             code.funcstate.error_without_exception = True
             return
 
