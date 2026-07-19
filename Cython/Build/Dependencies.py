@@ -12,7 +12,7 @@ from collections.abc import Iterable
 
 try:
     import pythran
-except:
+except ImportError:
     pythran = None
 
 from .. import Utils
@@ -1189,7 +1189,7 @@ if os.environ.get('XML_RESULTS'):
             try:
                 try:
                     func(*args)
-                except:
+                except Exception:
                     success = False
             finally:
                 t = time.time() - t
