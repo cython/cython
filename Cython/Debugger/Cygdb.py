@@ -39,7 +39,26 @@ def make_command_file(path_to_debug_info, prefix_code='',
     f = os.fdopen(fd, 'w')
     try:
         f.write(prefix_code)
-        f.write(textwrap.dedent('''\
+        virtualenv_code = ''
+        virtualenv = os.getenv('VIRTUAL_ENV')
+        if virtualenv:
+            import site
+            import pathlib
+            # Emulating the virtual env we're in will always be imperfect. But:
+            # * Work out the site packages from the current interpreter and add those
+            #   to the start of the path to let those be found first.
+            # * Use addsitedir to process any .pth files. This lets an editable Cython install
+            #   be imported for example.
+            # This will work best if the virtual environment is the same Python version as
+            # the interpreter linked into GDB.
+            sitepackages = site.getsitepackages()
+            sitepackages = [ p for p in sitepackages if pathlib.Path(p).is_relative_to(virtualenv) ] 
+            virtualenv_code = (
+                f'import sys; sys.path[:0] = {sitepackages!r}; '
+                f'import site; {"; ".join(f"site.addsitedir({p!r})" for p in sitepackages)}; '
+                f'print("gdb command file: Activating virtualenv: {virtualenv}")'
+            )
+        f.write(textwrap.dedent(f'''\
             # This is a gdb command file
             # See https://sourceware.org/gdb/onlinedocs/gdb/Command-Files.html
 
@@ -49,16 +68,13 @@ def make_command_file(path_to_debug_info, prefix_code='',
             python
             try:
                 # Activate virtualenv, if we were launched from one
-                import os
-                virtualenv = os.getenv('VIRTUAL_ENV')
-                if virtualenv:
-                    sys.path.insert(0, f"{virtualenv}/lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages")
-                    print(f"gdb command file: Activating virtualenv: {virtualenv}")
+                {virtualenv_code}
                 from Cython.Debugger import libcython, libpython
             except Exception as ex:
                 from traceback import print_exc
                 print("There was an error in Python code originating from the file ''' + str(__file__) + '''")
-                print("It used the Python interpreter " + str(sys.executable))
+                print("It used the Python interpreter " + str(sys.executable) + " " + str(sys.version_info))
+                print("sys.path " + str(sys.path))
                 print_exc()
                 exit(1)
             end
