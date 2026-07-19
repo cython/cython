@@ -26,17 +26,20 @@ PYTHON -c "import pkg1.pkg11.feature_extensiontypes as ext; assert hasattr(ext.E
 ######## delete_generated_files.py ########
 
 import os
+import shutil
 from pathlib import Path
 
-ext_to_delete = {".c", ".cpp", ".o", ".so", ".pyd"}
-for directory, _, files in os.walk(os.getcwd()):
+ext_to_delete = {".c", ".cpp", ".o", ".so", ".pyd", ".obj", ".exp", ".lib"}
+for directory, _, files in os.walk(os.getcwd(), topdown=False):
     path = Path(directory)
     for filename in files:
         file = path / filename
         if file.suffix.lower() in ext_to_delete:
             print(f"Deleting {file}")
             file.unlink()
-
+    if path.name == "build":
+        print(f"Removing directory {directory}")
+        shutil.rmtree(directory, ignore_errors=True)
 
 ######## setup_with_sources.py ########
 
