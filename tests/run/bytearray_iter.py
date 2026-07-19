@@ -103,3 +103,43 @@ def test_bytearray_iteration(src):
     data = bytearray(src)
     for elem in data:
         print(elem)
+
+def test_bytearray_iter_with_continue(x: bytearray):
+    r"""
+    >>> test_bytearray_iter_with_continue(bytearray(b"ab\0cd"))
+    a
+    b
+    c
+    d
+    """
+    for elem in x:
+        if elem == 0:
+            continue
+        print(chr(elem))
+
+# TODO - this should be transformed into efficient reversed iteration
+def test_bytearray_reverse_iter_with_continue1(x: bytearray):
+    r"""
+    >>> test_bytearray_reverse_iter_with_continue1(bytearray(b"ab\0cd"))
+    d
+    c
+    b
+    a
+    """
+    for elem in x[::-1]:
+        if elem == 0:
+            continue
+        print(chr(elem))
+
+def test_bytearray_reverse_iter_with_continue2(x: bytearray):
+    r"""
+    >>> test_bytearray_reverse_iter_with_continue1(bytearray(b"ab\0cd"))
+    d
+    c
+    b
+    a
+    """
+    for elem in reversed(x):
+        if elem == 0:
+            continue
+        print(chr(elem))

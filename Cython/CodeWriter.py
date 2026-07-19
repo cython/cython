@@ -512,7 +512,6 @@ class ExpressionWriter(TreeVisitor):
         if self.allow_unknown_nodes:
             self.put("...")
         else:
-            breakpoint()
             raise AssertionError("Node not handled by serializer: %r" % node)
 
     # TODO: Remove redundancy below. Most constants serialise fine as just "repr(node.value)".
@@ -674,7 +673,7 @@ class ExpressionWriter(TreeVisitor):
     def visit_CondExprNode(self, node):
         self.visit(node.true_val)
         self.put(" if ")
-        self.visit(node.test)
+        self.visit(node.condition)
         self.put(" else ")
         self.visit(node.false_val)
 

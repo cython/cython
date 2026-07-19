@@ -16,7 +16,9 @@ cdef extern from *:
                                                 int wraparound, int boundscheck, int unsafe_shared);
     static PyObject *Call_GetItemInt_List_Fast(PyObject *o, Py_ssize_t i,
                                                 int wraparound, int boundscheck, int unsafe_shared) {
-        unsafe_shared_set = unsafe_shared;
+        int unique = (unsafe_shared == __Pyx_ReferenceSharing_DefinitelyUnique) ||
+                     (unsafe_shared == __Pyx_ReferenceSharing_OwnStrongReference);
+        unsafe_shared_set = !unique;
         return __Pyx_GetItemInt_List_Fast(o, i, wraparound, boundscheck, unsafe_shared);
     }
 
@@ -103,3 +105,27 @@ def in_prange():
 def dummy_func2():
     # abuse cname feature to undefine our override to allow the utility code to be generated
     undef_getitemint_list_fast()
+
+
+def temp_list_subscript(create):
+    """
+    >>> temp_list_subscript([1,2,3].copy)
+    2
+
+    >>> temp_list_subscript(list)  # empty list, out of range
+    Traceback (most recent call last):
+    IndexError: list index out of range
+    """
+    return create()[1]
+
+
+def temp_list_subscript_wraparound(create):
+    """
+    >>> temp_list_subscript_wraparound([1,2,3].copy)
+    3
+
+    >>> temp_list_subscript_wraparound(list)  # empty list, out of range
+    Traceback (most recent call last):
+    IndexError: list index out of range
+    """
+    return create()[-1]

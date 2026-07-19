@@ -3,6 +3,11 @@
 
 cimport cython
 
+
+def make_frozendict(d):
+    return frozendict(d)
+
+
 class FailHash:
     def __hash__(self):
         raise TypeError()
@@ -91,3 +96,22 @@ def dict_pop_default_typed(dict d, key, default):
     """
     cdef MyType x = d.pop(key, default)
     return x.i if x is not None else None
+
+
+def pop_frozendict(frozendict fd, key):
+    """
+    Confirms that frozendict has no `pop` method (deliberately not aliased
+    in the compiler-side method-handler dispatch — frozendict is immutable).
+    On Python <3.15, `frozendict` falls back to plain `dict` which DOES have
+    `pop`, so we only assert the raise on supported Pythons.
+
+    >>> import sys
+    >>> if sys.version_info >= (3, 15, 0, 'alpha', 7):
+    ...     try: pop_frozendict(make_frozendict({1: 10}), 1)
+    ...     except AttributeError: print("AttributeError")
+    ...     else: print("no error")
+    ... else:
+    ...     print("AttributeError")
+    AttributeError
+    """
+    return fd.pop(key)

@@ -6,13 +6,11 @@ embedsignatures_clinic
 generator_frame_cycle
 line_trace
 pstats_profile_test
-pep442_tp_finalize
 tracebacks
 tss
 sys_monitoring
 special_method_docstrings
 verbatiminclude
-test_coroutines_pep492
 coverage
 line_profile_test
 cdef_multiple_inheritance_errors
@@ -30,7 +28,8 @@ cdef_bool_T227
 datetime_cimport
 datetime_pxd
 datetime_members
-run[.]exttype
+run[.]exttype$
+run[.]exttype_gc$
 isinstance
 pycontextvar
 run[.]pytype
@@ -68,15 +67,17 @@ ext_auto_richcmp
 extern_builtins_T258
 pylistsubtype
 r_hordijk1
+refcount_types  # Is relevant to Limited API but is tested with the "heaptypes only" runs
 slice2b
 trashcan
 unbound_special_methods
 unicode_formatting
+extra_patma_no_limited
 
 # Py_UNICODE
 builtin_ord
 for_in_string
-fstring
+run[.]fstring$
 run[.]inop
 run[.]notinop
 py_unicode_strings

@@ -35,7 +35,7 @@ class MarkParallelAssignments(EnvTransform):
         super().__init__(context)
 
     def mark_assignment(self, lhs, rhs, inplace_op=None):
-        if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
+        if lhs.is_name or isinstance(lhs, Nodes.PyArgDeclNode):
             if lhs.entry is None:
                 # TODO: This shouldn't happen...
                 return
@@ -62,7 +62,7 @@ class MarkParallelAssignments(EnvTransform):
                 parallel_node.assignments[lhs.entry] = (pos, inplace_op)
                 parallel_node.assigned_nodes.append(lhs)
 
-        elif isinstance(lhs, ExprNodes.SequenceNode):
+        elif lhs.is_sequence_constructor:
             for i, arg in enumerate(lhs.args):
                 if not rhs or arg.is_starred:
                     item_node = None
@@ -584,6 +584,26 @@ def safe_spanning_type(types, might_overflow, scope):
     elif (not result_type.can_coerce_to_pyobject(scope)
             and not result_type.is_error):
         return result_type
+
+    # We'll treat it as a Python object from this point on, but may be able to infer
+    # something more concrete than 'object'.
+
+    equivalent_type = result_type.equivalent_type
+    if equivalent_type and equivalent_type.is_pyobject:
+        # This is mostly covered by the cases above but still worth a first try
+        # to give the type a chance to speak up.
+        return equivalent_type
+    elif result_type.is_unicode_char:
+        # Unicode characters are ints but are not safe to infer for all operations,
+        # e.g. '+' should probably concatenate and not add the code unit numbers.
+        return Builtin.unicode_type
+    elif result_type.is_int:
+        return Builtin.int_type
+    elif result_type.is_float:
+        return Builtin.float_type
+    elif result_type.is_complex:
+        return Builtin.complex_type
+
     return py_object_type
 
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 try:
     from setuptools import setup, Extension
 except ImportError:
@@ -18,7 +18,7 @@ is_cpython = platform.python_implementation() == 'CPython'
 
 # this specifies which versions of python we support, pip >= 9 knows to skip
 # versions of packages which are not compatible with the running python
-PYTHON_REQUIRES = '>=3.8'
+PYTHON_REQUIRES = '>=3.9'
 
 TRACKER_URL = "https://github.com/cython/cython/issues/"
 
@@ -61,7 +61,7 @@ setup_args['package_data'] = {
     'Cython.Compiler' : ['*.pxd'],
     'Cython.Runtime'  : ['*.pyx', '*.pxd'],
     'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
-    'Cython'          : [ p[7:] for p in pxd_include_patterns ] + ['py.typed', '__init__.pyi', 'Shadow.pyi'],
+    'Cython'          : [ p[7:] for p in pxd_include_patterns ] + ['py.typed'],
     'Cython.Debugger.Tests': ['codefile', 'cfuncs.c'],
 }
 
@@ -88,7 +88,7 @@ else:
 
 
 def compile_cython_modules(profile=False, coverage=False, compile_minimal=False, compile_more=False, cython_with_refnanny=False,
-                           cython_limited_api=False):
+                           cython_limited_api=None):
     source_root = os.path.abspath(os.path.dirname(__file__))
     compiled_modules = [
         "Cython.Plex.Actions",
@@ -107,9 +107,11 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.Code",
             "Cython.Compiler.FusedNode",
             "Cython.Compiler.Parsing",
+            "Cython.Compiler.StringEncoding",
             "Cython.Tempita._tempita",
             "Cython.StringIOTree",
             "Cython.Utils",
+            "Cython.LZSS",
         ])
     if compile_more and not compile_minimal:
         compiled_modules.extend([
@@ -150,7 +152,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     extra_extension_args = {}
     if cython_limited_api:
         defines += [
-            ('Py_LIMITED_API', '0x03080000'),
+            ('Py_LIMITED_API', f'0x{cython_limited_api[0]:02x}{cython_limited_api[1]:02x}0000'),
         ]
         extra_extension_args['py_limited_api'] = True
 
@@ -185,6 +187,26 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     # optimise build parallelism by starting with the largest modules
     extensions.sort(key=lambda ext: os.path.getsize(ext.sources[0]), reverse=True)
 
+    # Set up Cython directives.
+    cython_directives = dict(
+        language_level=3,
+        auto_pickle=False,
+        #binding=False,
+        always_allow_keywords=False,
+        autotestdict=False,
+    )
+
+    if profile:
+        cython_directives['profile'] = True
+        sys.stderr.write("Enabled profiling for the Cython binary modules\n")
+    if coverage:
+        cython_directives['linetrace'] = True
+        sys.stderr.write("Enabled line tracing and profiling for the Cython binary modules\n")
+
+    for ext in extensions:
+        ext.cython_directives = cython_directives
+
+    # Make 'build_ext' use Cython.
     from Cython.Distutils.build_ext import build_ext as cy_build_ext
     build_ext = None
     try:
@@ -197,21 +219,6 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             build_ext = cy_build_ext
     except ImportError:
         build_ext = cy_build_ext
-
-    from Cython.Compiler.Options import get_directive_defaults
-    get_directive_defaults().update(
-        language_level=3,
-        auto_pickle=False,
-        binding=False,
-        always_allow_keywords=False,
-        autotestdict=False,
-    )
-    if profile:
-        get_directive_defaults()['profile'] = True
-        sys.stderr.write("Enabled profiling for the Cython binary modules\n")
-    if coverage:
-        get_directive_defaults()['linetrace'] = True
-        sys.stderr.write("Enabled line tracing and profiling for the Cython binary modules\n")
 
     # not using cythonize() directly to let distutils decide whether building extensions was requested
     add_command_class("build_ext", build_ext)
@@ -322,6 +329,30 @@ def check_option(name):
 
     return False
 
+def check_limited_api_option(name):
+    def handle_arg(arg: str):
+        arg = arg.lower()
+        if arg == "true":
+            return sys.version_info[:2]
+        if arg == "false":
+            return None
+        major, minor = arg.split('.', 1)
+        return (int(major), int(minor))
+
+    cli_arg = "--" + name
+    for arg in sys.argv:
+        if arg.startswith(cli_arg):
+            sys.argv.remove(arg)
+            if '=' in arg:
+                return handle_arg(arg.split('=', 1)[1])
+            return handle_arg("true")
+
+    env_var_name = name.replace("-", "_").upper()
+    env_var = os.environ.get(env_var_name)
+    if env_var is None:
+        return None
+    return handle_arg(env_var)
+
 
 cython_profile = check_option('cython-profile')
 cython_coverage = check_option('cython-coverage')
@@ -346,11 +377,11 @@ if compile_cython_itself and sysconfig.get_config_var("Py_GIL_DISABLED"):
 if compile_cython_itself:
     cython_compile_more = check_option('cython-compile-all')
     cython_compile_minimal = check_option('cython-compile-minimal')
-    cython_limited_api = check_option('cython-limited-api')
+    cython_limited_api = check_limited_api_option('cython-limited-api')
     if cython_limited_api:
         setup_options = setup_args.setdefault('options', {})
         bdist_wheel_options = setup_options.setdefault('bdist_wheel', {})
-        bdist_wheel_options['py_limited_api'] = 'cp37'
+        bdist_wheel_options['py_limited_api'] = f'cp{cython_limited_api[0]}{cython_limited_api[1]}'
 
 
 setup_args.update(setuptools_extra_args)
@@ -433,19 +464,17 @@ def run_build():
         classifiers=[
             dev_status(version),
             "Intended Audience :: Developers",
-            "License :: OSI Approved :: Apache Software License",
             "Operating System :: OS Independent",
             "Programming Language :: Python",
             "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
             "Programming Language :: Python :: 3.11",
             "Programming Language :: Python :: 3.12",
             "Programming Language :: Python :: 3.13",
+            "Programming Language :: Python :: 3.14",
             "Programming Language :: Python :: Implementation :: CPython",
             "Programming Language :: Python :: Implementation :: PyPy",
-            "Programming Language :: Python :: Implementation :: Stackless",
             "Programming Language :: C",
             "Programming Language :: C++",
             "Programming Language :: Cython",

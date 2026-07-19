@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 The Cython debugger
@@ -72,7 +72,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
                 from Cython.Debugger import libcython, libpython
             except Exception as ex:
                 from traceback import print_exc
-                print("There was an error in Python code originating from the file ''' + str(__file__) + '''")
+                print("There was an error in Python code originating from the file " + ''' + repr(__file__) + ''')
                 print("It used the Python interpreter " + str(sys.executable) + " " + str(sys.version_info))
                 print("sys.path " + str(sys.path))
                 print_exc()
