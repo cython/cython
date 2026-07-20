@@ -102,18 +102,10 @@ class CythonArgumentParser(ArgumentParser):
         pass
 
 
-def create_cython_argparser():
-    description = "Cython (https://cython.org/) is a compiler for code written in the "\
-                  "Cython language.  Cython is based on Pyrex by Greg Ewing."
-
-    parser = CythonArgumentParser(
-        description=description,
-        argument_default=SUPPRESS,
-        formatter_class=RawDescriptionHelpFormatter,
-    )
-
-    parser.add_argument("-V", "--version", dest='show_version', action='store_const', const=1,
-                      help='Display version number of cython compiler')
+def add_compile_arguments(parser, include_sources=True, for_shared=False):
+    if not for_shared:
+        parser.add_argument("-V", "--version", dest='show_version', action='store_const', const=1,
+                          help='Display version number of cython compiler')
     parser.add_argument("-l", "--create-listing", dest='use_listing_file', action='store_const', const=1,
                       help='Write error messages to a listing file')
     parser.add_argument("-I", "--include-dir", dest='include_path', action='append',
@@ -127,9 +119,10 @@ def create_cython_argparser():
                       help='Compile all source files (overrides implied -t)')
     parser.add_argument("-v", "--verbose", dest='verbose', action='count',
                       help='Be verbose, print file names on multiple compilation')
-    parser.add_argument("-p", "--embed-positions", dest='embed_pos_in_docstring', action='store_const', const=1,
-                      help='If specified, the positions in Cython files of each '
-                           'function definition is embedded in its docstring.')
+    if not for_shared:
+        parser.add_argument("-p", "--embed-positions", dest='embed_pos_in_docstring', action='store_const', const=1,
+                          help='If specified, the positions in Cython files of each '
+                               'function definition is embedded in its docstring.')
     parser.add_argument("--cleanup", dest='generate_cleanup_code', action='store', type=int,
                       help='Release interned objects on python exit, for memory debugging. '
                            'Level indicates aggressiveness, default 0 releases nothing.')
@@ -154,22 +147,23 @@ def create_cython_argparser():
                       help='Produce #line directives pointing to the .pyx source')
     parser.add_argument("-+", "--cplus", dest='cplus', action='store_const', const=1,
                       help='Output a C++ rather than C file.')
-    parser.add_argument('--embed', action='store_const', const='main',
-                      help='Generate a main() function that embeds the Python interpreter. '
-                           'Pass --embed=<method_name> for a name other than main().')
-    parser.add_argument('--embed-modules', action='store', type=comma_list,
-                      help='')
-    parser.add_argument('-2', dest='language_level', action='store_const', const=2,
-                      help='Compile based on Python-2 syntax and code semantics.')
-    parser.add_argument('-3', dest='language_level', action='store_const', const=3,
-                      help='Compile based on Python-3 syntax and code semantics.')
-    parser.add_argument('--3str', dest='language_level', action='store_const', const='3',
-                      help='Compile based on Python-3 syntax and code semantics (same as -3 since Cython 3.1).')
-    parser.add_argument("--lenient", action=SetLenientAction, nargs=0,
-                      help='Change some compile time errors to runtime errors to '
-                           'improve Python compatibility')
-    parser.add_argument("--capi-reexport-cincludes", dest='capi_reexport_cincludes', action='store_true',
-                      help='Add cincluded headers to any auto-generated header files.')
+    if not for_shared:
+        parser.add_argument('--embed', action='store_const', const='main',
+                          help='Generate a main() function that embeds the Python interpreter. '
+                               'Pass --embed=<method_name> for a name other than main().')
+        parser.add_argument('--embed-modules', action='store', type=comma_list,
+                          help='')
+        parser.add_argument('-2', dest='language_level', action='store_const', const=2,
+                          help='Compile based on Python-2 syntax and code semantics.')
+        parser.add_argument('-3', dest='language_level', action='store_const', const=3,
+                          help='Compile based on Python-3 syntax and code semantics.')
+        parser.add_argument('--3str', dest='language_level', action='store_const', const='3',
+                          help='Compile based on Python-3 syntax and code semantics (same as -3 since Cython 3.1).')
+        parser.add_argument("--lenient", action=SetLenientAction, nargs=0,
+                          help='Change some compile time errors to runtime errors to '
+                               'improve Python compatibility')
+        parser.add_argument("--capi-reexport-cincludes", dest='capi_reexport_cincludes', action='store_true',
+                          help='Add cincluded headers to any auto-generated header files.')
     parser.add_argument("--fast-fail", dest='fast_fail', action='store_true',
                       help='Abort the compilation on the first error')
     parser.add_argument("-Werror", "--warning-errors", dest='warning_errors', action='store_true',
@@ -181,10 +175,11 @@ def create_cython_argparser():
                       dest='compiler_directives', type=str,
                       action=ParseDirectivesAction,
                       help='Overrides a compiler directive')
-    parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
-                      dest='compile_time_env', type=str,
-                      action=ParseCompileTimeEnvAction,
-                      help='Provides compile time env like DEF would do.')
+    if not for_shared:
+        parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
+                          dest='compile_time_env', type=str,
+                          action=ParseCompileTimeEnvAction,
+                          help='Provides compile time env like DEF would do.')
     parser.add_argument("--module-name",
                       dest='module_name', type=str, action='store',
                       help='Fully qualified module name. If not given, is '
@@ -193,19 +188,11 @@ def create_cython_argparser():
     parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
 
     # Shared module setup.
-
-    parser.add_argument("--generate-shared", dest='shared_c_file_path', action='store', type=str,
-                        help='Generates shared module with specified name.')
     parser.add_argument("--shared", dest='shared_utility_qualified_name', action='store', type=str,
                         help='Imports utility code from shared module specified by fully qualified module name.')
-    parser.add_argument("--shared-only", dest='shared_utility_features_enabled',
-                        action=ParseCommaListAction, type=str, metavar='FEATURES',
-                        help='Comma separate list of features to move to the shared module exclusively.')
-    parser.add_argument("--shared-exclude", dest='shared_utility_features_disabled',
-                        action=ParseCommaListAction, type=str, metavar='FEATURES',
-                        help='Comma separate list of features to exclude from the shared module.')
 
-    parser.add_argument('sources', nargs='*', default=[])
+    if include_sources:
+        parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help
     parser.add_argument("-z", "--pre-import", dest='pre_import', action='store', type=str, help=SUPPRESS)
@@ -221,10 +208,67 @@ def create_cython_argparser():
             option_name = name.replace('_', '-')
             parser.add_argument("--" + option_name, action='store_true', help=SUPPRESS)
 
+
+def create_cython_argparser():
+    description = "Cython (https://cython.org/) is a compiler for code written in the "\
+                  "Cython language.  Cython is based on Pyrex by Greg Ewing."
+
+    parser = CythonArgumentParser(
+        description=description,
+        argument_default=SUPPRESS,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    add_compile_arguments(parser, include_sources=True, for_shared=False)
+
+    parser.add_argument("--generate-shared", dest='shared_c_file_path', action='store', type=str,
+                        help='Generates shared module with specified name.')
+    parser.add_argument("--shared-only", dest='shared_utility_features_enabled',
+                        action=ParseCommaListAction, type=str, metavar='FEATURES',
+                        help='Comma separate list of features to move to the shared module exclusively.')
+    parser.add_argument("--shared-exclude", dest='shared_utility_features_disabled',
+                        action=ParseCommaListAction, type=str, metavar='FEATURES',
+                        help='Comma separate list of features to exclude from the shared module.')
+
     return parser
+
+
+def create_cython_subcommand_parser():
+    description = "Cython (https://cython.org/) is a compiler for code written in the "\
+                  "Cython language.  Cython is based on Pyrex by Greg Ewing."
+
+    parser = CythonArgumentParser(
+        description=description,
+        argument_default=SUPPRESS,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("-V", "--version", dest='show_version', action='store_const', const=1,
+                        help='Display version number of cython compiler')
+
+    subparsers = parser.add_subparsers(dest='command', help='Subcommands')
+
+    # Generate-shared subcommand
+    generate_parser = subparsers.add_parser(
+        'generate-shared',
+        help='Generate shared module C/C++ file',
+        argument_default=SUPPRESS,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    generate_parser.add_argument('shared_c_file_path', metavar='OUTPUT_FILE', type=str,
+                                 help='Path to the generated shared C/C++ file.')
+    generate_parser.add_argument("--shared-only", dest='shared_utility_features_enabled',
+                                 action=ParseCommaListAction, type=str, metavar='FEATURES',
+                                 help='Comma separate list of features to move to the shared module exclusively.')
+    generate_parser.add_argument("--shared-exclude", dest='shared_utility_features_disabled',
+                                 action=ParseCommaListAction, type=str, metavar='FEATURES',
+                                 help='Comma separate list of features to exclude from the shared module.')
+    add_compile_arguments(generate_parser, include_sources=False, for_shared=True)
+
+    return parser
+
 
 def comma_list(string):
     return string.split(',')
+
 
 def parse_command_line_raw(parser, args):
     # special handling for --embed and --embed=xxxx as they aren't correctly parsed
@@ -241,8 +285,18 @@ def parse_command_line_raw(parser, args):
 
     arguments, unknown = parser.parse_known_args(args_without_embed)
 
-    sources = arguments.sources
-    del arguments.sources
+    if getattr(arguments, 'command', None) == 'generate-shared':
+        if with_embed:
+            parser.error("unknown option " + with_embed[0].split('=', 1)[0])
+        shared_c_path = getattr(arguments, 'shared_c_file_path', None)
+        if shared_c_path and shared_c_path.startswith('-'):
+            parser.error("unknown option " + shared_c_path)
+
+    try:
+        sources = arguments.sources
+        del arguments.sources
+    except AttributeError:
+        sources = []
 
     # unknown can be either debug, embed or input files or really unknown
     for option in unknown:
@@ -263,8 +317,49 @@ def parse_command_line_raw(parser, args):
 
 
 def parse_command_line(args):
-    parser = create_cython_argparser()
+    OPTIONS_WITH_ARGS = {
+        '-I', '--include-dir', '-o', '--output-file', '--cleanup', '-w', '--working',
+        '--gdb-outdir', '--annotate-coverage', '--embed-modules', '-X', '--directive',
+        '-E', '--compile-time-env', '--module-name', '--generate-shared', '--shared',
+        '--shared-only', '--shared-exclude', '-z', '--pre-import'
+    }
+
+    is_subcommand = False
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in ('generate-shared',):
+            is_subcommand = True
+            break
+        elif arg.startswith('-'):
+            has_val_attached = False
+            for opt in OPTIONS_WITH_ARGS:
+                if arg.startswith(opt) and (len(arg) > len(opt) and arg[len(opt)] in ('=',)):
+                    has_val_attached = True
+                    break
+                if len(opt) == 2 and arg.startswith(opt) and len(arg) > 2:
+                    has_val_attached = True
+                    break
+
+            if not has_val_attached:
+                opt_name = arg.split('=', 1)[0]
+                if opt_name in OPTIONS_WITH_ARGS:
+                    i += 2
+                    continue
+        else:
+            break
+        i += 1
+
+    if is_subcommand:
+        parser = create_cython_subcommand_parser()
+    else:
+        parser = create_cython_argparser()
+
     arguments, sources = parse_command_line_raw(parser, args)
+
+    command = getattr(arguments, 'command', None)
+    if command:
+        del arguments.command
 
     work_dir = getattr(arguments, 'working_path', '')
     for source in sources:
