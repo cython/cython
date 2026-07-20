@@ -23,7 +23,7 @@ class __Pyx_FlexibleEnumBase(PyImport_Import("enum").IntEnum):
     def __repr__(self):
         if self._name_ is None:
             # arbitrary value pseudo member
-            return f"<{self.__class__.__name__}: {self._value_!r}>")
+            return f"<{self.__class__.__name__}: {self._value_!r}>"
         return super().__repr__()
 
 
