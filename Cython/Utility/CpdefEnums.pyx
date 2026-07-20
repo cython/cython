@@ -7,7 +7,7 @@ cdef object __Pyx_FlexibleEnumBase
 class __Pyx_FlexibleEnumBase(PyImport_Import("enum").IntEnum):
     @classmethod
     def _missing_(cls, value):
-        # This is a trimmed down version of "EnumFlag._missing_" with with
+        # This is a trimmed down version of "EnumFlag._missing_" with
         # the flag-specific details removed.
         pseudo_member = int.__new__(cls, value)
         if not hasattr(pseudo_member, '_value_'):
@@ -15,14 +15,15 @@ class __Pyx_FlexibleEnumBase(PyImport_Import("enum").IntEnum):
         pseudo_member._name_ = None
         # _value2member_map_ is an undocumented detail of enum so don't fail
         # if we can't use it to cache pseudo-members
-        if (value2member_map := getattr(cls, '_value2member_map_')) is not None:
+        value2member_map = getattr(cls, '_value2member_map_', None)
+        if value2member_map is not None:
             pseudo_member = value2member_map.setdefault(value, pseudo_member)
         return pseudo_member
 
     def __repr__(self):
         if self._name_ is None:
             # arbitrary value pseudo member
-            return "<%s: %s>" % (self.__class__.__name__, repr(self._value_))
+            return f"<{self.__class__.__name__}: {self._value_!r}>")
         return super().__repr__()
 
 
@@ -33,7 +34,7 @@ cdef extern from *:
     object {{enum_to_pyint_func}}({{name}} value)
 
 
-# Create new IntFlag() if possible:
+# Create new IntFlag()-like enums:
 # the assumption is that C enums are sufficiently commonly
 # used as flags that this is the most appropriate base class.
 # On Python 3.15+ IntFlag doesn't accept negative numbers however.
