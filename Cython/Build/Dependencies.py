@@ -12,7 +12,7 @@ from collections.abc import Iterable
 
 try:
     import pythran
-except:
+except Exception:
     pythran = None
 
 from .. import Utils
