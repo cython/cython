@@ -20,7 +20,7 @@ file like:
 
 # examplemod.pyxbld
 def make_ext(modname, pyxfilename):
-    from distutils.extension import Extension
+    from setuptools._distutils.extension import Extension
     return Extension(name = modname,
                      sources=[pyxfilename, 'hello.c'],
                      include_dirs=['/myinclude'] )
@@ -100,7 +100,7 @@ def get_distutils_extension(modname, pyxfilename, language_level=None):
             # distutils is stupid in Py2 and requires exactly 'str'
             # => encode accidentally coerced unicode strings back to str
             pyxfilename = pyxfilename.encode(sys.getfilesystemencoding())
-        from distutils.extension import Extension
+        from setuptools._distutils.extension import Extension
         extension_mod = Extension(name = modname, sources=[pyxfilename])
         if language_level is not None:
             extension_mod.cython_directives = {'language_level': language_level}
@@ -163,7 +163,7 @@ def handle_dependencies(pyxfilename):
         # the pyx file, 'touch' the pyx file so that distutils will
         # be tricked into rebuilding it.
         for file in files:
-            from distutils.dep_util import newer
+            from setuptools._distutils.dep_util import newer
             if newer(file, pyxfilename):
                 _debug("Rebuilding %s because of %s", pyxfilename, file)
                 filetime = os.path.getmtime(file)
