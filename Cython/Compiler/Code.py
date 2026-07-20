@@ -469,7 +469,7 @@ class UtilityCodeBase(AbstractUtilityCode):
         return cls(**kwargs)
 
     @classmethod
-    def load_cached(cls, utility_code_name, from_file, __cache={}):
+    def load_cached(cls, utility_code_name, from_file, *, __cache={}):
         """
         Calls .load(), but using a per-type cache based on utility name and file name.
         """
