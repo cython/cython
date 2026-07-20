@@ -1185,12 +1185,15 @@ if os.environ.get('XML_RESULTS'):
     def record_results(func):
         def with_record(*args):
             t = time.time()
-            success = True
+            success = False
             try:
-                try:
-                    func(*args)
-                except:
-                    success = False
+                func(*args)
+                success = True
+            except Exception:
+                # It's not obvious that we should really swallow the exception here,
+                # rather than fail loudly after writing the XML result file,
+                # but that's how it's currently implemented.
+                pass
             finally:
                 t = time.time() - t
                 module = fully_qualified_name(args[0])
