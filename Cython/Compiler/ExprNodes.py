@@ -32,6 +32,7 @@ from typing import Optional
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
     CannotSpecialize, performance_hint)
+from . import Options
 from .Code import UtilityCode, TempitaUtilityCode
 from .LineTable import build_line_table
 from . import StringEncoding
@@ -8327,7 +8328,7 @@ class AttributeNode(ExprNode):
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
             if obj.type.is_extension_type and not self.entry.is_builtin_cmethod:
-                if self.entry.final_func_cname:
+                if self.entry.final_func_cname and not Options.cimport_from_pyx:
                     return self.entry.final_func_cname
 
                 if self.type.from_fused:
