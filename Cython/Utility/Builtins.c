@@ -672,12 +672,12 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 
 //////////////////// pyfrozenset_new.proto ////////////////////
 
-static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
+static PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
 
 //////////////////// pyfrozenset_new ////////////////////
 //@requires: ObjectHandling.c::PyObjectCallNoArg
 
-static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
+static PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
     if (it) {
         PyObject* result;
 #if CYTHON_COMPILING_IN_PYPY
@@ -720,6 +720,46 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
 #endif
     }
     return __Pyx_PyObject_CallNoArg((PyObject*) &PyFrozenSet_Type);
+}
+
+
+//////////////////// pyfrozenset_fromarray.proto ////////////////////
+
+static PyObject* __Pyx_PyFrozenSet_FromArray(PyObject** values, Py_ssize_t length);
+
+//////////////////// pyfrozenset_fromarray ////////////////////
+
+static PyObject* __Pyx_PyFrozenSet_FromArray(PyObject** values, Py_ssize_t length) {
+#if CYTHON_COMPILING_IN_PYPY
+    // PyPy currently lacks PyFrozenSet_New()
+    PyObject* argtuple = PyTuple_New(n);
+    if (unlikely(!argtuple)) return NULL;
+    Py_ssize_t i;
+    for (i = 0; i < n; i++) {
+        Py_INCREF(values[i]);
+        if (unlikely(__Pyx_PyTuple_SET_ITEM(argtuple, i, values[i]) < (0))) {
+            Py_DECREF(argtuple);
+            return NULL;
+        }
+    }
+    PyObject* args = PyTuple_Pack(1, argtuple);
+    Py_DECREF(argtuple);
+    if (unlikely(!args))
+        return NULL;
+    PyObject* result = PyObject_Call((PyObject*)&PyFrozenSet_Type, args, NULL);
+    Py_DECREF(args);
+    return result;
+#else
+    Py_ssize_t i;
+    PyObject* result = PyFrozenSet_New(NULL);
+    for (i=0; i < length; i++) {
+        if (unlikely(PySet_Add(result, values[i]) < 0)) {
+            Py_DECREF(result);
+            return NULL;
+        }
+    }
+    return result;
+#endif
 }
 
 

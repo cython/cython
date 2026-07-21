@@ -9941,7 +9941,9 @@ class FrozenSetNode(ExprNode):
     """
     Frozenset constructor.
 
-    Only created for analysed args in transforms.
+    Only created for analysed arg in transforms.
+
+    arg     ExprNode or None
     """
     subexprs = ["arg"]
 
@@ -9950,7 +9952,7 @@ class FrozenSetNode(ExprNode):
     is_temp = False
     type = frozenset_type
 
-    def __init__(self, pos, arg, env=None, **kwargs):
+    def __init__(self, pos, arg, **kwargs):
         kwargs['arg'] = arg
         super().__init__(pos, **kwargs)
 
@@ -9959,35 +9961,21 @@ class FrozenSetNode(ExprNode):
         elif arg.is_string_literal:
             # Avoid unpacking strings into characters. frozenset("...") is efficient and constant.
             self.is_literal = True
-        elif arg.is_sequence_constructor:
-            if all(item.is_literal for item in arg.args):
-                # Since all arguments are literals (and we're building a set),
-                # we also ignore the sequence ".mult_factor" in this case.
-                self.is_literal = True
-                # Use a non-constant list instead of a tuple during module init to avoid keeping
-                # an unused tuple constant around.
-                self.arg = self.arg.as_list()
-            else:
-                # Not constant, so use at least an efficient tuple for the sequence argument.
-                self.arg = self.arg.as_tuple()
-                if env is not None:
-                    self.arg = self.arg.analyse_types(env, skip_children=True)
-                self.is_temp = True
         else:
             self.is_temp = True
 
     def may_be_none(self):
         return False
 
-    def _generate_frozenset_code(self, code, frozenset_target, arg_py_result):
+    def _generate_frozenset_new_code(self, code, arg_py_result):
         code.globalstate.use_utility_code(UtilityCode.load_cached(
             'pyfrozenset_new', 'Builtins.c'))
         code.mark_pos(self.pos)
+        result = self.result()
         code.putln(
-            "%s = __Pyx_PyFrozenSet_New(%s); %s" % (
-                frozenset_target,
-                arg_py_result,
-                code.error_goto_if_null(frozenset_target, self.pos)))
+            f"{result} = __Pyx_PyFrozenSet_New({arg_py_result}); "
+            f"{code.error_goto_if_null(result, self.pos)}"
+        )
 
     def _create_shared_frozenset_object(self, code):
         assert not self.is_temp
@@ -9998,10 +9986,8 @@ class FrozenSetNode(ExprNode):
         elif arg.is_string_literal:
             dedup_key = (frozenset_type, frozenset(arg.value))
         else:
-            dedup_key = make_dedup_key(
-                frozenset_type,
-                arg.args if self.arg.is_sequence_constructor else [arg],
-            )
+            dedup_key = make_dedup_key(frozenset_type, [arg])
+
         self.result_code = code.get_py_const('frozenset', dedup_key=dedup_key)
 
         const_code = code.get_cached_constants_writer(self.result_code)
@@ -10015,7 +10001,7 @@ class FrozenSetNode(ExprNode):
         else:
             arg_result = "NULL"
 
-        self._generate_frozenset_code(const_code, self.result(), arg_result)
+        self._generate_frozenset_new_code(const_code, arg_result)
 
         if arg is not None:
             arg.generate_disposal_code(const_code)
@@ -10036,7 +10022,93 @@ class FrozenSetNode(ExprNode):
             super().generate_evaluation_code(code)
 
     def generate_result_code(self, code):
-        self._generate_frozenset_code(code, self.result(), self.arg.py_result())
+        self._generate_frozenset_new_code(code, self.arg.py_result())
+        self.generate_gotref(code)
+
+
+class FrozenSetFromArrayNode(ExprNode):
+    """
+    Frozenset constructor from non-empty items list.
+
+    Only created for analysed args in transforms.
+
+    args     [ExprNode]
+    """
+    subexprs = ["args"]
+
+    gil_message = "Constructing Python frozenset"
+    is_literal = False
+    is_temp = False
+    type = frozenset_type
+
+    def __init__(self, pos, args, **kwargs):
+        kwargs['args'] = args
+        super().__init__(pos, **kwargs)
+
+        if all(item.is_literal for item in args):
+            # Since all arguments are literals (and we're building a set),
+            # we also ignore the sequence ".mult_factor" in this case.
+            self.is_literal = True
+        else:
+            self.is_temp = True
+
+    def may_be_none(self):
+        return False
+
+    def _generate_frozenset_from_array_code(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached(
+            'pyfrozenset_fromarray', 'Builtins.c'))
+
+        result = self.result()
+        args_results = [arg.py_result() for arg in self.args]
+
+        code.mark_pos(self.pos)
+        code.putln("{")
+        code.putln(
+            f"const PyObject const *{Naming.quick_temp_cname}[] = {{{', '.join(args_results)}}};")
+        code.putln(
+            f"{result} = __Pyx_PyFrozenSet_FromArray({Naming.quick_temp_cname}, {len(args_results)}); "
+            f"{code.error_goto_if_null(result, self.pos)}"
+        )
+        code.putln("}")
+
+    def _create_shared_frozenset_object(self, code):
+        assert not self.is_temp
+
+        args = self.args
+        dedup_key = make_dedup_key(frozenset_type, args)
+        self.result_code = code.get_py_const('frozenset', dedup_key=dedup_key)
+
+        const_code = code.get_cached_constants_writer(self.result_code)
+        if const_code is None:
+            return
+
+        # Initialise constant at module init time.
+        for arg in args:
+            arg.generate_evaluation_code(const_code)
+
+        self._generate_frozenset_from_array_code(const_code)
+
+        for arg in reversed(args):
+            arg.generate_disposal_code(const_code)
+            arg.free_temps(const_code)
+
+    def calculate_result_code(self):
+        return self.result_code
+
+    def free_temps(self, code):
+        # Avoid double-freeing the subexpr temps for the prepared constant case.
+        if self.is_temp:
+            super().free_temps(code)
+
+    def generate_evaluation_code(self, code):
+        if self.is_literal:
+            self._create_shared_frozenset_object(code)
+        else:
+            super().generate_evaluation_code(code)
+
+    def generate_result_code(self, code):
+        self._generate_frozenset_from_array_code(code)
         self.generate_gotref(code)
 
 

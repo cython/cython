@@ -2712,11 +2712,18 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return ExprNodes.FrozenSetNode.from_node(node, arg=None, env=self.current_env())
         if len(pos_args) > 1:
             return node
-        if pos_args[0].type.is_pyfrozenset_type and not pos_args[0].may_be_none():
-            # Redundant frozenset(afrozenset) -> afrozenset
-            return pos_args[0]
 
-        return ExprNodes.FrozenSetNode.from_node(node, arg=pos_args[0], env=self.current_env())
+        arg = pos_args[0]
+        if arg.type.is_pyfrozenset_type and not arg.may_be_none():
+            # Redundant frozenset(afrozenset) -> afrozenset
+            return arg
+
+        if arg.is_sequence_constructor:
+            if arg.args:
+                return ExprNodes.FrozenSetFromArrayNode.from_node(node, args=arg.args)
+            arg = None
+
+        return ExprNodes.FrozenSetNode.from_node(node, arg=arg)
 
     PyObject_AsDouble_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type, [

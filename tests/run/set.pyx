@@ -334,6 +334,7 @@ def test_set_of_list():
 
 @cython.test_fail_if_path_exists(
     "//SetNode",
+    "//FrozenSetNode",
     "//PythonCapiCallNode",
 )
 def test_frozenset_of_list():
@@ -360,7 +361,11 @@ def test_set_of_tuple():
     return set((1, 2, 3))
 
 
-@cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SetNode",
+    "//FrozenSetNode",
+    "//PythonCapiCallNode",
+)
 def test_frozenset_of_tuple():
     """
     >>> s = test_frozenset_of_tuple()
@@ -411,8 +416,8 @@ def test_frozenset_of_iterable(x):
 
 
 @cython.test_assert_path_exists(
-    "//FrozenSetNode",
-    "//FrozenSetNode[@is_literal=True]",
+    "//FrozenSetFromArrayNode",
+    "//FrozenSetFromArrayNode[@is_literal=True]",
 )
 def test_create_frozenset_from_characters():
     """
@@ -431,35 +436,54 @@ def test_create_frozenset_from_characters():
 )
 def test_create_frozenset_from_string():
     """
-    >>> s = test_create_frozenset_from_string()
-    >>> isinstance(s, frozenset)
+    >>> s1, s2 = test_create_frozenset_from_string()
+    >>> isinstance(s1, frozenset)
     True
-    >>> sorted(s)
+    >>> isinstance(s2, frozenset)
+    True
+    >>> sorted(s1)
     ['1', '2', '3']
+    >>> sorted(s2)
+    ['1', '2', '3']
+
+    # The following could work...
+    #>>> s1 is s2
+    #True
     """
-    return frozenset("1231")
+    return frozenset("1231"), frozenset(['1', '2', '3', '1'])
 
 
 @cython.test_assert_path_exists("//FrozenSetNode")
 def test_create_frozenset_from_bytes():
     """
-    >>> s = test_create_frozenset_from_string()
-    >>> isinstance(s, frozenset)
+    >>> s1, s2, s3 = test_create_frozenset_from_bytes()
+    >>> isinstance(s1, frozenset)
     True
-    >>> sorted(s)
-    ['1', '2', '3']
+    >>> isinstance(s2, frozenset)
+    True
+    >>> isinstance(s3, frozenset)
+    True
+    >>> sorted(s1)
+    [49, 50, 51]
+    >>> sorted(s2)
+    [49, 50, 51]
+    >>> sorted(s3)
+    [49, 50, 51]
+    >>> s2 is s3
+    True
     """
     b = bytes(b"1231")
-    return frozenset(b)
+    return frozenset(b), frozenset(b'1231'), frozenset(b'32123')
 
 
 @cython.test_fail_if_path_exists(
     "//SetNode",
     "//PythonCapiCallNode",
+    "//FrozenSetNode",
 )
 @cython.test_assert_path_exists(
-    "//FrozenSetNode",
-    "//FrozenSetNode[@is_literal=True]",
+    "//FrozenSetFromArrayNode",
+    "//FrozenSetFromArrayNode[@is_literal=True]",
 )
 def test_frozenset_of_None_value():
     """
@@ -475,11 +499,12 @@ def test_frozenset_of_None_value():
 
 
 @cython.test_fail_if_path_exists(
-    "//FrozenSetNode[@is_literal=False]",
+    "//FrozenSetNode",
+    "//FrozenSetFromArrayNode[@is_literal=False]",
 )
 @cython.test_assert_path_exists(
-    "//FrozenSetNode",
-    "//FrozenSetNode[@is_literal=True]",
+    "//FrozenSetFromArrayNode",
+    "//FrozenSetFromArrayNode[@is_literal=True]",
 )
 def test_frozenset_dedup_mixed_values():
     """
@@ -497,6 +522,7 @@ def test_frozenset_dedup_mixed_values():
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
     "//SetNode",
+    "//FrozenSetFromArrayNode",
     "//PythonCapiCallNode"
 )
 @cython.test_assert_path_exists(
@@ -519,6 +545,7 @@ def test_empty_frozenset():
 
 @cython.test_fail_if_path_exists(
     '//ListNode//ListNode',
+    "//FrozenSetFromArrayNode",
     '//ListNode//PythonCapiCallNode//PythonCapiCallNode',
     '//ListNode//SimpleCallNode//SimpleCallNode',
 )
