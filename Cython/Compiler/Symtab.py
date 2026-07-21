@@ -1136,6 +1136,7 @@ class Scope:
             if entry.type.is_fused and self.fused_to_specific:
                 return entry.type.specialize(self.fused_to_specific)
             return entry.type
+        return None
 
     def lookup_type(self, name):
         entry = self.lookup(name)
