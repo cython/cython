@@ -8,7 +8,8 @@ Cython Changelog
 Features added
 --------------
 
-* The feature set of the shared module can be selected at build time.
+* The feature set of the shared module can be selected at build time
+  by listing named features to exclude or include.
   (Github issue :issue:`7759`)
 
 * Cython now uses a new export/import naming scheme for fused C functions that
@@ -35,6 +36,11 @@ Features added
 * The typed tuple syntax ``tuple[atype, ...]`` for homogeneous tuples is supported.
   (Github issue :issue:`7798`)
 
+* ``cython.py_int`` (and the same for ``py_float``, ``py_complex`` and ``py_bool``)
+  can be used to refer to Python's builtin types in a C type context, e.g. after ``cdef``,
+  where they are normally shadowed by the C types of the same name.
+  (Github issue :issue:`7844`)
+
 * ``bytearray.extend(bytes)`` is faster.
   (Github issue :issue:`7797`)
 
@@ -48,12 +54,37 @@ Features added
   translation speed for modules with many strings.
   (Github issue :issue:`7795`)
 
+* ``TreeFragment.parse_from_strings()`` now supports full modules and ``.pxd`` files.
+  Patch by Itamar Turner-Trauring.  (Github issue :issue:`7827`)
+
 Bugs fixed
 ----------
 
 * Several issues with ``.close()`` or ``.throw()`` of Async generator asend/athrow
   objects were resolved, following fixes in CPython.
   (Github issue :issue:`7777`)
+
+* The ``__class__`` method cell misbehaved when used together with class decorators
+  and passed the decorated class (and thus an arbitrary object) into ``super()``
+  instead of the class object.
+  (Github issue :issue:`7721`)
+
+* Declaring a ``__dict__`` attribute in a class as ``public`` or ``readonly``
+  generated incorrect code.  It is now detected as an error.
+  Patch by Anthony Donlon.  (Github issue :issue:`7823`)
+
+* A ``return value`` from within a ``prange()`` loop could silently return the
+  default value of the return type instead of the uesr provided value.
+  (Github issue :issue:`7587`)
+
+* Setting ``Py_LIMITED_API`` to a newer API version x.y than the current runtime
+  (and its header files) is now detected and will explicitly fail to compile,
+  rather than running into arbitray C compile or runtime issues.
+  (Github issue :issue:`7185`)
+
+* A ``cpdef enum`` with negative values changed to non-negative in Python 3.15.
+  It now uses a dedicated enum implementation class to allow this.
+  (Github issue :issue:`7185`)
 
 * ``cpdef fused`` functions generated redundant code.
   (Github issue :issue:`7778`)
@@ -66,6 +97,10 @@ Bugs fixed
 * A C helper function for mapping function arguments could be missing in 3.3.0a1.
   (Github issue :issue:`7785`)
 
+* MSVC could silently truncate long C string literals (including internal ones)
+  at a 64k bytes border.  This is now worked around using C char arrays.
+  (Github issue :issue:`7824`)
+
 * Some compiler directives failed to apply to Cython's build, which lead to
   unintentionally (slightly) increased wheel sizes.
   (Github issue :issue:`7801`)
@@ -74,6 +109,12 @@ Bugs fixed
 
 Other changes
 -------------
+
+* Setting the Limited API version macro ``Py_LIMITED_API`` in PyPy or GraalPython
+  now enables the Limited API usage in these runtimes.  This will currently fail
+  due to lack of support in the runtimes, but is intended for initial testing
+  and future improvements.
+  (Github issue :issue:`7831`)
 
 
 3.3.0a1 (2026-06-24)
