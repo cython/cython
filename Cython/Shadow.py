@@ -657,6 +657,7 @@ def fused_type(*args: Any) -> Type[Any]:
 
 py_int = typedef(int, "int")
 py_long = typedef(int, "long")  # for legacy Py2 code only
+py_bool = typedef(bool, "bool")
 py_float = typedef(float, "float")
 py_complex = typedef(complex, "double complex")
 

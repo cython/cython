@@ -11,11 +11,11 @@ cdef class ControlBlock:
     cdef readonly set bounded
 
     # Big integer bitsets
-    cdef object i_input
-    cdef object i_output
-    cdef object i_gen
-    cdef object i_kill
-    cdef object i_state
+    cdef cython.py_int i_input
+    cdef cython.py_int i_output
+    cdef cython.py_int i_gen
+    cdef cython.py_int i_kill
+    cdef cython.py_int i_state
 
     cpdef bint empty(self)
     cpdef detach(self)
@@ -27,7 +27,7 @@ cdef class ExitBlock(ControlBlock):
 cdef class NameAssignment:
     cdef public bint is_arg
     cdef public bint is_deletion
-    cdef public object bit
+    cdef public cython.py_int bit
     cdef public object inferred_type
     cdef readonly object lhs
     cdef readonly object rhs
@@ -39,8 +39,8 @@ cdef class NameAssignment:
 
 @cython.final
 cdef class AssignmentList:
-    cdef object bit
-    cdef object mask
+    cdef cython.py_int bit
+    cdef cython.py_int mask
     cdef list[NameAssignment] stats
 
 cdef class AssignmentCollector(TreeVisitor):
