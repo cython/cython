@@ -315,57 +315,17 @@ all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
 e.g. ``unsigned int`` (``cython.uint`` in Python code):
 
 
-.. list-table:: Numeric Types
-   :widths: 25 25
-   :header-rows: 1
+        .. csv-table:: C Numeric types
+            :file: numeric_types.csv
+            :header-rows: 1
+            :class: longtable
 
-   * - Cython type
-     - Pure Python type
+and builtin python types:
 
-   * - ``bint``
-     - ``cython.bint``
-   * - ``char``
-     - ``cython.char``
-   * - ``signed char``
-     - ``cython.schar``
-   * - ``unsigned char``
-     - ``cython.uchar``
-   * - ``short``
-     - ``cython.short``
-   * - ``unsigned short``
-     - ``cython.ushort``
-   * - ``int``
-     - ``cython.int``
-   * - ``unsigned int``
-     - ``cython.uint``
-   * - ``long``
-     - ``cython.long``
-   * - ``unsigned long``
-     - ``cython.ulong``
-   * - ``long long``
-     - ``cython.longlong``
-   * - ``unsigned long long``
-     - ``cython.ulonglong``
-   * - ``float``
-     - ``cython.float``
-   * - ``double``
-     - ``cython.double``
-   * - ``long double``
-     - ``cython.longdouble``
-   * - ``float complex``
-     - ``cython.floatcomplex``
-   * - ``double complex``
-     - ``cython.doublecomplex``
-   * - ``long double complex``
-     - ``cython.longdoublecomplex``
-   * - ``size_t``
-     - ``cython.size_t``
-   * - ``Py_ssize_t``
-     - ``cython.Py_ssize_t``
-   * - ``Py_hash_t``
-     - ``cython.Py_hash_t``
-   * - ``Py_UCS4``
-     - ``cython.Py_UCS4``
+        .. csv-table:: Python builtin types
+            :file: python_types.csv
+            :header-rows: 1
+            :class: longtable
 
 .. note::
    Additional types are declared in the `stdint pxd file <https://github.com/cython/cython/blob/master/Cython/Includes/libc/stdint.pxd>`_.
@@ -386,7 +346,7 @@ Note that Cython uses array access for pointer dereferencing, as ``*x`` is not v
 whereas ``x[0]`` is.
 
 Also, the Python types ``list``, ``dict``, ``tuple``, etc. may be used for
-static typing, as well as any user defined :ref:`extension-types`.
+static typing, their specialized versions using subscripts and as well as any user defined :ref:`extension-types`.
 For example
 
 .. tabs::
@@ -397,12 +357,14 @@ For example
 
             def main():
                 foo: list = []
+                bar: list[str] = ['Monty', 'Python']
 
     .. group-tab:: Cython
 
         .. code-block:: cython
 
             cdef list foo = []
+            cdef list[str] bar = ['Monty', 'Python']
 
 This requires an *exact* match of the class, it does not allow subclasses.
 This allows Cython to optimize code by accessing internals of the builtin class,
