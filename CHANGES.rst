@@ -29,6 +29,9 @@ Bugs fixed
 * Manually disabling ``CYTHON_VECTORCALL`` in CPython could lead to invalid C code.
   Patch by Florent Gallaire.  (Github issue :issue:`7807`)
 
+* Some internal Limited API version checks for Py3.12 were corrected.
+  (Github issue :issue:`7845`)
+
 
 3.2.8 (2026-06-30)
 ==================
