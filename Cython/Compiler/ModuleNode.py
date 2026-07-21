@@ -894,7 +894,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                    "please install development version of Python.")
         code.putln("#elif PY_VERSION_HEX < 0x03090000")
         code.putln("    #error Cython requires Python 3.9+.")
-        code.putln("#elif defined(Py_LIMITED_API) && Py_LIMITED_API > (PY_VERSION_HEX & 0xFFFF0000)")
+        code.putln("#elif defined(Py_LIMITED_API) && (Py_LIMITED_API & 0xFFFF0000) > (PY_VERSION_HEX & 0xFFFF0000)")
         code.putln("    #error 'Py_LIMITED_API' can only select past Python X.Y versions, not future ones.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
