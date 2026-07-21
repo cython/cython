@@ -74,12 +74,12 @@ Bugs fixed
   Patch by Anthony Donlon.  (Github issue :issue:`7823`)
 
 * A ``return value`` from within a ``prange()`` loop could silently return the
-  default value of the return type instead of the uesr provided value.
+  default value of the return type instead of the user provided value.
   (Github issue :issue:`7587`)
 
 * Setting ``Py_LIMITED_API`` to a newer API version x.y than the current runtime
   (and its header files) is now detected and will explicitly fail to compile,
-  rather than running into arbitray C compile or runtime issues.
+  rather than running into arbitrary C compile or runtime issues.
   (Github issue :issue:`7185`)
 
 * A ``cpdef enum`` with negative values changed to non-negative in Python 3.15.
