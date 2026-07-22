@@ -536,9 +536,6 @@ def test_empty_frozenset():
     True
     >>> len(s)
     0
-    >>> import sys
-    >>> sys.version_info >= (3, 10) or s is frozenset()   # singleton in Python < 3.10
-    True
     """
     return frozenset()
 
