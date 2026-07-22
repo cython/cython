@@ -3030,20 +3030,17 @@ def looking_at_dotted_name(s: PyrexScanner) -> cython.bint:
 basic_c_type_names = cython.declare(frozenset, frozenset((
     "void", "char", "int", "float", "double", "bint")))
 
-special_basic_c_types = cython.declare(
-    dict[str, tuple[cython.py_int, cython.py_int]],
-    {
-        # name : (signed, longness)
-        "Py_UNICODE" : (0, 0),
-        "Py_UCS4"    : (0, 0),
-        "Py_hash_t"  : (2, 0),
-        "Py_ssize_t" : (2, 0),
-        "ssize_t"    : (2, 0),
-        "size_t"     : (0, 0),
-        "ptrdiff_t"  : (2, 0),
-        "Py_tss_t"   : (1, 0),
-    }
-)
+special_basic_c_types = cython.declare(dict, {
+    # name : (signed, longness)
+    "Py_UNICODE" : (0, 0),
+    "Py_UCS4"    : (0, 0),
+    "Py_hash_t"  : (2, 0),
+    "Py_ssize_t" : (2, 0),
+    "ssize_t"    : (2, 0),
+    "size_t"     : (0, 0),
+    "ptrdiff_t"  : (2, 0),
+    "Py_tss_t"   : (1, 0),
+})
 
 sign_and_longness_words = cython.declare(frozenset, frozenset((
     "short", "long", "signed", "unsigned")))
