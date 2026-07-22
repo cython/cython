@@ -6249,7 +6249,7 @@ class CallNode(ExprNode):
                     elif func_name == 'bool':
                         return PyrexTypes.c_bint_type
                     elif func_name in Builtin.types_that_construct_their_instance:
-                        return result_type
+                        return Builtin.builtin_types[func_name]
         func_type = self.function.analyse_as_type(env)
         if func_type and (func_type.is_struct_or_union or func_type.is_cpp_class):
             return func_type
@@ -6290,14 +6290,14 @@ class CallNode(ExprNode):
             if func_type is Builtin.type_type and (
                     entry and entry.is_builtin and entry.name in Builtin.types_that_construct_their_instance):
                 # calling a builtin type that returns a specific object type
-                self.result_ctype = py_object_type
                 self.may_return_none = False
                 if entry.name == 'float':
-                    # the following will come true later on in a transform
+                    # "float(...) -> double" will come true later on in a transform.
                     self.type = PyrexTypes.c_double_type
                     self.result_ctype = PyrexTypes.c_double_type
                 else:
                     self.type = Builtin.builtin_types[entry.name]
+                    self.result_ctype = py_object_type
             elif function.type_entry:
                 # We are calling an extension type constructor.  As long as we do not
                 # support __new__(), the result type is clear
