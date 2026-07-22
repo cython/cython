@@ -89,7 +89,7 @@ def p_ident_list(s: PyrexScanner) -> list:
 #------------------------------------------
 
 @cython.cfunc
-def p_binop_operator(s: PyrexScanner) -> tuple[unicode, object]:
+def p_binop_operator(s: PyrexScanner) -> tuple[str, object]:
     pos = s.position()
     op = s.sy
     s.next()
