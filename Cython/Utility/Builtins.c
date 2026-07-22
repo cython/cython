@@ -725,11 +725,11 @@ static PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
 
 //////////////////// pyfrozenset_fromarray.proto ////////////////////
 
-static PyObject* __Pyx_PyFrozenSet_FromArray(PyObject** values, Py_ssize_t length);
+static PyObject* __Pyx_PyFrozenSet_FromArray(PyObject* const* values, Py_ssize_t length);
 
 //////////////////// pyfrozenset_fromarray ////////////////////
 
-static PyObject* __Pyx_PyFrozenSet_FromArray(PyObject** values, Py_ssize_t length) {
+static PyObject* __Pyx_PyFrozenSet_FromArray(PyObject* const* values, Py_ssize_t length) {
 #if CYTHON_COMPILING_IN_PYPY
     // PyPy currently lacks PyFrozenSet_New()
     PyObject* argtuple = PyTuple_New(n);

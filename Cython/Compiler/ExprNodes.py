@@ -10065,7 +10065,7 @@ class FrozenSetFromArrayNode(ExprNode):
         code.mark_pos(self.pos)
         code.putln("{")
         code.putln(
-            f"const PyObject const *{Naming.quick_temp_cname}[] = {{{', '.join(args_results)}}};")
+            f"PyObject* const {Naming.quick_temp_cname}[] = {{{', '.join(args_results)}}};")
         code.putln(
             f"{result} = __Pyx_PyFrozenSet_FromArray({Naming.quick_temp_cname}, {len(args_results)}); "
             f"{code.error_goto_if_null(result, self.pos)}"
