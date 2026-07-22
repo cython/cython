@@ -9897,13 +9897,11 @@ class SetNode(ExprNode):
 
     def analyse_types(self, env):
         for i in range(len(self.args)):
-            arg = self.args[i]
-            arg = arg.analyse_types(env)
+            arg = self.args[i].analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
 
         if self.read_only and all(item.is_literal for item in self.args):
-            arg = ListNode.from_node(self, args=self.args)
-            return FrozenSetNode.from_node(self, arg=arg, env=env)
+            return FrozenSetFromArrayNode.from_node(self, args=self.args, env=env)
 
         return self
 
