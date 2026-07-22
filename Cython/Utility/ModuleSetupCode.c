@@ -62,7 +62,108 @@
 // when doing version checks.
 #define __PYX_LIMITED_VERSION_HEX PY_VERSION_HEX
 
-#if defined(GRAALVM_PYTHON)
+#if defined(CYTHON_LIMITED_API)
+  #ifdef Py_LIMITED_API
+    #undef __PYX_LIMITED_VERSION_HEX
+    #define __PYX_LIMITED_VERSION_HEX Py_LIMITED_API
+    #if Py_LIMITED_API < 0x03090000
+      #error "Cython 3.3 requires the Python Limited API version to be 3.9 or greater."
+    #endif
+  #endif
+  #if defined(GRAALVM_PYTHON) || defined(PYPY_VERSION)
+    #ifdef _MSC_VER
+      #pragma message ("Py_LIMITED_API is defined on PyPy or GraalPy. This takes precedence over Cython's specialized \
+        code for PyPy and GraalPy and is unlikely to work.")
+    #else
+      #warning "Py_LIMITED_API is defined on PyPy or GraalPy. This takes precedence over Cython's specialized \
+        code for PyPy and GraalPy and is unlikely to work."
+    #endif
+  #endif
+  #define CYTHON_COMPILING_IN_PYPY 0
+  #define CYTHON_COMPILING_IN_CPYTHON 0
+  #define CYTHON_COMPILING_IN_LIMITED_API 1
+  #define CYTHON_COMPILING_IN_GRAAL 0
+
+  #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
+
+  #undef CYTHON_USE_TYPE_SLOTS
+  #define CYTHON_USE_TYPE_SLOTS 0
+  #undef CYTHON_USE_TYPE_SPECS
+  #define CYTHON_USE_TYPE_SPECS 1
+  #undef CYTHON_USE_PYTYPE_LOOKUP
+  #define CYTHON_USE_PYTYPE_LOOKUP 0
+  #undef CYTHON_USE_PYLIST_INTERNALS
+  #define CYTHON_USE_PYLIST_INTERNALS 0
+  #undef CYTHON_USE_UNICODE_INTERNALS
+  #define CYTHON_USE_UNICODE_INTERNALS 0
+  #ifndef CYTHON_USE_UNICODE_WRITER
+    #define CYTHON_USE_UNICODE_WRITER 0
+  #endif
+  #undef CYTHON_USE_PYLONG_INTERNALS
+  #define CYTHON_USE_PYLONG_INTERNALS 0
+  #ifndef CYTHON_AVOID_BORROWED_REFS
+    #define CYTHON_AVOID_BORROWED_REFS 0
+  #endif
+  #ifndef CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+    #define CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS 0
+  #endif
+  #undef CYTHON_ASSUME_SAFE_MACROS
+  #define CYTHON_ASSUME_SAFE_MACROS 0
+  #undef CYTHON_ASSUME_SAFE_SIZE
+  #define CYTHON_ASSUME_SAFE_SIZE 0
+  #undef CYTHON_UNPACK_METHODS
+  #define CYTHON_UNPACK_METHODS 0
+  #undef CYTHON_FAST_THREAD_STATE
+  #define CYTHON_FAST_THREAD_STATE 0
+  #undef CYTHON_FAST_GIL
+  #define CYTHON_FAST_GIL 0
+  #undef CYTHON_VECTORCALL
+  #define CYTHON_VECTORCALL (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
+  #ifndef CYTHON_VECTORCALL_TPNEW
+    #define CYTHON_VECTORCALL_TPNEW (CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030E0000)
+  #endif
+  #ifndef CYTHON_PEP487_INIT_SUBCLASS
+    #define CYTHON_PEP487_INIT_SUBCLASS 1
+  #endif
+  #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
+    #define CYTHON_PEP489_MULTI_PHASE_INIT 1
+  #endif
+  #ifndef CYTHON_USE_MODULE_STATE
+    #define CYTHON_USE_MODULE_STATE 0
+  #endif
+  #undef CYTHON_USE_SYS_MONITORING
+  #define CYTHON_USE_SYS_MONITORING 0
+  #ifndef CYTHON_USE_TP_FINALIZE
+    // PyObject_CallFinalizerFromDealloc is missing and not easily replaced
+    #define CYTHON_USE_TP_FINALIZE (__PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX > 0x030F00A8)
+  #endif
+  #ifndef CYTHON_USE_AM_SEND
+    #define CYTHON_USE_AM_SEND (__PYX_LIMITED_VERSION_HEX >= 0x030A0000)
+  #endif
+  #undef CYTHON_USE_DICT_VERSIONS
+  #define CYTHON_USE_DICT_VERSIONS 0
+  #undef CYTHON_USE_EXC_INFO_STACK
+  #define CYTHON_USE_EXC_INFO_STACK 0
+  #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
+    #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
+  #endif
+  #ifndef CYTHON_USE_FREELISTS
+  #define CYTHON_USE_FREELISTS 1
+  #endif
+  #undef CYTHON_IMMORTAL_CONSTANTS
+  #define CYTHON_IMMORTAL_CONSTANTS 0
+  // Opaque objects: generally we prefer not to use them for performance reasons.
+  #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
+  // If users manually request them then they aren't usable before 3.14 because
+  // it isn't possible to specify relative offsets like vectorcall.
+  #undef CYTHON_OPAQUE_OBJECTS
+  #define CYTHON_OPAQUE_OBJECTS 0
+  #elif !defined(CYTHON_OPAQUE_OBJECTS)
+  // From 3.15 it starts being needed for freethreading compatibility
+  #define CYTHON_OPAQUE_OBJECTS (__PYX_LIMITED_VERSION_HEX >= 0x030F0000)
+  #endif
+
+#elif defined(GRAALVM_PYTHON)
   /* For very preliminary testing purposes. Most variables are set the same as PyPy.
      The existence of this section does not imply that anything works or is even tested */
   // GRAALVM_PYTHON test comes before PyPy test because GraalPython unhelpfully defines PYPY_VERSION
@@ -216,98 +317,6 @@
   #define CYTHON_IMMORTAL_CONSTANTS 0
   #undef CYTHON_OPAQUE_OBJECTS
   #define CYTHON_OPAQUE_OBJECTS 0
-
-#elif defined(CYTHON_LIMITED_API)
-  #ifdef Py_LIMITED_API
-    #undef __PYX_LIMITED_VERSION_HEX
-    #define __PYX_LIMITED_VERSION_HEX Py_LIMITED_API
-    #if Py_LIMITED_API < 0x03090000
-      #error "Cython 3.3 requires the Python Limited API version to be 3.9 or greater."
-    #endif
-  #endif
-  #define CYTHON_COMPILING_IN_PYPY 0
-  #define CYTHON_COMPILING_IN_CPYTHON 0
-  #define CYTHON_COMPILING_IN_LIMITED_API 1
-  #define CYTHON_COMPILING_IN_GRAAL 0
-
-  #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
-
-  #undef CYTHON_USE_TYPE_SLOTS
-  #define CYTHON_USE_TYPE_SLOTS 0
-  #undef CYTHON_USE_TYPE_SPECS
-  #define CYTHON_USE_TYPE_SPECS 1
-  #undef CYTHON_USE_PYTYPE_LOOKUP
-  #define CYTHON_USE_PYTYPE_LOOKUP 0
-  #undef CYTHON_USE_PYLIST_INTERNALS
-  #define CYTHON_USE_PYLIST_INTERNALS 0
-  #undef CYTHON_USE_UNICODE_INTERNALS
-  #define CYTHON_USE_UNICODE_INTERNALS 0
-  #ifndef CYTHON_USE_UNICODE_WRITER
-    #define CYTHON_USE_UNICODE_WRITER 0
-  #endif
-  #undef CYTHON_USE_PYLONG_INTERNALS
-  #define CYTHON_USE_PYLONG_INTERNALS 0
-  #ifndef CYTHON_AVOID_BORROWED_REFS
-    #define CYTHON_AVOID_BORROWED_REFS 0
-  #endif
-  #ifndef CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-    #define CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS 0
-  #endif
-  #undef CYTHON_ASSUME_SAFE_MACROS
-  #define CYTHON_ASSUME_SAFE_MACROS 0
-  #undef CYTHON_ASSUME_SAFE_SIZE
-  #define CYTHON_ASSUME_SAFE_SIZE 0
-  #undef CYTHON_UNPACK_METHODS
-  #define CYTHON_UNPACK_METHODS 0
-  #undef CYTHON_FAST_THREAD_STATE
-  #define CYTHON_FAST_THREAD_STATE 0
-  #undef CYTHON_FAST_GIL
-  #define CYTHON_FAST_GIL 0
-  #undef CYTHON_VECTORCALL
-  #define CYTHON_VECTORCALL (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
-  #ifndef CYTHON_VECTORCALL_TPNEW
-    #define CYTHON_VECTORCALL_TPNEW (CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030E0000)
-  #endif
-  #ifndef CYTHON_PEP487_INIT_SUBCLASS
-    #define CYTHON_PEP487_INIT_SUBCLASS 1
-  #endif
-  #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
-    #define CYTHON_PEP489_MULTI_PHASE_INIT 1
-  #endif
-  #ifndef CYTHON_USE_MODULE_STATE
-    #define CYTHON_USE_MODULE_STATE 0
-  #endif
-  #undef CYTHON_USE_SYS_MONITORING
-  #define CYTHON_USE_SYS_MONITORING 0
-  #ifndef CYTHON_USE_TP_FINALIZE
-    // PyObject_CallFinalizerFromDealloc is missing and not easily replaced
-    #define CYTHON_USE_TP_FINALIZE (__PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX > 0x030F00A8)
-  #endif
-  #ifndef CYTHON_USE_AM_SEND
-    #define CYTHON_USE_AM_SEND (__PYX_LIMITED_VERSION_HEX >= 0x030A0000)
-  #endif
-  #undef CYTHON_USE_DICT_VERSIONS
-  #define CYTHON_USE_DICT_VERSIONS 0
-  #undef CYTHON_USE_EXC_INFO_STACK
-  #define CYTHON_USE_EXC_INFO_STACK 0
-  #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
-    #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
-  #endif
-  #ifndef CYTHON_USE_FREELISTS
-  #define CYTHON_USE_FREELISTS 1
-  #endif
-  #undef CYTHON_IMMORTAL_CONSTANTS
-  #define CYTHON_IMMORTAL_CONSTANTS 0
-  // Opaque objects: generally we prefer not to use them for performance reasons.
-  #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
-  // If users manually request them then they aren't usable before 3.14 because
-  // it isn't possible to specify relative offsets like vectorcall.
-  #undef CYTHON_OPAQUE_OBJECTS
-  #define CYTHON_OPAQUE_OBJECTS 0
-  #elif !defined(CYTHON_OPAQUE_OBJECTS)
-  // From 3.15 it starts being needed for freethreading compatibility
-  #define CYTHON_OPAQUE_OBJECTS (__PYX_LIMITED_VERSION_HEX >= 0x030F0000)
-  #endif
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0

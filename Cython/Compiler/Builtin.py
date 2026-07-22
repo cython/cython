@@ -444,8 +444,6 @@ builtin_types_table = [
                                     BuiltinMethod("add",     "TO", "r", "PySet_Add"),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
     ("frozenset", "&PyFrozenSet_Type", []),
-    ("BaseException", "((PyTypeObject*)PyExc_BaseException)", []),
-    ("Exception", "((PyTypeObject*)PyExc_Exception)", []),
     ("memoryview", "&PyMemoryView_Type", [
         # TODO - format would be nice, but hard to get
         # __len__ can be accessed through a direct lookup of the buffer (but probably in Optimize.c)
@@ -790,10 +788,6 @@ def init_builtin_types():
             objstruct_cname = 'PyUnicodeObject'
         elif name == 'bool':
             objstruct_cname = 'PyLongObject'
-        elif name == 'BaseException':
-            objstruct_cname = "PyBaseExceptionObject"
-        elif name == 'Exception':
-            objstruct_cname = "PyBaseExceptionObject"
         else:
             objstruct_cname = 'Py%sObject' % name.capitalize()
 
@@ -833,17 +827,22 @@ def init_builtin_exceptions():
             # Exclude builtins specific to later Python versions or platforms.
             continue
 
-        # Some builtins are already declared above in a more specialised way.
-        type_entry = builtin_scope.lookup_here(name)
-        if type_entry is None:
-            utility_code = UtilityCode(
-                proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
-                name=f"Py{name}_Check",
-            )
-            exc_type = builtin_types[name] = builtin_scope.declare_builtin_type(
-                name, f"((PyTypeObject*)PyExc_{name})", utility_code=utility_code)
-        else:
-            exc_type = type_entry.type
+        objstruct_cname = None
+        if name == 'BaseException':
+            objstruct_cname = "PyBaseExceptionObject"
+        elif name == 'Exception':
+            objstruct_cname = "PyBaseExceptionObject"
+
+        assert builtin_scope.lookup_here(name) is None  # should not be declared above
+        utility_code = UtilityCode(
+            proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
+            name=f"Py{name}_Check",
+        )
+        exc_type = builtin_types[name] = builtin_scope.declare_builtin_type(
+            name, f"((PyTypeObject*)PyExc_{name})",
+            objstruct_cname=objstruct_cname,
+            utility_code=utility_code,
+        )
 
         # Also cover known subtypes, but avoid overly long chains of type pointer comparisons.
         subtypes = [

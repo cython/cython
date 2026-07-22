@@ -1341,6 +1341,8 @@ class TemplatedTypeNode(CBaseTypeNode):
                     error(template_node.pos, "unknown type in template argument")
                     ttype = error_type
                 # For Python generics we can be a bit more flexible and allow None.
+                if template_node.constant_result is Ellipsis:
+                    ttype = Ellipsis
             template_types.append(ttype)
 
         if base_type.python_type_constructor_name:
@@ -5199,9 +5201,11 @@ class PyClassDefNode(ClassDefNode):
     #  orig_bases  None or ExprNode  "bases" before transformation by PEP560 __mro_entries__,
     #                                used to create the __orig_bases__ attribute
 
-    child_attrs = ["doc_node", "body", "dict", "metaclass", "mkw", "bases", "class_result",
+    child_attrs = ["doc_node", "body", "dict", "metaclass", "mkw", "bases",
+                   "classobj", "class_result",
                    "target", "class_cell", "decorators", "orig_bases"]
     decorators = None
+    class_result_before_decorators = None
     class_result = None
     is_py3_style_class = False  # Python3 style class (kwargs)
     metaclass = None
@@ -5309,7 +5313,9 @@ class PyClassDefNode(ClassDefNode):
         return cenv
 
     def analyse_declarations(self, env):
-        unwrapped_class_result = class_result = self.classobj
+        from .ExprNodes import CloneNode
+        unwrapped_class_result = self.classobj
+        class_result = CloneNode(unwrapped_class_result)
         if self.decorators:
             from .ExprNodes import SimpleCallNode
             for decorator in self.decorators[::-1]:
@@ -5327,7 +5333,6 @@ class PyClassDefNode(ClassDefNode):
         self.target.analyse_target_declaration(env)
         cenv = self.create_scope(env)
         cenv.directives = env.directives
-        cenv.class_obj_cname = self.target.entry.cname
         if self.doc_node:
             self.doc_node.analyse_target_declaration(cenv)
         self.body.analyse_declarations(cenv)
@@ -5391,7 +5396,7 @@ class PyClassDefNode(ClassDefNode):
             code.putln("}")
             self.orig_bases.generate_disposal_code(code)
             self.orig_bases.free_temps(code)
-        cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
+        cenv.namespace_cname = self.dict.result()
 
         class_cell = self.class_cell
         if class_cell is not None and not class_cell.is_active:
@@ -5400,16 +5405,19 @@ class PyClassDefNode(ClassDefNode):
         if class_cell is not None:
             class_cell.generate_evaluation_code(code)
         self.body.generate_execution_code(code)
+        self.classobj.generate_evaluation_code(code)
         self.class_result.generate_evaluation_code(code)
         if class_cell is not None:
             class_cell.generate_injection_code(
-                code, self.class_result.result())
+                code, self.classobj.result())
         if class_cell is not None:
             class_cell.generate_disposal_code(code)
             class_cell.free_temps(code)
 
-        cenv.namespace_cname = cenv.class_obj_cname = self.classobj.result()
+        cenv.namespace_cname = self.classobj.result()
         self.target.generate_assignment_code(self.class_result, code)
+        self.classobj.generate_disposal_code(code)
+        self.classobj.free_temps(code)
         self.dict.generate_disposal_code(code)
         self.dict.free_temps(code)
         if self.metaclass:
@@ -7247,7 +7255,7 @@ class RaiseStatNode(StatNode):
             return
         elif self.builtin_exc_name == 'StopIteration' and not self.exc_type:
             code.putln('%s = 1;' % Naming.error_without_exception_cname)
-            code.putln('%s;' % code.error_goto(None))
+            code.putln(code.error_goto(self.pos))
             code.funcstate.error_without_exception = True
             return
 
@@ -7365,15 +7373,21 @@ class AssertStatNode(StatNode):
             UtilityCode.load_cached("AssertionsEnabled", "Exceptions.c"))
         code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
         code.putln("if (unlikely(__pyx_assertions_enabled())) {")
-        code.mark_pos(self.pos)
-        self.condition.generate_evaluation_code(code)
-        code.putln(
-            "if (unlikely(!%s)) {" % self.condition.result())
+
+        if self.condition.constant_result is not False:
+            code.mark_pos(self.pos)
+            self.condition.generate_evaluation_code(code)
+            code.putln(
+                "if (unlikely(!%s)) {" % self.condition.result())
+
         self.exception.generate_execution_code(code)
-        code.putln(
-            "}")
-        self.condition.generate_disposal_code(code)
-        self.condition.free_temps(code)
+
+        if self.condition.constant_result is not False:
+            code.putln(
+                "}")
+            self.condition.generate_disposal_code(code)
+            self.condition.free_temps(code)
+
         code.putln(
             "}")
         code.putln("#else")
@@ -7460,8 +7474,8 @@ class IfClauseNode(Node):
         code.mark_pos(self.pos)
         condition = self.condition.result()
         if self.branch_hint:
-            condition = '%s(%s)' % (self.branch_hint, condition)
-        code.putln("if (%s) {" % condition)
+            condition = f'{self.branch_hint}({condition})'
+        code.putln(f"if ({condition}) {{")
         self.condition.generate_disposal_code(code)
         self.condition.free_temps(code)
         self.body.generate_execution_code(code)
@@ -10119,6 +10133,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
         self.any_label_used = False
         self.breaking_label_used = False
+        self.return_label_used = False
         self.error_label_used = False
 
         self.parallel_private_temps = []
@@ -10130,6 +10145,8 @@ class ParallelStatNode(StatNode, ParallelNode):
             if code.label_used(label):
                 self.breaking_label_used = (self.breaking_label_used or
                                             label != code.continue_label)
+                self.return_label_used = (self.return_label_used or
+                                            label == code.return_label)
                 self.any_label_used = True
 
         if self.any_label_used:
@@ -10669,7 +10686,10 @@ class ParallelRangeNode(ParallelStatNode):
             code.end_block()  # end else block
 
         # ------ cleanup ------
-        self.end_parallel_control_flow_block(code)  # end parallel control flow block
+        self.end_parallel_control_flow_block(
+            code,
+            return_=self.return_label_used
+        )  # end parallel control flow block
 
         # And finally, release our privates and write back any closure
         # variables

@@ -413,12 +413,21 @@ Thus, declarations like ``exc: BaseException`` accept all exception objects, as 
 
 For declared builtin types, Cython uses internally a C variable of type :c:expr:`PyObject*`.
 
-.. note:: The Python types ``int``, ``long``, and ``float`` are not available for static
-    typing in ``.pyx`` files and instead interpreted as C ``int``, ``long``, and ``float``
-    respectively, as statically typing variables with these Python
-    types has zero advantages. On the other hand, annotating in Pure Python with
-    ``int``, ``long``, and ``float`` Python types will be interpreted as
-    Python object types.
+.. note:: When declaring C types, e.g. ``cdef int x``, the Python types
+    ``int``, ``complex``, and ``float`` are not directly available for static typing and
+    instead interpreted as C ``int``, ``complex``, and ``float`` respectively,
+    as statically typing variables with these Python types has little advantages in most code.
+
+    For the rare case that the Python builtin type really needs to be declared in a C context,
+    these builtin types can be explicitly accessed via the type aliases
+    ``cython.py_int``, ``cython.py_complex`` and ``cython.py_float`` since Cython 3.3.
+
+    In Python type annotations, ``int``, ``complex``, and ``float`` are interpreted according to the
+    usual Python typing rules, although considered as exact type declarations, excluding subtypes.
+    Thus, ``x: int`` gives arbitrary size Python ``int`` semantics to the variable ``x``.
+    As an optimisation, the Python type annotations ``float``, ``complex`` and ``bool`` are
+    automatically aliased to their equivalent C types ``double``, ``double complex`` and ``bint``,
+    but behave like the Python types from a user perspective.
 
 Cython provides an accelerated and typed equivalent of a Python tuple, the ``ctuple``.
 A ``ctuple`` is assembled from any valid C types. For example
@@ -1496,11 +1505,14 @@ Built-in Functions
 
 Cython compiles calls to most built-in functions into direct calls to
 the corresponding Python/C API routines, making them particularly fast.
+Often, it replaces the available generic C-API functions with something
+even faster and more specialised for the usage pattern and the targeted
+Python runtime/version.
 
 Only direct function calls using these names are optimised. If you do
 something else with one of these names that assumes it's a Python object,
 such as assign it to a Python variable, and later call it, the call will
-be made as a Python function call.
+usually be made as a Python function call.
 
 +------------------------------+-------------+----------------------------+
 | Function and arguments       | Return type | Python/C API Equivalent    |
@@ -1775,7 +1787,7 @@ The following selection of builtin constants and functions are also available:
     round, set, slice, sorted, str, sum, tuple, xrange, zip
 
 Note that some of these builtins may behave differently depending on the Python
-version, or may not even be available.
+version, or may not even be available there yet.
 
 A name defined using ``DEF`` can be used anywhere an identifier can appear,
 and it is replaced with its compile-time value as though it were written into

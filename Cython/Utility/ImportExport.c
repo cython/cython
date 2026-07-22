@@ -841,7 +841,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
                     break;
                 }
                 base = __Pyx_PyType_TryGetSlot(base, tp_base, PyTypeObject*);
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX <= 0x030A0000
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
                 if (!base) goto bad;
 #endif
             }

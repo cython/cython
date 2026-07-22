@@ -12,7 +12,7 @@ from collections.abc import Iterable
 
 try:
     import pythran
-except:
+except Exception:
     pythran = None
 
 from .. import Utils
@@ -29,7 +29,8 @@ copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
 safe_makedirs_once = cached_function(safe_makedirs)
 
 
-def _make_relative(file_paths, base=None):
+@cython.cfunc
+def _make_relative(file_paths, base=None) -> list[str]:
     if not base:
         base = os.getcwd()
     if base[-1] != os.path.sep:
@@ -158,6 +159,7 @@ distutils_settings = {
 }
 
 
+@cython.cfunc
 def _legacy_strtobool(val):
     # Used to be "distutils.util.strtobool", adapted for deprecation warnings.
     if val == "True":
@@ -1183,12 +1185,15 @@ if os.environ.get('XML_RESULTS'):
     def record_results(func):
         def with_record(*args):
             t = time.time()
-            success = True
+            success = False
             try:
-                try:
-                    func(*args)
-                except:
-                    success = False
+                func(*args)
+                success = True
+            except Exception:
+                # It's not obvious that we should really swallow the exception here,
+                # rather than fail loudly after writing the XML result file,
+                # but that's how it's currently implemented.
+                pass
             finally:
                 t = time.time() - t
                 module = fully_qualified_name(args[0])

@@ -894,6 +894,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                    "please install development version of Python.")
         code.putln("#elif PY_VERSION_HEX < 0x03090000")
         code.putln("    #error Cython requires Python 3.9+.")
+        code.putln("#elif defined(Py_LIMITED_API) && (Py_LIMITED_API & 0xFFFF0000) > (PY_VERSION_HEX & 0xFFFF0000)")
+        code.putln("    #error 'Py_LIMITED_API' can only select past Python X.Y versions, not future ones.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
@@ -1024,10 +1026,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('#endif')
 
-        code.putln('static int %s;' % Naming.lineno_cname)
-        code.putln('static int %s = 0;' % Naming.clineno_cname)
         code.putln('static const char * const %s = %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
-        code.putln('static const char *%s;' % Naming.filename_cname)
 
         env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
         env.use_utility_code(UtilityCode.load("GetRuntimeVersion", "ModuleSetupCode.c"))
@@ -3642,7 +3641,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 assert re.match("^[a-zA-Z0-9_]+$", cname)
                 self.cfunc_name = "__Pyx_modinit_%s" % cname
                 self.description = code_type
-                self.tempdecl_code = None
                 self.call_code = None
 
             def set_call_code(self, code):
@@ -3656,7 +3654,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     f"int {self.cfunc_name}({Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})",
                     scope, refnanny=True)
                 code.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
-                self.tempdecl_code = code.insertion_point()
                 code.put_setup_refcount_context(EncodedString(self.cfunc_name))
                 # Leave a grepable marker that makes it easy to find the generator source.
                 code.putln("/*--- %s ---*/" % self.description)
@@ -3665,15 +3662,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             def __exit__(self, exc_type, exc_value, exc_tb):
                 if exc_type is not None:
                     # Don't generate any code or do any validations on errors.
-                    self.tempdecl_code = self.call_code = None
+                    self.call_code = None
                     return
 
                 code = function_code
                 code.put_finish_refcount_context()
                 code.putln("return 0;")
-
-                self.tempdecl_code.put_temp_declarations(code.funcstate)
-                self.tempdecl_code = None
 
                 needs_error_handling = code.label_used(code.error_label)
                 if needs_error_handling:
@@ -4347,7 +4341,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 # cimport/export code for functions and pointers.
 
-def _deduplicate_inout_signatures(item_tuples):
+@cython.cfunc
+def _deduplicate_inout_signatures(item_tuples) -> tuple[list[str], tuple[str, ...], tuple[str, ...]]:
     # We can save runtime space for identical signatures by reusing the same C strings.
     # To deduplicate the signatures, we sort by them and store duplicates as empty C strings.
     signatures, names, items = zip(*sorted(item_tuples))
@@ -4363,6 +4358,7 @@ def _deduplicate_inout_signatures(item_tuples):
     return signatures, names, items
 
 
+@cython.cfunc
 def _generate_import_export_code(code: Code.CCodeWriter, pos, inout_item_tuples, per_item_func, target, pointer_decl, use_pybytes, is_import):
     signatures, names, inout_items = _deduplicate_inout_signatures(inout_item_tuples)
 
@@ -4405,6 +4401,7 @@ def _generate_import_export_code(code: Code.CCodeWriter, pos, inout_item_tuples,
     code.putln("}")  # while
 
 
+@cython.cfunc
 def _generate_export_code(code: Code.CCodeWriter, pos, exports, export_func, pointer_decl):
     """Generate function/pointer export code.
 
@@ -4429,6 +4426,7 @@ def _generate_export_code(code: Code.CCodeWriter, pos, exports, export_func, poi
     code.putln("}")
 
 
+@cython.cfunc
 def _generate_import_code(code, pos, imports, qualified_module_name, import_func, pointer_decl):
     """Generate function/pointer import code.
 

@@ -835,4 +835,6 @@ default_options = dict(
     legacy_implicit_noexcept=None,
     shared_c_file_path=None,
     shared_utility_qualified_name = None,
+    shared_utility_features_enabled = None,
+    shared_utility_features_disabled = None,
 )

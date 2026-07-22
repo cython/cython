@@ -3,19 +3,19 @@ cimport cython
 from .Visitor cimport CythonTransform, TreeVisitor
 
 cdef class ControlBlock:
-    cdef public set[ControlBlock] children
-    cdef public set[ControlBlock] parents
-    cdef public set positions
-    cdef public list stats
-    cdef public dict gen
-    cdef public set bounded
+    cdef readonly set[ControlBlock] children
+    cdef readonly set[ControlBlock] parents
+    cdef readonly set positions
+    cdef readonly list stats
+    cdef readonly dict gen
+    cdef readonly set bounded
 
     # Big integer bitsets
-    cdef public object i_input
-    cdef public object i_output
-    cdef public object i_gen
-    cdef public object i_kill
-    cdef public object i_state
+    cdef cython.py_int i_input
+    cdef cython.py_int i_output
+    cdef cython.py_int i_gen
+    cdef cython.py_int i_kill
+    cdef cython.py_int i_state
 
     cpdef bint empty(self)
     cpdef detach(self)
@@ -27,41 +27,54 @@ cdef class ExitBlock(ControlBlock):
 cdef class NameAssignment:
     cdef public bint is_arg
     cdef public bint is_deletion
-    cdef public object lhs
-    cdef public object rhs
-    cdef public object entry
-    cdef public object pos
-    cdef public set refs
-    cdef public object bit
+    cdef public cython.py_int bit
     cdef public object inferred_type
-    cdef public object rhs_scope
-    cdef public object assignment_type
+    cdef readonly object lhs
+    cdef readonly object rhs
+    cdef readonly object entry
+    cdef readonly object pos
+    cdef readonly set refs
+    cdef readonly object rhs_scope
+    cdef readonly object assignment_type
 
+@cython.final
 cdef class AssignmentList:
-    cdef public object bit
-    cdef public object mask
-    cdef public list stats
+    cdef cython.py_int bit
+    cdef cython.py_int mask
+    cdef list[NameAssignment] stats
 
 cdef class AssignmentCollector(TreeVisitor):
     cdef list[tuple] assignments
 
 @cython.final
+cdef class LoopDescr:
+    cdef ControlBlock next_block
+    cdef ControlBlock loop_block
+    cdef list[ExceptionDescr] exceptions
+
+@cython.final
+cdef class ExceptionDescr:
+    cdef ControlBlock entry_point
+    cdef ControlBlock finally_enter
+    cdef ControlBlock finally_exit
+
+@cython.final
 cdef class ControlFlow:
-    cdef public set[ControlBlock] blocks
-    cdef public set entries
-    cdef public list loops
-    cdef public list exceptions
+    cdef set[ControlBlock] blocks
+    cdef set entries
+    cdef list[LoopDescr] loops
+    cdef list[ExceptionDescr] exceptions
 
-    cdef public ControlBlock entry_point
-    cdef public ExitBlock exit_point
-    cdef public ControlBlock block
+    cdef ControlBlock entry_point
+    cdef ExitBlock exit_point
+    cdef ControlBlock block
 
-    cdef public dict assmts
+    cdef dict[object, AssignmentList] assmts
 
-    cdef public Py_ssize_t in_try_block
+    cdef Py_ssize_t in_try_block
 
-    cpdef newblock(self, ControlBlock parent=*)
-    cpdef nextblock(self, ControlBlock parent=*)
+    cpdef ControlBlock newblock(self, ControlBlock parent=*)
+    cpdef ControlBlock nextblock(self, ControlBlock parent=*)
     cpdef bint is_tracked(self, entry)
     cpdef bint is_statically_assigned(self, entry)
     cpdef mark_position(self, node)

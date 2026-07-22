@@ -1136,6 +1136,7 @@ class Scope:
             if entry.type.is_fused and self.fused_to_specific:
                 return entry.type.specialize(self.fused_to_specific)
             return entry.type
+        return None
 
     def lookup_type(self, name):
         entry = self.lookup(name)
@@ -2358,8 +2359,6 @@ class ClassScope(Scope):
 
 class PyClassScope(ClassScope):
     #  Namespace of a Python class.
-    #
-    #  class_obj_cname     string   C variable holding class object
 
     is_py_class_scope = 1
     namespace_cname_is_type = False
@@ -2587,8 +2586,8 @@ class CClassScope(ClassScope):
                 # so do conversion ourself rather than rely on the CPython mechanism (through
                 # a property; made in AnalyseDeclarationsTransform).
                 entry.needs_property = True
-                if not self.is_closure_class_scope and name == "__weakref__":
-                    error(pos, "Special attribute __weakref__ cannot be exposed to Python")
+                if not self.is_closure_class_scope and name in ("__dict__", "__weakref__"):
+                    error(pos, f"Special attribute {name} cannot be exposed to Python")
                 if not (type.is_pyobject or type.can_coerce_to_pyobject(self)):
                     # we're not testing for coercion *from* Python here - that would fail later
                     error(pos, "C attribute of type '%s' cannot be accessed from Python" % type)

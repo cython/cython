@@ -477,6 +477,20 @@ def test_return():
     """
     print parallel_return()
 
+cdef int plain_parallel_return() noexcept nogil:
+    cdef int i
+
+    for i in prange(10):
+        if i == 8:
+            return i
+
+def test_plain_return():
+    """
+    >>> test_plain_return()
+    8
+    """
+    return plain_parallel_return()
+
 def test_parallel_exceptions():
     """
     >>> test_parallel_exceptions()

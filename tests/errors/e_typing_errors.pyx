@@ -225,6 +225,7 @@ def forbidden_tuple_assignments():
     a: tuple[str, int] = ('bar', 1)
     b: tuple[int, str] = a
     c: tuple[None, int] = a
+    d: tuple[str, ...] = a
 
 
 def invalid_type_count():
@@ -237,6 +238,22 @@ def invalid_type_count():
     dict1: dict[int]
     dict2: dict[int, int, int]
 
+def invalid_ellipsis():
+    t1: tuple[..., str]
+    t2: tuple[int, str, ...]
+    t3: tuple[int, ..., str]
+    l1: list[int, ...]
+    l2: list[...]
+    s1: set[str, ...]
+    s2: set[...]
+    s1: frozenset[str, ...]
+    s2: frozenset[...]
+    d1: dict[..., str]
+    d2: dict[str, ...]
+    d3: dict[..., ...]
+    fd1: frozendict[str, ...]
+    fd2: frozendict[..., str]
+    fd3: frozendict[..., ...]
 
 _WARNINGS = """
 231:15: Cannot specialise 'list' with 2 types, ignoring.
@@ -349,4 +366,5 @@ _ERRORS = """
 221:27: Cannot convert 'bytes' object to str implicitly, decoding required
 226:25: Cannot assign type 'tuple[str object,int object] object' to 'tuple[int object,str object] object'
 227:26: Cannot assign type 'tuple[str object,int object] object' to 'tuple[int object] object'
+228:25: Cannot assign type 'tuple[str object,int object] object' to 'tuple[str object,...] object'
 """

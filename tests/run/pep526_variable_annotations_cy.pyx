@@ -89,7 +89,7 @@ def test_tuple(typing.Tuple[int, float] a,  typing.Tuple[int, ...] b,
     >>> test_tuple((1, 1.0), (1, 1.0), (1, 1.0))
     int
     int
-    tuple object
+    tuple[int,...] object
     tuple[int,Python object] object
     """
     cdef typing.Tuple[int, float] x = (a[0], a[1])  # C int/float

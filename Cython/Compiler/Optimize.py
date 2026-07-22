@@ -67,6 +67,7 @@ def filter_none_node(node):
     return node
 
 
+@cython.cfunc
 def _unpack_union_type_nodes(union_type_nodes: list):
     # Unpack 'int | float | None' etc.
     BitwiseOrNode = ExprNodes.BitwiseOrNode
@@ -137,14 +138,16 @@ class _YieldNodeCollector(Visitor.TreeVisitor):
         pass
 
 
-def _find_single_yield_expression(node):
+@cython.cfunc
+def _find_single_yield_expression(node) -> tuple:
     yield_statements = _find_yield_statements(node)
     if len(yield_statements) != 1:
         return None, None
     return yield_statements[0]
 
 
-def _find_yield_statements(node):
+@cython.cfunc
+def _find_yield_statements(node) -> list[tuple]:
     collector = _YieldNodeCollector()
     collector.visitchildren(node)
     try:
@@ -1431,7 +1434,7 @@ class SwitchTransform(Visitor.EnvTransform):
             return node
 
         not_in, common_var, conditions = self.extract_common_conditions(
-            None, node.test, True)
+            None, node.condition, True)
         if common_var is None \
                 or len(conditions) < 2 \
                 or self.has_duplicate_values(conditions):
@@ -2111,7 +2114,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                 arg_node.pos,
                 true_val = arg_node,
                 false_val = result_ref,
-                test = ExprNodes.PrimaryCmpNode(
+                condition = ExprNodes.PrimaryCmpNode(
                     arg_node.pos,
                     operand1 = arg_node,
                     operator = operator,
@@ -5070,9 +5073,9 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_CondExprNode(self, node):
         self._calculate_const(node)
-        if not node.test.has_constant_result():
+        if not node.condition.has_constant_result():
             return node
-        if node.test.constant_result:
+        if node.condition.constant_result:
             return node.true_val
         else:
             return node.false_val
@@ -5099,6 +5102,18 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             return node.else_clause
         else:
             return Nodes.StatListNode(node.pos, stats=[])
+
+    def visit_AssertStatNode(self, node):
+        self.visitchildren(node)
+        condition = node.condition
+        if condition.has_constant_result():
+            if condition.constant_result:
+                # "assert True" => nothing to do.
+                return None
+            else:
+                # Normalise "assert falsy_value" to "assert False".
+                node.condition = self._bool_node(condition, False)
+        return node
 
     def visit_SliceIndexNode(self, node):
         self._calculate_const(node)
@@ -5359,40 +5374,52 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         self.visitchildren(node)
         last_non_unlikely_clause = None
         for i, if_clause in enumerate(node.if_clauses):
-            self._set_ifclause_branch_hint(if_clause, if_clause.body)
+            self._set_ifclause_branch_hint(if_clause, if_clause.body, 'unlikely')
             if not if_clause.branch_hint:
                 last_non_unlikely_clause = if_clause
         if node.else_clause and last_non_unlikely_clause:
             # If the 'else' clause is 'unlikely', then set the preceding 'if' clause to 'likely' to reflect that.
-            self._set_ifclause_branch_hint(last_non_unlikely_clause, node.else_clause, inverse=True)
+            self._set_ifclause_branch_hint(last_non_unlikely_clause, node.else_clause, 'likely')
         return node
 
-    def _set_ifclause_branch_hint(self, clause, statements_node, inverse=False):
+    def _set_ifclause_branch_hint(self, clause, statements_node, branch_hint: str):
         """Inject a branch hint if the if-clause unconditionally leads to a 'raise' statement.
         """
-        if not statements_node.is_terminator:
+        assert branch_hint in ('likely', 'unlikely'), branch_hint
+
+        if clause.branch_hint:
             return
+
         # Allow simple statements, but no conditions, loops, etc.
         non_branch_nodes = (
             Nodes.ExprStatNode,
             Nodes.AssignmentNode,
-            Nodes.AssertStatNode,
             Nodes.DelStatNode,
+            Nodes.PrintStatNode,
             Nodes.GlobalNode,
             Nodes.NonlocalNode,
         )
+
+        AssertStatNode: type = Nodes.AssertStatNode
+        GILStatNode: type = Nodes.GILStatNode
+        StatListNode: type = Nodes.StatListNode
+
         statements = [statements_node]
         for next_node_pos, node in enumerate(statements, 1):
-            if isinstance(node, Nodes.GILStatNode):
+            if isinstance(node, GILStatNode):
                 statements.insert(next_node_pos, node.body)
-                continue
-            if isinstance(node, Nodes.StatListNode):
+            elif isinstance(node, StatListNode):
                 statements[next_node_pos:next_node_pos] = node.stats
-                continue
-            if not isinstance(node, non_branch_nodes):
+            elif isinstance(node, AssertStatNode):
+                if node.condition.constant_result is False:
+                    # "assert False" is like unconditional "raise"
+                    clause.branch_hint = branch_hint
+                    break
+                # Assertions can succeed or be disabled, so continue here.
+            elif not isinstance(node, non_branch_nodes):
                 if next_node_pos == len(statements) and isinstance(node, (Nodes.RaiseStatNode, Nodes.ReraiseStatNode)):
                     # Anything that unconditionally raises exceptions at the end should be considered unlikely.
-                    clause.branch_hint = 'likely' if inverse else 'unlikely'
+                    clause.branch_hint = branch_hint
                 break
 
     def visit_JoinedStrNode(self, node: ExprNodes.JoinedStrNode):
