@@ -10003,8 +10003,7 @@ class FrozenSetNode(ExprNode):
             )
         else:
             arg.generate_evaluation_code(const_code)
-            arg_result = arg.py_result()
-            self._generate_frozenset_new_code(const_code, arg_result)
+            self._generate_frozenset_new_code(const_code, arg.py_result())
             arg.generate_disposal_code(const_code)
             arg.free_temps(const_code)
 
