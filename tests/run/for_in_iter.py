@@ -155,8 +155,13 @@ def for_in_range_invalid_arg_count():
         pass
 
 
-@cython.test_assert_path_exists('//FrozenSetNode')
-@cython.test_fail_if_path_exists('//SetNode')
+@cython.test_assert_path_exists(
+    '//FrozenSetFromArrayNode',
+)
+@cython.test_fail_if_path_exists(
+    '//SetNode',
+    '//FrozenSetNode',
+)
 def for_in_const_set():
     """
     >>> for_in_const_set()
