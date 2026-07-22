@@ -9996,10 +9996,10 @@ class FrozenSetNode(ExprNode):
 
         # Initialise constant at module init time.
         if arg is None:
-            code.mark_pos(self.pos)
-            code.putln(
+            const_code.mark_pos(self.pos)
+            const_code.putln(
                 f"{self.result()} = PyFrozenSet_New(NULL); "
-                f"{code.error_goto_if_null(self.result(), self.pos)}"
+                f"{const_code.error_goto_if_null(self.result(), self.pos)}"
             )
         else:
             arg.generate_evaluation_code(const_code)
