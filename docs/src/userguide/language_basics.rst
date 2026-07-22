@@ -1489,6 +1489,18 @@ depends on type inference, except for the global module scope, where it is
 always a Python object.
 
 
+Builtin Python types
+--------------------
+
+Cython supports all Python builtin types (``float``, ``list``, ``dict``, etc.)
+but optimises and specialises their usage.
+
+For the immutable types ``tuple``, ``slice`` and (since Cython 3.3) ``frozenset``,
+it deduplicates constants used throughout the module and creates them only once at
+module init time.  This avoids the overhead of newly creating them for each use,
+at the cost of holding on to them throughout the module lifetime.
+
+
 .. _built_in_functions:
 
 Built-in Functions
