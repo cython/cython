@@ -1554,7 +1554,7 @@ class GlobalState:
         w.exit_cfunc_scope()
 
         w = self.parts['cached_constants']
-        for const_type in ["tuple", "slice"]:
+        for const_type in ["tuple", "frozenset", "slice"]:
             if const_type in self.const_array_counters:
                 self.immortalize_constants(
                     w.name_in_module_state(Naming.pyrex_prefix + const_type),
