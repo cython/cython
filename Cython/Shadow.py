@@ -147,7 +147,7 @@ class _Optimization:
     def unpack_method_calls(val: bool) -> _Decorator:
         return _EmptyDecoratorAndManager()
 
-cclass = cfunc = ccall = _EmptyDecoratorAndManager()
+cclass = cfunc = ccall = no_ccall = public = _EmptyDecoratorAndManager()
 
 ufunc = _empty_func_decorator
 
