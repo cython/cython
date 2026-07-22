@@ -320,7 +320,7 @@ e.g. ``unsigned int`` (``cython.uint`` in Python code):
             :header-rows: 1
             :class: longtable
 
-and builtin python types:
+and builtin Python types:
 
         .. csv-table:: Python builtin types
             :file: python_types.csv
@@ -346,7 +346,8 @@ Note that Cython uses array access for pointer dereferencing, as ``*x`` is not v
 whereas ``x[0]`` is.
 
 Also, the Python types ``list``, ``dict``, ``tuple``, etc. may be used for
-static typing, their specialized versions using subscripts and as well as any user defined :ref:`extension-types`.
+static typing (including their specialized versions with subscripted item types),
+as well as any user defined :ref:`extension-types`.
 For example
 
 .. tabs::
@@ -366,7 +367,7 @@ For example
             cdef list foo = []
             cdef list[str] bar = ['Monty', 'Python']
 
-This requires an *exact* match of the class, it does not allow subclasses.
+These declarations require an *exact* match of the class, they do not allow subclasses.
 This allows Cython to optimize code by accessing internals of the builtin class,
 which is the main reason for declaring builtin types in the first place.
 
