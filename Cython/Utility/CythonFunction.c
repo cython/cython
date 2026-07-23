@@ -594,13 +594,26 @@ __Pyx_CyFunction_get_annotate_from_dict_if_exists(PyObject *op_in, PyObject **an
     return __Pyx_PyDict_GetItemRef(dict, PYIDENT("__annotate__"), annotate);
 }
 
+// if value==NULL, removes annotate from dict.
 static int
 __Pyx_CyFunction_set_annotate_in_dict_if_exists(PyObject *op_in, PyObject *value) {
     PyObject *dict;
     int dict_found;
     dict_found = __Pyx_CyFunction_get_dict_if_exists(op_in, &dict);
     if (!dict_found) return 0;
-    return PyDict_SetItem(dict, PYIDENT("__annotate__"), value);
+    if (value) {
+        return PyDict_SetItem(dict, PYIDENT("__annotate__"), value);
+    } else {
+#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d0000
+        return PyDict_Pop(dict, PYIDENT("__annotate__"), NULL);
+#else
+        int result = PyDict_Contains(dict, PYIDENT("__annotate__"));
+        if (result == 1) {
+            result = PyDict_DelItem(dict, PYIDENT("__annotate__"));
+        }
+        return result;
+#endif
+    }
 }
 
 static int
@@ -652,8 +665,11 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
 
     PyObject *format = PyLong_FromLong(1L);  // annotationlib.Format.VALUE
     if (likely(format)) {
-        result = __Pyx_PyObject_CallOneArg(annotate, format);
-        Py_DECREF(format);
+        if (!Py_EnterRecursiveCall(" cyfunction __annotations__.__get__")) {
+            result = __Pyx_PyObject_CallOneArg(annotate, format);
+            Py_LeaveRecursiveCall();
+            Py_DECREF(format);
+        }
     }
     Py_DECREF(annotate);
     if (unlikely(!result)) return NULL;
@@ -668,34 +684,27 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
     return result;
 }
 
-static PyObject *__Pyx_CyFunction_annotate_impl(PyObject *self,
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-    PyObject *args
-#else
-    PyObject* const* args, Py_ssize_t nargs
-#endif
-) {
-    // The signature of this function is 0 or 1 args, where arg should be an int (if passed).
-    // However, for this basic placeholder implementation, we don't care and don't check it.
-    CYTHON_UNUSED_VAR(args);
-#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
-    CYTHON_UNUSED_VAR(nargs);
-#endif
+static PyObject *__Pyx_CyFunction_annotate_impl(PyObject *self, PyObject *arg) {
+    CYTHON_UNUSED_VAR(arg);
     if (unlikely(!self)) {
         PyErr_SetString(PyExc_SystemError, "cython __annotate__ called without 'self' argument");
+        return NULL;
     }
-    Py_XINCREF(self);
-    return self;
+    // Although we guard against trivial recursive calls from self.__annotate__ = self.__annotate__
+    // we can't guard against all recursive calls.
+    PyObject *result;
+    if (Py_EnterRecursiveCall(" in cyfunction annotate")) {
+        return NULL;
+    }
+    result = __Pyx_CyFunction_get_annotations(self, NULL);
+    Py_LeaveRecursiveCall();
+    return result;
 }
 
-static PyMethodDef __Pyx_CyFunction_annotate_method = {
-    "__annotate__",
-    (PyCFunction)(void (*)(void))__Pyx_CyFunction_annotate_impl,
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-    METH_VARARGS,
-#else
-    METH_FASTCALL,
-#endif
+static const PyMethodDef __Pyx_CyFunction_annotate_method = {
+    "__annotate_cython__",
+    __Pyx_CyFunction_annotate_impl,
+    METH_O,
     "Placeholder __annotate__ function to allow 'functools.wraps' to work "
     "on Cython functions."
 };
@@ -709,12 +718,9 @@ __Pyx_CyFunction_get_annotate(PyObject *op_in, void *context) {
     if (unlikely(__Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in, &annotate) < 0)) return NULL;
     if (annotate) return annotate;
 
-    PyObject *annotations = __Pyx_CyFunction_get_annotations(op_in, NULL);
-    if (unlikely(!annotations)) return NULL;
     PyObject *method = PyCFunction_New(
-        &__Pyx_CyFunction_annotate_method,
-        annotations);
-    Py_DECREF(annotations);
+        (PyMethodDef*)&__Pyx_CyFunction_annotate_method,
+        op_in);
     return method;
 }
 
@@ -728,6 +734,23 @@ __Pyx_CyFunction_set_annotate(PyObject *op_in, PyObject* value, void *context) {
     if (unlikely(value != Py_None && !PyCallable_Check(value))) {
         PyErr_SetString(PyExc_TypeError, "__annotate__ must be callable or None");
         return -1;
+    }
+
+    if (unlikely(__Pyx_TypeCheck(value, &PyCFunction_Type))) {
+#if CYTHON_ASSUME_SAFE_MACROS
+        PyCFunction cfunction = PyCFunction_GetFunction(value);
+        if (unlikely(!cfunction)) return -1;
+        PyObject *value_self = PyCFunction_GetSelf(value);
+        if (unlikely(!value_self && PyErr_Occurred())) return -1;
+#else
+        PyCFunction cfunction = PyCFunction_GET_FUNCTION(value);
+        PyObject *value_self = PyCFunction_GET_SELF(value);
+#endif
+        if (cfunction == __Pyx_CyFunction_annotate_impl && value_self == op_in) {
+            // We're doing self.__annotate__ == self.__annotate__ somehow.
+            // This will result in an infinite recursive call.
+            return __Pyx_CyFunction_set_annotate_in_dict_if_exists(op_in, NULL);
+        }
     }
     if (value != Py_None) {
         __pyx_CyFunctionObject *op = __Pyx_as_CyFunctionObject(op_in);
@@ -958,6 +981,7 @@ __Pyx_CyFunction_reduce(PyObject *m_in, PyObject *args)
 
 static PyMethodDef __pyx_CyFunction_methods[] = {
     {"__reduce__", (PyCFunction)__Pyx_CyFunction_reduce, METH_NOARGS, 0},
+    __Pyx_CyFunction_annotate_method,  // having __annotate_cython__ as an attribute makes it pickleable
     {0, 0, 0, 0}
 };
 
