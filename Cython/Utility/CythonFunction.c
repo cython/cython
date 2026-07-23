@@ -748,7 +748,7 @@ __Pyx_CyFunction_set_annotate(PyObject *op_in, PyObject* value, void *context) {
 #endif
         if (cfunction == __Pyx_CyFunction_annotate_impl && value_self == op_in) {
             // We're doing self.__annotate__ == self.__annotate__ somehow.
-            // This will result in an infinite recursive call.
+            // Just clear it from the dictionary to avoid an infinite recursive call.
             return __Pyx_CyFunction_set_annotate_in_dict_if_exists(op_in, NULL);
         }
     }
