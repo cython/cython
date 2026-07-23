@@ -1548,9 +1548,7 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         else:
             return node
 
-        if not isinstance(node.operand2, (ExprNodes.TupleNode,
-                                          ExprNodes.ListNode,
-                                          ExprNodes.SetNode)):
+        if not node.operand2.is_sequence_or_set_constructor:
             return node
 
         lhs = node.operand1

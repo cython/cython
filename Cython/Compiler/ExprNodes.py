@@ -175,7 +175,7 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
                 pass
             else:
                 return item.infer_type(env)
-    if seq_node.is_sequence_constructor or seq_node.is_set_literal:
+    if seq_node.is_sequence_or_set_constructor:
         # If we're lucky, all items have the same type (possibly with None).
         args_without_none = [item for item in seq_node.args if not item.is_none]
         has_none = len(args_without_none) < len(seq_node.args)
@@ -474,6 +474,7 @@ class ExprNode(Node):
     #
 
     is_sequence_constructor = False
+    is_sequence_or_set_constructor = False
     is_dict_literal = False
     is_set_literal = False
     is_string_literal = False
@@ -3531,9 +3532,8 @@ class NextNode(AtomicExprNode):
             return item_type
         sequence_node = self.iterator.sequence
         if not (
-            sequence_node.is_sequence_constructor or
-            sequence_node.is_dict_literal or
-            sequence_node.is_set_literal
+            sequence_node.is_sequence_or_set_constructor or
+            sequence_node.is_dict_literal
         ):
             # Here we infer only non-literal sequences. Literals are inferred via special infer_sequence_item_type().
             sequence_type = sequence_node.infer_type(env)
@@ -4313,7 +4313,7 @@ class IndexNode(_IndexingBaseNode):
                 return py_object_type
 
         if base_type.supports_container_type:
-            if not (self.base.is_sequence_constructor or self.base.is_dict_literal or self.base.is_set_literal):
+            if not (self.base.is_sequence_or_set_constructor or self.base.is_dict_literal):
                 sub_type = base_type.infer_indexed_type(self.index.constant_result)
                 if sub_type:
                     return sub_type
@@ -8563,7 +8563,8 @@ class SequenceNode(ExprNode):
 
     subexprs = ['args', 'mult_factor']
 
-    is_sequence_constructor = 1
+    is_sequence_constructor = True
+    is_sequence_or_set_constructor = True
     unpacked_items = None
     mult_factor = None
     slow = False  # trade speed for code size (e.g. use PyTuple_Pack())
@@ -9732,7 +9733,7 @@ class MergedSequenceNode(ExprNode):
                 if item.mult_factor.constant_result <= 0:
                     continue
                 # otherwise, adding each item once should be enough
-            if item.is_set_literal or item.is_sequence_constructor:
+            if item.is_sequence_or_set_constructor:
                 # process items in order
                 items = (arg.constant_result for arg in item.args)
             else:
@@ -9752,7 +9753,7 @@ class MergedSequenceNode(ExprNode):
             if item.is_sequence_constructor and item.mult_factor:
                 if item.mult_factor.compile_time_value(denv) <= 0:
                     continue
-            if item.is_set_literal or item.is_sequence_constructor:
+            if item.is_sequence_or_set_constructor:
                 # process items in order
                 items = (arg.compile_time_value(denv) for arg in item.args)
             else:
@@ -9829,8 +9830,8 @@ class MergedSequenceNode(ExprNode):
             extend_func = "__Pyx_PyList_Extend"
 
         for item in args:
-            if (is_set and (item.is_set_literal or item.is_sequence_constructor) or
-                    (item.is_sequence_constructor and not item.mult_factor)):
+            if item.is_sequence_or_set_constructor and (
+                    is_set or (item.is_sequence_constructor and not item.mult_factor)):
                 if not is_set and item.args:
                     helpers.add(("ListCompAppend", "Optimize.c"))
                 for arg in item.args:
@@ -9891,6 +9892,7 @@ class SetNode(ExprNode):
     subexprs = ['args']
     type = set_type
     is_set_literal = True
+    is_sequence_or_set_constructor = True
     is_temp = True
     read_only = False
     gil_message = "Constructing Python set"
@@ -10035,6 +10037,8 @@ class FrozenSetFromArrayNode(ExprNode):
     subexprs = ["args"]
 
     gil_message = "Constructing Python frozenset"
+    is_sequence_or_set_constructor = True
+    is_set_literal = True
     is_literal = False
     is_temp = False
     type = frozenset_type
