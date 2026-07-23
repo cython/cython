@@ -1,0 +1,16 @@
+Cython type,Pure Python type
+``object``,``object``
+``cython.py_int``,``int``
+``cython.py_float``,``float``
+``cython.py_bool``,``bool``
+``cython.py_complex``,``complex``
+``bytes``,``bytes``
+``bytearray``,``bytearray``
+``str``,``str``
+``memoryview``,``memoryview``
+``list``,``list``
+``tuple``,``tuple``
+``set``,``set``
+``frozenset``,``frozenset``
+``dict``,``dict``
+``frozendict``,``frozendict``
