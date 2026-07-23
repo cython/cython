@@ -1552,6 +1552,7 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
             return node
 
         lhs = node.operand1
+        is_set = node.operand2.is_set_literal
         args = node.operand2.args
         if len(args) == 0:
             # note: lhs may have side effects, but ".is_simple()" may not work yet before type analysis.
@@ -1564,11 +1565,18 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
             # Starred arguments do not directly translate to comparisons or "in" tests.
             return node
 
+        make_readonly = lhs.is_sequence_or_set_constructor  # known safe builtin types for comparisons
         lhs = UtilNodes.ResultRefNode(lhs)
 
         conds = []
         temps = []
         for arg in args:
+            if is_set and arg.is_sequence_or_set_constructor:
+                if arg.type not in (Builtin.frozenset_type, Builtin.tuple_type):
+                    # Only these two are hashable.
+                    return node
+            if make_readonly and arg.is_sequence_or_set_constructor:
+                arg.read_only = True
             # Trial optimisation to avoid redundant temp assignments.
             if not arg.try_is_simple():
                 # must evaluate all non-simple RHS before doing the comparisons
@@ -5011,6 +5019,14 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         if not node.cascade:
             if node.has_constant_result():
                 return self._bool_node(node, node.constant_result)
+
+            if node.operator in ('in', 'not_in'):
+                right_node = node.operand2
+                if right_node.is_sequence_or_set_constructor:
+                    # The right-most in-collection is not used in further cascades, so allow
+                    # later optimisation into a (possibly constant) immutable tuple/frozenset.
+                    right_node.read_only = True
+
             return node
 
         # collect partial cascades: [[value, CmpNode...], [value, CmpNode, ...], ...]
@@ -5050,6 +5066,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 last_cmp_node.cascade = cmp_node
                 last_cmp_node = cmp_node
             last_cmp_node.cascade = None
+
+            if last_cmp_node.operator in ('in', 'not_in'):
+                right_node = last_cmp_node.operand2
+                if right_node.is_sequence_or_set_constructor:
+                    # The right-most in-collection is not used in further cascades, so allow
+                    # later optimisation into a (possibly constant) immutable tuple/frozenset.
+                    right_node.read_only = True
 
         if final_false_result:
             # last cascade was constant False

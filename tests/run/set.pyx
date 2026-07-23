@@ -567,6 +567,61 @@ def test_singleton_empty_frozenset():
     return len(set(map(id, efs)))
 
 
+@cython.test_fail_if_path_exists(
+    "//FrozenSetNode",
+)
+@cython.test_assert_path_exists(
+    "//SetNode",
+    "//FrozenSetFromArrayNode",
+    "//FrozenSetFromArrayNode[@is_literal=True]",
+)
+def test_intest_uses_frozenset(x):
+    """
+    >>> test_intest_uses_frozenset(2)
+    True
+    >>> test_intest_uses_frozenset(3)
+    True
+    >>> test_intest_uses_frozenset(4)
+    False
+    """
+    result = {1,x} in ({1,2}, {1,3})
+    return result
+
+
+def test_set_of_unhashable_fails_intest(which):
+    """
+    >>> test_set_of_unhashable_fails_intest(1)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: unhashable type: 'list'
+    >>> test_set_of_unhashable_fails_intest(2)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: unhashable type: 'list'
+    >>> test_set_of_unhashable_fails_intest(3)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: unhashable type: 'list'
+    >>> test_set_of_unhashable_fails_intest(4)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: unhashable type: 'list'
+    >>> test_set_of_unhashable_fails_intest(5)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: unhashable type: 'set'
+    """
+    if which == 1:
+        result = [1,2] in {[1,2], [3,4]}
+    elif which == 2:
+        result = (1,2) in {[1,2], [3,4]}
+    elif which == 3:
+        result = {(1,2)} in {[1,2]}
+    elif which == 4:
+        result = {(1,2)} in ({(1,2), [1,2]})
+    elif which == 5:
+        result = {(1,2)} in ({(1,2), {1,2}})
+    else:
+        assert False, "invalid test case"
+
+    return result
+
+
 def sorted(it):
     # Py3 can't compare different types
     chars = []

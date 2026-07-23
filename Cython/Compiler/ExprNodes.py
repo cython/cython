@@ -8568,6 +8568,7 @@ class SequenceNode(ExprNode):
     unpacked_items = None
     mult_factor = None
     slow = False  # trade speed for code size (e.g. use PyTuple_Pack())
+    read_only = False  # Can this safely be turned into an immutable type (tuple)?
     needs_subexpr_disposal = False  # set to True in code-generation if we
             # didn't steal references to our temps and thus need to dispose
             # of them normally.
@@ -8597,6 +8598,8 @@ class SequenceNode(ExprNode):
 
     def analyse_types(self, env, skip_children=False):
         for i, arg in enumerate(self.args):
+            if self.read_only:
+                arg.read_only = True
             if not skip_children:
                 arg = arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
@@ -9894,13 +9897,15 @@ class SetNode(ExprNode):
     is_set_literal = True
     is_sequence_or_set_constructor = True
     is_temp = True
-    read_only = False
+    read_only = False  # Can this safely be turned into an immutable frozenset?
     gil_message = "Constructing Python set"
 
     def analyse_types(self, env):
         for i in range(len(self.args)):
-            arg = self.args[i].analyse_types(env)
-            self.args[i] = arg.coerce_to_pyobject(env)
+            arg = self.args[i]
+            # Do not let arg inherit '.read_only' since it could unintentionally
+            # make it hashable when applied recursively.
+            self.args[i] = arg.analyse_types(env).coerce_to_pyobject(env)
 
         if self.read_only and all(item.is_literal for item in self.args):
             return FrozenSetFromArrayNode.from_node(self, args=self.args, env=env)
