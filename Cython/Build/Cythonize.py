@@ -192,11 +192,12 @@ def benchmark(code, setup_code=None, import_module=None, directives=None):
             f"slower than the best time ({format_time(fastest)}).")
 
 
-def create_args_parser():
+def create_args_parser(add_help=True):
     from argparse import ArgumentParser, RawDescriptionHelpFormatter
     from ..Compiler.CmdLine import ParseDirectivesAction, ParseOptionsAction, ParseCompileTimeEnvAction
 
     parser = ArgumentParser(
+        add_help=add_help,
         formatter_class=RawDescriptionHelpFormatter,
         epilog="""\
 Environment variables:
