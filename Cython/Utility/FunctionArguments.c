@@ -154,6 +154,7 @@ static void __Pyx_RaiseDoubleKeywordsError(
 static void __Pyx_RaiseMappingExpectedError(PyObject* arg); /*proto*/
 
 //////////////////// RaiseMappingExpected ////////////////////
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
     __Pyx_RaiseTypeErrorWithObjectType(
@@ -962,10 +963,10 @@ static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_
 
 #define __Pyx_ArgsSlice_VARARGS(args, start, stop) PyTuple_GetSlice(args, start, stop)
 
-#if CYTHON_VECTORCALL || (CYTHON_COMPILING_IN_CPYTHON && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
+#if CYTHON_VECTORCALL
 #define __Pyx_ArgsSlice_FASTCALL(args, start, stop) __Pyx_PyTuple_FromArray(args + start, stop - start)
 #else
-#define __Pyx_ArgsSlice_FASTCALL(args, start, stop) PyTuple_GetSlice(args, start, stop)
+#define __Pyx_ArgsSlice_FASTCALL __Pyx_ArgsSlice_VARARGS
 #endif
 
 /////////////// fastcall ///////////////

@@ -30,6 +30,19 @@ class ParseOptionsAction(Action):
         setattr(namespace, self.dest, options)
 
 
+class ParseCommaListAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        options = list(getattr(namespace, self.dest, []))
+
+        seen = set(options)
+        for opt in values.split(','):
+            if opt not in seen:
+                seen.add(opt)
+                options.append(opt)
+
+        setattr(namespace, self.dest, options)
+
+
 class ParseCompileTimeEnvAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
         old_env = dict(getattr(namespace, self.dest, {}))
@@ -67,17 +80,36 @@ class SetAnnotateCoverageAction(Action):
         namespace.annotate = True
         namespace.annotate_coverage_xml = values
 
+
+class CythonArgumentParser(ArgumentParser):
+    # Build the epilog lazily at request as it may take time to produce.
+    @property
+    def epilog(self):
+        import textwrap
+        from ..Build import SharedModule
+        return (
+            '\nValid feature names for the shared module:\n  FEATURES: ' +
+            '\n'.join(textwrap.wrap(
+                ' , '.join(SharedModule.list_of_features()),
+                subsequent_indent=" "*12,
+            )) + '\n' +
+            "\nEnvironment variables:\n"
+            "  CYTHON_CACHE_DIR: the base directory containing Cython's caches.\n"
+        )
+
+    @epilog.setter
+    def epilog(self, value):
+        pass
+
+
 def create_cython_argparser():
     description = "Cython (https://cython.org/) is a compiler for code written in the "\
                   "Cython language.  Cython is based on Pyrex by Greg Ewing."
 
-    parser = ArgumentParser(
+    parser = CythonArgumentParser(
         description=description,
         argument_default=SUPPRESS,
         formatter_class=RawDescriptionHelpFormatter,
-        epilog="""\
-Environment variables:
-  CYTHON_CACHE_DIR: the base directory containing Cython's caches."""
     )
 
     parser.add_argument("-V", "--version", dest='show_version', action='store_const', const=1,
@@ -159,10 +191,19 @@ Environment variables:
                            'deduced from the import path if source file is in '
                            'a package, or equals the filename otherwise.')
     parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
+
+    # Shared module setup.
+
     parser.add_argument("--generate-shared", dest='shared_c_file_path', action='store', type=str,
                         help='Generates shared module with specified name.')
     parser.add_argument("--shared", dest='shared_utility_qualified_name', action='store', type=str,
                         help='Imports utility code from shared module specified by fully qualified module name.')
+    parser.add_argument("--shared-only", dest='shared_utility_features_enabled',
+                        action=ParseCommaListAction, type=str, metavar='FEATURES',
+                        help='Comma separate list of features to move to the shared module exclusively.')
+    parser.add_argument("--shared-exclude", dest='shared_utility_features_disabled',
+                        action=ParseCommaListAction, type=str, metavar='FEATURES',
+                        help='Comma separate list of features to exclude from the shared module.')
 
     parser.add_argument('sources', nargs='*', default=[])
 
@@ -248,16 +289,24 @@ def parse_command_line(args):
 
     if options.use_listing_file and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using -o\n")
+
     if options.shared_c_file_path:
         if len(sources) > 0:
             parser.error("cython: Source file not allowed when using --generate-shared\n")
     elif len(sources) == 0 and not options.show_version:
         parser.error("cython: Need at least one source file\n")
+
+    if options.shared_utility_features_disabled or options.shared_utility_features_enabled:
+        if not options.shared_c_file_path:
+            parser.error("cython: --shared-only and --shared-exclude require --generate-shared")
+
     if Options.embed and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using --embed\n")
+
     if options.module_name:
         if options.timestamps:
             parser.error("cython: Cannot use --module-name with --timestamps\n")
         if len(sources) > 1:
             parser.error("cython: Only one source file allowed when using --module-name\n")
+
     return options, sources

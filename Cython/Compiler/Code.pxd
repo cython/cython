@@ -56,6 +56,7 @@ cdef class FunctionState:
     cdef public bint can_trace
     cdef public bint gil_owned
 
+    cdef CCodeWriter temp_decl_writer
     cdef list[tuple] temps_allocated
     cdef dict[tuple, tuple] temps_free
     cdef dict[object, tuple] temps_used_type

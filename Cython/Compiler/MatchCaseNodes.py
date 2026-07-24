@@ -611,7 +611,7 @@ class OrPatternNode(PatternNode):
                 cond_exprs.append(
                     ExprNodes.CondExprNode(
                         self.pos,
-                        test = a_test,
+                        condition = a_test,
                         true_val = a_value,
                         false_val = ExprNodes.IntNode.for_size(self.pos, 0)
                     )

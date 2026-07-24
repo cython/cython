@@ -52,7 +52,7 @@ def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython
     double
     (int, float)
     tuple[int object,double] object
-    tuple object
+    tuple[int,...] object
     tuple[int,Python object] object
     tuple object
     """
@@ -68,7 +68,7 @@ def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython
     print(cython.typeof(x[1]) if cython.compiled else 'double')
     print(cython.typeof(a) if cython.compiled or cython.typeof(a) != 'tuple' else "(int, float)")
     print(cython.typeof(x) + ("[int object,double] object" if not cython.compiled else ""))
-    print(cython.typeof(y) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(y) + ("[int,...] object" if not cython.compiled else ""))
     print(cython.typeof(c) + ("[int,Python object] object" if not cython.compiled else ""))
     print(cython.typeof(plain_tuple) + (" object" if not cython.compiled else ""))
 
@@ -84,7 +84,7 @@ def test_tuple_without_typing(a: tuple[cython.int, cython.float], b: tuple[cytho
     double
     (int, float)
     tuple[int object,double] object
-    tuple object
+    tuple[int,...] object
     tuple[int,Python object] object
     tuple object
     """
@@ -100,7 +100,7 @@ def test_tuple_without_typing(a: tuple[cython.int, cython.float], b: tuple[cytho
     print(cython.typeof(x[1]) if cython.compiled or cython.typeof(p) != 'float' else "double")
     print(cython.typeof(a) if cython.compiled or cython.typeof(a) != 'tuple' else "(int, float)")
     print(cython.typeof(x) + ("[int object,double] object" if not cython.compiled else ""))
-    print(cython.typeof(y) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(y) + ("[int,...] object" if not cython.compiled else ""))
     print(cython.typeof(c) + ("[int,Python object] object" if not cython.compiled else ""))
     print(cython.typeof(plain_tuple) + (" object" if not cython.compiled else ""))
 

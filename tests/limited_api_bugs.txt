@@ -6,7 +6,6 @@ embedsignatures_clinic
 generator_frame_cycle
 line_trace
 pstats_profile_test
-pep442_tp_finalize
 tracebacks
 tss
 sys_monitoring

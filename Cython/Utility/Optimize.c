@@ -467,7 +467,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         #endif
         if (unlikely(pos >= list_size)) return 0;
         *ppos = pos + 1;
-        next_item = __Pyx_PyList_GetItemRef(iter_obj, pos);
+        next_item = __Pyx_PyList_GET_ITEM_REF(iter_obj, pos, __Pyx_ReferenceSharing_OwnStrongReference);
         if (unlikely(!next_item)) return -1;
     } else
 #endif

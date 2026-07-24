@@ -1433,21 +1433,15 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
 
     if (gen->resume_label >= 0) {
         // Generator is paused or unstarted, so we need to close
-        PyObject_GC_Track(self);
 #if CYTHON_USE_TP_FINALIZE
+        PyObject_GC_Track(self);
         if (unlikely(PyObject_CallFinalizerFromDealloc(self)))
-#else
-        {
-            destructor del = __Pyx_PyObject_GetSlot(gen, tp_del, destructor);
-            if (del) del(self);
-        }
-        if (unlikely(Py_REFCNT(self) > 0))
-#endif
         {
             // resurrected.  :(
             return;
         }
         PyObject_GC_UnTrack(self);
+#endif
     }
 
 #ifdef __Pyx_AsyncGen_USED
@@ -1682,6 +1676,10 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
     Py_XINCREF(code);
     gen->gi_code = code;
     gen->gi_frame = NULL;
+#if CYTHON_USE_SYS_MONITORING && (CYTHON_PROFILE || CYTHON_TRACE)
+    memset(gen->$monitoring_states_cname, 0, sizeof(gen->$monitoring_states_cname));
+    gen->$monitoring_version_cname = 0;
+#endif
 
     PyObject_GC_Track(gen);
     return gen;

@@ -419,13 +419,13 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     tstate->curexc_value = 0;
     tstate->curexc_traceback = 0;
   #endif
-#elif __PYX_LIMITED_VERSION_HEX > 0x030C0000
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030C0000
     local_value = PyErr_GetRaisedException();
 #else
     PyErr_Fetch(&local_type, &local_value, &local_tb);
 #endif
 
-#if __PYX_LIMITED_VERSION_HEX > 0x030C0000
+#if __PYX_LIMITED_VERSION_HEX >= 0x030C0000
     if (likely(local_value)) {
         local_type = (PyObject*) Py_TYPE(local_value);
         Py_INCREF(local_type);
@@ -446,7 +446,7 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
         if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
             goto bad;
     }
-#endif // __PYX_LIMITED_VERSION_HEX > 0x030C0000
+#endif // __PYX_LIMITED_VERSION_HEX >= 0x030C0000
 
     // traceback may be NULL for freshly raised exceptions
     Py_XINCREF(local_tb);
@@ -503,7 +503,7 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
 
     return 0;
 
-#if __PYX_LIMITED_VERSION_HEX <= 0x030C0000
+#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
 bad:
     *type = 0;
     *value = 0;

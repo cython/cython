@@ -70,6 +70,7 @@ interned_prefixes = {
     'int': pyrex_prefix + "int_",
     'float': pyrex_prefix + "float_",
     'tuple': pyrex_prefix + "tuple_",
+    'frozenset': pyrex_prefix + "frozenset_",
     'slice': pyrex_prefix + "slice_",
     'ustring': pyrex_prefix + "ustring_",
     'umethod': pyrex_prefix + "umethod_",
@@ -181,6 +182,7 @@ parallel_filename = pyrex_prefix + "parallel_filename"
 parallel_lineno = pyrex_prefix + "parallel_lineno"
 parallel_clineno = pyrex_prefix + "parallel_clineno"
 parallel_why = pyrex_prefix + "parallel_why"
+parallel_loop_threadstate = pyrex_prefix + "parallel_loop_threadstate"
 
 # Python itself used _Py_cs so loosely follow that convention
 critical_section_variable = pyrex_prefix + "cs"

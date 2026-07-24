@@ -1270,6 +1270,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
         }
     }
     return __Pyx_PyByteArray_Append(bytearray, (int) ival);
+
 bad_range:
     PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
     return -1;
@@ -1282,22 +1283,8 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
 //////////////////// ByteArrayAppend ////////////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 
-static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
+static int __Pyx_PyByteArray_Append_fallback(PyObject* bytearray, int value) {
     PyObject *pyval, *retval;
-#if CYTHON_COMPILING_IN_CPYTHON
-    if (likely(__Pyx_is_valid_index(value, 256))) {
-        Py_ssize_t n = Py_SIZE(bytearray);
-        if (likely(n != PY_SSIZE_T_MAX)) {
-            if (unlikely(PyByteArray_Resize(bytearray, n + 1) < 0))
-                return -1;
-            PyByteArray_AS_STRING(bytearray)[n] = (char) (unsigned char) value;
-            return 0;
-        }
-    } else {
-        PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
-        return -1;
-    }
-#endif
     pyval = PyLong_FromLong(value);
     if (unlikely(!pyval))
         return -1;
@@ -1307,6 +1294,100 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
         return -1;
     Py_DECREF(retval);
     return 0;
+}
+
+static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (likely(__Pyx_is_valid_index(value, 256))) {
+        int retval = 1;
+        __Pyx_BEGIN_CRITICAL_SECTION(bytearray);
+        Py_ssize_t n = Py_SIZE(bytearray);
+        if (likely(n != PY_SSIZE_T_MAX)) {
+            retval = PyByteArray_Resize(bytearray, n + 1);
+            if (likely(retval == 0)) {
+                PyByteArray_AS_STRING(bytearray)[n] = (char) (unsigned char) value;
+            }
+        }
+        __Pyx_END_CRITICAL_SECTION();
+        if (likely(retval != 1)) {
+            return retval;
+        }
+    } else {
+        PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
+        return -1;
+    }
+#endif
+
+    return __Pyx_PyByteArray_Append_fallback(bytearray, value);
+}
+
+
+//////////////////// ByteArrayExtend.proto ////////////////////
+
+static int __Pyx_PyByteArray_Extend_fallback(PyObject* bytearray, PyObject* value); /*proto*/
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBuffer(PyObject* bytearray, PyObject *value, const char* bytes, Py_ssize_t length); /*proto*/
+#endif
+
+//////////////////// ByteArrayExtend ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
+//@requires: IncludeStringH
+
+static int __Pyx_PyByteArray_Extend_fallback(PyObject* bytearray, PyObject* value) {
+    PyObject *retval = __Pyx_PyObject_CallMethod1(bytearray, PYIDENT("extend"), value);
+    if (unlikely(!retval))
+        return -1;
+    Py_DECREF(retval);
+    return 0;
+}
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBuffer(PyObject* bytearray, PyObject *value, const char* bytes, Py_ssize_t length) {
+    int retval = 1;
+    __Pyx_BEGIN_CRITICAL_SECTION(bytearray);
+    Py_ssize_t n = Py_SIZE(bytearray);
+    if (likely(n < PY_SSIZE_T_MAX - length)) {
+        retval = PyByteArray_Resize(bytearray, n + length);
+        if (likely(retval == 0)) {
+            char *buffer = PyByteArray_AS_STRING(bytearray) + n;
+            memcpy(buffer, bytes, (size_t) length);
+        }
+    }
+    __Pyx_END_CRITICAL_SECTION();
+    if (likely(retval != 1)) {
+        return retval;
+    }
+
+    return __Pyx_PyByteArray_Extend_fallback(bytearray, value);
+}
+#endif
+
+
+//////////////////// ByteArrayExtendBytes.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBytes(PyObject* bytearray, PyObject* value); /*proto*/
+
+#define __Pyx_PyByteArray_ExtendObject(bytearray, value)  (PyBytes_CheckExact(value) ? \
+    __Pyx_PyByteArray_ExtendBytes(bytearray, value) : \
+    __Pyx_PyByteArray_Extend_fallback(bytearray, value))
+
+//////////////////// ByteArrayExtendBytes ////////////////////
+//@requires: ByteArrayExtend
+
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBytes(PyObject* bytearray, PyObject* value) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    char* bytes;
+    Py_ssize_t length;
+    if (unlikely(PyBytes_AsStringAndSize(value, &bytes, &length) == -1)) {
+        return -1;
+    }
+    if (unlikely(length == 0)) {
+        return 0;
+    }
+    return __Pyx_PyByteArray_ExtendBuffer(bytearray, value, bytes, length);
+#else
+    return __Pyx_PyByteArray_Extend_fallback(bytearray, value);
+#endif
 }
 
 

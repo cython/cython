@@ -134,6 +134,95 @@ class C(A):
         return __class__
 
 
+def decorator(cls):
+    class SecretSubclass(cls):
+        __doc__ = cls.__doc__
+        pass
+    return SecretSubclass
+
+@decorator
+class HasDecorator(A):
+    """
+    >>> obj = HasDecorator()
+    >>> obj.method()
+    1
+    >>> HasDecorator.class_method()
+    2
+    >>> HasDecorator.static_method(obj)
+    3
+    >>> list(obj.generator_test())
+    [1, 2, 3]
+    >>> obj.star_method()
+    1
+    >>> obj.starstar_method()
+    1
+    >>> obj.starstarstar_method()
+    1
+    >>> obj.star_class_method()
+    2
+    >>> obj.starstar_class_method()
+    2
+    >>> obj.starstarstar_class_method()
+    2
+    >>> obj.star_static_method(obj)
+    3
+    >>> obj.starstar_static_method(obj)
+    3
+    >>> obj.starstarstar_static_method(obj)
+    3
+    """
+    def __init__(self, *args, **kwds):
+        return super().__init__(*args, **kwds)
+
+    def method(self):
+        return super().method()
+
+    @classmethod
+    def class_method(cls):
+        return super().class_method()
+
+    @staticmethod
+    def static_method(instance):
+        return super().static_method()
+
+    def generator_test(self):
+        for i in super().generator_test():
+            yield i
+
+    def star_method(self, *args):
+        return super().method()
+
+    def starstar_method(self, **kwargs):
+        return super().method()
+
+    def starstarstar_method(cls, *args, **kwargs):
+        return super().method()
+
+    @classmethod
+    def star_class_method(cls, *args):
+        return super().class_method()
+
+    @classmethod
+    def starstar_class_method(cls, **kwargs):
+        return super().class_method()
+
+    @classmethod
+    def starstarstar_class_method(cls, *args, **kwargs):
+        return super().class_method()
+
+    @staticmethod
+    def star_static_method(instance, *args):
+        return super().static_method()
+
+    @staticmethod
+    def starstar_static_method(instance, **kwargs):
+        return super().static_method()
+
+    @staticmethod
+    def starstarstar_static_method(instance, *args, **kwargs):
+        return super().static_method()
+
+
 class D:
     """
     >>> obj = D()

@@ -2,6 +2,8 @@
 #   Code output module
 #
 
+# uses @functools.wraps()
+# cython: binding=True
 
 import cython
 cython.declare(hashlib=object, json=object, operator=object, os=object, re=object,
@@ -10,8 +12,6 @@ cython.declare(hashlib=object, json=object, operator=object, os=object, re=objec
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, defaultdict=object,
                closing=object, partial=object, wraps=object,
-               zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object,
-               lzss_compress=object,
 )
 
 import hashlib
@@ -77,6 +77,8 @@ compression_algorithms = [
     #(4, 'lzma', lzma_compress),
 ]
 
+del lzss_compress, zlib_compress, bz2_compress, zstd_compress  # , lzma_compress
+
 
 renamed_py2_builtins_map = {
     # builtins that had different names in Py2 code
@@ -100,195 +102,6 @@ basicsize_builtins_map = {
     # builtins whose type has a different tp_basicsize than sizeof(...)
     'PyTypeObject': 'PyHeapTypeObject',
 }
-
-# Builtins as of Python version ...
-KNOWN_PYTHON_BUILTINS_VERSION = (3, 15, 0, 'beta', 1)
-KNOWN_PYTHON_BUILTINS = frozenset([
-    'ArithmeticError',
-    'AssertionError',
-    'AttributeError',
-    'BaseException',
-    'BaseExceptionGroup',
-    'BlockingIOError',
-    'BrokenPipeError',
-    'BufferError',
-    'BytesWarning',
-    'ChildProcessError',
-    'ConnectionAbortedError',
-    'ConnectionError',
-    'ConnectionRefusedError',
-    'ConnectionResetError',
-    'DeprecationWarning',
-    'EOFError',
-    'Ellipsis',
-    'EncodingWarning',
-    'EnvironmentError',
-    'Exception',
-    'ExceptionGroup',
-    'False',
-    'FileExistsError',
-    'FileNotFoundError',
-    'FloatingPointError',
-    'FutureWarning',
-    'GeneratorExit',
-    'IOError',
-    'ImportCycleError',
-    'ImportError',
-    'ImportWarning',
-    'IndentationError',
-    'IndexError',
-    'InterruptedError',
-    'IsADirectoryError',
-    'KeyError',
-    'KeyboardInterrupt',
-    'LookupError',
-    'MemoryError',
-    'ModuleNotFoundError',
-    'NameError',
-    'None',
-    'NotADirectoryError',
-    'NotImplemented',
-    'NotImplementedError',
-    'OSError',
-    'OverflowError',
-    'PendingDeprecationWarning',
-    'PermissionError',
-    'ProcessLookupError',
-    'PythonFinalizationError',
-    'RecursionError',
-    'ReferenceError',
-    'ResourceWarning',
-    'RuntimeError',
-    'RuntimeWarning',
-    'StopAsyncIteration',
-    'StopIteration',
-    'SyntaxError',
-    'SyntaxWarning',
-    'SystemError',
-    'SystemExit',
-    'TabError',
-    'TimeoutError',
-    'True',
-    'TypeError',
-    'UnboundLocalError',
-    'UnicodeDecodeError',
-    'UnicodeEncodeError',
-    'UnicodeError',
-    'UnicodeTranslateError',
-    'UnicodeWarning',
-    'UserWarning',
-    'ValueError',
-    'Warning',
-    'WindowsError',
-    'ZeroDivisionError',
-    '_IncompleteInputError',
-    '__build_class__',
-    '__debug__',
-    '__lazy_import__',
-    '__import__',
-    'abs',
-    'aiter',
-    'all',
-    'anext',
-    'any',
-    'ascii',
-    'bin',
-    'bool',
-    'breakpoint',
-    'bytearray',
-    'bytes',
-    'callable',
-    'chr',
-    'classmethod',
-    'compile',
-    'complex',
-    'copyright',
-    'credits',
-    'delattr',
-    'dict',
-    'dir',
-    'divmod',
-    'enumerate',
-    'eval',
-    'exec',
-    'exit',
-    'filter',
-    'float',
-    'format',
-    'frozendict',
-    'frozenset',
-    'getattr',
-    'globals',
-    'hasattr',
-    'hash',
-    'help',
-    'hex',
-    'id',
-    'input',
-    'int',
-    'isinstance',
-    'issubclass',
-    'iter',
-    'len',
-    'license',
-    'list',
-    'locals',
-    'map',
-    'max',
-    'memoryview',
-    'min',
-    'next',
-    'object',
-    'oct',
-    'open',
-    'ord',
-    'pow',
-    'print',
-    'property',
-    'quit',
-    'range',
-    'repr',
-    'reversed',
-    'round',
-    'sentinel',
-    'set',
-    'setattr',
-    'slice',
-    'sorted',
-    'staticmethod',
-    'str',
-    'sum',
-    'super',
-    'tuple',
-    'type',
-    'vars',
-    'zip',
-])
-
-uncachable_builtins = [
-    # Global/builtin names that cannot be cached because they may or may not
-    # be available at import time, for various reasons:
-    ## Python 3.15+
-    'frozendict',
-    'sentinel',
-    'ImportCycleError',
-    '__lazy_import__',
-    ## Python 3.13+
-    '_IncompleteInputError',
-    'PythonFinalizationError',
-    ## Python 3.11+
-    'BaseExceptionGroup',
-    'ExceptionGroup',
-    ## - Py3.10+
-    'aiter',
-    'anext',
-    'EncodingWarning',
-    ## - platform specific
-    'WindowsError',
-    ## - others
-    'breakpoint',  # Probably best left alone.
-    '_',  # e.g. used by gettext
-]
 
 special_py_methods = cython.declare(frozenset, frozenset((
     '__cinit__', '__dealloc__', '__richcmp__', '__next__',
@@ -566,10 +379,14 @@ class UtilityCodeBase(AbstractUtilityCode):
 
                 tag_name, _, tag_value = tag_value.partition(':')
                 tag_name = tag_name.rstrip()
-                tag_value = tag_value.strip()
 
+                if tag_name == 'feature':
+                    # Only used for shared module code selection.
+                    continue
                 if tag_name not in ('requires', 'substitute', 'proto_block', 'init_block'):
                     raise RuntimeError(f"Found unknown tag name '{tag_name}' in utility section {name}.{type}")
+
+                tag_value = tag_value.strip()
                 if not re.match(r'\S+(\{[^\}]*\})?$', tag_value):
                     raise RuntimeError(f"Found invalid tag value '{tag_value}' in utility section {name}.{type}")
 
@@ -652,7 +469,7 @@ class UtilityCodeBase(AbstractUtilityCode):
         return cls(**kwargs)
 
     @classmethod
-    def load_cached(cls, utility_code_name, from_file, __cache={}):
+    def load_cached(cls, utility_code_name, from_file, *, __cache={}):
         """
         Calls .load(), but using a per-type cache based on utility name and file name.
         """
@@ -1171,6 +988,7 @@ class FunctionState:
         self.can_trace = False
         self.gil_owned = True
 
+        self.temp_decl_writer = None  # if set, insertion point for temp declarations
         self.temps_allocated = []  # of (name, type, manage_ref, static)
         self.temps_free = {}  # (type, manage_ref) -> list of free vars with same type/managed status
         self.temps_used_type = {}  # name -> (type, manage_ref)
@@ -1737,7 +1555,7 @@ class GlobalState:
         w.exit_cfunc_scope()
 
         w = self.parts['cached_constants']
-        for const_type in ["tuple", "slice"]:
+        for const_type in ["tuple", "frozenset", "slice"]:
             if const_type in self.const_array_counters:
                 self.immortalize_constants(
                     w.name_in_module_state(Naming.pyrex_prefix + const_type),
@@ -2079,11 +1897,10 @@ class GlobalState:
         c_consts.sort()
         decls_writer = self.parts['string_decls']
         for _, cname, escaped_value in c_consts:
-            cliteral = StringEncoding.split_string_literal(escaped_value)
-            decls_writer.putln(
-                f'static const char {cname}[] = "{cliteral}";',
-                safe=True,  # Braces in user strings are not for indentation.
-            )
+            # In theory, we'd better use the length of the unescaped string here to decide
+            # the cut-off, but we don't have that here and it simply means that we'll start
+            # earlier with splitting the C string representation than strictly necessary.
+            _write_cstring_const(decls_writer, escaped_value, cname, len(escaped_value))
 
         # Generate legacy Py_UNICODE[] constants.
         for c, cname in sorted(self.pyunicode_ptr_const_index.items()):
@@ -2202,9 +2019,7 @@ class GlobalState:
 
             w.putln(f"#{'if' if not has_if else 'elif'} {guard} /* compression: {algo_name} ({len(compressed_bytes)} bytes) */")
             has_if = True
-            escaped_bytes = StringEncoding.split_string_literal(
-                StringEncoding.escape_byte_string(compressed_bytes))
-            w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
+            _write_escaped_cstring_const(w, compressed_bytes, 'cstring')
             if algo_name == 'lzss':
                 self.use_utility_code(UtilityCode.load_cached("DecompressString_LZSS", "StringTools.c"))
                 w.putln(f'PyObject *data = __Pyx_DecompressString_LZSS(cstring, {len(compressed_bytes)}, {len(concat_bytes)});')
@@ -2222,9 +2037,7 @@ class GlobalState:
             w.putln('#endif')
 
         w.putln(f"{'#else ' if has_if else ''}/* compression: none ({len(concat_bytes)} bytes) */")
-        escaped_bytes = StringEncoding.split_string_literal(
-            StringEncoding.escape_byte_string(concat_bytes))
-        w.putln(f'const char* const bytes = "{escaped_bytes}";', safe=True)
+        _write_escaped_cstring_const(w, concat_bytes, 'bytes')
         w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
 
         if compressions:
@@ -2622,6 +2435,35 @@ class GlobalState:
                 self.use_entry_utility_code(tp.entry)
 
 
+_split_characters = cython.declare(
+    object, re.compile(r'(\\[0-7][0-7][0-7]|\\.|.)', re.DOTALL).findall)
+
+@cython.cfunc
+def _write_cstring_const(code, escaped_bytes: str, c_var_name: str, length: cython.Py_ssize_t) -> cython.int:
+    strings: str = StringEncoding.split_string_literal(escaped_bytes)
+
+    if length < 65536:
+        code.putln(f'static const char {c_var_name}[] = "{strings}";', safe=True)
+        return 0
+
+    # MSVC silently truncates long string literals >= 64K, so we store them as
+    # C array of single characters.  But we try not to put the burden of parsing
+    # a very long C array on other compilers when a simple C string will do.
+    escaped_characters: list[str] = _split_characters(escaped_bytes)
+    cchars = ','.join([f"'{c}'" for c in escaped_characters])
+    code.putln("#ifdef _MSC_VER")
+    code.putln(f'static const char {c_var_name}[] = {{{cchars}}};', safe=True)
+    code.putln("#else")
+    code.putln(f'static const char {c_var_name}[] = "{strings}";', safe=True)
+    code.putln("#endif")
+
+
+@cython.cfunc
+def _write_escaped_cstring_const(code, cstring_bytes, c_var_name: str) -> cython.int:
+    escaped_bytes: str = StringEncoding.escape_byte_string(cstring_bytes)
+    _write_cstring_const(code, escaped_bytes, c_var_name, len(cstring_bytes))
+
+
 def funccontext_property(func):
     name = func.__name__
     attribute_of = operator.attrgetter(name)
@@ -2820,6 +2662,8 @@ class CCodeWriter:
     def exit_cfunc_scope(self):
         if self.funcstate is None:
             return
+        if self.funcstate.temp_decl_writer:
+            self.funcstate.temp_decl_writer.put_temp_declarations(self.funcstate)
         self.funcstate.validate_exit()
         self.funcstate = None
 
@@ -2835,6 +2679,7 @@ class CCodeWriter:
         self.putln(f"static {signature} {{")
         if refnanny:
             self.put_declare_refcount_context()
+        self.funcstate.temp_decl_writer = self.insertion_point()
 
     def start_slotfunc(self, class_scope, return_type, c_slot_name, args_signature,
                        needs_funcstate=True, needs_prototype=False,
