@@ -737,7 +737,7 @@ __Pyx_CyFunction_set_annotate(PyObject *op_in, PyObject* value, void *context) {
     }
 
     if (unlikely(__Pyx_TypeCheck(value, &PyCFunction_Type))) {
-#if CYTHON_ASSUME_SAFE_MACROS
+#if !CYTHON_ASSUME_SAFE_MACROS
         PyCFunction cfunction = PyCFunction_GetFunction(value);
         if (unlikely(!cfunction)) return -1;
         PyObject *value_self = PyCFunction_GetSelf(value);
