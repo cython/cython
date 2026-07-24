@@ -320,12 +320,6 @@ e.g. ``unsigned int`` (``cython.uint`` in Python code):
             :header-rows: 1
             :class: longtable
 
-and builtin Python types:
-
-        .. csv-table:: Python builtin types
-            :file: python_types.csv
-            :header-rows: 1
-            :class: longtable
 
 .. note::
    Additional types are declared in the `stdint pxd file <https://github.com/cython/cython/blob/master/Cython/Includes/libc/stdint.pxd>`_.
