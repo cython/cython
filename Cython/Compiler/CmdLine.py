@@ -224,12 +224,6 @@ def create_cython_argparser():
 
     parser.add_argument("--generate-shared", dest='shared_c_file_path', action='store', type=str,
                         help='Generates shared module with specified name.')
-    parser.add_argument("--shared-only", dest='shared_utility_features_enabled',
-                        action=ParseCommaListAction, type=str, metavar='FEATURES',
-                        help='Comma separate list of features to move to the shared module exclusively.')
-    parser.add_argument("--shared-exclude", dest='shared_utility_features_disabled',
-                        action=ParseCommaListAction, type=str, metavar='FEATURES',
-                        help='Comma separate list of features to exclude from the shared module.')
 
     return parser
 
@@ -254,10 +248,10 @@ def create_cython_subcommand_parser():
     )
     generate_parser.add_argument('shared_c_file_path', metavar='OUTPUT_FILE', type=str,
                                  help='Path to the generated shared C/C++ file.')
-    generate_parser.add_argument("--shared-only", dest='shared_utility_features_enabled',
+    generate_parser.add_argument("--only", dest='shared_utility_features_enabled',
                                  action=ParseCommaListAction, type=str, metavar='FEATURES',
                                  help='Comma separate list of features to move to the shared module exclusively.')
-    generate_parser.add_argument("--shared-exclude", dest='shared_utility_features_disabled',
+    generate_parser.add_argument("--exclude", dest='shared_utility_features_disabled',
                                  action=ParseCommaListAction, type=str, metavar='FEATURES',
                                  help='Comma separate list of features to exclude from the shared module.')
     add_compile_arguments(generate_parser, include_sources=False, for_shared=True)
