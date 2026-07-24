@@ -425,7 +425,7 @@ Other changes
   Patch by Libor Jelínek.  (Github issue :issue:`7564`)
 
 
-3.2.9 (2026-0?-??)
+3.2.9 (2026-07-24)
 ==================
 
 Bugs fixed
