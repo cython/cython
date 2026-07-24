@@ -2377,8 +2377,7 @@ class FuncDefNode(StatNode, BlockNode):
 
             if code.funcstate.has_except_star:
                 tempvardecl_code.putln(
-                    "int %s = 0;" % Naming.skip_add_traceback_cname
-                )
+                    f"int {Naming.skip_add_traceback_cname} = 0;")
 
             # Clean up buffers -- this calls a Python function
             # so need to save and restore error state
@@ -8873,7 +8872,7 @@ class ExceptStarChainNode(StatListNode):
         ))
         code.put_incref(self.original_exception_group.result(), PyrexTypes.py_object_type)
         code.put_incref(self.in_progress_exception_group.result(), PyrexTypes.py_object_type)
-        code.putln("%s = NULL;" % self.internal_exception_set.result())
+        code.putln(f"{self.internal_exception_set.result()} = NULL;")
         super().generate_execution_code(code)
         for t in temps:
             if t is self.matched_exception_group or t is self.internal_exception_set:
@@ -8893,13 +8892,13 @@ class StarExceptSetExceptionNode(StatNode):
         vars = code.funcstate.exc_vars
         for v in vars:
             code.put_xdecref(v, PyrexTypes.py_object_type)
-        code.putln("%s = (PyObject*)Py_TYPE(%s);" % (vars[0], self.exception.result()))
-        code.putln("%s = %s;" % (vars[1], self.exception.result()))
-        code.putln("%s = PyException_GetTraceback(%s);" % (vars[2], self.exception.result()))
+        code.putln(f"{vars[0]} = (PyObject*)Py_TYPE({self.exception.result()});")
+        code.putln(f"{vars[1]} = {self.exception.result()};")
+        code.putln(f"{vars[2]} = PyException_GetTraceback({self.exception.result()});")
         for v in vars[:2]:
             code.put_incref(v, PyrexTypes.py_object_type)
         # Also set the handled exception (for Python's benefit, when it sets __context__)
-        code.putln("PyErr_SetHandledException(%s);" % self.exception.result())
+        code.putln(f"PyErr_SetHandledException({self.exception.result()});")
         code.put_xgotref(vars[2], PyrexTypes.py_object_type)
 
 
@@ -8941,8 +8940,8 @@ class StarExceptTestSetupNode(StatNode):
 
         for p in self.pattern:
             p.generate_evaluation_code(code)
-            code.putln("if (__Pyx_ValidateStarCatchPattern(%s)) {" %
-                        p.result_as(py_object_type))
+            code.putln(
+                f"if (__Pyx_ValidateStarCatchPattern({p.result_as(py_object_type)})) {{")
             code.put_goto(set_internal_exception_label)
             code.putln("}")
 
@@ -8952,13 +8951,13 @@ class StarExceptTestSetupNode(StatNode):
                         self.matched_exception_group.type, "Py_None")
         code.put_incref("Py_None", py_object_type)
 
-        code.put("if (%s == Py_None) " % self.in_progress_exception_group.result())
+        code.put(f"if ({self.in_progress_exception_group.result()} == Py_None) ")
         code.put_goto(match_result_found_label)
 
         exception_test_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         if len(self.pattern) == 1:
             # skip building the tuple
-            code.putln("%s = %s;" % (exception_test_temp, self.pattern[0].result_as(py_object_type)))
+            code.putln(f"{exception_test_temp} = {self.pattern[0].result_as(py_object_type)};")
             code.put_incref(exception_test_temp, py_object_type)
         else:
             tuple_parts = [p.result_as(py_object_type) for p in self.pattern]
@@ -8967,7 +8966,7 @@ class StarExceptTestSetupNode(StatNode):
                 len(tuple_parts),
                 ", ".join(tuple_parts)
             ))
-            code.put("if (unlikely(!%s)) " % exception_test_temp)
+            code.put(f"if (unlikely(!{exception_test_temp})) ")
             code.put_goto(set_internal_exception_label)
             code.put_gotref(exception_test_temp, py_object_type)
 
@@ -8983,7 +8982,7 @@ class StarExceptTestSetupNode(StatNode):
         code.put_gotref(self.matched_exception_group.result(), py_object_type)
         code.put_decref_clear(exception_test_temp, py_object_type)
         code.funcstate.release_temp(exception_test_temp)
-        code.put("if (unlikely(%s)) " % group_match_failed_temp)
+        code.put(f"if (unlikely({group_match_failed_temp})) ")
         code.put_goto(set_internal_exception_label)
         code.funcstate.release_temp(group_match_failed_temp)
 
@@ -9002,8 +9001,8 @@ class StarExceptPrepAndReraiseNode(StatNode):
     def generate_execution_code(self, code):
         # If we've had an internal exception while validating/matching one of the star exceptions
         # this takes precedence
-        code.putln("if (unlikely(%s)) {" % self.internal_exception_set.result())
-        code.putln("__Pyx_RaisePreppedException(%s);" % self.internal_exception_set.result())
+        code.putln(f"if (unlikely({self.internal_exception_set.result()})) {{")
+        code.putln(f"__Pyx_RaisePreppedException({self.internal_exception_set.result()});")
         code.put_decref_clear(self.internal_exception_set.result(), PyrexTypes.py_object_type)
         code.putln(code.error_goto(None))
         code.putln("}")
@@ -9032,8 +9031,8 @@ class StarExceptPrepAndReraiseNode(StatNode):
         ))
         code.put_gotref(to_reraise, PyrexTypes.py_object_type)
         # The exception already has the correct traceback, so don't add to it.
-        code.putln("%s = 1;" % Naming.skip_add_traceback_cname)
-        code.putln("__Pyx_RaisePreppedException(%s);" % to_reraise)
+        code.putln(f"{Naming.skip_add_traceback_cname} = 1;")
+        code.putln(f"__Pyx_RaisePreppedException({to_reraise});")
         code.put_decref_clear(to_reraise, PyrexTypes.py_object_type)
         code.putln(code.error_goto(None))
         code.funcstate.release_temp(to_reraise)
