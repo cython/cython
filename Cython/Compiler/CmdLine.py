@@ -310,39 +310,7 @@ def parse_command_line_raw(parser, args):
 
 
 def parse_command_line(args):
-    OPTIONS_WITH_ARGS = {
-        '-I', '--include-dir', '-o', '--output-file', '--cleanup', '-w', '--working',
-        '--gdb-outdir', '--annotate-coverage', '--embed-modules', '-X', '--directive',
-        '-E', '--compile-time-env', '--module-name', '--generate-shared', '--shared',
-        '--shared-only', '--shared-exclude', '-z', '--pre-import'
-    }
-
-    is_subcommand = False
-    i = 0
-    while i < len(args):
-        arg = args[i]
-        if arg in ('generate-shared',):
-            is_subcommand = True
-            break
-        elif arg.startswith('-'):
-            has_val_attached = False
-            for opt in OPTIONS_WITH_ARGS:
-                if arg.startswith(opt) and (len(arg) > len(opt) and arg[len(opt)] in ('=',)):
-                    has_val_attached = True
-                    break
-                if len(opt) == 2 and arg.startswith(opt) and len(arg) > 2:
-                    has_val_attached = True
-                    break
-
-            if not has_val_attached:
-                opt_name = arg.split('=', 1)[0]
-                if opt_name in OPTIONS_WITH_ARGS:
-                    i += 2
-                    continue
-        else:
-            break
-        i += 1
-
+    is_subcommand = args and args[0] == "generate-shared"
     if is_subcommand:
         parser = create_cython_subcommand_parser()
     else:
