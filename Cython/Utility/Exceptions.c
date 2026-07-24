@@ -1108,7 +1108,7 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
             if (call_args[1] == NULL) {
                 return -1;
             }
-            #if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+            #if CYTHON_VECTORCALL
             // We know we have Python 3.11 to be using except* so VectorCall is definitely available
             wrapped = PyObject_Vectorcall(PyExc_BaseExceptionGroup, call_args, 2, NULL);
             #else
@@ -1134,8 +1134,14 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
     is_instance = PyObject_IsInstance(*current_exception, PyExc_BaseExceptionGroup);
     if (unlikely(is_instance < 0)) return -1;
     if (is_instance) {
-        PyObject *pair = PyObject_CallMethod(*current_exception, "split", "(O)",
-                                             match_type);
+#if CYTHON_VECTORCALL
+        PyObject *args[] = {*current_exception, match_type};
+        PyObject *pair = PyObject_VectorcallMethod(
+            PYIDENT("split"), args, 2 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+#else
+        PyObject *pair = PyObject_CallMethodObjArgs(
+            *current_exception, PYIDENT("split"), match_type, NULL);
+#endif
 
         if (pair == NULL) return -1;
 
