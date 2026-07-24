@@ -8,14 +8,22 @@ Cython Changelog
 Features added
 --------------
 
-* The feature set of the shared module can be selected at build time
-  by listing named features to exclude or include.
-  (Github issue :issue:`7759`)
-
 * Cython now uses a new export/import naming scheme for fused C functions that
   increases the resilience against seemingly compatible user code changes.
   The original names are kept for backwards compatibility.
   (Github issue :issue:`7656`)
+
+* ``except *`` (PEP-654 exception groups) are implemented for Python 3.11 and later.
+  (Github issue :issue:`4993`)
+
+* The feature set of the shared module can be selected at build time
+  by listing named features to include or exclude.
+  (Github issue :issue:`7759`)
+
+* To control the generation of the shared module, the ``cython`` command gained
+  a sub-command ``cython generate-shared pkg/modulename.c`` with additional options
+  ``--only`` and ``--exclude``.
+  Patch by Raza Khan.  (Github issue :issue:`7842`)
 
 * Exception base types are inferred for the target variable of multi-exception ``except``
   clauses and for collections of exceptions.  Properties like ``.args`` and ``.context``
@@ -40,6 +48,10 @@ Features added
   can be used to refer to Python's builtin types in a C type context, e.g. after ``cdef``,
   where they are normally shadowed by the C types of the same name.
   (Github issue :issue:`7844`)
+
+* Constant ``frozenset`` objects are deduplicated and cached at module init time
+  (similar to constant tuple and slice objects).
+  Original Patch by Zhenbo Li. (Github issue :issue:`2741`)
 
 * ``bytearray.extend(bytes)`` is faster.
   (Github issue :issue:`7797`)
