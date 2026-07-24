@@ -545,14 +545,14 @@ class CmdLineParserTest(TimedTest):
         self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
 
         options, sources = parse_command_line([
-            'generate-shared', '--shared-exclude', 'MemoryView', 'foo/shared.c',
+            'generate-shared', '--exclude', 'MemoryView', 'foo/shared.c',
         ])
         self.assertEqual(sources, [])
         self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
         self.assertEqual(options.shared_utility_features_disabled, ['MemoryView'])
 
         options, sources = parse_command_line([
-            'generate-shared', '--shared-only', 'CythonFunction', 'foo/shared.c',
+            'generate-shared', '--only', 'CythonFunction', 'foo/shared.c',
         ])
         self.assertEqual(sources, [])
         self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
