@@ -701,28 +701,10 @@ static PyObject *__Pyx_CyFunction_annotate_impl(PyObject *self, PyObject *arg) {
     return result;
 }
 
-static const PyMethodDef __Pyx_CyFunction_annotate_method = {
-    "__annotate_cython__",
-    __Pyx_CyFunction_annotate_impl,
-    METH_O,
-    "Placeholder __annotate__ function to allow 'functools.wraps' to work "
-    "on Cython functions."
-};
-
 // We don't yet support PEP649 properly, so __annotate__ is
 // implemented in a minimal way, just so that functools.wraps works.
 static PyObject *
-__Pyx_CyFunction_get_annotate(PyObject *op_in, void *context) {
-    PyObject *annotate = NULL;
-    CYTHON_UNUSED_VAR(context);
-    if (unlikely(__Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in, &annotate) < 0)) return NULL;
-    if (annotate) return annotate;
-
-    PyObject *method = PyCFunction_New(
-        (PyMethodDef*)&__Pyx_CyFunction_annotate_method,
-        op_in);
-    return method;
-}
+__Pyx_CyFunction_get_annotate(PyObject *op_in, void *context);
 
 static int
 __Pyx_CyFunction_set_annotate(PyObject *op_in, PyObject* value, void *context) {
@@ -980,10 +962,30 @@ __Pyx_CyFunction_reduce(PyObject *m_in, PyObject *args)
 }
 
 static PyMethodDef __pyx_CyFunction_methods[] = {
+    // Having __annotate_cython__ as an attribute makes it pickleable.
+    // Keep it as the first element to make access easier.
+    {"__annotate_cython__", __Pyx_CyFunction_annotate_impl, METH_O,
+        "Placeholder __annotate__ function to allow 'functools.wraps' to work "
+        "on Cython functions."},
     {"__reduce__", (PyCFunction)__Pyx_CyFunction_reduce, METH_NOARGS, 0},
-    __Pyx_CyFunction_annotate_method,  // having __annotate_cython__ as an attribute makes it pickleable
     {0, 0, 0, 0}
 };
+
+// We don't yet support PEP649 properly, so __annotate__ is
+// implemented in a minimal way, just so that functools.wraps works.
+static PyObject *
+__Pyx_CyFunction_get_annotate(PyObject *op_in, void *context) {
+    PyObject *annotate = NULL;
+    CYTHON_UNUSED_VAR(context);
+    if (unlikely(__Pyx_CyFunction_get_annotate_from_dict_if_exists(op_in, &annotate) < 0)) return NULL;
+    if (annotate) return annotate;
+
+    PyObject *method = PyCFunction_New(
+        &__pyx_CyFunction_methods[0],
+        op_in);
+    return method;
+}
+
 
 
 #if CYTHON_COMPILING_IN_LIMITED_API
