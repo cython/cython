@@ -91,6 +91,14 @@ Bugs fixed
 
 * Subscripting frozendicts with integer keys could fail in 3.3.0a1.
 
+* When calling builtin types to create an instance, type inference could incorrectly
+  assume ``type`` as the type of the result rather the concrete builtin type in 3.3.0a1.
+  (Github issue :issue:`7848`)
+
+* Iterating over a container with an incorrectly declared item type could generated
+  incorrect C code in 3.3.0a1.
+  (Github issue :issue:`7775`)
+
 * ``NULL`` pointer comparisons could fail to compile with C++ in 3.3.0a1.
   Patch by Vyas Ramasubramani.  (Github issue :issue:`7766`)
 
