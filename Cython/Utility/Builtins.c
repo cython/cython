@@ -720,12 +720,13 @@ static PyObject* __Pyx_PyFrozenSet_FromArray(PyObject* const* values, Py_ssize_t
     Py_ssize_t i;
     PyObject* result = PyFrozenSet_New(NULL);
     for (i=0; i < length; i++) {
-        if (unlikely(PySet_Add(result, values[i]) < 0)) {
-            Py_DECREF(result);
-            return NULL;
-        }
+        if (unlikely(PySet_Add(result, values[i]) < 0)) goto bad;
     }
     return result;
+
+bad:
+    Py_DECREF(result);
+    return NULL;
 }
 
 
