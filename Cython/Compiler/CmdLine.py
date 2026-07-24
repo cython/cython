@@ -7,6 +7,11 @@ import os
 from argparse import ArgumentParser, Action, SUPPRESS, RawDescriptionHelpFormatter
 from . import Options
 
+TOOL_DESCRIPTION = """\
+Cython (https://cython.org/) is a compiler for code written in the \
+Cython language.  Cython is based on Pyrex by Greg Ewing.
+"""
+
 
 class ParseDirectivesAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -210,11 +215,8 @@ def add_compile_arguments(parser, include_sources=True, for_shared=False):
 
 
 def create_cython_argparser():
-    description = "Cython (https://cython.org/) is a compiler for code written in the "\
-                  "Cython language.  Cython is based on Pyrex by Greg Ewing."
-
     parser = CythonArgumentParser(
-        description=description,
+        description=TOOL_DESCRIPTION,
         argument_default=SUPPRESS,
         formatter_class=RawDescriptionHelpFormatter,
     )
@@ -233,11 +235,8 @@ def create_cython_argparser():
 
 
 def create_cython_subcommand_parser():
-    description = "Cython (https://cython.org/) is a compiler for code written in the "\
-                  "Cython language.  Cython is based on Pyrex by Greg Ewing."
-
     parser = CythonArgumentParser(
-        description=description,
+        description=TOOL_DESCRIPTION,
         argument_default=SUPPRESS,
         formatter_class=RawDescriptionHelpFormatter,
     )
