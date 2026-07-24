@@ -160,7 +160,7 @@ annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
     freelist = auto_pickle = cpow = trashcan = auto_cpdef = \
     allow_none_for_extension_args = callspec = show_performance_hints = \
     py2_import = iterable_coroutine = remove_unreachable = \
-    test_body_needs_exception_handling = \
+    test_body_needs_exception_handling = safe_property_autocomplete = \
         lambda _: _EmptyDecoratorAndManager()
 
 binding = embedsignature = always_allow_keywords = unraisable_tracebacks = \

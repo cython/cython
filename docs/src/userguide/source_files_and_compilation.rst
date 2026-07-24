@@ -670,6 +670,15 @@ Cython code.  Here is the list of currently supported directives:
     appropriate exception is raised. This is off by default for
     performance reasons.
 
+``safe_property_autocomplete``  (True / False), *default=False*
+    If set to True, Cython will add extra exception handling code
+    to properties of cdef classes to try to make them work better
+    in an interactive Python terminal.  Exceptions raised from
+    within Python's auto-complete handler are translated to
+    AttributeError (which the handler will safely ignore).
+    This has a runtime cost, and some chance of false positives
+    or false negatives.
+
 ``freethreading_compatible``  (True / False), *default=False*
     If set to True, Cython sets the ``Py_mod_gil`` slot to
     ``Py_MOD_GIL_NOT_USED`` to signal that the module is safe to run
