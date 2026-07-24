@@ -70,6 +70,7 @@ interned_prefixes = {
     'int': pyrex_prefix + "int_",
     'float': pyrex_prefix + "float_",
     'tuple': pyrex_prefix + "tuple_",
+    'frozenset': pyrex_prefix + "frozenset_",
     'slice': pyrex_prefix + "slice_",
     'ustring': pyrex_prefix + "ustring_",
     'umethod': pyrex_prefix + "umethod_",

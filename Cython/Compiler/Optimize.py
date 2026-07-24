@@ -1548,12 +1548,11 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         else:
             return node
 
-        if not isinstance(node.operand2, (ExprNodes.TupleNode,
-                                          ExprNodes.ListNode,
-                                          ExprNodes.SetNode)):
+        if not node.operand2.is_sequence_or_set_constructor:
             return node
 
         lhs = node.operand1
+        is_set = node.operand2.is_set_literal
         args = node.operand2.args
         if len(args) == 0:
             # note: lhs may have side effects, but ".is_simple()" may not work yet before type analysis.
@@ -1566,11 +1565,18 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
             # Starred arguments do not directly translate to comparisons or "in" tests.
             return node
 
+        make_readonly = lhs.is_sequence_or_set_constructor  # known safe builtin types for comparisons
         lhs = UtilNodes.ResultRefNode(lhs)
 
         conds = []
         temps = []
         for arg in args:
+            if is_set and arg.is_sequence_or_set_constructor:
+                if arg.type not in (Builtin.frozenset_type, Builtin.tuple_type):
+                    # Only these two are hashable.
+                    return node
+            if make_readonly and arg.is_sequence_or_set_constructor:
+                arg.read_only = True
             # Trial optimisation to avoid redundant temp assignments.
             if not arg.try_is_simple():
                 # must evaluate all non-simple RHS before doing the comparisons
@@ -2146,14 +2152,17 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         return node
 
     def _handle_simple_function_frozenset(self, node, pos_args):
-        """Replace frozenset([...]) by frozenset((...)) as tuples are more efficient.
+        """Clear the argument for empty frozenset([]) etc.
         """
         if len(pos_args) != 1:
             return node
-        if pos_args[0].is_sequence_constructor and not pos_args[0].args:
+        arg = pos_args[0]
+        if arg.is_sequence_constructor and not arg.args:
             del pos_args[0]
-        elif isinstance(pos_args[0], ExprNodes.ListNode):
-            pos_args[0] = pos_args[0].as_tuple()
+            return node
+        if arg.is_string_literal and not arg.value:
+            del pos_args[0]
+            return node
         return node
 
     def _handle_simple_function_list(self, node, pos_args):
@@ -2702,26 +2711,25 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 is_temp=node.is_temp,
                 py_name="set"))
 
-    PyFrozenSet_New_func_type = PyrexTypes.CFuncType(
-        Builtin.frozenset_type, [
-            PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)
-        ])
-
     def _handle_simple_function_frozenset(self, node, function, pos_args):
+        """Replace frozenset(...) with a dedicated FrozenSetNode that handles all special cases.
+        """
         if not pos_args:
-            pos_args = [ExprNodes.NullNode(node.pos)]
-        elif len(pos_args) > 1:
+            return ExprNodes.FrozenSetNode.from_node(node, arg=None, env=self.current_env())
+        if len(pos_args) > 1:
             return node
-        elif pos_args[0].type.is_pyfrozenset_type and not pos_args[0].may_be_none():
-            return pos_args[0]
-        # PyFrozenSet_New(it) is better than a generic Python call to frozenset(it)
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_PyFrozenSet_New",
-            self.PyFrozenSet_New_func_type,
-            args=pos_args,
-            is_temp=node.is_temp,
-            utility_code=UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'),
-            py_name="frozenset")
+
+        arg = pos_args[0]
+        if arg.type.is_pyfrozenset_type and not arg.may_be_none():
+            # Redundant frozenset(afrozenset) -> afrozenset
+            return arg
+
+        if arg.is_sequence_constructor:
+            if arg.args:
+                return ExprNodes.FrozenSetFromArrayNode.from_node(node, args=arg.args)
+            arg = None
+
+        return ExprNodes.FrozenSetNode.from_node(node, arg=arg)
 
     PyObject_AsDouble_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type, [
@@ -5011,6 +5019,14 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         if not node.cascade:
             if node.has_constant_result():
                 return self._bool_node(node, node.constant_result)
+
+            if node.operator in ('in', 'not_in'):
+                right_node = node.operand2
+                if right_node.is_sequence_or_set_constructor:
+                    # The right-most in-collection is not used in further cascades, so allow
+                    # later optimisation into a (possibly constant) immutable tuple/frozenset.
+                    right_node.read_only = True
+
             return node
 
         # collect partial cascades: [[value, CmpNode...], [value, CmpNode, ...], ...]
@@ -5050,6 +5066,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 last_cmp_node.cascade = cmp_node
                 last_cmp_node = cmp_node
             last_cmp_node.cascade = None
+
+            if last_cmp_node.operator in ('in', 'not_in'):
+                right_node = last_cmp_node.operand2
+                if right_node.is_sequence_or_set_constructor:
+                    # The right-most in-collection is not used in further cascades, so allow
+                    # later optimisation into a (possibly constant) immutable tuple/frozenset.
+                    right_node.read_only = True
 
         if final_false_result:
             # last cascade was constant False
@@ -5155,6 +5178,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
+
         sequence = node.iterator.sequence
         if isinstance(sequence, ExprNodes.SequenceNode):
             if not sequence.args:
@@ -5166,6 +5190,11 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             # iterating over a list literal? => tuples are more efficient
             if isinstance(sequence, ExprNodes.ListNode):
                 node.iterator.sequence = sequence.as_tuple()
+
+        elif isinstance(sequence, ExprNodes.SetNode):
+            # frozensets are more efficient to store than sets.
+            sequence.read_only = True
+
         return node
 
     def visit_WhileStatNode(self, node):

@@ -672,54 +672,60 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 
 //////////////////// pyfrozenset_new.proto ////////////////////
 
-static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
+static PyObject* __Pyx_PyFrozenSet_New(PyObject* it); /*proto*/
 
 //////////////////// pyfrozenset_new ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallNoArg
 
-static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
-    if (it) {
-        PyObject* result;
-#if CYTHON_COMPILING_IN_PYPY
-        // PyPy currently lacks PyFrozenSet_CheckExact() and PyFrozenSet_New()
-        PyObject* args;
-        args = PyTuple_Pack(1, it);
-        if (unlikely(!args))
-            return NULL;
-        result = PyObject_Call((PyObject*)&PyFrozenSet_Type, args, NULL);
-        Py_DECREF(args);
-        return result;
-#else
-        if (PyFrozenSet_CheckExact(it)) {
-            Py_INCREF(it);
-            return it;
-        }
-        result = PyFrozenSet_New(it);
-        if (unlikely(!result))
-            return NULL;
-        if ((__PYX_LIMITED_VERSION_HEX >= 0x030A0000)
-#if CYTHON_COMPILING_IN_LIMITED_API
-            || __Pyx_get_runtime_version() >= 0x030A0000
-#endif
-            )
-            return result;
-        {
-            Py_ssize_t size = __Pyx_PySet_GET_SIZE(result);
-            if (likely(size > 0))
-                return result;
-#if !CYTHON_ASSUME_SAFE_SIZE
-            if (unlikely(size < 0)) {
-                Py_DECREF(result);
-                return NULL;
-            }
-#endif
-        }
-        // empty frozenset is a singleton (on Python <3.10)
-        // seems wasteful, but CPython does the same
-        Py_DECREF(result);
-#endif
+static PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
+    // NOTE: assumes it != NULL, unlike PyFrozenSet_New().
+    PyObject* result;
+    if (PyFrozenSet_CheckExact(it)) {
+        Py_INCREF(it);
+        return it;
     }
-    return __Pyx_PyObject_CallNoArg((PyObject*) &PyFrozenSet_Type);
+    result = PyFrozenSet_New(it);
+    if (unlikely(!result)) {
+        return NULL;
+    }
+    if ((__PYX_LIMITED_VERSION_HEX >= 0x030A0000)
+#if CYTHON_COMPILING_IN_LIMITED_API
+        || likely(__Pyx_get_runtime_version() >= 0x030A0000)
+#endif
+        )
+        return result;
+
+    Py_ssize_t size = __Pyx_PySet_GET_SIZE(result);
+    if (likely(size > 0))
+        return result;
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(size < 0)) {
+        Py_DECREF(result);
+        return NULL;
+    }
+#endif
+    // empty frozenset is a singleton (on Python <3.10)
+    // seems wasteful, but CPython does the same
+    Py_DECREF(result);
+    return PyFrozenSet_New(NULL);
+}
+
+
+//////////////////// pyfrozenset_fromarray.proto ////////////////////
+
+static PyObject* __Pyx_PyFrozenSet_FromArray(PyObject* const* values, Py_ssize_t length);
+
+//////////////////// pyfrozenset_fromarray ////////////////////
+
+static PyObject* __Pyx_PyFrozenSet_FromArray(PyObject* const* values, Py_ssize_t length) {
+    Py_ssize_t i;
+    PyObject* result = PyFrozenSet_New(NULL);
+    for (i=0; i < length; i++) {
+        if (unlikely(PySet_Add(result, values[i]) < 0)) {
+            Py_DECREF(result);
+            return NULL;
+        }
+    }
+    return result;
 }
 
 
