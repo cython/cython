@@ -578,9 +578,14 @@ __Pyx_CyFunction_get_annotations(PyObject *op_in, void *context) {
 
     PyObject *format = PyLong_FromLong(1L);  // annotationlib.Format.VALUE
     if (likely(format)) {
-        if (!Py_EnterRecursiveCall(" cyfunction __annotations__.__get__")) {
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x03090000
+        if (!Py_EnterRecursiveCall(" cyfunction __annotations__.__get__"))
+#endif
+        {
             result = __Pyx_PyObject_CallOneArg(annotate, format);
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x03090000
             Py_LeaveRecursiveCall();
+#endif
             Py_DECREF(format);
         }
     }
@@ -606,11 +611,15 @@ static PyObject *__Pyx_CyFunction_annotate_impl(PyObject *self, PyObject *arg) {
     // Although we guard against trivial recursive calls from self.__annotate__ = self.__annotate__
     // we can't guard against all recursive calls.
     PyObject *result;
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x03090000
     if (Py_EnterRecursiveCall(" in cyfunction annotate")) {
         return NULL;
     }
+#endif
     result = __Pyx_CyFunction_get_annotations(self, NULL);
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x03090000
     Py_LeaveRecursiveCall();
+#endif
     return result;
 }
 
