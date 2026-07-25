@@ -348,13 +348,13 @@ def parse_command_line(args):
 
     if options.shared_c_file_path:
         if len(sources) > 0:
-            parser.error("cython: Source file not allowed when using --generate-shared\n")
+            parser.error("cython: Source file not allowed when using generate-shared\n")
     elif len(sources) == 0 and not options.show_version:
         parser.error("cython: Need at least one source file\n")
 
     if options.shared_utility_features_disabled or options.shared_utility_features_enabled:
         if not options.shared_c_file_path:
-            parser.error("cython: --shared-only and --shared-exclude require --generate-shared")
+            parser.error("cython: --only and --exclude require generate-shared")
 
     if Options.embed and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using --embed\n")

@@ -625,11 +625,11 @@ class CmdLineParserTest(TimedTest):
         error(['--module-name', 'foo.bar', '--timestamps', 'foo.pyx'],
               "Cannot use --module-name with --timestamps")
         error(['--generate-shared=shared.c', 'foo.pyx'],
-              "Source file not allowed when using --generate-shared")
+              "Source file not allowed when using generate-shared")
         error(['--generate-shared'],
               "argument --generate-shared: expected one argument")
         error(['generate-shared', 'shared.c', 'foo.pyx'],
-              "Source file not allowed when using --generate-shared")
+              "Source file not allowed when using generate-shared")
         error(['generate-shared', '--version', 'shared.c'],
               "unknown option --version")
         error(['generate-shared', '--embed', 'shared.c'],
