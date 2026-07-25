@@ -12,6 +12,11 @@ Cython (https://cython.org/) is a compiler for code written in the \
 Cython language.  Cython is based on Pyrex by Greg Ewing.
 """
 
+EPILOG = """
+Environment variables:
+  CYTHON_CACHE_DIR: the base directory containing Cython's caches.
+"""
+
 
 class ParseDirectivesAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -86,7 +91,7 @@ class SetAnnotateCoverageAction(Action):
         namespace.annotate_coverage_xml = values
 
 
-class CythonArgumentParser(ArgumentParser):
+class CythonSharedModuleArgumentParser(ArgumentParser):
     # Build the epilog lazily at request as it may take time to produce.
     @property
     def epilog(self):
@@ -98,8 +103,7 @@ class CythonArgumentParser(ArgumentParser):
                 ' , '.join(SharedModule.list_of_features()),
                 subsequent_indent=" "*12,
             )) + '\n' +
-            "\nEnvironment variables:\n"
-            "  CYTHON_CACHE_DIR: the base directory containing Cython's caches.\n"
+            EPILOG
         )
 
     @epilog.setter
@@ -215,10 +219,11 @@ def add_compile_arguments(parser, include_sources=True, for_shared=False):
 
 
 def create_cython_argparser():
-    parser = CythonArgumentParser(
+    parser = ArgumentParser(
         description=TOOL_DESCRIPTION,
         argument_default=SUPPRESS,
         formatter_class=RawDescriptionHelpFormatter,
+        epilog=EPILOG,
     )
     add_compile_arguments(parser, include_sources=True, for_shared=False)
 
@@ -229,7 +234,7 @@ def create_cython_argparser():
 
 
 def create_cython_subcommand_parser():
-    parser = CythonArgumentParser(
+    parser = CythonSharedModuleArgumentParser(
         description=TOOL_DESCRIPTION,
         argument_default=SUPPRESS,
         formatter_class=RawDescriptionHelpFormatter,

@@ -238,10 +238,10 @@ Selecting features to be shared
 -------------------------------
 
 Since Cython 3.3, the content of the shared utility can be controlled via feature selection.
-The list of named features can be found in the output of ``cython --help``, which includes
-names like ``MemoryView`` or ``AutoPickle``.  Cython accepts a positive list and a negative
-list as follows.  If both options are provided, excludes are removed after selecting from
-the positive list.
+The list of named features can be found in the output of ``cython generate-shared --help``,
+which includes names like ``MemoryView`` or ``AutoPickle``.  Cython accepts a positive list
+and a negative list as follows.  If both options are provided, excludes are removed after
+selecting from the positive list.
 
 * via the ``cython`` command:
 
