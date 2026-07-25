@@ -27,7 +27,7 @@ env:
 jobs:
   file-changes:
     runs-on: ubuntu-latest
-    if: github.ref_type != 'tag'
+    if: ${{ github.event_name != 'workflow_dispatch' && github.ref_type != 'tag' }}
     permissions:
       pull-requests: read
     outputs:
