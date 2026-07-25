@@ -1035,6 +1035,9 @@ static void __Pyx_RaisePreppedException(PyObject *exc); /* proto */
 #endif
 
 /////////////////// ExceptStar ///////////////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
+//@requires: ObjectHandling.c::RaiseErrorWithObjectTypes
+//@requires: ObjectHandling.c::RaiseErrorWithTypeAndVarargs
 
 static int __Pyx_ValidateStarCatchPatternElement(PyObject *pattern) {
     int is_subclass;
@@ -1134,22 +1137,32 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
     is_instance = PyObject_IsInstance(*current_exception, PyExc_BaseExceptionGroup);
     if (unlikely(is_instance < 0)) return -1;
     if (is_instance) {
-#if CYTHON_VECTORCALL
-        PyObject *args[] = {*current_exception, match_type};
-        PyObject *pair = PyObject_VectorcallMethod(
-            PYIDENT("split"), args, 2 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
-#else
-        PyObject *pair = PyObject_CallMethodObjArgs(
-            *current_exception, PYIDENT("split"), match_type, NULL);
-#endif
+        PyObject *pair = __Pyx_PyObject_CallMethod1(
+            *current_exception, PYIDENT("split"), match_type);
 
         if (pair == NULL) return -1;
 
-        assert(PyTuple_CheckExact(pair));
-        #if CYTHON_ASSUME_SAFE_MACROS
-        // Just skip the assert without safe macros - it's a sanity check rather than important
-        assert(PyTuple_GET_SIZE(pair) == 2);
-        #endif
+        if (unlikely(!PyTuple_CheckExact(pair))) {
+            __Pyx_RaiseErrorWithObjectTypes1(PyExc_TypeError,
+                "%.1s" __Pyx_FMT_TYPENAME ".split must return a tuple, not " __Pyx_FMT_TYPENAME,
+                "", *current_exception, pair);
+            Py_DECREF(pair);
+            return -1;
+        }
+        Py_ssize_t pair_size = __Pyx_PyTuple_GET_SIZE(pair);
+        if (unlikely(pair_size != 2)) {
+#if !CYTHON_ASSUME_SAFE_SIZE
+            if (pair_size >= 0)
+#endif
+            {
+                __Pyx_RaiseErrorWithTypeAndVarargs(PyExc_TypeError,
+                    __Pyx_FMT_TYPENAME ".split must return a 2-tuple, "
+                    "got tuple of size %zd",
+                    Py_TYPE(*current_exception), pair_size);
+            }
+            Py_DECREF(pair);
+            return -1;
+        }
 
         #if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
         __Pyx_Py_XDECREF_SET(*match, PySequence_GetItem(pair, 0));
