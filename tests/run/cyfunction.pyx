@@ -5,7 +5,7 @@
 import platform
 cimport cython
 
-from functools import wraps
+from functools import wraps, update_wrapper
 
 def inspect_isroutine():
     """
@@ -495,8 +495,6 @@ def test_annotate():
     future.
 
     >>> f = test_annotate()
-    >>> list(f.__annotate__().keys())
-    ['a', 'b']
     >>> list(f.__annotate__(1).keys())
     ['a', 'b']
 
@@ -556,6 +554,14 @@ def test_annotate():
     >>> f.__annotations__
     {'a': 'int', 'b': 'str'}
 
+    Setting __annotate__ to itself should not cause a recursion disaster.
+    >>> f = test_annotate()
+    >>> f.__annotate__ = f.__annotate__
+    >>> list(f.__annotate__(1).keys())
+    ['a', 'b']
+    >>> f.__annotations__
+    {'a': 'int', 'b': 'str'}
+
     Setting __annotations__ should clear any assigned lazy annotation function.
     >>> f = test_annotate()
     >>> f.__annotate__ = lambda arg=0: {'different_argument': 5}
@@ -574,6 +580,31 @@ def test_annotate():
     def inner(a: int, b: str):
         pass
     return inner
+
+
+class FuncWrapper:
+    def __init__(self, function):
+        self.function = function
+        update_wrapper(self, self.function)
+
+    def __call__(self, *args, **kwds):
+        return self.function(*args, **kwds)
+
+
+def test_pickle_unpickle() -> int:
+    """
+    >>> import pickle
+    >>> unpickled = pickle.loads(pickle.dumps(test_pickle_unpickle))
+    >>> unpickled()
+    1
+
+    >>> wrapped = FuncWrapper(test_pickle_unpickle)
+    >>> unpickled = pickle.loads(pickle.dumps(wrapped))
+    >>> unpickled()
+    1
+    """
+    return 1
+
 
 
 __doc__ = """
