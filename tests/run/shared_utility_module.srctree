@@ -2,6 +2,13 @@
 # tag: shared_utility
 
 """
+CYTHON generate-shared --help  |  PYTHON -c "import sys; help=sys.stdin.read(); assert 'MemoryView' in help and 'AutoPickle' in help and '--only' in help and '--exclude' in help, help"
+
+CYTHON generate-shared --only 'ExtensionTypes,AutoPickle,MemoryView' --exclude 'MemoryView' shared_module.c
+PYTHON -c "assert '__Pyx_setup_reduce' in open('shared_module.c').read()"
+PYTHON -c "assert '__Pyx_memviewslice' not in open('shared_module.c').read()"
+
+PYTHON delete_generated_files.py
 PYTHON setup_with_sources.py build_ext --inplace --force
 PYTHON -c "import test_shared_utility"
 
