@@ -182,11 +182,11 @@ a standard Cython source file which will be compiled into an extension cimportin
 ``mypkg.shared._cyutility`` module (automatically).
 The compilation process now consist of three steps:
 
-1. Generating the shared utility code. This is done via the ``--generate-shared`` argument:
+1. Generating the shared utility code. This is done via the ``generate-shared`` sub-command:
 
    .. code-block:: console
 
-       $ cython --generate-shared=mypkg/shared/_cyutility.c
+       $ cython generate-shared mypkg/shared/_cyutility.c
 
 2. Translating all ``.pyx`` files to ``.c`` files with the ``--shared`` argument to provide
    the fully qualified name of the shared module:
@@ -240,17 +240,18 @@ Selecting features to be shared
 Since Cython 3.3, the content of the shared utility can be controlled via feature selection.
 The list of named features can be found in the output of ``cython --help``, which includes
 names like ``MemoryView`` or ``AutoPickle``.  Cython accepts a positive list and a negative
-list as follows.  If both options are provided, excludes override the positive list.
+list as follows.  If both options are provided, excludes are removed after selecting from
+the positive list.
 
 * via the ``cython`` command:
 
    .. code-block:: console
 
-       $ cython --generate-shared=shared.c \
-                --shared-only MemoryView,AutoPickle  # positive list
+       $ cython generate-shared shared.c \
+                --only MemoryView,AutoPickle  # positive list
 
-       $ cython --generate-shared=shared.c \
-                --shared-exclude MemoryView  # negative list
+       $ cython generate-shared shared.c \
+                --exclude MemoryView  # negative list
 
 via ``cythonize()`` in ``setup.py``:
 
