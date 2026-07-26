@@ -6312,13 +6312,10 @@ class CallNode(ExprNode):
             result_type = Builtin.find_return_type_of_builtin_method(self.pos, env, method_obj_type, function.attribute)
             self.may_return_none = result_type is py_object_type
             ret_type = py_object_type
-            if result_type.is_pyobject:
-                ret_type = result_type
-            elif result_type.equivalent_type:
-                ret_type = result_type.equivalent_type
+            if result_type.equivalent_type:
+                return self.coerce_to(result_type.equivalent_type, env)
             else:
-                ret_type = result_type
-            return self.coerce_to(ret_type, env)
+                return self.coerce_to(result_type, env)
         return self
 
     def analyse_as_type_constructor(self, env):
