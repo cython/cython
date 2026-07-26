@@ -101,13 +101,17 @@ Bugs fixed
 * ``cpdef fused`` functions generated redundant code.
   (Github issue :issue:`7778`)
 
+* Automatic C++ STL conversions in different compiler directive contexts could generate
+  invalid code duplications in C++ code.
+  Original Patch by bjodah.  (Github issue :issue:`6981`)
+
 * Subscripting frozendicts with integer keys could fail in 3.3.0a1.
 
 * When calling builtin types to create an instance, type inference could incorrectly
   assume ``type`` as the type of the result rather the concrete builtin type in 3.3.0a1.
   (Github issue :issue:`7848`)
 
-* Iterating over a container with an incorrectly declared item type could generated
+* Iterating over a container with an incorrectly declared item type could generate
   incorrect C code in 3.3.0a1.
   (Github issue :issue:`7775`)
 
