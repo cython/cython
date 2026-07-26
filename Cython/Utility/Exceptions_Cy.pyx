@@ -38,14 +38,6 @@ cdef extern from *:
 
     cdef void *PyExc_BaseExceptionGroup
 
-@cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
-@cname("__Pyx_exception_get_notes")
-cdef get_notes(exc, dummy_null):
-    # Not all exceptions have notes
-    if hasattr(exc, "__notes__"):
-        return exc.__notes__
-    else:
-        return dummy_null  # dummy object will always pass the "is" test
 
 @cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
 @cname("__Pyx_split_into_same_metadata")
@@ -56,7 +48,7 @@ cdef tuple[list,list] split_into_same_metadata(original, list exceptions):
 
     dummy_null = object()
 
-    original_notes = get_notes(original, dummy_null)
+    original_notes = getattr(original, "__notes__", dummy_null)
     original_traceback = __Pyx_Safe_PyException_GetTraceback(original, dummy_null)
     original_cause = __Pyx_Safe_PyException_GetCause(original, dummy_null)
     original_context = __Pyx_Safe_PyException_GetContext(original, dummy_null)
@@ -64,7 +56,8 @@ cdef tuple[list,list] split_into_same_metadata(original, list exceptions):
     for e in exceptions:
         if e is None:
             continue
-        if (get_notes(e, dummy_null) is original_notes and
+        # "dummy_null" object will always pass the "is" test.
+        if (getattr(e, "__notes__", dummy_null) is original_notes and
                 __Pyx_Safe_PyException_GetTraceback(e, dummy_null) is original_traceback and
                 __Pyx_Safe_PyException_GetCause(e, dummy_null) is original_cause and
                 __Pyx_Safe_PyException_GetContext(e, dummy_null) is original_context):
