@@ -535,7 +535,7 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnan
 #if !CYTHON_REFNANNY
     CYTHON_UNUSED_VAR(__pyx_refnanny);
 #endif
-    
+
     Py_ssize_t i;
     Py_ssize_t size;
     size = PyDict_Size(dict);
@@ -764,7 +764,7 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(PyTypeObject *type, PyObject
 
     // Inputs are tuples, and typically fairly small. It may be more efficient to
     // loop over the tuple than create a set.
- 
+
     PyObject *attrs_set;
     PyObject *attr = NULL;
     Py_ssize_t n, match_args_size;
@@ -933,7 +933,7 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
         if (unlikely(!name)) {
             result = -1;
             goto end;
-        } 
+        }
 #endif
         if (!PyUnicode_CheckExact(name)) {
             __Pyx_RaiseTypeErrorWithObjectType(
