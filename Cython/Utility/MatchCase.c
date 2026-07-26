@@ -195,6 +195,7 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
 
 static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mapping_temp) {
 #if PY_VERSION_HEX >= 0x030A0000 && !(CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY)
+    CYTHON_UNUSED_VAR(sequence_mapping_temp);
     return __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_SEQUENCE);
 #else
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -401,6 +402,7 @@ static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping
 
 static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping_temp) {
 #if PY_VERSION_HEX >= 0x030A0000 && !(CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY)
+    CYTHON_UNUSED_VAR(sequence_mapping_temp);
     return __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_MAPPING);
 #else
 #if CYTHON_COMPILING_IN_LIMITED_API
