@@ -98,6 +98,10 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.requires = requires or []
         self.from_scope = from_scope
         self.outer_module_scope = outer_module_scope
+        if outer_module_scope is not None:
+            # Inherit some global directives from the module scope.
+            compiler_directives = self.filter_inherited_directives(
+                outer_module_scope.global_scope().directives, compiler_directives)
         self.compiler_directives = compiler_directives
         self.context_types = context_types
 
@@ -111,7 +115,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         outer_scope = self.outer_module_scope
         while isinstance(outer_scope, NonManglingModuleScope):
             outer_scope = outer_scope.outer_scope
-        return self.impl, outer_scope, self.compiler_directives
+        return (self.impl, outer_scope)
 
     def __hash__(self):
         return hash(self.impl)
@@ -252,7 +256,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         return original_scope
 
     @staticmethod
-    def filter_inherited_directives(current_directives):
+    def filter_inherited_directives(current_directives, overrides=None):
         """
         Cython utility code should usually only pick up a few directives from the
         environment (those that intentionally control its function) and ignore most
@@ -270,6 +274,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         for name in inherited_directive_names:
             if name in current_directives:
                 utility_code_directives[name] = current_directives[name]
+        if overrides:
+            utility_code_directives.update(overrides)
         return utility_code_directives
 
 
