@@ -6283,7 +6283,7 @@ class CallNode(ExprNode):
                 return False
         return ExprNode.may_be_none(self)
 
-    def set_py_result_type(self, env, function, func_type=None):
+    def coerce_to_result_type(self, env, function, func_type=None):
         # Default to 'object' and then try to find a better type.
         self.type = py_object_type
         if func_type is None:
@@ -6499,7 +6499,7 @@ class SimpleCallNode(CallNode):
             self.arg_tuple = self.arg_tuple.analyse_types(env).coerce_to_pyobject(env)
             self.args = None
             self.is_temp = 1
-            return self.set_py_result_type(env, function, func_type)
+            return self.coerce_to_result_type(env, function, func_type)
         else:
             self.args = [ arg.analyse_types(env) for arg in self.args ]
             self.analyse_c_function_call(env)
@@ -7492,7 +7492,7 @@ class GeneralCallNode(CallNode):
         self.positional_args = \
             self.positional_args.coerce_to_pyobject(env)
         self.is_temp = 1
-        return self.set_py_result_type(env, self.function)
+        return self.coerce_to_result_type(env, self.function)
 
     def map_to_simple_call_node(self):
         """
