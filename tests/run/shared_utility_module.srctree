@@ -23,11 +23,11 @@ PYTHON -c "import pkg1.pkg11.feature_extensiontypes as ext; assert hasattr(ext.E
 PYTHON -c "import pkg1.pkg11.feature_pythonclasses as ext; x = ext.test(); assert x == 6, x"
 
 PYTHON delete_generated_files.py
-PYTHON setup_extensions_with_features.py  feature_extensiontypes.pyx  ExtensionTypes  build_ext --inplace --force -j3
+PYTHON setup_extensions_with_features.py  feature_extensiontypes.pyx  DEFAULTS,ExtensionTypes  build_ext --inplace --force -j3
 PYTHON -c "import pkg1.pkg11.feature_extensiontypes as ext; assert hasattr(ext.ExtensionType(), 'x')"
 
 PYTHON delete_generated_files.py
-PYTHON setup_extensions_with_features.py  feature_pythonclasses.pyx  PythonClasses,CythonFunction,FunctionArguments  build_ext --inplace --force -j3
+PYTHON setup_extensions_with_features.py  feature_pythonclasses.pyx  DEFAULTS,PythonClasses,CythonFunction  build_ext --inplace --force -j3
 PYTHON -c "import pkg1.pkg11.feature_pythonclasses as ext; x = ext.test(); assert x == 6, x"
 """
 

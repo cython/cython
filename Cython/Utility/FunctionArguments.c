@@ -18,6 +18,7 @@ static CYTHON_INLINE int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, in
 
 
 //////////////////// ArgTypeTestError.export ////////////////////
+//@feature: DEFAULTS
 
 static void __Pyx_ArgTypeError(PyObject *obj, PyTypeObject *type, const char *name, int exact); /*proto*/
 
@@ -85,6 +86,7 @@ obj_type_name_failed:
 
 
 //////////////////// RaiseArgTupleInvalid.export ////////////////////
+//@feature: DEFAULTS
 
 static void __Pyx_RaiseArgtupleInvalid(const char* func_name, int exact,
     Py_ssize_t num_min, Py_ssize_t num_max, Py_ssize_t num_found); /*proto*/
@@ -196,6 +198,7 @@ static int __Pyx_CheckKeywordStrings(PyObject *kw) {
 
 
 //////////////////// RejectKeywords.export ////////////////////
+//@feature: DEFAULTS
 
 static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds); /*proto*/
 
@@ -284,6 +287,7 @@ static int __Pyx_ParseKeywords(
 
 
 //////////////////// ParseKeywordsImpl.export ////////////////////
+//@feature: DEFAULTS
 //@requires: RaiseDoubleKeywords
 //@requires: Synchronization.c::CriticalSections
 //@requires: ObjectHandling.c::OwnedDictNext
