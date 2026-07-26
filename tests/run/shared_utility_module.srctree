@@ -252,11 +252,18 @@ if 'PythonClasses' in only_features:
 else:
     assert 'Py3ClassCreate' not in shared_c_code
 
+if 'DEFAULTS' in only_features:
+    assert '__Pyx_UnboundCMethod_Def' in shared_c_code
+    assert '__Pyx_RejectUnknownKeyword' in shared_c_code
+else:
+    assert '__Pyx_UnboundCMethod_Def' not in shared_c_code
+    assert '__Pyx_RejectUnknownKeyword' not in shared_c_code
+
 
 ######## test_shared_utility.py ########
 
 from pkg1.pkg11.add_one import add_one, imported_func
-from pkg1.pkg11.cython_features import fstring
+from pkg1.pkg11.cython_features import fstring, unpacked_method_call
 
 assert add_one(2) == 3
 assert imported_func() == 1
@@ -269,6 +276,8 @@ assert hasattr(CythonShared, '__pyx_capi__'), dir(CythonShared)
 
 s = fstring()
 assert s == ' 5 != 10 ', s
+assert unpacked_method_call([1]) == 1
+assert unpacked_method_call({1}) == 1
 
 try:
     from pkg1.pkg11.feature_extensiontypes import ExtensionType
@@ -319,6 +328,9 @@ cdef int iv = 10
 
 def fstring():
     return f" {v} != {iv} "
+
+def unpacked_method_call(x):
+    return x.pop()
 
 
 ######## pkg1/pkg11/import_from_me.pyx ########
