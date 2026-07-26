@@ -21,6 +21,10 @@ if sys.version_info[0] == 3:
         from .vendored.libpython311 import *
     elif sys.version_info[1] >= 12:
         from .vendored.libpython312 import *
+    elif sys.version_info[1] >= 13:
+        from .vendored.libpython313 import *
+    elif sys.version_info[1] >= 14:
+        from .vendored.libpython314 import *
 else:
     raise RuntimeError("cython debugger only works in 3.x series")
 
