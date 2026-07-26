@@ -2177,18 +2177,20 @@ class EvaluateWithKeysAndSubjectsArrays(ExprNodes.ExprNode):
             EvaluateWithKeysAndSubjectsArrays.keys_array_cname,
             keys_str,
         ))
-        subjects_str = ", ".join(
-            "&"+subject.result() if subject is not None else "NULL"
-            for subject in self.subjects_array
-        )
-        if not subjects_str:
-            # GCC gets worried about overflow if we pass
-            # a genuinely empty array
-            subjects_str = "NULL"
-        code.putln("PyObject **%s[] = {%s};" % (
-            EvaluateWithKeysAndSubjectsArrays.subjects_array_cname,
-            subjects_str
-        ))
+
+        if self.subjects_array:
+            subjects_str = ", ".join(
+                "&"+subject.result() if subject is not None else "NULL"
+                for subject in self.subjects_array
+            )
+            if not subjects_str:
+                # GCC gets worried about overflow if we pass
+                # a genuinely empty array
+                subjects_str = "NULL"
+            code.putln("PyObject **%s[] = {%s};" % (
+                EvaluateWithKeysAndSubjectsArrays.subjects_array_cname,
+                subjects_str
+            ))
 
         self.arg.generate_evaluation_code(code)
         code.putln(f"{self.result()} = {self.arg.result()};")
