@@ -2178,7 +2178,8 @@ class EvaluateWithKeysAndSubjectsArrays(ExprNodes.ExprNode):
             keys_str,
         ))
         subjects_str = ", ".join(
-            "&"+subject.result() if subject is not None else "NULL" for subject in self.subjects_array
+            "&"+subject.result() if subject is not None else "NULL"
+            for subject in self.subjects_array
         )
         if not subjects_str:
             # GCC gets worried about overflow if we pass
