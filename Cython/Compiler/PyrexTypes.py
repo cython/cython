@@ -1971,6 +1971,8 @@ class BuiltinObjectType(PyObjectType):
     def type_test_code(self, scope, arg, allow_none=True, exact=True):
         type_check = self.type_check_function(exact=exact)
         check = f'likely({type_check}({arg}))'
+        if len(self.name) > 42:
+            warning(None, f"Name length in 'RaiseUnexpectedTypeError' needs adjustment to at least {len(self.name)}", 1)
         scope.use_utility_code(UtilityCode.load_cached(
                     "RaiseUnexpectedTypeError", "ObjectHandling.c"))
         if allow_none:

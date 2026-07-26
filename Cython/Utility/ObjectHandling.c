@@ -3200,8 +3200,11 @@ static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj); 
 //@requires: RaiseErrorWithObjectType1
 
 static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj) {
+    // Only used for builtin types (including exceptions),
+    // so name length 42 should be largely enough.
+    // The longest is currently 25 in Py3.15.
     __Pyx_RaiseTypeErrorWithObjectType1(
-        "Expected %s, got " __Pyx_FMT_TYPENAME,
+        "Expected %.42s, got " __Pyx_FMT_TYPENAME,
         expected, obj);
     return 0;
 }
