@@ -2403,10 +2403,10 @@ static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name
 #if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || !CYTHON_COMPILING_IN_LIMITED_API)
     PyObject *args[1] = {obj};
     return PyObject_VectorcallMethod(method_name, args, 1 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
-#elif !CYTHON_COMPILING_IN_LIMITED_API
-    return PyObject_CallMethodNoArgs(obj, method_name);
-#else
+#elif CYTHON_COMPILING_IN_LIMITED_API
     return PyObject_CallMethodObjArgs(obj, method_name, NULL);
+#else
+    return PyObject_CallMethodNoArgs(obj, method_name);
 #endif
 }
 
@@ -2421,10 +2421,10 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 #if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || !CYTHON_COMPILING_IN_LIMITED_API)
     PyObject *args[2] = {obj, arg};
     return PyObject_VectorcallMethod(method_name, args, 2 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
-#elif !CYTHON_COMPILING_IN_LIMITED_API
-    return PyObject_CallMethodOneArg(obj, method_name, arg);
-#else
+#elif CYTHON_COMPILING_IN_LIMITED_API
     return PyObject_CallMethodObjArgs(obj, method_name, arg, NULL);
+#else
+    return PyObject_CallMethodOneArg(obj, method_name, arg);
 #endif
 }
 
