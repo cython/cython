@@ -3309,7 +3309,8 @@ class CArrayType(CPointerBaseType):
         env.use_utility_code(CythonUtilityCode.load(
             "carray.to_py", "CConvert.pyx",
             outer_module_scope=env.global_scope(),  # need access to types declared in module
-            context=context, compiler_directives=dict(env.global_scope().directives)))
+            context=context,
+        ))
         self.to_tuple_function = to_tuple_function
         self.to_py_function = to_py_function
         return True
@@ -3341,7 +3342,8 @@ class CArrayType(CPointerBaseType):
         env.use_utility_code(CythonUtilityCode.load(
             "carray.from_py", "CConvert.pyx",
             outer_module_scope=env.global_scope(),  # need access to types declared in module
-            context=context, compiler_directives=dict(env.global_scope().directives)))
+            context=context,
+        ))
         self.from_py_function = from_py_function
         return True
 
@@ -4105,7 +4107,8 @@ class CFuncType(CType):
         env.use_utility_code(CythonUtilityCode.load(
             "cfunc.to_py", "CConvert.pyx",
             outer_module_scope=env.global_scope(),  # need access to types declared in module
-            context=context, compiler_directives=dict(env.global_scope().directives)))
+            context=context,
+        ))
         self.to_py_function = to_py_function
         return True
 
@@ -4631,12 +4634,12 @@ class CppClassType(CType):
                 'maybe_unordered': self.maybe_unordered(),
                 'type': self.cname,
             })
-            # Override directives that should not be inherited from user code.
             from .UtilityCode import CythonUtilityCode
-            directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
-                context=context, compiler_directives=directives))
+                outer_module_scope=env.global_scope(),
+                context=context,
+            ))
             self.from_py_function = cname
             return True
 
@@ -4678,11 +4681,11 @@ class CppClassType(CType):
                 'type': self.cname,
             })
             from .UtilityCode import CythonUtilityCode
-            # Override directives that should not be inherited from user code.
-            directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
-                context=context, compiler_directives=directives))
+                outer_module_scope=env.global_scope(),
+                context=context,
+            ))
             self.to_py_function = cname
             return True
 
@@ -4940,8 +4943,7 @@ class EnumMixin:
         else:
             module_name = None
 
-        directives = CythonUtilityCode.filter_inherited_directives(
-            env.global_scope().directives)
+        directives = {}
         if any(value_entry.enum_int_value is None for value_entry in self.entry.enum_values):
             # We're at a high risk of making a switch statement with equal values in
             # (because we simply can't tell, and enums are often used like that).
@@ -4965,7 +4967,7 @@ class EnumMixin:
                     "is_flag": not self.is_cpp_enum,
                     },
             outer_module_scope=self.entry.scope,  # ensure that "name" is findable
-            compiler_directives = directives,
+            compiler_directives=directives,
         ))
 
 
