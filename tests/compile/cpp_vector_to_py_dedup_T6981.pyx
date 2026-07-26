@@ -1,5 +1,5 @@
 # mode: compile
-# tag: cpp, no-cpp-locals
+# tag: cpp, no-cpp-locals, gh6981
 
 # Regression test for gh-6981: duplicate __pyx_convert_vector_to_py_double in generated C++.
 # Trigger requires both:
