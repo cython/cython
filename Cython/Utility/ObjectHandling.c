@@ -3194,6 +3194,9 @@ __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp)
 
 /////////////// RaiseUnexpectedTypeError.proto ///////////////
 
+// Used by "except *" implementation in Py<=3.11, so avoid bothering
+// newer Python users with a warning if it's not used otherwise.
+CYTHON_UNUSED
 static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj); /*proto*/
 
 /////////////// RaiseUnexpectedTypeError ///////////////
