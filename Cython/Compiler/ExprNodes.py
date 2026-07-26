@@ -6311,7 +6311,6 @@ class CallNode(ExprNode):
             method_obj_type = function.obj.type
             result_type = Builtin.find_return_type_of_builtin_method(self.pos, env, method_obj_type, function.attribute)
             self.may_return_none = result_type is py_object_type
-            ret_type = py_object_type
             if result_type.equivalent_type:
                 return self.coerce_to(result_type.equivalent_type, env)
             else:
@@ -6474,7 +6473,6 @@ class SimpleCallNode(CallNode):
         if function.is_attribute and function.entry and function.entry.is_cmethod:
             # Take ownership of the object from which the attribute
             # was obtained, because we need to pass it as 'self'.
-
             self.self = function.obj
             function.obj = CloneNode(self.self)
 
