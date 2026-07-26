@@ -10434,9 +10434,7 @@ class ClassNode(ExprNode, ModuleNameMixin):
 
     def analyse_types(self, env):
         if self.doc:
-            self.doc = self.doc.analyse_types(env)
-            self.doc = self.doc.coerce_to_pyobject(env)
-        env.use_utility_code(UtilityCode.load_cached("CreateClass", "ObjectHandling.c"))
+            self.doc = self.doc.analyse_types(env).coerce_to_pyobject(env)
         return self
 
     def may_be_none(self):
@@ -10455,6 +10453,8 @@ class ClassNode(ExprNode, ModuleNameMixin):
                     code.intern_identifier(
                         StringEncoding.EncodedString("__doc__")),
                     self.doc.py_result()))
+
+        code.globalstate.use_utility_code(UtilityCode.load_cached("CreateClass", "ObjectHandling.c"))
         py_mod_name = self.get_py_mod_name(code)
         qualname = self.get_py_qualified_name(code)
         code.putln(
