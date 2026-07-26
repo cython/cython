@@ -1143,9 +1143,9 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
         if (pair == NULL) return -1;
 
         if (unlikely(!PyTuple_CheckExact(pair))) {
-            __Pyx_RaiseErrorWithObjectTypes1(PyExc_TypeError,
-                "%.1s" __Pyx_FMT_TYPENAME ".split must return a tuple, not " __Pyx_FMT_TYPENAME,
-                "", *current_exception, pair);
+            __Pyx_RaiseTypeErrorWithObjectTypes(
+                __Pyx_FMT_TYPENAME ".split must return a tuple, not " __Pyx_FMT_TYPENAME,
+                *current_exception, pair);
             Py_DECREF(pair);
             return -1;
         }
