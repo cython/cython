@@ -49,7 +49,7 @@ cdef get_notes(exc, dummy_null):
 
 @cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
 @cname("__Pyx_split_into_same_metadata")
-cdef split_into_same_metadata(original, list exceptions):
+cdef tuple[list,list] split_into_same_metadata(original, list exceptions):
     # returns a list with the same cause and a list with different causes
     cdef list same = []
     cdef list different = []
@@ -76,7 +76,7 @@ cdef split_into_same_metadata(original, list exceptions):
 
 @cython.c_compile_guard("CYTHON_USE_OWN_PREP_RERAISE_STAR")
 @cname("__Pyx_except_star_leafs")
-cdef get_leafs(list keep):
+cdef set get_leafs(list keep):
     # get a set with ids of all the leafs
     cdef list to_process = list(keep)
     cdef set leafs = set()
