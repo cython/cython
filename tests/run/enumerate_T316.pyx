@@ -2,6 +2,11 @@
 
 cimport cython
 
+
+def make_frozendict(d):
+    return frozendict(d)
+
+
 @cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
 def go_py_enumerate():
     """
@@ -93,6 +98,25 @@ def py_enumerate_dict(dict d):
     k = 99
     keys = list(d.keys())
     for i,k in enumerate(d):
+        k = keys[i] == k
+        print i, k
+    print u"::", i, k
+
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
+def py_enumerate_frozendict(frozendict fd):
+    """
+    >>> py_enumerate_frozendict(make_frozendict({}))
+    :: 55 99
+    >>> py_enumerate_frozendict(make_frozendict(dict(a=1, b=2, c=3)))
+    0 True
+    1 True
+    2 True
+    :: 2 True
+    """
+    cdef int i = 55
+    k = 99
+    keys = list(fd.keys())
+    for i,k in enumerate(fd):
         k = keys[i] == k
         print i, k
     print u"::", i, k

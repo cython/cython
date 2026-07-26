@@ -174,6 +174,12 @@ cdef class Γναμε2:
     cpdef εxciting_cpdef(self):
         """docstring"""
         return 2
+    cpdef cpdef_with_exciting_arg(self, ααα):
+        """
+        >>> Γναμε2().cpdef_with_exciting_arg(5)
+        5
+        """
+        return ααα
 
 cdef class Derived(Γναμε2):
     pass
@@ -233,3 +239,31 @@ cdef class NormalizeAttrCdef:
         self.fi = 5
     def get(self):
         return self.ﬁ
+
+
+ctypedef long äntägär
+
+def use_typedef(x: äntägär):
+    """
+    >>> use_typedef(5)
+    10
+    """
+    cdef äntägär i = x
+    return i + x
+
+
+ctypedef fused nümbärs:
+    float
+    äntägär
+
+
+def use_fused_typedef(x: nümbärs):
+    """
+    >>> use_fused_typedef(4)
+    8
+    >>> use_fused_typedef(4.5)
+    9.0
+    """
+    cdef nümbärs i = x
+    assert cython.typeof(i) in ('float', 'äntägär'), cython.typeof(i)
+    return i + x

@@ -32,6 +32,10 @@ def bytes_startswith(bytes s, sub, start=None, stop=None):
     False
     >>> bytes_startswith(b_a, b_a, 0, 0)
     False
+    >>> bytes_startswith(b_a+b_b, bytearray(b_a))
+    True
+    >>> bytes_startswith(b_a+b_b, bytearray(b_b))
+    False
     """
 
     if start is None:
@@ -61,6 +65,10 @@ def bytes_endswith(bytes s, sub, start=None, stop=None):
     >>> bytes_endswith(b_a, b_a, 1)
     False
     >>> bytes_endswith(b_a, b_a, 0, 0)
+    False
+    >>> bytes_endswith(b_a+b_a, bytearray(b_a))
+    True
+    >>> bytes_endswith(b_a+b_a, bytearray(b_b))
     False
     """
 

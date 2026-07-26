@@ -13,19 +13,22 @@ if (likely(__Pyx_init_assertions_enabled() == 0)); else
 
 /////////////// AssertionsEnabled.proto ///////////////
 
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
-  #define __Pyx_init_assertions_enabled()  (0)
-  #define __pyx_assertions_enabled()  (1)
-#elif CYTHON_COMPILING_IN_LIMITED_API  ||  (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030C0000)
+#if CYTHON_COMPILING_IN_LIMITED_API  ||  PY_VERSION_HEX >= 0x030C0000
   // Py_OptimizeFlag is deprecated in Py3.12+ and not available in the Limited API.
   static int __pyx_assertions_enabled_flag;
   #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)
 
+  #if __clang__ || __GNUC__
+  // "Assertions enabled" may be written multiple times when using subinterpreters.
+  // However, it should always be written to the same value to isn't a "real" race.
+  __attribute__((no_sanitize("thread")))
+  #endif
   static int __Pyx_init_assertions_enabled(void) {
     PyObject *builtins, *debug, *debug_str;
     int flag;
     builtins = PyEval_GetBuiltins();
     if (!builtins) goto bad;
+    // Not using PYIDENT() here because we probably don't need the string more than this once.
     debug_str = PyUnicode_FromStringAndSize("__debug__", 9);
     if (!debug_str) goto bad;
     debug = PyObject_GetItem(builtins, debug_str);
@@ -228,7 +231,7 @@ static CYTHON_INLINE void __Pyx_ErrFetchInState(PyThreadState *tstate, PyObject 
 }
 #endif
 
-/////////////// RaiseException.proto ///////////////
+/////////////// RaiseException.export ///////////////
 
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause); /*proto*/
 
@@ -236,9 +239,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
 //@requires: PyErrFetchRestore
 //@requires: PyThreadStateGet
 
-// The following function is based on do_raise() from ceval.c. There
-// are separate versions for Python2 and Python3 as exception handling
-// has changed quite a lot between the two versions.
+// The following function is based on do_raise() from ceval.c.
 
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause) {
     PyObject* owned_instance = NULL;
@@ -407,14 +408,9 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     PyObject *local_type = NULL, *local_value, *local_tb = NULL;
 #if CYTHON_FAST_THREAD_STATE
     PyObject *tmp_type, *tmp_value, *tmp_tb;
-  #if PY_VERSION_HEX >= 0x030C00A6
+  #if PY_VERSION_HEX >= 0x030C0000
     local_value = tstate->current_exception;
     tstate->current_exception = 0;
-    if (likely(local_value)) {
-        local_type = (PyObject*) Py_TYPE(local_value);
-        Py_INCREF(local_type);
-        local_tb = PyException_GetTraceback(local_value);
-    }
   #else
     local_type = tstate->curexc_type;
     local_value = tstate->curexc_value;
@@ -423,28 +419,40 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     tstate->curexc_value = 0;
     tstate->curexc_traceback = 0;
   #endif
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+    local_value = PyErr_GetRaisedException();
 #else
     PyErr_Fetch(&local_type, &local_value, &local_tb);
 #endif
 
+#if __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+    if (likely(local_value)) {
+        local_type = (PyObject*) Py_TYPE(local_value);
+        Py_INCREF(local_type);
+        local_tb = PyException_GetTraceback(local_value);
+    }
+#else
+    // Note that In Python 3.12+ exceptions are already normalized
     PyErr_NormalizeException(&local_type, &local_value, &local_tb);
-#if CYTHON_FAST_THREAD_STATE && PY_VERSION_HEX >= 0x030C00A6
-    if (unlikely(tstate->current_exception))
-#elif CYTHON_FAST_THREAD_STATE
+#if CYTHON_FAST_THREAD_STATE
     if (unlikely(tstate->curexc_type))
 #else
     if (unlikely(PyErr_Occurred()))
 #endif
         goto bad;
 
+    // Note that in Python 3.12 the traceback came directly from local_value anyway.
     if (local_tb) {
         if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
             goto bad;
     }
+#endif // __PYX_LIMITED_VERSION_HEX >= 0x030C0000
 
     // traceback may be NULL for freshly raised exceptions
     Py_XINCREF(local_tb);
-    // exception state may be temporarily empty in parallel loops (race condition)
+    // exception state may be empty in parallel loops (code-gen error where we don't generate a
+    // top-level PyGILState_Ensure surrounding the whole loop, and so releasing the GIL temporarily
+    // wipes the whole thread state).
     Py_XINCREF(local_type);
     Py_XINCREF(local_value);
     *type = local_type;
@@ -484,12 +492,18 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     Py_XDECREF(tmp_type);
     Py_XDECREF(tmp_value);
     Py_XDECREF(tmp_tb);
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030b0000
+    PyErr_SetHandledException(local_value);
+    Py_XDECREF(local_value);
+    Py_XDECREF(local_type);
+    Py_XDECREF(local_tb);
 #else
     PyErr_SetExcInfo(local_type, local_value, local_tb);
 #endif
 
     return 0;
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
 bad:
     *type = 0;
     *value = 0;
@@ -498,6 +512,7 @@ bad:
     Py_XDECREF(local_value);
     Py_XDECREF(local_tb);
     return -1;
+#endif
 }
 
 /////////////// ReRaiseException.proto ///////////////
@@ -745,7 +760,7 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
         Py_XINCREF(old_val);
         Py_XINCREF(old_tb);
         __Pyx_ErrRestore(old_exc, old_val, old_tb);
-        PyErr_PrintEx(1);
+        PyErr_PrintEx(0);
     }
     ctx = PyUnicode_FromString(name);
     __Pyx_ErrRestore(old_exc, old_val, old_tb);
@@ -761,61 +776,60 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
 
 /////////////// CLineInTraceback.proto ///////////////
 
-#ifdef CYTHON_CLINE_IN_TRACEBACK  /* 0 or 1 to disable/enable C line display in tracebacks at C compile time */
-#define __Pyx_CLineForTraceback(tstate, c_line)  (((CYTHON_CLINE_IN_TRACEBACK)) ? c_line : 0)
-#else
+#if CYTHON_CLINE_IN_TRACEBACK && CYTHON_CLINE_IN_TRACEBACK_RUNTIME
 static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
+#else
+#define __Pyx_CLineForTraceback(tstate, c_line)  (((CYTHON_CLINE_IN_TRACEBACK)) ? c_line : 0)
 #endif
 
 /////////////// CLineInTraceback ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyDictVersioning
 //@requires: PyErrFetchRestore
-//@substitute: naming
+//@requires: Builtins.c::dict_setdefault
 
-#ifndef CYTHON_CLINE_IN_TRACEBACK
-static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
-    PyObject *use_cline;
-    PyObject *ptype, *pvalue, *ptraceback;
-#if CYTHON_COMPILING_IN_CPYTHON
-    PyObject **cython_runtime_dict;
+#if CYTHON_CLINE_IN_TRACEBACK && CYTHON_CLINE_IN_TRACEBACK_RUNTIME
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+// On earlier version of the Limited API we're less flexible and assume it's
+// definitely a module. Which will break some odd user monkey-patching...
+#define __Pyx_PyProbablyModule_GetDict(o) __Pyx_XNewRef(PyModule_GetDict(o))
+#elif !CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+// On freethreading, use PyObject_GenericGetDict to avoid having to think too hard
+// about atomics and _PyObject_GetDictPtr.
+#define __Pyx_PyProbablyModule_GetDict(o) PyObject_GenericGetDict(o, NULL);
+#else
+PyObject* __Pyx_PyProbablyModule_GetDict(PyObject *o) {
+    PyObject **dict_ptr = _PyObject_GetDictPtr(o);
+    return dict_ptr ? __Pyx_XNewRef(*dict_ptr) : NULL;
+}
 #endif
+
+
+static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
+    PyObject *use_cline = NULL;
+    PyObject *ptype, *pvalue, *ptraceback;
+    PyObject *cython_runtime_dict;
 
     CYTHON_MAYBE_UNUSED_VAR(tstate);
 
-    if (unlikely(!${cython_runtime_cname})) {
+    if (unlikely(!NAMED_CGLOBAL(cython_runtime_cname))) {
         // Very early error where the runtime module is not set up yet.
         return c_line;
     }
 
     __Pyx_ErrFetchInState(tstate, &ptype, &pvalue, &ptraceback);
 
-#if CYTHON_COMPILING_IN_CPYTHON
-    cython_runtime_dict = _PyObject_GetDictPtr(${cython_runtime_cname});
+    cython_runtime_dict = __Pyx_PyProbablyModule_GetDict(NAMED_CGLOBAL(cython_runtime_cname));
     if (likely(cython_runtime_dict)) {
         __PYX_PY_DICT_LOOKUP_IF_MODIFIED(
-            use_cline, *cython_runtime_dict,
-            __Pyx_PyDict_GetItemStr(*cython_runtime_dict, PYIDENT("cline_in_traceback")))
-    } else
-#endif
-    {
-      PyObject *use_cline_obj = __Pyx_PyObject_GetAttrStrNoError(${cython_runtime_cname}, PYIDENT("cline_in_traceback"));
-      if (use_cline_obj) {
-        use_cline = PyObject_Not(use_cline_obj) ? Py_False : Py_True;
-        Py_DECREF(use_cline_obj);
-      } else {
-        PyErr_Clear();
-        use_cline = NULL;
-      }
+            use_cline, cython_runtime_dict,
+            __Pyx_PyDict_SetDefault(cython_runtime_dict, PYIDENT("cline_in_traceback"), Py_False))
     }
-    if (!use_cline) {
-        c_line = 0;
-        // No need to handle errors here when we reset the exception state just afterwards.
-        (void) PyObject_SetAttr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"), Py_False);
-    }
-    else if (use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
+    if (use_cline == NULL || use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;
     }
+    Py_XDECREF(use_cline);
+    Py_XDECREF(cython_runtime_dict);
     __Pyx_ErrRestoreInState(tstate, ptype, pvalue, ptraceback);
     return c_line;
 }
@@ -834,7 +848,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
-#if PY_VERSION_HEX >= 0x030b00a6 && !CYTHON_COMPILING_IN_LIMITED_API
+#if PY_VERSION_HEX >= 0x030b00a6 && !CYTHON_COMPILING_IN_LIMITED_API && !defined(PYPY_VERSION)
   #ifndef Py_BUILD_CORE
     #define Py_BUILD_CORE 1
   #endif
@@ -850,39 +864,12 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
 
     replace = PyObject_GetAttrString(code, "replace");
     if (likely(replace)) {
-        PyObject *result;
-        result = PyObject_Call(replace, $empty_tuple, scratch_dict);
+        PyObject *result = PyObject_Call(replace, EMPTY(tuple), scratch_dict);
         Py_DECREF(replace);
         return result;
     }
-    PyErr_Clear();
 
-    #if __PYX_LIMITED_VERSION_HEX < 0x030780000
-    // If we're here, we're probably on Python <=3.7 which doesn't have code.replace.
-    // In this we take a lazy interpreted route (without regard to performance
-    // since it's fairly old and this is mostly just to get something working)
-    {
-        PyObject *compiled = NULL, *result = NULL;
-        if (unlikely(PyDict_SetItemString(scratch_dict, "code", code))) return NULL;
-        if (unlikely(PyDict_SetItemString(scratch_dict, "type", (PyObject*)(&PyType_Type)))) return NULL;
-        compiled = Py_CompileString(
-            "out = type(code)(\n"
-            "  code.co_argcount, code.co_kwonlyargcount, code.co_nlocals, code.co_stacksize,\n"
-            "  code.co_flags, code.co_code, code.co_consts, code.co_names,\n"
-            "  code.co_varnames, code.co_filename, co_name, co_firstlineno,\n"
-            "  code.co_lnotab)\n", "<dummy>", Py_file_input);
-        if (!compiled) return NULL;
-        result = PyEval_EvalCode(compiled, scratch_dict, scratch_dict);
-        Py_DECREF(compiled);
-        if (!result) PyErr_Print();
-        Py_DECREF(result);
-        result = PyDict_GetItemString(scratch_dict, "out");
-        if (result) Py_INCREF(result);
-        return result;
-    }
-    #else
     return NULL;
-    #endif
 }
 
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
@@ -892,9 +879,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     PyObject *exc_type, *exc_value, *exc_traceback;
     int success = 0;
     if (c_line) {
-        // Avoid "unused" warning as long as we don't use this.
-        (void) $cfilenm_cname;
-        (void) __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
+        c_line = __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
     }
 
     // DW - this is a horrendous hack, but I'm quite proud of it. Essentially
@@ -903,22 +888,34 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     // frame, and then customizing the details of the code to match.
     // We then run the code object and use the generated frame to set the traceback.
 
-    PyErr_Fetch(&exc_type, &exc_value, &exc_traceback);
+    __Pyx_PyErr_FetchException(&exc_type, &exc_value, &exc_traceback);
 
-    code_object = Py_CompileString("_getframe()", filename, Py_eval_input);
-    if (unlikely(!code_object)) goto bad;
-    py_py_line = PyLong_FromLong(py_line);
-    if (unlikely(!py_py_line)) goto bad;
-    py_funcname = PyUnicode_FromString(funcname);
-    if (unlikely(!py_funcname)) goto bad;
-    dict = PyDict_New();
-    if (unlikely(!dict)) goto bad;
-    {
-        PyObject *old_code_object = code_object;
-        code_object = __Pyx_PyCode_Replace_For_AddTraceback(code_object, dict, py_py_line, py_funcname);
-        Py_DECREF(old_code_object);
+    code_object = $global_code_object_cache_find(c_line ? -c_line : py_line);
+    if (!code_object) {
+        code_object = Py_CompileString("_getframe()", filename, Py_eval_input);
+        if (unlikely(!code_object)) goto bad;
+        py_py_line = PyLong_FromLong(py_line);
+        if (unlikely(!py_py_line)) goto bad;
+        if (c_line) {
+            py_funcname = PyUnicode_FromFormat( "%s (%s:%d)", funcname, $cfilenm_cname, c_line);
+        } else {
+            py_funcname = PyUnicode_FromString(funcname);
+        }
+        if (unlikely(!py_funcname)) goto bad;
+        dict = PyDict_New();
+        if (unlikely(!dict)) goto bad;
+        {
+            PyObject *old_code_object = code_object;
+            code_object = __Pyx_PyCode_Replace_For_AddTraceback(code_object, dict, py_py_line, py_funcname);
+            Py_DECREF(old_code_object);
+        }
+        if (unlikely(!code_object)) goto bad;
+
+        $global_code_object_cache_insert(c_line ? -c_line : py_line, code_object);
+    } else {
+        // The frame part still expects a dict
+        dict = PyDict_New();
     }
-    if (unlikely(!code_object)) goto bad;
 
     // Note that getframe is borrowed
     getframe = PySys_GetObject("_getframe");
@@ -931,7 +928,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     success = 1;
 
   bad:
-    PyErr_Restore(exc_type, exc_value, exc_traceback);
+    __Pyx_PyErr_RestoreException(exc_type, exc_value, exc_traceback);
     Py_XDECREF(code_object);
     Py_XDECREF(py_py_line);
     Py_XDECREF(py_funcname);
@@ -964,7 +961,7 @@ static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
         if (!funcname) goto bad;
     }
     py_code = PyCode_NewEmpty(filename, funcname, py_line);
-    Py_XDECREF(py_funcname);  // XDECREF since it's only set on Py3 if cline
+    Py_XDECREF(py_funcname);  /* XDECREF since it's only set on Py3 if cline */
     return py_code;
 bad:
     Py_XDECREF(py_funcname);
@@ -1002,7 +999,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     py_frame = PyFrame_New(
         tstate,            /*PyThreadState *tstate,*/
         py_code,           /*PyCodeObject *code,*/
-        $moddict_cname,    /*PyObject *globals,*/
+        NAMED_CGLOBAL(moddict_cname),    /*PyObject *globals,*/
         0                  /*PyObject *locals*/
     );
     if (!py_frame) goto bad;
@@ -1013,3 +1010,242 @@ bad:
     Py_XDECREF(py_frame);
 }
 #endif
+
+
+///////////////////////////// FloatExceptionCheck.proto ///////////////////////////
+
+// Detect if error_value is NaN, and use a different check in that case
+#define __PYX_CHECK_FLOAT_EXCEPTION(value, error_value) \
+    ((error_value) == (error_value) ? \
+     (value) == (error_value) : \
+     (value) != (value))
+
+
+/////////////////// ExceptStar.proto /////////////////////////
+
+static int __Pyx_ValidateStarCatchPattern(PyObject *pattern); /* proto */
+static int __Pyx_ExceptionGroupMatch(PyObject *, PyObject **, PyObject **); /* proto */
+static void __Pyx_RaisePreppedException(PyObject *exc); /* proto */
+
+#if CYTHON_USE_OWN_PREP_RERAISE_STAR
+// Our implementation, in Cython utility code
+#define __Pyx_PyExc_PrepReraiseStar __Pyx__PyExc_PrepReraiseStar
+#else
+#define __Pyx_PyExc_PrepReraiseStar PyUnstable_Exc_PrepReraiseStar
+#endif
+
+/////////////////// ExceptStar ///////////////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
+//@requires: ObjectHandling.c::RaiseErrorWithObjectTypes
+//@requires: ObjectHandling.c::RaiseErrorWithTypeAndVarargs
+
+static int __Pyx_ValidateStarCatchPatternElement(PyObject *pattern) {
+    int is_subclass;
+    if (!unlikely(PyExceptionClass_Check(pattern))) {
+        // Note that Cython only asserts and doesn't validate this for regular except clauses
+        PyErr_SetString(PyExc_TypeError, "catching classes that do not inherit from BaseException is not allowed");
+        return -1;
+    }
+    is_subclass = PyObject_IsSubclass(pattern, PyExc_BaseExceptionGroup);
+    if (unlikely(is_subclass)) {
+        if (is_subclass > 0) {
+            PyErr_SetString(PyExc_TypeError, "catching ExceptionGroup with except* is not allowed. Use except instead.");
+        }
+        return -1;
+    }
+    return 0;
+}
+
+static int __Pyx_ValidateStarCatchPattern(PyObject *pattern) {
+    if (PyTuple_Check(pattern)) {
+        Py_ssize_t size, i;
+        #if CYTHON_ASSUME_SAFE_MACROS
+        size = PyTuple_GET_SIZE(pattern);
+        #else
+        size = PyTuple_Size(pattern);
+        if (size < 0) return -1;
+        #endif
+        for (i=0; i<size; ++i) {
+            int result;
+            PyObject* item;
+            #if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
+            item = PySequence_GetItem(pattern, i);
+            if (!item) return -1;
+            #else
+            item = PyTuple_GET_ITEM(pattern, i);
+            #endif
+            result = __Pyx_ValidateStarCatchPatternElement(item);
+            #if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(item);
+            #endif
+            if (result) {
+                return result;
+            }
+        }
+        return 0;
+    } else {
+        return __Pyx_ValidateStarCatchPatternElement(pattern);
+    }
+}
+
+// Copied with slight modifications from exception_group_match in ceval.c in CPython
+// The main difference is that I combine the exc_value input argument and rest output argument into one
+static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_exception, PyObject **match) {
+    int is_instance;
+
+    Py_DECREF(*match); // whatever happens, we'll re-assign it
+    *match = Py_NewRef(Py_None);
+
+    if (PyErr_GivenExceptionMatches(*current_exception, match_type)) {
+        int is_eg = PyObject_IsInstance(*current_exception, PyExc_BaseExceptionGroup);
+        if (is_eg) {
+            if (unlikely(is_eg<0)) return -1;
+            *match = Py_NewRef(*current_exception);
+        } else {
+            PyObject *wrapped;
+            PyObject *call_args[2];
+
+            /* naked exception - wrap it */
+            call_args[0] = EMPTY(unicode);
+            call_args[1] = PyTuple_Pack(1, *current_exception);
+            if (call_args[1] == NULL) {
+                return -1;
+            }
+            #if CYTHON_VECTORCALL
+            // We know we have Python 3.11 to be using except* so VectorCall is definitely available
+            wrapped = PyObject_Vectorcall(PyExc_BaseExceptionGroup, call_args, 2, NULL);
+            #else
+            wrapped = PyObject_CallFunctionObjArgs(PyExc_BaseExceptionGroup, call_args[0], call_args[1], NULL);
+            #endif
+            Py_DECREF(call_args[1]);
+
+            if (wrapped == NULL) {
+                return -1;
+            }
+            Py_DECREF(*match);
+            *match = wrapped;
+        }
+
+        Py_DECREF(*current_exception);
+        *current_exception = Py_NewRef(Py_None);
+        return 0;
+    }
+
+    /* current_exception does not match match_type.
+     * Check for partial match if it's an exception group.
+     */
+    is_instance = PyObject_IsInstance(*current_exception, PyExc_BaseExceptionGroup);
+    if (unlikely(is_instance < 0)) return -1;
+    if (is_instance) {
+        PyObject *pair = __Pyx_PyObject_CallMethod1(
+            *current_exception, PYIDENT("split"), match_type);
+
+        if (pair == NULL) return -1;
+
+        if (unlikely(!PyTuple_CheckExact(pair))) {
+            __Pyx_RaiseTypeErrorWithObjectTypes(
+                __Pyx_FMT_TYPENAME ".split must return a tuple, not " __Pyx_FMT_TYPENAME,
+                *current_exception, pair);
+            Py_DECREF(pair);
+            return -1;
+        }
+        Py_ssize_t pair_size = __Pyx_PyTuple_GET_SIZE(pair);
+        if (unlikely(pair_size != 2)) {
+#if !CYTHON_ASSUME_SAFE_SIZE
+            if (pair_size >= 0)
+#endif
+            {
+                __Pyx_RaiseErrorWithTypeAndVarargs(PyExc_TypeError,
+                    __Pyx_FMT_TYPENAME ".split must return a 2-tuple, "
+                    "got tuple of size %zd",
+                    Py_TYPE(*current_exception), pair_size);
+            }
+            Py_DECREF(pair);
+            return -1;
+        }
+
+        #if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
+        __Pyx_Py_XDECREF_SET(*match, PySequence_GetItem(pair, 0));
+        if (!*match) {
+            goto limited_api_bad;
+        }
+        __Pyx_Py_XDECREF_SET(*current_exception, PySequence_GetItem(pair, 1));
+        if (!*current_exception) {
+            limited_api_bad:
+            Py_DECREF(pair);
+            return -1;
+        }
+        #else
+        __Pyx_Py_XDECREF_SET(*match, Py_NewRef(PyTuple_GET_ITEM(pair, 0)));
+        __Pyx_Py_XDECREF_SET(*current_exception, Py_NewRef(PyTuple_GET_ITEM(pair, 1)));
+        #endif
+
+        Py_DECREF(pair);
+        return 0;
+    }
+
+    // No match
+    // match is None and
+    // current_exception remains the same
+    return 0;
+}
+
+static void __Pyx_RaisePreppedException(PyObject *exc) {
+#if __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+    Py_INCREF(exc);
+    PyErr_SetRaisedException(exc);
+#else
+    // Raise the exception but preserve all original traceback,
+    // avoid setting cause and context, etc.
+
+    PyObject *traceback, *type;
+
+    traceback = PyException_GetTraceback(exc);
+    if (!traceback && unlikely(PyErr_Occurred())) return;
+
+    type = (PyObject*)Py_TYPE(exc);
+    Py_INCREF(type);
+    Py_INCREF(exc);
+    PyErr_Restore((PyObject*)Py_TYPE(exc), exc, traceback);
+#endif
+}
+
+#if !CYTHON_USE_OWN_PREP_RERAISE_STAR
+// Unfortunately c_compile_guard in Cython utility code still causes the proto to be created
+// leading to a "declared static but never defined" warning.  This looks hard to avoid so
+// create trivial definitions instead.
+CYTHON_UNUSED static PyObject *__Pyx_exception_get_notes(CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *b) {
+    return NULL;
+}
+CYTHON_UNUSED static PyObject *__Pyx_split_into_same_metadata(CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *b) {
+    return NULL;
+}
+CYTHON_UNUSED static PyObject *__Pyx_except_star_leafs(CYTHON_UNUSED PyObject *a) {
+    return NULL;
+}
+CYTHON_UNUSED static PyObject *__Pyx_exception_group_projection(CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *b) {
+    return NULL;
+}
+CYTHON_UNUSED static PyObject *__Pyx__PyExc_PrepReraiseStar(CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *b) {
+    return NULL;
+}
+#endif
+
+
+//////////////////// IgnoreException.proto /////////////////////////////////
+
+// Returns 1 if the exception was ignored, 0, otherwise.
+// given_exception may be NULL, in which case PyErr_Occurred() is used.
+static CYTHON_INLINE int __Pyx_IgnoreGivenException(PyObject *given_exception, PyObject *ignorable_exception); /* proto */
+
+#define __Pyx_IgnoreException(ignorable_exception) __Pyx_IgnoreGivenException(NULL, ignorable_exception)
+
+//////////////////// IgnoreException /////////////////////////////////
+
+static CYTHON_INLINE int __Pyx_IgnoreGivenException(PyObject *given_exception, PyObject *ignorable_exception) {
+    if (PyErr_GivenExceptionMatches(given_exception ? given_exception : PyErr_Occurred(), ignorable_exception)) {
+        PyErr_Clear();
+        return 1;
+    }
+    return 0;
+}

@@ -11,6 +11,8 @@ cdef int clip(int a, int min_value, int max_value):
     return min(max(a, min_value), max_value)
 
 
+
+
 def compute(array_1, array_2, int a, int b, int c):
 
     # The "cdef" keyword is also used within functions to type variables. It
@@ -39,6 +41,7 @@ def compute(array_1, array_2, int a, int b, int c):
 
     # Py_ssize_t is the proper C type for Python array indices.
     cdef Py_ssize_t x, y
+
 
     for x in range(x_max):
         for y in range(y_max):

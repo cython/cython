@@ -3739,10 +3739,11 @@ class TestReplace(unittest.TestCase):
         self.assertEqual((c1.x, c1.y), (5, 10))
 
         # Trying to replace y is an error.
-        with self.assertRaisesRegex(ValueError, 'init=False'):
+        # Tests modified to account for changed exception in Python 3.13
+        with self.assertRaisesRegex((ValueError, TypeError), 'init=False'):
             replace(c, x=2, y=30)
 
-        with self.assertRaisesRegex(ValueError, 'init=False'):
+        with self.assertRaisesRegex((ValueError, TypeError), 'init=False'):
             replace(c, y=30)
 
     def test_classvar(self):
@@ -3775,7 +3776,8 @@ class TestReplace(unittest.TestCase):
 
         c = C(1, 10)
         self.assertEqual(c.x, 10)
-        with self.assertRaisesRegex(ValueError, r"InitVar 'y' must be "
+        # Note - test modified to account for change in exception in Python 3.13
+        with self.assertRaisesRegex((ValueError, TypeError), r"InitVar 'y' must be "
                                     "specified with replace()"):
             replace(c, x=3)
         c = replace(c, x=3, y=5)

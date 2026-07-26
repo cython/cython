@@ -194,7 +194,6 @@ class TreeVisitor:
         return self._visitchildren(parent, attrs, exclude)
 
     @cython.final
-    @cython.locals(idx=cython.Py_ssize_t)
     def _visitchildren(self, parent, attrs, exclude):
         # fast cdef entry point for calls from Cython subclasses
         """
@@ -206,6 +205,8 @@ class TreeVisitor:
         or a list of return values (in the case of multiple children
         in an attribute)).
         """
+        idx: cython.Py_ssize_t
+
         if parent is None: return None
         result = {}
         for attr in parent.child_attrs:
@@ -220,6 +221,65 @@ class TreeVisitor:
                     assert not isinstance(childretval, list), 'Cannot insert list here: %s in %r' % (attr, parent)
                 result[attr] = childretval
         return result
+
+
+@cython.cfunc
+def _flatten_list(orig_list: list) -> list:
+    """
+    Flatten the list one level and remove any None.
+
+    Assumes input lists to be reusable and mutable.
+    May return the original list if it remains unchanged.
+    """
+    # Start lazy until we know that we really have to construct a different list.
+    newlist = None
+    i: cython.Py_ssize_t
+    use_before: cython.Py_ssize_t = 0
+
+    for i, x in enumerate(orig_list):
+        if x is None:
+            # Exclude x by not appending it to 'newlist' and not increasing 'use_before'.
+            continue
+        x_is_list: bool = type(x) is list
+        if x_is_list and not x:
+            continue
+
+        if newlist is not None:
+            # Non-lazy list building.
+            if x_is_list:
+                newlist.extend(x)
+            else:
+                newlist.append(x)
+        elif x_is_list:
+            # Stop being lazy and replace list object x by its content.
+            if use_before == 0:
+                # Start newlist from x.
+                newlist = x  # May mutate the input list in x.
+            else:
+                # Build newlist up to the last used item.
+                newlist = orig_list[:use_before]
+                newlist.extend(x)
+        elif use_before == i:
+            # Keep counting single items lazily.
+            use_before = i + 1
+        else:
+            # Stop being lazy and close the gap.
+            newlist = orig_list[:use_before]
+            newlist.append(x)
+
+    if newlist is not None:
+        return newlist
+    elif use_before < len(orig_list):
+        return orig_list[:use_before]
+    else:
+        return orig_list  # Original input list, no copy.
+
+
+def _test_flatten_list(orig_list: list) -> list:
+    """
+    Test entry point when compiled.
+    """
+    return _flatten_list(orig_list)
 
 
 class VisitorTransform(TreeVisitor):
@@ -252,21 +312,9 @@ class VisitorTransform(TreeVisitor):
         result = self._visitchildren(parent, attrs, exclude)
         for attr, newnode in result.items():
             if type(newnode) is list:
-                newnode = self._flatten_list(newnode)
+                newnode = _flatten_list(newnode)
             setattr(parent, attr, newnode)
         return result
-
-    @cython.final
-    def _flatten_list(self, orig_list):
-        # Flatten the list one level and remove any None
-        newlist = []
-        for x in orig_list:
-            if x is not None:
-                if type(x) is list:
-                    newlist.extend(x)
-                else:
-                    newlist.append(x)
-        return newlist
 
     def visitchild(self, parent, attr, idx=0):
         # Helper to visit specific children from Python subclasses
@@ -303,7 +351,7 @@ class CythonTransform(VisitorTransform):
             self.current_directives = node.directives
         return super().__call__(node)
 
-    def visit_CompilerDirectivesNode(self, node):
+    def visit_CompilerDirectivesMixin(self, node):
         old = self.current_directives
         self.current_directives = node.directives
         self._process_children(node)
@@ -320,31 +368,34 @@ class ScopeTrackingTransform(CythonTransform):
     #scope_type: can be either of 'module', 'function', 'cclass', 'pyclass', 'struct'
     #scope_node: the node that owns the current scope
 
-    def visit_ModuleNode(self, node):
+    def __init__(self, context):
+        super().__init__(context)
         self.scope_type = 'module'
-        self.scope_node = node
-        self._process_children(node)
-        return node
+        self.scope_node = None
 
-    def visit_scope(self, node, scope_type):
-        prev = self.scope_type, self.scope_node
+    @cython.final
+    def _visit_scope(self, node, scope_type):
+        outer_scope_type, outer_scope_node = self.scope_type, self.scope_node
         self.scope_type = scope_type
         self.scope_node = node
         self._process_children(node)
-        self.scope_type, self.scope_node = prev
+        self.scope_type, self.scope_node = outer_scope_type, outer_scope_node
         return node
 
+    def visit_ModuleNode(self, node):
+        return self._visit_scope(node, 'module')
+
     def visit_CClassDefNode(self, node):
-        return self.visit_scope(node, 'cclass')
+        return self._visit_scope(node, 'cclass')
 
     def visit_PyClassDefNode(self, node):
-        return self.visit_scope(node, 'pyclass')
+        return self._visit_scope(node, 'pyclass')
 
     def visit_FuncDefNode(self, node):
-        return self.visit_scope(node, 'function')
+        return self._visit_scope(node, 'function')
 
     def visit_CStructOrUnionDefNode(self, node):
-        return self.visit_scope(node, 'struct')
+        return self._visit_scope(node, 'struct')
 
 
 class EnvTransform(CythonTransform):
@@ -545,10 +596,10 @@ class MethodDispatcherTransform(EnvTransform):
             if special_method_name == '__contains__':
                 operand1, operand2 = operand2, operand1
             elif special_method_name == '__div__':
-                if Future.division in self.current_env().global_scope().context.future_directives:
+                if Future.division in self.current_env().context.future_directives:
                     special_method_name = '__truediv__'
             obj_type = operand1.type
-            if obj_type.is_builtin_type:
+            if obj_type.is_builtin_type and not obj_type.is_exception_type:
                 type_name = obj_type.name
             else:
                 type_name = "object"  # safety measure
@@ -563,7 +614,7 @@ class MethodDispatcherTransform(EnvTransform):
         if special_method_name:
             operand = node.operand
             obj_type = operand.type
-            if obj_type.is_builtin_type:
+            if obj_type.is_builtin_type and not obj_type.is_exception_type:
                 type_name = obj_type.name
             else:
                 type_name = "object"  # safety measure
@@ -575,21 +626,14 @@ class MethodDispatcherTransform(EnvTransform):
     ### dispatch to specific handlers
 
     def _find_handler(self, match_name, has_kwargs):
-        try:
-            match_name.encode('ascii')
-        except UnicodeEncodeError:
-            # specifically when running the Cython compiler under Python 2
-            #  getattr can't take a unicode string.
-            #  Classes with unicode names won't have specific handlers and thus it
-            #  should be OK to return None.
-            # Doing the test here ensures that the same code gets run on
-            # Python 2 and 3
+        if not match_name.isascii():
+            # Classes with unicode names won't have specific handlers.
             return None
 
         call_type = 'general' if has_kwargs else 'simple'
-        handler = getattr(self, '_handle_%s_%s' % (call_type, match_name), None)
+        handler = getattr(self, f'_handle_{call_type}_{match_name}', None)
         if handler is None:
-            handler = getattr(self, '_handle_any_%s' % match_name, None)
+            handler = getattr(self, f'_handle_any_{match_name}', None)
         return handler
 
     def _delegate_to_assigned_value(self, node, function, arg_list, kwargs):
@@ -625,7 +669,8 @@ class MethodDispatcherTransform(EnvTransform):
                     # => see if it's usable instead
                     return self._delegate_to_assigned_value(
                         node, function, arg_list, kwargs)
-                if arg_list and entry.is_cmethod and entry.scope and entry.scope.parent_type.is_builtin_type:
+                if (arg_list and entry.is_cmethod and entry.scope and
+                        entry.scope.parent_type.is_builtin_type and not entry.scope.parent_type.is_exception_type):
                     if entry.scope.parent_type is arg_list[0].type:
                         # Optimised (unbound) method of a builtin type => try to "de-optimise".
                         return self._dispatch_to_method_handler(
@@ -634,7 +679,7 @@ class MethodDispatcherTransform(EnvTransform):
                             node=node, function=function, arg_list=arg_list, kwargs=kwargs)
                 return node
             function_handler = self._find_handler(
-                "function_%s" % function.name, kwargs)
+                f"function_{function.name}", kwargs)
             if function_handler is None:
                 return self._handle_function(node, function.name, function, arg_list, kwargs)
             if kwargs:
@@ -656,7 +701,8 @@ class MethodDispatcherTransform(EnvTransform):
                 return node
             obj_type = self_arg.type
             is_unbound_method = False
-            if obj_type.is_builtin_type:
+            # Exceptions aren't necessarily exact types so could have unknown methods
+            if obj_type.is_builtin_type and not obj_type.is_exception_type:
                 if obj_type is Builtin.type_type and self_arg.is_name and arg_list and arg_list[0].type.is_pyobject:
                     # calling an unbound method like 'list.append(L,x)'
                     # (ignoring 'type.mro()' here ...)
@@ -665,6 +711,9 @@ class MethodDispatcherTransform(EnvTransform):
                     is_unbound_method = True
                 else:
                     type_name = obj_type.name
+                if type_name == 'str':
+                    # We traditionally used the type name 'unicode' for 'str' dispatch methods.
+                    type_name = 'unicode'
             else:
                 type_name = "object"  # safety measure
             return self._dispatch_to_method_handler(
@@ -677,12 +726,12 @@ class MethodDispatcherTransform(EnvTransform):
                                     is_unbound_method, type_name,
                                     node, function, arg_list, kwargs):
         method_handler = self._find_handler(
-            "method_%s_%s" % (type_name, attr_name), kwargs)
+            f"method_{type_name}_{attr_name}", kwargs)
         if method_handler is None:
             if (attr_name in TypeSlots.special_method_names
                     or attr_name in ['__new__', '__class__']):
                 method_handler = self._find_handler(
-                    "slot%s" % attr_name, kwargs)
+                    f"slot{attr_name}", kwargs)
             if method_handler is None:
                 return self._handle_method(
                     node, type_name, attr_name, function,
@@ -839,10 +888,12 @@ class PrintTree(TreeVisitor):
             elif isinstance(node, Nodes.DefNode):
                 result += "(name=\"%s\")" % node.name
             elif isinstance(node, Nodes.CFuncDefNode):
-                result += "(name=\"%s\")" % node.declared_name()
+                result += "(name=\"%s\", type=\"%s\")" % (
+                    node.declared_name(), getattr(node, "type", None))
             elif isinstance(node, ExprNodes.AttributeNode):
                 result += "(type=%s, attribute=\"%s\")" % (repr(node.type), node.attribute)
-            elif isinstance(node, (ExprNodes.ConstNode, ExprNodes.PyConstNode)):
+            elif isinstance(node,
+                    (ExprNodes.ConstNode, ExprNodes.PyConstNode, ExprNodes.ImagNode)):
                 result += "(type=%s, value=%r)" % (repr(node.type), node.value)
             elif isinstance(node, ExprNodes.ExprNode):
                 t = node.type

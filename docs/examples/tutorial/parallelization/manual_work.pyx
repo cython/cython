@@ -6,12 +6,12 @@ from openmp cimport omp_get_thread_num
 
 
 
-cdef void long_running_task1() nogil:
+cdef void long_running_task1() noexcept nogil:
     pass
 
 
 
-cdef void long_running_task2() nogil:
+cdef void long_running_task2() noexcept nogil:
     pass
 
 def do_two_tasks():

@@ -10,6 +10,8 @@ import os
 import re
 import sys
 import trace
+import pickle
+import random
 import inspect
 import warnings
 import unittest
@@ -25,7 +27,7 @@ import gdb
 from .. import libcython
 from .. import libpython
 from . import TestLibCython as test_libcython
-from ...Utils import add_metaclass
+from ...TestUtils import TimedTest
 
 # for some reason sys.argv is missing in gdb
 sys.argv = ['gdb']
@@ -52,8 +54,7 @@ class TraceMethodCallMeta(type):
                 setattr(self, func_name, print_on_call_decorator(func))
 
 
-@add_metaclass(TraceMethodCallMeta)
-class DebugTestCase(unittest.TestCase):
+class DebugTestCase(TimedTest, metaclass=TraceMethodCallMeta):
     """
     Base class for test cases. On teardown it kills the inferior and unsets
     all breakpoints.
@@ -91,6 +92,7 @@ class DebugTestCase(unittest.TestCase):
         gdb.execute('run', to_string=True)
 
     def tearDown(self):
+        super().tearDown()
         gdb.execute('delete breakpoints', to_string=True)
         try:
             gdb.execute('kill inferior 1', to_string=True)
@@ -140,7 +142,28 @@ class TestDebugInformationClasses(DebugTestCase):
         self.assertEqual(sorted(self.spam_func.locals), list('abcd'))
 
 
-class TestParameters(unittest.TestCase):
+class TestReprMethods(DebugTestCase):
+
+    def test_simple_repr(self):
+        test_class = libcython.CythonModule
+        num_args = len(inspect.signature(test_class).parameters)
+        lorem_ipsum = random.Random(0)
+        filler_args = (lorem_ipsum.randbytes(8) for _ in range(num_args))
+        instance = test_class(*filler_args)
+        recreated = eval("libcython." + repr(instance))
+        self.assertEqual(pickle.dumps(instance), pickle.dumps(recreated))
+
+    def test_frame_repr(self):
+        # check that frame_repr's function expansion is idempotent
+        beginline = 'import os'
+
+        self.break_and_run(beginline)
+        frame = gdb.selected_frame()
+        self.assertEqual(libcython.frame_repr(frame),
+                         libcython.frame_repr(frame))
+
+
+class TestParameters(TimedTest):
 
     def test_parameters(self):
         gdb.execute('set cy_colorize_code on')
@@ -174,6 +197,12 @@ class TestBreak(DebugTestCase):
         step_result = gdb.execute('cy step', to_string=True)
         self.lineno_equals(nextline)
         assert step_result.rstrip().endswith(nextline)
+
+    def test_break_completion(self):
+        completer = libcython.cy.break_.complete
+        self.assertIn('spam', completer("codefile.SomeClass.s", "s"))
+        self.assertIn('spam', completer("codefile.SomeClass.", None))
+        self.assertIn('pam', completer("codefile.s", None))
 
 
 # I removed this testcase, because it will never work, because
@@ -505,9 +534,8 @@ def _debug(*messages):
 
 
 def run_unittest_in_module(modulename):
-    try:
-        gdb.lookup_type('PyModuleObject')
-    except RuntimeError:
+    # Check if the Python executable provides a symbol table.
+    if not hasattr(gdb.selected_inferior().progspace, "symbol_file"):
         msg = ("Unable to run tests, Python was not compiled with "
                 "debugging information. Either compile python with "
                 "-g or get a debug build (configure with --with-pydebug).")

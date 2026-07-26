@@ -112,10 +112,12 @@ def performance_gh5197(patternsList):
                                                                                                         #                         else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
                                                                                                                                     else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1]  )
         except Exception as e:
-            matched.append('Error at Indx:%s-%s' %(_, patternsList[_]))
+            matched.append('Error at Index:%s-%s' %(_, patternsList[_]))
+
 
 cdef accept_int(int x):
     return x
+
 
 def test_mixed_int_bool_coercion(x):
     """
@@ -127,3 +129,18 @@ def test_mixed_int_bool_coercion(x):
     5
     """
     return accept_int(False if x is None else x)
+
+
+def test_mixed_result_type(s: str):
+    """
+    >>> test_mixed_result_type('1')
+    1
+    >>> test_mixed_result_type('-5')
+    -5
+    >>> test_mixed_result_type('1.')
+    1.0
+    >>> test_mixed_result_type('.1')
+    0.1
+    """
+    result = float(s) if '.' in s else int(s)
+    return result

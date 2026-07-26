@@ -133,22 +133,19 @@ def test_compile(d):
 
 def exec_invalid_type(x):
     """
-    >>> exec_invalid_type(42)
+    >>> exec_invalid_type(42)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: exec: arg 1 must be string, bytes or code object, got int
+    TypeError: exec... arg 1 must be... string, bytes or code object...
     """
     exec x in {}
 
 
 def exec_with_new_features(s, d):
     """
-    >>> import sys
-    >>> pyversion = sys.version_info[:2]
-
     >>> d = {}
     >>> exec_with_new_features('print(123)', d)
     123
     >>> exec_with_new_features('f = f"abc"', d)
-    >>> if pyversion >= (3, 8): exec_with_new_features('a = (b := 1)', d)
+    >>> exec_with_new_features('a = (b := 1)', d)
     """
     exec s in d

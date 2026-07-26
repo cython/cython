@@ -201,7 +201,7 @@ def test_type_inference():
     xy = (x, y)
     assert cython.typeof(xy) == "(int, double)", cython.typeof(xy)
     xo = (x, o)
-    assert cython.typeof(xo) == "tuple object", cython.typeof(xo)
+    assert cython.typeof(xo) == "tuple[int,Python object] object", cython.typeof(xo)
 
 
 @cython.locals(a=(int,int), b=(cython.long,cython.float))
@@ -279,3 +279,21 @@ def test_unop((int, int) ab):
     True
     """
     return not ab
+
+# This is testing both that fused ctuples work, and that
+# different fused ctuples end up as separate types
+cdef (cython.floating, cython.floating) two_fused(cython.floating x):
+    return x, x
+
+cdef (cython.floating, cython.floating, cython.floating) three_fused(cython.floating x):
+    return x, x, x
+
+def test_fused():
+    """
+    >>> a, b = test_fused()
+    >>> a
+    (1.0, 1.0)
+    >>> b
+    (2.0, 2.0, 2.0)
+    """
+    return two_fused(1.0), three_fused(2.0)

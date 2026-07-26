@@ -1,5 +1,5 @@
 # Note that the actual size of these types is system-dependent, and
-# can't be detected at C compile time.  However, the generated C code
+# cannot be detected before C compile time.  However, the generated C code
 # will correctly use the actual size of these types *except* for
 # determining promotion in binary arithmetic expressions involving
 # mixed types.  In this case, operands are promoted to the declared

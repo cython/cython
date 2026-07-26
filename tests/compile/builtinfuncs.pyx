@@ -2,7 +2,7 @@
 
 cdef int f() except -1:
     cdef object x, y = 0, z = 0, w = 0
-    cdef str sstring
+    cdef unicode sstring
     cdef basestring sustring
     cdef int i
     cdef long lng

@@ -3,35 +3,20 @@
 """Tests for the Cython magics extension."""
 
 
+import builtins
 import os
 import io
 import sys
 from contextlib import contextmanager
-from unittest import skipIf
+from unittest import skipIf, SkipTest
 
 from Cython.Build import IpythonMagic
 from Cython.TestUtils import CythonTest
 from Cython.Compiler.Annotate import AnnotationCCodeWriter
 
-try:
-    import IPython.testing.globalipapp
-except ImportError:
-    # Disable tests and fake helpers for initialisation below.
-    def skip_if_not_installed(_):
-        return None
-else:
-    def skip_if_not_installed(c):
-        return c
 
 # not using IPython's decorators here because they depend on "nose"
 skip_win32 = skipIf(sys.platform == 'win32', "Skip on Windows")
-
-try:
-    # disable IPython history thread before it gets started to avoid having to clean it up
-    from IPython.core.history import HistoryManager
-    HistoryManager.enabled = False
-except ImportError:
-    pass
 
 
 @contextmanager
@@ -94,13 +79,44 @@ def doit():
 '''
 
 
-@skip_if_not_installed
 class TestIPythonMagic(CythonTest):
+    _orig_builtins = None
 
     @classmethod
     def setUpClass(cls):
-        CythonTest.setUpClass()
+        super().setUpClass()
+
+        # IPython modifies the builtins, so keep a clean copy before the import.
+        orig_builtins = dict(builtins.__dict__)
+
+        try:
+            import IPython.testing.globalipapp
+        except ImportError as exc:
+            # Disable tests and fake helpers for initialisation below.
+            raise SkipTest(f"IPython is not installed: {exc}")
+
+        try:
+            # disable IPython history thread before it gets started to avoid having to clean it up
+            from IPython.core.history import HistoryManager
+            HistoryManager.enabled = False
+        except ImportError:
+            pass
+
+        cls._orig_builtins = orig_builtins
         cls._ip = IPython.testing.globalipapp.get_ipython()
+
+    @classmethod
+    def tearDownClass(cls):
+        # Clean up builtins from IPython left-overs.
+        if cls._orig_builtins:
+            for name in list(vars(builtins)):
+                if name not in cls._orig_builtins:
+                    delattr(builtins, name)
+            for name, value in cls._orig_builtins.items():
+                if getattr(builtins, name, None) is not value:
+                    setattr(builtins, name, value)
+
+        super().tearDownClass()
 
     def setUp(self):
         CythonTest.setUp(self)

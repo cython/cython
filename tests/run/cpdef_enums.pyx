@@ -1,23 +1,36 @@
 """
 >>> import sys
 
+>>> ANON_A, ANON_B, ANON_X
+(2, 3, 5)
+
 >>> ONE, TEN, HUNDRED
 (1, 10, 100)
 >>> THOUSAND        # doctest: +ELLIPSIS
 Traceback (most recent call last):
 NameError: ...name 'THOUSAND' is not defined
 
->>> TWO == 2 or TWO
+>>> PyxEnum.TWO == 2 or PyxEnum.TWO
 True
->>> THREE == 3 or THREE
+>>> PyxEnum.THREE == 3 or PyxEnum.THREE
 True
->>> FIVE == 5 or FIVE
+>>> PyxEnum.FIVE == 5 or PyxEnum.FIVE
 True
->>> ELEVEN == 11 or ELEVEN
+>>> cpdefPyxDocEnum.ELEVEN == 11 or cpdefPyxDocEnum.ELEVEN
 True
+
 >>> SEVEN           # doctest: +ELLIPSIS
 Traceback (most recent call last):
 NameError: ...name 'SEVEN' is not defined
+>>> SecretPyxEnum   # doctest: +ELLIPSIS
+Traceback (most recent call last):
+NameError: ...name 'SecretPyxEnum' is not defined
+>>> PxdSecretEnum   # doctest: +ELLIPSIS
+Traceback (most recent call last):
+NameError: ...name 'PxdSecretEnum' is not defined
+>>> cdefPxdDocEnum   # doctest: +ELLIPSIS
+Traceback (most recent call last):
+NameError: ...name 'cdefPxdDocEnum' is not defined
 
 >>> FOUR == 4 or FOUR
 True
@@ -27,21 +40,25 @@ True
 Traceback (most recent call last):
 NameError: ...name 'SIXTEEN' is not defined
 
->>> RANK_0 == 11 or RANK_0
-True
->>> RANK_1 == 37 or RANK_1
-True
->>> RANK_2 == 389 or RANK_2
-True
->>> RANK_6 == 159 or RANK_6
-True
->>> RANK_7 == 889 or RANK_7
-True
->>> RANK_3         # doctest: +ELLIPSIS
+>>> RANK_0         # doctest: +ELLIPSIS
 Traceback (most recent call last):
-NameError: ...name 'RANK_3' is not defined
+NameError: ...name 'RANK_0' is not defined
 
->>> set(PyxEnum) == {TWO, THREE, FIVE}
+>>> PxdEnum.RANK_0 == 11 or PxdEnum.RANK_0
+True
+>>> PxdEnum.RANK_1 == 37 or PxdEnum.RANK_1
+True
+>>> PxdEnum.RANK_2 == 389 or PxdEnum.RANK_2
+True
+>>> cpdefPxdDocEnum.RANK_6 == 159 or cpdefPxdDocEnum.RANK_6
+True
+>>> cpdefPxdDocLineEnum.RANK_7 == 889 or cpdefPxdDocLineEnum.RANK_7
+True
+>>> PxdEnum.RANK_3         # doctest: +ELLIPSIS
+Traceback (most recent call last):
+AttributeError: ...RANK_3...
+
+>>> set(PyxEnum) == {PyxEnum.TWO, PyxEnum.THREE, PyxEnum.FIVE}
 True
 >>> str(PyxEnum.TWO).split(".")[-1]  if sys.version_info < (3,11) else  "TWO" # Py3.10/11 changed the output here
 'TWO'
@@ -66,6 +83,12 @@ cdef extern from *:
 
     cdef enum: # ExternSecretPyx
         THOUSAND "1000"
+
+cpdef enum:
+    # Anonymous enum values should appear in the module namespace.
+    ANON_A = 2
+    ANON_B = 3
+    ANON_X = 5
 
 cpdef enum PyxEnum:
     TWO = 2
@@ -119,6 +142,24 @@ cpdef enum CyDefinedHasDuplicates3:
     CY_DUP3_C  # = 1
 
 
+cdef extern from *:
+    """
+    enum ExternHasNegatives {
+        EX_NEG_A = -1,
+        EX_NEG_B = 1,
+        EX_NEG_C = 2
+    };
+    """
+    cpdef enum ExternHasNegatives:
+        EX_NEG_A
+        EX_NEG_B
+        EX_NEG_C
+
+cpdef enum CyDefinedHasNegatives:
+    CY_NEG_A = -1
+    CY_NEG_B = 1
+    CY_NEG_C = 2
+
 def test_as_variable_from_cython():
     """
     >>> test_as_variable_from_cython()
@@ -164,12 +205,12 @@ def check_docs():
 
 def to_from_py_conversion(PxdEnum val):
     """
-    >>> to_from_py_conversion(RANK_1) is PxdEnum.RANK_1
+    >>> to_from_py_conversion(PxdEnum.RANK_1) is PxdEnum.RANK_1
     True
 
     C enums are commonly enough used as flags that it seems reasonable
     to allow it in Cython
-    >>> to_from_py_conversion(RANK_1 | RANK_2) == (RANK_1 | RANK_2)
+    >>> to_from_py_conversion(PxdEnum.RANK_1 | PxdEnum.RANK_2) == (PxdEnum.RANK_1 | PxdEnum.RANK_2)
     True
     """
     return val
@@ -178,7 +219,7 @@ def to_from_py_conversion(PxdEnum val):
 def to_from_py_conversion_with_duplicates1(ExternHasDuplicates val):
     """
     Mainly a compile-time test - we can't optimize to a switch here
-    >>> to_from_py_conversion_with_duplicates1(EX_DUP_A) == ExternHasDuplicates.EX_DUP_A
+    >>> to_from_py_conversion_with_duplicates1(ExternHasDuplicates.EX_DUP_A) == ExternHasDuplicates.EX_DUP_A
     True
     """
     return val
@@ -187,7 +228,7 @@ def to_from_py_conversion_with_duplicates1(ExternHasDuplicates val):
 def to_from_py_conversion_with_duplicates2(CyDefinedHasDuplicates1 val):
     """
     Mainly a compile-time test - we can't optimize to a switch here
-    >>> to_from_py_conversion_with_duplicates2(CY_DUP1_A) == CyDefinedHasDuplicates1.CY_DUP1_A
+    >>> to_from_py_conversion_with_duplicates2(CyDefinedHasDuplicates1.CY_DUP1_A) == CyDefinedHasDuplicates1.CY_DUP1_A
     True
     """
     return val
@@ -196,7 +237,7 @@ def to_from_py_conversion_with_duplicates2(CyDefinedHasDuplicates1 val):
 def to_from_py_conversion_with_duplicates3(CyDefinedHasDuplicates2 val):
     """
     Mainly a compile-time test - we can't optimize to a switch here
-    >>> to_from_py_conversion_with_duplicates3(CY_DUP2_A) == CyDefinedHasDuplicates2.CY_DUP2_A
+    >>> to_from_py_conversion_with_duplicates3(CyDefinedHasDuplicates2.CY_DUP2_A) == CyDefinedHasDuplicates2.CY_DUP2_A
     True
     """
     return val
@@ -205,7 +246,7 @@ def to_from_py_conversion_with_duplicates3(CyDefinedHasDuplicates2 val):
 def to_from_py_conversion_with_duplicates4(CyDefinedHasDuplicates3 val):
     """
     Mainly a compile-time test - we can't optimize to a switch here
-    >>> to_from_py_conversion_with_duplicates4(CY_DUP3_C) == CyDefinedHasDuplicates3.CY_DUP3_C
+    >>> to_from_py_conversion_with_duplicates4(CyDefinedHasDuplicates3.CY_DUP3_C) == CyDefinedHasDuplicates3.CY_DUP3_C
     True
     """
     return val
@@ -240,3 +281,63 @@ def test_as_default_value(PxdEnum val=PxdEnum.RANK_1):
     True
     """
     return val == PxdEnum.RANK_1
+
+
+def test_special_attributes():
+    """
+    >>> test_special_attributes()
+    ('cpdefPyxDocLineEnum', 'cpdef_enums', 'Home is where...')
+    """
+    assert PyxEnum.__contains__
+    assert PyxEnum.__init_subclass__
+    assert PyxEnum.__iter__
+    assert PyxEnum.__len__
+    assert PyxEnum.__class__
+
+    assert PyxEnum.__getitem__('TWO') is PyxEnum.TWO
+    assert PyxEnum.__members__['TWO'] is PyxEnum.TWO
+    assert PyxEnum.__qualname__.endswith(PyxEnum.__name__), (PyxEnum.__qualname__, PyxEnum.__name__)
+
+    return (
+        cpdefPyxDocLineEnum.__name__,
+        cpdefPyxDocLineEnum.__module__,
+        cpdefPyxDocLineEnum.__doc__,
+    )
+
+def test_extern_negatives(ExternHasNegatives val=ExternHasNegatives.EX_NEG_A):
+    """
+    >>> val = test_extern_negatives()
+    >>> type(val) == ExternHasNegatives
+    True
+    >>> val < 0
+    True
+
+    # It's still possible to do bitwise operations of numbers and convert them to/from Cython
+    # whether Cython chooses to represent it as an IntEnum or an IntFlag.
+    >>> test_extern_negatives(ExternHasNegatives.EX_NEG_B) == 1 == ExternHasNegatives.EX_NEG_B
+    True
+    >>> test_extern_negatives(3) == 3 == (ExternHasNegatives.EX_NEG_B | ExternHasNegatives.EX_NEG_C)
+    True
+    >>> test_extern_negatives(ExternHasNegatives.EX_NEG_A) == -1 == ExternHasNegatives.EX_NEG_A
+    True
+    """
+    return val
+
+def test_cy_negatives(CyDefinedHasNegatives val=CyDefinedHasNegatives.CY_NEG_A):
+    """
+    >>> val = test_cy_negatives()
+    >>> type(val) == CyDefinedHasNegatives
+    True
+    >>> val < 0
+    True
+
+    # It's still possible to do bitwise operations of numbers and convert them to/from Cython
+    # whether Cython chooses to represent it as an IntEnum or an IntFlag.
+    >>> test_cy_negatives(CyDefinedHasNegatives.CY_NEG_B) == 1 == CyDefinedHasNegatives.CY_NEG_B
+    True
+    >>> test_cy_negatives(3) == 3 == (CyDefinedHasNegatives.CY_NEG_B | CyDefinedHasNegatives.CY_NEG_C)
+    True
+    >>> test_cy_negatives(CyDefinedHasNegatives.CY_NEG_A) == -1 == CyDefinedHasNegatives.CY_NEG_A
+    True
+    """
+    return val

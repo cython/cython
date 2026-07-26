@@ -1,14 +1,15 @@
 # mode: run
-# tag: pure3.7
 # cython: language_level=3
 
 # COPIED FROM CPython 3.7
 
-import contextlib
 import unittest
 import sys
 
-class TestMROEntry(unittest.TestCase):
+from Cython.TestUtils import TimedTest
+
+
+class TestMROEntry(TimedTest):
     def test_mro_entry_signature(self):
         tested = []
         class B: ...
@@ -153,7 +154,7 @@ class TestMROEntry(unittest.TestCase):
             type('Bad', (c,), {})
 
 
-class TestClassGetitem(unittest.TestCase):
+class TestClassGetitem(TimedTest):
     # BEGIN - Additional tests from cython
     def test_no_class_getitem(self):
         class C: ...

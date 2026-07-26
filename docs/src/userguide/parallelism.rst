@@ -12,15 +12,27 @@ Using Parallelism
     ../two-syntax-variants-used
 
 Cython supports native parallelism through the :py:mod:`cython.parallel`
-module. To use this kind of parallelism, the :term:`GIL<Global Interpreter Lock or GIL>` must be released
-(see :ref:`Releasing the GIL <nogil>`).
-It currently supports OpenMP, but later on more backends might be supported.
+module.  It currently supports OpenMP, but later on more backends might be supported.
 
 .. NOTE:: Functionality in this module may only be used from the main thread
           or parallel regions due to OpenMP restrictions.
 
 
-.. function:: prange([start,] stop[, step][, nogil=False][, schedule=None[, chunksize=None]][, num_threads=None])
+Historically, this kind of parallelism could only be used with the
+:term:`GIL<Global Interpreter Lock or GIL>` released (see :ref:`Releasing the GIL <nogil>`).
+However, from Cython 3.3 there is now some experimental support for running these parallel blocks with
+the GIL.  This will only work well (i.e. actually run your code in parallel) on freethreaded
+builds of Python
+
+.. WARNING:: Running ``cython.parallel`` and ``cython.prange`` with the GIL is currently
+             very experimental.  Specifically
+             Cython currently does almost nothing to ensure that Python variables
+             are accessed in a thread-safe manner - this is entirely your responsibility.
+             If you do not get this right then you may see crashes, reference-counting
+             errors, and other similar bugs.
+
+
+.. function:: prange([start,] stop[, step][, nogil=False][, use_threads_if=CONDITION][, schedule=None[, chunksize=None]][, num_threads=None])
 
     This function can be used for parallel loops. OpenMP automatically
     starts a thread pool and distributes the work according to the schedule
@@ -49,8 +61,15 @@ It currently supports OpenMP, but later on more backends might be supported.
         It must not be 0.
 
     :param nogil:
-        This function can only be used with the GIL released.
-        If ``nogil`` is true, the loop will be wrapped in a nogil section.
+        If ``nogil`` is true, the loop will be wrapped in a nogil section.  Except on
+        the experimental free-threaded Python interpreter, this is needed to actually
+        run in parallel.
+
+    :param use_threads_if: The loop is run in multiple threads only if ``CONDITION``
+        is evaluated as true. Otherwise the code is run sequentially. Running
+        the loop sequentially can be handy in the cases when the cost of spawning
+        threads is greater than the benefit of running the loop in parallel
+        (e.g. for small data sets).
 
     :param schedule:
         The ``schedule`` is passed to OpenMP and can be one of the following:
@@ -109,7 +128,9 @@ It currently supports OpenMP, but later on more backends might be supported.
         The ``num_threads`` argument indicates how many threads the team should consist of. If not given,
         OpenMP will decide how many threads to use. Typically this is the number of cores available on
         the machine. However, this may be controlled through the ``omp_set_num_threads()`` function, or
-        through the ``OMP_NUM_THREADS`` environment variable.
+        through the ``OMP_NUM_THREADS`` environment variable.  From Cython 3.3 onwards, setting ``num_threads``
+        to 0 is equivalent to setting it to ``omp_get_max_threads()`` (which is what OpenMP does if you
+        omit the parameter); prior to that setting ``num_threads`` to 0 is invalid.
 
     :param chunksize: 
         The ``chunksize`` argument indicates the chunksize to be used for dividing the iterations among threads.
@@ -141,13 +162,25 @@ Example with a :term:`typed memoryview<Typed memoryview>` (e.g. a NumPy array)
 
         .. literalinclude:: ../../examples/userguide/parallelism/memoryview_sum.pyx
 
-.. function:: parallel(num_threads=None)
+Example with conditional parallelism:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/parallelism/condition_sum.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/parallelism/condition_sum.pyx
+
+.. function:: parallel(num_threads=None, use_threads_if=CONDITION)
 
     This directive can be used as part of a ``with`` statement to execute code
     sequences in parallel. This is currently useful to setup thread-local
-    buffers used by a prange. A contained prange will be a worksharing loop
+    buffers used by a ``prange``. A contained ``prange`` will be a worksharing loop
     that is not parallel, so any variable assigned to in the parallel section
-    is also private to the prange. Variables that are private in the parallel
+    is also private to the ``prange``. Variables that are private in the parallel
     block are unavailable after the parallel block.
 
     Example with thread-local buffers

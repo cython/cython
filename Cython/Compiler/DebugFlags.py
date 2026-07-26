@@ -17,5 +17,8 @@ debug_no_exception_intercept = 0
 # Print a message each time a new stage in the pipeline is entered.
 debug_verbose_pipeline = 0
 
+# Print a message each time an Entry type is assigned.
+debug_verbose_entry_types = False
+
 # Raise an exception when an error is encountered.
 debug_exception_on_error = 0

@@ -35,9 +35,9 @@ def setdefault1(d, key):
     >>> len(d)
     1
     >>> d[1]
-    >>> setdefault1(d, Unhashable())
+    >>> setdefault1(d, Unhashable())  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: I am not hashable
+    TypeError: ...I am not hashable...
     >>> len(d)
     1
     >>> h1 = setdefault1(d, Hashable())
@@ -89,9 +89,9 @@ def setdefault2(d, key, value):
     [1]
     >>> len(d)
     2
-    >>> setdefault2(d, Unhashable(), 1)
+    >>> setdefault2(d, Unhashable(), 1)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: I am not hashable
+    TypeError: ...I am not hashable...
     >>> h1 = setdefault2(d, Hashable(), 55)
     >>> len(d)
     3

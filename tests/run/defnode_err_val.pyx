@@ -7,9 +7,9 @@ cdef class TestErrVal(object):
 
 def test_errval():
     """
-    >>> test_errval()
+    >>> test_errval() # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: Argument 'a' has incorrect type (expected defnode_err_val.TestErrVal, got int)
+    TypeError: Argument 'a' has incorrect type (expected...TestErrVal, got int)
     """
     TestErrVal(123)

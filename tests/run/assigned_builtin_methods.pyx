@@ -3,6 +3,10 @@
 
 cimport cython
 
+
+def make_frozendict(d):
+    return frozendict(d)
+
 @cython.test_assert_path_exists(
     '//ReturnStatNode//PythonCapiCallNode')
 def unbound_dict_get(d):
@@ -39,6 +43,18 @@ def bound_dict_get_reassign(dict d):
     """
     get = d.get
     d = {1: 3}
+    return get(1)
+
+
+@cython.test_assert_path_exists(
+    '//ReturnStatNode//PythonCapiCallNode')
+def bound_frozendict_get(frozendict fd):
+    """
+    >>> bound_frozendict_get(make_frozendict({}))
+    >>> bound_frozendict_get(make_frozendict({1:2}))
+    2
+    """
+    get = fd.get
     return get(1)
 
 

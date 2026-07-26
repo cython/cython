@@ -373,6 +373,7 @@ you need to explicitly allow ``None`` values for them.
       translate directly to C pointer comparisons, whereas ``x == None`` and
       ``x != None``, or simply using ``x`` as a boolean value (as in ``if x: ...``)
       will invoke Python operations and therefore be much slower.
+    * ``typing.Union[tp, None]`` and ``tp | None`` can be used as alternatives to ``typing.Optional``
 
 Special methods
 ================
@@ -659,7 +660,7 @@ definition, for example,::
 
 
 .. _freelist:
-        
+
 Fast instantiation
 ===================
 
@@ -776,7 +777,7 @@ object called :attr:`__weakref__`. For example:
                 """This animal will self-destruct when it is
                 no longer strongly referenced."""
 
-                __weakref__: object 
+                __weakref__: object
 
     .. group-tab:: Cython
 
@@ -812,7 +813,7 @@ common way of deallocating an object. For example, consider ::
     >>> x = "bar"
 
 After executing the second line, the string ``"foo"`` is no longer referenced,
-so it is deallocated. This is done using the ``tp_dealloc`` slot, which can be
+so it is deallocated. This is done using the :c:member:`PyTypeObject.tp_dealloc` slot, which can be
 customized in Cython by implementing ``__dealloc__``.
 
 The second mechanism is the cyclic garbage collector.
@@ -830,7 +831,7 @@ references ``y`` and vice versa. Even though neither ``x`` or ``y``
 are accessible after ``make_cycle`` returns, both have a reference count
 of 1, so they are not immediately deallocated. At regular times, the garbage
 collector runs, which will notice the reference cycle
-(using the ``tp_traverse`` slot) and break it.
+(using the :c:member:`PyTypeObject.tp_traverse` slot) and break it.
 Breaking a reference cycle means taking an object in the cycle
 and removing all references from it to other Python objects (we call this
 *clearing* an object). Clearing is almost the same as deallocating, except
@@ -840,9 +841,9 @@ the attributes of ``x`` would be removed from ``x``.
 Note that it suffices to clear just one object in the reference cycle,
 since there is no longer a cycle after clearing one object. Once the cycle
 is broken, the usual refcount-based deallocation will actually remove the
-objects from memory. Clearing is implemented in the ``tp_clear`` slot.
+objects from memory. Clearing is implemented in the :c:member:`PyTypeObject.tp_clear` slot.
 As we just explained, it is sufficient that one object in the cycle
-implements ``tp_clear``.
+implements :c:member:`PyTypeObject.tp_clear`.
 
 .. _trashcan:
 
@@ -876,7 +877,7 @@ enabled by setting the ``trashcan`` directive to ``True``. For example:
             @cython.trashcan(True)
             @cython.cclass
             class Object:
-                __dict__: dict 
+                __dict__: dict
 
     .. group-tab:: Cython
 
@@ -897,13 +898,13 @@ Disabling cycle breaking (``tp_clear``)
 
 By default, each extension type will support the cyclic garbage collector of
 CPython. If any Python objects can be referenced, Cython will automatically
-generate the ``tp_traverse`` and ``tp_clear`` slots. This is usually what you
+generate the :c:member:`PyTypeObject.tp_traverse` and :c:member:`PyTypeObject.tp_clear` slots. This is usually what you
 want.
 
 There is at least one reason why this might not be what you want: If you need
 to cleanup some external resources in the ``__dealloc__`` special function and
 your object happened to be in a reference cycle, the garbage collector may
-have triggered a call to ``tp_clear`` to clear the object
+have triggered a call to :c:member:`PyTypeObject.tp_clear` to clear the object
 (see :ref:`dealloc_intro`).
 
 In that case, any object references have vanished when ``__dealloc__``
@@ -921,7 +922,7 @@ the ``no_gc_clear`` directive:
             @cython.cclass
             class DBCursor:
                 conn: DBConnection
-                raw_cursor: cython.pointer(DBAPI_Cursor)
+                raw_cursor: cython.pointer[DBAPI_Cursor]
                 # ...
                 def __dealloc__(self):
                     DBAPI_close_cursor(self.conn.raw_conn, self.raw_cursor)
@@ -1003,6 +1004,75 @@ disable this auto-generation and can be used to support pickling of more
 complicated types.
 
 
+.. _collection_type:
+
+Pattern matching and extension types (Python 3.10+)
+===================================================
+
+Python 3.10 introduced the structural pattern matching feature
+(documented in `the Python documentation
+<https://docs.python.org/3/reference/compound_stmts.html#the-match-statement>`_,
+and `PEP 634 <https://peps.python.org/pep-0634>`_).
+where Python objects can be decomposed if they meet a particular
+set of rules. For a type to be treated as a sequence in pattern
+matching it must have the flag ``Py_TPFLAGS_SEQUENCE`` in its
+internal "type flags", and similarly for a type to be treated
+as a mapping it must have ``Py_TPFLAGS_MAPPING`` set.
+
+There's a number of ways for these flags to be set: they're
+set for a number of builtin types.  They will be set on a
+type where one of the base classes has the flag (including
+the builtin types, and also the relevant abstract base
+class in ``collections.abc``).
+
+A third way to mark a Python class as a
+sequence or mapping would be to register the class with
+either ``collections.abc.Sequence`` or ``collections.abc.Mapping``
+using their ``.register`` function.
+Unfortunately for Cython extension types this does not work because
+Cython extension types are immutable (usually, with certain C defines
+set this may not always be true).
+
+Therefore a Cython extension type can be decorated with
+``@cython.collection_type("sequence")`` or
+``@cython.collection_type("mapping")`` to set the respective type flag.
+Pattern matching will then use the type as intended.
+
+Additionally, Cython can use the decorator as hint for its protocol implementation.
+Declaring a type as ``sequence`` may allow subscripting code to bypass
+the potentially less efficient ``mapping`` protocol and pass indices
+without wrapping them in Python objects first.
+See :ref:`sequences and mappings <sequences_and_mappings>`.
+
+Finally, these decorators are needed to make the ``collections.abc``
+type registration work.
+We recommend you use them *in addition* to type registration
+although pattern matching will work with the decorator alone.
+If your Cython class would become a sequence or mapping
+through inheritance then it does not need the decorators
+although you may choose to provide them for clarity.
+
+As an example:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/sequence.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/sequence.pyx
+
+Then in Python (since Cython doesn't currently implement pattern matching)::
+
+    r5 = Range5()
+    match r5:
+        case [*_]:
+            print("success")
+        case _:
+            assert False
+
 Public and external extension types
 ====================================
 
@@ -1065,7 +1135,7 @@ built-in complex object::
         } PyComplexObject;
 
        At runtime, a check will be performed when importing the Cython
-       c-extension module that ``__builtin__.complex``'s ``tp_basicsize``
+       c-extension module that ``__builtin__.complex``'s :c:member:`PyTypeObject.tp_basicsize`
        matches ``sizeof(`PyComplexObject)``. This check can fail if the Cython
        c-extension module was compiled with one version of the
        ``complexobject.h`` header but imported into a Python with a changed
@@ -1101,10 +1171,10 @@ Where:
   declared type object.
 - ``cs_option`` is ``warn`` (the default), ``error``, or ``ignore`` and is only
   used for external extension types.  If ``error``, the ``sizeof(object_struct)``
-  that was found at compile time must match the type's runtime ``tp_basicsize``
+  that was found at compile time must match the type's runtime :c:member:`PyTypeObject.tp_basicsize`
   exactly, otherwise the module import will fail with an error.  If ``warn``
   or ``ignore``, the ``object_struct`` is allowed to be smaller than the type's
-  ``tp_basicsize``, which indicates the runtime type may be part of an updated
+  :c:member:`PyTypeObject.tp_basicsize`, which indicates the runtime type may be part of an updated
   module, and that the external module's developers extended the object in a
   backward-compatible fashion (only adding new fields to the end of the object).
   If ``warn``, a warning will be emitted in this case.
@@ -1124,7 +1194,7 @@ Attribute name matching and aliasing
 ------------------------------------
 
 Sometimes the type's C struct as specified in ``object_struct_name`` may use
-different labels for the fields than those in the ``PyTypeObject``. This can
+different labels for the fields than those in the :c:type:`PyTypeObject`. This can
 easily happen in hand-coded C extensions where the ``PyTypeObject_Foo`` has a
 getter method, but the name does not match the name in the ``PyFooObject``. In
 NumPy, for instance, python-level ``dtype.itemsize`` is a getter for the C
@@ -1209,6 +1279,29 @@ must use `cdef inline`.
 For example, the above ``complex`` type could also be declared like this:
 
 .. literalinclude:: ../../examples/userguide/extension_types/c_property.pyx
+
+Since Cython 3.3, inline properties can have setters::
+
+    @property
+    cdef inline a_settable_property(self):
+        return get_property_value(self)
+
+    @a_settable_property.setter
+    cdef inline int a_settable_property(self, value) except -1:
+        set_property_value(self, value)
+
+Property setter methods can be declared as returning an ``int`` error return value,
+``0`` for success and ``-1`` when an exception was raised, by adding an exception
+modifier ``except -1`` or ``except? -1`` (to double check with ``PyErr_Occurred()``).
+
+If a setter method never raises, it can instead be declared with a ``void`` return
+type and ``noexcept``, i.e.::
+
+    @a_settable_property
+    cdef inline void a_settable_property(self, value) noexcept:
+        set_property_value(self, value)
+
+Other signatures are rejected.
 
 Implicit importing
 ------------------
@@ -1297,8 +1390,8 @@ here only briefly outlines the differences - if you plan on using them
 then please read `the documentation for the standard library module
 <https://docs.python.org/3/library/dataclasses.html>`_.
 
-Dataclasses can be declared using the ``@dataclasses.dataclass`` 
-decorator on a Cython extension type (types marked ``cdef`` or created with the 
+Dataclasses can be declared using the ``@dataclasses.dataclass``
+decorator on a Cython extension type (types marked ``cdef`` or created with the
 ``cython.cclass`` decorator). Alternatively the ``@cython.dataclasses.dataclass``
 decorator can be applied to any class to both turn it into an extension type and
 a dataclass. If
@@ -1318,6 +1411,6 @@ you need to define special properties on a field then use ``dataclasses.field``
 You may use C-level types such as structs, pointers, or C++ classes.
 However, you may find these types are not compatible with the auto-generated
 special methods - for example if they cannot be converted from a Python
-type they cannot be passed to a constructor, and so you must use a 
+type they cannot be passed to a constructor, and so you must use a
 ``default_factory`` to initialize them. Like with the Python implementation, you can also control
 which special functions an attribute is used in using ``field()``.

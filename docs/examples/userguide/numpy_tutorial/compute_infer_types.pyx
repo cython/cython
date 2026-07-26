@@ -13,6 +13,7 @@ cdef int clip(int a, int min_value, int max_value):
 @cython.wraparound(False)
 def compute(int[:, ::1] array_1, int[:, ::1] array_2, int a, int b, int c):
 
+
     x_max = array_1.shape[0]
     y_max = array_1.shape[1]
 
@@ -23,6 +24,7 @@ def compute(int[:, ::1] array_1, int[:, ::1] array_2, int a, int b, int c):
 
     cdef int tmp
     cdef Py_ssize_t x, y
+
 
     for x in range(x_max):
         for y in range(y_max):

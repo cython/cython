@@ -1,3 +1,5 @@
+:orphan:
+
 .. highlight:: cython
 
 .. _interfacing_with_other_code:

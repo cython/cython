@@ -1,4 +1,5 @@
 # mode: run
+# cython: language_level=3
 
 import cython
 from cython import sizeof
@@ -88,6 +89,47 @@ def test_boundscheck(x):
     with cython.boundscheck(True):
         return x[2]
 
+def test_if_likely(x):
+    """
+    >>> test_if_likely(1)
+    'positive'
+    >>> test_if_likely(-1)
+    'negative'
+    """
+    if cython.likely(x >= 0):
+        return 'positive'
+    else:
+        return 'negative'
+
+def test_if_unlikely(x):
+    """
+    >>> test_if_unlikely(1)
+    'positive'
+    >>> test_if_unlikely(-1)
+    'negative'
+    """
+    if cython.unlikely(x >= 0):
+        return 'positive'
+    else:
+        return 'negative'
+
+def test_cond_expr_likely(x):
+    """
+    >>> test_cond_expr_likely(1)
+    'positive'
+    >>> test_cond_expr_likely(-1)
+    'negative'
+    """
+    return 'positive' if cython.likely(x >= 0) else 'negative'
+
+def test_cond_expr_unlikely(x):
+    """
+    >>> test_cond_expr_unlikely(1)
+    'positive'
+    >>> test_cond_expr_unlikely(-1)
+    'negative'
+    """
+    return 'positive' if cython.unlikely(x >= 0) else 'negative'
 
 ## CURRENTLY BROKEN - FIXME!!
 ## Is this test make sense? Implicit conversion in pure Python??
@@ -306,12 +348,14 @@ def cdef_nogil_false(x):
 def test_cdef_nogil(x):
     """
     >>> test_cdef_nogil(5)
-    18
+    24
     """
     with cython.nogil:
         result = cdef_nogil(x)
     with cython.nogil(True):
         result += cdef_nogil_true(x)
+    with cython.nogil(False), cython.nogil(True), cython.gil(False):
+        result += cdef_nogil(x)
     result += cdef_nogil_false(x)
     return result
 
@@ -408,13 +452,15 @@ def ccall_except_check(x):
     return x+1
 
 
-@cython.test_fail_if_path_exists("//CFuncDeclaratorNode//IntNode[@base_10_value = '-1']")
 @cython.test_assert_path_exists("//CFuncDeclaratorNode")
 @cython.ccall
 @cython.returns(cython.long)
 @cython.exceptval(check=True)
 def ccall_except_check_always(x):
     """
+    Note that this actually takes the same shortcut as for a Cython-syntax cdef function
+    and does except ?-1
+
     >>> ccall_except_check_always(41)
     42
     >>> ccall_except_check_always(0)

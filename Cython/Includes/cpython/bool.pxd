@@ -5,7 +5,7 @@ cdef extern from "Python.h":
     # 7.2.2 Boolean Objects
     ############################################################################
 
-    ctypedef class __builtin__.bool [object PyBoolObject]:
+    ctypedef class __builtin__.bool [object PyLongObject]:
         pass
 
     # Booleans in Python are implemented as a subclass of

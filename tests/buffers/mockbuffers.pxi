@@ -1,5 +1,5 @@
-from libc cimport stdlib
 cimport cpython.buffer
+cimport cpython.mem as pymem
 
 import sys
 
@@ -81,17 +81,17 @@ cdef class MockBuffer:
         self.shape = self.list_to_sizebuf(shape)
 
     def __dealloc__(self):
-        stdlib.free(self.strides)
-        stdlib.free(self.shape)
+        pymem.PyMem_Free(self.strides)
+        pymem.PyMem_Free(self.shape)
         if self.suboffsets != NULL:
-            stdlib.free(self.suboffsets)
+            pymem.PyMem_Free(self.suboffsets)
             # must recursively free indirect...
         else:
-            stdlib.free(self.buffer)
+            pymem.PyMem_Free(self.buffer)
 
     cdef void* create_buffer(self, data) except NULL:
         cdef size_t n = <size_t>(len(data) * self.itemsize)
-        cdef char* buf = <char*>stdlib.malloc(n)
+        cdef char* buf = <char*>pymem.PyMem_Malloc(n)
         if buf == NULL:
             raise MemoryError
         cdef char* it = buf
@@ -109,7 +109,7 @@ cdef class MockBuffer:
         else:
             shape = shape[1:]
             n = <size_t>len(data) * sizeof(void*)
-            buf = <void**>stdlib.malloc(n)
+            buf = <void**>pymem.PyMem_Malloc(n)
             if buf == NULL:
                 return NULL
 
@@ -121,7 +121,7 @@ cdef class MockBuffer:
     cdef Py_ssize_t* list_to_sizebuf(self, l):
         cdef Py_ssize_t i, x
         cdef size_t n = <size_t>len(l) * sizeof(Py_ssize_t)
-        cdef Py_ssize_t* buf = <Py_ssize_t*>stdlib.malloc(n)
+        cdef Py_ssize_t* buf = <Py_ssize_t*>pymem.PyMem_Malloc(n)
         for i, x in enumerate(l):
             buf[i] = x
         return buf
@@ -130,11 +130,11 @@ cdef class MockBuffer:
         if self.fail:
             raise ValueError("Failing on purpose")
 
-        self.received_flags = []
         cdef int value
-        for name, value in available_flags:
-            if (value & flags) == value:
-                self.received_flags.append(name)
+        self.received_flags = [
+            name for name, value in available_flags
+            if (value & flags) == value
+        ]
 
         if flags & cpython.buffer.PyBUF_WRITABLE and not self.writable:
             raise BufferError(f"Writable buffer requested from read-only mock: {' | '.join(self.received_flags)}")

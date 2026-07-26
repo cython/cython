@@ -8,20 +8,24 @@ cdef extern from "<complex>" namespace "std" nogil:
         # How to make the converting constructor, i.e. convert complex[double]
         # to complex[float]?
 
-        complex[T] operator+(complex[T]&)
-        complex[T] operator-(complex[T]&)
         complex[T] operator+(complex[T]&, complex[T]&)
         complex[T] operator+(complex[T]&, T&)
         complex[T] operator+(T&, complex[T]&)
+
         complex[T] operator-(complex[T]&, complex[T]&)
         complex[T] operator-(complex[T]&, T&)
         complex[T] operator-(T&, complex[T]&)
+
         complex[T] operator*(complex[T]&, complex[T]&)
         complex[T] operator*(complex[T]&, T&)
         complex[T] operator*(T&, complex[T]&)
+
         complex[T] operator/(complex[T]&, complex[T]&)
         complex[T] operator/(complex[T]&, T&)
         complex[T] operator/(T&, complex[T]&)
+
+        complex[T] operator+()
+        complex[T] operator-()
 
         bint operator==(complex[T]&, complex[T]&)
         bint operator==(complex[T]&, T&)
@@ -51,6 +55,7 @@ cdef extern from "<complex>" namespace "std" nogil:
     float imag(float)
 
     T abs[T](complex[T]&)
+
     T arg[T](complex[T]&)
     long double arg(long double)
     double arg(double)
@@ -72,7 +77,7 @@ cdef extern from "<complex>" namespace "std" nogil:
     complex[float] proj(float)
 
     complex[T] polar[T](T&, T&)
-    complex[T] ploar[T](T&)
+    complex[T] polar[T](T&)
 
     complex[T] exp[T](complex[T]&)
     complex[T] log[T](complex[T]&)

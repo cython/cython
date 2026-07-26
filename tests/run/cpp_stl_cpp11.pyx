@@ -28,23 +28,6 @@ def test_reference_wrapper():
     return "pass"
 
 
-def test_vector_functionality():
-    """
-    >>> test_vector_functionality()
-    'pass'
-    """
-    cdef:
-        vector[int] int_vector = vector[int]()
-        int* data
-        const int* const_data
-    int_vector.push_back(77)
-    data = int_vector.data()
-    const_data = int_vector.const_data()
-    assert data[0] == 77
-    assert const_data[0] == 77
-    return "pass"
-
-
 def test_queue_functionality():
     """
     >>> test_queue_functionality()
@@ -69,6 +52,11 @@ def test_deque_functionality():
         deque[int] int_deque = deque[int]()
     int_deque.push_back(77)
     int_deque.shrink_to_fit()
+
+    int_deque.emplace_front(66)
+    int_deque.emplace_back(88)
+    assert int_deque.front() == 66
+    assert int_deque.back() == 88
     return "pass"
 
 

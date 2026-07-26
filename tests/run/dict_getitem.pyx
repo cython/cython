@@ -3,6 +3,11 @@
 
 cimport cython
 
+
+def make_frozendict(d):
+    return frozendict(d)
+
+
 def test(dict d, index):
     """
     >>> d = { 1: 10 }
@@ -158,3 +163,45 @@ def getitem_int_key(d, int key):
     """
     # Based on GH-1807: must check Mapping protocol first, even for integer "index" keys.
     return d[key]
+
+
+def getitem_frozendict(frozendict fd, index):
+    """
+    >>> fd = make_frozendict({1: 10})
+    >>> getitem_frozendict(fd, 1)
+    10
+
+    >>> getitem_frozendict(fd, 2)
+    Traceback (most recent call last):
+    KeyError: 2
+
+    >>> getitem_frozendict(fd, (1, 2))
+    Traceback (most recent call last):
+    KeyError: (1, 2)
+
+    >>> class Unhashable:
+    ...    def __hash__(self):
+    ...        raise ValueError
+    >>> getitem_frozendict(fd, Unhashable())
+    Traceback (most recent call last):
+    ValueError
+
+    >>> getitem_frozendict(None, 1) # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...object...
+    """
+    return fd[index]
+
+
+@cython.test_fail_if_path_exists('//NoneCheckNode')
+def getitem_frozendict_not_none(frozendict fd not None, key):
+    """
+    >>> fd = make_frozendict({1: 10})
+    >>> getitem_frozendict_not_none(fd, 1)
+    10
+
+    >>> getitem_frozendict_not_none(fd, 2)
+    Traceback (most recent call last):
+    KeyError: 2
+    """
+    return fd[key]

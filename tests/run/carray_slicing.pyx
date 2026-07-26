@@ -269,7 +269,7 @@ def struct_ptr_iter():
     """
     cdef MyStruct[5] my_structs
     for i in range(5):
-        my_structs[i].i = i
+        my_structs[i].i = <int> i
     cdef MyStruct value
     cdef MyStruct *ptr
     return ([ value.i for value in my_structs[:5] ],

@@ -1,6 +1,11 @@
 
 cimport cython
 
+
+def make_frozendict(d):
+    return frozendict(d)
+
+
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
 def get(dict d, key):
@@ -88,3 +93,45 @@ def get_in_condition(dict d, key, expected_result):
     True
     """
     return d.get(key) is expected_result or d.get(key) == expected_result
+
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def get_frozendict(frozendict fd, key):
+    """
+    >>> fd = make_frozendict({1: 10})
+    >>> get_frozendict(fd, 1)
+    10
+    >>> get_frozendict(fd, 2) is None
+    True
+    >>> get_frozendict(fd, (1, 2)) is None
+    True
+
+    >>> class Unhashable:
+    ...    def __hash__(self):
+    ...        raise ValueError
+    >>> get_frozendict(fd, Unhashable())
+    Traceback (most recent call last):
+    ValueError
+
+    >>> get_frozendict(None, 1)
+    Traceback (most recent call last):
+    ...
+    AttributeError: 'NoneType' object has no attribute 'get'
+    """
+    return fd.get(key)
+
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def get_default_frozendict(frozendict fd, key, default):
+    """
+    >>> fd = make_frozendict({1: 10})
+    >>> get_default_frozendict(fd, 1, 2)
+    10
+    >>> get_default_frozendict(fd, 2, 2)
+    2
+    >>> get_default_frozendict(fd, (1, 2), 2)
+    2
+    """
+    return fd.get(key, default)

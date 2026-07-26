@@ -24,38 +24,47 @@ static int __Pyx_cdivision_warning(const char *filename, int lineno) {
 
 /////////////// DivInt.proto ///////////////
 
-static CYTHON_INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s, %(type)s); /* proto */
+static CYTHON_INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s, %(type)s, int b_is_constant); /* proto */
 
 /////////////// DivInt ///////////////
 
-static CYTHON_INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s a, %(type)s b) {
+static CYTHON_INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s a, %(type)s b, int b_is_constant) {
     %(type)s q = a / b;
     %(type)s r = a - q*b;
-    q -= ((r != 0) & ((r ^ b) < 0));
-    return q;
+    %(type)s adapt_python = (b_is_constant ?
+        // Take advantage of constant folding for 'b'.
+        ((r != 0) & ((r < 0) ^ (b < 0))) :
+        ((r != 0) & ((r ^ b) < 0))
+    );
+    return q - adapt_python;
 }
 
 
 /////////////// ModInt.proto ///////////////
 
-static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
+static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s, int b_is_constant); /* proto */
 
 /////////////// ModInt ///////////////
 
-static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
+static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b, int b_is_constant) {
     %(type)s r = a %% b;
-    r += ((r != 0) & ((r ^ b) < 0)) * b;
-    return r;
+    %(type)s adapt_python = (b_is_constant ?
+        // Take advantage of constant folding for 'b'.
+        ((r != 0) & ((r < 0) ^ (b < 0))) :
+        ((r != 0) & ((r ^ b) < 0))
+    );
+    return r + adapt_python * b;
 }
 
 
 /////////////// ModFloat.proto ///////////////
 
-static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
+static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s, int b_is_constant); /* proto */
 
 /////////////// ModFloat ///////////////
 
-static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
+static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b, int b_is_constant) {
+    CYTHON_UNUSED_VAR(b_is_constant);
     %(type)s r = fmod%(math_h_modifier)s(a, b);
     r += ((r != 0) & ((r < 0) ^ (b < 0))) * b;
     return r;

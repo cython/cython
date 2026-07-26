@@ -9,6 +9,6 @@ cdef class Bar:
 
 
 _ERRORS = """
-7:9: '_operands' redeclared
+7:4: '_operands' redeclared
 5:14: Previous declaration is here
 """

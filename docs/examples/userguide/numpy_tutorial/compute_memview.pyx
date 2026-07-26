@@ -1,5 +1,6 @@
 import numpy as np
 
+
 DTYPE = np.intc
 
 
@@ -8,6 +9,7 @@ cdef int clip(int a, int min_value, int max_value):
 
 
 def compute(int[:, :] array_1, int[:, :] array_2, int a, int b, int c):
+
 
     cdef Py_ssize_t x_max = array_1.shape[0]
     cdef Py_ssize_t y_max = array_1.shape[1]
@@ -23,6 +25,7 @@ def compute(int[:, :] array_1, int[:, :] array_2, int a, int b, int c):
 
     cdef int tmp
     cdef Py_ssize_t x, y
+
 
     for x in range(x_max):
         for y in range(y_max):

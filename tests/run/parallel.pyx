@@ -1,5 +1,5 @@
 # tag: run
-# tag: openmp
+# tag: openmp, threads
 
 cimport cython.parallel
 from cython.parallel import prange, threadid
@@ -36,14 +36,31 @@ cdef int get_num_threads() noexcept with gil:
     print "get_num_threads called"
     return 3
 
-def test_num_threads():
+cdef bint check_size(int size) nogil:
+    return size > 5
+
+def test_num_threads(int size):
     """
-    >>> test_num_threads()
+    >>> test_num_threads(6)
     1
     get_num_threads called
     3
     get_num_threads called
     3
+    get_num_threads called
+    3
+    get_num_threads called
+    3
+    >>> test_num_threads(4)
+    1
+    get_num_threads called
+    1
+    get_num_threads called
+    1
+    get_num_threads called
+    1
+    get_num_threads called
+    1
     """
     cdef int dyn = openmp.omp_get_dynamic()
     cdef int num_threads
@@ -56,20 +73,97 @@ def test_num_threads():
 
     print num_threads
 
-    with nogil, cython.parallel.parallel(num_threads=get_num_threads()):
+    with nogil, cython.parallel.parallel(num_threads=get_num_threads(), use_threads_if=size > 5):
+        p[0] = openmp.omp_get_num_threads()
+
+    print num_threads
+
+    # Checks that temporary variables are released properly
+    with nogil, cython.parallel.parallel(num_threads=get_num_threads(), use_threads_if=check_size(size)):
         p[0] = openmp.omp_get_num_threads()
 
     print num_threads
 
     cdef int i
+    # Checks that temporary variables are released properly
+    for i in prange(1, nogil=True, num_threads=get_num_threads(), use_threads_if=check_size(size)):
+        p[0] = openmp.omp_get_num_threads()
+        break
+
+    print num_threads
+
     num_threads = 0xbad
-    for i in prange(1, nogil=True, num_threads=get_num_threads()):
+    for i in prange(1, nogil=True, num_threads=get_num_threads(), use_threads_if=size > 5):
         p[0] = openmp.omp_get_num_threads()
         break
 
     openmp.omp_set_dynamic(dyn)
 
     return num_threads
+
+cdef int parallel_0_threads() noexcept:
+    # num_threads == 0 is interpreted as "default" and so should compile and run
+    with nogil, cython.parallel.parallel(num_threads=0):
+        return openmp.omp_get_num_threads()
+
+def test_0_threads():
+    """
+    >>> test_0_threads()
+    True
+    """
+    return parallel_0_threads() > 0
+
+cdef int parallel_0_threads_dynamic(int num_threads) noexcept:
+    with nogil, cython.parallel.parallel(num_threads=num_threads):
+        return openmp.omp_get_num_threads()
+
+def test_0_threads_dynamic(num_threads):
+    """
+    0 threads passed as a runtime argument also works to make openp use
+    the default.
+
+    >>> test_0_threads_dynamic(0)
+    True
+    >>> test_0_threads_dynamic(5)
+    True
+    """
+    return parallel_0_threads_dynamic(num_threads) > 0
+
+cdef int prange_0_threads() noexcept:
+    # num_threads == 0 is interpreted as "default" and so should compile and run
+    cdef int arr[10]
+    for i in prange(10, nogil=True, num_threads=0):
+        arr[i] = openmp.omp_get_num_threads()
+    return arr[0]
+
+def test_prange_0_threads():
+    """
+    >>> test_prange_0_threads()
+    True
+    """
+    count = prange_0_threads()
+    assert count > 0, count
+    return count > 0
+
+cdef int prange_0_threads_dynamic(int num_threads) noexcept:
+    # a runtime value of num_threads == 0 can be used to select the default number of threads
+    # so should compile and run.
+    cdef int arr[10]
+    for i in prange(10, nogil=True, num_threads=num_threads):
+        arr[i] = openmp.omp_get_num_threads()
+    return arr[0]
+
+def test_prange_0_threads_dynamic(num_threads):
+    """
+    >>> test_prange_0_threads_dynamic(0)
+    True
+    >>> test_prange_0_threads_dynamic(10)
+    True
+    """
+    count = prange_0_threads_dynamic(num_threads)
+    assert count > 0, count
+    return count > 0
+
 
 '''
 def test_parallel_catch():

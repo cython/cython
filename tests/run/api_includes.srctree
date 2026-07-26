@@ -1,0 +1,54 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import b"
+
+################### setup.py ###################
+
+from setuptools import setup, Extension
+from Cython.Build import cythonize
+
+setup(
+    ext_modules = cythonize("a.pyx") + [
+        Extension("b", ["b.c"])
+    ]
+)
+
+################### a.pyx ######################
+
+cdef api void f() noexcept:
+    pass
+
+################### b.c ###############
+
+// Mostly this is just a compile test. We should be able to include "a_api.h"
+// without compilation errors.
+
+#include "a_api.h"
+#include "Python.h"
+
+static int
+b_module_exec(PyObject *m)
+{
+    if (import_a() != 0) {
+        return -1;
+    }
+    f();
+    return 0;
+}
+
+static PyModuleDef_Slot b_module_slots[] = {
+    {Py_mod_exec, b_module_exec},
+    {0, NULL}
+};
+
+static struct PyModuleDef b_module = {
+    .m_base = PyModuleDef_HEAD_INIT,
+    .m_name = "b",
+    .m_size = 0,
+    .m_slots = b_module_slots,
+};
+
+PyMODINIT_FUNC
+PyInit_b(void)
+{
+    return PyModuleDef_Init(&b_module);
+}

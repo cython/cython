@@ -1,13 +1,8 @@
-# Internals of the "long" type (Python 2) or "int" type (Python 3).
+# Internals of the "int" type.
 
 cdef extern from "Python.h":
-    """
-    #if PY_MAJOR_VERSION < 3
-     #include "longintrepr.h"
-    #endif
-    """
     ctypedef unsigned int digit
-    ctypedef int sdigit  # Python >= 2.7 only
+    ctypedef int sdigit
 
     ctypedef class __builtin__.py_long [object PyLongObject]:
         cdef digit* ob_digit

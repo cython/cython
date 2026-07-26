@@ -171,7 +171,7 @@ First we should look at what conversions Cython generates:
   a ``def`` function with an argument typed as ``std::vector``. This will be auto-converted
   from a Python list::
   
-    from libcpp vector cimport vector
+    from libcpp.vector cimport vector
   
     def print_list(vector[int] x):
         for xi in x:

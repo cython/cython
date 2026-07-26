@@ -2,7 +2,7 @@ my_fused_type = cython.fused_type(cython.int, cython.float)
 
 
 @cython.cfunc
-def func(a: cython.pointer(my_fused_type)):
+def func(a: cython.pointer[my_fused_type]):
     print(a[0])
 
 def main():

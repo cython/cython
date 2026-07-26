@@ -84,6 +84,42 @@ extension modules.  The default for gcc is ``-g2``, for example. Disabling them
 to produce stack traces on crashes (``CFLAGS=-g1`` for gcc), can visibly reduce
 the size of the binaries.
 
+Here are some more things to try:
+
+* If you don't need pickle support for your cdef classes, memoryviews or functions,
+  consider disabling auto-pickle support with a directive::
+
+    # cython: auto_pickle=False
+
+    # you can still enable or disable it locally for single class:
+    @cython.auto_pickle(True)
+    @cclass
+    class MyClass:
+        ...
+
+* If you do not need C line information in exception stack traces (i.e. Python/Cython
+  lines are enough, as for normal Python code), you can disable this feature with the
+  C macro ``CYTHON_CLINE_IN_TRACEBACK``:
+
+    ``-DCYTHON_CLINE_IN_TRACEBACK=0``
+
+  In Cython versions before 3.1, you also had to pass the option ``--no-c-in-traceback``
+  or set the option ``c_line_in_traceback=False`` to get the reduction in size.
+
+* If you do not need Cython implemented functions to look and behave like Python
+  functions when it comes to introspection (argument names, annotations, etc.),
+  you can turn off the ``binding`` directive, either globally, or locally for classes
+  or specific functions.  This will make Cython use the normal CPython implementation
+  for natively implemented functions, which does not expose such functionality.
+
+* If you do not need to expose the docstrings of Python functions and classes,
+  you can exclude them from the extension module with the option
+  :data:`Cython.Compiler.Options.docstrings`.
+
+* If you use memoryviews in multiple modules, you can generate and use a shared utility module.
+  This approach will allow you to have one single utility code shared between all cython modules
+  instead of having them replicated in every module. See :ref:`shared_module` for more detail.
+
 ----------
 
 How well is Unicode supported?
@@ -576,33 +612,33 @@ name) to the list of files to be compiled for the extension.
 
 ----------
 
-How do I automatically generate Cython definition files from C (.h) or C++ (.hpp) header files ?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I automatically generate Cython definition files from C (.h) or C++ (.hpp) header files?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Several people have created scripts to parse header files and
-automatically produce Cython bindings.
+**Answer**: Two actively maintained tools can help automate the creation of
+Cython bindings from C/C++ headers. They serve complementary purposes:
 
-**autowrap**
+**autowrap** generates complete ``.pyx`` wrapper modules from annotated ``.pxd`` files.
 
-autowrap automatically generates python extension modules for wrapping C++
-libraries based on annotated (commented) cython pxd files. Current features
-include wrapping of template classes, enums, free functions and static methods
-as well as converters from Python data types to (many) STL containers and back.
-Finally, also manually written Cython code can be incorporated for wrapping
-code.
+- Takes hand-written or generated ``.pxd`` files with special annotations
+- Produces Python extension modules with automatic type conversions
+- Supports STL containers, exception handling, and operator overloads
+- Useful when fine-grained control over the Python API is needed
 
-http://github.com/uweschmitt/autowrap
+https://github.com/OpenMS/autowrap
 
-**python-autopxd**
+**autopxd2** generates ``.pxd`` declaration files directly from C/C++ headers.
 
-Automatically generate pxd from C headers. It uses
-[pycparser](https://github.com/eliben/pycparser) to parse the definitions, so
-the only requirement beyond python dependencies is a C preprocessor on PATH.
+- Parses unmodified header files using libclang (recommended) or pycparser
+- Supports C and C++ including templates, namespaces, classes, and enums
+- Handles recursive includes and system headers automatically
+- Available via pip: ``pip install autopxd2``
 
-https://github.com/gabrieldemarmiesse/python-autopxd2 (A friendly fork of
-python-autopxd, supporting recent Python versions)
+https://github.com/elijahr/python-autopxd2
 
-https://github.com/tarruda/python-autopxd (original version)
+These tools can be used together: autopxd2 generates the initial ``.pxd``
+declarations, which can then be annotated for autowrap to produce the final
+wrapper code.
 
 ----------
 

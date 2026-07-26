@@ -1,5 +1,4 @@
-# tag: numpy
-# tag: openmp
+# tag: numpy, openmp, threads
 
 cimport cython
 from cython.parallel import prange
@@ -22,7 +21,7 @@ def test_parallel_numpy_arrays():
     4
     """
     cdef Py_ssize_t i, length
-    cdef np.ndarray[np.int_t] x
+    cdef np.ndarray[np.int64_t] x
 
     try:
         import numpy

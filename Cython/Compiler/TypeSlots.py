@@ -9,6 +9,7 @@ from . import PyrexTypes
 from .Errors import error, warn_once
 
 import copy
+import enum
 
 invisible = ['__cinit__', '__dealloc__', '__richcmp__',
              '__nonzero__', '__bool__']
@@ -24,7 +25,7 @@ class Signature:
     #  fixed_arg_format   string
     #  ret_format         string
     #  error_value        string
-    #  use_fastcall       boolean
+    #  use_fastcall       FastcallUsed enum
     #
     #  The formats are strings made up of the following
     #  characters:
@@ -89,8 +90,15 @@ class Signature:
         'z': "-1",
     }
 
+    # Describes whether to use fastcall, and what macro
+    # to use the guard the use of fastcall.
+    class FastcallUsed(enum.IntEnum):
+        NO = 0
+        YES = 1  # guarded by CYTHON_FASTCALL
+        TP_NEW = 2  # guarded by CYTHON_FASTCALL_TPNEW
+
     # Use METH_FASTCALL instead of METH_VARARGS
-    use_fastcall = False
+    use_fastcall = FastcallUsed.NO
 
     def __init__(self, arg_format, ret_format, nogil=False):
         self.has_dummy_arg = False
@@ -200,20 +208,31 @@ class Signature:
                 return "__Pyx_PyCFunction_FastCall" + kw
         return None
 
-    def with_fastcall(self):
+    def with_fastcall(self, fastcall_type=FastcallUsed.YES):
         # Return a copy of this Signature with use_fastcall=True
         sig = copy.copy(self)
-        sig.use_fastcall = True
+        sig.use_fastcall = fastcall_type
         return sig
 
     @property
     def fastvar(self):
         # Used to select variants of functions, one dealing with METH_VARARGS
         # and one dealing with __Pyx_METH_FASTCALL
-        if self.use_fastcall:
+        if self.use_fastcall == self.FastcallUsed.YES:
             return "FASTCALL"
+        elif self.use_fastcall == self.FastcallUsed.TP_NEW:
+            return "FASTCALL_TPNEW"
         else:
             return "VARARGS"
+
+    @property
+    def fastcall_guard(self):
+        if self.use_fastcall == self.FastcallUsed.YES:
+            return "CYTHON_VECTORCALL"
+        elif self.use_fastcall == self.FastcallUsed.TP_NEW:
+            return "CYTHON_VECTORCALL_TPNEW"
+        else:
+            return "1"
 
 
 class SlotDescriptor:
@@ -257,8 +276,9 @@ class SlotDescriptor:
             return
         preprocessor_guard = self.preprocessor_guard_code()
         if not preprocessor_guard:
-            if self.slot_name.startswith('bf_'):
-                # The buffer protocol requires Limited API 3.11, so check if the spec slots are available.
+            if self.slot_name.startswith(('bf_', 'am_')):
+                # The buffer protocol requires Limited API 3.11 and 'am_send' requires 3.10,
+                # so check if the spec slots are available.
                 preprocessor_guard = "#if defined(Py_%s)" % self.slot_name
         if preprocessor_guard:
             code.putln(preprocessor_guard)
@@ -332,10 +352,12 @@ class SlotDescriptor:
             return
 
         if scope.parent_type.typeptr_cname:
-            target = "%s->%s" % (scope.parent_type.typeptr_cname, self.slot_name)
+            target = "%s->%s" % (
+                code.typeptr_cname_in_module_state(scope.parent_type), self.slot_name)
         else:
             assert scope.parent_type.typeobj_cname
-            target = "%s.%s" % (scope.parent_type.typeobj_cname, self.slot_name)
+            target = "%s.%s" % (
+                code.name_in_module_state(scope.parent_type.typeobj_cname), self.slot_name)
 
         code.putln("%s = %s;" % (target, value))
 
@@ -421,7 +443,9 @@ class GCDependentSlot(InternalMethodSlot):
         InternalMethodSlot.__init__(self, slot_name, **kargs)
 
     def slot_code(self, scope):
-        if not scope.needs_gc():
+        # We treat external types as needing gc, but don't generate a slot code
+        # because we don't know it to be able to call it directly.
+        if not scope.needs_gc() or scope.parent_type.is_external:
             return "0"
         if not scope.has_cyclic_pyobject_attrs:
             # if the type does not have GC relevant object attributes, it can
@@ -450,12 +474,20 @@ class ConstructorSlot(InternalMethodSlot):
         InternalMethodSlot.__init__(self, slot_name, **kargs)
         self.method = method
 
+    def to_vectorcall_slot(self):
+        # Return a dummy slot used to implement tp_vectorcall.
+        # It has the same rules about when to generate it as tp_new.
+        assert self.slot_name == "tp_new"
+        self_copy = copy.copy(self)
+        self_copy.slot_name = "tp_new_vectorcall"
+        return self_copy
+
     def _needs_own(self, scope):
         if (scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
-                and not scope.has_cpp_constructable_attrs
-                and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_cname)):
+                and not scope.has_explicitly_constructable_attrs
+                and not (self.slot_name in ('tp_new', 'tp_new_vectorcall') and scope.parent_type.vtabslot_cname)):
             entry = scope.lookup_here(self.method) if self.method else None
             if not (entry and entry.is_special):
                 return False
@@ -476,15 +508,9 @@ class ConstructorSlot(InternalMethodSlot):
             # delegate GC methods to its parent - iff the parent
             # functions are defined in the same module
             slot_code = self._parent_slot_function(scope)
-            return slot_code or '0'
+            if slot_code is not None:
+                return slot_code
         return InternalMethodSlot.slot_code(self, scope)
-
-    def spec_value(self, scope):
-        slot_function = self.slot_code(scope)
-        if self.slot_name == "tp_dealloc" and slot_function != scope.mangle_internal("tp_dealloc"):
-            # Not used => inherit from base type.
-            return "0"
-        return slot_function
 
     def generate_dynamic_init_code(self, scope, code):
         if self.slot_code(scope) != '0':
@@ -493,13 +519,48 @@ class ConstructorSlot(InternalMethodSlot):
         # parent function statically, copy it dynamically.
         base_type = scope.parent_type.base_type
         if base_type.typeptr_cname:
-            src = '%s->%s' % (base_type.typeptr_cname, self.slot_name)
+            base_typeptr_cname = code.typeptr_cname_in_module_state(base_type)
+            src = '%s->%s' % (base_typeptr_cname, self.slot_name)
         elif base_type.is_extension_type and base_type.typeobj_cname:
-            src = '%s.%s' % (base_type.typeobj_cname, self.slot_name)
+            src = '%s.%s' % (code.typeptr_cname_in_module_state(base_type), self.slot_name)
         else:
             return
 
         self.generate_set_slot_code(src, scope, code)
+
+
+class TpVectorcallSlot(ConstructorSlot):
+    def _needs_own(self, scope):
+        return True  # never inherited
+
+    def slot_code(self, scope):
+        tp = scope.parent_type
+        seen_init = False
+        while tp:
+            if not tp.is_extension_type:
+                return "0"
+            if tp.is_external:
+                return "0"
+            if tp.scope.parent_scope is not scope.parent_scope:
+                # In a pxd file. We don't have enough visibility to make this work.
+                return "0"
+            if tp.multiple_bases:
+                return "0"  # Can't reason about __init__
+            # If we don't have the second overloaded alternative for __cinit__ or __init__
+            # this means the signature was wrong and so we haven't generated code for the
+            # vectorcall wrappers in DefNode.analyse_declarations
+            cinit_entry = tp.scope.lookup_here("__cinit__")
+            if cinit_entry and not (cinit_entry.is_special and cinit_entry.tp_new_can_be_vectorcall):
+                return "0"
+            if not seen_init and (init_entry := tp.scope.lookup_here("__init__")):
+                if not (init_entry.is_special and init_entry.tp_new_can_be_vectorcall):
+                    return "0"
+                seen_init = True
+            tp = tp.base_type
+        return super().slot_code(scope)
+
+    def generate_dynamic_init_code(self, scope, code):
+        return  # never do anything dynamic here
 
 
 class SyntheticSlot(InternalMethodSlot):
@@ -525,6 +586,75 @@ class SyntheticSlot(InternalMethodSlot):
         return self.slot_code(scope)
 
 
+class SubscriptSlot(SyntheticSlot):
+    """
+    Slot descriptor that implements the functionally overlapping sequence/mapping slots.
+    """
+    def __init__(self, slot_name, user_methods):
+        super().__init__(slot_name, user_methods, "0")
+
+    _slot_methods = {
+        'sq_item': ['__getitem__'],
+        'sq_ass_item': ['__setitem__', '__delitem__'],
+        'mp_subscript': ['__getitem__'],
+        'mp_ass_subscript': ['__setitem__', '__delitem__'],
+    }
+
+    @staticmethod
+    def find_special_method(scope, method_name):
+        while True:
+            entry = scope.lookup_here(method_name)
+            if entry is not None:
+                return entry if entry.is_special else None
+            base_type = scope.parent_type.base_type
+            if base_type is None or base_type.is_external:
+                return None
+            scope = base_type.scope
+
+    @classmethod
+    def implements_slot(cls, scope, slot_name):
+        scope_implements_methods = False
+        is_sequence_impl = True
+        for method_name in cls._slot_methods[slot_name]:
+            entry = cls.find_special_method(scope, method_name)
+            if entry is None:
+                continue
+            if entry.scope is scope:
+                scope_implements_methods = True
+            if entry.signature != sequence_subscript_signatures[method_name]:
+                is_sequence_impl = False
+
+        if not scope_implements_methods:
+            return False
+
+        if slot_name.startswith('mp_') and scope.parent_type.base_type is not None:
+            # Even when implementing the sequence protocol, a base class might have chosen to
+            # implement the mapping protocol (or may choose to do so in the future),
+            # and that would unfortunately take precedence.
+            return True
+
+        collection_type = scope.directives.get('collection_type')
+        if collection_type == 'mapping':
+            if slot_name.startswith('mp_'):
+                return True
+            # Implementing the Sequence slot doesn't hurt because the Mapping protocol takes precedence.
+        elif collection_type == 'sequence':
+            if slot_name.startswith('sq_'):
+                return True
+            elif is_sequence_impl:
+                # Mapping slot in a Sequence, implemented with sequence signature.
+                # By not implementing it, we allow callers to see that it would be inefficient to use.
+                return False
+
+        return True
+
+    def slot_code(self, scope):
+        if self.implements_slot(scope, self.slot_name):
+            return InternalMethodSlot.slot_code(self, scope)
+        else:
+            return self.default_value
+
+
 class BinopSlot(SyntheticSlot):
     def __init__(self, signature, slot_name, left_method, method_name_to_slot, **kargs):
         assert left_method.startswith('__')
@@ -534,6 +664,17 @@ class BinopSlot(SyntheticSlot):
         # MethodSlot causes special method registration.
         self.left_slot = MethodSlot(signature, "", left_method, method_name_to_slot, **kargs)
         self.right_slot = MethodSlot(signature, "", right_method, method_name_to_slot, **kargs)
+
+
+class InitSlot(MethodSlot):
+    def slot_code(self, scope):
+        super_slot_code = super().slot_code(scope)
+        if super_slot_code != "0":
+            entry = scope.lookup(self.method_name)
+            if entry and entry.is_special and entry.signature.use_fastcall:
+                # we need a wrapper
+                return InternalMethodSlot.slot_code(self, scope)
+        return super_slot_code
 
 
 class RichcmpSlot(MethodSlot):
@@ -553,20 +694,20 @@ class TypeFlagsSlot(SlotDescriptor):
     def slot_code(self, scope):
         value = "Py_TPFLAGS_DEFAULT"
         if scope.directives['type_version_tag']:
-            # it's not in 'Py_TPFLAGS_DEFAULT' in Py2
+            # No longer used since Py3.11.
             value += "|Py_TPFLAGS_HAVE_VERSION_TAG"
         else:
-            # it's enabled in 'Py_TPFLAGS_DEFAULT' in Py3
-            value = "(%s&~Py_TPFLAGS_HAVE_VERSION_TAG)" % value
-        value += "|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
+            # Used to be in 'Py_TPFLAGS_DEFAULT' up to Py3.10.
+            value = f"({value}&~Py_TPFLAGS_HAVE_VERSION_TAG)"
         if not scope.parent_type.is_final_type:
             value += "|Py_TPFLAGS_BASETYPE"
         if scope.needs_gc():
             value += "|Py_TPFLAGS_HAVE_GC"
-        if scope.may_have_finalize():
-            value += "|Py_TPFLAGS_HAVE_FINALIZE"
         if scope.parent_type.has_sequence_flag:
             value += "|Py_TPFLAGS_SEQUENCE"
+        if scope.parent_type.has_mapping_flag:
+            assert not scope.parent_type.has_sequence_flag
+            value += "|Py_TPFLAGS_MAPPING"
         return value
 
     def generate_spec(self, scope, code):
@@ -591,10 +732,11 @@ class SuiteSlot(SlotDescriptor):
     #
     #  sub_slots   [SlotDescriptor]
 
-    def __init__(self, sub_slots, slot_type, slot_name, substructures, ifdef=None):
+    def __init__(self, sub_slots, slot_type, slot_name, substructures, ifdef=None, cast_cname=None):
         SlotDescriptor.__init__(self, slot_name, ifdef=ifdef)
         self.sub_slots = sub_slots
         self.slot_type = slot_type
+        self.cast_cname = cast_cname
         substructures.append(self)
 
     def is_empty(self, scope):
@@ -608,7 +750,10 @@ class SuiteSlot(SlotDescriptor):
 
     def slot_code(self, scope):
         if not self.is_empty(scope):
-            return "&%s" % self.substructure_cname(scope)
+            cast = ""
+            if self.cast_cname:
+                cast = f"({self.cast_cname}*)"
+            return f"{cast}&{self.substructure_cname(scope)}"
         return "0"
 
     def generate_substructure(self, scope, code):
@@ -700,10 +845,11 @@ class BaseClassSlot(SlotDescriptor):
     def generate_dynamic_init_code(self, scope, code):
         base_type = scope.parent_type.base_type
         if base_type:
+            base_typeptr_cname = code.typeptr_cname_in_module_state(base_type)
             code.putln("%s->%s = %s;" % (
-                scope.parent_type.typeptr_cname,
+                code.typeptr_cname_in_module_state(scope.parent_type),
                 self.slot_name,
-                base_type.typeptr_cname))
+                base_typeptr_cname))
 
 
 class DictOffsetSlot(SlotDescriptor):
@@ -712,8 +858,9 @@ class DictOffsetSlot(SlotDescriptor):
     def slot_code(self, scope):
         dict_entry = scope.lookup_here("__dict__") if not scope.is_closure_class_scope else None
         if dict_entry and dict_entry.is_variable:
-            from . import Builtin
-            if dict_entry.type is not Builtin.dict_type:
+            if dict_entry.is_inherited:
+                return "0"
+            if not dict_entry.type.is_pydict_type:
                 error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
                 return "0"
             type = scope.parent_type
@@ -791,18 +938,17 @@ def get_slot_code_by_name(scope, slot_name):
     slot = get_slot_by_name(slot_name, scope.directives)
     return slot.slot_code(scope)
 
-def is_reverse_number_slot(name):
+def is_binop_number_slot(name):
     """
-    Tries to identify __radd__ and friends (so the METH_COEXIST flag can be applied).
+    Tries to identify __add__/__radd__ and friends (so the METH_COEXIST flag can be applied).
 
     There's no great consequence if it inadvertently identifies a few other methods
     so just use a simple rule rather than an exact list.
     """
-    if name.startswith("__r") and name.endswith("__"):
-        forward_name = name.replace("r", "", 1)
-        for meth in get_slot_table(None).PyNumberMethods:
-            if hasattr(meth, "right_slot"):
-                return True
+    slot_table = get_slot_table(None)
+    for meth in get_slot_table(None).PyNumberMethods:
+        if meth.is_binop and name in meth.user_methods:
+            return True
     return False
 
 
@@ -845,6 +991,7 @@ intargfunc = Signature("Ti", "O")          # typedef PyObject *(*intargfunc)(PyO
 ssizeargfunc = Signature("Tz", "O")        # typedef PyObject *(*ssizeargfunc)(PyObject *, Py_ssize_t);
 intintargfunc = Signature("Tii", "O")      # typedef PyObject *(*intintargfunc)(PyObject *, int, int);
 ssizessizeargfunc = Signature("Tzz", "O")  # typedef PyObject *(*ssizessizeargfunc)(PyObject *, Py_ssize_t, Py_ssize_t);
+ssizeargproc = Signature("Tz", "r")        # typedef int(*ssizeargfunc)(PyObject *, Py_ssize_t);
 intobjargproc = Signature("TiO", 'r')      # typedef int(*intobjargproc)(PyObject *, int, PyObject *);
 ssizeobjargproc = Signature("TzO", 'r')    # typedef int(*ssizeobjargproc)(PyObject *, Py_ssize_t, PyObject *);
 intintobjargproc = Signature("TiiO", 'r')  # typedef int(*intintobjargproc)(PyObject *, int, int, PyObject *);
@@ -884,6 +1031,24 @@ initproc = Signature("T*", 'r')            # typedef int (*initproc)(PyObject *,
 
 getbufferproc = Signature("TBi", "r")      # typedef int (*getbufferproc)(PyObject *, Py_buffer *, int);
 releasebufferproc = Signature("TB", "v")   # typedef void (*releasebufferproc)(PyObject *, Py_buffer *);
+
+# typedef PySendResult (*sendfunc)(PyObject* iter, PyObject* value, PyObject** result);
+sendfunc = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
+    return_type=PyrexTypes.PySendResult_type,
+    args=[
+        PyrexTypes.CFuncTypeArg("iter", PyrexTypes.py_object_type),
+        PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type),
+        PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
+    ],
+    exception_value="PYGEN_ERROR",
+    exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
+))
+
+sequence_subscript_signatures = {
+    '__getitem__': ssizeargfunc,
+    '__setitem__': ssizeobjargproc,
+    '__delitem__': ssizeargproc,
+}
 
 
 #------------------------------------------------------------------------------------------
@@ -967,20 +1132,18 @@ class SlotTable:
             MethodSlot(unaryfunc, "nb_index", "__index__", method_name_to_slot),
 
             # Added in release 3.5
-            BinopSlot(bf, "nb_matrix_multiply", "__matmul__", method_name_to_slot,
-                      ifdef="PY_VERSION_HEX >= 0x03050000"),
-            MethodSlot(ibinaryfunc, "nb_inplace_matrix_multiply", "__imatmul__", method_name_to_slot,
-                       ifdef="PY_VERSION_HEX >= 0x03050000"),
+            BinopSlot(bf, "nb_matrix_multiply", "__matmul__", method_name_to_slot),
+            MethodSlot(ibinaryfunc, "nb_inplace_matrix_multiply", "__imatmul__", method_name_to_slot),
         )
 
         self.PySequenceMethods = (
             MethodSlot(lenfunc, "sq_length", "__len__", method_name_to_slot),
             EmptySlot("sq_concat"),  # nb_add used instead
             EmptySlot("sq_repeat"),  # nb_multiply used instead
-            SyntheticSlot("sq_item", ["__getitem__"], "0"),    #EmptySlot("sq_item"),   # mp_subscript used instead
-            MethodSlot(ssizessizeargfunc, "sq_slice", "__getslice__", method_name_to_slot),
-            EmptySlot("sq_ass_item"),  # mp_ass_subscript used instead
-            SyntheticSlot("sq_ass_slice", ["__setslice__", "__delslice__"], "0"),
+            SubscriptSlot("sq_item", ["__getitem__"]),
+            EmptySlot("sq_slice"),
+            SubscriptSlot("sq_ass_item", ["__setitem__", "__delitem__"]),
+            EmptySlot("sq_ass_slice"),
             MethodSlot(cmpfunc, "sq_contains", "__contains__", method_name_to_slot),
             EmptySlot("sq_inplace_concat"),  # nb_inplace_add used instead
             EmptySlot("sq_inplace_repeat"),  # nb_inplace_multiply used instead
@@ -988,8 +1151,8 @@ class SlotTable:
 
         self.PyMappingMethods = (
             MethodSlot(lenfunc, "mp_length", "__len__", method_name_to_slot),
-            MethodSlot(objargfunc, "mp_subscript", "__getitem__", method_name_to_slot),
-            SyntheticSlot("mp_ass_subscript", ["__setitem__", "__delitem__"], "0"),
+            SubscriptSlot("mp_subscript", ["__getitem__"]),
+            SubscriptSlot("mp_ass_subscript", ["__setitem__", "__delitem__"]),
         )
 
         self.PyBufferProcs = (
@@ -1001,18 +1164,19 @@ class SlotTable:
             MethodSlot(unaryfunc, "am_await", "__await__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_aiter", "__aiter__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_anext", "__anext__", method_name_to_slot),
-            EmptySlot("am_send", ifdef="PY_VERSION_HEX >= 0x030A00A3"),
+            # We should not map arbitrary .send() methods to an async slot.
+            #MethodSlot(sendfunc, "am_send", "send", method_name_to_slot),
+            EmptySlot("am_send"),
         )
 
         self.slot_table = (
             ConstructorSlot("tp_dealloc", '__dealloc__'),
-            EmptySlot("tp_print", ifdef="PY_VERSION_HEX < 0x030800b4"),
-            EmptySlot("tp_vectorcall_offset", ifdef="PY_VERSION_HEX >= 0x030800b4"),
+            EmptySlot("tp_vectorcall_offset"),
             EmptySlot("tp_getattr"),
             EmptySlot("tp_setattr"),
 
             SuiteSlot(self. PyAsyncMethods, "__Pyx_PyAsyncMethodsStruct", "tp_as_async",
-                      self.substructures),
+                      self.substructures, cast_cname="PyAsyncMethods"),
 
             MethodSlot(reprfunc, "tp_repr", "__repr__", method_name_to_slot),
 
@@ -1056,7 +1220,7 @@ class SlotTable:
 
             DictOffsetSlot("tp_dictoffset", ifdef="!CYTHON_USE_TYPE_SPECS"),  # otherwise set via "__dictoffset__" member
 
-            MethodSlot(initproc, "tp_init", "__init__", method_name_to_slot),
+            InitSlot(initproc, "tp_init", "__init__", method_name_to_slot),
             EmptySlot("tp_alloc"),  #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
             ConstructorSlot("tp_new", "__cinit__"),
             EmptySlot("tp_free"),
@@ -1071,11 +1235,15 @@ class SlotTable:
             EmptySlot("tp_version_tag"),
             SyntheticSlot("tp_finalize", ["__del__"], "0",
                           used_ifdef="CYTHON_USE_TP_FINALIZE"),
-            EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)"),
+            TpVectorcallSlot("tp_vectorcall",
+                            ifdef="(!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800) && "
+                                  "(!CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030E0000)",
+                            used_ifdef="CYTHON_VECTORCALL_TPNEW"),
             EmptySlot("tp_print", ifdef="__PYX_NEED_TP_PRINT_SLOT == 1"),
             EmptySlot("tp_watched", ifdef="PY_VERSION_HEX >= 0x030C0000"),
+            EmptySlot("tp_versions_used", ifdef="PY_VERSION_HEX >= 0x030d00A4"),
             # PyPy specific extension - only here to avoid C compiler warnings.
-            EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000"),
+            EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x030a0000"),
         )
 
         #------------------------------------------------------------------------------------------
@@ -1089,6 +1257,7 @@ class SlotTable:
         MethodSlot(initproc, "", "__cinit__", method_name_to_slot)
         MethodSlot(destructor, "", "__dealloc__", method_name_to_slot)
         MethodSlot(destructor, "", "__del__", method_name_to_slot)
+        MethodSlot(objargfunc, "", "__getitem__", method_name_to_slot)
         MethodSlot(objobjargproc, "", "__setitem__", method_name_to_slot)
         MethodSlot(objargproc, "", "__delitem__", method_name_to_slot)
         MethodSlot(ssizessizeobjargproc, "", "__setslice__", method_name_to_slot)

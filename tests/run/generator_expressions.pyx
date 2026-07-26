@@ -57,3 +57,30 @@ def genexpr_with_bool_binop(values):
     """
     # copied from CPython's test_itertools.py
     return [tuple((e is None and 'X' or e) for e in t) for t in values]
+
+
+def genexpr_with_sequence_constructor(lhs, rhs):
+    """
+    gh-6725 - the scope for lhs and rhs was being resolved wrongly at one point
+    >>> list(genexpr_with_sequence_constructor(1, 2))
+    [1, 2]
+    """
+    return (a for a, b in [(lhs, rhs), (rhs, lhs)])
+
+
+def genexpr_str_literal():
+    """
+    >>> genexpr_str_literal()
+    ['a', 'b', 'c', 'x', 'y', 'z']
+    """
+    gen = (ch for ch in "abcxyz")
+    return list(gen)
+
+
+def genexpr_bytes_literal():
+    """
+    >>> genexpr_bytes_literal()
+    [97, 98, 99, 120, 121, 122]
+    """
+    gen = (ch for ch in b"abcxyz")
+    return list(gen)

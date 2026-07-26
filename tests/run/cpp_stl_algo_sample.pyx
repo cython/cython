@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp17
+# tag: cpp, cpp17, no-cpp-locals
 
 from libcpp.algorithm cimport sample
 from libcpp.iterator cimport back_inserter

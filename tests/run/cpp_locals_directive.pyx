@@ -41,7 +41,7 @@ cdef extern from *:
     cdef cppclass C:
         C(int)
         C(int, cppbool)
-        int getX() const
+        int getX() nogil const
     C make_C(int) except +  # needs a temp to receive
 
 # this function just makes sure the output from the destructor can be captured by doctest
@@ -137,6 +137,22 @@ def maybe_assign_nocheck(assign, value):
     with cython.initializedcheck(False):
         print(x.getX())
 
+def maybe_assign_nogil(assign, value):
+    """
+    >>> maybe_assign_nogil(True, 5)
+    5
+    ~C()
+    >>> maybe_assign_nogil(False, 0)
+    Traceback (most recent call last):
+        ...
+    UnboundLocalError: local variable 'x' referenced before assignment
+    """
+    if assign:
+        x = C(value)
+    with nogil:
+        read = x.getX()
+    print(read)
+
 def uses_temp(value):
     """
     needs a temp to handle the result of make_C - still doesn't use the default constructor
@@ -169,8 +185,14 @@ cdef class HoldsC:
     10
     >>> inst.getCX()  # it was changed in access_from_function_with_different_directive
     20
+    >>> inst.getCX_nogil()
+    20
     >>> inst = HoldsC(False, False)
     >>> inst.getCX()
+    Traceback (most recent call last):
+        ...
+    AttributeError: C++ attribute 'value' is not initialized
+    >>> inst.getCX_nogil()
     Traceback (most recent call last):
         ...
     AttributeError: C++ attribute 'value' is not initialized
@@ -186,6 +208,11 @@ cdef class HoldsC:
 
     def getCX(self):
         return self.value.getX()
+
+    def getCX_nogil(self):
+        with nogil:
+            read = self.value.getX()
+        return read
 
 cdef acceptC(C& c):
     return c.getX()
@@ -224,8 +251,22 @@ def read_global_var():
     Traceback (most recent call last):
         ...
     NameError: C++ global 'global_var' is not initialized
+    >>> read_global_var_nogil()
+    Traceback (most recent call last):
+        ...
+    NameError: C++ global 'global_var' is not initialized
     >>> initialize_global_var()
     >>> read_global_var()
     -1
+    >>> read_global_var_nogil()
+    -1
     """
     print(global_var.getX())
+
+def read_global_var_nogil():
+    """
+    Tests are in read_global_var docstring
+    """
+    with nogil:
+        val = global_var.getX()
+    print(val)

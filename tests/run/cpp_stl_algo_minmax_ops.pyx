@@ -4,7 +4,7 @@
 from cython.operator cimport dereference as deref
 
 from libcpp cimport bool
-from libcpp.algorithm cimport (min_element, max_element, minmax, minmax_element, 
+from libcpp.algorithm cimport (min_element, max_element, minmax, minmax_element,
                                clamp)
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair

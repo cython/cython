@@ -1,13 +1,12 @@
 import os.path
-import unittest
 import tempfile
 import textwrap
 import shutil
 
-from ..TestUtils import write_file, write_newer_file, _parse_pattern
+from ..TestUtils import TimedTest, write_file, write_newer_file, _parse_pattern
 
 
-class TestTestUtils(unittest.TestCase):
+class TestTestUtils(TimedTest):
     def setUp(self):
         super().setUp()
         self.temp_dir = tempfile.mkdtemp()

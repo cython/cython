@@ -11,8 +11,10 @@ __doc__ = u"""
 >>> try: next(g)
 ... except RuntimeError as exc:
 ...     print(type(exc.__context__) is StopIteration or type(exc.__context__), exc.__context__)
+...     print(type(exc.__cause__) is StopIteration or type(exc.__cause__), exc.__context__)
 ... else:
 ...     print("NOT RAISED!")
+True huhu
 True huhu
 """
 

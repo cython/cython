@@ -13,8 +13,8 @@ u"""
     100
     >>> short_stats['f_cdef']
     100
-    >>> short_stats['f_cpdef'] + (0 if COMPILED else 100)
-    300
+    >>> short_stats['f_cpdef']
+    200
     >>> short_stats['f_inline']
     100
     >>> short_stats['f_inline_prof']
@@ -48,18 +48,13 @@ u"""
     ... else:
     ...     assert not COMPILED
 
-    >>> short_stats['f_raise']
-    100
-
     >>> short_stats['m_def']
     200
     >>> short_stats['m_cdef']
     100
 
-    >>> if COMPILED:
-    ...     assert (short_stats['m_cpdef'] - 100) in (200, 400)  # FIXME!
-    ... else:
-    ...     assert short_stats['m_cpdef'] == 200
+    >>> short_stats['m_cpdef']
+    200
 
     >>> try:
     ...    os.unlink(statsfile)
@@ -111,7 +106,8 @@ u"""
     >>> cython_stats = pstats.Stats(statsfile)
     >>> cython_stats_dict = dict([(k[2], v[1]) for k,v in cython_stats.stats.items()])
 
-    >>> python_stats_dict['python_generator'] == cython_stats_dict['generator']
+    >>> python_stats_dict['python_generator'] == cython_stats_dict['generator']  \
+             or  (python_stats_dict['python_generator'], cython_stats_dict['generator'])
     True
 
     >>> try:
@@ -124,6 +120,53 @@ import cython
 
 COMPILED = cython.compiled
 
+####### Debug helper
+# Use like:
+#   python3 -c 'import pstats_profile_test_py as pp; pp.print_event_traces()' > pytrace.log
+# Then compile the module and run:
+#   python3 -c 'import pstats_profile_test_py as pp; pp.print_event_traces()' > cytrace.log
+# Compare the two logs.
+
+@cython.profile(False)
+@cython.linetrace(False)
+def print_event_traces():
+    trace_events(test_profile)
+    trace_events(test_generators)
+
+
+def trace_events(func=None):
+    if func is None:
+        func = test_profile
+
+    last_code_obj = [None]
+
+    @cython.profile(False)
+    @cython.linetrace(False)
+    def trace_function(frame, event, arg):
+        try:
+            code_obj = frame.f_code
+            if last_code_obj[0] is not code_obj:
+                last_code_obj[0] = code_obj
+                print('')
+            print(f"{event:20}, {code_obj.co_name}:{code_obj.co_firstlineno}, {frame.f_lineno}, {arg}")
+        except Exception as exc:
+            print("EXC:", exc)
+            import traceback
+            traceback.print_stack()
+
+        return trace_function
+
+    import sys
+    try:
+        sys.settrace(trace_function)
+        sys.setprofile(trace_function)
+        func(1)
+    finally:
+        sys.setprofile(None)
+        sys.settrace(None)
+
+
+####### Test code
 
 def callees(pstats, target_caller):
     pstats.calc_callees()
@@ -232,7 +275,7 @@ class A(object):
         return a
 
 
-def test_generators():
+def test_generators(_=None):
     call_generator()
     call_generator_exception()
 

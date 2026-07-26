@@ -27,6 +27,49 @@ def as_objects(char* ascii_data):
     assert isinstance(<unicode>ascii_data, unicode)
     return ascii_data
 
+
+def charptr_as_bool(char *ascii_data):
+    """
+    >>> charptr_as_bool('abc')
+    (True, True, True, True, True, True)
+    >>> charptr_as_bool('')
+    (True, False, False, False, False, False)
+    """
+    a = False
+    if ascii_data:  # Tests the pointer, not the string.
+        a = True
+
+    b = bool(ascii_data)
+    c = bool(<object> ascii_data)
+    d = bool(<bytes> ascii_data)
+    e = bool(<str> ascii_data)
+    f = bool(<unicode> ascii_data)
+
+    return (a, b, c, d, e, f)
+
+
+def carray_as_bool(char *ascii_data):
+    """
+    >>> carray_as_bool('abc')
+    (True, True, True, True, True)
+    >>> carray_as_bool('')
+    (False, False, False, False, False)
+    """
+    cdef char[4] array
+    for i in range(4):
+        array[i] = ascii_data[i]
+        if not ascii_data[i]:
+            break
+
+    b = bool(array)
+    c = bool(<object> array)
+    d = bool(<bytes> array)
+    e = bool(<str> array)
+    f = bool(<unicode> array)
+
+    return (b, c, d, e, f)
+
+
 def from_object():
     """
     >>> from_object()
@@ -37,6 +80,7 @@ def from_object():
     assert strcmp(<char*>b, "abc") == 0
     assert strcmp(<char*>s, "abc") == 0
     assert strcmp(<char*>u, "abc") == 0
+
 
 def slice_as_objects(char* ascii_data, int start, int end):
     """

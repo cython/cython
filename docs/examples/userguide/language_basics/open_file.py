@@ -12,7 +12,7 @@ def open_file():
 
 def allocating_memory(number=10):
     # Note that the type of the variable "my_array" is automatically inferred from the assignment.
-    my_array = cython.cast(p_double, malloc(number * cython.sizeof(double)))
+    my_array = cython.cast(cython.p_double, malloc(number * cython.sizeof(double)))
     if not my_array:  # same as 'is NULL' above
         raise MemoryError()
     ...

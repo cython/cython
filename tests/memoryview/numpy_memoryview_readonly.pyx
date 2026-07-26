@@ -52,7 +52,7 @@ def test_mmview_ro(x):
 
 def test_update_mmview_rw(x):
     """
-    >>> test_update_mmview_rw(new_array())
+    >>> float(test_update_mmview_rw(new_array()))
     23.0
     """
     update_array(x)

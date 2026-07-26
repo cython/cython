@@ -10,7 +10,7 @@
 from __future__ import unicode_literals
 
 from cpython.object cimport PyObject
-from cpython.ref cimport Py_INCREF, Py_DECREF, Py_CLEAR
+from cpython.ref cimport Py_INCREF, Py_DECREF, Py_CLEAR, Py_REFCNT
 cimport cython
 
 import sys
@@ -959,7 +959,7 @@ def decref(*args):
 @cython.binding(False)
 @cython.always_allow_keywords(False)
 def get_refcount(x):
-    return (<PyObject*>x).ob_refcnt
+    return Py_REFCNT(x)
 
 @testcase
 def printbuf_object(object[object] buf, shape):
@@ -985,7 +985,7 @@ def printbuf_object(object[object] buf, shape):
     """
     cdef int i
     for i in range(shape[0]):
-        print repr(buf[i]), (<PyObject*>buf[i]).ob_refcnt
+        print repr(buf[i]), Py_REFCNT(buf[i])
 
 @testcase
 def assign_to_object(object[object] buf, int idx, obj):

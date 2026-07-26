@@ -3,6 +3,8 @@
 # Most useful is the pyx_library rule from //Tools:rules.bzl
 # which mirrors py_library but compiles .pyx files.
 
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+
 py_library(
     name = "cython_lib",
     srcs = glob(
@@ -19,16 +21,15 @@ py_library(
     visibility = ["//visibility:public"],
 )
 
+# May not be named "cython", since that conflicts with Cython/ on OSX
 py_binary(
-    name = "cythonize",
-    srcs = ["cythonize.py"],
+    name = "cython_binary",
+    srcs = ["cython.py"],
+    main = "cython.py",
     visibility = ["//visibility:public"],
     deps = ["cython_lib"],
 )
-
-py_binary(
+alias(
     name = "cython",
-    srcs = ["cython.py"],
-    visibility = ["//visibility:public"],
-    deps = ["cython_lib"],
+    actual = ":cython_binary",
 )

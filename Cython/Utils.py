@@ -1,3 +1,6 @@
+# uses @functools.wraps()
+# cython: binding=True
+
 """
 Cython -- Things that don't belong anywhere else in particular
 """
@@ -6,21 +9,20 @@ Cython -- Things that don't belong anywhere else in particular
 import cython
 
 cython.declare(
-    basestring=object,
-    os=object, sys=object, re=object, io=object, codecs=object, glob=object, shutil=object, tempfile=object,
-    cython_version=object,
-    _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
+    os=object, sys=object, re=object, io=object, glob=object, shutil=object, tempfile=object,
+    update_wrapper=object, partial=object, wraps=object, cython_version=object,
+    _cache_function=object, _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
 )
 
 import os
 import sys
 import re
 import io
-import codecs
 import glob
 import shutil
 import tempfile
 from functools import wraps
+
 
 from . import __version__ as cython_version
 
@@ -59,28 +61,27 @@ def try_finally_contextmanager(gen_func):
     return make_gen
 
 
+try:
+    from functools import cache as _cache_function
+except ImportError:
+    from functools import lru_cache
+    _cache_function = lru_cache(maxsize=None)
+
+
 _function_caches = []
 
 
 def clear_function_caches():
     for cache in _function_caches:
-        cache.clear()
+        cache.cache_clear()
 
 
 def cached_function(f):
-    cache = {}
-    _function_caches.append(cache)
-    uncomputed = object()
+    cf = _cache_function(f)
+    _function_caches.append(cf)
+    cf.uncached = f  # needed by coverage plugin
+    return cf
 
-    @wraps(f)
-    def wrapper(*args):
-        res = cache.get(args, uncomputed)
-        if res is uncomputed:
-            res = cache[args] = f(*args)
-        return res
-
-    wrapper.uncached = f
-    return wrapper
 
 
 def _find_cache_attributes(obj):
@@ -132,13 +133,9 @@ def open_new_file(path):
         # safely hard link the output files.
         os.unlink(path)
 
-    # we use the ISO-8859-1 encoding here because we only write pure
-    # ASCII strings or (e.g. for file names) byte encoded strings as
-    # Unicode, so we need a direct mapping from the first 256 Unicode
-    # characters to a byte sequence, which ISO-8859-1 provides
-
-    # note: can't use io.open() in Py2 as we may be writing str objects
-    return codecs.open(path, "w", encoding="ISO-8859-1")
+    # We only write pure ASCII code strings, but need to write file paths in position comments.
+    # Those are encoded in UTF-8 so that tools can parse them out again.
+    return open(path, "w", encoding="UTF-8")
 
 
 def castrate_file(path, st):
@@ -305,7 +302,7 @@ def find_versioned_file(directory, filename, suffix,
     assert not suffix or suffix[:1] == '.'
     path_prefix = os.path.join(directory, filename)
 
-    matching_files = glob.glob(path_prefix + ".cython-*" + suffix)
+    matching_files = glob.glob(glob.escape(path_prefix) + ".cython-*" + suffix)
     path = path_prefix + suffix
     if not os.path.exists(path):
         path = None
@@ -460,37 +457,6 @@ def long_literal(value):
     return not -2**31 <= value < 2**31
 
 
-@cached_function
-def get_cython_cache_dir():
-    r"""
-    Return the base directory containing Cython's caches.
-
-    Priority:
-
-    1. CYTHON_CACHE_DIR
-    2. (OS X): ~/Library/Caches/Cython
-       (posix not OS X): XDG_CACHE_HOME/cython if XDG_CACHE_HOME defined
-    3. ~/.cython
-
-    """
-    if 'CYTHON_CACHE_DIR' in os.environ:
-        return os.environ['CYTHON_CACHE_DIR']
-
-    parent = None
-    if os.name == 'posix':
-        if sys.platform == 'darwin':
-            parent = os.path.expanduser('~/Library/Caches')
-        else:
-            # this could fallback on ~/.cache
-            parent = os.environ.get('XDG_CACHE_HOME')
-
-    if parent and os.path.isdir(parent):
-        return os.path.join(parent, 'cython')
-
-    # last fallback: ~/.cython
-    return os.path.expanduser(os.path.join('~', '.cython'))
-
-
 @try_finally_contextmanager
 def captured_fd(stream=2, encoding=None):
     orig_stream = os.dup(stream)  # keep copy of original stream
@@ -582,6 +548,16 @@ class OrderedSet:
     __nonzero__ = __bool__
 
 
+def set_dedup(it):
+    """Deduplicate the items in an iterable using a set.
+    """
+    seen = set()
+    for item in it:
+        if item not in seen:
+            seen.add(item)
+            yield item
+
+
 # Class decorator that adds a metaclass and recreates the class with it.
 # Copied from 'six'.
 def add_metaclass(metaclass):
@@ -644,14 +620,14 @@ def write_depfile(target, source, dependencies):
     # paths below the base_dir are relative, otherwise absolute
     paths = []
     for fname in dependencies:
-        if fname.startswith(src_base_dir):
-            try:
-                newpath = os.path.relpath(fname, cwd)
-            except ValueError:
-                # if they are on different Windows drives, absolute is fine
-                newpath = os.path.abspath(fname)
-        else:
+        try:
+            newpath = os.path.relpath(fname, cwd)
+        except ValueError:
+            # if they are on different Windows drives, absolute is fine
             newpath = os.path.abspath(fname)
+
+        # Escape spaces
+        newpath = newpath.replace(" ", "\\ ")
         paths.append(newpath)
 
     depline = os.path.relpath(target, cwd) + ": \\\n  "

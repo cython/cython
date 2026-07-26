@@ -34,6 +34,7 @@ def compute(my_type[:, ::1] array_1, my_type[:, ::1] array_2, my_type a, my_type
     cdef my_type tmp
     cdef Py_ssize_t x, y
 
+
     for x in range(x_max):
         for y in range(y_max):
 

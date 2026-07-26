@@ -36,3 +36,26 @@ cdef class ExtTypeNoGC(BaseTypeNoGC):
     >>> create_obj(PyExtTypeNoGC)
     """
     cdef int x
+
+
+cdef extern from "Python.h":
+    ctypedef extern class builtins.Exception[object PyBaseExceptionObject]:
+        pass
+
+
+cdef class Error(Exception):
+    pass
+
+
+cdef class GeneratedError(Error):
+    """
+    >>> create_obj(GeneratedError)                
+    >>> create_obj(GeneratedError)                
+    >>> create_obj(GeneratedError)                
+                                               
+    >>> class PyGeneratedError(GeneratedError): pass 
+    >>> create_obj(PyGeneratedError)              
+    >>> create_obj(PyGeneratedError)              
+    >>> create_obj(PyGeneratedError)              
+    """
+    cdef object attr

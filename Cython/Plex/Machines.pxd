@@ -14,13 +14,14 @@ cdef class Machine:
 
     cpdef new_state(self)
     cpdef new_initial_state(self, name)
+    cpdef make_initial_state(self, name, state)
 
 
 @cython.final
 cdef class Node:
     cdef readonly TransitionMap transitions
     cdef readonly Action action
-    cdef public dict epsilon_closure
+    cdef public set epsilon_closure
     cdef readonly Py_ssize_t number
     cdef readonly int action_priority
 
@@ -31,3 +32,5 @@ cdef class FastMachine:
     cdef readonly dict new_state_template
     cdef readonly list states
     cdef readonly Py_ssize_t next_number
+
+    cpdef make_initial_state(self, name, state)

@@ -63,3 +63,21 @@ def test_cimported_attribute():
     """
     cdef char a[limits.CHAR_MAX]
     return sizeof(a) >= 127
+
+
+cdef extern from *:
+    """
+    struct S {
+        char arr[sizeof(int)];
+    };
+    """
+    struct S:
+        char arr[sizeof(int)]
+
+def test_extern_sizeof_array():
+    """
+    >>> test_extern_sizeof_array()
+    True
+    """
+    cdef S s
+    return sizeof(s.arr) == sizeof(int)
