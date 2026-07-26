@@ -1141,7 +1141,8 @@ static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
     return metaclass;
 }
 
-/////////////// Py3MetaclassGet.proto ///////////////
+/////////////// Py3MetaclassGet.export ///////////////
+//@feature: PythonClasses
 
 static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw); /*proto*/
 
@@ -1205,7 +1206,8 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
     return result;
 }
 
-/////////////// Py3UpdateBases.proto ///////////////
+/////////////// Py3UpdateBases.export ///////////////
+//@feature: PythonClasses
 
 static PyObject* __Pyx_PEP560_update_bases(PyObject *bases); /* proto */
 
@@ -1329,7 +1331,8 @@ error:
     return NULL;
 }
 
-/////////////// Py3ClassCreate.proto ///////////////
+/////////////// Py3ClassCreate.export ///////////////
+//@feature: PythonClasses
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *qualname,
                                            PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
