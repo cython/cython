@@ -41,9 +41,13 @@ def make_command_file(path_to_debug_info, prefix_code='',
         f.write(prefix_code)
         virtualenv_code = ''
         virtualenv = os.getenv('VIRTUAL_ENV')
+        sys_version_info_code = repr(sys.version_info[:2])
+        has_gil_code = repr(hasattr(sys, "_is_gil_enabled"))
+        platform_machine_code = repr("") 
         if virtualenv:
             import site
             import pathlib
+            import platform
             # Emulating the virtual env we're in will always be imperfect. But:
             # * Work out the site packages from the current interpreter and add those
             #   to the start of the path to let those be found first.
@@ -58,6 +62,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
                 f'import site; {"; ".join(f"site.addsitedir({p!r})" for p in sitepackages)}; '
                 f'print("gdb command file: Activating virtualenv: {virtualenv}")'
             )
+            platform_machine_code = repr(platform.machine())
         f.write(textwrap.dedent(f'''\
             # This is a gdb command file
             # See https://sourceware.org/gdb/onlinedocs/gdb/Command-Files.html
@@ -67,8 +72,16 @@ def make_command_file(path_to_debug_info, prefix_code='',
 
             python
             try:
-                # Activate virtualenv, if we were launched from one
-                {virtualenv_code}
+                import sys
+                import platform
+                if (sys.version_info[:2] == {sys_version_info_code} and
+                        hasattr(sys, "_is_gil_enabled") == {has_gil_code} and
+                        platform.machine() == {platform_machine_code}):
+                    # Activate virtualenv, if we were launched from one
+                    {virtualenv_code}
+                else:
+                    print("Not activating virtual environment for mismatched Python version",
+                        {sys_version_info_code}, {has_gil_code}, {platform_machine_code})
                 from Cython.Debugger import libcython, libpython
             except Exception as ex:
                 from traceback import print_exc
