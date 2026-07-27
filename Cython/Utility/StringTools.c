@@ -178,11 +178,11 @@ static CYTHON_SMALL_CODE size_t __pyx_lzss_decompress(const uint8_t* src, uint8_
                     match_length = hi;
                 } else if (!(hi & 0x80)) {
                     // 2+7 bit offset + 5 bit length
-                    end_offset_of_last_occurrence = ((hi << 2) & 0x180) | (lo & 0x7F);
+                    end_offset_of_last_occurrence = 0x80 + (((hi << 2) & 0x180) | (lo & 0x7F));
                     match_length = hi & 0x1F;
                 } else {
                     // 7+7 bit offset + 8 bit length
-                    end_offset_of_last_occurrence = (hi & 0x7F) << 7 | (lo & 0x7F);
+                    end_offset_of_last_occurrence = 0x80 + ((hi & 0x7F) << 7 | (lo & 0x7F));
                     match_length = src[pos++];
                 }
 
