@@ -54,6 +54,7 @@ jobs:
 
   benchmarks:
     runs-on: ubuntu-latest
+    needs: [file-changes]
 
     if: |
       (github.event.action != 'labeled' && needs.file-changes.outputs.pr-files == 'true') ||
