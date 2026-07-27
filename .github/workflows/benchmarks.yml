@@ -16,14 +16,6 @@ on:
     # * benchmark (explicit)
     # * performance (implicit)
     types: [opened, synchronize, reopened, labeled]
-    paths:
-      # Only run on PRs likely to affect benchmark code generation
-      - ".github/workflows/benchmarks.yml"
-      - "Demos/benchmarks/**"
-      - "Cython/Utility/**"
-      - "Cython/Compiler/Nodes.py"
-      - "Cython/Compiler/ExprNodes.py"
-      - "Cython/Compiler/Optimize.py"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
@@ -33,10 +25,39 @@ permissions:
   contents: read # to fetch code (actions/checkout)
 
 jobs:
+  file-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      pr-files: ${{ steps.filter.outputs.pr-files }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
+      # Only needed to compare the "base" on push; not needed for PR
+      if: ${{ github.event_name == 'push' }}
+    - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
+      id: filter
+      with:
+        base: ${{ case(github.event_name == 'push', github.ref, '') }}
+        filters: |
+          pr-files:
+          # Only run on PRs likely to affect benchmark code generation
+          - ".github/workflows/benchmarks.yml"
+          - "Demos/benchmarks/**"
+          - "Cython/Utility/**"
+          - "Cython/Compiler/Nodes.py"
+          - "Cython/Compiler/ExprNodes.py"
+          - "Cython/Compiler/Optimize.py"
+
   benchmarks:
     runs-on: ubuntu-latest
 
-    if: github.event.action != 'labeled' || github.event.label.name == 'benchmark' || github.event.label.name == 'performance'
+    if: |
+      (github.event.action != 'labeled' && needs.file-changes.outputs.pr-files == 'true') ||
+        github.event.label.name == 'benchmark' || github.event.label.name == 'performance'
 
     env:
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
