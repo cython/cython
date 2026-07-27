@@ -6,11 +6,10 @@ on:
     branches:
       - master
   pull_request:
-  label:
     # Accepted labels (in the 'if' condition below) are:
     # * sanitizers
     # * full_sanitizers - runs thread sanitizer on all tests
-    types: [created]
+    types: [opened, synchronize, reopened, labeled]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
@@ -65,7 +64,11 @@ jobs:
       cpp_compiler: clang++
       sanitize: ${{ matrix.sanitizer }}
       name: ${{ matrix.sanitizer }}
-    if: ${{ case(github.event_name == 'push', needs.file-changes.outputs.push-files == 'true', github.event_name == 'pull_request', needs.file-changes.outputs.pr-files == 'true', github.event_name == 'label', github.event.label.name == 'sanitizers' || github.event.label.name == 'full_sanitizers', 'true') }}
+    if: |
+      case(
+        github.event_name == 'push', needs.file-changes.outputs.push-files == 'true',
+        github.event_name == 'pull_request' && github.event.action != 'labeled', needs.file-changes.outputs.pr-files == 'true',
+        github.event_name == 'pull_request' && github.event.action == 'labeled' && (github.event.label.name == 'sanitizers' || github.event.label.name == 'full_sanitizers'), 'true')
 
   pydebug:
     uses: ./.github/workflows/compiled_python.yml
