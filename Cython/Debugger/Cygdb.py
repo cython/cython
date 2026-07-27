@@ -43,7 +43,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
         virtualenv = os.getenv('VIRTUAL_ENV')
         sys_version_info_code = repr(sys.version_info[:2])
         has_gil_code = repr(hasattr(sys, "_is_gil_enabled"))
-        platform_machine_code = repr("") 
+        platform_machine_code = repr("")
         if virtualenv:
             import site
             import pathlib
