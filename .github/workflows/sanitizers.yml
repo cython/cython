@@ -68,7 +68,8 @@ jobs:
       case(
         github.event_name == 'push', needs.file-changes.outputs.push-files == 'true',
         github.event_name == 'pull_request' && github.event.action != 'labeled', needs.file-changes.outputs.pr-files == 'true',
-        github.event_name == 'pull_request' && github.event.action == 'labeled' && (github.event.label.name == 'sanitizers' || github.event.label.name == 'full_sanitizers'), 'true')
+        github.event_name == 'pull_request' && github.event.action == 'labeled', github.event.label.name == 'sanitizers' || github.event.label.name == 'full_sanitizers',
+        'true')
 
   pydebug:
     uses: ./.github/workflows/compiled_python.yml
