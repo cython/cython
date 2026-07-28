@@ -11,5 +11,4 @@ def f():
 
 _ERRORS = u"""
 9:14: Unable to determine the type to cast to
-9:14: Cannot assign type '<error>' to '<unspecified>'
 """
