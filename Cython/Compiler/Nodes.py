@@ -832,6 +832,19 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                         error(self.exception_value.pos,
                               "Exception value must be a Python exception, or C++ function with no arguments, or *.")
                     exc_val = self.exception_value
+                elif return_type.is_fused:
+                    # Return type is not specialized yet. Since there is no exact return type, the enclosing function
+                    # is copied per fused-type permutation in FusedNode.py(), so it can't convert the exception value
+                    # to a specific C type here. Check the exception as-is against all potential types.
+                    # Also, CFuncType.specialize() re-targets the resulting ExceptionValue
+                    # at the concrete return type of each specialization.
+                    self.exception_value = self.exception_value.analyse_types(env).analyse_const_expression(env)
+                    exc_val = self.exception_value.as_exception_value(env)
+                    permutations = PyrexTypes.get_all_specialized_permutations(return_type.get_fused_types())
+                    if not all(return_type.specialize(mapping).assignable_from(self.exception_value.type)
+                                    for _, mapping in permutations):
+                        error(self.exception_value.pos,"Exception value incompatible with function return type")
+
                 else:
                     self.exception_value = self.exception_value.analyse_types(env).coerce_to(
                         return_type, env).analyse_const_expression(env)
