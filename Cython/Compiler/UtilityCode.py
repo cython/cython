@@ -332,7 +332,7 @@ class CythonSharedUtilityCode(Code.AbstractUtilityCode):
             self._shared_library_scope = self.find_module(cython_scope.context)
         for dep in self.requires:
             if dep.is_cython_utility:
-                dep.declare_in_scope(scope, cython_scope=cython_scope)
+                dep.declare_in_scope(dest_scope, cython_scope=cython_scope)
         for e in self._shared_library_scope.c_class_entries:
             dest_scope.add_imported_entry(e.name, e, e.pos)
         for e in self._shared_library_scope.var_entries:
