@@ -1152,6 +1152,8 @@ class ExprNode(Node):
         return src
 
     def fail_assignment(self, dst_type):
+        if self.type.is_error or dst_type.is_error:
+            return  # Reported elsewhere.
         src_name = self.entry.name if hasattr(self, "entry") else None
         src_resolved = f" (alias of '{self.type.resolve()}')" if self.type.is_typedef else ""
         dst_resolved = f" (alias of '{dst_type.resolve()}')" if dst_type.is_typedef else ""
@@ -12043,6 +12045,12 @@ class TypecastNode(ExprNode):
         if self.type.is_cfunction:
             error(self.pos,
                 "Cannot cast to a function type")
+            self.type = PyrexTypes.error_type
+        elif self.type.is_unspecified:
+            # e.g. cython.cast(cython.typeof(x), ...) where typeof() could not
+            # be resolved to a concrete type; report an error instead of crashing.
+            error(self.pos,
+                "Unable to determine the type to cast to")
             self.type = PyrexTypes.error_type
         self.operand = self.operand.analyse_types(env)
         if self.type is PyrexTypes.c_bint_type:
