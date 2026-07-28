@@ -18,6 +18,8 @@ Features added
 
 * The feature set of the shared module can be selected at build time
   by listing named features to include or exclude.
+  This is an experimental configuration, subject to further improvements.
+  Failures to include used features will currently result in import failures.
   (Github issue :issue:`7759`)
 
 * To control the generation of the shared module, the ``cython`` command gained

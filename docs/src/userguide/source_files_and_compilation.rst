@@ -243,12 +243,15 @@ which includes names like ``MemoryView`` or ``AutoPickle``.  Cython accepts a po
 and a negative list as follows.  If both options are provided, excludes are removed after
 selecting from the positive list.
 
+To help with defining a positive list, the feature name ``"DEFAULTS"`` can be used to
+start with an active set of features that are likely required.
+
 * via the ``cython`` command:
 
    .. code-block:: console
 
        $ cython generate-shared shared.c \
-                --only MemoryView,AutoPickle  # positive list
+                --only DEFAULTS,MemoryView,AutoPickle  # positive list
 
        $ cython generate-shared shared.c \
                 --exclude MemoryView  # negative list
@@ -260,7 +263,7 @@ via ``cythonize()`` in ``setup.py``:
        cythonize(
            extensions,
            shared_utility_qualified_name='mypkg.shared._cyutility',
-           shared_utility_features_enabled=['MemoryView'],  # positive list
+           shared_utility_features_enabled=['DEFAULTS', 'MemoryView'],  # positive list
            shared_utility_features_disabled=['AutoPickle'],  # negative list
        )
 
