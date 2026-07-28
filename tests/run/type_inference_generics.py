@@ -5,6 +5,7 @@
 # for the benefit of the pure tests, don't require annotations
 # to be evaluated
 from __future__ import annotations
+import cython
 
 class A:
     pass
@@ -31,3 +32,22 @@ def test_iterator_next_node_coercion(N: list[int]):
         if n < 0:
             return True
     return False
+
+
+def test_assign_builtin_method():
+    """
+    >>> test_assign_builtin_method()
+    int
+    """
+    l: list[list[cython.int]] = [[0]]
+    i = l.pop().pop()
+    print(cython.typeof(i))
+
+
+def test_builtin_method_expression():
+    """
+    >>> test_builtin_method_expression()
+    int
+    """
+    l: list[list[cython.int]] = [[1]]
+    print(cython.typeof(l.pop().pop()))

@@ -6283,7 +6283,7 @@ class CallNode(ExprNode):
                 return False
         return ExprNode.may_be_none(self)
 
-    def set_py_result_type(self, env, function, func_type=None):
+    def coerce_to_result_type(self, env, function, func_type=None):
         # Default to 'object' and then try to find a better type.
         self.type = py_object_type
         if func_type is None:
@@ -6311,10 +6311,11 @@ class CallNode(ExprNode):
             method_obj_type = function.obj.type
             result_type = Builtin.find_return_type_of_builtin_method(self.pos, env, method_obj_type, function.attribute)
             self.may_return_none = result_type is py_object_type
-            if result_type.is_pyobject:
-                self.type = result_type
-            elif result_type.equivalent_type:
-                self.type = result_type.equivalent_type
+            if result_type != self.type:
+                if not result_type.is_pyobject and result_type.equivalent_type:
+                    result_type = result_type.equivalent_type
+                return self.coerce_to(result_type, env)
+        return self
 
     def analyse_as_type_constructor(self, env):
         """
@@ -6497,8 +6498,8 @@ class SimpleCallNode(CallNode):
             self.arg_tuple = TupleNode(self.pos, args = self.args)
             self.arg_tuple = self.arg_tuple.analyse_types(env).coerce_to_pyobject(env)
             self.args = None
-            self.set_py_result_type(env, function, func_type)
             self.is_temp = 1
+            return self.coerce_to_result_type(env, function, func_type)
         else:
             self.args = [ arg.analyse_types(env) for arg in self.args ]
             self.analyse_c_function_call(env)
@@ -7490,9 +7491,8 @@ class GeneralCallNode(CallNode):
         self.positional_args = self.positional_args.analyse_types(env)
         self.positional_args = \
             self.positional_args.coerce_to_pyobject(env)
-        self.set_py_result_type(env, self.function)
         self.is_temp = 1
-        return self
+        return self.coerce_to_result_type(env, self.function)
 
     def map_to_simple_call_node(self):
         """
