@@ -472,10 +472,12 @@ static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t ival) {
 
 
 /////////////// pybuiltin_invalid.export ///////////////
+//@feature: DEFAULTS
 
 static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *builtin_type_name, const char *argname); /*proto*/
 
 /////////////// pybuiltin_invalid ///////////////
+//@requires: ObjectHandling.c::FormatTypeName
 
 static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *builtin_type_name, const char *argname) {
     __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
