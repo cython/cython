@@ -506,6 +506,8 @@ static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const c
 /////////////// pyfloat_simplify ///////////////
 //@requires: pybuiltin_invalid
 
+static int __Pyx__PyFloat_FromNumber(PyObject **number_var, const char *argname); /*proto*/
+
 static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const char *argname, int accept_none) {
     // Convert any float-compatible Python number object into a Python float.
     // NOTE: This function decrefs 'number' if a conversion happens to replace the original object.
@@ -513,7 +515,11 @@ static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const c
     if (likely((accept_none && number == Py_None) || PyFloat_CheckExact(number))) {
         return 0;
     }
+    return __Pyx__PyFloat_FromNumber(number_var, argname);
+}
 
+static int __Pyx__PyFloat_FromNumber(PyObject **number_var, const char *argname) {
+    PyObject *number = *number_var;
     PyObject *float_object;
     if (likely(PyLong_CheckExact(number))) {
         double val;
@@ -555,6 +561,8 @@ static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const cha
 /////////////// pyint_simplify ///////////////
 //@requires: pybuiltin_invalid
 
+static int __Pyx__PyInt_FromNumber(PyObject **number_var, const char *argname); /*proto*/
+
 static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const char *argname, int accept_none) {
     // Convert any int-compatible Python number object into a Python int.
     // NOTE: This function decrefs 'number' if a conversion happens to replace the original object.
@@ -562,7 +570,11 @@ static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const cha
     if (likely((accept_none && number == Py_None) || PyLong_CheckExact(number))) {
         return 0;
     }
+    return __Pyx__PyInt_FromNumber(number_var, argname);
+}
 
+static int __Pyx__PyInt_FromNumber(PyObject **number_var, const char *argname) {
+    PyObject *number = *number_var;
     PyObject *int_object;
     if (likely(PyNumber_Check(number))) {
         // PyNumber_Long() also parses strings, which we must reject.
