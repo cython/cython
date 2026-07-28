@@ -39,11 +39,13 @@ def make_command_file(path_to_debug_info, prefix_code='',
     f = os.fdopen(fd, 'w')
     try:
         f.write(prefix_code)
-        virtualenv_code = ''
+
+        activate_virtualenv = report_virtualenv_error = 'pass'
+        check_virtualenv_version = 'False'
         virtualenv = os.getenv('VIRTUAL_ENV')
-        sys_version_info_code = repr(sys.version_info[:2])
-        has_gil_code = repr(hasattr(sys, "_is_gil_enabled"))
-        platform_machine_code = repr("")
+        has_gil = getattr(sys, "_is_gil_enabled", True)
+        platform_machine = ""
+
         if virtualenv:
             import site
             import pathlib
@@ -57,12 +59,22 @@ def make_command_file(path_to_debug_info, prefix_code='',
             # the interpreter linked into GDB.
             sitepackages = site.getsitepackages()
             sitepackages = [ p for p in sitepackages if pathlib.Path(p).is_relative_to(virtualenv) ]
-            virtualenv_code = (
+            activate_virtualenv = (
                 f'import sys; sys.path[:0] = {sitepackages!r}; '
                 f'import site; {"; ".join(f"site.addsitedir({p!r})" for p in sitepackages)}; '
                 f'print("gdb command file: Activating virtualenv: {virtualenv}")'
             )
-            platform_machine_code = repr(platform.machine())
+            platform_machine = platform.machine()
+            check_virtualenv_version = (
+                f'sys.version_info[:2] == {sys.version_info[:2] !r} and '
+                f'getattr(sys, "_is_gil_enabled", True) == {has_gil !r} and '
+                f'platform.machine() == {platform_machine !r}'
+            )
+            report_virtualenv_error = (
+                'print("Not activating virtual environment for mismatched Python version %d.%d%s (%s)" % ('
+                f'{sys.version_info[0]}, {sys.version_info[1]}, {"" if has_gil else "t" !r}, {platform_machine !r}))'
+            )
+
         f.write(textwrap.dedent(f'''\
             # This is a gdb command file
             # See https://sourceware.org/gdb/onlinedocs/gdb/Command-Files.html
@@ -71,17 +83,15 @@ def make_command_file(path_to_debug_info, prefix_code='',
             set print pretty on
 
             python
+            import sys
             try:
-                import sys
-                import platform
-                if (sys.version_info[:2] == {sys_version_info_code} and
-                        hasattr(sys, "_is_gil_enabled") == {has_gil_code} and
-                        platform.machine() == {platform_machine_code}):
-                    # Activate virtualenv, if we were launched from one
-                    {virtualenv_code}
-                else:
-                    print("Not activating virtual environment for mismatched Python version",
-                        {sys_version_info_code}, {has_gil_code}, {platform_machine_code})
+                # Activate virtualenv, if we were launched from one that matches what gdb uses.
+                if {bool(virtualenv) !r}:
+                    import platform
+                    if {check_virtualenv_version}:
+                        {activate_virtualenv}
+                    else:
+                        {report_virtualenv_error}
                 from Cython.Debugger import libcython, libpython
             except Exception as ex:
                 from traceback import print_exc
