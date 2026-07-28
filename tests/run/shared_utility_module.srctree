@@ -20,6 +20,15 @@ PYTHON -c "import pkg1.pkg11.feature_memoryview as mv; x = mv.test([1,2,3]); ass
 PYTHON delete_generated_files.py
 PYTHON setup_extensions_without_autopickle.py build_ext --inplace --force -j3
 PYTHON -c "import pkg1.pkg11.feature_extensiontypes as ext; assert hasattr(ext.ExtensionType(), 'x')"
+PYTHON -c "import pkg1.pkg11.feature_pythonclasses as ext; x = ext.test(); assert x == 6, x"
+
+PYTHON delete_generated_files.py
+PYTHON setup_extensions_with_features.py  feature_extensiontypes.pyx  DEFAULTS,ExtensionTypes  build_ext --inplace --force -j3
+PYTHON -c "import pkg1.pkg11.feature_extensiontypes as ext; assert hasattr(ext.ExtensionType(), 'x')"
+
+PYTHON delete_generated_files.py
+PYTHON setup_extensions_with_features.py  feature_pythonclasses.pyx  DEFAULTS,PythonClasses,CythonFunction  build_ext --inplace --force -j3
+PYTHON -c "import pkg1.pkg11.feature_pythonclasses as ext; x = ext.test(); assert x == 6, x"
 """
 
 
@@ -62,7 +71,7 @@ setup(
     ext_modules = cythonize(
         extensions,
         shared_utility_qualified_name = 'pkg2.CythonShared',
-        shared_utility_features_disabled = ['MemoryView', 'ExtensionTypes', 'AutoPickle'],
+        shared_utility_features_disabled = ['MemoryView', 'ExtensionTypes', 'AutoPickle', 'PythonClasses'],
     )
 )
 
@@ -73,6 +82,7 @@ with open("pkg2/CythonShared.c") as f:
 assert '__Pyx_setup_reduce' not in shared_c_code
 assert '__Pyx_memviewslice' not in shared_c_code
 assert '__pyx_memoryview_obj' not in shared_c_code
+assert 'Py3ClassCreate' not in shared_c_code
 
 
 ######## setup_with_builddir.py ########
@@ -89,7 +99,7 @@ setup(
     ext_modules = cythonize(
         extensions,
         shared_utility_qualified_name = 'pkg2.CythonShared',
-        shared_utility_features_disabled = ['MemoryView', 'ExtensionTypes', 'AutoPickle'],
+        shared_utility_features_disabled = ['MemoryView', 'ExtensionTypes', 'AutoPickle', 'PythonClasses'],
         build_dir = "build",
     )
 )
@@ -103,6 +113,7 @@ with open("build/pkg2/CythonShared.c") as f:
 assert '__Pyx_setup_reduce' not in shared_c_code
 assert '__Pyx_memviewslice' not in shared_c_code
 assert '__pyx_memoryview_obj' not in shared_c_code
+assert 'Py3ClassCreate' not in shared_c_code
 
 
 ######## setup_without_sources.py ########
@@ -119,7 +130,7 @@ setup(
     ext_modules = cythonize(
         extensions,
         shared_utility_qualified_name = 'pkg2.CythonShared',
-        shared_utility_features_disabled = ['MemoryView', 'ExtensionTypes', 'AutoPickle'],
+        shared_utility_features_disabled = ['MemoryView', 'ExtensionTypes', 'AutoPickle', 'PythonClasses'],
     )
 )
 
@@ -132,6 +143,7 @@ with open("pkg2/CythonShared.c") as f:
 assert '__Pyx_setup_reduce' not in shared_c_code
 assert '__Pyx_memviewslice' not in shared_c_code
 assert '__pyx_memoryview_obj' not in shared_c_code
+assert 'Py3ClassCreate' not in shared_c_code
 
 
 ######## setup_memoryview_without_extensions.py ########
@@ -161,6 +173,7 @@ with open("pkg2/CythonShared.c") as f:
 assert '__Pyx_setup_reduce' in shared_c_code  # MemoryViews use AutoPickle
 assert '__Pyx_memviewslice' in shared_c_code
 assert '__pyx_memoryview_obj' in shared_c_code
+assert 'Py3ClassCreate' in shared_c_code
 
 
 ######## setup_extensions_without_autopickle.py ########
@@ -190,12 +203,67 @@ with open("pkg2/CythonShared.c") as f:
 assert '__Pyx_setup_reduce' not in shared_c_code
 assert '__Pyx_memviewslice' not in shared_c_code
 assert '__pyx_memoryview_obj' not in shared_c_code
+assert 'Py3ClassCreate' in shared_c_code
+
+
+######## setup_extensions_with_features.py ########
+
+from Cython.Build import cythonize
+from setuptools import setup, Extension
+
+import sys
+only_features = sys.argv.pop(2).split(',')
+module_pattern = sys.argv.pop(1)
+
+extensions = [
+    Extension("*", [f"pkg1/pkg11/{module_pattern}"]),
+    Extension("pkg2.CythonShared", sources=["pkg2/CythonShared.c"]),
+]
+
+setup(
+    ext_modules = cythonize(
+        extensions,
+        shared_utility_qualified_name = 'pkg2.CythonShared',
+        shared_utility_features_enabled = only_features,
+        compiler_directives={'auto_pickle': False},
+    )
+)
+
+import pathlib
+assert pathlib.Path("pkg2/CythonShared.c").exists()
+
+with open("pkg2/CythonShared.c") as f:
+    shared_c_code = f.read()
+
+if 'AutoPickle' in only_features:
+    assert '__Pyx_setup_reduce' in shared_c_code
+else:
+    assert '__Pyx_setup_reduce' not in shared_c_code
+
+if 'MemoryView' in only_features:
+    assert '__Pyx_memviewslice' in shared_c_code
+    assert '__pyx_memoryview_obj' in shared_c_code
+else:
+    assert '__Pyx_memviewslice' not in shared_c_code
+    assert '__pyx_memoryview_obj' not in shared_c_code
+
+if 'PythonClasses' in only_features:
+    assert 'Py3ClassCreate' in shared_c_code
+else:
+    assert 'Py3ClassCreate' not in shared_c_code
+
+if 'DEFAULTS' in only_features:
+    assert '__Pyx_UnboundCMethod_Def' in shared_c_code
+    assert '__Pyx_RejectUnknownKeyword' in shared_c_code
+else:
+    assert '__Pyx_UnboundCMethod_Def' not in shared_c_code
+    assert '__Pyx_RejectUnknownKeyword' not in shared_c_code
 
 
 ######## test_shared_utility.py ########
 
 from pkg1.pkg11.add_one import add_one, imported_func
-from pkg1.pkg11.cython_features import fstring
+from pkg1.pkg11.cython_features import fstring, unpacked_method_call
 
 assert add_one(2) == 3
 assert imported_func() == 1
@@ -208,6 +276,8 @@ assert hasattr(CythonShared, '__pyx_capi__'), dir(CythonShared)
 
 s = fstring()
 assert s == ' 5 != 10 ', s
+assert unpacked_method_call([1]) == 1
+assert unpacked_method_call({1}) == 1
 
 try:
     from pkg1.pkg11.feature_extensiontypes import ExtensionType
@@ -222,6 +292,13 @@ except ImportError:
     pass
 else:
     assert False, "Import with missing feature 'MemoryView' succeeded !"
+
+try:
+    from pkg1.pkg11.feature_pythonclasses import PyClass
+except ImportError:
+    pass
+else:
+    assert False, "Import with missing feature 'PythonClasses' succeeded !"
 
 
 ######## pkg1/__init__.py ########
@@ -252,6 +329,9 @@ cdef int iv = 10
 def fstring():
     return f" {v} != {iv} "
 
+def unpacked_method_call(x):
+    return x.pop()
+
 
 ######## pkg1/pkg11/import_from_me.pyx ########
 
@@ -276,6 +356,25 @@ def test(ints):
 
 def memview_func(int[:] ints):
     return sum(ints[i] for i in range(len(ints)))
+
+
+######## pkg1/pkg11/feature_pythonclasses.pyx ########
+# Using feature "PythonClasses".
+
+class PyClass:
+    def __init__(self, arg):
+        self._arg = arg
+
+    @property
+    def arg(self):
+        return self._arg + 1
+
+
+def test():
+    class InnerInt(int):
+        pass
+
+    return PyClass(InnerInt(5)).arg
 
 
 ######## pkg2/__init__.py ########
