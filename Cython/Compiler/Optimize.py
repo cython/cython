@@ -1,3 +1,5 @@
+# cython: binding=False
+
 import cython
 cython.declare(UtilityCode=object, EncodedString=object, bytes_literal=object, encoded_string=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
@@ -35,32 +37,37 @@ from .ParseTreeTransforms import SkipDeclarations
 from .. import Utils
 
 
+@cython.cfunc
 def load_c_utility(name):
     return UtilityCode.load_cached(name, "Optimize.c")
 
 
+@cython.cfunc
 def unwrap_coerced_node(node, coercion_nodes=(ExprNodes.CoerceToPyTypeNode, ExprNodes.CoerceFromPyTypeNode)):
     if isinstance(node, coercion_nodes):
         return node.arg
     return node
 
 
+@cython.cfunc
 def unwrap_node(node):
     while isinstance(node, UtilNodes.ResultRefNode):
         node = node.expression
     return node
 
 
-def is_common_value(a, b):
+@cython.cfunc
+def is_common_value(a, b) -> bool:
     a = unwrap_node(a)
     b = unwrap_node(b)
-    if isinstance(a, ExprNodes.NameNode) and isinstance(b, ExprNodes.NameNode):
+    if a.is_name and b.is_name:
         return a.name == b.name
-    if isinstance(a, ExprNodes.AttributeNode) and isinstance(b, ExprNodes.AttributeNode):
+    if a.is_attribute and b.is_attribute:
         return not a.is_py_attr and is_common_value(a.obj, b.obj) and a.attribute == b.attribute
     return False
 
 
+@cython.cfunc
 def filter_none_node(node):
     if node is not None and node.constant_result is None:
         return None
