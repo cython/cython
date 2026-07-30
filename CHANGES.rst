@@ -18,6 +18,8 @@ Features added
 
 * The feature set of the shared module can be selected at build time
   by listing named features to include or exclude.
+  This is an experimental configuration, subject to further improvements.
+  Failures to include used features will currently result in import failures.
   (Github issue :issue:`7759`)
 
 * To control the generation of the shared module, the ``cython`` command gained
@@ -98,6 +100,10 @@ Bugs fixed
   It now uses a dedicated enum implementation class to allow this.
   (Github issue :issue:`7185`)
 
+* Casting to an unresolved ``typeof()`` type (e.g. ``cython.cast(cython.typeof(x), ...)``
+  where the type could not be inferred) crashed the compiler instead of reporting an error.
+  Patch by vsaraikin.  (Github issue :issue:`7683`)
+
 * ``cpdef fused`` functions generated redundant code.
   (Github issue :issue:`7778`)
 
@@ -110,6 +116,9 @@ Bugs fixed
 * When calling builtin types to create an instance, type inference could incorrectly
   assume ``type`` as the type of the result rather the concrete builtin type in 3.3.0a1.
   (Github issue :issue:`7848`)
+
+* The return type of some builtin methods were not correctly inferred in chained calls in 3.3.0a1.
+  (Github issue :issue:`7664`)
 
 * Iterating over a container with an incorrectly declared item type could generate
   incorrect C code in 3.3.0a1.
@@ -124,6 +133,9 @@ Bugs fixed
 * MSVC could silently truncate long C string literals (including internal ones)
   at a 64k bytes border.  This is now worked around using C char arrays.
   (Github issue :issue:`7824`)
+
+* The virtualenv activation inside of ``cygdb`` when it is run from a virtualenv works in more cases.
+  Original patch by Pierrick Koch and Ashutosh Varma.  (Github issues :issue:`1961`, :issue:`3629`)
 
 * Some compiler directives failed to apply to Cython's build, which lead to
   unintentionally (slightly) increased wheel sizes.

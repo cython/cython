@@ -1152,6 +1152,8 @@ class ExprNode(Node):
         return src
 
     def fail_assignment(self, dst_type):
+        if self.type.is_error or dst_type.is_error:
+            return  # Reported elsewhere.
         src_name = self.entry.name if hasattr(self, "entry") else None
         src_resolved = f" (alias of '{self.type.resolve()}')" if self.type.is_typedef else ""
         dst_resolved = f" (alias of '{dst_type.resolve()}')" if dst_type.is_typedef else ""
@@ -6283,7 +6285,7 @@ class CallNode(ExprNode):
                 return False
         return ExprNode.may_be_none(self)
 
-    def set_py_result_type(self, env, function, func_type=None):
+    def coerce_to_result_type(self, env, function, func_type=None):
         # Default to 'object' and then try to find a better type.
         self.type = py_object_type
         if func_type is None:
@@ -6311,10 +6313,11 @@ class CallNode(ExprNode):
             method_obj_type = function.obj.type
             result_type = Builtin.find_return_type_of_builtin_method(self.pos, env, method_obj_type, function.attribute)
             self.may_return_none = result_type is py_object_type
-            if result_type.is_pyobject:
-                self.type = result_type
-            elif result_type.equivalent_type:
-                self.type = result_type.equivalent_type
+            if result_type != self.type:
+                if not result_type.is_pyobject and result_type.equivalent_type:
+                    result_type = result_type.equivalent_type
+                return self.coerce_to(result_type, env)
+        return self
 
     def analyse_as_type_constructor(self, env):
         """
@@ -6497,8 +6500,8 @@ class SimpleCallNode(CallNode):
             self.arg_tuple = TupleNode(self.pos, args = self.args)
             self.arg_tuple = self.arg_tuple.analyse_types(env).coerce_to_pyobject(env)
             self.args = None
-            self.set_py_result_type(env, function, func_type)
             self.is_temp = 1
+            return self.coerce_to_result_type(env, function, func_type)
         else:
             self.args = [ arg.analyse_types(env) for arg in self.args ]
             self.analyse_c_function_call(env)
@@ -7490,9 +7493,8 @@ class GeneralCallNode(CallNode):
         self.positional_args = self.positional_args.analyse_types(env)
         self.positional_args = \
             self.positional_args.coerce_to_pyobject(env)
-        self.set_py_result_type(env, self.function)
         self.is_temp = 1
-        return self
+        return self.coerce_to_result_type(env, self.function)
 
     def map_to_simple_call_node(self):
         """
@@ -10434,9 +10436,7 @@ class ClassNode(ExprNode, ModuleNameMixin):
 
     def analyse_types(self, env):
         if self.doc:
-            self.doc = self.doc.analyse_types(env)
-            self.doc = self.doc.coerce_to_pyobject(env)
-        env.use_utility_code(UtilityCode.load_cached("CreateClass", "ObjectHandling.c"))
+            self.doc = self.doc.analyse_types(env).coerce_to_pyobject(env)
         return self
 
     def may_be_none(self):
@@ -10455,6 +10455,8 @@ class ClassNode(ExprNode, ModuleNameMixin):
                     code.intern_identifier(
                         StringEncoding.EncodedString("__doc__")),
                     self.doc.py_result()))
+
+        code.globalstate.use_utility_code(UtilityCode.load_cached("CreateClass", "ObjectHandling.c"))
         py_mod_name = self.get_py_mod_name(code)
         qualname = self.get_py_qualified_name(code)
         code.putln(
@@ -12043,6 +12045,12 @@ class TypecastNode(ExprNode):
         if self.type.is_cfunction:
             error(self.pos,
                 "Cannot cast to a function type")
+            self.type = PyrexTypes.error_type
+        elif self.type.is_unspecified:
+            # e.g. cython.cast(cython.typeof(x), ...) where typeof() could not
+            # be resolved to a concrete type; report an error instead of crashing.
+            error(self.pos,
+                "Unable to determine the type to cast to")
             self.type = PyrexTypes.error_type
         self.operand = self.operand.analyse_types(env)
         if self.type is PyrexTypes.c_bint_type:

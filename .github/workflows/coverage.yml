@@ -4,12 +4,14 @@ on:
   push:
     paths:
       - '.github/workflows/coverage.yml'
+      - 'setup.cfg'
       - "Cython/**"
       - '!Cython/Utility/**'
       - "tests/**"
   pull_request:
     paths:
       - '.github/workflows/coverage.yml'
+      - 'setup.cfg'
       - "Cython/**"
       - '!Cython/Utility/**'
       - "tests/**"

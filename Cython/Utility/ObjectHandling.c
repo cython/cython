@@ -1141,7 +1141,8 @@ static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
     return metaclass;
 }
 
-/////////////// Py3MetaclassGet.proto ///////////////
+/////////////// Py3MetaclassGet.export ///////////////
+//@feature: PythonClasses
 
 static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw); /*proto*/
 
@@ -1205,7 +1206,8 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
     return result;
 }
 
-/////////////// Py3UpdateBases.proto ///////////////
+/////////////// Py3UpdateBases.export ///////////////
+//@feature: PythonClasses
 
 static PyObject* __Pyx_PEP560_update_bases(PyObject *bases); /* proto */
 
@@ -1329,7 +1331,8 @@ error:
     return NULL;
 }
 
-/////////////// Py3ClassCreate.proto ///////////////
+/////////////// Py3ClassCreate.export ///////////////
+//@feature: PythonClasses
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *qualname,
                                            PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
@@ -1835,22 +1838,29 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
 #endif
 
 
-/////////////// UnpackUnboundCMethod.proto ///////////////
-//@requires:  Synchronization.c::Atomics
+/////////////// UnpackUnboundCMethod_decl.proto ///////////////
 
 typedef struct {
     PyObject *type;
     PyObject **method_name;
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
-    // 0 for uninitialized, 1 for initializing, 2 for initialized
-    __pyx_atomic_int_type initialized;
-#endif
     // "func" is set on first access (direct C function pointer)
     PyCFunction func;
     // "method" is set on first access (fallback)
     PyObject *method;
     int flag;
+
+// The rest is module specific and must not be used by the exported shared module code!
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+    // 0 for uninitialized, 1 for initializing, 2 for initialized
+    __pyx_atomic_int_type initialized;
+#endif
 } __Pyx_CachedCFunction;
+
+
+/////////////// UnpackUnboundCMethod.proto ///////////////
+//@requires:  Synchronization.c::Atomics
+//@requires: UnpackUnboundCMethod_decl
+//@requires: UnpackUnboundCMethod_impl
 
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
 static CYTHON_INLINE int __Pyx_CachedCFunction_GetAndSetInitializing(__Pyx_CachedCFunction *cfunc) {
@@ -1878,7 +1888,15 @@ static CYTHON_INLINE void __Pyx_CachedCFunction_SetFinishedInitializing(__Pyx_Ca
 #define __Pyx_CachedCFunction_SetFinishedInitializing(cfunc)
 #endif
 
-/////////////// UnpackUnboundCMethod ///////////////
+
+/////////////// UnpackUnboundCMethod_impl.export ///////////////
+//@feature: DEFAULTS
+
+static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target); /*proto*/
+
+
+/////////////// UnpackUnboundCMethod_impl ///////////////
+//@requires: UnpackUnboundCMethod_decl
 //@requires: PyObjectGetAttrStr
 //@requires: Exceptions.c::IgnoreException
 
@@ -1974,6 +1992,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
 #define __Pyx_CallCFunctionFastWithKeywords(cfunc, self, args, nargs, kwnames) \
     ((__Pyx_PyCFunctionFastWithKeywords)(void(*)(void))(PyCFunction)(cfunc)->func)(self, args, nargs, kwnames)
 
+    
 /////////////// CallUnboundCMethod0.proto ///////////////
 
 CYTHON_UNUSED
