@@ -101,7 +101,7 @@ class build_ext(_build_ext):
     def get_extension_attr(self, extension, option_name, default=False):
         return getattr(self, option_name) or getattr(extension, option_name, default)
 
-    def _add_pgo_flags(self, step_name, temp_dir):
+    def _add_pgo_flags(self, ext, step_name, temp_dir):
         compiler_type = self.compiler.compiler_type
         if compiler_type == 'unix':
             compiler_cmd = self.compiler.compiler_so
@@ -121,10 +121,9 @@ class build_ext(_build_ext):
         orig_flags = []
         if config and step_name in config:
             flags = [f.format(TEMPDIR=temp_dir) for f in config[step_name]]
-            for extension in self.extensions:
-                orig_flags.append((extension.extra_compile_args, extension.extra_link_args))
-                extension.extra_compile_args = extension.extra_compile_args + flags
-                extension.extra_link_args = extension.extra_link_args + flags
+            orig_flags.append((ext.extra_compile_args, ext.extra_link_args))
+            ext.extra_compile_args = ext.extra_compile_args + flags
+            ext.extra_link_args = ext.extra_link_args + flags
         else:
             print("No PGO %s configuration known for C compiler type '%s'" % (step_name, compiler_type),
                   file=sys.stderr)
@@ -164,10 +163,10 @@ class build_ext(_build_ext):
         pgo_dir = self.get_extension_attr(ext, 'pgo_dir', default=None)
 
         if self.cython_gen_pgo:
-            self._add_pgo_flags('gen', pgo_dir)
+            self._add_pgo_flags(ext, 'gen', pgo_dir)
         if self.cython_use_pgo:
             self.force = 1
-            self._add_pgo_flags('use', pgo_dir)
+            self._add_pgo_flags(ext, 'use', pgo_dir)
             np_pythran = getattr(ext, 'np_pythran', False)
             c_sources = []
             for source in ext.sources:
