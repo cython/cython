@@ -43,7 +43,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
         activate_virtualenv = report_virtualenv_error = 'pass'
         check_virtualenv_version = 'False'
         virtualenv = os.getenv('VIRTUAL_ENV')
-        has_gil = hasattr(sys, "_is_gil_enabled")
+        is_freethreaded_build = hasattr(sys, "_is_gil_enabled")
         platform_machine = ""
 
         if virtualenv:
@@ -67,12 +67,12 @@ def make_command_file(path_to_debug_info, prefix_code='',
             platform_machine = platform.machine()
             check_virtualenv_version = (
                 f'sys.version_info[:2] == {sys.version_info[:2] !r} and '
-                f'hasattr(sys, "_is_gil_enabled") == {has_gil !r} and '
+                f'hasattr(sys, "_is_gil_enabled") == {is_freethreaded_build !r} and '
                 f'platform.machine() == {platform_machine !r}'
             )
             report_virtualenv_error = (
                 'print("Not activating virtual environment for mismatched Python version %d.%d%s (%s)" % ('
-                f'{sys.version_info[0]}, {sys.version_info[1]}, {"" if has_gil else "t" !r}, {platform_machine !r}))'
+                f'{sys.version_info[0]}, {sys.version_info[1]}, {"t" if is_freethreaded_build else "" !r}, {platform_machine !r}))'
             )
 
         f.write(textwrap.dedent(f'''\
