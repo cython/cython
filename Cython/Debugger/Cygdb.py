@@ -61,8 +61,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
             sitepackages = [ p for p in sitepackages if pathlib.Path(p).is_relative_to(virtualenv) ]
             activate_virtualenv = (
                 f'import sys; sys.path[:0] = {sitepackages!r}; '
-                f'import site; {"; ".join(f"site.addsitedir({p!r})" for p in sitepackages)}'
-                f'{";" if sitepackages else ""}'
+                f'import site; {"".join(f"site.addsitedir({p!r}); " for p in sitepackages)}'
                 f'print("gdb command file: Activating virtualenv: {virtualenv}")'
             )
             platform_machine = platform.machine()
