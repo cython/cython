@@ -43,7 +43,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
         activate_virtualenv = report_virtualenv_error = 'pass'
         check_virtualenv_version = 'False'
         virtualenv = os.getenv('VIRTUAL_ENV')
-        has_gil = getattr(sys, "_is_gil_enabled", True)
+        has_gil = hasattr(sys, "_is_gil_enabled")
         platform_machine = ""
 
         if virtualenv:
@@ -61,13 +61,14 @@ def make_command_file(path_to_debug_info, prefix_code='',
             sitepackages = [ p for p in sitepackages if pathlib.Path(p).is_relative_to(virtualenv) ]
             activate_virtualenv = (
                 f'import sys; sys.path[:0] = {sitepackages!r}; '
-                f'import site; {"; ".join(f"site.addsitedir({p!r})" for p in sitepackages)}; '
+                f'import site; {"; ".join(f"site.addsitedir({p!r})" for p in sitepackages)}'
+                f'{";" if sitepackages else ""}'
                 f'print("gdb command file: Activating virtualenv: {virtualenv}")'
             )
             platform_machine = platform.machine()
             check_virtualenv_version = (
                 f'sys.version_info[:2] == {sys.version_info[:2] !r} and '
-                f'getattr(sys, "_is_gil_enabled", True) == {has_gil !r} and '
+                f'hasattr(sys, "_is_gil_enabled") == {has_gil !r} and '
                 f'platform.machine() == {platform_machine !r}'
             )
             report_virtualenv_error = (
