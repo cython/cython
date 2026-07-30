@@ -43,13 +43,13 @@ def make_command_file(path_to_debug_info, prefix_code='',
         activate_virtualenv = report_virtualenv_error = 'pass'
         check_virtualenv_version = 'False'
         virtualenv = os.getenv('VIRTUAL_ENV')
-        is_freethreaded_build = hasattr(sys, "_is_gil_enabled")
         platform_machine = ""
 
         if virtualenv:
             import site
             import pathlib
             import platform
+            import sysconfig
             # Emulating the virtual env we're in will always be imperfect. But:
             # * Work out the site packages from the current interpreter and add those
             #   to the start of the path to let those be found first.
@@ -57,6 +57,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
             #   be imported for example.
             # This will work best if the virtual environment is the same Python version as
             # the interpreter linked into GDB.
+            is_freethreaded_build = sysconfig.get_config_var("Py_GIL_DISABLED")
             sitepackages = site.getsitepackages()
             sitepackages = [ p for p in sitepackages if pathlib.Path(p).is_relative_to(virtualenv) ]
             activate_virtualenv = (
@@ -67,12 +68,13 @@ def make_command_file(path_to_debug_info, prefix_code='',
             platform_machine = platform.machine()
             check_virtualenv_version = (
                 f'sys.version_info[:2] == {sys.version_info[:2] !r} and '
-                f'hasattr(sys, "_is_gil_enabled") == {is_freethreaded_build !r} and '
+                f'sysconfig.get_config_var("Py_GIL_DISABLED") == {is_freethreaded_build !r} and '
                 f'platform.machine() == {platform_machine !r}'
             )
             report_virtualenv_error = (
-                'print("Not activating virtual environment for mismatched Python version %d.%d%s (%s)" % ('
-                f'{sys.version_info[0]}, {sys.version_info[1]}, {"t" if is_freethreaded_build else "" !r}, {platform_machine !r}))'
+                'print("Not activating virtual environment for mismatched Python version '
+                f'{sys.version_info[0]}, {sys.version_info[1]}, '
+                f'{"t" if is_freethreaded_build else "" !r}, {platform_machine !r}")'
             )
 
         f.write(textwrap.dedent(f'''\
@@ -88,6 +90,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
                 # Activate virtualenv, if we were launched from one that matches what gdb uses.
                 if {bool(virtualenv) !r}:
                     import platform
+                    import sysconfig
                     if {check_virtualenv_version}:
                         {activate_virtualenv}
                     else:
