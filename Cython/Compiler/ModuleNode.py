@@ -88,7 +88,8 @@ def generate_c_code_config(env, options):
 # The comparison operator always goes first, with equality possibly second.
 # The first value specifies if the comparison is inverted. The second is the
 # logic op to use, and the third is if the equality is inverted or not.
-TOTAL_ORDERING = cython.declare(dict[tuple[str, str], tuple[cython.bint, str, Optional[bool]]], {
+# Type is "dict[tuple[str, str], tuple[cython.bint, str, Optional[bool]]]", but Shadow.py doesn't allow it.
+TOTAL_ORDERING = cython.declare(dict, {
     # a > b from (not a < b) and (a != b)
     ('__lt__', '__gt__'): (True, '&&', True),
     # a <= b from (a < b) or (a == b)
@@ -2563,7 +2564,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if total_ordering:
             # Check this is valid - we must have at least 1 operation defined.
-            comp_names = [from_name for from_name, to_name in TOTAL_ORDERING if from_name in comp_entry]
+            comp_names: list[str] = [from_name for from_name, to_name in TOTAL_ORDERING if from_name in comp_entry]
             if not comp_names:
                 if '__eq__' not in comp_entry and '__ne__'  not in comp_entry:
                     warning(scope.parent_type.pos,
@@ -2593,6 +2594,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry is None:
                 assert total_ordering
                 # We need to generate this from the other methods.
+                invert_comp: bool
+                comp_op: str
                 invert_comp, comp_op, invert_equals = TOTAL_ORDERING[ordering_source, cmp_method]
 
                 # First we always do the comparison.
