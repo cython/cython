@@ -40,11 +40,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
     try:
         f.write(prefix_code)
 
-        activate_virtualenv = report_virtualenv_error = 'pass'
-        check_virtualenv_version = 'False'
         virtualenv = os.getenv('VIRTUAL_ENV')
-        platform_machine = ""
-
         if virtualenv:
             import site
             import pathlib
@@ -57,7 +53,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
             #   be imported for example.
             # This will work best if the virtual environment is the same Python version as
             # the interpreter linked into GDB.
-            is_freethreaded_build = sysconfig.get_config_var("Py_GIL_DISABLED")
+            is_freethreaded_build = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
             sitepackages = site.getsitepackages()
             sitepackages = [ p for p in sitepackages if pathlib.Path(p).is_relative_to(virtualenv) ]
             activate_virtualenv = (
@@ -65,17 +61,10 @@ def make_command_file(path_to_debug_info, prefix_code='',
                 f'import site; {"".join(f"site.addsitedir({p!r}); " for p in sitepackages)}'
                 f'print("gdb command file: Activating virtualenv: {virtualenv}")'
             )
-            platform_machine = platform.machine()
-            check_virtualenv_version = (
-                f'sys.version_info[:2] == {sys.version_info[:2] !r} and '
-                f'sysconfig.get_config_var("Py_GIL_DISABLED") == {is_freethreaded_build !r} and '
-                f'platform.machine() == {platform_machine !r}'
-            )
-            report_virtualenv_error = (
-                'print("Not activating virtual environment for mismatched Python version '
-                f'{sys.version_info[0]}, {sys.version_info[1]}, '
-                f'{"t" if is_freethreaded_build else "" !r}, {platform_machine !r}")'
-            )
+            call_args = f'{sys.version_info[:2] !r}, {is_freethreaded_build !r}, {platform.machine() !r}'
+        else:
+            activate_virtualenv = 'pass'
+            call_args = '0, 0, False, ""'
 
         f.write(textwrap.dedent(f'''\
             # This is a gdb command file
@@ -85,16 +74,27 @@ def make_command_file(path_to_debug_info, prefix_code='',
             set print pretty on
 
             python
+            def _cygdb_check_virtualenv_match(venv_pyversion, venv_is_freethreading, venv_machine):
+                import sys
+                if sys.version_info[:2] == venv_pyversion:
+                    import sysconfig
+                    if bool(sysconfig.get_config_var("Py_GIL_DISABLED")) == venv_is_freethreading:
+                        import platform
+                        if platform.machine() == venv_machine:
+                            return True
+
+                print("Not activating virtual environment for mismatched Python version %d.%d%s (%s)" % (
+                    venv_pyversion[0], venv_pyversion[1],
+                    "t" if is_freethreaded_build else "",
+                    platform_machine,
+                )
+                return False
+
             import sys
             try:
                 # Activate virtualenv, if we were launched from one that matches what gdb uses.
-                if {bool(virtualenv) !r}:
-                    import platform
-                    import sysconfig
-                    if {check_virtualenv_version}:
-                        {activate_virtualenv}
-                    else:
-                        {report_virtualenv_error}
+                if {bool(virtualenv) !r} and _cygdb_check_virtualenv_match({call_args}):
+                    {activate_virtualenv}
                 from Cython.Debugger import libcython, libpython
             except Exception as ex:
                 from traceback import print_exc
