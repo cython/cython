@@ -20,7 +20,7 @@ import operator
 import os
 import re
 import sys
-from typing import Sequence
+from typing import Sequence, Optional
 
 from .PyrexTypes import CPtrType
 from . import Future
@@ -88,7 +88,7 @@ def generate_c_code_config(env, options):
 # The comparison operator always goes first, with equality possibly second.
 # The first value specifies if the comparison is inverted. The second is the
 # logic op to use, and the third is if the equality is inverted or not.
-TOTAL_ORDERING = cython.declare(dict, {
+TOTAL_ORDERING = cython.declare(dict[tuple[str, str], tuple[cython.bint, str, Optional[bool]]], {
     # a > b from (not a < b) and (a != b)
     ('__lt__', '__gt__'): (True, '&&', True),
     # a <= b from (a < b) or (a == b)
