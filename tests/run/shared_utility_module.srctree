@@ -2,32 +2,32 @@
 # tag: shared_utility
 
 """
-PYTHON setup_with_sources.py build_ext --inplace --force -j3
+PYTHON setup_with_sources.py build_ext --inplace --force
 PYTHON -c "import test_shared_utility"
 
 PYTHON delete_generated_files.py
-PYTHON setup_with_builddir.py build_ext --inplace --force -j3
+PYTHON setup_with_builddir.py build_ext --inplace --force
 PYTHON -c "import test_shared_utility"
 
 PYTHON delete_generated_files.py
-PYTHON setup_without_sources.py build_ext --inplace --force -j3
+PYTHON setup_without_sources.py build_ext --inplace --force
 PYTHON -c "import test_shared_utility"
 
 PYTHON delete_generated_files.py
-PYTHON setup_memoryview_without_extensions.py build_ext --inplace --force -j3
+PYTHON setup_memoryview_without_extensions.py build_ext --inplace --force
 PYTHON -c "import pkg1.pkg11.feature_memoryview as mv; x = mv.test([1,2,3]); assert x == 6, x"
 
 PYTHON delete_generated_files.py
-PYTHON setup_extensions_without_autopickle.py build_ext --inplace --force -j3
+PYTHON setup_extensions_without_autopickle.py build_ext --inplace --force
 PYTHON -c "import pkg1.pkg11.feature_extensiontypes as ext; assert hasattr(ext.ExtensionType(), 'x')"
 PYTHON -c "import pkg1.pkg11.feature_pythonclasses as ext; x = ext.test(); assert x == 6, x"
 
 PYTHON delete_generated_files.py
-PYTHON setup_extensions_with_features.py  feature_extensiontypes.pyx  DEFAULTS,ExtensionTypes  build_ext --inplace --force -j3
+PYTHON setup_extensions_with_features.py  feature_extensiontypes.pyx  DEFAULTS,ExtensionTypes  build_ext --inplace --force
 PYTHON -c "import pkg1.pkg11.feature_extensiontypes as ext; assert hasattr(ext.ExtensionType(), 'x')"
 
 PYTHON delete_generated_files.py
-PYTHON setup_extensions_with_features.py  feature_pythonclasses.pyx  DEFAULTS,PythonClasses,CythonFunction  build_ext --inplace --force -j3
+PYTHON setup_extensions_with_features.py  feature_pythonclasses.pyx  DEFAULTS,PythonClasses,CythonFunction  build_ext --inplace --force
 PYTHON -c "import pkg1.pkg11.feature_pythonclasses as ext; x = ext.test(); assert x == 6, x"
 """
 
@@ -60,6 +60,9 @@ extra_cflags = []
 if sys.platform == 'linux':
     extra_cflags.append('-Wimplicit-function-declaration')
 
+if sys.platform not in ('win32', 'cygwin'):
+    sys.argv.append('-j3')
+
 extensions = [
     Extension("*", ["**/*.pyx"],
               extra_compile_args=extra_cflags),
@@ -89,6 +92,10 @@ assert 'Py3ClassCreate' not in shared_c_code
 
 from Cython.Build import cythonize
 from setuptools import setup, Extension
+import sys
+
+if sys.platform not in ('win32', 'cygwin'):
+    sys.argv.append('-j3')
 
 extensions = [
     Extension("*", ["**/*.pyx"]),
@@ -120,6 +127,10 @@ assert 'Py3ClassCreate' not in shared_c_code
 
 from Cython.Build import cythonize
 from setuptools import setup, Extension
+import sys
+
+if sys.platform not in ('win32', 'cygwin'):
+    sys.argv.append('-j3')
 
 extensions = [
     Extension("*", ["**/*.pyx"]),
@@ -151,6 +162,10 @@ assert 'Py3ClassCreate' not in shared_c_code
 
 from Cython.Build import cythonize
 from setuptools import setup, Extension
+import sys
+
+if sys.platform not in ('win32', 'cygwin'):
+    sys.argv.append('-j3')
 
 extensions = [
     Extension("*", ["pkg1/pkg11/feature*.pyx"]),
@@ -180,6 +195,10 @@ assert 'Py3ClassCreate' in shared_c_code
 
 from Cython.Build import cythonize
 from setuptools import setup, Extension
+import sys
+
+if sys.platform not in ('win32', 'cygwin'):
+    sys.argv.append('-j3')
 
 extensions = [
     Extension("*", ["pkg1/pkg11/feature*.pyx"]),
@@ -214,6 +233,9 @@ from setuptools import setup, Extension
 import sys
 only_features = sys.argv.pop(2).split(',')
 module_pattern = sys.argv.pop(1)
+
+if sys.platform not in ('win32', 'cygwin'):
+    sys.argv.append('-j3')
 
 extensions = [
     Extension("*", [f"pkg1/pkg11/{module_pattern}"]),
