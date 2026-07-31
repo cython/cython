@@ -278,6 +278,39 @@ def format_c_doubles(double d):
     return f"{d}", f"{d:.2f}", f"{d:.3e}", f"{d:.2g}", f"{d:.2}", f"{d:>10.2f}", f"{d:+.2f}"
 
 
+def format_c_doubles_default_precision(double d):
+    """
+    >>> format_c_doubles_default_precision(1.5)
+    ('1.500000e+00', '1.500000E+00', '1.500000', '1.500000', '1.5', '1.5')
+    >>> format_c_doubles_default_precision(1/3)
+    ('3.333333e-01', '3.333333E-01', '0.333333', '0.333333', '0.333333', '0.333333')
+    >>> format_c_doubles_default_precision(float('inf'))
+    ('inf', 'INF', 'inf', 'INF', 'inf', 'INF')
+    >>> format_c_doubles_default_precision(float('nan'))
+    ('nan', 'NAN', 'nan', 'NAN', 'nan', 'NAN')
+    """
+    return f"{d:e}", f"{d:E}", f"{d:f}", f"{d:F}", f"{d:g}", f"{d:G}"
+
+
+def format_non_ascii_digits(int i, double d):
+    """
+    Non-ASCII digits pass isdigit() but not int(), so they must not be parsed
+    as a width or precision.
+
+    >>> format_non_ascii_digits(5, 1.5)
+    ('ValueError', 'ValueError')
+    """
+    try:
+        s1 = f"{i:²}"
+    except ValueError:
+        s1 = 'ValueError'
+    try:
+        s2 = f"{d:.²f}"
+    except ValueError:
+        s2 = 'ValueError'
+    return s1, s2
+
+
 def format_c_float_widths(float f, double d, long double ld):
     """
     >>> format_c_float_widths(1.5, 1.5, 1.5)

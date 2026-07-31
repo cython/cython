@@ -2625,7 +2625,8 @@ class CIntLike:
         if prefix and prefix[0] == '0':
             padding = '0'
             prefix = prefix.lstrip('0')
-        if prefix.isdigit():
+        # Note that isdigit() also accepts non-ASCII digits that int() rejects.
+        if prefix.isascii() and prefix.isdigit():
             return (format_type, int(prefix), padding)
 
         return (None, 0, padding)
@@ -2907,14 +2908,22 @@ class CFloatType(CNumericType):
 
     @staticmethod
     def _parse_format(format_spec):
-        # We currently only support str() formatting ('r') and a plain precision, e.g. '.2f'.
+        # We currently only support str() formatting ('r') and a format char
+        # with an optional precision, e.g. 'g' or '.2f'.
         if not format_spec:
             return ('r', 0)
 
-        if len(format_spec) > 2 and format_spec[0] == '.' and format_spec[-1] in 'efg':
-            precision = format_spec[1:-1]
-            if precision.isdigit():
-                return (format_spec[-1], int(precision))
+        format_char = format_spec[-1]
+        if format_char in 'eEfFgG':
+            precision = format_spec[:-1]
+            if not precision:
+                # Python's default precision for an explicit format char.
+                return (format_char, 6)
+            if precision[0] == '.':
+                precision = precision[1:]
+                # Note that isdigit() also accepts non-ASCII digits that int() rejects.
+                if precision.isascii() and precision.isdigit():
+                    return (format_char, int(precision))
 
         return (None, 0)
 
