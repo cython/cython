@@ -193,7 +193,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   fi
 
   echo "Extension modules created during the build:"
-  find Cython -name "*.so" -ls | sort -k11
+  find Cython -name "*.so" -ls -o -name "*.pyd" -ls | sort -k11
 fi
 
 if [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]]; then
