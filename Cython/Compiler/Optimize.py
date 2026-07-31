@@ -1,3 +1,5 @@
+# cython: binding=False
+
 import cython
 cython.declare(UtilityCode=object, EncodedString=object, bytes_literal=object, encoded_string=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
@@ -11,7 +13,7 @@ import copy
 import codecs
 import itertools
 from functools import partial, reduce
-from typing import Optional
+from typing import Optional, Any
 from operator import attrgetter
 
 from . import TypeSlots
@@ -35,32 +37,37 @@ from .ParseTreeTransforms import SkipDeclarations
 from .. import Utils
 
 
+@cython.cfunc
 def load_c_utility(name):
     return UtilityCode.load_cached(name, "Optimize.c")
 
 
+@cython.cfunc
 def unwrap_coerced_node(node, coercion_nodes=(ExprNodes.CoerceToPyTypeNode, ExprNodes.CoerceFromPyTypeNode)):
     if isinstance(node, coercion_nodes):
         return node.arg
     return node
 
 
+@cython.cfunc
 def unwrap_node(node):
     while isinstance(node, UtilNodes.ResultRefNode):
         node = node.expression
     return node
 
 
-def is_common_value(a, b):
+@cython.cfunc
+def is_common_value(a, b) -> bool:
     a = unwrap_node(a)
     b = unwrap_node(b)
-    if isinstance(a, ExprNodes.NameNode) and isinstance(b, ExprNodes.NameNode):
+    if a.is_name and b.is_name:
         return a.name == b.name
-    if isinstance(a, ExprNodes.AttributeNode) and isinstance(b, ExprNodes.AttributeNode):
+    if a.is_attribute and b.is_attribute:
         return not a.is_py_attr and is_common_value(a.obj, b.obj) and a.attribute == b.attribute
     return False
 
 
+@cython.cfunc
 def filter_none_node(node):
     if node is not None and node.constant_result is None:
         return None
@@ -68,7 +75,7 @@ def filter_none_node(node):
 
 
 @cython.cfunc
-def _unpack_union_type_nodes(union_type_nodes: list):
+def _unpack_union_type_nodes(union_type_nodes: list) -> tuple[list, Any]:
     # Unpack 'int | float | None' etc.
     BitwiseOrNode = ExprNodes.BitwiseOrNode
 
@@ -3634,7 +3641,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     _handle_simple_method_int___floordiv__ = _handle_simple_method_object___floordiv__
     _handle_simple_method_int___truediv__ = _handle_simple_method_object___truediv__
 
-    def _optimise_num_div(self, operator, node, function, args, is_unbound_method):
+    def _optimise_num_div(self, operator: str, node, function, args: list, is_unbound_method):
         if len(args) != 2 or not args[1].has_constant_result() or args[1].constant_result == 0:
             return node
         if isinstance(args[1], ExprNodes.IntNode):
@@ -3668,7 +3675,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_method_float___ne__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Ne', node, function, args, is_unbound_method)
 
-    def _optimise_num_binop(self, operator, node, function, args, is_unbound_method):
+    def _optimise_num_binop(self, operator: str, node, function, args: list, is_unbound_method):
         """
         Optimise math operators for (likely) float or small integer operations.
         """
@@ -3715,7 +3722,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             ],
             exception_value=-1)
 
-    def _inject_unicode_predicate(self, node, function, args, is_unbound_method):
+    def _inject_unicode_predicate(self, node, function, args: list, is_unbound_method):
         if is_unbound_method or len(args) != 1:
             return node
         ustring = args[0]
@@ -3885,8 +3892,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             node, function, args, is_unbound_method, 'str', 'startswith',
             unicode_tailmatch_utility_code, -1)
 
-    def _inject_tailmatch(self, node, function, args, is_unbound_method, type_name,
-                          method_name, utility_code, direction):
+    def _inject_tailmatch(self, node, function, args: list, is_unbound_method, type_name: str,
+                          method_name: str, utility_code, direction):
         """Replace unicode.startswith(...) and unicode.endswith(...)
         by a direct call to the corresponding C-API function.
         """
@@ -4383,7 +4390,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
 
 
-def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
+def optimise_numeric_binop(operator: str, node, ret_type, arg0, arg1):
     """
     Optimise math operators for (likely) float or small integer operations.
     """
@@ -5030,7 +5037,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             return node
 
         # collect partial cascades: [[value, CmpNode...], [value, CmpNode, ...], ...]
-        cascades = [[node.operand1]]
+        cascades: list[list] = [[node.operand1]]
         final_false_result = []
 
         cmp_node = node
