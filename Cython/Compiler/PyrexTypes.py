@@ -2625,8 +2625,8 @@ class CIntLike:
         if prefix and prefix[0] == '0':
             padding = '0'
             prefix = prefix.lstrip('0')
-        # Note that isdigit() also accepts non-ASCII digits that int() rejects.
-        if prefix.isascii() and prefix.isdigit():
+        # isdecimal() rather than isdigit(): the latter also accepts digits that int() rejects.
+        if prefix.isdecimal():
             return (format_type, int(prefix), padding)
 
         return (None, 0, padding)
@@ -2921,8 +2921,8 @@ class CFloatType(CNumericType):
                 return (format_char, 6)
             if precision[0] == '.':
                 precision = precision[1:]
-                # Note that isdigit() also accepts non-ASCII digits that int() rejects.
-                if precision.isascii() and precision.isdigit():
+                # isdecimal() rather than isdigit(): the latter also accepts digits that int() rejects.
+                if precision.isdecimal():
                     return (format_char, int(precision))
 
         return (None, 0)
