@@ -2441,7 +2441,7 @@ def p_simple_statement(s: PyrexScanner, first_statement: cython.bint = 0):
         node = p_assert_statement(s)
     elif s.sy == 'pass':
         node = p_pass_statement(s)
-    elif s.sy == 'IDENT' and s.systring == 'type':
+    elif s.sy == 'IDENT' and s.systring == 'type' and s.peek()[0] == 'IDENT':
         node = p_type_statement(s)
     else:
         node = p_expression_or_assignment(s)
