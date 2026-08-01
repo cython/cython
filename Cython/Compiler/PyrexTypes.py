@@ -5375,7 +5375,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
             return self
         if template_values and None not in template_values:
             if Ellipsis in template_values:
-                # Ellipsis is allowed only in tuples.
+                # Ellipsis is allowed only in tuples, at the start (where it's already evaluated).
                 warning(pos,
                     f"Cannot specialise {self.name!r} with Ellipsis after types, ignoring"
                     if self.name == 'tuple' else
