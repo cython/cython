@@ -56,14 +56,8 @@ _WARNINGS = """
 45:0: Annotation type 'list object' is not compatible with declaration type 'dict object'.
 
 # Spurious warnings from utility code - not part of the core test
-26:10: 'cpdef_method' redeclared
-37:10: 'cpdef_cname_method' redeclared
-958:29: Ambiguous exception value, same as default return value: 0
-958:29: Ambiguous exception value, same as default return value: 0
-999:46: Ambiguous exception value, same as default return value: 0
-999:46: Ambiguous exception value, same as default return value: 0
-1089:29: Ambiguous exception value, same as default return value: 0
-1089:29: Ambiguous exception value, same as default return value: 0
+26:4: 'cpdef_method' redeclared
+36:4: 'cpdef_cname_method' redeclared
 """
 
 _ERRORS = """
