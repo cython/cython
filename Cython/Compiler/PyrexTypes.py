@@ -5392,6 +5392,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
                         f"with {template_count} type{'' if template_count == 1 else 's'}, ignoring",
                         level=1,
                     )
+                return self
 
             typ = type(self)(
                 name=self.name, cname=self.cname, objstruct_cname=self.objstruct_cname,
