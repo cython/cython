@@ -23,6 +23,7 @@ except ImportError:
 
 pyobj_var = 1  # type: annotation
 var: cython.int = 2
+cvar: cython.int = cython.declare(cython.int, 5)
 fvar: cython.float = 1.2
 some_number: cython.int    # variable without initial value
 some_list: List[cython.int] = []  # variable with initial value
@@ -57,6 +58,16 @@ def f():
     descr_only: "descriptions are allowed but ignored"
 
     return var, fvar, some_list, t
+
+
+def test_global_variables():
+    """
+    >>> test_global_variables()
+    2 Python object
+    5 int
+    """
+    print(var, cython.typeof(var) if cython.compiled else 'Python object')
+    print(cvar, cython.typeof(cvar))
 
 
 class BasicStarship(object):
