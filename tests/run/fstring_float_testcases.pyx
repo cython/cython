@@ -9,46 +9,47 @@
 
 
 def format_double(double x):
-    # Every spec has to stay a literal in the source for Cython to format it in C,
-    # so the test cases are dispatched through this mapping rather than through a
-    # format spec built at runtime.
+    # Maps the '%' formats used by the test cases below to the equivalent f-string.
+    # Every format spec has to stay a literal in the source for Cython to format it
+    # in C, so the cases are dispatched through this mapping rather than through a
+    # format spec assembled at runtime.
     return {
-        '': f"{x}",
-        '#.0e': f"{x:#.0e}",
-        '#.0f': f"{x:#.0f}",
-        '#.0g': f"{x:#.0g}",
-        '#.10g': f"{x:#.10g}",
-        '#.1e': f"{x:#.1e}",
-        '#.1f': f"{x:#.1f}",
-        '#.1g': f"{x:#.1g}",
-        '#.2e': f"{x:#.2e}",
-        '#.2f': f"{x:#.2f}",
-        '#.2g': f"{x:#.2g}",
-        '#.3g': f"{x:#.3g}",
-        '#.4g': f"{x:#.4g}",
-        '#.5g': f"{x:#.5g}",
-        '#.6g': f"{x:#.6g}",
-        '.0e': f"{x:.0e}",
-        '.0f': f"{x:.0f}",
-        '.0g': f"{x:.0g}",
-        '.100g': f"{x:.100g}",
-        '.10e': f"{x:.10e}",
-        '.10g': f"{x:.10g}",
-        '.12g': f"{x:.12g}",
-        '.1e': f"{x:.1e}",
-        '.1f': f"{x:.1f}",
-        '.1g': f"{x:.1g}",
-        '.2e': f"{x:.2e}",
-        '.2f': f"{x:.2f}",
-        '.2g': f"{x:.2g}",
-        '.3f': f"{x:.3f}",
-        '.3g': f"{x:.3g}",
-        '.4g': f"{x:.4g}",
-        '.50e': f"{x:.50e}",
-        '.50f': f"{x:.50f}",
-        '.50g': f"{x:.50g}",
-        'e': f"{x:e}",
-        'f': f"{x:f}",
+        '%r': f"{x}",
+        '%#.0e': f"{x:#.0e}",
+        '%#.0f': f"{x:#.0f}",
+        '%#.0g': f"{x:#.0g}",
+        '%#.10g': f"{x:#.10g}",
+        '%#.1e': f"{x:#.1e}",
+        '%#.1f': f"{x:#.1f}",
+        '%#.1g': f"{x:#.1g}",
+        '%#.2e': f"{x:#.2e}",
+        '%#.2f': f"{x:#.2f}",
+        '%#.2g': f"{x:#.2g}",
+        '%#.3g': f"{x:#.3g}",
+        '%#.4g': f"{x:#.4g}",
+        '%#.5g': f"{x:#.5g}",
+        '%#.6g': f"{x:#.6g}",
+        '%.0e': f"{x:.0e}",
+        '%.0f': f"{x:.0f}",
+        '%.0g': f"{x:.0g}",
+        '%.100g': f"{x:.100g}",
+        '%.10e': f"{x:.10e}",
+        '%.10g': f"{x:.10g}",
+        '%.12g': f"{x:.12g}",
+        '%.1e': f"{x:.1e}",
+        '%.1f': f"{x:.1f}",
+        '%.1g': f"{x:.1g}",
+        '%.2e': f"{x:.2e}",
+        '%.2f': f"{x:.2f}",
+        '%.2g': f"{x:.2g}",
+        '%.3f': f"{x:.3f}",
+        '%.3g': f"{x:.3g}",
+        '%.4g': f"{x:.4g}",
+        '%.50e': f"{x:.50e}",
+        '%.50f': f"{x:.50f}",
+        '%.50g': f"{x:.50g}",
+        '%e': f"{x:e}",
+        '%f': f"{x:f}",
     }
 
 
@@ -62,12 +63,14 @@ def test_formatfloat_testcases():
         line = line.strip()
         if not line or line.startswith('--'):
             continue
-        lhs, expected = [part.strip() for part in line.split('->')]
+        lhs, expected = line.split(' -> ')
+        expected = expected.strip()
         fmt, arg = lhs.split()
-        spec = '' if fmt == '%r' else fmt[1:]
         value = float(arg)
-        assert format_double(value)[spec] == expected, (fmt, arg)
-        assert format_double(-value)[spec] == '-' + expected, (fmt, '-' + arg)
+        for x, result in ((value, expected), (-value, '-' + expected)):
+            assert format_double(x)[fmt] == result, (fmt, x)
+            # Python's own %-formatting has to agree with the f-string.
+            assert fmt % x == result, (fmt, x)
         count += 1
     print(f"{count} cases")
 
