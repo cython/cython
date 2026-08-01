@@ -2300,8 +2300,7 @@ class NameNode(AtomicExprNode):
         if not entry:
             entry = env.lookup(self.name)
 
-        # breakpoint()
-        if entry and entry.type.name == 'TypeAliasType':
+        if entry and hasattr(entry.type, 'name') and entry.type.name == 'TypeAliasType':
             return entry.value_node.analyse_as_type(env)
 
         if entry and not entry.is_type and entry.known_standard_library_import:

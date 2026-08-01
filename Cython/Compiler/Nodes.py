@@ -1362,8 +1362,14 @@ class TemplatedTypeNode(CBaseTypeNode):
             if template_node.is_none:
                 continue
             # CBaseTypeNode -> allow C type declarations in a 'cdef' context again
+            ttype = None
             with env.new_c_type_context(in_c_type_context or isinstance(template_node, CBaseTypeNode)):
-                ttype = template_node.analyse_as_type(env)
+                if template_node.is_name:
+                    entry = env.lookup(template_node.name)
+                    if entry and hasattr(entry.type, 'name') and entry.type.name == 'TypeAliasType':
+                        ttype = entry.value_node.analyse_as_type(env)
+                if ttype is None:
+                    ttype = template_node.analyse_as_type(env)
             if ttype is None:
                 if base_type.is_cpp_class:
                     error(template_node.pos, "unknown type in template argument")
