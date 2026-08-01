@@ -5376,8 +5376,22 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
         if template_values and None not in template_values:
             if Ellipsis in template_values:
                 # Ellipsis is allowed only in tuples.
-                warning(pos, f"Cannot specialise {self.name!r} with {len(template_values)} types, ignoring.", level=1)
+                warning(pos,
+                    f"Cannot specialise {self.name!r} with Ellipsis after types, ignoring"
+                    if self.name == 'tuple' else
+                    f"Cannot specialise {self.name!r} with Ellipsis, ignoring",
+                    level=1,
+                )
                 return self
+            if self.name != 'tuple':
+                template_count = len(template_values)
+                expected_count = 2 if self.name in ('dict', 'frozendict') else 1
+                if template_count != expected_count:
+                    warning(pos,
+                        f"Cannot specialise '{self.name}[{','.join('T' * expected_count)}]' "
+                        f"with {template_count} type{'' if template_count == 1 else 's'}, ignoring",
+                        level=1,
+                    )
 
             typ = type(self)(
                 name=self.name, cname=self.cname, objstruct_cname=self.objstruct_cname,
