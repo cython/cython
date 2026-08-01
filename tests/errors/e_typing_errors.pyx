@@ -238,7 +238,9 @@ def invalid_type_count():
     dict1: dict[int]
     dict2: dict[int, int, int]
 
+
 def invalid_ellipsis():
+    t_ok: tuple[str, ...]
     t1: tuple[..., str]
     t2: tuple[int, str, ...]
     t3: tuple[int, ..., str]
@@ -246,8 +248,8 @@ def invalid_ellipsis():
     l2: list[...]
     s1: set[str, ...]
     s2: set[...]
-    s1: frozenset[str, ...]
-    s2: frozenset[...]
+    fs1: frozenset[str, ...]
+    fs2: frozenset[...]
     d1: dict[..., str]
     d2: dict[str, ...]
     d3: dict[..., ...]
@@ -255,15 +257,39 @@ def invalid_ellipsis():
     fd2: frozendict[..., str]
     fd3: frozendict[..., ...]
 
+
 _WARNINGS = """
-231:15: Cannot specialise 'list' with 2 types, ignoring.
-232:15: Cannot specialise 'list' with 3 types, ignoring.
-233:13: Cannot specialise 'set' with 2 types, ignoring.
-234:13: Cannot specialise 'set' with 3 types, ignoring.
-235:25: Cannot specialise 'frozenset' with 2 types, ignoring.
-236:25: Cannot specialise 'frozenset' with 3 types, ignoring.
-237:15: Cannot specialise 'dict' with 1 types, ignoring.
-238:15: Cannot specialise 'dict' with 3 types, ignoring.
+109:48: Unknown type declaration in annotation, ignoring
+109:64: Unknown type declaration in annotation, ignoring
+
+232:15: Cannot specialise 'list[T]' with 2 types, ignoring
+233:15: Cannot specialise 'list[T]' with 3 types, ignoring
+234:13: Cannot specialise 'set[T]' with 2 types, ignoring
+235:13: Cannot specialise 'set[T]' with 3 types, ignoring
+236:25: Cannot specialise 'frozenset[T]' with 2 types, ignoring
+237:25: Cannot specialise 'frozenset[T]' with 3 types, ignoring
+238:15: Cannot specialise 'dict[T,T]' with 1 type, ignoring
+239:15: Cannot specialise 'dict[T,T]' with 3 types, ignoring
+
+244:13: Cannot specialise 'tuple' with Ellipsis after types, ignoring
+245:13: Cannot specialise 'tuple' with Ellipsis after types, ignoring
+246:13: Cannot specialise 'tuple' with Ellipsis after types, ignoring
+247:12: Cannot specialise 'list' with Ellipsis, ignoring
+248:12: Cannot specialise 'list' with Ellipsis, ignoring
+249:11: Cannot specialise 'set' with Ellipsis, ignoring
+250:11: Cannot specialise 'set' with Ellipsis, ignoring
+251:18: Cannot specialise 'frozenset' with Ellipsis, ignoring
+252:18: Cannot specialise 'frozenset' with Ellipsis, ignoring
+253:12: Cannot specialise 'dict' with Ellipsis, ignoring
+254:12: Cannot specialise 'dict' with Ellipsis, ignoring
+255:12: Cannot specialise 'dict' with Ellipsis, ignoring
+256:19: Cannot specialise 'frozendict' with Ellipsis, ignoring
+257:19: Cannot specialise 'frozendict' with Ellipsis, ignoring
+258:19: Cannot specialise 'frozendict' with Ellipsis, ignoring
+
+# Spurious warnings from utility code - not part of the core test
+26:4: 'cpdef_method' redeclared
+36:4: 'cpdef_cname_method' redeclared
 """
 
 _ERRORS = """
