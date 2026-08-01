@@ -59,6 +59,39 @@ def f():
     return var, fvar, some_list, t
 
 
+def global_vars():
+    """
+    >>> global_vars()
+    Python object
+    int
+    float
+    Python object
+    list[int] object
+    list[int] object
+    tuple[int,...] object
+    Python object
+    Python object
+    """
+    l_pyobj_var = pyobj_var
+    print(cython.typeof(l_pyobj_var) if cython.compiled else 'Python object')
+    l_var = var
+    print(cython.typeof(l_var))
+    l_fvar = fvar
+    print(cython.typeof(l_fvar))
+    l_some_number = some_number
+    print(cython.typeof(l_some_number) if cython.compiled else 'Python object')  # FIXME: not currently inferred
+    l_some_list = some_list
+    print(cython.typeof(l_some_list) if cython.compiled else 'list[int] object')
+    l_another_list = another_list
+    print(cython.typeof(l_another_list) if cython.compiled else 'list[int] object')
+    l_t = t
+    print(cython.typeof(l_t) if cython.compiled else 'tuple[int,...] object')
+    l_body = body
+    print(cython.typeof(l_body) if cython.compiled else 'Python object')
+    l_body2 = body2
+    print(cython.typeof(l_body2) if cython.compiled else 'Python object')
+
+
 class BasicStarship(object):
     """
     >>> bs = BasicStarship(5)

@@ -2169,14 +2169,20 @@ class NameNode(AtomicExprNode):
             else:
                 # special case: referring to a C function must return its pointer
                 return PyrexTypes.CPtrType(self.entry.type)
-        else:
-            # If entry is inferred as pyobject it's safe to use local
-            # NameNode's inferred_type.
-            if self.entry.type.is_pyobject and self.inferred_type:
-                # Overflow may happen if integer
-                if not (self.inferred_type.is_int and self.entry.might_overflow):
-                    return self.inferred_type
-            return self.entry.type
+
+        # If entry is inferred as pyobject it's safe to use local NameNode's inferred_type.
+        if self.entry.type.is_pyobject and self.inferred_type:
+            # Overflow may happen if integer
+            if not (self.inferred_type.is_int and self.entry.might_overflow):
+                return self.inferred_type
+
+        if self.entry.type is py_object_type and self.entry.annotation:
+            #modifiers, annotation_type = self.entry.annotation.analyse_type_annotation(env)
+            annotation_type = self.entry.annotation.analyse_as_type(env)
+            if annotation_type:
+                return annotation_type
+
+        return self.entry.type
 
     def compile_time_value(self, denv):
         try:
@@ -2372,6 +2378,9 @@ class NameNode(AtomicExprNode):
                 self.entry = env.declare_assignment_expression_target(self.name, type, self.pos)
             else:
                 self.entry = env.declare_var(self.name, type, self.pos)
+            if self.annotation and not self.entry.annotation:
+                # Even globals deserve remembering their annotation.
+                self.entry.annotation = self.annotation
         if self.entry.is_declared_generic:
             self.result_ctype = py_object_type
         if self.entry.as_module:
