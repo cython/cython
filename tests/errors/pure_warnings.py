@@ -42,7 +42,7 @@ def bar3() -> stdint.bar:  # warning
 def bar4(a: cython.foo[:]):  # error
     pass
 
-cvar: list = cython.declare(dict, {}) # warning
+cvar: list = cython.declare(dict, {})  # warning
 
 _WARNINGS = """
 12:10: Unknown type declaration 'Bar' in annotation, ignoring
