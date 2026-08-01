@@ -1528,13 +1528,15 @@ class CythonCompileTestCase(unittest.TestCase):
                     tostderr('\n'.join(errors))
                     tostderr('\n\n')
                     raise RuntimeError('should have generated extension code')
-            elif errors or expected_errors:
+            if errors or expected_errors:
                 self._match_output(expected_errors, errors, tostderr)
-                return None
             if expected_warnings or (expect_warnings and warnings):
                 self._match_output(expected_warnings, warnings, tostderr)
             if expected_perf_hints or (expect_perf_hints and perf_hints):
                 self._match_output(expected_perf_hints, perf_hints, tostderr)
+
+            if errors or expected_errors:
+                return None
 
         so_path = None
         if not self.cython_only and WITH_COMPILE:

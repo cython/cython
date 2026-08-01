@@ -5373,19 +5373,34 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     def specialize_here(self, pos, env, template_values=None):
         if not self.supports_container_type:
             return self
-        if template_values and None not in template_values:
+        if not template_values or None in template_values:
+            return self
+        if self.name == 'tuple':
             if Ellipsis in template_values:
-                # Ellipsis is allowed only in tuples.
-                warning(pos, f"Cannot specialise {self.name!r} with {len(template_values)} types, ignoring.", level=1)
+                # Ellipsis is allowed only at the start of tuples, where it's already evaluated.
+                warning(pos, f"Cannot specialise {self.name!r} with Ellipsis after types, ignoring", level=1)
+                return self
+        elif Ellipsis in template_values:
+            # Ellipsis is only allowed in tuples.
+            warning(pos, f"Cannot specialise {self.name!r} with Ellipsis, ignoring", level=1)
+            return self
+        else:
+            template_count = len(template_values)
+            expected_count = 2 if self.name in ('dict', 'frozendict') else 1
+            if template_count != expected_count:
+                warning(pos,
+                    f"Cannot specialise '{self.name}[{','.join('T' * expected_count)}]' "
+                    f"with {template_count} type{'' if template_count == 1 else 's'}, ignoring",
+                    level=1,
+                )
                 return self
 
-            typ = type(self)(
-                name=self.name, cname=self.cname, objstruct_cname=self.objstruct_cname,
-                base_type=self, subscripted_types=tuple(template_values), scope=self.scope)
+        typ = type(self)(
+            name=self.name, cname=self.cname, objstruct_cname=self.objstruct_cname,
+            base_type=self, subscripted_types=tuple(template_values), scope=self.scope)
 
-            typ.entry = self.entry
-            return typ
-        return self
+        typ.entry = self.entry
+        return typ
 
     @staticmethod
     def _full_type_name(name: str, subscripted_types) -> str:
