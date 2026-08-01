@@ -2287,7 +2287,6 @@ class NameNode(AtomicExprNode):
         return None
 
     def analyse_as_type(self, env):
-
         type = None
         if self.cython_attribute:
             type = PyrexTypes.parse_basic_type(self.cython_attribute)
@@ -2299,10 +2298,8 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if not entry:
             entry = env.lookup(self.name)
-
         if entry and hasattr(entry.type, 'name') and entry.type.name == 'TypeAliasType':
             return entry.value_node.analyse_as_type(env)
-
         if entry and not entry.is_type and entry.known_standard_library_import:
             entry = Builtin.get_known_standard_library_entry(entry.known_standard_library_import)
         if entry and entry.is_type:

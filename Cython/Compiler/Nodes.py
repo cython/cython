@@ -507,33 +507,24 @@ class CDefExternNode(StatNode):
     def annotate(self, code):
         self.body.annotate(code)
 
+
 class PyTypeAliasNode(Node):
 
     child_attrs = ["lhs", "rhs"]
 
 
     def analyse_expressions(self, env):
-        # self.body = self.body.analyse_expressions(env)
-        # self._type = self.rhs.analyse_as_type(env)
         return self
 
     def analyse_declarations(self, env):
-        # self.body.analyse_declarations(env)
         env.declare_const(self.lhs.name, PyrexTypes.TypingType('TypeAliasType'), self.rhs, self.pos)
 
     def generate_function_definitions(self, env, code):
-        # self.body.generate_function_definitions(env, code)
         pass
 
 
     def generate_execution_code(self, code):
-        # self.body.generate_execution_code(code)
         pass
-
-        # value = self.rhs.infer_type(env)
-        # type = ...
-
-        # env.declare_var(value, type, var.pos, is_cdef=True)
 
 
 class CDeclaratorNode(Node):

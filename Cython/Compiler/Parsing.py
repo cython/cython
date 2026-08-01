@@ -2449,10 +2449,8 @@ def p_simple_statement(s: PyrexScanner, first_statement: cython.bint = 0):
 
 @cython.cfunc
 def p_type_statement(s: PyrexScanner):
-    # assume s.sy == 'global'
     pos = s.position()
     s.next()  # 'type'
-
     lhs = p_ident(s)
     s.expect('=')
     rhs = p_test(s)
@@ -2460,10 +2458,6 @@ def p_type_statement(s: PyrexScanner):
             pos,
             lhs = ExprNodes.NameNode(pos, name=lhs),
             rhs = rhs
-            # body=Nodes.SingleAssignmentNode(
-            #     pos,
-            #     lhs=ExprNodes.NameNode(pos, name=lhs),
-            #     rhs=rhs, first=True)
     )
 
 @cython.cfunc
