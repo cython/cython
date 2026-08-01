@@ -2360,7 +2360,18 @@ class NameNode(AtomicExprNode):
                 self.annotation and env.is_c_dataclass_scope):
             error(self.pos, "Cannot redeclare inherited fields in Cython dataclasses")
         elif self.entry and self.annotation and env.directives['annotation_typing']:
-            error(self.pos, f"'{self.name}' redeclared")
+            if not self.entry.scope.is_module_scope:
+                error(self.pos, f"'{self.name}' redeclared")
+            else:
+                # Type annotations of global variables (module scope) are ignored by cython.
+                # Hence, we support somewhat contradictory declarations like:
+                # _Empty_Tuple: tuple[typing.Any] = cython.declare(tuple, ())
+                annotation_type = self.annotation.analyse_as_type(env)
+                entry_type = self.entry.type
+                if not (annotation_type.assignable_from(entry_type) or entry_type.assignable_from(annotation_type)):
+                    warning(self.pos,
+                        f"Annotation type '{annotation_type}' is not compatible "
+                        f"with declaration type '{entry_type}'.", 1)
         if not self.entry:
             if env.directives['warn.undeclared']:
                 warning(self.pos, "implicit declaration of '%s'" % self.name, 1)
