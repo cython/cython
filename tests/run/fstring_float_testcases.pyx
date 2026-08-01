@@ -58,9 +58,8 @@ def test_formatfloat_testcases():
     >>> test_formatfloat_testcases()
     292 cases
     """
-    count = 0
+    cdef int count = 0
     for line in TESTCASES.splitlines():
-        line = line.strip()
         if not line or line.startswith('--'):
             continue
         lhs, expected = line.split(' -> ')
@@ -75,7 +74,7 @@ def test_formatfloat_testcases():
     print(f"{count} cases")
 
 
-TESTCASES = u"""\
+TESTCASES: str = u"""\
 -- 'f' code formatting, with explicit precision (>= 0).  Output always
 -- has the given number of places after the point;  zeros are added if
 -- necessary to make this true.
