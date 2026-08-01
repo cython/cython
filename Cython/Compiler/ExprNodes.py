@@ -2363,9 +2363,9 @@ class NameNode(AtomicExprNode):
             if not self.entry.scope.is_module_scope:
                 error(self.pos, f"'{self.name}' redeclared")
             else:
-            # Type annotations of global variables (module scope) are ignored by cython.
-            # Hence, we support somewhat contradictory declarations like:
-            # _Empty_Tuple: tuple[typing.Any] = cython.declare(tuple, ())
+                # Type annotations of global variables (module scope) are ignored by cython.
+                # Hence, we support somewhat contradictory declarations like:
+                # _Empty_Tuple: tuple[typing.Any] = cython.declare(tuple, ())
                 annotation_type = self.annotation.analyse_as_type(env)
                 entry_type = self.entry.type
                 if not (annotation_type.assignable_from(entry_type) or entry_type.assignable_from(annotation_type)):
