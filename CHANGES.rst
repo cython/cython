@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.3.0b1 (2026-07-2?)
+3.3.0b1 (2026-08-??)
 ====================
 
 Features added
@@ -32,6 +32,9 @@ Features added
   use direct C access in CPython.
   (Github issue :issue:`7783`)
 
+* Annotations on global variables are now used by type inference.
+  (Github issue :issue:`7877`)
+
 * C property setters can now explicitly propagate exceptions, instead of always triggering
   a call to ``PyErr_Occurred()`` by returning ``void``.
   (Github issue :issue:`7791`)
@@ -54,6 +57,9 @@ Features added
 * Constant ``frozenset`` objects are deduplicated and cached at module init time
   (similar to constant tuple and slice objects).
   Original Patch by Zhenbo Li. (Github issue :issue:`2741`)
+
+* Formatting C floating point values in f-strings is faster.
+  Patch by Vladimir Saraikin.  (Github issue :issue:`7797`)
 
 * ``bytearray.extend(bytes)`` is faster.
   (Github issue :issue:`7797`)
@@ -102,7 +108,7 @@ Bugs fixed
 
 * Casting to an unresolved ``typeof()`` type (e.g. ``cython.cast(cython.typeof(x), ...)``
   where the type could not be inferred) crashed the compiler instead of reporting an error.
-  Patch by vsaraikin.  (Github issue :issue:`7683`)
+  Patch by Vladimir Saraikin.  (Github issue :issue:`7683`)
 
 * ``cpdef fused`` functions generated redundant code.
   (Github issue :issue:`7778`)
@@ -151,6 +157,9 @@ Other changes
   due to lack of support in the runtimes, but is intended for initial testing
   and future improvements.
   (Github issue :issue:`7831`)
+
+* Cython wheels now use a shared utility code module to reduce their size.
+  (Github issue :issue:`7865`)
 
 
 3.3.0a1 (2026-06-24)
