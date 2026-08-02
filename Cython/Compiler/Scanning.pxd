@@ -2,7 +2,7 @@ import cython
 
 from ..Plex.Scanners cimport Scanner
 
-cdef unicode any_string_prefix, IDENT
+cdef str any_string_prefix, IDENT
 
 cdef get_lexicon()
 cdef initial_compile_time_env()
@@ -32,7 +32,7 @@ cdef class PyrexScanner(Scanner):
     cdef public Py_UCS4 indentation_char
     cdef public Py_ssize_t bracket_nesting_level
     cdef readonly bint async_enabled
-    cdef public unicode sy
+    cdef public str sy
     cdef public systring  # EncodedString
     cdef public list put_back_on_failure
     # fstrings/tstrings
@@ -42,7 +42,7 @@ cdef class PyrexScanner(Scanner):
     cdef Py_ssize_t current_level(self)
 
     cpdef int next(self) except -1
-    cpdef tuple peek(self)
+    cpdef tuple[str, object] peek(self)
     cpdef int error_at_scanpos(self, message) except -1
     cpdef int expect(self, what: str, message=*) except -1
     cpdef int expect_keyword(self, what: str, message=*) except -1

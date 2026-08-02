@@ -4,6 +4,7 @@
 # that should be tested on PyPy?)
 
 run.starargs
+run.extstarargs
 
 # refcounting-specific tests
 double_dealloc_T796

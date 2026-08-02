@@ -2,10 +2,11 @@
 #   Builtin Definitions
 #
 
+from itertools import chain
 
 from .StringEncoding import EncodedString
 from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
-from .Code import UtilityCode, TempitaUtilityCode, KNOWN_PYTHON_BUILTINS, uncachable_builtins
+from .Code import UtilityCode, TempitaUtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
 
@@ -443,8 +444,6 @@ builtin_types_table = [
                                     BuiltinMethod("add",     "TO", "r", "PySet_Add"),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
     ("frozenset", "&PyFrozenSet_Type", []),
-    ("BaseException", "((PyTypeObject*)PyExc_BaseException)", []),
-    ("Exception", "((PyTypeObject*)PyExc_Exception)", []),
     ("memoryview", "&PyMemoryView_Type", [
         # TODO - format would be nice, but hard to get
         # __len__ can be accessed through a direct lookup of the buffer (but probably in Optimize.c)
@@ -482,7 +481,7 @@ types_that_construct_their_instance = frozenset({
     'tuple', 'list', 'dict', 'frozendict', 'set', 'frozenset',
     'memoryview', 'range', 'slice', 'sentinel',
     # All builtin exception types create their own instance.
-    *filter(PyrexTypes.is_exception_type_name, KNOWN_PYTHON_BUILTINS),
+    *PyrexTypes.KNOWN_EXCEPTION_NAMES,
 
     # These types don't currently have a purpose and might become restrictive:
     #'object',
@@ -789,10 +788,6 @@ def init_builtin_types():
             objstruct_cname = 'PyUnicodeObject'
         elif name == 'bool':
             objstruct_cname = 'PyLongObject'
-        elif name == 'BaseException':
-            objstruct_cname = "PyBaseExceptionObject"
-        elif name == 'Exception':
-            objstruct_cname = "PyBaseExceptionObject"
         else:
             objstruct_cname = 'Py%sObject' % name.capitalize()
 
@@ -817,21 +812,73 @@ def init_builtin_types():
 def init_builtin_exceptions():
     """Declare known builtin Python exceptions as types.
     """
-    for name in KNOWN_PYTHON_BUILTINS:
-        if name in uncachable_builtins:
+    special_properties = {
+        'StopIteration': ['value'],
+        'NameError': ['name'],
+        'AttributeError': ['name', 'obj'],
+        'SystemExit': ['code'],
+    }
+    unicode_error_properties = ['encoding', 'object', 'reason']
+    for name in ['UnicodeError', 'UnicodeDecodeError', 'UnicodeEncodeError', 'UnicodeTranslateError']:
+        special_properties[name] = unicode_error_properties
+
+    for name in PyrexTypes.KNOWN_EXCEPTION_NAMES:
+        if name in PyrexTypes.uncachable_builtins:
             # Exclude builtins specific to later Python versions or platforms.
             continue
-        if not PyrexTypes.is_exception_type_name(name):
-            continue
-        if builtin_scope.lookup_here(name) is not None:
-            # Already declared as builtin type above in a more specialised way.
-            continue
+
+        objstruct_cname = None
+        if name == 'BaseException':
+            objstruct_cname = "PyBaseExceptionObject"
+        elif name == 'Exception':
+            objstruct_cname = "PyBaseExceptionObject"
+
+        assert builtin_scope.lookup_here(name) is None  # should not be declared above
         utility_code = UtilityCode(
             proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
             name=f"Py{name}_Check",
         )
-        builtin_types[name] = builtin_scope.declare_builtin_type(
-            name, f"((PyTypeObject*)PyExc_{name})", utility_code=utility_code)
+        exc_type = builtin_types[name] = builtin_scope.declare_builtin_type(
+            name, f"((PyTypeObject*)PyExc_{name})",
+            objstruct_cname=objstruct_cname,
+            utility_code=utility_code,
+        )
+
+        # Also cover known subtypes, but avoid overly long chains of type pointer comparisons.
+        subtypes = [
+            tpname for tpname in PyrexTypes.exception_subtypes.get(name, ())
+            if tpname not in PyrexTypes.uncachable_builtins
+        ]
+        if len(subtypes) > 4:
+            subtypes = ()
+
+        utility_code_config = {'EXC_NAME': name, 'SUBTYPES': subtypes, 'PROPERTY_NAME': ''}
+
+        for property_name in chain(('args', 'context', 'cause', 'traceback'), special_properties.get(name, ())):
+            utility_code_config['PROPERTY_NAME'] = property_name
+
+            exc_type.scope.declare_cproperty(
+                f'__{property_name}__' if property_name in ('context', 'cause', 'traceback') else property_name,
+                PyrexTypes.py_object_type,
+                f"__Pyx_Py{name}_get_{property_name}",
+                f"__Pyx_Py{name}_set_{property_name}",
+                utility_code=TempitaUtilityCode.load(
+                    f"ExceptionGetProperty", "Builtins.c", context=utility_code_config),
+                setter_utility_code=TempitaUtilityCode.load(
+                    f"ExceptionSetProperty", "Builtins.c", context=utility_code_config),
+            )
+
+    for name in PyrexTypes.KNOWN_EXCEPTION_NAMES:
+        parents = PyrexTypes.exception_supertypes.get(name)
+        if not parents or name not in builtin_types:
+            continue
+        exc_type = builtin_types[name]
+        exc_type.exception_supertypes = [
+            # Collect super types bottom up.
+            builtin_types.get(parent) for parent in reversed(parents)
+        ]
+        while None in exc_type.exception_supertypes:
+            exc_type.exception_supertypes.remove(None)
 
 
 def init_builtin_structs():

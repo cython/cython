@@ -12,19 +12,10 @@ on:
       - "Cython/Compiler/ExprNodes.py"
       - "Cython/Compiler/Optimize.py"
   pull_request:
-    paths:
-      # Only run on PRs likely to affect benchmark code generation
-      - ".github/workflows/benchmarks.yml"
-      - "Demos/benchmarks/**"
-      - "Cython/Utility/**"
-      - "Cython/Compiler/Nodes.py"
-      - "Cython/Compiler/ExprNodes.py"
-      - "Cython/Compiler/Optimize.py"
-  label:
     # Accepted labels (in the 'if' condition below) are:
     # * benchmark (explicit)
     # * performance (implicit)
-    types: [created]
+    types: [opened, synchronize, reopened, labeled]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
@@ -34,10 +25,40 @@ permissions:
   contents: read # to fetch code (actions/checkout)
 
 jobs:
+  file-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      pr-files: ${{ steps.filter.outputs.pr-files }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
+      # Only needed to compare the "base" on push; not needed for PR
+      if: ${{ github.event_name == 'push' }}
+    - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
+      id: filter
+      with:
+        base: ${{ case(github.event_name == 'push', github.ref, '') }}
+        filters: |
+          pr-files:
+          # Only run on PRs likely to affect benchmark code generation
+          - ".github/workflows/benchmarks.yml"
+          - "Demos/benchmarks/**"
+          - "Cython/Utility/**"
+          - "Cython/Compiler/Nodes.py"
+          - "Cython/Compiler/ExprNodes.py"
+          - "Cython/Compiler/Optimize.py"
+
   benchmarks:
     runs-on: ubuntu-latest
+    needs: [file-changes]
 
-    if: ${{ github.event_name != 'label' || github.event.label.name == 'benchmark' || github.event.label.name == 'performance' }}
+    if: |
+      (github.event.action != 'labeled' && needs.file-changes.outputs.pr-files == 'true') ||
+        github.event.label.name == 'benchmark' || github.event.label.name == 'performance'
 
     env:
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
@@ -49,14 +70,14 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@33522472633dbd32578e909b315f5ee43ba878ce # v1.2.22
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
         with:
           create-symlink: true
           variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
@@ -65,7 +86,7 @@ jobs:
           max-size: 250M
 
       - name: Setup python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
           python-version: |
@@ -107,13 +128,13 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload CSV results
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: benchmark_*.csv
           path: benchmark_results_csv
 
       - name: Upload results
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: benchmark_results.txt
           path: benchmarks.log

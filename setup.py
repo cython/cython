@@ -107,9 +107,11 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.Code",
             "Cython.Compiler.FusedNode",
             "Cython.Compiler.Parsing",
+            "Cython.Compiler.StringEncoding",
             "Cython.Tempita._tempita",
             "Cython.StringIOTree",
             "Cython.Utils",
+            "Cython.LZSS",
         ])
     if compile_more and not compile_minimal:
         compiled_modules.extend([
@@ -121,8 +123,9 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.ExprNodes",
             "Cython.Compiler.ModuleNode",
             "Cython.Compiler.Optimize",
-            "Cython.LZSS",
             ])
+
+    shared_utility_module = 'Cython._shared'
 
     from shutil import which
     from sysconfig import get_path
@@ -158,6 +161,10 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     if sysconfig.get_config_var('Py_GIL_DISABLED') and platform.system() == "Windows":
         defines.append(('Py_GIL_DISABLED', 1))
 
+    if is_cpython:
+        # Reduce module sizes.
+        defines.append(('CYTHON_USE_TYPE_SPECS', '1'))
+
     extra_defines = []
     if cython_with_refnanny:
         extra_defines.append(('CYTHON_REFNANNY', '1'))
@@ -186,6 +193,38 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     # optimise build parallelism by starting with the largest modules
     extensions.sort(key=lambda ext: os.path.getsize(ext.sources[0]), reverse=True)
 
+    # Add the shared utility module.
+    extensions.append(Extension(
+        shared_utility_module, sources=[shared_utility_module.replace('.', '/') + '.c'],
+        define_macros=defines + extra_defines,
+        **extra_extension_args,
+    ))
+
+    unused_features = ['MemoryView']
+    for ext in extensions:
+        ext.shared_utility_qualified_name = shared_utility_module
+        ext.shared_utility_features_disabled = unused_features
+
+    # Set up Cython directives.
+    cython_directives = dict(
+        language_level=3,
+        auto_pickle=False,  # activated in FlowControl.py
+        #binding=False,  # used via @functools.wraps()
+        always_allow_keywords=False,
+        autotestdict=False,
+    )
+
+    if profile:
+        cython_directives['profile'] = True
+        sys.stderr.write("Enabled profiling for the Cython binary modules\n")
+    if coverage:
+        cython_directives['linetrace'] = True
+        sys.stderr.write("Enabled line tracing and profiling for the Cython binary modules\n")
+
+    for ext in extensions:
+        ext.cython_directives = cython_directives
+
+    # Make 'build_ext' use Cython.
     from Cython.Distutils.build_ext import build_ext as cy_build_ext
     build_ext = None
     try:
@@ -198,21 +237,6 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             build_ext = cy_build_ext
     except ImportError:
         build_ext = cy_build_ext
-
-    from Cython.Compiler.Options import get_directive_defaults
-    get_directive_defaults().update(
-        language_level=3,
-        auto_pickle=False,
-        binding=False,
-        always_allow_keywords=False,
-        autotestdict=False,
-    )
-    if profile:
-        get_directive_defaults()['profile'] = True
-        sys.stderr.write("Enabled profiling for the Cython binary modules\n")
-    if coverage:
-        get_directive_defaults()['linetrace'] = True
-        sys.stderr.write("Enabled line tracing and profiling for the Cython binary modules\n")
 
     # not using cythonize() directly to let distutils decide whether building extensions was requested
     add_command_class("build_ext", build_ext)

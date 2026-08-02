@@ -19,8 +19,16 @@ def find_github_files(version, api_url=GITHUB_API_URL):
     url = f"{api_url}/releases/tags/{version}"
     release, _ = read_url(url, accept="application/vnd.github+json", as_json=True)
 
+    version_marker = f"-{version}-"
     for asset in release.get('assets', ()):
-        yield asset['browser_download_url']
+        url = asset['browser_download_url']
+
+        # Validate matching version of build artefacts.
+        filename = url.split('?', 1)[0].rsplit('/', 1)[-1]
+        if ((version_marker[:-1] + '.') if filename.endswith('.tar.gz') else version_marker) not in filename:
+            raise RuntimeError(f"Unexpected artefact found, expected version {version!r}, found {url}")
+
+        yield url
 
 
 def read_url(url, decode=True, accept=None, as_json=False):

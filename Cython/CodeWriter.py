@@ -673,7 +673,7 @@ class ExpressionWriter(TreeVisitor):
     def visit_CondExprNode(self, node):
         self.visit(node.true_val)
         self.put(" if ")
-        self.visit(node.test)
+        self.visit(node.condition)
         self.put(" else ")
         self.visit(node.false_val)
 

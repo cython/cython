@@ -59,13 +59,12 @@ static CYTHON_INLINE __Pyx_PySendResult __Pyx_Generator_Yield_From(__pyx_Corouti
 //@requires: Generator
 //@requires: CoroutineSetYieldFrom
 //@requires: ObjectHandling.c::IterNextPlain
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 #if CYTHON_USE_TYPE_SLOTS
 static void __Pyx_PyIter_CheckErrorAndDecref(PyObject *source) {
-    __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
-    PyErr_Format(PyExc_TypeError,
-        "iter() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", source_type_name);
-    __Pyx_DECREF_TypeName(source_type_name);
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "iter() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", source);
     Py_DECREF(source);
 }
 #endif
@@ -199,6 +198,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *o); /*proto*/
 //@requires: ObjectHandling.c::PyObjectGetMethod
 //@requires: ObjectHandling.c::PyObjectCallNoArg
 //@requires: ObjectHandling.c::PyObjectCallOneArg
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 //@requires: Coro_CheckExact
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
@@ -217,9 +217,9 @@ static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
     _PyErr_FormatFromCause(PyExc_TypeError,
         "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
     __Pyx_DECREF_TypeName(source_type_name);
+
 #else
     PyObject *exc, *val, *val2, *tb;
-    __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
     assert(PyErr_Occurred());
     __Pyx_PyErr_FetchException(&exc, &val, &tb);
 #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
@@ -231,9 +231,8 @@ static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
     Py_DECREF(exc);
 #endif
     assert(!PyErr_Occurred());
-    PyErr_Format(PyExc_TypeError,
-        "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
-    __Pyx_DECREF_TypeName(source_type_name);
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source);
 
     __Pyx_PyErr_FetchException(&exc, &val2, &tb);
 #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
@@ -297,10 +296,8 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         goto bad;
     }
     if (unlikely(!PyIter_Check(res))) {
-        __Pyx_TypeName res_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(res));
-        PyErr_Format(PyExc_TypeError,
-            "__await__() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", res_type_name);
-        __Pyx_DECREF_TypeName(res_type_name);
+        __Pyx_RaiseTypeErrorWithObjectType(
+            "__await__() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", res);
         Py_CLEAR(res);
     } else {
         int is_coroutine = 0;
@@ -318,12 +315,8 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     }
     return res;
 slot_error:
-    {
-        __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-        PyErr_Format(PyExc_TypeError,
-            "object " __Pyx_FMT_TYPENAME " can't be used in 'await' expression", obj_type_name);
-        __Pyx_DECREF_TypeName(obj_type_name);
-    }
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "object " __Pyx_FMT_TYPENAME " can't be used in 'await' expression", obj);
 bad:
     return NULL;
 }
@@ -335,14 +328,12 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *o); /*prot
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*proto*/
 
 //////////////////// AsyncIter ////////////////////
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 //@requires: GetAwaitIter
 
-static PyObject *__Pyx_Coroutine_GetAsyncIter_Fail(PyObject *obj) {
-    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
-                 "'async for' requires an object with __aiter__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
-    return NULL;
+static void __Pyx_Coroutine_GetAsyncIter_Fail(PyObject *obj) {
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "'async for' requires an object with __aiter__ method, got " __Pyx_FMT_TYPENAME, obj);
 }
 
 
@@ -358,16 +349,14 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
             return (*am_aiter)(obj);
         }
     }
-    return __Pyx_Coroutine_GetAsyncIter_Fail(obj);
+    __Pyx_Coroutine_GetAsyncIter_Fail(obj);
+    return NULL;
 }
 
 
-static PyObject *__Pyx_Coroutine_AsyncIterNext_Fail(PyObject *obj) {
-    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
-        "'async for' requires an object with __anext__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
-    return NULL;
+static void __Pyx_Coroutine_AsyncIterNext_Fail(PyObject *obj) {
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "'async for' requires an object with __anext__ method, got " __Pyx_FMT_TYPENAME, obj);
 }
 
 
@@ -383,7 +372,8 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
             return (*am_anext)(obj);
         }
     }
-    return __Pyx_Coroutine_AsyncIterNext_Fail(obj);
+    __Pyx_Coroutine_AsyncIterNext_Fail(obj);
+    return NULL;
 }
 
 
@@ -583,6 +573,7 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self);
 //@requires: ObjectHandling.c::PyObjectFastCall
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 //@requires: ObjectHandling.c::IterNextPlain
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: CommonStructures.c::CommonTypesMetaclass
@@ -1442,21 +1433,15 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
 
     if (gen->resume_label >= 0) {
         // Generator is paused or unstarted, so we need to close
-        PyObject_GC_Track(self);
 #if CYTHON_USE_TP_FINALIZE
+        PyObject_GC_Track(self);
         if (unlikely(PyObject_CallFinalizerFromDealloc(self)))
-#else
-        {
-            destructor del = __Pyx_PyObject_GetSlot(gen, tp_del, destructor);
-            if (del) del(self);
-        }
-        if (unlikely(Py_REFCNT(self) > 0))
-#endif
         {
             // resurrected.  :(
             return;
         }
         PyObject_GC_UnTrack(self);
+#endif
     }
 
 #ifdef __Pyx_AsyncGen_USED
@@ -1691,6 +1676,10 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
     Py_XINCREF(code);
     gen->gi_code = code;
     gen->gi_frame = NULL;
+#if CYTHON_USE_SYS_MONITORING && (CYTHON_PROFILE || CYTHON_TRACE)
+    memset(gen->$monitoring_states_cname, 0, sizeof(gen->$monitoring_states_cname));
+    gen->$monitoring_version_cname = 0;
+#endif
 
     PyObject_GC_Track(gen);
     return gen;
@@ -1759,11 +1748,8 @@ static void __Pyx_SetBackportTypeAmSend(PyTypeObject *type, __Pyx_PyAsyncMethods
 // #if CYTHON_USE_TYPE_SPECS
 static PyObject *__Pyx_Coroutine_fail_reduce_ex(PyObject *self, PyObject *arg) {
     CYTHON_UNUSED_VAR(arg);
-
-    __Pyx_TypeName self_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE((PyObject*)self));
-    PyErr_Format(PyExc_TypeError, "cannot pickle '" __Pyx_FMT_TYPENAME "' object",
-                         self_type_name);
-    __Pyx_DECREF_TypeName(self_type_name);
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "cannot pickle '" __Pyx_FMT_TYPENAME "' object", self);
     return NULL;
 }
 // #endif

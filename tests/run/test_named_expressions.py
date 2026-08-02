@@ -9,15 +9,12 @@ import unittest
 import cython
 from Cython.Compiler.Main import CompileError
 from Cython.Build.Inline import cython_inline
-from Cython.TestUtils import TimedTest, py_parse_code
+from Cython.TestUtils import TimedTest, parse_python_code
 import re
 import sys
 
 if cython.compiled:
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from io import StringIO
 
     class StdErrHider:
         def __enter__(self):
@@ -81,11 +78,7 @@ class NamedExpressionInvalidTest(TimedTest):
         def check_syntax(code, gl=None, loc=None):
             assert not gl, gl
             assert not loc, loc
-            if '[' in code:
-                # Comprehensions fail with scope attribute error in PostParse.
-                cls._orig_exec(code, gl, loc)
-            else:
-                py_parse_code(code)
+            parse_python_code(code)
 
         cls._orig_exec = exec
         globals()['exec'] = check_syntax

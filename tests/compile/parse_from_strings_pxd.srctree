@@ -1,0 +1,37 @@
+PYTHON -c "import run; run.test()"
+
+######## run.py ########
+
+from Cython.Compiler.TreeFragment import parse_from_strings, StringParseContext
+from Cython.Compiler.Errors import init_thread
+from Cython.Compiler.ModuleNode import ModuleNode
+
+init_thread()
+
+def test():
+    for filename in ["comment_at_start.pxd", "default_star.pxd", "variety.pxd"]:
+        test_file(filename)
+
+def test_file(filename):
+    with open(filename) as fd:
+        code = fd.read()
+    context = StringParseContext(filename)
+    context.set_language_level(3)
+    tree = parse_from_strings(filename, code, context=context, level="module_pxd")
+    assert isinstance(tree, ModuleNode)
+
+######## comment_at_start.pxd ########
+
+# hello this is a comment
+cdef void a(int a) noexcept nogil
+
+######## default_star.pxd ########
+
+cdef void a(int a, int b=*) noexcept nogil
+
+######## variety.pxd ########
+
+cdef void a(int a) noexcept nogil
+
+cdef inline int double(int a):
+    return a * 2

@@ -145,7 +145,13 @@ class UFuncConversion:
         context_types = dict(arg_types + out_types)
         self.node.entry.used = True
 
-        ufunc_cname = self.global_scope.next_id(self.node.entry.name + "_ufunc_def")
+        ufunc_cname = self.node.entry.name[0]
+        if not ufunc_cname.isidentifier():
+            ufunc_cname = ''.join(
+                [ ufunc_cname[0] if (ufunc_cname[0].isalpha() or ufunc_cname == '_') else '_' ] +
+                [ (u if u.isalnum() or u == '_' else '_') for u in ufunc_cname[1] ])
+        ufunc_cname = Symtab.punycodify_name(ufunc_cname)
+        ufunc_cname = self.global_scope.next_id(ufunc_cname + "_ufunc_def")
 
         will_be_called_without_gil = not (any(t.is_pyobject for _, t in arg_types) or
             any(t.is_pyobject for _, t in out_types))

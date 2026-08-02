@@ -1,20 +1,30 @@
 //////////////////// ArgTypeTest.proto ////////////////////
-//@requires: ArgTypeTestFunc
 
 // Exact is 0 (False), 1 (True) or 2 (True and from annotation)
 // The latter gives a small amount of extra error diagnostics
-#define __Pyx_ArgTypeTest(obj, type, none_allowed, name, exact) \
-    ((likely(Py_IS_TYPE(obj, type) | (none_allowed && (obj == Py_None)))) ? 1 : \
-        __Pyx__ArgTypeTest(obj, type, name, exact))
+static CYTHON_INLINE int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed, const char *name, int exact); /*proto*/
+
+//////////////////// ArgTypeTest ////////////////////
+//@requires: ArgTypeTestError
+
+static CYTHON_INLINE int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed, const char *name, int exact) {
+    if (likely(Py_IS_TYPE(obj, type) | (none_allowed && (obj == Py_None))))
+        return 1;
+    if (!exact && likely(type) && likely(__Pyx_TypeCheck(obj, type)))
+        return 1;
+    __Pyx_ArgTypeError(obj, type, name, exact);
+    return 0;
+}
 
 
-//////////////////// ArgTypeTestFunc.export ////////////////////
+//////////////////// ArgTypeTestError.export ////////////////////
+//@feature: DEFAULTS
 
-static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact); /*proto*/
+static void __Pyx_ArgTypeError(PyObject *obj, PyTypeObject *type, const char *name, int exact); /*proto*/
 
-//////////////////// ArgTypeTestFunc ////////////////////
+//////////////////// ArgTypeTestError ////////////////////
 
-static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact)
+static void __Pyx_ArgTypeError(PyObject *obj, PyTypeObject *type, const char *name, int exact)
 {
     __Pyx_TypeName type_name;
     __Pyx_TypeName obj_type_name;
@@ -22,10 +32,7 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
     int from_annotation_subclass = 0;
     if (unlikely(!type)) {
         PyErr_SetString(PyExc_SystemError, "Missing type object");
-        return 0;
-    }
-    else if (!exact) {
-        if (likely(__Pyx_TypeCheck(obj, type))) return 1;
+        return;
     } else if (exact == 2) {
         // type from annotation
         if (__Pyx_TypeCheck(obj, type)) {
@@ -33,11 +40,18 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
             extra_info = PYUNICODE("Note that Cython is deliberately stricter than PEP-484 and rejects subclasses of builtin types. If you need to pass subclasses then set the 'annotation_typing' directive to False.");
         }
     }
+
     type_name = __Pyx_PyType_GetFullyQualifiedName(type);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!type_name)) return;
+    #endif
     obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!obj_type_name)) goto obj_type_name_failed;
+    #endif
+
     PyErr_Format(PyExc_TypeError,
-        "Argument '%.200s' has incorrect type (expected " __Pyx_FMT_TYPENAME
-        ", got " __Pyx_FMT_TYPENAME ")"
+        "Argument '%.200s' has incorrect type (expected " __Pyx_FMT_TYPENAME ", got " __Pyx_FMT_TYPENAME ")"
 #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
         "%s%U"
 #endif
@@ -46,6 +60,7 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
         , (from_annotation_subclass ? ". " : ""), extra_info
 #endif
         );
+
 #if __PYX_LIMITED_VERSION_HEX >= 0x030C0000
     // Set the extra_info as a note instead. In principle it'd be possible to do this
     // from Python 3.11 up, but PyErr_GetRaisedException makes it much easier so do it
@@ -60,13 +75,18 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
         PyErr_SetRaisedException(vargs[0]);
     }
 #endif
-    __Pyx_DECREF_TypeName(type_name);
+
     __Pyx_DECREF_TypeName(obj_type_name);
-    return 0;
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+obj_type_name_failed:
+#endif
+    __Pyx_DECREF_TypeName(type_name);
+    return;
 }
 
 
 //////////////////// RaiseArgTupleInvalid.export ////////////////////
+//@feature: DEFAULTS
 
 static void __Pyx_RaiseArgtupleInvalid(const char* func_name, int exact,
     Py_ssize_t num_min, Py_ssize_t num_max, Py_ssize_t num_found); /*proto*/
@@ -136,12 +156,11 @@ static void __Pyx_RaiseDoubleKeywordsError(
 static void __Pyx_RaiseMappingExpectedError(PyObject* arg); /*proto*/
 
 //////////////////// RaiseMappingExpected ////////////////////
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
-    __Pyx_TypeName arg_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(arg));
-    PyErr_Format(PyExc_TypeError,
-        "'" __Pyx_FMT_TYPENAME "' object is not a mapping", arg_type_name);
-    __Pyx_DECREF_TypeName(arg_type_name);
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "'" __Pyx_FMT_TYPENAME "' object is not a mapping", arg);
 }
 
 
@@ -179,6 +198,7 @@ static int __Pyx_CheckKeywordStrings(PyObject *kw) {
 
 
 //////////////////// RejectKeywords.export ////////////////////
+//@feature: DEFAULTS
 
 static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds); /*proto*/
 
@@ -267,6 +287,7 @@ static int __Pyx_ParseKeywords(
 
 
 //////////////////// ParseKeywordsImpl.export ////////////////////
+//@feature: DEFAULTS
 //@requires: RaiseDoubleKeywords
 //@requires: Synchronization.c::CriticalSections
 //@requires: ObjectHandling.c::OwnedDictNext
@@ -927,13 +948,29 @@ static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_
     #define __Pyx_GetKwValue_FASTCALL __Pyx_GetKwValue_VARARGS
     #define __Pyx_KwargsAsDict_FASTCALL __Pyx_KwargsAsDict_VARARGS
 #endif
+#if CYTHON_VECTORCALL_TPNEW
+    #if !CYTHON_VECTORCALL
+        #error Enabling CYTHON_VECTORCALL_TPNEW without CYTHON_VECTORCALL is not supported
+    #endif
+    #define __Pyx_ArgRef_FASTCALL_TPNEW __Pyx_ArgRef_FASTCALL
+    #define __Pyx_NumKwargs_FASTCALL_TPNEW __Pyx_NumKwargs_FASTCALL
+    #define __Pyx_KwValues_FASTCALL_TPNEW __Pyx_KwValues_FASTCALL
+    #define __Pyx_GetKwValue_FASTCALL_TPNEW __Pyx_GetKwValue_FASTCALL
+    #define __Pyx_KwargsAsDict_FASTCALL_TPNEW __Pyx_KwargsAsDict_FASTCALL
+#else
+    #define __Pyx_ArgRef_FASTCALL_TPNEW __Pyx_ArgRef_VARARGS
+    #define __Pyx_NumKwargs_FASTCALL_TPNEW __Pyx_NumKwargs_VARARGS
+    #define __Pyx_KwValues_FASTCALL_TPNEW __Pyx_KwValues_VARARGS
+    #define __Pyx_GetKwValue_FASTCALL_TPNEW __Pyx_GetKwValue_VARARGS
+    #define __Pyx_KwargsAsDict_FASTCALL_TPNEW __Pyx_KwargsAsDict_VARARGS
+#endif
 
 #define __Pyx_ArgsSlice_VARARGS(args, start, stop) PyTuple_GetSlice(args, start, stop)
 
-#if CYTHON_VECTORCALL || (CYTHON_COMPILING_IN_CPYTHON && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
+#if CYTHON_VECTORCALL
 #define __Pyx_ArgsSlice_FASTCALL(args, start, stop) __Pyx_PyTuple_FromArray(args + start, stop - start)
 #else
-#define __Pyx_ArgsSlice_FASTCALL(args, start, stop) PyTuple_GetSlice(args, start, stop)
+#define __Pyx_ArgsSlice_FASTCALL __Pyx_ArgsSlice_VARARGS
 #endif
 
 /////////////// fastcall ///////////////

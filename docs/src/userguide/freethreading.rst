@@ -51,6 +51,20 @@ extension modules claim to support it then you can either:
 
 These options are mainly useful for testing.
 
+Understanding the "GIL" in free-threaded Python
+===============================================
+
+Although free-threading builds don't have a Global Interpreter Lock, they do still
+need to have a suitable Python "thread-state" when running code that touches Python
+objects.  When the Cython documentation refers to "holding the GIL" you should
+interpret it as "being in a state where you can run Python code", rather than holding
+an exclusive lock.
+
+In Cython that thread-state is still controlled by the existing ``with gil:`` and
+``with nogil:`` context managers.  There may still be a value in placing code that doesn't need
+to use Python objects in a ``with nogil`` block so that it works well in the regular
+Python interpreter, and to avoid it blocking the Python garbage collector.
+
 Tools for Thread-safety
 =======================
 
@@ -347,6 +361,80 @@ The less your threads interact, the less chance there is for bugs, the less
 need there is for locking to control their interaction, and the less likely
 they are to slow each other down by invaliding the CPU cache for other
 threads.
+
+Use thread-locals to avoid interactions between threads
+-------------------------------------------------------
+
+In some situations, you can use thread-locals to preventing interactions between threads, and then (if necessary) combine them once you're done with the local calculation.
+This means you only need to use locking in a very limited part of your code, when copying data from thread-local to shared memory.
+
+Consider the following code; if you expect a single ``NotThreadSafeClass`` instance to have its ``query()`` method called from multiple threads at the same time, you will get incorrect results::
+
+  cdef class NotThreadSafeClass:
+
+      cdef int n_calls
+
+      def __cinit__(self):
+          self.n_calls = 0
+
+      def get_num_calls(self):
+          return self.n_calls
+
+      def query(self, param1, param2):
+          for i in range(param1):
+              # ... lots of logic ...
+              self.n_calls += 1
+              # ...
+          return result
+
+Adding a critical section or lock around ``self.n_calls += 1`` is one option, but if it's in a hot inner loop the result will be a significant slowdown.
+
+Using a thread-local variable is often a faster option, and specifically C (or C++) thread-locals.
+Since Cython `does not yet expose the relevant specifiers <https://github.com/cython/cython/issues/6745>`_, you will need to create custom thread-local types yourself::
+
+  cdef extern from *:
+      """
+      #if defined(_MSC_VER)
+        // MS compiler doesn't do standardized _Thread_local until very recent
+        // versions:
+        #define tls_int __declspec(thread) int
+      #else
+        // _Thread_local is available in C11 and later:
+      #define tls_int _Thread_local int
+      #endif
+      """
+      # Generated code will use the version above, this is just a placeholder.
+      ctypedef int tls_int
+
+  cimport cython
+
+  # A thread-local variable:
+  cdef tls_int tls_n_calls
+
+  cdef class ThreadSafeClass:
+
+      # ... the rest of the class is unchanged ...
+
+      def query(self, param1, param2):
+          # Initialize the thread-local counter:
+          global tls_n_calls
+          tls_n_calls = 0
+
+          for i in range(param1):
+              # ... lots of logic ...
+              # Increment the thread-local counter, no need for locking:
+              tls_n_calls += 1
+              # ...
+
+          # Safely increment the class state from the thread local. This is
+          # slow, but happens much less frequently:
+          with cython.critical_section(self):
+              self.n_calls += tls_n_calls
+
+          return result
+
+Note that you will not be able to pass the thread local to Python code.
+If you need to access it, copy it to normal ``cdef`` variable and then pass that to Python APIs.
 
 Should you use ``prange``?
 --------------------------

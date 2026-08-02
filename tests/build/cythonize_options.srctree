@@ -9,11 +9,7 @@ from Cython.Build.Dependencies import cythonize
 
 import sys
 from distutils.core import setup
-try:
-    # io.StringIO cannot handle 'str' in Py2
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 old_stderr = sys.stderr
 captured = sys.stderr = StringIO()

@@ -1,4 +1,4 @@
-# cython: auto_cpdef=True, infer_types=True, py2_import=True
+# cython: binding=False, auto_cpdef=True, infer_types=True, py2_import=True
 #
 #   Parser
 #
@@ -72,7 +72,7 @@ def p_ident(s: PyrexScanner, message="Expected an identifier"):
 
 
 @cython.cfunc
-def p_ident_list(s: PyrexScanner):
+def p_ident_list(s: PyrexScanner) -> list:
     names = []
     while s.sy == 'IDENT':
         names.append(s.context.intern_ustring(s.systring))
@@ -89,7 +89,7 @@ def p_ident_list(s: PyrexScanner):
 #------------------------------------------
 
 @cython.cfunc
-def p_binop_operator(s: PyrexScanner) -> tuple:
+def p_binop_operator(s: PyrexScanner) -> tuple[str, object]:
     pos = s.position()
     op = s.sy
     s.next()
@@ -159,7 +159,7 @@ def p_test_allow_walrus_after(s: PyrexScanner):
         test = p_or_test(s)
         s.expect('else')
         other = p_test(s)
-        return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
+        return ExprNodes.CondExprNode(pos, condition=test, true_val=expr, false_val=other)
     else:
         return expr
 
@@ -549,7 +549,7 @@ def p_trailer(s: PyrexScanner, node1):
 #             star_expr )
 
 @cython.cfunc
-def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tuple:
+def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tuple[list, list]:
     # s.sy == '('
     s.next()
     positional_args = []
@@ -600,7 +600,7 @@ def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tupl
 
 
 @cython.cfunc
-def p_call_build_packed_args(pos, positional_args, keyword_args) -> tuple:
+def p_call_build_packed_args(pos, positional_args: list, keyword_args: list) -> tuple:
     keyword_dict = None
 
     subtuples = [
@@ -683,7 +683,7 @@ def p_index(s: PyrexScanner, base):
 
 
 @cython.cfunc
-def p_subscript_list(s: PyrexScanner) -> tuple:
+def p_subscript_list(s: PyrexScanner) -> tuple[list[list], cython.bint]:
     is_single_value = True
     items = [p_subscript(s)]
     while s.sy == ',':
@@ -934,7 +934,7 @@ def wrap_compile_time_constant(pos, value):
 
 
 @cython.cfunc
-def p_cat_string_literal(s: PyrexScanner) -> tuple:
+def p_cat_string_literal(s: PyrexScanner) -> tuple[str, object, object]:
     # A sequence of one or more adjacent string literals.
     # Returns (kind, bytes_value, unicode_value)
     # where kind in ('b', 'c', 'u', 'f', 't', '')
@@ -1012,7 +1012,7 @@ def check_for_non_ascii_characters(string) -> cython.bint:
 
 @cython.cfunc
 def p_string_literal_shared_read(
-        s: PyrexScanner, pos, chars, kind,
+        s: PyrexScanner, pos, chars, kind: str,
         is_raw: cython.bint):
     """
     Returns a string of non-escaped characters (if handled) or none.
@@ -1058,7 +1058,7 @@ def _validate_kind_string(pos, systring: str) -> str:
     return ''
 
 @cython.cfunc
-def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
+def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple[str, object, object]:
     # A single string or char literal.  Returns (kind, bvalue, uvalue)
     # where kind in ('b', 'c', 'u', 'f', '').  The 'bvalue' is the source
     # code byte sequence of the string literal, 'uvalue' is the
@@ -1302,7 +1302,7 @@ def p_ft_string_middles(s: PyrexScanner,
     return middles
 
 @cython.cfunc
-def p_ft_string_literal(s: PyrexScanner) -> tuple:
+def p_ft_string_literal(s: PyrexScanner) -> tuple[cython.Py_UCS4, object, object]:
     # s.sy == BEGIN_FT_STRING
     kind_string = _validate_kind_string(s.position(), s.systring)
     tf_string_kind: cython.Py_UCS4 = 't' if 't' in kind_string else 'f'
@@ -1317,7 +1317,7 @@ def p_ft_string_literal(s: PyrexScanner) -> tuple:
 
 
 @cython.cfunc
-def _append_escape_sequence(kind, builder, escape_sequence: str, s: PyrexScanner):
+def _append_escape_sequence(kind: str, builder, escape_sequence: str, s: PyrexScanner):
     if len(escape_sequence) < 2:
         builder.append("\\")  # invalid escape sequence, warned earlier
         return
@@ -1336,7 +1336,7 @@ def _append_escape_sequence(kind, builder, escape_sequence: str, s: PyrexScanner
         else:
             s.error("Invalid hex escape '%s'" % escape_sequence, fatal=False)
     elif c in 'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
-        chrval = -1
+        chrval: cython.py_int = -1
         if c == 'N':
             uchar = None
             try:
@@ -2204,6 +2204,21 @@ def p_try_statement(s: PyrexScanner):
         if s.sy == 'else':
             s.next()
             else_clause = p_suite(s)
+
+        for clause in except_clauses[1:]:
+            if clause.is_except_star != except_clauses[0].is_except_star:
+                s.error("cannot have both 'except' and 'except*' on the same 'try'", pos=clause.pos)
+                break
+
+        if except_clauses and except_clauses[0].is_except_star:
+            except_body = Nodes.ExceptStarChainNode(pos, except_clauses=except_clauses)
+            except_clauses = [
+                Nodes.ExceptClauseNode(
+                    pos,
+                    pattern=[],
+                    body=except_body, target=None)
+            ]
+
         body = Nodes.TryExceptStatNode(pos,
             body = body, except_clauses = except_clauses,
             else_clause = else_clause)
@@ -2221,9 +2236,13 @@ def p_try_statement(s: PyrexScanner):
 
 @cython.cfunc
 def p_except_clause(s: PyrexScanner):
+    # Share as much implementation as possible between except and except*
     # s.sy == 'except'
     pos = s.position()
     s.next()
+    is_except_star = s.sy == '*'
+    if is_except_star:
+        s.next()
     exc_type = None
     exc_value = None
     is_except_as = False
@@ -2234,8 +2253,10 @@ def p_except_clause(s: PyrexScanner):
             exc_type = exc_type.args
         else:
             exc_type = [exc_type]
-        if s.sy == ',' or (s.sy == 'IDENT' and s.systring == 'as'
-                           and s.context.language_level == 2):
+        # Don't allow old , syntax at all for except*
+        if not is_except_star and s.sy == ',' or (
+                s.sy == 'IDENT' and s.systring == 'as'
+                and s.context.language_level == 2):
             s.next()
             exc_value = p_test(s)
         elif s.sy == 'IDENT' and s.systring == 'as':
@@ -2245,10 +2266,13 @@ def p_except_clause(s: PyrexScanner):
             name = p_ident(s)
             exc_value = ExprNodes.NameNode(pos2, name = name)
             is_except_as = True
+    elif is_except_star:
+        s.error("Expected exception type after except*")
     body = p_suite(s)
     return Nodes.ExceptClauseNode(pos,
         pattern = exc_type, target = exc_value,
-        body = body, is_except_as=is_except_as)
+        body = body, is_except_as=is_except_as,
+        is_except_star = is_except_star)
 
 
 @cython.cfunc
@@ -2317,7 +2341,7 @@ def p_with_items(s: PyrexScanner, is_async: cython.bint = False):
 
 
 @cython.cfunc
-def p_with_items_list(s: PyrexScanner, is_async: cython.bint) -> list:
+def p_with_items_list(s: PyrexScanner, is_async: cython.bint) -> list[tuple]:
     items = []
     while True:
         items.append(p_with_item(s, is_async))
@@ -2684,7 +2708,7 @@ def p_suite_with_docstring(s: PyrexScanner, ctx, with_doc_only: cython.bint = Fa
 
 
 @cython.cfunc
-def p_positional_and_keyword_args(s: PyrexScanner, end_sy_set, templates = None) -> tuple:
+def p_positional_and_keyword_args(s: PyrexScanner, end_sy_set, templates = None) -> tuple[list, list]:
     """
     Parses positional and keyword arguments. end_sy_set
     should contain any s.sy that terminate the argument list.
@@ -3056,9 +3080,9 @@ struct_enum_union = cython.declare(frozenset, frozenset((
 
 
 @cython.cfunc
-def p_sign_and_longness(s: PyrexScanner) -> tuple:
-    signed = 1
-    longness = 0
+def p_sign_and_longness(s: PyrexScanner) -> tuple[cython.int, cython.long]:
+    signed: cython.int = 1
+    longness: cython.long = 0
     while s.sy == 'IDENT' and s.systring in sign_and_longness_words:
         if s.systring == 'unsigned':
             signed = 0
@@ -4508,6 +4532,9 @@ def p_literal_pattern(s: PyrexScanner):
         sign_pos = s.position()
         s.next()
         next_must_be_a_number = True
+    elif s.sy == '+':
+        s.next()
+        next_must_be_a_number = True
 
     sy = s.sy
     pos = s.position()
@@ -4526,6 +4553,8 @@ def p_literal_pattern(s: PyrexScanner):
     if res is not None and s.sy in ['+', '-']:
         sign = s.sy
         s.next()
+        if s.sy == '+':
+            s.next()
         if s.sy != 'IMAG':
             s.error("Expected imaginary number")
         else:
@@ -4628,12 +4657,16 @@ def p_mapping_pattern(s: PyrexScanner):
 
     double_star_capture_target = None
     items_patterns = []
+    double_star_set_twice_pos = None
+    pattern_after_double_star_pos = None
     star_star_arg_pos = None
     while s.sy != '}':
         if double_star_capture_target and not star_star_arg_pos:
             star_star_arg_pos = s.position()
         if s.sy == '**':
             s.next()
+            if double_star_capture_target:
+                double_star_set_twice_pos = s.position()
             double_star_capture_target = p_pattern_capture_target(s)
         else:
             # key=(literal_expr | attr)
@@ -4646,10 +4679,16 @@ def p_mapping_pattern(s: PyrexScanner):
             s.expect(':')
             value = p_pattern(s)
             items_patterns.append((key, value))
+            if double_star_capture_target:
+                pattern_after_double_star_pos = value.pos
         if s.sy != ',':
             break
         s.next()
     s.expect('}')
+    if double_star_set_twice_pos is not None:
+        return Nodes.ErrorNode(double_star_set_twice_pos, what = "Double star capture set twice")
+    if pattern_after_double_star_pos is not None:
+        return Nodes.ErrorNode(pattern_after_double_star_pos, what = "pattern follows ** capture")
 
     if star_star_arg_pos is not None:
         return Nodes.ErrorNode(

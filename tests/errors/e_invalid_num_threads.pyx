@@ -12,7 +12,7 @@ with nogil, parallel(num_threads=None):
 with nogil, parallel(num_threads=None, num_threads=None):
     pass
 
-with nogil, parallel(num_threads=0):
+with nogil, parallel(num_threads=-1):
     pass
 
 with nogil, parallel(num_threads=i):
@@ -35,7 +35,7 @@ for i in prange(10, nogil=True, num_threads=2):
 
 _ERRORS = u"""
 12:20: Duplicate keyword argument found: num_threads
-15:20: argument to num_threads must be greater than 0
+15:20: argument to num_threads must be greater than or equal to 0
 21:20: Duplicate keyword argument found: num_threads
 25:19: num_threads already declared in outer section
 29:19: num_threads must be declared in the parent parallel section

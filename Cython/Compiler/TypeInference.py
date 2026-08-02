@@ -35,7 +35,7 @@ class MarkParallelAssignments(EnvTransform):
         super().__init__(context)
 
     def mark_assignment(self, lhs, rhs, inplace_op=None):
-        if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
+        if lhs.is_name or isinstance(lhs, Nodes.PyArgDeclNode):
             if lhs.entry is None:
                 # TODO: This shouldn't happen...
                 return
@@ -62,7 +62,7 @@ class MarkParallelAssignments(EnvTransform):
                 parallel_node.assignments[lhs.entry] = (pos, inplace_op)
                 parallel_node.assigned_nodes.append(lhs)
 
-        elif isinstance(lhs, ExprNodes.SequenceNode):
+        elif lhs.is_sequence_constructor:
             for i, arg in enumerate(lhs.args):
                 if not rhs or arg.is_starred:
                     item_node = None

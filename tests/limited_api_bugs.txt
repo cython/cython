@@ -6,7 +6,6 @@ embedsignatures_clinic
 generator_frame_cycle
 line_trace
 pstats_profile_test
-pep442_tp_finalize
 tracebacks
 tss
 sys_monitoring
@@ -73,6 +72,7 @@ slice2b
 trashcan
 unbound_special_methods
 unicode_formatting
+extra_patma_no_limited
 
 # Py_UNICODE
 builtin_ord
