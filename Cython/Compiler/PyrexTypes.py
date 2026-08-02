@@ -2625,7 +2625,8 @@ class CIntLike:
         if prefix and prefix[0] == '0':
             padding = '0'
             prefix = prefix.lstrip('0')
-        if prefix.isdigit():
+        # isdecimal() rather than isdigit(): the latter also accepts digits that int() rejects.
+        if prefix.isdecimal():
             return (format_type, int(prefix), padding)
 
         return (None, 0, padding)
@@ -2892,6 +2893,7 @@ class CFloatType(CNumericType):
     is_float = 1
     to_py_function = "PyFloat_FromDouble"
     from_py_function = "__Pyx_PyFloat_AsDouble"
+    default_format_spec = ''
 
     exception_value = -1
 
@@ -2903,6 +2905,37 @@ class CFloatType(CNumericType):
 
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
+
+    @staticmethod
+    def _parse_format(format_spec):
+        # We currently only support str() formatting ('r') and a format char
+        # with an optional precision, e.g. 'g' or '.2f'.
+        if not format_spec:
+            return ('r', 0)
+
+        format_char = format_spec[-1]
+        if format_char in 'eEfFgG':
+            precision = format_spec[:-1]
+            if not precision:
+                # Python's default precision for an explicit format char.
+                return (format_char, 6)
+            if precision[0] == '.':
+                precision = precision[1:]
+                # isdecimal() rather than isdigit(): the latter also accepts digits that int() rejects.
+                if precision.isdecimal():
+                    return (format_char, int(precision))
+
+        return (None, 0)
+
+    def can_coerce_to_pystring(self, env, format_spec=None):
+        format_char, precision = self._parse_format(format_spec)
+        return format_char is not None and precision <= 2**30
+
+    def convert_to_pystring(self, cvalue, code, format_spec=None, name_type=None):
+        format_char, precision = self._parse_format(format_spec)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("CDoubleToPyUnicode", "TypeConversion.c"))
+        return "__Pyx_PyUnicode_FromDouble(%s, '%s', %d)" % (cvalue, format_char, precision)
 
 
 class CComplexType(CNumericType):
