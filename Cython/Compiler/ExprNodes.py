@@ -6281,7 +6281,20 @@ class CallNode(ExprNode):
                     elif func_name == 'bool':
                         return PyrexTypes.c_bint_type
                     elif func_name in Builtin.types_that_construct_their_instance:
-                        return Builtin.builtin_types[func_name]
+                        builtin_type = Builtin.builtin_types[func_name]
+                        if builtin_type.is_immutable and builtin_type.supports_container_type and len(self.args) == 1:
+                            if isinstance(self.args[0], (SetNode, DictNode, ListNode)):
+                                self.args[0].read_only = True
+                            param_type = self.args[0].infer_type(env)
+                            subscripted_types = \
+                                param_type.subscripted_types if param_type.supports_container_type else None
+                            if builtin_type.is_pytuple_type and not param_type.is_pytuple_type and len(subscripted_types) == 1:
+                                # tuple([1, 2]) should be type of tuple[int, ...]
+                                # tuple((1, 2)) should be type of tuple[int, int]
+                                subscripted_types += (Ellipsis,)
+                            return builtin_type.specialize_here(self.pos, env, subscripted_types)
+                        else:
+                            return builtin_type
         func_type = self.function.analyse_as_type(env)
         if func_type and (func_type.is_struct_or_union or func_type.is_cpp_class):
             return func_type
@@ -9325,6 +9338,7 @@ class ListNode(SequenceNode):
     type = list_type
     in_module_scope = False
     is_temp = True
+    read_only = False
 
     gil_message = "Constructing Python list"
 
@@ -9333,7 +9347,7 @@ class ListNode(SequenceNode):
 
     def infer_type(self, env):
         # TODO: Infer non-object list arrays.
-        if len(self.args) > 0:
+        if len(self.args) > 0 and self.read_only:
             item_type = infer_container_type(env, self.args)
             if item_type is not py_object_type:
                 return list_type.specialize_here(self.pos, env, [item_type])
@@ -9934,7 +9948,7 @@ class SetNode(ExprNode):
     gil_message = "Constructing Python set"
 
     def infer_type(self, env):
-        if len(self.args) > 0:
+        if self.read_only and len(self.args) > 0:
             item_type = infer_container_type(env, self.args)
             if item_type is not py_object_type:
                 return set_type.specialize_here(self.pos, env, [item_type])
@@ -10008,6 +10022,14 @@ class FrozenSetNode(ExprNode):
             self.is_literal = True
         else:
             self.is_temp = True
+
+    def infer_type(self, env):
+        breakpoint()
+        if len(self.args) > 0:
+            item_type = infer_container_type(env, self.args)
+            if item_type is not py_object_type:
+                return frozenset_type.specialize_here(self.pos, env, [item_type])
+        return frozenset_type
 
     def may_be_none(self):
         return False
@@ -10173,6 +10195,7 @@ class DictNode(ExprNode):
     type = dict_type
     is_dict_literal = True
     reject_duplicates = False
+    read_only = False
 
     obj_conversion_errors = []
 
@@ -10198,7 +10221,7 @@ class DictNode(ExprNode):
 
     def infer_type(self, env):
         # TODO: Infer struct constructors.
-        if len(self.key_value_pairs) > 0:
+        if len(self.key_value_pairs) > 0 and self.read_only:
             key_type = infer_container_type(env, [item.key for item in self.key_value_pairs])
             value_type = infer_container_type(env, [item.value for item in self.key_value_pairs])
             if key_type is not py_object_type or value_type is not py_object_type:
