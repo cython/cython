@@ -1861,21 +1861,20 @@ class BuiltinObjectType(PyObjectType):
     typedef_flag = True
     is_external = True
     decl_type = 'PyObject'
-    is_immutable = False
 
     _builtin_type_flag_mapping = {
-        'int': ['is_pyint_type', 'is_immutable'],
-        'float': ['is_pyfloat_type', 'is_immutable'],
-        'bool': ['is_pybool_type', 'is_immutable'],
-        'complex': ['is_pycomplex_type', 'is_immutable'],
+        'int': ['is_pyint_type'],
+        'float': ['is_pyfloat_type'],
+        'bool': ['is_pybool_type'],
+        'complex': ['is_pycomplex_type'],
         'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type', 'has_uniform_element_type'],
-        'tuple': ['is_pytuple_type', 'is_builtin_sequence', 'supports_container_type', 'is_immutable'],
+        'tuple': ['is_pytuple_type', 'is_builtin_sequence', 'supports_container_type'],
         'dict': ['is_pydict_type', 'is_pyanydict_type', 'supports_container_type'],
-        'frozendict': ['is_pyfrozendict_type', 'is_pyanydict_type', 'supports_container_type', 'is_immutable'],
+        'frozendict': ['is_pyfrozendict_type', 'is_pyanydict_type', 'supports_container_type'],
         'set': ['is_pyset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type'],
-        'frozenset': ['is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type', 'is_immutable'],
-        'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray', 'is_immutable'],
-        'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray', 'is_immutable'],
+        'frozenset': ['is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type'],
+        'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
+        'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
     }
@@ -5397,12 +5396,18 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     builtin types like list, dict etc which can be subscripted in annotations
     """
 
+    is_immutable = False
+
+    _immutable_types = {'tuple', 'frozenset', 'frozendict'}
+
     def __init__(self, name, cname, objstruct_cname=None, **kwargs):
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
         self.set_python_type_constructor_name(self.get_container_type().name)
         for attr_name, value in kwargs.items():
             setattr(self, attr_name, value)
+        if name in self._immutable_types:
+            self.is_immutable = True
 
     def specialize_here(self, pos, env, template_values=None):
         if not self.supports_container_type:

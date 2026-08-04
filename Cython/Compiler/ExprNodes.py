@@ -6282,12 +6282,12 @@ class CallNode(ExprNode):
                         return PyrexTypes.c_bint_type
                     elif func_name in Builtin.types_that_construct_their_instance:
                         builtin_type = Builtin.builtin_types[func_name]
-                        if builtin_type.is_immutable and builtin_type.supports_container_type and len(self.args) == 1:
+                        if builtin_type.supports_container_type and builtin_type.is_immutable and len(self.args) == 1:
                             if isinstance(self.args[0], (SetNode, DictNode, ListNode)):
                                 self.args[0].read_only = True
                             param_type = self.args[0].infer_type(env)
                             subscripted_types = \
-                                param_type.subscripted_types if param_type.supports_container_type else None
+                                param_type.subscripted_types if param_type.supports_container_type else ()
                             if builtin_type.is_pytuple_type and not param_type.is_pytuple_type and len(subscripted_types) == 1:
                                 # tuple([1, 2]) should be type of tuple[int, ...]
                                 # tuple((1, 2)) should be type of tuple[int, int]
@@ -9177,8 +9177,9 @@ class TupleNode(SequenceNode):
         if self.mult_factor or not self.args:
             return tuple_type
         arg_types = [arg.infer_type(env) for arg in self.args]
-        if any(type.is_pyobject or type.is_memoryviewslice or type.is_unspecified or type.is_fused
-               for type in arg_types):
+        # if any(type.is_pyobject or type.is_memoryviewslice or type.is_unspecified or type.is_fused
+        #        for type in arg_types):
+        if len(arg_types) > 0:
             return tuple_type.specialize_here(self.pos, env, arg_types)
         return env.declare_tuple_type(self.pos, arg_types).type
 
