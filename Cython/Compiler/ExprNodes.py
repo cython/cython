@@ -6281,20 +6281,7 @@ class CallNode(ExprNode):
                     elif func_name == 'bool':
                         return PyrexTypes.c_bint_type
                     elif func_name in Builtin.types_that_construct_their_instance:
-                        builtin_type = Builtin.builtin_types[func_name]
-                        if builtin_type.supports_container_type and builtin_type.is_immutable and len(self.args) == 1:
-                            if isinstance(self.args[0], (SetNode, DictNode, ListNode)):
-                                self.args[0].read_only = True
-                            param_type = self.args[0].infer_type(env)
-                            subscripted_types = \
-                                param_type.subscripted_types if param_type.supports_container_type else ()
-                            if builtin_type.is_pytuple_type and not param_type.is_pytuple_type and len(subscripted_types) == 1:
-                                # tuple([1, 2]) should be type of tuple[int, ...]
-                                # tuple((1, 2)) should be type of tuple[int, int]
-                                subscripted_types += (Ellipsis,)
-                            return builtin_type.specialize_here(self.pos, env, subscripted_types)
-                        else:
-                            return builtin_type
+                        return Builtin.builtin_types[func_name]
         func_type = self.function.analyse_as_type(env)
         if func_type and (func_type.is_struct_or_union or func_type.is_cpp_class):
             return func_type
@@ -6434,6 +6421,23 @@ class SimpleCallNode(CallNode):
     nogil = False
     analysed = False
     overflowcheck = False
+
+    def infer_type(self, env):
+        infered_type = super().infer_type(env)
+
+        if infered_type.supports_container_type and infered_type.is_immutable and self.args and len(self.args) == 1:
+            if isinstance(self.args[0], (SetNode, DictNode, ListNode)):
+                self.args[0].read_only = True
+            param_type = self.args[0].infer_type(env)
+            subscripted_types = \
+                param_type.subscripted_types if param_type.supports_container_type else ()
+            if infered_type.is_pytuple_type and not param_type.is_pytuple_type and len(subscripted_types) == 1:
+                # tuple([1, 2]) should be type of tuple[int, ...]
+                # tuple((1, 2)) should be type of tuple[int, int]
+                subscripted_types += (Ellipsis,)
+            return infered_type.specialize_here(self.pos, env, subscripted_types)
+        else:
+            return infered_type
 
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
