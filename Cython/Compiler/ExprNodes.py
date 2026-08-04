@@ -6424,6 +6424,27 @@ class SimpleCallNode(CallNode):
 
     def infer_type(self, env):
         infered_type = super().infer_type(env)
+        function = self.function
+        # FIXME: To be refactored and tested
+        # Reproducer:
+        # def main():
+        #     temps_free: dict[tuple, tuple] = {
+        #         ('a', True): (['a'], {'a'}),
+        #         ('b', True): (['b'], {'b'})
+        #     }
+        #     freelist = temps_free.get(('a', True))
+        #     print('temps_free', cython.typeof(temps_free))
+        #     print('freelist', cython.typeof(freelist))
+        #     print('freelist[1]', cython.typeof(freelist[1]))
+        #     freelist[1].remove('a')
+        if (
+                function.is_name and function.entry and
+                function.entry.type and
+                function.entry.type.supports_container_type
+        ):
+            pass
+        else:
+            return infered_type
 
         if infered_type.supports_container_type and infered_type.is_immutable and self.args and len(self.args) == 1:
             if isinstance(self.args[0], (SetNode, DictNode, ListNode)):
