@@ -5396,12 +5396,18 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     builtin types like list, dict etc which can be subscripted in annotations
     """
 
+    is_immutable = False
+
+    _immutable_types = {'tuple', 'frozenset', 'frozendict'}
+
     def __init__(self, name, cname, objstruct_cname=None, **kwargs):
         super().__init__(
             name, cname, objstruct_cname=objstruct_cname)
         self.set_python_type_constructor_name(self.get_container_type().name)
         for attr_name, value in kwargs.items():
             setattr(self, attr_name, value)
+        if name in self._immutable_types:
+            self.is_immutable = True
 
     def specialize_here(self, pos, env, template_values=None):
         if not self.supports_container_type:

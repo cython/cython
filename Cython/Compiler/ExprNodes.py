@@ -329,6 +329,13 @@ def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code, lhs_
     code.putln(code.error_goto(pos))
     code.putln('}')
 
+def infer_container_type(env, container_nodes):
+    for arg in container_nodes:
+        arg.type = arg.infer_type(env)
+    return PyrexTypes.reduce_spanning_types(
+        arg.type if arg.type.is_pyobject else arg.coerce_to_pyobject(env).type for arg in container_nodes
+    )
+
 
 class ExprNode(Node):
     #  subexprs     [string]     Class var holding names of subexpr node attrs
@@ -6415,6 +6422,44 @@ class SimpleCallNode(CallNode):
     analysed = False
     overflowcheck = False
 
+    def infer_type(self, env):
+        infered_type = super().infer_type(env)
+        function = self.function
+        # FIXME: To be refactored and tested
+        # Reproducer:
+        # def main():
+        #     temps_free: dict[tuple, tuple] = {
+        #         ('a', True): (['a'], {'a'}),
+        #         ('b', True): (['b'], {'b'})
+        #     }
+        #     freelist = temps_free.get(('a', True))
+        #     print('temps_free', cython.typeof(temps_free))
+        #     print('freelist', cython.typeof(freelist))
+        #     print('freelist[1]', cython.typeof(freelist[1]))
+        #     freelist[1].remove('a')
+        if (
+                function.is_name and function.entry and
+                function.entry.type and
+                function.entry.type.supports_container_type
+        ):
+            pass
+        else:
+            return infered_type
+
+        if infered_type.supports_container_type and infered_type.is_immutable and self.args and len(self.args) == 1:
+            if isinstance(self.args[0], (SetNode, DictNode, ListNode)):
+                self.args[0].read_only = True
+            param_type = self.args[0].infer_type(env)
+            subscripted_types = \
+                param_type.subscripted_types if param_type.supports_container_type else ()
+            if infered_type.is_pytuple_type and not param_type.is_pytuple_type and len(subscripted_types) == 1:
+                # tuple([1, 2]) should be type of tuple[int, ...]
+                # tuple((1, 2)) should be type of tuple[int, int]
+                subscripted_types += (Ellipsis,)
+            return infered_type.specialize_here(self.pos, env, subscripted_types)
+        else:
+            return infered_type
+
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
         args = [arg.compile_time_value(denv) for arg in self.args]
@@ -9157,8 +9202,9 @@ class TupleNode(SequenceNode):
         if self.mult_factor or not self.args:
             return tuple_type
         arg_types = [arg.infer_type(env) for arg in self.args]
-        if any(type.is_pyobject or type.is_memoryviewslice or type.is_unspecified or type.is_fused
-               for type in arg_types):
+        # if any(type.is_pyobject or type.is_memoryviewslice or type.is_unspecified or type.is_fused
+        #        for type in arg_types):
+        if len(arg_types) > 0:
             return tuple_type.specialize_here(self.pos, env, arg_types)
         return env.declare_tuple_type(self.pos, arg_types).type
 
@@ -9318,6 +9364,7 @@ class ListNode(SequenceNode):
     type = list_type
     in_module_scope = False
     is_temp = True
+    read_only = False
 
     gil_message = "Constructing Python list"
 
@@ -9326,6 +9373,10 @@ class ListNode(SequenceNode):
 
     def infer_type(self, env):
         # TODO: Infer non-object list arrays.
+        if len(self.args) > 0 and self.read_only:
+            item_type = infer_container_type(env, self.args)
+            if item_type is not py_object_type:
+                return list_type.specialize_here(self.pos, env, [item_type])
         return list_type
 
     def analyse_expressions(self, env):
@@ -9922,6 +9973,13 @@ class SetNode(ExprNode):
     read_only = False  # Can this safely be turned into an immutable frozenset?
     gil_message = "Constructing Python set"
 
+    def infer_type(self, env):
+        if self.read_only and len(self.args) > 0:
+            item_type = infer_container_type(env, self.args)
+            if item_type is not py_object_type:
+                return set_type.specialize_here(self.pos, env, [item_type])
+        return set_type
+
     def analyse_types(self, env):
         for i in range(len(self.args)):
             arg = self.args[i]
@@ -9990,6 +10048,14 @@ class FrozenSetNode(ExprNode):
             self.is_literal = True
         else:
             self.is_temp = True
+
+    def infer_type(self, env):
+        breakpoint()
+        if len(self.args) > 0:
+            item_type = infer_container_type(env, self.args)
+            if item_type is not py_object_type:
+                return frozenset_type.specialize_here(self.pos, env, [item_type])
+        return frozenset_type
 
     def may_be_none(self):
         return False
@@ -10155,6 +10221,7 @@ class DictNode(ExprNode):
     type = dict_type
     is_dict_literal = True
     reject_duplicates = False
+    read_only = False
 
     obj_conversion_errors = []
 
@@ -10180,6 +10247,11 @@ class DictNode(ExprNode):
 
     def infer_type(self, env):
         # TODO: Infer struct constructors.
+        if len(self.key_value_pairs) > 0 and self.read_only:
+            key_type = infer_container_type(env, [item.key for item in self.key_value_pairs])
+            value_type = infer_container_type(env, [item.value for item in self.key_value_pairs])
+            if key_type is not py_object_type or value_type is not py_object_type:
+                return dict_type.specialize_here(self.pos, env, [key_type, value_type])
         return dict_type
 
     def analyse_types(self, env):
