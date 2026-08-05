@@ -44,10 +44,21 @@ def test_assign_builtin_method():
     print(cython.typeof(i))
 
 
-def test_builtin_method_expression():
+def test_builtin_methods():
     """
-    >>> test_builtin_method_expression()
-    int
+    >>> test_builtin_methods()
+    int 1
+    int object 2
+    str object a
     """
     l: list[list[cython.int]] = [[1]]
-    print(cython.typeof(l.pop().pop()))
+    lp = l.pop().pop()
+    print(cython.typeof(lp), lp)
+
+    d: dict[str, int] = {'a': 2}
+    dg = d.get('a')
+    print(cython.typeof(dg) + (' object' if not cython.compiled else ''), dg)
+
+    s: set[str] = {'a'}
+    sg = s.pop()
+    print(cython.typeof(sg) + (' object' if not cython.compiled else ''), sg)
