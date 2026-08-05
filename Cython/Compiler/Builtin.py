@@ -358,6 +358,9 @@ builtin_types_table = [
 
     ("int",     "&PyLong_Type",     []),
     ("float",   "&PyFloat_Type",   []),
+    ("dict_keys", "&PyDictKeys_Type", []),
+    ("dict_values", "&PyDictValues_Type", []),
+    ("dict_items", "&PyDictItems_Type", []),
 
     ("complex", "&PyComplex_Type", [BuiltinAttribute('cval', field_type_name = 'Py_complex'),
                                     BuiltinAttribute('real', 'cval.real', field_type = PyrexTypes.c_double_type),
@@ -391,11 +394,14 @@ builtin_types_table = [
     ("dict",   "&PyDict_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
                                     BuiltinMethod("has_key",       "TO",   "b", "PyDict_Contains"),
                                     BuiltinMethod("items",  "T",   "O", "__Pyx_PyDict_Items",
-                                                  utility_code=UtilityCode.load("py_dict_items", "Builtins.c")),
+                                                  utility_code=UtilityCode.load("py_dict_items", "Builtins.c"),
+                                                  builtin_return_type='dict_items'),
                                     BuiltinMethod("keys",   "T",   "O", "__Pyx_PyDict_Keys",
-                                                  utility_code=UtilityCode.load("py_dict_keys", "Builtins.c")),
+                                                  utility_code=UtilityCode.load("py_dict_keys", "Builtins.c"),
+                                                  builtin_return_type='dict_keys'),
                                     BuiltinMethod("values", "T",   "O", "__Pyx_PyDict_Values",
-                                                  utility_code=UtilityCode.load("py_dict_values", "Builtins.c")),
+                                                  utility_code=UtilityCode.load("py_dict_values", "Builtins.c"),
+                                                  builtin_return_type='dict_values'),
                                     BuiltinMethod("iteritems",  "T",   "O", "__Pyx_PyDict_IterItems",
                                                   utility_code=UtilityCode.load("py_dict_iteritems", "Builtins.c")),
                                     BuiltinMethod("iterkeys",   "T",   "O", "__Pyx_PyDict_IterKeys",
@@ -655,6 +661,9 @@ inferred_method_return_types = {
         popitem='tuple[K,I]',
         pop='I',
         get='I',
+        keys='dict_keys[K]',
+        values='dict_values[I]',
+        items='dict_items[tuple[K,I]]'
     ),
     'frozendict': dict(
         copy='T',
@@ -804,7 +813,7 @@ def init_builtin_types():
 
         utility_code = None
         type_class = PyrexTypes.BuiltinObjectType
-        if name in ['dict', 'list', 'set', 'frozenset', 'frozendict']:
+        if name in ['dict', 'list', 'set', 'frozenset', 'frozendict', 'dict_keys', 'dict_values', 'dict_items']:
             type_class = PyrexTypes.BuiltinTypeConstructorObjectType
             if name == 'frozendict':
                 utility_code = frozendict_utility_code
