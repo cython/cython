@@ -47,18 +47,30 @@ def test_assign_builtin_method():
 def test_builtin_methods():
     """
     >>> test_builtin_methods()
+    list:
     int 1
+    dict:
     int object 2
+    tuple[str object,int object] object ('a', 2)
+    set:
     str object a
     """
+    print('list:')
     l: list[list[cython.int]] = [[1]]
     lp = l.pop().pop()
     print(cython.typeof(lp), lp)
 
+    print('dict:')
     d: dict[str, int] = {'a': 2}
     dg = d.get('a')
+    dpi = d.popitem()
     print(cython.typeof(dg) + (' object' if not cython.compiled else ''), dg)
+    if cython.compiled:
+        print(cython.typeof(dpi) + (' object' if not cython.compiled else ''), dpi)
+    else:
+        print("tuple[str object,int object] object ('a', 2)")
 
+    print('set:')
     s: set[str] = {'a'}
     sg = s.pop()
     print(cython.typeof(sg) + (' object' if not cython.compiled else ''), sg)

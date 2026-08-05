@@ -496,7 +496,12 @@ types_that_construct_their_instance = frozenset({
 # When updating this mapping, also update "unsafe_compile_time_methods" below
 # if methods are added that are not safe to evaluate at compile time.
 # 'T' - type identical to type in dictionary key
-# 'I' - type from subscript - e.g. for list[int], I is `int`
+# 'I' - type of index type:
+#     - for no-dict it is type from subscript - e.g. for list[int], I is `int`
+#     - for dict it is second subscripted type - e.g. for dict[int, str],
+#       I is `str`
+# 'K' - key value type of dictionary - second subscripted type
+#     - e.g. for dict[int, str], v is `str`
 inferred_method_return_types = {
     'complex': dict(
         conjugate='complex',
@@ -647,7 +652,7 @@ inferred_method_return_types = {
     'dict': dict(
         copy='T',
         fromkeys='T',  # classmethod
-        popitem='tuple',
+        popitem='tuple[K,I]',
         pop='I',
         get='I',
     ),
@@ -675,8 +680,14 @@ def find_return_type_of_builtin_method(pos, env, builtin_type, method_name):
                 return builtin_type
             if return_type_name == 'I':
                 return builtin_type.infer_indexed_type() or PyrexTypes.py_object_type
+            if return_type_name == 'K' and container_type.is_pyanydict_type:
+                return builtin_type.infer_iterator_type() or PyrexTypes.py_object_type
             if 'T' in subscripted_type_names:
                 subscripted_type_names = subscripted_type_names.replace('T', builtin_type.name)
+            if 'I' in subscripted_type_names:
+                subscripted_type_names = subscripted_type_names.replace('I', builtin_type.infer_indexed_type().name)
+            if 'K' in subscripted_type_names and container_type.is_pyanydict_type:
+                subscripted_type_names = subscripted_type_names.replace('K', builtin_type.infer_iterator_type().name)
             if return_type_name == 'bint':
                 return PyrexTypes.c_bint_type
             elif return_type_name == 'Py_ssize_t':
