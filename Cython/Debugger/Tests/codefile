@@ -47,3 +47,5 @@ print("bye!")
 
 def use_ham():
     ham()
+
+include "included.pxi"

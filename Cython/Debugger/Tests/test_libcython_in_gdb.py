@@ -407,6 +407,14 @@ class TestList(DebugTestCase):
         result = "\n".join([line.rstrip() for line in result.split("\n")])
         self.assertEqual(correct_result_test_list_outside_func, result)
 
+    def test_list_in_include_file(self):
+        gdb.execute('cy break codefile.included_from_pxi', to_string=True)
+        gdb.execute('run', to_string=True)
+        result = gdb.execute('cy list', to_string=True)
+        result = "\n".join([line.rstrip() for line in result.split("\n")])
+        self.assertIn('def included_from_pxi():', result)
+        self.assertIn('value += 1', result)
+
 
 class TestUpDown(DebugTestCase):
 
