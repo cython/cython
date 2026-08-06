@@ -5475,13 +5475,14 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
 
     def infer_indexed_type(self, at_index=None):
         container_type = self.get_container_type()
-        if at_index is None:
-            return self.get_common_item_type()
-        if container_type.is_pytuple_type and self.has_uniform_element_type:
-            # tuple[TYP, ...]
-            return self.get_subscripted_type(0)
-        if container_type.is_pytuple_type and isinstance(at_index, int):
-            return self.get_subscripted_type(at_index)
+        if container_type.is_pytuple_type:
+            if self.has_uniform_element_type:
+                # tuple[TYP, ...]
+                return self.get_subscripted_type(0)
+            if at_index is None:
+                return self.get_common_item_type()
+            if isinstance(at_index, int):
+                return self.get_subscripted_type(at_index)
         if container_type.is_pyanydict_type:
             return self.get_subscripted_type(1)
         if container_type.is_pylist_type or container_type.is_pyanyset_type:
