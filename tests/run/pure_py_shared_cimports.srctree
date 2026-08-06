@@ -1,0 +1,46 @@
+# mode: run
+# tag: pure, import, cimport
+
+# Python
+PYTHON -c "import cimporting_module; cimporting_module.test(expect_compiled=False)"
+
+# Cython
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import cimporting_module; cimporting_module.test(expect_compiled=True)"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+    ext_modules=cythonize("*_module.py"),
+)
+
+
+######## exporting_module.pxd ########
+
+cdef class Action:
+    cdef int a
+    cdef float f
+
+
+######## exporting_module.py ########
+
+class Action:
+    def __init__(self):
+        self.a = 5
+        self.f = 2.5
+
+
+######## cimporting_module.py ########
+
+from cython.cimports.exporting_module import Action
+from cython import compiled
+
+def test(expect_compiled):
+    action: Action = Action()
+    assert action.a == 5
+    assert action.f == 2.5
+    assert expect_compiled == compiled
