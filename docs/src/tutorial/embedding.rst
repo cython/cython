@@ -6,6 +6,8 @@
 Embedding Cython modules in C/C++ applications
 **********************************************
 
+.. include::
+    ../two-syntax-variants-used
 
 Quick links:
 
@@ -56,9 +58,20 @@ code.  Note that the ``say_hello_from_python()`` function is declared as ``publi
 to export it as a linker symbol that can be used by other C files, which in this
 case is ``embedded_main.c``.
 
-.. literalinclude:: ../../examples/tutorial/embedding/embedded.pyx
-   :lines: 4-
-   :caption: embedded.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/embedding/embedded.py
+           :lines: 5-
+           :caption: embedded.py
+           :language: python
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/embedding/embedded.pyx
+           :lines: 5-
+           :caption: embedded.pyx
+           :language: cython
 
 The C ``main()`` function of your program could look like this:
 
@@ -114,14 +127,18 @@ To illustrate how it works, let's assume we have the following files:
 
 lcmath.pyx:
 
-.. code-block:: cython
-    :caption: lcmath.pyx
+.. tabs::
+    .. group-tab:: Pure Python
 
-    def add(a, b):
-        return a + b
+        .. literalinclude:: ../../examples/tutorial/embedding/lcmath.py
+            :caption: lcmath.py
+            :language: python
 
-    cdef int sub(int a, int b):
-        return a - b
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/embedding/lcmath.pyx
+            :caption: lcmath.pyx
+            :language: cython
 
 lcmath.pxd:
 
@@ -132,21 +149,18 @@ lcmath.pxd:
 
 combinatorics.pyx:
 
-.. code-block:: cython
-    :caption: combinatorics.pyx
+.. tabs::
+    .. group-tab:: Pure Python
 
-    from lcmath import add
-    from lcmath cimport sub
+        .. literalinclude:: ../../examples/tutorial/embedding/combinatorics.py
+            :caption: combinatorics.py
+            :language: python
 
-    cdef void add_one(int a):
-        print(add(a, 1))
+    .. group-tab:: Cython
 
-    cdef void sub_one(int a):
-        print(sub(a, 1))
-
-    if __name__ == "__main__":
-        add_one(5)
-        sub_one(3)
+        .. literalinclude:: ../../examples/tutorial/embedding/combinatorics.pyx
+            :caption: combinatorics.pyx
+            :language: cython
 
 The full process for static linking involves these steps:
 
