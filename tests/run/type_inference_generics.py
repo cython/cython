@@ -49,9 +49,6 @@ def test_builtin_methods():
     >>> test_builtin_methods()
     list:
     int 1
-    dict:
-    int object 2
-    tuple[str object,int object] object ('a', 2)
     set:
     str object a
     """
@@ -60,17 +57,57 @@ def test_builtin_methods():
     lp = l.pop().pop()
     print(cython.typeof(lp), lp)
 
-    print('dict:')
-    d: dict[str, int] = {'a': 2}
-    dg = d.get('a')
-    dpi = d.popitem()
-    print(cython.typeof(dg) + (' object' if not cython.compiled else ''), dg)
-    if cython.compiled:
-        print(cython.typeof(dpi) + (' object' if not cython.compiled else ''), dpi)
-    else:
-        print("tuple[str object,int object] object ('a', 2)")
-
     print('set:')
     s: set[str] = {'a'}
     sg = s.pop()
     print(cython.typeof(sg) + (' object' if not cython.compiled else ''), sg)
+
+def test_dict_builtin_methods():
+    """
+    >>> test_dict_builtin_methods()
+    get:
+    int object 2
+    popitem:
+    tuple[str object,int object] object ('a', 2)
+    keys:
+    dict_keys[str object] object
+    str object a
+    values:
+    dict_values[int object] object
+    int object 2
+    items:
+    dict_items[tuple[str object,int object] object] object
+    tuple[str object,int object] object ('a', 2)
+    """
+    d: dict[str, int] = {'a': 2}
+
+    print("get:")
+    dg = d.get('a')
+    print(cython.typeof(dg) + (' object' if not cython.compiled else ''), dg)
+
+    print("popitem:")
+    dpi = d.popitem()
+    if cython.compiled:
+        print(cython.typeof(dpi), dpi)
+    else:
+        print("tuple[str object,int object] object ('a', 2)")
+
+    d = {'a': 2}
+
+    print("keys:")
+    dk = d.keys()
+    print(cython.typeof(dk)+ ('[str object] object' if not cython.compiled else ''))
+    for i in dk:
+        print(cython.typeof(i) + (' object' if not cython.compiled else ''), i)
+
+    print("values:")
+    dv = d.values()
+    print(cython.typeof(dv) + ('[int object] object' if not cython.compiled else ''))
+    for j in dv:
+        print(cython.typeof(j) + (' object' if not cython.compiled else ''), j)
+
+    print("items:")
+    di = d.items()
+    print(cython.typeof(di) + ('[tuple[str object,int object] object] object' if not cython.compiled else ''))
+    for k in di:
+        print(cython.typeof(k) + ('[str object,int object] object' if not cython.compiled else ''), k)

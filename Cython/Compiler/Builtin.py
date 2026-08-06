@@ -675,39 +675,47 @@ inferred_method_return_types['bytearray'].update(inferred_method_return_types['b
 inferred_method_return_types['frozenset'].update(inferred_method_return_types['set'])
 
 
-def find_return_type_of_builtin_method(pos, env, builtin_type, method_name):
+def _parse_atomic_signature(builtin_type, sig: str) -> PyrexTypes.PyrexType:
+    if sig == 'T':
+        return builtin_type
+    if sig == 'I':
+        return builtin_type.infer_indexed_type() or PyrexTypes.py_object_type
+    if sig == 'K' and builtin_type.is_pyanydict_type:
+        return builtin_type.infer_iterator_type() or PyrexTypes.py_object_type
+    raise ValueError(f"Wrong value of signature: {sig}")
+
+
+def _parse_signature(pos, env, builtin_type, return_signature: str) -> PyrexTypes.PyrexType:
+    if '[' in return_signature and ']' in return_signature:
+        subscript_signature: str = ''
+        return_container_name, _, subscript_signature = return_signature[:-1].partition('[')
+        container_type = builtin_scope.lookup(return_container_name).type
+
+        if return_container_name == 'tuple':
+            subscripted_signatures = subscript_signature.split(',')
+            parsed_subscripted_types = [
+                    _parse_signature(pos, env, builtin_type, sg)
+                    for sg in subscripted_signatures
+            ]
+        else:
+            parsed_subscripted_types = [_parse_signature(pos, env, builtin_type, subscript_signature)]
+        return container_type.specialize_here(pos, env, parsed_subscripted_types)
+    elif return_signature == 'bint':
+        return PyrexTypes.c_bint_type
+    elif return_signature == 'Py_ssize_t':
+        return PyrexTypes.c_py_ssize_t_type
+    else:
+        return _parse_atomic_signature(builtin_type, return_signature)
+
+
+def find_return_type_of_builtin_method(pos, env, builtin_type, method_name) -> PyrexTypes.PyrexType:
     container_type = builtin_type.get_container_type()
     type_name = container_type.name if container_type else builtin_type.name
     if type_name in inferred_method_return_types:
         methods = inferred_method_return_types[type_name]
         if method_name in methods:
-            subscripted_type_names: str = ''
-            return_type_name = methods[method_name]
-            if '[' in return_type_name:
-                return_type_name, _, subscripted_type_names = return_type_name[:-1].partition('[')
-            if return_type_name == 'T':
-                return builtin_type
-            if return_type_name == 'I':
-                return builtin_type.infer_indexed_type() or PyrexTypes.py_object_type
-            if return_type_name == 'K' and container_type.is_pyanydict_type:
-                return builtin_type.infer_iterator_type() or PyrexTypes.py_object_type
-            if 'T' in subscripted_type_names:
-                subscripted_type_names = subscripted_type_names.replace('T', builtin_type.name)
-            if 'I' in subscripted_type_names:
-                subscripted_type_names = subscripted_type_names.replace('I', builtin_type.infer_indexed_type().name)
-            if 'K' in subscripted_type_names and container_type.is_pyanydict_type:
-                subscripted_type_names = subscripted_type_names.replace('K', builtin_type.infer_iterator_type().name)
-            if return_type_name == 'bint':
-                return PyrexTypes.c_bint_type
-            elif return_type_name == 'Py_ssize_t':
-                return PyrexTypes.c_py_ssize_t_type
-            container_type = builtin_scope.lookup(return_type_name).type
-            if subscripted_type_names:
-                subscripted_types = [
-                    entry.type if entry else PyrexTypes.py_object_type
-                    for entry in map(builtin_scope.lookup, subscripted_type_names.split(','))
-                ]
-                container_type = container_type.specialize_here(pos, env, subscripted_types)
+            return_type_signature: str = methods[method_name]
+            container_type = _parse_signature(pos, env, builtin_type, return_type_signature)
             return container_type
     return PyrexTypes.py_object_type
 
