@@ -128,8 +128,7 @@ def test_get_obj_temp(*args):
     return Exception(*args).args_obj
 
 
-@cython.test_assert_path_exists("//SimpleCallNode")
-@cython.test_fail_if_path_exists("//AttributeNode")
+@cython.test_assert_path_exists("//AttributeNode")
 def test_set_obj(o):
     """
     >>> test_set_obj((1, 2))
@@ -142,8 +141,20 @@ def test_set_obj(o):
     return e
 
 
-@cython.test_assert_path_exists("//SimpleCallNode")
-@cython.test_fail_if_path_exists("//AttributeNode")
+@cython.test_assert_path_exists("//AttributeNode")
+def test_assign_obj_inplace(o):
+    """
+    >>> test_assign_obj_inplace((1, 2))
+    Exception(3, 4, 1, 2)
+    >>> test_assign_obj_inplace(())
+    Exception(3, 4)
+    """
+    e = Exception(3, 4)
+    e.args_obj += o
+    return e
+
+
+@cython.test_assert_path_exists("//AttributeNode")
 def test_set_raising(o):
     """
     >>> test_set_raising((1, 2))
@@ -161,8 +172,7 @@ def test_set_raising(o):
 def forward(o):
     return o
 
-@cython.test_assert_path_exists("//SimpleCallNode")
-@cython.test_fail_if_path_exists("//AttributeNode")
+@cython.test_assert_path_exists("//AttributeNode")
 def test_set_obj_from_temp(o):
     """
     >>> test_set_obj_from_temp((1, 2))
@@ -175,8 +185,7 @@ def test_set_obj_from_temp(o):
     return e
 
 
-@cython.test_assert_path_exists("//SimpleCallNode")
-@cython.test_fail_if_path_exists("//AttributeNode")
+@cython.test_assert_path_exists("//AttributeNode")
 def test_set_obj_temp(*args):
     """
     Setting to a temp isn't hugely useful because we can't check the result
@@ -203,8 +212,7 @@ def test_get_int(Exception e):
     return e.arg0_int
 
 
-@cython.test_assert_path_exists("//SimpleCallNode")
-@cython.test_fail_if_path_exists("//AttributeNode")
+@cython.test_assert_path_exists("//AttributeNode")
 def test_set_int(value):
     """
     >>> test_set_int(10)
@@ -218,8 +226,7 @@ def test_set_int(value):
     return e
 
 
-@cython.test_assert_path_exists("//SimpleCallNode")
-@cython.test_fail_if_path_exists("//AttributeNode")
+@cython.test_assert_path_exists("//AttributeNode")
 def test_mixed_str(const char* s):
     """
     >>> test_mixed_str(b"Hello")
@@ -230,8 +237,7 @@ def test_mixed_str(const char* s):
     return e.arg0_mixed_str
 
 
-@cython.test_assert_path_exists("//SimpleCallNode")
-@cython.test_fail_if_path_exists("//AttributeNode")
+@cython.test_assert_path_exists("//AttributeNode")
 def test_fail_mixed_str(v):
     """
     >>> test_fail_mixed_str([1, 2, 3])  # doctest: +ELLIPSIS
@@ -241,8 +247,10 @@ def test_fail_mixed_str(v):
     Exception().arg0_mixed_str = v
 
 
-@cython.test_assert_path_exists("//SimpleCallNode")
-@cython.test_fail_if_path_exists("//AttributeNode")
+@cython.test_assert_path_exists(
+    "//SimpleCallNode",
+    "//AttributeNode",
+)
 def test_mixed_double(v):
     """
     >>> test_mixed_double(5.5)
@@ -264,8 +272,7 @@ def test_fail_mixed_double(Exception e):
     return e.arg0_mixed_double
 
 
-@cython.test_assert_path_exists("//SimpleCallNode")
-@cython.test_fail_if_path_exists("//AttributeNode")
+@cython.test_assert_path_exists("//AttributeNode")
 def test_setter_maybe_raising(x):
     """
     >>> test_setter_maybe_raising(0)
