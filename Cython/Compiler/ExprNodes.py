@@ -14387,11 +14387,20 @@ class CmpNode:
             or (self.cascade and self.cascade.is_python_result()))
 
     def is_c_string_contains(self):
-        return self.operator in ('in', 'not_in') and \
-               ((self.operand1.type.is_int
-                 and (self.operand2.type.is_string or self.operand2.type.is_pybytes_type)) or
-                (self.operand1.type.is_unicode_char
-                 and self.operand2.type.is_pystr_type))
+        if self.operator not in ('in', 'not_in'):
+            return False
+        op1_type = self.operand1.type
+        op2_type = self.operand2.type
+        if op1_type.is_unicode_char:
+            return op2_type.is_pystr_type
+        if self.operand1.is_string_literal and self.operand1.can_coerce_to_char_literal():
+            if op1_type.is_pystr_type:
+                return op2_type.is_pystr_type
+            if op1_type.is_pybytes_type:
+                return op2_type.is_pybytes_type or op2_type.is_pybytearray_type
+        if op1_type.is_int:
+            return op2_type.is_string or op2_type.is_pybytes_type or op2_type.is_pybytearray_type
+        return False
 
     def is_ptr_contains(self):
         if self.operator in ('in', 'not_in'):
@@ -14660,15 +14669,20 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 common_type = None
                 if self.cascade:
                     error(self.pos, "Cascading comparison not yet supported for 'int_val in string'.")
+                    self.type = error_type
                     return self
-                if self.operand2.type.is_pystr_type:
+                if type2.is_pystr_type:
+                    self.operand1 = self.operand1.coerce_to(PyrexTypes.c_py_ucs4_type, env)
                     env.use_utility_code(UtilityCode.load_cached("PyUCS4InUnicode", "StringTools.c"))
                 else:
-                    if self.operand1.type is PyrexTypes.c_uchar_type:
+                    if type1 is PyrexTypes.c_uchar_type or type1.is_pybytes_type:
                         self.operand1 = self.operand1.coerce_to(PyrexTypes.c_char_type, env)
-                    if not self.operand2.type.is_pybytes_type:
-                        self.operand2 = self.operand2.coerce_to(bytes_type, env)
-                    env.use_utility_code(UtilityCode.load_cached("BytesContains", "StringTools.c"))
+                    if type2.is_pybytearray_type:
+                        env.use_utility_code(UtilityCode.load_cached("ByteArrayContains", "StringTools.c"))
+                    else:
+                        if not type2.is_pybytes_type:
+                            self.operand2 = self.operand2.coerce_to(bytes_type, env)
+                        env.use_utility_code(UtilityCode.load_cached("BytesContains", "StringTools.c"))
                 self.operand2 = self.operand2.as_none_safe_node(
                     "argument of type 'NoneType' is not iterable")
             elif self.is_ptr_contains():
@@ -14801,6 +14815,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         elif self.is_c_string_contains():
             if operand2.type.is_pystr_type:
                 method = "__Pyx_UnicodeContainsUCS4"
+            elif operand2.type.is_pybytearray_type:
+                method = "__Pyx_ByteArrayContains"
             else:
                 method = "__Pyx_BytesContains"
             if self.operator == "not_in":
