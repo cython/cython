@@ -251,6 +251,26 @@ static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
 }
 
 
+//////////////////// ByteArrayContains.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_ByteArrayContains(PyObject* bytearray, char character); /*proto*/
+
+//////////////////// ByteArrayContains ////////////////////
+//@requires: IncludeStringH
+
+static CYTHON_INLINE int __Pyx_ByteArrayContains(PyObject* bytearray, char character) {
+    const Py_ssize_t length = __Pyx_PyByteArray_GET_SIZE(bytearray);
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length == -1)) return -1;
+#endif
+    const char* char_start = __Pyx_PyByteArray_AsString(bytearray);
+#if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(!char_start)) return -1;
+#endif
+    return memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
+}
+
+
 //////////////////// PyUCS4InUnicode.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character); /*proto*/

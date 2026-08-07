@@ -152,6 +152,64 @@ def m_bytes_unsigned(unsigned char a, bytes bytes_string):
     cdef int result = a in bytes_string
     return result
 
+
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_bytearray(char a, bytearray bytearray_string):
+    """
+    >>> m_bytearray(ord('f'), bytearray(py_bytes_string))
+    1
+    >>> m_bytearray(ord('X'), bytearray(py_bytes_string))
+    0
+    >>> 'f'.encode('ASCII') in None    # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    >>> m_bytearray(ord('f'), None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = a in bytearray_string
+    return result
+
+
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_literal_in_bytes(bytes bytes_string):
+    """
+    >>> m_literal_in_bytes(py_bytes_string)
+    1
+    >>> m_literal_in_bytes(py_bytes_string.replace(b'f', b'F'))
+    0
+    >>> 'f'.encode('ASCII') in None    # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    >>> m_literal_in_bytes(None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = b'f' in bytes_string
+    return result
+
+
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_literal_in_bytearray(bytearray bytearray_string):
+    """
+    >>> m_literal_in_bytearray(bytearray(py_bytes_string))
+    1
+    >>> m_literal_in_bytearray(bytearray(py_bytes_string.replace(b'f', b'F')))
+    0
+    >>> 'f'.encode('ASCII') in None    # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    >>> m_literal_in_bytearray(None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = b'f' in bytearray_string
+    return result
+
+
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
 def m_bytes_literal(char a):
@@ -199,6 +257,49 @@ def m_unicode(Py_UNICODE a, unicode unicode_string):
     """
     cdef int result = a in unicode_string
     return result
+
+
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_literal_in_unicode(unicode unicode_string):
+    """
+    >>> m_literal_in_unicode(py_unicode_string)
+    1
+    >>> m_literal_in_unicode(py_unicode_string.replace('f', 'F'))
+    0
+
+    >>> 'f' in None   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    >>> m_literal_in_unicode(None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = 'f' in unicode_string
+    return result
+
+
+'''
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_literal_in_unicode_cascade(unicode unicode_string):
+    """
+    >>> m_literal_in_unicode_cascade(py_unicode_string)
+    1
+    >>> m_literal_in_unicode_cascade(py_unicode_string.replace('f', 'F'))
+    0
+
+    >>> 'f' in None   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    >>> m_literal_in_unicode_cascade(None)   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    """
+    cdef int result = 'f' in unicode_string in unicode_string
+    return result
+'''
+
 
 cdef unicode klingon_character = u'\uF8D2'
 py_klingon_character = klingon_character
