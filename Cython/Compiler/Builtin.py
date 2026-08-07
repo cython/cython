@@ -682,7 +682,12 @@ def _parse_atomic_signature(builtin_type, sig: str) -> PyrexTypes.PyrexType:
         return builtin_type.infer_indexed_type() or PyrexTypes.py_object_type
     if sig == 'K' and builtin_type.is_pyanydict_type:
         return builtin_type.infer_iterator_type() or PyrexTypes.py_object_type
-    raise ValueError(f"Wrong value of signature: {sig}")
+    if sig == 'bint':
+        return PyrexTypes.c_bint_type
+    if sig == 'Py_ssize_t':
+        return PyrexTypes.c_py_ssize_t_type
+    else:
+        return builtin_scope.lookup(sig).type
 
 
 def _parse_signature(pos, env, builtin_type, return_signature: str) -> PyrexTypes.PyrexType:
@@ -700,12 +705,7 @@ def _parse_signature(pos, env, builtin_type, return_signature: str) -> PyrexType
         else:
             parsed_subscripted_types = [_parse_signature(pos, env, builtin_type, subscript_signature)]
         return container_type.specialize_here(pos, env, parsed_subscripted_types)
-    elif return_signature == 'bint':
-        return PyrexTypes.c_bint_type
-    elif return_signature == 'Py_ssize_t':
-        return PyrexTypes.c_py_ssize_t_type
-    else:
-        return _parse_atomic_signature(builtin_type, return_signature)
+    return _parse_atomic_signature(builtin_type, return_signature)
 
 
 def find_return_type_of_builtin_method(pos, env, builtin_type, method_name) -> PyrexTypes.PyrexType:
