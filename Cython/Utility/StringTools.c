@@ -233,12 +233,12 @@ bad:
 
 //////////////////// BytesContains.proto ////////////////////
 
-static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character); /*proto*/
+static CYTHON_INLINE int __Pyx_BytesContains(char character, PyObject* bytes, int eq); /*proto*/
 
 //////////////////// BytesContains ////////////////////
 //@requires: IncludeStringH
 
-static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
+static CYTHON_INLINE int __Pyx_BytesContains(char character, PyObject* bytes, int eq) {
     const Py_ssize_t length = __Pyx_PyBytes_GET_SIZE(bytes);
 #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(length == -1)) return -1;
@@ -247,18 +247,20 @@ static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
 #if !CYTHON_ASSUME_SAFE_MACROS
     if (unlikely(!char_start)) return -1;
 #endif
-    return memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
+
+    int result = memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
+    return (result == (eq == Py_EQ));
 }
 
 
 //////////////////// ByteArrayContains.proto ////////////////////
 
-static CYTHON_INLINE int __Pyx_ByteArrayContains(PyObject* bytearray, char character); /*proto*/
+static CYTHON_INLINE int __Pyx_ByteArrayContains(char character, PyObject* bytearray, int eq); /*proto*/
 
 //////////////////// ByteArrayContains ////////////////////
 //@requires: IncludeStringH
 
-static CYTHON_INLINE int __Pyx_ByteArrayContains(PyObject* bytearray, char character) {
+static CYTHON_INLINE int __Pyx_ByteArrayContains(char character, PyObject* bytearray, int eq) {
     const Py_ssize_t length = __Pyx_PyByteArray_GET_SIZE(bytearray);
 #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(length == -1)) return -1;
@@ -267,23 +269,27 @@ static CYTHON_INLINE int __Pyx_ByteArrayContains(PyObject* bytearray, char chara
 #if !CYTHON_ASSUME_SAFE_MACROS
     if (unlikely(!char_start)) return -1;
 #endif
-    return memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
+
+    int result = memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
+    return (result == (eq == Py_EQ));
 }
 
 
 //////////////////// PyUCS4InUnicode.proto ////////////////////
 
-static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character); /*proto*/
+static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* unicode, int eq); /*proto*/
 
 //////////////////// PyUCS4InUnicode ////////////////////
 
-static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
+static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* unicode, int eq) {
     // Note that from Python 3.7, the indices of FindChar are adjusted to match the bounds
     // so need to check the length
     Py_ssize_t idx = PyUnicode_FindChar(unicode, character, 0, PY_SSIZE_T_MAX, 1);
     if (unlikely(idx == -2)) return -1;
+
     // >= 0: found the index, == -1: not found
-    return idx >= 0;
+    int result = idx >= 0;
+    return (result == (eq == Py_EQ));
 }
 
 
