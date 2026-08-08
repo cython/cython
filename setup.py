@@ -196,7 +196,8 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     # Add the shared utility module.
     extensions.append(Extension(
         shared_utility_module, sources=[shared_utility_module.replace('.', '/') + '.c'],
-        define_macros=defines + extra_defines,
+        # Cannot build this with refnanny because 'refnanny' depends on '_shared' as well.
+        define_macros=defines,
         **extra_extension_args,
     ))
 

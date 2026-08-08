@@ -122,13 +122,13 @@ cdef inline array clone(array template, Py_ssize_t length, bint zero):
     if zero is true, new array will be initialized with zeroes."""
     cdef array op = newarrayobject(Py_TYPE(template), length, template.ob_descr)
     if zero and op is not None:
-        memset(op.data.as_chars, 0, length * op.ob_descr.itemsize)
+        memset(op.data.as_chars, 0, <size_t> length * op.ob_descr.itemsize)
     return op
 
 cdef inline array copy(array self):
     """ make a copy of an array. """
     cdef array op = newarrayobject(Py_TYPE(self), Py_SIZE(self), self.ob_descr)
-    memcpy(op.data.as_chars, self.data.as_chars, Py_SIZE(op) * op.ob_descr.itemsize)
+    memcpy(op.data.as_chars, self.data.as_chars, <size_t> Py_SIZE(op) * op.ob_descr.itemsize)
     return op
 
 cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n) except -1:
@@ -138,7 +138,7 @@ cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n) except -1:
     cdef Py_ssize_t itemsize = self.ob_descr.itemsize
     cdef Py_ssize_t origsize = Py_SIZE(self)
     resize_smart(self, origsize + n)
-    memcpy(self.data.as_chars + origsize * itemsize, stuff, n * itemsize)
+    memcpy(self.data.as_chars + <size_t> origsize * itemsize, stuff, <size_t> n * itemsize)
     return 0
 
 cdef inline int extend(array self, array other) except -1:
@@ -149,4 +149,4 @@ cdef inline int extend(array self, array other) except -1:
 
 cdef inline void zero(array self) noexcept:
     """ set all elements of array to zero. """
-    memset(self.data.as_chars, 0, Py_SIZE(self) * self.ob_descr.itemsize)
+    memset(self.data.as_chars, 0, <size_t> Py_SIZE(self) * self.ob_descr.itemsize)
