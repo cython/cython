@@ -106,7 +106,7 @@ def m_bytes(char a):
     >>> m_bytes(ord('X'))
     1
     """
-    cdef int result = a not in py_bytes_string
+    cdef int result = a not in bytes_string
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
