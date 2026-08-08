@@ -1310,8 +1310,7 @@ class SwitchTransform(Visitor.EnvTransform):
         if isinstance(cond, ExprNodes.PrimaryCmpNode):
             if cond.cascade is not None:
                 return self.NO_MATCH
-            elif cond.is_c_string_contains() and \
-                   isinstance(cond.operand2, (ExprNodes.UnicodeNode, ExprNodes.BytesNode)):
+            elif cond.operator in ('in', 'not_in') and cond.operand1.type.is_int and cond.operand2.is_string_literal:
                 not_in = cond.operator == 'not_in'
                 if not_in and not allow_not_in:
                     return self.NO_MATCH

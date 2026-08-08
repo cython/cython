@@ -95,6 +95,7 @@ def m_set(int a):
     return result
 
 cdef bytes bytes_string = b'abcdefg'
+py_bytes_string = bytes_string
 
 @cython.test_assert_path_exists("//PrimaryCmpNode")
 @cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode", "//BoolBinopNode")
@@ -105,7 +106,7 @@ def m_bytes(char a):
     >>> m_bytes(ord('X'))
     1
     """
-    cdef int result = a not in bytes_string
+    cdef int result = a not in py_bytes_string
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -120,11 +121,73 @@ def m_bytes_literal(char a):
     cdef int result = a not in b'abcdefg'
     return result
 
+
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_bytearray(char a, bytearray bytearray_string):
+    """
+    >>> m_bytearray(ord('f'), bytearray(py_bytes_string))
+    0
+    >>> m_bytearray(ord('X'), bytearray(py_bytes_string))
+    1
+    >>> 'f'.encode('ASCII') in None    # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    >>> m_bytearray(ord('f'), None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = a not in bytearray_string
+    return result
+
+
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_literal_in_bytes(bytes bytes_string):
+    """
+    >>> m_literal_in_bytes(py_bytes_string)
+    0
+    >>> m_literal_in_bytes(py_bytes_string.replace(b'f', b'F'))
+    1
+    >>> 'f'.encode('ASCII') in None    # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    >>> m_literal_in_bytes(None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = b'f' not in bytes_string
+    return result
+
+
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_literal_in_bytearray(bytearray bytearray_string):
+    """
+    >>> m_literal_in_bytearray(bytearray(py_bytes_string))
+    0
+    >>> m_literal_in_bytearray(bytearray(py_bytes_string.replace(b'f', b'F')))
+    1
+    >>> 'f'.encode('ASCII') in None    # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    >>> m_literal_in_bytearray(None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = b'f' not in bytearray_string
+    return result
+
+
 cdef unicode unicode_string = u'abcdefg\u1234\uF8D2'
 py_unicode_string = unicode_string
 
 cdef unicode klingon_character = u'\uF8D2'
 py_klingon_character = klingon_character
+
+cdef unicode wide_unicode_character = u'\U0010FEDC'
+py_wide_unicode_character = wide_unicode_character
+
 
 @cython.test_assert_path_exists("//PrimaryCmpNode")
 @cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode", "//BoolBinopNode")
@@ -146,6 +209,47 @@ def m_unicode(Py_UNICODE a, unicode unicode_string):
     cdef int result = a not in unicode_string
     return result
 
+
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_literal_in_unicode(unicode unicode_string):
+    """
+    >>> m_literal_in_unicode(py_unicode_string)
+    0
+    >>> m_literal_in_unicode(py_unicode_string.replace('f', 'F'))
+    1
+
+    >>> 'f' in None   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    >>> m_literal_in_unicode(None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = 'f' not in unicode_string
+    return result
+
+
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_literal_in_unicode_cascade(unicode unicode_string):
+    """
+    >>> m_literal_in_unicode_cascade(py_unicode_string)
+    0
+    >>> m_literal_in_unicode_cascade(py_unicode_string.replace('f', 'F'))
+    1
+
+    >>> 'f' in None   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    >>> m_literal_in_unicode_cascade(None)   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    """
+    cdef int result = 'f' not in unicode_string in unicode_string
+    return result
+
+
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
 def m_unicode_literal(Py_UNICODE a):
@@ -159,6 +263,41 @@ def m_unicode_literal(Py_UNICODE a):
     """
     cdef int result = a not in u'abcdefg\u1234\uF8D2'
     return result
+
+
+@cython.test_assert_path_exists("//PrimaryCmpNode", "//CascadedCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//SwitchStatNode")
+def m_wide_unicode_literal_cascade_notin(Py_UCS4 a, str cascade):
+    """
+    >>> m_wide_unicode_literal_cascade_notin(ord('f'), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    0
+    >>> m_wide_unicode_literal_cascade_notin(ord('X'), '  abc\\0defg\\u1234\\uF8D2\\U0010FEDC  ')
+    0
+    >>> m_wide_unicode_literal_cascade_notin(ord('X'), 'abc\\0defg\\u1234 XXX \\uF8D2\\U0010FEDC')
+    1
+    >>> m_wide_unicode_literal_cascade_notin(ord(py_wide_unicode_character), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    0
+    """
+    cdef int result = a not in u'abc\0defg\u1234\uF8D2\U0010FEDC' not in cascade
+    return result
+
+
+@cython.test_assert_path_exists("//PrimaryCmpNode", "//CascadedCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//SwitchStatNode")
+def m_wide_unicode_literal_cascade_eq(Py_UCS4 a, str cascade):
+    """
+    >>> m_wide_unicode_literal_cascade_eq(ord('f'), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    1
+    >>> m_wide_unicode_literal_cascade_eq(ord('f'), 'abc\\0defg\\u1234 XXX \\uF8D2\\U0010FEDC')
+    0
+    >>> m_wide_unicode_literal_cascade_eq(ord('X'), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    0
+    >>> m_wide_unicode_literal_cascade_eq(ord(py_wide_unicode_character), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    1
+    """
+    cdef int result = a in u'abc\0defg\u1234\uF8D2\U0010FEDC' == cascade
+    return result
+
 
 @cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
