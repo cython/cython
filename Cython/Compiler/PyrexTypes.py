@@ -1499,6 +1499,9 @@ _special_type_check_functions = {
     'memoryview': 'PyMemoryView_Check',
     'Exception': '__Pyx_PyException_Check',
     'BaseException': '__Pyx_PyBaseException_Check',
+    'dict_keys': '__Pyx_PyDict_keys_Check',
+    'dict_values': '__Pyx_PyDict_values_Check',
+    'dict_items': '__Pyx_PyDict_items_Check',
 }
 
 # Builtins as of Python version ...
