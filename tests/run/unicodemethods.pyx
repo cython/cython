@@ -466,7 +466,7 @@ def in_test(unicode s, substring):
     False
     >>> in_test(None, 'sa')
     Traceback (most recent call last):
-    TypeError: 'NoneType' object is not iterable
+    TypeError: argument of type 'NoneType' is not iterable
     """
     return substring in s
 
