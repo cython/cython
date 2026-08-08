@@ -1877,6 +1877,9 @@ class BuiltinObjectType(PyObjectType):
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
+        'dict_keys': ['supports_container_type'],
+        'dict_values': ['supports_container_type'],
+        'dict_items': ['supports_container_type'],
     }
     _builtin_type_flag_mapping.update(
         # Extended to set '.is_exception_type' for all builtin exception types.
