@@ -6861,16 +6861,12 @@ def generate_cfunction_call(
         expected_nargs = len(func_type.args) - func_type.optional_arg_count
         opt_arg_struct = code.funcstate.allocate_temp(
             func_type.op_arg_struct.base_type, manage_ref=True)
-        code.putln("%s.%s = %s;" % (
-                opt_arg_struct,
-                Naming.pyrex_prefix + "n",
-                len(args) - expected_nargs))
+        code.putln(
+            f"{opt_arg_struct}.{Naming.opt_args_count_field} = {len(args) - expected_nargs};")
         mapped_args = list(zip(func_type.args, args))
         for formal_arg, actual_arg in mapped_args[expected_nargs:actual_nargs]:
-            code.putln("%s.%s = %s;" % (
-                    opt_arg_struct,
-                    func_type.opt_arg_cname(formal_arg.name),
-                    actual_arg.result_as(formal_arg.type)))
+            code.putln(
+                f"{opt_arg_struct}.{func_type.opt_arg_cname(formal_arg.name)} = {actual_arg.result_as(formal_arg.type)};")
 
     exc_checks = []
     if return_type.is_pyobject:
