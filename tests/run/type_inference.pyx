@@ -650,6 +650,58 @@ def loop_over_sequence_literal_mixed():
     assert typeof(set_mixed_item) == 'Python object', typeof(set_mixed_item)
 
 
+def loop_over_sequence_literal_optional_float(
+        a: float | None,
+        b: float | None,
+        c: float | None,
+):
+    """
+    >>> loop_over_sequence_literal_optional_float(None, None, None)
+    >>> loop_over_sequence_literal_optional_float(1.0, None, 2.5)
+    """
+    for tuple_item in (a, b, c):
+        pass
+    assert typeof(tuple_item) == 'Python object', typeof(tuple_item)
+
+    for list_item in [a, b, c]:
+        pass
+    assert typeof(list_item) == 'Python object', typeof(list_item)
+
+    for set_item in {a, b, c}:
+        pass
+    assert typeof(set_item) == 'Python object', typeof(set_item)
+
+
+def loop_over_sequence_literal_non_optional_float(
+        a: float,
+        b: float,
+        c: float,
+):
+    """
+    >>> loop_over_sequence_literal_non_optional_float(1.0, 2.0, 3.0)
+    """
+    for tuple_item in (a, b, c):
+        pass
+    assert typeof(tuple_item) == 'double', typeof(tuple_item)
+
+    for list_item in [a, b, c]:
+        pass
+    assert typeof(list_item) == 'double', typeof(list_item)
+
+
+def loop_over_sequence_literal_optional_mixed(
+        a: float | None,
+        b: float,
+):
+    """
+    >>> loop_over_sequence_literal_optional_mixed(None, 2.0)
+    >>> loop_over_sequence_literal_optional_mixed(1.5, 2.0)
+    """
+    for tuple_item in (a, b):
+        pass
+    assert typeof(tuple_item) == 'Python object', typeof(tuple_item)
+
+
 def loop_over_int_array():
     """
     >>> print( loop_over_int_array() )
