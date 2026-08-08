@@ -185,6 +185,10 @@ py_unicode_string = unicode_string
 cdef unicode klingon_character = u'\uF8D2'
 py_klingon_character = klingon_character
 
+cdef unicode wide_unicode_character = u'\U0010FEDC'
+py_wide_unicode_character = wide_unicode_character
+
+
 @cython.test_assert_path_exists("//PrimaryCmpNode")
 @cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode", "//BoolBinopNode")
 def m_unicode(Py_UNICODE a, unicode unicode_string):
@@ -226,7 +230,6 @@ def m_literal_in_unicode(unicode unicode_string):
     return result
 
 
-'''
 @cython.test_assert_path_exists("//PrimaryCmpNode")
 @cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
 def m_literal_in_unicode_cascade(unicode unicode_string):
@@ -245,7 +248,6 @@ def m_literal_in_unicode_cascade(unicode unicode_string):
     """
     cdef int result = 'f' not in unicode_string in unicode_string
     return result
-'''
 
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -261,6 +263,41 @@ def m_unicode_literal(Py_UNICODE a):
     """
     cdef int result = a not in u'abcdefg\u1234\uF8D2'
     return result
+
+
+@cython.test_assert_path_exists("//PrimaryCmpNode", "//CascadedCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//SwitchStatNode")
+def m_wide_unicode_literal_cascade_notin(Py_UCS4 a, str cascade):
+    """
+    >>> m_wide_unicode_literal_cascade_notin(ord('f'), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    0
+    >>> m_wide_unicode_literal_cascade_notin(ord('X'), '  abc\\0defg\\u1234\\uF8D2\\U0010FEDC  ')
+    0
+    >>> m_wide_unicode_literal_cascade_notin(ord('X'), 'abc\\0defg\\u1234 XXX \\uF8D2\\U0010FEDC')
+    1
+    >>> m_wide_unicode_literal_cascade_notin(ord(py_wide_unicode_character), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    0
+    """
+    cdef int result = a not in u'abc\0defg\u1234\uF8D2\U0010FEDC' not in cascade
+    return result
+
+
+@cython.test_assert_path_exists("//PrimaryCmpNode", "//CascadedCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//SwitchStatNode")
+def m_wide_unicode_literal_cascade_eq(Py_UCS4 a, str cascade):
+    """
+    >>> m_wide_unicode_literal_cascade_eq(ord('f'), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    1
+    >>> m_wide_unicode_literal_cascade_eq(ord('f'), 'abc\\0defg\\u1234 XXX \\uF8D2\\U0010FEDC')
+    0
+    >>> m_wide_unicode_literal_cascade_eq(ord('X'), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    0
+    >>> m_wide_unicode_literal_cascade_eq(ord(py_wide_unicode_character), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    1
+    """
+    cdef int result = a in u'abc\0defg\u1234\uF8D2\U0010FEDC' == cascade
+    return result
+
 
 @cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
