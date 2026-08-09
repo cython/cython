@@ -700,11 +700,10 @@ def _parse_signature(pos, env, builtin_type, return_signature: str) -> PyrexType
         container_entry = builtin_scope.lookup(container_name)
         container_type = container_entry.type if container_entry is not None else builtin_types[container_name]
 
-        if container_name == 'tuple':
-            subscripted_signatures = subscript_signature.split(',')
+        if container_name in ('tuple', 'dict', 'frozendict'):
             parsed_subscripted_types = [
                     _parse_signature(pos, env, builtin_type, sg)
-                    for sg in subscripted_signatures
+                    for sg in subscript_signature.split(',')
             ]
         else:
             parsed_subscripted_types = [_parse_signature(pos, env, builtin_type, subscript_signature)]
