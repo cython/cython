@@ -697,7 +697,8 @@ def _parse_atomic_signature(builtin_type, sig: str) -> PyrexTypes.PyrexType:
 def _parse_signature(pos, env, builtin_type, return_signature: str) -> PyrexTypes.PyrexType:
     if '[' in return_signature:
         container_name, _, subscript_signature = return_signature[:-1].partition('[')
-        container_type = builtin_scope.lookup(container_name).type
+        container_entry = builtin_scope.lookup(container_name)
+        container_type = container_entry.type if container_entry is not None else builtin_types[container_name]
 
         if container_name == 'tuple':
             subscripted_signatures = subscript_signature.split(',')
