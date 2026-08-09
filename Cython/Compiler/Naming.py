@@ -57,6 +57,7 @@ unicode_structmember_prefix = pyrex_prefix + "Umember_"
 # as above -
 # not normally mangled but punycode names cause specific problems
 opt_arg_prefix    = pyrex_prefix + "opt_args_"
+opt_args_count_field    = pyrex_prefix + "n"
 convert_func_prefix = pyrex_prefix + "convert_"
 closure_scope_prefix = pyrex_prefix + "scope_"
 closure_class_prefix = pyrex_prefix + "scope_struct_"

@@ -641,7 +641,7 @@ inferred_method_return_types = {
         tolist='list',
         toreadonly='T',
     ),
-    'set': dict(
+    'frozenset': dict(
         copy='T',
         difference='T',
         intersection='T',
@@ -650,10 +650,10 @@ inferred_method_return_types = {
         issuperset='bint',
         symmetric_difference='T',
         union='T',
-        pop='I',
     ),
-    'frozenset': dict(
-        # Inherited from 'set' below.
+    'set': dict(
+        # Inherited from 'frozenset' above.
+        pop='I',
     ),
     'dict': dict(
         copy='T',
@@ -672,7 +672,7 @@ inferred_method_return_types = {
 }
 
 inferred_method_return_types['bytearray'].update(inferred_method_return_types['bytes'])
-inferred_method_return_types['frozenset'].update(inferred_method_return_types['set'])
+inferred_method_return_types['set'].update(inferred_method_return_types['frozenset'])
 
 
 def _parse_atomic_signature(builtin_type, sig: str) -> PyrexTypes.PyrexType:
