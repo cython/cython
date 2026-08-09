@@ -765,6 +765,7 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
 }
 
 //////////////////// PyRange_Check.proto ////////////////////
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyRange_Check)
   #define PyRange_Check(obj)  __Pyx_TypeCheck((obj), &PyRange_Type)

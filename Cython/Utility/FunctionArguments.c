@@ -6,6 +6,7 @@ static CYTHON_INLINE int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, in
 
 //////////////////// ArgTypeTest ////////////////////
 //@requires: ArgTypeTestError
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 static CYTHON_INLINE int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed, const char *name, int exact) {
     if (likely(Py_IS_TYPE(obj, type) | (none_allowed && (obj == Py_None))))
@@ -23,6 +24,7 @@ static CYTHON_INLINE int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, in
 static void __Pyx_ArgTypeError(PyObject *obj, PyTypeObject *type, const char *name, int exact); /*proto*/
 
 //////////////////// ArgTypeTestError ////////////////////
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 static void __Pyx_ArgTypeError(PyObject *obj, PyTypeObject *type, const char *name, int exact)
 {

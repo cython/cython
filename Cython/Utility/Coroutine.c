@@ -383,6 +383,7 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen); /*proto*/
 
 //////////////////// pep479 ////////////////////
 //@requires: Exceptions.c::GetException
+//@requires: Exceptions.c::GivenExceptionMatches
 
 static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
     PyObject *exc, *val, *tb, *cur_exc, *new_exc;
@@ -567,6 +568,7 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self);
 //@requires: Exceptions.c::SwapException
 //@requires: Exceptions.c::RaiseException
 //@requires: Exceptions.c::SaveResetException
+//@requires: Exceptions.c::GivenExceptionMatches
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 //@requires: ObjectHandling.c::PyObjectCallNoArg
 //@requires: ObjectHandling.c::PyObjectCallOneArg
@@ -577,6 +579,7 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self);
 //@requires: ObjectHandling.c::IterNextPlain
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: CommonStructures.c::CommonTypesMetaclass
+//@requires: ModuleSetupCode.c::FastTypeChecks
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ExtensionTypes.c::CallTypeTraverse
 //@requires: Synchronization.c::CriticalSections
