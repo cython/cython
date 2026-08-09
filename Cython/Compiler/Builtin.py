@@ -676,27 +676,30 @@ inferred_method_return_types['frozenset'].update(inferred_method_return_types['s
 
 
 def _parse_atomic_signature(builtin_type, sig: str) -> PyrexTypes.PyrexType:
+    # Roughly ordered by frequency of occurrence to reduce lookup cost.
     if sig == 'T':
         return builtin_type
-    if sig == 'I':
-        return builtin_type.infer_indexed_type() or PyrexTypes.py_object_type
-    if sig == 'K' and builtin_type.is_pyanydict_type:
-        return builtin_type.infer_iterator_type() or PyrexTypes.py_object_type
-    if sig == 'bint':
+    elif sig == 'bint':
         return PyrexTypes.c_bint_type
-    if sig == 'Py_ssize_t':
+    elif sig == 'Py_ssize_t':
         return PyrexTypes.c_py_ssize_t_type
-    else:
-        return builtin_scope.lookup(sig).type
+    elif sig == 'I':
+        return builtin_type.infer_indexed_type() or PyrexTypes.py_object_type
+    elif sig == 'K' and builtin_type.is_pyanydict_type:
+        return builtin_type.infer_iterator_type() or PyrexTypes.py_object_type
+    entry = builtin_scope.lookup(sig)
+    if entry is None:
+        # Unnamed builtin.
+        return builtin_types[sig]
+    return entry.type
 
 
 def _parse_signature(pos, env, builtin_type, return_signature: str) -> PyrexTypes.PyrexType:
-    if '[' in return_signature and ']' in return_signature:
-        subscript_signature: str = ''
-        return_container_name, _, subscript_signature = return_signature[:-1].partition('[')
-        container_type = builtin_scope.lookup(return_container_name).type
+    if '[' in return_signature:
+        container_name, _, subscript_signature = return_signature[:-1].partition('[')
+        container_type = builtin_scope.lookup(container_name).type
 
-        if return_container_name == 'tuple':
+        if container_name == 'tuple':
             subscripted_signatures = subscript_signature.split(',')
             parsed_subscripted_types = [
                     _parse_signature(pos, env, builtin_type, sg)
@@ -805,6 +808,11 @@ builtin_types = {}
 
 def init_builtin_types():
     global builtin_types
+
+    # Some builtin types are not available by name,
+    # so we declare them in a throw-away scope.
+    hidden_builtins_scope = BuiltinScope()
+
     for name, cname, methods in builtin_types_table:
         if name == 'frozenset':
             objstruct_cname = 'PySetObject'
@@ -821,7 +829,8 @@ def init_builtin_types():
 
         utility_code = None
         type_class = PyrexTypes.BuiltinObjectType
-        if name in ['dict', 'list', 'set', 'frozenset', 'frozendict', 'dict_keys', 'dict_values', 'dict_items']:
+        scope = builtin_scope
+        if name in ['dict', 'list', 'set', 'frozenset', 'frozendict']:
             type_class = PyrexTypes.BuiltinTypeConstructorObjectType
             if name == 'frozendict':
                 utility_code = frozendict_utility_code
@@ -829,8 +838,11 @@ def init_builtin_types():
             type_class = PyrexTypes.PythonTupleTypeConstructor
         elif name == 'range':
             utility_code = range_utility_code
+        elif name in ['dict_keys', 'dict_values', 'dict_items']:
+            type_class = PyrexTypes.BuiltinTypeConstructorObjectType
+            scope = hidden_builtins_scope
 
-        the_type = builtin_scope.declare_builtin_type(
+        the_type = scope.declare_builtin_type(
             name, cname, objstruct_cname=objstruct_cname, type_class=type_class, utility_code=utility_code)
         builtin_types[name] = the_type
         for method in methods:
