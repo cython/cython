@@ -841,6 +841,8 @@ def init_builtin_types():
         elif name in ['dict_keys', 'dict_values', 'dict_items']:
             type_class = PyrexTypes.BuiltinTypeConstructorObjectType
             scope = hidden_builtins_scope
+            # Make sure the 'type' base type is declared in the hidden scope.
+            hidden_builtins_scope.entries['type'] = builtin_scope.lookup('type')
 
         the_type = scope.declare_builtin_type(
             name, cname, objstruct_cname=objstruct_cname, type_class=type_class, utility_code=utility_code)
