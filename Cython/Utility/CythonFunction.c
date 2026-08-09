@@ -1653,7 +1653,7 @@ static int __pyx_FusedFunction_init(PyObject *module) {
         return -1;
     }
 
-    mstate->__pyx_CyFunctionType = tp;
+    mstate->__pyx_FusedFunctionType = tp;
     return 0;
 }
 
