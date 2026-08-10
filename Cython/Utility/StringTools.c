@@ -284,8 +284,8 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* 
 
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* text, int eq) {
 #if CYTHON_USE_UNICODE_INTERNALS
-    int kind_text = PyUnicode_KIND(text);
-    if (kind_text == 1) {
+    // Not calling __Pyx_PyUnicode_READY(text) here since any non-1 kind value is ignore anyway.
+    if (PyUnicode_KIND(text) == 1) {
         if (character > 0xFF) return (eq == Py_NE);
         Py_ssize_t len_text = PyUnicode_GET_LENGTH(text);
         return (memchr(PyUnicode_1BYTE_DATA(text), (unsigned char) character, (size_t) len_text) != NULL) == (eq == Py_EQ);
@@ -308,6 +308,9 @@ static CYTHON_INLINE int __Pyx_PyUnicode_ContainsTF(PyObject* substring, PyObjec
 #if CYTHON_USE_UNICODE_INTERNALS
     // We know that 'text' is a str because we got here.
     if (likely(PyUnicode_Check(substring))) {
+        if (unlikely(__Pyx_PyUnicode_READY(text) < 0)) return -1;
+        if (unlikely(__Pyx_PyUnicode_READY(substring) < 0)) return -1;
+
         Py_ssize_t len_text = PyUnicode_GET_LENGTH(text);
         Py_ssize_t len_substring = PyUnicode_GET_LENGTH(substring);
         if (len_substring == 0) return (eq == Py_EQ);
