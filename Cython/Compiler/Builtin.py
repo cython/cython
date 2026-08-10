@@ -683,6 +683,8 @@ def _parse_atomic_signature(builtin_type, sig: str) -> PyrexTypes.PyrexType:
         return PyrexTypes.c_bint_type
     elif sig == 'Py_ssize_t':
         return PyrexTypes.c_py_ssize_t_type
+    elif sig == 'object':
+        return PyrexTypes.py_object_type
     elif sig == 'I':
         return builtin_type.infer_indexed_type() or PyrexTypes.py_object_type
     elif sig == 'K' and builtin_type.is_pyanydict_type:
