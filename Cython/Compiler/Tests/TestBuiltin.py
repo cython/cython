@@ -128,8 +128,10 @@ class TestBuiltinReturnTypes(TimedTest):
             if actual_return_type.is_builtin_type:
                 self.assertEqual(actual_return_type.name, expected_return_type.name)
 
-            if '[' in return_type_name and builtin_type.supports_container_type and not builtin_type.subscript_types:
-                return_type_name, _, _ = return_type_name.partition('[')
+            if '[' in return_type_name and builtin_type.supports_container_type and not builtin_type.subscripted_types:
+                assert actual_return_type.supports_container_type and not actual_return_type.subscripted_types, (
+                    actual_return_type.subscripted_types if actual_return_type.supports_container_type else None)
+                expected_return_type = expected_return_type.get_container_type() or expected_return_type
             self.assertEqual(actual_return_type.empty_declaration_code(pyrex=True), expected_return_type.empty_declaration_code(pyrex=True))
 
 
