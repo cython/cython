@@ -7,7 +7,7 @@ from .. import PyrexTypes
 from ..Builtin import (
     inferred_method_return_types, find_return_type_of_builtin_method,
     unsafe_compile_time_methods, is_safe_compile_time_method,
-    builtin_scope,
+    builtin_scope, builtin_types,
 )
 from ..Symtab import ModuleScope
 from ..PyrexTypes import (
@@ -106,7 +106,7 @@ class TestBuiltinReturnTypes(TimedTest):
                     parse_subscripted_type(t)
                     for t in subscripted_type_names.split(',')
                 ]
-                origin_type = builtin_scope.lookup(origin_type_name).type
+                origin_type = builtin_types[origin_type_name]
                 if current_subscript_types:
                     return origin_type.specialize_here(pos, test_module_scope, subscripted_types)
                 return origin_type
@@ -130,7 +130,7 @@ class TestBuiltinReturnTypes(TimedTest):
 
             if '[' in return_type_name and builtin_type.supports_container_type and not builtin_type.subscripted_types:
                 assert actual_return_type.supports_container_type and not actual_return_type.subscripted_types, (
-                    actual_return_type.subscripted_types if actual_return_type.supports_container_type else None)
+                    return_type_name, expected_return_type, actual_return_type)
                 expected_return_type = expected_return_type.get_container_type() or expected_return_type
             self.assertEqual(actual_return_type.empty_declaration_code(pyrex=True), expected_return_type.empty_declaration_code(pyrex=True))
 
