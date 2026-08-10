@@ -10050,7 +10050,6 @@ class FrozenSetNode(ExprNode):
             self.is_temp = True
 
     def infer_type(self, env):
-        breakpoint()
         if len(self.args) > 0:
             item_type = infer_container_type(env, self.args)
             if item_type is not py_object_type:
