@@ -284,12 +284,16 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* 
 
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* text, int eq) {
 #if CYTHON_USE_UNICODE_INTERNALS
-    // Not calling __Pyx_PyUnicode_READY(text) here since any non-1 kind value is ignored anyway.
-    if (PyUnicode_KIND(text) == 1) {
-        if (character > 0xFF) return (eq == Py_NE);
+    // Not calling __Pyx_PyUnicode_READY(text) here since other kind values are ignored.
+    int str_kind = PyUnicode_KIND(text);
+    // A large part of real-world strings will be ASCII or Latin-1,
+    // especially when looking for 1-byte characters (which we often know at compile time).
+    if (character <= 0xFF && str_kind == 1) {
         Py_ssize_t len_text = PyUnicode_GET_LENGTH(text);
         return (memchr(PyUnicode_1BYTE_DATA(text), (unsigned char) character, (size_t) len_text) != NULL) == (eq == Py_EQ);
     }
+    if (character > 0xFF && str_kind == 1) return (eq == Py_NE);
+    if (character > 0xFFFF && str_kind == 2) return (eq == Py_NE);
 #endif
     Py_ssize_t idx = PyUnicode_FindChar(text, character, 0, PY_SSIZE_T_MAX, 1);
     if (unlikely(idx == -2)) return -1;
