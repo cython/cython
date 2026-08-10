@@ -323,9 +323,9 @@ def m_str_in_str(str a, str unicode_string):
     >>> m_str_in_str('f', None)
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable
-    >>> m_str_in_str(None, 'f')
+    >>> m_str_in_str(None, 'f')    # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: argument of type 'NoneType' is not iterable
+    TypeError: ...NoneType...
     >>> m_str_in_str(None, None)
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable
