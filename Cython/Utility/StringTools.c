@@ -283,8 +283,8 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* 
 //@requires: IncludeStringH
 
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* text, int eq) {
-#if CYTHON_USE_UNICODE_INTERNALS
-    // Not calling __Pyx_PyUnicode_READY(text) here since other kind values are ignored.
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL)
+    // Not calling __Pyx_PyUnicode_READY(text) here since the "w_char" kind is simply ignored.
     int str_kind = PyUnicode_KIND(text);
     // A large part of real-world strings will be ASCII or Latin-1,
     // especially when looking for 1-byte characters (which we often know at compile time).
