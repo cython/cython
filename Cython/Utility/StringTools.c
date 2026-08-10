@@ -313,12 +313,13 @@ static CYTHON_INLINE int __Pyx_PyUnicode_ContainsTF(PyObject* substring, PyObjec
 
         Py_ssize_t len_text = PyUnicode_GET_LENGTH(text);
         Py_ssize_t len_substring = PyUnicode_GET_LENGTH(substring);
-        if (len_substring == 0) return (eq == Py_EQ);
-        if (len_substring > len_text) return (eq == Py_NE);
-
         int kind_substring = PyUnicode_KIND(substring);
         int kind_text = PyUnicode_KIND(text);
+
+        if (len_substring == 0) return (eq == Py_EQ);
+        if (len_substring > len_text) return (eq == Py_NE);
         if (kind_substring > kind_text) return (eq == Py_NE);
+
         if (len_substring == 1) {
             Py_UCS4 character = PyUnicode_READ(kind_substring, PyUnicode_DATA(substring), 0);
             if (kind_text == PyUnicode_1BYTE_KIND) {
@@ -327,6 +328,10 @@ static CYTHON_INLINE int __Pyx_PyUnicode_ContainsTF(PyObject* substring, PyObjec
             Py_ssize_t idx = PyUnicode_FindChar(text, character, 0, len_text, 1);
             if (unlikely(idx == -2)) return -1;
             return (idx >= 0) == (eq == Py_EQ);
+        }
+        if (len_substring == len_text) {
+            if (kind_substring != kind_text) return (eq == Py_NE);
+            return (memcmp(PyUnicode_DATA(text), PyUnicode_DATA(substring), kind_text * len_text) == 0) == (eq == Py_EQ);
         }
     }
 #endif
