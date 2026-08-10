@@ -1499,6 +1499,9 @@ _special_type_check_functions = {
     'memoryview': 'PyMemoryView_Check',
     'Exception': '__Pyx_PyExc_Exception_Check',
     'BaseException': '__Pyx_PyExc_BaseException_Check',
+    'dict_keys': '__Pyx_PyDict_keys_Check',
+    'dict_values': '__Pyx_PyDict_values_Check',
+    'dict_items': '__Pyx_PyDict_items_Check',
 }
 
 # Builtins as of Python version ...
@@ -1877,6 +1880,9 @@ class BuiltinObjectType(PyObjectType):
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
+        'dict_keys': ['supports_container_type'],
+        'dict_values': ['supports_container_type'],
+        'dict_items': ['supports_container_type'],
     }
     _builtin_type_flag_mapping.update(
         # Extended to set '.is_exception_type' for all builtin exception types.
