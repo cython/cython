@@ -191,7 +191,7 @@ py_wide_unicode_character = wide_unicode_character
 
 @cython.test_assert_path_exists("//PrimaryCmpNode")
 @cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode", "//BoolBinopNode")
-def m_unicode(Py_UNICODE a, unicode unicode_string):
+def m_unicode(Py_UCS4 a, unicode unicode_string):
     """
     >>> m_unicode(ord('f'), py_unicode_string)
     0
@@ -199,6 +199,7 @@ def m_unicode(Py_UNICODE a, unicode unicode_string):
     1
     >>> m_unicode(ord(py_klingon_character), py_unicode_string)
     0
+
     >>> 'f' in None    # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...iterable...
@@ -250,9 +251,42 @@ def m_literal_in_unicode_cascade(unicode unicode_string):
     return result
 
 
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode", "//BoolBinopNode")
+def m_str_notin_str(str a, str unicode_string):
+    """
+    >>> m_str_notin_str('f', py_unicode_string)
+    0
+    >>> m_str_notin_str('ef', py_unicode_string)
+    0
+    >>> m_str_notin_str('ff', py_unicode_string)
+    1
+    >>> m_str_notin_str('X', py_unicode_string)
+    1
+    >>> m_str_notin_str('XX', py_unicode_string)
+    1
+    >>> m_str_notin_str(py_klingon_character, py_unicode_string)
+    0
+
+    >>> 'f' in None    # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    >>> m_str_notin_str('f', None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    >>> m_str_notin_str(None, 'f')
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    >>> m_str_notin_str(None, None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = a not in unicode_string
+    return result
+
+
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
-def m_unicode_literal(Py_UNICODE a):
+def m_unicode_literal(Py_UCS4 a):
     """
     >>> m_unicode_literal(ord('f'))
     0

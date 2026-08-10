@@ -234,12 +234,14 @@ def m_bytes_literal_unsigned(unsigned char a):
     cdef int result = a in b'ab\0cde\0f\0g'
     return result
 
+
 cdef unicode unicode_string = u'abc\0defg\u1234\uF8D2'
 py_unicode_string = unicode_string
 
+
 @cython.test_assert_path_exists("//PrimaryCmpNode")
 @cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
-def m_unicode(Py_UNICODE a, unicode unicode_string):
+def m_unicode(Py_UCS4 a, unicode unicode_string):
     """
     >>> m_unicode(ord('f'), py_unicode_string)
     1
@@ -279,7 +281,6 @@ def m_literal_in_unicode(unicode unicode_string):
     return result
 
 
-'''
 @cython.test_assert_path_exists("//PrimaryCmpNode")
 @cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
 def m_literal_in_unicode_cascade(unicode unicode_string):
@@ -298,7 +299,39 @@ def m_literal_in_unicode_cascade(unicode unicode_string):
     """
     cdef int result = 'f' in unicode_string in unicode_string
     return result
-'''
+
+
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode", "//BoolBinopNode")
+def m_str_in_str(str a, str unicode_string):
+    """
+    >>> m_str_in_str('f', py_unicode_string)
+    1
+    >>> m_str_in_str('ef', py_unicode_string)
+    1
+    >>> m_str_in_str('ff', py_unicode_string)
+    0
+    >>> m_str_in_str('X', py_unicode_string)
+    0
+    >>> m_str_in_str('XX', py_unicode_string)
+    0
+    >>> m_str_in_str(py_klingon_character, py_unicode_string)
+    1
+
+    >>> 'f' in None    # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    >>> m_str_in_str('f', None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    >>> m_str_in_str(None, 'f')
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    >>> m_str_in_str(None, None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = a in unicode_string
+    return result
 
 
 cdef unicode klingon_character = u'\uF8D2'
