@@ -510,11 +510,9 @@ types_that_construct_their_instance = frozenset({
 # if methods are added that are not safe to evaluate at compile time.
 # 'T' - type identical to type in dictionary key
 # 'I' - type of index type:
-#     - for no-dict it is type from subscript - e.g. for list[int], I is `int`
-#     - for dict it is second subscripted type - e.g. for dict[int, str],
-#       I is `str`
-# 'K' - key value type of dictionary - second subscripted type
-#     - e.g. for dict[int, str], v is `str`
+#     - value type from subscript - e.g. for list[int], I is `int`
+#     - for mappings this is the second subscripted type - e.g. for dict[int, str], I is `str`
+# 'K' - key type of dictionary - e.g. for dict[int, str], K is `int`
 inferred_method_return_types = {
     'complex': dict(
         conjugate='complex',
