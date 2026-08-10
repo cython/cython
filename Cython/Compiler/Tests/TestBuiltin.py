@@ -90,12 +90,11 @@ class TestBuiltinReturnTypes(TimedTest):
                 raise
             look_up_methods = False
 
+        current_subscript_types = builtin_type.subscripted_types if builtin_type.supports_container_type else []
+
         def parse_subscripted_type(type_string):
             if type_string == 'T':
                 return builtin_type
-
-            current_subscript_types = builtin_type.subscripted_types if builtin_type.supports_container_type else []
-
             if type_string == 'I':
                 return current_subscript_types[-1] if current_subscript_types else py_object_type
             if type_string == 'K':
@@ -106,15 +105,12 @@ class TestBuiltinReturnTypes(TimedTest):
                     parse_subscripted_type(t)
                     for t in subscripted_type_names.split(',')
                 ]
-                origin_type = builtin_types[origin_type_name]
+                parsed_type = builtin_types[origin_type_name]
                 if current_subscript_types:
-                    return origin_type.specialize_here(pos, test_module_scope, subscripted_types)
-                return origin_type
+                    return parsed_type.specialize_here(pos, test_module_scope, subscripted_types)
+                return parsed_type
 
-            entry = builtin_scope.lookup(type_string)
-            if entry is not None:
-                return entry.type
-            return PyrexTypes.parse_basic_ctype(type_string)
+            return builtin_types.get(type_string) or PyrexTypes.parse_basic_ctype(type_string)
 
         for method_name, return_type_name in methods.items():
             fq_method_name = f"{type_name}.{method_name}"
@@ -128,10 +124,6 @@ class TestBuiltinReturnTypes(TimedTest):
             if actual_return_type.is_builtin_type:
                 self.assertEqual(actual_return_type.name, expected_return_type.name)
 
-            if '[' in return_type_name and builtin_type.supports_container_type and not builtin_type.subscripted_types:
-                assert actual_return_type.supports_container_type and not actual_return_type.subscripted_types, (
-                    return_type_name, expected_return_type, actual_return_type)
-                expected_return_type = expected_return_type.get_container_type() or expected_return_type
             self.assertEqual(actual_return_type.empty_declaration_code(pyrex=True), expected_return_type.empty_declaration_code(pyrex=True))
 
 
