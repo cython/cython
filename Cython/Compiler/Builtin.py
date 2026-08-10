@@ -350,6 +350,13 @@ builtin_function_table = [
 
 # Builtin types
 
+hidden_builtin_types = [
+    # These are not in the user visible 'builtins' namespace.
+    'dict_keys',
+    'dict_values',
+    'dict_items',
+]
+
 builtin_types_table = [
 
     ("type",    "&PyType_Type",     []),
@@ -840,11 +847,12 @@ def init_builtin_types():
             type_class = PyrexTypes.PythonTupleTypeConstructor
         elif name == 'range':
             utility_code = range_utility_code
-        elif name in ['dict_keys', 'dict_values', 'dict_items']:
+        elif name in hidden_builtin_types:
             type_class = PyrexTypes.BuiltinTypeConstructorObjectType
             scope = hidden_builtins_scope
             # Make sure the 'type' base type is declared in the hidden scope.
-            hidden_builtins_scope.entries['type'] = builtin_scope.lookup('type')
+            if 'type' not in hidden_builtins_scope.entries:
+                hidden_builtins_scope.entries['type'] = builtin_scope.lookup('type')
 
         the_type = scope.declare_builtin_type(
             name, cname, objstruct_cname=objstruct_cname, type_class=type_class, utility_code=utility_code)
