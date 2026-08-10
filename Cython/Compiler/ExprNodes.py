@@ -14365,8 +14365,8 @@ class CmpNode:
               (op, operand1.type, operand2.type))
 
     def is_python_comparison(self):
-        return (not self.is_ptr_contains()
-            and not self.is_c_string_contains()
+        return (self.special_bool_cmp_function is None
+            and not self.is_ptr_contains()
             and (self.has_python_operands()
                  or (self.cascade and self.cascade.is_python_comparison())
                  or self.operator in ('in', 'not_in')))
@@ -14379,19 +14379,11 @@ class CmpNode:
             self.cascade.coerce_operands_to(dst_type, env)
 
     def is_python_result(self):
-        return ((self.has_python_operands() and
-                 self.special_bool_cmp_function is None and
-                 self.operator not in ('is', 'is_not', 'in', 'not_in') and
-                 not self.is_c_string_contains() and
-                 not self.is_ptr_contains())
+        return ((self.special_bool_cmp_function is None
+                and self.has_python_operands()
+                and self.operator not in ('is', 'is_not', 'in', 'not_in')
+                and not self.is_ptr_contains())
             or (self.cascade and self.cascade.is_python_result()))
-
-    def is_c_string_contains(self):
-        return self.operator in ('in', 'not_in') and \
-               ((self.operand1.type.is_int
-                 and (self.operand2.type.is_string or self.operand2.type.is_pybytes_type)) or
-                (self.operand1.type.is_unicode_char
-                 and self.operand2.type.is_pystr_type))
 
     def is_ptr_contains(self):
         if self.operator in ('in', 'not_in'):
@@ -14400,7 +14392,11 @@ class CmpNode:
                 and not container_type.is_string
 
     def find_special_bool_compare_function(self, env, operand1, result_is_bool=False):
-        # note: currently operand1 must get coerced to a Python object if we succeed here!
+        """Try to find an optimised comparison function.
+
+        Coerces self.operand2 appropriately.
+        Returns a tuple: (success flag, coerced operand1)
+        """
         if self.operator in ('==', '!='):
             type1, type2 = operand1.type, self.operand2.type
             if result_is_bool or (type1.is_builtin_type and type2.is_builtin_type):
@@ -14412,7 +14408,7 @@ class CmpNode:
                         self.special_bool_cmp_utility_code = TempitaUtilityCode.load_cached(
                             "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': True})
                         self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_ch{character}_{'str' if is_str else 'obj'}"
-                        return True
+                        return True, operand1.coerce_to_pyobject(env)
                     elif self.operand2.is_string_literal and self.operand2.can_coerce_to_char_literal():
                         # We need to keep the signature (obj1, obj2, eq), so we generate one macro function per character.
                         character = ord(self.operand2.value[0])
@@ -14420,7 +14416,7 @@ class CmpNode:
                         self.special_bool_cmp_utility_code = TempitaUtilityCode.load_cached(
                             "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': False})
                         self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_{'str' if is_str else 'obj'}_ch{character}"
-                        return True
+                        return True, operand1.coerce_to_pyobject(env)
                 elif result_is_bool:
                     from .Optimize import optimise_numeric_binop
                     result = optimise_numeric_binop(
@@ -14435,30 +14431,51 @@ class CmpNode:
                          self.special_bool_cmp_utility_code,
                          self.special_bool_extra_args,
                          _) = result
-                        return True
+                        return True, operand1
         elif self.operator in ('in', 'not_in'):
-            if self.operand2.type.is_pyanydict_type:
+            type1, type2 = operand1.type, self.operand2.type
+            if type2.is_pyanydict_type:
                 self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyDictContains", "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_PyDict_ContainsTF"
-                return True
-            elif self.operand2.type.is_pyset_type:
+                return True, operand1.coerce_to_pyobject(env)
+            elif type2.is_pyset_type:
                 self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("PySetContains", "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_PySet_ContainsTF"
-                return True
-            elif self.operand2.type.is_pystr_type:
-                self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
-                self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyUnicodeContains", "StringTools.c")
-                self.special_bool_cmp_function = "__Pyx_PyUnicode_ContainsTF"
-                return True
-            else:
-                if not self.operand2.type.is_pyobject:
-                    self.operand2 = self.operand2.coerce_to_pyobject(env)
-                self.special_bool_cmp_utility_code = UtilityCode.load_cached("PySequenceContains", "ObjectHandling.c")
-                self.special_bool_cmp_function = "__Pyx_PySequence_ContainsTF"
-                return True
-        return False
+                return True, operand1.coerce_to_pyobject(env)
+            elif type2.is_pystr_type:
+                self.operand2 = self.operand2.as_none_safe_node("argument of type 'NoneType' is not iterable")
+                if (type1.is_unicode_char or
+                        type1 in (PyrexTypes.c_char_type, PyrexTypes.c_uchar_type) or
+                        operand1.is_string_literal and operand1.can_coerce_to_char_literal()
+                        ):
+                    operand1 = operand1.coerce_to(PyrexTypes.c_py_ucs4_type, env)
+                    self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyUCS4InUnicode", "StringTools.c")
+                    self.special_bool_cmp_function = "__Pyx_UnicodeContainsUCS4"
+                else:
+                    operand1 = operand1.coerce_to_pyobject(env)
+                    self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyUnicodeContains", "StringTools.c")
+                    self.special_bool_cmp_function = "__Pyx_PyUnicode_ContainsTF"
+                return True, operand1
+            elif type2.is_string or type2.is_pybytes_type or type2.is_pybytearray_type:
+                if type1.is_int or (operand1.is_string_literal and operand1.can_coerce_to_char_literal()):
+                    if type2.is_string:
+                        self.operand2 = self.operand2.coerce_to(bytes_type, env)
+                    else:
+                        self.operand2 = self.operand2.as_none_safe_node("argument of type 'NoneType' is not iterable")
+                    operand1 = operand1.coerce_to(PyrexTypes.c_char_type, env)
+                    self.special_bool_cmp_utility_code = UtilityCode.load_cached(
+                        "ByteArrayContains" if type2.is_pybytearray_type else "BytesContains", "StringTools.c")
+                    self.special_bool_cmp_function = "__Pyx_ByteArrayContains" if type2.is_pybytearray_type else "__Pyx_BytesContains"
+                    return True, operand1
+
+            if not type2.is_pyobject:
+                self.operand2 = self.operand2.coerce_to_pyobject(env)
+            self.special_bool_cmp_utility_code = UtilityCode.load_cached("PySequenceContains", "ObjectHandling.c")
+            self.special_bool_cmp_function = "__Pyx_PySequence_ContainsTF"
+            return True, operand1.coerce_to_pyobject(env)
+        return False, operand1
 
     _optimised_compare_types = {
         py_object_type,
@@ -14655,41 +14672,20 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         if self.cascade:
             self.cascade = self.cascade.analyse_types(env)
 
-        if self.operator in ('in', 'not_in'):
-            if self.is_c_string_contains():
-                common_type = None
-                if self.cascade:
-                    error(self.pos, "Cascading comparison not yet supported for 'int_val in string'.")
-                    return self
-                if self.operand2.type.is_pystr_type:
-                    env.use_utility_code(UtilityCode.load_cached("PyUCS4InUnicode", "StringTools.c"))
-                else:
-                    if self.operand1.type is PyrexTypes.c_uchar_type:
-                        self.operand1 = self.operand1.coerce_to(PyrexTypes.c_char_type, env)
-                    if not self.operand2.type.is_pybytes_type:
-                        self.operand2 = self.operand2.coerce_to(bytes_type, env)
-                    env.use_utility_code(UtilityCode.load_cached("BytesContains", "StringTools.c"))
-                self.operand2 = self.operand2.as_none_safe_node(
-                    "argument of type 'NoneType' is not iterable")
-            elif self.is_ptr_contains():
-                if self.cascade:
-                    error(self.pos, "Cascading comparison not supported for 'val in sliced pointer'.")
-                self.type = PyrexTypes.c_bint_type
-                # Will be transformed by IterationTransform
-                return self
-            elif self.find_special_bool_compare_function(env, self.operand1):
-                if not self.operand1.type.is_pyobject:
-                    self.operand1 = self.operand1.coerce_to_pyobject(env)
-                common_type = None  # if coercion needed, the method call above has already done it
-                self.is_temp = True  # error return
-            else:
-                common_type = py_object_type
-                self.is_temp = True  # owned reference
-        elif self.find_special_bool_compare_function(env, self.operand1):
-            if not self.operand1.type.is_pyobject:
-                self.operand1 = self.operand1.coerce_to_pyobject(env)
-            common_type = None  # if coercion needed, the method call above has already done it
+        if self.is_ptr_contains():
+            if self.cascade:
+                error(self.pos, "Cascading comparison not supported for 'val in sliced pointer'.")
+            self.type = PyrexTypes.c_bint_type
+            # Will be transformed by IterationTransform
+            return self
+        found, operand1 = self.find_special_bool_compare_function(env, self.operand1)
+        if found:
+            common_type = None
+            self.operand1 = operand1  # coerced appropriately
             self.is_temp = True  # error return
+        elif self.operator in ('in', 'not_in'):
+            common_type = py_object_type
+            self.is_temp = True  # owned reference
         else:
             common_type = self.find_common_type(env, self.operator, self.operand1)
             if common_type.is_pyobject:
@@ -14760,7 +14756,9 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             return self
 
         # coercing to bool => may allow for more efficient comparison code
-        self.find_special_bool_compare_function(env, self.operand1, result_is_bool=True)
+        found, operand1 = self.find_special_bool_compare_function(env, self.operand1, result_is_bool=True)
+        if found:
+            self.operand1 = operand1
 
         if self.cascade:
             operand2 = self.cascade.optimise_comparison(
@@ -14798,20 +14796,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 operand1.type.binary_op('=='),
                 operand1.result(),
                 operand2.result())
-        elif self.is_c_string_contains():
-            if operand2.type.is_pystr_type:
-                method = "__Pyx_UnicodeContainsUCS4"
-            else:
-                method = "__Pyx_BytesContains"
-            if self.operator == "not_in":
-                negation = "!"
-            else:
-                negation = ""
-            return "(%s%s(%s, %s))" % (
-                negation,
-                method,
-                operand2.result(),
-                operand1.result())
         else:
             if is_pythran_expr(self.type):
                 result1, result2 = operand1.pythran_result(), operand2.pythran_result()
@@ -14907,10 +14891,9 @@ class CascadedCmpNode(Node, CmpNode):
         return False
 
     def optimise_comparison(self, operand1, env, result_is_bool=False):
-        if self.find_special_bool_compare_function(env, operand1, result_is_bool):
+        found, operand1 = self.find_special_bool_compare_function(env, operand1, result_is_bool)
+        if found:
             self.type = PyrexTypes.c_bint_type
-            if not operand1.type.is_pyobject:
-                operand1 = operand1.coerce_to_pyobject(env)
         if self.cascade:
             operand2 = self.cascade.optimise_comparison(self.operand2, env, result_is_bool)
             if operand2 is not self.operand2:
