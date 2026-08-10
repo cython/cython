@@ -284,7 +284,7 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* 
 
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* text, int eq) {
 #if CYTHON_USE_UNICODE_INTERNALS
-    // Not calling __Pyx_PyUnicode_READY(text) here since any non-1 kind value is ignore anyway.
+    // Not calling __Pyx_PyUnicode_READY(text) here since any non-1 kind value is ignored anyway.
     if (PyUnicode_KIND(text) == 1) {
         if (character > 0xFF) return (eq == Py_NE);
         Py_ssize_t len_text = PyUnicode_GET_LENGTH(text);
