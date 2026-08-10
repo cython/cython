@@ -524,10 +524,14 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
     return (long)(Py_UCS4)-1;
 }
 
-
 //////////////////// py_dict_keys.proto ////////////////////
 
+#define __Pyx_PyDict_keys_TypePtr  (&PyDictKeys_Type)
+#define __Pyx_PyDict_keys_Check(obj)  PyObject_TypeCheck((obj), __Pyx_PyDict_keys_TypePtr)
+#define __Pyx_PyDict_keys_CheckExact(obj)  Py_IS_TYPE((obj), __Pyx_PyDict_keys_TypePtr)
+
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d); /*proto*/
+
 
 //////////////////// py_dict_keys ////////////////////
 
@@ -546,6 +550,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Keys(PyObject* d) {
 }
 
 //////////////////// py_dict_values.proto ////////////////////
+
+#define __Pyx_PyDict_values_TypePtr  (&PyDictKeys_Type)
+#define __Pyx_PyDict_values_Check(obj)  PyObject_TypeCheck((obj), __Pyx_PyDictValues_TypePtr)
+#define __Pyx_PyDict_values_CheckExact(obj)  Py_IS_TYPE((obj), __Pyx_PyDictValues_TypePtr)
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d); /*proto*/
 
@@ -566,6 +574,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Values(PyObject* d) {
 }
 
 //////////////////// py_dict_items.proto ////////////////////
+
+#define __Pyx_PyDict_items_TypePtr  (&PyDictKeys_Type)
+#define __Pyx_PyDict_items_Check(obj)  PyObject_TypeCheck((obj), __Pyx_PyDictItems_TypePtr)
+#define __Pyx_PyDict_items_CheckExact(obj)  Py_IS_TYPE((obj), __Pyx_PyDictItems_TypePtr)
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
 

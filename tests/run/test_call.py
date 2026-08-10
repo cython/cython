@@ -1,7 +1,9 @@
+import platform
 import unittest
 
 from Cython.TestUtils import TimedTest
 
+IS_GRAAL = platform.python_implementation() == 'GraalVM'
 
 # The test cases here cover several paths through the function calling
 # code.  They depend on the METH_XXX flag that is used to define a C
@@ -55,6 +57,10 @@ class CFunctionCalls(TimedTest):
         self.assertRaises(TypeError, {}.keys, 0, 1)
 
     def test_oldargs0_0_ext(self):
+        # Fails the result type test in GraalPy 25.2.4.
+        # See https://github.com/oracle/graalpython/issues/1077
+        if IS_GRAAL:
+            return
         {}.keys(*())
 
     def test_oldargs0_1_ext(self):
