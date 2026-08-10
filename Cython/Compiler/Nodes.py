@@ -8574,7 +8574,7 @@ class ExceptClauseNode(Node):
             exc_tests = []
             if exc_type:
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
+                    UtilityCode.load_cached("GivenExceptionMatches", "Exceptions.c"))
                 if len(patterns) == 2:
                     exc_tests.append("__Pyx_PyErr_GivenExceptionMatches2(%s, %s, %s)" % (
                         exc_type, patterns[0], patterns[1],
@@ -8586,7 +8586,7 @@ class ExceptClauseNode(Node):
                     )
             elif len(patterns) == 2:
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
+                    UtilityCode.load_cached("GivenExceptionMatches", "Exceptions.c"))
                 exc_tests.append("__Pyx_PyErr_ExceptionMatches2(%s, %s)" % (
                     patterns[0], patterns[1],
                 ))

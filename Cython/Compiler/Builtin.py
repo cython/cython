@@ -874,6 +874,8 @@ def init_builtin_exceptions():
     for name in ['UnicodeError', 'UnicodeDecodeError', 'UnicodeEncodeError', 'UnicodeTranslateError']:
         special_properties[name] = unicode_error_properties
 
+    type_check_utility_code = UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c")
+
     for name in PyrexTypes.KNOWN_EXCEPTION_NAMES:
         if name in PyrexTypes.uncachable_builtins:
             # Exclude builtins specific to later Python versions or platforms.
@@ -882,14 +884,20 @@ def init_builtin_exceptions():
         objstruct_cname = None
         if name == 'BaseException':
             objstruct_cname = "PyBaseExceptionObject"
-        elif name == 'Exception':
-            objstruct_cname = "PyBaseExceptionObject"
+            utility_code = UtilityCode(
+                proto="#define __Pyx_PyExc_BaseException_Check(obj)  PyExceptionInstance_Check(obj)",
+                name=f"Py{name}_Check",
+            )
+        else:
+            if name == 'Exception':
+                objstruct_cname = "PyBaseExceptionObject"
+            utility_code = UtilityCode(
+                proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
+                name=f"Py{name}_Check",
+                requires=[type_check_utility_code],
+            )
 
         assert builtin_scope.lookup_here(name) is None  # should not be declared above
-        utility_code = UtilityCode(
-            proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
-            name=f"Py{name}_Check",
-        )
         exc_type = builtin_types[name] = builtin_scope.declare_builtin_type(
             name, f"((PyTypeObject*)PyExc_{name})",
             objstruct_cname=objstruct_cname,

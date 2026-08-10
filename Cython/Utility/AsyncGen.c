@@ -93,6 +93,7 @@ __Pyx_PyAsyncGen_Fini();
 //@requires: Coroutine.c::ReturnWithStopIteration
 //@requires: ObjectHandling.c::PyObjectCall2Args
 //@requires: ExtensionTypes.c::CallTypeTraverse
+//@requires: Exceptions.c::GivenExceptionMatches
 
 PyDoc_STRVAR(__Pyx_async_gen_send_doc,
 "send(arg) -> send 'arg' into generator,\n\
