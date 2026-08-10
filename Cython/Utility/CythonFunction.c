@@ -19,6 +19,7 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 //////////////////// CythonFunctionPerModule.proto //////////////////////////
 // This section always gets included whether we're using CythonFunction through
 // shared utility code or not.
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 #define __Pyx_CyFunction_USED
 
@@ -252,6 +253,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: ObjectHandling.c::PyMethodNew
 //@requires: ObjectHandling.c::PyVectorcallFastCallDict
 //@requires: Exceptions.c::IgnoreException
+//@requires: ModuleSetupCode.c::FastTypeChecks
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ObjectHandling.c::PyObjectCallOneArg
@@ -1653,7 +1655,7 @@ static int __pyx_FusedFunction_init(PyObject *module) {
         return -1;
     }
 
-    mstate->__pyx_CyFunctionType = tp;
+    mstate->__pyx_FusedFunctionType = tp;
     return 0;
 }
 
@@ -2106,6 +2108,7 @@ CYTHON_UNUSED static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*pro
 
 //////////////////// ClassMethod ////////////////////
 //@requires: ObjectHandling.c::CachedMethodType
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM <= 0x05080000

@@ -3084,6 +3084,8 @@ class FindInvalidUseOfFusedTypes(TreeVisitor):
 
 
 class ExpandInplaceOperators(EnvTransform):
+    """Expand in-place operators into separate read/write operations.
+    """
 
     def visit_InPlaceAssignmentNode(self, node):
         lhs = node.lhs
@@ -3108,26 +3110,30 @@ class ExpandInplaceOperators(EnvTransform):
                 return ExprNodes.IndexNode(node.pos, base=base, index=index), temps + [index]
             elif node.is_attribute:
                 obj, temps = side_effect_free_reference(node.obj, setting=setting)
-                return ExprNodes.AttributeNode(node.pos, obj=obj, attribute=node.attribute), temps
+                return ExprNodes.AttributeNode.from_node(
+                    node, obj=obj, attribute=node.attribute, constant_result=ExprNodes.not_a_constant), temps
             elif isinstance(node, ExprNodes.BufferIndexNode):
                 raise ValueError("Don't allow things like attributes of buffer indexing operations")
             else:
                 node = LetRefNode(node)
                 return node, [node]
+
         try:
             lhs, let_ref_nodes = side_effect_free_reference(lhs, setting=True)
         except ValueError:
             return node
+
         dup = lhs.__class__(**lhs.__dict__)
+        dup = dup.analyse_types(env)  # FIXME: no need to reanalyse the copy, right?
         binop = ExprNodes.binop_node(node.pos,
                                      operator = node.operator,
                                      operand1 = dup,
                                      operand2 = rhs,
                                      inplace=True)
+
         # Manually analyse types for new node.
         lhs.is_target = True
         lhs = lhs.analyse_target_types(env)
-        dup.analyse_types(env)  # FIXME: no need to reanalyse the copy, right?
         binop.analyse_operation(env)
         node = Nodes.SingleAssignmentNode(
             node.pos,

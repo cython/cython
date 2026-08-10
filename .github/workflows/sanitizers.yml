@@ -80,7 +80,7 @@ jobs:
 
   sanitizers-success:
     needs: [sanitizers, pydebug]
-    if: always()
+    if: ${{ always() && !contains(needs.*.result, 'cancelled') }}
     env:
       FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
     runs-on: ubuntu-latest

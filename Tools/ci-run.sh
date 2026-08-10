@@ -108,7 +108,7 @@ if [[ $PYTHON_VERSION != *"-dev" ]]; then
     $PYTHON -m pip install --no-cache-dir pythran || exit 1
   fi
 
-  if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
+  if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VERSION != "3.13t" ]]; then
     $PYTHON -m pip install --no-cache-dir mypy || exit 1
   fi
 

@@ -1497,8 +1497,11 @@ _special_type_check_functions = {
     'frozenset': 'PyFrozenSet_Check',
     'frozendict': '__Pyx_PyFrozenDict_Check',
     'memoryview': 'PyMemoryView_Check',
-    'Exception': '__Pyx_PyException_Check',
-    'BaseException': '__Pyx_PyBaseException_Check',
+    'Exception': '__Pyx_PyExc_Exception_Check',
+    'BaseException': '__Pyx_PyExc_BaseException_Check',
+    'dict_keys': '__Pyx_PyDict_keys_Check',
+    'dict_values': '__Pyx_PyDict_values_Check',
+    'dict_items': '__Pyx_PyDict_items_Check',
 }
 
 # Builtins as of Python version ...
@@ -1877,6 +1880,9 @@ class BuiltinObjectType(PyObjectType):
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
+        'dict_keys': ['supports_container_type'],
+        'dict_values': ['supports_container_type'],
+        'dict_items': ['supports_container_type'],
     }
     _builtin_type_flag_mapping.update(
         # Extended to set '.is_exception_type' for all builtin exception types.
@@ -5481,13 +5487,14 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
 
     def infer_indexed_type(self, at_index=None):
         container_type = self.get_container_type()
-        if at_index is None:
-            return self.get_common_item_type()
-        if container_type.is_pytuple_type and self.has_uniform_element_type:
-            # tuple[TYP, ...]
-            return self.get_subscripted_type(0)
-        if container_type.is_pytuple_type and isinstance(at_index, int):
-            return self.get_subscripted_type(at_index)
+        if container_type.is_pytuple_type:
+            if self.has_uniform_element_type:
+                # tuple[TYP, ...]
+                return self.get_subscripted_type(0)
+            if at_index is None:
+                return self.get_common_item_type()
+            if isinstance(at_index, int):
+                return self.get_subscripted_type(at_index)
         if container_type.is_pyanydict_type:
             return self.get_subscripted_type(1)
         if container_type.is_pylist_type or container_type.is_pyanyset_type:
