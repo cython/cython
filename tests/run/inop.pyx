@@ -340,6 +340,46 @@ def m_wide_unicode_literal(Py_UCS4 a):
 
 @cython.test_assert_path_exists("//PrimaryCmpNode", "//CascadedCmpNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//SwitchStatNode")
+def m_unicode_char_cascade_in_char(Py_UCS4 a, str cascade):
+    """
+    >>> m_unicode_char_cascade_in_char(ord('f'), 'f')
+    1
+    >>> m_unicode_char_cascade_in_char(ord('f'), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    1
+    >>> m_unicode_char_cascade_in_char(ord('f'), 'abc\\0de XXX g\\u1234\\uF8D2\\U0010FEDC')
+    0
+    >>> m_unicode_char_cascade_in_char(ord('X'), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    0
+    >>> m_unicode_char_cascade_in_char(ord(py_wide_unicode_character), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    0
+    """
+    cdef int result = a in 'f' in cascade
+    return result
+
+
+@cython.test_assert_path_exists("//PrimaryCmpNode", "//CascadedCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//SwitchStatNode")
+def m_unicode_char_cascade_in(str a, str cascade):
+    """
+    >>> m_unicode_char_cascade_in('f', 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    1
+    >>> m_unicode_char_cascade_in('f', '  abc\\0defg\\u1234\\uF8D2\\U0010FEDC  ')
+    1
+    >>> m_unicode_char_cascade_in('f', 'abc\\0de XXX g\\u1234\\uF8D2\\U0010FEDC')
+    0
+    >>> m_unicode_char_cascade_in('X', 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    0
+    >>> m_unicode_char_cascade_in('fX', 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    0
+    >>> m_unicode_char_cascade_in(py_wide_unicode_character, 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
+    0
+    """
+    cdef int result = a in 'f' in cascade
+    return result
+
+
+@cython.test_assert_path_exists("//PrimaryCmpNode", "//CascadedCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//SwitchStatNode")
 def m_wide_unicode_literal_cascade_in(Py_UCS4 a, str cascade):
     """
     >>> m_wide_unicode_literal_cascade_in(ord('f'), 'abc\\0defg\\u1234\\uF8D2\\U0010FEDC')
