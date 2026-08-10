@@ -305,39 +305,8 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* 
 
 static CYTHON_INLINE int __Pyx_PyUnicode_ContainsTF(PyObject* substring, PyObject* text, int eq) {
     if (substring == text) return (eq == Py_EQ);
-#if CYTHON_USE_UNICODE_INTERNALS
-    // We know that 'text' is a str because we got here.
-    if (likely(PyUnicode_Check(substring))) {
-        if (unlikely(__Pyx_PyUnicode_READY(text) < 0)) return -1;
-        if (unlikely(__Pyx_PyUnicode_READY(substring) < 0)) return -1;
-
-        Py_ssize_t len_text = PyUnicode_GET_LENGTH(text);
-        Py_ssize_t len_substring = PyUnicode_GET_LENGTH(substring);
-        int kind_substring = PyUnicode_KIND(substring);
-        int kind_text = PyUnicode_KIND(text);
-
-        if (len_substring == 0) return (eq == Py_EQ);
-        if (len_substring > len_text) return (eq == Py_NE);
-        if (kind_substring > kind_text) return (eq == Py_NE);
-
-        if (len_substring == 1) {
-            Py_UCS4 character = PyUnicode_READ(kind_substring, PyUnicode_DATA(substring), 0);
-            if (kind_text == PyUnicode_1BYTE_KIND) {
-                return (memchr(PyUnicode_1BYTE_DATA(text), (unsigned char) character, (size_t) len_text) != NULL) == (eq == Py_EQ);
-            }
-            Py_ssize_t idx = PyUnicode_FindChar(text, character, 0, len_text, 1);
-            if (unlikely(idx == -2)) return -1;
-            return (idx >= 0) == (eq == Py_EQ);
-        }
-        if (len_substring == len_text) {
-            if (kind_substring != kind_text) return (eq == Py_NE);
-            return (memcmp(PyUnicode_DATA(text), PyUnicode_DATA(substring), kind_text * len_text) == 0) == (eq == Py_EQ);
-        }
-    }
-#endif
-
     int result = PyUnicode_Contains(text, substring);
-    return unlikely(result < 0) ? result : (result == (eq == Py_EQ));
+    return unlikely(result < 0) ? -1 : (result == (eq == Py_EQ));
 }
 
 
