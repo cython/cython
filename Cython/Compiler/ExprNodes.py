@@ -6355,7 +6355,13 @@ class CallNode(ExprNode):
             node = node.analyse_types(env).coerce_to(type, env)
             return node
         elif type and type.is_cpp_class:
-            self.args = [ arg.analyse_types(env) for arg in self.args ]
+            args, kwds = self.explicit_args_kwds()
+            if kwds:
+                # Only SimpleCallNode has '.args'. Leave a call with keyword
+                # arguments to the normal call analysis, which rejects it, rather
+                # than crashing on the missing attribute below.
+                return None
+            self.args = [ arg.analyse_types(env) for arg in args ]
             constructor = type.scope.lookup("<init>")
             if not constructor:
                 error(self.function.pos, "no constructor found for C++  type '%s'" % self.function.name)
@@ -7516,6 +7522,8 @@ class GeneralCallNode(CallNode):
                     error(self.pos,
                           "Non-trivial keyword arguments and starred "
                           "arguments not allowed in cdef functions.")
+                    self.type = error_type
+                    return self
                 else:
                     # error was already reported
                     pass
