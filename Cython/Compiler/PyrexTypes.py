@@ -1497,8 +1497,8 @@ _special_type_check_functions = {
     'frozenset': 'PyFrozenSet_Check',
     'frozendict': '__Pyx_PyFrozenDict_Check',
     'memoryview': 'PyMemoryView_Check',
-    'Exception': '__Pyx_PyException_Check',
-    'BaseException': '__Pyx_PyBaseException_Check',
+    'Exception': '__Pyx_PyExc_Exception_Check',
+    'BaseException': '__Pyx_PyExc_BaseException_Check',
 }
 
 # Builtins as of Python version ...

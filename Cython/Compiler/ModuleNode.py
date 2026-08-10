@@ -1039,7 +1039,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln('static const char * const %s = %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
 
-        env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
         env.use_utility_code(UtilityCode.load("GetRuntimeVersion", "ModuleSetupCode.c"))
         env.use_utility_code(UtilityCode.load_cached("AddModuleRef", "ModuleSetupCode.c"))
         if has_np_pythran(env):

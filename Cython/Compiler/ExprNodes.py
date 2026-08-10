@@ -3347,6 +3347,8 @@ class IteratorNode(ScopedExprNode):
             code.putln(code.error_goto_if_null(result_name, self.pos))
             code.put("} else ")
 
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("GivenExceptionMatches", "Exceptions.c"))
         code.putln("{")
         code.putln(f"{result_name} = {self.iter_func_ptr}({self.py_result()});")
         code.putln("if (unlikely(!%s)) {" % result_name)
@@ -11571,6 +11573,11 @@ class AwaitIterNextExprNode(AwaitExprNode):
     # Breaks out of loop on StopAsyncIteration exception.
 
     def _generate_break(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("PyThreadStateGet", "Exceptions.c"))
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("GivenExceptionMatches", "Exceptions.c"))
+
         code.putln("PyObject* exc_type = __Pyx_PyErr_CurrentExceptionType();")
         code.putln("if (unlikely(exc_type && (exc_type == PyExc_StopAsyncIteration || ("
                    " exc_type != PyExc_StopIteration && exc_type != PyExc_GeneratorExit &&"
