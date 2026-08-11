@@ -984,7 +984,12 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
   #define __Pyx_PyType_TryGetSubSlot(obj, sub, name, func_ctype) __Pyx_PyType_TryGetSlot(obj, name, func_ctype)
 #endif
 
-#if CYTHON_USE_TYPE_SLOTS
+#if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_TYPE_SLOTS
+  // In CPython, if a type specific slot of a builtin type appears in an unknown type,
+  // we can assume identical behaviour.  That is not necessarily the case in PyPy (and others?),
+  // which may use more generic slot implementations.
+  // Also, this assumption does not hold for ambiguous slot functions like
+  // "PyType_GenericAlloc", "PyType_GenericGetAttr" or "PyObject_SelfIter".
   #define __Pyx_SlotIsInherited(obj, base_type, slot_name)  \
     (__Pyx_PyObject_GetSlot(obj, slot_name, void*) == __Pyx_PyType_GetSlot(base_type, slot_name, void*))
   #define __Pyx_SubSlotIsInherited(obj, base_type, sub, slot_name)  \
