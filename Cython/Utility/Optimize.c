@@ -548,7 +548,7 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, 
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
                                                    Py_ssize_t* p_orig_length, int* p_source_is_dict) {
-    is_dict = is_dict || likely(__Pyx_PyAnyDict_CheckExact(iterable));
+    is_dict = is_dict || likely(__Pyx_PyAnyDict_CheckExact(iterable)) || __Pyx_SlotIsInherited(iterable, &PyDict_Type, tp_iter);
     *p_source_is_dict = is_dict;
 #if !CYTHON_AVOID_BORROWED_REFS
     if (is_dict) {
