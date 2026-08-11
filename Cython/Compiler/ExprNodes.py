@@ -3145,6 +3145,7 @@ class IteratorNode(ScopedExprNode):
     type = py_object_type
     iter_func_ptr = None
     counter_cname = None
+    _is_list_iter_flag = None
     reversed = False      # currently only used for list/tuple types (see Optimize.py)
     is_async = False
     has_local_scope = False
@@ -3227,12 +3228,14 @@ class IteratorNode(ScopedExprNode):
         if not is_builtin_sequence:
             # reversed() not currently optimised (see Optimize.py)
             assert not self.reversed, "internal error: reversed() only implemented for list/tuple objects"
+        seq_result = self.sequence.py_result()
         self.may_be_a_sequence = not sequence_type.is_builtin_type
         if self.may_be_a_sequence:
+            self._is_list_iter_flag = code.funcstate.allocate_temp(PyrexTypes.c_bint_type, manage_ref=False)
+            code.putln(f"{self._is_list_iter_flag} = __Pyx_IsListIter({seq_result});")
             code.putln(
-                "if (likely(PyList_CheckExact(%s)) || PyTuple_CheckExact(%s)) {" % (
-                    self.sequence.py_result(),
-                    self.sequence.py_result()))
+                f"if (likely({self._is_list_iter_flag}) || __Pyx_IsTupleIter({seq_result})) {{"
+            )
 
         if is_builtin_sequence or self.may_be_a_sequence:
             code.putln("%s = %s; __Pyx_INCREF(%s);" % (
@@ -3339,7 +3342,7 @@ class IteratorNode(ScopedExprNode):
 
         if self.may_be_a_sequence:
             code.putln("if (likely(!%s)) {" % self.iter_func_ptr)
-            code.putln("if (likely(PyList_CheckExact(%s))) {" % self.py_result())
+            code.putln(f"if (likely({self._is_list_iter_flag})) {{")
             self.generate_next_sequence_item('List', result_name, code)
             code.putln("} else {")
             self.generate_next_sequence_item('Tuple', result_name, code)
@@ -3365,6 +3368,10 @@ class IteratorNode(ScopedExprNode):
     def free_temps(self, code):
         if self.counter_cname:
             code.funcstate.release_temp(self.counter_cname)
+            self.counter_cname = None
+        if self._is_list_iter_flag:
+            code.funcstate.release_temp(self._is_list_iter_flag)
+            self._is_list_iter_flag = None
         if self.iter_func_ptr:
             code.funcstate.release_temp(self.iter_func_ptr)
             self.iter_func_ptr = None
@@ -8937,9 +8944,11 @@ class SequenceNode(ExprNode):
         else:
             sequence_types = ['Tuple', 'List']
             get_size_func = "__Pyx_PySequence_SIZE"
-            tuple_check = 'likely(PyTuple_CheckExact(%s))' % rhs.py_result()
-            list_check  = 'PyList_CheckExact(%s)' % rhs.py_result()
-            sequence_type_test = "(%s) || (%s)" % (tuple_check, list_check)
+            # Unpacking depends on iteration, so it's enough if the sequence uses
+            # the normal list/tuple ".__iter__" slot to bypass it.
+            tuple_check = f'likely(__Pyx_IsTupleIter({rhs.py_result()}))'
+            list_check  = f'__Pyx_IsListIter({rhs.py_result()})'
+            sequence_type_test = f"({tuple_check}) || ({list_check})"
 
         code.putln("if (%s) {" % sequence_type_test)
         code.putln("PyObject* sequence = %s;" % rhs.py_result())
@@ -8961,7 +8970,7 @@ class SequenceNode(ExprNode):
         code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
         # unpack items from list/tuple in unrolled loop (can't fail)
         if len(sequence_types) == 2:
-            code.putln("if (likely(Py%s_CheckExact(sequence))) {" % sequence_types[0])
+            code.putln(f"if (likely(__Pyx_IsTupleIter(sequence))) {{")
         sequence_sharing_status = self.may_be_unsafe_shared() if 'List' in sequence_types else 'UNUSED'
         for i, item in enumerate(self.unpacked_items):
             if sequence_types[0] == "List":

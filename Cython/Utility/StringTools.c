@@ -337,7 +337,7 @@ static CYTHON_INLINE int __Pyx_PyUnicode_ContainsTF(PyObject* substring, PyObjec
 #define __Pyx_PyObject_Equals_uchar(s1, s2, ch2, equals, s1_is_str) (\
     ((s1) == (s2)) ? ((equals) == Py_EQ) : \
     ((s1) == Py_None) ? ((equals) == Py_NE) : \
-    (likely((s1_is_str) || PyUnicode_CheckExact(s1)) ? \
+    (likely((s1_is_str) || PyUnicode_CheckExact(s1) || __Pyx_SlotIsInherited(s1, &PyUnicode_Type, tp_richcompare)) ? \
         __Pyx__PyUnicode_EqualsUCS4(s1, ch2, equals) : \
         __Pyx_PyObject_RichCompareBool(s1, s2, equals) \
     ))
