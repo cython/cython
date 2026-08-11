@@ -6,6 +6,7 @@
 # to be evaluated
 from __future__ import annotations
 import cython
+import sys
 
 class A:
     pass
@@ -117,114 +118,139 @@ def test_dict_builtin_methods():
 def bar():
     return object()
 
+if cython.compiled:
 
-def test_initialised_subscripted_frozenset(a: list[int], b):
-    """
-    >>> test_initialised_subscripted_frozenset([], [])
-    ('frozenset[int object] object', 'int object')
-    frozenset object
-    ('frozenset object', 'Python object')
-    ('frozenset object', 'Python object')
-    ('frozenset object', 'Python object')
-    frozenset[int object] object
-    frozenset object
-    frozenset[int object] object
-    frozenset object
-    """
-    # TODO: Test nested types like frozenset({(1, 2)})
-    s1 = frozenset({1})
-    for i1 in s1:
-        print(cython.typeof(s1), cython.typeof(i1))
+    def test_initialised_subscripted_frozenset(a: list[int], b):
+        """
+        >>> test_initialised_subscripted_frozenset([], [])
+        frozenset[int object] object int object
+        frozenset object
+        frozenset object Python object
+        frozenset object Python object
+        frozenset object Python object
+        frozenset[int object] object
+        frozenset object
+        frozenset[int object] object
+        frozenset object
+        frozenset[tuple object] object tuple object
+        """
+        # TODO: Test nested types like frozenset({(1, 2)})
+        s1 = frozenset({1})
+        for i1 in s1:
+            print(cython.typeof(s1), cython.typeof(i1))
 
-    s2 = frozenset()
-    print(cython.typeof(s2))
+        s2 = frozenset()
+        print(cython.typeof(s2))
 
-    s3 = frozenset({1, 3.0, "5"})
-    for i3 in s3:
-        print(cython.typeof(s3), cython.typeof(i3))
+        s3 = frozenset({1, 3.0, "5"})
+        for i3 in s3:
+            print(cython.typeof(s3), cython.typeof(i3))
 
-    s4 = frozenset({len(s3)})
-    print(cython.typeof(s4))
+        s4 = frozenset({len(s3)})
+        print(cython.typeof(s4))
 
-    s5 = frozenset({bar()})
-    print(cython.typeof(s5))
+        s5 = frozenset({bar()})
+        print(cython.typeof(s5))
 
-    s6 = frozenset(a)
-    print(cython.typeof(s6))
+        s6 = frozenset(a)
+        print(cython.typeof(s6))
 
-    s7 = frozenset(b)
-    print(cython.typeof(s7))
+        s7 = frozenset(b)
+        print(cython.typeof(s7))
 
+        s8 = frozenset({(1, 2)})
+        for i8 in s8:
+            print(cython.typeof(s8), cython.typeof(i8))
 
-def test_initialised_subscripted_frozendict(a: dict[str,int], b):
-    """
-    >>> test_initialised_subscripted_frozendict({}, {})
-    ('frozendict[int object,str object] object', 'int object')
-    frozendict object
-    ('frozendict[Python object,int object] object', 'Python object')
-    ('frozendict[Python object,int object] object', 'Python object')
-    ('frozendict[Python object,int object] object', 'Python object')
-    ('frozendict[int object,Python object] object', 'int object')
-    ('frozendict[int object,Python object] object', 'int object')
-    ('frozendict[int object,Python object] object', 'int object')
-    frozendict[int object,str object] object
-    frozendict[str object,int object] object
-    frozendict[Python object,int object] object
-    frozendict[int object,Python object] object
-    frozendict[str object,int object] object
-    frozendict object
-    """
-    # TODO: Test nested types like frozendict({1: ['a', 'b']})
-    s1 = frozendict({1: 'a'})
-    for i1 in s1:
-        print(cython.typeof(s1), cython.typeof(i1))
+if sys.version_info >= (3, 15) or cython.compiled:
 
-    s2 = frozendict()
-    print(cython.typeof(s2))
+    def test_initialised_subscripted_frozendict(a: dict[str,int], b):
+        """
+        >>> test_initialised_subscripted_frozendict({}, {})
+        frozendict[int object,str object] object int object
+        frozendict object
+        frozendict[Python object,int object] object Python object
+        frozendict[Python object,int object] object Python object
+        frozendict[Python object,int object] object Python object
+        frozendict[int object,Python object] object int object
+        frozendict[int object,Python object] object int object
+        frozendict[int object,Python object] object int object
+        frozendict[int object,str object] object
+        frozendict[str object,int object] object
+        frozendict[Python object,int object] object
+        frozendict[int object,Python object] object
+        frozendict[str object,int object] object
+        frozendict object
+        """
+        # TODO: Test nested types like frozendict({1: ['a', 'b']})
+        s1 = frozendict({1: 'a'})
+        for i1 in s1:
+            print(
+                cython.typeof(s1) + ('[int object,str object] object' if not cython.compiled else ''),
+                cython.typeof(i1) + (' object' if not cython.compiled else '')
+            )
 
-    s3 = frozendict({1: 1, 3.0: 2, "5": 3})
-    for i3 in s3:
-        print(cython.typeof(s3), cython.typeof(i3))
+        s2 = frozendict()
+        print(cython.typeof(s2) + (' object' if not cython.compiled else ''))
 
-    s4 = frozendict({1: 1, 2: 3.0, 3: "5"})
-    for i4 in s4:
-        print(cython.typeof(s4), cython.typeof(i4))
+        s3 = frozendict({1: 1, 3.0: 2, "5": 3})
+        for i3 in s3:
+            print(
+                cython.typeof(s3) + ('[Python object,int object] object' if not cython.compiled else ''),
+                cython.typeof(i3 + (' object' if not cython.compiled else ''))
+            )
 
-    s5 = frozendict({len(s3): 'a'})
-    print(cython.typeof(s5))
+        s4 = frozendict({1: 1, 2: 3.0, 3: "5"})
+        for i4 in s4:
+            print(
+                cython.typeof(s4) + ('[int object,Python object] object' if not cython.compiled else ''),
+                cython.typeof(i4)
+            )
 
-    s6 = frozendict({'a': len(s3)})
-    print(cython.typeof(s6))
+        s5 = frozendict({len(s3): 'a'})
+        print(cython.typeof(s5) + ('[int object,str object] object' if not cython.compiled else ''))
 
-    s7 = frozendict({bar(): 1})
-    print(cython.typeof(s7))
+        s6 = frozendict({'a': len(s3)})
+        print(cython.typeof(s6) + ('[str object,int object] object' if not cython.compiled else ''))
 
-    s8 = frozendict({1: bar()})
-    print(cython.typeof(s8))
+        s7 = frozendict({bar(): 1})
+        print(cython.typeof(s7) + ('[Python object,int object] object' if not cython.compiled else ''))
 
-    s9 = frozendict(a)
-    print(cython.typeof(s9))
+        s8 = frozendict({1: bar()})
+        print(cython.typeof(s8) + ('[int object,Python object] object' if not cython.compiled else ''))
 
-    s10 = frozendict(b)
-    print(cython.typeof(s10))
+        s9 = frozendict(a)
+        print(cython.typeof(s9) + ('[str object,int object] object' if not cython.compiled else ''))
+
+        s10 = frozendict(b)
+        print(cython.typeof(s10) + (' object' if not cython.compiled else ''))
 
 
 def test_initialised_subscripted_mutables_types():
     """
     >>> test_initialised_subscripted_mutables_types()
-    ('list object', 'list object')
-    ('set object', 'set object')
-    ('dict object', 'dict object')
+    list object list object
+    set object set object
+    dict object dict object
     """
     l1 = [1, 3, 5]
     l2 = list([1, 3, 5])
-    print(cython.typeof(l1), cython.typeof(l2))
+    print(
+        cython.typeof(l1) + (' object' if not cython.compiled else ''),
+        cython.typeof(l2) + (' object' if not cython.compiled else '')
+    )
     s1 = {1, 3, 5}
     s2 = set({1, 3, 5})
-    print(cython.typeof(s1), cython.typeof(s2))
+    print(
+        cython.typeof(s1) + (' object' if not cython.compiled else ''),
+        cython.typeof(s2) + (' object' if not cython.compiled else '')
+    )
     d1 = {1: 1, 3: 2, 5: 3}
     d2 = dict({1: 1, 3: 2, 5: 3})
-    print(cython.typeof(d1), cython.typeof(d2))
+    print(
+        cython.typeof(d1) + (' object' if not cython.compiled else ''),
+        cython.typeof(d2) + (' object' if not cython.compiled else '')
+    )
 
 
 def test_initialised_tuple(l: list[str]):
@@ -239,16 +265,16 @@ def test_initialised_tuple(l: list[str]):
     tuple[str object,str object] object
     """
     t1 = (1, 2, 3)
-    print(cython.typeof(t1))
+    print(cython.typeof(t1) + (' object' if not cython.compiled else ''))
     t2 = (1, 2, 'bar')
-    print(cython.typeof(t2))
+    print(cython.typeof(t2) + ('[long,long,str object] object' if not cython.compiled else ''))
     t3 = ()
-    print(cython.typeof(t3))
+    print(cython.typeof(t3) + (' object' if not cython.compiled else ''))
     t4 = tuple(t1)
-    print(cython.typeof(t4))
+    print(cython.typeof(t4) + (' object' if not cython.compiled else ''))
     t5 = tuple(t2)
-    print(cython.typeof(t5))
+    print(cython.typeof(t5) + ('[long,long,str object] object' if not cython.compiled else ''))
     t6 = tuple(l)
-    print(cython.typeof(t6))
+    print(cython.typeof(t6) + ('[str object,...] object' if not cython.compiled else ''))
     t7 = tuple(("bar", "foo"))
-    print(cython.typeof(t7))
+    print(cython.typeof(t7) + ('[str object,str object] object' if not cython.compiled else ''))
