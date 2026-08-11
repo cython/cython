@@ -8928,101 +8928,98 @@ class SequenceNode(ExprNode):
             self.args[i].generate_assignment_code(
                 self.coerced_unpacked_items[i], code)
 
-    def generate_special_parallel_unpacking_code(self, code, rhs, use_loop):
-        sequence_type_test = '1'
-        none_check = "likely(%s != Py_None)" % rhs.py_result()
-        flag_temp = None
-        if rhs.type.is_pylist_type:
-            sequence_types = ['List']
-            get_size_func = "__Pyx_PyList_GET_SIZE"
-            if rhs.may_be_none():
-                sequence_type_test = none_check
-        elif rhs.type.is_pytuple_type:
-            sequence_types = ['Tuple']
-            get_size_func = "__Pyx_PyTuple_GET_SIZE"
-            if rhs.may_be_none():
-                sequence_type_test = none_check
+    def generate_list_parallel_unpacking_code(self, code, sequence, use_loop):
+        code.putln(f"Py_ssize_t size = __Pyx_PyList_GET_SIZE({sequence});")
+        code.putln(f"if (unlikely(size != {len(self.args)})) {{")
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("RaiseUnpackSizeError", "ObjectHandling.c"))
+        code.putln(f"__Pyx_RaiseUnpackSizeError(size, {len(self.args)}); {code.error_goto(self.pos)}")
+        code.putln("}")
+
+        sequence_sharing_status = self.may_be_unsafe_shared()
+        if use_loop:
+            code.putln("Py_ssize_t i;")
+            code.putln("PyObject** temps[%d] = {%s};" % (
+                len(self.unpacked_items),
+                ','.join([f'&{item.result()}' for item in self.unpacked_items])))
+            code.putln(f"for (i=0; i < {len(self.unpacked_items)}; i++) {{")
+            code.putln(
+                f"PyObject* item = __Pyx_PyList_GET_ITEM_REF({sequence}, i, {sequence_sharing_status}); "
+                f"{code.error_goto_if_null('item', self.pos)}"
+            )
+            code.put_gotref('item', py_object_type)
+            code.putln("*(temps[i]) = item;")
+            code.putln("}")
         else:
-            sequence_types = ['Tuple', 'List']
-            get_size_func = "__Pyx_PySequence_SIZE"
-            flag_temp = code.funcstate.allocate_temp(PyrexTypes.c_bint_type, manage_ref=False)
-            # Unpacking depends on iteration, so it's enough if the sequence uses
-            # the normal list/tuple ".__iter__" slot to bypass it.
-            tuple_check = f'likely({flag_temp} = __Pyx_IsTupleIter({rhs.py_result()}))'
-            list_check  = f'__Pyx_IsListIter({rhs.py_result()})'
-            sequence_type_test = f"({tuple_check}) || ({list_check})"
+            for i, item in enumerate(self.unpacked_items):
+                code.putln(f"{item.result()} = __Pyx_PyList_GET_ITEM_REF({sequence}, {i}, {sequence_sharing_status});")
+                code.putln(code.error_goto_if_null(item.result(), self.pos))
+                code.put_gotref(item.result(), item.ctype())
 
-        code.putln("if (%s) {" % sequence_type_test)
-        code.putln("PyObject* sequence = %s;" % rhs.py_result())
-
-        # list/tuple => check size
-        code.putln("Py_ssize_t size = %s(sequence);" % get_size_func)
-        code.putln("if (unlikely(size != %d)) {" % len(self.args))
+    def generate_tuple_parallel_unpacking_code(self, code, sequence, use_loop):
+        code.putln(f"Py_ssize_t size = __Pyx_PyTuple_GET_SIZE({sequence});")
+        code.putln(f"if (unlikely(size != {len(self.args)})) {{")
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("RaiseUnpackSizeError", "ObjectHandling.c"))
         code.putln(f"__Pyx_RaiseUnpackSizeError(size, {len(self.args)}); {code.error_goto(self.pos)}")
         code.putln("}")
 
         code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
-        # unpack items from list/tuple in unrolled loop (can't fail)
-        if len(sequence_types) == 2:
-            code.putln(f"if ({flag_temp}) {{")
-            code.funcstate.release_temp(flag_temp)
-            flag_temp = None
-        sequence_sharing_status = self.may_be_unsafe_shared() if 'List' in sequence_types else 'UNUSED'
+        # unpack items from tuple in unrolled loop (can't fail)
         for i, item in enumerate(self.unpacked_items):
-            if sequence_types[0] == "List":
-                code.putln(f"{item.result()} = __Pyx_PyList_GET_ITEM_REF(sequence, {i}, {sequence_sharing_status});")
-                code.putln(code.error_goto_if_null(item.result(), self.pos))
-                code.put_xgotref(item.result(), item.ctype())
-            else:  # Tuple
-                code.putln(f"{item.result()} = PyTuple_GET_ITEM(sequence, {i});")
-                code.put_incref(item.result(), item.ctype())
-        if len(sequence_types) == 2:
-            code.putln("} else {")
-            assert sequence_types[1] == 'List', sequence_types
-            for i, item in enumerate(self.unpacked_items):
-                code.putln(f"{item.result()} = __Pyx_PyList_GET_ITEM_REF(sequence, {i}, {sequence_sharing_status});")
-                code.putln(code.error_goto_if_null(item.result(), self.pos))
-                code.put_xgotref(item.result(), item.ctype())
-            code.putln("}")
+            code.putln(f"{item.result()} = PyTuple_GET_ITEM({sequence}, {i});")
+            code.put_incref(item.result(), item.ctype())
 
         code.putln("#else")
         # in non-CPython, use the PySequence protocol (which can fail)
-        if not use_loop:
-            for i, item in enumerate(self.unpacked_items):
-                code.putln("%s = __Pyx_PySequence_ITEM(sequence, %d); %s" % (
-                    item.result(), i,
-                    code.error_goto_if_null(item.result(), self.pos)))
-                code.put_gotref(item.result(), item.type)
-        else:
-            code.putln("{")
+        if use_loop:
             code.putln("Py_ssize_t i;")
-            code.putln("PyObject** temps[%s] = {%s};" % (
+            code.putln("PyObject** temps[%d] = {%s};" % (
                 len(self.unpacked_items),
                 ','.join(['&%s' % item.result() for item in self.unpacked_items])))
-            code.putln("for (i=0; i < %s; i++) {" % len(self.unpacked_items))
-            code.putln("PyObject* item = __Pyx_PySequence_ITEM(sequence, i); %s" % (
-                code.error_goto_if_null('item', self.pos)))
+            code.putln(f"for (i=0; i < {len(self.unpacked_items)}; i++) {{")
+            code.putln(f"PyObject* item = __Pyx_PySequence_ITEM({sequence}, i); {code.error_goto_if_null('item', self.pos)}")
             code.put_gotref('item', py_object_type)
             code.putln("*(temps[i]) = item;")
             code.putln("}")
-            code.putln("}")
-
+        else:
+            for i, item in enumerate(self.unpacked_items):
+                code.putln(
+                    f"{item.result()} = __Pyx_PySequence_ITEM({sequence}, {i}); "
+                    f"{code.error_goto_if_null(item.result(), self.pos)}"
+                )
+                code.put_gotref(item.result(), item.type)
         code.putln("#endif")
-        rhs.generate_disposal_code(code)
 
-        if sequence_type_test == '1':
-            code.putln("}")  # all done
-        elif sequence_type_test == none_check:
-            # either tuple/list or None => save some code by generating the error directly
-            code.putln("} else {")
+    def generate_special_parallel_unpacking_code(self, code, rhs, use_loop):
+        sequence = rhs.py_result()
+
+        if (rhs.type.is_pylist_type or rhs.type.is_pytuple_type) and rhs.may_be_none():
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseNoneIterError", "ObjectHandling.c"))
-            code.putln("__Pyx_RaiseNoneNotIterableError(); %s" % code.error_goto(self.pos))
-            code.putln("}")  # all done
+            code.putln(
+                f"if (unlikely({sequence} == Py_None)) "
+                f"{{ __Pyx_RaiseNoneNotIterableError(); {code.error_goto(self.pos)} }}"
+            )
+
+        if rhs.type.is_pylist_type:
+            code.putln("{")
+            self.generate_list_parallel_unpacking_code(code, sequence, use_loop)
+            rhs.generate_disposal_code(code)
+            code.putln("}")
+        elif rhs.type.is_pytuple_type:
+            code.putln("{")
+            self.generate_tuple_parallel_unpacking_code(code, sequence, use_loop)
+            rhs.generate_disposal_code(code)
+            code.putln("}")
         else:
-            code.putln("} else {")  # needs iteration fallback code
+            code.putln(f"if (__Pyx_IsTupleIter({sequence})) {{")
+            self.generate_tuple_parallel_unpacking_code(code, sequence, use_loop)
+            rhs.generate_disposal_code(code)
+            code.putln(f"}} else if (__Pyx_IsListIter({sequence})) {{")
+            self.generate_list_parallel_unpacking_code(code, sequence, use_loop)
+            rhs.generate_disposal_code(code)
+            code.putln("} else {")
             self.generate_generic_parallel_unpacking_code(
                 code, rhs, self.unpacked_items, use_loop=use_loop)
             code.putln("}")
