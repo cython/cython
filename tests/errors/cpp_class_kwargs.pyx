@@ -19,9 +19,11 @@ cdef extern from *:
 
 
 def f():
-    cdef C c = C(i=0)
+    cdef C wrong_keyword_name = C(i=0)
+    cdef C ok = C(j=0)
 
 
 _ERRORS = u"""
-22:16: Non-trivial keyword arguments and starred arguments not allowed in cdef functions.
+22:33: Non-trivial keyword arguments and starred arguments not allowed in cdef functions.
+23:17: Non-trivial keyword arguments and starred arguments not allowed in cdef functions.
 """
