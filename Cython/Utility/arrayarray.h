@@ -69,10 +69,27 @@ struct arrayobject {
     int ob_exports;  /* Number of exported buffers */
 };
 
+#if CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM >= 0x190304a0
+#define __PYX_USE_GRAALPY_ARRAY_API 1
+#else
+#define __PYX_USE_GRAALPY_ARRAY_API 0
+#endif
+
+static CYTHON_INLINE struct arraydescr *__Pyx_PyArray_Descr(arrayobject *self) {
+#if __PYX_USE_GRAALPY_ARRAY_API
+    return (struct arraydescr *)GraalPyArray_GetDescriptor((PyObject*)self);
+#else
+    return self->ob_descr;
+#endif
+}
+
 #ifndef NO_NEWARRAY_INLINE
 //  fast creation of a new array
 static CYTHON_INLINE PyObject * newarrayobject(PyTypeObject *type, Py_ssize_t size,
     struct arraydescr *descr) {
+#if __PYX_USE_GRAALPY_ARRAY_API
+    return GraalPyArray_New((PyObject*)type, size, (GraalPyArray_Descriptor*)descr);
+#else
     arrayobject *op;
     size_t nbytes;
 
@@ -105,6 +122,7 @@ static CYTHON_INLINE PyObject * newarrayobject(PyTypeObject *type, Py_ssize_t si
         }
     }
     return (PyObject *) op;
+#endif
 }
 #else
 PyObject* newarrayobject(PyTypeObject *type, Py_ssize_t size,
