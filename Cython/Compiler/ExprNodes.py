@@ -8931,6 +8931,7 @@ class SequenceNode(ExprNode):
     def generate_special_parallel_unpacking_code(self, code, rhs, use_loop):
         sequence_type_test = '1'
         none_check = "likely(%s != Py_None)" % rhs.py_result()
+        flag_temp = None
         if rhs.type.is_pylist_type:
             sequence_types = ['List']
             get_size_func = "__Pyx_PyList_GET_SIZE"
@@ -8944,9 +8945,10 @@ class SequenceNode(ExprNode):
         else:
             sequence_types = ['Tuple', 'List']
             get_size_func = "__Pyx_PySequence_SIZE"
+            flag_temp = code.funcstate.allocate_temp(PyrexTypes.c_bint_type, manage_ref=False)
             # Unpacking depends on iteration, so it's enough if the sequence uses
             # the normal list/tuple ".__iter__" slot to bypass it.
-            tuple_check = f'likely(__Pyx_IsTupleIter({rhs.py_result()}))'
+            tuple_check = f'likely({flag_temp} = __Pyx_IsTupleIter({rhs.py_result()}))'
             list_check  = f'__Pyx_IsListIter({rhs.py_result()})'
             sequence_type_test = f"({tuple_check}) || ({list_check})"
 
@@ -8957,20 +8959,16 @@ class SequenceNode(ExprNode):
         code.putln("Py_ssize_t size = %s(sequence);" % get_size_func)
         code.putln("if (unlikely(size != %d)) {" % len(self.args))
         code.globalstate.use_utility_code(
-            UtilityCode.load_cached("RaiseTooManyValuesToUnpack", "ObjectHandling.c"))
-        code.putln("if (size > %d) __Pyx_RaiseTooManyValuesError(%d);" % (
-            len(self.args), len(self.args)))
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c"))
-        code.putln("else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);")
-        # < 0 => exception
-        code.putln(code.error_goto(self.pos))
+            UtilityCode.load_cached("RaiseUnpackSizeError", "ObjectHandling.c"))
+        code.putln(f"__Pyx_RaiseUnpackSizeError(size, {len(self.args)}); {code.error_goto(self.pos)}")
         code.putln("}")
 
         code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
         # unpack items from list/tuple in unrolled loop (can't fail)
         if len(sequence_types) == 2:
-            code.putln(f"if (likely(__Pyx_IsTupleIter(sequence))) {{")
+            code.putln(f"if ({flag_temp}) {{")
+            code.funcstate.release_temp(flag_temp)
+            flag_temp = None
         sequence_sharing_status = self.may_be_unsafe_shared() if 'List' in sequence_types else 'UNUSED'
         for i, item in enumerate(self.unpacked_items):
             if sequence_types[0] == "List":
