@@ -1505,24 +1505,24 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if return_obj els
 {{py: return_error = "return NULL" if return_obj else "return -1"}}
 {{py: c_op_reversed = {'==': '==', '!=': '!=', '<': '>=', '<=': '>', '>=': '<', '>': '<='}[c_op] }}
 {{py:
-check_functions = {
-    'float': "PyFloat_CheckExact",
-    'int': 'PyLong_CheckExact',
-    'str': 'PyUnicode_CheckExact',
-    'bytes': 'PyBytes_CheckExact',
-    'bytearray': 'PyByteArray_CheckExact',
+ctype_names = {
+    'float': "PyFloat",
+    'int': 'PyLong',
+    'str': 'PyUnicode',
+    'bytes': 'PyBytes',
+    'bytearray': 'PyByteArray',
 }
 }}
 {{py:
-def is_type(operand, expected, type1=type1, type2=type2, check_functions=check_functions):
+def is_type(operand, expected, type1=type1, type2=type2, ctype_names=ctype_names):
     assert operand in ('op1', 'op2'), operand
-    assert expected in check_functions, expected
+    assert expected in ctype_names, expected
     type = type1 if operand == 'op1' else type2
     if type == expected:
         check = f"likely({operand} != Py_None)"
     else:
-        function = check_functions[expected]
-        check = f"{function}({operand})"
+        c_type_name = ctype_names[expected]
+        check = f"{c_type_name}_CheckExact({operand}) || __Pyx_SlotIsInherited({operand}, &{c_type_name}_Type, tp_richcompare)"
         other_type = type2 if operand == 'op1' else type1
         if other_type == expected:
             check = f"likely({check})"
@@ -2055,7 +2055,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyLong_{{'' if ret_type.is_pyobject el
     }
 
     #if CYTHON_USE_PYLONG_INTERNALS
-    if (likely(PyLong_CheckExact({{pyval}}))) {
+    if (likely(PyLong_CheckExact({{pyval}})) || __Pyx_SlotIsInherited({{pyval}}, &PyLong_Type, tp_richcompare)) {
         int unequal;
         unsigned long uintval;
         Py_ssize_t size = __Pyx_PyLong_DigitCount({{pyval}});
@@ -2090,7 +2090,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyLong_{{'' if ret_type.is_pyobject el
     }
     #endif
 
-    if (PyFloat_CheckExact({{pyval}})) {
+    if (PyFloat_CheckExact({{pyval}}) || __Pyx_SlotIsInherited({{pyval}}, &PyFloat_Type, tp_richcompare)) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         double {{ival}} = __Pyx_PyFloat_AS_DOUBLE({{pyval}});
         {{return_compare('(double)a', '(double)b', c_op)}}
