@@ -581,7 +581,8 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
 static CYTHON_INLINE PyObject* __Pyx_set_iterator(PyObject* iterable, int is_set,
                                                   Py_ssize_t* p_orig_length, int* p_source_is_set) {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
-    is_set = is_set || likely(PySet_CheckExact(iterable) || PyFrozenSet_CheckExact(iterable));
+    is_set = is_set || likely(PySet_CheckExact(iterable) || PyFrozenSet_CheckExact(iterable)) || (
+        __Pyx_SlotIsInherited(iterable, &PySet_Type, tp_iter) || __Pyx_SlotIsInherited(iterable, &PyFrozenSet_Type, tp_iter));
     *p_source_is_set = is_set;
     if (likely(is_set)) {
         *p_orig_length = PySet_Size(iterable);
