@@ -8911,7 +8911,7 @@ class SequenceNode(ExprNode):
             item.allocate(code)
         special_unpack = (rhs.type.may_be_pytuple_type or rhs.type.may_be_pylist_type
                           or not rhs.type.is_builtin_type)
-        long_enough_for_a_loop = len(self.unpacked_items) > 3
+        long_enough_for_a_loop = len(self.unpacked_items) > (3 if self.slow else 12)
 
         if special_unpack:
             self.generate_special_parallel_unpacking_code(
