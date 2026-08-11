@@ -233,12 +233,12 @@ bad:
 
 //////////////////// BytesContains.proto ////////////////////
 
-static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character); /*proto*/
+static CYTHON_INLINE int __Pyx_BytesContains(char character, PyObject* bytes, int eq); /*proto*/
 
 //////////////////// BytesContains ////////////////////
 //@requires: IncludeStringH
 
-static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
+static CYTHON_INLINE int __Pyx_BytesContains(char character, PyObject* bytes, int eq) {
     const Py_ssize_t length = __Pyx_PyBytes_GET_SIZE(bytes);
 #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(length == -1)) return -1;
@@ -247,31 +247,70 @@ static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
 #if !CYTHON_ASSUME_SAFE_MACROS
     if (unlikely(!char_start)) return -1;
 #endif
-    return memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
+
+    int result = memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
+    return (result == (eq == Py_EQ));
+}
+
+
+//////////////////// ByteArrayContains.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_ByteArrayContains(char character, PyObject* bytearray, int eq); /*proto*/
+
+//////////////////// ByteArrayContains ////////////////////
+//@requires: IncludeStringH
+
+static CYTHON_INLINE int __Pyx_ByteArrayContains(char character, PyObject* bytearray, int eq) {
+    const Py_ssize_t length = __Pyx_PyByteArray_GET_SIZE(bytearray);
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length == -1)) return -1;
+#endif
+    const char* char_start = __Pyx_PyByteArray_AsString(bytearray);
+#if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(!char_start)) return -1;
+#endif
+
+    int result = memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
+    return (result == (eq == Py_EQ));
 }
 
 
 //////////////////// PyUCS4InUnicode.proto ////////////////////
 
-static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character); /*proto*/
+static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* text, int eq); /*proto*/
 
 //////////////////// PyUCS4InUnicode ////////////////////
+//@requires: IncludeStringH
 
-static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
-    // Note that from Python 3.7, the indices of FindChar are adjusted to match the bounds
-    // so need to check the length
-    Py_ssize_t idx = PyUnicode_FindChar(unicode, character, 0, PY_SSIZE_T_MAX, 1);
+static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* text, int eq) {
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL)
+    // Not calling __Pyx_PyUnicode_READY(text) here since the "w_char" kind is simply ignored.
+    int str_kind = PyUnicode_KIND(text);
+    // A large part of real-world strings will be ASCII or Latin-1,
+    // especially when looking for 1-byte characters (which we often know at compile time).
+    if (character <= 0xFF && str_kind == 1) {
+        Py_ssize_t len_text = PyUnicode_GET_LENGTH(text);
+        return (memchr(PyUnicode_1BYTE_DATA(text), (unsigned char) character, (size_t) len_text) != NULL) == (eq == Py_EQ);
+    }
+    if (character > 0xFF && str_kind == 1) return (eq == Py_NE);
+    if (character > 0xFFFF && str_kind == 2) return (eq == Py_NE);
+#endif
+    Py_ssize_t idx = PyUnicode_FindChar(text, character, 0, PY_SSIZE_T_MAX, 1);
     if (unlikely(idx == -2)) return -1;
+
     // >= 0: found the index, == -1: not found
-    return idx >= 0;
+    int result = idx >= 0;
+    return (result == (eq == Py_EQ));
 }
 
 
 //////////////////// PyUnicodeContains.proto ////////////////////
+//@requires: IncludeStringH
 
 static CYTHON_INLINE int __Pyx_PyUnicode_ContainsTF(PyObject* substring, PyObject* text, int eq) {
+    if (substring == text) return (eq == Py_EQ);
     int result = PyUnicode_Contains(text, substring);
-    return unlikely(result < 0) ? result : (result == (eq == Py_EQ));
+    return unlikely(result < 0) ? -1 : (result == (eq == Py_EQ));
 }
 
 

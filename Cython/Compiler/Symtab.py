@@ -1399,6 +1399,7 @@ class ModuleScope(Scope):
     has_import_star = 0
     is_cython_builtin = 0
     old_style_globals = 0
+    cpp = False
     namespace_cname_is_type = False
     scope_predefined_names = [
         '__builtins__', '__name__', '__file__', '__doc__', '__path__',

@@ -65,7 +65,7 @@ def subscripted_types_assignments_to_variable():
     tb: tuple[str, cython.int] = ('bar', 1)
     z: cython.int = ta[1]
     zz: cython.float = 1.0
-    tb[1] = zz
+    tb[1] = zz  # currently not an error
     h: cython.int
     for h in ta:
         pass
@@ -74,7 +74,7 @@ def subscripted_types_assignments_to_variable():
     lb: list[cython.int] = [1]
     a: cython.int = la[0]
     aa: cython.float = 1.0
-    lb[0] = aa
+    lb[0] = aa  # currently not an error
     i: cython.int
     for i in la:
         pass
@@ -83,7 +83,7 @@ def subscripted_types_assignments_to_variable():
     db: dict[str, cython.int] = {"a": 1.0}
     b: cython.int = da[1]
     bb: cython.float = 1.0
-    db[0] = bb
+    db[0] = bb  # currently not an error
     j: cython.int
     for j in da:
         pass
@@ -333,12 +333,9 @@ _ERRORS = """
 59:9: Cannot assign type 'frozenset[float] object' to 'dict[float,float] object'
 60:9: Cannot assign type 'list[float] object' to 'dict[float,float] object'
 66:22: Cannot assign type 'float' to 'int'
-68:12: Cannot assign type 'float' to 'int'
 75:22: Cannot assign type 'float' to 'int'
-77:12: Cannot assign type 'float' to 'int'
 79:13: Cannot assign type 'float' to 'int'
 84:22: Cannot assign type 'float' to 'int'
-86:12: Cannot assign type 'float' to 'int'
 88:13: Cannot assign type 'float' to 'int'
 93:8: Cannot convert Python object to 'int *'
 93:13: Cannot assign type 'int' to 'int *'

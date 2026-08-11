@@ -230,6 +230,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 /////////////// IterNext ///////////////
 //@requires: Exceptions.c::PyThreadStateGet
 //@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Exceptions.c::GivenExceptionMatches
 //@requires: RaiseErrorWithObjectType
 //@requires: GetBuiltinName
 //@requires: IterNextPlain
@@ -301,7 +302,7 @@ static CYTHON_INLINE int __Pyx_IterFinish(void); /*proto*/
 
 /////////////// IterFinish ///////////////
 //@requires: Exceptions.c::PyThreadStateGet
-//@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Exceptions.c::GivenExceptionMatches
 
 // When PyIter_Next(iter) has returned NULL in order to signal termination,
 // this function does the right cleanup and returns 0 on success.  If it
@@ -1413,6 +1414,7 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*pr
 
 /////////////// ExtTypeTest ///////////////
 //@requires: RaiseErrorWithObjectTypes
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
     if (unlikely(!type)) {
@@ -1899,6 +1901,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target); /*proto
 //@requires: UnpackUnboundCMethod_decl
 //@requires: PyObjectGetAttrStr
 //@requires: Exceptions.c::IgnoreException
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030C0000
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
@@ -1992,7 +1995,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
 #define __Pyx_CallCFunctionFastWithKeywords(cfunc, self, args, nargs, kwnames) \
     ((__Pyx_PyCFunctionFastWithKeywords)(void(*)(void))(PyCFunction)(cfunc)->func)(self, args, nargs, kwnames)
 
-    
+
 /////////////// CallUnboundCMethod0.proto ///////////////
 
 CYTHON_UNUSED

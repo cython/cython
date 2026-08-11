@@ -460,13 +460,25 @@ def endswith_start_end(unicode s, sub, start, end):
     "//CoerceToPyTypeNode", "//PrimaryCmpNode")
 def in_test(unicode s, substring):
     """
+    >>> in_test(text, 's')
+    True
+    >>> in_test(text, 'a')
+    True
     >>> in_test(text, 'sa')
     True
     >>> in_test(text, 'XYZ')
     False
+    >>> in_test(text, '\\N{SNOWMAN}')
+    False
+    >>> in_test(text, '\\N{SEWING NEEDLE}')
+    False
+    >>> in_test('\\N{SNOWMAN}' + text, '\\N{SNOWMAN}')
+    True
+    >>> in_test(text + '\\N{SEWING NEEDLE}', '\\N{SEWING NEEDLE}')
+    True
     >>> in_test(None, 'sa')
     Traceback (most recent call last):
-    TypeError: 'NoneType' object is not iterable
+    TypeError: argument of type 'NoneType' is not iterable
     """
     return substring in s
 

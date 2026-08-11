@@ -1196,6 +1196,24 @@ static CYTHON_INLINE PyObject* __Pyx__{{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssiz
 }
 
 
+/////////////// CDoubleToPyUnicode.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromDouble(double value, char format_char, int precision);
+
+/////////////// CDoubleToPyUnicode ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromDouble(double value, char format_char, int precision) {
+    PyObject *result;
+    // only repr() ('r') appends a trailing ".0" to integral values
+    const int flags = (format_char == 'r') ? Py_DTSF_ADD_DOT_0 : 0;
+    char *buffer = PyOS_double_to_string(value, format_char, precision, flags, NULL);
+    if (unlikely(!buffer)) return NULL;
+    result = PyUnicode_FromString(buffer);
+    PyMem_Free(buffer);
+    return result;
+}
+
+
 /////////////// CBIntToPyUnicode.proto ///////////////
 
 #define {{TO_PY_FUNCTION}}(value)  \

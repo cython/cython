@@ -1497,8 +1497,11 @@ _special_type_check_functions = {
     'frozenset': 'PyFrozenSet_Check',
     'frozendict': '__Pyx_PyFrozenDict_Check',
     'memoryview': 'PyMemoryView_Check',
-    'Exception': '__Pyx_PyException_Check',
-    'BaseException': '__Pyx_PyBaseException_Check',
+    'Exception': '__Pyx_PyExc_Exception_Check',
+    'BaseException': '__Pyx_PyExc_BaseException_Check',
+    'dict_keys': '__Pyx_PyDict_keys_Check',
+    'dict_values': '__Pyx_PyDict_values_Check',
+    'dict_items': '__Pyx_PyDict_items_Check',
 }
 
 # Builtins as of Python version ...
@@ -1884,6 +1887,9 @@ class BuiltinObjectType(PyObjectType):
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
+        'dict_keys': ['supports_container_type'],
+        'dict_values': ['supports_container_type'],
+        'dict_items': ['supports_container_type'],
     }
     _builtin_type_flag_mapping.update(
         # Extended to set '.is_exception_type' for all builtin exception types.
@@ -2632,7 +2638,8 @@ class CIntLike:
         if prefix and prefix[0] == '0':
             padding = '0'
             prefix = prefix.lstrip('0')
-        if prefix.isdigit():
+        # isdecimal() rather than isdigit(): the latter also accepts digits that int() rejects.
+        if prefix.isdecimal():
             return (format_type, int(prefix), padding)
 
         return (None, 0, padding)
@@ -2899,6 +2906,7 @@ class CFloatType(CNumericType):
     is_float = 1
     to_py_function = "PyFloat_FromDouble"
     from_py_function = "__Pyx_PyFloat_AsDouble"
+    default_format_spec = ''
 
     exception_value = -1
 
@@ -2910,6 +2918,37 @@ class CFloatType(CNumericType):
 
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
+
+    @staticmethod
+    def _parse_format(format_spec):
+        # We currently only support str() formatting ('r') and a format char
+        # with an optional precision, e.g. 'g' or '.2f'.
+        if not format_spec:
+            return ('r', 0)
+
+        format_char = format_spec[-1]
+        if format_char in 'eEfFgG':
+            precision = format_spec[:-1]
+            if not precision:
+                # Python's default precision for an explicit format char.
+                return (format_char, 6)
+            if precision[0] == '.':
+                precision = precision[1:]
+                # isdecimal() rather than isdigit(): the latter also accepts digits that int() rejects.
+                if precision.isdecimal():
+                    return (format_char, int(precision))
+
+        return (None, 0)
+
+    def can_coerce_to_pystring(self, env, format_spec=None):
+        format_char, precision = self._parse_format(format_spec)
+        return format_char is not None and precision <= 2**30
+
+    def convert_to_pystring(self, cvalue, code, format_spec=None, name_type=None):
+        format_char, precision = self._parse_format(format_spec)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("CDoubleToPyUnicode", "TypeConversion.c"))
+        return "__Pyx_PyUnicode_FromDouble(%s, '%s', %d)" % (cvalue, format_char, precision)
 
 
 class CComplexType(CNumericType):
@@ -5449,13 +5488,14 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
 
     def infer_indexed_type(self, at_index=None):
         container_type = self.get_container_type()
-        if at_index is None:
-            return self.get_common_item_type()
-        if container_type.is_pytuple_type and self.has_uniform_element_type:
-            # tuple[TYP, ...]
-            return self.get_subscripted_type(0)
-        if container_type.is_pytuple_type and isinstance(at_index, int):
-            return self.get_subscripted_type(at_index)
+        if container_type.is_pytuple_type:
+            if self.has_uniform_element_type:
+                # tuple[TYP, ...]
+                return self.get_subscripted_type(0)
+            if at_index is None:
+                return self.get_common_item_type()
+            if isinstance(at_index, int):
+                return self.get_subscripted_type(at_index)
         if container_type.is_pyanydict_type:
             return self.get_subscripted_type(1)
         if container_type.is_pylist_type or container_type.is_pyanyset_type:

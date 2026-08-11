@@ -1310,8 +1310,7 @@ class SwitchTransform(Visitor.EnvTransform):
         if isinstance(cond, ExprNodes.PrimaryCmpNode):
             if cond.cascade is not None:
                 return self.NO_MATCH
-            elif cond.is_c_string_contains() and \
-                   isinstance(cond.operand2, (ExprNodes.UnicodeNode, ExprNodes.BytesNode)):
+            elif cond.operator in ('in', 'not_in') and cond.operand1.type.is_int and cond.operand2.is_string_literal:
                 not_in = cond.operator == 'not_in'
                 if not_in and not allow_not_in:
                     return self.NO_MATCH
@@ -3036,7 +3035,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
         builtin_tests = set()
         for test_type_node in types:
-            builtin_type = entry = None
+            builtin_type = entry = utility_code = None
             if test_type_node.is_name and test_type_node.entry:
                 entry = env.lookup(test_type_node.entry.name)
                 if entry and entry.type and entry.type.is_builtin_type:
@@ -3052,9 +3051,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     continue
                 builtin_tests.add(type_check_function)
                 type_check_args = [arg]
+                if entry is not None:
+                    utility_code = entry.utility_code
             elif test_type_node.type is Builtin.type_type:
                 type_check_function = '__Pyx_TypeCheck'
                 type_check_args = [arg, test_type_node]
+                utility_code = UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c")
             else:
                 if not test_type_node.is_literal:
                     test_type_node = UtilNodes.ResultRefNode(test_type_node)
@@ -3065,7 +3067,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 ExprNodes.PythonCapiCallNode(
                     test_type_node.pos, type_check_function, self.Py_type_check_func_type,
                     args=type_check_args,
-                    utility_code=entry.utility_code if entry is not None else None,
+                    utility_code=utility_code,
                     is_temp=True,
                 ))
 
