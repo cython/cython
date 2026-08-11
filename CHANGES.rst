@@ -49,6 +49,9 @@ Features added
 * The typed tuple syntax ``tuple[atype, ...]`` for homogeneous tuples is supported.
   (Github issue :issue:`7798`)
 
+* The return type inference for calls to builtin methods was improved, including dict views.
+  (Github issues :issue:`7887`, :issue:`7888`)
+
 * ``cython.py_int`` (and the same for ``py_float``, ``py_complex`` and ``py_bool``)
   can be used to refer to Python's builtin types in a C type context, e.g. after ``cdef``,
   where they are normally shadowed by the C types of the same name.
@@ -63,6 +66,9 @@ Features added
 
 * ``bytearray.extend(bytes)`` is faster.
   (Github issue :issue:`7797`)
+
+* Single character `in`-tests on ``str``, ``bytes`` and ``bytearray`` are optimised.
+  (Github issue :issue:`3888`)
 
 * ``assert`` conditions are constant-folded.
   (Github issue :issue:`7797`)
@@ -128,7 +134,7 @@ Bugs fixed
 
 * Iterating over a container with an incorrectly declared item type could generate
   incorrect C code in 3.3.0a1.
-  (Github issue :issue:`7775`)
+  (Github issues :issue:`7775`, :issue:`7889`)
 
 * ``NULL`` pointer comparisons could fail to compile with C++ in 3.3.0a1.
   Patch by Vyas Ramasubramani.  (Github issue :issue:`7766`)
