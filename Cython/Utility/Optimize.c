@@ -1125,7 +1125,7 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
 // see https://bugs.python.org/issue21420
 #if !CYTHON_COMPILING_IN_PYPY
     Py_ssize_t shiftby;
-    if (likely(PyLong_CheckExact(exp))) {
+    if (likely(PyLong_CheckExact(exp)) || __Pyx_SubSlotIsInherited(exp, &PyLong_Type, tp_as_number, nb_power)) {
         #if CYTHON_USE_PYLONG_INTERNALS
         if (__Pyx_PyLong_IsZero(exp)) {
             return PyLong_FromLong(1L);
