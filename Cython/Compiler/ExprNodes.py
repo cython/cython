@@ -9675,35 +9675,24 @@ class ComprehensionAppendNode(Node):
         return self
 
     def generate_execution_code(self, code):
-        if self.is_starred:
-            self.expr.generate_evaluation_code(code)
-
-            if self.target.type.is_pylist_type:
+        steal_temp = False
+        if self.target.type.is_pylist_type:
+            if self.is_starred:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("ListExtend", "Optimize.c"))
                 function = "__Pyx_PyList_Extend"
-            elif self.target.type.is_pyset_type:
+            else:
+                steal_temp = self.expr.is_temp
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("ListCompAppendAndDecref" if steal_temp else "ListCompAppend", "Optimize.c"))
+                function = "__Pyx_ListComp_AppendAndDecref" if steal_temp else "__Pyx_ListComp_Append"
+        elif self.target.type.is_pyset_type:
+            if self.is_starred:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("PySet_Update", "Builtins.c"))
                 function = "__Pyx_PySet_Update"
             else:
-                raise InternalError(
-                    "Invalid type for starred comprehension node: %s" % self.target.type)
-
-            code.put_error_if_neg(self.pos, "%s(%s, %s)" % (
-                function, self.target.result(), self.expr.py_result()))
-            self.expr.generate_disposal_code(code)
-            self.expr.free_temps(code)
-            return
-
-        steal_temp = False
-        if self.target.type.is_pylist_type:
-            steal_temp = self.expr.is_temp
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("ListCompAppendAndDecref" if steal_temp else "ListCompAppend", "Optimize.c"))
-            function = "__Pyx_ListComp_AppendAndDecref" if steal_temp else "__Pyx_ListComp_Append"
-        elif self.target.type.is_pyset_type:
-            function = "PySet_Add"
+                function = "PySet_Add"
         else:
             raise InternalError(
                 "Invalid type for comprehension node: %s" % self.target.type)
@@ -9738,6 +9727,8 @@ class DictComprehensionUpdateNode(ComprehensionAppendNode):
             raise InternalError(
                 "Invalid type for dict comprehension node: %s" % self.target.type)
 
+        # PyDict_Update raises AttributeError for non-mappings, whereas **
+        # unpacking raises TypeError. Match Python's unpacking error here.
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("RaiseMappingExpected", "FunctionArguments.c"))
         code.putln("if (unlikely(PyDict_Update(%s, %s) < 0)) {" % (

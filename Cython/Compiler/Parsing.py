@@ -1464,9 +1464,10 @@ def p_dict_or_set_maker(s: PyrexScanner):
             elif target_type != len(s.sy):
                 s.error("unexpected %sitem found in %s literal" % (
                     s.sy, 'set' if target_type == 1 else 'dict'))
-            s.next()
-            if s.sy == '*':
-                s.error("expected expression, found '*'")
+            if s.sy == '**':
+                s.next()
+                if s.sy == '*':
+                    s.error("expected expression, found '*'")
             item = p_starred_expr(s)
             parts.append(item)
             last_was_simple_item = False
@@ -1493,35 +1494,32 @@ def p_dict_or_set_maker(s: PyrexScanner):
         else:
             break
 
-    if s.sy in ('for', 'async'):
+    if s.sy in ('for', 'async') and len(parts) == 1:
         # dict/set comprehension
-        if len(parts) == 1 and isinstance(parts[0], list) and len(parts[0]) == 1:
-            item = parts[0][0]
-            if target_type == 2:
-                assert isinstance(item, ExprNodes.DictItemNode), type(item)
-                comprehension_type = Builtin.dict_type
-                append = ExprNodes.DictComprehensionAppendNode(
-                    item.pos, key_expr=item.key, value_expr=item.value)
-            else:
-                comprehension_type = Builtin.set_type
-                append = ExprNodes.ComprehensionAppendNode(item.pos, expr=item)
-        elif len(parts) == 1 and not isinstance(parts[0], list):
-            item = parts[0]
-            if target_type == 1:
-                comprehension_type = Builtin.set_type
-                item = ExprNodes.StarredUnpackingNode(item.pos, target=item)
-                append = ExprNodes.ComprehensionAppendNode(item.pos, expr=item)
-            else:
-                comprehension_type = Builtin.dict_type
-                append = ExprNodes.DictComprehensionUpdateNode(item.pos, expr=item)
-        else:
-            # syntax error, e.g. "{1, 2, 3 for ...}"
-            s.expect('}')
-            return ExprNodes.DictNode(pos, key_value_pairs=[])
+        item = parts[0]
+        if isinstance(item, list) and len(item) == 1:
+            item = item[0]
 
-        loop = p_comp_for(s, append)
+        if not isinstance(item, list):
+            if target_type == 2:
+                comprehension_type = Builtin.dict_type
+                if isinstance(item, ExprNodes.DictItemNode):
+                    append = ExprNodes.DictComprehensionAppendNode(
+                        item.pos, key_expr=item.key, value_expr=item.value)
+                else:
+                    append = ExprNodes.DictComprehensionUpdateNode(item.pos, expr=item)
+            else:
+                comprehension_type = Builtin.set_type
+                append = ExprNodes.ComprehensionAppendNode(item.pos, expr=item)
+
+            loop = p_comp_for(s, append)
+            s.expect('}')
+            return ExprNodes.ComprehensionNode(pos, loop=loop, append=append, type=comprehension_type)
+
+    if s.sy in ('for', 'async'):
+        # syntax error, e.g. "{1, 2, 3 for ...}"
         s.expect('}')
-        return ExprNodes.ComprehensionNode(pos, loop=loop, append=append, type=comprehension_type)
+        return ExprNodes.DictNode(pos, key_value_pairs=[])
 
     s.expect('}')
     if target_type == 1:
@@ -1535,7 +1533,7 @@ def p_dict_or_set_maker(s: PyrexScanner):
                 if set_items:
                     items.append(ExprNodes.SetNode(set_items[0].pos, args=set_items))
                     set_items = []
-                items.append(part)
+                items.append(part.target if part.is_starred else part)
         if set_items:
             items.append(ExprNodes.SetNode(set_items[0].pos, args=set_items))
         if len(items) == 1 and items[0].is_set_literal:
