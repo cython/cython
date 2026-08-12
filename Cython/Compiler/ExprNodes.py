@@ -9702,6 +9702,40 @@ class ComprehensionAppendNode(Node):
     def annotate(self, code):
         self.expr.annotate(code)
 
+
+class ComprehensionUpdateNode(ComprehensionAppendNode):
+    """Extend or update a comprehension result with each expression value."""
+
+    def generate_execution_code(self, code):
+        self.expr.generate_evaluation_code(code)
+
+        if self.target.type.is_pylist_type:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("ListExtend", "Optimize.c"))
+            code.put_error_if_neg(self.pos, "__Pyx_PyList_Extend(%s, %s)" % (
+                self.target.result(), self.expr.py_result()))
+        elif self.target.type.is_pyset_type:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PySet_Update", "Builtins.c"))
+            code.put_error_if_neg(self.pos, "__Pyx_PySet_Update(%s, %s)" % (
+                self.target.result(), self.expr.py_result()))
+        elif self.target.type.is_pydict_type:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseMappingExpected", "FunctionArguments.c"))
+            code.putln("if (unlikely(PyDict_Update(%s, %s) < 0)) {" % (
+                self.target.result(), self.expr.py_result()))
+            code.putln("if (PyErr_ExceptionMatches(PyExc_AttributeError)) "
+                       "__Pyx_RaiseMappingExpectedError(%s);" % self.expr.py_result())
+            code.putln(code.error_goto(self.pos))
+            code.putln("}")
+        else:
+            raise InternalError(
+                "Invalid type for comprehension node: %s" % self.target.type)
+
+        self.expr.generate_disposal_code(code)
+        self.expr.free_temps(code)
+
+
 class DictComprehensionAppendNode(ComprehensionAppendNode):
     child_attrs = ['key_expr', 'value_expr']
 
