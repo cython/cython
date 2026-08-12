@@ -125,7 +125,7 @@ else
       python -m pip install pythran || exit 1
     fi
 
-    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* ]]; then
+    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3.13t" ]]; then
       python -m pip install mypy || exit 1
     fi
   fi
