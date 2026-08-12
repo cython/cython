@@ -360,3 +360,25 @@ def unpack_many_right_loop(it):
     for i in range(1):
         *a,b,c,d,e,f,g,h,i,j = it
     return a,b,c,d,e,f,g,h,i,j
+
+
+def listcomp_augmented_starred_target(xs):
+    """
+    >>> listcomp_augmented_starred_target([('a', 1, 'x'), ('b', 2)])
+    [1, 2]
+    """
+    # ticket: 7894
+    out = []
+    out += [c for k, c, *_ in xs]
+    return out
+
+
+def setcomp_augmented_starred_target(xs):
+    """
+    >>> sorted(setcomp_augmented_starred_target([('a', 1, 'x'), ('b', 2)]))
+    ['a', 'b']
+    """
+    # ticket: 7894
+    s = set()
+    s |= {x for x, *_ in xs}
+    return s
