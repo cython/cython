@@ -4817,9 +4817,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self.visitchildren(node)
         args = []
         for arg in node.args:
-            if not arg.is_starred:
-                args.append(arg)
-            elif arg.target.is_sequence_constructor and not arg.target.mult_factor:
+            if isinstance(arg, ExprNodes.StarredUnpackingNode) and (
+                    arg.target.is_sequence_constructor and not arg.target.mult_factor):
                 args.extend(arg.target.args)
             else:
                 args.append(arg)
