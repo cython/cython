@@ -1376,10 +1376,7 @@ def p_list_maker(s: PyrexScanner):
 
     expr = p_namedexpr_test_or_starred_expr(s)
     if s.sy in ('for', 'async'):
-        if expr.is_starred:
-            append = ExprNodes.ComprehensionUpdateNode(expr.pos, expr=expr.target)
-        else:
-            append = ExprNodes.ComprehensionAppendNode(pos, expr=expr)
+        append = ExprNodes.ComprehensionAppendNode(pos, expr=expr)
         loop = p_comp_for(s, append)
         s.expect(']')
         return ExprNodes.ComprehensionNode(
@@ -1510,8 +1507,13 @@ def p_dict_or_set_maker(s: PyrexScanner):
                 append = ExprNodes.ComprehensionAppendNode(item.pos, expr=item)
         elif len(parts) == 1 and not isinstance(parts[0], list):
             item = parts[0]
-            comprehension_type = Builtin.set_type if target_type == 1 else Builtin.dict_type
-            append = ExprNodes.ComprehensionUpdateNode(item.pos, expr=item)
+            if target_type == 1:
+                comprehension_type = Builtin.set_type
+                item = ExprNodes.StarredUnpackingNode(item.pos, target=item)
+                append = ExprNodes.ComprehensionAppendNode(item.pos, expr=item)
+            else:
+                comprehension_type = Builtin.dict_type
+                append = ExprNodes.DictComprehensionUpdateNode(item.pos, expr=item)
         else:
             # syntax error, e.g. "{1, 2, 3 for ...}"
             s.expect('}')

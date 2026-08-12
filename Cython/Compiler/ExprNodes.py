@@ -9661,16 +9661,41 @@ class ComprehensionAppendNode(Node):
 
     child_attrs = ['expr']
     target = None
+    is_starred = False
 
     type = PyrexTypes.c_int_type
 
     def analyse_expressions(self, env):
+        if self.expr.is_starred:
+            self.is_starred = True
+            self.expr = self.expr.target
         self.expr = self.expr.analyse_expressions(env)
         if not self.expr.type.is_pyobject:
             self.expr = self.expr.coerce_to_pyobject(env)
         return self
 
     def generate_execution_code(self, code):
+        if self.is_starred:
+            self.expr.generate_evaluation_code(code)
+
+            if self.target.type.is_pylist_type:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("ListExtend", "Optimize.c"))
+                function = "__Pyx_PyList_Extend"
+            elif self.target.type.is_pyset_type:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PySet_Update", "Builtins.c"))
+                function = "__Pyx_PySet_Update"
+            else:
+                raise InternalError(
+                    "Invalid type for starred comprehension node: %s" % self.target.type)
+
+            code.put_error_if_neg(self.pos, "%s(%s, %s)" % (
+                function, self.target.result(), self.expr.py_result()))
+            self.expr.generate_disposal_code(code)
+            self.expr.free_temps(code)
+            return
+
         steal_temp = False
         if self.target.type.is_pylist_type:
             steal_temp = self.expr.is_temp
@@ -9703,34 +9728,24 @@ class ComprehensionAppendNode(Node):
         self.expr.annotate(code)
 
 
-class ComprehensionUpdateNode(ComprehensionAppendNode):
-    """Extend or update a comprehension result with each expression value."""
+class DictComprehensionUpdateNode(ComprehensionAppendNode):
+    """Update a dict comprehension result with each expression value."""
 
     def generate_execution_code(self, code):
         self.expr.generate_evaluation_code(code)
 
-        if self.target.type.is_pylist_type:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("ListExtend", "Optimize.c"))
-            code.put_error_if_neg(self.pos, "__Pyx_PyList_Extend(%s, %s)" % (
-                self.target.result(), self.expr.py_result()))
-        elif self.target.type.is_pyset_type:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PySet_Update", "Builtins.c"))
-            code.put_error_if_neg(self.pos, "__Pyx_PySet_Update(%s, %s)" % (
-                self.target.result(), self.expr.py_result()))
-        elif self.target.type.is_pydict_type:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseMappingExpected", "FunctionArguments.c"))
-            code.putln("if (unlikely(PyDict_Update(%s, %s) < 0)) {" % (
-                self.target.result(), self.expr.py_result()))
-            code.putln("if (PyErr_ExceptionMatches(PyExc_AttributeError)) "
-                       "__Pyx_RaiseMappingExpectedError(%s);" % self.expr.py_result())
-            code.putln(code.error_goto(self.pos))
-            code.putln("}")
-        else:
+        if not self.target.type.is_pydict_type:
             raise InternalError(
-                "Invalid type for comprehension node: %s" % self.target.type)
+                "Invalid type for dict comprehension node: %s" % self.target.type)
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("RaiseMappingExpected", "FunctionArguments.c"))
+        code.putln("if (unlikely(PyDict_Update(%s, %s) < 0)) {" % (
+            self.target.result(), self.expr.py_result()))
+        code.putln("if (PyErr_ExceptionMatches(PyExc_AttributeError)) "
+                   "__Pyx_RaiseMappingExpectedError(%s);" % self.expr.py_result())
+        code.putln(code.error_goto(self.pos))
+        code.putln("}")
 
         self.expr.generate_disposal_code(code)
         self.expr.free_temps(code)

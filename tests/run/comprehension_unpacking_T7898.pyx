@@ -9,7 +9,7 @@
 cimport cython
 
 
-@cython.test_assert_path_exists("//ComprehensionUpdateNode")
+@cython.test_assert_path_exists("//ComprehensionAppendNode")
 def list_unpacking():
     """
     >>> list_unpacking()
@@ -52,7 +52,7 @@ def list_unpacking_assignment_expression_scope():
     return result, square
 
 
-@cython.test_assert_path_exists("//ComprehensionUpdateNode")
+@cython.test_assert_path_exists("//ComprehensionAppendNode")
 def set_unpacking():
     """
     >>> set_unpacking()
@@ -61,7 +61,7 @@ def set_unpacking():
     return sorted({*value for value in ([1, 2], (2, 3), range(3, 5))})
 
 
-@cython.test_assert_path_exists("//ComprehensionUpdateNode")
+@cython.test_assert_path_exists("//DictComprehensionUpdateNode")
 def dict_unpacking():
     """
     >>> dict_unpacking()
