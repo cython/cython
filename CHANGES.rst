@@ -476,6 +476,22 @@ Other changes
   Patch by Libor Jelínek.  (Github issue :issue:`7564`)
 
 
+3.2.10 (2026-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* Unpickling wrappers of compiled functions failed.
+  (Github issue :issue:`7846`)
+
+* A compiler crash was fixed when using comprehension results directly in in-place assignments.
+  Patch by AbhinavMir.  (Github issue :issue:`7846`)
+
+* A compiler crash was fixed when keyword arguments were used in C++ class calls.
+  Patch by Vladimir Saraikin.  (Github issue :issue:`7206`)
+
+
 3.2.9 (2026-07-24)
 ==================
 
