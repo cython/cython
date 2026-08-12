@@ -13634,9 +13634,14 @@ class ModNode(DivNode):
         type1, type2 = self.operand1.type, self.operand2.type
         # ("..." % x)  must call "x.__rmod__()" for string subtypes.
         if type1.is_pystr_type:
-            if self.operand1.may_be_none() or (
-                    type2.is_extension_type and type2.subtype_of(type1) or
+            if self.operand1.may_be_none():
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyUnicodeFormatSafe", "StringTools.c"))
+                return '__Pyx_PyUnicode_FormatNoneSafe'
+            elif (type2.is_extension_type and type2.subtype_of(type1) or
                     type2 is py_object_type and not isinstance(self.operand2, CoerceToPyTypeNode)):
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyUnicodeFormatSafe", "StringTools.c"))
                 return '__Pyx_PyUnicode_FormatSafe'
             else:
                 return 'PyUnicode_Format'

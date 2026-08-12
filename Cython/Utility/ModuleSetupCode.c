@@ -1155,9 +1155,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #endif
 #endif
 
-// ("..." % x)  must call PyNumber_Remainder() if x is a string subclass that implements "__rmod__()".
-#define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None || (PyUnicode_Check(b) && !PyUnicode_CheckExact(b)))) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
-
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000
   #define __Pyx_PySequence_ListKeepNew(obj) \
     (likely(PyList_CheckExact(obj) && PyUnstable_Object_IsUniquelyReferenced(obj)) ? __Pyx_NewRef(obj) : PySequence_List(obj))

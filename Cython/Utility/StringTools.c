@@ -1515,6 +1515,31 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FormatAndDecref(PyObject* s, PyObj
 }
 
 
+//////////////////// PyUnicodeFormatSafe.proto ////////////////////
+
+#define __Pyx_PyUnicode_FormatNoneSafe(a, b) \
+    (unlikely((a) == Py_None) ? PyNumber_Remainder(a, b) : __Pyx_PyUnicode_FormatSafe(a, b))
+
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FormatSafe(PyObject *a, PyObject *b); /*proto*/
+
+//////////////////// PyUnicodeFormatSafe ////////////////////
+
+// ("..." % x)  must call PyNumber_Remainder() if x is a string subclass that implements "__rmod__()".
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FormatSafe(PyObject *a, PyObject *b) {
+    if (unlikely(PyUnicode_Check(b) && !PyUnicode_CheckExact(b))) {
+        #if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_TYPE_SLOTS
+        PyNumberMethods *b_as_number = Py_TYPE(b)->tp_as_number;
+        if (likely(b_as_number) && unlikely((b_as_number->nb_remainder != NULL) & (b_as_number->nb_remainder != PyUnicode_Type.tp_as_number->nb_remainder))) {
+            return b_as_number->nb_remainder(a, b);
+        }
+        #else
+        return PyNumber_Remainder(a, b);
+        #endif
+    }
+    return PyUnicode_Format(a, b);
+}
+
+
 //////////////////// PyUnicode_Unicode.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Unicode(PyObject *obj);/*proto*/
