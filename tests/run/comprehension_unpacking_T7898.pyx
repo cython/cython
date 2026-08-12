@@ -43,6 +43,15 @@ def list_expression_evaluated_once():
     return result, events
 
 
+def list_unpacking_assignment_expression_scope():
+    """
+    >>> list_unpacking_assignment_expression_scope()
+    ([0, 0, 1, 2, 4, 8, 9, 18], 9)
+    """
+    result = [*((square := value ** 2), 2 * square) for value in range(4)]
+    return result, square
+
+
 @cython.test_assert_path_exists("//ComprehensionUpdateNode")
 def set_unpacking():
     """
