@@ -1445,81 +1445,76 @@ def p_comp_if(s: PyrexScanner, body):
 #                   (comp_for | (',' (test | star_expr))* [','])) )
 
 @cython.cfunc
-def p_dict_or_set_maker(s: PyrexScanner):
-    # s.sy == '{'
-    pos = s.position()
-    s.next()
-    if s.sy == '}':
-        s.next()
-        return ExprNodes.DictNode(pos, key_value_pairs=[])
+def p_dict_or_set_item(s: PyrexScanner, target_type: cython.int):
+    is_unpacking = s.sy in ('*', '**')
+    if is_unpacking:
+        unpacking_type: cython.int = len(s.sy)
+        if target_type == 0:
+            target_type = unpacking_type
+        elif target_type != unpacking_type:
+            s.error("unexpected %sitem found in %s literal" % (
+                s.sy, 'set' if target_type == 1 else 'dict'))
 
-    parts = []
-    target_type: cython.int = 0
-    last_was_simple_item = False
-    while True:
-        if s.sy in ('*', '**'):
-            # merged set/dict literal
-            if target_type == 0:
-                target_type = 1 if s.sy == '*' else 2  # 'stars'
-            elif target_type != len(s.sy):
-                s.error("unexpected %sitem found in %s literal" % (
-                    s.sy, 'set' if target_type == 1 else 'dict'))
-            if s.sy == '**':
-                s.next()
-                if s.sy == '*':
-                    s.error("expected expression, found '*'")
-            item = p_starred_expr(s)
-            parts.append(item)
-            last_was_simple_item = False
-        else:
-            item = p_test(s)
-            if target_type == 0:
-                target_type = 2 if s.sy == ':' else 1  # dict vs. set
-            if target_type == 2:
-                # dict literal
-                s.expect(':')
-                key = item
-                value = p_test(s)
-                item = ExprNodes.DictItemNode(key.pos, key=key, value=value)
-            if last_was_simple_item:
-                parts[-1].append(item)
-            else:
-                parts.append([item])
-                last_was_simple_item = True
-
-        if s.sy == ',':
+        if unpacking_type == 2:
             s.next()
-            if s.sy == '}':
-                break
+            if s.sy == '*':
+                s.error("expected expression, found '*'")
+        item = p_starred_expr(s)
+    else:
+        item = p_test(s)
+        if target_type == 0:
+            target_type = 2 if s.sy == ':' else 1  # dict vs. set
+        if target_type == 2:
+            s.expect(':')
+            key = item
+            value = p_test(s)
+            item = ExprNodes.DictItemNode(key.pos, key=key, value=value)
+
+    return target_type, item, is_unpacking
+
+
+@cython.cfunc
+def p_dict_or_set_comprehension(s: PyrexScanner, pos, target_type: cython.int, item):
+    if target_type == 2:
+        comprehension_type = Builtin.dict_type
+        if isinstance(item, ExprNodes.DictItemNode):
+            append = ExprNodes.DictComprehensionAppendNode(
+                item.pos, key_expr=item.key, value_expr=item.value)
         else:
+            append = ExprNodes.DictComprehensionUpdateNode(item.pos, expr=item)
+    else:
+        comprehension_type = Builtin.set_type
+        append = ExprNodes.ComprehensionAppendNode(item.pos, expr=item)
+
+    loop = p_comp_for(s, append)
+    s.expect('}')
+    return ExprNodes.ComprehensionNode(pos, loop=loop, append=append, type=comprehension_type)
+
+
+@cython.cfunc
+def p_dict_or_set_literal(
+        s: PyrexScanner, pos, target_type: cython.int, item, is_unpacking: cython.bint):
+    if is_unpacking:
+        # MergedSequenceNode and MergedDictNode take the iterable/mapping itself.
+        parts = [item.target if target_type == 1 else item]
+    else:
+        parts = [[item]]
+    last_was_simple_item = not is_unpacking
+
+    while s.sy == ',':
+        s.next()
+        if s.sy == '}':
             break
 
-    if s.sy in ('for', 'async') and len(parts) == 1:
-        # dict/set comprehension
-        item = parts[0]
-        if isinstance(item, list) and len(item) == 1:
-            item = item[0]
-
-        if not isinstance(item, list):
-            if target_type == 2:
-                comprehension_type = Builtin.dict_type
-                if isinstance(item, ExprNodes.DictItemNode):
-                    append = ExprNodes.DictComprehensionAppendNode(
-                        item.pos, key_expr=item.key, value_expr=item.value)
-                else:
-                    append = ExprNodes.DictComprehensionUpdateNode(item.pos, expr=item)
-            else:
-                comprehension_type = Builtin.set_type
-                append = ExprNodes.ComprehensionAppendNode(item.pos, expr=item)
-
-            loop = p_comp_for(s, append)
-            s.expect('}')
-            return ExprNodes.ComprehensionNode(pos, loop=loop, append=append, type=comprehension_type)
-
-    if s.sy in ('for', 'async'):
-        # syntax error, e.g. "{1, 2, 3 for ...}"
-        s.expect('}')
-        return ExprNodes.DictNode(pos, key_value_pairs=[])
+        target_type, item, is_unpacking = p_dict_or_set_item(s, target_type)
+        if is_unpacking:
+            parts.append(item.target if target_type == 1 else item)
+            last_was_simple_item = False
+        elif last_was_simple_item:
+            parts[-1].append(item)
+        else:
+            parts.append([item])
+            last_was_simple_item = True
 
     s.expect('}')
     if target_type == 1:
@@ -1556,6 +1551,21 @@ def p_dict_or_set_maker(s: PyrexScanner):
         if len(items) == 1 and items[0].is_dict_literal:
             return items[0]
         return ExprNodes.MergedDictNode(pos, keyword_args=items, reject_duplicates=False)
+
+
+@cython.cfunc
+def p_dict_or_set_maker(s: PyrexScanner):
+    # s.sy == '{'
+    pos = s.position()
+    s.next()
+    if s.sy == '}':
+        s.next()
+        return ExprNodes.DictNode(pos, key_value_pairs=[])
+
+    target_type, item, is_unpacking = p_dict_or_set_item(s, 0)
+    if s.sy in ('for', 'async'):
+        return p_dict_or_set_comprehension(s, pos, target_type, item)
+    return p_dict_or_set_literal(s, pos, target_type, item, is_unpacking)
 
 
 # NOTE: no longer in Py3 :)
