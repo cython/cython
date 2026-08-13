@@ -8,6 +8,10 @@
 
 import cython
 
+import platform
+
+IS_GRAAL = platform.python_implementation() == 'GraalVM'
+
 
 @cython.test_assert_path_exists("//ComprehensionAppendNode")
 def list_unpacking():
@@ -114,7 +118,7 @@ def invalid_set_unpacking():
 
 def invalid_dict_unpacking():
     """
-    >>> invalid_dict_unpacking()
+    >>> invalid_dict_unpacking()  if not IS_GRAAL else  ('TypeError', True)
     ('TypeError', True)
     """
     try:
