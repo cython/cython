@@ -8,7 +8,7 @@ import unittest
 import tempfile
 import subprocess
 #import distutils.core
-#from distutils import sysconfig
+#import sysconfig
 from distutils import ccompiler
 
 import runtests

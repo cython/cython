@@ -729,7 +729,7 @@ This is the most sane (if not the only) way to fix it:
 
 ::
 
-    >>> from distutils import sysconfig
+    >>> import sysconfig
     >>> sysconfig.get_makefile_filename()
 
 That should output the full path of a 'Makefile'... Open that file
