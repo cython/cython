@@ -645,6 +645,8 @@ def get_type_information_cname(code, dtype, maxdepth=None):
                 flags = "__PYX_BUF_FLAGS_PACKED_STRUCT"
         elif dtype.is_pyobject:
             typegroup = "'O'"
+        elif dtype.is_ptr and rep == "PyObject *":
+            typegroup = "'O'"
         else:
             assert False, dtype
 
