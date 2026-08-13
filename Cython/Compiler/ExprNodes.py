@@ -9740,12 +9740,13 @@ class DictComprehensionAppendNode(ComprehensionAppendNode):
             # Comprehension unpacking.
             code.putln(
                 f"if (unlikely(PyDict_Update({self.target.result()}, {item.py_result()}) < 0)) {{")
-            # PyDict_Update raises AttributeError for non-mappings, whereas "**dict" unpacking
-            # raises TypeError. Match Python's unpacking error here.
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseMappingExpected", "FunctionArguments.c"))
-            code.putln(
-                f"if (PyErr_ExceptionMatches(PyExc_AttributeError)) __Pyx_RaiseMappingExpectedError({item.py_result()});")
+            if not item.type.is_pyanydict_type or item.may_be_none():
+                # PyDict_Update raises AttributeError for non-mappings, whereas "**dict" unpacking
+                # raises TypeError. Match Python's unpacking error here.
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("RaiseMappingExpected", "FunctionArguments.c"))
+                code.putln(
+                    f"if (PyErr_ExceptionMatches(PyExc_AttributeError)) __Pyx_RaiseMappingExpectedError({item.py_result()});")
             code.putln(code.error_goto(self.pos))
             code.putln("}")
 
