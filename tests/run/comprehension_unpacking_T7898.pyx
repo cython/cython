@@ -1,5 +1,5 @@
 # mode: run
-# tag: comprehension
+# tag: comprehension, pure3.15
 # cython: language_level=3
 
 # cython: test_assert_c_code_has = __Pyx_PyList_Extend\(

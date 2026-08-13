@@ -9678,14 +9678,18 @@ class ComprehensionAppendNode(Node):
         steal_temp = False
         if self.target.type.is_pylist_type:
             if self.is_starred:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("ListExtend", "Optimize.c"))
+                utility_code_name = "ListExtend"
                 function = "__Pyx_PyList_Extend"
+            elif self.expr.is_temp:
+                steal_temp = True
+                utility_code_name = "ListCompAppendAndDecref"
+                function = "__Pyx_ListComp_AppendAndDecref"
             else:
-                steal_temp = self.expr.is_temp
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("ListCompAppendAndDecref" if steal_temp else "ListCompAppend", "Optimize.c"))
-                function = "__Pyx_ListComp_AppendAndDecref" if steal_temp else "__Pyx_ListComp_Append"
+                utility_code_name = "ListCompAppend"
+                function = "__Pyx_ListComp_Append"
+
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached(utility_code_name, "Optimize.c"))
         elif self.target.type.is_pyset_type:
             if self.is_starred:
                 code.globalstate.use_utility_code(
@@ -9723,12 +9727,10 @@ class DictComprehensionUpdateNode(ComprehensionAppendNode):
     def generate_execution_code(self, code):
         self.expr.generate_evaluation_code(code)
 
-        if not self.target.type.is_pydict_type:
-            raise InternalError(
-                "Invalid type for dict comprehension node: %s" % self.target.type)
+        assert self.target.type.is_pydict_type, self.target.type
 
-        # PyDict_Update raises AttributeError for non-mappings, whereas **
-        # unpacking raises TypeError. Match Python's unpacking error here.
+        # PyDict_Update raises AttributeError for non-mappings, whereas "**dict" unpacking
+        # raises TypeError. Match Python's unpacking error here.
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("RaiseMappingExpected", "FunctionArguments.c"))
         code.putln("if (unlikely(PyDict_Update(%s, %s) < 0)) {" % (
