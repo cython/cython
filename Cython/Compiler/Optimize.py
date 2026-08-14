@@ -2236,10 +2236,10 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             comprehension_type=Builtin.dict_type)
 
         for yield_expression, yield_stat_node in yield_statements:
+            key, value = yield_expression.args
             append_node = ExprNodes.DictComprehensionAppendNode(
                 yield_expression.pos,
-                key_expr=yield_expression.args[0],
-                value_expr=yield_expression.args[1],
+                dict_item=ExprNodes.DictItemNode(key.pos, key=key, value=value),
                 target=result_node.target)
             Visitor.recursively_replace_node(gen_expr_node, yield_stat_node, append_node)
 

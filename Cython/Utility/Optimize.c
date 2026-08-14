@@ -31,15 +31,7 @@ static CYTHON_INLINE int __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
 
 #if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
 static CYTHON_INLINE void __Pyx__ListComp_AppendAndDecref(PyObject* list, Py_ssize_t len, PyObject* x) {
-    #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
-    // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
-    // However, extending the size *before* setting the value would not be correct,
-    // so we cannot call PyList_SET_ITEM().
-    PyListObject* L = (PyListObject*) list;
-    L->ob_item[len] = x;
-    #else
     PyList_SET_ITEM(list, len, x);
-    #endif
     Py_SET_SIZE(list, len + 1);
 }
 #endif
@@ -130,10 +122,17 @@ static CYTHON_INLINE int __Pyx_ListComp_AppendAndDecref(PyObject* list, PyObject
 
 //////////////////// ListExtend.proto ////////////////////
 
+#if (CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX < 0x030d0000) && !defined(PyList_Extend)
+static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v); /*proto*/
+#else
+#define __Pyx_PyList_Extend(L, v)  PyList_Extend(L, v)
+#endif
+
+//////////////////// ListExtend ////////////////////
+
+#if (CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX < 0x030d0000) && !defined(PyList_Extend)
 static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v) {
-#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d00a2
-    return PyList_Extend(L, v);
-#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+#if CYTHON_COMPILING_IN_CPYTHON
     PyObject* none = _PyList_Extend((PyListObject*)L, v);
     if (unlikely(!none))
         return -1;
@@ -143,6 +142,8 @@ static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v) {
     return PyList_SetSlice(L, PY_SSIZE_T_MAX, PY_SSIZE_T_MAX, v);
 #endif
 }
+#endif
+
 
 /////////////// pop.proto ///////////////
 

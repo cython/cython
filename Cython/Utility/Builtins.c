@@ -747,11 +747,12 @@ bad:
 static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it); /*proto*/
 
 //////////////////// PySet_Update ////////////////////
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     PyObject *retval;
     #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
-    if (PyAnySet_Check(it)) {
+    if (__Pyx_PyAnySet_Check(it)) {
         Py_ssize_t size = __Pyx_PySet_GET_SIZE(it);
         #if !CYTHON_ASSUME_SAFE_SIZE
         if (unlikely(size < 0)) return -1;
@@ -775,6 +776,7 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     Py_DECREF(retval);
     return 0;
 }
+
 
 //////////////////// PyRange_Check.proto ////////////////////
 //@requires: ModuleSetupCode.c::FastTypeChecks

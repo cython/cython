@@ -9661,10 +9661,14 @@ class ComprehensionAppendNode(Node):
 
     child_attrs = ['expr']
     target = None
+    unpacking = False
 
     type = PyrexTypes.c_int_type
 
     def analyse_expressions(self, env):
+        if self.expr.is_starred:
+            self.unpacking = True
+            self.expr = self.expr.target
         self.expr = self.expr.analyse_expressions(env)
         if not self.expr.type.is_pyobject:
             self.expr = self.expr.coerce_to_pyobject(env)
@@ -9673,12 +9677,26 @@ class ComprehensionAppendNode(Node):
     def generate_execution_code(self, code):
         steal_temp = False
         if self.target.type.is_pylist_type:
-            steal_temp = self.expr.is_temp
+            if self.unpacking:
+                utility_code_name = "ListExtend"
+                function = "__Pyx_PyList_Extend"
+            elif self.expr.is_temp:
+                steal_temp = True
+                utility_code_name = "ListCompAppendAndDecref"
+                function = "__Pyx_ListComp_AppendAndDecref"
+            else:
+                utility_code_name = "ListCompAppend"
+                function = "__Pyx_ListComp_Append"
+
             code.globalstate.use_utility_code(
-                UtilityCode.load_cached("ListCompAppendAndDecref" if steal_temp else "ListCompAppend", "Optimize.c"))
-            function = "__Pyx_ListComp_AppendAndDecref" if steal_temp else "__Pyx_ListComp_Append"
+                UtilityCode.load_cached(utility_code_name, "Optimize.c"))
         elif self.target.type.is_pyset_type:
-            function = "PySet_Add"
+            if self.unpacking:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PySet_Update", "Builtins.c"))
+                function = "__Pyx_PySet_Update"
+            else:
+                function = "PySet_Add"
         else:
             raise InternalError(
                 "Invalid type for comprehension node: %s" % self.target.type)
@@ -9702,38 +9720,44 @@ class ComprehensionAppendNode(Node):
     def annotate(self, code):
         self.expr.annotate(code)
 
+
 class DictComprehensionAppendNode(ComprehensionAppendNode):
-    child_attrs = ['key_expr', 'value_expr']
+    child_attrs = ['dict_item']
 
     def analyse_expressions(self, env):
-        self.key_expr = self.key_expr.analyse_expressions(env)
-        if not self.key_expr.type.is_pyobject:
-            self.key_expr = self.key_expr.coerce_to_pyobject(env)
-        self.value_expr = self.value_expr.analyse_expressions(env)
-        if not self.value_expr.type.is_pyobject:
-            self.value_expr = self.value_expr.coerce_to_pyobject(env)
+        self.dict_item = self.dict_item.analyse_expressions(env)
         return self
 
     def generate_execution_code(self, code):
-        self.key_expr.generate_evaluation_code(code)
-        self.value_expr.generate_evaluation_code(code)
-        code.putln(code.error_goto_if("PyDict_SetItem(%s, (PyObject*)%s, (PyObject*)%s)" % (
-            self.target.result(),
-            self.key_expr.result(),
-            self.value_expr.result()
-            ), self.pos))
-        self.key_expr.generate_disposal_code(code)
-        self.key_expr.free_temps(code)
-        self.value_expr.generate_disposal_code(code)
-        self.value_expr.free_temps(code)
+        item = self.dict_item
+        item.generate_evaluation_code(code)
+
+        if isinstance(item, DictItemNode):
+            code.putln(code.error_goto_if(
+                f"PyDict_SetItem({self.target.result()}, {item.key.py_result()}, {item.value.py_result()})",
+                self.pos))
+        else:
+            # Comprehension unpacking.
+            code.putln(
+                f"if (unlikely(PyDict_Update({self.target.result()}, {item.py_result()}) < 0)) {{")
+            if not item.type.is_pyanydict_type or item.may_be_none():
+                # PyDict_Update raises AttributeError for non-mappings, whereas "**dict" unpacking
+                # raises TypeError. Match Python's unpacking error here.
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("RaiseMappingExpected", "FunctionArguments.c"))
+                code.putln(
+                    f"if (PyErr_ExceptionMatches(PyExc_AttributeError)) __Pyx_RaiseMappingExpectedError({item.py_result()});")
+            code.putln(code.error_goto(self.pos))
+            code.putln("}")
+
+        item.generate_disposal_code(code)
+        item.free_temps(code)
 
     def generate_function_definitions(self, env, code):
-        self.key_expr.generate_function_definitions(env, code)
-        self.value_expr.generate_function_definitions(env, code)
+        self.dict_item.generate_function_definitions(env, code)
 
     def annotate(self, code):
-        self.key_expr.annotate(code)
-        self.value_expr.annotate(code)
+        self.dict_item.annotate(code)
 
 
 class InlinedGeneratorExpressionNode(ExprNode):
