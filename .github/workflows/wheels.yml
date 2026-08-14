@@ -241,7 +241,7 @@ jobs:
           ERRORS=0
           for filename in *.whl; do
             if [[ "${{ github.ref_type }}" == 'tag' ]]; then
-              [[ -z "${filename#cython-${{ contains(github.ref_name, '"') && 'FAIL' || github.ref_name }}-*}" ]] || ERRORS=$((ERRORS + 1))
+              [[ -z "${filename##cython-${{ contains(github.ref_name, '"') && 'FAIL' || github.ref_name }}-*}" ]] || ERRORS=$((ERRORS + 1))
             fi
 
             twine check "$filename" || ERRORS=$((ERRORS + 1))
