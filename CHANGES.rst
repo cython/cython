@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.3.0b1 (2026-08-??)
+3.3.0b1 (2026-08-14)
 ====================
 
 Features added
@@ -13,8 +13,12 @@ Features added
   The original names are kept for backwards compatibility.
   (Github issue :issue:`7656`)
 
-* ``except *`` (PEP-654 exception groups) are implemented for Python 3.11 and later.
+* ``except *`` (PEP-654 exception groups) is implemented for Python 3.11 and later.
   (Github issue :issue:`4993`)
+
+* Unpacking in comprehensions (PEP-798) is implemented for list/set/dict comprehensions.
+  It is not yet available for generator expressions.
+  Original patch by Morax.  (Github issue :issue:`7898`)
 
 * The feature set of the shared module can be selected at build time
   by listing named features to include or exclude.
