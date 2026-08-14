@@ -1491,20 +1491,37 @@ def p_dict_or_set_maker(s: PyrexScanner):
         return ExprNodes.ComprehensionNode(pos, loop=loop, append=append, type=comprehension_type)
 
     # set/dict literal
-    parts = [[item] if last_was_simple_item else item.target if item.is_starred else item]
+    merged_items = []
+    simple_items = []
+
+    if last_was_simple_item:
+        simple_items.append(item)
+    else:
+        merged_items.append(item.target if item.is_starred else item)
+
     while s.sy == ',':
         s.next()
         if s.sy == '}':
             break
+
         if s.sy in ('*', '**'):
             if target_type != len(s.sy):
                 s.error(f"unexpected {s.sy}item found in {'set' if target_type == 1 else 'dict'} literal")
+
+            if simple_items:
+                if target_type == 1:
+                    item = ExprNodes.SetNode(simple_items[0].pos, args=simple_items)
+                else:
+                    item = ExprNodes.DictNode(simple_items[0].pos, key_value_pairs=simple_items)
+                merged_items.append(item)
+                simple_items = []
+
             s.next()
             if s.sy == '*':
                 s.error("expected expression, found '*'")
             item = p_starred_expr(s)
-            parts.append(item)
-            last_was_simple_item = False
+            merged_items.append(item)
+
         else:
             item = p_test(s)
             if target_type == 2:
@@ -1514,44 +1531,19 @@ def p_dict_or_set_maker(s: PyrexScanner):
                 value = p_test(s)
                 item = ExprNodes.DictItemNode(key.pos, key=key, value=value)
 
-            if last_was_simple_item:
-                parts[-1].append(item)
-            else:
-                parts.append([item])
-                last_was_simple_item = True
+            simple_items.append(item)
 
     s.expect('}')
 
-    # build (merged) set/dict literal
-    merged_items = []
-    items = []
-
-    for part in parts:
-        if isinstance(part, list):
-            # simple items
-            items.extend(part)
-        else:
-            if items:
-                if target_type == 1:
-                    item = ExprNodes.SetNode(items[0].pos, args=items)
-                else:
-                    item = ExprNodes.DictNode(items[0].pos, key_value_pairs=items)
-                merged_items.append(item)
-                items = []
-            merged_items.append(part)
-
-    if items:
-        if target_type == 1:
-            item = ExprNodes.SetNode(items[0].pos, args=items)
-        else:
-            item = ExprNodes.DictNode(items[0].pos, key_value_pairs=items)
-        merged_items.append(item)
-
     if target_type == 1:
+        if simple_items:
+            merged_items.append(ExprNodes.SetNode(simple_items[0].pos, args=simple_items))
         if len(merged_items) == 1 and merged_items[0].is_set_literal:
             return merged_items[0]
         return ExprNodes.MergedSequenceNode(pos, args=merged_items, type=Builtin.set_type)
     else:
+        if simple_items:
+            merged_items.append(ExprNodes.DictNode(simple_items[0].pos, key_value_pairs=simple_items))
         if len(merged_items) == 1 and merged_items[0].is_dict_literal:
             return merged_items[0]
         return ExprNodes.MergedDictNode(pos, keyword_args=merged_items, reject_duplicates=False)
