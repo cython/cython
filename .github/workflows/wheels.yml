@@ -238,10 +238,14 @@ jobs:
       - name: Run tools on wheels
         run: |
           cd ./wheel_check
+          REFNAME="${{ contains(github.ref_name, '"') && 'FAIL' || github.ref_name }}"
+          VERSION="${REFNAME#cython-}"
+          VERSION="${VERSION%%-*}"
+
           ERRORS=0
           for filename in *.whl; do
             if [[ "${{ github.ref_type }}" == 'tag' ]]; then
-              [[ -z "${filename#cython-${{ contains(github.ref_name, '"') && 'FAIL' || github.ref_name }}-*}" ]] || ERRORS=$((ERRORS + 1))
+              [[ -z "${filename##cython-${VERSION}-*}" ]] || ERRORS=$((ERRORS + 1))
             fi
 
             twine check "$filename" || ERRORS=$((ERRORS + 1))

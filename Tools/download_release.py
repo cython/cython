@@ -19,7 +19,7 @@ def find_github_files(version, api_url=GITHUB_API_URL):
     url = f"{api_url}/releases/tags/{version}"
     release, _ = read_url(url, accept="application/vnd.github+json", as_json=True)
 
-    version_marker = f"-{version}-"
+    version_marker = f"-{version.partition('-')[0]}-"
     for asset in release.get('assets', ()):
         url = asset['browser_download_url']
 

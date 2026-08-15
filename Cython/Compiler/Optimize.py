@@ -1310,8 +1310,7 @@ class SwitchTransform(Visitor.EnvTransform):
         if isinstance(cond, ExprNodes.PrimaryCmpNode):
             if cond.cascade is not None:
                 return self.NO_MATCH
-            elif cond.is_c_string_contains() and \
-                   isinstance(cond.operand2, (ExprNodes.UnicodeNode, ExprNodes.BytesNode)):
+            elif cond.operator in ('in', 'not_in') and cond.operand1.type.is_int and cond.operand2.is_string_literal:
                 not_in = cond.operator == 'not_in'
                 if not_in and not allow_not_in:
                     return self.NO_MATCH
@@ -2237,10 +2236,10 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             comprehension_type=Builtin.dict_type)
 
         for yield_expression, yield_stat_node in yield_statements:
+            key, value = yield_expression.args
             append_node = ExprNodes.DictComprehensionAppendNode(
                 yield_expression.pos,
-                key_expr=yield_expression.args[0],
-                value_expr=yield_expression.args[1],
+                dict_item=ExprNodes.DictItemNode(key.pos, key=key, value=value),
                 target=result_node.target)
             Visitor.recursively_replace_node(gen_expr_node, yield_stat_node, append_node)
 
@@ -4999,9 +4998,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self.visitchildren(node)
         args = []
         for arg in node.args:
-            if not arg.is_starred:
-                args.append(arg)
-            elif arg.target.is_sequence_constructor and not arg.target.mult_factor:
+            if isinstance(arg, ExprNodes.StarredUnpackingNode) and (
+                    arg.target.is_sequence_constructor and not arg.target.mult_factor):
                 args.extend(arg.target.args)
             else:
                 args.append(arg)

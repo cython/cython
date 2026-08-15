@@ -2,7 +2,14 @@
 Cython Changelog
 ================
 
-3.3.0b1 (2026-08-??)
+3.3.0rc1 (2026-??-??)
+=====================
+
+Bugs fixed
+----------
+
+
+3.3.0b1 (2026-08-14)
 ====================
 
 Features added
@@ -13,8 +20,12 @@ Features added
   The original names are kept for backwards compatibility.
   (Github issue :issue:`7656`)
 
-* ``except *`` (PEP-654 exception groups) are implemented for Python 3.11 and later.
+* ``except *`` (PEP-654 exception groups) is implemented for Python 3.11 and later.
   (Github issue :issue:`4993`)
+
+* Unpacking in comprehensions (PEP-798) is implemented for list/set/dict comprehensions.
+  It is not yet available for generator expressions.
+  Original patch by Morax.  (Github issue :issue:`7898`)
 
 * The feature set of the shared module can be selected at build time
   by listing named features to include or exclude.
@@ -49,6 +60,9 @@ Features added
 * The typed tuple syntax ``tuple[atype, ...]`` for homogeneous tuples is supported.
   (Github issue :issue:`7798`)
 
+* The return type inference for calls to builtin methods was improved, including dict views.
+  (Github issues :issue:`7887`, :issue:`7888`)
+
 * ``cython.py_int`` (and the same for ``py_float``, ``py_complex`` and ``py_bool``)
   can be used to refer to Python's builtin types in a C type context, e.g. after ``cdef``,
   where they are normally shadowed by the C types of the same name.
@@ -63,6 +77,9 @@ Features added
 
 * ``bytearray.extend(bytes)`` is faster.
   (Github issue :issue:`7797`)
+
+* Single character `in`-tests on ``str``, ``bytes`` and ``bytearray`` are optimised.
+  (Github issue :issue:`3888`)
 
 * ``assert`` conditions are constant-folded.
   (Github issue :issue:`7797`)
@@ -128,7 +145,7 @@ Bugs fixed
 
 * Iterating over a container with an incorrectly declared item type could generate
   incorrect C code in 3.3.0a1.
-  (Github issue :issue:`7775`)
+  (Github issues :issue:`7775`, :issue:`7889`)
 
 * ``NULL`` pointer comparisons could fail to compile with C++ in 3.3.0a1.
   Patch by Vyas Ramasubramani.  (Github issue :issue:`7766`)
@@ -468,6 +485,22 @@ Other changes
 
 * The documentation now uses the "Clarity" Sphinx theme.
   Patch by Libor Jelínek.  (Github issue :issue:`7564`)
+
+
+3.2.10 (2026-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* Unpickling wrappers of compiled functions failed.
+  (Github issue :issue:`7846`)
+
+* A compiler crash was fixed when using comprehension results directly in in-place assignments.
+  Patch by AbhinavMir.  (Github issue :issue:`7846`)
+
+* A compiler crash was fixed when keyword arguments were used in C++ class calls.
+  Patch by Vladimir Saraikin.  (Github issue :issue:`7206`)
 
 
 3.2.9 (2026-07-24)
