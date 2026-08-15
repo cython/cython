@@ -6457,8 +6457,15 @@ class SimpleCallNode(CallNode):
             if isinstance(self.args[0], (SetNode, DictNode, ListNode)):
                 self.args[0].read_only = True
             param_type = self.args[0].infer_type(env)
-            subscripted_types = \
-                param_type.subscripted_types if param_type.supports_container_type else ()
+            subscripted_types = ()
+            if param_type.supports_container_type:
+                if (
+                    function.entry.type != param_type.get_container_type() and
+                    (function.entry.type.is_builtin_sequence or function.entry.type.is_pyanyset_type)
+                ):
+                    subscripted_types = (param_type.infer_iterator_type(), )
+                else:
+                    subscripted_types = param_type.subscripted_types
             if infered_type.is_pytuple_type and not param_type.is_pytuple_type and len(subscripted_types) == 1:
                 # tuple([1, 2]) should be type of tuple[int, ...]
                 # tuple((1, 2)) should be type of tuple[int, int]
@@ -9422,7 +9429,6 @@ class ListNode(SequenceNode):
         return ()
 
     def infer_type(self, env):
-        # TODO: Infer non-object list arrays.
         if len(self.args) > 0 and self.read_only:
             item_type = infer_container_type(env, self.args)
             if item_type is not py_object_type:

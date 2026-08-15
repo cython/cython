@@ -178,6 +178,41 @@ def test_initialised_subscripted_frozenset(arg_a: list[int], arg_b):
             cython.typeof(i8) + (' object' if not cython.compiled else '')
     )
 
+def test_infer_frozenset_from_list():
+    """
+    >>> test_infer_frozenset_from_list()
+    frozenset[int object] object
+    frozenset object
+    """
+    s1 = frozenset([1, 2, 3])
+    print(cython.typeof(s1) + ('[int object] object' if not cython.compiled else ''))
+    s2 = frozenset([1, "a"])
+    print(cython.typeof(s2) + (' object' if not cython.compiled else ''))
+
+def test_infer_frozenset_from_tuple():
+    """
+    >>> test_infer_frozenset_from_tuple()
+    frozenset object
+    frozenset[Python object] object
+    """
+    # FIXME
+    s1 = frozenset((1, 2, 3))
+    print(cython.typeof(s1) + (' object' if not cython.compiled else ''))
+    s2 = frozenset((1, "a"))
+    print(cython.typeof(s2) + ('[Python object] object' if not cython.compiled else ''))
+
+
+def test_infer_frozenset_from_dict():
+    """
+    >>> test_infer_frozenset_from_dict()
+    frozenset[int object] object
+    frozenset[Python object] object
+    """
+    s1 = frozenset({1: 'a', 2: 'b', 3: 'c'})
+    print(cython.typeof(s1) + ('[int object] object' if not cython.compiled else ''))
+    s2 = frozenset({'a': 'a', 2: 'b', 3: 'c'})
+    print(cython.typeof(s2) + ('[Python object] object' if not cython.compiled else ''))
+
 if sys.version_info >= (3, 15) or cython.compiled:
 
     def test_initialised_subscripted_frozendict(arg_a: dict[str,int], arg_b):
