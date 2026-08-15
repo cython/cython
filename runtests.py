@@ -2262,11 +2262,14 @@ def _run_pipe(command, workdir, env, capture=True):
             next_stdout = p.stdin
         next_stdout.close()
 
+        # Wait for the final command to finish and collect its output.
+        _out, _ = processes[0].communicate(timeout=8*60)
+
+        # Make sure all commands have terminated and report the first failure code (left to right).
         res = 0
-        _out = None
         for p in reversed(processes):
-            _out, _ = p.communicate()  # last '_out' wins
-            res = res or p.returncode  # first failure wins
+            p.wait()
+            res = res or p.returncode
 
         _err = stderr.read() if stderr is not None else b''
 
