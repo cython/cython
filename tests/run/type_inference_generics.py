@@ -312,7 +312,7 @@ if sys.version_info >= (3, 15) or cython.compiled:
         s14 = frozendict({(1, 2): 'a', ('a', 'b'): 'c'})  # in-consistent tuples should not have inferred subscripts
         print(
             cython.typeof(s14) + ('[Python object,str object] object' if not cython.compiled else ''),
-            cython.typeof(s14[2]) + (' object' if not cython.compiled else '')
+            cython.typeof(s14[(1, 2)]) + (' object' if not cython.compiled else '')
         )
 
 
