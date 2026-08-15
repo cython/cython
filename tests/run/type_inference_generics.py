@@ -118,71 +118,97 @@ def test_dict_builtin_methods():
 def bar():
     return object()
 
-if cython.compiled:
+def test_initialised_subscripted_frozenset(arg_a: list[int], arg_b):
+    """
+    >>> test_initialised_subscripted_frozenset([], [])
+    * simple frozenset:
+    frozenset[int object] object int object
+    frozenset object
+    frozenset object Python object
+    frozenset object Python object
+    frozenset object Python object
+    * frozenset from function:
+    frozenset[int object] object
+    frozenset object
+    * frozenset from variable:
+    frozenset[int object] object
+    frozenset object
+    * nested container:
+    frozenset[tuple object] object tuple object
+    frozenset[tuple object] object tuple object
+    """
+    print("* simple frozenset:")
+    s1 = frozenset({1})
+    for i1 in s1:
+        print(
+            cython.typeof(s1) + ('[int object] object' if not cython.compiled else ''),
+            cython.typeof(i1) + (' object' if not cython.compiled else '')
+        )
+    s2 = frozenset()
+    print(cython.typeof(s2) + (' object' if not cython.compiled else ''))
 
-    def test_initialised_subscripted_frozenset(a: list[int], b):
-        """
-        >>> test_initialised_subscripted_frozenset([], [])
-        frozenset[int object] object int object
-        frozenset object
-        frozenset object Python object
-        frozenset object Python object
-        frozenset object Python object
-        frozenset[int object] object
-        frozenset object
-        frozenset[int object] object
-        frozenset object
-        frozenset[tuple object] object tuple object
-        """
-        # TODO: Test nested types like frozenset({(1, 2)})
-        s1 = frozenset({1})
-        for i1 in s1:
-            print(cython.typeof(s1), cython.typeof(i1))
+    s3 = frozenset({1, 3.0, "5"})
+    for i3 in s3:
+        print(
+            cython.typeof(s3) + (' object' if not cython.compiled else ''),
+            cython.typeof(i3) if cython.compiled else "Python object"
+        )
 
-        s2 = frozenset()
-        print(cython.typeof(s2))
+    print("* frozenset from function:")
+    s4 = frozenset({len(s3)})
+    print(cython.typeof(s4) + ('[int object] object' if not cython.compiled else ''))
 
-        s3 = frozenset({1, 3.0, "5"})
-        for i3 in s3:
-            print(cython.typeof(s3), cython.typeof(i3))
+    s5 = frozenset({bar()})
+    print(cython.typeof(s5) + (' object' if not cython.compiled else ''))
 
-        s4 = frozenset({len(s3)})
-        print(cython.typeof(s4))
+    print("* frozenset from variable:")
+    s6 = frozenset(arg_a)
+    print(cython.typeof(s6) + ('[int object] object' if not cython.compiled else ''))
 
-        s5 = frozenset({bar()})
-        print(cython.typeof(s5))
+    s7 = frozenset(arg_b)
+    print(cython.typeof(s7) + (' object' if not cython.compiled else ''))
 
-        s6 = frozenset(a)
-        print(cython.typeof(s6))
-
-        s7 = frozenset(b)
-        print(cython.typeof(s7))
-
-        s8 = frozenset({(1, 2)})
-        for i8 in s8:
-            print(cython.typeof(s8), cython.typeof(i8))
+    print("* nested container:")
+    # FIXME: the result should be:
+    # frozenset[tuple[int object, int object] object] object tuple[int object, int object] object
+    s8 = frozenset({(1, 2), (3, 4)})
+    for i8 in s8:
+        print(
+            cython.typeof(s8) + ('[tuple object] object' if not cython.compiled else ''),
+            cython.typeof(i8) + (' object' if not cython.compiled else '')
+    )
 
 if sys.version_info >= (3, 15) or cython.compiled:
 
-    def test_initialised_subscripted_frozendict(a: dict[str,int], b):
+    def test_initialised_subscripted_frozendict(arg_a: dict[str,int], arg_b):
         """
         >>> test_initialised_subscripted_frozendict({}, {})
+        * basic frozendict:
         frozendict[int object,str object] object int object
         frozendict object
+        * non-uniform keys and values:
         frozendict[Python object,int object] object Python object
         frozendict[Python object,int object] object Python object
         frozendict[Python object,int object] object Python object
         frozendict[int object,Python object] object int object
         frozendict[int object,Python object] object int object
         frozendict[int object,Python object] object int object
+        * len() function:
         frozendict[int object,str object] object
         frozendict[str object,int object] object
+        * not annotated function:
         frozendict[Python object,int object] object
         frozendict[int object,Python object] object
+        * frozendict created from variable:
         frozendict[str object,int object] object
         frozendict object
+        * recursive containers:
+        frozendict[int object,list object] object list object
+        frozendict[int object,tuple[str object,str object] object] object tuple[str object,str object] object
+        frozendict[int object,Python object] object Python object
+        frozendict[Python object,str object] object str object
         """
-        # TODO: Test nested types like frozendict({1: ['a', 'b']})
+        print("* basic frozendict:")
         s1 = frozendict({1: 'a'})
         for i1 in s1:
             print(
@@ -193,11 +219,13 @@ if sys.version_info >= (3, 15) or cython.compiled:
         s2 = frozendict()
         print(cython.typeof(s2) + (' object' if not cython.compiled else ''))
 
+        print("* non-uniform keys and values:")
+
         s3 = frozendict({1: 1, 3.0: 2, "5": 3})
         for i3 in s3:
             print(
                 cython.typeof(s3) + ('[Python object,int object] object' if not cython.compiled else ''),
-                cython.typeof(i3 + (' object' if not cython.compiled else ''))
+                cython.typeof(i3) + (' object' if not cython.compiled else '')
             )
 
         s4 = frozendict({1: 1, 2: 3.0, 3: "5"})
@@ -207,23 +235,50 @@ if sys.version_info >= (3, 15) or cython.compiled:
                 cython.typeof(i4)
             )
 
+        print("* len() function:")
         s5 = frozendict({len(s3): 'a'})
         print(cython.typeof(s5) + ('[int object,str object] object' if not cython.compiled else ''))
 
         s6 = frozendict({'a': len(s3)})
         print(cython.typeof(s6) + ('[str object,int object] object' if not cython.compiled else ''))
 
+        print("* not annotated function:")
         s7 = frozendict({bar(): 1})
         print(cython.typeof(s7) + ('[Python object,int object] object' if not cython.compiled else ''))
 
         s8 = frozendict({1: bar()})
         print(cython.typeof(s8) + ('[int object,Python object] object' if not cython.compiled else ''))
 
-        s9 = frozendict(a)
+        print("* frozendict created from variable:")
+        s9 = frozendict(arg_a)
         print(cython.typeof(s9) + ('[str object,int object] object' if not cython.compiled else ''))
 
-        s10 = frozendict(b)
+        s10 = frozendict(arg_b)
         print(cython.typeof(s10) + (' object' if not cython.compiled else ''))
+
+        print("* recursive containers:")
+
+        s11 = frozendict({1: ['a', 'b']})  # mutable containers should not have inferred subscripts
+        print(
+            cython.typeof(s11) + ('[int object,list object] object' if not cython.compiled else ''),
+            cython.typeof(s11[1]) + (' object' if not cython.compiled else '')
+        )
+
+        s12 = frozendict({1: ('a', 'b'), 2: ('a', 'b')})  # consistent tuples should have inferred subscripts
+        print(
+            cython.typeof(s12) + ('[int object,tuple[str object,str object] object] object' if not cython.compiled else ''),
+            cython.typeof(s12[1]) + ('tuple[str object,str object] object' if not cython.compiled else '')
+        )
+        s13 = frozendict({1: ('a', 'b'), 2: ('a', 'b', 'c')})  # in-consistent tuples should not have inferred subscripts
+        print(
+            cython.typeof(s13) + ('[int object,Python object] object' if not cython.compiled else ''),
+            cython.typeof(s13[2]) + (' object' if not cython.compiled else '')
+        )
+        s14 = frozendict({(1, 2): 'a', ('a', 'b'): 'c'})  # in-consistent tuples should not have inferred subscripts
+        print(
+            cython.typeof(s14) + ('[Python object,str object] object' if not cython.compiled else ''),
+            cython.typeof(s14[2]) + (' object' if not cython.compiled else '')
+        )
 
 
 def test_initialised_subscripted_mutables_types():
@@ -252,29 +307,43 @@ def test_initialised_subscripted_mutables_types():
         cython.typeof(d2) + (' object' if not cython.compiled else '')
     )
 
-
-def test_initialised_tuple(l: list[str]):
+def test_initialised_tuple(arg_l: list[str]):
     """
     >>> test_initialised_tuple(['bar'])
+    * simple tuple
     tuple object
     tuple[long,long,str object] object
     tuple object
+    tuple[str object,str object] object
+    * tuple constructed from variable
     tuple object
     tuple[long,long,str object] object
     tuple[str object,...] object
-    tuple[str object,str object] object
+    * tuple containing containers
+    tuple[long,str object,list object] object
+    tuple[long,str object,(long, long, long)] object
     """
+    print("* simple tuple")
     t1 = (1, 2, 3)
     print(cython.typeof(t1) + (' object' if not cython.compiled else ''))
     t2 = (1, 2, 'bar')
     print(cython.typeof(t2) + ('[long,long,str object] object' if not cython.compiled else ''))
     t3 = ()
     print(cython.typeof(t3) + (' object' if not cython.compiled else ''))
-    t4 = tuple(t1)
-    print(cython.typeof(t4) + (' object' if not cython.compiled else ''))
-    t5 = tuple(t2)
-    print(cython.typeof(t5) + ('[long,long,str object] object' if not cython.compiled else ''))
-    t6 = tuple(l)
-    print(cython.typeof(t6) + ('[str object,...] object' if not cython.compiled else ''))
-    t7 = tuple(("bar", "foo"))
-    print(cython.typeof(t7) + ('[str object,str object] object' if not cython.compiled else ''))
+    t4 = tuple(("bar", "foo"))
+    print(cython.typeof(t4) + ('[str object,str object] object' if not cython.compiled else ''))
+
+    print("* tuple constructed from variable")
+    t5 = tuple(t1)
+    print(cython.typeof(t5) + (' object' if not cython.compiled else ''))
+    t6 = tuple(t2)
+    print(cython.typeof(t6) + ('[long,long,str object] object' if not cython.compiled else ''))
+    t7 = tuple(arg_l)
+    print(cython.typeof(t7) + ('[str object,...] object' if not cython.compiled else ''))
+
+    print("* tuple containing containers")
+    t8 = (1, "bar", [1, 2, 3])
+    # mutable containers must not have inferred subscripted types
+    print(cython.typeof(t8) + ('[long,str object,list object] object' if not cython.compiled else ''))
+    t9 = (1, "bar", (1, 2, 3))
+    print(cython.typeof(t9) + ('[long,str object,(long, long, long)] object' if not cython.compiled else ''))
