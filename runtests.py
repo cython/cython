@@ -24,7 +24,7 @@ import zlib
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, TemporaryFile
 
 try:
     IS_PYPY = platform.python_implementation() == 'PyPy'
@@ -2207,15 +2207,18 @@ class EndToEndTest(TimedTest):
                 continue
             time_category = 'etoe-build' if (
                 'setup.py' in command or 'cythonize.py' in command or 'cython.py' in command) else 'etoe-run'
+
             with self.stats.time('%s(%d)' % (self.name, command_no), 'c', time_category):
-                if self.capture:
+                if '|' in command:
+                    res, _out, _err = _run_pipe(command, workdir, env, capture=self.capture)
+                elif self.capture:
                     p = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, env=env, cwd=workdir)
                     _out, _err = p.communicate()
                     res = p.returncode
                 else:
-                    p = subprocess.call(command, env=env, cwd=workdir)
+                    res = subprocess.call(command, env=env, cwd=workdir)
                     _out, _err = b'', b''
-                    res = p
+
             cmd.append(command)
             out.append(_out.decode('utf-8'))
             err.append(_err.decode('utf-8'))
@@ -2235,6 +2238,51 @@ class EndToEndTest(TimedTest):
 
         self.stats.update_module_sizes(workdir)
         self.success = True
+
+
+def _run_pipe(command, workdir, env, capture=True):
+    subcommands = []
+    last_start = 0
+    for i, arg in enumerate(command):
+        if arg == '|':
+            subcommands.append(command[last_start:i])
+            last_start = i + 1
+    subcommands.append(command[last_start:])
+
+    with TemporaryFile() as stderr:
+        next_stdout = subprocess.PIPE
+        if not capture:
+            next_stdout = stderr = None
+
+        # Chain sub-commands right to left, creating last stdin as next stdout.
+        processes = []
+        for subcommand in reversed(subcommands):
+            p = subprocess.Popen(subcommand, stdin=subprocess.PIPE, stderr=stderr, stdout=next_stdout, env=env, cwd=workdir)
+            processes.append(p)
+            next_stdout = p.stdin
+        next_stdout.close()
+
+        # Wait for the final command to finish and collect its output.
+        _out, _ = processes[0].communicate(timeout=8*60)
+
+        # Make sure all commands have terminated and report the first failure code (left to right).
+        res = 0
+        for p in reversed(processes):
+            p.wait()
+            res = res or p.returncode
+
+        _err = stderr.read() if stderr is not None else b''
+
+    if not capture:
+        if _out:
+            sys.stdout.flush()
+            sys.stdout.buffer.write(_out)
+        if _err:
+            sys.stderr.flush()
+            sys.stderr.buffer.write(_err)
+        _out = _err = b''
+
+    return res, _out, _err
 
 
 # TODO: Support cython_freeze needed here as well.

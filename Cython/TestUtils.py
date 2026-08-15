@@ -357,16 +357,20 @@ def unpack_source_tree(tree_file, workdir, cython_root):
                     cur_file = open(path, 'wb')
                 elif cur_file is not None:
                     cur_file.write(line)
-                elif line.strip() and not line.lstrip().startswith(b'#'):
-                    if line.strip() not in (b'"""', b"'''"):
-                        command = shlex.split(line.decode('utf8'))
-                        if not command: continue
-                        # In Python 3: prog, *args = command
-                        prog, args = command[0], command[1:]
-                        try:
-                            header.append(programs[prog]+args)
-                        except KeyError:
-                            header.append(command)
+                elif line.strip() in (b'', b'"""', b"'''") or line.lstrip().startswith(b'#'):
+                    pass
+                else:
+                    command = shlex.split(line.decode('utf8'))
+                    if not command: continue
+                    args = []
+                    next_is_command = True
+                    for arg in command:
+                        if next_is_command and arg in programs:
+                            args.extend(programs[arg])
+                        else:
+                            args.append(arg)
+                            next_is_command = arg == '|'
+                    header.append(args)
         finally:
             if cur_file is not None:
                 cur_file.close()
