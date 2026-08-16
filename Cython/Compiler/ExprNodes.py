@@ -6417,18 +6417,6 @@ class SimpleCallNode(CallNode):
     def infer_type(self, env):
         infered_type = super().infer_type(env)
         function = self.function
-        # FIXME: To be refactored and tested
-        # Reproducer:
-        # def main():
-        #     temps_free: dict[tuple, tuple] = {
-        #         ('a', True): (['a'], {'a'}),
-        #         ('b', True): (['b'], {'b'})
-        #     }
-        #     freelist = temps_free.get(('a', True))
-        #     print('temps_free', cython.typeof(temps_free))
-        #     print('freelist', cython.typeof(freelist))
-        #     print('freelist[1]', cython.typeof(freelist[1]))
-        #     freelist[1].remove('a')
         if (
                 function.is_name and function.entry and
                 function.entry.type and
@@ -9244,8 +9232,6 @@ class TupleNode(SequenceNode):
         if self.mult_factor or not self.args:
             return tuple_type
         arg_types = [arg.infer_type(env) for arg in self.args]
-        # if any(type.is_pyobject or type.is_memoryviewslice or type.is_unspecified or type.is_fused
-        #        for type in arg_types):
         if len(arg_types) > 0:
             return tuple_type.specialize_here(self.pos, env, arg_types)
         return env.declare_tuple_type(self.pos, arg_types).type
