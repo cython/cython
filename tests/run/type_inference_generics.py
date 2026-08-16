@@ -169,8 +169,6 @@ def test_initialised_subscripted_frozenset(arg_a: list[int], arg_b):
     print(cython.typeof(s7) + (' object' if not cython.compiled else ''))
 
     print("* nested container:")
-    # FIXME: the result should be:
-    # frozenset[tuple[int object, int object] object] object tuple[int object, int object] object
     s8 = frozenset({(1, 2), (3, 4)})
     for i8 in s8:
         print(
