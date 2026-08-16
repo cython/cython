@@ -260,14 +260,14 @@ if sys.version_info >= (3, 15) or cython.compiled:
         for i3 in s3:
             print(
                 cython.typeof(s3) + ('[Python object,int object] object' if not cython.compiled else ''),
-                cython.typeof(i3) + (' object' if not cython.compiled else '')
+                'Python object' if not cython.compiled else cython.typeof(i3)
             )
 
         s4 = frozendict({1: 1, 2: 3.0, 3: "5"})
         for i4 in s4:
             print(
                 cython.typeof(s4) + ('[int object,Python object] object' if not cython.compiled else ''),
-                cython.typeof(i4)
+                cython.typeof(i4) + (' object' if not cython.compiled else '')
             )
 
         print("* len() function:")
@@ -302,12 +302,12 @@ if sys.version_info >= (3, 15) or cython.compiled:
         s12 = frozendict({1: ('a', 'b'), 2: ('a', 'b')})  # consistent tuples should have inferred subscripts
         print(
             cython.typeof(s12) + ('[int object,tuple[str object,str object] object] object' if not cython.compiled else ''),
-            cython.typeof(s12[1]) + ('tuple[str object,str object] object' if not cython.compiled else '')
+            cython.typeof(s12[1]) + ('[str object,str object] object' if not cython.compiled else '')
         )
         s13 = frozendict({1: ('a', 'b'), 2: ('a', 'b', 'c')})  # in-consistent tuples should not have inferred subscripts
         print(
             cython.typeof(s13) + ('[int object,Python object] object' if not cython.compiled else ''),
-            cython.typeof(s13[2]) + (' object' if not cython.compiled else '')
+            'Python object' if not cython.compiled else cython.typeof(s13[2])
         )
         s14 = frozendict({(1, 2): 'a', ('a', 'b'): 'c'})  # in-consistent tuples should not have inferred subscripts
         print(
