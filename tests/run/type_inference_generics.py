@@ -122,27 +122,27 @@ def test_initialised_subscripted_frozenset(arg_a: list[int], arg_b):
     """
     >>> test_initialised_subscripted_frozenset([], [])
     * simple frozenset:
-    frozenset[int object] object int object
+    frozenset[long] object long
     frozenset object
     frozenset object Python object
     frozenset object Python object
     frozenset object Python object
     * frozenset from function:
-    frozenset[int object] object
+    frozenset[Py_ssize_t] object
     frozenset object
     * frozenset from variable:
     frozenset[int object] object
     frozenset object
     * nested container:
-    frozenset[tuple object] object tuple object
-    frozenset[tuple object] object tuple object
+    frozenset[(long, long)] object tuple object
+    frozenset[(long, long)] object tuple object
     """
     print("* simple frozenset:")
     s1 = frozenset({1})
     for i1 in s1:
         print(
-            cython.typeof(s1) + ('[int object] object' if not cython.compiled else ''),
-            cython.typeof(i1) + (' object' if not cython.compiled else '')
+            cython.typeof(s1) + ('[long] object' if not cython.compiled else ''),
+            'long' if not cython.compiled else cython.typeof(i1)
         )
     s2 = frozenset()
     print(cython.typeof(s2) + (' object' if not cython.compiled else ''))
@@ -156,7 +156,7 @@ def test_initialised_subscripted_frozenset(arg_a: list[int], arg_b):
 
     print("* frozenset from function:")
     s4 = frozenset({len(s3)})
-    print(cython.typeof(s4) + ('[int object] object' if not cython.compiled else ''))
+    print(cython.typeof(s4) + ('[Py_ssize_t] object' if not cython.compiled else ''))
 
     s5 = frozenset({bar()})
     print(cython.typeof(s5) + (' object' if not cython.compiled else ''))
@@ -172,18 +172,18 @@ def test_initialised_subscripted_frozenset(arg_a: list[int], arg_b):
     s8 = frozenset({(1, 2), (3, 4)})
     for i8 in s8:
         print(
-            cython.typeof(s8) + ('[tuple object] object' if not cython.compiled else ''),
+            cython.typeof(s8) + ('[(long, long)] object' if not cython.compiled else ''),
             cython.typeof(i8) + (' object' if not cython.compiled else '')
     )
 
 def test_infer_frozenset_from_list():
     """
     >>> test_infer_frozenset_from_list()
-    frozenset[int object] object
+    frozenset[long] object
     frozenset object
     """
     s1 = frozenset([1, 2, 3])
-    print(cython.typeof(s1) + ('[int object] object' if not cython.compiled else ''))
+    print(cython.typeof(s1) + ('[long] object' if not cython.compiled else ''))
     s2 = frozenset([1, "a"])
     print(cython.typeof(s2) + (' object' if not cython.compiled else ''))
 
@@ -202,11 +202,11 @@ def test_infer_frozenset_from_tuple():
 def test_infer_frozenset_from_dict():
     """
     >>> test_infer_frozenset_from_dict()
-    frozenset[int object] object
+    frozenset[long] object
     frozenset[Python object] object
     """
     s1 = frozenset({1: 'a', 2: 'b', 3: 'c'})
-    print(cython.typeof(s1) + ('[int object] object' if not cython.compiled else ''))
+    print(cython.typeof(s1) + ('[long] object' if not cython.compiled else ''))
     s2 = frozenset({'a': 'a', 2: 'b', 3: 'c'})
     print(cython.typeof(s2) + ('[Python object] object' if not cython.compiled else ''))
 
@@ -216,36 +216,36 @@ if sys.version_info >= (3, 15) or cython.compiled:
         """
         >>> test_initialised_subscripted_frozendict({}, {})
         * basic frozendict:
-        frozendict[int object,str object] object int object
+        frozendict[long,str object] object long
         frozendict object
         * non-uniform keys and values:
-        frozendict[Python object,int object] object Python object
-        frozendict[Python object,int object] object Python object
-        frozendict[Python object,int object] object Python object
-        frozendict[int object,Python object] object int object
-        frozendict[int object,Python object] object int object
-        frozendict[int object,Python object] object int object
+        frozendict[Python object,long] object Python object
+        frozendict[Python object,long] object Python object
+        frozendict[Python object,long] object Python object
+        frozendict[long,Python object] object long
+        frozendict[long,Python object] object long
+        frozendict[long,Python object] object long
         * len() function:
-        frozendict[int object,str object] object
-        frozendict[str object,int object] object
+        frozendict[Py_ssize_t,str object] object
+        frozendict[str object,Py_ssize_t] object
         * not annotated function:
-        frozendict[Python object,int object] object
-        frozendict[int object,Python object] object
+        frozendict[Python object,long] object
+        frozendict[long,Python object] object
         * frozendict created from variable:
         frozendict[str object,int object] object
         frozendict object
         * recursive containers:
-        frozendict[int object,list object] object list object
-        frozendict[int object,tuple[str object,str object] object] object tuple[str object,str object] object
-        frozendict[int object,Python object] object Python object
+        frozendict[long,list object] object list object
+        frozendict[long,tuple[str object,str object] object] object tuple[str object,str object] object
+        frozendict[long,Python object] object Python object
         frozendict[Python object,str object] object str object
         """
         print("* basic frozendict:")
         s1 = frozendict({1: 'a'})
         for i1 in s1:
             print(
-                cython.typeof(s1) + ('[int object,str object] object' if not cython.compiled else ''),
-                cython.typeof(i1) + (' object' if not cython.compiled else '')
+                cython.typeof(s1) + ('[long,str object] object' if not cython.compiled else ''),
+                'long' if not cython.compiled else cython.typeof(i1)
             )
         s2 = frozendict()
         print(cython.typeof(s2) + (' object' if not cython.compiled else ''))
@@ -254,27 +254,27 @@ if sys.version_info >= (3, 15) or cython.compiled:
         s3 = frozendict({1: 1, 3.0: 2, "5": 3})
         for i3 in s3:
             print(
-                cython.typeof(s3) + ('[Python object,int object] object' if not cython.compiled else ''),
+                cython.typeof(s3) + ('[Python object,long] object' if not cython.compiled else ''),
                 'Python object' if not cython.compiled else cython.typeof(i3)
             )
         s4 = frozendict({1: 1, 2: 3.0, 3: "5"})
         for i4 in s4:
             print(
-                cython.typeof(s4) + ('[int object,Python object] object' if not cython.compiled else ''),
-                cython.typeof(i4) + (' object' if not cython.compiled else '')
+                cython.typeof(s4) + ('[long,Python object] object' if not cython.compiled else ''),
+                'long' if not cython.compiled else cython.typeof(i4)
             )
 
         print("* len() function:")
         s5 = frozendict({len(s3): 'a'})
-        print(cython.typeof(s5) + ('[int object,str object] object' if not cython.compiled else ''))
+        print(cython.typeof(s5) + ('[Py_ssize_t,str object] object' if not cython.compiled else ''))
         s6 = frozendict({'a': len(s3)})
-        print(cython.typeof(s6) + ('[str object,int object] object' if not cython.compiled else ''))
+        print(cython.typeof(s6) + ('[str object,Py_ssize_t] object' if not cython.compiled else ''))
 
         print("* not annotated function:")
         s7 = frozendict({bar(): 1})
-        print(cython.typeof(s7) + ('[Python object,int object] object' if not cython.compiled else ''))
+        print(cython.typeof(s7) + ('[Python object,long] object' if not cython.compiled else ''))
         s8 = frozendict({1: bar()})
-        print(cython.typeof(s8) + ('[int object,Python object] object' if not cython.compiled else ''))
+        print(cython.typeof(s8) + ('[long,Python object] object' if not cython.compiled else ''))
 
         print("* frozendict created from variable:")
         s9 = frozendict(arg_a)
@@ -285,17 +285,17 @@ if sys.version_info >= (3, 15) or cython.compiled:
         print("* recursive containers:")
         s11 = frozendict({1: ['a', 'b']})  # mutable containers should not have inferred subscripts
         print(
-            cython.typeof(s11) + ('[int object,list object] object' if not cython.compiled else ''),
+            cython.typeof(s11) + ('[long,list object] object' if not cython.compiled else ''),
             cython.typeof(s11[1]) + (' object' if not cython.compiled else '')
         )
         s12 = frozendict({1: ('a', 'b'), 2: ('a', 'b')})  # consistent tuples should have inferred subscripts
         print(
-            cython.typeof(s12) + ('[int object,tuple[str object,str object] object] object' if not cython.compiled else ''),
+            cython.typeof(s12) + ('[long,tuple[str object,str object] object] object' if not cython.compiled else ''),
             cython.typeof(s12[1]) + ('[str object,str object] object' if not cython.compiled else '')
         )
         s13 = frozendict({1: ('a', 'b'), 2: ('a', 'b', 'c')})  # in-consistent tuples should not have inferred subscripts
         print(
-            cython.typeof(s13) + ('[int object,Python object] object' if not cython.compiled else ''),
+            cython.typeof(s13) + ('[long,Python object] object' if not cython.compiled else ''),
             'Python object' if not cython.compiled else cython.typeof(s13[2])
         )
         s14 = frozendict({(1, 2): 'a', ('a', 'b'): 'c'})  # in-consistent tuples should not have inferred subscripts
