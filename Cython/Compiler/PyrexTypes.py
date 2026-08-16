@@ -5310,6 +5310,21 @@ class CTupleType(CType):
         new_entry = self.entry.scope.declare_tuple_type(self.entry.pos, components)
         return new_entry.type
 
+    def infer_indexed_type(self, at_index=None):
+        if at_index.has_constant_result():
+            index = at_index.constant_result
+            if index < 0:
+                index += self.size
+            if 0 <= index < self.size:
+                return self.components[index]
+        item_types = set(self.components)
+        if len(item_types) == 1:
+            return item_types.pop()
+        return py_object_type
+
+    def infer_iterator_type(self):
+        return reduce_spanning_types(self.components)
+
 
 def c_tuple_type(components):
     components = tuple(components)

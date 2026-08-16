@@ -4372,15 +4372,7 @@ class IndexNode(_IndexingBaseNode):
             elif base_type.is_ptr or base_type.is_array:
                 return base_type.base_type
             elif base_type.is_ctuple and isinstance(self.index, IntNode):
-                if self.index.has_constant_result():
-                    index = self.index.constant_result
-                    if index < 0:
-                        index += base_type.size
-                    if 0 <= index < base_type.size:
-                        return base_type.components[index]
-                item_types = set(base_type.components)
-                if len(item_types) == 1:
-                    return item_types.pop()
+                return base_type.infer_indexed_type(self.index)
             elif base_type.is_memoryviewslice:
                 if base_type.ndim == 0:
                     pass  # probably an error, but definitely don't know what to do - return pyobject for now
@@ -6458,7 +6450,7 @@ class SimpleCallNode(CallNode):
                 self.args[0].read_only = True
             param_type = self.args[0].infer_type(env)
             subscripted_types = ()
-            if param_type.supports_container_type:
+            if param_type.supports_container_type or param_type.is_ctuple:
                 if (
                     function.entry.type != param_type.get_container_type() and
                     (function.entry.type.is_builtin_sequence or function.entry.type.is_pyanyset_type)

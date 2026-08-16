@@ -192,12 +192,11 @@ def test_infer_frozenset_from_list():
 def test_infer_frozenset_from_tuple():
     """
     >>> test_infer_frozenset_from_tuple()
-    frozenset object
+    frozenset[long] object
     frozenset[Python object] object
     """
-    # FIXME
     s1 = frozenset((1, 2, 3))
-    print(cython.typeof(s1) + (' object' if not cython.compiled else ''))
+    print(cython.typeof(s1) + ('[long] object' if not cython.compiled else ''))
     s2 = frozenset((1, "a"))
     print(cython.typeof(s2) + ('[Python object] object' if not cython.compiled else ''))
 
