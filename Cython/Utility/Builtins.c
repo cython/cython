@@ -524,10 +524,14 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
     return (long)(Py_UCS4)-1;
 }
 
-
 //////////////////// py_dict_keys.proto ////////////////////
 
+#define __Pyx_PyDict_keys_TypePtr  (&PyDictKeys_Type)
+#define __Pyx_PyDict_keys_Check(obj)  PyObject_TypeCheck((obj), __Pyx_PyDict_keys_TypePtr)
+#define __Pyx_PyDict_keys_CheckExact(obj)  Py_IS_TYPE((obj), __Pyx_PyDict_keys_TypePtr)
+
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d); /*proto*/
+
 
 //////////////////// py_dict_keys ////////////////////
 
@@ -546,6 +550,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Keys(PyObject* d) {
 }
 
 //////////////////// py_dict_values.proto ////////////////////
+
+#define __Pyx_PyDict_values_TypePtr  (&PyDictKeys_Type)
+#define __Pyx_PyDict_values_Check(obj)  PyObject_TypeCheck((obj), __Pyx_PyDictValues_TypePtr)
+#define __Pyx_PyDict_values_CheckExact(obj)  Py_IS_TYPE((obj), __Pyx_PyDictValues_TypePtr)
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d); /*proto*/
 
@@ -566,6 +574,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenDict_Values(PyObject* d) {
 }
 
 //////////////////// py_dict_items.proto ////////////////////
+
+#define __Pyx_PyDict_items_TypePtr  (&PyDictKeys_Type)
+#define __Pyx_PyDict_items_Check(obj)  PyObject_TypeCheck((obj), __Pyx_PyDictItems_TypePtr)
+#define __Pyx_PyDict_items_CheckExact(obj)  Py_IS_TYPE((obj), __Pyx_PyDictItems_TypePtr)
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
 
@@ -672,54 +684,61 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 
 //////////////////// pyfrozenset_new.proto ////////////////////
 
-static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
+static PyObject* __Pyx_PyFrozenSet_New(PyObject* it); /*proto*/
 
 //////////////////// pyfrozenset_new ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallNoArg
 
-static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
-    if (it) {
-        PyObject* result;
-#if CYTHON_COMPILING_IN_PYPY
-        // PyPy currently lacks PyFrozenSet_CheckExact() and PyFrozenSet_New()
-        PyObject* args;
-        args = PyTuple_Pack(1, it);
-        if (unlikely(!args))
-            return NULL;
-        result = PyObject_Call((PyObject*)&PyFrozenSet_Type, args, NULL);
-        Py_DECREF(args);
-        return result;
-#else
-        if (PyFrozenSet_CheckExact(it)) {
-            Py_INCREF(it);
-            return it;
-        }
-        result = PyFrozenSet_New(it);
-        if (unlikely(!result))
-            return NULL;
-        if ((__PYX_LIMITED_VERSION_HEX >= 0x030A0000)
-#if CYTHON_COMPILING_IN_LIMITED_API
-            || __Pyx_get_runtime_version() >= 0x030A0000
-#endif
-            )
-            return result;
-        {
-            Py_ssize_t size = __Pyx_PySet_GET_SIZE(result);
-            if (likely(size > 0))
-                return result;
-#if !CYTHON_ASSUME_SAFE_SIZE
-            if (unlikely(size < 0)) {
-                Py_DECREF(result);
-                return NULL;
-            }
-#endif
-        }
-        // empty frozenset is a singleton (on Python <3.10)
-        // seems wasteful, but CPython does the same
-        Py_DECREF(result);
-#endif
+static PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
+    // NOTE: assumes it != NULL, unlike PyFrozenSet_New().
+    PyObject* result;
+    if (PyFrozenSet_CheckExact(it)) {
+        Py_INCREF(it);
+        return it;
     }
-    return __Pyx_PyObject_CallNoArg((PyObject*) &PyFrozenSet_Type);
+    result = PyFrozenSet_New(it);
+    if (unlikely(!result)) {
+        return NULL;
+    }
+    if ((__PYX_LIMITED_VERSION_HEX >= 0x030A0000)
+#if CYTHON_COMPILING_IN_LIMITED_API
+        || likely(__Pyx_get_runtime_version() >= 0x030A0000)
+#endif
+        )
+        return result;
+
+    Py_ssize_t size = __Pyx_PySet_GET_SIZE(result);
+    if (likely(size > 0))
+        return result;
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(size < 0)) {
+        Py_DECREF(result);
+        return NULL;
+    }
+#endif
+    // empty frozenset is a singleton (on Python <3.10)
+    // seems wasteful, but CPython does the same
+    Py_DECREF(result);
+    return PyFrozenSet_New(NULL);
+}
+
+
+//////////////////// pyfrozenset_fromarray.proto ////////////////////
+
+static PyObject* __Pyx_PyFrozenSet_FromArray(PyObject* const* values, Py_ssize_t length);
+
+//////////////////// pyfrozenset_fromarray ////////////////////
+
+static PyObject* __Pyx_PyFrozenSet_FromArray(PyObject* const* values, Py_ssize_t length) {
+    Py_ssize_t i;
+    PyObject* result = PyFrozenSet_New(NULL);
+    for (i=0; i < length; i++) {
+        if (unlikely(PySet_Add(result, values[i]) < 0)) goto bad;
+    }
+    return result;
+
+bad:
+    Py_DECREF(result);
+    return NULL;
 }
 
 
@@ -728,11 +747,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
 static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it); /*proto*/
 
 //////////////////// PySet_Update ////////////////////
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     PyObject *retval;
     #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
-    if (PyAnySet_Check(it)) {
+    if (__Pyx_PyAnySet_Check(it)) {
         Py_ssize_t size = __Pyx_PySet_GET_SIZE(it);
         #if !CYTHON_ASSUME_SAFE_SIZE
         if (unlikely(size < 0)) return -1;
@@ -757,7 +777,9 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     return 0;
 }
 
+
 //////////////////// PyRange_Check.proto ////////////////////
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyRange_Check)
   #define PyRange_Check(obj)  __Pyx_TypeCheck((obj), &PyRange_Type)
@@ -931,3 +953,116 @@ static CYTHON_INLINE PyObject* __Pyx__PyFrozenDict_New(PyObject* frozendict_type
 #if CYTHON_COMPILING_IN_LIMITED_API
 Py_CLEAR(CGLOBAL(__Pyx_PyFrozenDictType));
 #endif
+
+
+/////////////// ExceptionGetProperty.proto ////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_Py{{EXC_NAME}}_get_{{PROPERTY_NAME}}(PyObject *exception); /*proto*/
+
+/////////////// ExceptionGetProperty ////////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: Synchronization.c::CriticalSections
+
+{{py:
+obj_struct_name = (
+    'PyBaseExceptionObject' if PROPERTY_NAME in ('args', 'cause', 'context', 'traceback') else
+    'PyUnicodeErrorObject' if EXC_NAME.startswith('Unicode') and EXC_NAME.endswith('Error') else
+    f'Py{EXC_NAME}Object'
+)
+}}
+
+static CYTHON_INLINE PyObject* __Pyx_Py{{EXC_NAME}}_get_{{PROPERTY_NAME}}(PyObject *exception) {
+
+#if CYTHON_COMPILING_IN_CPYTHON{{if EXC_NAME in ('AttributeError', 'NameError') and PROPERTY_NAME in ('obj', 'name')}} && PY_VERSION_HEX >= 0x030a0000{{endif}}
+    PyTypeObject *exc_type = Py_TYPE(exception);
+    if (likely(exc_type == (PyTypeObject*) &PyExc_{{EXC_NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
+        PyObject *result;
+        __Pyx_BEGIN_CRITICAL_SECTION(exception);
+        result = __Pyx_NewRef((({{obj_struct_name}}*) exception)->{{PROPERTY_NAME}});
+        __Pyx_END_CRITICAL_SECTION();
+        return result;
+    }
+
+{{if PROPERTY_NAME in ('args', 'cause', 'context', 'traceback') }}
+{{if PROPERTY_NAME == 'args' }}
+#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030c0000
+{{else}}
+#else
+{{endif}}
+
+    PyTypeObject *exc_type = Py_TYPE(exception);
+    if (likely(exc_type == (PyTypeObject*) &PyExc_{{EXC_NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
+        {{if PROPERTY_NAME == 'traceback'}}
+        PyObject *traceback = PyException_GetTraceback(exception);
+        if (!traceback) {
+            traceback = __Pyx_NewRef(Py_None);
+        }
+        return traceback;
+        {{else}}
+        return PyException_Get{{ PROPERTY_NAME.capitalize() }}(exception);
+        {{endif}}
+    }
+{{endif}}
+#endif
+
+    return __Pyx_PyObject_GetAttrStr(exception, PYIDENT("{{ f'__{PROPERTY_NAME}__' if PROPERTY_NAME in ('cause', 'context', 'traceback') else PROPERTY_NAME }}"));
+}
+
+
+/////////////// ExceptionSetProperty.proto ////////////////
+
+static CYTHON_INLINE int __Pyx_Py{{EXC_NAME}}_set_{{PROPERTY_NAME}}(PyObject *exception, PyObject *value); /*proto*/
+
+/////////////// ExceptionSetProperty ////////////////
+//@requires: ObjectHandling.c::PyObjectSetAttrStr
+//@requires: Synchronization.c::CriticalSections
+
+{{py:
+obj_struct_name = (
+    'PyBaseExceptionObject' if PROPERTY_NAME in ('args', 'cause', 'context', 'traceback') else
+    'PyUnicodeErrorObject' if EXC_NAME.startswith('Unicode') and EXC_NAME.endswith('Error') else
+    f'Py{EXC_NAME}Object'
+)
+}}
+
+static CYTHON_INLINE int __Pyx_Py{{EXC_NAME}}_set_{{PROPERTY_NAME}}(PyObject *exception, PyObject *value) {
+
+#if CYTHON_COMPILING_IN_CPYTHON{{if EXC_NAME in ('AttributeError', 'NameError') and PROPERTY_NAME in ('obj', 'name')}} && PY_VERSION_HEX >= 0x030a0000{{endif}}
+    PyTypeObject *exc_type = Py_TYPE(exception);
+    if (likely(exc_type == (PyTypeObject*) &PyExc_{{EXC_NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
+        PyObject *orig_value;
+        Py_INCREF(value);
+        __Pyx_BEGIN_CRITICAL_SECTION(exception);
+        orig_value = (({{obj_struct_name}}*) exception)->{{PROPERTY_NAME}};
+        (({{obj_struct_name}}*) exception)->{{PROPERTY_NAME}} = value;
+        __Pyx_END_CRITICAL_SECTION();
+        Py_XDECREF(orig_value);
+        return 0;
+    }
+
+{{if PROPERTY_NAME in ('args', 'cause', 'context', 'traceback') }}
+{{if PROPERTY_NAME == 'args' }}
+#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030c0000
+{{else}}
+#else
+{{endif}}
+
+    PyTypeObject *exc_type = Py_TYPE(exception);
+    if (likely(exc_type == (PyTypeObject*) &PyExc_{{EXC_NAME}}{{for name in SUBTYPES}} || exc_type == (PyTypeObject*) &PyExc_{{name}}{{endfor}})) {
+        {{if PROPERTY_NAME == 'traceback'}}
+        return PyException_SetTraceback(exception, value);
+        {{else}}
+
+        {{if PROPERTY_NAME in ('cause', 'context')}}
+        Py_INCREF(value);
+        {{endif}}
+
+        PyException_Set{{ PROPERTY_NAME.capitalize() }}(exception, value);
+        return 0;
+        {{endif}}
+    }
+{{endif}}
+#endif
+
+    return __Pyx_PyObject_SetAttrStr(exception, PYIDENT("{{ f'__{PROPERTY_NAME}__' if PROPERTY_NAME in ('cause', 'context', 'traceback') else PROPERTY_NAME }}"), value);
+}

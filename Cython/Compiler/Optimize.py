@@ -1,3 +1,5 @@
+# cython: binding=False
+
 import cython
 cython.declare(UtilityCode=object, EncodedString=object, bytes_literal=object, encoded_string=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
@@ -11,7 +13,7 @@ import copy
 import codecs
 import itertools
 from functools import partial, reduce
-from typing import Optional
+from typing import Optional, Any
 from operator import attrgetter
 
 from . import TypeSlots
@@ -35,39 +37,45 @@ from .ParseTreeTransforms import SkipDeclarations
 from .. import Utils
 
 
+@cython.cfunc
 def load_c_utility(name):
     return UtilityCode.load_cached(name, "Optimize.c")
 
 
+@cython.cfunc
 def unwrap_coerced_node(node, coercion_nodes=(ExprNodes.CoerceToPyTypeNode, ExprNodes.CoerceFromPyTypeNode)):
     if isinstance(node, coercion_nodes):
         return node.arg
     return node
 
 
+@cython.cfunc
 def unwrap_node(node):
     while isinstance(node, UtilNodes.ResultRefNode):
         node = node.expression
     return node
 
 
-def is_common_value(a, b):
+@cython.cfunc
+def is_common_value(a, b) -> bool:
     a = unwrap_node(a)
     b = unwrap_node(b)
-    if isinstance(a, ExprNodes.NameNode) and isinstance(b, ExprNodes.NameNode):
+    if a.is_name and b.is_name:
         return a.name == b.name
-    if isinstance(a, ExprNodes.AttributeNode) and isinstance(b, ExprNodes.AttributeNode):
+    if a.is_attribute and b.is_attribute:
         return not a.is_py_attr and is_common_value(a.obj, b.obj) and a.attribute == b.attribute
     return False
 
 
+@cython.cfunc
 def filter_none_node(node):
     if node is not None and node.constant_result is None:
         return None
     return node
 
 
-def _unpack_union_type_nodes(union_type_nodes: list):
+@cython.cfunc
+def _unpack_union_type_nodes(union_type_nodes: list) -> tuple[list, Any]:
     # Unpack 'int | float | None' etc.
     BitwiseOrNode = ExprNodes.BitwiseOrNode
 
@@ -137,14 +145,16 @@ class _YieldNodeCollector(Visitor.TreeVisitor):
         pass
 
 
-def _find_single_yield_expression(node):
+@cython.cfunc
+def _find_single_yield_expression(node) -> tuple:
     yield_statements = _find_yield_statements(node)
     if len(yield_statements) != 1:
         return None, None
     return yield_statements[0]
 
 
-def _find_yield_statements(node):
+@cython.cfunc
+def _find_yield_statements(node) -> list[tuple]:
     collector = _YieldNodeCollector()
     collector.visitchildren(node)
     try:
@@ -1300,8 +1310,7 @@ class SwitchTransform(Visitor.EnvTransform):
         if isinstance(cond, ExprNodes.PrimaryCmpNode):
             if cond.cascade is not None:
                 return self.NO_MATCH
-            elif cond.is_c_string_contains() and \
-                   isinstance(cond.operand2, (ExprNodes.UnicodeNode, ExprNodes.BytesNode)):
+            elif cond.operator in ('in', 'not_in') and cond.operand1.type.is_int and cond.operand2.is_string_literal:
                 not_in = cond.operator == 'not_in'
                 if not_in and not allow_not_in:
                     return self.NO_MATCH
@@ -1431,7 +1440,7 @@ class SwitchTransform(Visitor.EnvTransform):
             return node
 
         not_in, common_var, conditions = self.extract_common_conditions(
-            None, node.test, True)
+            None, node.condition, True)
         if common_var is None \
                 or len(conditions) < 2 \
                 or self.has_duplicate_values(conditions):
@@ -1545,12 +1554,11 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         else:
             return node
 
-        if not isinstance(node.operand2, (ExprNodes.TupleNode,
-                                          ExprNodes.ListNode,
-                                          ExprNodes.SetNode)):
+        if not node.operand2.is_sequence_or_set_constructor:
             return node
 
         lhs = node.operand1
+        is_set = node.operand2.is_set_literal
         args = node.operand2.args
         if len(args) == 0:
             # note: lhs may have side effects, but ".is_simple()" may not work yet before type analysis.
@@ -1563,11 +1571,18 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
             # Starred arguments do not directly translate to comparisons or "in" tests.
             return node
 
+        make_readonly = lhs.is_sequence_or_set_constructor  # known safe builtin types for comparisons
         lhs = UtilNodes.ResultRefNode(lhs)
 
         conds = []
         temps = []
         for arg in args:
+            if is_set and arg.is_sequence_or_set_constructor:
+                if arg.type not in (Builtin.frozenset_type, Builtin.tuple_type):
+                    # Only these two are hashable.
+                    return node
+            if make_readonly and arg.is_sequence_or_set_constructor:
+                arg.read_only = True
             # Trial optimisation to avoid redundant temp assignments.
             if not arg.try_is_simple():
                 # must evaluate all non-simple RHS before doing the comparisons
@@ -2111,7 +2126,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                 arg_node.pos,
                 true_val = arg_node,
                 false_val = result_ref,
-                test = ExprNodes.PrimaryCmpNode(
+                condition = ExprNodes.PrimaryCmpNode(
                     arg_node.pos,
                     operand1 = arg_node,
                     operator = operator,
@@ -2143,14 +2158,17 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         return node
 
     def _handle_simple_function_frozenset(self, node, pos_args):
-        """Replace frozenset([...]) by frozenset((...)) as tuples are more efficient.
+        """Clear the argument for empty frozenset([]) etc.
         """
         if len(pos_args) != 1:
             return node
-        if pos_args[0].is_sequence_constructor and not pos_args[0].args:
+        arg = pos_args[0]
+        if arg.is_sequence_constructor and not arg.args:
             del pos_args[0]
-        elif isinstance(pos_args[0], ExprNodes.ListNode):
-            pos_args[0] = pos_args[0].as_tuple()
+            return node
+        if arg.is_string_literal and not arg.value:
+            del pos_args[0]
+            return node
         return node
 
     def _handle_simple_function_list(self, node, pos_args):
@@ -2218,10 +2236,10 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             comprehension_type=Builtin.dict_type)
 
         for yield_expression, yield_stat_node in yield_statements:
+            key, value = yield_expression.args
             append_node = ExprNodes.DictComprehensionAppendNode(
                 yield_expression.pos,
-                key_expr=yield_expression.args[0],
-                value_expr=yield_expression.args[1],
+                dict_item=ExprNodes.DictItemNode(key.pos, key=key, value=value),
                 target=result_node.target)
             Visitor.recursively_replace_node(gen_expr_node, yield_stat_node, append_node)
 
@@ -2699,26 +2717,25 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 is_temp=node.is_temp,
                 py_name="set"))
 
-    PyFrozenSet_New_func_type = PyrexTypes.CFuncType(
-        Builtin.frozenset_type, [
-            PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)
-        ])
-
     def _handle_simple_function_frozenset(self, node, function, pos_args):
+        """Replace frozenset(...) with a dedicated FrozenSetNode that handles all special cases.
+        """
         if not pos_args:
-            pos_args = [ExprNodes.NullNode(node.pos)]
-        elif len(pos_args) > 1:
+            return ExprNodes.FrozenSetNode.from_node(node, arg=None, env=self.current_env())
+        if len(pos_args) > 1:
             return node
-        elif pos_args[0].type.is_pyfrozenset_type and not pos_args[0].may_be_none():
-            return pos_args[0]
-        # PyFrozenSet_New(it) is better than a generic Python call to frozenset(it)
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_PyFrozenSet_New",
-            self.PyFrozenSet_New_func_type,
-            args=pos_args,
-            is_temp=node.is_temp,
-            utility_code=UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'),
-            py_name="frozenset")
+
+        arg = pos_args[0]
+        if arg.type.is_pyfrozenset_type and not arg.may_be_none():
+            # Redundant frozenset(afrozenset) -> afrozenset
+            return arg
+
+        if arg.is_sequence_constructor:
+            if arg.args:
+                return ExprNodes.FrozenSetFromArrayNode.from_node(node, args=arg.args)
+            arg = None
+
+        return ExprNodes.FrozenSetNode.from_node(node, arg=arg)
 
     PyObject_AsDouble_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type, [
@@ -3018,7 +3035,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
         builtin_tests = set()
         for test_type_node in types:
-            builtin_type = entry = None
+            builtin_type = entry = utility_code = None
             if test_type_node.is_name and test_type_node.entry:
                 entry = env.lookup(test_type_node.entry.name)
                 if entry and entry.type and entry.type.is_builtin_type:
@@ -3034,9 +3051,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     continue
                 builtin_tests.add(type_check_function)
                 type_check_args = [arg]
+                if entry is not None:
+                    utility_code = entry.utility_code
             elif test_type_node.type is Builtin.type_type:
                 type_check_function = '__Pyx_TypeCheck'
                 type_check_args = [arg, test_type_node]
+                utility_code = UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c")
             else:
                 if not test_type_node.is_literal:
                     test_type_node = UtilNodes.ResultRefNode(test_type_node)
@@ -3047,7 +3067,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 ExprNodes.PythonCapiCallNode(
                     test_type_node.pos, type_check_function, self.Py_type_check_func_type,
                     args=type_check_args,
-                    utility_code=entry.utility_code if entry is not None else None,
+                    utility_code=utility_code,
                     is_temp=True,
                 ))
 
@@ -3297,9 +3317,54 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         else:
             return node
 
+        ba_obj = args[0].as_none_safe_node(
+            "'NoneType' object has no attribute '%.30s'",
+            error="PyExc_AttributeError",
+            format_args=['append'])
+
         new_node = ExprNodes.PythonCapiCallNode(
             node.pos, func_name, func_type,
-            args=[args[0], value],
+            args=[ba_obj, value],
+            may_return_none=False,
+            is_temp=node.is_temp,
+            utility_code=utility_code,
+        )
+        if node.result_is_used:
+            new_node = new_node.coerce_to(node.type, self.current_env())
+        return new_node
+
+    PyByteArray_Extend_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_returncode_type, [
+            PyrexTypes.CFuncTypeArg("bytearray", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type, None),
+            ],
+        exception_value=-1)
+
+    def _handle_simple_method_bytearray_extend(self, node, function, args, is_unbound_method):
+        if len(args) != 2:
+            return node
+
+        func_type = self.PyByteArray_Extend_func_type
+        utility_code = UtilityCode.load_cached("ByteArrayExtendBytes", "StringTools.c")
+
+        value = unwrap_coerced_node(args[1])
+        arg_type = value.type
+        if arg_type.is_pybytes_type:
+            func_name = "__Pyx_PyByteArray_ExtendBytes"
+        elif arg_type.may_be_pybytes_type:
+            func_name = "__Pyx_PyByteArray_ExtendObject"
+        else:
+            return node
+
+        value = value.as_none_safe_node("can't extend bytearray with NoneType")
+        ba_obj = args[0].as_none_safe_node(
+            "'NoneType' object has no attribute '%.30s'",
+            error="PyExc_AttributeError",
+            format_args=['extend'])
+
+        new_node = ExprNodes.PythonCapiCallNode(
+            node.pos, func_name, func_type,
+            args=[ba_obj, value],
             may_return_none=False,
             is_temp=node.is_temp,
             utility_code=utility_code,
@@ -3578,7 +3643,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     _handle_simple_method_int___floordiv__ = _handle_simple_method_object___floordiv__
     _handle_simple_method_int___truediv__ = _handle_simple_method_object___truediv__
 
-    def _optimise_num_div(self, operator, node, function, args, is_unbound_method):
+    def _optimise_num_div(self, operator: str, node, function, args: list, is_unbound_method):
         if len(args) != 2 or not args[1].has_constant_result() or args[1].constant_result == 0:
             return node
         if isinstance(args[1], ExprNodes.IntNode):
@@ -3612,7 +3677,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_method_float___ne__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Ne', node, function, args, is_unbound_method)
 
-    def _optimise_num_binop(self, operator, node, function, args, is_unbound_method):
+    def _optimise_num_binop(self, operator: str, node, function, args: list, is_unbound_method):
         """
         Optimise math operators for (likely) float or small integer operations.
         """
@@ -3659,7 +3724,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             ],
             exception_value=-1)
 
-    def _inject_unicode_predicate(self, node, function, args, is_unbound_method):
+    def _inject_unicode_predicate(self, node, function, args: list, is_unbound_method):
         if is_unbound_method or len(args) != 1:
             return node
         ustring = args[0]
@@ -3829,8 +3894,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             node, function, args, is_unbound_method, 'str', 'startswith',
             unicode_tailmatch_utility_code, -1)
 
-    def _inject_tailmatch(self, node, function, args, is_unbound_method, type_name,
-                          method_name, utility_code, direction):
+    def _inject_tailmatch(self, node, function, args: list, is_unbound_method, type_name: str,
+                          method_name: str, utility_code, direction):
         """Replace unicode.startswith(...) and unicode.endswith(...)
         by a direct call to the corresponding C-API function.
         """
@@ -4327,7 +4392,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
 
 
-def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
+def optimise_numeric_binop(operator: str, node, ret_type, arg0, arg1):
     """
     Optimise math operators for (likely) float or small integer operations.
     """
@@ -4933,9 +4998,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self.visitchildren(node)
         args = []
         for arg in node.args:
-            if not arg.is_starred:
-                args.append(arg)
-            elif arg.target.is_sequence_constructor and not arg.target.mult_factor:
+            if isinstance(arg, ExprNodes.StarredUnpackingNode) and (
+                    arg.target.is_sequence_constructor and not arg.target.mult_factor):
                 args.extend(arg.target.args)
             else:
                 args.append(arg)
@@ -4963,10 +5027,18 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         if not node.cascade:
             if node.has_constant_result():
                 return self._bool_node(node, node.constant_result)
+
+            if node.operator in ('in', 'not_in'):
+                right_node = node.operand2
+                if right_node.is_sequence_or_set_constructor:
+                    # The right-most in-collection is not used in further cascades, so allow
+                    # later optimisation into a (possibly constant) immutable tuple/frozenset.
+                    right_node.read_only = True
+
             return node
 
         # collect partial cascades: [[value, CmpNode...], [value, CmpNode, ...], ...]
-        cascades = [[node.operand1]]
+        cascades: list[list] = [[node.operand1]]
         final_false_result = []
 
         cmp_node = node
@@ -5003,6 +5075,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 last_cmp_node = cmp_node
             last_cmp_node.cascade = None
 
+            if last_cmp_node.operator in ('in', 'not_in'):
+                right_node = last_cmp_node.operand2
+                if right_node.is_sequence_or_set_constructor:
+                    # The right-most in-collection is not used in further cascades, so allow
+                    # later optimisation into a (possibly constant) immutable tuple/frozenset.
+                    right_node.read_only = True
+
         if final_false_result:
             # last cascade was constant False
             cmp_nodes.append(final_false_result[0])
@@ -5025,9 +5104,9 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_CondExprNode(self, node):
         self._calculate_const(node)
-        if not node.test.has_constant_result():
+        if not node.condition.has_constant_result():
             return node
-        if node.test.constant_result:
+        if node.condition.constant_result:
             return node.true_val
         else:
             return node.false_val
@@ -5054,6 +5133,18 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             return node.else_clause
         else:
             return Nodes.StatListNode(node.pos, stats=[])
+
+    def visit_AssertStatNode(self, node):
+        self.visitchildren(node)
+        condition = node.condition
+        if condition.has_constant_result():
+            if condition.constant_result:
+                # "assert True" => nothing to do.
+                return None
+            else:
+                # Normalise "assert falsy_value" to "assert False".
+                node.condition = self._bool_node(condition, False)
+        return node
 
     def visit_SliceIndexNode(self, node):
         self._calculate_const(node)
@@ -5095,6 +5186,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
+
         sequence = node.iterator.sequence
         if isinstance(sequence, ExprNodes.SequenceNode):
             if not sequence.args:
@@ -5106,6 +5198,11 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             # iterating over a list literal? => tuples are more efficient
             if isinstance(sequence, ExprNodes.ListNode):
                 node.iterator.sequence = sequence.as_tuple()
+
+        elif isinstance(sequence, ExprNodes.SetNode):
+            # frozensets are more efficient to store than sets.
+            sequence.read_only = True
+
         return node
 
     def visit_WhileStatNode(self, node):
@@ -5238,7 +5335,8 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                         # function self object was moved into a CloneNode => undo
                         function.obj = function.obj.arg
                     node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
-                        node, function=function, arg_tuple=node.arg_tuple, type=node.type,
+                        node, env=self.current_env(),
+                        function=function, arg_tuple=node.arg_tuple, type=node.type,
                         unpack=self._check_optimize_method_calls(node)))
         return node
 
@@ -5256,8 +5354,20 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         if not ExprNodes.PyMethodCallNode.can_be_used_for_function(function):
             return node
 
+        kwnames = kwvalues = kwdict = None
+        if node.keyword_args and node.keyword_args.is_dict_literal:
+            kwnames = ExprNodes.TupleNode(
+                node.pos,
+                args=[kvp.key for kvp in node.keyword_args.key_value_pairs])
+            kwnames = kwnames.analyse_types(self.current_env(), skip_children=True)
+            kwvalues = [kvp.value for kvp in node.keyword_args.key_value_pairs]
+        elif node.keyword_args:
+            kwdict = node.keyword_args
+
         node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
-            node, function=function, arg_tuple=node.positional_args, kwdict=node.keyword_args,
+            node,
+            function=function, arg_tuple=node.positional_args, kwdict=kwdict,
+            kwnames=kwnames, kwvalues=kwvalues,
             type=node.type, unpack=self._check_optimize_method_calls(node)))
         return node
 
@@ -5301,40 +5411,52 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         self.visitchildren(node)
         last_non_unlikely_clause = None
         for i, if_clause in enumerate(node.if_clauses):
-            self._set_ifclause_branch_hint(if_clause, if_clause.body)
+            self._set_ifclause_branch_hint(if_clause, if_clause.body, 'unlikely')
             if not if_clause.branch_hint:
                 last_non_unlikely_clause = if_clause
         if node.else_clause and last_non_unlikely_clause:
             # If the 'else' clause is 'unlikely', then set the preceding 'if' clause to 'likely' to reflect that.
-            self._set_ifclause_branch_hint(last_non_unlikely_clause, node.else_clause, inverse=True)
+            self._set_ifclause_branch_hint(last_non_unlikely_clause, node.else_clause, 'likely')
         return node
 
-    def _set_ifclause_branch_hint(self, clause, statements_node, inverse=False):
+    def _set_ifclause_branch_hint(self, clause, statements_node, branch_hint: str):
         """Inject a branch hint if the if-clause unconditionally leads to a 'raise' statement.
         """
-        if not statements_node.is_terminator:
+        assert branch_hint in ('likely', 'unlikely'), branch_hint
+
+        if clause.branch_hint:
             return
+
         # Allow simple statements, but no conditions, loops, etc.
         non_branch_nodes = (
             Nodes.ExprStatNode,
             Nodes.AssignmentNode,
-            Nodes.AssertStatNode,
             Nodes.DelStatNode,
+            Nodes.PrintStatNode,
             Nodes.GlobalNode,
             Nodes.NonlocalNode,
         )
+
+        AssertStatNode: type = Nodes.AssertStatNode
+        GILStatNode: type = Nodes.GILStatNode
+        StatListNode: type = Nodes.StatListNode
+
         statements = [statements_node]
         for next_node_pos, node in enumerate(statements, 1):
-            if isinstance(node, Nodes.GILStatNode):
+            if isinstance(node, GILStatNode):
                 statements.insert(next_node_pos, node.body)
-                continue
-            if isinstance(node, Nodes.StatListNode):
+            elif isinstance(node, StatListNode):
                 statements[next_node_pos:next_node_pos] = node.stats
-                continue
-            if not isinstance(node, non_branch_nodes):
+            elif isinstance(node, AssertStatNode):
+                if node.condition.constant_result is False:
+                    # "assert False" is like unconditional "raise"
+                    clause.branch_hint = branch_hint
+                    break
+                # Assertions can succeed or be disabled, so continue here.
+            elif not isinstance(node, non_branch_nodes):
                 if next_node_pos == len(statements) and isinstance(node, (Nodes.RaiseStatNode, Nodes.ReraiseStatNode)):
                     # Anything that unconditionally raises exceptions at the end should be considered unlikely.
-                    clause.branch_hint = 'likely' if inverse else 'unlikely'
+                    clause.branch_hint = branch_hint
                 break
 
     def visit_JoinedStrNode(self, node: ExprNodes.JoinedStrNode):

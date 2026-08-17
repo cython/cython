@@ -176,12 +176,15 @@ class PostParse(ScopeTrackingTransform):
     if a more pure Abstract Syntax Tree is wanted.
 
     - Some invalid uses of := assignment expressions are detected
+
+    - Validate that return, continue and break aren't in except*
     """
     def __init__(self, context):
         super().__init__(context)
         self.specialattribute_handlers = {
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
+        self.except_star_validation_tracker = None
         self.in_pattern_node = False
 
     def visit_LambdaNode(self, node):
@@ -375,6 +378,42 @@ class PostParse(ScopeTrackingTransform):
             node.value = None
         self.visitchildren(node)
         return node
+
+    def _track_node_for_except_star_validation(self, node):
+        old_validation_tracker = self.except_star_validation_tracker
+        self.except_star_validation_tracker = node
+        self.visitchildren(node)
+        self.except_star_validation_tracker = old_validation_tracker
+        return node
+
+    def visit_LoopNode(self, node):
+        return self._track_node_for_except_star_validation(node)
+
+    def visit_FuncDefNode(self, node):
+        old_validation_tracker = self.except_star_validation_tracker
+        self.except_star_validation_tracker = node
+        node = super(PostParse, self).visit_FuncDefNode(node)
+        self.except_star_validation_tracker = old_validation_tracker
+        return node
+
+    def visit_ExceptStarChainNode(self, node):
+        return self._track_node_for_except_star_validation(node)
+
+    def _validate_break_return_continue_in_except_star(self, node):
+        if isinstance(self.except_star_validation_tracker, Nodes.ExceptStarChainNode):
+            # error message copied from Python 3.11
+            raise PostParseError(node.pos, "'break', 'continue' and 'return' cannot appear in an except* block")
+        self.visitchildren(node)
+        return node
+
+    def visit_ReturnStatNode(self, node):
+        return self._validate_break_return_continue_in_except_star(node)
+
+    def visit_BreakStatNode(self, node):
+        return self._validate_break_return_continue_in_except_star(node)
+
+    def visit_ContinueStatNode(self, node):
+        return self._validate_break_return_continue_in_except_star(node)
 
     def visit_ErrorNode(self, node):
         error(node.pos, node.what)
@@ -867,7 +906,8 @@ class InterpretCompilerDirectives(CythonTransform):
     special_methods = {
         'declare', 'union', 'struct', 'typedef',
         'sizeof', 'cast', 'pointer', 'compiled',
-        'NULL', 'fused_type', 'parallel',
+        'NULL', 'fused_type', 'parallel', 'likely',
+        'unlikely'
     }
     special_methods.update(unop_method_nodes)
 
@@ -2456,6 +2496,8 @@ if VALUE is not None:
 
         decorators = getattr(node, 'decorators', None)
         node = FusedNode.FusedCFuncDefNode(node, env)
+        if node.py_func:
+            node.attach_fused_py_funcs()
         self.fused_function = node
         self.visitchildren(node)
         self.fused_function = None
@@ -3042,6 +3084,8 @@ class FindInvalidUseOfFusedTypes(TreeVisitor):
 
 
 class ExpandInplaceOperators(EnvTransform):
+    """Expand in-place operators into separate read/write operations.
+    """
 
     def visit_InPlaceAssignmentNode(self, node):
         lhs = node.lhs
@@ -3066,26 +3110,30 @@ class ExpandInplaceOperators(EnvTransform):
                 return ExprNodes.IndexNode(node.pos, base=base, index=index), temps + [index]
             elif node.is_attribute:
                 obj, temps = side_effect_free_reference(node.obj, setting=setting)
-                return ExprNodes.AttributeNode(node.pos, obj=obj, attribute=node.attribute), temps
+                return ExprNodes.AttributeNode.from_node(
+                    node, obj=obj, attribute=node.attribute, constant_result=ExprNodes.not_a_constant), temps
             elif isinstance(node, ExprNodes.BufferIndexNode):
                 raise ValueError("Don't allow things like attributes of buffer indexing operations")
             else:
                 node = LetRefNode(node)
                 return node, [node]
+
         try:
             lhs, let_ref_nodes = side_effect_free_reference(lhs, setting=True)
         except ValueError:
             return node
+
         dup = lhs.__class__(**lhs.__dict__)
+        dup = dup.analyse_types(env)  # FIXME: no need to reanalyse the copy, right?
         binop = ExprNodes.binop_node(node.pos,
                                      operator = node.operator,
                                      operand1 = dup,
                                      operand2 = rhs,
                                      inplace=True)
+
         # Manually analyse types for new node.
         lhs.is_target = True
         lhs = lhs.analyse_target_types(env)
-        dup.analyse_types(env)  # FIXME: no need to reanalyse the copy, right?
         binop.analyse_operation(env)
         node = Nodes.SingleAssignmentNode(
             node.pos,
@@ -3691,7 +3739,7 @@ class InjectGilHandling(VisitorTransform, SkipDeclarations):
     def _inject_gil_in_nogil(self, node):
         """Allow the (Python statement) node in nogil sections by wrapping it in a 'with gil' block."""
         if self.nogil:
-            node = Nodes.GILStatNode(node.pos, state='gil', body=node)
+            node = Nodes.GILStatNode(node.pos, state='gil', body=node, internally_generated=True)
         return node
 
     visit_RaiseStatNode = _inject_gil_in_nogil
@@ -3816,38 +3864,79 @@ class GilCheck(VisitorTransform):
         nogil_state = Nodes.NoGilState.NoGil if is_nogil else Nodes.NoGilState.HasGil
         self._visit_scoped_children(node, nogil_state)
         self.nogil_state_at_current_gilstatnode = nogil_state_at_current_gilstatnode
+
+        # Drop pointless nested `with gil: with nogil:` blocks.
+        # These can occur during the generation of prange/parallel sections for example.
+        node_body = node.body
+        if (isinstance(node_body, Nodes.StatListNode) and len(node_body.stats) == 1):
+            node_body = node_body.stats[0]
+        if isinstance(node_body, Nodes.GILStatNode) and node_body.state != node.state and (
+                # Don't optimize out user-inserted `with nogil` for now. They have the
+                # side-effect of deliberately allowing a thread-switch even if they might
+                # appear useless, so they might be deliberate.
+                (node_body.state == "nogil" and node_body.internally_generated) or
+                (node.state == "nogil" and node.internally_generated)):
+            if not node.scope_gil_state_known:
+                node_body.scope_gil_state_known = False
+                node_body.finally_clause.scope_gil_state_known = False
+                if node_body.finally_except_clause is not None:
+                    node_body.finally_except_clause.scope_gil_state_known = False
+                return node_body
+            else:
+                return node_body.body
+
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.nogil or self.nogil_state == Nodes.NoGilState.NoGilScope:
+        if self.nogil_state == Nodes.NoGilState.HasGil and not node.nogil:
+            # We still release the GIL then reacquire it to avoid deadlocks.
+            node.acquire_gil = True
+        if (node.nogil or self.nogil_state == Nodes.NoGilState.NoGilScope or
+                (self.nogil_state == Nodes.NoGilState.HasGil and not node.parent)):
             node_was_nogil, node.nogil = node.nogil, False
-            node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
+            node = Nodes.GILStatNode(node.pos, state='nogil', body=node, internally_generated=True)
             if not node_was_nogil and self.nogil_state == Nodes.NoGilState.NoGilScope:
                 # We're in a "nogil" function, but that doesn't prove we
                 # didn't have the gil
                 node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)
 
-        if not self.nogil_state:
-            error(node.pos, "prange() can only be used without the GIL")
-            # Forget about any GIL-related errors that may occur in the body
-            return None
+        if node.acquire_gil:
+            if not self.env_stack[-1].directives['freethreading_compatible']:
+                warning(
+                    node.pos,
+                    "prange without releasing the GIL will only work well on freethreaded Python",
+                    level=2)
+            was_nogil = self.nogil_state
+            self.nogil_state = Nodes.NoGilState.HasGil
 
         node.nogil_check(self.env_stack[-1])
         self.visitchildren(node)
+
+        if node.acquire_gil:
+            self.nogil_state = was_nogil
         return node
 
     def visit_ParallelWithBlockNode(self, node):
-        if not self.nogil_state:
-            error(node.pos, "The parallel section may only be used without "
-                            "the GIL")
-            return None
-        if self.nogil_state == Nodes.NoGilState.NoGilScope:
-            # We're in a "nogil" function but that doesn't prove we didn't
-            # have the gil, so release it
-            node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
-            node.scope_gil_state_known = False
+        if self.nogil_state != Nodes.NoGilState.NoGil:
+            # Ensure that the GIL is released
+            if self.nogil_state == Nodes.NoGilState.HasGil:
+                # Even if we intend the block to have the GIL it's easier to release
+                # and reacquire it to void deadlocks.
+                node.acquire_gil = True
+            node = Nodes.GILStatNode(node.pos, state='nogil', body=node, internally_generated=True)
+            if self.nogil_state == Nodes.NoGilState.NoGilScope:
+                node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)
+
+        if node.acquire_gil:
+            if not self.env_stack[-1].directives['freethreading_compatible']:
+                warning(
+                    node.pos,
+                    "Parallel section without releasing the GIL will only work well on freethreaded Python",
+                    level=2)
+            was_nogil = self.nogil_state
+            self.nogil_state = Nodes.NoGilState.HasGil
 
         if node.nogil_check:
             # It does not currently implement this, but test for it anyway to
@@ -3855,6 +3944,8 @@ class GilCheck(VisitorTransform):
             node.nogil_check(self.env_stack[-1])
 
         self.visitchildren(node)
+        if node.acquire_gil:
+            self.nogil_state = was_nogil
         return node
 
     def visit_TryFinallyStatNode(self, node):
@@ -4193,6 +4284,22 @@ class TransformBuiltinMethods(EnvTransform):
         node = super().visit_GeneratorBodyDefNode(node)
         self._do_body_insertion(node)
         return node
+
+    def _inject_branch_hint(self, node):
+        condition = node.condition
+        if isinstance(condition, ExprNodes.SimpleCallNode):
+            function = condition.function.as_cython_attribute()
+            if function in ('likely', 'unlikely'):
+                node.branch_hint = function
+                node.condition = condition.args[0]
+        self.visitchildren(node)
+        return node
+
+    def visit_IfClauseNode(self, node):
+        return self._inject_branch_hint(node)
+
+    def visit_CondExprNode(self, node):
+        return self._inject_branch_hint(node)
 
     def visit_SimpleCallNode(self, node):
         # cython.foo

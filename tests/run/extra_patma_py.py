@@ -14,6 +14,10 @@ def skip_if_no_frozendict(f):
     if cython.compiled or sys.version_info >= (3, 15):
         return f
 
+def skip_in_pure_pypy(f):
+    if cython.compiled or sys.implementation.name != 'pypy':
+        return f
+
 
 def test_type_inference(x):
     """
@@ -347,3 +351,106 @@ def test_or_evaluation_failure(x):
     match x:
         case Namespace.fake_name | _:
             print("Here")
+
+
+class A:
+    b = 1
+    def __repr__(self):
+        return f'A({self.b})'
+
+class C:
+    __match_args__ = ("a", "b", "c")
+
+    def __init__(self):
+        self.a = 1
+        self.b = None
+        self.c = "string"
+
+
+@skip_in_pure_pypy  # crash, see https://github.com/pypy/pypy/issues/5506
+def test_yield_from_case(x):
+    """
+    >>> def test(x):
+    ...     return list(test_yield_from_case(x))
+
+    >>> class D(dict):
+    ...     def __repr__(self):
+    ...         return "D(%s)" % super(D, self).__repr__()
+
+    >>> test(D({"a": "xxx", 1: 500}))
+    [500]
+
+    >>> class E(dict):
+    ...     def __repr__(self):
+    ...         return "E(%s)" % super(E, self).__repr__()
+    ...     def get(self, key, default):
+    ...         return super().get(key, default)
+
+    >>> test(E({"a": "xxx", 1: 500}))
+    [500]
+
+    >>> test([0, 1, 2])
+    [[0, 1, 2]]
+    >>> test([])
+    []
+    >>> test([0] + list(range(10)) + [0])
+    [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]
+    >>> [result] = test((0,) + tuple(range(1000000)) + (0,)); print(len(result))
+    1000000
+
+    >>> from array import array
+    >>> test(array('i', range(1000000)))
+    []
+    >>> test(5)
+    [5]
+    >>> test(6)
+    []
+    >>> [result] = test(set(range(1000000))); print(type(result).__name__); print(len(result))
+    set
+    1000000
+    >>> test(A())
+    [A(1)]
+    >>> a = A(); a.b = 2; test(a)
+    []
+    >>> test(C)
+    []
+    """
+    match x:
+        case [0, 1, 2]:
+            yield x
+        case [0, *x, 0]:
+            yield x
+        case {"a": "xxx", A.b: x, **extra}:
+            yield x
+        case 5 as y:
+            yield y
+        case set(y):
+            yield y
+        case A(b=1):
+            yield x
+        case C(a, None):
+            yield a
+
+
+def test_yield_from_case_if(x):
+    """
+    >>> g = test_yield_from_case_if([5])
+    >>> next(g)
+    >>> try:
+    ...    g.send(5)
+    ... except StopIteration:
+    ...    pass
+    A 5
+    >>> g = test_yield_from_case_if([5])
+    >>> next(g)
+    >>> try:
+    ...    g.send(6)
+    ... except StopIteration:
+    ...    pass
+    B
+    """
+    match x:
+        case [out] if out == (yield):
+            print(f"A {out}")
+        case _:
+            print("B")

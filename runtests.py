@@ -24,7 +24,7 @@ import zlib
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, TemporaryFile
 
 try:
     IS_PYPY = platform.python_implementation() == 'PyPy'
@@ -39,16 +39,7 @@ CAN_SYMLINK = sys.platform != 'win32' and hasattr(os, 'symlink')
 
 SHARED_UTILITY_MODULE_NAME = '_cython_shared'
 
-from io import open as io_open
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO  # doesn't accept 'str' in Py2
-
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+from io import StringIO
 
 try:
     import threading
@@ -485,6 +476,7 @@ EXT_EXTRAS = {
 
 TAG_EXCLUDERS = sorted({
     'no-macos':  exclude_test_on_platform('darwin'),
+    'no-windows': exclude_test_on_platform('win32'),
     'pstats': exclude_test_in_pyver((3,12)),
     'coverage': exclude_test_in_pyver((3,12)) or exclude_test_on_dev(),
     'monitoring': exclude_test_in_pyver((3,12)),
@@ -510,6 +502,8 @@ VER_DEP_MODULES = {
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
 
+    (3,11): (operator.lt, lambda x: x in ['run.test_except_star',
+                                          ]),
     (3,12): (operator.ge, lambda x: x in [
         'run.py_unicode_strings',  # Py_UNICODE was removed
         'compile.pylong',  # PyLongObject changed its structure
@@ -545,7 +539,7 @@ def memoize(f):
 def parse_tags(filepath):
     tags = defaultdict(list)
     parse_tag = re.compile(r'#\s*(\w+)\s*:(.*)$').match
-    with io_open(filepath, encoding='ISO-8859-1', errors='ignore') as f:
+    with open(filepath, encoding='ISO-8859-1', errors='ignore') as f:
         for line in f:
             if line[0] != '#':
                 # ignore BOM-like bytes and whitespace
@@ -1276,14 +1270,14 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def split_source_and_output(self, source_file, workdir, add_cython_import=False):
         from Cython.Utils import detect_opened_file_encoding
-        with io_open(source_file, 'rb') as f:
+        with open(source_file, 'rb') as f:
             # encoding is passed to ErrorWriter but not used on the source
             # since it is sometimes deliberately wrong
             encoding = detect_opened_file_encoding(f, default=None)
 
-        with io_open(source_file, 'r', encoding='ISO-8859-1') as source_and_output:
+        with open(source_file, 'r', encoding='ISO-8859-1') as source_and_output:
             error_writer = warnings_writer = perf_hint_writer = None
-            out = io_open(os.path.join(workdir, os.path.basename(source_file)),
+            out = open(os.path.join(workdir, os.path.basename(source_file)),
                           'w', encoding='ISO-8859-1')
             try:
                 for line in source_and_output:
@@ -1534,13 +1528,15 @@ class CythonCompileTestCase(unittest.TestCase):
                     tostderr('\n'.join(errors))
                     tostderr('\n\n')
                     raise RuntimeError('should have generated extension code')
-            elif errors or expected_errors:
+            if errors or expected_errors:
                 self._match_output(expected_errors, errors, tostderr)
-                return None
             if expected_warnings or (expect_warnings and warnings):
                 self._match_output(expected_warnings, warnings, tostderr)
             if expected_perf_hints or (expect_perf_hints and perf_hints):
                 self._match_output(expected_perf_hints, perf_hints, tostderr)
+
+            if errors or expected_errors:
+                return None
 
         so_path = None
         if not self.cython_only and WITH_COMPILE:
@@ -2211,15 +2207,18 @@ class EndToEndTest(TimedTest):
                 continue
             time_category = 'etoe-build' if (
                 'setup.py' in command or 'cythonize.py' in command or 'cython.py' in command) else 'etoe-run'
+
             with self.stats.time('%s(%d)' % (self.name, command_no), 'c', time_category):
-                if self.capture:
+                if '|' in command:
+                    res, _out, _err = _run_pipe(command, workdir, env, capture=self.capture)
+                elif self.capture:
                     p = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, env=env, cwd=workdir)
                     _out, _err = p.communicate()
                     res = p.returncode
                 else:
-                    p = subprocess.call(command, env=env, cwd=workdir)
+                    res = subprocess.call(command, env=env, cwd=workdir)
                     _out, _err = b'', b''
-                    res = p
+
             cmd.append(command)
             out.append(_out.decode('utf-8'))
             err.append(_err.decode('utf-8'))
@@ -2239,6 +2238,51 @@ class EndToEndTest(TimedTest):
 
         self.stats.update_module_sizes(workdir)
         self.success = True
+
+
+def _run_pipe(command, workdir, env, capture=True):
+    subcommands = []
+    last_start = 0
+    for i, arg in enumerate(command):
+        if arg == '|':
+            subcommands.append(command[last_start:i])
+            last_start = i + 1
+    subcommands.append(command[last_start:])
+
+    with TemporaryFile() as stderr:
+        next_stdout = subprocess.PIPE
+        if not capture:
+            next_stdout = stderr = None
+
+        # Chain sub-commands right to left, creating last stdin as next stdout.
+        processes = []
+        for subcommand in reversed(subcommands):
+            p = subprocess.Popen(subcommand, stdin=subprocess.PIPE, stderr=stderr, stdout=next_stdout, env=env, cwd=workdir)
+            processes.append(p)
+            next_stdout = p.stdin
+        next_stdout.close()
+
+        # Wait for the final command to finish and collect its output.
+        _out, _ = processes[0].communicate(timeout=8*60)
+
+        # Make sure all commands have terminated and report the first failure code (left to right).
+        res = 0
+        for p in reversed(processes):
+            p.wait()
+            res = res or p.returncode
+
+        _err = stderr.read() if stderr is not None else b''
+
+    if not capture:
+        if _out:
+            sys.stdout.flush()
+            sys.stdout.buffer.write(_out)
+        if _err:
+            sys.stderr.flush()
+            sys.stderr.buffer.write(_err)
+        _out = _err = b''
+
+    return res, _out, _err
 
 
 # TODO: Support cython_freeze needed here as well.
@@ -3129,6 +3173,7 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
+            ('limited_api_314_bugs.txt', options.limited_api and sys.version_info[:2] <= (3, 14)),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),

@@ -108,7 +108,7 @@ if [[ $PYTHON_VERSION != *"-dev" ]]; then
     $PYTHON -m pip install --no-cache-dir pythran || exit 1
   fi
 
-  if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
+  if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VERSION != "3.13t" ]]; then
     $PYTHON -m pip install --no-cache-dir mypy || exit 1
   fi
 
@@ -166,7 +166,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
-  if [[ {$LIMITED_API == "true" || $LIMITED_API == "1"} && $NO_LIMITED_COMPILE != "1" ]]; then
+  if [[ ( $LIMITED_API == "true" || $LIMITED_API == "1" ) && $NO_LIMITED_COMPILE != "1" ]]; then
     # in the limited API tests, also build Cython in this mode.
     SETUP_ARGS="$SETUP_ARGS --cython-limited-api"
   fi
@@ -193,7 +193,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   fi
 
   echo "Extension modules created during the build:"
-  find Cython -name "*.so" -ls | sort -k11
+  find Cython -name "*.so" -ls -o -name "*.pyd" -ls | sort -k11
 fi
 
 if [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]]; then

@@ -472,10 +472,12 @@ static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t ival) {
 
 
 /////////////// pybuiltin_invalid.export ///////////////
+//@feature: DEFAULTS
 
 static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *builtin_type_name, const char *argname); /*proto*/
 
 /////////////// pybuiltin_invalid ///////////////
+//@requires: ObjectHandling.c::FormatTypeName
 
 static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *builtin_type_name, const char *argname) {
     __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
@@ -504,6 +506,8 @@ static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const c
 /////////////// pyfloat_simplify ///////////////
 //@requires: pybuiltin_invalid
 
+static int __Pyx__PyFloat_FromNumber(PyObject **number_var, const char *argname); /*proto*/
+
 static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const char *argname, int accept_none) {
     // Convert any float-compatible Python number object into a Python float.
     // NOTE: This function decrefs 'number' if a conversion happens to replace the original object.
@@ -511,7 +515,11 @@ static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const c
     if (likely((accept_none && number == Py_None) || PyFloat_CheckExact(number))) {
         return 0;
     }
+    return __Pyx__PyFloat_FromNumber(number_var, argname);
+}
 
+static int __Pyx__PyFloat_FromNumber(PyObject **number_var, const char *argname) {
+    PyObject *number = *number_var;
     PyObject *float_object;
     if (likely(PyLong_CheckExact(number))) {
         double val;
@@ -553,6 +561,8 @@ static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const cha
 /////////////// pyint_simplify ///////////////
 //@requires: pybuiltin_invalid
 
+static int __Pyx__PyInt_FromNumber(PyObject **number_var, const char *argname); /*proto*/
+
 static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const char *argname, int accept_none) {
     // Convert any int-compatible Python number object into a Python int.
     // NOTE: This function decrefs 'number' if a conversion happens to replace the original object.
@@ -560,7 +570,11 @@ static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const cha
     if (likely((accept_none && number == Py_None) || PyLong_CheckExact(number))) {
         return 0;
     }
+    return __Pyx__PyInt_FromNumber(number_var, argname);
+}
 
+static int __Pyx__PyInt_FromNumber(PyObject **number_var, const char *argname) {
+    PyObject *number = *number_var;
     PyObject *int_object;
     if (likely(PyNumber_Check(number))) {
         // PyNumber_Long() also parses strings, which we must reject.
@@ -858,7 +872,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
 
 /////////////// CIntToPy ///////////////
 //@requires: GCCDiagnostics
-//@requires: ObjectHandling.c::PyObjectVectorCallKwBuilder
+//@requires: ObjectHandling.c::PyObjectVectorcallMethodKwds
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
@@ -904,31 +918,41 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 #else
         // call int.from_bytes()
         int one = 1; int little = (int)*(unsigned char *)&one;
-        PyObject *from_bytes, *result = NULL, *kwds = NULL;
-        PyObject *py_bytes = NULL, *order_str = NULL;
-        from_bytes = PyObject_GetAttrString((PyObject*)&PyLong_Type, "from_bytes");
-        if (!from_bytes) return NULL;
+        PyObject *result = NULL, *kwds = NULL;
+        PyObject *py_bytes = NULL, *order_str = NULL, *from_bytes_str = NULL;;
         py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof({{TYPE}}));
         if (!py_bytes) goto limited_bad;
         // I'm deliberately not using PYIDENT here because this code path is very unlikely
         // to ever run so it seems a pessimization mostly.
+        from_bytes_str = PyUnicode_FromStringAndSize("from_bytes", 10);
+        if (!from_bytes_str) goto limited_bad;
         order_str = PyUnicode_FromString(little ? "little" : "big");
         if (!order_str) goto limited_bad;
         {
-            PyObject *args[3+(CYTHON_VECTORCALL ? 1 : 0)] = { NULL, py_bytes, order_str };
+            PyObject *args[] = { (PyObject*)&PyLong_Type, py_bytes, order_str, Py_True };
             if (!is_unsigned) {
-                kwds = __Pyx_MakeVectorcallBuilderKwds(1);
-                if (!kwds) goto limited_bad;
-                if (__Pyx_VectorcallBuilder_AddArgStr("signed", __Pyx_NewRef(Py_True), kwds, args+3, 0) < 0) goto limited_bad;
+                PyObject *signed_str = PyUnicode_FromStringAndSize("signed", 6);
+                if (!signed_str) goto limited_bad;
+#if CYTHON_VECTORCALL
+                kwds = PyTuple_Pack(1, signed_str);
+#else
+                {
+                    PyObject *keys[] = {signed_str};
+                    PyObject *values[] = {Py_True};
+                    kwds = __Pyx_MakeKwargDict(keys, values, 1);
+                }
+#endif
+                Py_DECREF(signed_str);
+                if (unlikely(!kwds)) goto limited_bad;
             }
-            result = __Pyx_Object_Vectorcall_CallFromBuilder(from_bytes, args+1, 2 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET, kwds);
+            result = __Pyx_Object_VectorcallMethodKwds(from_bytes_str, args, 3 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET, kwds);
         }
 
         limited_bad:
         Py_XDECREF(kwds);
         Py_XDECREF(order_str);
         Py_XDECREF(py_bytes);
-        Py_XDECREF(from_bytes);
+        Py_XDECREF(from_bytes_str);
         return result;
 #endif
     }
@@ -1169,6 +1193,24 @@ static CYTHON_INLINE PyObject* __Pyx__{{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssiz
         return PyUnicode_FromOrdinal(*dpos);
     }
     return __Pyx_PyUnicode_BuildFromAscii(ulength, dpos, (int) length, prepend_sign, padding_char);
+}
+
+
+/////////////// CDoubleToPyUnicode.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromDouble(double value, char format_char, int precision);
+
+/////////////// CDoubleToPyUnicode ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromDouble(double value, char format_char, int precision) {
+    PyObject *result;
+    // only repr() ('r') appends a trailing ".0" to integral values
+    const int flags = (format_char == 'r') ? Py_DTSF_ADD_DOT_0 : 0;
+    char *buffer = PyOS_double_to_string(value, format_char, precision, flags, NULL);
+    if (unlikely(!buffer)) return NULL;
+    result = PyUnicode_FromString(buffer);
+    PyMem_Free(buffer);
+    return result;
 }
 
 

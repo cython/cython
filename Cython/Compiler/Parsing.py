@@ -1,4 +1,4 @@
-# cython: auto_cpdef=True, infer_types=True, py2_import=True
+# cython: binding=False, auto_cpdef=True, infer_types=True, py2_import=True
 #
 #   Parser
 #
@@ -89,7 +89,7 @@ def p_ident_list(s: PyrexScanner) -> list:
 #------------------------------------------
 
 @cython.cfunc
-def p_binop_operator(s: PyrexScanner) -> tuple:
+def p_binop_operator(s: PyrexScanner) -> tuple[str, object]:
     pos = s.position()
     op = s.sy
     s.next()
@@ -159,7 +159,7 @@ def p_test_allow_walrus_after(s: PyrexScanner):
         test = p_or_test(s)
         s.expect('else')
         other = p_test(s)
-        return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
+        return ExprNodes.CondExprNode(pos, condition=test, true_val=expr, false_val=other)
     else:
         return expr
 
@@ -549,7 +549,7 @@ def p_trailer(s: PyrexScanner, node1):
 #             star_expr )
 
 @cython.cfunc
-def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tuple:
+def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True) -> tuple[list, list]:
     # s.sy == '('
     s.next()
     positional_args = []
@@ -683,7 +683,7 @@ def p_index(s: PyrexScanner, base):
 
 
 @cython.cfunc
-def p_subscript_list(s: PyrexScanner) -> tuple:
+def p_subscript_list(s: PyrexScanner) -> tuple[list[list], cython.bint]:
     is_single_value = True
     items = [p_subscript(s)]
     while s.sy == ',':
@@ -934,7 +934,7 @@ def wrap_compile_time_constant(pos, value):
 
 
 @cython.cfunc
-def p_cat_string_literal(s: PyrexScanner) -> tuple:
+def p_cat_string_literal(s: PyrexScanner) -> tuple[str, object, object]:
     # A sequence of one or more adjacent string literals.
     # Returns (kind, bytes_value, unicode_value)
     # where kind in ('b', 'c', 'u', 'f', 't', '')
@@ -1012,7 +1012,7 @@ def check_for_non_ascii_characters(string) -> cython.bint:
 
 @cython.cfunc
 def p_string_literal_shared_read(
-        s: PyrexScanner, pos, chars, kind,
+        s: PyrexScanner, pos, chars, kind: str,
         is_raw: cython.bint):
     """
     Returns a string of non-escaped characters (if handled) or none.
@@ -1058,7 +1058,7 @@ def _validate_kind_string(pos, systring: str) -> str:
     return ''
 
 @cython.cfunc
-def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
+def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple[str, object, object]:
     # A single string or char literal.  Returns (kind, bvalue, uvalue)
     # where kind in ('b', 'c', 'u', 'f', '').  The 'bvalue' is the source
     # code byte sequence of the string literal, 'uvalue' is the
@@ -1302,7 +1302,7 @@ def p_ft_string_middles(s: PyrexScanner,
     return middles
 
 @cython.cfunc
-def p_ft_string_literal(s: PyrexScanner) -> tuple:
+def p_ft_string_literal(s: PyrexScanner) -> tuple[cython.Py_UCS4, object, object]:
     # s.sy == BEGIN_FT_STRING
     kind_string = _validate_kind_string(s.position(), s.systring)
     tf_string_kind: cython.Py_UCS4 = 't' if 't' in kind_string else 'f'
@@ -1317,7 +1317,7 @@ def p_ft_string_literal(s: PyrexScanner) -> tuple:
 
 
 @cython.cfunc
-def _append_escape_sequence(kind, builder, escape_sequence: str, s: PyrexScanner):
+def _append_escape_sequence(kind: str, builder, escape_sequence: str, s: PyrexScanner):
     if len(escape_sequence) < 2:
         builder.append("\\")  # invalid escape sequence, warned earlier
         return
@@ -1336,7 +1336,7 @@ def _append_escape_sequence(kind, builder, escape_sequence: str, s: PyrexScanner
         else:
             s.error("Invalid hex escape '%s'" % escape_sequence, fatal=False)
     elif c in 'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
-        chrval = -1
+        chrval: cython.py_int = -1
         if c == 'N':
             uchar = None
             try:
@@ -1376,8 +1376,6 @@ def p_list_maker(s: PyrexScanner):
 
     expr = p_namedexpr_test_or_starred_expr(s)
     if s.sy in ('for', 'async'):
-        if expr.is_starred:
-            s.error("iterable unpacking cannot be used in comprehension")
         append = ExprNodes.ComprehensionAppendNode(pos, expr=expr)
         loop = p_comp_for(s, append)
         s.expect(']')
@@ -1455,105 +1453,100 @@ def p_dict_or_set_maker(s: PyrexScanner):
         s.next()
         return ExprNodes.DictNode(pos, key_value_pairs=[])
 
-    parts = []
     target_type: cython.int = 0
-    last_was_simple_item = False
-    while True:
+
+    if s.sy == '*':
+        last_was_simple_item = False
+        target_type = 1  # set
+        item = p_starred_expr(s)
+    elif s.sy == '**':
+        last_was_simple_item = False
+        target_type = 2  # dict
+        s.next()
+        if s.sy == '*':
+            s.error("expected expression, found '*'")
+        item = p_starred_expr(s)
+    else:
+        last_was_simple_item = True
+        target_type = 1  # set
+        item = p_test(s)
+        if s.sy == ':':
+            target_type = 2  # dict
+            key = item
+            s.next()
+            value = p_test(s)
+            item = ExprNodes.DictItemNode(key.pos, key=key, value=value)
+
+    if s.sy in ('for', 'async'):
+        # set/dict comprehension
+        if target_type == 2:
+            comprehension_type = Builtin.dict_type
+            append = ExprNodes.DictComprehensionAppendNode(item.pos, dict_item=item)
+        else:
+            comprehension_type = Builtin.set_type
+            append = ExprNodes.ComprehensionAppendNode(item.pos, expr=item)
+
+        loop = p_comp_for(s, append)
+        s.expect('}')
+        return ExprNodes.ComprehensionNode(pos, loop=loop, append=append, type=comprehension_type)
+
+    # set/dict literal
+    merged_items = []
+    simple_items = []
+
+    if last_was_simple_item:
+        simple_items.append(item)
+    else:
+        merged_items.append(item.target if item.is_starred else item)
+
+    while s.sy == ',':
+        s.next()
+        if s.sy == '}':
+            break
+
         if s.sy in ('*', '**'):
-            # merged set/dict literal
-            if target_type == 0:
-                target_type = 1 if s.sy == '*' else 2  # 'stars'
-            elif target_type != len(s.sy):
-                s.error("unexpected %sitem found in %s literal" % (
-                    s.sy, 'set' if target_type == 1 else 'dict'))
+            if target_type != len(s.sy):
+                s.error(f"unexpected {s.sy}item found in {'set' if target_type == 1 else 'dict'} literal")
+
+            if simple_items:
+                if target_type == 1:
+                    item = ExprNodes.SetNode(simple_items[0].pos, args=simple_items)
+                else:
+                    item = ExprNodes.DictNode(simple_items[0].pos, key_value_pairs=simple_items)
+                merged_items.append(item)
+                simple_items = []
+
             s.next()
             if s.sy == '*':
                 s.error("expected expression, found '*'")
             item = p_starred_expr(s)
-            parts.append(item)
-            last_was_simple_item = False
+            merged_items.append(item)
+
         else:
             item = p_test(s)
-            if target_type == 0:
-                target_type = 2 if s.sy == ':' else 1  # dict vs. set
             if target_type == 2:
                 # dict literal
                 s.expect(':')
                 key = item
                 value = p_test(s)
                 item = ExprNodes.DictItemNode(key.pos, key=key, value=value)
-            if last_was_simple_item:
-                parts[-1].append(item)
-            else:
-                parts.append([item])
-                last_was_simple_item = True
 
-        if s.sy == ',':
-            s.next()
-            if s.sy == '}':
-                break
-        else:
-            break
-
-    if s.sy in ('for', 'async'):
-        # dict/set comprehension
-        if len(parts) == 1 and isinstance(parts[0], list) and len(parts[0]) == 1:
-            item = parts[0][0]
-            if target_type == 2:
-                assert isinstance(item, ExprNodes.DictItemNode), type(item)
-                comprehension_type = Builtin.dict_type
-                append = ExprNodes.DictComprehensionAppendNode(
-                    item.pos, key_expr=item.key, value_expr=item.value)
-            else:
-                comprehension_type = Builtin.set_type
-                append = ExprNodes.ComprehensionAppendNode(item.pos, expr=item)
-            loop = p_comp_for(s, append)
-            s.expect('}')
-            return ExprNodes.ComprehensionNode(pos, loop=loop, append=append, type=comprehension_type)
-        else:
-            # syntax error, try to find a good error message
-            if len(parts) == 1 and not isinstance(parts[0], list):
-                s.error("iterable unpacking cannot be used in comprehension")
-            else:
-                # e.g. "{1,2,3 for ..."
-                s.expect('}')
-            return ExprNodes.DictNode(pos, key_value_pairs=[])
+            simple_items.append(item)
 
     s.expect('}')
+
     if target_type == 1:
-        # (merged) set literal
-        items = []
-        set_items = []
-        for part in parts:
-            if isinstance(part, list):
-                set_items.extend(part)
-            else:
-                if set_items:
-                    items.append(ExprNodes.SetNode(set_items[0].pos, args=set_items))
-                    set_items = []
-                items.append(part)
-        if set_items:
-            items.append(ExprNodes.SetNode(set_items[0].pos, args=set_items))
-        if len(items) == 1 and items[0].is_set_literal:
-            return items[0]
-        return ExprNodes.MergedSequenceNode(pos, args=items, type=Builtin.set_type)
+        if simple_items:
+            merged_items.append(ExprNodes.SetNode(simple_items[0].pos, args=simple_items))
+        if len(merged_items) == 1 and merged_items[0].is_set_literal:
+            return merged_items[0]
+        return ExprNodes.MergedSequenceNode(pos, args=merged_items, type=Builtin.set_type)
     else:
-        # (merged) dict literal
-        items = []
-        dict_items = []
-        for part in parts:
-            if isinstance(part, list):
-                dict_items.extend(part)
-            else:
-                if dict_items:
-                    items.append(ExprNodes.DictNode(dict_items[0].pos, key_value_pairs=dict_items))
-                    dict_items = []
-                items.append(part)
-        if dict_items:
-            items.append(ExprNodes.DictNode(dict_items[0].pos, key_value_pairs=dict_items))
-        if len(items) == 1 and items[0].is_dict_literal:
-            return items[0]
-        return ExprNodes.MergedDictNode(pos, keyword_args=items, reject_duplicates=False)
+        if simple_items:
+            merged_items.append(ExprNodes.DictNode(simple_items[0].pos, key_value_pairs=simple_items))
+        if len(merged_items) == 1 and merged_items[0].is_dict_literal:
+            return merged_items[0]
+        return ExprNodes.MergedDictNode(pos, keyword_args=merged_items, reject_duplicates=False)
 
 
 # NOTE: no longer in Py3 :)
@@ -2204,6 +2197,21 @@ def p_try_statement(s: PyrexScanner):
         if s.sy == 'else':
             s.next()
             else_clause = p_suite(s)
+
+        for clause in except_clauses[1:]:
+            if clause.is_except_star != except_clauses[0].is_except_star:
+                s.error("cannot have both 'except' and 'except*' on the same 'try'", pos=clause.pos)
+                break
+
+        if except_clauses and except_clauses[0].is_except_star:
+            except_body = Nodes.ExceptStarChainNode(pos, except_clauses=except_clauses)
+            except_clauses = [
+                Nodes.ExceptClauseNode(
+                    pos,
+                    pattern=[],
+                    body=except_body, target=None)
+            ]
+
         body = Nodes.TryExceptStatNode(pos,
             body = body, except_clauses = except_clauses,
             else_clause = else_clause)
@@ -2221,9 +2229,13 @@ def p_try_statement(s: PyrexScanner):
 
 @cython.cfunc
 def p_except_clause(s: PyrexScanner):
+    # Share as much implementation as possible between except and except*
     # s.sy == 'except'
     pos = s.position()
     s.next()
+    is_except_star = s.sy == '*'
+    if is_except_star:
+        s.next()
     exc_type = None
     exc_value = None
     is_except_as = False
@@ -2234,8 +2246,10 @@ def p_except_clause(s: PyrexScanner):
             exc_type = exc_type.args
         else:
             exc_type = [exc_type]
-        if s.sy == ',' or (s.sy == 'IDENT' and s.systring == 'as'
-                           and s.context.language_level == 2):
+        # Don't allow old , syntax at all for except*
+        if not is_except_star and s.sy == ',' or (
+                s.sy == 'IDENT' and s.systring == 'as'
+                and s.context.language_level == 2):
             s.next()
             exc_value = p_test(s)
         elif s.sy == 'IDENT' and s.systring == 'as':
@@ -2245,10 +2259,13 @@ def p_except_clause(s: PyrexScanner):
             name = p_ident(s)
             exc_value = ExprNodes.NameNode(pos2, name = name)
             is_except_as = True
+    elif is_except_star:
+        s.error("Expected exception type after except*")
     body = p_suite(s)
     return Nodes.ExceptClauseNode(pos,
         pattern = exc_type, target = exc_value,
-        body = body, is_except_as=is_except_as)
+        body = body, is_except_as=is_except_as,
+        is_except_star = is_except_star)
 
 
 @cython.cfunc
@@ -2684,7 +2701,7 @@ def p_suite_with_docstring(s: PyrexScanner, ctx, with_doc_only: cython.bint = Fa
 
 
 @cython.cfunc
-def p_positional_and_keyword_args(s: PyrexScanner, end_sy_set, templates = None) -> tuple:
+def p_positional_and_keyword_args(s: PyrexScanner, end_sy_set, templates = None) -> tuple[list, list]:
     """
     Parses positional and keyword arguments. end_sy_set
     should contain any s.sy that terminate the argument list.
@@ -3056,9 +3073,9 @@ struct_enum_union = cython.declare(frozenset, frozenset((
 
 
 @cython.cfunc
-def p_sign_and_longness(s: PyrexScanner) -> tuple:
-    signed = 1
-    longness = 0
+def p_sign_and_longness(s: PyrexScanner) -> tuple[cython.int, cython.long]:
+    signed: cython.int = 1
+    longness: cython.long = 0
     while s.sy == 'IDENT' and s.systring in sign_and_longness_words:
         if s.systring == 'unsigned':
             signed = 0
@@ -4508,6 +4525,9 @@ def p_literal_pattern(s: PyrexScanner):
         sign_pos = s.position()
         s.next()
         next_must_be_a_number = True
+    elif s.sy == '+':
+        s.next()
+        next_must_be_a_number = True
 
     sy = s.sy
     pos = s.position()
@@ -4526,6 +4546,8 @@ def p_literal_pattern(s: PyrexScanner):
     if res is not None and s.sy in ['+', '-']:
         sign = s.sy
         s.next()
+        if s.sy == '+':
+            s.next()
         if s.sy != 'IMAG':
             s.error("Expected imaginary number")
         else:

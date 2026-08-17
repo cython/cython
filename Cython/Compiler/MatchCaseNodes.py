@@ -611,7 +611,7 @@ class OrPatternNode(PatternNode):
                 cond_exprs.append(
                     ExprNodes.CondExprNode(
                         self.pos,
-                        test = a_test,
+                        condition = a_test,
                         true_val = a_value,
                         false_val = ExprNodes.IntNode.for_size(self.pos, 0)
                     )
@@ -1435,7 +1435,7 @@ class ClassPatternNode(PatternNode):
         PyrexTypes.c_bint_type,
         [
             PyrexTypes.CFuncTypeArg("subject", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("type", Builtin.type_type, None),
+            PyrexTypes.CFuncTypeArg("type", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("fixed_names", PyrexTypes.c_void_ptr_type, None),
             PyrexTypes.CFuncTypeArg("n_fixed", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("match_self", PyrexTypes.c_int_type, None),
@@ -1446,7 +1446,7 @@ class ClassPatternNode(PatternNode):
     )
 
     Pyx_typeguard_type = PyrexTypes.CFuncType(
-        Builtin.type_type,
+        PyrexTypes.py_object_type,
         [
             PyrexTypes.CFuncTypeArg("type", PyrexTypes.py_object_type, None),
         ],
@@ -2177,17 +2177,20 @@ class EvaluateWithKeysAndSubjectsArrays(ExprNodes.ExprNode):
             EvaluateWithKeysAndSubjectsArrays.keys_array_cname,
             keys_str,
         ))
-        subjects_str = ", ".join(
-            "&"+subject.result() if subject is not None else "NULL" for subject in self.subjects_array
-        )
-        if not subjects_str:
-            # GCC gets worried about overflow if we pass
-            # a genuinely empty array
-            subjects_str = "NULL"
-        code.putln("PyObject **%s[] = {%s};" % (
-            EvaluateWithKeysAndSubjectsArrays.subjects_array_cname,
-            subjects_str
-        ))
+
+        if self.subjects_array:
+            subjects_str = ", ".join(
+                "&"+subject.result() if subject is not None else "NULL"
+                for subject in self.subjects_array
+            )
+            if not subjects_str:
+                # GCC gets worried about overflow if we pass
+                # a genuinely empty array
+                subjects_str = "NULL"
+            code.putln("PyObject **%s[] = {%s};" % (
+                EvaluateWithKeysAndSubjectsArrays.subjects_array_cname,
+                subjects_str
+            ))
 
         self.arg.generate_evaluation_code(code)
         code.putln(f"{self.result()} = {self.arg.result()};")

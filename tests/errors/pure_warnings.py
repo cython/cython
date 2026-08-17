@@ -42,6 +42,8 @@ def bar3() -> stdint.bar:  # warning
 def bar4(a: cython.foo[:]):  # error
     pass
 
+cvar: list = cython.declare(dict, {})  # warning
+
 _WARNINGS = """
 12:10: Unknown type declaration 'Bar' in annotation, ignoring
 15:16: Unknown type declaration 'stdint.bar' in annotation, ignoring
@@ -51,16 +53,11 @@ _WARNINGS = """
 21:14: Unknown type declaration in annotation, ignoring
 35:14: Unknown type declaration 'Bar' in annotation, ignoring
 39:20: Unknown type declaration 'stdint.bar' in annotation, ignoring
+45:0: Annotation type 'list object' is not compatible with declaration type 'dict object'.
 
 # Spurious warnings from utility code - not part of the core test
-26:10: 'cpdef_method' redeclared
-37:10: 'cpdef_cname_method' redeclared
-958:29: Ambiguous exception value, same as default return value: 0
-958:29: Ambiguous exception value, same as default return value: 0
-999:46: Ambiguous exception value, same as default return value: 0
-999:46: Ambiguous exception value, same as default return value: 0
-1089:29: Ambiguous exception value, same as default return value: 0
-1089:29: Ambiguous exception value, same as default return value: 0
+26:4: 'cpdef_method' redeclared
+36:4: 'cpdef_cname_method' redeclared
 """
 
 _ERRORS = """

@@ -295,6 +295,34 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 #define __Pyx_TRASHCAN_END
 #endif
 
+/////////////// DeallocKeepAlive.proto ///////////////
+
+// Keep `o` alive across a call into user __dealloc__ code, to prevent the user
+// code from triggering recursive deallocation, then drop the temporary reference.
+//
+// On the GIL build this is a plain refcount bump.  On free-threading we must NOT
+// use Py_SET_REFCNT(o, 1): the object reaching tp_dealloc is unowned and merged
+// (ob_ref_shared == _Py_REF_MERGED), so Py_SET_REFCNT takes the unowned branch and
+// writes ob_ref_shared = _Py_REF_SHARED(1, _Py_REF_MERGED), i.e. "merged, shared
+// count 1" -- indistinguishable from a live object.  A concurrent
+// PyUnstable_TryIncRef() would then succeed and resurrect the dying object
+// (use-after-free).  Instead we mirror CPython's _PyObject_ResurrectStart/End:
+// re-take ownership and keep the *shared* refcount at the refuse sentinel (0), so
+// the bump is invisible to other threads and TryIncRef keeps refusing.
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#define __Pyx_DeallocKeepAliveBegin(o) do {                                  \
+        _Py_atomic_store_uintptr_relaxed(&(o)->ob_tid, _Py_ThreadId());      \
+        _Py_atomic_store_uint32_relaxed(&(o)->ob_ref_local, 1);              \
+        _Py_atomic_store_ssize_relaxed(&(o)->ob_ref_shared, 0);             \
+    } while (0)
+#define __Pyx_DeallocKeepAliveEnd(o) \
+        _Py_atomic_store_uint32_relaxed(&(o)->ob_ref_local, 0)
+#else
+#define __Pyx_DeallocKeepAliveBegin(o) Py_SET_REFCNT(o, Py_REFCNT(o) + 1)
+#define __Pyx_DeallocKeepAliveEnd(o)   Py_SET_REFCNT(o, Py_REFCNT(o) - 1)
+#endif
+
 /////////////// CallNextTpDealloc.proto ///////////////
 
 static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_dealloc);
@@ -353,6 +381,7 @@ static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear) {
 
 
 /////////////// SetupReduce.export ///////////////
+//@feature: AutoPickle
 
 static int __Pyx_setup_reduce(PyObject* type_obj);
 
@@ -360,6 +389,7 @@ static int __Pyx_setup_reduce(PyObject* type_obj);
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ObjectHandling.c::RaiseErrorWithObjectType
+//@requires: Exceptions.c::IgnoreException
 //@requires: SetItemOnTypeDict
 //@requires: DelItemOnTypeDict
 
@@ -374,13 +404,26 @@ static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
       ret = -1;
   }
 
-  if (unlikely(ret < 0)) {
-      PyErr_Clear();
-      ret = 0;
+  if (unlikely(ret < 0) && __Pyx_IgnoreException(PyExc_Exception)) {
+      ret = 0;  // But BaseException is still propagated.
   }
 
   Py_XDECREF(name_attr);
   return ret;
+}
+
+// Returns a borrowed reference with CYTHON_USE_PYTYPE_LOOKUP
+static PyObject *__Pyx_setup_reduce_get_reduce_attribute(PyObject *type_obj, PyObject *name, int allow_not_present) {
+#if CYTHON_USE_PYTYPE_LOOKUP
+    CYTHON_UNUSED_VAR(allow_not_present);
+    return _PyType_Lookup((PyTypeObject*)type_obj, name);
+#else
+    if (allow_not_present) {
+        return __Pyx_PyObject_GetAttrStrNoError(type_obj, name);
+    } else {
+        return __Pyx_PyObject_GetAttrStr(type_obj, name);
+    }
+#endif
 }
 
 static int __Pyx_setup_reduce(PyObject* type_obj) {
@@ -395,46 +438,38 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     PyObject *setstate_cython = NULL;
     PyObject *getstate = NULL;
 
-#if CYTHON_USE_PYTYPE_LOOKUP
-    getstate = _PyType_Lookup((PyTypeObject*)type_obj, PYIDENT("__getstate__"));
-#else
-    getstate = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__getstate__"));
+    getstate = __Pyx_setup_reduce_get_reduce_attribute(type_obj, PYIDENT("__getstate__"), 1);
     if (!getstate && PyErr_Occurred()) {
         goto __PYX_BAD;
     }
-#endif
     if (getstate) {
         // Python 3.11 introduces object.__getstate__. Because it's version-specific failure to find it should not be an error
-#if CYTHON_USE_PYTYPE_LOOKUP
-        object_getstate = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__getstate__"));
-#else
-        object_getstate = __Pyx_PyObject_GetAttrStrNoError((PyObject*)&PyBaseObject_Type, PYIDENT("__getstate__"));
+        object_getstate = __Pyx_setup_reduce_get_reduce_attribute((PyObject*)&PyBaseObject_Type, PYIDENT("__getstate__"), 1);
         if (!object_getstate && PyErr_Occurred()) {
             goto __PYX_BAD;
         }
-#endif
         if (object_getstate != getstate) {
             goto __PYX_GOOD;
         }
     }
 
-#if CYTHON_USE_PYTYPE_LOOKUP
-    object_reduce_ex = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto __PYX_BAD;
-#else
-    object_reduce_ex = __Pyx_PyObject_GetAttrStr((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto __PYX_BAD;
-#endif
-
+    object_reduce_ex = __Pyx_setup_reduce_get_reduce_attribute((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce_ex__"), 0);
+    if (unlikely(!object_reduce_ex)) goto __PYX_BAD;
     reduce_ex = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce_ex__")); if (unlikely(!reduce_ex)) goto __PYX_BAD;
     if (reduce_ex == object_reduce_ex) {
-
-#if CYTHON_USE_PYTYPE_LOOKUP
-        object_reduce = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__reduce__")); if (!object_reduce) goto __PYX_BAD;
-#else
-        object_reduce = __Pyx_PyObject_GetAttrStr((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce__")); if (!object_reduce) goto __PYX_BAD;
-#endif
+        object_reduce = __Pyx_setup_reduce_get_reduce_attribute((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce__"), 0);
+        if (!object_reduce) goto __PYX_BAD;
         reduce = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce__")); if (unlikely(!reduce)) goto __PYX_BAD;
 
-        if (reduce == object_reduce || __Pyx_setup_reduce_is_named(reduce, PYIDENT("__reduce_cython__"))) {
+        int try_to_replace_reduce = (reduce == object_reduce);
+        if (!try_to_replace_reduce) {
+            try_to_replace_reduce = __Pyx_setup_reduce_is_named(reduce, PYIDENT("__reduce_cython__"));
+            if (unlikely(try_to_replace_reduce < 0)) {
+                goto __PYX_BAD;
+            }
+        }
+
+        if (try_to_replace_reduce) {
             reduce_cython = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__reduce_cython__"));
             if (likely(reduce_cython)) {
                 ret = __Pyx_SetItemOnTypeDict((PyTypeObject*)type_obj, PYIDENT("__reduce__"), reduce_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
@@ -446,8 +481,21 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
             }
 
             setstate = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__setstate__"));
-            if (!setstate) PyErr_Clear();
-            if (!setstate || __Pyx_setup_reduce_is_named(setstate, PYIDENT("__setstate_cython__"))) {
+            int try_to_replace_setstate;
+            if (!setstate) {
+                PyObject *exc = PyErr_Occurred();
+                if (exc && !__Pyx_IgnoreGivenException(exc, PyExc_Exception)) {
+                    goto __PYX_BAD;
+                }
+                try_to_replace_setstate = 1;
+            } else {
+                try_to_replace_setstate = __Pyx_setup_reduce_is_named(setstate, PYIDENT("__setstate_cython__"));
+                if (unlikely(try_to_replace_setstate < 0)) {
+                    goto __PYX_BAD;
+                }
+            }
+
+            if (try_to_replace_setstate) {
                 setstate_cython = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__setstate_cython__"));
                 if (likely(setstate_cython)) {
                     ret = __Pyx_SetItemOnTypeDict((PyTypeObject*)type_obj, PYIDENT("__setstate__"), setstate_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
@@ -492,6 +540,27 @@ __PYX_GOOD:
 static CYTHON_INLINE int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members); /*proto*/
 
 /////////////// CheckUnpickleChecksum ///////////////
+//@requires: CheckUnpickleChecksumError
+
+static int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members) {
+    int found = 0;
+    found |= checksum1 == checksum;
+    found |= checksum2 == checksum;
+    found |= checksum3 == checksum;
+    if (likely(found))
+        return 0;
+
+    __Pyx_RaiseUnpickleChecksumError(checksum, checksum1, checksum2, checksum3, members);
+    return -1;
+}
+
+
+/////////////// CheckUnpickleChecksumError.export ///////////////
+//@feature: AutoPickle
+
+static void __Pyx_RaiseUnpickleChecksumError(long checksum, long checksum1, long checksum2, long checksum3, const char *members); /*proto*/
+
+/////////////// CheckUnpickleChecksumError ///////////////
 
 static void __Pyx_RaiseUnpickleChecksumError(long checksum, long checksum1, long checksum2, long checksum3, const char *members) {
     // This function always raises some kind of error, either the expected one or a different one.
@@ -515,20 +584,9 @@ static void __Pyx_RaiseUnpickleChecksumError(long checksum, long checksum1, long
     Py_DECREF(pickle_error);
 }
 
-static int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members) {
-    int found = 0;
-    found |= checksum1 == checksum;
-    found |= checksum2 == checksum;
-    found |= checksum3 == checksum;
-    if (likely(found))
-        return 0;
-
-    __Pyx_RaiseUnpickleChecksumError(checksum, checksum1, checksum2, checksum3, members);
-    return -1;
-}
-
 
 /////////////// UpdateUnpickledDict.export ///////////////
+//@feature: AutoPickle
 
 static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index); /*proto*/
 
@@ -597,6 +655,7 @@ static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t 
 
 
 /////////////// BinopSlot ///////////////
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
     {{slot_type}} slot;
@@ -657,7 +716,8 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
     return __Pyx_NewRef(Py_NotImplemented);
 }
 
-/////////////// ValidateExternBase.proto ///////////////
+
+/////////////// ValidateExternBase.export ///////////////
 
 static int __Pyx_validate_extern_base(PyTypeObject *base); /* proto */
 

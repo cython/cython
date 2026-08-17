@@ -6,11 +6,10 @@ on:
     branches:
       - master
   pull_request:
-  label:
     # Accepted labels (in the 'if' condition below) are:
     # * sanitizers
     # * full_sanitizers - runs thread sanitizer on all tests
-    types: [created]
+    types: [opened, synchronize, reopened, labeled]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
@@ -29,15 +28,15 @@ jobs:
       pr-files: ${{ steps.filter.outputs.pr-files }}
     steps:
     - name: Checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
       # Only needed to compare the "base" on push; not needed for PR
       if: ${{ github.event_name == 'push' }}
-    - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
+    - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706  # v4.0.2
       id: filter
       with:
-        base: ${{ github.ref }}
+        base: ${{ case(github.event_name == 'push', github.ref, '') }}
         filters: |
           push-files:
           - ".github/workflows/sanitizers.yml"
@@ -65,7 +64,12 @@ jobs:
       cpp_compiler: clang++
       sanitize: ${{ matrix.sanitizer }}
       name: ${{ matrix.sanitizer }}
-    if: ${{ case(github.event_name == 'push', needs.file-changes.outputs.push-files == 'true', github.event_name == 'pull_request', needs.file-changes.outputs.pr-files == 'true', github.event_name == 'label', github.event.label.name == 'sanitizers' || github.event.label.name == 'full_sanitizers', 'true') }}
+    if: |
+      case(
+        github.event_name == 'push', needs.file-changes.outputs.push-files == 'true',
+        github.event_name == 'pull_request' && github.event.action != 'labeled', needs.file-changes.outputs.pr-files == 'true',
+        github.event_name == 'pull_request' && github.event.action == 'labeled', github.event.label.name == 'sanitizers' || github.event.label.name == 'full_sanitizers',
+        'true')
 
   pydebug:
     uses: ./.github/workflows/compiled_python.yml
@@ -76,7 +80,7 @@ jobs:
 
   sanitizers-success:
     needs: [sanitizers, pydebug]
-    if: always()
+    if: ${{ always() && !contains(needs.*.result, 'cancelled') }}
     env:
       FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
     runs-on: ubuntu-latest

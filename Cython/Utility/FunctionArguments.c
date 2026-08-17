@@ -6,6 +6,7 @@ static CYTHON_INLINE int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, in
 
 //////////////////// ArgTypeTest ////////////////////
 //@requires: ArgTypeTestError
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 static CYTHON_INLINE int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed, const char *name, int exact) {
     if (likely(Py_IS_TYPE(obj, type) | (none_allowed && (obj == Py_None))))
@@ -18,10 +19,12 @@ static CYTHON_INLINE int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, in
 
 
 //////////////////// ArgTypeTestError.export ////////////////////
+//@feature: DEFAULTS
 
 static void __Pyx_ArgTypeError(PyObject *obj, PyTypeObject *type, const char *name, int exact); /*proto*/
 
 //////////////////// ArgTypeTestError ////////////////////
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 static void __Pyx_ArgTypeError(PyObject *obj, PyTypeObject *type, const char *name, int exact)
 {
@@ -85,6 +88,7 @@ obj_type_name_failed:
 
 
 //////////////////// RaiseArgTupleInvalid.export ////////////////////
+//@feature: DEFAULTS
 
 static void __Pyx_RaiseArgtupleInvalid(const char* func_name, int exact,
     Py_ssize_t num_min, Py_ssize_t num_max, Py_ssize_t num_found); /*proto*/
@@ -154,6 +158,7 @@ static void __Pyx_RaiseDoubleKeywordsError(
 static void __Pyx_RaiseMappingExpectedError(PyObject* arg); /*proto*/
 
 //////////////////// RaiseMappingExpected ////////////////////
+//@requires: ObjectHandling.c::RaiseErrorWithObjectType
 
 static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
     __Pyx_RaiseTypeErrorWithObjectType(
@@ -195,6 +200,7 @@ static int __Pyx_CheckKeywordStrings(PyObject *kw) {
 
 
 //////////////////// RejectKeywords.export ////////////////////
+//@feature: DEFAULTS
 
 static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds); /*proto*/
 
@@ -283,6 +289,7 @@ static int __Pyx_ParseKeywords(
 
 
 //////////////////// ParseKeywordsImpl.export ////////////////////
+//@feature: DEFAULTS
 //@requires: RaiseDoubleKeywords
 //@requires: Synchronization.c::CriticalSections
 //@requires: ObjectHandling.c::OwnedDictNext
@@ -962,10 +969,10 @@ static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_
 
 #define __Pyx_ArgsSlice_VARARGS(args, start, stop) PyTuple_GetSlice(args, start, stop)
 
-#if CYTHON_VECTORCALL || (CYTHON_COMPILING_IN_CPYTHON && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
+#if CYTHON_VECTORCALL
 #define __Pyx_ArgsSlice_FASTCALL(args, start, stop) __Pyx_PyTuple_FromArray(args + start, stop - start)
 #else
-#define __Pyx_ArgsSlice_FASTCALL(args, start, stop) PyTuple_GetSlice(args, start, stop)
+#define __Pyx_ArgsSlice_FASTCALL __Pyx_ArgsSlice_VARARGS
 #endif
 
 /////////////// fastcall ///////////////

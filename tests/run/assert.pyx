@@ -90,3 +90,55 @@ def assert_with_str_arg(a):
     AssertionError: abc
     """
     assert a, 'abc'
+
+
+@cython.test_assert_path_exists(
+    '//AssertStatNode',
+    '//IfClauseNode//AssertStatNode',
+    '//AssertStatNode//RaiseStatNode',
+    '//AssertStatNode[@condition.constant_result = False]',
+)
+@cython.test_fail_if_path_exists(
+    '//AssertStatNode[@condition.constant_result = True]',  # eliminated
+    '//AssertStatNode[@condition.constant_result = 1]',  # eliminated
+    '//AssertStatNode[@condition.constant_result = ""]',  # normalised
+)
+def assert_const(case: str):
+    """
+    >>> assert_const("False")
+    Traceback (most recent call last):
+    AssertionError: hi
+    >>> assert_const("0")
+    Traceback (most recent call last):
+    AssertionError: hi
+    >>> assert_const("")
+    Traceback (most recent call last):
+    AssertionError: hi
+    >>> assert_const("[]")
+    Traceback (most recent call last):
+    AssertionError: hi
+
+    >>> assert_const("True")
+    >>> assert_const("1")
+    >>> assert_const("str")
+    >>> assert_const("[1]")
+    """
+    if case == "False":
+        assert False, "hi"
+    elif case == "0":
+        assert 0, "hi"
+    elif case == "":
+        assert "", "hi"
+    elif case == "[]":
+        assert [], "hi"
+
+    elif case == "True":
+        assert True, "ho"
+    elif case == "1":
+        assert 1, "ho"
+    elif case == "str":
+        assert "str", "ho"
+    elif case == "[1]":
+        assert [1], "ho"
+    else:
+        print("WRONG TEST")

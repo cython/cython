@@ -13,10 +13,7 @@ from Cython.TestUtils import TimedTest, compiled_eval
 
 @contextlib.contextmanager
 def hidden_stderr():
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from io import StringIO
 
     old_stderr = sys.stderr
     try:
@@ -1824,8 +1821,6 @@ class GrammarTests(TimedTest):
 
     def test_comprehension_specials(self):
         # test for outmost iterable precomputation
-        # FIXME: https://github.com/cython/cython/issues/1159
-        """
         x = 10; g = (i for i in range(x)); x = 5
         self.assertEqual(len(list(g)), 10)
 
@@ -1833,7 +1828,6 @@ class GrammarTests(TimedTest):
         x = 10; t = False; g = ((i,j) for i in range(x) if t for j in range(x))
         x = 5; t = True;
         self.assertEqual([(i,j) for i in range(10) for j in range(5)], list(g))
-        """
 
         # Grammar allows multiple adjacent 'if's in listcomps and genexps,
         # even though it's silly. Make sure it works (ifelse broke this.)

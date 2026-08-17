@@ -178,11 +178,11 @@ static CYTHON_SMALL_CODE size_t __pyx_lzss_decompress(const uint8_t* src, uint8_
                     match_length = hi;
                 } else if (!(hi & 0x80)) {
                     // 2+7 bit offset + 5 bit length
-                    end_offset_of_last_occurrence = ((hi << 2) & 0x180) | (lo & 0x7F);
+                    end_offset_of_last_occurrence = 0x80 + (((hi << 2) & 0x180) | (lo & 0x7F));
                     match_length = hi & 0x1F;
                 } else {
                     // 7+7 bit offset + 8 bit length
-                    end_offset_of_last_occurrence = (hi & 0x7F) << 7 | (lo & 0x7F);
+                    end_offset_of_last_occurrence = 0x80 + ((hi & 0x7F) << 7 | (lo & 0x7F));
                     match_length = src[pos++];
                 }
 
@@ -233,12 +233,12 @@ bad:
 
 //////////////////// BytesContains.proto ////////////////////
 
-static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character); /*proto*/
+static CYTHON_INLINE int __Pyx_BytesContains(char character, PyObject* bytes, int eq); /*proto*/
 
 //////////////////// BytesContains ////////////////////
 //@requires: IncludeStringH
 
-static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
+static CYTHON_INLINE int __Pyx_BytesContains(char character, PyObject* bytes, int eq) {
     const Py_ssize_t length = __Pyx_PyBytes_GET_SIZE(bytes);
 #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(length == -1)) return -1;
@@ -247,31 +247,70 @@ static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
 #if !CYTHON_ASSUME_SAFE_MACROS
     if (unlikely(!char_start)) return -1;
 #endif
-    return memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
+
+    int result = memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
+    return (result == (eq == Py_EQ));
+}
+
+
+//////////////////// ByteArrayContains.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_ByteArrayContains(char character, PyObject* bytearray, int eq); /*proto*/
+
+//////////////////// ByteArrayContains ////////////////////
+//@requires: IncludeStringH
+
+static CYTHON_INLINE int __Pyx_ByteArrayContains(char character, PyObject* bytearray, int eq) {
+    const Py_ssize_t length = __Pyx_PyByteArray_GET_SIZE(bytearray);
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length == -1)) return -1;
+#endif
+    const char* char_start = __Pyx_PyByteArray_AsString(bytearray);
+#if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(!char_start)) return -1;
+#endif
+
+    int result = memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
+    return (result == (eq == Py_EQ));
 }
 
 
 //////////////////// PyUCS4InUnicode.proto ////////////////////
 
-static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character); /*proto*/
+static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* text, int eq); /*proto*/
 
 //////////////////// PyUCS4InUnicode ////////////////////
+//@requires: IncludeStringH
 
-static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
-    // Note that from Python 3.7, the indices of FindChar are adjusted to match the bounds
-    // so need to check the length
-    Py_ssize_t idx = PyUnicode_FindChar(unicode, character, 0, PY_SSIZE_T_MAX, 1);
+static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(Py_UCS4 character, PyObject* text, int eq) {
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL)
+    // Not calling __Pyx_PyUnicode_READY(text) here since the "w_char" kind is simply ignored.
+    int str_kind = PyUnicode_KIND(text);
+    // A large part of real-world strings will be ASCII or Latin-1,
+    // especially when looking for 1-byte characters (which we often know at compile time).
+    if (character <= 0xFF && str_kind == 1) {
+        Py_ssize_t len_text = PyUnicode_GET_LENGTH(text);
+        return (memchr(PyUnicode_1BYTE_DATA(text), (unsigned char) character, (size_t) len_text) != NULL) == (eq == Py_EQ);
+    }
+    if (character > 0xFF && str_kind == 1) return (eq == Py_NE);
+    if (character > 0xFFFF && str_kind == 2) return (eq == Py_NE);
+#endif
+    Py_ssize_t idx = PyUnicode_FindChar(text, character, 0, PY_SSIZE_T_MAX, 1);
     if (unlikely(idx == -2)) return -1;
+
     // >= 0: found the index, == -1: not found
-    return idx >= 0;
+    int result = idx >= 0;
+    return (result == (eq == Py_EQ));
 }
 
 
 //////////////////// PyUnicodeContains.proto ////////////////////
+//@requires: IncludeStringH
 
 static CYTHON_INLINE int __Pyx_PyUnicode_ContainsTF(PyObject* substring, PyObject* text, int eq) {
+    if (substring == text) return (eq == Py_EQ);
     int result = PyUnicode_Contains(text, substring);
-    return unlikely(result < 0) ? result : (result == (eq == Py_EQ));
+    return unlikely(result < 0) ? -1 : (result == (eq == Py_EQ));
 }
 
 
@@ -1270,6 +1309,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
         }
     }
     return __Pyx_PyByteArray_Append(bytearray, (int) ival);
+
 bad_range:
     PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
     return -1;
@@ -1282,22 +1322,8 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
 //////////////////// ByteArrayAppend ////////////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 
-static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
+static int __Pyx_PyByteArray_Append_fallback(PyObject* bytearray, int value) {
     PyObject *pyval, *retval;
-#if CYTHON_COMPILING_IN_CPYTHON
-    if (likely(__Pyx_is_valid_index(value, 256))) {
-        Py_ssize_t n = Py_SIZE(bytearray);
-        if (likely(n != PY_SSIZE_T_MAX)) {
-            if (unlikely(PyByteArray_Resize(bytearray, n + 1) < 0))
-                return -1;
-            PyByteArray_AS_STRING(bytearray)[n] = (char) (unsigned char) value;
-            return 0;
-        }
-    } else {
-        PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
-        return -1;
-    }
-#endif
     pyval = PyLong_FromLong(value);
     if (unlikely(!pyval))
         return -1;
@@ -1307,6 +1333,100 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
         return -1;
     Py_DECREF(retval);
     return 0;
+}
+
+static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (likely(__Pyx_is_valid_index(value, 256))) {
+        int retval = 1;
+        __Pyx_BEGIN_CRITICAL_SECTION(bytearray);
+        Py_ssize_t n = Py_SIZE(bytearray);
+        if (likely(n != PY_SSIZE_T_MAX)) {
+            retval = PyByteArray_Resize(bytearray, n + 1);
+            if (likely(retval == 0)) {
+                PyByteArray_AS_STRING(bytearray)[n] = (char) (unsigned char) value;
+            }
+        }
+        __Pyx_END_CRITICAL_SECTION();
+        if (likely(retval != 1)) {
+            return retval;
+        }
+    } else {
+        PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
+        return -1;
+    }
+#endif
+
+    return __Pyx_PyByteArray_Append_fallback(bytearray, value);
+}
+
+
+//////////////////// ByteArrayExtend.proto ////////////////////
+
+static int __Pyx_PyByteArray_Extend_fallback(PyObject* bytearray, PyObject* value); /*proto*/
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBuffer(PyObject* bytearray, PyObject *value, const char* bytes, Py_ssize_t length); /*proto*/
+#endif
+
+//////////////////// ByteArrayExtend ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
+//@requires: IncludeStringH
+
+static int __Pyx_PyByteArray_Extend_fallback(PyObject* bytearray, PyObject* value) {
+    PyObject *retval = __Pyx_PyObject_CallMethod1(bytearray, PYIDENT("extend"), value);
+    if (unlikely(!retval))
+        return -1;
+    Py_DECREF(retval);
+    return 0;
+}
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBuffer(PyObject* bytearray, PyObject *value, const char* bytes, Py_ssize_t length) {
+    int retval = 1;
+    __Pyx_BEGIN_CRITICAL_SECTION(bytearray);
+    Py_ssize_t n = Py_SIZE(bytearray);
+    if (likely(n < PY_SSIZE_T_MAX - length)) {
+        retval = PyByteArray_Resize(bytearray, n + length);
+        if (likely(retval == 0)) {
+            char *buffer = PyByteArray_AS_STRING(bytearray) + n;
+            memcpy(buffer, bytes, (size_t) length);
+        }
+    }
+    __Pyx_END_CRITICAL_SECTION();
+    if (likely(retval != 1)) {
+        return retval;
+    }
+
+    return __Pyx_PyByteArray_Extend_fallback(bytearray, value);
+}
+#endif
+
+
+//////////////////// ByteArrayExtendBytes.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBytes(PyObject* bytearray, PyObject* value); /*proto*/
+
+#define __Pyx_PyByteArray_ExtendObject(bytearray, value)  (PyBytes_CheckExact(value) ? \
+    __Pyx_PyByteArray_ExtendBytes(bytearray, value) : \
+    __Pyx_PyByteArray_Extend_fallback(bytearray, value))
+
+//////////////////// ByteArrayExtendBytes ////////////////////
+//@requires: ByteArrayExtend
+
+static CYTHON_INLINE int __Pyx_PyByteArray_ExtendBytes(PyObject* bytearray, PyObject* value) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    char* bytes;
+    Py_ssize_t length;
+    if (unlikely(PyBytes_AsStringAndSize(value, &bytes, &length) == -1)) {
+        return -1;
+    }
+    if (unlikely(length == 0)) {
+        return 0;
+    }
+    return __Pyx_PyByteArray_ExtendBuffer(bytearray, value, bytes, length);
+#else
+    return __Pyx_PyByteArray_Extend_fallback(bytearray, value);
+#endif
 }
 
 
