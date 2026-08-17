@@ -1868,10 +1868,10 @@ class BuiltinObjectType(PyObjectType):
     decl_type = 'PyObject'
 
     _builtin_type_flag_mapping = {
-        'int': ['is_pyint_type'],
-        'float': ['is_pyfloat_type'],
-        'bool': ['is_pybool_type'],
-        'complex': ['is_pycomplex_type'],
+        'int': ['is_pyint_type', 'is_immutable'],
+        'float': ['is_pyfloat_type', 'is_immutable'],
+        'bool': ['is_pybool_type', 'is_immutable'],
+        'complex': ['is_pycomplex_type', 'is_immutable'],
         'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type', 'has_uniform_element_type'],
         'tuple': ['is_pytuple_type', 'is_builtin_sequence', 'supports_container_type', 'is_immutable'],
         'dict': ['is_pydict_type', 'is_pyanydict_type', 'supports_container_type'],
@@ -1881,8 +1881,8 @@ class BuiltinObjectType(PyObjectType):
             'is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type',
             'is_immutable'
         ],
-        'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
-        'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
+        'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray', 'is_immutable'],
+        'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray', 'is_immutable'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
         'dict_keys': ['supports_container_type'],
