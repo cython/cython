@@ -194,6 +194,7 @@ class PyrexType(BaseType):
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
     #  is_cpp_string         boolean     Is a C++ std::string or std::string_view type
+    #  is_immutable          boolean     Is an immutable Python type
     #  python_type_constructor_name     string or None     non-None if it is a Python type constructor that can be indexed/"templated"
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
@@ -289,6 +290,7 @@ class PyrexType(BaseType):
     is_error = 0
     is_buffer = 0
     is_ctuple = 0
+    is_immutable = False
 
     is_pyint_type = False
     is_pyfloat_type = False
@@ -5419,8 +5421,6 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     """
     builtin types like list, dict etc which can be subscripted in annotations
     """
-
-    is_immutable = False
 
     def __init__(self, name, cname, objstruct_cname=None, **kwargs):
         super().__init__(
