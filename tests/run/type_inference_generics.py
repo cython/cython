@@ -115,7 +115,7 @@ def test_dict_builtin_methods():
         print(cython.typeof(k) + ('[str object,int object] object' if not cython.compiled else ''), k)
 
 
-def bar():
+def new_object():
     return object()
 
 def test_initialised_subscripted_frozenset(arg_a: list[int], arg_b):
@@ -158,7 +158,7 @@ def test_initialised_subscripted_frozenset(arg_a: list[int], arg_b):
     s4 = frozenset({len(s3)})
     print(cython.typeof(s4) + ('[Py_ssize_t] object' if not cython.compiled else ''))
 
-    s5 = frozenset({bar()})
+    s5 = frozenset({new_object()})
     print(cython.typeof(s5) + (' object' if not cython.compiled else ''))
 
     print("* frozenset from variable:")
@@ -271,9 +271,9 @@ if sys.version_info >= (3, 15) or cython.compiled:
         print(cython.typeof(s6) + ('[str object,Py_ssize_t] object' if not cython.compiled else ''))
 
         print("* not annotated function:")
-        s7 = frozendict({bar(): 1})
+        s7 = frozendict({new_object(): 1})
         print(cython.typeof(s7) + ('[Python object,long] object' if not cython.compiled else ''))
-        s8 = frozendict({1: bar()})
+        s8 = frozendict({1: new_object()})
         print(cython.typeof(s8) + ('[long,Python object] object' if not cython.compiled else ''))
 
         print("* frozendict created from variable:")

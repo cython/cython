@@ -9232,7 +9232,7 @@ class TupleNode(SequenceNode):
         if self.mult_factor or not self.args:
             return tuple_type
         arg_types = [arg.infer_type(env) for arg in self.args]
-        if len(arg_types) > 0:
+        if arg_types:
             return tuple_type.specialize_here(self.pos, env, arg_types)
         return env.declare_tuple_type(self.pos, arg_types).type
 
@@ -9400,7 +9400,7 @@ class ListNode(SequenceNode):
         return ()
 
     def infer_type(self, env):
-        if len(self.args) > 0 and self.read_only:
+        if self.args and self.read_only:
             item_type = PyrexTypes.reduce_spanning_types(
                 [node.infer_type(env) for node in self.args]
             )
@@ -10027,7 +10027,7 @@ class SetNode(ExprNode):
     gil_message = "Constructing Python set"
 
     def infer_type(self, env):
-        if self.read_only and len(self.args) > 0:
+        if self.read_only and self.args:
             item_type = PyrexTypes.reduce_spanning_types(
                 [node.infer_type(env) for node in self.args]
             )
@@ -10105,7 +10105,7 @@ class FrozenSetNode(ExprNode):
             self.is_temp = True
 
     def infer_type(self, env):
-        if len(self.args) > 0:
+        if self.args:
             item_type = PyrexTypes.reduce_spanning_types(
                 [node.infer_type(env) for node in self.args]
             )
@@ -10303,7 +10303,7 @@ class DictNode(ExprNode):
 
     def infer_type(self, env):
         # TODO: Infer struct constructors.
-        if len(self.key_value_pairs) > 0 and self.read_only:
+        if self.key_value_pairs and self.read_only:
             key_type = PyrexTypes.reduce_spanning_types(
                 [item.key.infer_type(env) for item in self.key_value_pairs]
             )
