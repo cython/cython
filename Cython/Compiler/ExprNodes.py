@@ -205,6 +205,15 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
     return None
 
 
+def specialise_builtin_container_type(pos, env, container_type, items):
+    item_type = PyrexTypes.reduce_spanning_types(
+        [node.infer_type(env) for node in items]
+    )
+    if item_type is not py_object_type:
+        return container_type.specialize_here(pos, env, [item_type])
+    return container_type
+
+
 def make_dedup_key(outer_type, item_nodes):
     """
     Recursively generate a deduplication key from a sequence of values.
@@ -9401,11 +9410,7 @@ class ListNode(SequenceNode):
 
     def infer_type(self, env):
         if self.args and self.read_only:
-            item_type = PyrexTypes.reduce_spanning_types(
-                [node.infer_type(env) for node in self.args]
-            )
-            if item_type is not py_object_type:
-                return list_type.specialize_here(self.pos, env, [item_type])
+            return specialise_builtin_container_type(self.pos, env, list_type, self.args)
         return list_type
 
     def analyse_expressions(self, env):
@@ -10028,11 +10033,7 @@ class SetNode(ExprNode):
 
     def infer_type(self, env):
         if self.read_only and self.args:
-            item_type = PyrexTypes.reduce_spanning_types(
-                [node.infer_type(env) for node in self.args]
-            )
-            if item_type is not py_object_type:
-                return set_type.specialize_here(self.pos, env, [item_type])
+            return specialise_builtin_container_type(self.pos, env, set_type, self.args)
         return set_type
 
     def analyse_types(self, env):
@@ -10106,11 +10107,7 @@ class FrozenSetNode(ExprNode):
 
     def infer_type(self, env):
         if self.args:
-            item_type = PyrexTypes.reduce_spanning_types(
-                [node.infer_type(env) for node in self.args]
-            )
-            if item_type is not py_object_type:
-                return frozenset_type.specialize_here(self.pos, env, [item_type])
+            return specialise_builtin_container_type(self.pos, env, frozenset_type, self.args)
         return frozenset_type
 
     def may_be_none(self):
