@@ -15160,7 +15160,7 @@ class PyTypeTestNode(CoercionNode):
             error(self.pos, "Cannot test type of extern C class without type object name specification")
             return
 
-        allow_none = not self.notnone
+        allow_none = not self.notnone and self.arg.may_be_none()
         is_builtin_type = self.type.is_builtin_type
 
         if self.exact_builtin_type and is_builtin_type:
