@@ -6424,37 +6424,36 @@ class SimpleCallNode(CallNode):
     overflowcheck = False
 
     def infer_type(self, env):
-        infered_type = super().infer_type(env)
+        inferred_type = super().infer_type(env)
         function = self.function
-        if (
-                function.is_name and function.entry and
-                function.entry.type and
-                function.entry.type.supports_container_type
-        ):
-            pass
-        else:
-            return infered_type
+        function_entry = getattr(function, entry, None)
+        if function_entry is None:
+            return inferred_type
+        if not function_entry.type.supports_container_type:
+            return inferred_type
 
-        if infered_type.supports_container_type and infered_type.is_immutable and self.args and len(self.args) == 1:
-            if isinstance(self.args[0], (SetNode, DictNode, ListNode)):
-                self.args[0].read_only = True
-            param_type = self.args[0].infer_type(env)
-            subscripted_types = ()
-            if param_type.supports_container_type or param_type.is_ctuple:
-                if (
-                    function.entry.type != param_type.get_container_type() and
-                    (function.entry.type.is_builtin_sequence or function.entry.type.is_pyanyset_type)
-                ):
-                    subscripted_types = (param_type.infer_iterator_type(), )
-                else:
-                    subscripted_types = param_type.subscripted_types
-            if infered_type.is_pytuple_type and not param_type.is_pytuple_type and len(subscripted_types) == 1:
-                # tuple([1, 2]) should be type of tuple[int, ...]
-                # tuple((1, 2)) should be type of tuple[int, int]
-                subscripted_types += (Ellipsis,)
-            return infered_type.specialize_here(self.pos, env, subscripted_types)
-        else:
-            return infered_type
+        if not (inferred_type.supports_container_type and inferred_type.is_immutable):
+            return inferred_type
+        if not self.args or len(self.args) != 1:
+            return inferred_type
+            
+        if isinstance(self.args[0], (SetNode, DictNode, ListNode)):
+            self.args[0].read_only = True
+        param_type = self.args[0].infer_type(env)
+        subscripted_types = ()
+        if param_type.supports_container_type or param_type.is_ctuple:
+            if (
+                function_entry.type != param_type.get_container_type() and
+                (function_entry.type.is_builtin_sequence or function_entry.type.is_pyanyset_type)
+            ):
+                subscripted_types = (param_type.infer_iterator_type(), )
+            else:
+                subscripted_types = param_type.subscripted_types
+        if inferred_type.is_pytuple_type and not param_type.is_pytuple_type and len(subscripted_types) == 1:
+            # tuple([1, 2]) should be type of tuple[int, ...]
+            # tuple((1, 2)) should be type of tuple[int, int]
+            subscripted_types += (Ellipsis,)
+        return inferred_type.specialize_here(self.pos, env, subscripted_types)
 
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
