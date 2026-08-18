@@ -106,6 +106,20 @@ def exception_hierarchy_inference(x):
     print(cython.typeof(arith_exc_cascade))
 
 
+def exception_hierarchy_raise(x):
+    """
+    See https://github.com/cython/cython/issues/7902
+
+    >>> exception_hierarchy_raise(True)
+    Traceback (most recent call last):
+    ConnectionAbortedError
+    >>> exception_hierarchy_raise(False)
+    Traceback (most recent call last):
+    ConnectionRefusedError
+    """
+    raise ConnectionAbortedError() if x else ConnectionRefusedError()
+
+
 def try_except_target(call):
     """
     >>> try_except_target(list)
