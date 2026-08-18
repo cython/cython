@@ -1864,6 +1864,7 @@ class BuiltinObjectType(PyObjectType):
     typedef_flag = True
     is_external = True
     decl_type = 'PyObject'
+    type_check_utility_code = None
 
     _builtin_type_flag_mapping = {
         'int': ['is_pyint_type'],
@@ -1890,7 +1891,7 @@ class BuiltinObjectType(PyObjectType):
 
     _get_type_flags_for = _builtin_type_flag_mapping.get
 
-    def __init__(self, name, cname, objstruct_cname=None):
+    def __init__(self, name, cname, objstruct_cname=None, type_check_utility_code=None):
         self.name = name
         self.cname = cname
         self.objstruct_cname = objstruct_cname
@@ -1900,6 +1901,8 @@ class BuiltinObjectType(PyObjectType):
             # Special case the type type, as many C API calls (and other
             # libraries) actually expect a PyTypeObject* for type arguments.
             self.decl_type = objstruct_cname
+        if type_check_utility_code:
+            self.type_check_utility_code = type_check_utility_code
 
         self._init_builtin_type_flags(name)
         if self.is_exception_type:
@@ -1974,13 +1977,14 @@ class BuiltinObjectType(PyObjectType):
     def isinstance_code(self, arg):
         return '%s(%s)' % (self.type_check_function(exact=False), arg)
 
-    def type_test_code(self, scope, arg, allow_none=True, exact=True):
+    def type_test_code(self, scope_or_globalstate, arg, allow_none=True, exact=True):
         type_check = self.type_check_function(exact=exact)
         check = f'likely({type_check}({arg}))'
         if len(self.name) > 42:
             warning(None, f"Name length in 'RaiseUnexpectedTypeError' needs adjustment to at least {len(self.name)}", 1)
-        scope.use_utility_code(UtilityCode.load_cached(
-                    "RaiseUnexpectedTypeError", "ObjectHandling.c"))
+        scope_or_globalstate.use_utility_code(self.type_check_utility_code)
+        scope_or_globalstate.use_utility_code(
+            UtilityCode.load_cached("RaiseUnexpectedTypeError", "ObjectHandling.c"))
         if allow_none:
             check += f'||(({arg}) == Py_None)'
         return check + f' || __Pyx_RaiseUnexpectedTypeError("{self.name}", {arg})'
