@@ -1879,7 +1879,7 @@ class BuiltinObjectType(PyObjectType):
         'set': ['is_pyset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type'],
         'frozenset': [
             'is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type',
-            'is_immutable'
+            'is_immutable',
         ],
         'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray', 'is_immutable'],
         'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray', 'is_immutable'],
