@@ -256,6 +256,30 @@ jobs:
           done
           exit $ERRORS
 
+      - name: Check downloaded artifact list
+        run: |
+          cd ./wheel_check
+          ls -la
+          echo; echo -n "Wheels built: "; ls *.whl | wc -l
+          echo; echo "Validating wheel success…"
+          RESULT_CODE=0
+          for PYVERSION in  39  310  311  312  313  314  315 ; do \
+            for WHEEL_ARCH in  "manylinux*x86_64"  "manylinux*aarch64"  "macosx*arm64"  "win_amd64"  ; do \
+              ls *-cp${PYVERSION}-*${WHEEL_ARCH}*.whl >/dev/null 2>&1  ||  { echo "MISSING WHEEL: cp${PYVERSION}-${WHEEL_ARCH}" ; RESULT_CODE=1; } ; \
+            done; \
+          done; \
+          for PYVERSION in  39 ; do \
+            for WHEEL_ARCH in  \
+                  "abi3-macosx*x86_64"  \
+                  "abi3-manylinux*i686"  "abi3-manylinux*armv7l"  \
+                  "abi3-musllinux*i686"  "abi3-musllinux*armv7l"  "abi3-musllinux*aarch64"  "abi3-musllinux*x86_64"  \
+                  "abi3-win32"  "abi3-win_arm64"  \
+                  ; do \
+              ls *-cp${PYVERSION}-*${WHEEL_ARCH}*.whl >/dev/null 2>&1  ||  { echo "MISSING WHEEL: cp${PYVERSION}-${WHEEL_ARCH}" ; RESULT_CODE=1; } ; \
+            done; \
+          done; \
+          exit ${RESULT_CODE}
+
   upload_release_assets:
     name: Upload Release Assets
     needs: [ inspect_wheels ]
