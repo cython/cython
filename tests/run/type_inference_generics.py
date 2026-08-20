@@ -331,6 +331,31 @@ def test_initialised_subscripted_mutables_types():
         cython.typeof(d2) + (' object' if not cython.compiled else '')
     )
 
+def append_one(t) -> tuple:
+    return tuple(t) + (1,)
+
+@cython.cfunc
+def c_append_one(t) -> tuple:
+    return tuple(t) + (1,)
+
+def inferred():
+    x = append_one(['a', 'b'])
+
+def test_initialized_custom_function_not_inferred():
+    """
+    >>> test_initialized_custom_function_not_inferred()
+    Python object
+    tuple object
+    tuple[str object,...] object
+    """
+    # Tests that regular functions does not infer subscripted types
+    x = append_one(['a', 'b'])
+    y = c_append_one(['a', 'b'])
+    z = tuple(['a', 'b'])
+    print(cython.typeof(x) if cython.compiled else 'Python object')
+    print(cython.typeof(y) + (' object' if not cython.compiled else ''))
+    print(cython.typeof(z) + ('[str object,...] object' if not cython.compiled else ''))
+
 def test_initialised_tuple(arg_l: list[str]):
     """
     >>> test_initialised_tuple(['bar'])
