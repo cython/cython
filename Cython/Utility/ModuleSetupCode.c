@@ -2721,6 +2721,8 @@ done:
 ////////////////////////// MultiPhaseInitModuleState.proto /////////////
 
 #if CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_USE_MODULE_STATE
+#include <stdlib.h>
+
 // This defines an ad-hoc, single module version of PyState_FindModule that
 // works for multi-phase init modules. It's intended to be the last option
 // when all the other official ways of getting the module are unavailable.
