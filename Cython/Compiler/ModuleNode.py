@@ -3613,7 +3613,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("if (pystate_addmodule_run) {")
         code.putln("PyObject *tp, *value, *tb;")
         code.putln("__Pyx_PyErr_FetchException(&tp, &value, &tb);")
-        code.putln("PyState_RemoveModule(&%s);" % Naming.pymoduledef_cname)
+        code.putln("__Pyx_State_RemoveModule(&%s);" % Naming.pymoduledef_cname)
         code.putln("__Pyx_PyErr_RestoreException(tp, value, tb);")
         code.putln("}")
         code.putln("#endif")
