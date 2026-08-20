@@ -1328,7 +1328,7 @@ class BuiltinScope(Scope):
                              objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType,
                              utility_code=None):
         name = EncodedString(name)
-        type = type_class(name, cname, objstruct_cname)
+        type = type_class(name, cname, objstruct_cname, type_check_utility_code=utility_code)
         scope = CClassScope(name, outer_scope=None, visibility='extern', parent_type=type)
         scope.directives = {}
         type.set_scope(scope)

@@ -2,11 +2,14 @@
 Cython Changelog
 ================
 
-3.3.0rc1 (2026-??-??)
+3.3.0rc1 (2026-08-20)
 =====================
 
 Bugs fixed
 ----------
+
+* A regression in 3.3.0b1 that generated invalid C code for exception type checks was fixed.
+  (Github issue :issue:`7902`)
 
 
 3.3.0b1 (2026-08-14)

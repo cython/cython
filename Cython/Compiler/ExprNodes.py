@@ -2605,8 +2605,7 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return  # There was an error earlier
-        if entry.utility_code:
-            code.globalstate.use_utility_code(entry.utility_code)
+        code.globalstate.use_entry_utility_code(entry)
         if entry.is_builtin and entry.is_const:
             return  # Lookup already cached
         elif entry.is_pyclass_attr:
@@ -8561,8 +8560,7 @@ class AttributeNode(ExprNode):
         cfunc_type = cmethod_entry.type
         return_type = cfunc_type.return_type
 
-        if cmethod_entry.utility_code is not None:
-            code.globalstate.use_utility_code(cmethod_entry.utility_code)
+        code.globalstate.use_entry_utility_code(cmethod_entry)
 
         generate_cfunction_call(
             self.pos, code, cfunc_type, cmethod_entry.cname,
@@ -15214,7 +15212,7 @@ class PyTypeTestNode(CoercionNode):
             error(self.pos, "Cannot test type of extern C class without type object name specification")
             return
 
-        allow_none = not self.notnone
+        allow_none = not self.notnone and self.arg.may_be_none()
         is_builtin_type = self.type.is_builtin_type
 
         if self.exact_builtin_type and is_builtin_type:
