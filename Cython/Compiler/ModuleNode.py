@@ -3855,7 +3855,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(f"PySlot_PTR_STATIC(Py_mod_doc, {doc}),")
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln(f"  PySlot_PTR_STATIC(Py_mod_state_size, (void*)sizeof({Naming.modulestatetype_cname})),")
-        code.putln(f"  PySlot_PTR_STATIC(Py_mod_state_traverse, {Naming.module_cname}),")
+        code.putln(f"  PySlot_PTR_STATIC(Py_mod_state_traverse, {Naming.module_cname}_traverse),")
         code.putln(f"  PySlot_PTR_STATIC(Py_mod_state_clear, {Naming.module_cname}_clear),")
         if Options.generate_cleanup_code:
             code.putln("  PySlot_PTR_STATIC(Py_mod_state_free, {cleanup_func}),")
