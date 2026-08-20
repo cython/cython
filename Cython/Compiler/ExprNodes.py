@@ -6426,7 +6426,7 @@ class SimpleCallNode(CallNode):
     def infer_type(self, env):
         inferred_type = super().infer_type(env)
         function = self.function
-        function_entry = getattr(function, entry, None)
+        function_entry = getattr(function, 'entry', None)
         if function_entry is None:
             return inferred_type
         if not function_entry.type.supports_container_type:
@@ -6436,7 +6436,7 @@ class SimpleCallNode(CallNode):
             return inferred_type
         if not self.args or len(self.args) != 1:
             return inferred_type
-            
+
         if isinstance(self.args[0], (SetNode, DictNode, ListNode)):
             self.args[0].read_only = True
         param_type = self.args[0].infer_type(env)
