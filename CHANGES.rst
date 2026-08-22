@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+3.3.1 (2026-??-??)
+==================
+
+Bugs fixed
+----------
+
+* A dangling pointer was fixed when assigning to attributes of extension types.
+  (Github issue :issue:`7907`)
+
+
 3.3.0 (2026-08-22)
 ==================
 
