@@ -8504,13 +8504,12 @@ class AttributeNode(ExprNode):
                 rhs.make_owned_reference(code)
                 rhs.generate_giveref(code)
                 code.put_gotref(select_code, self.type)
-                code.put_decref(select_code, self.ctype())
+                self.generate_decref_set(code, rhs.result_as(self.ctype()))
             elif self.type.is_memoryviewslice:
                 from . import MemoryView
                 MemoryView.put_assign_to_memviewslice(
                         select_code, rhs, rhs.result(), self.type, code)
-
-            if not self.type.is_memoryviewslice:
+            else:
                 code.putln(
                     "%s = %s;" % (
                         select_code,
