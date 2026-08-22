@@ -33,6 +33,13 @@ class Wrapped:
         return self._value > other
 
 
+class SubInt(int):
+    pass
+
+class SubFloat(int):
+    pass
+
+
 @cython.cfunc
 def _bubblesort_steps(items: list, _type1: item_types1, _type2: item_types2):
     """A few iterations of bubblesort that scale linearly with the number of elements.
@@ -128,6 +135,8 @@ def _comparisons(type_selection: cython.int, item_type, scale: cython.Py_ssize_t
 # Number benchmarks
 bm_cmp_obj_obj_mix = partial(_comparisons, 1, lambda v: v if v&1 else float(v))
 bm_cmp_obj_obj_numext = partial(_comparisons, 1, lambda v: Wrapped(v) if v % 3 == 0 else float(v) if v % 3 == 1 else v)
+bm_cmp_obj_obj_intsub = partial(_comparisons, 1, lambda v: SubInt(v) if v % 2 == 1 else v)
+bm_cmp_obj_obj_floatsub = partial(_comparisons, 1, lambda v: SubFloat(v) if v % 2 == 1 else float(v))
 bm_cmp_obj_obj_int = partial(_comparisons, 1, int)
 bm_cmp_obj_obj_float = partial(_comparisons, 1, float)
 bm_cmp_obj_int = partial(_comparisons, 2, int)

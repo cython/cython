@@ -40,6 +40,22 @@ static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index) {
                  index, (index == 1) ? "" : "s");
 }
 
+
+/////////////// RaiseUnpackSizeError.proto ///////////////
+//@requires: RaiseTooManyValuesToUnpack
+//@requires: RaiseNeedMoreValuesToUnpack
+
+static void __Pyx_RaiseUnpackSizeError(Py_ssize_t size, Py_ssize_t expected);
+
+/////////////// RaiseUnpackSizeError ///////////////
+
+static void __Pyx_RaiseUnpackSizeError(Py_ssize_t size, Py_ssize_t expected) {
+    if (size > expected) __Pyx_RaiseTooManyValuesError(expected);
+    else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);
+    else { /* size < 0  => exception reading the size. */ }
+}
+
+
 /////////////// UnpackTupleError.proto ///////////////
 
 static void __Pyx_UnpackTupleError(PyObject *, Py_ssize_t index); /*proto*/
