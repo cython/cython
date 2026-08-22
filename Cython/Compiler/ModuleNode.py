@@ -3858,7 +3858,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f"  PySlot_PTR_STATIC(Py_mod_state_traverse, {Naming.module_cname}_traverse),")
         code.putln(f"  PySlot_PTR_STATIC(Py_mod_state_clear, {Naming.module_cname}_clear),")
         if Options.generate_cleanup_code:
-            code.putln("  PySlot_PTR_STATIC(Py_mod_state_free, {cleanup_func}),")
+            code.putln(f"  PySlot_PTR_STATIC(Py_mod_state_free, {cleanup_func}),")
         code.putln("#endif")
         code.putln(f"PySlot_PTR_STATIC(Py_mod_slots, {Naming.pymoduledef_slots_cname}),")
         code.putln("PySlot_PTR_STATIC(Py_slot_end, 0)")
