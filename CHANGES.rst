@@ -937,6 +937,9 @@ Other changes
 Bugs fixed
 ----------
 
+* A dangling pointer was fixed when assigning to attributes of extension types.
+  (Github issue :issue:`7907`)
+
 * Unpickling wrappers of compiled functions failed.
   (Github issue :issue:`7846`)
 
