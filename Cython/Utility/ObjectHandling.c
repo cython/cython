@@ -214,7 +214,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next_Plain(PyObject *iterator) {
     result = PyObject_CallFunctionObjArgs(next, iterator, NULL);
     return result;
 #else
-    (void)__Pyx_GetBuiltinName; // only for early limited API
+    (void)&__Pyx_GetBuiltinName; // only for early limited API (address-of avoids MSVC C4551)
     iternextfunc iternext = __Pyx_PyObject_GetIterNextFunc(iterator);
     assert(iternext);
     return iternext(iterator);

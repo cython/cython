@@ -2048,7 +2048,7 @@ static PyType_Spec __pyx_FusedFunctionType_spec = {
 
 static int __pyx_FusedFunction_init(PyObject *module) {
     // Silence unused warning when not in shared module.
-    (void)__Pyx_Get_FusedFunction_Type;
+    (void)&__Pyx_Get_FusedFunction_Type;
 
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
     PyObject *bases = PyTuple_Pack(1, mstate->__pyx_CyFunctionType);

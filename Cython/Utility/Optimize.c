@@ -761,7 +761,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
 #if !CYTHON_USE_TYPE_SLOTS
         float_value = PyNumber_Float(obj);  if ((0)) goto bad;
         // avoid "unused" warnings
-        (void)__Pyx_PyObject_CallOneArg;
+        (void)&__Pyx_PyObject_CallOneArg;
 #else
         PyNumberMethods *nb = Py_TYPE(obj)->tp_as_number;
         if (likely(nb) && likely(nb->nb_float)) {
