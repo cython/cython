@@ -137,9 +137,10 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
 #if CYTHON_USE_TYPE_SPECS || !CYTHON_COMPILING_IN_CPYTHON
     // avoid C warning about unused helper function
-    (void)__Pyx_PyObject_CallMethod0;
+    // (take the address so MSVC does not warn C4551 about a missing call)
+    (void)&__Pyx_PyObject_CallMethod0;
 #if CYTHON_USE_TYPE_SPECS
-    (void)__Pyx_validate_bases_tuple;
+    (void)&__Pyx_validate_bases_tuple;
 #endif
 
     return PyType_Ready(t);
@@ -163,7 +164,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     #if PY_VERSION_HEX >= 0x030A00b1
         // finally added in Py3.10 :)
         gc_was_enabled = PyGC_Disable();
-        (void)__Pyx_PyObject_CallMethod0;
+        (void)&__Pyx_PyObject_CallMethod0;
 
     #else
         // Call gc.disable() as a backwards compatible fallback, but only if needed.

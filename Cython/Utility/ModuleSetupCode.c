@@ -1852,7 +1852,7 @@ static __Pyx_CachedCodeObjectType *__pyx__find_code_object(struct __Pyx_CodeObje
 
 static __Pyx_CachedCodeObjectType *__pyx_find_code_object(int code_line) {
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
-    (void)__pyx__find_code_object;
+    (void)&__pyx__find_code_object;
     return NULL; // Most implementation should have atomics. But otherwise, don't make it thread-safe, just miss.
 #else
     struct __Pyx_CodeObjectCache *code_cache = &CGLOBAL(__pyx_code_cache);
@@ -1921,7 +1921,7 @@ static void __pyx__insert_code_object(struct __Pyx_CodeObjectCache *code_cache, 
 
 static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* code_object) {
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
-    (void)__pyx__insert_code_object;
+    (void)&__pyx__insert_code_object;
     return; // Most implementation should have atomics. But otherwise, don't make it thread-safe, just fail.
 #else
     struct __Pyx_CodeObjectCache *code_cache = &CGLOBAL(__pyx_code_cache);
