@@ -4024,18 +4024,11 @@ class DefNodeWrapper(FuncDefNode):
         if (Options.docstrings and entry.doc and
                 not self.target.fused_py_func and
                 not entry.scope.is_property_scope and
-                (not entry.is_special or entry.wrapperbase_cname)):
-            # h_code = code.globalstate['h_code']
-            docstr = entry.doc
-
-            if docstr.is_unicode:
-                docstr = docstr.as_utf8_string()
-
-            if entry.is_special:
-                code.putln('#if CYTHON_UPDATE_DESCRIPTOR_DOC')
-                code.putln(
-                    "struct wrapperbase %s;" % entry.wrapperbase_cname)
-                code.putln('#endif')
+                entry.is_special and entry.wrapperbase_cname):
+            code.putln('#if CYTHON_UPDATE_DESCRIPTOR_DOC')
+            code.putln(
+                "struct wrapperbase %s;" % entry.wrapperbase_cname)
+            code.putln('#endif')
 
         code.putln("%s {" % header)
 
@@ -5954,11 +5947,9 @@ class CClassDefNode(ClassDefNode):
 
             # Fix special method docstrings. This is a bit of a hack, but
             # unless we let PyType_Ready create the slot wrappers we have
-            # a significant performance hit. (See trac #561.)
+            # a significant performance hit. See https://github.com/cython/cython/issues/1121
             for func in entry.type.scope.pyfunc_entries:
-                is_buffer = func.name in ('__getbuffer__', '__releasebuffer__')
-                if (func.is_special and Options.docstrings and
-                        func.wrapperbase_cname and not is_buffer):
+                if func.is_special and Options.docstrings and func.wrapperbase_cname:
                     slot = TypeSlots.get_slot_table(
                         entry.type.scope.directives).get_slot_by_method_name(func.name)
                     preprocessor_guard = slot.preprocessor_guard_code() if slot else None

@@ -3221,7 +3221,7 @@ class CCodeWriter:
         if entry.in_closure:
             self.put_giveref('Py_None')
 
-    def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None, entry_name=None, doc_cname='0'):
+    def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None, entry_name=None, doc_cname=None):
         is_number_slot = False
         if entry.is_special or entry.name == '__getattribute__':
             from . import TypeSlots
@@ -3261,12 +3261,23 @@ class CCodeWriter:
             preproc_guard = slot.preprocessor_guard_code()
             if preproc_guard:
                 self.putln(preproc_guard)
+
+        if doc_cname and entry.is_special and entry.doc and wrapper_code_writer:
+            # Special methods need their docstring before adding the wrapper,
+            # to make sure their docstring gets inherited by subclasses.
+            docstr = entry.doc
+            if docstr.is_unicode:
+                docstr = docstr.as_utf8_string()
+            wrapper_code_writer.putln('PyDoc_STRVAR(%s, %s);' % (
+                doc_cname,
+                docstr.as_c_string_literal()))
+
         self.putln(
             '{%s, (PyCFunction)%s, %s, %s}%s' % (
                 entry_name,
                 func_ptr,
                 "|".join(method_flags),
-                doc_cname,
+                doc_cname or '0',
                 term))
         if is_number_slot and preproc_guard:
             self.putln("#endif")
