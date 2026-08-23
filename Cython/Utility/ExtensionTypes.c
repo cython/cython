@@ -137,7 +137,6 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
 #if CYTHON_USE_TYPE_SPECS || !CYTHON_COMPILING_IN_CPYTHON
     // avoid C warning about unused helper function
-    // (take the address so MSVC does not warn C4551 about a missing call)
     (void)&__Pyx_PyObject_CallMethod0;
 #if CYTHON_USE_TYPE_SPECS
     (void)&__Pyx_validate_bases_tuple;
