@@ -3262,7 +3262,7 @@ class CCodeWriter:
             if preproc_guard:
                 self.putln(preproc_guard)
 
-        if doc_cname and entry.is_special and entry.doc and wrapper_code_writer:
+        if doc_cname and entry.doc and wrapper_code_writer:
             # Special methods need their docstring before adding the wrapper,
             # to make sure their docstring gets inherited by subclasses.
             docstr = entry.doc

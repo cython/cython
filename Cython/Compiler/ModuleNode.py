@@ -3069,7 +3069,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in env.pyfunc_entries:
             if not entry.fused_cfunction and not (binding and entry.is_overridable):
                 docstring_cname = None
-                if entry.is_special and entry.doc:
+                if entry.doc:
                     docstring_cname = env.mangle(Naming.funcdoc_prefix, entry.name)
                 code.put_pymethoddef(
                     entry, ",", wrapper_code_writer=wrapper_code_writer, doc_cname=docstring_cname)

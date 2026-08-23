@@ -11007,7 +11007,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             flags = '0'
 
         moddict_cname = code.name_in_module_state(Naming.moddict_cname)
-        docstring_cname = code.get_py_string_const(def_node.doc, identifier=False) if def_node.doc else '0'
+        doc = def_node.entry.doc
+        docstring_cname = code.get_py_string_const(doc, identifier=False) if doc else '0'
         mdef_cname = code.name_in_module_state(
             code.globalstate.new_pymethoddef_cname(self.def_node.entry))
 
