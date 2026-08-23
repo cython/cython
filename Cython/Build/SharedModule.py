@@ -119,7 +119,7 @@ def create_shared_library_pipeline(context, scope, options, result, selected_fea
             Options.cimport_from_pyx = cimport_from_pyx
             return node
         return inner
-        
+
     orig_annotate = Options.annotate
 
     def set_annotate(annotate):
@@ -127,7 +127,7 @@ def create_shared_library_pipeline(context, scope, options, result, selected_fea
             Options.annotate = annotate
             return node
         return inner
-        
+
     return [
         # "cimport_from_pyx=True" to force generating __Pyx_ExportFunction
         set_cimport_from_pyx(True),
