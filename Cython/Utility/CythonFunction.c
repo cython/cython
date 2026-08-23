@@ -238,7 +238,7 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
                                       PyObject *closure,
                                       PyObject *module, PyObject *globals,
-                                      PyObject* code);
+                                      PyObject* code, PyObject* docstring);
 
 #if CYTHON_VECTORCALL
 static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
@@ -998,7 +998,7 @@ __Pyx_CyFunction_get_annotate(PyObject *op_in, void *context) {
 
 static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
                                        PyMethodDef *ml, int flags, PyObject* qualname,
-                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
+                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code, PyObject* docstring) {
     __pyx_CyFunctionObject* op = __Pyx_as_CyFunctionObject(op_in);
 #if !CYTHON_COMPILING_IN_LIMITED_API
     PyCFunctionObject *cf = (PyCFunctionObject*) op;
@@ -1030,7 +1030,7 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
     op->func_name = NULL;
     Py_INCREF(qualname);
     op->func_qualname = qualname;
-    op->func_doc = NULL;
+    op->func_doc = __Pyx_XNewRef(docstring);
 #if CYTHON_COMPILING_IN_LIMITED_API
     op->func_classobj = NULL;
 #else
@@ -1533,7 +1533,7 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
                                       int flags, PyObject* qualname,
                                       PyObject *closure,
                                       PyObject *module, PyObject *globals,
-                                      PyObject* code);
+                                      PyObject* code, PyObject* docstring);
 
 static PyTypeObject *__Pyx_Get_CyFunction_Type(void);
 
@@ -1541,13 +1541,13 @@ static PyTypeObject *__Pyx_Get_CyFunction_Type(void);
 //@requires: CythonFunctionShared
 
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,
-                                      PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
+                                      PyObject *closure, PyObject *module, PyObject* globals, PyObject* code, PyObject* docstring) {
     // Only used when using shared utility module
     (void)&__Pyx_Get_CyFunction_Type;
 
     PyObject *op = __Pyx_CyFunction_Init(
         PyObject_GC_New(PyObject, CGLOBAL(__pyx_CyFunctionType)),
-        ml, flags, qualname, closure, module, globals, code
+        ml, flags, qualname, closure, module, globals, code, docstring
     );
     if (likely(op)) {
         PyObject_GC_Track(op);
@@ -1664,7 +1664,7 @@ static int __pyx_FusedFunction_init(PyObject *module) {
 static PyObject *__pyx_FusedFunction_New(PyMethodDef *ml, int flags,
                                          PyObject *qualname, PyObject *closure,
                                          PyObject *module, PyObject *globals,
-                                         PyObject *code);
+                                         PyObject *code, PyObject* docstring);
 
 static PyTypeObject *__Pyx_Get_FusedFunction_Type(void);
 
@@ -1677,11 +1677,11 @@ static PyObject *
 __pyx_FusedFunction_New(PyMethodDef *ml, int flags,
                         PyObject *qualname, PyObject *closure,
                         PyObject *module, PyObject *globals,
-                        PyObject *code)
+                        PyObject *code, PyObject* docstring)
 {
     PyObject *op = __Pyx_CyFunction_Init(
         PyObject_GC_New(PyObject, CGLOBAL(__pyx_FusedFunctionType)),
-        ml, flags, qualname, closure, module, globals, code
+        ml, flags, qualname, closure, module, globals, code, docstring
     );
     if (likely(op)) {
         __pyx_FusedFunctionObject *fusedfunc = __Pyx_as_FusedFunctionObject(op);
@@ -1766,7 +1766,9 @@ __pyx_FusedFunction_descr_get_locked(PyObject *self, PyObject *obj)
                     cyfunc->func_closure,
                     module,
                     cyfunc->func_globals,
-                    cyfunc->func_code);
+                    cyfunc->func_code,
+                    cyfunc->func_doc
+                );
     #if CYTHON_COMPILING_IN_LIMITED_API
     Py_DECREF(module);
     #endif

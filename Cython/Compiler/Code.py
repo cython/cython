@@ -1406,6 +1406,7 @@ class GlobalState:
         'cached_builtins',
         'cached_constants',
         'init_constants',
+        'init_methoddefs',
         'init_codeobjects',
         'init_globals',  # (utility code called at init-time)
         'init_after_shared_utility',
@@ -1448,6 +1449,7 @@ class GlobalState:
         self.num_const_index = {}
         self.arg_default_constants = []
         self.const_array_counters = {}  # counts of differently prefixed arrays of constants
+        self.pymethoddef_entries = []
         self.cached_cmethods = {}
         self.initialised_constants = set()
         self.shared_utility_functions = []
@@ -1485,6 +1487,12 @@ class GlobalState:
         w = self.parts['init_constants']
         w.start_initcfunc(
             "int __Pyx_InitConstants("
+            f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})")
+        w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
+
+        w = self.parts['init_methoddefs']
+        w.start_initcfunc(
+            "int __Pyx_InitPyMethodDefs("
             f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})")
         w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
 
@@ -1570,7 +1578,7 @@ class GlobalState:
         w.putln("}")
         w.exit_cfunc_scope()
 
-        for part in ['init_globals', 'init_constants', 'init_after_shared_utility']:
+        for part in ['init_globals', 'init_constants', 'init_methoddefs', 'init_after_shared_utility']:
             w = self.parts[part]
             w.putln("return 0;")
             if w.label_used(w.error_label):
@@ -1729,6 +1737,11 @@ class GlobalState:
         self.const_array_counters[prefix] = count+1
         return f"{Naming.pyrex_prefix}{prefix}[{count}]"
 
+    def new_pymethoddef_cname(self, entry):
+        cname = f"{Naming.pymethoddeftab_cname}[{len(self.pymethoddef_entries)}]"
+        self.pymethoddef_entries.append(entry)
+        return cname
+
     def get_cached_unbound_method(self, type_cname, method_name):
         key = (type_cname, method_name)
         try:
@@ -1778,6 +1791,7 @@ class GlobalState:
         self.generate_cached_methods_decls()
         self.generate_object_constant_decls()
         self.generate_codeobject_constants()
+        self.generate_pymethoddefs()
         # generate code for string and numeric constants as late as possible
         # to allow new constants be to created by the earlier stages.
         # (although the constants themselves are written early)
@@ -1869,6 +1883,44 @@ class GlobalState:
             cleanup = self.parts['cleanup_globals']
             for cname in cnames:
                 cleanup.putln(f"Py_CLEAR({init.name_in_main_c_code_module_state(cname)}.method);")
+
+    def generate_pymethoddefs(self):
+        entries = self.pymethoddef_entries
+        if not entries:
+            return
+
+        decl = self.parts['module_state']
+        decl.putln(f"PyMethodDef {Naming.pymethoddeftab_cname}[{len(entries)}];")
+
+        init = self.parts['init_methoddefs']
+
+        for i, entry in enumerate(entries):
+            mstate_cname = init.name_in_main_c_code_module_state(f"{Naming.pymethoddeftab_cname}[{i}]")
+
+            name_cname = init.name_in_main_c_code_module_state(
+                self.get_py_string_const(entry.name).cname)
+
+            init.putln(
+                f"{{ const char *name = __Pyx_PyUnicode_AsUTF8({name_cname}); "
+                f"{init.error_goto_if_null(f"name", entry.pos)}"
+            )
+
+            if entry.doc:
+                doc_cname = init.name_in_main_c_code_module_state(
+                    self.get_py_string_const(entry.doc).cname)
+                init.putln(
+                    f"const char *doc = __Pyx_PyUnicode_AsUTF8({doc_cname}); "
+                    f"{init.error_goto_if_null(f"doc", entry.pos)}"
+                )
+                doc = 'doc'
+            else:
+                doc = '0'
+
+            init.put("PyMethodDef mdef = ")
+            init.put_pymethoddef(entry, ';', allow_skip=False, entry_name='name', doc_cname=doc)
+            init.putln(f"{mstate_cname} = mdef;")
+
+            init.putln("}")
 
     def generate_string_constants(self):
         c_consts: list[tuple] = []
@@ -3169,7 +3221,7 @@ class CCodeWriter:
         if entry.in_closure:
             self.put_giveref('Py_None')
 
-    def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
+    def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None, entry_name=None, doc_cname='0'):
         is_number_slot = False
         if entry.is_special or entry.name == '__getattribute__':
             from . import TypeSlots
@@ -3199,7 +3251,8 @@ class CCodeWriter:
         cast = entry.signature.method_function_type()
         if cast != 'PyCFunction':
             func_ptr = '(void(*)(void))(%s)%s' % (cast, func_ptr)
-        entry_name = entry.name.as_c_string_literal()
+        if entry_name is None:
+            entry_name = entry.name.as_c_string_literal()
         if is_number_slot:
             # Unlike most special functions, binop numeric operator slots are actually generated here
             # (to ensure that they can be looked up). However, they're sometimes guarded by the preprocessor
@@ -3213,7 +3266,7 @@ class CCodeWriter:
                 entry_name,
                 func_ptr,
                 "|".join(method_flags),
-                entry.doc_cname if entry.doc else '0',
+                doc_cname,
                 term))
         if is_number_slot and preproc_guard:
             self.putln("#endif")

@@ -3492,6 +3492,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.put_error_if_neg(self.pos, f"__Pyx_InitConstants({Naming.modulestatevalue_cname})")
         code.putln("stringtab_initialized = 1;")
+        code.put_error_if_neg(self.pos, f"__Pyx_InitPyMethodDefs({Naming.modulestatevalue_cname})")
         code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
 
         code.putln("if (%s) {" % self.is_main_module_flag_cname())
