@@ -119,10 +119,19 @@ def create_shared_library_pipeline(context, scope, options, result, selected_fea
             Options.cimport_from_pyx = cimport_from_pyx
             return node
         return inner
+        
+    orig_annotate = Options.annotate
 
+    def set_annotate(annotate):
+        def inner(node):
+            Options.annotate = annotate
+            return node
+        return inner
+        
     return [
         # "cimport_from_pyx=True" to force generating __Pyx_ExportFunction
         set_cimport_from_pyx(True),
+        set_annotate(False),
         generate_tree_factory(context),
         *Pipeline.create_pipeline(context, 'pyx', exclude_classes=()),
         generate_c_utilities,
@@ -132,6 +141,7 @@ def create_shared_library_pipeline(context, scope, options, result, selected_fea
         Pipeline.abort_on_errors,
         Pipeline.generate_pyx_code_stage_factory(options, result),
         set_cimport_from_pyx(orig_cimport_from_pyx),
+        set_annotate(orig_annotate),
     ]
 
 
