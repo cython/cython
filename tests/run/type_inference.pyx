@@ -661,15 +661,15 @@ def loop_over_sequence_literal_optional_float(
     """
     for tuple_item in (a, b, c):
         pass
-    assert typeof(tuple_item) == 'Python object', typeof(tuple_item)
+    assert typeof(tuple_item) == 'float object', typeof(tuple_item)
 
     for list_item in [a, b, c]:
         pass
-    assert typeof(list_item) == 'Python object', typeof(list_item)
+    assert typeof(list_item) == 'float object', typeof(list_item)
 
     for set_item in {a, b, c}:
         pass
-    assert typeof(set_item) == 'Python object', typeof(set_item)
+    assert typeof(set_item) == 'float object', typeof(set_item)
 
 
 def loop_over_sequence_literal_non_optional_float(
@@ -699,7 +699,7 @@ def loop_over_sequence_literal_optional_mixed(
     """
     for tuple_item in (a, b):
         pass
-    assert typeof(tuple_item) == 'Python object', typeof(tuple_item)
+    assert typeof(tuple_item) == 'float object', typeof(tuple_item)
 
 
 def loop_over_int_array():
