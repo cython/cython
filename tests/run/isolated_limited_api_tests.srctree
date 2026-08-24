@@ -57,7 +57,6 @@ for version in range(9, sys.version_info[1]+1):
 
     all_extensions.extend(
         cythonize(extensions, build_dir=build_dir))
-    all_extensions.extend(extensions)
 
 setup(
     ext_modules = all_extensions,
