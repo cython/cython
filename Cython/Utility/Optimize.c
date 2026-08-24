@@ -1710,6 +1710,9 @@ __pyx_return_false:
 // Less likely, non-inlined comparison of float and int.
 #ifndef __Pyx_DEFINED_PyObject_CompareFloatInt{{func_suffix}}
 #define __Pyx_DEFINED_PyObject_CompareFloatInt{{func_suffix}}
+
+#include <math.h>
+
 static {{c_ret_type}} __Pyx_PyObject_CompareFloatInt{{func_suffix}}(PyObject *op1, PyObject *op2) {
     double float_op1 = __Pyx_PyFloat_AS_DOUBLE(op1);
     #if !CYTHON_ASSUME_SAFE_MACROS
@@ -1776,6 +1779,9 @@ __pyx_return_false:
 // Less likely, non-inlined comparison of int and float.
 #ifndef __Pyx_DEFINED_PyObject_CompareIntFloat{{func_suffix}}
 #define __Pyx_DEFINED_PyObject_CompareIntFloat{{func_suffix}}
+
+#include <math.h>
+
 static {{c_ret_type}} __Pyx_PyObject_CompareIntFloat{{func_suffix}}(PyObject *op1, PyObject *op2) {
     double float_op2 = __Pyx_PyFloat_AS_DOUBLE(op2);
     #if !CYTHON_ASSUME_SAFE_MACROS
