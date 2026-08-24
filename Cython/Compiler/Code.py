@@ -1900,21 +1900,21 @@ class GlobalState:
             name_cname = init.name_in_main_c_code_module_state(
                 self.get_py_string_const(entry.name).cname)
 
+            init.putln(f"{{ /* {entry.qualified_name.as_c_string_literal()} */")
             init.putln(
-                f"{{ const char *name = __Pyx_PyUnicode_AsUTF8({name_cname}); "
-                f"{init.error_goto_if_null(f"name", entry.pos)}"
+                f"const char *name = __Pyx_PyUnicode_AsUTF8({name_cname}); "
+                f"{init.error_goto_if_null('name', entry.pos)}"
             )
 
+            doc = None
             if entry.doc:
                 doc_cname = init.name_in_main_c_code_module_state(
                     self.get_py_string_const(entry.doc).cname)
                 init.putln(
                     f"const char *doc = __Pyx_PyUnicode_AsUTF8({doc_cname}); "
-                    f"{init.error_goto_if_null(f"doc", entry.pos)}"
+                    f"{init.error_goto_if_null('doc', entry.pos)}"
                 )
                 doc = 'doc'
-            else:
-                doc = '0'
 
             init.put("PyMethodDef mdef = ")
             init.put_pymethoddef(entry, ';', allow_skip=False, entry_name='name', doc_cname=doc)
