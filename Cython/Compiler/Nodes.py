@@ -6204,14 +6204,9 @@ class ExprStatNode(StatNode):
 
     def analyse_expressions(self, env):
         self.expr.result_is_used = False  # hint that .result() may safely be left empty
-        expr = self.expr.analyse_expressions(env)
-        from .ExprNodes import CoerceFromPyTypeNode, CoerceToPyTypeNode, PyTypeTestNode
-        while isinstance(expr, (CoerceFromPyTypeNode, CoerceToPyTypeNode, PyTypeTestNode)):
-            # Useless coercion, ignore.
-            expr = expr.arg
+        self.expr = self.expr.analyse_expressions(env)
         # Repeat in case of node replacement.
-        expr.result_is_used = False  # hint that .result() may safely be left empty
-        self.expr = expr
+        self.expr.result_is_used = False  # hint that .result() may safely be left empty
         return self
 
     def nogil_check(self, env):
