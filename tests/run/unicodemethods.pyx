@@ -40,6 +40,7 @@ def split(unicode s):
     asdas
     fsdf
     """
+    s.split()  # ignoring result
     return s.split()
 
 @cython.test_assert_path_exists(
@@ -65,6 +66,7 @@ def split_sep(unicode s, sep):
     asdas
     fsdf
     """
+    s.split(sep)  # ignoring result
     return s.split(sep)
 
 @cython.test_fail_if_path_exists(
@@ -96,6 +98,7 @@ def split_sep_max(unicode s, sep, max):
     jd
     sdflk as sa  sadas asdas fsdf\x20
     """
+    s.split(sep, max)  # ignoring result
     return s.split(sep, max)
 
 @cython.test_fail_if_path_exists(
@@ -117,6 +120,7 @@ def split_sep_max_int(unicode s, sep):
     ab
     jd  sdflk as sa  sadas asdas fsdf\x20
     """
+    s.split(sep, 1)  # ignoring result
     return s.split(sep, 1)
 
 
@@ -138,6 +142,7 @@ def splitlines(unicode s):
     sdflk as sa
     sadas asdas fsdf\x20
     """
+    s.splitlines()  # ignoring result
     return s.splitlines()
 
 @cython.test_assert_path_exists(
@@ -158,6 +163,7 @@ def splitlines_keep(unicode s, keep):
     <BLANKLINE>
     sadas asdas fsdf\x20
     """
+    s.splitlines(keep)  # ignoring result
     return s.splitlines(keep)
 
 @cython.test_fail_if_path_exists(
@@ -212,6 +218,7 @@ def join(unicode sep, l):
     >>> print( test_join(pipe_sep, l) )
     ab|jd|sdflk|as|sa|sadas|asdas|fsdf
     """
+    sep.join(l)  # ignoring result
     return sep.join(l)
 
 
@@ -235,6 +242,7 @@ def join_sep(l):
     >>> print( test_join_sep(l) )
     ab|jd|sdflk|as|sa|sadas|asdas|fsdf
     """
+    '|'.join(l)  # ignoring result
     result = u'|'.join(l)
     assert cython.typeof(result) == "str object", cython.typeof(result)
     return result
@@ -262,6 +270,7 @@ def join_sep_genexpr(l):
     >>> print( '<<%s>>' % test_join_sep_genexpr(l) )
     <<ab |jd |sdflk |as |sa |sadas |asdas |fsdf >>
     """
+    '|'.join(s + ' ' for s in l)  # ignoring result
     result = u'|'.join(s + u' ' for s in l)
     assert cython.typeof(result) == "str object", cython.typeof(result)
     return result
@@ -337,6 +346,7 @@ def startswith(unicode s, sub):
     >>> not test_startswith(text, (' ab', 'ab X'))
     True
     """
+    s.startswith(sub)  # ignoring result
     if s.startswith(sub):
         return True
     else:
@@ -373,6 +383,7 @@ def startswith_start_end(unicode s, sub, start, end):
     >>> test_startswith_start_end(text, 'ab ', None, 2)
     False
     """
+    s.startswith(sub, start, end)  # ignoring result
     if s.startswith(sub, start, end):
         return True
     else:
@@ -404,6 +415,7 @@ def endswith(unicode s, sub):
     >>> test_endswith(text, ('fsdf', 'fsdf X'))
     False
     """
+    s.endswith(sub)  # ignoring result
     if s.endswith(sub):
         return True
     else:
@@ -446,6 +458,7 @@ def endswith_start_end(unicode s, sub, start, end):
     >>> test_endswith_start_end(text, 'fsdf ', None, 36)
     False
     """
+    s.endswith(sub, start, end)  # ignoring result
     if s.endswith(sub, start, end):
         return True
     else:
@@ -480,6 +493,7 @@ def in_test(unicode s, substring):
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable
     """
+    substring in s  # ignoring result
     return substring in s
 
 
@@ -503,6 +517,7 @@ def concat_any(unicode s, suffix):
     TypeError: ...
     """
     assert cython.typeof(s + suffix) == 'Python object', cython.typeof(s + suffix)
+    s + suffix  # ignoring result
     return s + suffix
 
 
@@ -525,6 +540,7 @@ def concat(unicode s, str suffix):
     """
     assert cython.typeof(s + object()) == 'Python object', cython.typeof(s + object())
     assert cython.typeof(s + suffix) == "str object", cython.typeof(s + suffix)
+    s + suffix  # ignoring result
     return s + suffix
 
 
@@ -538,6 +554,7 @@ def concat_literal_str(str suffix):
     """
     assert cython.typeof(u'abc' + object()) == 'Python object', cython.typeof(u'abc' + object())
     assert cython.typeof(u'abc' + suffix) == "str object", cython.typeof(u'abc' + suffix)
+    u'abc' + suffix  # ignoring result
     return u'abc' + suffix
 
 
@@ -550,6 +567,7 @@ def concat_literal_unicode(unicode suffix):
     TypeError: ...NoneType...
     """
     assert cython.typeof(u'abc' + suffix) == "str object", cython.typeof(u'abc' + suffix)
+    u'abc' + suffix  # ignoring result
     return u'abc' + suffix
 
 
@@ -573,6 +591,7 @@ def mod_format(unicode s, values):
     123
     """
     assert cython.typeof(s % values) == 'Python object', cython.typeof(s % values)
+    s % values  # ignoring result
     return s % values
 
 
@@ -586,6 +605,7 @@ def mod_format_literal(values):
     True
     """
     assert cython.typeof(u'abc%sdef' % values) == "str object", cython.typeof(u'abc%sdef' % values)
+    u'abc%sdef' % values  # ignoring result
     return u'abc%sdef' % values
 
 
@@ -598,6 +618,7 @@ def mod_format_tuple(*values):
     TypeError: not enough arguments for format string...
     """
     assert cython.typeof(u'abc%sdef' % values) == "str object", cython.typeof(u'abc%sdef' % values)
+    u'abc%sdef' % values  # ignoring result
     return u'abc%sdef' % values
 
 
@@ -619,6 +640,7 @@ def find(unicode s, substring):
     >>> test_find(text, 'sa')
     16
     """
+    s.find(substring)  # ignoring result
     cdef Py_ssize_t pos = s.find(substring)
     return pos
 
@@ -647,6 +669,7 @@ def find_start_end(unicode s, substring, start, end):
     >>> test_find_start_end(text, 'sa', None, 19)
     16
     """
+    s.find(substring, start, end)  # ignoring result
     cdef Py_ssize_t pos = s.find(substring, start, end)
     return pos
 
@@ -669,6 +692,7 @@ def rfind(unicode s, substring):
     >>> test_rfind(text, 'sa')
     20
     """
+    s.rfind(substring)  # ignoring result
     cdef Py_ssize_t pos = s.rfind(substring)
     return pos
 
@@ -697,6 +721,7 @@ def rfind_start_end(unicode s, substring, start, end):
     >>> test_rfind_start_end(text, 'sa', None, 21)
     16
     """
+    s.rfind(substring, start, end)  # ignoring result
     cdef Py_ssize_t pos = s.rfind(substring, start, end)
     return pos
 
@@ -719,6 +744,7 @@ def count(unicode s, substring):
     >>> test_count(text, 'sa')
     2
     """
+    s.count(substring)  # ignoring result
     cdef Py_ssize_t pos = s.count(substring)
     return pos
 
@@ -749,6 +775,7 @@ def count_start_end(unicode s, substring, start, end):
     >>> test_count_start_end(text, 'sa', None, 20)
     1
     """
+    s.count(substring, start, end)  # ignoring result
     cdef Py_ssize_t pos = s.count(substring, start, end)
     return pos
 
@@ -787,6 +814,7 @@ def replace_maxcount(unicode s, substring, repl, maxcount):
     >>> print( test_replace_maxcount(text, 'sa', 'SA', 1) )
     ab jd  sdflk as SA  sadas asdas fsdf\x20
     """
+    s.replace(substring, repl, maxcount)  # ignoring result
     return s.replace(substring, repl, maxcount)
 
 
@@ -828,6 +856,7 @@ def multiply(unicode ustring, int mul):
     >>> print(multiply(ustr, 5))
     abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642
     """
+    ustring * mul  # ignoring result
     return ustring * mul
 
 
@@ -847,6 +876,7 @@ def multiply_call(ustring, int mul):
     >>> print(multiply_call(ustr, 2))
     abcüöä\U0001F642abcüöä\U0001F642
     """
+    unicode(ustring) * mul  # ignoring result
     return unicode(ustring) * mul
 
 
@@ -925,6 +955,7 @@ def multiply_reversed(unicode ustring, int mul):
     >>> print(multiply_reversed(ustr, 5))
     abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642
     """
+    mul * ustring  # ignoring result
     return mul * ustring
 
 

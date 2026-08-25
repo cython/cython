@@ -1033,6 +1033,9 @@ class ExprNode(Node):
 
         if self.check_for_coercion_error(dst_type, env):
             return self
+        if not self.result_is_used:
+            # No need to coerce a result that will never be looked at.
+            return self
 
         used_as_reference = dst_type.is_reference
         if used_as_reference and not src_type.is_reference:
@@ -6308,9 +6311,6 @@ class CallNode(ExprNode):
     def coerce_to_result_type(self, env, function, func_type=None):
         # Default to 'object' and then try to find a better type.
         self.type = py_object_type
-        if not self.result_is_used:
-            # Any coercion of unused values would be useless.
-            return self
         if func_type is None:
             func_type = function.type
         if function.is_name:
