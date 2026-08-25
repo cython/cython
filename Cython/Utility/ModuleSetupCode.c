@@ -1642,6 +1642,14 @@ static CYTHON_INLINE int __Pyx_IsAnySubtype2(PyTypeObject *cls, PyTypeObject *a,
 #define __Pyx_truncl truncl
 #endif
 
+#if defined(__cplusplus)
+  #include <cmath>
+  #define __Pyx_isfinite(x)  std::isfinite(x)
+#else
+  #define __Pyx_isfinite(x)  isfinite(x)
+#endif
+
+
 /////////////// ForceInitThreads.proto ///////////////
 //@proto_block: utility_code_proto_before_types
 
