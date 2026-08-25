@@ -165,3 +165,13 @@ def pop_typed_dict_ignored_default(d: dict[str,int], key: str, default: int):
     {'a': 4}
     """
     d.pop(key, default)
+
+
+def pop_typed_dict_wrong_cast(d: dict[str,int], key: str):
+    """
+    >>> d = {'1': 2, 'a': 4}
+    >>> pop_typed_dict_wrong_cast(d, '1')
+    Traceback (most recent call last):
+    TypeError: Expected list, got int
+    """
+    <list?> d.pop(key)  # incorrect cast should fail
