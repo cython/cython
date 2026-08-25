@@ -1841,10 +1841,11 @@ __pyx_return_false:
 {{if type1 in ('object', 'int') and type2 in ('object', 'int')}}
 {{py: from Cython.Utility import pylong_join }}
 
-#ifndef __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
-#define __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
-static {{c_ret_type}} __Pyx_PyObject_CompareIntInt{{func_suffix}}(PyObject *op1, PyObject *op2) {
 #if CYTHON_USE_PYLONG_INTERNALS
+
+#ifndef __Pyx_DEFINED_PyObject_CompareIntIntBool{{op}}
+#define __Pyx_DEFINED_PyObject_CompareIntIntBool{{op}}
+static int __Pyx_PyObject_CompareIntIntBool{{op}}(PyObject *op1, PyObject *op2) {
     Py_ssize_t cmp = __Pyx_PyLong_CompareSignAndSize(op1, op2);
     if (cmp == 0) {
         Py_ssize_t size = __Pyx_PyLong_DigitCount(op1);
@@ -1861,19 +1862,28 @@ static {{c_ret_type}} __Pyx_PyObject_CompareIntInt{{func_suffix}}(PyObject *op1,
                 }
             }
         }
-        if (cmp == 0) {{return_true if op in 'EqLeGe' else return_false}};
+        if (cmp == 0) return {{'1' if op in 'EqLeGe' else '0'}};
         if (__Pyx_PyLong_IsNeg(op1)) cmp = -cmp;
     }
 
-    {{if op == 'Eq'}}
-    {{return_false}};
-    {{elif op == 'Ne'}}
-    {{return_true}};
-    {{else}}
-    if (cmp < 0) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
-    {{endif}}
+    return {{if op == 'Eq'}}0{{elif op == 'Ne'}}1{{else}}(cmp {{c_op}} 0){{endif}};
+}
+#endif
+
+#ifndef __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CompareIntInt{{op}}(PyObject *op1, PyObject *op2) {
+    int result = __Pyx_PyObject_CompareIntIntBool{{op}}(op1, op2);
+    if (unlikely(result == -1)) return NULL;
+    return __Pyx_NewRef(result ? Py_True : Py_False);
+}
+#endif
 
 #else
+
+#ifndef __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
+static {{c_ret_type}} __Pyx_PyObject_CompareIntInt{{func_suffix}}(PyObject *op1, PyObject *op2) {
     int overflow1, overflow2;
     // We know that we have two exact PyLong values, so we assume no exceptions.
     long long iop1 = PyLong_AsLongLongAndOverflow(op1, &overflow1);
@@ -1885,13 +1895,14 @@ static {{c_ret_type}} __Pyx_PyObject_CompareIntInt{{func_suffix}}(PyObject *op1,
     } else {
         return {{'PyObject_RichCompare' if return_obj else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
     }
-#endif
 
 __pyx_return_true:
     {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
 __pyx_return_false:
     {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
 }
+#endif
+
 #endif
 
 // end of float/int comparisons
