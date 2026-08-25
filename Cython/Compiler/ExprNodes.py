@@ -6308,6 +6308,9 @@ class CallNode(ExprNode):
     def coerce_to_result_type(self, env, function, func_type=None):
         # Default to 'object' and then try to find a better type.
         self.type = py_object_type
+        if not self.result_is_used:
+            # Any coercion of unused values would be useless.
+            return self
         if func_type is None:
             func_type = function.type
         if function.is_name:
@@ -15162,7 +15165,7 @@ class PyTypeTestNode(CoercionNode):
 
         if self.exact_builtin_type and is_builtin_type:
             # Allow conversions instead of rejecting subtypes and compatible (number) types.
-            self.type.convert_to_basetype(code, self.pos, self.arg.py_result(), allow_none)
+            self.type.convert_to_basetype(code, self.pos, self.arg.result(), allow_none)
             return
 
         type_test = self.type.type_test_code(
