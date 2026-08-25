@@ -6971,7 +6971,8 @@ class PyMethodCallNode(CallNode):
     # function    ExprNode      the function/method object to call
     # arg_tuple   TupleNode     the arguments for the args tuple
     # kwdict      ExprNode or None  keyword dictionary (if present)
-    # kwnames     TupleNode or None   names of keyword arguments
+    # kwnames     list[ExprNode] | None   names of keyword arguments
+    # kwnames_tuple TupleNode | None      tuple of CloneNodes of kwnames
     # kwvalues    list[ExprNode] | None  values of keyword arguments
     # Arguments to constructor only:
     # function_obj  ExprNode or None  == self.function.obj when using PyObject_VectorcallMethod()
@@ -6982,6 +6983,7 @@ class PyMethodCallNode(CallNode):
     use_method_vectorcall = False
     kwdict = None
     kwnames = None
+    kwnames_tuple = None
     kwvalues = None
     function_obj = None
 
@@ -7129,23 +7131,25 @@ class PyMethodCallNode(CallNode):
         code.putln("#endif")  # CYTHON_UNPACK_METHODS
         # TODO may need to deal with unused variables in the #else case
 
-    def generate_keyvalue_args(self, code, args, kwnames, kwvalues, kwnames_temp):
+    def generate_keyvalue_args(self, code, args, kwnames, kwnames_tuple, kwvalues, kwnames_temp):
         arg_indices_to_check = [
-            n for n, arg in enumerate(kwnames.args)
+            n for n, arg in enumerate(kwnames)
             if not arg.type.is_pystr_type or arg.may_be_none()
         ]
 
         code.putln("#if CYTHON_VECTORCALL")
-        code.putln(f"{kwnames_temp} = {kwnames.result()};")
+        code.putln(f"{kwnames_temp} = {kwnames_tuple.result()};")
         code.putln(code.error_goto_if_null(kwnames_temp, self.pos))
         code.put_incref(kwnames_temp, py_object_type)
         for arg_index in arg_indices_to_check:
-            code.put_error_if_neg(kwnames.pos, f"__Pyx_CheckVectorcallKwarg({kwnames_temp}, {arg_index})")
+            code.put_error_if_neg(kwnames_tuple.pos, f"__Pyx_CheckVectorcallKwarg({kwnames_temp}, {arg_index})")
         code.putln("#else")
         code.putln("{")
-        kwnames.generate_sequence_as_array_code(code, Naming.quick_temp_cname)
+        code.put(f"PyObject *{Naming.quick_temp_cname}[{len(kwnames)}] = {{")
+        code.put(', '.join(arg.result() for arg in kwnames))
+        code.putln("};")
         for arg_index in arg_indices_to_check:
-            code.put_error_if_neg(kwnames.pos, f"__Pyx_CheckVectorcallKwarg({Naming.quick_temp_cname}, {arg_index})")
+            code.put_error_if_neg(kwnames_tuple.pos, f"__Pyx_CheckVectorcallKwarg({Naming.quick_temp_cname}, {arg_index})")
         code.putln(f"{kwnames_temp} = __Pyx_MakeKwargDict({Naming.quick_temp_cname}, "
                    f"{Naming.callargs_cname}+{len(args)+1}, {len(kwvalues)});")
         code.putln(code.error_goto_if_null(kwnames_temp, self.pos))
@@ -7181,6 +7185,7 @@ class PyMethodCallNode(CallNode):
         self.allocate_temp_result(code)
 
         kwnames = self.kwnames
+        kwnames_tuple = self.kwnames_tuple
         kwvalues = self.kwvalues
         kwdict = self.kwdict
 
@@ -7193,9 +7198,14 @@ class PyMethodCallNode(CallNode):
             arg.generate_evaluation_code(code)
 
         if kwnames:
-            kwnames.generate_evaluation_code(code)
+            assert kwnames_tuple
+            for key in kwnames:
+                key.generate_evaluation_code(code)
             for value in kwvalues:
                 value.generate_evaluation_code(code)
+            code.putln("#if CYTHON_VECTORCALL")
+            kwnames_tuple.generate_evaluation_code(code)
+            code.putln("#endif")
         elif kwdict:
             kwdict.generate_evaluation_code(code)
 
@@ -7227,7 +7237,7 @@ class PyMethodCallNode(CallNode):
         keyword_variable = ""
         if kwnames:
             keyword_variable = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-            self.generate_keyvalue_args(code, args, kwnames, kwvalues, keyword_variable)
+            self.generate_keyvalue_args(code, args, kwnames, kwnames_tuple, kwvalues, keyword_variable)
         elif kwdict:
             keyword_variable = kwdict.result()
 
@@ -7251,11 +7261,16 @@ class PyMethodCallNode(CallNode):
             arg.free_temps(code)
 
         if kwnames:
-            kwnames.generate_disposal_code(code)
-            kwnames.free_temps(code)
+            code.putln("#if CYTHON_VECTORCALL")
+            kwnames_tuple.generate_disposal_code(code)
+            kwnames_tuple.free_temps(code)
+            code.putln("#endif")
             for value in kwvalues:
                 value.generate_disposal_code(code)
                 value.free_temps(code)
+            for key in kwnames:
+                key.generate_disposal_code(code)
+                key.free_temps(code)
             code.put_decref_clear(keyword_variable, py_object_type)
             code.funcstate.release_temp(keyword_variable)
         elif kwdict:
@@ -8863,13 +8878,6 @@ class SequenceNode(ExprNode):
             code.put_decref(target, py_object_type)
             code.putln('%s = %s;' % (target, Naming.quick_temp_cname))
             code.putln('}')
-
-    def generate_sequence_as_array_code(self, code, target):
-        # Currently only suitable for fixed-size sequences
-        assert not self.mult_factor
-        code.put(f"PyObject *{target}[{len(self.args)}] = {{")
-        code.put(', '.join(arg.result() for arg in self.args))
-        code.putln("};")
 
     def generate_subexpr_disposal_code(self, code):
         if self.needs_subexpr_disposal:

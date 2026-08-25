@@ -5354,12 +5354,19 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         if not ExprNodes.PyMethodCallNode.can_be_used_for_function(function):
             return node
 
-        kwnames = kwvalues = kwdict = None
+        kwnames = kwnames_tuple = kwvalues = kwdict = None
         if node.keyword_args and node.keyword_args.is_dict_literal:
-            kwnames = ExprNodes.TupleNode(
+            kwnames = [
+                (kvp.key if kvp.key.is_literal else ExprNodes.ProxyNode(kvp.key))
+                for kvp in node.keyword_args.key_value_pairs
+            ]
+            kwnames_tuple = ExprNodes.TupleNode(
                 node.pos,
-                args=[kvp.key for kvp in node.keyword_args.key_value_pairs])
-            kwnames = kwnames.analyse_types(self.current_env(), skip_children=True)
+                args=[
+                    copy.copy(arg) if arg.is_literal else ExprNodes.CloneNode(arg)
+                    for arg in kwnames
+                ])
+            kwnames_tuple = kwnames_tuple.analyse_types(self.current_env())
             kwvalues = [kvp.value for kvp in node.keyword_args.key_value_pairs]
         elif node.keyword_args:
             kwdict = node.keyword_args
@@ -5367,7 +5374,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
             node,
             function=function, arg_tuple=node.positional_args, kwdict=kwdict,
-            kwnames=kwnames, kwvalues=kwvalues,
+            kwnames=kwnames, kwvalues=kwvalues, kwnames_tuple=kwnames_tuple,
             type=node.type, unpack=self._check_optimize_method_calls(node)))
         return node
 
