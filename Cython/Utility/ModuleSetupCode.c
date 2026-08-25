@@ -1477,12 +1477,33 @@ static int __Pyx_init_tpflags_variables(void) {
     // The limited API makes some significant changes to data structures, so we don't
     // want to share the implementations compiled with and without the limited API.
     #if CYTHON_VECTORCALL
-        #define __PYX_VECTORCALL_ABI_SUFFIX  "_vectorcall"
+        #define __PYX_VECTORCALL_ABI_SUFFIX  "vectorcall"
     #else
         #define __PYX_VECTORCALL_ABI_SUFFIX
     #endif
 
-    #define __PYX_LIMITED_ABI_SUFFIX "limited" __PYX_VECTORCALL_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX
+    #if __PYX_LIMITED_VERSION_HEX >= 0x03100000
+        #define __PYX_LIMITED_ABI_V_SUFFIX "16"
+    #elif __PYX_LIMITED_VERSION_HEX >= 0x030F0000
+        #define __PYX_LIMITED_ABI_V_SUFFIX "15"
+    #elif __PYX_LIMITED_VERSION_HEX >= 0x030E0000
+        #define __PYX_LIMITED_ABI_V_SUFFIX "14"
+    #elif __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+        #define __PYX_LIMITED_ABI_V_SUFFIX "13"
+    #elif __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+        #define __PYX_LIMITED_ABI_V_SUFFIX "12"
+    #elif __PYX_LIMITED_VERSION_HEX >= 0x030B0000
+        #define __PYX_LIMITED_ABI_V_SUFFIX "11"
+    #elif __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+        #define __PYX_LIMITED_ABI_V_SUFFIX "10"
+    #elif __PYX_LIMITED_VERSION_HEX >= 0x03090000
+        #define __PYX_LIMITED_ABI_V_SUFFIX "9"
+    #else
+        // 8 and below are unsupported anyway
+        #define __PYX_LIMITED_ABI_V_SUFFIX "8"
+    #endif
+
+    #define __PYX_LIMITED_ABI_SUFFIX "limited" __PYX_LIMITED_ABI_V_SUFFIX "_" __PYX_VECTORCALL_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX
 #else
     #define __PYX_LIMITED_ABI_SUFFIX
 #endif

@@ -21,6 +21,7 @@ PYTHON run.py limited_multi_phase
 import pathlib
 import sys
 import sysconfig
+import shutil
 
 from setuptools import setup, Extension
 
@@ -41,18 +42,19 @@ all_extensions = []
 
 for version in range(9, sys.version_info[1]+1):
     version_hex = f"0x03{version:02x}0000"
+    build_dir = cwd / f"py3{version}"
     extensions = []
 
     for module in modules:
+        shutil.copyfile(f"{module}.pyx", f"{module}_{version}.pyx")
         ext = Extension(
             f"{module}_{version}",
-            sources=[f"{module}.pyx"],
+            sources=[f"{module}_{version}.pyx"],
             define_macros=[('Py_LIMITED_API', version_hex)],
             py_limited_api=True,
         )
         extensions.append(ext)
 
-    build_dir = cwd / f"py3{version}"
     all_extensions.extend(
         cythonize(extensions, build_dir=build_dir))
 
@@ -73,7 +75,7 @@ if sysconfig.get_config_var("Py_GIL_DISABLED"):
     exit(0)  # At least for 3.13, freethreading and limited API don't mix
 
 
-def run_one(module_name):
+def run_one(module_name, version):
     limited = __import__(module_name)
 
     limited.fib(11)
@@ -130,10 +132,17 @@ def run_one(module_name):
 
     assert limited.get_template_string_result(1, 2) == "x=1 however y=2"
 
+    # Check limited ABI suffix
+    abi_module_name = type(limited.add_one).__module__
+    assert abi_module_name.startswith("_cython")
+    abi_suffix_version = int(abi_module_name.split("limited")[1].split("_")[0])
+    assert abi_suffix_version == version, (abi_module_name, version)
+
+
 module_name = sys.argv[1]
 
 for version in range(9, sys.version_info[1]+1):
-    run_one(f"{module_name}_{version}")
+    run_one(f"{module_name}_{version}", version)
 
 ##################### limited_single_phase.pyx ################
 
