@@ -15162,7 +15162,7 @@ class PyTypeTestNode(CoercionNode):
 
         if self.exact_builtin_type and is_builtin_type:
             # Allow conversions instead of rejecting subtypes and compatible (number) types.
-            self.type.convert_to_basetype(code, self.pos, self.arg.py_result(), allow_none)
+            self.type.convert_to_basetype(code, self.pos, self.arg.result(), allow_none)
             return
 
         type_test = self.type.type_test_code(

@@ -162,8 +162,7 @@
   #undef CYTHON_OPAQUE_OBJECTS
   #define CYTHON_OPAQUE_OBJECTS 0
   #elif !defined(CYTHON_OPAQUE_OBJECTS)
-  // From 3.15 it starts being needed for freethreading compatibility
-  #define CYTHON_OPAQUE_OBJECTS (__PYX_LIMITED_VERSION_HEX >= 0x030F0000)
+  #define CYTHON_OPAQUE_OBJECTS 0
   #endif
 
 #elif defined(GRAALVM_PYTHON)
@@ -1873,7 +1872,7 @@ static __Pyx_CachedCodeObjectType *__pyx__find_code_object(struct __Pyx_CodeObje
 
 static __Pyx_CachedCodeObjectType *__pyx_find_code_object(int code_line) {
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
-    (void)__pyx__find_code_object;
+    (void)&__pyx__find_code_object;
     return NULL; // Most implementation should have atomics. But otherwise, don't make it thread-safe, just miss.
 #else
     struct __Pyx_CodeObjectCache *code_cache = &CGLOBAL(__pyx_code_cache);
@@ -1942,7 +1941,7 @@ static void __pyx__insert_code_object(struct __Pyx_CodeObjectCache *code_cache, 
 
 static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* code_object) {
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
-    (void)__pyx__insert_code_object;
+    (void)&__pyx__insert_code_object;
     return; // Most implementation should have atomics. But otherwise, don't make it thread-safe, just fail.
 #else
     struct __Pyx_CodeObjectCache *code_cache = &CGLOBAL(__pyx_code_cache);

@@ -279,7 +279,7 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
 #include "internal/pycore_template.h"
 
 static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *interpolations) {
-    (void)__Pyx_GetObjectFromTemplateLib;
+    (void)&__Pyx_GetObjectFromTemplateLib;
     return _PyTemplate_Build(strings, interpolations);
 }
 #else
