@@ -535,7 +535,6 @@ class TpVectorcallSlot(ConstructorSlot):
 
     def slot_code(self, scope):
         tp = scope.parent_type
-        seen_init = False
         while tp:
             if not tp.is_extension_type:
                 return "0"
@@ -552,10 +551,9 @@ class TpVectorcallSlot(ConstructorSlot):
             cinit_entry = tp.scope.lookup_here("__cinit__")
             if cinit_entry and not (cinit_entry.is_special and cinit_entry.tp_new_can_be_vectorcall):
                 return "0"
-            if not seen_init and (init_entry := tp.scope.lookup_here("__init__")):
-                if not (init_entry.is_special and init_entry.tp_new_can_be_vectorcall):
-                    return "0"
-                seen_init = True
+            init_entry = tp.scope.lookup_here("__init__")
+            if init_entry and not (init_entry.is_special and init_entry.tp_new_can_be_vectorcall):
+                return "0"
             tp = tp.base_type
         return super().slot_code(scope)
 

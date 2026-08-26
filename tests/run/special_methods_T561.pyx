@@ -1111,4 +1111,33 @@ cdef class TwoOrThreeArgRPow:
     def __rpow__(self, other, base=None):
         return f"{self.name}**{other}[{base}]"
 
+cdef class NonVectorcallInit:
+    """
+    >>> _ = NonVectorcallInit()
+    NonVectorcallInit.__init__ () {}
+    >>> _ = NonVectorcallInit(1, 2)
+    NonVectorcallInit.__init__ (1, 2) {}
+    >>> _ = NonVectorcallInit(a=1, b=2)
+    NonVectorcallInit.__init__ () {'a': 1, 'b': 2}
+    """
+    def __init__(self, *args, **kwds):
+        print(f"NonVectorcallInit.__init__ {args} {kwds}")
+
+cdef class VectorcallableInit(NonVectorcallInit):
+    """
+    Note that tp_vectorcall likely does not get used because the base
+    class prevents it. This is mostly a compile test and we aren't
+    trying to tell which implementation is used.
+
+    >>> _ = VectorcallableInit(0)
+    VectorcallableInit.__init__ 0
+    >>> _ = VectorcallableInit(True)
+    VectorcallableInit.__init__ True
+    NonVectorcallInit.__init__ (True,) {}
+    """
+    def __init__(self, arg):
+        print(f"VectorcallableInit.__init__ {arg}")
+        if arg:
+            super().__init__(arg)
+
 # See special_methods_T561_py38 for some extra tests for ipow
