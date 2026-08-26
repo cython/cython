@@ -547,7 +547,10 @@ class TpVectorcallSlot(ConstructorSlot):
                 return "0"  # Can't reason about __init__
             # If we don't have the second overloaded alternative for __cinit__ or __init__
             # this means the signature was wrong and so we haven't generated code for the
-            # vectorcall wrappers in DefNode.analyse_declarations
+            # vectorcall wrappers in DefNode.analyse_declarations.
+            # This applies to all base classes (since we need to be able to call their
+            # vectorcall-signature __cinit__, and we won't have generated that function
+            # unless the base class met all the conditions itself).
             cinit_entry = tp.scope.lookup_here("__cinit__")
             if cinit_entry and not (cinit_entry.is_special and cinit_entry.tp_new_can_be_vectorcall):
                 return "0"
