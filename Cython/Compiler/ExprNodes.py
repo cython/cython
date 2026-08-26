@@ -15751,7 +15751,6 @@ class CloneNode(CoercionNode):
     def analyse_types(self, env):
         self.type = self.arg.type
         self.result_ctype = self.arg.result_ctype
-        self.is_temp = 1
         arg_entry = getattr(self.arg, 'entry', None)
         if arg_entry:
             self.entry = arg_entry
@@ -15777,7 +15776,7 @@ class CloneNode(CoercionNode):
     def generate_post_assignment_code(self, code):
         # if we're assigning from a CloneNode then it's "giveref"ed away, so it does
         # need a matching incref (ideally this should happen before the assignment though)
-        if self.is_temp:  # should usually be true
+        if self.is_temp:  # should usually be False
             code.put_incref(self.result(), self.ctype())
 
     def free_temps(self, code):
