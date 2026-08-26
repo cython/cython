@@ -1664,6 +1664,8 @@ static CYTHON_INLINE int __Pyx_IsAnySubtype2(PyTypeObject *cls, PyTypeObject *a,
 #endif
 
 #if defined(__cplusplus)
+  // <cmath> in NetBSD undefines the declaration in <math.h>.
+  // See https://github.com/cython/cython/issues/7915
   #include <cmath>
   #define __Pyx_isfinite(x)  std::isfinite(x)
 #else
