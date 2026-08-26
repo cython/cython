@@ -11,6 +11,18 @@ Bugs fixed
 * A dangling pointer was fixed when assigning to attributes of extension types.
   (Github issue :issue:`7907`)
 
+* A crash was resolved when mixing Cython modules compiled with different Limited API versions.
+  (Github issue :issue:`7914`)
+
+* A GCC LTO-related compile/link problem was resolved when comparing Python ints.
+  (Github issue :issue:`7908`)
+
+* ``isfinite()`` was used for Python float comparisons but not defined in NetBSD in C++ compile mode.
+  (Github issue :issue:`7915`)
+
+* A C compiler warning in MSVC was resolved.
+  (Github issue :issue:`7911`)
+
 
 3.3.0 (2026-08-22)
 ==================
