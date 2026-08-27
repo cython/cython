@@ -6675,12 +6675,12 @@ class CascadedAssignmentNode(AssignmentNode):
         for lhs in self.lhs_list:
             overloaded = lhs.type.is_cpp_class and env.lookup_operator('=', [lhs, self.rhs])
             self.assignment_overloads.append(overloaded)
-            if lhs.type not in coerced_values and lhs.type != rhs.type:
-                rhs = CloneNode(self.rhs)
+            if lhs.type not in coerced_values and lhs.type != self.rhs.type:
+                coerced_rhs = CloneNode(self.rhs)
                 if not overloaded:
-                    rhs = rhs.coerce_to(lhs.type, env)
-                self.coerced_values.append(rhs)
-                coerced_values[lhs.type] = rhs
+                    coerced_rhs = coerced_rhs.coerce_to(lhs.type, env)
+                self.coerced_values.append(coerced_rhs)
+                coerced_values[lhs.type] = coerced_rhs
 
         # clone coerced values for all LHS assignments
         self.cloned_values = []
