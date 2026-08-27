@@ -6053,7 +6053,8 @@ class CClassDefNode(ClassDefNode):
                 ))
 
             weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
-            if weakref_entry:
+            if weakref_entry and not weakref_entry.inherited_scope:
+                # If the entry is inherited, there's nothing to do - tp_weaklistoffset is automatically inherited.
                 if weakref_entry.type is py_object_type:
                     tp_weaklistoffset = "%s->tp_weaklistoffset" % typeptr_cname
                     if type.typedef_flag:
