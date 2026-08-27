@@ -232,4 +232,3 @@ class TestCythonUtils(TimedTest):
             ascii = detect_opened_file_encoding(
                 make_fake_file(ascii_variation))
             self.assertEqual(ascii, "ascii", ascii_variation)
-        
