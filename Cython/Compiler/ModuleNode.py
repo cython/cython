@@ -1016,7 +1016,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.put(Nodes.branch_prediction_macros)
 
-        self._put_setup_code(code, "PretendToInitialize")
         code.putln('')
         code.putln('#if !CYTHON_USE_MODULE_STATE')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
