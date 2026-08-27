@@ -21,3 +21,25 @@ def test_weakref(key):
     foo_dict[key] = obj
     return obj
 
+
+cdef class Inherited1(Foo):
+    pass
+
+cdef class Inherited2(Foo):
+    cdef int something_else
+
+cdef class Inherited3(Foo):
+    cdef object __weakref__  # It's allowed for classes to reimplement this
+
+def test_inherited_weakref(tp):
+    """
+    >>> test_inherited_weakref(Inherited1)
+    >>> test_inherited_weakref(Inherited2)
+    >>> test_inherited_weakref(Inherited3) 
+    """
+    inst = Inherited1()
+    weakinst = weakref.ref(inst)
+    assert weakinst() is not None
+    del inst
+    gc.collect()
+    assert weakinst() is None
