@@ -1,3 +1,5 @@
+# mode: run
+
 import cython
 
 @cython.test_fail_if_path_exists(
@@ -68,3 +70,24 @@ def test_overwrite():
         a[i] = a = {}
     assert a == {}
     return x
+
+
+def test_inferred_variables():
+    """
+    >>> test_inferred_variables()
+    int object
+    """
+    # Reported in https://github.com/cython/cython/issues/7937
+    mapping: dict[int, int] = {}
+    for line_number, _content in enumerate([]):
+        part = line_number
+
+    part = offset = 0
+
+    for address in range(0, 1):
+        if line_number := mapping.get(address):
+            part = line_number
+            offset = part
+            print(offset)
+
+    print(cython.typeof(offset))
