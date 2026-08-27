@@ -2478,7 +2478,7 @@ static void __Pyx_FastGilFuncInit(void) {
 #endif
 
 template <typename T>
-static void __Pyx_pretend_to_initialize(T* ptr) {
+CYTHON_UNUSED static void __Pyx_pretend_to_initialize(T* ptr) {
     // In C++11 we have enough introspection to work out which types it's actually
     // necessary to apply this to (non-trivial types will have been initialized by
     // the definition). Below C++11 just initialize everything.
