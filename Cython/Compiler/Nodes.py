@@ -2360,6 +2360,8 @@ class FuncDefNode(StatNode, BlockNode):
                 if val:
                     code.putln("%s = %s;" % (Naming.retval_cname, val))
                 elif not return_type.is_void:
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("PretendToInitialize", "ModuleSetupCode.c"))
                     code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
 
             if tracing:
@@ -2435,6 +2437,8 @@ class FuncDefNode(StatNode, BlockNode):
                 if err_val != Naming.retval_cname:
                     code.putln("%s = %s;" % (Naming.retval_cname, err_val))
             elif not return_type.is_void:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PretendToInitialize", "ModuleSetupCode.c"))
                 code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
 
             if is_getbuffer_slot:

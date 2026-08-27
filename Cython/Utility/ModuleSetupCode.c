@@ -2467,7 +2467,7 @@ static void __Pyx_FastGilFuncInit(void) {
 
 #endif
 
-///////////////////// PretendToInitialize ////////////////////////
+///////////////////// PretendToInitialize.proto ////////////////////////
 
 #ifdef __cplusplus
 // In C++ a variable must actually be initialized to make returning
