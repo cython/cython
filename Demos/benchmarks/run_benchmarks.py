@@ -309,7 +309,8 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None, cythonize_only=Fal
     # To avoid partially compiled imports, import all non-compiled Cython modules before compiling them.
     pre_imports = ','.join(compiled_modules)
     times = run_python(
-        ["-c", f"import {pre_imports}; import setup; setup.run_build()", "build_ext", "-i", parallel, "--cython-compile-minimal"],
+        ["-c", f"import Cython.Compiler.Main,{pre_imports}; import setup; setup.run_build()",
+         "build_ext", "-i", parallel, "--cython-compile-minimal"],
         cwd=cython_dir,
         c_macros=c_macros,
     )
