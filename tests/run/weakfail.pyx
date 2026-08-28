@@ -37,7 +37,7 @@ def test_inherited_weakref(tp):
     >>> test_inherited_weakref(Inherited2)
     >>> test_inherited_weakref(Inherited3) 
     """
-    inst = Inherited1()
+    inst = tp()
     weakinst = weakref.ref(inst)
     assert weakinst() is not None
     del inst
