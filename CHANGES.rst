@@ -8,6 +8,9 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Cascaded assignments with different integer types could crash.
+  (Github issue :issue:`7937`)
+
 * A dangling pointer was fixed when assigning to attributes of extension types.
   (Github issue :issue:`7907`)
 
@@ -15,10 +18,13 @@ Bugs fixed
   (Github issue :issue:`7846`)
 
 * A compiler crash was fixed when using comprehension results directly in in-place assignments.
-  Patch by AbhinavMir.  (Github issue :issue:`7846`)
+  Patch by AbhinavMir.  (Github issue :issue:`7894`)
 
 * A compiler crash was fixed when keyword arguments were used in C++ class calls.
   Patch by Vladimir Saraikin.  (Github issue :issue:`7206`)
+
+* A C++ helper function was excluded when unused instead of generating a warning.
+  Original patch by Lucas Colley.  (Github issue :issue:`7941`)
 
 
 3.2.9 (2026-07-24)
