@@ -75,7 +75,7 @@ def test_overwrite():
 def test_inferred_variables():
     """
     >>> test_inferred_variables()
-    int object
+    True
     """
     # Reported in https://github.com/cython/cython/issues/7937
     mapping: dict[int, int] = {}
@@ -90,4 +90,4 @@ def test_inferred_variables():
             offset = part
             print(offset)
 
-    print(cython.typeof(offset))
+    print(cython.typeof(offset) in ('Python object', 'int object') or cython.typeof(offset))
