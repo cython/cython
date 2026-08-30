@@ -69,6 +69,63 @@ def test_set_add():
     return s1
 
 
+def test_set_add_returns_None():
+    """
+    >>> type(test_set_add_returns_None()) is set
+    True
+    >>> sorted(test_set_add_returns_None())
+    [1, 2, 3]
+    """
+    cdef set s1
+    s1 = {1, 2}
+    s1.add(1)
+
+    # Tests for the expected 'None' return value.
+    none1 = s1.add(1)
+    assert none1 is None, none1
+    try:
+        x = none1  # new inferred variable
+        ignored = x + 1
+    except TypeError:
+        pass
+    else:
+        assert False, f"None + 1 == {ignored}"
+
+    none3 = s1.add(3)
+    assert none3 is None, none3
+
+    return s1
+
+
+def test_set_add_in_condition(seq):
+    """
+    >>> test_set_add_in_condition([1,2,3,4])
+    [1, 2, 3, 4]
+    >>> test_set_add_in_condition([1,2,3,2,4,3,3,4])
+    [1, 2, 3, 4]
+    """
+    # Found in https://github.com/cython/cython/issues/7946
+    seen = set()
+    seen_add = seen.add
+    return [x for x in seq if not (x in seen or seen_add(x))]
+
+
+def test_set_add_in_fstring(s: set):
+    """
+    >>> s = {1}
+    >>> test_set_add_in_fstring(s)
+    'None'
+    >>> s
+    {1}
+    >>> s = {2}
+    >>> test_set_add_in_fstring(s)
+    'None'
+    >>> s
+    {1, 2}
+    """
+    return f"{s.add(1)}"  # returns a constant 'None'
+
+
 def test_set_contains(v):
     """
     >>> test_set_contains(1)
