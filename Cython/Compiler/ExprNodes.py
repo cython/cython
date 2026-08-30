@@ -205,6 +205,15 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
     return None
 
 
+def specialise_builtin_container_type(pos, env, container_type, items):
+    item_type = PyrexTypes.reduce_spanning_types(
+        [node.infer_type(env) for node in items]
+    )
+    if item_type is not py_object_type:
+        return container_type.specialize_here(pos, env, [item_type])
+    return container_type
+
+
 def make_dedup_key(outer_type, item_nodes):
     """
     Recursively generate a deduplication key from a sequence of values.
@@ -4364,15 +4373,7 @@ class IndexNode(_IndexingBaseNode):
             elif base_type.is_ptr or base_type.is_array:
                 return base_type.base_type
             elif base_type.is_ctuple and isinstance(self.index, IntNode):
-                if self.index.has_constant_result():
-                    index = self.index.constant_result
-                    if index < 0:
-                        index += base_type.size
-                    if 0 <= index < base_type.size:
-                        return base_type.components[index]
-                item_types = set(base_type.components)
-                if len(item_types) == 1:
-                    return item_types.pop()
+                return base_type.infer_indexed_type(self.index)
             elif base_type.is_memoryviewslice:
                 if base_type.ndim == 0:
                     pass  # probably an error, but definitely don't know what to do - return pyobject for now
@@ -6420,6 +6421,38 @@ class SimpleCallNode(CallNode):
     nogil = False
     analysed = False
     overflowcheck = False
+
+    def infer_type(self, env):
+        inferred_type = super().infer_type(env)
+        function = self.function
+        function_entry = getattr(function, 'entry', None)
+        if function_entry is None:
+            return inferred_type
+        if not function_entry.type.supports_container_type:
+            return inferred_type
+
+        if not (inferred_type.supports_container_type and inferred_type.is_immutable):
+            return inferred_type
+        if not self.args or len(self.args) != 1:
+            return inferred_type
+
+        if isinstance(self.args[0], (SetNode, DictNode, ListNode)):
+            self.args[0].read_only = True
+        param_type = self.args[0].infer_type(env)
+        subscripted_types = ()
+        if param_type.supports_container_type or param_type.is_ctuple:
+            if (
+                function_entry.type != param_type.get_container_type() and
+                (function_entry.type.is_builtin_sequence or function_entry.type.is_pyanyset_type)
+            ):
+                subscripted_types = (param_type.infer_iterator_type(), )
+            else:
+                subscripted_types = param_type.subscripted_types
+        if inferred_type.is_pytuple_type and not param_type.is_pytuple_type and len(subscripted_types) == 1:
+            # tuple([1, 2]) should be type of tuple[int, ...]
+            # tuple((1, 2)) should be type of tuple[int, int]
+            subscripted_types += (Ellipsis,)
+        return inferred_type.specialize_here(self.pos, env, subscripted_types)
 
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
@@ -9204,8 +9237,7 @@ class TupleNode(SequenceNode):
         if self.mult_factor or not self.args:
             return tuple_type
         arg_types = [arg.infer_type(env) for arg in self.args]
-        if any(type.is_pyobject or type.is_memoryviewslice or type.is_unspecified or type.is_fused
-               for type in arg_types):
+        if arg_types:
             return tuple_type.specialize_here(self.pos, env, arg_types)
         return env.declare_tuple_type(self.pos, arg_types).type
 
@@ -9365,6 +9397,7 @@ class ListNode(SequenceNode):
     type = list_type
     in_module_scope = False
     is_temp = True
+    read_only = False
 
     gil_message = "Constructing Python list"
 
@@ -9372,7 +9405,8 @@ class ListNode(SequenceNode):
         return ()
 
     def infer_type(self, env):
-        # TODO: Infer non-object list arrays.
+        if self.args and self.read_only:
+            return specialise_builtin_container_type(self.pos, env, list_type, self.args)
         return list_type
 
     def analyse_expressions(self, env):
@@ -9993,6 +10027,11 @@ class SetNode(ExprNode):
     read_only = False  # Can this safely be turned into an immutable frozenset?
     gil_message = "Constructing Python set"
 
+    def infer_type(self, env):
+        if self.read_only and self.args:
+            return specialise_builtin_container_type(self.pos, env, set_type, self.args)
+        return set_type
+
     def analyse_types(self, env):
         for i in range(len(self.args)):
             arg = self.args[i]
@@ -10061,6 +10100,11 @@ class FrozenSetNode(ExprNode):
             self.is_literal = True
         else:
             self.is_temp = True
+
+    def infer_type(self, env):
+        if self.args:
+            return specialise_builtin_container_type(self.pos, env, frozenset_type, self.args)
+        return frozenset_type
 
     def may_be_none(self):
         return False
@@ -10226,6 +10270,7 @@ class DictNode(ExprNode):
     type = dict_type
     is_dict_literal = True
     reject_duplicates = False
+    read_only = False
 
     obj_conversion_errors = []
 
@@ -10251,6 +10296,15 @@ class DictNode(ExprNode):
 
     def infer_type(self, env):
         # TODO: Infer struct constructors.
+        if self.key_value_pairs and self.read_only:
+            key_type = PyrexTypes.reduce_spanning_types(
+                [item.key.infer_type(env) for item in self.key_value_pairs]
+            )
+            value_type = PyrexTypes.reduce_spanning_types(
+                [item.value.infer_type(env) for item in self.key_value_pairs]
+            )
+            if key_type is not py_object_type or value_type is not py_object_type:
+                return dict_type.specialize_here(self.pos, env, [key_type, value_type])
         return dict_type
 
     def analyse_types(self, env):
