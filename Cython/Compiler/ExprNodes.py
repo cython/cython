@@ -1033,6 +1033,9 @@ class ExprNode(Node):
 
         if self.check_for_coercion_error(dst_type, env):
             return self
+        if not self.result_is_used:
+            # No need to coerce a result that will never be looked at.
+            return self
 
         used_as_reference = dst_type.is_reference
         if used_as_reference and not src_type.is_reference:

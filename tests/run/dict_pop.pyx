@@ -115,3 +115,63 @@ def pop_frozendict(frozendict fd, key):
     AttributeError
     """
     return fd.pop(key)
+
+
+def return_pop_typed_dict(d: dict[str,int], key: str):
+    """
+    >>> d = {'1': 2, 'a': 4}
+    >>> return_pop_typed_dict(d, '1')
+    2
+    >>> d
+    {'a': 4}
+    """
+    return d.pop(key)
+
+
+def return_pop_typed_dict_default(d: dict[str,int], key: str, default: int):
+    """
+    >>> d = {'1': 2, 'a': 4}
+    >>> return_pop_typed_dict_default(d, '1', 3)
+    2
+    >>> return_pop_typed_dict_default(d, '1', 3)
+    3
+    >>> return_pop_typed_dict_default(d, '1', 3)
+    3
+    """
+    return d.pop(key, default)
+
+
+def pop_typed_dict_ignored(d: dict[str,int], key: str):
+    """
+    >>> d = {'1': 2, 'a': 4}
+    >>> pop_typed_dict_ignored(d, '1')
+    >>> d
+    {'a': 4}
+    """
+    d.pop(key)
+
+
+def pop_typed_dict_ignored_default(d: dict[str,int], key: str, default: int):
+    """
+    >>> d = {'1': 2, 'a': 4}
+    >>> pop_typed_dict_ignored_default(d, '2', 3)
+    >>> d
+    {'1': 2, 'a': 4}
+    >>> pop_typed_dict_ignored_default(d, '1', 3)
+    >>> d
+    {'a': 4}
+    >>> pop_typed_dict_ignored_default(d, '1', 3)
+    >>> d
+    {'a': 4}
+    """
+    d.pop(key, default)
+
+
+def pop_typed_dict_wrong_cast(d: dict[str,int], key: str):
+    """
+    >>> d = {'1': 2, 'a': 4}
+    >>> pop_typed_dict_wrong_cast(d, '1')
+    Traceback (most recent call last):
+    TypeError: Expected list, got int
+    """
+    <list?> d.pop(key)  # incorrect cast should fail
