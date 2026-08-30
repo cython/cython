@@ -6256,7 +6256,7 @@ class CallNode(ExprNode):
         if func_type.is_ptr:
             func_type = func_type.base_type
         if func_type.is_cfunction:
-            if getattr(self.function, 'entry', None) and hasattr(self, 'args'):
+            if getattr(self.function, 'entry', None) is not None and getattr(self, 'args', None) is not None:
                 arg_types = [arg.infer_type(env) for arg in self.args]
                 func_entry = self.function.entry.best_function_match(env, arg_types)
                 if func_entry:
