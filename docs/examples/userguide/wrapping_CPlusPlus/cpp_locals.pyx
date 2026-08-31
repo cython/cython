@@ -7,10 +7,16 @@ from Rectangle cimport Rectangle
 cdef class RectOwner:
     cdef Rectangle c_rect  # not initialized
 
-    def __cinit__(self, x, y, w, h):
+    def __cinit__(self):
+        # Here is often a good place to initialise "self.c_rect".
+        pass
+
+    def setRect(self, x, y, w, h):
         self.c_rect = Rectangle(x, y, w, h)  # initialized here
 
     def getArea(self):
+        # Attribute read access gives UnboundLocalError
+        # if setRect() was not called yet.
         return self.c_rect.getArea()
 
 
