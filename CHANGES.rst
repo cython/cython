@@ -8,6 +8,11 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Auto-pickling an extension type with a typed memoryview attribute no longer
+  generates unusable pickle code.  ``@cython.auto_pickle(True)`` now reports a
+  compile-time error for such classes, matching other unpickleable members.
+  (Github issue :issue:`6767`)
+
 * A dangling pointer was fixed when assigning to attributes of extension types.
   (Github issue :issue:`7907`)
 

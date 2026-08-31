@@ -994,6 +994,9 @@ Controlling pickling
 By default, Cython will generate a ``__reduce__()`` method to allow pickling
 an extension type if and only if each of its members are convertible to Python
 and it has no ``__cinit__`` method.
+Typed memoryview attributes are treated as unpickleable even though they can
+be converted to a Python ``memoryview`` object, because that object cannot
+itself be pickled.
 To require this behavior (i.e. throw an error at compile time if a class
 cannot be pickled) decorate the class with ``@cython.auto_pickle(True)``.
 One can also annotate with ``@cython.auto_pickle(False)`` to get the old
