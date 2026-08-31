@@ -31,11 +31,18 @@ cdef class Inherited2(Foo):
 cdef class Inherited3(Foo):
     cdef object __weakref__  # It's allowed for classes to reimplement this
 
+cdef class NoWeakref:
+    pass
+
+cdef class Inherited4(NoWeakref):
+    cdef object __weakref__
+
 def test_inherited_weakref(tp):
     """
     >>> test_inherited_weakref(Inherited1)
     >>> test_inherited_weakref(Inherited2)
-    >>> test_inherited_weakref(Inherited3) 
+    >>> test_inherited_weakref(Inherited3)
+    >>> test_inherited_weakref(Inherited4) 
     """
     inst = tp()
     weakinst = weakref.ref(inst)
