@@ -612,6 +612,15 @@ def build_hex_version(version_string):
     return '0x%08X' % hexversion
 
 
+def escape_depfile_path(path):
+    """Escape a path for gcc -M / GNU make depfile format.
+
+    ``$`` is doubled; space and ``#`` are backslash-escaped.
+    Backslashes are left unchanged to match gcc -M (GH-7423).
+    """
+    return path.replace('$', '$$').replace('#', '\\#').replace(' ', '\\ ')
+
+
 def write_depfile(target, source, dependencies):
     src_base_dir = os.path.dirname(source)
     cwd = os.getcwd()
@@ -626,11 +635,9 @@ def write_depfile(target, source, dependencies):
             # if they are on different Windows drives, absolute is fine
             newpath = os.path.abspath(fname)
 
-        # Escape spaces
-        newpath = newpath.replace(" ", "\\ ")
-        paths.append(newpath)
+        paths.append(escape_depfile_path(newpath))
 
-    depline = os.path.relpath(target, cwd) + ": \\\n  "
+    depline = escape_depfile_path(os.path.relpath(target, cwd)) + ": \\\n  "
     depline += " \\\n  ".join(paths) + "\n"
 
     with open(target+'.dep', 'w') as outfile:

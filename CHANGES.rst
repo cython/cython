@@ -8,6 +8,10 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Depfiles now escape the target path, as well as ``#`` and ``$`` in paths,
+  matching GNU make / gcc ``-M``.  Spaces in dependency paths were already
+  escaped (GH-7423).
+
 * A dangling pointer was fixed when assigning to attributes of extension types.
   (Github issue :issue:`7907`)
 

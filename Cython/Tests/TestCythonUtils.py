@@ -1,10 +1,12 @@
+import os
 import sys
+import tempfile
 from io import StringIO
 
 from Cython.Utils import (
     _CACHE_NAME_PATTERN, _build_cache_name, _find_cache_attributes,
     build_hex_version, cached_method, clear_method_caches, try_finally_contextmanager,
-    print_version, normalise_float_repr,
+    print_version, normalise_float_repr, escape_depfile_path, write_depfile,
 )
 from Cython.TestUtils import TimedTest
 
@@ -165,6 +167,40 @@ class TestCythonUtils(TimedTest):
         from .. import __version__ as version
         self.assertIn(version, stdout)
         self.assertEqual(stdout.count(version), 1)
+
+    def test_escape_depfile_path(self):
+        self.assertEqual(escape_depfile_path('foo.pyx'), 'foo.pyx')
+        self.assertEqual(
+            escape_depfile_path('folder with spaces/foo.pyx'),
+            'folder\\ with\\ spaces/foo.pyx')
+        self.assertEqual(escape_depfile_path('hash#file.pxd'), 'hash\\#file.pxd')
+        self.assertEqual(escape_depfile_path('dol$dir.pxi'), 'dol$$dir.pxi')
+        self.assertEqual(
+            escape_depfile_path('a $b #c d'),
+            'a\\ $$b\\ \\#c\\ d')
+
+    def test_write_depfile_escapes_target_and_deps(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmp)
+                os.makedirs(os.path.join('out dir'))
+                target = os.path.join('out dir', 'mod.c')
+                deps = [
+                    os.path.join('src dir', 'mod.pyx'),
+                    os.path.join('hash#dir', 'a.pxd'),
+                    os.path.join('dol$dir', 'b.pxi'),
+                ]
+                write_depfile(target, deps[0], deps)
+                with open(target + '.dep', encoding='utf-8') as f:
+                    content = f.read()
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertTrue(content.startswith(
+            escape_depfile_path(os.path.join('out dir', 'mod.c')) + ':'))
+        for dep in deps:
+            self.assertIn(escape_depfile_path(dep), content)
 
     def test_normalise_float_repr(self):
         examples = [
