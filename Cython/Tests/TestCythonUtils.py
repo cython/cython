@@ -204,31 +204,34 @@ class TestCythonUtils(TimedTest):
     def test_detect_file_encoding(self):
         def make_fake_file(lines):
             return BytesIO(b"\n".join(lines))
-        for empty_variation in [
-            [b"", b""],
-            [b""],
-            [b"# innocent comment", b"", b"# coding: ascii"],
-            [b"print('hello')", b""],
-            [b"print('hello')", b"# coding: ascii"],
-            [b"print('coding: ascii')", b""],
-            [b"'''coding: ascii'''"],
-            [b"# cython: c_string_encoding=ascii"],
-        ]:
-            empty = detect_opened_file_encoding(
-                make_fake_file(empty_variation))
-            self.assertEqual(empty, "UTF-8", empty_variation)
-        for ascii_variation in [
-            [b"# coding: ascii", b"print('hello')"],
-            [b"# Comment", b"# coding: ascii"],
-            [b"", b"# coding: ascii"],
-            [b" ", b"# coding: ascii"],
-            [b" #", b"# coding: ascii"],
-            [b"\t", b"# coding: ascii"],
-            [b"# cython: c_string_encoding=latin-1", b"# coding: ascii"],
-            [b"# coding: ascii", b"# coding: latin-1"],
-            [b"# -*- coding: ascii -*-"],
-            [b"  # -*- coding: ascii -*-"],
-        ]:
-            ascii = detect_opened_file_encoding(
-                make_fake_file(ascii_variation))
-            self.assertEqual(ascii, "ascii", ascii_variation)
+        for sep in [': ', ':', '= ', '=']:
+            for empty_variation in [
+                ["", ""],
+                [""],
+                ["# innocent comment", "", f"# coding{sep}ascii"],
+                ["print('hello')", ""],
+                ["print('hello')", f"# coding{sep}ascii"],
+                [f"print('coding{sep}ascii')", ""],
+                [f"'''coding{sep}ascii'''"],
+                [f"# cython{sep}c_string_encoding=ascii"],
+            ]:
+                empty_variation = [v.encode("ascii") for v in empty_variation]
+                empty = detect_opened_file_encoding(
+                    make_fake_file(empty_variation))
+                self.assertEqual(empty, "UTF-8", empty_variation)
+            for ascii_variation in [
+                [f"# coding{sep}ascii", "print('hello')"],
+                ["# Comment", f"# coding{sep}ascii"],
+                ["", f"# coding{sep}ascii"],
+                [" ", f"# coding{sep}ascii"],
+                [" #", f"# coding{sep}ascii"],
+                ["\t", f"# coding{sep}ascii"],
+                [f"# cython{sep}c_string_encoding=latin-1", f"# coding{sep}ascii"],
+                [f"# coding{sep}ascii", f"# coding{sep}latin-1"],
+                [f"# -*- coding{sep}ascii -*-"],
+                [f"  # -*- coding{sep}ascii -*-"],
+            ]:
+                ascii_variation = [v.encode("ascii") for v in ascii_variation]
+                ascii = detect_opened_file_encoding(
+                    make_fake_file(ascii_variation))
+                self.assertEqual(ascii, "ascii", ascii_variation)
