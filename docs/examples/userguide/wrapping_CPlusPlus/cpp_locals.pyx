@@ -4,6 +4,16 @@
 from Rectangle cimport Rectangle
 
 
+def function(dont_write):
+    cdef Rectangle c  # not initialized
+
+    if dont_write:
+        return c.getArea()  # UnboundLocalError
+    else:
+        c = Rectangle(1, 2, 3, 4)  # initialized here
+        return c.getArea()  # OK
+
+
 cdef class RectOwner:
     cdef Rectangle c_rect  # not initialized
 
@@ -18,13 +28,3 @@ cdef class RectOwner:
         # Attribute read access gives UnboundLocalError
         # if setRect() was not called yet.
         return self.c_rect.getArea()
-
-
-def function(dont_write):
-    cdef Rectangle c  # not initialized
-
-    if dont_write:
-        return c.getArea()  # UnboundLocalError
-    else:
-        c = Rectangle(1, 2, 3, 4)  # initialized here
-        return c.getArea()  # OK
