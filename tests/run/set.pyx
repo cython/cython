@@ -120,8 +120,8 @@ def test_set_add_in_fstring(s: set):
     >>> s = {2}
     >>> test_set_add_in_fstring(s)
     'None'
-    >>> s
-    {1, 2}
+    >>> sorted(s)
+    [1, 2]
     """
     return f"{s.add(1)}"  # returns a constant 'None'
 
