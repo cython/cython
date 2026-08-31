@@ -15304,6 +15304,8 @@ class CoerceToPyTypeNode(CoercionNode):
             elif arg.type.equivalent_type is not None and arg.type.equivalent_type.is_pyobject:
                 # Includes bint.
                 self.type = arg.type.equivalent_type
+            elif arg.type.is_returncode:
+                self.type = py_object_type  # constant None
             elif arg.type.is_int:
                 self.type = Builtin.int_type
             elif arg.type.is_float:
@@ -15323,6 +15325,9 @@ class CoerceToPyTypeNode(CoercionNode):
     gil_message = "Converting to Python object"
 
     def may_be_none(self):
+        if self.arg.type.is_returncode:
+            # We do not set '.constant_result = None' to prevent accidental node elimination.
+            return True
         # FIXME: is this always safe?
         return False
 
@@ -15330,6 +15335,9 @@ class CoerceToPyTypeNode(CoercionNode):
         arg_type = self.arg.type
         if arg_type is PyrexTypes.c_bint_type or arg_type.is_pybool_type:
             return self.arg.coerce_to_temp(env)
+        elif arg_type.is_returncode:
+            # Result is constant false, but we must execute the side-effects.
+            return self.arg.coerce_to_temp(env).coerce_to_boolean(env)
         elif arg_type.is_string:
             # Test for 0-length string with "ptr[0] != '\0'" instead of just "ptr != 0".
             # This is safe because we know that we're otherwise coercing to Python 'bytes' / 'str',
@@ -15505,6 +15513,9 @@ class CoerceToBooleanNode(CoercionNode):
         return self.arg.check_const()
 
     def calculate_result_code(self):
+        if self.arg.type.is_returncode:
+            # bool(None) == False
+            return "(0)"
         return "(%s != 0)" % self.arg.result()
 
     def generate_result_code(self, code):
