@@ -3067,7 +3067,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.method_table_cname))
         for entry in env.pyfunc_entries:
             if not entry.fused_cfunction and not (binding and entry.is_overridable):
-                code.put_pymethoddef(entry, ",", wrapper_code_writer=wrapper_code_writer)
+                docstring_cname = None
+                if entry.doc:
+                    docstring_cname = env.mangle(Naming.funcdoc_prefix, entry.name)
+                code.put_pymethoddef(
+                    entry, ",", wrapper_code_writer=wrapper_code_writer, doc_cname=docstring_cname)
         code.putln(
             "{0, 0, 0, 0}")
         code.putln(
@@ -3491,6 +3495,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.put_error_if_neg(self.pos, f"__Pyx_InitConstants({Naming.modulestatevalue_cname})")
         code.putln("stringtab_initialized = 1;")
+        code.put_error_if_neg(self.pos, f"__Pyx_InitPyMethodDefs({Naming.modulestatevalue_cname})")
         code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
 
         code.putln("if (%s) {" % self.is_main_module_flag_cname())

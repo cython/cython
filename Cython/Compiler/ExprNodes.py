@@ -10775,7 +10775,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  functions.  Constructs a PyCFunction object
     #  from a PyMethodDef struct.
     #
-    #  pymethdef_cname   string             PyMethodDef structure
     #  binding           bool
     #  def_node          DefNode            the Python function node
     #  module_name       EncodedString      Name of defining module
@@ -10801,7 +10800,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         return cls(
             node.pos,
             def_node=node,
-            pymethdef_cname=node.entry.pymethdef_cname,
             binding=binding or node.specialized_cpdefs,
             specialized_cpdefs=node.specialized_cpdefs,
         )
@@ -10962,13 +10960,14 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
     def generate_pycfunction_code(self, code):
         py_mod_name = self.get_py_mod_name(code)
+        mdef_cname = code.name_in_module_state(
+            code.globalstate.new_pymethoddef_cname(self.def_node.entry))
         code.putln(
-            '%s = PyCFunction_NewEx(&%s, %s, %s); %s' % (
-                self.result(),
-                self.pymethdef_cname,
-                self.closure_result_code(),
-                py_mod_name,
-                code.error_goto_if_null(self.result(), self.pos)))
+            f'{self.result()} = PyCFunction_NewEx('
+            f'&{mdef_cname}, '
+            f'{self.closure_result_code()}, {py_mod_name}'
+            f'); {code.error_goto_if_null(self.result(), self.pos)}'
+        )
 
         self.generate_gotref(code)
 
@@ -11011,20 +11010,20 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             flags = '0'
 
         moddict_cname = code.name_in_module_state(Naming.moddict_cname)
+        doc = def_node.entry.doc
+        docstring_cname = code.get_py_string_const(doc, identifier=False) if doc else '0'
+        mdef_cname = code.name_in_module_state(
+            code.globalstate.new_pymethoddef_cname(self.def_node.entry))
+
         self.code_object.generate_result_code(code)
 
         code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
-                self.result(),
-                constructor,
-                self.pymethdef_cname,
-                flags,
-                self.get_py_qualified_name(code),
-                self.closure_result_code(),
-                self.get_py_mod_name(code),
-                moddict_cname,
-                self.code_object.py_result(),
-                code.error_goto_if_null(self.result(), self.pos)))
+            f'{self.result()} = {constructor}('
+            f'&{mdef_cname}, '
+            f'{flags}, {self.get_py_qualified_name(code)}, {self.closure_result_code()}, '
+            f'{self.get_py_mod_name(code)}, {moddict_cname}, {self.code_object.py_result()}, {docstring_cname}'
+            f'); {code.error_goto_if_null(self.result(), self.pos)}'
+        )
 
         self.generate_gotref(code)
         code.put_make_object_deferred(self.result())
@@ -11337,7 +11336,6 @@ class LambdaNode(InnerFunctionNode):
         self.def_node.pymethdef_required = True
         self.def_node.is_cyfunction = True
         self.def_node.analyse_declarations(env)
-        self.pymethdef_cname = self.def_node.entry.pymethdef_cname
         env.add_lambda_def(self.def_node)
 
     def analyse_types(self, env):
