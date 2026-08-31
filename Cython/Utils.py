@@ -357,15 +357,16 @@ def detect_opened_file_encoding(f, default='UTF-8'):
         if m:
             return default
         m = _match_file_encoding(line)
-        if m:
-            if m.group(1) != b'c_string_encoding':
-                return m.group(2).decode('iso8859-1')
-            else:
-                from .Compiler.Errors import warning
-                warning(
-                    None,
-                    "c_string_encoding in first two lines of a file is interpreted as a directive "
-                    "in Cython and a source file-encoding in Python", 2)
+        if not m:
+            continue
+        if m.group(1) == b'c_string_encoding':
+            from .Compiler.Errors import warning
+            warning(
+                None,
+                "c_string_encoding in the first two lines of a file is interpreted as a directive "
+                "in Cython and a source file-encoding in Python", 2)
+            continue
+        return m.group(2).decode('iso8859-1')
     return default
 
 
