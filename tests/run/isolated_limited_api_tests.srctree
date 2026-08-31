@@ -138,6 +138,11 @@ def run_one(module_name, version):
     abi_suffix_version = int(abi_module_name.split("limited")[1].split("_")[0])
     assert abi_suffix_version == version, (abi_module_name, version)
 
+    # Sanity check that we've compiled the right thing
+    reported_version, multiphase, modstate = limited.get_compile_info()
+    assert hex(reported_version) == f"0x3{version:02x}0000", (hex(reported_version), version)
+    assert multiphase != ("single_phase" in module_name)
+    assert modstate == ("modstate" in module_name)
 
 module_name = sys.argv[1]
 
@@ -248,3 +253,12 @@ def template_to_string(t):
 
 def get_template_string_result(x, y):
     return template_to_string(t"{x=} however y={y}")
+
+cdef extern from *:
+    enum:
+        Py_LIMITED_API
+        CYTHON_PEP489_MULTI_PHASE_INIT,
+        CYTHON_USE_MODULE_STATE
+
+def get_compile_info():
+    return Py_LIMITED_API, CYTHON_PEP489_MULTI_PHASE_INIT, CYTHON_USE_MODULE_STATE
