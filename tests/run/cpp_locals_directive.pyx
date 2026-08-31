@@ -270,3 +270,24 @@ def read_global_var_nogil():
     with nogil:
         val = global_var.getX()
     print(val)
+
+
+cdef class PyC:
+    """
+    >>> initialised_c = PyC(True)
+    >>> initialised_c.getX()
+    5
+
+    >>> uninitialised_c = PyC(False)
+    >>> uninitialised_c.getX()
+    Traceback (most recent call last):
+    AttributeError: C++ attribute '_cppclass' is not initialized
+    """
+    cdef C _cppclass
+
+    def __cinit__(self, assign):
+        if assign:
+            self._cppclass = C(5)
+
+    def getX(self):
+        return self._cppclass.getX()
