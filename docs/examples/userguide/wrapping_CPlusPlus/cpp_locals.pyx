@@ -1,4 +1,4 @@
-# distutils: language = c++
+# tag: cpp, cpp17
 # cython: cpp_locals = True
 
 from Rectangle cimport Rectangle
