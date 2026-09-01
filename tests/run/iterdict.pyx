@@ -1,3 +1,10 @@
+# mode: run
+# cython: language_level=2
+
+# Language level 2 to keep ".items()" etc. as unsafe methods.
+# See "cython3.pyx" for corresponding "language_level=3" tests.
+
+from __future__ import print_function
 
 cimport cython
 
@@ -258,7 +265,7 @@ def optimistic_iterkeys_argerror(d):
     ... except (TypeError, AttributeError): pass
     """
     for k in d.iterkeys(1):
-        print k
+        print(k)
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
@@ -669,3 +676,31 @@ cdef class NotADict:
 
     def listvalues(self):
         return [v for v in self.itervalues()]
+
+
+@cython.annotation_typing(False)
+def iterate_optional_dict_untyped(values: dict[int, float] | None = None):
+    """
+    >>> iterate_optional_dict_untyped()
+    >>> iterate_optional_dict_untyped(None)
+    >>> iterate_optional_dict_untyped({})
+    >>> iterate_optional_dict_untyped({'a': 'b'})
+    a b
+    """
+    # See https://github.com/cython/cython/issues/7931
+    for key, value in (values or {}).items():
+        print(key, value)
+
+
+@cython.annotation_typing(True)
+def iterate_optional_dict_typed(values: dict[int, float] | None = None):
+    """
+    >>> iterate_optional_dict_typed()
+    >>> iterate_optional_dict_typed(None)
+    >>> iterate_optional_dict_typed({})
+    >>> iterate_optional_dict_typed({'a': 'b'})
+    a b
+    """
+    # See https://github.com/cython/cython/issues/7931
+    for key, value in (values or {}).items():
+        print(key, value)
