@@ -1,9 +1,6 @@
 # mode: run
 # cython: language_level=2
 
-# Language level 2 to keep ".items()" etc. as unsafe methods.
-# See "cython3.pyx" for corresponding "language_level=3" tests.
-
 from __future__ import print_function
 
 cimport cython
@@ -57,8 +54,9 @@ def dict_itervalues(dict d):
     return d.itervalues()
 
 
-@cython.test_fail_if_path_exists(
-    "//WhileStatNode")
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
 def items(dict d):
     """
     >>> items(d)
