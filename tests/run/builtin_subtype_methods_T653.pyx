@@ -73,9 +73,6 @@ if not (pypy_version and pypy_version < (7, 3, 10)):
 
 @cython.final
 cdef class MyDictFinal(dict):
-    # TODO - this optimization would ideally still happen and not be overridden
-    # by the general dict iteration code.
-    # @cython.test_assert_path_exists("//ComprehensionNode//CMethodSelfCloneNode")
     def test_items(self):
         """
         >>> MyDictFinal(a=1, b=2).test_items()
@@ -116,9 +113,6 @@ cdef class MyDict2(MyDict):
 
 @cython.final
 cdef class MyDict2Final(MyDict):
-    # TODO - this optimization would ideally still happen and not be overridden
-    # by the general dict iteration code.
-    # @cython.test_assert_path_exists("//ComprehensionNode//CMethodSelfCloneNode")
     def test_items(self):
         """
         >>> MyDict2Final(a=1, b=2).test_items()
