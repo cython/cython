@@ -1886,8 +1886,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return ExprNodes.FloatNode(node.pos, value='0.0')
         if len(pos_args) > 1:
             self._error_wrong_arg_count('float', node, pos_args, 1)
-        arg_type = getattr(pos_args[0], 'type', None)
-        if arg_type and (arg_type is PyrexTypes.c_double_type or arg_type.is_pyfloat_type):
+        arg_type = pos_args[0].infer_type(self.current_env())
+        if arg_type is PyrexTypes.c_double_type or arg_type.is_pyfloat_type:
             return pos_args[0]
         return node
 
@@ -2031,13 +2031,15 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             list_node = arg.as_list()
 
         else:
-            # Interestingly, PySequence_List works on a lot of non-sequence
-            # things as well.
+            # Interestingly, PySequence_List works on a lot of non-sequence things as well.
+            may_be_new_list = False
+            if arg.result_in_temp():
+                arg_type = arg.infer_type(self.current_env())
+                may_be_new_list = arg_type is PyrexTypes.py_object_type or arg_type.is_pylist_type
+
             list_node = ExprNodes.PythonCapiCallNode(
                 node.pos,
-                "__Pyx_PySequence_ListKeepNew"
-                    if arg.result_in_temp() and (arg.type is PyrexTypes.py_object_type or arg.type.is_pylist_type)
-                    else "PySequence_List",
+                "__Pyx_PySequence_ListKeepNew" if may_be_new_list else "PySequence_List",
                 self.PySequence_List_func_type,
                 args=pos_args, is_temp=True)
 
