@@ -2033,11 +2033,15 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         else:
             # Interestingly, PySequence_List works on a lot of non-sequence
             # things as well.
+            arg_type = arg.type
+            keep_new = (
+                arg.result_in_temp()
+                and arg_type is not None
+                and (arg_type is PyrexTypes.py_object_type or arg_type.is_pylist_type)
+            )
             list_node = ExprNodes.PythonCapiCallNode(
                 node.pos,
-                "__Pyx_PySequence_ListKeepNew"
-                    if arg.result_in_temp() and (arg.type is PyrexTypes.py_object_type or arg.type.is_pylist_type)
-                    else "PySequence_List",
+                "__Pyx_PySequence_ListKeepNew" if keep_new else "PySequence_List",
                 self.PySequence_List_func_type,
                 args=pos_args, is_temp=True)
 

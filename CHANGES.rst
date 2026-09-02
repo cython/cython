@@ -8,6 +8,10 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* A compiler crash in ``EarlyReplaceBuiltinCalls`` on ``sorted(x.attr or [])``
+  and similar patterns was fixed.
+  (Github issue :issue:`7957`)
+
 * A dangling pointer was fixed when assigning to attributes of extension types.
   (Github issue :issue:`7907`)
 

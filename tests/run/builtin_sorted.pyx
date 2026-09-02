@@ -111,6 +111,38 @@ def sorted_tuple_literal():
     return sorted((1, 3, 2) * 2)
 
 
+class _AttrHolder:
+    methods = None
+
+
+def sorted_or_empty_list(x):
+    # See https://github.com/cython/cython/issues/7957
+    # `arg.type` on the ``or`` expression is not resolved when
+    # ``_handle_simple_function_sorted`` runs, so the optimiser must not
+    # dereference it unconditionally.
+    """
+    >>> holder = _AttrHolder()
+    >>> sorted_or_empty_list(holder)
+    []
+    >>> holder.methods = [3, 1, 2]
+    >>> sorted_or_empty_list(holder)
+    [1, 2, 3]
+    """
+    return sorted(x.methods or [])
+
+
+async def sorted_or_empty_list_from_dict_get(mapping):
+    # Same regression as sorted_or_empty_list, in an ``async def`` body.
+    """
+    >>> import asyncio
+    >>> asyncio.run(sorted_or_empty_list_from_dict_get({}))
+    []
+    >>> asyncio.run(sorted_or_empty_list_from_dict_get({"perm_roles": ["b", "a", "c"]}))
+    ['a', 'b', 'c']
+    """
+    return sorted(mapping.get("perm_roles") or [])
+
+
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def sorted_in_loop(L: list, repeat: cython.int, raise_at: cython.int = -1):
     # See https://github.com/cython/cython/issues/6496
