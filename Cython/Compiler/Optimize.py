@@ -328,25 +328,13 @@ class IterationTransform(Visitor.EnvTransform):
         if function.is_attribute and not reversed and not arg_count:
             base_obj = iterable.self or function.obj
             method = function.attribute
-            # in Py3, items() is equivalent to Py2's iteritems()
-            is_safe_iter = self.global_scope().context.language_level >= 3
-
-            if not is_safe_iter and method in ('keys', 'values', 'items'):
-                # try to reduce this to the corresponding .iter*() methods
-                if isinstance(base_obj, ExprNodes.CallNode):
-                    inner_function = base_obj.function
-                    if (inner_function.is_name and inner_function.name == 'dict'
-                            and inner_function.entry
-                            and inner_function.entry.is_builtin):
-                        # e.g. dict(something).items() => safe to use .iter*()
-                        is_safe_iter = True
 
             keys = values = False
-            if method == 'iterkeys' or (is_safe_iter and method == 'keys'):
+            if method in ('iterkeys', 'keys'):
                 keys = True
-            elif method == 'itervalues' or (is_safe_iter and method == 'values'):
+            elif method in ('itervalues', 'values'):
                 values = True
-            elif method == 'iteritems' or (is_safe_iter and method == 'items'):
+            elif method in ('iteritems', 'items'):
                 keys = values = True
 
             if keys or values:
