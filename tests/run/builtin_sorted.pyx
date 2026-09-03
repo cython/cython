@@ -112,6 +112,44 @@ def sorted_tuple_literal():
 
 
 @cython.test_fail_if_path_exists("//SimpleCallNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+    "//PythonCapiCallNode[@function.cname = '__Pyx_PySequence_ListKeepNew']",
+)
+def sorted_or_empty_list(x):
+    # See https://github.com/cython/cython/issues/7957
+    # Non-trivial expressions do not trivially expose their type.
+    """
+    >>> class AttrHolder:
+    ...     methods = None
+
+    >>> holder = AttrHolder()
+    >>> sorted_or_empty_list(holder)
+    []
+
+    >>> holder.methods = [3, 1, 2]
+    >>> sorted_or_empty_list(holder)
+    [1, 2, 3]
+    """
+    return sorted(x.methods or [])
+
+
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+    "//PythonCapiCallNode[@function.cname = '__Pyx_PySequence_ListKeepNew']",
+)
+def sorted_or_empty_list_known_type(x: list):
+    """
+    >>> sorted_or_empty_list_known_type([])
+    []
+    >>> sorted_or_empty_list_known_type([3, 1, 2])
+    [1, 2, 3]
+    """
+    return sorted(x or [])
+
+
+@cython.test_fail_if_path_exists("//SimpleCallNode")
 def sorted_in_loop(L: list, repeat: cython.int, raise_at: cython.int = -1):
     # See https://github.com/cython/cython/issues/6496
     """
