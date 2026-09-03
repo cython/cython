@@ -63,7 +63,10 @@ def sorted_arg_with_key(x):
 
 @cython.test_fail_if_path_exists("//YieldExprNode",
                                  "//NoneCheckNode")
-@cython.test_assert_path_exists("//InlinedGeneratorExpressionNode")
+@cython.test_assert_path_exists(
+    "//InlinedGeneratorExpressionNode",
+    "//SortedListNode",
+)
 def sorted_genexp():
     """
     >>> sorted_genexp()
@@ -74,7 +77,10 @@ def sorted_genexp():
 
 @cython.test_fail_if_path_exists("//YieldExprNode",
                                  "//NoneCheckNode")
-@cython.test_assert_path_exists("//ComprehensionNode")
+@cython.test_assert_path_exists(
+    "//ComprehensionNode",
+    "//SortedListNode",
+)
 def sorted_listcomp():
     """
     >>> sorted_listcomp()
@@ -84,7 +90,10 @@ def sorted_listcomp():
 
 
 @cython.test_fail_if_path_exists("//SimpleCallNode//SimpleCallNode")
-@cython.test_assert_path_exists("//SimpleCallNode/NameNode[@name = 'range']")
+@cython.test_assert_path_exists(
+    "//SimpleCallNode/NameNode[@name = 'range']",
+    "//SortedListNode",
+)
 def sorted_list_of_range():
     """
     >>> sorted_list_of_range()
@@ -94,6 +103,10 @@ def sorted_list_of_range():
 
 
 @cython.test_fail_if_path_exists("//SimpleCallNode")
+@cython.test_assert_path_exists(
+    "//ListNode",
+    "//SortedListNode",
+)
 def sorted_list_literal():
     """
     >>> sorted_list_literal()
@@ -103,6 +116,10 @@ def sorted_list_literal():
 
 
 @cython.test_fail_if_path_exists("//SimpleCallNode")
+@cython.test_assert_path_exists(
+    "//ListNode",
+    "//SortedListNode",
+)
 def sorted_tuple_literal():
     """
     >>> sorted_tuple_literal()
@@ -147,6 +164,24 @@ def sorted_or_empty_list_known_type(x: list):
     [1, 2, 3]
     """
     return sorted(x or [])
+
+
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode",
+    "//PythonCapiCallNode[@function.cname = '__Pyx_PySequence_ListKeepNew']",
+)
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+    "//PythonCapiCallNode[@function.cname = 'PySequence_List']",
+)
+def sorted_or_empty_non_list(x: tuple):
+    """
+    >>> sorted_or_empty_non_list(())
+    []
+    >>> sorted_or_empty_non_list((3, 1, 2))
+    [1, 2, 3]
+    """
+    return sorted(x or ())
 
 
 @cython.test_fail_if_path_exists("//SimpleCallNode")
