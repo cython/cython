@@ -494,6 +494,7 @@ def run_build():
             "Programming Language :: Python :: 3.14",
             "Programming Language :: Python :: Implementation :: CPython",
             "Programming Language :: Python :: Implementation :: PyPy",
+            "Programming Language :: Python :: Implementation :: GraalPy",
             "Programming Language :: C",
             "Programming Language :: C++",
             "Programming Language :: Cython",
