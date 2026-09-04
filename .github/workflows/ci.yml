@@ -398,7 +398,8 @@ jobs:
           - pypy-3.9
           - pypy-3.10
           - pypy-3.11
-          - graalpy25
+          - graalpy25.0  # 3.12
+          - graalpy25.3  # 3.13
         os: [ubuntu-24.04]
         backend: [c]
 
