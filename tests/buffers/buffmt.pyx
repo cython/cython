@@ -237,12 +237,12 @@ def alignment_string(fmt, exc=None):
     except ValueError, e:
         msg = unicode(e).replace("Big", "X").replace("Little", "X").replace("big", "X").replace("little", "X")
         if msg != exc:
-            print(msg)
-            print("  is not equal to")
-            print(exc)
+            print msg
+            print "  is not equal to"
+            print exc
         return
     if exc:
-        print("fail")
+        print "fail"
 
 
 def int_and_long_are_same():
