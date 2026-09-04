@@ -203,12 +203,6 @@ static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
   ctx->is_complex = 0;
   ctx->is_valid_array = 0;
   ctx->struct_alignment = 0;
-  while (type->typegroup == 'S') {
-    ++ctx->head;
-    ctx->head->field = type->fields;
-    ctx->head->parent_offset = 0;
-    type = type->fields->type;
-  }
 }
 
 static int __Pyx_BufFmt_ParseNumber(const char** ts) {
@@ -470,7 +464,7 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
     }
 
     if (type->size != size || type->typegroup != group) {
-      if (type->typegroup == 'C' && type->fields != NULL) {
+      if ((type->typegroup == 'C' || type->typegroup == 'S') && type->fields != NULL) {
         /* special case -- treat as struct rather than complex number */
         size_t parent_offset = ctx->head->parent_offset + field->offset;
         ++ctx->head;
