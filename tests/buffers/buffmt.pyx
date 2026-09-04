@@ -237,12 +237,12 @@ def alignment_string(fmt, exc=None):
     except ValueError, e:
         msg = unicode(e).replace("Big", "X").replace("Little", "X").replace("big", "X").replace("little", "X")
         if msg != exc:
-            print msg
-            print "  is not equal to"
-            print exc
+            print(msg)
+            print("  is not equal to")
+            print(exc)
         return
     if exc:
-        print "fail"
+        print("fail")
 
 
 def int_and_long_are_same():
@@ -440,12 +440,13 @@ def packed_struct_with_ndarrays(fmt):
     cdef object[PackedStructWithNDArrays] buf = MockBuffer(
         fmt, sizeof(PackedStructWithNDArrays))
 
-ctypedef struct Float2:
+ctypedef struct Float3:
     float a
     float b
+    float c
 
 ctypedef struct NestedStructFirst:
-    Float2 a
+    Float3 a
     float b
 
 ctypedef struct NestedNestedStructSecond:
@@ -454,7 +455,7 @@ ctypedef struct NestedNestedStructSecond:
 
 def nested_structs(fmt):
     """
-    >>> nested_structs("T{f:a:T{T{f:a:f:b:}:a:f:b:}:b:}")
+    >>> nested_structs("T{f:a:T{T{f:a:f:b:f:c:}:a:f:b:}:b:}")
     """
 
     cdef object[NestedNestedStructSecond] buf = MockBuffer(
