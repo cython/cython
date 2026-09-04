@@ -203,6 +203,12 @@ static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
   ctx->is_complex = 0;
   ctx->is_valid_array = 0;
   ctx->struct_alignment = 0;
+  while (type->typegroup == 'S') {
+    ++ctx->head;
+    ctx->head->field = type->fields;
+    ctx->head->parent_offset = 0;
+    type = type->fields->type;
+  }
 }
 
 static int __Pyx_BufFmt_ParseNumber(const char** ts) {
