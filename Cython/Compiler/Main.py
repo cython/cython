@@ -102,6 +102,14 @@ class Context:
     def shared_utility_qualified_name(self):
         return self.options.shared_utility_qualified_name if self.options else None
 
+    @property
+    def in_shared_utility_module(self) -> bool:
+        return bool(self.shared_c_file_path)
+
+    @property
+    def using_shared_utility_module(self) -> bool:
+        return bool(self.shared_utility_qualified_name)
+
     def set_language_level(self, level):
         from .Future import print_function, unicode_literals, absolute_import, division, generator_stop
         future_directives = set()

@@ -129,8 +129,8 @@ class SharedUtilityExporter:
     stages of compilation.
     """
     def __init__(self, pos, mod_init_subfunction, scope):
-        self.in_shared_utility_module = bool(scope.context.shared_c_file_path)
-        self.using_shared_utility_module = bool(scope.context.shared_utility_qualified_name)
+        self.in_shared_utility_module = scope.context.in_shared_utility_module
+        self.using_shared_utility_module = scope.context.using_shared_utility_module
         self.pos = pos
         self.scope = scope
         self.import_code = mod_init_subfunction("Shared function import code")
@@ -674,7 +674,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         result.c_file_generated = 1
         if options.gdb_debug:
             self._serialize_lineno_map(env, rootwriter)
-        if Options.annotate or options.annotate:
+        if (
+            (Options.annotate or options.annotate) and not
+            self.scope.context.in_shared_utility_module
+        ):
             self._generate_annotations(rootwriter, result, options)
 
     def _generate_annotations(self, rootwriter, result, options):
