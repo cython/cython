@@ -2377,7 +2377,9 @@ class NameNode(AtomicExprNode):
                 # _Empty_Tuple: tuple[typing.Any] = cython.declare(tuple, ())
                 annotation_type = self.annotation.analyse_as_type(env)
                 entry_type = self.entry.type
-                if not (annotation_type.assignable_from(entry_type) or entry_type.assignable_from(annotation_type)):
+                if annotation_type and not (
+                    annotation_type.assignable_from(entry_type) or entry_type.assignable_from(annotation_type)
+                ):
                     warning(self.pos,
                         f"Annotation type '{annotation_type}' is not compatible "
                         f"with declaration type '{entry_type}'.", 1)
