@@ -1,0 +1,172 @@
+# tag: cpp
+
+PYTHON setup.py build_ext --inplace
+PYTHON test.py
+PYTHON test_legacy.py
+PYTHON test_new_names.py
+PYTHON test_prefer_new.py
+PYTHON test_import_errors.py missing
+PYTHON test_import_errors.py signature
+PYTHON setup_reordered.py build_ext --build-lib=reordered --build-temp=build/reordered
+PYTHON test_reordered.py
+
+################### setup.py ###################
+
+from setuptools import Extension, setup
+from Cython.Build import cythonize
+
+setup(
+    ext_modules=cythonize([
+        Extension("api_exporter", ["api_exporter.pyx"]),
+        Extension("api_consumer_c", ["api_consumer_c.pyx"]),
+        Extension("api_consumer_cpp", ["api_consumer_cpp.pyx"], language="c++"),
+    ]),
+)
+
+################### api_exporter.pxd ###################
+
+ctypedef fused number:
+    int
+    double
+
+cdef api number identity(number value) noexcept
+cdef api number dereference(const number *value) noexcept
+cdef api int increment(int value) noexcept
+
+################### api_exporter.pyx ###################
+
+cdef number identity(number value) noexcept:
+    return value
+
+cdef number dereference(const number *value) noexcept:
+    return value[0]
+
+cdef int increment(int value) noexcept:
+    return value + 1
+
+################### api_consumer.pxi ###################
+
+cdef extern from "api_exporter_api.h":
+    int import_api_exporter() except -1
+    int __pyx_fuse_0identity(int value)
+    double __pyx_fuse_1identity(double value)
+    int __pyx_fuse_0dereference(const int *value)
+    double __pyx_fuse_1dereference(const double *value)
+    int increment(int value)
+
+def check(int expected_identity=7):
+    import_api_exporter()
+    cdef int int_value = 7
+    cdef double double_value = 2.5
+    assert __pyx_fuse_0identity(int_value) == expected_identity
+    assert __pyx_fuse_1identity(double_value) == double_value
+    assert __pyx_fuse_0dereference(&int_value) == int_value
+    assert __pyx_fuse_1dereference(&double_value) == double_value
+    assert increment(int_value) == 8
+
+################### api_consumer_c.pyx ###################
+
+include "api_consumer.pxi"
+
+################### api_consumer_cpp.pyx ###################
+
+include "api_consumer.pxi"
+
+################### test.py ###################
+
+import api_consumer_c
+import api_consumer_cpp
+
+api_consumer_c.check()
+api_consumer_cpp.check()
+
+################### test_legacy.py ###################
+
+import api_exporter
+
+for name in list(api_exporter.__pyx_capi__):
+    if "[" in name:
+        del api_exporter.__pyx_capi__[name]
+
+import test
+
+################### test_new_names.py ###################
+
+import api_exporter
+
+for name in list(api_exporter.__pyx_capi__):
+    if name.startswith("__pyx_fuse_"):
+        del api_exporter.__pyx_capi__[name]
+
+assert "identity[int]" in api_exporter.__pyx_capi__
+import test
+
+################### test_prefer_new.py ###################
+
+import api_exporter
+import api_consumer_c
+import api_consumer_cpp
+
+api_exporter.__pyx_capi__["identity[int]"] = api_exporter.__pyx_capi__["increment"]
+api_consumer_c.check(8)
+api_consumer_cpp.check(8)
+
+################### test_import_errors.py ###################
+
+import sys
+
+import api_exporter
+import api_consumer_c
+import api_consumer_cpp
+
+if sys.argv[1] == "missing":
+    del api_exporter.__pyx_capi__["identity[int]"]
+    del api_exporter.__pyx_capi__["__pyx_fuse_0identity"]
+    expected_error = ImportError
+    expected_message = "does not export expected C function"
+else:
+    assert sys.argv[1] == "signature"
+    api_exporter.__pyx_capi__["identity[int]"] = api_exporter.__pyx_capi__["identity[double]"]
+    expected_error = TypeError
+    expected_message = "wrong signature"
+
+for consumer in (api_consumer_c, api_consumer_cpp):
+    try:
+        consumer.check()
+    except expected_error as error:
+        assert expected_message in str(error), str(error)
+    else:
+        raise AssertionError("An invalid API import was accepted")
+
+################### setup_reordered.py ###################
+
+from setuptools import Extension, setup
+from Cython.Build import cythonize
+
+setup(ext_modules=cythonize([
+    Extension("api_exporter", ["reordered/api_exporter.pyx"]),
+]))
+
+################### reordered/api_exporter.pxd ###################
+
+ctypedef fused number:
+    double
+    int
+
+cdef api number identity(number value) noexcept
+cdef api number dereference(const number *value) noexcept
+cdef api int increment(int value) noexcept
+
+################### reordered/api_exporter.pyx ###################
+
+include "../api_exporter.pyx"
+
+################### test_reordered.py ###################
+
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path("reordered").resolve()))
+import api_exporter
+assert Path(api_exporter.__file__).parent.name == "reordered", api_exporter.__file__
+import test
