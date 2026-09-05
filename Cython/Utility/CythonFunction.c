@@ -833,34 +833,24 @@ __Pyx_CyFunction_get_is_coroutine(PyObject *op_in, void *context) {
 
 static void __Pyx_CyFunction_raise_argument_count_error(PyObject *func, const char* message, Py_ssize_t size) {
 #if CYTHON_COMPILING_IN_LIMITED_API
-    PyObject *py_name = __Pyx_CyFunction_get_name(func, NULL);
-    if (!py_name) return;
-    PyErr_Format(PyExc_TypeError,
-        "%.200S() %s (%" CYTHON_FORMAT_SSIZE_T "d given)",
-        py_name, message, size);
-    Py_DECREF(py_name);
+    const char *name = __Pyx_as_CyFunctionObject(func)->func_methoddef->ml_name;
 #else
     const char* name = ((PyCFunctionObject*)func)->m_ml->ml_name;
+#endif
     PyErr_Format(PyExc_TypeError,
         "%.200s() %s (%" CYTHON_FORMAT_SSIZE_T "d given)",
         name, message, size);
-#endif
 }
 
 static void __Pyx_CyFunction_raise_type_error(PyObject *func, const char* message) {
 #if CYTHON_COMPILING_IN_LIMITED_API
-    PyObject *py_name = __Pyx_CyFunction_get_name(func, NULL);
-    if (!py_name) return;
-    PyErr_Format(PyExc_TypeError,
-        "%.200S() %s",
-        py_name, message);
-    Py_DECREF(py_name);
+    const char *name = __Pyx_as_CyFunctionObject(func)->func_methoddef->ml_name;
 #else
     const char* name = ((PyCFunctionObject*)func)->m_ml->ml_name;
+#endif
     PyErr_Format(PyExc_TypeError,
         "%.200s() %s",
         name, message);
-#endif
 }
 
 #if CYTHON_COMPILING_IN_LIMITED_API
