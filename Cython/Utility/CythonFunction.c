@@ -50,7 +50,7 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 #endif
 
 #define __Pyx_CyFunction_GetClassObj(f) \
-    __Pyx__CyFunction_GetClassObj(__Pyx_as_CyFunctionObject(f))
+    ((PyObject*)__Pyx__CyFunction_GetClassObj(__Pyx_as_CyFunctionObject(f)))
 #define __Pyx_CyFunction_SetClassObj(f, classobj)  \
     __Pyx__CyFunction_SetClassObj(__Pyx_as_CyFunctionObject(f), (classobj))
 
