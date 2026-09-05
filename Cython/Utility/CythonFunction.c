@@ -1614,9 +1614,6 @@ typedef struct {
 #endif
     PyObject *__signatures__;
     PyObject *self;
-#if CYTHON_COMPILING_IN_LIMITED_API
-    PyMethodDef *ml;
-#endif
 } __pyx_FusedFunctionObject;
 
 // Definition depends on whether we're using shared utility code or not
@@ -1677,9 +1674,6 @@ __pyx_FusedFunction_New(PyMethodDef *ml, int flags,
         __pyx_FusedFunctionObject *fusedfunc = __Pyx_as_FusedFunctionObject(op);
         fusedfunc->__signatures__ = NULL;
         fusedfunc->self = NULL;
-        #if CYTHON_COMPILING_IN_LIMITED_API
-        fusedfunc->ml = ml;
-        #endif
         PyObject_GC_Track(op);
     }
     return op;
@@ -1757,7 +1751,7 @@ __pyx_FusedFunction_descr_get_locked(PyObject *self, PyObject *obj)
 
     meth = __pyx_FusedFunction_New(
         #if CYTHON_COMPILING_IN_LIMITED_API
-                    func->ml,
+                    cyfunc->func_methoddef,
         #else
                     ((PyCFunctionObject *) func)->m_ml,
         #endif
