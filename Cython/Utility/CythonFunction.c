@@ -1736,13 +1736,23 @@ __pyx_FusedFunction_descr_get_locked(PyObject *self, PyObject *obj)
 {
     __pyx_FusedFunctionObject *func = __Pyx_as_FusedFunctionObject(self);
     __pyx_CyFunctionObject *cyfunc = __Pyx_as_CyFunctionObject(self);
-    PyObject *module;
+    PyObject *module, *qualname;
     PyObject *meth;
     #if CYTHON_COMPILING_IN_LIMITED_API
-    module = __Pyx_CyFunction_get_module(self, NULL);
-    if ((unlikely(!module))) return NULL;
+    module = cyfunc->func_module;
     #else
     module = ((PyCFunctionObject *) func)->m_module;
+    #endif
+    qualname = cyfunc->func_qualname;
+    // In principle, both module and qualname can be modified externally.
+    // In modern Python (>=3.11) there should be nothing that can
+    // release the GIL or break a critical section when allocating a new fused function.
+    // In older versions or possibly other implementations allocation can release
+    // the GIL. In this case,
+    // it doesn't hurt to hold a reference to module and qualname to be certain.
+    #if !CYTHON_COMPILING_IN_CPYTHON || PY_VERSION_HEX < 0x030B0000
+    Py_INCREF(module);
+    Py_INCREF(qualname);
     #endif
 
     meth = __pyx_FusedFunction_New(
@@ -1752,13 +1762,14 @@ __pyx_FusedFunction_descr_get_locked(PyObject *self, PyObject *obj)
                     ((PyCFunctionObject *) func)->m_ml,
         #endif
                     cyfunc->flags,
-                    cyfunc->func_qualname,
+                    qualname,
                     cyfunc->func_closure,
                     module,
                     cyfunc->func_globals,
                     cyfunc->func_code);
-    #if CYTHON_COMPILING_IN_LIMITED_API
+    #if !CYTHON_COMPILING_IN_CPYTHON || PY_VERSION_HEX < 0x030B0000
     Py_DECREF(module);
+    Py_DECREF(qualname);
     #endif
     if (unlikely(!meth))
         return NULL;
