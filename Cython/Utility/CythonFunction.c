@@ -37,20 +37,22 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 #define __Pyx_CyFunction_GetClosure(f) \
     ((__Pyx_as_CyFunctionObject(f))->func_closure)
 
+// These macros are intended to be used within this utility code 
+// as both rvalues and lvalues. They take a __pyx_CyFunctionObject pointer.
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
-  #define __Pyx__CyFunction_GetClassObj(f) \
+  #define __Pyx_CyFunction_ClassObj(f) \
       ((f)->func_classobj)
   #define __Pyx_CyFunction_MethodDef(cyfunc) ((cyfunc)->func_methoddef)
   #define __Pyx_CyFunction_Module(cyfunc) ((cyfunc)->func_module)
 #else
-  #define __Pyx__CyFunction_GetClassObj(f) \
+  #define __Pyx_CyFunction_ClassObj(f) \
       (((PyCMethodObject *) (f))->mm_class)
   #define __Pyx_CyFunction_MethodDef(cyfunc) (((PyCFunctionObject*)(cyfunc))->m_ml)
   #define __Pyx_CyFunction_Module(cyfunc) (((PyCFunctionObject*)(cyfunc))->m_module)
 #endif
 
 #define __Pyx_CyFunction_GetClassObj(f) \
-    ((PyObject*)__Pyx__CyFunction_GetClassObj(__Pyx_as_CyFunctionObject(f)))
+    ((PyObject*)__Pyx_CyFunction_ClassObj(__Pyx_as_CyFunctionObject(f)))
 #define __Pyx_CyFunction_SetClassObj(f, classobj)  \
     __Pyx__CyFunction_SetClassObj(__Pyx_as_CyFunctionObject(f), (classobj))
 
@@ -175,7 +177,7 @@ static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void (*cfunc
 static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* f, PyObject* classobj) {
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
     __Pyx_Py_XDECREF_SET(
-        __Pyx__CyFunction_GetClassObj(f),
+        __Pyx_CyFunction_ClassObj(f),
             ((classobj) ? __Pyx_NewRef(classobj) : NULL));
 #else
     __Pyx_Py_XDECREF_SET(
@@ -1003,7 +1005,7 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
     Py_INCREF(qualname);
     op->func_qualname = qualname;
     op->func_doc = NULL;
-    __Pyx__CyFunction_GetClassObj(op) = NULL;
+    __Pyx_CyFunction_ClassObj(op) = NULL;
     op->func_globals = globals;
     Py_INCREF(op->func_globals);
     Py_XINCREF(code);
@@ -1061,7 +1063,7 @@ static int __Pyx__CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->func_doc);
     Py_CLEAR(m->func_globals);
     Py_CLEAR(m->func_code);
-    Py_CLEAR(__Pyx__CyFunction_GetClassObj(m));
+    Py_CLEAR(__Pyx_CyFunction_ClassObj(m));
     Py_CLEAR(m->defaults_tuple);
     Py_CLEAR(m->defaults_kwdict);
     Py_CLEAR(m->func_annotations);
@@ -1124,7 +1126,7 @@ static int __Pyx_CyFunction_traverse(PyObject *m_in, visitproc visit, void *arg)
     Py_VISIT(m->func_globals);
     // The code objects that we generate only contain plain constants and can never participate in reference cycles.
     __Pyx_VISIT_CONST(m->func_code);
-    Py_VISIT(__Pyx__CyFunction_GetClassObj(m));
+    Py_VISIT(__Pyx_CyFunction_ClassObj(m));
     Py_VISIT(m->defaults_tuple);
     Py_VISIT(m->defaults_kwdict);
     Py_VISIT(m->func_annotations);
@@ -1380,7 +1382,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, 
 static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames)
 {
     __pyx_CyFunctionObject *cyfunc = __Pyx_as_CyFunctionObject(func);
-    PyTypeObject *cls = (PyTypeObject *) __Pyx__CyFunction_GetClassObj(cyfunc);
+    PyTypeObject *cls = (PyTypeObject *) __Pyx_CyFunction_ClassObj(cyfunc);
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
     PyObject *self;
     PyCFunction meth = __Pyx_CyFunction_MethodDef(cyfunc)->ml_meth;
@@ -1703,7 +1705,7 @@ __pyx_FusedFunction_descr_get_locked(PyObject *self, PyObject *obj)
     Py_XINCREF(cyfunc->defaults);
     meth_as_cyfunc->defaults = cyfunc->defaults;
 
-    __Pyx_CyFunction_SetClassObj(meth, (PyObject*)__Pyx__CyFunction_GetClassObj(cyfunc));
+    __Pyx_CyFunction_SetClassObj(meth, (PyObject*)__Pyx_CyFunction_ClassObj(cyfunc));
 
     Py_XINCREF(func->__signatures__);
     meth_as_fused->__signatures__ = func->__signatures__;
