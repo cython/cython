@@ -77,8 +77,6 @@ typedef struct {
 #endif
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
     PyObject *func_weakreflist;
-    // No-args super() class cell
-    PyObject *func_classobj;
 #endif
 #if PY_VERSION_HEX < 0x030C0000 || CYTHON_COMPILING_IN_LIMITED_API
     PyObject *func_dict;
@@ -89,6 +87,10 @@ typedef struct {
     PyObject *func_globals;
     PyObject *func_code;
     PyObject *func_closure;
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
+    // No-args super() class cell
+    PyObject *func_classobj;
+#endif
     // Dynamic default args and annotations
     PyObject *defaults;
     int flags;
