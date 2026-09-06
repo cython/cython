@@ -14162,6 +14162,14 @@ class CondExprNode(ExprNode):
         return out
 
     def coerce_to(self, dst_type, env):
+        if dst_type.is_reference and not self.type.is_reference:
+            # The branches are prvalues (e.g. "container[i] = a if c else b"
+            # where operator[] returns a reference). Pushing the reference type
+            # down onto them would produce a dangling __Pyx_FakeReference temp
+            # bound to a branch value that dies at the end of the statement
+            # (GH-7927). Coerce to the referenced type instead, mirroring
+            # ExprNode.coerce_to().
+            dst_type = dst_type.ref_base_type
         if self.true_val.type != dst_type:
             self.true_val = self.true_val.coerce_to(dst_type, env)
         if self.false_val.type != dst_type:
