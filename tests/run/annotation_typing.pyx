@@ -537,6 +537,35 @@ def def_none_as_type(a: None) -> None:
     """
     return c_none_as_type(a)
 
+
+def optional_sequence_item_inference(
+    total_size: float | None = None,
+    min_last_access: float | None = None,
+    max_object_size: float | None = None,
+):
+    """
+    Regression test: ``T | None``-annotated arguments must not be inferred as
+    a non-nullable C type when collected into a tuple/list/set literal that
+    is then iterated over.  Previously, the loop variable in the generator
+    below was typed as ``double``, and ``__Pyx_PyFloat_AsDouble(Py_None)``
+    raised ``TypeError: must be real number, not NoneType`` at runtime.
+
+    Minimised from a real-world ``synchronous_gc`` helper.
+
+    >>> optional_sequence_item_inference()
+    0
+    >>> optional_sequence_item_inference(1.0)
+    1
+    >>> optional_sequence_item_inference(1.0, 2.0)
+    2
+    >>> optional_sequence_item_inference(None, None, 3.0)
+    1
+    """
+    return sum(
+        1 for x in (total_size, min_last_access, max_object_size) if x is not None
+    )
+
+
 _WARNINGS = """
 15:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 15:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
