@@ -14435,7 +14435,7 @@ class CmpNode:
             type1, type2 = operand1.type, self.operand2.type
             if result_is_bool or (type1.is_builtin_type and type2.is_builtin_type):
                 if type1.is_pystr_type or type2.is_pystr_type:
-                    if operand1.is_string_literal and operand1.can_coerce_to_char_literal():
+                    if operand1.is_string_literal and operand1.can_coerce_to_char_literal() and type1.is_pystr_type:
                         # We need to keep the signature (obj1, obj2, eq), so we generate one macro function per character.
                         character = ord(operand1.value[0])
                         is_str = type2.is_pystr_type
@@ -14443,7 +14443,7 @@ class CmpNode:
                             "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': True})
                         self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_ch{character}_{'str' if is_str else 'obj'}"
                         return True, operand1.coerce_to_pyobject(env)
-                    elif self.operand2.is_string_literal and self.operand2.can_coerce_to_char_literal():
+                    elif self.operand2.is_string_literal and self.operand2.can_coerce_to_char_literal() and type2.is_pystr_type:
                         # We need to keep the signature (obj1, obj2, eq), so we generate one macro function per character.
                         character = ord(self.operand2.value[0])
                         is_str = type1.is_pystr_type
