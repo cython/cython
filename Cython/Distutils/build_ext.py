@@ -25,6 +25,18 @@ if _build_ext is None:
 if _build_ext is None:
     from distutils.command.build_ext import build_ext as _build_ext
 
+PGO_CONFIG = {
+    'gcc': {
+        'gen': ['-fprofile-generate', '-fprofile-dir={TEMPDIR}'],
+        'use': ['-fprofile-use', '-fprofile-correction', '-fprofile-dir={TEMPDIR}'],
+    },
+    # blind copy from 'configure' script in CPython 3.7
+    'icc': {
+        'gen': ['-prof-gen'],
+        'use': ['-prof-use'],
+    }
+}
+PGO_CONFIG['mingw32'] = PGO_CONFIG['gcc']
 
 class build_ext(_build_ext):
 
@@ -41,6 +53,10 @@ class build_ext(_build_ext):
              "put generated C files in temp directory"),
         ('cython-gen-pxi', None,
             "generate .pxi file for public declarations"),
+        ('cython-gen-pgo', None,
+            "generate PGO file"),
+        ('cython-use-pgo', None,
+            "use PGO file"),
         ('cython-directives=', None,
             "compiler directive overrides"),
         ('cython-gdb', None,
@@ -51,7 +67,7 @@ class build_ext(_build_ext):
 
     boolean_options = _build_ext.boolean_options + [
         'cython-cplus', 'cython-create-listing', 'cython-line-directives',
-        'cython-c-in-temp', 'cython-gdb',
+        'cython-c-in-temp', 'cython-gdb', 'cython-use-pgo', 'cython-gen-pgo'
     ]
 
     def initialize_options(self):
@@ -63,6 +79,9 @@ class build_ext(_build_ext):
         self.cython_directives = None
         self.cython_c_in_temp = 0
         self.cython_gen_pxi = 0
+        self.cython_gen_pgo = 0
+        self.cython_use_pgo = 0
+        self.pgo_dir = None
         self.cython_gdb = False
         self.cython_compile_time_env = None
         self.shared_utility_qualified_name = None
@@ -81,6 +100,34 @@ class build_ext(_build_ext):
 
     def get_extension_attr(self, extension, option_name, default=False):
         return getattr(self, option_name) or getattr(extension, option_name, default)
+
+    def _add_pgo_flags(self, ext, step_name, temp_dir):
+        compiler_type = self.compiler.compiler_type
+        if compiler_type == 'unix':
+            compiler_cmd = self.compiler.compiler_so
+            if not compiler_cmd:
+                pass
+            elif 'clang' in compiler_cmd or 'clang' in compiler_cmd[0]:
+                compiler_type = 'gcc'
+            elif 'icc' in compiler_cmd or 'icc' in compiler_cmd[0]:
+                compiler_type = 'icc'
+            elif 'gcc' in compiler_cmd or 'gcc' in compiler_cmd[0]:
+                compiler_type = 'gcc'
+            elif 'g++' in compiler_cmd or 'g++' in compiler_cmd[0]:
+                compiler_type = 'gcc'
+            else:
+                compiler_type = 'gcc'
+        config = PGO_CONFIG.get(compiler_type)
+        orig_flags = []
+        if config and step_name in config:
+            flags = [f.format(TEMPDIR=temp_dir) for f in config[step_name]]
+            orig_flags.append((ext.extra_compile_args, ext.extra_link_args))
+            ext.extra_compile_args = ext.extra_compile_args + flags
+            ext.extra_link_args = ext.extra_link_args + flags
+        else:
+            print("No PGO %s configuration known for C compiler type '%s'" % (step_name, compiler_type),
+                  file=sys.stderr)
+        return orig_flags
 
     def build_extension(self, ext):
         from Cython.Build.Dependencies import cythonize
@@ -112,6 +159,25 @@ class build_ext(_build_ext):
 
         if self.get_extension_attr(ext, 'cython_cplus'):
             ext.language = 'c++'
+
+        pgo_dir = self.get_extension_attr(ext, 'pgo_dir', default=None)
+
+        if self.cython_gen_pgo:
+            self._add_pgo_flags(ext, 'gen', pgo_dir)
+        if self.cython_use_pgo:
+            self.force = 1
+            self._add_pgo_flags(ext, 'use', pgo_dir)
+            np_pythran = getattr(ext, 'np_pythran', False)
+            c_sources = []
+            for source in ext.sources:
+                base, ex = os.path.splitext(source)
+                if ex in ('.pyx', '.py'):
+                   c_file = base + ('.cpp' if ext.language == 'c++' or np_pythran else '.c')
+                   c_sources.append(c_file)
+                else:
+                    c_sources.append(source)
+            ext.sources = c_sources
+            return super().build_extension(ext)
 
         if hasattr(ext, 'no_c_in_traceback'):
             c_line_in_traceback = not ext.no_c_in_traceback
