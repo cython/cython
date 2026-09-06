@@ -170,3 +170,122 @@ def test_mmview_const_fused_def(const cython.floating[:] x):
     """
     cdef cython.floating result = x[0]
     return result
+
+
+# Tests involving ndarrays of dtype 'object'
+
+class A(object):
+    def __init__(self, data):
+        self.data = data
+    def __repr__(self):
+        return "{:d}".format(self.data)
+
+def test_objmmview_assign_ro_const():
+    """Assigning readonly ndarray to const mmview is OK
+
+    >>> test_objmmview_assign_ro_const()
+    0
+    """
+    arr = np.array([A(i) for i in range(10)])
+    arr.setflags(write=False)
+    cdef const object[:] arrview = arr
+    return arr[0]
+
+def test_objmmview_assign_ro_nonconst():
+    """Assigning readonly ndarray to non-const mmview results in ValueError
+
+    >>> test_objmmview_assign_ro_nonconst()
+    """
+    arr = np.array([A(i) for i in range(10)])
+    arr.setflags(write=False)
+    cdef object[:] arrview
+    try:
+        arrview = arr
+    except ValueError:
+        return
+    raise Exception("Expected ValueError not raised")
+
+def test_objmmview_assign_rw_const():
+    """Assigning readwrite ndarray to const mmview is OK
+
+    >>> test_objmmview_assign_rw_const()
+    1
+    """
+    arr = np.array([A(i) for i in range(10)])
+    arr.setflags(write=True)
+    cdef const object[:] arrview = arr
+    return arr[1]
+
+def test_objmmview_assign_rw_nonconst():
+    """Assigning readwrite ndarray to non-const mmview is OK
+
+    >>> test_objmmview_assign_rw_nonconst()
+    2
+    """
+    arr = np.array([A(i) for i in range(10)])
+    arr.setflags(write=True)
+    cdef object[:] arrview = arr
+    return arr[2]
+
+def test_objmmview_write_rw_nonconst():
+    """Writing to a rw ndarray through a nonconst object view is OK
+
+    >>> test_objmmview_write_rw_nonconst()
+    99
+    """
+    arr = np.array([A(i) for i in range(10)])
+    arr.setflags(write=True)
+    cdef object[:] arrview = arr
+    arrview[3] = A(99)
+    return arr[3]
+
+def test_objmmview_modify_rw_nonconst():
+    """Modifying an object in rw ndarray through a nonconst object view is OK
+
+    >>> test_objmmview_modify_rw_nonconst()
+    100
+    """
+    arr = np.array([A(i) for i in range(10)])
+    arr.setflags(write=True)
+    cdef object[:] arrview = arr
+    arrview[3].data = 100
+    return arr[3]
+
+def test_objmmview_modify_rw_const():
+    """Modifying an object in rw ndarray through a const object view is OK
+
+    >>> test_objmmview_modify_rw_const()
+    101
+    """
+    arr = np.array([A(i) for i in range(10)])
+    arr.setflags(write=True)
+    cdef const object[:] arrview = arr
+    arrview[3].data = 101
+    return arr[3]
+
+def test_objmmview_modify_ro_const():
+    """Modifying an object in ro ndarray through a const object view is OK
+
+    >>> test_objmmview_modify_ro_const()
+    102
+    """
+    arr = np.array([A(i) for i in range(10)])
+    arr.setflags(write=False)
+    cdef const object[:] arrview = arr
+    arrview[3].data = 102
+    return arr[3]
+
+def test_objmmview_copy():
+    """
+    >>> test_objmmview_copy()
+    (1, -1, 1, 1, 1, -2)
+    """
+    cdef const object[:] ro = np.array([A(1) for _ in range(3)])
+    cdef const object[:] ro2 = ro.copy()
+    cdef object[:] rw = ro.copy()
+    cdef object[:] rw2 = ro2.copy()
+    rw[1] = A(-1)
+    rw2[2] = A(-2)
+    return rw[0], rw[1], rw[2], rw2[0], rw2[1], rw2[2]
+
+
