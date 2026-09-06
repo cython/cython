@@ -901,7 +901,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
   #define METH_METHOD 0x200
 #endif
 
-#if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Malloc)
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x030C0000 && !defined(PyObject_Malloc)
   #define PyObject_Malloc(s)   PyMem_Malloc(s)
   #define PyObject_Free(p)     PyMem_Free(p)
   #define PyObject_Realloc(p)  PyMem_Realloc(p)
@@ -1120,13 +1120,13 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #if !defined(PyUnicode_DecodeUnicodeEscape)
     #define PyUnicode_DecodeUnicodeEscape(s, size, errors)  PyUnicode_Decode(s, size, "unicode_escape", errors)
   #endif
-  #if !defined(PyUnicode_Contains)
+  #if PY_VERSION_HEX < 0x030C0000 && !defined(PyUnicode_Contains)
     #define PyUnicode_Contains(u, s)  PySequence_Contains(u, s)
   #endif
   #if !defined(PyByteArray_Check)
     #define PyByteArray_Check(obj)  PyObject_TypeCheck(obj, &PyByteArray_Type)
   #endif
-  #if !defined(PyObject_Format)
+  #if PY_VERSION_HEX < 0x030C0000 && !defined(PyObject_Format)
     #define PyObject_Format(obj, fmt)  PyObject_CallMethod(obj, "__format__", "O", fmt)
   #endif
 #endif
@@ -1277,7 +1277,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   #define __Pyx_PyUnicode_GET_LENGTH(o) PyUnicode_GetLength(o)
 #endif
 
-#if CYTHON_COMPILING_IN_PYPY && !defined(PyUnicode_InternFromString)
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x030C0000 && !defined(PyUnicode_InternFromString)
   #define PyUnicode_InternFromString(s) PyUnicode_FromString(s)
 #endif
 
