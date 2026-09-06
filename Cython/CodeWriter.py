@@ -121,11 +121,10 @@ class DeclarationWriter(TreeVisitor):
         self.put(']')
 
     def visit_CFuncDeclaratorNode(self, node):
-        # TODO: except, gil, etc.
         self.visit(node.base)
         self.put('(')
         self.comma_separated_list(node.args)
-        self.endline(')')
+        self.put(')')
 
     def visit_CNameDeclaratorNode(self, node):
         self.put(node.name)
@@ -203,7 +202,11 @@ class DeclarationWriter(TreeVisitor):
         self._visit_container_node(node, "cdef cppclass", extras, node.attributes)
 
     def visit_CEnumDefNode(self, node):
-        self._visit_container_node(node, "cdef enum", None, node.items)
+        if node.create_wrapper:
+            self.put("cpdef")
+        else:
+            self.put("cdef")
+        self._visit_container_node(node, " enum", None, node.items)
 
     def visit_CEnumDefItemNode(self, node):
         self.startline(node.name)
@@ -265,9 +268,37 @@ class DeclarationWriter(TreeVisitor):
         self.visit(node.declarator.base)
         self.put('(')
         self.comma_separated_list(node.declarator.args)
-        self.endline('):')
+        self.put(')')
 
+        if node.declarator.has_explicit_exc_clause:
+            if node.declarator.exception_value is not None:
+                self.put(" except")
+                if check := node.declarator.exception_check:
+                    if isinstance(check, str):
+                        self.put(check)
+                    else:
+                        self.put(" ")
+                else:
+                    self.put(" ")
+                self.visit(node.declarator.exception_value)
+            elif check := node.declarator.exception_check:
+                if isinstance(check, str):
+                    self.put(" except ")
+                    self.put(check)
+            else:
+                self.put(" noexcept")
+            except_clause = True
+        else:
+            except_clause = False
+
+        if node.declarator.nogil:
+            if except_clause:
+                self.put(" with")
+            self.put(" nogil" if not node.declarator.with_gil else " gil")
+
+        self.endline(':')
         self._visit_indented(node.body)
+
 
     def visit_CArgDeclNode(self, node):
         # For "CSimpleBaseTypeNode", the variable type may have been parsed as type.
