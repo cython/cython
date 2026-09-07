@@ -14,7 +14,8 @@ Py_CLEAR(clear_module_state->__pyx_CyFunctionType);
 //@substitute: naming
 //@init_block: init_after_shared_utility
 
-if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
+if (likely(CGLOBAL(__pyx_CyFunctionType) != NULL ||
+           __pyx_CyFunction_init($module_cname) == 0)); else
 
 //////////////////// CythonFunctionPerModule.proto //////////////////////////
 // This section always gets included whether we're using CythonFunction through
@@ -1535,7 +1536,8 @@ Py_CLEAR(clear_module_state->__pyx_FusedFunctionType);
 //@substitute: naming
 //@init_block: init_after_shared_utility
 
-if (likely(__pyx_FusedFunction_init($module_cname) == 0)); else
+if (likely(CGLOBAL(__pyx_FusedFunctionType) != NULL ||
+           __pyx_FusedFunction_init($module_cname) == 0)); else
 
 //////////////////// FusedFunctionPerModule.proto ////////////////
 //@requires: CythonFunctionPerModule
