@@ -33,7 +33,7 @@ jobs:
         persist-credentials: false
       # Only needed to compare the "base" on push; not needed for PR
       if: ${{ github.event_name == 'push' }}
-    - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706  # v4.0.2
+    - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d  # v4.0.3
       id: filter
       with:
         base: ${{ case(github.event_name == 'push', github.ref, '') }}
