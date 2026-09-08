@@ -617,6 +617,24 @@ def unpack_in_call(f):
     return wrapper
 
 
+@cython.test_assert_path_exists(
+    "//TupleNode",
+    "//TupleNode[@is_literal=True]",
+)
+@cython.test_fail_if_path_exists(
+    "//TupleNode[@is_literal=False]",
+)
+def unpack_literals_in_call_error(func):
+    """
+    >>> def func(*args, **kwargs): print(args, kwargs)
+
+    >>> unpack_literals_in_call_error(func)
+    Traceback (most recent call last):
+    TypeError: keywords must be strings
+    """
+    return func(**{((3,), (4, 5)): 'constant_tuple', 1: 'constant_int'})
+
+
 def unpack_in_loop(a: list[float], b: list[float]):
     """
     >>> unpack_in_loop([1., 2., 3.], [4., 5.])
