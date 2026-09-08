@@ -8,6 +8,11 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Generating a shared utility module no longer embeds its destination directory
+  in the generated C code, making the output reproducible across build directories.
+  This is a follow-up fix to the one in 3.3.0, for ``--generate-shared=/path/to/_{sharedname}.c``.
+  (Github issue :issue:`7723`)
+
 * A dangling pointer was fixed when assigning to attributes of extension types.
   (Github issue :issue:`7907`)
 
