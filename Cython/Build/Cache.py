@@ -92,8 +92,8 @@ class Cache:
         else:
             self.path = path
         self.cache_size = cache_size if cache_size is not None else MAX_CACHE_SIZE
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
+        # Make sure the cache directory exists (and allow for concurrent creation).
+        os.makedirs(self.path, exist_ok=True)
 
     def transitive_fingerprint(
         self, filename, dependencies, compilation_options, flags=FingerprintFlags()
