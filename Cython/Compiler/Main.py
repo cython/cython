@@ -272,7 +272,14 @@ class Context:
                 try:
                     if debug_find_module:
                         print("Context.find_module: Parsing %s" % pxd_pathname)
-                    rel_path = module_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
+                    module_path = module_name.replace('.', os.sep)
+                    pxd_filename = os.path.basename(pxd_pathname)
+                    if pxd_filename.startswith('__init__.'):
+                        # Package declarations live below the module path.
+                        rel_path = os.path.join(module_path, pxd_filename)
+                    else:
+                        # Preserve version suffixes such as ".cython-30.pxd".
+                        rel_path = os.path.join(os.path.dirname(module_path), pxd_filename)
                     if not pxd_pathname.endswith(rel_path):
                         rel_path = pxd_pathname  # safety measure to prevent printing incorrect paths
                     source_desc = FileSourceDescriptor(pxd_pathname, rel_path)
