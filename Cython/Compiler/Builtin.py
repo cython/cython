@@ -126,7 +126,7 @@ class BuiltinProperty:
 
 ### Special builtin implementations generated at runtime.
 
-def _generate_divmod_function(scope, argument_types):
+def _generate_divmod_function(scope, argument_types: list):
     if len(argument_types) != 2:
         return None
     type_op1, type_op2 = argument_types
@@ -355,6 +355,7 @@ hidden_builtin_types = [
     'dict_keys',
     'dict_values',
     'dict_items',
+    'zip',
 ]
 
 builtin_types_table = [
@@ -368,6 +369,7 @@ builtin_types_table = [
     ("dict_keys", "&PyDictKeys_Type", []),
     ("dict_values", "&PyDictValues_Type", []),
     ("dict_items", "&PyDictItems_Type", []),
+    ("zip", "&PyZip_Type", []),
 
     ("complex", "&PyComplex_Type", [BuiltinAttribute('cval', field_type_name = 'Py_complex'),
                                     BuiltinAttribute('real', 'cval.real', field_type = PyrexTypes.c_double_type),
@@ -729,6 +731,17 @@ def find_return_type_of_builtin_method(pos, env, builtin_type, method_name) -> P
             return container_type
     return PyrexTypes.py_object_type
 
+
+def find_return_type_of_builtin_function(pos, env, argument_types, function_name) -> PyrexTypes.PyrexType | None:
+    if function_name == 'zip':
+        zipped_element_types = [
+            arg_t.infer_iterator_type() if arg_t.supports_container_type else PyrexTypes.py_object_type
+            for arg_t in argument_types
+        ]
+        item_type = tuple_type.specialize_here(pos, env, zipped_element_types)
+        zip_type = builtin_types[function_name]
+        return zip_type.specialize_here(pos, env, [item_type])
+    return PyrexTypes.py_object_type
 
 unsafe_compile_time_methods = {
     # We name here only unsafe and non-portable methods if:

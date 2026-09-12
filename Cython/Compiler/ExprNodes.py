@@ -6426,6 +6426,16 @@ class SimpleCallNode(CallNode):
     analysed = False
     overflowcheck = False
 
+    def infer_type(self, env):
+        inferred_type = super().infer_type(env)
+        if hasattr(self.function, 'name'):
+            function_name = self.function.name
+            # If lookup fails, the function should be builtin function
+            if function_name in PyrexTypes.KNOWN_PYTHON_BUILTINS and not env.lookup(function_name) and self.args:
+                return Builtin.find_return_type_of_builtin_function(
+                    self.pos, env, [arg.infer_type(env) for arg in self.args], function_name)
+        return inferred_type
+
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
         args = [arg.compile_time_value(denv) for arg in self.args]
