@@ -453,13 +453,76 @@ ctypedef struct NestedNestedStructSecond:
     float a
     NestedStructFirst b
 
-def nested_structs(fmt):
+def nested_nested_struct_first(fmt):
     """
-    >>> nested_structs("T{f:a:T{T{f:a:f:b:f:c:}:a:f:b:}:b:}")
+    >>> nested_nested_struct_first("T{f:a:T{T{f:a:f:b:f:c:}:a:f:b:}:b:}")
     """
 
     cdef object[NestedNestedStructSecond] buf = MockBuffer(
         fmt, sizeof(NestedNestedStructSecond))
+
+ctypedef struct NestedNestedStructMiddle:
+    float a
+    NestedStructFirst b
+    float c
+
+def nested_nested_struct_middle(fmt):
+    """
+    >>> nested_nested_struct_middle("T{f:a:T{T{f:a:f:b:f:c:}:a:f:b:}:b:f:c:}")
+    """
+
+    cdef object[NestedNestedStructMiddle] buf = MockBuffer(
+        fmt, sizeof(NestedNestedStructMiddle))
+
+ctypedef struct MultipleNestedNestedStructs1:
+    NestedStructFirst a
+    NestedStructFirst b
+    float c
+
+def multiple_nested_nested_struct_1(fmt):
+    """
+    >>> multiple_nested_nested_struct_1("T{T{T{f:a:f:b:f:c:}:a:f:b:}:a:T{T{f:a:f:b:f:c:}:a:f:b:}:b:f:c:}")
+    """
+
+    cdef object[MultipleNestedNestedStructs1] buf = MockBuffer(
+        fmt, sizeof(MultipleNestedNestedStructs1))
+
+ctypedef struct MultipleNestedNestedStructs2:
+    float a
+    NestedStructFirst b
+    NestedStructFirst c
+
+def multiple_nested_nested_struct_2(fmt):
+    """
+    >>> multiple_nested_nested_struct_2("T{f:a:T{T{f:a:f:b:f:c:}:a:f:b:}:b:T{T{f:a:f:b:f:c:}:a:f:b:}:c:}")
+    """
+
+    cdef object[MultipleNestedNestedStructs2] buf = MockBuffer(
+        fmt, sizeof(MultipleNestedNestedStructs2))
+
+ctypedef struct MixedNestedStructs1:
+   NestedStructFirst a
+   Float3 b
+
+def mixed_nested_struct_1(fmt):
+    """
+    >>> mixed_nested_struct_1("T{T{T{f:a:f:b:f:c:}:a:f:b:}:a:T{f:a:f:b:f:c:}:b:}")
+    """
+
+    cdef object[MixedNestedStructs1] buf = MockBuffer(
+        fmt, sizeof(MixedNestedStructs1))
+
+ctypedef struct MixedNestedStructs2:
+   Float3 a
+   NestedStructFirst b
+
+def mixed_nested_struct_2(fmt):
+    """
+    >>> mixed_nested_struct_2("T{T{f:a:f:b:f:c:}:a:T{T{f:a:f:b:f:c:}:a:f:b:}:b:}")
+    """
+
+    cdef object[MixedNestedStructs2] buf = MockBuffer(
+        fmt, sizeof(MixedNestedStructs2))
 
 
 # TODO: empty struct
