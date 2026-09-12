@@ -1,15 +1,15 @@
 ##################### UFuncDefinition ######################
 
 cdef extern from *:
-    ctypedef int npy_intp
+    ctypedef int __pyx_npy_intp "npy_intp"
     struct PyObject
     PyObject* __Pyx_NewRef(object)
 
 # variable names have to come from tempita to avoid duplication
 @cname("{{func_cname}}")
-cdef void {{func_cname}}(char **args, const npy_intp *dimensions, const npy_intp* steps, void* data) except * {{"nogil" if will_be_called_without_gil else ""}}:
-    cdef npy_intp i
-    cdef npy_intp n = dimensions[0]
+cdef void {{func_cname}}(char **args, const __pyx_npy_intp *dimensions, const __pyx_npy_intp* steps, void* data) except * {{"nogil" if will_be_called_without_gil else ""}}:
+    cdef __pyx_npy_intp i
+    cdef __pyx_npy_intp n = dimensions[0]
     {{for idx, tn_tp in enumerate(in_types)}}
     cdef char* in_{{idx}} = args[{{idx}}]
     cdef {{tn_tp[0]}} cast_in_{{idx}}
@@ -19,7 +19,7 @@ cdef void {{func_cname}}(char **args, const npy_intp *dimensions, const npy_intp
     cdef {{tn_tp[0]}} cast_out_{{idx}}
     {{endfor}}
     {{for idx in range(len(out_types)+len(in_types))}}
-    cdef npy_intp step_{{idx}} = steps[{{idx}}]
+    cdef __pyx_npy_intp step_{{idx}} = steps[{{idx}}]
     {{endfor}}
 
     {{"with gil" if (not nogil and will_be_called_without_gil) else "if True"}}:
