@@ -223,6 +223,9 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *func, Py
 // Cutdown version that's only used when importing from shared utility code
 static int __pyx_CyFunction_init(PyObject *module) {
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
+    if (mstate->__pyx_CyFunctionType != NULL) {
+        return 0;
+    }
 
     PyTypeObject *tp = __Pyx_Get_CyFunction_Type();
     if (!tp) return -1;
@@ -1448,6 +1451,9 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
 
 static int __pyx_CyFunction_init(PyObject *module) {
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
+    if (mstate->__pyx_CyFunctionType != NULL) {
+        return 0;
+    }
     mstate->__pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(
         mstate->__pyx_CommonTypesMetaclassType, module, &__pyx_CyFunctionType_spec, NULL);
     if (unlikely(mstate->__pyx_CyFunctionType == NULL)) {
@@ -1570,6 +1576,9 @@ static int __pyx_FusedFunction_init(PyObject *module);
 // Cutdown version that's only used when importing from shared utility code
 static int __pyx_FusedFunction_init(PyObject *module) {
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
+    if (mstate->__pyx_FusedFunctionType != NULL) {
+        return 0;
+    }
 
     PyTypeObject *tp = __Pyx_Get_FusedFunction_Type();
     if (!tp) return -1;
@@ -1977,6 +1986,9 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     (void)&__Pyx_Get_FusedFunction_Type;
 
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
+    if (mstate->__pyx_FusedFunctionType != NULL) {
+        return 0;
+    }
     PyObject *bases = PyTuple_Pack(1, mstate->__pyx_CyFunctionType);
     if (unlikely(!bases)) {
         return -1;
