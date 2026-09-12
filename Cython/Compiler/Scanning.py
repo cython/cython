@@ -227,7 +227,7 @@ class FileSourceDescriptor(SourceDescriptor):
 
     def get_relative_path(self) -> Path:
         file_path = Path(self.file_path)
-        if file_path.is_absolute():
+        if file_path.is_absolute() or self.path_description != self.filename:
             return Path(self.get_description())
         else:
             return file_path
