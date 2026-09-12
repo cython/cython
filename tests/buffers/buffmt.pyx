@@ -440,6 +440,27 @@ def packed_struct_with_ndarrays(fmt):
     cdef object[PackedStructWithNDArrays] buf = MockBuffer(
         fmt, sizeof(PackedStructWithNDArrays))
 
+ctypedef struct Float3:
+    float a
+    float b
+    float c
+
+ctypedef struct NestedStructFirst:
+    Float3 a
+    float b
+
+ctypedef struct NestedNestedStructSecond:
+    float a
+    NestedStructFirst b
+
+def nested_structs(fmt):
+    """
+    >>> nested_structs("T{f:a:T{T{f:a:f:b:f:c:}:a:f:b:}:b:}")
+    """
+
+    cdef object[NestedNestedStructSecond] buf = MockBuffer(
+        fmt, sizeof(NestedNestedStructSecond))
+
 
 # TODO: empty struct
 # TODO: Incomplete structs

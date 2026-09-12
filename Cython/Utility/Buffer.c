@@ -470,7 +470,7 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
     }
 
     if (type->size != size || type->typegroup != group) {
-      if (type->typegroup == 'C' && type->fields != NULL) {
+      if ((type->typegroup == 'C' || type->typegroup == 'S') && type->fields != NULL) {
         /* special case -- treat as struct rather than complex number */
         size_t parent_offset = ctx->head->parent_offset + field->offset;
         ++ctx->head;
