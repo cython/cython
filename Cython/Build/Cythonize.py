@@ -134,7 +134,7 @@ def _build(ext_modules, parallel):
 
 def run_distutils(args):
     try:
-        from distutils.core import setup
+        from setuptools import setup
     except ImportError:
         try:
             from setuptools import setup
