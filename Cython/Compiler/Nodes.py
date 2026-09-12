@@ -508,6 +508,25 @@ class CDefExternNode(StatNode):
         self.body.annotate(code)
 
 
+class PyTypeAliasNode(Node):
+
+    child_attrs = ["lhs", "rhs"]
+
+
+    def analyse_expressions(self, env):
+        return self
+
+    def analyse_declarations(self, env):
+        env.declare_const(self.lhs.name, PyrexTypes.TypingType('TypeAliasType'), self.rhs, self.pos)
+
+    def generate_function_definitions(self, env, code):
+        pass
+
+
+    def generate_execution_code(self, code):
+        pass
+
+
 class CDeclaratorNode(Node):
     # Part of a C declaration.
     #
@@ -1334,8 +1353,14 @@ class TemplatedTypeNode(CBaseTypeNode):
             if template_node.is_none:
                 continue
             # CBaseTypeNode -> allow C type declarations in a 'cdef' context again
+            ttype = None
             with env.new_c_type_context(in_c_type_context or isinstance(template_node, CBaseTypeNode)):
-                ttype = template_node.analyse_as_type(env)
+                if template_node.is_name:
+                    entry = env.lookup(template_node.name)
+                    if entry and hasattr(entry.type, 'name') and entry.type.name == 'TypeAliasType':
+                        ttype = entry.value_node.analyse_as_type(env)
+                if ttype is None:
+                    ttype = template_node.analyse_as_type(env)
             if ttype is None:
                 if base_type.is_cpp_class:
                     error(template_node.pos, "unknown type in template argument")
