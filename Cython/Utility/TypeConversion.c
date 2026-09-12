@@ -429,7 +429,19 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyLong_AsSsize_t(PyObject* b) {
 }
 
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
-    if (likely(PyLong_Check(b))) {
+    // Test the exact type first: it is a single pointer comparison, whereas
+    // PyLong_Check() needs an additional dependent load of tp_flags on the
+    // type object. Exact ints dominate real call sites (loop cursors and
+    // container indices), so pay the cheaper test for them and keep
+    // PyLong_Check() so subclasses (and bool) still avoid PyNumber_Index().
+    if (likely(PyLong_CheckExact(b)) || PyLong_Check(b)) {
+#if CYTHON_USE_PYLONG_INTERNALS
+        // Handle the overwhelmingly common single-digit case with a direct
+        // tagged read, before falling back to the general conversion.
+        if (likely(__Pyx_PyLong_IsCompact(b))) {
+            return __Pyx_PyLong_CompactValue(b);
+        }
+#endif
         return __Pyx_PyLong_AsSsize_t(b);
     } else {
         Py_ssize_t ival;
