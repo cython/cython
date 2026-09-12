@@ -181,13 +181,23 @@ def clamp(exponent, maximum=16):
     """
     >>> clamp(-4)
     1
+    >>> clamp(4)
+    16
+    >>> clamp('3')
+    8
     """
-    return min(max(2 ** int(exponent), 1), maximum)
+    result = min(max(2 ** int(exponent), 1), maximum)
+    return result
 
 
 def equal_powers(left, right):
     """
     >>> equal_powers(-4, -4)
     True
+    >>> equal_powers(-4, 4)
+    False
+    >>> equal_powers(3, 3)
+    True
     """
-    return 2 ** int(left) == 2 ** int(right)
+    result = 2 ** int(left) == 2 ** int(right)
+    return result
