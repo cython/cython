@@ -16,7 +16,7 @@ setup(
 ######## a.pyx ########
 
 from b cimport (Bclass, Bfunc, Bstruct, Benum, Benum_value, Btypedef, Py_EQ, Py_NE,
-                DecoratedClass, cfuncOutside)
+                DecoratedClass, cfuncOutside, Base)
 cdef Bclass b = Bclass(5)
 assert Bfunc(&b.value) == b.value
 assert b.anotherValue == 6, b.anotherValue
@@ -34,6 +34,10 @@ assert cfuncOutside().value == 2
 #from c cimport ClassC
 #cdef ClassC c = ClassC()
 #print c.value
+
+cdef class Derived(Base):
+    cpdef s(self):
+        Base.mtd(self)
 
 ######## b.pyx ########
 
@@ -78,6 +82,12 @@ class DecoratedClass:
 @cython.returns(Bstruct)
 def cfuncOutside():
     return Bstruct(value=2)
+
+@cython.cclass
+class Base:
+    @cython.ccall
+    def mtd(self):
+        pass
 
 ######## c.pxd ########
 
