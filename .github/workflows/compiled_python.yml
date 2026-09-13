@@ -29,6 +29,7 @@ jobs:
       PYTHON_VERSION: 3.x-dev
       CONFIGURE_ARGS: --with-pydebug
       SANITIZER_CFLAGS: ""
+      PYTHON_GIL: "0"
 
     steps:
       - name: Checkout repo
