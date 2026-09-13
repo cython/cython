@@ -6337,7 +6337,7 @@ class CallNode(ExprNode):
         elif function.is_attribute and function.obj.type.is_builtin_type:
             method_obj_type = function.obj.type
             result_type = Builtin.find_return_type_of_builtin_method(self.pos, env, method_obj_type, function.attribute)
-            self.may_return_none = result_type is py_object_type
+            self.may_return_none = result_type.is_pyobject
             if result_type != self.type:
                 if not result_type.is_pyobject and result_type.equivalent_type:
                     result_type = result_type.equivalent_type
