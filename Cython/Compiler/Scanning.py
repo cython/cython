@@ -252,6 +252,11 @@ class FileSourceDescriptor(SourceDescriptor):
         return "<FileSourceDescriptor:%s>" % self.filename
 
 
+class IncludeFileSourceDescriptor(FileSourceDescriptor):
+    def get_relative_path(self) -> Path:
+        return Path(self.get_description())
+
+
 class StringSourceDescriptor(SourceDescriptor):
     """
     Instances of this class can be used instead of a filenames if the
