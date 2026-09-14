@@ -43,7 +43,6 @@ def test_assign_builtin_method():
     i = l.pop().pop()
     print(cython.typeof(i))
 
-
 def test_builtin_methods():
     """
     >>> test_builtin_methods()
@@ -61,6 +60,49 @@ def test_builtin_methods():
     s: set[str] = {'a'}
     sg = s.pop()
     print(cython.typeof(sg) + (' object' if not cython.compiled else ''), sg)
+
+def test_dict_handle_none():
+    """
+    >>> test_dict_handle_none()
+    """
+
+    none_dict: dict[str, str] = {'none': None}
+
+    assert 'missing' not in none_dict
+    missing = none_dict.get('missing')
+    try:
+        len(missing)
+    except TypeError:
+        pass
+    else:
+        assert False, len(missing)
+
+    assert 'none' in none_dict
+    none_value = none_dict.get('none')
+    try:
+        len(none_value)
+    except TypeError:
+        pass
+    else:
+        assert False, len(none_value)
+
+    assert 'missing' not in none_dict
+    popped_missing = none_dict.pop('missing', None)
+    try:
+        len(popped_missing)
+    except TypeError:
+        pass
+    else:
+        assert False, len(popped_missing)
+
+    assert 'none' in none_dict
+    popped_value = none_dict.pop('none')
+    try:
+        len(popped_value)
+    except TypeError:
+        pass
+    else:
+        assert False, len(none_value)
 
 def test_dict_builtin_methods():
     """

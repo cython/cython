@@ -537,7 +537,7 @@ inferred_method_return_types = {
         copy='T',
         count='Py_ssize_t',
         index='Py_ssize_t',
-        pop='I',
+        pop='Optional[I]',
     ),
     'tuple': dict(
         count='Py_ssize_t',
@@ -658,14 +658,14 @@ inferred_method_return_types = {
     ),
     'set': dict(
         # Inherited from 'frozenset' above.
-        pop='I',
+        pop='Optional[I]',
     ),
     'dict': dict(
         copy='T',
         fromkeys='T',  # classmethod
         popitem='tuple[K,I]',
-        pop='I',
-        get='I',
+        pop='Optional[I]',
+        get='Optional[I]',
         keys='dict_keys[K]',
         values='dict_values[I]',
         items='dict_items[tuple[K,I]]'
@@ -701,33 +701,35 @@ def _parse_atomic_signature(builtin_type, sig: str) -> PyrexTypes.PyrexType:
     return entry.type
 
 
-def _parse_signature(pos, env, builtin_type, return_signature: str) -> PyrexTypes.PyrexType:
+def _parse_signature(pos, env, builtin_type, return_signature: str) -> tuple[bool, PyrexTypes.PyrexType]:
     if '[' in return_signature:
         container_name, _, subscript_signature = return_signature[:-1].partition('[')
-        container_entry = builtin_scope.lookup(container_name)
-        container_type = container_entry.type if container_entry is not None else builtin_types[container_name]
 
-        if container_name in ('tuple', 'dict', 'frozendict'):
+        if container_name == 'Optional':
+            return True, _parse_signature(pos, env, builtin_type, subscript_signature)[1]
+        elif container_name in ('tuple', 'dict', 'frozendict'):
             parsed_subscripted_types = [
-                    _parse_signature(pos, env, builtin_type, sg)
+                    _parse_signature(pos, env, builtin_type, sg)[1]
                     for sg in subscript_signature.split(',')
             ]
         else:
-            parsed_subscripted_types = [_parse_signature(pos, env, builtin_type, subscript_signature)]
-        return container_type.specialize_here(pos, env, parsed_subscripted_types)
-    return _parse_atomic_signature(builtin_type, return_signature)
+            parsed_subscripted_types = [_parse_signature(pos, env, builtin_type, subscript_signature)[1]]
+
+        container_entry = builtin_scope.lookup(container_name)
+        container_type = container_entry.type if container_entry is not None else builtin_types[container_name]
+        return False, container_type.specialize_here(pos, env, parsed_subscripted_types)
+    return False, _parse_atomic_signature(builtin_type, return_signature)
 
 
-def find_return_type_of_builtin_method(pos, env, builtin_type, method_name) -> PyrexTypes.PyrexType:
+def find_return_type_of_builtin_method(pos, env, builtin_type, method_name) -> tuple[bool, PyrexTypes.PyrexType]:
     container_type = builtin_type.get_container_type()
     type_name = container_type.name if container_type else builtin_type.name
     if type_name in inferred_method_return_types:
         methods = inferred_method_return_types[type_name]
         if method_name in methods:
             return_type_signature: str = methods[method_name]
-            container_type = _parse_signature(pos, env, builtin_type, return_type_signature)
-            return container_type
-    return PyrexTypes.py_object_type
+            return _parse_signature(pos, env, builtin_type, return_type_signature)
+    return True, PyrexTypes.py_object_type
 
 
 unsafe_compile_time_methods = {
