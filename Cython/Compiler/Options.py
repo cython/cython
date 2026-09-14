@@ -829,6 +829,7 @@ default_options = dict(
     common_utility_include_dir=None,
     output_dir=None,
     build_dir=None,
+    pgo_dir=None,
     cache=None,
     create_extension=None,
     np_pythran=False,
