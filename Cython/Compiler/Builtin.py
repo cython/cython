@@ -732,7 +732,7 @@ def find_return_type_of_builtin_method(pos, env, builtin_type, method_name) -> P
     return PyrexTypes.py_object_type
 
 
-def find_return_type_of_builtin_function(pos, env, argument_types, function_name) -> PyrexTypes.PyrexType | None:
+def find_return_type_of_builtin_function(pos, env, argument_types, function_name) -> PyrexTypes.PyrexType:
     if function_name == 'zip':
         zipped_element_types = [
             arg_t.infer_iterator_type() if arg_t.supports_container_type else PyrexTypes.py_object_type
