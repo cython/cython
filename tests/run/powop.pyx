@@ -175,3 +175,29 @@ def optimised_pow2_inplace(n):
     x = 2
     x **= n
     return x
+
+
+def clamp(exponent, maximum=16):
+    """
+    >>> clamp(-4)
+    1
+    >>> clamp(4)
+    16
+    >>> clamp('3')
+    8
+    """
+    result = min(max(2 ** int(exponent), 1), maximum)
+    return result
+
+
+def equal_powers(left, right):
+    """
+    >>> equal_powers(-4, -4)
+    True
+    >>> equal_powers(-4, 4)
+    False
+    >>> equal_powers(3, 3)
+    True
+    """
+    result = 2 ** int(left) == 2 ** int(right)
+    return result
