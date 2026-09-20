@@ -98,6 +98,7 @@ else:
 setup(ext_modules=cythonize([
     Extension("*", sources=["module.py"], define_macros=macros),
     Extension("*", sources=["short_text.py"], define_macros=macros),
+    Extension("*", sources=["empty_*.py"], define_macros=macros),
 ]))
 
 
@@ -105,6 +106,21 @@ setup(ext_modules=cythonize([
 
 a = 'a'
 b = b'b'
+
+
+######## empty_bytes.py ########
+# Special because it gives bit length 0 in the bytes length index.
+
+EMPTY = b''
+
+
+######## empty_str_bytes.py ########
+# All (Unicode) names go into the string table, so we can't have
+# a table of only the empty str.  But we should still make sure
+# that short and empty strings compile fine.
+
+S = ''
+B = b''
 
 
 ######## module.py ########

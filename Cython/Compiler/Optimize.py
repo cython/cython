@@ -1874,8 +1874,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return ExprNodes.FloatNode(node.pos, value='0.0')
         if len(pos_args) > 1:
             self._error_wrong_arg_count('float', node, pos_args, 1)
-        arg_type = getattr(pos_args[0], 'type', None)
-        if arg_type and (arg_type is PyrexTypes.c_double_type or arg_type.is_pyfloat_type):
+        arg_type = pos_args[0].infer_type(self.current_env())
+        if arg_type is PyrexTypes.c_double_type or arg_type.is_pyfloat_type:
             return pos_args[0]
         return node
 
@@ -2019,13 +2019,15 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             list_node = arg.as_list()
 
         else:
-            # Interestingly, PySequence_List works on a lot of non-sequence
-            # things as well.
+            # Interestingly, PySequence_List works on a lot of non-sequence things as well.
+            may_be_new_list = False
+            if arg.result_in_temp():
+                arg_type = arg.infer_type(self.current_env())
+                may_be_new_list = arg_type is PyrexTypes.py_object_type or arg_type.is_pylist_type
+
             list_node = ExprNodes.PythonCapiCallNode(
                 node.pos,
-                "__Pyx_PySequence_ListKeepNew"
-                    if arg.result_in_temp() and (arg.type is PyrexTypes.py_object_type or arg.type.is_pylist_type)
-                    else "PySequence_List",
+                "__Pyx_PySequence_ListKeepNew" if may_be_new_list else "PySequence_List",
                 self.PySequence_List_func_type,
                 args=pos_args, is_temp=True)
 
@@ -5342,12 +5344,19 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         if not ExprNodes.PyMethodCallNode.can_be_used_for_function(function):
             return node
 
-        kwnames = kwvalues = kwdict = None
+        kwnames = kwnames_tuple = kwvalues = kwdict = None
         if node.keyword_args and node.keyword_args.is_dict_literal:
-            kwnames = ExprNodes.TupleNode(
+            kwnames = [
+                (kvp.key if kvp.key.is_literal else ExprNodes.ProxyNode(kvp.key))
+                for kvp in node.keyword_args.key_value_pairs
+            ]
+            kwnames_tuple = ExprNodes.TupleNode(
                 node.pos,
-                args=[kvp.key for kvp in node.keyword_args.key_value_pairs])
-            kwnames = kwnames.analyse_types(self.current_env(), skip_children=True)
+                args=[
+                    copy.copy(arg) if arg.is_literal else ExprNodes.CloneNode(arg)
+                    for arg in kwnames
+                ])
+            kwnames_tuple = kwnames_tuple.analyse_types(self.current_env())
             kwvalues = [kvp.value for kvp in node.keyword_args.key_value_pairs]
         elif node.keyword_args:
             kwdict = node.keyword_args
@@ -5355,7 +5364,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
             node,
             function=function, arg_tuple=node.positional_args, kwdict=kwdict,
-            kwnames=kwnames, kwvalues=kwvalues,
+            kwnames=kwnames, kwvalues=kwvalues, kwnames_tuple=kwnames_tuple,
             type=node.type, unpack=self._check_optimize_method_calls(node)))
         return node
 

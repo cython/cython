@@ -1,0 +1,22 @@
+# Tests that pass on GraalPy 25.3 but fail on GraalPy 25.0.
+ass2global
+[.]coroutines
+test_grammar
+test_named_expressions
+test_release_gil_in_nogil
+slice_ptr
+reraise
+nogil
+class_scope_del_T684
+pyclass_annotations_pep526
+cyfunction_defaults
+posonly
+constant_folding
+large_integer_T5290
+int_literals
+cpython_capi
+pyarray
+pyint
+exectest
+fused_def
+iterdict

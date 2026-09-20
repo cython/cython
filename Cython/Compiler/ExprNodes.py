@@ -2369,13 +2369,13 @@ class NameNode(AtomicExprNode):
                 self.annotation and env.is_c_dataclass_scope):
             error(self.pos, "Cannot redeclare inherited fields in Cython dataclasses")
         elif self.entry and self.annotation and env.directives['annotation_typing']:
-            if not self.entry.scope.is_module_scope:
-                error(self.pos, f"'{self.name}' redeclared")
-            else:
-                # Type annotations of global variables (module scope) are ignored by cython.
-                # Hence, we support somewhat contradictory declarations like:
-                # _Empty_Tuple: tuple[typing.Any] = cython.declare(tuple, ())
-                annotation_type = self.annotation.analyse_as_type(env)
+            # Type annotations of global variables (module scope) are ignored by Cython.
+            # Hence, we support somewhat contradictory declarations like:
+            # _Empty_Tuple: tuple[typing.Any] = cython.declare(tuple, ())
+            # For local variables, we allow at least compatible redeclarations with annotations
+            # (but do not always remember how they were *originally* declared).
+            annotation_type = self.annotation.analyse_as_type(env)
+            if annotation_type:
                 entry_type = self.entry.type
                 if not (annotation_type.assignable_from(entry_type) or entry_type.assignable_from(annotation_type)):
                     warning(self.pos,
@@ -6978,7 +6978,8 @@ class PyMethodCallNode(CallNode):
     # function    ExprNode      the function/method object to call
     # arg_tuple   TupleNode     the arguments for the args tuple
     # kwdict      ExprNode or None  keyword dictionary (if present)
-    # kwnames     TupleNode or None   names of keyword arguments
+    # kwnames     list[ExprNode] | None   names of keyword arguments
+    # kwnames_tuple TupleNode | None      tuple of CloneNodes of kwnames
     # kwvalues    list[ExprNode] | None  values of keyword arguments
     # Arguments to constructor only:
     # function_obj  ExprNode or None  == self.function.obj when using PyObject_VectorcallMethod()
@@ -6989,6 +6990,7 @@ class PyMethodCallNode(CallNode):
     use_method_vectorcall = False
     kwdict = None
     kwnames = None
+    kwnames_tuple = None
     kwvalues = None
     function_obj = None
 
@@ -7136,23 +7138,25 @@ class PyMethodCallNode(CallNode):
         code.putln("#endif")  # CYTHON_UNPACK_METHODS
         # TODO may need to deal with unused variables in the #else case
 
-    def generate_keyvalue_args(self, code, args, kwnames, kwvalues, kwnames_temp):
+    def generate_keyvalue_args(self, code, args, kwnames, kwnames_tuple, kwvalues, kwnames_temp):
         arg_indices_to_check = [
-            n for n, arg in enumerate(kwnames.args)
+            n for n, arg in enumerate(kwnames)
             if not arg.type.is_pystr_type or arg.may_be_none()
         ]
 
         code.putln("#if CYTHON_VECTORCALL")
-        code.putln(f"{kwnames_temp} = {kwnames.result()};")
+        code.putln(f"{kwnames_temp} = {kwnames_tuple.result()};")
         code.putln(code.error_goto_if_null(kwnames_temp, self.pos))
         code.put_incref(kwnames_temp, py_object_type)
         for arg_index in arg_indices_to_check:
-            code.put_error_if_neg(kwnames.pos, f"__Pyx_CheckVectorcallKwarg({kwnames_temp}, {arg_index})")
+            code.put_error_if_neg(kwnames_tuple.pos, f"__Pyx_CheckVectorcallKwarg({kwnames_temp}, {arg_index})")
         code.putln("#else")
         code.putln("{")
-        kwnames.generate_sequence_as_array_code(code, Naming.quick_temp_cname)
+        code.put(f"PyObject *{Naming.quick_temp_cname}[{len(kwnames)}] = {{")
+        code.put(', '.join(arg.result() for arg in kwnames))
+        code.putln("};")
         for arg_index in arg_indices_to_check:
-            code.put_error_if_neg(kwnames.pos, f"__Pyx_CheckVectorcallKwarg({Naming.quick_temp_cname}, {arg_index})")
+            code.put_error_if_neg(kwnames_tuple.pos, f"__Pyx_CheckVectorcallKwarg({Naming.quick_temp_cname}, {arg_index})")
         code.putln(f"{kwnames_temp} = __Pyx_MakeKwargDict({Naming.quick_temp_cname}, "
                    f"{Naming.callargs_cname}+{len(args)+1}, {len(kwvalues)});")
         code.putln(code.error_goto_if_null(kwnames_temp, self.pos))
@@ -7188,6 +7192,7 @@ class PyMethodCallNode(CallNode):
         self.allocate_temp_result(code)
 
         kwnames = self.kwnames
+        kwnames_tuple = self.kwnames_tuple
         kwvalues = self.kwvalues
         kwdict = self.kwdict
 
@@ -7200,9 +7205,14 @@ class PyMethodCallNode(CallNode):
             arg.generate_evaluation_code(code)
 
         if kwnames:
-            kwnames.generate_evaluation_code(code)
+            assert kwnames_tuple
+            for key in kwnames:
+                key.generate_evaluation_code(code)
             for value in kwvalues:
                 value.generate_evaluation_code(code)
+            code.putln("#if CYTHON_VECTORCALL")
+            kwnames_tuple.generate_evaluation_code(code)
+            code.putln("#endif")
         elif kwdict:
             kwdict.generate_evaluation_code(code)
 
@@ -7234,7 +7244,7 @@ class PyMethodCallNode(CallNode):
         keyword_variable = ""
         if kwnames:
             keyword_variable = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-            self.generate_keyvalue_args(code, args, kwnames, kwvalues, keyword_variable)
+            self.generate_keyvalue_args(code, args, kwnames, kwnames_tuple, kwvalues, keyword_variable)
         elif kwdict:
             keyword_variable = kwdict.result()
 
@@ -7258,11 +7268,16 @@ class PyMethodCallNode(CallNode):
             arg.free_temps(code)
 
         if kwnames:
-            kwnames.generate_disposal_code(code)
-            kwnames.free_temps(code)
+            code.putln("#if CYTHON_VECTORCALL")
+            kwnames_tuple.generate_disposal_code(code)
+            kwnames_tuple.free_temps(code)
+            code.putln("#endif")
             for value in kwvalues:
                 value.generate_disposal_code(code)
                 value.free_temps(code)
+            for key in kwnames:
+                key.generate_disposal_code(code)
+                key.free_temps(code)
             code.put_decref_clear(keyword_variable, py_object_type)
             code.funcstate.release_temp(keyword_variable)
         elif kwdict:
@@ -8870,13 +8885,6 @@ class SequenceNode(ExprNode):
             code.put_decref(target, py_object_type)
             code.putln('%s = %s;' % (target, Naming.quick_temp_cname))
             code.putln('}')
-
-    def generate_sequence_as_array_code(self, code, target):
-        # Currently only suitable for fixed-size sequences
-        assert not self.mult_factor
-        code.put(f"PyObject *{target}[{len(self.args)}] = {{")
-        code.put(', '.join(arg.result() for arg in self.args))
-        code.putln("};")
 
     def generate_subexpr_disposal_code(self, code):
         if self.needs_subexpr_disposal:
@@ -12899,7 +12907,7 @@ class BinopNode(ExprNode):
             elif type1.is_pyunicode_ptr:
                 type1 = Builtin.unicode_type
             if type1.is_builtin_type or type2.is_builtin_type:
-                if type1 is type2 and type1 is not type_type and self.operator in '**%+|&^':
+                if type1 is type2 and type1 is not type_type and self.operator in '*%+|&^':
                     # FIXME: at least these operators should be safe - others?
                     return type1
                 result_type = self.infer_builtin_types_operation(type1, type2)
@@ -14437,7 +14445,7 @@ class CmpNode:
             type1, type2 = operand1.type, self.operand2.type
             if result_is_bool or (type1.is_builtin_type and type2.is_builtin_type):
                 if type1.is_pystr_type or type2.is_pystr_type:
-                    if operand1.is_string_literal and operand1.can_coerce_to_char_literal():
+                    if operand1.is_string_literal and operand1.can_coerce_to_char_literal() and type1.is_pystr_type:
                         # We need to keep the signature (obj1, obj2, eq), so we generate one macro function per character.
                         character = ord(operand1.value[0])
                         is_str = type2.is_pystr_type
@@ -14445,7 +14453,7 @@ class CmpNode:
                             "UnicodeEquals_uchar", "StringTools.c", context={'CHAR': character, 'IS_STR': is_str, 'REVERSE': True})
                         self.special_bool_cmp_function = f"__Pyx_PyObject_Equals_ch{character}_{'str' if is_str else 'obj'}"
                         return True, operand1.coerce_to_pyobject(env)
-                    elif self.operand2.is_string_literal and self.operand2.can_coerce_to_char_literal():
+                    elif self.operand2.is_string_literal and self.operand2.can_coerce_to_char_literal() and type2.is_pystr_type:
                         # We need to keep the signature (obj1, obj2, eq), so we generate one macro function per character.
                         character = ord(self.operand2.value[0])
                         is_str = type1.is_pystr_type
@@ -15761,7 +15769,6 @@ class CloneNode(CoercionNode):
     def analyse_types(self, env):
         self.type = self.arg.type
         self.result_ctype = self.arg.result_ctype
-        self.is_temp = 1
         arg_entry = getattr(self.arg, 'entry', None)
         if arg_entry:
             self.entry = arg_entry
@@ -15787,7 +15794,7 @@ class CloneNode(CoercionNode):
     def generate_post_assignment_code(self, code):
         # if we're assigning from a CloneNode then it's "giveref"ed away, so it does
         # need a matching incref (ideally this should happen before the assignment though)
-        if self.is_temp:  # should usually be true
+        if self.is_temp:  # should usually be False
             code.put_incref(self.result(), self.ctype())
 
     def free_temps(self, code):
