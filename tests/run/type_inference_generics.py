@@ -62,6 +62,54 @@ def test_builtin_methods():
     sg = s.pop()
     print(cython.typeof(sg) + (' object' if not cython.compiled else ''), sg)
 
+def test_dict_handle_none():
+    """
+    >>> test_dict_handle_none()
+    """
+
+    none_dict: dict[str, str] = {'none': None}
+
+    assert 'none' in none_dict
+    none_value = none_dict.get('none')
+    try:
+        len(none_value)
+    except TypeError:
+        pass
+    else:
+        assert False, len(none_value)
+
+    assert 'none' in none_dict
+    popped_value = none_dict.pop('none')
+    try:
+        len(popped_value)
+    except TypeError:
+        pass
+    else:
+        assert False, len(none_value)
+
+def test_dict_handle_missing_key():
+    """
+    >>> test_dict_handle_missing_key()
+    """
+
+    empty_dict = {}
+
+    missing = empty_dict.get('missing')
+    try:
+        len(missing)
+    except TypeError:
+        pass
+    else:
+        assert False, len(missing)
+
+    popped_missing = empty_dict.pop('missing', None)
+    try:
+        len(popped_missing)
+    except TypeError:
+        pass
+    else:
+        assert False, len(popped_missing)
+
 def test_dict_builtin_methods():
     """
     >>> test_dict_builtin_methods()
