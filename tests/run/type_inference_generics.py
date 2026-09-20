@@ -126,9 +126,21 @@ def test_dict_handle_missing_key():
     assert len(popped_default) == len('value'), len(popped_default)
     assert popped_default == 'value', popped_default
 
+    assert 'missing' not in empty_dict
     inserted_default = empty_dict.setdefault('missing', 'value')
     assert inserted_default == 'value', inserted_default
     assert empty_dict['missing'] == 'value', empty_dict
+
+    assert 'none_missing' not in empty_dict
+    inserted_default_none = empty_dict.setdefault('none_missing')
+    try:
+        len(inserted_default_none)
+    except TypeError:
+        pass
+    else:
+        assert False, len(inserted_default_none)
+    assert inserted_default_none is None, inserted_default_none
+    assert empty_dict['none_missing'] is None, empty_dict
 
 def test_dict_builtin_methods():
     """
