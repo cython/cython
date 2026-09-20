@@ -702,7 +702,7 @@ class ExceptionTests(TimedTest):
         except Exception as e:
             exc = e
 
-        msg = "may not be deleted"
+        msg = "not be deleted"
         self.assertRaisesRegex(TE, msg, delattr, exc, 'args')
         self.assertRaisesRegex(TE, msg, delattr, exc, '__traceback__')
         self.assertRaisesRegex(TE, msg, delattr, exc, '__cause__')
