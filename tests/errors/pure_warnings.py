@@ -44,6 +44,12 @@ def bar4(a: cython.foo[:]):  # error
 
 cvar: list = cython.declare(dict, {})  # warning
 
+
+def local_redeclared():
+    a: list = []
+    a: dict = {}  # value mismatch with original type should error
+
+
 _WARNINGS = """
 12:10: Unknown type declaration 'Bar' in annotation, ignoring
 15:16: Unknown type declaration 'stdint.bar' in annotation, ignoring
@@ -54,6 +60,7 @@ _WARNINGS = """
 35:14: Unknown type declaration 'Bar' in annotation, ignoring
 39:20: Unknown type declaration 'stdint.bar' in annotation, ignoring
 45:0: Annotation type 'list object' is not compatible with declaration type 'dict object'.
+50:4: Annotation type 'dict object' is not compatible with declaration type 'list object'.
 
 # Spurious warnings from utility code - not part of the core test
 26:4: 'cpdef_method' redeclared
@@ -64,4 +71,5 @@ _ERRORS = """
 17:16: Unknown type declaration 'cython.bar' in annotation
 30:19: Unknown type declaration 'cython.bar' in annotation
 42:18: Unknown type declaration 'cython.foo[:]' in annotation
+50:14: Cannot assign type 'dict object' to 'list object'
 """
