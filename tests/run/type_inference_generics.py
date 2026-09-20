@@ -92,7 +92,7 @@ def test_dict_handle_missing_key():
     >>> test_dict_handle_missing_key()
     """
 
-    empty_dict = {}
+    empty_dict: dict[str, str] = {}
 
     missing = empty_dict.get('missing')
     try:
@@ -102,6 +102,18 @@ def test_dict_handle_missing_key():
     else:
         assert False, len(missing)
 
+    missing_none = empty_dict.get('missing', None)
+    try:
+        len(missing_none)
+    except TypeError:
+        pass
+    else:
+        assert False, len(missing_none)
+
+    missing_default = empty_dict.get('missing', 'value')
+    assert len(missing_default) == len('value'), len(missing_default)
+    assert missing_default == 'value', missing_default
+
     popped_missing = empty_dict.pop('missing', None)
     try:
         len(popped_missing)
@@ -109,6 +121,14 @@ def test_dict_handle_missing_key():
         pass
     else:
         assert False, len(popped_missing)
+
+    popped_default = empty_dict.pop('missing', 'value')
+    assert len(popped_default) == len('value'), len(popped_default)
+    assert popped_default == 'value', popped_default
+
+    inserted_default = empty_dict.setdefault('missing', 'value')
+    assert inserted_default == 'value', inserted_default
+    assert empty_dict['missing'] == 'value', empty_dict
 
 def test_dict_builtin_methods():
     """
