@@ -731,6 +731,8 @@ def find_return_type_of_builtin_method(pos, env, builtin_type, method_name, args
                 # may determine the return type.
                 if args is None or not 1 <= len(args) <= 2:
                     return_type = PyrexTypes.py_object_type  # unusual call
+                elif len(args) == 2 and args[1].type is None:
+                    return_type = PyrexTypes.py_object_type
                 elif len(args) == 2:
                     return_type = PyrexTypes.independent_spanning_type(return_type, args[1].type)
             return return_type
