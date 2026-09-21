@@ -702,7 +702,7 @@ class ExceptionTests(TimedTest):
         except Exception as e:
             exc = e
 
-        msg = "not be deleted"
+        msg = "not be deleted"  # changed from 'may not'  to 'cannot' in Python 3.16
         self.assertRaisesRegex(TE, msg, delattr, exc, 'args')
         self.assertRaisesRegex(TE, msg, delattr, exc, '__traceback__')
         self.assertRaisesRegex(TE, msg, delattr, exc, '__cause__')
