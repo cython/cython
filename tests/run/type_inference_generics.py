@@ -94,15 +94,22 @@ def test_dict_handle_none():
 def test_dict_handle_missing_key():
     """
     >>> test_dict_handle_missing_key()
+    * get():
+    str object
+    str object
     str object
     Python object
-    str object
+    * pop():
     str object
     Python object
-    Python object
+    * setdefault():
+    str object
+    str object
     """
 
     empty_dict: dict[str, str] = {}
+    print("* get():")
+
     # get() with missing key
     missing = empty_dict.get('missing')
     print(cython.typeof(missing) if cython.compiled else 'str object')
@@ -114,7 +121,7 @@ def test_dict_handle_missing_key():
         assert False, len(missing)
     # get() with missing key and default as None
     missing_none = empty_dict.get('missing', None)
-    print(cython.typeof(missing_none) if cython.compiled else 'Python object')
+    print(cython.typeof(missing_none) if cython.compiled else 'str object')
     try:
         len(missing_none)
     except TypeError:
@@ -126,7 +133,7 @@ def test_dict_handle_missing_key():
     print(cython.typeof(missing_default) + (' object' if not cython.compiled else ''))
     assert len(missing_default) == len('value'), len(missing_default)
     assert missing_default == 'value', missing_default
-    # pop() with missing key and default as None
+    # get() with missing key and default as None
     popped_missing = empty_dict.pop('missing', None)
     try:
         len(popped_missing)
@@ -134,21 +141,30 @@ def test_dict_handle_missing_key():
         pass
     else:
         assert False, len(popped_missing)
+    # get() with missing key and default as None without assignment
+    print(cython.typeof(empty_dict.get('missing')) if cython.compiled else 'Python object')
+
+    print("* pop():")
     # pop() with missing key and default as string
     popped_default = empty_dict.pop('missing', 'value')
     print(cython.typeof(popped_default) + (' object' if not cython.compiled else ''))
     assert len(popped_default) == len('value'), len(popped_default)
     assert popped_default == 'value', popped_default
+    # pop() with missing key and default as int
+    popped_int = empty_dict.pop('missing', 5)
+    print(cython.typeof(popped_int) if cython.compiled else 'Python object')
+
+    print("* setdefault():")
     # setdefault() with missing key and default as string
     assert 'missing' not in empty_dict
     inserted_default = empty_dict.setdefault('missing', 'value')
-    print(cython.typeof(inserted_default) if cython.compiled else 'Python object')
+    print(cython.typeof(inserted_default) if cython.compiled else 'str object')
     assert inserted_default == 'value', inserted_default
     assert empty_dict['missing'] == 'value', empty_dict
     # setdefault() with missing key
     assert 'none_missing' not in empty_dict
     inserted_default_none = empty_dict.setdefault('none_missing')
-    print(cython.typeof(inserted_default_none) if cython.compiled else 'Python object')
+    print(cython.typeof(inserted_default_none) if cython.compiled else 'str object')
     try:
         len(inserted_default_none)
     except TypeError:
