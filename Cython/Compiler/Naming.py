@@ -129,6 +129,7 @@ print_function_kwargs   = pyrex_prefix + "print_kwargs"
 cleanup_cname    = pyrex_prefix + "module_cleanup"
 pymoduledef_cname = pyrex_prefix + "moduledef"
 pymoduledef_slots_cname = pyrex_prefix + "moduledef_slots"
+module_pyslots_cname = pyrex_prefix + "module_slots"  # PEP-820 slots
 pymodinit_module_arg = pyrex_prefix + "pyinit_module"
 pymodule_create_func_cname = pyrex_prefix + "pymod_create"
 pymodule_exec_func_cname = pyrex_prefix + "pymod_exec"
