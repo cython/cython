@@ -117,9 +117,8 @@ jobs:
 
       - name: Build Python
         run: |
-          git clone --branch main --depth 1 https://github.com/vstinner/cpython/ cpython_main
+          git clone --branch py_clear_auto --depth 1 https://github.com/vstinner/cpython/ cpython_main
           cd cpython_main
-          git checkout py_clear_auto
           ./configure ${CONFIGURE_ARGS} --prefix=${GITHUB_WORKSPACE}/cpython_install CFLAGS="-O2 $EXTRA_CONFIGURE_CFLAGS"
           make -j8
           make install
