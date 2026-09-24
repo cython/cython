@@ -13,8 +13,8 @@
 #endif
 
 
-{{for mname in embed_modules}}
-    __Pyx_PyMODINIT_FUNC PyInit_{{mname}}(void) CYTHON_SMALL_CODE; /*proto*/
+{{for m in embed_modules}}
+    __Pyx_PyMODINIT_FUNC PyInit_{{m[1]}}(void) CYTHON_SMALL_CODE; /*proto*/
 {{endfor}}
 
 #if defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)
@@ -35,8 +35,8 @@ static int __Pyx_main(int argc, wchar_t **argv)
     fpsetmask(m & ~FP_X_OFL);
 #endif
 
-    {{for mname in (module_name,) + embed_modules}}
-    if (PyImport_AppendInittab("{{mname}}", PyInit_{{mname}}) < 0) return 1;
+    {{for m in ( (module_name, module_cname), ) + embed_modules}}
+    if (PyImport_AppendInittab("{{m[0]}}", PyInit_{{m[1]}}) < 0) return 1;
     {{endfor}}
 
     {
