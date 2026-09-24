@@ -23,6 +23,12 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 
 #define __Pyx_CyFunction_USED
 
+#if CYTHON_OPAQUE_SHARED_TYPES
+#define __Pyx_as_CyFunctionObject(o) ((__pyx_CyFunctionObject *)PyObject_GetTypeData((o), CGLOBAL(__pyx_CyFunctionType)))
+#else
+#define __Pyx_as_CyFunctionObject(o) ((__pyx_CyFunctionObject *)o)
+#endif
+
 #define __Pyx_CYFUNCTION_STATICMETHOD  0x01
 #define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
 #define __Pyx_CYFUNCTION_CCLASS        0x04
@@ -94,19 +100,6 @@ typedef struct {
 #endif
 } __pyx_CyFunctionObject;
 
-#if CYTHON_OPAQUE_SHARED_TYPES
-#define __Pyx_as_CyFunctionObject(o) ((__pyx_CyFunctionObject *)PyObject_GetTypeData((o), CGLOBAL(__pyx_CyFunctionType)))
-#if CYTHON_USE_MODULE_STATE
-// Slower version that's safe to use in destructors (where the current module may have been lost).
-static __pyx_CyFunctionObject *__Pyx_as_CyFunctionObject_safe(PyObject *o); /* proto */
-#else
-#define __Pyx_as_CyFunctionObject_safe __Pyx_as_CyFunctionObject
-#endif
-#else
-#define __Pyx_as_CyFunctionObject(o) ((__pyx_CyFunctionObject *)o)
-#define __Pyx_as_CyFunctionObject_safe __Pyx_as_CyFunctionObject
-#endif
-
 #undef __Pyx_CyOrPyCFunction_Check
 #define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, CGLOBAL(__pyx_CyFunctionType))
 #define __Pyx_CyOrPyCFunction_Check(obj)  __Pyx_TypeCheck2(obj, CGLOBAL(__pyx_CyFunctionType), &PyCFunction_Type)
@@ -142,6 +135,8 @@ static int __pyx_CyFunction_init(PyObject *module);
 //@requires: ObjectHandling.c::CachedMethodType
 
 #if CYTHON_OPAQUE_SHARED_TYPES && CYTHON_USE_MODULE_STATE
+// Slower version of "__Pyx_as_CyFunctionObject" that's safe to use in destructors
+// (where the current module may have been lost).
 static __pyx_CyFunctionObject *__Pyx_as_CyFunctionObject_safe(PyObject *o) {
     PyTypeObject *cyfunctype = Py_TYPE(o);
     while (1) {
@@ -153,6 +148,8 @@ static __pyx_CyFunctionObject *__Pyx_as_CyFunctionObject_safe(PyObject *o) {
     }
     return (__pyx_CyFunctionObject *)PyObject_GetTypeData((o), cyfunctype);
 }
+#else
+#define __Pyx_as_CyFunctionObject_safe __Pyx_as_CyFunctionObject
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
