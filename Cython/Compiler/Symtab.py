@@ -2621,6 +2621,12 @@ class CClassScope(ClassScope):
         if name == "__new__":
             error(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
+        elif name == "__cinit__":
+            # A second definition would silently replace the first one (GH-6393).
+            entry = self.lookup_here(name)
+            if entry and entry.is_special:
+                error(pos, "'%s' already defined" % name)
+                entry.already_declared_here()
         entry = self.declare_var(name, py_object_type, pos,
                                  visibility='extern')
         special_sig = get_slot_table(self.directives).get_special_method_signature(name)
