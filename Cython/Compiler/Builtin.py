@@ -668,7 +668,8 @@ inferred_method_return_types = {
         get='I',
         keys='dict_keys[K]',
         values='dict_values[I]',
-        items='dict_items[tuple[K,I]]'
+        items='dict_items[tuple[K,I]]',
+        setdefault='I',
     ),
     'frozendict': dict(
         copy='T',
@@ -718,16 +719,35 @@ def _parse_signature(pos, env, builtin_type, return_signature: str) -> PyrexType
     return _parse_atomic_signature(builtin_type, return_signature)
 
 
-def find_return_type_of_builtin_method(pos, env, builtin_type, method_name) -> PyrexTypes.PyrexType:
+def find_return_type_of_builtin_method(pos, env, builtin_type, method_name, args=None) -> tuple[PyrexTypes.PyrexType, bool]:
     container_type = builtin_type.get_container_type()
     type_name = container_type.name if container_type else builtin_type.name
     if type_name in inferred_method_return_types:
         methods = inferred_method_return_types[type_name]
         if method_name in methods:
             return_type_signature: str = methods[method_name]
-            container_type = _parse_signature(pos, env, builtin_type, return_type_signature)
-            return container_type
-    return PyrexTypes.py_object_type
+            return_type = _parse_signature(pos, env, builtin_type, return_type_signature)
+            if type_name == 'dict' and method_name in ('pop', 'get', 'setdefault'):
+                # These are special in that they accept a second 'default' argument that
+                # may determine the return type.
+                if args is None:
+                    # unusual call
+                    return PyrexTypes.py_object_type, True
+                if len(args) == 1:
+                    # Method called without second parameter - default value is None
+                    return return_type, True
+                if len(args) == 2 and args[1].is_none:
+                    # Method called with second parameter set to None
+                    return return_type, True
+                if len(args) == 2 and args[1].type is None:
+                    # Method called with second parameter set to None
+                    return return_type, True
+                if len(args) == 2:
+                    # Method called with second parameter
+                    return_type = PyrexTypes.independent_spanning_type(return_type, args[1].type)
+                    return return_type, False
+            return return_type, False
+    return PyrexTypes.py_object_type, True
 
 
 unsafe_compile_time_methods = {

@@ -117,8 +117,9 @@ class TestBuiltinReturnTypes(TimedTest):
             if look_up_methods and py_version >= self._min_method_versions.get(fq_method_name, py_version):
                 self.assertTrue(hasattr(py_type, method_name), fq_method_name)
 
-            actual_return_type = find_return_type_of_builtin_method(
-                pos, test_module_scope, builtin_type, method_name)
+            # setting args with list of one object to simulate missing default value in method call
+            actual_return_type, _ = find_return_type_of_builtin_method(
+                pos, test_module_scope, builtin_type, method_name, args=[object()])
 
             expected_return_type = parse_subscripted_type(return_type_name)
             if actual_return_type.is_builtin_type:
