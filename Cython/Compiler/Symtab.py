@@ -2621,8 +2621,8 @@ class CClassScope(ClassScope):
         if name == "__new__":
             error(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
-        elif name == "__cinit__":
-            # A second definition would silently replace the first one (GH-6393).
+        elif name in ("__cinit__", "__dealloc__", "__getbuffer__", "__releasebuffer__"):
+            # A second definition of these would silently replace the first one (GH-6393).
             entry = self.lookup_here(name)
             if entry and entry.is_special:
                 error(pos, "'%s' already defined" % name)
