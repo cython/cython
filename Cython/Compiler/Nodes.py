@@ -52,7 +52,7 @@ def relative_position(pos):
 
 
 def embed_position(pos, docstring):
-    if not Options.embed_pos_in_docstring:
+    if not Options.options_in_thread.embed_pos_in_docstring:
         return docstring
     pos_line = 'File: %s (starting at line %s)' % relative_position(pos)
     if docstring is None:
@@ -1643,7 +1643,7 @@ class CVarDefNode(StatNode):
                     name, type, declarator.pos,
                     cname=cname, visibility=visibility, in_pxd=self.in_pxd,
                     api=self.api, is_cdef=True, pytyping_modifiers=modifiers)
-                if Options.docstrings:
+                if Options.options_in_thread.docstrings:
                     self.entry.doc = embed_position(self.pos, self.doc)
 
 
@@ -1804,7 +1804,7 @@ class CEnumDefNode(StatNode):
 
     def declare(self, env):
         doc = None
-        if Options.docstrings:
+        if Options.options_in_thread.docstrings:
             doc = embed_position(self.pos, self.doc)
 
         self.entry = env.declare_enum(
@@ -2908,7 +2908,7 @@ class CFuncDefNode(FuncDefNode):
         # Reset scope entry the above cfunction
         env.entries[name] = self.entry
         if (not self.entry.is_final_cmethod and
-                (not env.is_module_scope or Options.lookup_module_cpdef)):
+                (not env.is_module_scope or Options.options_in_thread.lookup_module_cpdef)):
             if self.override:
                 # This is a hack: we shouldn't create the wrapper twice, but we do for fused functions.
                 assert self.entry.is_fused_specialized  # should not happen for non-fused cpdef functions
@@ -2949,7 +2949,7 @@ class CFuncDefNode(FuncDefNode):
             type_arg.entry = type_entry
             cfunc = ExprNodes.AttributeNode(self.pos, obj=type_arg, attribute=self.entry.name)
 
-        skip_dispatch = not (is_module_scope and Options.lookup_module_cpdef)
+        skip_dispatch = not (is_module_scope and Options.options_in_thread.lookup_module_cpdef)
         c_call = ExprNodes.SimpleCallNode(
             self.pos,
             function=cfunc,
@@ -3606,7 +3606,7 @@ class DefNode(FuncDefNode):
         prefix = env.next_id(env.scope_prefix)
         self.entry.pyfunc_cname = punycodify_name(Naming.pyfunc_prefix + prefix + name)
 
-        if Options.docstrings:
+        if Options.options_in_thread.docstrings:
             entry.doc = embed_position(self.pos, self.doc)
             entry.doc_cname = punycodify_name(Naming.funcdoc_prefix + prefix + name)
             if entry.is_special:
@@ -4027,7 +4027,7 @@ class DefNodeWrapper(FuncDefNode):
                     code, with_pymethdef, proto_only=True)
             return
 
-        if (Options.docstrings and entry.doc and
+        if (Options.options_in_thread.docstrings and entry.doc and
                 not self.target.fused_py_func and
                 not entry.scope.is_property_scope and
                 (not entry.is_special or entry.wrapperbase_cname)):
@@ -5230,7 +5230,7 @@ class PyClassDefNode(ClassDefNode):
         self.decorators = decorators
         self.bases = bases
         from . import ExprNodes
-        if self.doc and Options.docstrings:
+        if self.doc and Options.options_in_thread.docstrings:
             doc = embed_position(self.pos, self.doc)
             doc_node = ExprNodes.UnicodeNode(pos, value=doc)
             self.doc_node = ExprNodes.NameNode(name=EncodedString('__doc__'), type=py_object_type, pos=pos)
@@ -5676,7 +5676,7 @@ class CClassDefNode(ClassDefNode):
                     is_frozen = frozen_flag and frozen_flag.is_literal and frozen_flag.value
                 scope.is_c_dataclass_scope = "frozen" if is_frozen else True
 
-        if self.doc and Options.docstrings:
+        if self.doc and Options.options_in_thread.docstrings:
             scope.doc = embed_position(self.pos, self.doc)
 
         if has_body:
@@ -5972,7 +5972,7 @@ class CClassDefNode(ClassDefNode):
             # a significant performance hit. (See trac #561.)
             for func in entry.type.scope.pyfunc_entries:
                 is_buffer = func.name in ('__getbuffer__', '__releasebuffer__')
-                if (func.is_special and Options.docstrings and
+                if (func.is_special and Options.options_in_thread.docstrings and
                         func.wrapperbase_cname and not is_buffer):
                     slot = TypeSlots.get_slot_table(
                         entry.type.scope.directives).get_slot_by_method_name(func.name)
@@ -11274,7 +11274,7 @@ class ErrorNode(Node):
 #
 #------------------------------------------------------------------------------------
 
-if Options.gcc_branch_hints:
+if Options.options_in_thread.gcc_branch_hints:
     branch_prediction_macros = """
 /* Test for GCC > 2.95 */
 #if defined(__GNUC__) \
