@@ -302,7 +302,7 @@ class Context:
         # directory is searched first for a non-dotted filename.
         pxd = self.search_include_directories(
             qualified_name, suffix=".pxd", source_pos=pos, sys_path=sys_path, source_file_path=source_file_path)
-        if pxd is None and Options.cimport_from_pyx:
+        if pxd is None and Options.optionsInThread.cimport_from_pyx:
             return self.find_pyx_file(qualified_name, pos, sys_path=sys_path)
         return pxd
 
@@ -739,7 +739,7 @@ def compile(source, options = None, full_module_name = None, **kwds):
     # unless annotations are generated
     cache = None
     if options.cache:
-        if options.annotate or Options.annotate:
+        if options.annotate or Options.optionsInThread.annotate:
             if options.verbose:
                 sys.stderr.write('Cache is ignored when annotations are enabled.\n')
         else:

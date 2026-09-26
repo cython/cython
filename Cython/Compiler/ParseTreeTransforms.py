@@ -3662,8 +3662,8 @@ class CreateClosureClasses(CythonTransform):
         if node.is_async_def or node.is_generator:
             # Generators need their closure intact during cleanup as they resume to handle GeneratorExit
             class_scope.directives['no_gc_clear'] = True
-        if Options.closure_freelist_size:
-            class_scope.directives['freelist'] = Options.closure_freelist_size
+        if Options.optionsInThread.closure_freelist_size:
+            class_scope.directives['freelist'] = Options.optionsInThread.closure_freelist_size
 
         if from_closure:
             assert cscope.is_closure_scope

@@ -298,14 +298,14 @@ def parse_args(args):
 
     if options.lenient:
         # increase Python compatibility by ignoring compile time errors
-        Options.error_on_unknown_names = False
-        Options.error_on_uninitialized = False
+        Options.optionsInThread.error_on_unknown_names = False
+        Options.optionsInThread.error_on_uninitialized = False
 
     if options.annotate:
-        Options.annotate = options.annotate
+        Options.optionsInThread.annotate = options.annotate
 
     if options.no_docstrings:
-        Options.docstrings = False
+        Options.optionsInThread.docstrings = False
 
     return options, args
 

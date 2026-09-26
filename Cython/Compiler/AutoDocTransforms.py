@@ -184,7 +184,7 @@ class EmbedSignature(CythonTransform):
             return docfmt % signature
 
     def __call__(self, node):
-        if not Options.docstrings:
+        if not Options.optionsInThread.docstrings:
             return node
         else:
             return super().__call__(node)

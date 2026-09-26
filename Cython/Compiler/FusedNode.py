@@ -931,7 +931,7 @@ class FusedCFuncDefNode(StatListNode):
         for stat in self.stats:
             if isinstance(stat, FuncDefNode) and (
                     stat.entry.used or
-                    (Options.cimport_from_pyx and not stat.entry.visibility == 'extern')):
+                    (Options.optionsInThread.cimport_from_pyx and not stat.entry.visibility == 'extern')):
                 code.mark_pos(stat.pos)
                 stat.generate_function_definitions(env, code)
 

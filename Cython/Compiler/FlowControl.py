@@ -637,7 +637,7 @@ def check_definitions(flow: ControlFlow, compiler_directives: dict):
                 pass  # Can be uninitialized here
             elif node.cf_is_null and not entry.in_closure:
                 if entry.error_on_uninitialized or (
-                        Options.error_on_uninitialized and (
+                        Options.optionsInThread.error_on_uninitialized and (
                         entry.type.is_pyobject or entry.type.is_unspecified)):
                     messages.error(
                         node.pos,

@@ -356,7 +356,7 @@ class IterationTransform(Visitor.EnvTransform):
                 return self._transform_reversed_iteration(node, iterable)
 
         # range() iteration?
-        if Options.convert_range and 1 <= arg_count <= 3 and (
+        if Options.optionsInThread.convert_range and 1 <= arg_count <= 3 and (
                 iterable.self is None and
                 function.is_name and function.name in ('range', 'xrange') and
                 function.entry and function.entry.is_builtin):
@@ -494,7 +494,7 @@ class IterationTransform(Visitor.EnvTransform):
         # analyse with boundscheck and wraparound
         # off (because we're confident we know the size)
         env = self.current_env()
-        new_directives = Options.copy_inherited_directives(env.directives, boundscheck=False, wraparound=False)
+        new_directives = Options.optionsInThread.copy_inherited_directives(env.directives, boundscheck=False, wraparound=False)
         target_assign = Nodes.CompilerDirectivesNode(
             target_assign.pos,
             directives=new_directives,

@@ -2,6 +2,11 @@
 #  Cython - Compilation-wide options and pragma declarations
 #
 
+try:
+    from threading import local as _threading_local
+except ImportError:
+    # Hopefully no threads
+    _threading_local = object
 
 class ShouldBeFromDirective:
 
@@ -145,6 +150,16 @@ buffer_max_dims = 8
 
 #: Number of function closure instances to keep in a freelist (0: no freelists)
 closure_freelist_size = 8
+
+
+class _OptionsThreadLocalHelper(_threading_local):
+    def __getattr__(self, attr):
+        try:
+            return globals()[attr]
+        except KeyError:
+            raise AttributeError(attr)
+
+optionsInThread = _OptionsThreadLocalHelper()
 
 
 def get_directive_defaults():

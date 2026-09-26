@@ -992,7 +992,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
-    if options.cache and not (options.annotate or Options.annotate):
+    if options.cache and not (options.annotate or Options.optionsInThread.annotate):
         # cache is enabled when:
         # * options.cache is True (the default path to the cache base dir is used)
         # * options.cache is the explicit path to the cache base dir
