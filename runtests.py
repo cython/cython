@@ -1115,7 +1115,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 # 'cache_builtins',  # not currently supported due to incorrect global caching
             )
         ]
-        Options.warning_errors = self.warning_errors
+        Options.warning_errors = Options.options_in_thread.warning_errors = self.warning_errors
 
         if IS_GRAAL:
             gc.collect()
@@ -1322,7 +1322,7 @@ class CythonCompileTestCase(unittest.TestCase):
 
         if 'allow_unknown_names' in self.tags['tag']:
             from Cython.Compiler import Options
-            Options.error_on_unknown_names = False
+            Options.error_on_unknown_names = Options.options_in_thread.error_on_unknown_names = False
 
         try:
             # see configure_cython()
@@ -1620,7 +1620,7 @@ class CythonCompileTestCase(unittest.TestCase):
 class CythonRunTestCase(CythonCompileTestCase):
     def setUp(self):
         from Cython.Compiler import Options
-        Options.clear_to_none = False
+        Options.clear_to_none = Options.options_in_thread.clear_to_none = False
         super().setUp()
 
     def description_name(self):
@@ -1819,8 +1819,8 @@ class CythonUnitTestCase(CythonRunTestCase):
 class CythonPyregrTestCase(TimedTest, CythonRunTestCase):
     def setUp(self):
         from Cython.Compiler import Options
-        Options.error_on_unknown_names = False
-        Options.error_on_uninitialized = False
+        Options.error_on_unknown_names = Options.options_in_thread.error_on_unknown_names = False
+        Options.error_on_uninitialized = Options.options_in_thread.error_on_uninitialized =  False
         Options._directive_defaults.update(dict(
             binding=True, always_allow_keywords=True,
             set_initial_path="SOURCEFILE"))
@@ -2970,7 +2970,7 @@ def configure_cython(options):
     Errors.LEVEL = 0  # show all warnings
 
     from Cython.Compiler import Options
-    Options.generate_cleanup_code = 3  # complete cleanup code
+    Options.generate_cleanup_code = Options.options_in_thread.generate_cleanup_code = 3  # complete cleanup code
 
     from Cython.Compiler import DebugFlags
     DebugFlags.debug_temp_code_comments = 1
