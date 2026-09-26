@@ -1140,6 +1140,7 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         for name, value in self._saved_options:
             setattr(Options, name, value)
+            setattr(Options.options_in_thread, name, value)
         unpatch_inspect_isfunction()
 
         try:
