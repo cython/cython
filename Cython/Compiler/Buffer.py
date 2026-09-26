@@ -70,9 +70,9 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 
             name = entry.name
             buftype = entry.type
-            if buftype.ndim > Options.optionsInThread.buffer_max_dims:
+            if buftype.ndim > Options.options_in_thread.buffer_max_dims:
                 raise CompileError(node.pos,
-                        "Buffer ndims exceeds Options.optionsInThread.buffer_max_dims = %d" % Options.optionsInThread.buffer_max_dims)
+                        "Buffer ndims exceeds Options.options_in_thread.buffer_max_dims = %d" % Options.options_in_thread.buffer_max_dims)
             if buftype.ndim > self.max_ndim:
                 self.max_ndim = buftype.ndim
 
@@ -663,7 +663,7 @@ def load_buffer_utility(util_code_name, context=None, **kwargs):
     else:
         return TempitaUtilityCode.load(util_code_name, "Buffer.c", context=context, **kwargs)
 
-context = dict(max_dims=Options.optionsInThread.buffer_max_dims)
+context = dict(max_dims=Options.options_in_thread.buffer_max_dims)
 buffer_struct_declare_code = load_buffer_utility("BufferStructDeclare", context=context)
 buffer_formats_declare_code = load_buffer_utility("BufferFormatStructs")
 

@@ -738,7 +738,7 @@ class UtilityCode(UtilityCodeBase):
             self._put_code_section(globalstate[self.proto_block], globalstate, 'export')
         if self.impl and not has_shared_utility_code:
             self._put_code_section(globalstate['utility_code_def'], globalstate, 'impl', used_by=used_by)
-        if self.cleanup and Options.optionsInThread.generate_cleanup_code:
+        if self.cleanup and Options.options_in_thread.generate_cleanup_code:
             self._put_code_section(globalstate['cleanup_globals'], globalstate, 'cleanup')
         if self.module_state_decls:
             self._put_code_section(globalstate['module_state_contents'], globalstate, 'module_state_decls')
@@ -1488,7 +1488,7 @@ class GlobalState:
             f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})")
         w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
 
-        if not Options.optionsInThread.generate_cleanup_code:
+        if not Options.options_in_thread.generate_cleanup_code:
             del self.parts['cleanup_globals']
         else:
             w = self.parts['cleanup_globals']
@@ -1579,12 +1579,12 @@ class GlobalState:
             w.putln("}")
             w.exit_cfunc_scope()
 
-        if Options.optionsInThread.generate_cleanup_code:
+        if Options.options_in_thread.generate_cleanup_code:
             w = self.parts['cleanup_globals']
             w.putln("}")
             w.exit_cfunc_scope()
 
-        if Options.optionsInThread.generate_cleanup_code:
+        if Options.options_in_thread.generate_cleanup_code:
             w = self.parts['cleanup_module']
             w.putln("}")
             w.exit_cfunc_scope()
@@ -1828,7 +1828,7 @@ class GlobalState:
             self._generate_module_array_traverse_and_clear(struct_attr_cname, count, may_have_refcycles=False)
 
             cleanup_level = cleanup_level_for_type_prefix(prefix)
-            if cleanup_level is not None and cleanup_level <= Options.optionsInThread.generate_cleanup_code:
+            if cleanup_level is not None and cleanup_level <= Options.options_in_thread.generate_cleanup_code:
                 part_writer = self.parts['cleanup_globals']
                 part_writer.put(f"for (size_t i=0; i<{count}; ++i) ")
                 part_writer.putln(
@@ -1865,7 +1865,7 @@ class GlobalState:
             clear.putln(f'Py_CLEAR(clear_module_state->{cname}.method);')
             traverse.putln(f'Py_VISIT(traverse_module_state->{cname}.method);')
 
-        if Options.optionsInThread.generate_cleanup_code:
+        if Options.options_in_thread.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
             for cname in cnames:
                 cleanup.putln(f"Py_CLEAR({init.name_in_main_c_code_module_state(cname)}.method);")
@@ -2901,7 +2901,7 @@ class CCodeWriter:
         assert not utility.proto, utility.name
         utility._put_code_section(self, self.globalstate, "impl")
         utility._put_init_code_section(self.globalstate)
-        if utility.cleanup and Options.optionsInThread.generate_cleanup_code:
+        if utility.cleanup and Options.options_in_thread.generate_cleanup_code:
             utility._put_code_section(
                 self.globalstate['cleanup_globals'], self.globalstate, "cleanup")
 
@@ -2996,7 +2996,7 @@ class CCodeWriter:
         self.putln("#define %s" % guard)
 
     def unlikely(self, cond):
-        if Options.optionsInThread.gcc_branch_hints:
+        if Options.options_in_thread.gcc_branch_hints:
             return 'unlikely(%s)' % cond
         else:
             return cond

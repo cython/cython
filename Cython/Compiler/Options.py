@@ -159,7 +159,7 @@ class _OptionsThreadLocalHelper(_threading_local):
         except KeyError:
             raise AttributeError(attr)
 
-optionsInThread = _OptionsThreadLocalHelper()
+options_in_thread = _OptionsThreadLocalHelper()
 
 
 def get_directive_defaults():

@@ -861,7 +861,7 @@ class MemoryViewSliceType(PyrexType):
         if attribute == 'shape':
             scope.declare_var('shape',
                     c_array_type(c_py_ssize_t_type,
-                                 Options.optionsInThread.buffer_max_dims),
+                                 Options.options_in_thread.buffer_max_dims),
                     pos,
                     cname='shape',
                     is_cdef=1)
@@ -869,7 +869,7 @@ class MemoryViewSliceType(PyrexType):
         elif attribute == 'strides':
             scope.declare_var('strides',
                     c_array_type(c_py_ssize_t_type,
-                                 Options.optionsInThread.buffer_max_dims),
+                                 Options.options_in_thread.buffer_max_dims),
                     pos,
                     cname='strides',
                     is_cdef=1)
@@ -877,7 +877,7 @@ class MemoryViewSliceType(PyrexType):
         elif attribute == 'suboffsets':
             scope.declare_var('suboffsets',
                     c_array_type(c_py_ssize_t_type,
-                                 Options.optionsInThread.buffer_max_dims),
+                                 Options.options_in_thread.buffer_max_dims),
                     pos,
                     cname='suboffsets',
                     is_cdef=1)
