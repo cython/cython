@@ -72,7 +72,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
             buftype = entry.type
             if buftype.ndim > Options.options_in_thread.buffer_max_dims:
                 raise CompileError(node.pos,
-                        "Buffer ndims exceeds Options.options_in_thread.buffer_max_dims = %d" % Options.options_in_thread.buffer_max_dims)
+                        f"Buffer ndims exceeds Options.buffer_max_dims = {Options.options_in_thread.buffer_max_dims}")
             if buftype.ndim > self.max_ndim:
                 self.max_ndim = buftype.ndim
 
