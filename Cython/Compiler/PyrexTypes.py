@@ -4978,6 +4978,17 @@ class EnumMixin:
     Common implementation details for C and C++ enums.
     """
 
+    @staticmethod
+    def _compatibility_check(utility_code, pos, module_scope):
+        if module_scope.directives['subinterpreters_compatible'] != 'no':
+            warning(
+                pos,
+                f"Module '{module_scope.module_name}' is declared as 'subinterpreters_compatible' "
+                "but uses cpdef enums. This is not supported yet since it uses global cdef objects "
+                "and will likely crash.",
+                2
+            )
+
     def create_enum_to_py_utility_code(self, env):
         from .UtilityCode import CythonUtilityCode
         self.to_py_function = "__Pyx_Enum_%s_to_py" % type_identifier(self)
@@ -5086,7 +5097,8 @@ class CppScopedEnumType(CType, EnumMixin):
                 "enum_doc": self.doc,
                 "static_modname": env.qualified_name,
             },
-            outer_module_scope=env.global_scope())
+            outer_module_scope=env.global_scope(),
+            compatibility_check=self._compatibility_check)
 
         env.use_utility_code(rst)
 
@@ -5204,7 +5216,8 @@ class CEnumType(CIntLike, CType, EnumMixin):
                      "enum_to_pyint_func": enum_to_pyint_func,
                      "static_modname": env.qualified_name,
                      },
-            outer_module_scope=env.global_scope()))
+            outer_module_scope=env.global_scope(),
+            compatibility_check=self._compatibility_check))
 
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:

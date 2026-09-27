@@ -76,7 +76,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
 
     def __init__(self, impl, name="__pyxutil", prefix="", requires=None,
                  file=None, from_scope=None, context=None, compiler_directives=None,
-                 outer_module_scope=None):
+                 outer_module_scope=None, compatibility_check=None):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
@@ -104,6 +104,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                 outer_module_scope.global_scope().directives, compiler_directives)
         self.compiler_directives = compiler_directives
         self.context_types = context_types
+        self._compatibility_check = compatibility_check
 
     def __eq__(self, other):
         if isinstance(other, CythonUtilityCode):
@@ -277,6 +278,13 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         if overrides:
             utility_code_directives.update(overrides)
         return utility_code_directives
+
+    def check_compatibility(self, pos, module_scope):
+        # Note that this is mainly a workaround for some utility code being
+        # incompatible with subinterpreters. Remove it after that unless we
+        # want the mechanism for something else
+        if self._compatibility_check:
+            self._compatibility_check(self, pos, module_scope)
 
 
 class TemplatedFileSourceDescriptor(FileSourceDescriptor):

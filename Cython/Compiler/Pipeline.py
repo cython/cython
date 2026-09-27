@@ -135,6 +135,7 @@ def inject_utility_code_stage_factory(context, internalise_c_class_entries=True)
                 for dep in utilcode.requires:
                     if dep not in added:
                         utility_code_list.append(dep)
+            utilcode.check_compatibility(module_node.pos, module_scope)
             if tree := utilcode.get_tree(cython_scope=context.cython_scope):
                 module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, stage="utility")
