@@ -139,8 +139,8 @@ def generate_shared_module(options):
     Errors.reset()
 
     dest_c_file = options.shared_c_file_path
-    pyx_file = os.path.splitext(dest_c_file)[0] + '.pyx'
     module_name = os.path.splitext(os.path.basename(dest_c_file))[0]
+    pyx_file = f'{module_name}.pyx'
 
     selected_features = None
     if options.shared_utility_features_enabled or options.shared_utility_features_disabled:
@@ -155,6 +155,7 @@ def generate_shared_module(options):
     source_desc = SharedUtilitySourceDescriptor(pyx_file)
     comp_src = Main.CompilationSource(source_desc, EncodedString(module_name), os.getcwd())
     result = Main.create_default_resultobj(comp_src, options)
+    result.c_file = dest_c_file
 
     pipeline = create_shared_library_pipeline(
         context, scope, options, result,
