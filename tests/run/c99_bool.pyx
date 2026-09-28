@@ -1,10 +1,9 @@
 # mode: run
-# tag: cpp, werror, no-cpp-locals
+# tag: c, werror
 
-# This test is duplicate with small modifications as c99_bool
-# so changes here should probably apply there too.
+# Copied with modifications from the cpp_bool test.
 
-from libcpp cimport bool
+from libc.stdbool cimport bool
 
 from typing import Optional
 
