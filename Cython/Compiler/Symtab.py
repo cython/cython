@@ -1262,7 +1262,7 @@ class PreImportScope(Scope):
     namespace_cname = Naming.preimport_cname
 
     def __init__(self):
-        Scope.__init__(self, Options.pre_import, None, None)
+        Scope.__init__(self, Options.options_in_thread.pre_import, None, None)
 
     def declare_builtin(self, name, pos):
         entry = self.declare(name, name, py_object_type, pos, 'private')
@@ -1277,7 +1277,7 @@ class BuiltinScope(Scope):
     is_builtin_scope = True
 
     def __init__(self):
-        if Options.pre_import is None:
+        if Options.options_in_thread.pre_import is None:
             Scope.__init__(self, "__builtin__", None, None)
         else:
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
@@ -1298,7 +1298,7 @@ class BuiltinScope(Scope):
             if self.outer_scope is not None:
                 return self.outer_scope.declare_builtin(name, pos)
             else:
-                if Options.error_on_unknown_names:
+                if Options.options_in_thread.error_on_unknown_names:
                     error(pos, "undeclared name not builtin: %s" % name)
                 else:
                     warning(pos, "undeclared name not builtin: %s" % name, 2)
@@ -1353,7 +1353,7 @@ class BuiltinScope(Scope):
         var_entry.is_readonly = 1
         var_entry.is_builtin = 1
         var_entry.scope = self
-        if Options.cache_builtins:
+        if Options.options_in_thread.cache_builtins:
             var_entry.is_const = True
         if utility_code:
             var_entry.utility_code = utility_code
@@ -1509,7 +1509,7 @@ class ModuleScope(Scope):
                 entry = self.declare_var(name, py_object_type, pos)
                 return entry
             else:
-                if Options.error_on_unknown_names:
+                if Options.options_in_thread.error_on_unknown_names:
                     error(pos, "undeclared name not builtin: %s" % name)
                 else:
                     warning(pos, "undeclared name not builtin: %s" % name, 2)
@@ -1517,7 +1517,7 @@ class ModuleScope(Scope):
                 entry = self.declare(name, None, py_object_type, pos, 'private')
                 entry.is_builtin = 1
                 return entry
-        if Options.cache_builtins:
+        if Options.options_in_thread.cache_builtins:
             for entry in self.cached_builtins:
                 if entry.name == name:
                     return entry
@@ -1525,7 +1525,7 @@ class ModuleScope(Scope):
             return self.outer_scope.lookup('__Pyx_Globals')
         else:
             entry = self.declare(None, None, py_object_type, pos, 'private')
-        if Options.cache_builtins and name not in PyrexTypes.uncachable_builtins:
+        if Options.options_in_thread.cache_builtins and name not in PyrexTypes.uncachable_builtins:
             entry.is_builtin = 1
             entry.is_const = 1  # cached
             entry.name = name
@@ -1744,7 +1744,7 @@ class ModuleScope(Scope):
             self.var_entries.append(entry)
         else:
             entry.is_pyglobal = 1
-        if Options.cimport_from_pyx:
+        if Options.options_in_thread.cimport_from_pyx:
             entry.used = 1
         return entry
 
