@@ -2369,17 +2369,15 @@ class NameNode(AtomicExprNode):
                 self.annotation and env.is_c_dataclass_scope):
             error(self.pos, "Cannot redeclare inherited fields in Cython dataclasses")
         elif self.entry and self.annotation and env.directives['annotation_typing']:
-            if not self.entry.scope.is_module_scope:
-                error(self.pos, f"'{self.name}' redeclared")
-            else:
-                # Type annotations of global variables (module scope) are ignored by cython.
-                # Hence, we support somewhat contradictory declarations like:
-                # _Empty_Tuple: tuple[typing.Any] = cython.declare(tuple, ())
-                annotation_type = self.annotation.analyse_as_type(env)
+            # Type annotations of global variables (module scope) are ignored by Cython.
+            # Hence, we support somewhat contradictory declarations like:
+            # _Empty_Tuple: tuple[typing.Any] = cython.declare(tuple, ())
+            # For local variables, we allow at least compatible redeclarations with annotations
+            # (but do not always remember how they were *originally* declared).
+            annotation_type = self.annotation.analyse_as_type(env)
+            if annotation_type:
                 entry_type = self.entry.type
-                if annotation_type and not (
-                    annotation_type.assignable_from(entry_type) or entry_type.assignable_from(annotation_type)
-                ):
+                if not (annotation_type.assignable_from(entry_type) or entry_type.assignable_from(annotation_type)):
                     warning(self.pos,
                         f"Annotation type '{annotation_type}' is not compatible "
                         f"with declaration type '{entry_type}'.", 1)
@@ -12905,7 +12903,7 @@ class BinopNode(ExprNode):
             elif type1.is_pyunicode_ptr:
                 type1 = Builtin.unicode_type
             if type1.is_builtin_type or type2.is_builtin_type:
-                if type1 is type2 and type1 is not type_type and self.operator in '**%+|&^':
+                if type1 is type2 and type1 is not type_type and self.operator in '*%+|&^':
                     # FIXME: at least these operators should be safe - others?
                     return type1
                 result_type = self.infer_builtin_types_operation(type1, type2)
