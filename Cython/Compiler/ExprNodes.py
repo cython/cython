@@ -6247,7 +6247,9 @@ class CallNode(ExprNode):
             if function.is_attribute:
                 method_obj_type = function.obj.infer_type(env)
                 if method_obj_type.is_builtin_type:
-                    result_type = Builtin.find_return_type_of_builtin_method(self.pos, env, method_obj_type, function.attribute)
+                    method_posargs = getattr(self, 'args', None)
+                    result_type, check_none = Builtin.find_return_type_of_builtin_method(
+                        self.pos, env, method_obj_type, function.attribute, method_posargs)
                     if result_type is not py_object_type:
                         return result_type
             entry = getattr(function, 'entry', None)
@@ -6334,8 +6336,10 @@ class CallNode(ExprNode):
                 self.may_return_none = False
         elif function.is_attribute and function.obj.type.is_builtin_type:
             method_obj_type = function.obj.type
-            result_type = Builtin.find_return_type_of_builtin_method(self.pos, env, method_obj_type, function.attribute)
-            self.may_return_none = result_type is py_object_type
+            method_posargs = getattr(self, 'args', None)
+            result_type, check_none = Builtin.find_return_type_of_builtin_method(
+                self.pos, env, method_obj_type, function.attribute, method_posargs)
+            self.may_return_none = check_none
             if result_type != self.type:
                 if not result_type.is_pyobject and result_type.equivalent_type:
                     result_type = result_type.equivalent_type
