@@ -8,6 +8,11 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* ``__Pyx_PyIndex_AsSsize_t()`` lost its fast path for the common case of
+  converting an in-range Python ``int`` to a C integer, making every
+  Python-object index into a C array or pointer measurably slower.
+  (Github issue :issue:`7979`)
+
 * A dangling pointer was fixed when assigning to attributes of extension types.
   (Github issue :issue:`7907`)
 
