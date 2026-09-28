@@ -8526,7 +8526,8 @@ class AttributeNode(ExprNode):
             elif self.type.is_memoryviewslice:
                 from . import MemoryView
                 MemoryView.put_assign_to_memviewslice(
-                        select_code, rhs, rhs.result(), self.type, code)
+                        select_code, rhs, rhs.result(), self.type, code,
+                        rhs_is_borrowed_temp=rhs.is_memview_slice and rhs.use_borrowed_ref)
             else:
                 code.putln(
                     "%s = %s;" % (
