@@ -43,7 +43,7 @@ cdef extern from "<stdatomic.h>" nogil:
     ctypedef char16_t atomic_char16_t
     ctypedef char32_t atomic_char32_t
     ctypedef wchar_t atomic_wchar_t
-    ctypedef char atomic_int_least8_t 
+    ctypedef char atomic_int_least8_t
     ctypedef unsigned char atomic_uint_least8_t
     ctypedef short atomic_int_least16_t
     ctypedef unsigned short atomic_uint_least16_t
@@ -51,20 +51,20 @@ cdef extern from "<stdatomic.h>" nogil:
     ctypedef unsigned int atomic_uint_least32_t
     ctypedef long long atomic_int_least64_t
     ctypedef unsigned long long atomic_uint_least64_t
-    ctypedef char atomic_int_fast8_t 
+    ctypedef char atomic_int_fast8_t
     ctypedef unsigned char atomic_uint_fast8_t
     ctypedef short atomic_int_fast16_t
     ctypedef unsigned short atomic_uint_fast16_t
-    ctypedef int atomic_int_fast32_t 
-    ctypedef unsigned int atomic_uint_fast32_t 
-    ctypedef long long atomic_int_fast64_t 
-    ctypedef unsigned long long atomic_uint_fast64_t 
+    ctypedef int atomic_int_fast32_t
+    ctypedef unsigned int atomic_uint_fast32_t
+    ctypedef long long atomic_int_fast64_t
+    ctypedef unsigned long long atomic_uint_fast64_t
     ctypedef intptr_t atomic_intptr_t
     ctypedef uintptr_t atomic_uintptr_t
-    ctypedef size_t atomic_size_t 
+    ctypedef size_t atomic_size_t
     ctypedef ptrdiff_t atomic_ptrdiff_t
     ctypedef intmax_t atomic_intmax_t
-    ctypedef uintmax_t atomic_uintmax_t 
+    ctypedef uintmax_t atomic_uintmax_t
     ctypedef int atomic_flag
 
 # NOTE: atomic_fetch_key and atomic_fetch_key_explicit not implemented yet...
@@ -112,7 +112,7 @@ cdef extern from "<stdatomic.h>" nogil:
     T atomic_fetch_xor[cython.implicit_param[T], cython.implicit_param[U]]( volatile T* obj, U arg )
     T atomic_fetch_xor_explicit[cython.implicit_param[T], cython.implicit_param[U]](
         volatile T* obj, U arg, memory_order order )
-    
+
     T atomic_fetch_and[cython.implicit_param[T], cython.implicit_param[U]]( volatile T* obj, U arg )
     T atomic_fetch_and_explicit[cython.implicit_param[T], cython.implicit_param[U]](
         volatile T* obj, U arg, memory_order order )
