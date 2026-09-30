@@ -194,6 +194,7 @@ class PyrexType(BaseType):
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
     #  is_cpp_string         boolean     Is a C++ std::string or std::string_view type
+    #  is_immutable          boolean     Is an immutable Python type
     #  python_type_constructor_name     string or None     non-None if it is a Python type constructor that can be indexed/"templated"
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
@@ -289,6 +290,7 @@ class PyrexType(BaseType):
     is_error = 0
     is_buffer = 0
     is_ctuple = 0
+    is_immutable = False
 
     is_pyint_type = False
     is_pyfloat_type = False
@@ -1867,18 +1869,21 @@ class BuiltinObjectType(PyObjectType):
     type_check_utility_code = None
 
     _builtin_type_flag_mapping = {
-        'int': ['is_pyint_type'],
-        'float': ['is_pyfloat_type'],
-        'bool': ['is_pybool_type'],
-        'complex': ['is_pycomplex_type'],
+        'int': ['is_pyint_type', 'is_immutable'],
+        'float': ['is_pyfloat_type', 'is_immutable'],
+        'bool': ['is_pybool_type', 'is_immutable'],
+        'complex': ['is_pycomplex_type', 'is_immutable'],
         'list': ['is_pylist_type', 'is_builtin_sequence', 'supports_container_type', 'has_uniform_element_type'],
-        'tuple': ['is_pytuple_type', 'is_builtin_sequence', 'supports_container_type'],
+        'tuple': ['is_pytuple_type', 'is_builtin_sequence', 'supports_container_type', 'is_immutable'],
         'dict': ['is_pydict_type', 'is_pyanydict_type', 'supports_container_type'],
-        'frozendict': ['is_pyfrozendict_type', 'is_pyanydict_type', 'supports_container_type'],
+        'frozendict': ['is_pyfrozendict_type', 'is_pyanydict_type', 'supports_container_type', 'is_immutable'],
         'set': ['is_pyset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type'],
-        'frozenset': ['is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type'],
-        'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
-        'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
+        'frozenset': [
+            'is_pyfrozenset_type', 'is_pyanyset_type', 'supports_container_type', 'has_uniform_element_type',
+            'is_immutable',
+        ],
+        'bytes': ['is_pybytes_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray', 'is_immutable'],
+        'str': ['is_pystr_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray', 'is_immutable'],
         'bytearray': ['is_pybytearray_type', 'is_builtin_sequence', 'is_bytes_or_str_or_bytearray'],
         'memoryview': ['is_pymemoryview_type', 'is_builtin_sequence'],
         'dict_keys': ['supports_container_type'],
@@ -5313,6 +5318,21 @@ class CTupleType(CType):
         components = [c.specialize(values) for c in self.components]
         new_entry = self.entry.scope.declare_tuple_type(self.entry.pos, components)
         return new_entry.type
+
+    def infer_indexed_type(self, at_index=None):
+        if at_index.has_constant_result():
+            index = at_index.constant_result
+            if index < 0:
+                index += self.size
+            if 0 <= index < self.size:
+                return self.components[index]
+        item_types = set(self.components)
+        if len(item_types) == 1:
+            return item_types.pop()
+        return py_object_type
+
+    def infer_iterator_type(self):
+        return reduce_spanning_types(self.components)
 
 
 def c_tuple_type(components):

@@ -260,8 +260,10 @@ def common_container_type(cond, list[float] a, list[int] b):
     result = a if cond else b
     print(result, cython.typeof(result))
 
+
 cdef class MyClass:
     pass
+
 
 def test_list_of_extensions(myclass):
     """
@@ -279,6 +281,7 @@ def test_list_of_extensions(myclass):
     print(cython.typeof(l))
     print(cython.typeof(l[0]))
     print(l[0])
+
 
 def test_dict_of_extensions(myclass):
     """

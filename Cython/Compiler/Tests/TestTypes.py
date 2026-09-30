@@ -39,6 +39,7 @@ class TestBuiltinTypes(TimedTest):
         'is_pymemoryview_type': ['memoryview'],
         'is_builtin_sequence': ['list', 'tuple', 'bytes', 'str', 'bytearray'],
         'is_bytes_or_str_or_bytearray': ['bytes', 'str', 'bytearray'],
+        'is_immutable': ['int', 'float', 'bool', 'complex', 'bytes', 'str', 'tuple', 'frozenset', 'frozendict'],
         'has_uniform_element_type': ['list', 'set', 'frozenset'],
         'supports_container_type': ['list', 'dict', 'frozendict', 'set', 'frozenset', 'dict_keys', 'dict_values', 'dict_items'],
         'is_exception_type': PT.KNOWN_EXCEPTION_NAMES,
