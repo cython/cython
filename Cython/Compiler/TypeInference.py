@@ -351,6 +351,13 @@ class PyObjectTypeInferer:
             if entry.type is unspecified_type:
                 entry.type = py_object_type
 
+def _infer_sort_key_name(entry):
+    return entry.name
+
+def _infer_sort_key_assmt(assmt):
+    pos = assmt.pos if assmt.pos else ()
+    return (assmt.entry.name, pos)
+
 class SimpleAssignmentTypeInferer:
     """
     Very basic type inference.
@@ -441,7 +448,7 @@ class SimpleAssignmentTypeInferer:
 
         def resolve_assignments(assignments):
             resolved = set()
-            for assmt in assignments:
+            for assmt in sorted(assignments, key=_infer_sort_key_assmt):
                 deps = dependencies[assmt]
                 # All assignments are resolved
                 if assmts_resolved.issuperset(deps):
@@ -470,7 +477,7 @@ class SimpleAssignmentTypeInferer:
         def resolve_partial(assignments):
             # try to handle circular references
             partials = set()
-            for assmt in assignments:
+            for assmt in sorted(assignments, key=_infer_sort_key_assmt):
                 if assmt in partial_assmts:
                     continue
                 if partial_infer(assmt):
@@ -500,7 +507,7 @@ class SimpleAssignmentTypeInferer:
 
         def reinfer():
             dirty = False
-            for entry in inferred:
+            for entry in sorted(inferred, key=_infer_sort_key_name):
                 for assmt in entry.cf_assignments:
                     assmt.infer_type()
                 types = inferred_types(entry)
