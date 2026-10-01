@@ -4775,6 +4775,10 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                     return self.visit_BinopNode(node)
             else:
                 sequence_node.mult_factor = factor
+            if sequence_node.mult_factor is None:
+                sequence_node.calculate_constant_result()
+            else:
+                sequence_node.constant_result = ExprNodes.not_a_constant
         return sequence_node
 
     def visit_ModNode(self, node):
