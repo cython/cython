@@ -1,3 +1,5 @@
+import cython
+
 from .Errors import error, message
 from . import ExprNodes
 from . import Nodes
@@ -351,6 +353,36 @@ class PyObjectTypeInferer:
             if entry.type is unspecified_type:
                 entry.type = py_object_type
 
+
+@cython.cclass
+class OrderedSet:
+    """
+    Simple ordered set based on an ordered Python dict.
+    """
+    _keys: dict
+
+    def __init__(self):
+        self._keys = {}
+
+    def add(self, key):
+        self._keys[key] = None
+
+    def update(self, keys: list):
+        set_keys = self._keys
+        for key in keys:
+            set_keys[key] = None
+
+    def difference_update(self, keys: set):
+        set_keys = self._keys
+        # We expect len(keys) < len(set_keys).
+        for key in keys:
+            if key in set_keys:
+                del set_keys[key]
+
+    def __iter__(self):
+        return iter(self._keys)
+
+
 class SimpleAssignmentTypeInferer:
     """
     Very basic type inference.
@@ -385,7 +417,7 @@ class SimpleAssignmentTypeInferer:
             return
 
         # Set of assignments
-        assignments = set()
+        assignments = OrderedSet()  # Used for iteration, ordering matters.
         assmts_resolved = set()
         dependencies = {}
         assmt_to_names = {}
@@ -484,7 +516,9 @@ class SimpleAssignmentTypeInferer:
             if not resolve_assignments(assignments):
                 if not resolve_partial(assignments):
                     break
-        inferred = set()
+
+        inferred = OrderedSet()  # Used for iteration, ordering matters.
+
         # First pass
         for entry in scope.entries.values():
             if entry.type is not unspecified_type:

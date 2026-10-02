@@ -1182,3 +1182,32 @@ def type_bitwise_or(actually_run_it, type t1, type t2):
         t3 = t1 | t2
     # Generic object, not "type"
     assert typeof(t3) == "Python object", typeof(t3)
+
+
+def resolve_circular_dependencies(ints: list[int]):
+    """
+    >>> resolve_circular_dependencies([])
+    int object
+    0
+    >>> resolve_circular_dependencies([0, 1, 2])
+    int object
+    4
+    >>> resolve_circular_dependencies([0, 1, 2, 5, 12, 16])
+    int object
+    28
+    """
+    # Modelled after FlowControl.check_definitions().
+    a: int = 0
+    i: int = 1
+    i_state = a
+    for value in ints:
+        i_state = i_state & ~value
+        if value > 5:
+            i_state |= value
+        else:
+            i_state |= i
+        i <<= 1
+
+    print(typeof(i_state))
+    return i_state
+
