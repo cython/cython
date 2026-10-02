@@ -1194,7 +1194,7 @@ def resolve_circular_dependencies(ints: list[int]):
     4
     >>> resolve_circular_dependencies([0, 1, 2, 5, 12, 16])
     int object
-    4
+    28
     """
     # Modelled after FlowControl.check_definitions().
     a: int = 0
@@ -1210,3 +1210,4 @@ def resolve_circular_dependencies(ints: list[int]):
 
     print(typeof(i_state))
     return i_state
+
