@@ -4765,6 +4765,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             if isinstance(factor.constant_result, int) and factor.constant_result <= 0:
                 del sequence_node.args[:]
                 sequence_node.mult_factor = None
+                sequence_node.constant_result = node.constant_result
             elif sequence_node.mult_factor is not None:
                 if (isinstance(factor.constant_result, int) and
                         isinstance(sequence_node.mult_factor.constant_result, int)):
@@ -4775,9 +4776,6 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                     return self.visit_BinopNode(node)
             else:
                 sequence_node.mult_factor = factor
-            if sequence_node.mult_factor is None:
-                sequence_node.calculate_constant_result()
-            else:
                 sequence_node.constant_result = ExprNodes.not_a_constant
         return sequence_node
 
