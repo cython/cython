@@ -302,6 +302,7 @@ def test_match_args_overrides_match_self(x):
         case ListSubclass(v):
             return v
 
+@skip_in_pure_pypy
 def test_match_args_non_attribute_error():
     """
     >>> test_match_args_non_attribute_error()  # doctest: +ELLIPSIS
