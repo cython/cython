@@ -302,9 +302,9 @@ def test_match_args_overrides_match_self(x):
         case ListSubclass(v):
             return v
 
-def test_match_args_attribute_error():
+def test_match_args_non_attribute_error():
     """
-    >>> test_match_args_attribute_error()  # doctest: +ELLIPSIS
+    >>> test_match_args_non_attribute_error()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
     ValueError: boom
