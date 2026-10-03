@@ -10,7 +10,10 @@
   #elif (defined(__ANDROID_MIN_SDK_VERSION__) && __ANDROID_MIN_SDK_VERSION__ < 26) || (defined(__ANDROID_API__) && __ANDROID_API__ < 26)
     // Android defines some of the complex functions conditionally. See https://github.com/cython/cython/issues/8026
     #define CYTHON_CCOMPLEX 0
-  #elif defined(_Complex_I) || ((defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_COMPLEX__))
+  #elif defined(__STDC_NO_COMPLEX__)
+    // Fairly definitive evidence it's not supported.
+    #define CYTHON_CCOMPLEX 0
+  #elif defined(_Complex_I) || (defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_COMPLEX__))
     // C11 gives us the __STDC_NO_COMPLEX__ to detect if complex is available. On older versions try to detect the
     // _Complex_I macro. 
     #define CYTHON_CCOMPLEX 1
