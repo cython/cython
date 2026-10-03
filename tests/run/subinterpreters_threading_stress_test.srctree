@@ -1,6 +1,6 @@
 # tag: threads
 
-UNSET CFLAGS
+UNSET CFLAGS -DPy_LIMITED_API -DCYTHON_
 PYTHON setup.py build_ext --inplace
 PYTHON main.py
 

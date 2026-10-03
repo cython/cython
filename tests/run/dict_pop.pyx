@@ -3,6 +3,11 @@
 
 cimport cython
 
+
+def make_frozendict(d):
+    return frozendict(d)
+
+
 class FailHash:
     def __hash__(self):
         raise TypeError()
@@ -91,3 +96,82 @@ def dict_pop_default_typed(dict d, key, default):
     """
     cdef MyType x = d.pop(key, default)
     return x.i if x is not None else None
+
+
+def pop_frozendict(frozendict fd, key):
+    """
+    Confirms that frozendict has no `pop` method (deliberately not aliased
+    in the compiler-side method-handler dispatch — frozendict is immutable).
+    On Python <3.15, `frozendict` falls back to plain `dict` which DOES have
+    `pop`, so we only assert the raise on supported Pythons.
+
+    >>> import sys
+    >>> if sys.version_info >= (3, 15, 0, 'alpha', 7):
+    ...     try: pop_frozendict(make_frozendict({1: 10}), 1)
+    ...     except AttributeError: print("AttributeError")
+    ...     else: print("no error")
+    ... else:
+    ...     print("AttributeError")
+    AttributeError
+    """
+    return fd.pop(key)
+
+
+def return_pop_typed_dict(d: dict[str,int], key: str):
+    """
+    >>> d = {'1': 2, 'a': 4}
+    >>> return_pop_typed_dict(d, '1')
+    2
+    >>> d
+    {'a': 4}
+    """
+    return d.pop(key)
+
+
+def return_pop_typed_dict_default(d: dict[str,int], key: str, default: int):
+    """
+    >>> d = {'1': 2, 'a': 4}
+    >>> return_pop_typed_dict_default(d, '1', 3)
+    2
+    >>> return_pop_typed_dict_default(d, '1', 3)
+    3
+    >>> return_pop_typed_dict_default(d, '1', 3)
+    3
+    """
+    return d.pop(key, default)
+
+
+def pop_typed_dict_ignored(d: dict[str,int], key: str):
+    """
+    >>> d = {'1': 2, 'a': 4}
+    >>> pop_typed_dict_ignored(d, '1')
+    >>> d
+    {'a': 4}
+    """
+    d.pop(key)
+
+
+def pop_typed_dict_ignored_default(d: dict[str,int], key: str, default: int):
+    """
+    >>> d = {'1': 2, 'a': 4}
+    >>> pop_typed_dict_ignored_default(d, '2', 3)
+    >>> d
+    {'1': 2, 'a': 4}
+    >>> pop_typed_dict_ignored_default(d, '1', 3)
+    >>> d
+    {'a': 4}
+    >>> pop_typed_dict_ignored_default(d, '1', 3)
+    >>> d
+    {'a': 4}
+    """
+    d.pop(key, default)
+
+
+def pop_typed_dict_wrong_cast(d: dict[str,int], key: str):
+    """
+    >>> d = {'1': 2, 'a': 4}
+    >>> pop_typed_dict_wrong_cast(d, '1')
+    Traceback (most recent call last):
+    TypeError: Expected list, got int
+    """
+    <list?> d.pop(key)  # incorrect cast should fail

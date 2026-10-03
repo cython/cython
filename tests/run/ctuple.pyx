@@ -201,7 +201,7 @@ def test_type_inference():
     xy = (x, y)
     assert cython.typeof(xy) == "(int, double)", cython.typeof(xy)
     xo = (x, o)
-    assert cython.typeof(xo) == "tuple object", cython.typeof(xo)
+    assert cython.typeof(xo) == "tuple[int,Python object] object", cython.typeof(xo)
 
 
 @cython.locals(a=(int,int), b=(cython.long,cython.float))

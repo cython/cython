@@ -142,6 +142,24 @@ cpdef enum CyDefinedHasDuplicates3:
     CY_DUP3_C  # = 1
 
 
+cdef extern from *:
+    """
+    enum ExternHasNegatives {
+        EX_NEG_A = -1,
+        EX_NEG_B = 1,
+        EX_NEG_C = 2
+    };
+    """
+    cpdef enum ExternHasNegatives:
+        EX_NEG_A
+        EX_NEG_B
+        EX_NEG_C
+
+cpdef enum CyDefinedHasNegatives:
+    CY_NEG_A = -1
+    CY_NEG_B = 1
+    CY_NEG_C = 2
+
 def test_as_variable_from_cython():
     """
     >>> test_as_variable_from_cython()
@@ -285,3 +303,41 @@ def test_special_attributes():
         cpdefPyxDocLineEnum.__module__,
         cpdefPyxDocLineEnum.__doc__,
     )
+
+def test_extern_negatives(ExternHasNegatives val=ExternHasNegatives.EX_NEG_A):
+    """
+    >>> val = test_extern_negatives()
+    >>> type(val) == ExternHasNegatives
+    True
+    >>> val < 0
+    True
+
+    # It's still possible to do bitwise operations of numbers and convert them to/from Cython
+    # whether Cython chooses to represent it as an IntEnum or an IntFlag.
+    >>> test_extern_negatives(ExternHasNegatives.EX_NEG_B) == 1 == ExternHasNegatives.EX_NEG_B
+    True
+    >>> test_extern_negatives(3) == 3 == (ExternHasNegatives.EX_NEG_B | ExternHasNegatives.EX_NEG_C)
+    True
+    >>> test_extern_negatives(ExternHasNegatives.EX_NEG_A) == -1 == ExternHasNegatives.EX_NEG_A
+    True
+    """
+    return val
+
+def test_cy_negatives(CyDefinedHasNegatives val=CyDefinedHasNegatives.CY_NEG_A):
+    """
+    >>> val = test_cy_negatives()
+    >>> type(val) == CyDefinedHasNegatives
+    True
+    >>> val < 0
+    True
+
+    # It's still possible to do bitwise operations of numbers and convert them to/from Cython
+    # whether Cython chooses to represent it as an IntEnum or an IntFlag.
+    >>> test_cy_negatives(CyDefinedHasNegatives.CY_NEG_B) == 1 == CyDefinedHasNegatives.CY_NEG_B
+    True
+    >>> test_cy_negatives(3) == 3 == (CyDefinedHasNegatives.CY_NEG_B | CyDefinedHasNegatives.CY_NEG_C)
+    True
+    >>> test_cy_negatives(CyDefinedHasNegatives.CY_NEG_A) == -1 == CyDefinedHasNegatives.CY_NEG_A
+    True
+    """
+    return val

@@ -1,3 +1,7 @@
+#if __cplusplus >= 201100
+#include <type_traits>
+#endif
+
 template <typename T>
 T no_arg() {
     return T();
@@ -64,3 +68,51 @@ class double_pair : public std::pair<double, double> {
   public:
     double_pair(double x, double y) : std::pair<double, double>(x, y) { };
 };
+
+template <typename T>
+T const_deduction_left(const T x, T y) {
+    #if __cplusplus >= 201100
+    // For value types, there's no reason to deduce T as const ever
+    static_assert(!std::is_const<T>::value);
+    #endif
+    return x+y;
+}
+
+template <typename T>
+T const_deduction_right(T x, const T y) {
+    #if __cplusplus >= 201100
+    // For value types, there's no reason to deduce T as const ever
+    static_assert(!std::is_const<T>::value);
+    #endif
+    return x+y;
+}
+
+template <typename T>
+T const_ref_deduction_left(const T& x, T y) {
+    return x+y;
+}
+
+template <typename T>
+T const_ref_deduction_right(T x, const T& y) {
+    return x+y;
+}
+
+template <typename T>
+T const_ptr_deduction_left(const T* x, T y) {
+    return (*x)+y;
+}
+
+template <typename T>
+T const_ptr_deduction_right(T x, const T* y) {
+    return x+(*y);
+}
+
+template <typename T>
+T const_ptr_ptr_deduction_left(const T* x, T* y) {
+    return (*x)+(*y);
+}
+
+template <typename T>
+T const_ptr_ptr_deduction_right(T* x, const T* y) {
+    return (*x)+(*y);
+}

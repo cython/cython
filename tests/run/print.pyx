@@ -16,10 +16,7 @@ def print_to_stdout(a, b):
     print 42, u"spam"
 
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 def print_to_stringio(stream, a, b):
     """

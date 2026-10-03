@@ -8,7 +8,7 @@ from Cython.TestUtils import CythonTest, TimedTest
 try:
     import numpy
     has_numpy = True
-except:
+except Exception:
     has_numpy = False
 
 test_kwds = dict(force=True, quiet=True)

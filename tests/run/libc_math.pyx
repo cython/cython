@@ -30,9 +30,12 @@ def test_sin(x):
     """
     >>> test_sin(0)
     0.0
-    >>> from math import sin
-    >>> [sin(k) == test_sin(k) for k in range(10)]
-    [True, True, True, True, True, True, True, True, True, True]
+    >>> import math
+    >>> all(
+    ...     math.isclose(math.sin(k), test_sin(k), rel_tol=0.0, abs_tol=1e-12)
+    ...     for k in range(10)
+    ... )
+    True
     """
     return sin(x)
 

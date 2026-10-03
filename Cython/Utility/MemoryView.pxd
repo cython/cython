@@ -91,15 +91,6 @@ cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, const __Pyx_
 cdef inline bint memoryview_check(object o) noexcept:
     return isinstance(o, memoryview)
 
-@cname('__pyx_memoryview_slice_memviewslice')
-cdef int slice_memviewslice(
-        {{memviewslice_name}} *dst,
-        Py_ssize_t shape, Py_ssize_t stride, Py_ssize_t suboffset,
-        int dim, int new_ndim, int *suboffset_dim,
-        Py_ssize_t start, Py_ssize_t stop, Py_ssize_t step,
-        int have_start, int have_stop, int have_step,
-        bint is_slice) except -1 nogil
-
 @cname('__pyx_memslice_transpose')
 cdef int transpose_memslice({{memviewslice_name}} *memslice) except -1 nogil
 

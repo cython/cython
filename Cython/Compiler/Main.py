@@ -6,7 +6,6 @@
 import os
 import re
 import sys
-import io
 
 if sys.version_info[:2] < (3, 9):
     sys.stderr.write("Sorry, Cython requires Python 3.9+, found %d.%d\n" % tuple(sys.version_info[:2]))
@@ -102,6 +101,14 @@ class Context:
     @property
     def shared_utility_qualified_name(self):
         return self.options.shared_utility_qualified_name if self.options else None
+
+    @property
+    def in_shared_utility_module(self) -> bool:
+        return bool(self.shared_c_file_path)
+
+    @property
+    def using_shared_utility_module(self) -> bool:
+        return bool(self.shared_utility_qualified_name)
 
     def set_language_level(self, level):
         from .Future import print_function, unicode_literals, absolute_import, division, generator_stop
@@ -265,7 +272,13 @@ class Context:
                 try:
                     if debug_find_module:
                         print("Context.find_module: Parsing %s" % pxd_pathname)
-                    rel_path = module_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
+                    pxd_filename = os.path.basename(pxd_pathname)
+                    # Package init modules live below the full module path, all else next to it.
+                    packages = module_name.split('.')
+                    if not pxd_filename.startswith('__init__.'):
+                        packages.pop()
+                    # Build full package file path, preserving version suffixes such as ".cython-30.pxd".
+                    rel_path = os.path.join(*packages, pxd_filename)
                     if not pxd_pathname.endswith(rel_path):
                         rel_path = pxd_pathname  # safety measure to prevent printing incorrect paths
                     source_desc = FileSourceDescriptor(pxd_pathname, rel_path)

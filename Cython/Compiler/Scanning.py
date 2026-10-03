@@ -294,6 +294,15 @@ class StringSourceDescriptor(SourceDescriptor):
         return "<StringSourceDescriptor:%s>" % self.name
 
 
+class SharedUtilitySourceDescriptor(FileSourceDescriptor):
+    """
+    A specialized source descriptor for shared utility code only. Not part of public API.
+    """
+
+    def get_file_object(self, encoding=None, error_handling=None):
+        from io import StringIO
+        return StringIO('')
+
 #------------------------------------------------------------------
 
 class PyrexScanner(Scanner):
@@ -698,7 +707,7 @@ class FTStringState:
     def set_in_format_specifier(self):
         self.bracket_states[-1].in_format_specifier = True
 
-    def push_bracket_state(self, bracket_nesting_level: int):
+    def push_bracket_state(self, bracket_nesting_level: cython.Py_ssize_t):
         self.bracket_states.append(FTStringBracketState(bracket_nesting_level))
 
     def pop_bracket_state(self):
@@ -706,11 +715,6 @@ class FTStringState:
 
 
 class FTStringBracketState:
-    # Because of the way this is accessed, it probably doesn't make sense as a cdef class
-    # so just use __slots__ to keep it compact.
-    __slots__ = ('bracket_nesting_level', 'in_format_specifier')
-    bracket_nesting_level: int
-    in_format_specifier: bool
-    def __init__(self, bracket_nesting_level: int):
+    def __init__(self, bracket_nesting_level: cython.Py_ssize_t):
         self.bracket_nesting_level = bracket_nesting_level
         self.in_format_specifier = False

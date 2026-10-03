@@ -537,3 +537,16 @@ def fstring_plus(x: cython.int):
         f"b{x}b" + "",
         f"a{x}b" + f"x{x}x",
     )
+
+
+def join_mult_seq(n):
+    """
+    >>> join_mult_seq(3)
+    ('axxx', 'axx', 'a', 'axyxyxy')
+    """
+    return (
+        "a" + "".join(["x"] * n),
+        "a" + "".join(["x"] * 2),
+        "a" + "".join(["x"] * 0),
+        "a" + "".join(("x", "y") * n),
+    )
