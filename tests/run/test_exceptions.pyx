@@ -696,13 +696,13 @@ class ExceptionTests(TimedTest):
         self.assertRaisesRegex(TE, msg, setattr, exc, '__context__', 1)
 
     def test_invalid_delattr(self):
-        TE = TypeError
+        TE = (TypeError, AttributeError)  # changed to AttributeError in Python 3.16
         try:
             raise IndexError(4)
         except Exception as e:
             exc = e
 
-        msg = "may not be deleted"
+        msg = "not be deleted"  # changed from 'may not'  to 'cannot' in Python 3.16
         self.assertRaisesRegex(TE, msg, delattr, exc, 'args')
         self.assertRaisesRegex(TE, msg, delattr, exc, '__traceback__')
         self.assertRaisesRegex(TE, msg, delattr, exc, '__cause__')

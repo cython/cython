@@ -413,7 +413,6 @@ if TYPE_CHECKING:
 class PointerType(CythonType):
 
     def __init__(self, value=None):
-        from .Shadow import cast
         if isinstance(value, (ArrayType, PointerType)):
             self._items = [cast(self._basetype, a) for a in value._items]
         elif isinstance(value, list):
@@ -431,7 +430,6 @@ class PointerType(CythonType):
     def __setitem__(self, ix, value):
         if ix < 0:
             raise IndexError("negative indexing not allowed in C")
-        from .Shadow import cast
         self._items[ix] = cast(self._basetype, value)
 
     def __eq__(self, value):
