@@ -11,6 +11,11 @@ Bugs fixed
 * A dangling pointer was fixed when assigning to attributes of extension types.
   (Github issue :issue:`7907`)
 
+* In C++ mode, assigning a conditional expression directly into a container
+  element (e.g. ``d[k] = a if cond else b``) generated a dangling
+  ``__Pyx_FakeReference`` temporary and could store garbage.
+  (Github issue :issue:`7927`)
+
 * A crash was resolved when mixing Cython modules compiled with different Limited API versions.
   (Github issue :issue:`7914`)
 
