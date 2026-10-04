@@ -738,8 +738,9 @@ class CompilationOptions:
                 # hopefully caching has no influence on the compilation result
                 continue
             elif key in ['compiler_directives']:
-                # directives passed on to the C compiler do not influence the generated C code
-                continue
+                # Some compiler directives do not influence the generated C code but others do
+                # (such as linetrace, profiling).
+                data[key] = value
             elif key in ['include_path']:
                 # this path changes which headers are tracked as dependencies,
                 # it has no influence on the generated C code
