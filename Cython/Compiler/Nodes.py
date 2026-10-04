@@ -670,6 +670,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             error(self.pos, "Array element type '%s' is incomplete" % base_type)
         if base_type.is_pyobject:
             error(self.pos, "Array element cannot be a Python object")
+            base_type = error_type
         if base_type.is_cfunction:
             error(self.pos, "Array element cannot be a function")
         array_type = PyrexTypes.c_array_type(base_type, size)
