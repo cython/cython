@@ -239,10 +239,8 @@ class AbstractUtilityCode:
     def get_shared_library_scope(self, **kwargs):
         return None
 
-    def check_compatibility(self, pos, module_scope):
-        # Expected to call Errors.warn or Errors.error if incompatible
+    def warn_for_subinterpreters(self, pos):
         pass
-
 
 class UtilityCodeBase(AbstractUtilityCode):
     """

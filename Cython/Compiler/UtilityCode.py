@@ -1,7 +1,7 @@
 import Cython
 from .TreeFragment import parse_from_strings, StringParseContext
 from .Scanning import FileSourceDescriptor
-from .Errors import CompileError
+from .Errors import CompileError, warning
 from . import Symtab
 from . import Naming
 from . import Code
@@ -76,7 +76,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
 
     def __init__(self, impl, name="__pyxutil", prefix="", requires=None,
                  file=None, from_scope=None, context=None, compiler_directives=None,
-                 outer_module_scope=None, compatibility_check=None):
+                 outer_module_scope=None, subinterpreters_incompatible_message=None):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
@@ -104,7 +104,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                 outer_module_scope.global_scope().directives, compiler_directives)
         self.compiler_directives = compiler_directives
         self.context_types = context_types
-        self._compatibility_check = compatibility_check
+        self._subinterpreters_incompatible_message = subinterpreters_incompatible_message
 
     def __eq__(self, other):
         if isinstance(other, CythonUtilityCode):
@@ -279,12 +279,11 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             utility_code_directives.update(overrides)
         return utility_code_directives
 
-    def check_compatibility(self, pos, module_scope):
+    def warn_for_subinterpreters(self, pos):
         # Note that this is mainly a workaround for some utility code being
-        # incompatible with subinterpreters. Remove it after that unless we
-        # want the mechanism for something else
-        if self._compatibility_check:
-            self._compatibility_check(self, pos, module_scope)
+        # incompatible with subinterpreters. Remove it after that is fixed.
+        if self._subinterpreters_incompatible_message:
+            warning(pos, self._subinterpreters_incompatible_message, 2)
 
 
 class TemplatedFileSourceDescriptor(FileSourceDescriptor):

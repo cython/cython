@@ -880,15 +880,6 @@ copy_contents_new_utility = load_memview_c_utility("MemviewSliceCopy")
 slice_memviewslice_utility = load_memview_c_utility("SliceMemoryviewSlice")
 
 
-def _memoryview_compatibility_check(util_code, pos, module_scope):
-    if module_scope.directives['subinterpreters_compatible'] != 'no':
-        warning(
-            pos,
-            f"Module '{module_scope.module_name}' is declared as 'subinterpreters_compatible' "
-            "but uses typed memoryviews. This is not supported yet and will likely crash.",
-            2
-        )
-
 @Utils.cached_function
 def _get_memoryview_utility_code():
     memoryview_utility_code = load_memview_cy_utility(
@@ -905,7 +896,9 @@ def _get_memoryview_utility_code():
                     copy_contents_new_utility,
                     slice_memviewslice_utility,
                     ],
-            compatibility_check=_memoryview_compatibility_check,
+            subinterpreters_incompatible_message=(
+                "Module is declared as 'subinterpreters_compatible' "
+                "but uses typed memoryviews. This is not supported yet and will likely crash."),
     )
 
     return memoryview_utility_code
