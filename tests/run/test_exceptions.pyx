@@ -696,7 +696,7 @@ class ExceptionTests(TimedTest):
         self.assertRaisesRegex(TE, msg, setattr, exc, '__context__', 1)
 
     def test_invalid_delattr(self):
-        TE = TypeError
+        TE = (TypeError, AttributeError)  # changed to AttributeError in Python 3.16
         try:
             raise IndexError(4)
         except Exception as e:
