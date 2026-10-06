@@ -334,6 +334,17 @@ else:
     call_fused_functions PY_START [1], PY_RETURN [1]
 
 
+    ## Testing explicit base class calls of cpdef methods:
+
+    >>> with monitored_events(events=FUNC_EVENTS, function_name='call_cpdef_base_method') as collected_events:
+    ...     print(call_cpdef_base_method(10))
+    90
+    >>> print_events(collected_events)  # call_cpdef_base_method(10)
+    call_cpdef_base_method PY_START [1], PY_RETURN [1]
+    m_cpdef_base PY_START [20], PY_RETURN [20]
+    m_cpdef_sub PY_START [20], PY_RETURN [20]
+
+
     ## Testing special return types:
 
     >>> events = set()
@@ -624,6 +635,34 @@ class PyA:
     @staticmethod
     def pym_staticmethod(a: cython.long) -> cython.long:
         return a
+
+
+@cython.cclass
+class CyBase:
+    @cython.ccall
+    def m_cpdef_base(self, a: cython.long):
+        return a
+
+
+@cython.cclass
+class CySub(CyBase):
+    @cython.ccall
+    def m_cpdef_sub(self, a: cython.long):
+        # Explicit base class call that bypasses the Python wrapper and the method dispatch.
+        return CyBase.m_cpdef_base(self, a)
+
+
+def call_cpdef_base_method(N: cython.long):
+    i: cython.long
+    n: cython.long = 0
+    obj: object
+    sub: CySub = CySub()
+
+    for i in range(N):
+        n += sub.m_cpdef_sub(i)
+        obj = sub
+        n += obj.m_cpdef_sub(i)
+    return n
 
 
 # Generators

@@ -6739,8 +6739,8 @@ class SimpleCallNode(CallNode):
 
         return build_c_call_code(
             func_type, self.function.result(), self.args,
-            is_wrapper_call=self.wrapper_call or (
-                func_type.is_overridable and self.function.entry.is_unbound_cmethod),
+            is_wrapper_call=self.wrapper_call,
+            skip_dispatch=func_type.is_overridable and self.function.entry.is_unbound_cmethod,
         )
 
     def is_c_result_required(self):
@@ -6825,12 +6825,13 @@ class SimpleCallNode(CallNode):
                 has_optional_args=self.has_optional_args,
                 result_cname=self.result() if self.is_temp else None,
                 func_entry=getattr(self.function, 'entry', None),
-                is_wrapper_call=self.wrapper_call or (
-                    func_type.is_overridable and self.function.entry.is_unbound_cmethod),
+                is_wrapper_call=self.wrapper_call,
+                skip_dispatch=func_type.is_overridable and self.function.entry.is_unbound_cmethod,
             )
 
 
-def build_c_call_code(func_type, function_cname, args, opt_arg_struct_cname=None, is_wrapper_call=False):
+def build_c_call_code(func_type, function_cname, args, opt_arg_struct_cname=None,
+                      is_wrapper_call=False, skip_dispatch=False):
     formal_args = func_type.args
     arg_list_code = []
     mapped_args = list(zip(formal_args, args))
@@ -6843,7 +6844,10 @@ def build_c_call_code(func_type, function_cname, args, opt_arg_struct_cname=None
         arg_list_code.append(arg_code)
 
     if func_type.is_overridable:
-        arg_list_code.append("1" if is_wrapper_call else "0")
+        # 0: dispatch to Python overrides.
+        # 1: skip the dispatch, e.g. for explicit calls like "BaseType.method(self)".
+        # 2: skip the dispatch, called from the Python wrapper which already traced the call.
+        arg_list_code.append("2" if is_wrapper_call else "1" if skip_dispatch else "0")
 
     if func_type.optional_arg_count:
         if expected_nargs == actual_nargs:
@@ -6861,7 +6865,8 @@ def build_c_call_code(func_type, function_cname, args, opt_arg_struct_cname=None
 
 def generate_cfunction_call(
         pos, code, func_type, function_cname, args,
-        result_cname=None, func_entry=None, has_optional_args=False, is_wrapper_call=False):
+        result_cname=None, func_entry=None, has_optional_args=False,
+        is_wrapper_call=False, skip_dispatch=False):
     nogil = not code.funcstate.gil_owned
     return_type = func_type.return_type
     return_temp = None  # Used if we need the result only for error checking.
@@ -6912,6 +6917,7 @@ def generate_cfunction_call(
         func_type, function_cname, args,
         opt_arg_struct_cname=opt_arg_struct,
         is_wrapper_call=is_wrapper_call,
+        skip_dispatch=skip_dispatch,
     )
 
     if result_cname:

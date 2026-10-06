@@ -50,6 +50,10 @@ u"""
     100
     >>> short_stats['m_cpdef']
     200
+    >>> short_stats['m_cpdef_base']
+    200
+    >>> short_stats['m_cpdef_sub']
+    200
 
     >>> try:
     ...    os.unlink(statsfile)
@@ -61,7 +65,7 @@ u"""
      'f_cpdef', 'f_def', 'f_def_no_value',
      'f_inline', 'f_inline_prof',
      'f_raise',
-     'm_cdef', 'm_cpdef', 'm_def',
+     'm_cdef', 'm_cpdef', 'm_cpdef_sub', 'm_def',
      'withgil_prof']
 
     >>> profile.runctx("test_generators()", locals(), globals(), statsfile)
@@ -133,6 +137,7 @@ def callees(pstats, target_caller):
 def test_profile(long N):
     cdef long i, n = 0
     cdef A a = A()
+    cdef B b = B()
     for i in range(N):
         n += f_def(i)
         n += i if f_def_no_value() is None else 0
@@ -152,6 +157,8 @@ def test_profile(long N):
         n += a.m_cpdef(i)
         n += (<object>a).m_cpdef(i)
         n += a.m_cdef(i)
+        n += b.m_cpdef_sub(i)
+        n += (<object>b).m_cpdef_sub(i)
         try:
             n += f_raise(i+2)
         except RuntimeError:
@@ -212,6 +219,13 @@ cdef class A(object):
         return a
     cdef m_cdef(self, long a):
         return a
+    cpdef m_cpdef_base(self, long a):
+        return a
+
+cdef class B(A):
+    cpdef m_cpdef_sub(self, long a):
+        # Explicit base class call that bypasses the Python wrapper and the method dispatch.
+        return A.m_cpdef_base(self, a)
 
 def test_generators():
     call_generator()
