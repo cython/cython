@@ -1187,18 +1187,18 @@ def type_bitwise_or(actually_run_it, type t1, type t2):
 def resolve_circular_dependencies(ints: list[int]):
     """
     >>> resolve_circular_dependencies([])
-    int object
+    Python object
     0
     >>> resolve_circular_dependencies([0, 1, 2])
-    int object
+    Python object
     4
     >>> resolve_circular_dependencies([0, 1, 2, 5, 12, 16])
-    int object
+    Python object
     28
     """
     # Modelled after FlowControl.check_definitions().
     a: int = 0
-    i: int = 1
+    i: object = 1
     i_state = a
     for value in ints:
         i_state = i_state & ~value
@@ -1210,4 +1210,3 @@ def resolve_circular_dependencies(ints: list[int]):
 
     print(typeof(i_state))
     return i_state
-
