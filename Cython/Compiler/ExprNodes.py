@@ -6844,10 +6844,10 @@ def build_c_call_code(func_type, function_cname, args, opt_arg_struct_cname=None
         arg_list_code.append(arg_code)
 
     if func_type.is_overridable:
-        # 0: dispatch to Python overrides.
-        # 1: skip the dispatch, e.g. for explicit calls like "BaseType.method(self)".
-        # 2: skip the dispatch, called from the Python wrapper which already traced the call.
-        arg_list_code.append("2" if is_wrapper_call else "1" if skip_dispatch else "0")
+        arg_list_code.append(
+            Naming.cpdef_wrapper_call if is_wrapper_call else
+            Naming.cpdef_skip_dispatch if skip_dispatch else
+            Naming.cpdef_dispatch)
 
     if func_type.optional_arg_count:
         if expected_nargs == actual_nargs:
