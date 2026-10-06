@@ -1,5 +1,8 @@
 # mode: compile
-# tag: warnings
+# tag: warnings, no-shared-utility
+
+# "no-shared-utility" because memoryviews aren't used directly so the warning
+# would trigger on building the shared utility module instead.
 
 # cython: subinterpreters_compatible=own_gil
 
@@ -21,11 +24,11 @@ cpdef enum E:
 _WARNINGS = """
 1:0: Module is declared as 'subinterpreters_compatible' but uses cpdef enums. This is not supported yet since it uses global cdef objects and will likely crash.
 1:0: Module is declared as 'subinterpreters_compatible' but uses typed memoryviews. This is not supported yet and will likely crash.
-7:9: Global cdef variable used with subinterpreter support enabled.
-8:12: Global cdef Python variable used with subinterpreter support enabled.
-10:0: Acquiring the GIL is currently very unlikely to work correctly with subinterpreters.
-11:9: Acquiring the GIL is currently very unlikely to work correctly with subinterpreters.
-13:4: Acquiring the GIL is currently very unlikely to work correctly with subinterpreters.
+10:9: Global cdef variable used with subinterpreter support enabled.
+11:12: Global cdef Python variable used with subinterpreter support enabled.
+13:0: Acquiring the GIL is currently very unlikely to work correctly with subinterpreters.
+14:9: Acquiring the GIL is currently very unlikely to work correctly with subinterpreters.
+16:4: Acquiring the GIL is currently very unlikely to work correctly with subinterpreters.
 # spurious
 26:4: 'cpdef_method' redeclared
 36:4: 'cpdef_cname_method' redeclared
