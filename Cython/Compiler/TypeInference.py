@@ -364,6 +364,9 @@ class OrderedSet:
     def __init__(self):
         self._keys = {}
 
+    def repr(self):
+        return f"{{{', '.join(map(repr, self._keys))}}}"
+
     def add(self, key):
         self._keys[key] = None
 
