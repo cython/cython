@@ -639,46 +639,6 @@ class PyA:
         return a
 
 
-@cython.cclass
-class CyBase:
-    @cython.ccall
-    def m_cpdef_base(self, a: cython.long):
-        return a
-
-    @cython.ccall
-    @cython.exceptval(check=False)
-    def m_cpdef_base_noexcept(self, a: cython.long) -> cython.long:
-        return a
-
-    @cython.ccall
-    def m_cpdef_base_optargs(self, a: cython.long, b: cython.long = 0):
-        return a + b
-
-
-@cython.cclass
-class CySub(CyBase):
-    @cython.ccall
-    def m_cpdef_sub(self, a: cython.long):
-        # Explicit base class calls that bypass the Python wrapper and the method dispatch.
-        n: cython.long = CyBase.m_cpdef_base_noexcept(self, a)
-        n += CyBase.m_cpdef_base_optargs(self, a)
-        n += CyBase.m_cpdef_base_optargs(self, a, 1)
-        return n + CyBase.m_cpdef_base(self, a)
-
-
-def call_cpdef_base_method(N: cython.long):
-    i: cython.long
-    n: cython.long = 0
-    obj: object
-    sub: CySub = CySub()
-
-    for i in range(N):
-        n += sub.m_cpdef_sub(i)
-        obj = sub
-        n += obj.m_cpdef_sub(i)
-    return n
-
-
 # Generators
 
 def test_generators(_=None):
@@ -738,6 +698,48 @@ def fused_func_def(x: cython.numeric) -> cython.numeric:
 @cython.cfunc
 def fused_func_cfunc(x: cython.numeric) -> cython.numeric:
     return x + 2
+
+
+# Explicit base class calls of cpdef methods
+
+@cython.cclass
+class CyBase:
+    @cython.ccall
+    def m_cpdef_base(self, a: cython.long):
+        return a
+
+    @cython.exceptval(check=False)
+    @cython.ccall
+    def m_cpdef_base_noexcept(self, a: cython.long) -> cython.long:
+        return a
+
+    @cython.ccall
+    def m_cpdef_base_optargs(self, a: cython.long, b: cython.long = 0):
+        return a + b
+
+
+@cython.cclass
+class CySub(CyBase):
+    @cython.ccall
+    def m_cpdef_sub(self, a: cython.long):
+        # Explicit base class calls that bypass the Python wrapper and the method dispatch.
+        n: cython.long = CyBase.m_cpdef_base_noexcept(self, a)
+        n += CyBase.m_cpdef_base_optargs(self, a)
+        n += CyBase.m_cpdef_base_optargs(self, a, 1)
+        return n + CyBase.m_cpdef_base(self, a)
+
+
+def call_cpdef_base_method(N: cython.long):
+    i: cython.long
+    n: cython.long = 0
+    obj: object
+    sub: CySub = CySub()
+
+    for i in range(N):
+        n += sub.m_cpdef_sub(i)
+        obj = sub
+        n += obj.m_cpdef_sub(i)
+    return n
 
 
 # Special return values
