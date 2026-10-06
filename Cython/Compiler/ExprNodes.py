@@ -6732,6 +6732,14 @@ class SimpleCallNode(CallNode):
 
         self.overflowcheck = env.directives['overflowcheck']
 
+    def cpdef_dispatch_mode(self):
+        # The value of the "skip_dispatch" argument when calling a cpdef function.
+        if self.wrapper_call:
+            return Naming.cpdef_wrapper_call
+        if self.function_type().is_overridable and self.function.entry.is_unbound_cmethod:
+            return Naming.cpdef_skip_dispatch
+        return Naming.cpdef_dispatch
+
     def calculate_result_code(self):
         func_type = self.function_type()
         if self.type is PyrexTypes.error_type or not func_type.is_cfunction:
@@ -6739,8 +6747,7 @@ class SimpleCallNode(CallNode):
 
         return build_c_call_code(
             func_type, self.function.result(), self.args,
-            is_wrapper_call=self.wrapper_call,
-            skip_dispatch=func_type.is_overridable and self.function.entry.is_unbound_cmethod,
+            dispatch_mode=self.cpdef_dispatch_mode(),
         )
 
     def is_c_result_required(self):
@@ -6825,13 +6832,12 @@ class SimpleCallNode(CallNode):
                 has_optional_args=self.has_optional_args,
                 result_cname=self.result() if self.is_temp else None,
                 func_entry=getattr(self.function, 'entry', None),
-                is_wrapper_call=self.wrapper_call,
-                skip_dispatch=func_type.is_overridable and self.function.entry.is_unbound_cmethod,
+                dispatch_mode=self.cpdef_dispatch_mode(),
             )
 
 
 def build_c_call_code(func_type, function_cname, args, opt_arg_struct_cname=None,
-                      is_wrapper_call=False, skip_dispatch=False):
+                      dispatch_mode=Naming.cpdef_dispatch):
     formal_args = func_type.args
     arg_list_code = []
     mapped_args = list(zip(formal_args, args))
@@ -6844,10 +6850,7 @@ def build_c_call_code(func_type, function_cname, args, opt_arg_struct_cname=None
         arg_list_code.append(arg_code)
 
     if func_type.is_overridable:
-        arg_list_code.append(
-            Naming.cpdef_wrapper_call if is_wrapper_call else
-            Naming.cpdef_skip_dispatch if skip_dispatch else
-            Naming.cpdef_dispatch)
+        arg_list_code.append(dispatch_mode)
 
     if func_type.optional_arg_count:
         if expected_nargs == actual_nargs:
@@ -6866,7 +6869,7 @@ def build_c_call_code(func_type, function_cname, args, opt_arg_struct_cname=None
 def generate_cfunction_call(
         pos, code, func_type, function_cname, args,
         result_cname=None, func_entry=None, has_optional_args=False,
-        is_wrapper_call=False, skip_dispatch=False):
+        dispatch_mode=Naming.cpdef_dispatch):
     nogil = not code.funcstate.gil_owned
     return_type = func_type.return_type
     return_temp = None  # Used if we need the result only for error checking.
@@ -6916,8 +6919,7 @@ def generate_cfunction_call(
     rhs = build_c_call_code(
         func_type, function_cname, args,
         opt_arg_struct_cname=opt_arg_struct,
-        is_wrapper_call=is_wrapper_call,
-        skip_dispatch=skip_dispatch,
+        dispatch_mode=dispatch_mode,
     )
 
     if result_cname:

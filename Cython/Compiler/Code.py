@@ -3469,7 +3469,7 @@ class CCodeWriter:
 
     def put_trace_start(self, name, pos, nogil=False, is_generator=False, is_cpdef_func=False):
         trace_func = "__Pyx_TraceStartGen" if is_generator else "__Pyx_TraceStartFunc"
-        # Only the Python wrapper of a cpdef function has already traced the call.
+        # Calls from the Python wrapper of a cpdef function were already traced by the wrapper.
         skip_event = f"({Naming.skip_dispatch_cname} == {Naming.cpdef_wrapper_call})" if is_cpdef_func else "0"
         self.putln(
             f'{trace_func}('
