@@ -4028,10 +4028,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.funcstate.release_temp(module_temp)
 
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
-        gil_option = ("Py_MOD_GIL_NOT_USED"
-                      if env.directives["freethreading_compatible"]
-                      else "Py_MOD_GIL_USED")
-        code.putln(f"PyUnstable_Module_SetGIL({env.module_cname}, {gil_option});")
+        code.putln(f"PyUnstable_Module_SetGIL({env.module_cname}, __Pyx_FREETHREADING_COMPATIBLE);")
         code.putln("#endif")
 
         code.putln(f"{Naming.modulestatevalue_cname} = {Naming.modulestateglobal_cname};")
