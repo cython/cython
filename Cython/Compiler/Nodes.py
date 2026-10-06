@@ -3148,7 +3148,7 @@ class CFuncDefNode(FuncDefNode):
             if entry.type.is_overridable:
                 arglist.append(Naming.skip_dispatch_cname)
             elif func_type.is_overridable:
-                arglist.append(Naming.cpdef_dispatch)
+                arglist.append(f"{PyrexTypes.CpdefDispatch.Dispatch:d}")
             if entry.type.optional_arg_count:
                 arglist.append(Naming.optional_args_cname)
             elif func_type.optional_arg_count:

@@ -121,10 +121,6 @@ vtabslot_cname   = pyrex_prefix + "vtab"
 c_api_tab_cname  = pyrex_prefix + "c_api_tab"
 gilstate_cname   = pyrex_prefix + "state"
 skip_dispatch_cname = pyrex_prefix + "skip_dispatch"
-# Values of the "skip_dispatch" argument of cpdef functions:
-cpdef_dispatch      = "0"  # look up and call Python overrides
-cpdef_skip_dispatch = "1"  # skip the dispatch, e.g. for explicit calls like "BaseType.method(self)"
-cpdef_wrapper_call  = "2"  # skip the dispatch, called from the Python wrapper which already traced the call
 empty_tuple      = pyrex_prefix + "empty_tuple"
 empty_bytes      = pyrex_prefix + "empty_bytes"
 empty_unicode    = pyrex_prefix + "empty_unicode"

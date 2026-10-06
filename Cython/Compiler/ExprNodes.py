@@ -6735,10 +6735,10 @@ class SimpleCallNode(CallNode):
     def cpdef_dispatch_mode(self):
         # The value of the "skip_dispatch" argument when calling a cpdef function.
         if self.wrapper_call:
-            return Naming.cpdef_wrapper_call
+            return PyrexTypes.CpdefDispatch.WrapperCall
         if self.function_type().is_overridable and self.function.entry.is_unbound_cmethod:
-            return Naming.cpdef_skip_dispatch
-        return Naming.cpdef_dispatch
+            return PyrexTypes.CpdefDispatch.SkipDispatch
+        return PyrexTypes.CpdefDispatch.Dispatch
 
     def calculate_result_code(self):
         func_type = self.function_type()
@@ -6837,7 +6837,7 @@ class SimpleCallNode(CallNode):
 
 
 def build_c_call_code(func_type, function_cname, args, opt_arg_struct_cname=None,
-                      dispatch_mode=Naming.cpdef_dispatch):
+                      dispatch_mode=PyrexTypes.CpdefDispatch.Dispatch):
     formal_args = func_type.args
     arg_list_code = []
     mapped_args = list(zip(formal_args, args))
@@ -6850,7 +6850,7 @@ def build_c_call_code(func_type, function_cname, args, opt_arg_struct_cname=None
         arg_list_code.append(arg_code)
 
     if func_type.is_overridable:
-        arg_list_code.append(dispatch_mode)
+        arg_list_code.append(f"{dispatch_mode:d}")
 
     if func_type.optional_arg_count:
         if expected_nargs == actual_nargs:
@@ -6869,7 +6869,7 @@ def build_c_call_code(func_type, function_cname, args, opt_arg_struct_cname=None
 def generate_cfunction_call(
         pos, code, func_type, function_cname, args,
         result_cname=None, func_entry=None, has_optional_args=False,
-        dispatch_mode=Naming.cpdef_dispatch):
+        dispatch_mode=PyrexTypes.CpdefDispatch.Dispatch):
     nogil = not code.funcstate.gil_owned
     return_type = func_type.return_type
     return_temp = None  # Used if we need the result only for error checking.
