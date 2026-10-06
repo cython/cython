@@ -52,6 +52,10 @@ u"""
     200
     >>> short_stats['m_cpdef_base']
     200
+    >>> short_stats['m_cpdef_base_noexcept']
+    200
+    >>> short_stats['m_cpdef_base_optargs']
+    400
     >>> short_stats['m_cpdef_sub']
     200
 
@@ -221,11 +225,18 @@ cdef class A(object):
         return a
     cpdef m_cpdef_base(self, long a):
         return a
+    cpdef long m_cpdef_base_noexcept(self, long a) noexcept:
+        return a
+    cpdef m_cpdef_base_optargs(self, long a, long b=0):
+        return a + b
 
 cdef class B(A):
     cpdef m_cpdef_sub(self, long a):
-        # Explicit base class call that bypasses the Python wrapper and the method dispatch.
-        return A.m_cpdef_base(self, a)
+        # Explicit base class calls that bypass the Python wrapper and the method dispatch.
+        cdef long n = A.m_cpdef_base_noexcept(self, a)
+        n += A.m_cpdef_base_optargs(self, a)
+        n += A.m_cpdef_base_optargs(self, a, 1)
+        return n + A.m_cpdef_base(self, a)
 
 def test_generators():
     call_generator()
