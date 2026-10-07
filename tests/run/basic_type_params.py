@@ -117,6 +117,47 @@ def cpf[T]():
     """
     print("hello from cpf")
 
+def genexpr_allowed_in_args[T](x=tuple(i for i in range(3))):
+    """
+    >>> genexpr_allowed_in_args()
+    (0, 1, 2)
+    """
+    return x
+
+type GenexprAllowedInTypeVar = tuple(x for x in (int,))
+
+def genexpr_allowed_in_bound[T: tuple(x for x in (int,))](x: T):
+    """
+    >>> genexpr_allowed_in_bound(1)
+    1
+    """
+    return x
+
+def yield_allowed_in_lambda[T](x: (lambda: (yield)) = 1):
+    """
+    >>> yield_allowed_in_lambda()
+    1
+    """
+    return x
+
+def named_expression_allowed_in_default(x=(y := 1)):
+    """
+    >>> named_expression_allowed_in_default()
+    1
+    >>> y
+    1
+    """
+    return x
+
+def trailing_comma[T,](x: T) -> T:
+    return x
+
+class TrailingComma[T,]:
+    pass
+
+type TrailingTypeVarComma[T,] = list[T]
+
+type TrailingTypeVarNewline = int; z = 1
 
 _WARNINGS = """
 10:0: Type aliases are currently ignored by Cython. This will be replaced with 'MyTypeVar = None'.
@@ -134,6 +175,19 @@ _WARNINGS = """
 94:9: Type parameters are currently completely ignored by Cython.
 102:7: Type parameters are currently completely ignored by Cython. 'cfunc' functions are unlikely to use them meaningfully in future.
 113:8: Type parameters are currently completely ignored by Cython. 'ccall' functions are unlikely to use them meaningfully in future.
+120:28: Type parameters are currently completely ignored by Cython.
+127:0: Type aliases are currently ignored by Cython. This will be replaced with 'GenexprAllowedInTypeVar = None'.
+129:29: Type parameters are currently completely ignored by Cython.
+129:61: Unknown type declaration 'T' in annotation, ignoring
+136:28: Type parameters are currently completely ignored by Cython.
+136:35: Failed to convert lambda to string representation in annotation
+136:35: Unknown type declaration in annotation, ignoring
+152:19: Type parameters are currently completely ignored by Cython.
+152:26: Unknown type declaration 'T' in annotation, ignoring
+152:32: Unknown type declaration 'T' in annotation, ignoring
+155:20: Type parameters are currently completely ignored by Cython.
+158:0: Type aliases are currently ignored by Cython. This will be replaced with 'TrailingTypeVarComma = None'.
+160:0: Type aliases are currently ignored by Cython. This will be replaced with 'TrailingTypeVarNewline = None'.
 
 # Spurious
 112:0: 'cpf' redeclared

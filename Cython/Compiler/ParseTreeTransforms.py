@@ -393,8 +393,10 @@ class PostParse(ScopeTrackingTransform):
     def visit_FuncDefNode(self, node):
         old_validation_tracker = self.except_star_validation_tracker
         self.except_star_validation_tracker = node
+        old_in_type_param, self.in_type_param = self.in_type_param, ""
         node = super(PostParse, self).visit_FuncDefNode(node)
         self.except_star_validation_tracker = old_validation_tracker
+        self.in_type_param = old_in_type_param
         return node
 
     def visit_ExceptStarChainNode(self, node):
@@ -453,7 +455,7 @@ class PostParse(ScopeTrackingTransform):
             # Visit these individually just to find out if anything disallowed is used
             # (accepting that it gets visited twice).
             for a in node.args:
-                self.visit(a)
+                self.visitchildren(a, exclude=['default'])
             self.in_type_param = in_type_param
         return self.visit_FuncDefNode(node)
 
@@ -487,12 +489,14 @@ class PostParse(ScopeTrackingTransform):
 
     def visit_YieldExprNode(self, node):
         if self.in_type_param:
+            breakpoint()
             error(node.pos,
                   f"{node.expr_keyword} expression cannot be used within {self.in_type_param}")
         return self.visit_Node(node)
 
     def visit_AssignmentExpressionNode(self, node):
         if self.in_type_param:
+            breakpoint()
             error(node.pos,
                   f"named expression cannot be used within {self.in_type_param}")
         return self.visit_Node(node)

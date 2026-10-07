@@ -2434,6 +2434,10 @@ def p_simple_statement(s: PyrexScanner, first_statement: cython.bint = 0):
         node = p_assert_statement(s)
     elif s.sy == 'pass':
         node = p_pass_statement(s)
+    elif s.sy == 'IDENT' and s.systring == 'type':
+        type_alias = p_type_alias(s)
+        if type_alias is not None:
+            return type_alias
     else:
         node = p_expression_or_assignment(s)
     return node
@@ -2649,10 +2653,6 @@ def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = False):
                     match_statement = p_match_statement(s, ctx)
                     if match_statement is not None:
                         return match_statement
-                elif s.sy == 'IDENT' and s.systring == 'type':
-                    type_alias = p_type_alias(s)
-                    if type_alias is not None:
-                        return type_alias
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
@@ -4822,6 +4822,9 @@ def p_type_params(s: PyrexScanner):
         type_params.append(param)
         if s.sy == ',':
             s.next()
+            if s.sy == ']':
+                s.next()
+                break
         else:
             s.expect(']')
             break
@@ -4843,7 +4846,6 @@ def p_type_alias(s: PyrexScanner):
         type_params = p_type_params(s)
     s.expect('=')
     value = p_test(s)
-    s.expect_newline()
     return Nodes.TypeAliasNode(
         pos,
         name=name, type_params=type_params,
