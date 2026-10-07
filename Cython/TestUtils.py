@@ -461,6 +461,9 @@ def parse_python_code(code):
     post_parse.visit_ModuleNode(DummyModuleNode())  # just enough to get scope variables set up
     # all the errors we care about are in the parsing or postparse stage
     try:
+        post_parse = PostParse(context)
+        post_parse.scope_type = "module"
+        post_parse.scope_node = None
         with Errors.local_errors() as errors:
             result = TreeFragment(code, pipeline=[post_parse])
             result = result.substitute()

@@ -18,6 +18,7 @@ cdef class PostParse(ScopeTrackingTransform):
     cdef size_t genexpr_counter
     cdef except_star_validation_tracker
     cdef bint in_pattern_node
+    cdef str in_type_param  # empty for "not"
     cdef _visit_assignment_node(self, node, list expr_list)
 
 
