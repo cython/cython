@@ -2434,12 +2434,12 @@ def p_simple_statement(s: PyrexScanner, first_statement: cython.bint = 0):
         node = p_assert_statement(s)
     elif s.sy == 'pass':
         node = p_pass_statement(s)
-    elif s.sy == 'IDENT' and s.systring == 'type':
-        type_alias = p_type_alias(s)
-        if type_alias is not None:
-            return type_alias
     else:
-        node = p_expression_or_assignment(s)
+        node = None
+        if s.sy == 'IDENT' and s.systring == 'type':
+            node = p_type_alias(s)
+        if node is None:
+            node = p_expression_or_assignment(s)
     return node
 
 
