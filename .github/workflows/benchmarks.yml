@@ -38,7 +38,7 @@ jobs:
         persist-credentials: false
       # Only needed to compare the "base" on push; not needed for PR
       if: ${{ github.event_name == 'push' }}
-    - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706  # v4.0.2
+    - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d  # v4.0.3
       id: filter
       with:
         base: ${{ case(github.event_name == 'push', github.ref, '') }}
@@ -77,7 +77,7 @@ jobs:
           persist-credentials: false
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
+        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           create-symlink: true
           variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
