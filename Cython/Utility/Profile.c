@@ -253,6 +253,7 @@
               PyGILState_STATE state = PyGILState_Ensure();                                  \
               PyObject *pyvalue = convert_function(cresult);                                 \
               if (unlikely(!pyvalue)) {                                                      \
+                  if (!PyErr_ExceptionMatches(PyExc_Exception)) goto_error;                  \
                   PyErr_Clear();                                                             \
                   pyvalue = Py_None; Py_INCREF(Py_None);                                     \
               }                                                                              \
@@ -263,6 +264,7 @@
       } else {                                                                               \
           PyObject *pyvalue = convert_function(cresult);                                     \
           if (unlikely(!pyvalue)) {                                                          \
+              if (!PyErr_ExceptionMatches(PyExc_Exception)) goto_error;                      \
               PyErr_Clear();                                                                 \
               pyvalue = Py_None; Py_INCREF(Py_None);                                         \
           }                                                                                  \
@@ -486,6 +488,7 @@
               if (__Pyx_IsTracing(tstate, 0, 0)) {                                        \
                   PyObject *pyvalue = convert_function(cresult);                          \
                   if (unlikely(!pyvalue)) {                                               \
+                    if (!PyErr_ExceptionMatches(PyExc_Exception)) goto_error              \
                     PyErr_Clear();                                                        \
                     pyvalue = Py_None; Py_INCREF(Py_None);                                \
                   }                                                                       \
@@ -499,6 +502,7 @@
           if (__Pyx_IsTracing(tstate, 0, 0)) {                                            \
               PyObject *pyvalue = convert_function(cresult);                              \
               if (unlikely(!pyvalue)) {                                                   \
+                  if (!PyErr_ExceptionMatches(PyExc_Exception)) goto_error                \
                   PyErr_Clear();                                                          \
                   pyvalue = Py_None; Py_INCREF(Py_None);                                  \
               }                                                                           \
@@ -580,7 +584,7 @@
   #define __Pyx_TraceReturnValue(result, offset, nogil, goto_error) \
       if ((1)); else goto_error;
   #define __Pyx_TraceReturnCValue(cresult, convert_function, offset, nogil, goto_error) \
-      if ((1)); else { (void) convert_function; goto_error }
+      if ((1)); else { (void) &convert_function; goto_error }
 
 #endif /* CYTHON_PROFILE || CYTHON_TRACE */
 

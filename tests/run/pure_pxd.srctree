@@ -1,5 +1,6 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import a; a.test(a)"
+PYTHON -c "import c; c.test()"
 
 ######## setup.py ########
 
@@ -65,7 +66,7 @@ def run_sum_generator_expression(a):
     10
     """
     return sum_generator_expression(a)
-    
+
 @cython.cfunc
 def gh4388() -> cython.void:
     pass  # just a compile test
@@ -129,3 +130,19 @@ import cython
 
 def get_a_c_string(length: cython.pointer(cython.Py_ssize_t)) -> cython.void:
     pass
+
+
+############## c.pxd #######
+
+cdef unsigned int LIMIT
+
+############## c.py ########
+
+import cython
+from typing import Final
+
+# Unknown type Final[...] should be ignored and used from .pxd file instead
+LIMIT: Final[int] = 128
+
+def test():
+    assert cython.typeof(LIMIT) == 'unsigned int', cython.typeof(LIMIT)

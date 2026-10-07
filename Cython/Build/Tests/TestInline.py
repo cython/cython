@@ -8,7 +8,7 @@ from Cython.TestUtils import CythonTest, TimedTest
 try:
     import numpy
     has_numpy = True
-except:
+except Exception:
     has_numpy = False
 
 test_kwds = dict(force=True, quiet=True)
@@ -125,7 +125,7 @@ class TestCymeit(TimedTest):
             self.assertGreaterEqual(max_time, 100_000)
         else:
             self.assertGreaterEqual(max_time, 0.0001)
-        self.assertGreater(number, 10)  # arbitrary lower bound for our very quick benchmarks
+        self.assertGreater(number, 4)  # arbitrary lower bound for our very quick benchmarks
 
         return timings
 

@@ -14,7 +14,7 @@ from ..Compiler.Main import Context
 from ..Compiler.Options import (default_options, CompilationOptions,
     get_directive_defaults)
 
-from ..Compiler.Visitor import CythonTransform, EnvTransform
+from ..Compiler.Visitor import EnvTransform
 from ..Compiler.ParseTreeTransforms import SkipDeclarations
 from ..Compiler.TreeFragment import parse_from_strings
 from .Dependencies import strip_string_literals, cythonize, cached_function

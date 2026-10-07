@@ -137,6 +137,7 @@ you can replace them with other characters:
     'Show literal braces: {{x}}'
 
 .. note:: The ``delimiters`` can also be passed as an argument to the ``Template`` class,
+
 thus keeping them together with the template definition that uses them,
 rather than needing to remember them later in the substitution step.
 

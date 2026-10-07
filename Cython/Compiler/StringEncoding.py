@@ -2,56 +2,79 @@
 #   Cython -- encoding related tools
 #
 
+# cython: infer_types=True
 
 import re
-import sys
+import cython
 
-
+@cython.final
+@cython.cclass
 class UnicodeLiteralBuilder:
     """Assemble a unicode string.
     """
-    def __init__(self):
-        self.chars = []
+    _chars: list
 
+    def __init__(self):
+        self._chars = []
+
+    @property
+    def chars(self) -> list:
+        return self._chars
+
+    @cython.ccall
     def append(self, characters):
         assert isinstance(characters, str), f"Expected str, got {type(characters)}"
-        self.chars.append(characters)
+        self._chars.append(characters)
 
+    @cython.ccall
     def append_charval(self, char_number):
-        self.chars.append( chr(char_number) )
+        self._chars.append( chr(char_number) )
 
     def append_uescape(self, char_number, escape_string):
         self.append_charval(char_number)
 
+    @cython.ccall
     def getstring(self):
-        return EncodedString(''.join(self.chars))
+        return EncodedString(''.join(self._chars))
 
     def getstrings(self):
         return (None, self.getstring())
 
 
+@cython.final
+@cython.cclass
 class BytesLiteralBuilder:
     """Assemble a byte string or char value.
     """
-    def __init__(self, target_encoding):
-        self.chars = []
-        self.target_encoding = target_encoding
+    _chars: list
+    _target_encoding: str
 
+    def __init__(self, target_encoding):
+        self._chars = []
+        self._target_encoding = target_encoding
+
+    @property
+    def chars(self) -> list:
+        return self._chars
+
+    @cython.ccall
     def append(self, characters):
         if isinstance(characters, str):
-            characters = characters.encode(self.target_encoding)
+            characters = characters.encode(self._target_encoding)
         assert isinstance(characters, bytes), str(type(characters))
-        self.chars.append(characters)
+        self._chars.append(characters)
 
+    @cython.ccall
     def append_charval(self, char_number):
-        self.chars.append( chr(char_number).encode('ISO-8859-1') )
+        self._chars.append( chr(char_number).encode('ISO-8859-1') )
 
     def append_uescape(self, char_number, escape_string):
         self.append(escape_string)
 
+    @cython.ccall
     def getstring(self):
         # this *must* return a byte string!
-        return bytes_literal(b''.join(self.chars), self.target_encoding)
+        return bytes_literal(b''.join(self._chars), self._target_encoding)
 
     def getchar(self):
         # this *must* return a byte string!
@@ -61,17 +84,24 @@ class BytesLiteralBuilder:
         return (self.getstring(), None)
 
 
+@cython.final
+@cython.cclass
 class StrLiteralBuilder:
     """Assemble both a bytes and a unicode representation of a string.
     """
+    _bytes: BytesLiteralBuilder
+    _unicode: UnicodeLiteralBuilder
+
     def __init__(self, target_encoding):
         self._bytes   = BytesLiteralBuilder(target_encoding)
         self._unicode = UnicodeLiteralBuilder()
 
+    @cython.ccall
     def append(self, characters):
         self._bytes.append(characters)
         self._unicode.append(characters)
 
+    @cython.ccall
     def append_charval(self, char_number):
         self._bytes.append_charval(char_number)
         self._unicode.append_charval(char_number)
@@ -98,7 +128,7 @@ class EncodedString(str):
         return self.encode(self.encoding)
 
     def utf8encode(self):
-        assert self.encoding is None
+        assert self.encoding is None, self.encoding
         return self.encode("UTF-8")
 
     @property
@@ -143,7 +173,7 @@ class BytesLiteral(bytes):
         return bytes(self)
 
     def utf8encode(self):
-        assert False, "this is not a unicode string: %r" % self
+        assert False, f"this is not a unicode string: {self!r}"
 
     def __str__(self):
         """Fake-decode the byte string to unicode to support %
@@ -155,9 +185,10 @@ class BytesLiteral(bytes):
 
     def as_c_string_literal(self):
         value = split_string_literal(escape_byte_string(self))
-        return '"%s"' % value
+        return f'"{value}"'
 
 
+@cython.ccall
 def bytes_literal(s, encoding):
     assert isinstance(s, bytes)
     s = BytesLiteral(s)
@@ -165,6 +196,7 @@ def bytes_literal(s, encoding):
     return s
 
 
+@cython.ccall
 def encoded_string(s, encoding):
     assert isinstance(s, (str, bytes))
     s = EncodedString(s)
@@ -189,10 +221,9 @@ char_from_escape_sequence = {
     r'\v' : '\v',
     }.get
 
-_c_special = ('\\', '??', '"') + tuple(map(chr, range(32)))
 
-
-def _to_escape_sequence(s):
+@cython.cfunc
+def _to_escape_sequence(s: str) -> str:
     if s in '\n\r\t':
         return repr(s)[1:-1]
     elif s == '"':
@@ -204,13 +235,19 @@ def _to_escape_sequence(s):
         return ''.join([f'\\{ord(c):03o}' for c in s])
 
 
+@cython.cfunc
 def _build_specials_replacer():
     subexps = []
     replacements = {}
+
+    _c_special: tuple = ('\\', '??', '"', "'") + tuple(map(chr, range(32)))
+
+    special: str
     for special in _c_special:
         regexp = ''.join(['[%s]' % c.replace('\\', '\\\\') for c in special])
         subexps.append(regexp)
         replacements[special.encode('ASCII')] = _to_escape_sequence(special).encode('ASCII')
+
     sub = re.compile(('(%s)' % '|'.join(subexps)).encode('ASCII')).sub
     def replace_specials(m):
         return replacements[m.group(1)]
@@ -218,11 +255,11 @@ def _build_specials_replacer():
         return sub(replace_specials, s)
     return replace
 
-_replace_specials = _build_specials_replacer()
+_replace_specials = cython.declare(object, _build_specials_replacer())
 
 
-def escape_char(c):
-    c = c.decode('ISO-8859-1')
+def escape_char(char):
+    c: cython.Py_UCS4 = char.decode('ISO-8859-1')
     if c in '\n\r\t\\':
         return repr(c)[1:-1]
     elif c == "'":
@@ -230,23 +267,26 @@ def escape_char(c):
     n = ord(c)
     if n < 32 or n >= 127:
         # hex works well for characters
-        return "\\x%02X" % n
+        return f"\\x{n:02X}"
     else:
         # strictly £, @ and ` (which fall in this list) are only allowed
         # in C23. But practically they're well-supported earlier.
         return c
 
-def escape_byte_string(s):
+
+@cython.ccall
+def escape_byte_string(bytestring) -> str:
     """Escape a byte string so that it can be written into C code.
     Note that this returns a Unicode string instead which, when
     encoded as ASCII, will result in the correct byte sequence
     being written.
     """
-    s = _replace_specials(s)
+    s: bytes = _replace_specials(bytestring)
     try:
         return s.decode("ASCII")  #  trial decoding: plain ASCII => done
     except UnicodeDecodeError:
         pass
+
     s_new = bytearray()
     append, extend = s_new.append, s_new.extend
     for b in s:
@@ -256,7 +296,9 @@ def escape_byte_string(s):
             append(b)
     return s_new.decode('ASCII')
 
-def split_string_literal(s, limit=2000):
+
+@cython.ccall
+def split_string_literal(s: str, limit: cython.int = 2000) -> str:
     # MSVC can't handle long string literals.
     if len(s) < limit:
         return s
@@ -278,21 +320,35 @@ def split_string_literal(s, limit=2000):
         return '""'.join(chunks)
 
 
-def encode_pyunicode_string(characters):
+def encode_pyunicode_string(string):
     """Create Py_UNICODE[] representation of a given unicode string.
     """
-    characters = list(map(ord, characters))
-    characters.append(0)
+    utf16 = None  # Start lazy, we won't need it for BMP strings.
+    utf32 = []
 
-    utf16, utf32 = [], characters
+    characters = cython.cast(str, string)  # was EncodedString or str
+    code_point: cython.Py_UCS4
+
     for code_point in characters:
+        charval = ord(code_point)
+        ch = f"{charval:d}"
         if code_point >= 0x10000:  # outside of BMP
-            high, low = divmod(code_point - 0x10000, 1024)
-            utf16.append(high + 0xD800)
-            utf16.append(low + 0xDC00)
-        else:
-            utf16.append(code_point)
+            if utf16 is None:
+                utf16 = utf32[:]
+            high, low = divmod(charval - 0x10000, 1024)
+            utf16.append(f"{high + 0xD800:d}")
+            utf16.append(f"{low + 0xDC00:d}")
+        elif utf16 is not None:
+            utf16.append(ch)
+        utf32.append(ch)
 
-    if utf16 == utf32:
-        utf16 = []
-    return ",".join(map(str, utf16)), ",".join(map(str, utf32))
+    if utf16 is not None:
+        utf16.append('0')
+        utf16_string = ','.join(utf16)
+    else:
+        utf16_string = None
+
+    utf32.append('0')
+    utf32_string = ','.join(utf32)
+
+    return (utf16_string, utf32_string)

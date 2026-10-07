@@ -9,15 +9,12 @@ import unittest
 import cython
 from Cython.Compiler.Main import CompileError
 from Cython.Build.Inline import cython_inline
-from Cython.TestUtils import TimedTest
+from Cython.TestUtils import TimedTest, parse_python_code
 import re
 import sys
 
 if cython.compiled:
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from io import StringIO
 
     class StdErrHider:
         def __enter__(self):
@@ -71,6 +68,26 @@ if cython.compiled:
 
 
 class NamedExpressionInvalidTest(TimedTest):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+        # For syntax errors, call directly into the parser instead of generating a module.
+
+        def check_syntax(code, gl=None, loc=None):
+            assert not gl, gl
+            assert not loc, loc
+            parse_python_code(code)
+
+        cls._orig_exec = exec
+        globals()['exec'] = check_syntax
+
+    @classmethod
+    def tearDownClass(cls):
+        globals()['exec'] = cls._orig_exec
+        super().tearDownClass()
+
 
     def test_named_expression_invalid_01(self):
         code = """x := 0"""

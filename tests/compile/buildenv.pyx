@@ -5,8 +5,9 @@ Non-test that prints debug information about the current build environment.
 from __future__ import print_function
 
 import os
+import platform
 import sys
-from distutils import sysconfig
+import sysconfig
 
 
 cdef extern from *:
@@ -28,9 +29,23 @@ cdef extern from *:
     #ifndef SIZEOF_OFF_T
     #define SIZEOF_OFF_T 0
     #endif
+
+    #ifdef Py_LIMITED_API
+    #define BUILDENV_SHOW_Py_LIMITED_API  Py_LIMITED_API
+    #else
+    #define BUILDENV_SHOW_Py_LIMITED_API  0
+    #endif
+
+    #ifdef Py_TARGET_ABI3T
+    #define BUILDENV_SHOW_Py_TARGET_ABI3T  Py_TARGET_ABI3T
+    #else
+    #define BUILDENV_SHOW_Py_TARGET_ABI3T  0
+    #endif
     """
     # Python runtime
     cdef long PY_VERSION_HEX
+    cdef long BUILDENV_SHOW_Py_LIMITED_API
+    cdef long BUILDENV_SHOW_Py_TARGET_ABI3T
 
     # Cython config
     cdef int CYTHON_COMPILING_IN_CPYTHON
@@ -48,7 +63,7 @@ cdef extern from *:
     cdef int CYTHON_USE_TYPE_SLOTS
     cdef int CYTHON_UNPACK_METHODS
     cdef int CYTHON_FAST_THREAD_STATE
-    cdef int CYTHON_FAST_PYCALL
+    cdef int CYTHON_VECTORCALL
     cdef int CYTHON_PEP487_INIT_SUBCLASS
     cdef int CYTHON_PEP489_MULTI_PHASE_INIT
     cdef int CYTHON_USE_MODULE_STATE
@@ -81,7 +96,14 @@ get_env = os.environ.get
 
 print(f"""Python build environment:
 Python  {sys.version_info}
-PY_VERSION_HEX  0x{PY_VERSION_HEX:X}
+PY_VERSION_HEX  {PY_VERSION_HEX:#010x}
+Py_LIMITED_API  {'' if BUILDENV_SHOW_Py_LIMITED_API else '('}{BUILDENV_SHOW_Py_LIMITED_API:#010x}{'' if BUILDENV_SHOW_Py_LIMITED_API else ')'}
+Py_TARGET_ABI3T  {'' if BUILDENV_SHOW_Py_TARGET_ABI3T else '('}{BUILDENV_SHOW_Py_LIMITED_API:#010x}{'' if BUILDENV_SHOW_Py_TARGET_ABI3T else ')'}
+Py_GIL_DISABLED  {config_var('Py_GIL_DISABLED', '(0)')}
+sys.platform  {sys.platform}
+sys.implementation  {sys.implementation}
+platform.machine()  {platform.machine()}
+platform.platform()  {platform.platform()}
 
 CYTHON_COMPILING_IN_CPYTHON  {CYTHON_COMPILING_IN_CPYTHON}
 CYTHON_COMPILING_IN_LIMITED_API  {CYTHON_COMPILING_IN_LIMITED_API}
@@ -100,24 +122,24 @@ CYTHON_ASSUME_SAFE_MACROS  {CYTHON_ASSUME_SAFE_MACROS}
 CYTHON_USE_TYPE_SLOTS  {CYTHON_USE_TYPE_SLOTS}
 CYTHON_UNPACK_METHODS  {CYTHON_UNPACK_METHODS}
 CYTHON_FAST_THREAD_STATE  {CYTHON_FAST_THREAD_STATE}
-CYTHON_FAST_PYCALL  {CYTHON_FAST_PYCALL}
+CYTHON_VECTORCALL {CYTHON_VECTORCALL}
 CYTHON_PEP487_INIT_SUBCLASS  {CYTHON_PEP487_INIT_SUBCLASS}
 CYTHON_PEP489_MULTI_PHASE_INIT  {CYTHON_PEP489_MULTI_PHASE_INIT}
 CYTHON_USE_MODULE_STATE  {CYTHON_USE_MODULE_STATE}
 CYTHON_USE_SYS_MONITORING  {CYTHON_USE_SYS_MONITORING}
 CYTHON_USE_TP_FINALIZE  {CYTHON_USE_TP_FINALIZE}
 
-PyLong_BASE  0x{PyLong_BASE:X}
-PyLong_MASK  0x{PyLong_MASK:X}
+PyLong_BASE  {PyLong_BASE:#x}
+PyLong_MASK  {PyLong_MASK:#x}
 PyLong_SHIFT  {PyLong_SHIFT}
 sizeof(digit)   {sizeof(digit)}
 sizeof(sdigit)  {sizeof(sdigit)}
-sys.int_info  {getattr(sys, 'int_info', '-')}
+sys.int_info  {sys.int_info}
 sys.getsizeof(1, 2**14, 2**15, 2**29, 2**30, 2**59, 2**60, 2**64)  {tuple(sys.getsizeof(n, 0) for n in (1, 2**14, 2**15, 2**29, 2**30, 2**59, 2**60, 2**64))}
 
 SIZEOF_INT  {SIZEOF_INT}  ({sizeof(int)})
 SIZEOF_LONG  {SIZEOF_LONG}  ({sizeof(long)})
-SIZEOF_SIZE_T  {SIZEOF_SIZE_T}  ({sizeof(Py_ssize_t)}, {getattr(sys, 'maxsize', getattr(sys, 'maxint', None))})
+SIZEOF_SIZE_T  {SIZEOF_SIZE_T}  ({sizeof(Py_ssize_t)}, sys.maxsize={sys.maxsize})
 SIZEOF_LONG_LONG  {SIZEOF_LONG_LONG}  ({sizeof(long long)})
 SIZEOF_VOID_P  {SIZEOF_VOID_P}  ({sizeof(void*)})
 SIZEOF_UINTPTR_T  {SIZEOF_UINTPTR_T}  ({sizeof(unsigned int *)})
@@ -127,14 +149,14 @@ sizeof(PY_LONG_LONG)  {sizeof(PY_LONG_LONG)}  ({sizeof(long long)})
 Paths:
 sys.executable = {sys.executable}
 sys.exec_prefix = {sys.exec_prefix}
-sys.base_exec_prefix = {getattr(sys, 'base_exec_prefix', "")}
+sys.base_exec_prefix = {sys.base_exec_prefix}
 sys.prefix = {sys.prefix}
 sys.path = {sys.path}
 PYTHONPATH (env) = {get_env('PYTHONPATH', '')}
 PYTHONHOME (env) = {get_env('PYTHONHOME', '')}
 
 Distutils:
-INCDIR = {sysconfig.get_python_inc()}
+INCDIR = {sysconfig.get_path('include')}
 LIBS = {config_var('LIBS')}
 LIBDIR = {config_var('LIBDIR')}
 LIBPL = {config_var('LIBPL')}

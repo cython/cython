@@ -106,7 +106,7 @@ class Spline(object):
             return self.points[0]
         if u == dom[1]:
             return self.points[-1]
-        I: cython.long = self.GetIndex(u)
+        I = self.GetIndex(u)
         d = [self.points[I - self.degree + 1 + ii]
              for ii in range(self.degree + 1)]
         U = self.knots

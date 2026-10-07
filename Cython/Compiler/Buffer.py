@@ -674,7 +674,6 @@ raise_indexerror_nogil = load_buffer_utility("BufferIndexErrorNogil")
 raise_buffer_fallback_code = load_buffer_utility("BufferFallbackError")
 
 acquire_utility_code = load_buffer_utility("BufferGetAndValidate", context=context)
-buffer_format_check_code = load_buffer_utility("BufferFormatCheck", context=context)
 
 # See utility code BufferFormatFromTypeInfo
 _typeinfo_to_format_code = load_buffer_utility("TypeInfoToFormat")

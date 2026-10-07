@@ -1,0 +1,115 @@
+# mode: run
+# tag: limited-api
+
+# In the Limited API it's good if code object creation is an allowed failure
+# (because it's using unstable Python API that may change in future versions).
+# This test deliberately breaks code object creation and checks that
+# Cython functions still (basically) work, accepting that some introspection
+# features may be lost. 
+
+UNSET CFLAGS
+PYTHON setup.py build_ext --inplace
+PYTHON test.py
+
+##################### setup.py ################################
+
+import sysconfig
+from setuptools import setup, Extension
+from Cython.Build import cythonize
+import sys
+
+if sysconfig.get_config_var("Py_GIL_DISABLED") or sys.implementation.name != "cpython":
+    print("Skipping on incompatible build")
+    exit(0)
+
+version_hex = f"0x03{sys.version_info[1]:02x}0000"
+setup(
+    ext_modules=cythonize(
+        [
+            Extension(
+                "module",
+                sources=["module.pyx"],
+                define_macros=[('Py_LIMITED_API', version_hex)],
+                py_limited_api=True)
+        ]))
+
+######################### module.pyx ##############################
+
+def func(x, y):
+    return x+y
+
+def gen(x):
+    yield x
+
+cdef class CClass:
+    cdef public object x
+    def __init__(self, x):
+        self.x = x
+    
+    def meth(self, y):
+        return self.x + y
+    
+    @classmethod
+    def cm(cls, x):
+        return cls(x)
+    
+    @staticmethod
+    def sm(x, y):
+        return x + y
+    
+class PyClass:
+    def __init__(self, x):
+        self.x = x
+    
+    def meth(self, y):
+        return self.x + y
+    
+    @classmethod
+    def cm(cls, x):
+        return cls(x)
+    
+    @staticmethod
+    def sm(x, y):
+        return x + y
+
+##################### test.py ###################
+
+import sys
+import sysconfig
+if sysconfig.get_config_var("Py_GIL_DISABLED") or sys.implementation.name != "cpython":
+    print("Skipping on incompatible build")
+    exit(0)
+
+import warnings
+
+# Currently the Limited API creates code objects by finding the type in the
+# "types" module and calling it. Replacing it with a callable taking the
+# wrong number of arguments will cause it to fail.
+import types
+types.CodeType = lambda a1, a2, a3: "something"
+
+with warnings.catch_warnings(record=True) as import_warnings:
+    import module
+
+assert len(import_warnings) == 1
+assert import_warnings[0].category is RuntimeWarning
+assert import_warnings[0].message.args[0].startswith("Code object creation failed in Cython module") 
+
+assert module.func.__code__ is None
+assert module.func(1, 2) == 3
+assert module.gen.__code__ is None
+assert list(module.gen("str")) == ["str"]
+cclass = module.CClass(5)
+assert cclass.meth.__code__ is None
+assert cclass.meth(6) == 11
+assert cclass.cm.__code__ is None
+assert cclass.cm(4).x == 4
+assert cclass.sm.__code__ is None
+assert cclass.sm(7, 3) == 10
+pyclass = module.PyClass(5)
+assert pyclass.meth.__code__ is None
+assert pyclass.meth(6) == 11
+assert pyclass.cm.__code__ is None
+assert pyclass.cm(4).x == 4
+assert pyclass.sm.__code__ is None
+assert pyclass.sm(7, 3) == 10

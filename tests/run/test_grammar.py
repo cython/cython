@@ -2,19 +2,18 @@
 # cython: language_level=3
 
 import cython
+
 import contextlib
 from tempfile import NamedTemporaryFile
+
 from Cython.Compiler.Main import compile as cython_compile, CompileError
 from Cython.Build.Inline import cython_inline
-from Cython.TestUtils import TimedTest
+from Cython.TestUtils import TimedTest, compiled_eval
 
 
 @contextlib.contextmanager
 def hidden_stderr():
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from io import StringIO
 
     old_stderr = sys.stderr
     try:
@@ -57,6 +56,14 @@ if cython.compiled:
             raise SyntaxError('unexpected EOF')  # see usage of compile() below
 
     def eval(code):
+        try:
+            with hidden_stderr():
+                # Fast track for simple constants.
+                return compiled_eval(code)
+        except CompileError as exc:
+            raise SyntaxError(str(exc))
+
+    def rt_eval(code):
         try:
             with hidden_stderr():
                 return cython_inline(code)
@@ -725,7 +732,7 @@ class GrammarTests(TimedTest):
         self.assertEqual(f(1, x=2, *[3, 4], y=5), ((1, 3, 4),
                                                     {'x':2, 'y':5}))
         self.assertEqual(f(1, *(2,3), 4), ((1, 2, 3, 4), {}))
-        self.assertRaises(SyntaxError, eval, "f(1, x=2, *(3,4), x=5)")
+        self.assertRaises(SyntaxError, rt_eval, "f(1, x=2, *(3,4), x=5)")
         self.assertEqual(f(**{'eggs':'scrambled', 'spam':'fried'}),
                          ((), {'eggs':'scrambled', 'spam':'fried'}))
         self.assertEqual(f(spam='fried', **{'eggs':'scrambled'}),
@@ -1814,8 +1821,6 @@ class GrammarTests(TimedTest):
 
     def test_comprehension_specials(self):
         # test for outmost iterable precomputation
-        # FIXME: https://github.com/cython/cython/issues/1159
-        """
         x = 10; g = (i for i in range(x)); x = 5
         self.assertEqual(len(list(g)), 10)
 
@@ -1823,7 +1828,6 @@ class GrammarTests(TimedTest):
         x = 10; t = False; g = ((i,j) for i in range(x) if t for j in range(x))
         x = 5; t = True;
         self.assertEqual([(i,j) for i in range(10) for j in range(5)], list(g))
-        """
 
         # Grammar allows multiple adjacent 'if's in listcomps and genexps,
         # even though it's silly. Make sure it works (ifelse broke this.)

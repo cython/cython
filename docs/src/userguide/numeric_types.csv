@@ -1,0 +1,23 @@
+Cython type,Pure Python type
+``bint``,``cython.bint``
+``char``,``cython.char``
+``signed char``,``cython.schar``
+``unsigned char``,``cython.uchar``
+``short``,``cython.short``
+``unsigned short``,``cython.ushort``
+``int``,``cython.int``
+``unsigned int``,``cython.uint``
+``long``,``cython.long``
+``unsigned long``,``cython.ulong``
+``long long``,``cython.longlong``
+``unsigned long long``,``cython.ulonglong``
+``float``,``cython.float``
+``double``,``cython.double``
+``long double``,``cython.longdouble``
+``float complex``,``cython.floatcomplex``
+``double complex``,``cython.doublecomplex``
+``long double complex``,``cython.longdoublecomplex``
+``size_t``,``cython.size_t``
+``Py_ssize_t``,``cython.Py_ssize_t``
+``Py_hash_t``,``cython.Py_hash_t``
+``Py_UCS4``,``cython.Py_UCS4``

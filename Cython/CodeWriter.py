@@ -673,7 +673,7 @@ class ExpressionWriter(TreeVisitor):
     def visit_CondExprNode(self, node):
         self.visit(node.true_val)
         self.put(" if ")
-        self.visit(node.test)
+        self.visit(node.condition)
         self.put(" else ")
         self.visit(node.false_val)
 
@@ -748,9 +748,19 @@ class ExpressionWriter(TreeVisitor):
         self.visit(node.expr)
 
     def visit_DictComprehensionAppendNode(self, node):
-        self.visit(node.key_expr)
-        self.put(": ")
-        self.visit(node.value_expr)
+        item = node.dict_item
+        if isinstance(item, DictItemNode):
+            self.visit(item.key)
+            self.put(": ")
+            self.visit(item.value)
+        else:
+            is_simple = item.is_name or item.is_attribute
+            self.put("**")
+            if not is_simple:
+                self.put("(")
+            self.visit(item)
+            if not is_simple:
+                self.put(")")
 
     def visit_ComprehensionNode(self, node):
         tpmap = {'list': "[]", 'dict': "{}", 'set': "{}"}
