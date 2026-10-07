@@ -4094,6 +4094,8 @@ def p_ignorable_statement(s: PyrexScanner):
     """
     Parses any kind of ignorable statement that is allowed in .pxd files.
     """
+    if s.sy == 'pass':
+        return p_pass_statement(s, with_newline=True)
     if s.sy == 'BEGIN_STRING':
         pos = s.position()
         string_node = p_atom(s)
