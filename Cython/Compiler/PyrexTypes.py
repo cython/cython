@@ -5092,10 +5092,13 @@ class CppScopedEnumType(CType, EnumMixin):
 
 
 class TemplatePlaceholderType(CType):
+    # implicit: True/False/None  whether to explicitly generate the parameter in
+    #           <> on a function call.
 
-    def __init__(self, name, optional=False):
+    def __init__(self, name, optional=False, implicit=None):
         self.name = name
         self.optional = optional
+        self.implicit = implicit
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -6021,9 +6024,16 @@ def best_match(arg_types, functions, fail_if_empty=False, arg_is_lvalue_array=No
             else:
                 type_list = [deductions[param] for param in func_type.templates]
                 from .Symtab import Entry
+                explicit_parameters = [
+                    t.empty_declaration_code() for t, placeholder in zip(type_list, func_type.templates)
+                    if not placeholder.implicit
+                ]
+                parameter_string = ""
+                if explicit_parameters:
+                    parameter_string = f"<{','.join(explicit_parameters)}>"
                 specialization = Entry(
                     name = func.name + "[%s]" % ",".join([str(t) for t in type_list]),
-                    cname = func.cname + "<%s>" % ",".join([t.empty_declaration_code() for t in type_list]),
+                    cname = func.cname + parameter_string,
                     type = func_type.specialize(deductions),
                     pos = func.pos)
                 specialization.scope = func.scope
