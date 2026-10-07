@@ -44,9 +44,9 @@ def test_unique_ptr():
     dealloc_count = 0
     cdef unique_ptr[CountAllocDealloc,FreePtr[CountAllocDealloc]] x_ptr3
     x_ptr3.reset(new CountAllocDealloc(&alloc_count, &dealloc_count))
-    assert x_ptr3.get() != nullptr;
+    assert x_ptr3.get() != nullptr
     x_ptr3.reset()
-    assert x_ptr3.get() == nullptr;
+    assert x_ptr3.get() == nullptr
 
     # Test that make_unique works
     cdef unique_ptr[int] x_ptr4
