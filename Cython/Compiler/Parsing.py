@@ -2612,8 +2612,6 @@ def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = False):
             return p_include_statement(s, ctx)
         elif ctx.level == 'c_class' and s.sy == 'IDENT' and s.systring == 'property':
             return p_property_decl(s)
-        elif s.sy == 'pass' and ctx.level != 'property':
-            return p_pass_statement(s, with_newline=True)
         else:
             if ctx.level in ('c_class_pxd', 'property'):
                 node = p_ignorable_statement(s)
@@ -2659,10 +2657,10 @@ def p_statement_list(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
     stats = []
     while s.sy not in ('DEDENT', 'EOF'):
         stat = p_statement(s, ctx, first_statement = first_statement)
+        first_statement = False
         if isinstance(stat, Nodes.PassStatNode):
             continue
         stats.append(stat)
-        first_statement = False
     if not stats:
         return Nodes.PassStatNode(pos)
     elif len(stats) == 1:
