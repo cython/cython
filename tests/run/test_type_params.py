@@ -15,12 +15,12 @@ import unittest
 import pickle
 import weakref
 #from test.support import check_syntax_error, run_code, run_no_yield_async_fn
-from Cython.TestUtils import py_parse_code
+from Cython.TestUtils import parse_python_code
 run_code = run_no_yield_async_fn = None
 
 def check_syntax_error(testcase, code, errtext=''):
     with testcase.assertRaises(SyntaxError):
-        py_parse_code(code)
+        parse_python_code(code)
 
 from typing import Generic, Sequence, TypeVar, get_args
 try:

@@ -489,14 +489,12 @@ class PostParse(ScopeTrackingTransform):
 
     def visit_YieldExprNode(self, node):
         if self.in_type_param:
-            breakpoint()
             error(node.pos,
                   f"{node.expr_keyword} expression cannot be used within {self.in_type_param}")
         return self.visit_Node(node)
 
     def visit_AssignmentExpressionNode(self, node):
         if self.in_type_param:
-            breakpoint()
             error(node.pos,
                   f"named expression cannot be used within {self.in_type_param}")
         return self.visit_Node(node)

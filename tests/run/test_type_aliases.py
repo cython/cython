@@ -9,11 +9,11 @@ import unittest
 #from test.support import check_syntax_error, run_code
 #from test.typinganndata import mod_generics_cache
 run_code = mod_generics_cache = None
-from Cython.TestUtils import py_parse_code
+from Cython.TestUtils import parse_python_code
 
 def check_syntax_error(testcase, code, errtext=''):
     with testcase.assertRaises(SyntaxError):
-        py_parse_code(code)
+        parse_python_code(code)
 
 from typing import (
     Callable, TypeVar, get_args,
