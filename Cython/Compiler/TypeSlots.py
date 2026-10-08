@@ -11,8 +11,11 @@ from .Errors import error, warn_once
 import copy
 import enum
 
-invisible = ['__cinit__', '__dealloc__', '__richcmp__',
-             '__nonzero__', '__bool__']
+invisible = [
+    '__cinit__', '__dealloc__', '__richcmp__',
+    '__nonzero__', '__bool__',
+    '__getbuffer__', '__releasebuffer__',
+]
 
 richcmp_special_methods = ['__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__']
 

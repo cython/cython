@@ -3608,7 +3608,6 @@ class DefNode(FuncDefNode):
 
         if Options.docstrings:
             entry.doc = embed_position(self.pos, self.doc)
-            entry.doc_cname = punycodify_name(Naming.funcdoc_prefix + prefix + name)
             if entry.is_special:
                 if entry.name in TypeSlots.invisible or not entry.doc or (
                         entry.name in '__getattr__' and env.directives['fast_getattr']):
@@ -3811,7 +3810,6 @@ class DefNodeWrapper(FuncDefNode):
         cname = self.cname
         prefix = env.next_id(env.scope_prefix)
         target_entry.func_cname = punycodify_name(Naming.pywrap_prefix + prefix + cname)
-        target_entry.pymethdef_cname = punycodify_name(Naming.pymethdef_prefix + prefix + cname)
 
         self.signature = target_entry.signature
 
@@ -4030,28 +4028,12 @@ class DefNodeWrapper(FuncDefNode):
         if (Options.docstrings and entry.doc and
                 not self.target.fused_py_func and
                 not entry.scope.is_property_scope and
-                (not entry.is_special or entry.wrapperbase_cname)):
-            # h_code = code.globalstate['h_code']
-            docstr = entry.doc
+                entry.is_special and entry.wrapperbase_cname):
+            code.putln('#if CYTHON_UPDATE_DESCRIPTOR_DOC')
+            code.putln(
+                "struct wrapperbase %s;" % entry.wrapperbase_cname)
+            code.putln('#endif')
 
-            if docstr.is_unicode:
-                docstr = docstr.as_utf8_string()
-
-            if not (entry.is_special and entry.name in ('__getbuffer__', '__releasebuffer__')):
-                code.putln('PyDoc_STRVAR(%s, %s);' % (
-                    entry.doc_cname,
-                    docstr.as_c_string_literal()))
-
-            if entry.is_special:
-                code.putln('#if CYTHON_UPDATE_DESCRIPTOR_DOC')
-                code.putln(
-                    "struct wrapperbase %s;" % entry.wrapperbase_cname)
-                code.putln('#endif')
-
-        if with_pymethdef or self.target.fused_py_func:
-            code.put(
-                "static PyMethodDef %s = " % entry.pymethdef_cname)
-            code.put_pymethoddef(self.target.entry, ";", allow_skip=False)
         code.putln("%s {" % header)
 
     def generate_argument_declarations(self, env, code):
@@ -5969,11 +5951,9 @@ class CClassDefNode(ClassDefNode):
 
             # Fix special method docstrings. This is a bit of a hack, but
             # unless we let PyType_Ready create the slot wrappers we have
-            # a significant performance hit. (See trac #561.)
+            # a significant performance hit. See https://github.com/cython/cython/issues/1121
             for func in entry.type.scope.pyfunc_entries:
-                is_buffer = func.name in ('__getbuffer__', '__releasebuffer__')
-                if (func.is_special and Options.docstrings and
-                        func.wrapperbase_cname and not is_buffer):
+                if func.is_special and Options.docstrings and func.wrapperbase_cname:
                     slot = TypeSlots.get_slot_table(
                         entry.type.scope.directives).get_slot_by_method_name(func.name)
                     preprocessor_guard = slot.preprocessor_guard_code() if slot else None
@@ -5991,8 +5971,10 @@ class CClassDefNode(ClassDefNode):
                     code.putln(
                         "%s = *((PyWrapperDescrObject *)wrapper)->d_base;" % (
                             func.wrapperbase_cname))
+                    doc_cname = code.get_py_string_const(func.doc)
                     code.putln(
-                        "%s.doc = %s;" % (func.wrapperbase_cname, func.doc_cname))
+                        f"{func.wrapperbase_cname}.doc = __Pyx_PyUnicode_AsUTF8({doc_cname});")
+                    code.putln(code.error_goto_if_null(f"{func.wrapperbase_cname}.doc", func.pos))
                     code.putln(
                         "((PyWrapperDescrObject *)wrapper)->d_base = &%s;" % (
                             func.wrapperbase_cname))
