@@ -3468,7 +3468,10 @@ class CCodeWriter:
             self.putln('__Pyx_TraceFrameInit(%s)' % codeobj)
 
     def put_trace_start(self, name, pos, nogil=False, is_generator=False, is_cpdef_func=False):
+        from .PyrexTypes import CpdefDispatch
         trace_func = "__Pyx_TraceStartGen" if is_generator else "__Pyx_TraceStartFunc"
+        # Calls from the Python wrapper of a cpdef function were already traced by the wrapper.
+        skip_event = f"({Naming.skip_dispatch_cname} == {CpdefDispatch.WrapperCall:d})" if is_cpdef_func else "0"
         self.putln(
             f'{trace_func}('
             f'{name.as_c_string_literal()}, '
@@ -3476,7 +3479,7 @@ class CCodeWriter:
             f'{pos[1]}, '
             f'{self.pos_to_offset(pos):d}, '
             f'{nogil:d}, '
-            f'{Naming.skip_dispatch_cname if is_cpdef_func else "0"}, '
+            f'{skip_event}, '
             f'{self.error_goto(pos)}'
             ');'
         )

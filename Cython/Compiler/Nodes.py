@@ -3148,7 +3148,7 @@ class CFuncDefNode(FuncDefNode):
             if entry.type.is_overridable:
                 arglist.append(Naming.skip_dispatch_cname)
             elif func_type.is_overridable:
-                arglist.append('0')
+                arglist.append(f"{PyrexTypes.CpdefDispatch.Dispatch:d}")
             if entry.type.optional_arg_count:
                 arglist.append(Naming.optional_args_cname)
             elif func_type.optional_arg_count:
@@ -5104,7 +5104,7 @@ class OverrideCheckNode(StatNode):
             self_arg = "((PyObject *)%s)" % Naming.module_cname
         else:
             self_arg = "((PyObject *)%s)" % self.args[0].cname
-        code.putln("/* Check if called by wrapper */")
+        code.putln("/* Check if called by wrapper or as explicit base type method */")
         code.putln("if (unlikely(%s)) ;" % Naming.skip_dispatch_cname)
         code.putln("/* Check if overridden in Python */")
         if self.py_func.is_module_scope or self.py_func.entry.scope.lookup_here("__dict__"):
