@@ -129,8 +129,8 @@ class SharedUtilityExporter:
     stages of compilation.
     """
     def __init__(self, pos, mod_init_subfunction, scope):
-        self.in_shared_utility_module = bool(scope.context.shared_c_file_path)
-        self.using_shared_utility_module = bool(scope.context.shared_utility_qualified_name)
+        self.in_shared_utility_module = scope.context.in_shared_utility_module
+        self.using_shared_utility_module = scope.context.using_shared_utility_module
         self.pos = pos
         self.scope = scope
         self.import_code = mod_init_subfunction("Shared function import code")
@@ -501,9 +501,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("")
             for entry in api_funcs:
                 type = CPtrType(entry.type)
-                cname = env.mangle(Naming.func_prefix_api, entry.name)
+                api_name = entry.legacy_capi_name if entry.is_fused_specialized else entry.name
+                cname = env.mangle(Naming.func_prefix_api, api_name)
                 h_code.putln("static %s = 0;" % type.declaration_code(cname))
-                h_code.putln("#define %s %s" % (entry.name, cname))
+                h_code.putln("#define %s %s" % (api_name, cname))
                 h_code.globalstate.use_entry_utility_code(entry)
         if api_vars:
             h_code.putln("")
@@ -517,6 +518,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             put_utility_code("VoidPtrImport", "ImportExport.c")
         if api_funcs:
             put_utility_code("FunctionImport", "ImportExport.c")
+            if any(entry.is_fused_specialized for entry in api_funcs):
+                put_utility_code("FunctionImportFused", "ImportExport.c")
         if api_extension_types:
             put_utility_code("TypeImport", "ImportExport.c")
         h_code.putln("")
@@ -525,11 +528,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_code.putln('module = PyImport_ImportModule(%s);' % env.qualified_name.as_c_string_literal())
         h_code.putln("if (!module) goto bad;")
         for entry in api_funcs:
-            cname = env.mangle(Naming.func_prefix_api, entry.name)
+            api_name = entry.legacy_capi_name if entry.is_fused_specialized else entry.name
+            cname = env.mangle(Naming.func_prefix_api, api_name)
             sig = entry.type.signature_string()
+            if entry.is_fused_specialized:
+                h_code.putln(
+                    'if (__Pyx_ImportFusedFunction_%s(module, %s, (void (**)(void))&%s, "%s") < 0) goto bad;'
+                    % (Naming.cyversion, entry.name.as_c_string_literal(), cname, sig))
             h_code.putln(
                 'if (__Pyx_ImportFunction_%s(module, %s, (void (**)(void))&%s, "%s") < 0) goto bad;'
-                % (Naming.cyversion, entry.name.as_c_string_literal(), cname, sig))
+                % (Naming.cyversion, api_name.as_c_string_literal(), cname, sig))
         for entry in api_vars:
             cname = env.mangle(Naming.varptr_prefix_api, entry.name)
             sig = entry.type.empty_declaration_code()
@@ -674,7 +682,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         result.c_file_generated = 1
         if options.gdb_debug:
             self._serialize_lineno_map(env, rootwriter)
-        if Options.annotate or options.annotate:
+        if (
+            (Options.annotate or options.annotate) and not
+            self.scope.context.in_shared_utility_module
+        ):
             self._generate_annotations(rootwriter, result, options)
 
     def _generate_annotations(self, rootwriter, result, options):
@@ -1029,7 +1040,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.put(Nodes.branch_prediction_macros)
 
-        self._put_setup_code(code, "PretendToInitialize")
         code.putln('')
         code.putln('#if !CYTHON_USE_MODULE_STATE')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)

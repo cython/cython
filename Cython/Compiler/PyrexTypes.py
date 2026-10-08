@@ -1989,10 +1989,10 @@ class BuiltinObjectType(PyObjectType):
             check += f'||(({arg}) == Py_None)'
         return check + f' || __Pyx_RaiseUnexpectedTypeError("{self.name}", {arg})'
 
-    def convert_to_basetype(self, code, pos, arg_cname, allow_none=True, arg_name_cstring="NULL"):
+    def convert_to_basetype(self, code, pos, arg_cname_lvalue, allow_none=True, arg_name_cstring="NULL"):
         """Generate type checking code that converts compatible (number) types to the plain base type in-place.
 
-        Replaces the C value in 'arg_cname' on conversion or error, decrefing the original value.
+        Replaces the C value in 'arg_cname_lvalue' on conversion or error, decrefing the original value.
         """
         if self.is_pyfloat_type:
             utility_code_name = "pyfloat_simplify"
@@ -2002,14 +2002,14 @@ class BuiltinObjectType(PyObjectType):
             cfunc = "__Pyx_PyInt_FromNumber"
         else:
             # No conversion, simple type check.
-            type_test = self.type_test_code(code.globalstate, arg_cname, allow_none=allow_none)
+            type_test = self.type_test_code(code.globalstate, arg_cname_lvalue, allow_none=allow_none)
             code.putln(f"if (!({type_test})) {code.error_goto(pos)}")
             return
 
         code.globalstate.use_utility_code(
             UtilityCode.load_cached(utility_code_name, "TypeConversion.c"))
         code.put_error_if_neg(
-            pos, f"{cfunc}(&{arg_cname}, {arg_name_cstring}, {allow_none:d})"
+            pos, f"{cfunc}(&{arg_cname_lvalue}, {arg_name_cstring}, {allow_none:d})"
         )
 
     def declaration_code(self, entity_code,

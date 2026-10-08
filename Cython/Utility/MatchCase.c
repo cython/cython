@@ -363,7 +363,7 @@ static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start,
 #else
     PyObject **array;
 
-    (void)__Pyx_MatchCase_OtherSequenceSliceToList; // clear unused warning
+    (void)&__Pyx_MatchCase_OtherSequenceSliceToList; // clear unused warning
 
     array = &PyTuple_GET_ITEM(x, 0);
     return __Pyx_PyList_FromArray(array+start, end-start);
@@ -388,7 +388,7 @@ static PyObject *__Pyx_MatchCase_UnknownTypeSliceToList(PyObject *x, Py_ssize_t 
         return __Pyx_MatchCase_TupleSliceToList(x, start, end);
     }
 #else
-    (void)__Pyx_MatchCase_TupleSliceToList;
+    (void)&__Pyx_MatchCase_TupleSliceToList;
 #endif
     return __Pyx_MatchCase_OtherSequenceSliceToList(x, start, end);
 }
@@ -944,9 +944,13 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
         }
 
         attr = PyObject_GetAttr(subject, name);
-        if (attr == NULL && PyErr_ExceptionMatches(PyExc_AttributeError)) {
-            PyErr_Clear();
-            result = 0;
+        if (attr == NULL) {
+            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyErr_Clear();
+                result = 0;
+            } else {
+                result = -1;
+            }
             goto end;
         }
         subject_i = subjects[i];

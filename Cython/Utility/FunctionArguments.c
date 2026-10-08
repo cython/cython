@@ -180,7 +180,7 @@ static CYTHON_INLINE int __Pyx_CheckKeywordStrings(PyObject *kw); /*proto*/
 
 static int __Pyx_CheckKeywordStrings(PyObject *kw) {
     // PyPy appears to check keyword types at call time, not at unpacking time.
-#if CYTHON_COMPILING_IN_PYPY && !defined(PyArg_ValidateKeywordArguments)
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x030C0000 && !defined(PyArg_ValidateKeywordArguments)
     CYTHON_UNUSED_VAR(kw);
     return 0;
 #else
@@ -525,7 +525,7 @@ static void __Pyx_RejectUnknownKeyword(
     #if CYTHON_AVOID_BORROWED_REFS
     while (__Pyx_PyDict_NextRef(kwds, &pos, &key, NULL))
     #else
-    (void) __Pyx_PyDict_NextRef;
+    (void) &__Pyx_PyDict_NextRef;
     while (PyDict_Next(kwds, &pos, &key, NULL))
     #endif
     {
@@ -815,7 +815,7 @@ static int __Pyx_MergeKeywords_dict(PyObject *kwdict, PyObject *source_dict) {
         #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
         while (__Pyx_PyDict_NextRef(smaller_dict, &ppos, &key, NULL))
         #else
-        (void) __Pyx_PyDict_NextRef;
+        (void) &__Pyx_PyDict_NextRef;
         while (PyDict_Next(smaller_dict, &ppos, &key, NULL))
         #endif
         {

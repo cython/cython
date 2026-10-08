@@ -4,6 +4,8 @@
 """
 CYTHON generate-shared --help  |  PYTHON -c "import sys; help=sys.stdin.read(); assert 'MemoryView' in help and 'AutoPickle' in help and '--only' in help and '--exclude' in help, help"
 
+CYTHON generate-shared -a annotated_shared_module.c
+
 CYTHON generate-shared --only 'ExtensionTypes,AutoPickle,MemoryView' --exclude 'MemoryView' shared_module.c
 PYTHON -c "assert '__Pyx_setup_reduce' in open('shared_module.c').read()"
 PYTHON -c "assert '__Pyx_memviewslice' not in open('shared_module.c').read()"

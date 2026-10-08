@@ -328,25 +328,13 @@ class IterationTransform(Visitor.EnvTransform):
         if function.is_attribute and not reversed and not arg_count:
             base_obj = iterable.self or function.obj
             method = function.attribute
-            # in Py3, items() is equivalent to Py2's iteritems()
-            is_safe_iter = self.global_scope().context.language_level >= 3
-
-            if not is_safe_iter and method in ('keys', 'values', 'items'):
-                # try to reduce this to the corresponding .iter*() methods
-                if isinstance(base_obj, ExprNodes.CallNode):
-                    inner_function = base_obj.function
-                    if (inner_function.is_name and inner_function.name == 'dict'
-                            and inner_function.entry
-                            and inner_function.entry.is_builtin):
-                        # e.g. dict(something).items() => safe to use .iter*()
-                        is_safe_iter = True
 
             keys = values = False
-            if method == 'iterkeys' or (is_safe_iter and method == 'keys'):
+            if method in ('iterkeys', 'keys'):
                 keys = True
-            elif method == 'itervalues' or (is_safe_iter and method == 'values'):
+            elif method in ('itervalues', 'values'):
                 values = True
-            elif method == 'iteritems' or (is_safe_iter and method == 'items'):
+            elif method in ('iteritems', 'items'):
                 keys = values = True
 
             if keys or values:
@@ -1886,8 +1874,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return ExprNodes.FloatNode(node.pos, value='0.0')
         if len(pos_args) > 1:
             self._error_wrong_arg_count('float', node, pos_args, 1)
-        arg_type = getattr(pos_args[0], 'type', None)
-        if arg_type and (arg_type is PyrexTypes.c_double_type or arg_type.is_pyfloat_type):
+        arg_type = pos_args[0].infer_type(self.current_env())
+        if arg_type is PyrexTypes.c_double_type or arg_type.is_pyfloat_type:
             return pos_args[0]
         return node
 
@@ -2031,13 +2019,15 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             list_node = arg.as_list()
 
         else:
-            # Interestingly, PySequence_List works on a lot of non-sequence
-            # things as well.
+            # Interestingly, PySequence_List works on a lot of non-sequence things as well.
+            may_be_new_list = False
+            if arg.result_in_temp():
+                arg_type = arg.infer_type(self.current_env())
+                may_be_new_list = arg_type is PyrexTypes.py_object_type or arg_type.is_pylist_type
+
             list_node = ExprNodes.PythonCapiCallNode(
                 node.pos,
-                "__Pyx_PySequence_ListKeepNew"
-                    if arg.result_in_temp() and (arg.type is PyrexTypes.py_object_type or arg.type.is_pylist_type)
-                    else "PySequence_List",
+                "__Pyx_PySequence_ListKeepNew" if may_be_new_list else "PySequence_List",
                 self.PySequence_List_func_type,
                 args=pos_args, is_temp=True)
 
@@ -4775,6 +4765,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             if isinstance(factor.constant_result, int) and factor.constant_result <= 0:
                 del sequence_node.args[:]
                 sequence_node.mult_factor = None
+                sequence_node.constant_result = node.constant_result
             elif sequence_node.mult_factor is not None:
                 if (isinstance(factor.constant_result, int) and
                         isinstance(sequence_node.mult_factor.constant_result, int)):
@@ -4785,6 +4776,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                     return self.visit_BinopNode(node)
             else:
                 sequence_node.mult_factor = factor
+                sequence_node.constant_result = ExprNodes.not_a_constant
         return sequence_node
 
     def visit_ModNode(self, node):
@@ -5354,12 +5346,19 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         if not ExprNodes.PyMethodCallNode.can_be_used_for_function(function):
             return node
 
-        kwnames = kwvalues = kwdict = None
+        kwnames = kwnames_tuple = kwvalues = kwdict = None
         if node.keyword_args and node.keyword_args.is_dict_literal:
-            kwnames = ExprNodes.TupleNode(
+            kwnames = [
+                (kvp.key if kvp.key.is_literal else ExprNodes.ProxyNode(kvp.key))
+                for kvp in node.keyword_args.key_value_pairs
+            ]
+            kwnames_tuple = ExprNodes.TupleNode(
                 node.pos,
-                args=[kvp.key for kvp in node.keyword_args.key_value_pairs])
-            kwnames = kwnames.analyse_types(self.current_env(), skip_children=True)
+                args=[
+                    copy.copy(arg) if arg.is_literal else ExprNodes.CloneNode(arg)
+                    for arg in kwnames
+                ])
+            kwnames_tuple = kwnames_tuple.analyse_types(self.current_env())
             kwvalues = [kvp.value for kvp in node.keyword_args.key_value_pairs]
         elif node.keyword_args:
             kwdict = node.keyword_args
@@ -5367,7 +5366,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
             node,
             function=function, arg_tuple=node.positional_args, kwdict=kwdict,
-            kwnames=kwnames, kwvalues=kwvalues,
+            kwnames=kwnames, kwvalues=kwvalues, kwnames_tuple=kwnames_tuple,
             type=node.type, unpack=self._check_optimize_method_calls(node)))
         return node
 

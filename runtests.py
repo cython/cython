@@ -3172,6 +3172,7 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy_crash_bugs.txt', IS_PYPY),
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('graal_bugs.txt', IS_GRAAL),
+            ('graal_25_0_bugs.txt', IS_GRAAL and sys.implementation.version[:2] == (25, 0)),
             ('limited_api_bugs.txt', options.limited_api),
             ('limited_api_314_bugs.txt', options.limited_api and sys.version_info[:2] <= (3, 14)),
             ('windows_bugs.txt', sys.platform == 'win32'),

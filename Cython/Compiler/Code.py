@@ -2021,7 +2021,7 @@ class GlobalState:
                 continue
             w.putln(
                 "const struct { "
-                f"const unsigned int length: {max(index).bit_length()}; "
+                f"const unsigned int length: {max(index).bit_length() or 1}; "
                 "} "
                 f"{stype}_length_index[] = {{{','.join(['{%d}' % length for length in index])}}};",
             )

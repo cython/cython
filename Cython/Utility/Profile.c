@@ -584,7 +584,7 @@
   #define __Pyx_TraceReturnValue(result, offset, nogil, goto_error) \
       if ((1)); else goto_error;
   #define __Pyx_TraceReturnCValue(cresult, convert_function, offset, nogil, goto_error) \
-      if ((1)); else { (void) convert_function; goto_error }
+      if ((1)); else { (void) &convert_function; goto_error }
 
 #endif /* CYTHON_PROFILE || CYTHON_TRACE */
 

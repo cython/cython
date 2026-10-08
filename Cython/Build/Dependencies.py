@@ -9,6 +9,7 @@ from os.path import relpath as _relpath
 from .Cache import Cache, FingerprintFlags
 
 from collections.abc import Iterable
+from functools import partial
 
 try:
     import pythran
@@ -17,7 +18,7 @@ except Exception:
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
-    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, write_depfile)
+    copy_file_to_dir_if_newer, is_package_dir, write_depfile)
 from ..Compiler import Errors
 from ..Compiler.Main import Context
 from ..Compiler import Options
@@ -26,7 +27,7 @@ from ..Compiler.Options import (CompilationOptions, default_options,
 
 join_path = cached_function(os.path.join)
 copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
-safe_makedirs_once = cached_function(safe_makedirs)
+safe_makedirs_once = cached_function(partial(os.makedirs, exist_ok=True))
 
 
 @cython.cfunc
@@ -961,7 +962,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     if 'include_path' not in options:
         options['include_path'] = ['.']
     if 'common_utility_include_dir' in options:
-        safe_makedirs(options['common_utility_include_dir'])
+        os.makedirs(options['common_utility_include_dir'], exist_ok=True)
 
     depfile = options.pop('depfile', None)
 

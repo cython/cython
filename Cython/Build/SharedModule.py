@@ -46,7 +46,7 @@ def _iter_exports(selected_features=None):
     UtilityCode = Code.UtilityCode
     match_special = UtilityCode.get_special_comment_matcher('/')
 
-    for c_utility_file in os.listdir(Code.get_utility_dir()):
+    for c_utility_file in sorted(os.listdir(Code.get_utility_dir())):
         if not c_utility_file.endswith('.c'):
             continue
 
