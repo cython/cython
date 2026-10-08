@@ -7000,6 +7000,8 @@ class DelStatNode(StatNode):
 class PassStatNode(StatNode):
     #  pass statement
 
+    is_a_syntax_statement = True
+
     child_attrs = []
 
     def analyse_expressions(self, env):

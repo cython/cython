@@ -1957,7 +1957,7 @@ def p_from_import_statement(s: PyrexScanner, first_statement: cython.bint = 0):
                     s.error("future feature %s is not defined" % name, name_pos)
                     break
                 s.context.future_directives.add(directive)
-        return Nodes.PassStatNode(pos)
+        return Nodes.PassStatNode(pos, is_a_syntax_statement=False)
     elif is_cimport:
         return Nodes.FromCImportStatNode(
             pos, module_name=dotted_name,
@@ -2448,19 +2448,26 @@ def p_simple_statement_list(s: PyrexScanner, ctx, first_statement: cython.bint =
     stats = []
     if not isinstance(stat, Nodes.PassStatNode):
         stats.append(stat)
+        first_statement = False
+    elif stat.is_a_syntax_statement:
+        first_statement = False
     while s.sy == ';':
         #print "p_simple_statement_list: maybe more to follow" ###
+        semicolon_pos = s.position()
         s.next()
         if s.sy in ('NEWLINE', 'EOF'):
+            warning(semicolon_pos, "useless trailing semicolon")
             break
         stat = p_simple_statement(s, first_statement = first_statement)
         if isinstance(stat, Nodes.PassStatNode):
+            if stat.is_a_syntax_statement:
+                first_statement = False
             continue
         stats.append(stat)
         first_statement = False
 
     if not stats:
-        stat = Nodes.PassStatNode(pos)
+        stat = Nodes.PassStatNode(pos, is_a_syntax_statement=not first_statement)
     elif len(stats) == 1:
         stat = stats[0]
     else:
@@ -2612,8 +2619,6 @@ def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = False):
             return p_include_statement(s, ctx)
         elif ctx.level == 'c_class' and s.sy == 'IDENT' and s.systring == 'property':
             return p_property_decl(s)
-        elif s.sy == 'pass' and ctx.level != 'property':
-            return p_pass_statement(s, with_newline=True)
         else:
             if ctx.level in ('c_class_pxd', 'property'):
                 node = p_ignorable_statement(s)
@@ -2660,6 +2665,8 @@ def p_statement_list(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
     while s.sy not in ('DEDENT', 'EOF'):
         stat = p_statement(s, ctx, first_statement = first_statement)
         if isinstance(stat, Nodes.PassStatNode):
+            if stat.is_a_syntax_statement:
+                first_statement = False
             continue
         stats.append(stat)
         first_statement = False
@@ -4096,6 +4103,8 @@ def p_ignorable_statement(s: PyrexScanner):
     """
     Parses any kind of ignorable statement that is allowed in .pxd files.
     """
+    if s.sy == 'pass':
+        return p_pass_statement(s, with_newline=True)
     if s.sy == 'BEGIN_STRING':
         pos = s.position()
         string_node = p_atom(s)
