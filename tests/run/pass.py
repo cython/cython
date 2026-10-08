@@ -9,4 +9,4 @@ def g():
     >>> g()
     1
     """
-    pass; return 1
+    pass ; return 1
