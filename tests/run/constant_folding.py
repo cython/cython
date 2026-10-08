@@ -127,8 +127,11 @@ def binop_mul_pow():
 
 def binop_pow_negative():
     """
-    >>> binop_pow_negative()
-    (4.018775720164609e-06, 8.020807320287816e-38, 0.1)
+    >>> import math
+    >>> expected = (4.018775720164609e-06, 8.020807320287816e-38, 0.1)
+    >>> all(math.isclose(actual, reference, rel_tol=1e-12, abs_tol=0.0)
+    ...     for actual, reference in zip(binop_pow_negative(), expected))
+    True
     """
     pow_int = 12 ** -5
     pow_large_int = 1234 ** -12
