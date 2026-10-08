@@ -983,6 +983,29 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
   #define __Pyx_PyType_TryGetSubSlot(obj, sub, name, func_ctype) __Pyx_PyType_TryGetSlot(obj, name, func_ctype)
 #endif
 
+#if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_TYPE_SLOTS
+  // In CPython, if a type specific slot of a builtin type appears in an unknown type,
+  // we can assume identical behaviour.  That is not necessarily the case in PyPy (and others?),
+  // which may use more generic slot implementations.
+  // Also, this assumption does not hold for ambiguous slot functions like
+  // "PyType_GenericAlloc", "PyType_GenericGetAttr" or "PyObject_SelfIter".
+  #define __Pyx_SlotIsInherited(obj, base_type, slot_name)  \
+    (__Pyx_PyObject_GetSlot(obj, slot_name, void*) == __Pyx_PyType_GetSlot(base_type, slot_name, void*))
+  #define __Pyx_SubSlotIsInherited(obj, base_type, sub, slot_name)  \
+    (__Pyx_PyObject_GetSubSlot(obj, sub, slot_name, void*) == __Pyx_PyType_GetSubSlot(base_type, sub, slot_name, void*))
+#else
+  #define __Pyx_SlotIsInherited(obj, base_type, slot_name)  (0)
+  #define __Pyx_SubSlotIsInherited(obj, base_type, sub, slot_name)  (0)
+#endif
+
+// In many cases where we specialise list/tuple, it's enough to know that "tp_iter" has not been overwritten
+// by a subtype to decide that we can safely assume standard iteration/unpacking/etc. behaviour.
+#define __Pyx_IsListIter(obj) \
+  (PyList_CheckExact(obj) || __Pyx_SlotIsInherited(obj, &PyList_Type, tp_iter))
+
+#define __Pyx_IsTupleIter(obj) \
+  (PyTuple_CheckExact(obj) || __Pyx_SlotIsInherited(obj, &PyTuple_Type, tp_iter))
+
 #if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
 #define __Pyx_PyDict_NewPresized(n)  ((n <= 8) ? PyDict_New() : _PyDict_NewPresized(n))
 #else
@@ -1130,9 +1153,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
     #define PyObject_Format(obj, fmt)  PyObject_CallMethod(obj, "__format__", "O", fmt)
   #endif
 #endif
-
-// ("..." % x)  must call PyNumber_Remainder() if x is a string subclass that implements "__rmod__()".
-#define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None || (PyUnicode_Check(b) && !PyUnicode_CheckExact(b)))) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
 
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000
   #define __Pyx_PySequence_ListKeepNew(obj) \
