@@ -302,6 +302,25 @@ def test_match_args_overrides_match_self(x):
         case ListSubclass(v):
             return v
 
+@skip_in_pure_pypy
+def test_match_args_non_attribute_error():
+    """
+    >>> test_match_args_non_attribute_error()  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    ValueError: boom
+    """
+    class R:
+        __match_args__ = ('a',)
+
+        @property
+        def a(self):
+            raise ValueError('boom')
+
+    match R():
+        case R(x):
+            return 'matched'
+
 def test_no_memoryview_match_self(x: memoryview):
     """
     >>> test_no_memoryview_match_self(memoryview(b'123'))  # doctest: +ELLIPSIS

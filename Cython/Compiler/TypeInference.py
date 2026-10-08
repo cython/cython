@@ -390,7 +390,7 @@ class SimpleAssignmentTypeInferer:
         dependencies = {}
         assmt_to_names = {}
 
-        for name, entry in scope.entries.items():
+        for entry in scope.entries.values():
             for assmt in entry.cf_assignments:
                 names = assmt.type_dependencies()
                 assmt_to_names[assmt] = names

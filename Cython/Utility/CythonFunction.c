@@ -1008,6 +1008,7 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
     if (unlikely(op == NULL))
         return NULL;
     __Pyx_CyFunction_MethodDef(op) = ml;
+    Py_XINCREF(module);
     __Pyx_CyFunction_Module(op) = module;
     op->flags = flags;
     __Pyx_CyFunction_weakreflist(op) = NULL;
@@ -1018,7 +1019,6 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
 #endif
     Py_XINCREF(closure);
     op->func_closure = closure;
-    Py_XINCREF(module);
 #if PY_VERSION_HEX < 0x030C0000 || CYTHON_COMPILING_IN_LIMITED_API
     op->func_dict = NULL;
 #endif

@@ -2179,7 +2179,8 @@ class NameNode(AtomicExprNode):
             if not (self.inferred_type.is_int and self.entry.might_overflow):
                 return self.inferred_type
 
-        if self.entry.type is py_object_type and self.entry.annotation:
+        if (self.entry.type is py_object_type and self.entry.annotation
+                and env.directives['annotation_typing']):
             #modifiers, annotation_type = self.entry.annotation.analyse_type_annotation(env)
             annotation_type = self.entry.annotation.analyse_as_type(env)
             if annotation_type:
@@ -8526,7 +8527,8 @@ class AttributeNode(ExprNode):
             elif self.type.is_memoryviewslice:
                 from . import MemoryView
                 MemoryView.put_assign_to_memviewslice(
-                        select_code, rhs, rhs.result(), self.type, code)
+                        select_code, rhs, rhs.result(), self.type, code,
+                        rhs_is_borrowed_temp=rhs.is_memview_slice and rhs.use_borrowed_ref)
             else:
                 code.putln(
                     "%s = %s;" % (

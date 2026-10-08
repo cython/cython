@@ -845,7 +845,7 @@ Cython code.  Here is the list of currently supported directives:
     internally without paying attention to cache consistency, this option can
     be set to False.  Note that this no longer applies to Python 3.11 and later.
 
-``unraisable_tracebacks`` (True / False), *default=False*
+``unraisable_tracebacks`` (True / False), *default=True*
     Whether to print tracebacks when suppressing unraisable exceptions.
 
 ``iterable_coroutine`` (True / False), *default=False*
