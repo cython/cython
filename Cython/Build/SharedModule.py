@@ -149,6 +149,13 @@ def generate_shared_module(options):
             options.shared_utility_features_disabled,
         )
 
+    # We know what code is being included so we can set good default compatibility settings ourself
+    options.compiler_directives.setdefault('freethreading_compatible', True)
+    options.compiler_directives.setdefault(
+        'subinterpreters_compatible',
+        "no" if selected_features is None or 'MemoryView' in selected_features else "own_gil"
+    )
+
     context = Main.Context.from_options(options)
     scope = Symtab.ModuleScope('MemoryView', parent_module = None, context = context, is_package=False)
 
