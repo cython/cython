@@ -239,6 +239,8 @@ class AbstractUtilityCode:
     def get_shared_library_scope(self, **kwargs):
         return None
 
+    def warn_for_subinterpreters(self, pos):
+        pass
 
 class UtilityCodeBase(AbstractUtilityCode):
     """

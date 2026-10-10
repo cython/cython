@@ -1,7 +1,7 @@
 import Cython
 from .TreeFragment import parse_from_strings, StringParseContext
 from .Scanning import FileSourceDescriptor
-from .Errors import CompileError
+from .Errors import CompileError, warning
 from . import Symtab
 from . import Naming
 from . import Code
@@ -76,7 +76,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
 
     def __init__(self, impl, name="__pyxutil", prefix="", requires=None,
                  file=None, from_scope=None, context=None, compiler_directives=None,
-                 outer_module_scope=None):
+                 outer_module_scope=None, subinterpreters_incompatible_message=None):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
@@ -104,6 +104,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                 outer_module_scope.global_scope().directives, compiler_directives)
         self.compiler_directives = compiler_directives
         self.context_types = context_types
+        self._subinterpreters_incompatible_message = subinterpreters_incompatible_message
 
     def __eq__(self, other):
         if isinstance(other, CythonUtilityCode):
@@ -278,6 +279,12 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             utility_code_directives.update(overrides)
         return utility_code_directives
 
+    def warn_for_subinterpreters(self, pos):
+        # Note that this is mainly a workaround for some utility code being
+        # incompatible with subinterpreters. Remove it after that is fixed.
+        if self._subinterpreters_incompatible_message:
+            warning(pos, self._subinterpreters_incompatible_message, 2)
+
 
 class TemplatedFileSourceDescriptor(FileSourceDescriptor):
 
@@ -295,12 +302,14 @@ class TemplatedFileSourceDescriptor(FileSourceDescriptor):
 
 
 class CythonSharedUtilityCode(Code.AbstractUtilityCode):
-    def __init__(self, pxd_name, shared_utility_qualified_name, template_context, requires):
+    def __init__(self, pxd_name, shared_utility_qualified_name, template_context, requires,
+                 subinterpreters_incompatible_message=None):
         self._pxd_name = pxd_name
         self._shared_utility_qualified_name = shared_utility_qualified_name
         self.template_context = template_context
         self.requires = requires
         self._shared_library_scope = None
+        self._subinterpreters_incompatible_message = subinterpreters_incompatible_message
 
     def find_module(self, context):
         scope = context
@@ -343,6 +352,12 @@ class CythonSharedUtilityCode(Code.AbstractUtilityCode):
         if self._pxd_name not in cython_scope.context.utility_pxds:
             self._shared_library_scope = self.find_module(cython_scope.context)
         return self._shared_library_scope
+
+    def warn_for_subinterpreters(self, pos):
+        # Note that this is mainly a workaround for some utility code being
+        # incompatible with subinterpreters. Remove it after that is fixed.
+        if self._subinterpreters_incompatible_message:
+            warning(pos, self._subinterpreters_incompatible_message, 2)
 
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,

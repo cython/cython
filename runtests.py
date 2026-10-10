@@ -927,6 +927,8 @@ class TestBuilder(object):
             return []
         if skip_limited(tags):
             return []
+        if self.shared_utility and 'no-shared-utility' in tags['tag']:
+            return []
 
         language_levels = [2, 3] if 'all_language_levels' in tags['tag'] else [None]
 
