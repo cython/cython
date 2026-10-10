@@ -1,8 +1,5 @@
 # mode: compile
-# tag: warnings, memoryviews
-
-# "no-shared-utility" because memoryviews aren't used directly so the warning
-# would trigger on building the shared utility module instead.
+# tag: warnings, memoryview
 
 # cython: subinterpreters_compatible=own_gil
 
