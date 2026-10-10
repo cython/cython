@@ -917,6 +917,9 @@ def _get_memoryview_shared_utility_code(shared_utility_qualified_name):
                 refcount_utility,
                 atomic_utility,
                 ],
+        subinterpreters_incompatible_message=(
+                "Module is declared as 'subinterpreters_compatible' "
+                "but uses typed memoryviews. This is not supported yet and will likely crash."),
     )
 
     return shared_utility_code

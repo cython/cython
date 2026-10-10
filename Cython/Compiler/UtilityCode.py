@@ -302,12 +302,14 @@ class TemplatedFileSourceDescriptor(FileSourceDescriptor):
 
 
 class CythonSharedUtilityCode(Code.AbstractUtilityCode):
-    def __init__(self, pxd_name, shared_utility_qualified_name, template_context, requires):
+    def __init__(self, pxd_name, shared_utility_qualified_name, template_context, requires,
+                 subinterpreters_incompatible_message=None):
         self._pxd_name = pxd_name
         self._shared_utility_qualified_name = shared_utility_qualified_name
         self.template_context = template_context
         self.requires = requires
         self._shared_library_scope = None
+        self._subinterpreters_incompatible_message = subinterpreters_incompatible_message
 
     def find_module(self, context):
         scope = context
@@ -350,6 +352,12 @@ class CythonSharedUtilityCode(Code.AbstractUtilityCode):
         if self._pxd_name not in cython_scope.context.utility_pxds:
             self._shared_library_scope = self.find_module(cython_scope.context)
         return self._shared_library_scope
+
+    def warn_for_subinterpreters(self, pos):
+        # Note that this is mainly a workaround for some utility code being
+        # incompatible with subinterpreters. Remove it after that is fixed.
+        if self._subinterpreters_incompatible_message:
+            warning(pos, self._subinterpreters_incompatible_message, 2)
 
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,
