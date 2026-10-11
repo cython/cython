@@ -1957,7 +1957,7 @@ def p_from_import_statement(s: PyrexScanner, first_statement: cython.bint = 0):
                     s.error("future feature %s is not defined" % name, name_pos)
                     break
                 s.context.future_directives.add(directive)
-        return Nodes.PassStatNode(pos, is_a_syntax_statement=False)
+        return None
     elif is_cimport:
         return Nodes.FromCImportStatNode(
             pos, module_name=dotted_name,
@@ -2443,14 +2443,14 @@ def p_simple_statement(s: PyrexScanner, first_statement: cython.bint = 0):
 def p_simple_statement_list(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
     # Parse a series of simple statements on one line
     # separated by semicolons.
+    pos = None
     stat = p_simple_statement(s, first_statement = first_statement)
-    pos = stat.pos
     stats = []
-    if not isinstance(stat, Nodes.PassStatNode):
-        stats.append(stat)
+    if stat is not None:
+        pos = stat.pos
         first_statement = False
-    elif stat.is_a_syntax_statement:
-        first_statement = False
+        if not isinstance(stat, Nodes.PassStatNode):
+            stats.append(stat)
     while s.sy == ';':
         #print "p_simple_statement_list: maybe more to follow" ###
         semicolon_pos = s.position()
@@ -2459,15 +2459,17 @@ def p_simple_statement_list(s: PyrexScanner, ctx, first_statement: cython.bint =
             warning(semicolon_pos, "useless trailing semicolon")
             break
         stat = p_simple_statement(s, first_statement = first_statement)
-        if isinstance(stat, Nodes.PassStatNode):
-            if stat.is_a_syntax_statement:
-                first_statement = False
-            continue
-        stats.append(stat)
-        first_statement = False
+        if stat is not None:
+            pos = pos or stat.pos()
+            first_statement = False
+            if not isinstance(stat, Nodes.PassStatNode):
+                stats.append(stat)
 
     if not stats:
-        stat = Nodes.PassStatNode(pos, is_a_syntax_statement=not first_statement)
+        if first_statement:
+            stat = None
+        else:
+            stat = Nodes.PassStatNode(pos)
     elif len(stats) == 1:
         stat = stats[0]
     else:
@@ -2664,12 +2666,10 @@ def p_statement_list(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
     stats = []
     while s.sy not in ('DEDENT', 'EOF'):
         stat = p_statement(s, ctx, first_statement = first_statement)
-        if isinstance(stat, Nodes.PassStatNode):
-            if stat.is_a_syntax_statement:
-                first_statement = False
-            continue
-        stats.append(stat)
-        first_statement = False
+        if stat is not None:
+            first_statement = False
+            if not isinstance(stat, Nodes.PassStatNode):
+                stats.append(stat)
     if not stats:
         return Nodes.PassStatNode(pos)
     elif len(stats) == 1:
@@ -2699,6 +2699,8 @@ def p_suite_with_docstring(s: PyrexScanner, ctx, with_doc_only: cython.bint = Fa
             s.error("'api' not allowed with this statement", fatal=False)
         if ctx.level in ('module', 'class', 'function', 'other'):
             body = p_simple_statement_list(s, ctx)
+            if body is None:
+                body = Nodes.PassStatNode(s.position())
         else:
             body = p_pass_statement(s)
             s.expect_newline("Syntax error in declarations", ignore_semicolon=True)
