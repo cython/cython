@@ -95,6 +95,13 @@ def create_shared_library_pipeline(context, scope, options, result, selected_fea
             tree = parse(compsrc)
 
             if selected_features is None or 'MemoryView' in selected_features:
+                if options.compiler_directives.get('subinterpreters_compatible', 'no') != 'no':
+                    import sys
+                    print(
+                        "WARNING: Shared module built with 'subinterpreters_compatible'. "
+                        "This is currently unlikely to work correctly due to memoryview code.",
+                        file=sys.stderr
+                    )
                 tree.scope.use_utility_code(
                     MemoryView.get_view_utility_code(options.shared_utility_qualified_name))
 
