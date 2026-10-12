@@ -42,6 +42,7 @@ class ExceptionIsLikeMixin:
 
 import sys
 import unittest
+import asyncio
 import textwrap
 
 class TestInvalidExceptStar(unittest.TestCase):
@@ -1239,6 +1240,29 @@ class TestExceptStar_WeirdExceptionGroupSubclass(ExceptStarTest):
                     exc, BadEG("eg", [TypeError(1),
                                BadEG("nested", [OSError(4)])]))
 
+
+class TestExceptStar_Async(ExceptStarTest):
+
+    def setUp(self):
+        super().setUp()
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(None)
+
+    def tearDown(self):
+        self.loop.close()
+        self.loop = None
+        super().tearDown()
+
+    def test_raise(self):
+        async def f():
+            try:
+                raise ExceptionGroup("g", [ValueError()])
+            except* ValueError:
+                r = "caught"
+            return r
+
+        res = self.loop.run_until_complete(f())
+        self.assertEqual(res, "caught")
 
 if __name__ == '__main__':
     unittest.main()
