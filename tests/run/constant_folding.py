@@ -127,8 +127,11 @@ def binop_mul_pow():
 
 def binop_pow_negative():
     """
-    >>> binop_pow_negative()
-    (4.018775720164609e-06, 8.020807320287816e-38, 0.1)
+    >>> import math
+    >>> expected = (4.018775720164609e-06, 8.020807320287816e-38, 0.1)
+    >>> all(math.isclose(actual, reference, rel_tol=1e-12, abs_tol=0.0)
+    ...     for actual, reference in zip(binop_pow_negative(), expected))
+    True
     """
     pow_int = 12 ** -5
     pow_large_int = 1234 ** -12
@@ -536,4 +539,17 @@ def fstring_plus(x: cython.int):
         "xyz" + f"a{x}a",
         f"b{x}b" + "",
         f"a{x}b" + f"x{x}x",
+    )
+
+
+def join_mult_seq(n):
+    """
+    >>> join_mult_seq(3)
+    ('axxx', 'axx', 'a', 'axyxyxy')
+    """
+    return (
+        "a" + "".join(["x"] * n),
+        "a" + "".join(["x"] * 2),
+        "a" + "".join(["x"] * 0),
+        "a" + "".join(("x", "y") * n),
     )

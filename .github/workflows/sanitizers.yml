@@ -57,7 +57,7 @@ jobs:
       fail-fast: false
       matrix:
         # TODO memory sanitizer would be nice (but is hard)
-        sanitizer: ["address,undefined", "thread", "thread,ft"]
+        sanitizer: ["address,undefined", "thread", "thread,freethreading"]
     uses: ./.github/workflows/compiled_python.yml
     with:
       compiler: clang

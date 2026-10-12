@@ -8,6 +8,9 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Type inference now respects ``annotation_typing=False`` for local variable annotations.
+  (Github issue :issue:`7994`)
+
 * A dangling pointer was fixed when assigning to attributes of extension types.
   (Github issue :issue:`7907`)
 
