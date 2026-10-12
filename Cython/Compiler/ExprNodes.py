@@ -9255,7 +9255,12 @@ class TupleNode(SequenceNode):
             return node
         if not node.mult_factor or (
                 node.mult_factor.is_literal and
-                isinstance(node.mult_factor.constant_result, int)):
+                isinstance(node.mult_factor.constant_result, int) and
+                # Constant tuples are created at module init time.  Leave large
+                # results to runtime so that errors (OverflowError, MemoryError)
+                # are raised where the expression is evaluated.  The limit is
+                # the same as CPython's constant folding of sequence repetition.
+                len(node.args) * node.mult_factor.constant_result <= 256):
             node.is_temp = False
             node.is_literal = True
         else:
