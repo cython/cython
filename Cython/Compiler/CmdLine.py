@@ -20,8 +20,7 @@ Environment variables:
 
 class ParseDirectivesAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        old_directives = dict(getattr(namespace, self.dest,
-                                      Options.get_directive_defaults()))
+        old_directives = dict(getattr(namespace, self.dest, {}))
         directives = Options.parse_directive_list(
             values, relaxed_bool=True, current_settings=old_directives)
         setattr(namespace, self.dest, directives)
