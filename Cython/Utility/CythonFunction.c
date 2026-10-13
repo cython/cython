@@ -141,6 +141,24 @@ static int __pyx_CyFunction_init(PyObject *module);
 //////////////////// CythonFunctionPerModule /////////////////////
 //@requires: ObjectHandling.c::CachedMethodType
 
+#if CYTHON_OPAQUE_SHARED_TYPES && CYTHON_USE_MODULE_STATE
+// Slower version of "__Pyx_as_CyFunctionObject" that's safe to use in destructors
+// (where the current module may have been lost).
+static __pyx_CyFunctionObject *__Pyx_as_CyFunctionObject_safe(PyObject *o) {
+    PyTypeObject *cyfunctype = Py_TYPE(o);
+    while (1) {
+        PyTypeObject *base = (PyTypeObject *)PyType_GetSlot(cyfunctype, Py_tp_base);
+        if (base == &PyBaseObject_Type || base == NULL) {
+            break;
+        }
+        cyfunctype = base;
+    }
+    return (__pyx_CyFunctionObject *)PyObject_GetTypeData((o), cyfunctype);
+}
+#else
+#define __Pyx_as_CyFunctionObject_safe __Pyx_as_CyFunctionObject
+#endif
+
 #if CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunctionNoMethod(PyObject *func, void (*cfunc)(void)) {
     if (__Pyx_CyFunction_Check(func)) {
@@ -990,6 +1008,7 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
     if (unlikely(op == NULL))
         return NULL;
     __Pyx_CyFunction_MethodDef(op) = ml;
+    Py_XINCREF(module);
     __Pyx_CyFunction_Module(op) = module;
     op->flags = flags;
     __Pyx_CyFunction_weakreflist(op) = NULL;
@@ -1000,7 +1019,6 @@ static PyObject *__Pyx_CyFunction_Init(PyObject *op_in,
 #endif
     Py_XINCREF(closure);
     op->func_closure = closure;
-    Py_XINCREF(module);
 #if PY_VERSION_HEX < 0x030C0000 || CYTHON_COMPILING_IN_LIMITED_API
     op->func_dict = NULL;
 #endif
@@ -1082,12 +1100,12 @@ static int __Pyx__CyFunction_clear(__pyx_CyFunctionObject *m)
 static int
 __Pyx_CyFunction_clear(PyObject *m)
 {
-    return __Pyx__CyFunction_clear(__Pyx_as_CyFunctionObject(m));
+    return __Pyx__CyFunction_clear(__Pyx_as_CyFunctionObject_safe(m));
 }
 
 static void __Pyx__CyFunction_dealloc(PyObject *m)
 {
-    __pyx_CyFunctionObject *cyfunc = __Pyx_as_CyFunctionObject(m);
+    __pyx_CyFunctionObject *cyfunc = __Pyx_as_CyFunctionObject_safe(m);
     if (__Pyx_CyFunction_weakreflist(cyfunc) != NULL)
         PyObject_ClearWeakRefs(m);
     __Pyx__CyFunction_clear(cyfunc);
@@ -1102,7 +1120,7 @@ static void __Pyx_CyFunction_dealloc(PyObject *m)
 
 static int __Pyx_CyFunction_traverse(PyObject *m_in, visitproc visit, void *arg)
 {
-    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject(m_in);
+    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject_safe(m_in);
     {
         int e = __Pyx_call_type_traverse(m_in, 1, visit, arg);
         if (e) return e;
@@ -1547,7 +1565,9 @@ if (likely(__pyx_FusedFunction_init($module_cname) == 0)); else
 //@requires: CythonFunctionPerModule
 
 #if CYTHON_OPAQUE_SHARED_TYPES
-#define __Pyx_as_FusedFunctionObject(o) ((__pyx_FusedFunctionObject *)PyObject_GetTypeData((o), CGLOBAL(__pyx_FusedFunctionType)))
+// Fused function can't be inherited so Py_TYPE is the fastest way to look it up.
+// This means we need no _safe version for destructors.
+#define __Pyx_as_FusedFunctionObject(o) ((__pyx_FusedFunctionObject *)PyObject_GetTypeData((o), Py_TYPE((o))))
 #else
 #define __Pyx_as_FusedFunctionObject(o) ((__pyx_FusedFunctionObject*)o)
 #endif
