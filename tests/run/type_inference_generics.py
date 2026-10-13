@@ -96,7 +96,7 @@ def test_dict_handle_missing_key():
     >>> test_dict_handle_missing_key()
     * get():
     str object
-    str object
+    Python object
     str object
     Python object
     * pop():
@@ -121,7 +121,7 @@ def test_dict_handle_missing_key():
         assert False, len(missing)
     # get() with missing key and default as None
     missing_none = empty_dict.get('missing', None)
-    print(cython.typeof(missing_none) if cython.compiled else 'str object')
+    print(cython.typeof(missing_none) if cython.compiled else 'Python object')
     try:
         len(missing_none)
     except TypeError:

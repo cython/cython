@@ -737,16 +737,13 @@ def find_return_type_of_builtin_method(pos, env, builtin_type, method_name, args
                 if len(args) == 1:
                     # Method called without second parameter - default value is None
                     return return_type, True
-                if len(args) == 2 and args[1].is_none:
-                    # Method called with second parameter set to None
-                    return return_type, True
-                if len(args) == 2 and args[1].type is None:
-                    # Method called with second parameter set to None
-                    return return_type, True
-                if len(args) == 2:
-                    # Method called with second parameter
-                    return_type = PyrexTypes.independent_spanning_type(return_type, args[1].type)
-                    return return_type, False
+                if len(args) > 2:
+                    # Unusual call, possibly a runtime error.
+                    return PyrexTypes.py_object_type, True
+                # Method called with 'default' parameter.
+                default_type = args[1].type or args[1].infer_type(env)
+                return_type = PyrexTypes.independent_spanning_type(return_type, default_type)
+                return return_type, return_type is PyrexTypes.py_object_type
             return return_type, False
     return PyrexTypes.py_object_type, True
 
