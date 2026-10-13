@@ -101,6 +101,7 @@ def class_level_inside_function(errors: list[Exception]):
             type_error_msg = str(eg.exceptions[0])
     return LocalClass
 
+
 class TestExceptStar(unittest.TestCase):
 
     def setUp(self):
