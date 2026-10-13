@@ -3643,6 +3643,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('}')
 
         tempdecl_code.put_temp_declarations(code.funcstate)
+        if code.funcstate.has_except_star:
+            tempdecl_code.putln(
+                f"int {Naming.skip_add_traceback_cname} = 0;")
 
         code.exit_cfunc_scope()
 
