@@ -720,6 +720,7 @@ def _parse_signature(pos, env, builtin_type, return_signature: str) -> PyrexType
 
 
 def find_return_type_of_builtin_method(pos, env, builtin_type, method_name, args=None) -> tuple[PyrexTypes.PyrexType, bool]:
+    # Returns a tuple: (return type, may be None)
     container_type = builtin_type.get_container_type()
     type_name = container_type.name if container_type else builtin_type.name
     if type_name in inferred_method_return_types:
