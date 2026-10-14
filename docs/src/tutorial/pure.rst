@@ -248,6 +248,14 @@ Typed C-tuples can be declared as a a bare tuple of C types
 or as ``tuple[...]`` or ``typing.Tuple[...]``
 with the respective item types listed in the brackets.
 
+Function pointers can be declared as ``cython.pointer[cython.function_type([cython.int], cython.void)]``
+(which represents ``void (*)(int)`` in C).
+``function_type`` also takes keyword arguments ``exceptval`` and ``check_exceptions`` with the same semantics
+as the ``value`` and ``check`` arguments of the ``@cython.exceptval`` decorator.
+The keyword argument ``nogil=True`` can be used to declare that the function pointer can be called without the GIL.
+
+``cython.reference[cython.int]`` can be used to declare the C++ reference type `int&`.
+
 
 Extension types and cdef functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
