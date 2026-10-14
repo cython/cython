@@ -1884,6 +1884,7 @@ class BuiltinObjectType(PyObjectType):
         'dict_keys': ['supports_container_type'],
         'dict_values': ['supports_container_type'],
         'dict_items': ['supports_container_type'],
+        'zip': ['supports_container_type'],
     }
     _builtin_type_flag_mapping.update(
         # Extended to set '.is_exception_type' for all builtin exception types.
