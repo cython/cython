@@ -1602,6 +1602,9 @@ class IntNode(ConstNode):
         return suitable_type
 
     def coerce_to(self, dst_type, env):
+        if dst_type.is_reference:
+            # A literal is a prvalue, so drop the reference (GH-7927).
+            dst_type = dst_type.ref_base_type
         if self.type is dst_type:
             return self
         elif dst_type.is_float or dst_type.is_pyfloat_type:
@@ -1714,6 +1717,9 @@ class FloatNode(ConstNode):
         return float_value
 
     def coerce_to(self, dst_type, env):
+        if dst_type.is_reference:
+            # A literal is a prvalue, so drop the reference (GH-7927).
+            dst_type = dst_type.ref_base_type
         if dst_type.is_pyobject and self.type.is_float:
             return FloatNode(
                 self.pos, value=self.value,
