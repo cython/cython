@@ -40,6 +40,7 @@ def test_patched_datetime_module():
         import sys
         import weakref
 
+        sys.path[:0] = sys.argv[3:]
         names = ('date', 'datetime', 'time', 'timedelta', 'tzinfo')
         original_types = tuple(getattr(datetime, name) for name in names)
         if sys.implementation.name == 'cpython':
@@ -61,7 +62,7 @@ def test_patched_datetime_module():
         assert module.get_types() == original_types
     """)
     result = subprocess.run(
-        [sys.executable, '-c', code, __name__, __file__],
+        [sys.executable, '-c', code, __name__, __file__, *sys.path],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
     assert result.returncode == 0, result.stderr.decode('utf8', 'replace')
@@ -80,6 +81,7 @@ def test_invalid_datetime_c_api():
         import importlib.util
         import sys
 
+        sys.path[:0] = sys.argv[3:]
         datetime.datetime_CAPI = None
         spec = importlib.util.spec_from_file_location(sys.argv[1], sys.argv[2])
         module = importlib.util.module_from_spec(spec)
@@ -91,7 +93,7 @@ def test_invalid_datetime_c_api():
             raise AssertionError('Import succeeded with an invalid datetime C API')
     """)
     result = subprocess.run(
-        [sys.executable, '-c', code, __name__, __file__],
+        [sys.executable, '-c', code, __name__, __file__, *sys.path],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
     assert result.returncode == 0, result.stderr.decode('utf8', 'replace')

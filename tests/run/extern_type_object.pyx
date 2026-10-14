@@ -62,6 +62,7 @@ def test_type_import(mode):
         import sys
         import weakref
 
+        sys.path[:0] = sys.argv[4:]
         mode = sys.argv[3]
         reference = None
         if mode == 'owned':
@@ -104,7 +105,7 @@ def test_type_import(mode):
                 assert reference() is None, 'Failed import retained the type'
     """)
     result = subprocess.run(
-        [sys.executable, '-c', code, __name__, __file__, mode],
+        [sys.executable, '-c', code, __name__, __file__, mode, *sys.path],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
     assert result.returncode == 0, result.stderr.decode('utf8', 'replace')
