@@ -1506,7 +1506,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 module_state_traverse.putln(
                     "Py_VISIT(traverse_module_state->%s);" %
                     entry.type.typeptr_cname)
-                if entry.type.typeobj_cname is not None:
+                if entry.type.typeobj_cname is not None and not entry.type.is_external:
                     module_state_typeobj.putln("PyObject *%s;" % entry.type.typeobj_cname)
                     module_state_clear.putln(
                         "Py_CLEAR(clear_module_state->%s);" % (
@@ -4250,7 +4250,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # table pointer if any.
         if type in env.types_imported:
             return
-        if type.name not in Code.ctypedef_builtins_map:
+        if type.name not in Code.ctypedef_builtins_map or (type.is_external and type.typeobj_cname):
             # see corresponding condition in generate_type_import_call() below!
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("TypeImport", "ImportExport.c"))
@@ -4271,7 +4271,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         is_builtin = module_name in ('__builtin__', 'builtins')
         if not is_builtin:
             module_name = module_name.as_c_string_literal()
-        elif type_name in Code.ctypedef_builtins_map:
+        elif type_name in Code.ctypedef_builtins_map and not type.typeobj_cname:
             # Fast path for special builtins, don't actually import
             code.putln(
                 f'{code.name_in_module_state(type.typeptr_cname)} = {Code.ctypedef_builtins_map[type_name]};')
@@ -4288,38 +4288,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             assert error_pos is not None
             error_code = code.error_goto(error_pos)
 
-        module = import_generator.imported_module(module_name, error_code)
         typeptr_cname = type.typeptr_cname
         if not is_api:
             typeptr_cname = code.name_in_main_c_code_module_state(typeptr_cname)
 
-        datetime_capi_field = None
-        if type.module_name == 'datetime' and type.typedef_flag:
-            datetime_capi_field = {
-                ('date', 'PyDateTime_Date'): 'DateType',
-                ('datetime', 'PyDateTime_DateTime'): 'DateTimeType',
-                ('time', 'PyDateTime_Time'): 'TimeType',
-                ('timedelta', 'PyDateTime_Delta'): 'DeltaType',
-                ('tzinfo', 'PyDateTime_TZInfo'): 'TZInfoType',
-            }.get((type_name, objstruct))
-        if datetime_capi_field:
-            # Module attributes can be replaced (e.g. by freezegun), but the
-            # declared C layouts require the native types from the C API.
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached('DateTimeTypeImport', 'ImportExport.c'))
-            code.putln('#if __PYX_HAVE_NATIVE_DATETIME')
-            code.putln('{')
-            code.putln('PyDateTime_CAPI *capi = PyDateTime_IMPORT;')
-            code.putln(f'if (unlikely(!capi)) {error_code}')
-            code.putln(f'{typeptr_cname} = capi->{datetime_capi_field};')
-            code.putln(f'Py_INCREF({typeptr_cname});')
-            code.putln('}')
-            code.putln('#else')
-
-        code.putln(
-            f"{typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
-            f"{module}, {module_name}, {type.name.as_c_string_literal()},"
-        )
+        if type.is_external and type.typeobj_cname:
+            code.putln(f'{typeptr_cname} = &{type.typeobj_cname};')
+            code.putln(f'if (unlikely(!{typeptr_cname})) {error_code}')
+            code.putln(f'Py_INCREF((PyObject *){typeptr_cname});')
+            code.putln(
+                f"{typeptr_cname} = __Pyx_ImportTypeFromType_{Naming.cyversion}("
+                f"{typeptr_cname}, {module_name}, {type.name.as_c_string_literal()},")
+        else:
+            module = import_generator.imported_module(module_name, error_code)
+            code.putln(
+                f"{typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
+                f"{module}, {module_name}, {type.name.as_c_string_literal()},")
 
         alignment_func = f"__PYX_GET_STRUCT_ALIGNMENT_{Naming.cyversion}"
         code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
@@ -4347,9 +4331,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f"invalid value for check_size '{type.check_size}' when compiling {module_name}.{type.name}")
         code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
-        if datetime_capi_field:
-            code.putln('')
-            code.putln('#endif')
         code.putln(f' if (!{typeptr_cname}) {error_code}')
 
     def generate_type_ready_code(self, entry, code):

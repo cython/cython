@@ -374,16 +374,6 @@ set_path:
 #endif
 
 
-/////////////// DateTimeTypeImport.proto ///////////////
-
-// Also used in API headers, where CYTHON_COMPILING_IN_* may not be defined.
-#if defined(PYPY_VERSION) || defined(GRAALVM_PYTHON) || defined(Py_LIMITED_API)
-  #define __PYX_HAVE_NATIVE_DATETIME 0
-#else
-  #define __PYX_HAVE_NATIVE_DATETIME 1
-  #include "datetime.h"
-#endif
-
 /////////////// TypeImport.proto ///////////////
 //@substitute: naming
 
@@ -407,8 +397,16 @@ enum __Pyx_ImportType_CheckSize_$cyversion {
    __Pyx_ImportType_CheckSize_Ignore_$cyversion = 2
 };
 
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
 static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject* module, const char *module_name, const char *class_name, size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size);  /*proto*/
 
+#endif
+
+#ifndef __PYX_HAVE_RT_ImportTypeFromType_proto_$cyversion
+#define __PYX_HAVE_RT_ImportTypeFromType_proto_$cyversion
+static PyTypeObject *__Pyx_ImportTypeFromType_$cyversion(PyTypeObject* type, const char *module_name, const char *class_name, size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size);  /*proto*/
 #endif
 
 /////////////// TypeImport ///////////////
@@ -421,7 +419,20 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject* module, const char *m
 static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *module_name, const char *class_name,
     size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size)
 {
-    PyObject *result = 0;
+    PyObject *result = PyObject_GetAttrString(module, class_name);
+    if (!result)
+        return NULL;
+    return __Pyx_ImportTypeFromType_$cyversion((PyTypeObject *)result, module_name, class_name, size, alignment, check_size);
+}
+#endif
+
+#ifndef __PYX_HAVE_RT_ImportTypeFromType_$cyversion
+#define __PYX_HAVE_RT_ImportTypeFromType_$cyversion
+/* Consumes the reference to type, including on failure. */
+static PyTypeObject *__Pyx_ImportTypeFromType_$cyversion(PyTypeObject *type, const char *module_name, const char *class_name,
+    size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size)
+{
+    PyObject *result = (PyObject *)type;
     Py_ssize_t basicsize;
     Py_ssize_t itemsize;
 #if defined(Py_LIMITED_API) || (defined(CYTHON_COMPILING_IN_LIMITED_API) && CYTHON_COMPILING_IN_LIMITED_API)
@@ -429,9 +440,6 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     PyObject *py_itemsize;
 #endif
 
-    result = PyObject_GetAttrString(module, class_name);
-    if (!result)
-        goto bad;
     if (!PyType_Check(result)) {
         PyErr_Format(PyExc_TypeError,
             "%.200s.%.200s is not a type object",
