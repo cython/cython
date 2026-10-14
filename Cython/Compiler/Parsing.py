@@ -2250,6 +2250,12 @@ def p_except_clause(s: PyrexScanner):
         if not is_except_star and s.sy == ',' or (
                 s.sy == 'IDENT' and s.systring == 'as'
                 and s.context.language_level == 2):
+            if s.sy == ',' and not s.context.language_level == 2:
+                warning(
+                    s.position(),
+                    "Using a Python-2 style except clause with language_level 3. "
+                    "This will be interpreted as a list of exceptions in a future release.",
+                    2)
             s.next()
             exc_value = p_test(s)
         elif s.sy == 'IDENT' and s.systring == 'as':
