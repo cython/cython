@@ -374,6 +374,16 @@ set_path:
 #endif
 
 
+/////////////// DateTimeTypeImport.proto ///////////////
+
+// Also used in API headers, where CYTHON_COMPILING_IN_* may not be defined.
+#if defined(PYPY_VERSION) || defined(GRAALVM_PYTHON) || defined(Py_LIMITED_API)
+  #define __PYX_HAVE_NATIVE_DATETIME 0
+#else
+  #define __PYX_HAVE_NATIVE_DATETIME 1
+  #include "datetime.h"
+#endif
+
 /////////////// TypeImport.proto ///////////////
 //@substitute: naming
 

@@ -4293,6 +4293,29 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not is_api:
             typeptr_cname = code.name_in_main_c_code_module_state(typeptr_cname)
 
+        datetime_capi_field = None
+        if type.module_name == 'datetime' and type.typedef_flag:
+            datetime_capi_field = {
+                ('date', 'PyDateTime_Date'): 'DateType',
+                ('datetime', 'PyDateTime_DateTime'): 'DateTimeType',
+                ('time', 'PyDateTime_Time'): 'TimeType',
+                ('timedelta', 'PyDateTime_Delta'): 'DeltaType',
+                ('tzinfo', 'PyDateTime_TZInfo'): 'TZInfoType',
+            }.get((type_name, objstruct))
+        if datetime_capi_field:
+            # Module attributes can be replaced (e.g. by freezegun), but the
+            # declared C layouts require the native types from the C API.
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached('DateTimeTypeImport', 'ImportExport.c'))
+            code.putln('#if __PYX_HAVE_NATIVE_DATETIME')
+            code.putln('{')
+            code.putln('PyDateTime_CAPI *capi = PyDateTime_IMPORT;')
+            code.putln(f'if (unlikely(!capi)) {error_code}')
+            code.putln(f'{typeptr_cname} = capi->{datetime_capi_field};')
+            code.putln(f'Py_INCREF({typeptr_cname});')
+            code.putln('}')
+            code.putln('#else')
+
         code.putln(
             f"{typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
             f"{module}, {module_name}, {type.name.as_c_string_literal()},"
@@ -4324,6 +4347,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f"invalid value for check_size '{type.check_size}' when compiling {module_name}.{type.name}")
         code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
+        if datetime_capi_field:
+            code.putln('')
+            code.putln('#endif')
         code.putln(f' if (!{typeptr_cname}) {error_code}')
 
     def generate_type_ready_code(self, entry, code):

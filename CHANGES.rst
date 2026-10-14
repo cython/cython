@@ -8,6 +8,10 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Native ``datetime`` types are imported from the C API on CPython, avoiding
+  crashes when ``datetime`` classes are patched before an extension module is
+  imported.
+
 * Type inference now respects ``annotation_typing=False`` for local variable annotations.
   (Github issue :issue:`7994`)
 
