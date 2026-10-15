@@ -1205,8 +1205,8 @@ class ExprNode(Node):
                     self.pos, obj=self, attribute=StringEncoding.EncodedString('operator bool')),
                 args=[]).analyse_types(env)
         elif type.is_ctuple:
-            bool_value = len(type.components) == 0
-            return BoolNode(self.pos, value=bool_value)
+            # Evaluate the tuple even though its truth value is known.
+            return CoerceToBooleanNode(self.coerce_to_temp(env), env)
         else:
             error(self.pos, "Type '%s' not acceptable as a boolean" % type)
             return self
@@ -15526,6 +15526,8 @@ class CoerceToBooleanNode(CoercionNode):
         if self.arg.type.is_returncode:
             # bool(None) == False
             return "(0)"
+        if self.arg.type.is_ctuple:
+            return "(1)" if self.arg.type.components else "(0)"
         return "(%s != 0)" % self.arg.result()
 
     def generate_result_code(self, code):

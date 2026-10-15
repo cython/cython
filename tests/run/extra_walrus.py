@@ -7,6 +7,52 @@
 import cython
 import sys
 
+
+def tuple_condition_walrus(x: cython.int):
+    """
+    >>> tuple_condition_walrus(0)
+    (True, 0)
+    >>> tuple_condition_walrus(7)
+    (True, 7)
+    """
+    a: cython.int = 9
+    if (a := x,):
+        return True, a
+    return False, a
+
+
+def tuple_condition_walrus_order():
+    """
+    >>> tuple_condition_walrus_order()
+    7
+    """
+    a: cython.int = 0
+    if (a := 3, a := a + 4):
+        return a
+    return -1
+
+
+def tuple_condition_walrus_not():
+    """
+    >>> tuple_condition_walrus_not()
+    (False, 7)
+    """
+    a: cython.int = 0
+    result = not (a := 7,)
+    return result, a
+
+
+def tuple_condition_walrus_short_circuit(enabled):
+    """
+    >>> tuple_condition_walrus_short_circuit(False)
+    (False, 0)
+    >>> tuple_condition_walrus_short_circuit(True)
+    (True, 7)
+    """
+    a: cython.int = 0
+    result = True if enabled and (a := 7,) else False
+    return result, a
+
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 def optimized(x):
     """
