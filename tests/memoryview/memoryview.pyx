@@ -190,7 +190,7 @@ def test_cdef_attribute():
     cdef ExtClass extobj = ExtClass.__new__(ExtClass)
     try:
         print extobj.mview
-    except AttributeError, e:
+    except AttributeError as e:
         print e.args[0]
     else:
         print "No AttributeError was raised"
@@ -198,7 +198,7 @@ def test_cdef_attribute():
     cdef int[:] myview
     try:
         print myview
-    except UnboundLocalError, e:
+    except UnboundLocalError as e:
         print e.args[0]
     else:
         print "No UnboundLocalError was raised"
@@ -206,12 +206,12 @@ def test_cdef_attribute():
     cdef int[:] otherview
     try:
          otherview = myview
-    except UnboundLocalError, e:
+    except UnboundLocalError as e:
         print e.args[0]
 
     try:
         print get_ext_obj().mview
-    except AttributeError, e:
+    except AttributeError as e:
         print e.args[0]
     else:
         print "No AttributeError was raised"

@@ -234,7 +234,7 @@ def alignment_string(fmt, exc=None):
     cdef object[int] buf
     try:
         buf = MockBuffer(fmt, sizeof(int))
-    except ValueError, e:
+    except ValueError as e:
         msg = unicode(e).replace("Big", "X").replace("Little", "X").replace("big", "X").replace("little", "X")
         if msg != exc:
             print msg
