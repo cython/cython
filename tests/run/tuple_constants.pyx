@@ -229,10 +229,13 @@ def multiplied_constant_tuple_too_large(do_it):
 
 def multiplied_constant_tuple_huge(do_it):
     """
+    The failure depends on the runtime: allocation fails on 64-bit CPython,
+    while index conversion fails on 32-bit CPython and GraalPy.
     >>> multiplied_constant_tuple_huge(False)
-    >>> multiplied_constant_tuple_huge(True)
-    Traceback (most recent call last):
-    MemoryError
+    >>> try:
+    ...     multiplied_constant_tuple_huge(True)
+    ... except (MemoryError, OverflowError, IndexError):
+    ...     pass
     """
     if do_it:
         return (1,) * 10**15
