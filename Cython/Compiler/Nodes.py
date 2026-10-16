@@ -703,19 +703,39 @@ class CFuncDeclaratorNode(CDeclaratorNode):
 
     def analyse_templates(self):
         if isinstance(self.base, CArrayDeclaratorNode):
-            from .ExprNodes import TupleNode, NameNode
+            from .ExprNodes import TupleNode, NameNode, IndexNode
             template_node = self.base.dimension
             if isinstance(template_node, TupleNode):
                 template_nodes = template_node.args
             elif isinstance(template_node, NameNode):
                 template_nodes = [template_node]
+            elif isinstance(template_node, IndexNode):
+                template_nodes = [template_node]
             else:
                 error(template_node.pos, "Template arguments must be a list of names")
                 return None
             self.templates = []
-            for template in template_nodes:
+            def to_template_and_implicit(template):
+                if isinstance(template, IndexNode):
+                    if template.base.as_cython_attribute() == "implicit_param":
+                        return template.index, True
+                    else:
+                        error(
+                            template.pos,
+                            "Only 'implicit_param' is accepted as an indexed template argument"
+                        )
+                        return None, None
+                else:
+                    return template, None
+            seen_implicit = False
+            for template, implicitness in [to_template_and_implicit(t) for t in template_nodes]:
+                if template is None:
+                    continue  # error earlier
+                if not implicitness and seen_implicit:
+                    error(template.pos, "Non-implicit template argument follows implicit template argument")
+                seen_implicit = seen_implicit or bool(implicitness)
                 if isinstance(template, NameNode):
-                    self.templates.append(PyrexTypes.TemplatePlaceholderType(template.name))
+                    self.templates.append(PyrexTypes.TemplatePlaceholderType(template.name, implicit=implicitness))
                 else:
                     error(template.pos, "Template arguments must be a list of names")
             self.base = self.base.base
