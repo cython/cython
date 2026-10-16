@@ -44,7 +44,7 @@ jobs:
         persist-credentials: false
       # Only needed to compare the "base" on push; not needed for PR
       if: ${{ github.event_name == 'push' }}
-    - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706  # v4.0.2
+    - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d  # v4.0.3
       id: filter
       with:
         base: ${{ github.ref }}
@@ -488,7 +488,7 @@ jobs:
           make -C docs html
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: htmldocs
           path: docs/build/html
