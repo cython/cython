@@ -3,6 +3,63 @@
 import cython
 
 
+def truth_testing((int, double) value):
+    """
+    >>> truth_testing((0, 0.0))
+    (True, False)
+    >>> truth_testing((1, 2.0))
+    (True, False)
+    """
+    if value:
+        return True, not value
+    return False, not value
+
+
+cdef (int, int) increment_tuple(int *counter) noexcept nogil:
+    counter[0] += 1
+    return (0, 0)
+
+
+def truth_testing_nogil():
+    """
+    >>> truth_testing_nogil()
+    (True, False, 3)
+    """
+    cdef int counter = 0
+    cdef bint result = False
+    cdef bint negated
+    with nogil:
+        if increment_tuple(&counter):
+            result = True
+        negated = not increment_tuple(&counter)
+        while increment_tuple(&counter):
+            break
+    return result, negated, counter
+
+
+cdef int record_tuple_item(list events, int value, bint fail) except -1:
+    events.append(value)
+    if fail:
+        raise ValueError("tuple item")
+    return 0
+
+
+def truth_testing_items(bint fail=False):
+    """
+    >>> truth_testing_items()
+    (True, [1, 2])
+    >>> truth_testing_items(True)
+    ('tuple item', [1, 2])
+    """
+    events = []
+    try:
+        if (record_tuple_item(events, 1, False), record_tuple_item(events, 2, fail)):
+            return True, events
+    except ValueError as exc:
+        return str(exc), events
+    return False, events
+
+
 def simple_convert(*o):
     """
     >>> simple_convert(1, 2)
@@ -276,7 +333,9 @@ def test_mul_to_ctuple((int, int) ab, int c):
 def test_unop((int, int) ab):
     """
     >>> test_unop((1, 2))
-    True
+    False
+    >>> test_unop((0, 0))
+    False
     """
     return not ab
 
