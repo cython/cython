@@ -6,7 +6,7 @@ array_cimport
 buffers[.]buffer
 cdef_multiple_inheritance_errors
 cline_in_traceback
-[.]coroutines  # something small involving cr_frame equality 
+[.]coroutines  # something small involving cr_frame equality
 [.]coverage
 cyfunction$
 coverage_api
@@ -40,6 +40,7 @@ test_raisefrom
 userbuffer
 unicode_identifiers$
 unicode_identifiers_normalization
+asyncgen_aclose_throw  # GraalPy's aclose() does not suspend on an await in finally
 
 # probably just GC?
 double_dealloc_T796
