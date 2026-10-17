@@ -731,7 +731,7 @@ def find_return_type_of_builtin_method(pos, env, builtin_type, method_name, args
             if type_name == 'dict' and method_name in ('pop', 'get', 'setdefault'):
                 # These are special in that they accept a second 'default' argument that
                 # may determine the return type.
-                if args is None:
+                if args is None or len(args) == 0:
                     # unusual call
                     return PyrexTypes.py_object_type, True
                 if len(args) == 1:

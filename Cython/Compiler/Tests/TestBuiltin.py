@@ -2,6 +2,7 @@ import builtins
 import json
 import subprocess
 import sys
+from unittest.mock import Mock
 
 from .. import PyrexTypes
 from ..Builtin import (
@@ -117,18 +118,41 @@ class TestBuiltinReturnTypes(TimedTest):
             if look_up_methods and py_version >= self._min_method_versions.get(fq_method_name, py_version):
                 self.assertTrue(hasattr(py_type, method_name), fq_method_name)
 
-            # setting args with list of one object to simulate missing default value in method call
-            actual_return_type, may_be_none = find_return_type_of_builtin_method(
-                pos, test_module_scope, builtin_type, method_name, args=[object()])
+            def assert_return_type(actual_return_type, expected_return_type):
+                if actual_return_type.is_builtin_type:
+                    self.assertEqual(actual_return_type.name, expected_return_type.name)
+                self.assertEqual(
+                    actual_return_type.empty_declaration_code(pyrex=True),
+                    expected_return_type.empty_declaration_code(pyrex=True))
 
             expected_return_type = parse_subscripted_type(return_type_name)
-            if actual_return_type.is_builtin_type:
-                self.assertEqual(actual_return_type.name, expected_return_type.name)
-
-            self.assertEqual(actual_return_type.empty_declaration_code(pyrex=True), expected_return_type.empty_declaration_code(pyrex=True))
             if builtin_type.name in {'dict', 'frozendict'} and method_name in ('pop', 'get', 'setdefault'):
-                self.assertTrue(may_be_none)
+                for args, expected_return_type, expected_may_be_none in [
+                    ([object()], expected_return_type, True),                               # my_dict.pop('bar')
+                    ([object(), object(), object()], PyrexTypes.py_object_type, True),      # should not happen: my_dict.pop('a', 'b', 'c')
+                    (None, PyrexTypes.py_object_type, True),                                # should not happen
+                    ([], PyrexTypes.py_object_type, True),                                  # my_dict.pop()
+                    (                                                                       # my_dict.pop('bar', c_int_var)
+                        [object(), Mock(type=PyrexTypes.c_int_type)],
+                        PyrexTypes.independent_spanning_type(expected_return_type, PyrexTypes.c_int_type),
+                        PyrexTypes.independent_spanning_type(
+                            expected_return_type, PyrexTypes.c_int_type) is PyrexTypes.py_object_type
+                    ),
+                    (                                                                       # my_dict.pop('bar', py_var)
+                        [object(),
+                         Mock(type=PyrexTypes.py_object_type)],
+                        PyrexTypes.py_object_type,
+                        True
+                    ),
+                ]:
+                    actual_return_type, may_be_none = find_return_type_of_builtin_method(
+                        pos, test_module_scope, builtin_type, method_name, args=args)
+                    assert_return_type(actual_return_type, expected_return_type)
+                    self.assertEqual(may_be_none, expected_may_be_none, args)
             else:
+                actual_return_type, may_be_none = find_return_type_of_builtin_method(
+                    pos, test_module_scope, builtin_type, method_name)
+                assert_return_type(actual_return_type, expected_return_type)
                 self.assertFalse(may_be_none)
 
 
