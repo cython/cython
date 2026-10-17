@@ -1,6 +1,6 @@
 # cython: language_level=3
 # mode: run
-# tag: pure3.7, pep526, pep484, warnings
+# tag: pure3.7, pep526, pep484
 
 # for the benefit of the pure tests, don't require annotations
 # to be evaluated
@@ -173,6 +173,41 @@ def test_dict_handle_missing_key():
         assert False, len(inserted_default_none)
     assert inserted_default_none is None, inserted_default_none
     assert empty_dict['none_missing'] is None, empty_dict
+
+
+def test_dict_typed_default_value():
+    """
+    >>> test_dict_typed_default_value()
+    5 int
+    """
+    empty_int_dict: dict[cython.int, cython.int] = {}
+    default_int: cython.int = 5
+    popped_int = empty_int_dict.get(0, default_int)
+    print(popped_int, cython.typeof(popped_int) if cython.compiled else 'int')
+
+def test_dict_pop_annotated_none1(d: [str, str | None], default: str):
+    """
+    >>> test_dict_pop_annotated_none1({}, "default")
+    ('Python object', 'default')
+    >>> test_dict_pop_annotated_none1({"key": None}, "default")
+    ('Python object', None)
+    >>> test_dict_pop_annotated_none1({"key": "value"}, "default")
+    ('Python object', 'value')
+    """
+    ret = d.pop('key', default)
+    return cython.typeof(ret) if cython.compiled else 'Python object', ret
+
+def test_dict_pop_annotated_none2(d: dict[str, str], default: str | None):
+    """
+    >>> test_dict_pop_annotated_none2({}, "default")
+    ('str object', 'default')
+    >>> test_dict_pop_annotated_none2({}, None)
+    ('str object', None)
+    >>> test_dict_pop_annotated_none2({"key": "value"}, "default")
+    ('str object', 'value')
+    """
+    ret = d.pop('key', default)
+    return cython.typeof(ret) if cython.compiled else 'str object', ret
 
 def test_dict_builtin_methods():
     """
