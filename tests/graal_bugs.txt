@@ -66,6 +66,7 @@ memoryview_in_subclasses
 memoryview
 cythonarray
 asyncio_leaks
+asyncgen_aclose_throw  # GraalPy's aclose() does not suspend on an await in finally
 
 # probably just GC?
 double_dealloc_T796
