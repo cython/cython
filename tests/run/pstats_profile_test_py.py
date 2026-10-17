@@ -55,6 +55,14 @@ u"""
 
     >>> short_stats['m_cpdef']
     200
+    >>> short_stats['m_cpdef_base']
+    200
+    >>> short_stats['m_cpdef_base_noexcept']
+    200
+    >>> short_stats['m_cpdef_base_optargs']
+    400
+    >>> short_stats['m_cpdef_sub']
+    200
 
     >>> try:
     ...    os.unlink(statsfile)
@@ -67,7 +75,7 @@ u"""
      'f_inline', 'f_inline_prof',
      'f_noprof',
      'f_raise',
-     'm_cdef', 'm_cpdef', 'm_def',
+     'm_cdef', 'm_cpdef', 'm_cpdef_sub', 'm_def',
      'nogil_noprof', 'nogil_prof',
      'withgil_noprof', 'withgil_prof']
 
@@ -181,6 +189,7 @@ def test_profile(N: cython.long):
     i: cython.long
     n: cython.long = 0
     a: A = A()
+    b: B = B()
     for i in range(N):
         n += f_def(i)
         n += f_cdef(i)
@@ -198,6 +207,8 @@ def test_profile(N: cython.long):
         n += a.m_cpdef(i)
         n += cython.cast(object, a).m_cpdef(i)
         n += a.m_cdef(i)
+        n += b.m_cpdef_sub(i)
+        n += cython.cast(object, b).m_cpdef_sub(i)
         try:
             n += f_raise(i+2)
         except RuntimeError:
@@ -273,6 +284,26 @@ class A(object):
     @cython.cfunc
     def m_cdef(self, a: cython.long):
         return a
+    @cython.ccall
+    def m_cpdef_base(self, a: cython.long):
+        return a
+    @cython.exceptval(check=False)
+    @cython.ccall
+    def m_cpdef_base_noexcept(self, a: cython.long) -> cython.long:
+        return a
+    @cython.ccall
+    def m_cpdef_base_optargs(self, a: cython.long, b: cython.long = 0):
+        return a + b
+
+@cython.cclass
+class B(A):
+    @cython.ccall
+    def m_cpdef_sub(self, a: cython.long):
+        # Explicit base class calls that bypass the Python wrapper and the method dispatch.
+        n: cython.long = A.m_cpdef_base_noexcept(self, a)
+        n += A.m_cpdef_base_optargs(self, a)
+        n += A.m_cpdef_base_optargs(self, a, 1)
+        return n + A.m_cpdef_base(self, a)
 
 
 def test_generators(_=None):

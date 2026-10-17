@@ -4,6 +4,7 @@
 
 
 import copy
+import enum
 import hashlib
 import re
 
@@ -3583,6 +3584,13 @@ class CppRvalueReferenceType(CReferenceBaseType):
         return self.ref_base_type.declaration_code(
             "&&%s" % entity_code,
             for_display, dll_linkage, pyrex)
+
+
+class CpdefDispatch(enum.IntEnum):
+    # Values of the "skip_dispatch" argument of cpdef functions.
+    Dispatch = 0  # look up and call Python overrides
+    SkipDispatch = 1  # skip the dispatch, e.g. for explicit calls like "BaseType.method(self)"
+    WrapperCall = 2  # skip the dispatch, called from the Python wrapper which already traced the call
 
 
 class CFuncType(CType):
