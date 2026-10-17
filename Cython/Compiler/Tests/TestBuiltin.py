@@ -118,7 +118,7 @@ class TestBuiltinReturnTypes(TimedTest):
                 self.assertTrue(hasattr(py_type, method_name), fq_method_name)
 
             # setting args with list of one object to simulate missing default value in method call
-            actual_return_type, _ = find_return_type_of_builtin_method(
+            actual_return_type, may_be_none = find_return_type_of_builtin_method(
                 pos, test_module_scope, builtin_type, method_name, args=[object()])
 
             expected_return_type = parse_subscripted_type(return_type_name)
@@ -126,6 +126,10 @@ class TestBuiltinReturnTypes(TimedTest):
                 self.assertEqual(actual_return_type.name, expected_return_type.name)
 
             self.assertEqual(actual_return_type.empty_declaration_code(pyrex=True), expected_return_type.empty_declaration_code(pyrex=True))
+            if builtin_type.name in {'dict', 'frozendict'} and method_name in ('pop', 'get', 'setdefault'):
+                self.assertTrue(may_be_none)
+            else:
+                self.assertFalse(may_be_none)
 
 
 class TestBuiltinCompatibility(TimedTest):
