@@ -1168,7 +1168,11 @@ Where:
 
 - ``object_struct_name`` is the name to assume for the type's C struct.
 - ``type_object_name`` is the name to assume for the type's statically
-  declared type object.
+  declared type object. For external extension types, providing this name
+  loads the type directly from C instead of importing a Python module
+  attribute. The name can also be a C macro yielding a type object;
+  its address must be a valid borrowed type pointer, or NULL with an
+  exception set. The usual ``check_size`` checks still apply.
 - ``cs_option`` is ``warn`` (the default), ``error``, or ``ignore`` and is only
   used for external extension types.  If ``error``, the ``sizeof(object_struct)``
   that was found at compile time must match the type's runtime :c:member:`PyTypeObject.tp_basicsize`
