@@ -84,9 +84,10 @@ if [[ $PYTHON_VERSION == *"3.9"* || $PYTHON_VERSION == "3.1"[01]* || $PYTHON_VER
 else
   $PYTHON -m pip install --no-cache-dir -U pip wheel setuptools || exit 1
 fi
-if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" && $PYTHON_VERSION != "graalpy"* ]]; then
+if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"-dev" && $PYTHON_VERSION != "graalpy"* ]]; then
   # twine is not installable on freethreaded Python due to cryptography requirement
   # On GraalPython, it is useless and takes long to install due to its binary dependencies.
+  # On the "dev" builds it varies whether it's possible to build it so also drop it.
   $PYTHON -m pip install --no-cache-dir -U twine || exit 1
 fi
 if [[ $PYTHON_VERSION != *"-dev" ]]; then

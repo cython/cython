@@ -670,6 +670,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             error(self.pos, "Array element type '%s' is incomplete" % base_type)
         if base_type.is_pyobject:
             error(self.pos, "Array element cannot be a Python object")
+            base_type = error_type
         if base_type.is_cfunction:
             error(self.pos, "Array element cannot be a function")
         array_type = PyrexTypes.c_array_type(base_type, size)
@@ -5006,7 +5007,9 @@ class GeneratorBodyDefNode(DefNode):
             code.put_label(code.error_label)
             if self.is_inlined and self.inlined_comprehension_type is not None:
                 code.put_xdecref_clear(Naming.retval_cname, py_object_type)
-
+            if code.funcstate.has_except_star:
+                tempvardecl_code.putln(
+                    f"int {Naming.skip_add_traceback_cname} = 0;")
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
             code.putln("if (__Pyx_PyErr_Occurred()) {")  # we allow exit without GeneratorExit / StopIteration
