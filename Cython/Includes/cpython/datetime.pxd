@@ -18,6 +18,30 @@ cdef extern from "Python.h":
 
 cdef extern from "datetime.h":
     """
+    /* Import the C types independently of replaceable Python module attributes. */
+    static CYTHON_INLINE PyTypeObject *__Pyx_DateTime_ImportType(int index) {
+    #ifdef PyDateTime_CAPSULE_NAME
+        PyDateTime_CAPI *capi = (PyDateTime_CAPI *)PyCapsule_Import(PyDateTime_CAPSULE_NAME, 0);
+    #else
+        PyDateTime_CAPI *capi = PyDateTime_IMPORT;
+    #endif
+        if (!capi) return NULL;
+        switch (index) {
+            case 0: return capi->DateType;
+            case 1: return capi->DateTimeType;
+            case 2: return capi->TimeType;
+            case 3: return capi->DeltaType;
+            case 4: return capi->TZInfoType;
+        }
+        PyErr_SetString(PyExc_SystemError, "Invalid datetime type index");
+        return NULL;
+    }
+    #define __Pyx_DateTime_DateType (*__Pyx_DateTime_ImportType(0))
+    #define __Pyx_DateTime_DateTimeType (*__Pyx_DateTime_ImportType(1))
+    #define __Pyx_DateTime_TimeType (*__Pyx_DateTime_ImportType(2))
+    #define __Pyx_DateTime_DeltaType (*__Pyx_DateTime_ImportType(3))
+    #define __Pyx_DateTime_TZInfoType (*__Pyx_DateTime_ImportType(4))
+
     #define __Pyx_DateTime_DateTimeWithFold(year, month, day, hour, minute, second, microsecond, tz, fold) \
         PyDateTimeAPI->DateTime_FromDateAndTimeAndFold(year, month, day, hour, minute, second, \
             microsecond, tz, fold, PyDateTimeAPI->DateTimeType)
@@ -40,7 +64,7 @@ cdef extern from "datetime.h":
     #endif
     """
 
-    ctypedef extern class datetime.date[object PyDateTime_Date]:
+    ctypedef extern class datetime.date[object PyDateTime_Date, type __Pyx_DateTime_DateType]:
         @property
         cdef inline int year(self) noexcept:
             return PyDateTime_GET_YEAR(self)
@@ -53,7 +77,7 @@ cdef extern from "datetime.h":
         cdef inline int day(self) noexcept:
             return PyDateTime_GET_DAY(self)
 
-    ctypedef extern class datetime.time[object PyDateTime_Time]:
+    ctypedef extern class datetime.time[object PyDateTime_Time, type __Pyx_DateTime_TimeType]:
         @property
         cdef inline int hour(self) noexcept:
             return PyDateTime_TIME_GET_HOUR(self)
@@ -79,7 +103,7 @@ cdef extern from "datetime.h":
             # For Python < 3.6 this returns 0 no matter what
             return PyDateTime_TIME_GET_FOLD(self)
 
-    ctypedef extern class datetime.datetime[object PyDateTime_DateTime]:
+    ctypedef extern class datetime.datetime[object PyDateTime_DateTime, type __Pyx_DateTime_DateTimeType]:
         @property
         cdef inline int year(self) noexcept:
             return PyDateTime_GET_YEAR(self)
@@ -117,7 +141,7 @@ cdef extern from "datetime.h":
             # For Python < 3.6 this returns 0 no matter what
             return PyDateTime_DATE_GET_FOLD(self)
 
-    ctypedef extern class datetime.timedelta[object PyDateTime_Delta]:
+    ctypedef extern class datetime.timedelta[object PyDateTime_Delta, type __Pyx_DateTime_DeltaType]:
         @property
         cdef inline int day(self) noexcept:
             return PyDateTime_DELTA_GET_DAYS(self)
@@ -130,7 +154,7 @@ cdef extern from "datetime.h":
         cdef inline int microsecond(self) noexcept:
             return PyDateTime_DELTA_GET_MICROSECONDS(self)
 
-    ctypedef extern class datetime.tzinfo[object PyDateTime_TZInfo]:
+    ctypedef extern class datetime.tzinfo[object PyDateTime_TZInfo, type __Pyx_DateTime_TZInfoType]:
         pass
 
     ctypedef struct PyDateTime_Date:

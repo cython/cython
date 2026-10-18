@@ -8,6 +8,13 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* External extension types can use the ``type`` name specification to load
+  their type object directly from C instead of a Python module attribute.
+
+* Native ``datetime`` types are imported from the C API, avoiding
+  crashes when ``datetime`` classes are patched before an extension module is
+  imported.
+
 * Type inference now respects ``annotation_typing=False`` for local variable annotations.
   (Github issue :issue:`7994`)
 

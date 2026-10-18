@@ -4023,8 +4023,6 @@ def p_c_class_definition(s: PyrexScanner, pos,  ctx):
     if ctx.visibility == 'extern':
         if not module_path:
             error(pos, "Module name required for 'extern' C class")
-        if typeobj_name:
-            error(pos, "Type object name specification not allowed for 'extern' C class")
     elif ctx.visibility == 'public':
         if not objstruct_name:
             error(pos, "Object struct name specification required for 'public' C class")
