@@ -2,7 +2,6 @@ import builtins
 import json
 import subprocess
 import sys
-from unittest.mock import Mock
 
 from .. import PyrexTypes
 from ..Builtin import (
@@ -19,6 +18,14 @@ from ..PyrexTypes import (
 )
 
 from ...TestUtils import TimedTest
+
+
+class CIntTypedNode:
+    type = PyrexTypes.c_int_type
+
+
+class PyObjectTypedNode:
+    type = PyrexTypes.py_object_type
 
 
 class TestBuiltinReturnTypes(TimedTest):
@@ -133,14 +140,13 @@ class TestBuiltinReturnTypes(TimedTest):
                     (None, PyrexTypes.py_object_type, True),                                # should not happen
                     ([], PyrexTypes.py_object_type, True),                                  # my_dict.pop()
                     (                                                                       # my_dict.pop('bar', c_int_var)
-                        [object(), Mock(type=PyrexTypes.c_int_type)],
+                        [object(), CIntTypedNode()],
                         PyrexTypes.independent_spanning_type(expected_return_type, PyrexTypes.c_int_type),
                         PyrexTypes.independent_spanning_type(
                             expected_return_type, PyrexTypes.c_int_type) is PyrexTypes.py_object_type
                     ),
                     (                                                                       # my_dict.pop('bar', py_var)
-                        [object(),
-                         Mock(type=PyrexTypes.py_object_type)],
+                        [object(), PyObjectTypedNode],
                         PyrexTypes.py_object_type,
                         True
                     ),
