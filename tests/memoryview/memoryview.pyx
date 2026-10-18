@@ -190,7 +190,7 @@ def test_cdef_attribute():
     cdef ExtClass extobj = ExtClass.__new__(ExtClass)
     try:
         print extobj.mview
-    except AttributeError, e:
+    except AttributeError as e:
         print e.args[0]
     else:
         print "No AttributeError was raised"
@@ -198,7 +198,7 @@ def test_cdef_attribute():
     cdef int[:] myview
     try:
         print myview
-    except UnboundLocalError, e:
+    except UnboundLocalError as e:
         print e.args[0]
     else:
         print "No UnboundLocalError was raised"
@@ -206,12 +206,12 @@ def test_cdef_attribute():
     cdef int[:] otherview
     try:
          otherview = myview
-    except UnboundLocalError, e:
+    except UnboundLocalError as e:
         print e.args[0]
 
     try:
         print get_ext_obj().mview
-    except AttributeError, e:
+    except AttributeError as e:
         print e.args[0]
     else:
         print "No AttributeError was raised"
@@ -1434,6 +1434,20 @@ def test_untyped_index(i):
     arr = [5, 4, 3, 2, 1, 0]
     cdef int[:] mview_arr = arr
     return mview_arr[i]  # should generate a performance hint
+
+def test_double_sliced_assignment(ExtClass ec):
+    """
+    >>> test_double_sliced_assignment(ExtClass())
+    1 9
+    0 8
+    """
+    for i in range(ec.mview.shape[0]):
+        ec.mview[i] = i
+    arr = ec.mview
+    ec.mview = arr[1:]
+    print ec.mview[0], ec.mview[-1]
+    ec.mview = arr[:-1]
+    print ec.mview[0], ec.mview[-1]
 
 _PERFORMANCE_HINTS = """
 243:9: Use boundscheck(False) for faster access

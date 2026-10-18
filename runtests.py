@@ -502,8 +502,10 @@ VER_DEP_MODULES = {
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
 
-    (3,11): (operator.lt, lambda x: x in ['run.test_except_star',
-                                          ]),
+    (3,11): (operator.lt, lambda x: x in [
+        'run.test_except_star',
+        'run.test_except_star_misc'
+    ]),
     (3,12): (operator.ge, lambda x: x in [
         'run.py_unicode_strings',  # Py_UNICODE was removed
         'compile.pylong',  # PyLongObject changed its structure
@@ -926,6 +928,8 @@ class TestBuilder(object):
         if not languages:
             return []
         if skip_limited(tags):
+            return []
+        if self.shared_utility and 'no-shared-utility' in tags['tag']:
             return []
 
         language_levels = [2, 3] if 'all_language_levels' in tags['tag'] else [None]
@@ -3172,6 +3176,7 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy_crash_bugs.txt', IS_PYPY),
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('graal_bugs.txt', IS_GRAAL),
+            ('graal_25_0_bugs.txt', IS_GRAAL and sys.implementation.version[:2] == (25, 0)),
             ('limited_api_bugs.txt', options.limited_api),
             ('limited_api_314_bugs.txt', options.limited_api and sys.version_info[:2] <= (3, 14)),
             ('windows_bugs.txt', sys.platform == 'win32'),

@@ -501,9 +501,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("")
             for entry in api_funcs:
                 type = CPtrType(entry.type)
-                cname = env.mangle(Naming.func_prefix_api, entry.name)
+                api_name = entry.legacy_capi_name if entry.is_fused_specialized else entry.name
+                cname = env.mangle(Naming.func_prefix_api, api_name)
                 h_code.putln("static %s = 0;" % type.declaration_code(cname))
-                h_code.putln("#define %s %s" % (entry.name, cname))
+                h_code.putln("#define %s %s" % (api_name, cname))
                 h_code.globalstate.use_entry_utility_code(entry)
         if api_vars:
             h_code.putln("")
@@ -517,6 +518,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             put_utility_code("VoidPtrImport", "ImportExport.c")
         if api_funcs:
             put_utility_code("FunctionImport", "ImportExport.c")
+            if any(entry.is_fused_specialized for entry in api_funcs):
+                put_utility_code("FunctionImportFused", "ImportExport.c")
         if api_extension_types:
             put_utility_code("TypeImport", "ImportExport.c")
         h_code.putln("")
@@ -525,11 +528,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_code.putln('module = PyImport_ImportModule(%s);' % env.qualified_name.as_c_string_literal())
         h_code.putln("if (!module) goto bad;")
         for entry in api_funcs:
-            cname = env.mangle(Naming.func_prefix_api, entry.name)
+            api_name = entry.legacy_capi_name if entry.is_fused_specialized else entry.name
+            cname = env.mangle(Naming.func_prefix_api, api_name)
             sig = entry.type.signature_string()
+            if entry.is_fused_specialized:
+                h_code.putln(
+                    'if (__Pyx_ImportFusedFunction_%s(module, %s, (void (**)(void))&%s, "%s") < 0) goto bad;'
+                    % (Naming.cyversion, entry.name.as_c_string_literal(), cname, sig))
             h_code.putln(
                 'if (__Pyx_ImportFunction_%s(module, %s, (void (**)(void))&%s, "%s") < 0) goto bad;'
-                % (Naming.cyversion, entry.name.as_c_string_literal(), cname, sig))
+                % (Naming.cyversion, api_name.as_c_string_literal(), cname, sig))
         for entry in api_vars:
             cname = env.mangle(Naming.varptr_prefix_api, entry.name)
             sig = entry.type.empty_declaration_code()
@@ -3635,6 +3643,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('}')
 
         tempdecl_code.put_temp_declarations(code.funcstate)
+        if code.funcstate.has_except_star:
+            tempdecl_code.putln(
+                f"int {Naming.skip_add_traceback_cname} = 0;")
 
         code.exit_cfunc_scope()
 
@@ -4020,10 +4031,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.funcstate.release_temp(module_temp)
 
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
-        gil_option = ("Py_MOD_GIL_NOT_USED"
-                      if env.directives["freethreading_compatible"]
-                      else "Py_MOD_GIL_USED")
-        code.putln(f"PyUnstable_Module_SetGIL({env.module_cname}, {gil_option});")
+        code.putln(f"PyUnstable_Module_SetGIL({env.module_cname}, __Pyx_FREETHREADING_COMPATIBLE);")
         code.putln("#endif")
 
         code.putln(f"{Naming.modulestatevalue_cname} = {Naming.modulestateglobal_cname};")

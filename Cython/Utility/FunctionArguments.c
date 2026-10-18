@@ -180,7 +180,7 @@ static CYTHON_INLINE int __Pyx_CheckKeywordStrings(PyObject *kw); /*proto*/
 
 static int __Pyx_CheckKeywordStrings(PyObject *kw) {
     // PyPy appears to check keyword types at call time, not at unpacking time.
-#if CYTHON_COMPILING_IN_PYPY && !defined(PyArg_ValidateKeywordArguments)
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x030C0000 && !defined(PyArg_ValidateKeywordArguments)
     CYTHON_UNUSED_VAR(kw);
     return 0;
 #else
