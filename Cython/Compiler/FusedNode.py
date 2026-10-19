@@ -262,11 +262,7 @@ class FusedCFuncDefNode(StatListNode):
         ]
 
         node.specialized_signature_string = '|'.join(type_strings)
-
-        node.entry.pymethdef_cname = PyrexTypes.get_fused_cname(
-                                        cname, node.entry.pymethdef_cname)
         node.entry.doc = py_entry.doc
-        node.entry.doc_cname = py_entry.doc_cname
 
     def replace_fused_typechecks(self, copied_node):
         """
@@ -811,9 +807,7 @@ class FusedCFuncDefNode(StatListNode):
 
     def update_fused_defnode_entry(self, env):
         copy_attributes = (
-            'name', 'pos', 'cname', 'func_cname', 'pyfunc_cname',
-            'pymethdef_cname', 'doc', 'doc_cname', 'is_member',
-            'scope'
+            'name', 'pos', 'cname', 'func_cname', 'pyfunc_cname', 'doc', 'is_member', 'scope',
         )
 
         entry = self.py_func.entry
