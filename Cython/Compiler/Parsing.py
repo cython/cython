@@ -8,7 +8,7 @@
 import cython
 cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                bytes_literal=object, StringEncoding=object,
-               FileSourceDescriptor=object, lookup_unicodechar=object,
+               lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, _unicode=object, _bytes=object,
                re=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
@@ -20,7 +20,7 @@ import re
 from unicodedata import lookup as lookup_unicodechar
 from functools import partial, reduce
 
-from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
+from .Scanning import PyrexScanner, tentatively_scan
 from . import Nodes
 from . import ExprNodes
 from . import MatchCaseNodes
@@ -2276,10 +2276,9 @@ def p_include_statement(s: PyrexScanner, ctx):
     s.expect_newline("Syntax error in include statement")
     if s.compile_time_eval:
         include_file_name = unicode_include_file_name
-        include_file_path = s.context.find_include_file(include_file_name, pos)
-        if include_file_path:
+        source_desc = s.context.find_include_file_source(include_file_name, pos)
+        if source_desc:
             s.included_files.append(include_file_name)
-            source_desc = FileSourceDescriptor(include_file_path)
             with source_desc.get_file_object() as f:
                 s2 = PyrexScanner(f, source_desc, s, source_encoding=f.encoding, parse_comments=s.parse_comments)
                 tree = p_statement_list(s2, ctx)
