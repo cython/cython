@@ -2775,7 +2775,6 @@ class CCodeWriter:
     def name_in_slot_module_state(cname):
         # TODO - eventually this will go through PyType_GetModuleByDef
         # in cases where it's supported.
-        breakpoint()
         return f"{Naming.modulestateglobal_cname}->{cname}"
 
     def namespace_cname_in_module_state(self, scope):

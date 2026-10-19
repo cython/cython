@@ -4200,7 +4200,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.is_declared_in_module_state():
                 cname = code.name_in_module_state(cname)
             return cname
-            
+
         imports = [
             # (signature, name, cname)
             (entry.type.empty_declaration_code(),
