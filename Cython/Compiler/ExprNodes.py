@@ -6427,7 +6427,7 @@ class SimpleCallNode(CallNode):
 
     def infer_type(self, env):
         inferred_type = super().infer_type(env)
-        if hasattr(self.function, 'name'):
+        if self.function.is_name:
             function_name = self.function.name
             # If lookup fails, the function should be builtin function
             if function_name in PyrexTypes.KNOWN_PYTHON_BUILTINS and not env.lookup(function_name) and self.args:
