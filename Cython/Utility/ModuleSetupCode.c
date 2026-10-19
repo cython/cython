@@ -958,8 +958,21 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
 // Define a macro with a cast because the modulestate type isn't known yet and
 // is a typedef struct so impossible to forward declare
 #define __Pyx_PyModule_GetState(o) ($modulestatetype_cname *)__Pyx__PyModule_GetState(o)
+
+// Module state lookup should generally fail in a nogil block.
+// This is a big restriction on using module state, but it's basically unavoidable.
+// (eventually it might be persuaded to work in specific nogil blocks though)
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112 
+#define __PYX_NOGIL_MODULE_STATE_LOOKUP(x) sizeof(struct {int dummy; _Static_assert(0, "Module state lookup not permitted in nogil blocks"); }), x
+#elif defined(__cplusplus) && __cplusplus >= 201103L
+#define __PYX_NOGIL_MODULE_STATE_LOOKUP(x) [&](){ static_assert(false, "Module state lookup not permitted in nogil blocks"); return x; }()
+#else
+#define __PYX_NOGIL_MODULE_STATE_LOOKUP(x) sizeof(char[49-sizeof("Module state lookup not permitted in nogil blocks")])
+#endif
+
 #else
 #define __Pyx_PyModule_GetState(op) ((void)op,$modulestateglobal_cname)
+#define __PYX_NOGIL_MODULE_STATE_LOOKUP(x) x
 #endif
 
 // The "Try" variants may return NULL on static types with the Limited API on earlier versions
