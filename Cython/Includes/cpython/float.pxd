@@ -1,12 +1,3 @@
-cdef extern from *:
-    """
-    #if PY_MAJOR_VERSION >= 3
-      #define __Pyx_PyFloat_FromString(obj)  PyFloat_FromString(obj)
-    #else
-      #define __Pyx_PyFloat_FromString(obj)  PyFloat_FromString(obj, NULL)
-    #endif
-    """
-
 cdef extern from "Python.h":
     ############################################################################
     # 7.2.3
@@ -29,7 +20,7 @@ cdef extern from "Python.h":
     # Return true if its argument is a PyFloatObject, but not a
     # subtype of PyFloatObject.
 
-    object PyFloat_FromString "__Pyx_PyFloat_FromString" (object str)
+    object PyFloat_FromString(object str)
     # Return value: New reference.
     # Create a PyFloatObject object based on the string value in str,
     # or NULL on failure. The pend argument is ignored. It remains
@@ -45,3 +36,21 @@ cdef extern from "Python.h":
     double PyFloat_AS_DOUBLE(object pyfloat)
     # Return a C double representation of the contents of pyfloat, but
     # without error checking.
+
+    int PyFloat_Pack2(double x, unsigned char *p, int le) except -1
+    # Pack a C double as the IEEE 754 binary16 half-precision format.
+
+    int PyFloat_Pack4(double x, unsigned char *p, int le) except -1
+    # Pack a C double as the IEEE 754 binary32 single precision format.
+
+    int PyFloat_Pack8(double x, unsigned char *p, int le) except -1
+    # Pack a C double as the IEEE 754 binary64 double precision format.
+
+    double PyFloat_Unpack2(const unsigned char *p, int le) except? -1.0
+    # Unpack the IEEE 754 binary16 half-precision format as a C double.
+
+    double PyFloat_Unpack4(const unsigned char *p, int le) except? -1.0
+    # Unpack the IEEE 754 binary32 single precision format as a C double.
+
+    double PyFloat_Unpack8(const unsigned char *p, int le) except? -1.0
+    # Unpack the IEEE 754 binary64 double precision format as a C double.

@@ -29,6 +29,7 @@ Contents:
    numpy_pythran
    nogil
    freethreading
+   tempita
    troubleshooting
    faq
 

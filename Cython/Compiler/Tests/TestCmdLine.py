@@ -2,12 +2,12 @@ import os
 import sys
 import re
 from io import StringIO
-from unittest import TestCase
 from unittest.mock import patch, Mock
 
 from .. import Options
 from ..CmdLine import parse_command_line
 
+from ...TestUtils import TimedTest
 from .Utils import backup_Options, restore_Options, check_global_options
 
 unpatched_exists = os.path.exists
@@ -28,8 +28,9 @@ def patched_exists(path):
         return True
     return unpatched_exists(path)
 
+
 @patch('os.path.exists', new=Mock(side_effect=patched_exists))
-class CmdLineParserTest(TestCase):
+class CmdLineParserTest(TimedTest):
     def setUp(self):
         self._options_backup = backup_Options()
 
@@ -536,6 +537,49 @@ class CmdLineParserTest(TestCase):
         self.assertEqual(sources, [])
         self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
 
+    def test_generate_shared_subcommand(self):
+        options, sources = parse_command_line([
+            'generate-shared', 'foo/shared.c',
+        ])
+        self.assertEqual(sources, [])
+        self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
+
+        options, sources = parse_command_line([
+            'generate-shared', '--exclude', 'MemoryView', 'foo/shared.c',
+        ])
+        self.assertEqual(sources, [])
+        self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
+        self.assertEqual(options.shared_utility_features_disabled, ['MemoryView'])
+
+        options, sources = parse_command_line([
+            'generate-shared', '--only', 'CythonFunction', 'foo/shared.c',
+        ])
+        self.assertEqual(sources, [])
+        self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
+        self.assertEqual(options.shared_utility_features_enabled, ['CythonFunction'])
+
+        options, sources = parse_command_line([
+            'generate-shared', '-I', '/my/include', 'foo/shared.c', '--cleanup=1',
+        ])
+        self.assertEqual(sources, [])
+        self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
+        self.assertEqual(options.include_path, ['/my/include'])
+        self.assertEqual(Options.generate_cleanup_code, 1)
+
+        options, sources = parse_command_line([
+            'generate-shared', '-l', '-D', '-a', '-+', '-X', 'boundscheck=False',
+            '--fast-fail', '-Werror', 'foo/shared.c',
+        ])
+        self.assertEqual(sources, [])
+        self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
+        self.assertTrue(options.use_listing_file)
+        self.assertFalse(Options.docstrings)
+        self.assertTrue(Options.annotate)
+        self.assertTrue(options.cplus)
+        self.assertEqual(options.compiler_directives['boundscheck'], False)
+        self.assertTrue(Options.fast_fail)
+        self.assertTrue(Options.warning_errors)
+
     def test_errors(self):
         def error(args, regex=None):
             old_stderr = sys.stderr
@@ -581,6 +625,28 @@ class CmdLineParserTest(TestCase):
         error(['--module-name', 'foo.bar', '--timestamps', 'foo.pyx'],
               "Cannot use --module-name with --timestamps")
         error(['--generate-shared=shared.c', 'foo.pyx'],
-              "Source file not allowed when using --generate-shared")
+              "Source file not allowed when using generate-shared")
         error(['--generate-shared'],
               "argument --generate-shared: expected one argument")
+        error(['generate-shared', 'shared.c', 'foo.pyx'],
+              "Source file not allowed when using generate-shared")
+        error(['generate-shared', '--version', 'shared.c'],
+              "unknown option --version")
+        error(['generate-shared', '--embed', 'shared.c'],
+              "unknown option --embed")
+        error(['generate-shared', '--embed-modules=foo', 'shared.c'],
+              "unknown option --embed-modules")
+        error(['generate-shared', '-p', 'shared.c'],
+              "unknown option -p")
+        error(['generate-shared', '-2', 'shared.c'],
+              "unknown option -2")
+        error(['generate-shared', '-3', 'shared.c'],
+              "unknown option -3")
+        error(['generate-shared', '--3str', 'shared.c'],
+              "unknown option --3str")
+        error(['generate-shared', '--lenient', 'shared.c'],
+              "unknown option --lenient")
+        error(['generate-shared', '--capi-reexport-cincludes', 'shared.c'],
+              "unknown option --capi-reexport-cincludes")
+        error(['generate-shared', '-E', 'FOO=1', 'shared.c'],
+              "unknown option -E")

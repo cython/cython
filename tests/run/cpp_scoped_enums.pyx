@@ -75,14 +75,14 @@ def test_compare_enums():
         y == Enum1.Item1
     )
 
-        
+
 def test_compare_namespace_enums():
     """
     >>> test_compare_enums()
     (True, True, False, False)
     """
     cdef Enum2 z, w
-    
+
     z = Enum2.Item1
     w = Enum2.Item2
 
@@ -105,9 +105,9 @@ def test_coerce_to_from_py_value(object i):
     >>> test_coerce_to_from_py_value(3)
     (False, False)
 
-    >>> test_coerce_to_from_py_value(11111111111111111111111111111111111111111111)
+    >>> test_coerce_to_from_py_value(11111111111111111111111111111111111111111111)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    OverflowError: Python int too large to convert to C long
+    OverflowError: Python int too large to convert...
     """
     cdef Enum3 x = i
     y = Enum3.b

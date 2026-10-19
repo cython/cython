@@ -66,3 +66,21 @@ def genexpr_with_sequence_constructor(lhs, rhs):
     [1, 2]
     """
     return (a for a, b in [(lhs, rhs), (rhs, lhs)])
+
+
+def genexpr_str_literal():
+    """
+    >>> genexpr_str_literal()
+    ['a', 'b', 'c', 'x', 'y', 'z']
+    """
+    gen = (ch for ch in "abcxyz")
+    return list(gen)
+
+
+def genexpr_bytes_literal():
+    """
+    >>> genexpr_bytes_literal()
+    [97, 98, 99, 120, 121, 122]
+    """
+    gen = (ch for ch in b"abcxyz")
+    return list(gen)

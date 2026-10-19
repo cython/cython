@@ -214,7 +214,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next_Plain(PyObject *iterator) {
     result = PyObject_CallFunctionObjArgs(next, iterator, NULL);
     return result;
 #else
-    (void)__Pyx_GetBuiltinName; // only for early limited API
+    (void)&__Pyx_GetBuiltinName; // only for early limited API
     iternextfunc iternext = __Pyx_PyObject_GetIterNextFunc(iterator);
     assert(iternext);
     return iternext(iterator);
@@ -230,6 +230,8 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 /////////////// IterNext ///////////////
 //@requires: Exceptions.c::PyThreadStateGet
 //@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Exceptions.c::GivenExceptionMatches
+//@requires: RaiseErrorWithObjectType
 //@requires: GetBuiltinName
 //@requires: IterNextPlain
 
@@ -254,10 +256,8 @@ static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
 }
 
 static void __Pyx_PyIter_Next_ErrorNoIterator(PyObject *iterator) {
-    __Pyx_TypeName iterator_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(iterator));
-    PyErr_Format(PyExc_TypeError,
-        __Pyx_FMT_TYPENAME " object is not an iterator", iterator_type_name);
-    __Pyx_DECREF_TypeName(iterator_type_name);
+    __Pyx_RaiseTypeErrorWithObjectType(
+        __Pyx_FMT_TYPENAME " object is not an iterator", iterator);
 }
 
 // originally copied from Py3's builtin_next()
@@ -302,7 +302,7 @@ static CYTHON_INLINE int __Pyx_IterFinish(void); /*proto*/
 
 /////////////// IterFinish ///////////////
 //@requires: Exceptions.c::PyThreadStateGet
-//@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Exceptions.c::GivenExceptionMatches
 
 // When PyIter_Next(iter) has returned NULL in order to signal termination,
 // this function does the right cleanup and returns 0 on success.  If it
@@ -335,6 +335,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyObject_GetItem(PyObject *obj, PyObject *k
 // //@requires: GetItemInt - added in IndexNode as it uses templating.
 //@requires: PyObjectGetAttrStrNoError
 //@requires: PyObjectCallOneArg
+//@requires: RaiseErrorWithObjectType
 
 #if CYTHON_USE_TYPE_SLOTS
 static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject *index) {
@@ -343,27 +344,32 @@ static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject *index) {
     Py_ssize_t key_value;
     key_value = __Pyx_PyIndex_AsSsize_t(index);
     if (likely(key_value != -1 || !(runerr = PyErr_Occurred()))) {
-        return __Pyx_GetItemInt_Fast(obj, key_value, 0, 1, 1, 1);
+        return __Pyx_GetItemInt_Fast(obj, key_value, 1, 1, 1);
     }
 
     // Error handling code -- only manage OverflowError differently.
     if (PyErr_GivenExceptionMatches(runerr, PyExc_OverflowError)) {
-        __Pyx_TypeName index_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(index));
         PyErr_Clear();
-        PyErr_Format(PyExc_IndexError,
-            "cannot fit '" __Pyx_FMT_TYPENAME "' into an index-sized integer", index_type_name);
-        __Pyx_DECREF_TypeName(index_type_name);
+        __Pyx_RaiseErrorWithObjectType(
+            PyExc_IndexError,
+            "cannot fit '" __Pyx_FMT_TYPENAME "' into an index-sized integer",
+            index);
     }
     return NULL;
 }
 
 static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
-    __Pyx_TypeName obj_type_name;
     // Handles less common slow-path checks for GetItem
     if (likely(PyType_Check(obj))) {
+        if ((PyTypeObject*)obj == &PyType_Type) {
+            return Py_GenericAlias(obj, key);
+        }
+
         PyObject *meth = __Pyx_PyObject_GetAttrStrNoError(obj, PYIDENT("__class_getitem__"));
         if (!meth) {
-            PyErr_Clear();
+            if (PyErr_Occurred()) {
+                return NULL;
+            }
         } else {
             PyObject *result = __Pyx_PyObject_CallOneArg(meth, key);
             Py_DECREF(meth);
@@ -371,10 +377,8 @@ static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
         }
     }
 
-    obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
-        "'" __Pyx_FMT_TYPENAME "' object is not subscriptable", obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
+    __Pyx_RaiseTypeErrorWithObjectType(
+        "'" __Pyx_FMT_TYPENAME "' object is not subscriptable", obj);
     return NULL;
 }
 
@@ -395,12 +399,13 @@ static PyObject *__Pyx_PyObject_GetItem(PyObject *obj, PyObject *key) {
 
 
 /////////////// DictGetItem.proto ///////////////
+//@requires: Builtins.c::PyFrozenDict
 
 #if !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key);/*proto*/
 
 #define __Pyx_PyObject_Dict_GetItem(obj, name) \
-    (likely(PyDict_CheckExact(obj)) ? \
+    (likely(__Pyx_PyAnyDict_CheckExact(obj)) ? \
      __Pyx_PyDict_GetItem(obj, name) : PyObject_GetItem(obj, name))
 
 #else
@@ -430,17 +435,44 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
 }
 #endif
 
+
+/////////////// GetItemInt_wraparound.proto ///////////////
+
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+static int __Pyx_GetItemInt_wraparound(PyObject *o, PySequenceMethods *sm, Py_ssize_t *i);
+#endif
+
+/////////////// GettItemInt_wraparound ///////////////
+
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+static int __Pyx_GetItemInt_wraparound(PyObject *o, PySequenceMethods *sm, Py_ssize_t *i) {
+    assert(*i < 0);
+    if (likely(sm->sq_length)) {
+        Py_ssize_t l = sm->sq_length(o);
+        if (likely(l >= 0)) {
+            *i += l;
+        } else {
+            // if length > max(Py_ssize_t), maybe the object can wrap around itself?
+            if (!PyErr_ExceptionMatches(PyExc_OverflowError))
+                return -1;
+            PyErr_Clear();
+        }
+    }
+    return 0;
+}
+#endif
+
+
 /////////////// GetItemInt.proto ///////////////
 //@substitute: tempita
 
-#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
+#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
-    __Pyx_GetItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound, boundscheck, unsafe_shared) : \
-    (is_list ? (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL) : \
-               __Pyx_GetItemInt_Generic(o, to_py_func(i))))
+    __Pyx_GetItemInt_Fast(o, (Py_ssize_t)i, wraparound, boundscheck, unsafe_shared) : \
+    __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
 {{for type in ['List', 'Tuple']}}
-#define __Pyx_GetItemInt_{{type}}(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
+#define __Pyx_GetItemInt_{{type}}(o, i, type, is_signed, to_py_func, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_GetItemInt_{{type}}_Fast(o, (Py_ssize_t)i, wraparound, boundscheck, unsafe_shared) : \
     (PyErr_SetString(PyExc_IndexError, "{{ type.lower() }} index out of range"), (PyObject*)NULL))
@@ -451,10 +483,12 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
 
 static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j);
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                                     int is_list, int wraparound, int boundscheck, int unsafe_shared);
+                                                     int wraparound, int boundscheck, int unsafe_shared);
 
 /////////////// GetItemInt ///////////////
 //@substitute: tempita
+//@requires: GettItemInt_wraparound
+//@requires: Builtins.c::PyFrozenDict
 
 static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
     PyObject *r;
@@ -464,26 +498,57 @@ static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
     return r;
 }
 
+static PyObject *__Pyx_GetItemInt_Generic_size(PyObject *o, Py_ssize_t i) {
+    return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
+}
+
 {{for type in ['List', 'Tuple']}}
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
                                                               int wraparound, int boundscheck, int unsafe_shared) {
     CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
-#if CYTHON_ASSUME_SAFE_SIZE{{if type == 'Tuple'}} && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS{{endif}}
+#if CYTHON_AVOID_BORROWED_REFS
+    CYTHON_UNUSED_VAR(boundscheck);
     Py_ssize_t wrapped_i = i;
     if (wraparound & unlikely(i < 0)) {
-        wrapped_i += Py{{type}}_GET_SIZE(o);
+        Py_ssize_t size = __Pyx_Py{{type}}_GET_SIZE(o);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(size < 0)) return NULL;
+        #endif
+        wrapped_i += size;
     }
     {{if type == 'List'}}
-    if ((CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS)) {
+    return __Pyx_PyList_GetItemRef(o, wrapped_i);
+
+    {{else}}
+    #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_COMPILING_IN_LIMITED_API
+    return PySequence_ITEM(o, wrapped_i);
+    #else
+    // PySequence_GetItem() handles wrap-around, but we already did above.
+    if (unlikely(wrapped_i < 0)) {
+        PyErr_SetString(PyExc_IndexError, "tuple index out of range");
+        return NULL;
+    }
+    return PySequence_GetItem(o, wrapped_i);
+    #endif
+    {{endif}}
+
+#elif CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS
+    Py_ssize_t wrapped_i = i;
+    Py_ssize_t size = (wraparound | boundscheck) ? Py{{type}}_GET_SIZE(o) : -1;
+    if (wraparound & unlikely(i < 0)) {
+        wrapped_i += size;
+    }
+    if ((!boundscheck) || likely(__Pyx_is_valid_index(wrapped_i, size))) {
+        {{if type == 'List'}}
         // Note that there's a minor thread-safety issue where the size for wraparound may change before we use it.
         // CPython doesn't worry about it and serious violations will be caught by boundschecking anyway.
-        return __Pyx_PyList_GetItemRefFast(o, wrapped_i, unsafe_shared);
-    } else
-    {{endif}}
-    if ((!boundscheck) || likely(__Pyx_is_valid_index(wrapped_i, Py{{type}}_GET_SIZE(o)))) {
-        return __Pyx_NewRef(Py{{type}}_GET_ITEM(o, wrapped_i));
+        return __Pyx_PyList_GET_ITEM_REF(o, wrapped_i, unsafe_shared);
+        {{else}}
+        return __Pyx_NewRef(__Pyx_PyTuple_GET_ITEM(o, wrapped_i));
+        {{endif}}
     }
-    return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
+    return __Pyx_GetItemInt_Generic_size(o, i);
+
 #else
     (void)wraparound;
     (void)boundscheck;
@@ -492,82 +557,98 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
 }
 {{endfor}}
 
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list,
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast_mapping(PyObject *o, binaryfunc getitem, Py_ssize_t i) {
+    PyObject *r, *key = PyLong_FromSsize_t(i);
+    if (unlikely(!key)) return NULL;
+    r = getitem(o, key);
+    Py_DECREF(key);
+    return r;
+}
+#endif
+
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
                                                      int wraparound, int boundscheck, int unsafe_shared) {
     CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
-#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
-    if (is_list || PyList_CheckExact(o)) {
-        // We specifically aren't worrying about thread-safety issues from the delay between getting the size
-        // and using the size because Python itself doesn't either. If we have boundschecking on they'll
-        // be caught eventually.
-        Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
-        if ((CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS)) {
-            return __Pyx_PyList_GetItemRefFast(o, n, unsafe_shared);
-        } else if ((!boundscheck) || (likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o))))) {
-            return __Pyx_NewRef(PyList_GET_ITEM(o, n));
-        }
+#if CYTHON_ASSUME_SAFE_SIZE
+    if (PyList_CheckExact(o)) {
+        return __Pyx_GetItemInt_List_Fast(o, i, wraparound, boundscheck, unsafe_shared);
     } else
-    #if !CYTHON_AVOID_BORROWED_REFS
+    #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
     if (PyTuple_CheckExact(o)) {
-        Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyTuple_GET_SIZE(o);
-        if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyTuple_GET_SIZE(o)))) {
-            return __Pyx_NewRef(PyTuple_GET_ITEM(o, n));
-        }
+        return __Pyx_GetItemInt_Tuple_Fast(o, i, wraparound, boundscheck, unsafe_shared);
     } else
     #endif
+#else
+    if ((!wraparound || i >= 0) & PyList_CheckExact(o)) {
+        return boundscheck ? __Pyx_PyList_GetItemRef(o, i) : __Pyx_PyList_GET_ITEM_REF(o, i, unsafe_shared);
+    } else
 #endif
 #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+    // This dict check is so cheap after the other type checks above that it would be costly *not* to do it.
+    if (PyDict_CheckExact(o)) {
+        return __Pyx_GetItemInt_Fast_mapping(o, PyDict_Type.tp_as_mapping->mp_subscript, i);
+    #if defined(PyFrozenDict_CheckExact)
+    } else if (PyFrozenDict_CheckExact(o)) {
+        return __Pyx_GetItemInt_Fast_mapping(o, PyFrozenDict_Type.tp_as_mapping->mp_subscript, i);
+    #endif
+    } else
     {
         // inlined PySequence_GetItem() + special cased length overflow
-        PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
-        PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
-        if (!is_list && mm && mm->mp_subscript) {
-            PyObject *r, *key = PyLong_FromSsize_t(i);
-            if (unlikely(!key)) return NULL;
-            r = mm->mp_subscript(o, key);
-            Py_DECREF(key);
-            return r;
+        PyTypeObject *obj_type = Py_TYPE(o);
+
+        int seq_or_mapping = __Pyx_PyType_GetFlags(obj_type) & (Py_TPFLAGS_SEQUENCE|Py_TPFLAGS_MAPPING);
+
+        // We prefer sq_item() if type has Py_TPFLAGS_SEQUENCE,
+        // but still try mp_subscript() if that fails.
+        // We repeat the calls to __Pyx_GetItemInt_Fast_mapping() rather than
+        // the sequence access because the latter may result in more code,
+        // thus potentially hindering the inlining.
+        if (seq_or_mapping != Py_TPFLAGS_SEQUENCE) {
+            PyMappingMethods *mm = obj_type->tp_as_mapping;
+            if (mm && mm->mp_subscript)
+                return __Pyx_GetItemInt_Fast_mapping(o, mm->mp_subscript, i);
         }
-        if (is_list || likely(sm && sm->sq_item)) {
-            if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
-                Py_ssize_t l = sm->sq_length(o);
-                if (likely(l >= 0)) {
-                    i += l;
-                } else {
-                    // if length > max(Py_ssize_t), maybe the object can wrap around itself?
-                    if (!PyErr_ExceptionMatches(PyExc_OverflowError))
-                        return NULL;
-                    PyErr_Clear();
-                }
-            }
+
+        PySequenceMethods *sm = obj_type->tp_as_sequence;
+        if (likely(sm && sm->sq_item)) {
+            if (wraparound && (i < 0) && unlikely(__Pyx_GetItemInt_wraparound(o, sm, &i) == -1))
+                return NULL;
             return sm->sq_item(o, i);
+        }
+
+        if (seq_or_mapping == Py_TPFLAGS_SEQUENCE) {
+            PyMappingMethods *mm = obj_type->tp_as_mapping;
+            if (likely(mm && mm->mp_subscript))
+                return __Pyx_GetItemInt_Fast_mapping(o, mm->mp_subscript, i);
         }
     }
 #else
     // PySequence_GetItem behaves differently to PyObject_GetItem for i<0
     // and possibly some other cases so can't generally be substituted
-    if (is_list || !PyMapping_Check(o)) {
+    if (!PyMapping_Check(o)) {
         return PySequence_GetItem(o, i);
     }
 #endif
     (void)wraparound;
     (void)boundscheck;
-    return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
+    return __Pyx_GetItemInt_Generic_size(o, i);
 }
+
 
 /////////////// SetItemInt.proto ///////////////
 
-#define __Pyx_SetItemInt(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
+#define __Pyx_SetItemInt(o, i, v, type, is_signed, to_py_func, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
-    __Pyx_SetItemInt_Fast(o, (Py_ssize_t)i, v, is_list, wraparound, boundscheck, unsafe_shared) : \
-    (is_list ? (PyErr_SetString(PyExc_IndexError, "list assignment index out of range"), -1) : \
-               __Pyx_SetItemInt_Generic(o, to_py_func(i), v)))
+    __Pyx_SetItemInt_Fast(o, (Py_ssize_t)i, v, wraparound, boundscheck, unsafe_shared) : \
+    __Pyx_SetItemInt_Generic(o, to_py_func(i), v))
 
 static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v);
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v,
-                                               int is_list, int wraparound, int boundscheck, int unsafe_shared);
+                                               int wraparound, int boundscheck, int unsafe_shared);
 
 /////////////// SetItemInt ///////////////
+//@requires: GettItemInt_wraparound
 
 static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
     int r;
@@ -577,11 +658,21 @@ static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
     return r;
 }
 
-static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int is_list,
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+static CYTHON_INLINE int __Pyx_SetItemInt_Fast_mapping(PyObject *o, objobjargproc setitem, Py_ssize_t i, PyObject *value) {
+    PyObject *key = PyLong_FromSsize_t(i);
+    if (unlikely(!key)) return -1;
+    int r = setitem(o, key, value);
+    Py_DECREF(key);
+    return r;
+}
+#endif
+
+static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v,
                                                int wraparound, int boundscheck, int unsafe_shared) {
     CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
 #if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
-    if (is_list || PyList_CheckExact(o)) {
+    if (PyList_CheckExact(o)) {
         Py_ssize_t n = (!wraparound) ? i : ((likely(i >= 0)) ? i : i + PyList_GET_SIZE(o));
         if ((CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && !__Pyx_IS_UNIQUELY_REFERENCED(o, unsafe_shared))) {
             Py_INCREF(v);
@@ -597,37 +688,43 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     } else
 #endif
 #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+    if (PyDict_CheckExact(o)) {
+        return __Pyx_SetItemInt_Fast_mapping(o, PyDict_Type.tp_as_mapping->mp_ass_subscript, i, v);
+    } else
     {
         // inlined PySequence_SetItem() + special cased length overflow
-        PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
-        PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
-        if (!is_list && mm && mm->mp_ass_subscript) {
-            int r;
-            PyObject *key = PyLong_FromSsize_t(i);
-            if (unlikely(!key)) return -1;
-            r = mm->mp_ass_subscript(o, key, v);
-            Py_DECREF(key);
-            return r;
+        PyTypeObject *obj_type = Py_TYPE(o);
+
+        int seq_or_mapping = __Pyx_PyType_GetFlags(obj_type) & (Py_TPFLAGS_SEQUENCE|Py_TPFLAGS_MAPPING);
+
+        // We prefer sq_ass_item() if type has Py_TPFLAGS_SEQUENCE,
+        // but still try mp_ass_subscript() if that fails.
+        // We repeat the calls to __Pyx_GetItemInt_Fast_mapping() rather than
+        // the sequence access because the latter may result in more code,
+        // thus potentially hindering the inlining.
+        if (seq_or_mapping != Py_TPFLAGS_SEQUENCE) {
+            PyMappingMethods *mm = obj_type->tp_as_mapping;
+            if (mm && mm->mp_ass_subscript)
+                return __Pyx_SetItemInt_Fast_mapping(o, mm->mp_ass_subscript, i, v);
         }
-        if (is_list || likely(sm && sm->sq_ass_item)) {
-            if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
-                Py_ssize_t l = sm->sq_length(o);
-                if (likely(l >= 0)) {
-                    i += l;
-                } else {
-                    // if length > max(Py_ssize_t), maybe the object can wrap around itself?
-                    if (!PyErr_ExceptionMatches(PyExc_OverflowError))
-                        return -1;
-                    PyErr_Clear();
-                }
-            }
+
+        PySequenceMethods *sm = obj_type->tp_as_sequence;
+        if (likely(sm && sm->sq_ass_item)) {
+            if (wraparound && (i < 0) && unlikely(__Pyx_GetItemInt_wraparound(o, sm, &i) == -1))
+                return -1;
             return sm->sq_ass_item(o, i, v);
+        }
+
+        if (seq_or_mapping == Py_TPFLAGS_SEQUENCE) {
+            PyMappingMethods *mm = obj_type->tp_as_mapping;
+            if (likely(mm && mm->mp_ass_subscript))
+                return __Pyx_SetItemInt_Fast_mapping(o, mm->mp_ass_subscript, i, v);
         }
     }
 #else
     // PySequence_SetItem behaves differently to PyObject_SetItem for i<0
     // and possibly some other cases, so can't generally be substituted.
-    if (is_list || !PyMapping_Check(o)) {
+    if (!PyMapping_Check(o)) {
         return PySequence_SetItem(o, i, v);
     }
 #endif
@@ -639,17 +736,16 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
 
 /////////////// DelItemInt.proto ///////////////
 
-#define __Pyx_DelItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
+#define __Pyx_DelItemInt(o, i, type, is_signed, to_py_func, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
-    __Pyx_DelItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound) : \
-    (is_list ? (PyErr_SetString(PyExc_IndexError, "list assignment index out of range"), -1) : \
-               __Pyx_DelItem_Generic(o, to_py_func(i))))
+    __Pyx_DelItemInt_Fast(o, (Py_ssize_t)i, wraparound) : \
+    __Pyx_DelItem_Generic(o, to_py_func(i)))
 
 static int __Pyx_DelItem_Generic(PyObject *o, PyObject *j);
-static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                               int is_list, int wraparound);
+static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i, int wraparound);
 
 /////////////// DelItemInt ///////////////
+//@requires: GettItemInt_wraparound
 
 static int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     int r;
@@ -659,37 +755,55 @@ static int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     return r;
 }
 
-static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                               int is_list, CYTHON_NCP_UNUSED int wraparound) {
-#if !CYTHON_USE_TYPE_SLOTS
-    // PySequence_DelItem behaves differently to PyObject_DelItem for i<0
-    // and possibly some other cases so can't generally be substituted
-    if (is_list || !PyMapping_Check(o)) {
-        return PySequence_DelItem(o, i);
-    }
-#else
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+static CYTHON_INLINE int __Pyx_DelItemInt_Fast_mapping(PyObject *o, objobjargproc setitem, Py_ssize_t i) {
+    PyObject *key = PyLong_FromSsize_t(i);
+    if (unlikely(!key)) return -1;
+    int r = setitem(o, key, (PyObject*) NULL);
+    Py_DECREF(key);
+    return r;
+}
+#endif
+
+static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i, int wraparound) {
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
     // inlined PySequence_DelItem() + special cased length overflow
-    PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
-    PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
-    if ((!is_list) && mm && mm->mp_ass_subscript) {
-        PyObject *key = PyLong_FromSsize_t(i);
-        return likely(key) ? mm->mp_ass_subscript(o, key, (PyObject *)NULL) : -1;
+    PyTypeObject *obj_type = Py_TYPE(o);
+
+    int seq_or_mapping = __Pyx_PyType_GetFlags(obj_type) & (Py_TPFLAGS_SEQUENCE|Py_TPFLAGS_MAPPING);
+
+    // We prefer sq_ass_item() if type has Py_TPFLAGS_SEQUENCE,
+    // but still try mp_ass_subscript() if that fails.
+    // We repeat the calls to __Pyx_GetItemInt_Fast_mapping() rather than
+    // the sequence access because the latter may result in more code,
+    // thus potentially hindering the inlining.
+    if (seq_or_mapping != Py_TPFLAGS_SEQUENCE) {
+        PyMappingMethods *mm = obj_type->tp_as_mapping;
+        if (mm && mm->mp_ass_subscript)
+            return __Pyx_DelItemInt_Fast_mapping(o, mm->mp_ass_subscript, i);
     }
+
+    PySequenceMethods *sm = obj_type->tp_as_sequence;
     if (likely(sm && sm->sq_ass_item)) {
-        if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
-            Py_ssize_t l = sm->sq_length(o);
-            if (likely(l >= 0)) {
-                i += l;
-            } else {
-                // if length > max(Py_ssize_t), maybe the object can wrap around itself?
-                if (!PyErr_ExceptionMatches(PyExc_OverflowError))
-                    return -1;
-                PyErr_Clear();
-            }
-        }
+        if (wraparound && (i < 0) && unlikely(__Pyx_GetItemInt_wraparound(o, sm, &i) == -1))
+            return -1;
         return sm->sq_ass_item(o, i, (PyObject *)NULL);
     }
+
+    if (seq_or_mapping == Py_TPFLAGS_SEQUENCE) {
+        PyMappingMethods *mm = obj_type->tp_as_mapping;
+        if (likely(mm && mm->mp_ass_subscript))
+            return __Pyx_DelItemInt_Fast_mapping(o, mm->mp_ass_subscript, i);
+    }
+#else
+    (void) wraparound;
+    // PySequence_DelItem behaves differently to PyObject_DelItem for i<0
+    // and possibly some other cases so can't generally be substituted
+    if (!PyMapping_Check(o)) {
+        return PySequence_DelItem(o, i);
+    }
 #endif
+
     return __Pyx_DelItem_Generic(o, PyLong_FromSsize_t(i));
 }
 
@@ -714,6 +828,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
 {{endif}}
 
 /////////////// SliceObject ///////////////
+//@requires: RaiseErrorWithObjectType
 
 {{if access == 'Get'}}
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetSlice(PyObject* obj,
@@ -723,7 +838,6 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
         Py_ssize_t cstart, Py_ssize_t cstop,
         PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
         int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
-    __Pyx_TypeName obj_type_name;
 #if CYTHON_USE_TYPE_SLOTS
     PyMappingMethods* mp = Py_TYPE(obj)->tp_as_mapping;
 {{if access == 'Get'}}
@@ -731,6 +845,9 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
 {{else}}
     if (likely(mp && mp->mp_ass_subscript))
 {{endif}}
+#else
+    // Avoid a C warning about unused error handling code below.
+    if ((1))
 #endif
     {
         {{if access == 'Get'}}PyObject*{{else}}int{{endif}} result;
@@ -781,55 +898,43 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
             Py_DECREF(py_slice);
         }
         return result;
-    }
-    obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
+    } else {
 {{if access == 'Get'}}
-        "'" __Pyx_FMT_TYPENAME "' object is unsliceable", obj_type_name);
+        __Pyx_RaiseTypeErrorWithObjectType(
+            "'" __Pyx_FMT_TYPENAME "' object is unsliceable", obj);
 {{else}}
-        "'" __Pyx_FMT_TYPENAME "' object does not support slice %.10s",
-        obj_type_name, value ? "assignment" : "deletion");
+        __Pyx_RaiseTypeErrorWithObjectType(
+            (value) ?
+                "'" __Pyx_FMT_TYPENAME "' object does not support slice assignment" :
+                "'" __Pyx_FMT_TYPENAME "' object does not support slice deletion",
+            obj);
 {{endif}}
-    __Pyx_DECREF_TypeName(obj_type_name);
+    }
 
 bad:
     return {{if access == 'Get'}}NULL{{else}}-1{{endif}};
 }
 
 
-/////////////// TupleAndListFromArray.proto ///////////////
+/////////////// TupleFromArray.proto //////////////////////
+//@requires: TupleOrListFromArrayImpl{"Type": "Tuple"}
+
+// This block only exists to require the tempita utility code
+
+/////////////// ListFromArray.proto //////////////////////
+//@requires: TupleOrListFromArrayImpl{"Type": "List"}
+
+// This block only exists to require the tempita utility code
+
+/////////////// CopyObjectArray.proto /////////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject* __Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n);
-#endif
-#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_METH_FASTCALL
-static CYTHON_INLINE PyObject* __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n);
+static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRICT src, PyObject** CYTHON_RESTRICT dest, Py_ssize_t length); /* proto */
 #endif
 
+/////////////// CopyObjectArray ///////////////////////
 
-/////////////// TupleAndListFromArray ///////////////
-
-#if !CYTHON_COMPILING_IN_CPYTHON && CYTHON_METH_FASTCALL
-static CYTHON_INLINE PyObject *
-__Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
-{
-    PyObject *res;
-    Py_ssize_t i;
-    if (n <= 0) {
-        return __Pyx_NewRef(EMPTY(tuple));
-    }
-    res = PyTuple_New(n);
-    if (unlikely(res == NULL)) return NULL;
-    for (i = 0; i < n; i++) {
-        if (unlikely(__Pyx_PyTuple_SET_ITEM(res, i, src[i]) < 0)) {
-            Py_DECREF(res);
-            return NULL;
-        }
-        Py_INCREF(src[i]);
-    }
-    return res;
-}
-#elif CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRICT src, PyObject** CYTHON_RESTRICT dest, Py_ssize_t length) {
     PyObject *v;
     Py_ssize_t i;
@@ -838,34 +943,54 @@ static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRI
         Py_INCREF(v);
     }
 }
+#endif
 
-static CYTHON_INLINE PyObject *
-__Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
-{
-    PyObject *res;
+/////////////// TupleOrListFromArrayImpl.proto //////////////
+
+{{if Type == 'Tuple'}}
+#if PY_VERSION_HEX >= 0x030F0000 && !CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_PyTuple_FromArray(src, n) PyTuple_FromArray(src, ((n)<0) ? 0 : (n))
+#else
+{{endif}}
+CYTHON_UNUSED static PyObject *
+__Pyx_Py{{Type}}_FromArray(PyObject *const *src, Py_ssize_t n); /* proto */
+{{if Type == 'Tuple'}}
+#endif
+{{endif}}
+
+/////////////// TupleOrListFromArrayImpl //////////////
+//@requires: CopyObjectArray
+
+{{if Type == 'Tuple'}}
+#if !(PY_VERSION_HEX >= 0x030F0000 && !CYTHON_COMPILING_IN_LIMITED_API)
+{{endif}}
+CYTHON_UNUSED static PyObject *
+__Pyx_Py{{Type}}_FromArray(PyObject *const *src, Py_ssize_t n) {
+    {{if Type == 'Tuple'}}
     if (n <= 0) {
         return __Pyx_NewRef(EMPTY(tuple));
     }
-    res = PyTuple_New(n);
-    if (unlikely(res == NULL)) return NULL;
-    __Pyx_copy_object_array(src, ((PyTupleObject*)res)->ob_item, n);
-    return res;
-}
+    {{endif}}
 
-static CYTHON_INLINE PyObject *
-__Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n)
-{
-    PyObject *res;
-    if (n <= 0) {
-        return PyList_New(0);
+    PyObject *res = Py{{Type}}_New(n);
+    if (unlikely(res == NULL)) return NULL;
+    #if CYTHON_COMPILING_IN_CPYTHON
+    __Pyx_copy_object_array(src, ((Py{{Type}}Object*)res)->ob_item, n);
+    #else
+    Py_ssize_t i;
+    for (i = 0; i < n; i++) {
+        Py_INCREF(src[i]);
+        if (unlikely(__Pyx_Py{{Type}}_SET_ITEM(res, i, src[i]) < (0))) {
+            Py_DECREF(res);
+            return NULL;
+        }
     }
-    res = PyList_New(n);
-    if (unlikely(res == NULL)) return NULL;
-    __Pyx_copy_object_array(src, ((PyListObject*)res)->ob_item, n);
+    #endif
     return res;
 }
+{{if Type == 'Tuple'}}
 #endif
-
+{{endif}}
 
 /////////////// SliceTupleAndList.proto ///////////////
 
@@ -878,7 +1003,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(PyObject* src, Py_ssize_t 
 #endif
 
 /////////////// SliceTupleAndList ///////////////
-//@requires: TupleAndListFromArray
+//@requires: ListFromArray
+//@requires: TupleFromArray
 //@requires: Synchronization.c::CriticalSections
 
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -1016,7 +1142,8 @@ static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
     return metaclass;
 }
 
-/////////////// Py3MetaclassGet.proto ///////////////
+/////////////// Py3MetaclassGet.export ///////////////
+//@feature: PythonClasses
 
 static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw); /*proto*/
 
@@ -1080,7 +1207,8 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
     return result;
 }
 
-/////////////// Py3UpdateBases.proto ///////////////
+/////////////// Py3UpdateBases.export ///////////////
+//@feature: PythonClasses
 
 static PyObject* __Pyx_PEP560_update_bases(PyObject *bases); /* proto */
 
@@ -1204,7 +1332,8 @@ error:
     return NULL;
 }
 
-/////////////// Py3ClassCreate.proto ///////////////
+/////////////// Py3ClassCreate.export ///////////////
+//@feature: PythonClasses
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *qualname,
                                            PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
@@ -1284,23 +1413,20 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
 static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*proto*/
 
 /////////////// ExtTypeTest ///////////////
+//@requires: RaiseErrorWithObjectTypes
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
-    __Pyx_TypeName obj_type_name;
-    __Pyx_TypeName type_name;
     if (unlikely(!type)) {
         PyErr_SetString(PyExc_SystemError, "Missing type object");
         return 0;
     }
     if (likely(__Pyx_TypeCheck(obj, type)))
         return 1;
-    obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    type_name = __Pyx_PyType_GetFullyQualifiedName(type);
-    PyErr_Format(PyExc_TypeError,
-                 "Cannot convert " __Pyx_FMT_TYPENAME " to " __Pyx_FMT_TYPENAME,
-                 obj_type_name, type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
-    __Pyx_DECREF_TypeName(type_name);
+
+    __Pyx_RaiseTypeErrorWithTypes(
+        "Cannot convert " __Pyx_FMT_TYPENAME " to " __Pyx_FMT_TYPENAME,
+        Py_TYPE(obj), type);
     return 0;
 }
 
@@ -1388,6 +1514,7 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name); /*pro
 
 /////////////// GetNameInClass ///////////////
 //@requires: GetModuleGlobalName
+//@requires: Exceptions.c::IgnoreException
 
 static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
     PyObject *result;
@@ -1406,7 +1533,9 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
             return result;
         }
     }
-    PyErr_Clear();
+    if (!__Pyx_IgnoreException(PyExc_Exception)) {
+        return NULL; // BaseException
+    }
     __Pyx_GetModuleGlobalNameUncached(result, name);
     return result;
 }
@@ -1490,6 +1619,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name); /*pro
 
 /////////////// GetModuleGlobalName ///////////////
 //@requires: GetBuiltinName
+//@requires: Exceptions.c::IgnoreException
 //@substitute: naming
 
 #if CYTHON_USE_DICT_VERSIONS
@@ -1509,9 +1639,15 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     if (likely(result)) {
         return result;
     }
-    PyErr_Clear();
+    if (!__Pyx_IgnoreException(PyExc_Exception)) {
+        return NULL; // BaseException
+    }
 #elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-    if (unlikely(__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), name, &result) == -1)) PyErr_Clear();
+    if (unlikely(__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), name, &result) == -1)) {
+        if (!__Pyx_IgnoreException(PyExc_Exception)) {
+            return NULL; // BaseException
+        }
+    }
     __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return result;
@@ -1523,7 +1659,10 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     if (likely(result)) {
         return __Pyx_NewRef(result);
     }
-    PyErr_Clear();
+    PyObject *exc = PyErr_Occurred();
+    if (unlikely(exc) && !__Pyx_IgnoreGivenException(exc, PyExc_Exception)) {
+        return NULL; // BaseException
+    }
 #endif
     return __Pyx_GetBuiltinName(name);
 }
@@ -1675,100 +1814,16 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
 
 /////////////// PyObjectGetMethod.proto ///////////////
 
+#if !CYTHON_VECTORCALL
 static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method);/*proto*/
+#endif
 
 /////////////// PyObjectGetMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
+#if !CYTHON_VECTORCALL
 static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method) {
-    PyObject *attr;
-#if CYTHON_UNPACK_METHODS && CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_PYTYPE_LOOKUP
-    __Pyx_TypeName type_name;
-    // Copied from _PyObject_GetMethod() in CPython 3.7
-    PyTypeObject *tp = Py_TYPE(obj);
-    PyObject *descr;
-    descrgetfunc f = NULL;
-    PyObject **dictptr, *dict;
-    int meth_found = 0;
-
-    assert (*method == NULL);
-
-    if (unlikely(tp->tp_getattro != PyObject_GenericGetAttr)) {
-        attr = __Pyx_PyObject_GetAttrStr(obj, name);
-        goto try_unpack;
-    }
-    if (unlikely(tp->tp_dict == NULL) && unlikely(PyType_Ready(tp) < 0)) {
-        return 0;
-    }
-
-    descr = _PyType_Lookup(tp, name);
-    if (likely(descr != NULL)) {
-        Py_INCREF(descr);
-#if defined(Py_TPFLAGS_METHOD_DESCRIPTOR) && Py_TPFLAGS_METHOD_DESCRIPTOR
-        if (__Pyx_PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR))
-#else
-        // Repeating the condition below accommodates for MSVC's inability to test macros inside of macro expansions.
-        #ifdef __Pyx_CyFunction_USED
-        if (likely(PyFunction_Check(descr) || __Pyx_IS_TYPE(descr, &PyMethodDescr_Type) || __Pyx_CyFunction_Check(descr)))
-        #else
-        if (likely(PyFunction_Check(descr) || __Pyx_IS_TYPE(descr, &PyMethodDescr_Type)))
-        #endif
-#endif
-        {
-            meth_found = 1;
-        } else {
-            f = Py_TYPE(descr)->tp_descr_get;
-            if (f != NULL && PyDescr_IsData(descr)) {
-                attr = f(descr, obj, (PyObject *)Py_TYPE(obj));
-                Py_DECREF(descr);
-                goto try_unpack;
-            }
-        }
-    }
-
-    dictptr = _PyObject_GetDictPtr(obj);
-    if (dictptr != NULL && (dict = *dictptr) != NULL) {
-        Py_INCREF(dict);
-        attr = __Pyx_PyDict_GetItemStr(dict, name);
-        if (attr != NULL) {
-            Py_INCREF(attr);
-            Py_DECREF(dict);
-            Py_XDECREF(descr);
-            goto try_unpack;
-        }
-        Py_DECREF(dict);
-    }
-
-    if (meth_found) {
-        *method = descr;
-        return 1;
-    }
-
-    if (f != NULL) {
-        attr = f(descr, obj, (PyObject *)Py_TYPE(obj));
-        Py_DECREF(descr);
-        goto try_unpack;
-    }
-
-    if (likely(descr != NULL)) {
-        *method = descr;
-        return 0;
-    }
-
-    type_name = __Pyx_PyType_GetFullyQualifiedName(tp);
-    PyErr_Format(PyExc_AttributeError,
-                 "'" __Pyx_FMT_TYPENAME "' object has no attribute '%U'",
-                 type_name, name);
-    __Pyx_DECREF_TypeName(type_name);
-    return 0;
-
-// Generic fallback implementation using normal attribute lookup.
-#else
-    attr = __Pyx_PyObject_GetAttrStr(obj, name);
-    goto try_unpack;
-#endif
-
-try_unpack:
+    PyObject *attr = __Pyx_PyObject_GetAttrStr(obj, name);
 #if CYTHON_UNPACK_METHODS
     // Even if we failed to avoid creating a bound method object, it's still worth unpacking it now, if possible.
     if (likely(attr) && PyMethod_Check(attr) && likely(PyMethod_GET_SELF(attr) == obj)) {
@@ -1782,24 +1837,32 @@ try_unpack:
     *method = attr;
     return 0;
 }
+#endif
 
 
-/////////////// UnpackUnboundCMethod.proto ///////////////
-//@requires:  Synchronization.c::Atomics
+/////////////// UnpackUnboundCMethod_decl.proto ///////////////
 
 typedef struct {
     PyObject *type;
     PyObject **method_name;
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
-    // 0 for uninitialized, 1 for initializing, 2 for initialized
-    __pyx_atomic_int_type initialized;
-#endif
     // "func" is set on first access (direct C function pointer)
     PyCFunction func;
     // "method" is set on first access (fallback)
     PyObject *method;
     int flag;
+
+// The rest is module specific and must not be used by the exported shared module code!
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+    // 0 for uninitialized, 1 for initializing, 2 for initialized
+    __pyx_atomic_int_type initialized;
+#endif
 } __Pyx_CachedCFunction;
+
+
+/////////////// UnpackUnboundCMethod.proto ///////////////
+//@requires:  Synchronization.c::Atomics
+//@requires: UnpackUnboundCMethod_decl
+//@requires: UnpackUnboundCMethod_impl
 
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
 static CYTHON_INLINE int __Pyx_CachedCFunction_GetAndSetInitializing(__Pyx_CachedCFunction *cfunc) {
@@ -1827,8 +1890,18 @@ static CYTHON_INLINE void __Pyx_CachedCFunction_SetFinishedInitializing(__Pyx_Ca
 #define __Pyx_CachedCFunction_SetFinishedInitializing(cfunc)
 #endif
 
-/////////////// UnpackUnboundCMethod ///////////////
+
+/////////////// UnpackUnboundCMethod_impl.export ///////////////
+//@feature: DEFAULTS
+
+static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target); /*proto*/
+
+
+/////////////// UnpackUnboundCMethod_impl ///////////////
+//@requires: UnpackUnboundCMethod_decl
 //@requires: PyObjectGetAttrStr
+//@requires: Exceptions.c::IgnoreException
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030C0000
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
@@ -1840,22 +1913,9 @@ static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *
     Py_DECREF(selfless_args);
     return result;
 }
-#elif CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x03090000
-// PyPy 3.8 does not define 'args' as 'const'.
-// See https://github.com/cython/cython/issues/6867
-static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject **args, Py_ssize_t nargs, PyObject *kwnames) {
-        return _PyObject_Vectorcall
-            (method, args ? args+1 : NULL, nargs ? nargs-1 : 0, kwnames);
-}
 #else
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    return
-#if PY_VERSION_HEX < 0x03090000
-    _PyObject_Vectorcall
-#else
-    PyObject_Vectorcall
-#endif
-        (method, args ? args+1 : NULL, nargs ? (size_t) nargs-1 : 0, kwnames);
+    return PyObject_Vectorcall(method, args ? args+1 : NULL, nargs ? (size_t) nargs-1 : 0, kwnames);
 }
 #endif
 
@@ -1882,7 +1942,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     {
         PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
         target->func = descr->d_method->ml_meth;
-        target->flag = descr->d_method->ml_flags & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
+        target->flag = descr->d_method->ml_flags & ~(METH_CLASS | METH_STATIC | METH_COEXIST);
     } else
 #endif
     // bound classmethods need special treatment
@@ -1896,8 +1956,8 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
         int self_found;
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
         self = PyObject_GetAttrString(method, "__self__");
-        if (!self) {
-            PyErr_Clear();
+        if (!self && !__Pyx_IgnoreException(PyExc_AttributeError)) {
+            return -1;
         }
 #else
         self = PyCFunction_GET_SELF(method);
@@ -1934,6 +1994,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     ((__Pyx_PyCFunctionFast)(void(*)(void))(PyCFunction)(cfunc)->func)(self, args, nargs)
 #define __Pyx_CallCFunctionFastWithKeywords(cfunc, self, args, nargs, kwnames) \
     ((__Pyx_PyCFunctionFastWithKeywords)(void(*)(void))(PyCFunction)(cfunc)->func)(self, args, nargs, kwnames)
+
 
 /////////////// CallUnboundCMethod0.proto ///////////////
 
@@ -2144,13 +2205,13 @@ static PyObject* __Pyx__CallUnboundCMethod2(__Pyx_CachedCFunction* cfunc, PyObje
 /////////////// PyObjectFastCall.proto ///////////////
 
 #define __Pyx_PyObject_FastCall(func, args, nargs)  __Pyx_PyObject_FastCallDict(func, args, (size_t)(nargs), NULL)
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject * const*args, size_t nargs, PyObject *kwargs); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject * const*args, size_t nargsf, PyObject *kwargs); /*proto*/
 
 /////////////// PyObjectFastCall ///////////////
 //@requires: PyObjectCall
 //@requires: PyObjectCallMethO
 
-#if PY_VERSION_HEX < 0x03090000 || CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
 static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject * const*args, size_t nargs, PyObject *kwargs) {
     PyObject *argstuple;
     PyObject *result = 0;
@@ -2169,10 +2230,8 @@ static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject * con
 }
 #endif
 
-#if CYTHON_VECTORCALL && !CYTHON_COMPILING_IN_LIMITED_API
-  #if PY_VERSION_HEX < 0x03090000
-    #define __Pyx_PyVectorcall_Function(callable) _PyVectorcall_Function(callable)
-  #elif CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_VECTORCALL && !(CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY)
+  #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE vectorcallfunc __Pyx_PyVectorcall_Function(PyObject *callable) {
     PyTypeObject *tp = Py_TYPE(callable);
 
@@ -2199,12 +2258,12 @@ static CYTHON_INLINE vectorcallfunc __Pyx_PyVectorcall_Function(PyObject *callab
   #endif
 #endif
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject *const *args, size_t _nargs, PyObject *kwargs) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwargs) {
     // Special fast paths for 0 and 1 arguments
     // NOTE: in many cases, this is called with a constant value for nargs
     // which is known at compile-time. So the branches below will typically
     // be optimized away.
-    Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(_nargs);
+    Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(nargsf);
 #if CYTHON_COMPILING_IN_CPYTHON
     if (nargs == 0 && kwargs == NULL) {
         if (__Pyx_CyOrPyCFunction_Check(func) && likely( __Pyx_CyOrPyCFunction_GET_FLAGS(func) & METH_NOARGS))
@@ -2218,12 +2277,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 
     if (kwargs == NULL) {
         #if CYTHON_VECTORCALL
-          #if CYTHON_COMPILING_IN_LIMITED_API
-            return PyObject_Vectorcall(func, args, _nargs, NULL);
+          #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
+            return PyObject_Vectorcall(func, args, nargsf, NULL);
           #else
             vectorcallfunc f = __Pyx_PyVectorcall_Function(func);
             if (f) {
-                return f(func, args, _nargs, NULL);
+                return f(func, args, nargsf, NULL);
             }
           #endif
         #endif
@@ -2232,17 +2291,21 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     if (nargs == 0) {
         return __Pyx_PyObject_Call(func, EMPTY(tuple), kwargs);
     }
-    #if PY_VERSION_HEX >= 0x03090000 && !CYTHON_COMPILING_IN_LIMITED_API
-    return PyObject_VectorcallDict(func, args, (size_t)nargs, kwargs);
-    #else
+
+    #if CYTHON_COMPILING_IN_LIMITED_API
     return __Pyx_PyObject_FastCall_fallback(func, args, (size_t)nargs, kwargs);
+    #elif CYTHON_COMPILING_IN_PYPY
+    // PyPy miscalculates nargs if we include PY_VECTORCALL_ARGUMENTS_OFFSET.
+    return PyObject_VectorcallDict(func, args, (size_t) nargs, kwargs);
+    #else
+    return PyObject_VectorcallDict(func, args, nargsf, kwargs);
     #endif
 }
 
 /////////////// PyObjectFastCallMethod.proto ///////////////
-//@requires PyObjectFastCall
+//@requires: PyObjectFastCall
 
-#if CYTHON_VECTORCALL && PY_VERSION_HEX >= 0x03090000
+#if CYTHON_VECTORCALL
 #define __Pyx_PyObject_FastCallMethod(name, args, nargsf) PyObject_VectorcallMethod(name, args, nargsf, NULL)
 #else
 static PyObject *__Pyx_PyObject_FastCallMethod(PyObject *name, PyObject *const *args, size_t nargsf); /* proto */
@@ -2250,9 +2313,22 @@ static PyObject *__Pyx_PyObject_FastCallMethod(PyObject *name, PyObject *const *
 
 /////////////// PyObjectFastCallMethod ///////////////
 
-#if !CYTHON_VECTORCALL || PY_VERSION_HEX < 0x03090000
+#if !CYTHON_VECTORCALL
 static PyObject *__Pyx_PyObject_FastCallMethod(PyObject *name, PyObject *const *args, size_t nargsf) {
     PyObject *result;
+    switch (__Pyx_PyVectorcall_NARGS(nargsf)) {
+        // no case 0 - there's always one positional argument.
+        case 1:
+            return PyObject_CallMethodObjArgs(args[0], name, NULL);
+        case 2:
+            return PyObject_CallMethodObjArgs(args[0], name, args[1], NULL);
+        case 3:
+            return PyObject_CallMethodObjArgs(args[0], name, args[1], args[2], NULL);
+        case 4:
+            return PyObject_CallMethodObjArgs(args[0], name, args[1], args[2], args[3], NULL);
+        case 5:
+            return PyObject_CallMethodObjArgs(args[0], name, args[1], args[2], args[3], args[4], NULL);
+    }
     PyObject *attr = PyObject_GetAttr(args[0], name);
     if (unlikely(!attr))
         return NULL;
@@ -2262,87 +2338,78 @@ static PyObject *__Pyx_PyObject_FastCallMethod(PyObject *name, PyObject *const *
 }
 #endif
 
-/////////////// PyObjectVectorCallKwBuilder.proto ////////////////
+/////////////// PyObjectVectorcallKwds.proto ////////////////////
 //@requires: PyObjectFastCall
-// For versions that define PyObject_Vectorcall, use PyObject_Vectorcall and define functions to build a kwnames tuple and add arguments to args.
-// For versions that don't, use __Pyx_PyObject_FastCallDict and functions to build a keyword dictionary
-
-CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
 
 #if CYTHON_VECTORCALL
-#if PY_VERSION_HEX >= 0x03090000
-#define __Pyx_Object_Vectorcall_CallFromBuilder PyObject_Vectorcall
+#define __Pyx_Object_VectorcallKwds PyObject_Vectorcall
+CYTHON_UNUSED static int __Pyx_CheckVectorcallKwarg(PyObject *kwnames, Py_ssize_t i); /* proto */
 #else
-#define __Pyx_Object_Vectorcall_CallFromBuilder _PyObject_Vectorcall
+#define __Pyx_Object_VectorcallKwds __Pyx_PyObject_FastCallDict
+CYTHON_UNUSED static PyObject *__Pyx_MakeKwargDict(PyObject **keys, PyObject **values, Py_ssize_t n); /* proto */
+CYTHON_UNUSED static int __Pyx_CheckVectorcallKwarg(PyObject **kwnames, Py_ssize_t i); /* proto */
 #endif
 
-#define __Pyx_MakeVectorcallBuilderKwds(n) PyTuple_New(n)
-
-static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
-static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
-#else
-#define __Pyx_Object_Vectorcall_CallFromBuilder __Pyx_PyObject_FastCallDict
-
-#define __Pyx_MakeVectorcallBuilderKwds(n) __Pyx_PyDict_NewPresized(n)
-
-#define __Pyx_VectorcallBuilder_AddArg(key, value, builder, args, n) PyDict_SetItem(builder, key, value)
-#define __Pyx_VectorcallBuilder_AddArgStr(key, value, builder, args, n) PyDict_SetItemString(builder, key, value)
-#endif
-
-/////////////// PyObjectVectorCallKwBuilder ////////////////
+/////////////// PyObjectVectorcallKwds ////////////////////
 
 #if CYTHON_VECTORCALL
-static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
-    (void)__Pyx_PyObject_FastCallDict;
+CYTHON_UNUSED static int __Pyx_CheckVectorcallKwarg(PyObject *kwnames, Py_ssize_t i) {
+    PyObject *key = __Pyx_PyTuple_GET_ITEM(kwnames, i);
+#if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(!key)) return -1;
+#endif
 
-    if (__Pyx_PyTuple_SET_ITEM(builder, n, key) != (0)) return -1;
-    Py_INCREF(key);
-    args[n] = value;
+    if (unlikely(!PyUnicode_Check(key))) {
+        PyErr_SetString(PyExc_TypeError, "keywords must be strings");
+        return -1;
+    }
     return 0;
 }
 
-CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
-    (void)__Pyx_VectorcallBuilder_AddArgStr;
-    if (unlikely(!PyUnicode_Check(key))) {
-        PyErr_SetString(PyExc_TypeError, "keywords must be strings");
-        return -1;
-    }
-    return __Pyx_VectorcallBuilder_AddArg(key, value, builder, args, n);
-}
-
-static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
-    PyObject *pyKey = PyUnicode_FromString(key);
-    if (!pyKey) return -1;
-    return __Pyx_VectorcallBuilder_AddArg(pyKey, value, builder, args, n);
-}
-#else // CYTHON_VECTORCALL
-CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, CYTHON_UNUSED PyObject **args, CYTHON_UNUSED int n) {
-    if (unlikely(!PyUnicode_Check(key))) {
-        PyErr_SetString(PyExc_TypeError, "keywords must be strings");
-        return -1;
-    }
-    return PyDict_SetItem(builder, key, value);
-}
-#endif
-
-/////////////// PyObjectVectorCallMethodKwBuilder.proto ////////////////
-
-#if CYTHON_VECTORCALL && PY_VERSION_HEX >= 0x03090000
-#define __Pyx_Object_VectorcallMethod_CallFromBuilder PyObject_VectorcallMethod
 #else
-static PyObject *__Pyx_Object_VectorcallMethod_CallFromBuilder(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames); /* proto */
+
+CYTHON_UNUSED static PyObject *__Pyx_MakeKwargDict(PyObject **keys, PyObject **values, Py_ssize_t n) {
+    PyObject *out = PyDict_New();
+    if (unlikely(!out)) return NULL;
+    for (Py_ssize_t i=0; i<n; ++i) {
+        if (unlikely(PyDict_SetItem(out, keys[i], values[i]) < 0)) {
+            Py_DECREF(out);
+            return NULL;
+        }
+    }
+    return out;
+}
+
+CYTHON_UNUSED static int __Pyx_CheckVectorcallKwarg(PyObject **kwnames, Py_ssize_t i) {
+    PyObject *key = kwnames[i];
+
+    if (unlikely(!PyUnicode_Check(key))) {
+        PyErr_SetString(PyExc_TypeError, "keywords must be strings");
+        return -1;
+    }
+    return 0;
+}
+
 #endif
 
-/////////////// PyObjectVectorCallMethodKwBuilder ////////////////
-//@requires: PyObjectVectorCallKwBuilder
+/////////////// PyObjectVectorcallMethodKwds.proto /////////////////
+//@requires: PyObjectVectorcallKwds
 
-#if !CYTHON_VECTORCALL || PY_VERSION_HEX < 0x03090000
-static PyObject *__Pyx_Object_VectorcallMethod_CallFromBuilder(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames) {
+#if CYTHON_VECTORCALL
+#define __Pyx_Object_VectorcallMethodKwds PyObject_VectorcallMethod
+#else
+static PyObject *__Pyx_Object_VectorcallMethodKwds(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames); /* proto */
+#endif
+
+/////////////// PyObjectVectorcallMethodKwds ///////////////////
+
+#if !CYTHON_VECTORCALL
+static PyObject *__Pyx_Object_VectorcallMethodKwds(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames) {
     PyObject *result;
     PyObject *obj = PyObject_GetAttr(args[0], name);
     if (unlikely(!obj))
         return NULL;
-    result = __Pyx_Object_Vectorcall_CallFromBuilder(obj, args+1, nargsf-1, kwnames);
+    result = __Pyx_Object_VectorcallKwds(obj, args+1, nargsf-1, kwnames);
     Py_DECREF(obj);
     return result;
 }
@@ -2350,74 +2417,35 @@ static PyObject *__Pyx_Object_VectorcallMethod_CallFromBuilder(PyObject *name, P
 
 /////////////// PyObjectCallMethod0.proto ///////////////
 
-static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name); /*proto*/
 
 /////////////// PyObjectCallMethod0 ///////////////
-//@requires: PyObjectGetMethod
-//@requires: PyObjectCallOneArg
-//@requires: PyObjectCallNoArg
 
-static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name) {
-#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000))
-    PyObject *args[1] = {obj};
-    // avoid unused functions
-    (void) __Pyx_PyObject_GetMethod;
-    (void) __Pyx_PyObject_CallOneArg;
-    (void) __Pyx_PyObject_CallNoArg;
-    return PyObject_VectorcallMethod(method_name, args, 1 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name) {
+#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || !CYTHON_COMPILING_IN_LIMITED_API)
+    return PyObject_VectorcallMethod(method_name, &obj, 1 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+#elif CYTHON_COMPILING_IN_LIMITED_API
+    return PyObject_CallMethodObjArgs(obj, method_name, NULL);
 #else
-    PyObject *method = NULL, *result = NULL;
-    int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
-    if (likely(is_method)) {
-        result = __Pyx_PyObject_CallOneArg(method, obj);
-        Py_DECREF(method);
-        return result;
-    }
-    if (unlikely(!method)) goto bad;
-    result = __Pyx_PyObject_CallNoArg(method);
-    Py_DECREF(method);
-bad:
-    return result;
+    return PyObject_CallMethodNoArgs(obj, method_name);
 #endif
 }
 
 
 /////////////// PyObjectCallMethod1.proto ///////////////
 
-static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg); /*proto*/
 
 /////////////// PyObjectCallMethod1 ///////////////
-//@requires: PyObjectGetMethod
-//@requires: PyObjectCallOneArg
-//@requires: PyObjectCall2Args
 
-#if !(CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000)))
-static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
-    // Separate function to avoid excessive inlining.
-    PyObject *result = __Pyx_PyObject_CallOneArg(method, arg);
-    Py_DECREF(method);
-    return result;
-}
-#endif
-
-static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
-#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000))
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
+#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || !CYTHON_COMPILING_IN_LIMITED_API)
     PyObject *args[2] = {obj, arg};
-    // avoid unused functions
-    (void) __Pyx_PyObject_GetMethod;
-    (void) __Pyx_PyObject_CallOneArg;
-    (void) __Pyx_PyObject_Call2Args;
     return PyObject_VectorcallMethod(method_name, args, 2 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+#elif CYTHON_COMPILING_IN_LIMITED_API
+    return PyObject_CallMethodObjArgs(obj, method_name, arg, NULL);
 #else
-    PyObject *method = NULL, *result;
-    int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
-    if (likely(is_method)) {
-        result = __Pyx_PyObject_Call2Args(method, obj, arg);
-        Py_DECREF(method);
-        return result;
-    }
-    if (unlikely(!method)) return NULL;
-    return __Pyx__PyObject_CallMethod1(method, arg);
+    return PyObject_CallMethodOneArg(obj, method_name, arg);
 #endif
 }
 
@@ -2570,13 +2598,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
 
 /////////////// PyVectorcallFastCallDict.proto ///////////////
 
-#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
+#if CYTHON_VECTORCALL
 static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw);
 #endif
 
 /////////////// PyVectorcallFastCallDict ///////////////
+//@requires: OwnedDictNext
 
-#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
+#if CYTHON_VECTORCALL
 // Slow path when kw is non-empty
 static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw)
 {
@@ -2585,7 +2614,12 @@ static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vector
     PyObject *kwnames;
     PyObject **newargs;
     PyObject **kwvalues;
-    Py_ssize_t i, pos;
+    Py_ssize_t i;
+    #if CYTHON_AVOID_BORROWED_REFS
+    PyObject *pos;
+    #else
+    Py_ssize_t pos;
+    #endif
     size_t j;
     PyObject *key, *value;
     unsigned long keys_are_strings;
@@ -2611,17 +2645,16 @@ static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vector
         return NULL;
     }
     kwvalues = newargs + nargs;
-    pos = i = 0;
+    pos = 0;
+    i = 0;
     keys_are_strings = Py_TPFLAGS_UNICODE_SUBCLASS;
-    while (PyDict_Next(kw, &pos, &key, &value)) {
+    while (__Pyx_PyDict_NextRef(kw, &pos, &key, &value)) {
         keys_are_strings &=
         #if CYTHON_COMPILING_IN_LIMITED_API
             PyType_GetFlags(Py_TYPE(key));
         #else
             Py_TYPE(key)->tp_flags;
         #endif
-        Py_INCREF(key);
-        Py_INCREF(value);
         #if !CYTHON_ASSUME_SAFE_MACROS
         if (unlikely(PyTuple_SetItem(kwnames, i, key) < 0)) goto cleanup;
         #else
@@ -2639,6 +2672,9 @@ static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vector
     res = vc(func, newargs, nargs, kwnames);
 
 cleanup:
+    #if CYTHON_AVOID_BORROWED_REFS
+    Py_DECREF(pos);
+    #endif
     Py_DECREF(kwnames);
     for (i = 0; i < nkw; i++)
         Py_DECREF(kwvalues[i]);
@@ -2838,7 +2874,7 @@ static PyObject *__Pyx_PyMethod_New2Arg(PyObject *func, PyObject *self) {
     #endif
     #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_DefinitelyUniqueInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_DefinitelyUnique)
     #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_OwnStrongReferenceInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_OwnStrongReference)
-    #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_FunctionArgumentInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_DefinitelyUnique)
+    #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_FunctionArgumentInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_FunctionArgument)
     #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_SharedReferenceInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_SharedReference)
     // __Pyx_PyUnicode_ConcatInPlace is slightly odd because it has the potential to modify the input
     // argument (but only in cases where no user should notice). Therefore, it needs to keep Cython's
@@ -2922,7 +2958,8 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     }
     new_len = left_len + right_len;
 
-    if (__Pyx_unicode_modifiable(left, unsafe_shared)
+    if (left != right
+            && __Pyx_unicode_modifiable(left, unsafe_shared)
             && PyUnicode_CheckExact(right)
             && PyUnicode_KIND(right) <= PyUnicode_KIND(left)
             // Don't resize for ascii += latin1. Convert ascii to latin1 requires
@@ -2958,10 +2995,15 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
 /////////////// PySequenceMultiply.proto ///////////////
 
 #define __Pyx_PySequence_Multiply_Left(mul, seq)  __Pyx_PySequence_Multiply(seq, mul)
+#if !CYTHON_USE_TYPE_SLOTS
+#define  __Pyx_PySequence_Multiply PySequence_Repeat
+#else
 static CYTHON_INLINE PyObject* __Pyx_PySequence_Multiply(PyObject *seq, Py_ssize_t mul);
+#endif
 
 /////////////// PySequenceMultiply ///////////////
 
+#if CYTHON_USE_TYPE_SLOTS
 static PyObject* __Pyx_PySequence_Multiply_Generic(PyObject *seq, Py_ssize_t mul) {
     PyObject *result, *pymul = PyLong_FromSsize_t(mul);
     if (unlikely(!pymul))
@@ -2972,30 +3014,152 @@ static PyObject* __Pyx_PySequence_Multiply_Generic(PyObject *seq, Py_ssize_t mul
 }
 
 static CYTHON_INLINE PyObject* __Pyx_PySequence_Multiply(PyObject *seq, Py_ssize_t mul) {
-#if CYTHON_USE_TYPE_SLOTS
     PyTypeObject *type = Py_TYPE(seq);
     if (likely(type->tp_as_sequence && type->tp_as_sequence->sq_repeat)) {
         return type->tp_as_sequence->sq_repeat(seq, mul);
-    } else
-#endif
-    {
+    } else {
         return __Pyx_PySequence_Multiply_Generic(seq, mul);
     }
+}
+#endif
+
+/////////////// BuiltinSequenceMultiply.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_{{typeobj}}_Multiply(PyObject *seq, Py_ssize_t mul);
+
+/////////////// BuiltinSequenceMultiply ////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_{{typeobj}}_Multiply(PyObject *seq, Py_ssize_t mul) {
+    // It's important that this function always calls the exact typeobj slot, because it may
+    // be used with a subclass deliberately to access the base class slot.
+    ssizeargfunc slot = __Pyx_PyType_TryGetSubSlot(&{{typeobj}}, tp_as_sequence, sq_repeat, ssizeargfunc);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    if (unlikely(!slot)) {
+        return PyObject_CallMethod((PyObject*)&{{typeobj}}, "__mul__", "On", seq, mul);
+    }
+    #endif
+    return slot(seq, mul);
+}
+
+
+/////////////// RaiseErrorWithObjectType.proto ///////////////
+
+#define __Pyx_RaiseTypeErrorWithObjectType(message, obj)  __Pyx_RaiseErrorWithObjectType(PyExc_TypeError, message, obj)
+#define __Pyx_RaiseErrorWithObjectType(exc_type, message, obj)  __Pyx_RaiseErrorWithType(exc_type, message, Py_TYPE(obj))
+
+CYTHON_UNUSED
+static void __Pyx_RaiseErrorWithType(PyObject* exc_type, const char* message, PyTypeObject *type_obj); /*proto*/
+
+/////////////// RaiseErrorWithObjectType ///////////////
+//@requires: FormatTypeName
+
+static void __Pyx_RaiseErrorWithType(PyObject* exc_type, const char* message, PyTypeObject *type_obj) {
+    __Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(type_obj);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!type_name)) return;
+    #endif
+    PyErr_Format(exc_type, message, type_name);
+    __Pyx_DECREF_TypeName(type_name);
+}
+
+
+/////////////// RaiseErrorWithObjectType1.proto ///////////////
+
+#define __Pyx_RaiseTypeErrorWithObjectType1(message, arg, obj) __Pyx_RaiseErrorWithObjectType1(PyExc_TypeError, message, arg, obj)
+#define __Pyx_RaiseErrorWithObjectType1(exc_type, message, arg, obj) __Pyx_RaiseErrorWithType1(exc_type, message, arg, Py_TYPE(obj))
+
+CYTHON_UNUSED
+static void __Pyx_RaiseErrorWithType1(PyObject* exc_type, const char* message, const char *arg, PyTypeObject *type_obj); /*proto*/
+
+/////////////// RaiseErrorWithObjectType1 ///////////////
+//@requires: FormatTypeName
+
+static void __Pyx_RaiseErrorWithType1(PyObject* exc_type, const char* message, const char *arg, PyTypeObject *type_obj) {
+    __Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(type_obj);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!type_name)) return;
+    #endif
+    PyErr_Format(exc_type, message, arg, type_name);
+    __Pyx_DECREF_TypeName(type_name);
+}
+
+///////////// RaiseErrorWithTypeAndVarargs.proto ///////////////////////
+//@requires: FormatTypeName
+
+// The first argument of the variadic arguments must be the type name
+#define __Pyx_RaiseErrorWithTypeAndVarargs(exc_type, message, type_obj, ...) \
+    __Pyx__RaiseErrorWithTypeAndVarargs(exc_type, message, __Pyx_PyType_GetFullyQualifiedName(type_obj), __VA_ARGS__)
+
+static void __Pyx__RaiseErrorWithTypeAndVarargs(PyObject* exc_type, const char* message, ...); /* proto */
+
+///////////// RaiseErrorWithTypeAndVarargs ///////////////////////
+
+static void __Pyx__RaiseErrorWithTypeAndVarargs(PyObject* exc_type, const char* message, ...)
+{
+    va_list arg_list;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    va_start(arg_list, message);
+    __Pyx_TypeName tp_name = va_arg(arg_list, __Pyx_TypeName);
+    va_end(arg_list);
+#if __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (!tp_name) return;
+#endif
+#endif
+    va_start(arg_list, message);
+    PyErr_FormatV(exc_type, message, arg_list);
+    va_end(arg_list);
+    __Pyx_DECREF_TypeName(tp_name); // No-op outside Limited API so doesn't matter that it's undefined.
+}
+
+/////////////// RaiseErrorWithObjectTypes.proto ///////////////
+
+#define __Pyx_RaiseErrorWithObjectTypes1(exc_type, message, arg, obj1, obj2) __Pyx_RaiseErrorWithTypes1(exc_type, message, arg, Py_TYPE(obj1), Py_TYPE(obj2))
+#define __Pyx_RaiseTypeErrorWithObjectTypes(message, obj1, obj2) __Pyx_RaiseTypeErrorWithTypes(message, Py_TYPE(obj1), Py_TYPE(obj2))
+#define __Pyx_RaiseTypeErrorWithTypes(message, type_obj1, type_obj2) __Pyx_RaiseErrorWithTypes1(PyExc_TypeError, "%.1s" message, "", type_obj1, type_obj2)
+
+CYTHON_UNUSED
+static void __Pyx_RaiseErrorWithTypes1(PyObject* exc_type, const char *message, const char *arg, PyTypeObject *type_obj1, PyTypeObject *type_obj2); /*proto*/
+
+/////////////// RaiseErrorWithObjectTypes ///////////////
+//@requires: FormatTypeName
+
+static void __Pyx_RaiseErrorWithTypes1(PyObject* exc_type, const char *message, const char *arg, PyTypeObject *type_obj1, PyTypeObject *type_obj2) {
+    __Pyx_TypeName type_name1 = __Pyx_PyType_GetFullyQualifiedName(type_obj1);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!type_name1)) return;
+    #endif
+    __Pyx_TypeName type_name2 = __Pyx_PyType_GetFullyQualifiedName(type_obj2);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (unlikely(!type_name2)) goto type2_failed;
+    #endif
+
+    PyErr_Format(exc_type, message, arg, type_name1, type_name2);
+
+    __Pyx_DECREF_TypeName(type_name2);
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+type2_failed:
+#endif
+    __Pyx_DECREF_TypeName(type_name1);
 }
 
 
 /////////////// FormatTypeName.proto ///////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+// For these versions we can just pass the type, use the %N format code and
+// Python handles the whole thing internally.
+typedef PyObject *__Pyx_TypeName;
+#define __Pyx_FMT_TYPENAME "%N"
+#define __Pyx_PyType_GetFullyQualifiedName(tp) Py_NewRef((PyObject*)tp)
+#define __Pyx_DECREF_TypeName(obj) Py_DECREF(obj)
+
+#elif CYTHON_COMPILING_IN_LIMITED_API
 typedef PyObject *__Pyx_TypeName;
 #define __Pyx_FMT_TYPENAME "%U"
 #define __Pyx_DECREF_TypeName(obj) Py_XDECREF(obj)
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
-#define __Pyx_PyType_GetFullyQualifiedName PyType_GetFullyQualifiedName
-#else
 static __Pyx_TypeName __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp); /*proto*/
-#endif
+
 #else  // !LIMITED_API
 typedef const char *__Pyx_TypeName;
 #define __Pyx_FMT_TYPENAME "%.200s"
@@ -3052,17 +3216,21 @@ __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp)
 
 /////////////// RaiseUnexpectedTypeError.proto ///////////////
 
+// Used by "except *" implementation in Py<=3.11, so avoid bothering
+// newer Python users with a warning if it's not used otherwise.
+CYTHON_UNUSED
 static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj); /*proto*/
 
 /////////////// RaiseUnexpectedTypeError ///////////////
+//@requires: RaiseErrorWithObjectType1
 
-static int
-__Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj)
-{
-    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError, "Expected %s, got " __Pyx_FMT_TYPENAME,
-                 expected, obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
+static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj) {
+    // Only used for builtin types (including exceptions),
+    // so name length 42 should be largely enough.
+    // The longest is currently 25 in Py3.15.
+    __Pyx_RaiseTypeErrorWithObjectType1(
+        "Expected %.42s, got " __Pyx_FMT_TYPENAME,
+        expected, obj);
     return 0;
 }
 
@@ -3149,33 +3317,6 @@ static void __Pyx_RaiseCppAttributeErrorNogil(const char *varname) {
     PyGILState_Release(gilstate);
 }
 
-/////////////// ListPack.proto //////////////////////////////////////
-
-// Equivalent to PyTuple_Pack for sections where we want to reduce the code size
-static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...); /* proto */
-
-/////////////// ListPack //////////////////////////////////////
-
-static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...) {
-    va_list va;
-    PyObject *l = PyList_New(n);
-    va_start(va, n);
-    if (unlikely(!l)) goto end;
-
-    for (Py_ssize_t i=0; i<n; ++i) {
-        PyObject *arg = va_arg(va, PyObject*);
-        Py_INCREF(arg);
-        if (__Pyx_PyList_SET_ITEM(l, i, arg) != (0)) {
-            Py_CLEAR(l);
-            goto end;
-        }
-    }
-
-    end:
-    va_end(va);
-    return l;
-}
-
 /////////////// LengthHint.proto //////////////////////////////////////
 
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -3184,4 +3325,80 @@ static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...) {
 #define __Pyx_PyObject_LengthHint(o, defaultval)  (defaultval)
 #else
 #define __Pyx_PyObject_LengthHint(o, defaultval)  PyObject_LengthHint(o, defaultval)
+#endif
+
+//////////////////////// OwnedDictNext.proto ///////////////////////////////
+
+// Like PyDict_Next but pkey and pvalue are new references (and thus must be decrefed).
+// pkey and pvalue may be NULL but this must be the same for all subsequent calls.
+// If it encounters an exception it prints it as unraisable and stops.
+#if CYTHON_AVOID_BORROWED_REFS
+static int __Pyx_PyDict_NextRef(PyObject *p, PyObject **ppos, PyObject **pkey, PyObject **pvalue); /* proto */
+#else
+CYTHON_INLINE
+static int __Pyx_PyDict_NextRef(PyObject *p, Py_ssize_t *ppos, PyObject **pkey, PyObject **pvalue); /* proto */
+#endif
+
+
+//////////////////////// OwnedDictNext //////////////////////////////////////
+//@requires: Builtins.c::py_dict_values
+//@requires: Builtins.c::py_dict_items
+
+#if CYTHON_AVOID_BORROWED_REFS
+static int __Pyx_PyDict_NextRef(PyObject *p, PyObject **ppos, PyObject **pkey, PyObject **pvalue) {
+    PyObject *next = NULL;
+    if (!*ppos) {
+        // Intentionally using lazy iterators instead of PyDict_Items/Keys/Values
+        // at the cost of a function call.
+        if (pvalue) {
+            PyObject *dictview = pkey ? __Pyx_PyDict_Items(p) : __Pyx_PyDict_Values(p);
+            if (unlikely(!dictview)) goto bad;
+            *ppos = PyObject_GetIter(dictview);
+            Py_DECREF(dictview);
+        } else {
+            *ppos = PyObject_GetIter(p);
+        }
+        if (unlikely(!*ppos)) goto bad;
+    }
+    next = PyIter_Next(*ppos);
+    if (!next) {
+        if (PyErr_Occurred()) goto bad;
+        return 0;
+    }
+    if (pkey && pvalue) {
+        *pkey = __Pyx_PySequence_ITEM(next, 0);
+        if (unlikely(*pkey)) goto bad;
+        *pvalue = __Pyx_PySequence_ITEM(next, 1);
+        if (unlikely(*pvalue)) goto bad;
+        Py_DECREF(next);
+    } else if (pkey) {
+        *pkey = next;
+    } else {
+        assert(pvalue);
+        *pvalue = next;
+    }
+    return 1;
+
+  bad:
+    Py_XDECREF(next);
+    // PyDict_Next can't fail, so neither can this
+#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d0000
+    PyErr_FormatUnraisable("Exception ignored in __Pyx_PyDict_NextRef");
+#else
+    PyErr_WriteUnraisable(PYIDENT("__Pyx_PyDict_NextRef"));
+#endif
+    if (pkey) *pkey = NULL;
+    if (pvalue) *pvalue = NULL;
+    return 0;
+}
+
+#else // !CYTHON_AVOID_BORROWED_REFS
+static int __Pyx_PyDict_NextRef(PyObject *p, Py_ssize_t *ppos, PyObject **pkey, PyObject **pvalue) {
+    int result = PyDict_Next(p, ppos, pkey, pvalue);
+    if (likely(result == 1)) {
+        if (pkey) Py_INCREF(*pkey);
+        if (pvalue) Py_INCREF(*pvalue);
+    }
+    return result;
+}
 #endif

@@ -8,6 +8,10 @@ bytes_str   = b'ab jd  sdflk as sa  sadas asdas fsdf '
 _frozenset = frozenset
 _set = set
 
+
+def make_frozendict(d):
+    return frozendict(d)
+
 @cython.test_assert_path_exists(
     "//CoerceToPyTypeNode",
     "//PythonCapiCallNode")
@@ -96,6 +100,20 @@ def len_dict(dict s):
     >>> len_dict(d)
     4
     >>> len_dict(None)
+    Traceback (most recent call last):
+    TypeError: object of type 'NoneType' has no len()
+    """
+    return len(s)
+
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode",
+    "//PythonCapiCallNode")
+def len_frozendict(frozendict s):
+    """
+    >>> fd = make_frozendict(dict(a=1, b=2, c=3, d=4))
+    >>> len_frozendict(fd)
+    4
+    >>> len_frozendict(None)
     Traceback (most recent call last):
     TypeError: object of type 'NoneType' has no len()
     """

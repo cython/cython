@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp20, no-cpp-locals
+# tag: cpp, cpp20, no-cpp-locals, threads
 
 from libcpp cimport stop_token
 import threading

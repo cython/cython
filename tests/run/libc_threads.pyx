@@ -1,5 +1,5 @@
 # mode: run
-# tag: c11, no-cpp, no-macos
+# tag: c11, no-cpp, no-macos, threads
 
 # cython: language_level=3
 
@@ -53,23 +53,32 @@ def test_thread():
 def test_py_safe_lock(n_threads):
     """
     >>> test_py_safe_lock(4)
-    4
+    2000
     """
     cdef threads.mtx_t m
     threads.mtx_init(&m, threads.mtx_plain)
 
     barrier = Barrier(n_threads)
-    count = 0
+    cdef int count = 0
 
     def thread_func():
         nonlocal count
 
         barrier.wait()
-        threads.py_safe_mtx_lock(&m)
-        try:
-            count += 1
-        finally:
-            threads.mtx_unlock(&m)
+        for i in range(500):
+            if i%2:
+                with nogil:
+                    threads.py_safe_mtx_lock(&m)
+                    try:
+                        count += 1
+                    finally:
+                        threads.mtx_unlock(&m)
+            else:
+                threads.py_safe_mtx_lock(&m)
+                try:
+                    count += 1
+                finally:
+                    threads.mtx_unlock(&m)
 
     all_threads = [
         Thread(target=thread_func) for _ in range(n_threads)

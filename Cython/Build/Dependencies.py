@@ -9,15 +9,16 @@ from os.path import relpath as _relpath
 from .Cache import Cache, FingerprintFlags
 
 from collections.abc import Iterable
+from functools import partial
 
 try:
     import pythran
-except:
+except Exception:
     pythran = None
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
-    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, write_depfile)
+    copy_file_to_dir_if_newer, is_package_dir, write_depfile)
 from ..Compiler import Errors
 from ..Compiler.Main import Context
 from ..Compiler import Options
@@ -26,10 +27,11 @@ from ..Compiler.Options import (CompilationOptions, default_options,
 
 join_path = cached_function(os.path.join)
 copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
-safe_makedirs_once = cached_function(safe_makedirs)
+safe_makedirs_once = cached_function(partial(os.makedirs, exist_ok=True))
 
 
-def _make_relative(file_paths, base=None):
+@cython.cfunc
+def _make_relative(file_paths, base=None) -> list[str]:
     if not base:
         base = os.getcwd()
     if base[-1] != os.path.sep:
@@ -52,7 +54,7 @@ def extended_iglob(pattern):
     # because '/' is generally common for relative paths.
     if '**/' in pattern or os.sep == '\\' and '**\\' in pattern:
         seen = set()
-        first, rest = re.split(r'\*\*[%s]' % ('/\\\\' if os.sep == '\\' else '/'), pattern, 1)
+        first, rest = re.split(r'\*\*[%s]' % ('/\\\\' if os.sep == '\\' else '/'), pattern, maxsplit=1)
         if first:
             first = iglob(first + os.sep)
         else:
@@ -158,6 +160,7 @@ distutils_settings = {
 }
 
 
+@cython.cfunc
 def _legacy_strtobool(val):
     # Used to be "distutils.util.strtobool", adapted for deprecation warnings.
     if val == "True":
@@ -773,6 +776,10 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         elif isinstance(pattern, extension_classes):
             cython_sources = [s for s in pattern.sources
                               if os.path.splitext(s)[1] in ('.py', '.pyx')]
+            template = pattern
+            name = template.name
+            base = DistutilsInfo(exn=template)
+            ext_language = None  # do not override whatever the Extension says
             if cython_sources:
                 filepattern = cython_sources[0]
                 if len(cython_sources) > 1:
@@ -781,11 +788,14 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                           "for sharing declarations among Cython files." % (pattern.name, cython_sources))
             elif shared_utility_qualified_name and pattern.name == shared_utility_qualified_name:
                 # This is the shared utility code file.
+                sources = pattern.sources or [
+                        shared_utility_qualified_name.replace('.', os.sep) + ('.cpp' if pattern.language == 'c++' else '.c')]
                 m, _ = create_extension(pattern, dict(
                     name=shared_utility_qualified_name,
-                    sources=pattern.sources or [
-                        shared_utility_qualified_name.replace('.', os.sep) + ('.cpp' if pattern.language == 'c++' else '.c')],
+                    sources=sources,
                     language=pattern.language,
+                    # shared utility code uses only parameters specified as argument of Extension() class
+                    **base.values
                 ))
                 m.np_pythran = False
                 m.shared_utility_qualified_name = None
@@ -795,10 +805,6 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 # ignore non-cython modules
                 module_list.append(pattern)
                 continue
-            template = pattern
-            name = template.name
-            base = DistutilsInfo(exn=template)
-            ext_language = None  # do not override whatever the Extension says
         else:
             msg = str("pattern is not of type str nor subclass of Extension (%s)"
                       " but of type %s and class %s" % (repr(Extension),
@@ -956,7 +962,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     if 'include_path' not in options:
         options['include_path'] = ['.']
     if 'common_utility_include_dir' in options:
-        safe_makedirs(options['common_utility_include_dir'])
+        os.makedirs(options['common_utility_include_dir'], exist_ok=True)
 
     depfile = options.pop('depfile', None)
 
@@ -983,8 +989,6 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         exclude_failures=exclude_failures,
         language=language,
         aliases=aliases)
-
-    fix_windows_unicode_modules(module_list)
 
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
@@ -1129,31 +1133,22 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     if N <= 1:
         nthreads = 0
+    try:
+        from concurrent.futures import ProcessPoolExecutor
+    except ImportError:
+        nthreads = 0
+
     if nthreads:
-        import multiprocessing
-        if multiprocessing.get_start_method() == 'spawn':
-            print('Disabling parallel cythonization for "spawn" process start method.')
-            nthreads = 0
-    if nthreads:
-        import multiprocessing
-        pool = multiprocessing.Pool(
-            nthreads, initializer=_init_multiprocessing_helper)
-        # This is a bit more involved than it should be, because KeyboardInterrupts
-        # break the multiprocessing workers when using a normal pool.map().
-        # See, for example:
-        # https://noswap.com/blog/python-multiprocessing-keyboardinterrupt
-        try:
-            result = pool.map_async(cythonize_one_helper, to_compile, chunksize=1)
-            pool.close()
-            while not result.ready():
-                try:
-                    result.get(99999)  # seconds
-                except multiprocessing.TimeoutError:
-                    pass
-        except KeyboardInterrupt:
-            pool.terminate()
-            raise
-        pool.join()
+        with ProcessPoolExecutor(
+            max_workers=nthreads,
+            initializer=_init_multiprocessing_helper,
+        ) as proc_pool:
+            try:
+                list(proc_pool.map(cythonize_one_helper, to_compile, chunksize=1))
+            except KeyboardInterrupt:
+                proc_pool.terminate_workers()
+                proc_pool.shutdown(cancel_futures=True)
+                raise
     else:
         for args in to_compile:
             cythonize_one(*args)
@@ -1186,67 +1181,34 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     return module_list
 
 
-def fix_windows_unicode_modules(module_list):
-    # Hack around a distutils 3.[5678] bug on Windows for unicode module names.
-    # https://bugs.python.org/issue39432
-    if sys.platform != "win32":
-        return
-    if sys.version_info >= (3, 8, 2):
-        return
-
-    def make_filtered_list(ignored_symbol, old_entries):
-        class FilteredExportSymbols(list):
-            # export_symbols for unicode filename cause link errors on Windows
-            # Cython doesn't need them (it already defines PyInit with the correct linkage)
-            # so use this class as a temporary fix to stop them from being generated
-            def __contains__(self, val):
-                # so distutils doesn't "helpfully" add PyInit_<name>
-                return val == ignored_symbol or list.__contains__(self, val)
-
-        filtered_list = FilteredExportSymbols(old_entries)
-        if old_entries:
-            filtered_list.extend(name for name in old_entries if name != ignored_symbol)
-        return filtered_list
-
-    for m in module_list:
-        if m.name.isascii():
-            continue
-        m.export_symbols = make_filtered_list(
-            "PyInit_" + m.name.rsplit(".", 1)[-1],
-            m.export_symbols,
-        )
-
-
 if os.environ.get('XML_RESULTS'):
     compile_result_dir = os.environ['XML_RESULTS']
     def record_results(func):
         def with_record(*args):
             t = time.time()
-            success = True
+            success = False
             try:
-                try:
-                    func(*args)
-                except:
-                    success = False
+                func(*args)
+                success = True
+            except Exception:
+                # It's not obvious that we should really swallow the exception here,
+                # rather than fail loudly after writing the XML result file,
+                # but that's how it's currently implemented.
+                pass
             finally:
                 t = time.time() - t
                 module = fully_qualified_name(args[0])
                 name = "cythonize." + module
                 failures = 1 - success
-                if success:
-                    failure_item = ""
-                else:
-                    failure_item = "failure"
-                output = open(os.path.join(compile_result_dir, name + ".xml"), "w")
-                output.write("""
+                with open(os.path.join(compile_result_dir, name + ".xml"), "w") as output:
+                    output.write(f"""
                     <?xml version="1.0" ?>
-                    <testsuite name="%(name)s" errors="0" failures="%(failures)s" tests="1" time="%(t)s">
-                    <testcase classname="%(name)s" name="cythonize">
-                    %(failure_item)s
+                    <testsuite name="{name}" errors="0" failures="{failures}" tests="1" time="{t}">
+                    <testcase classname="{name}" name="cythonize">
+                    {'' if success else 'failure'}
                     </testcase>
                     </testsuite>
-                """.strip() % locals())
-                output.close()
+                    """.strip())
         return with_record
 else:
     def record_results(func):

@@ -7,10 +7,12 @@ import sys
 import types
 import unittest
 
+from Cython.TestUtils import TimedTest
+
 ZERO = 0
 
 
-class Test(unittest.TestCase):
+class Test(TimedTest):
     if not hasattr(unittest.TestCase, 'assertRegex'):
         def assertRegex(self, value, regex):
             self.assertTrue(re.search(regex, str(value)),

@@ -1,4 +1,5 @@
 # mode: run
+# tag: threads
 
 import threading
 

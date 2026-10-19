@@ -530,6 +530,23 @@ def truthy(obj2):
     else:
         return False
 
+
+@cython.test_assert_path_exists("//CoerceToBooleanNode")
+def truthy_typed_int(obj2: int):
+    """
+    >>> truthy_typed_int(2)
+    True
+    >>> truthy_typed_int(0)
+    False
+    >>> truthy_typed_int(-1)
+    True
+    """
+    if obj2:
+        return True
+    else:
+        return False
+
+
 @cython.test_fail_if_path_exists("//CoerceToBooleanNode")
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
 def test_avoid_if_coercion(obj):

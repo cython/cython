@@ -243,3 +243,45 @@ def test_del_ulonglong_big():
     d = {big<<shift:1}
     del d[key]
     return d[key]
+
+
+def test_get_char_frozendict():
+    """
+    >>> test_get_char_frozendict()
+    1
+    """
+    cdef char key = 0
+    fd = frozendict({0: 1})
+    return fd[key]
+
+
+def test_get_int_frozendict():
+    """
+    >>> test_get_int_frozendict()
+    2
+    """
+    cdef int key = 1
+    fd = frozendict({1: 2})
+    return fd[key]
+
+
+def test_get_longlong_frozendict():
+    """
+    >>> test_get_longlong_frozendict()
+    3
+    """
+    cdef long long key = -1
+    fd = frozendict({-1: 3})
+    return fd[key]
+
+
+def test_get_ulonglong_big_frozendict():
+    """
+    >>> test_get_ulonglong_big_frozendict()
+    4
+    """
+    cdef unsigned int shift = sizeof(long)+2
+    cdef unsigned long long big = 1
+    cdef unsigned long long key = big<<shift
+    fd = frozendict({big<<shift: 4})
+    return fd[key]

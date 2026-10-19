@@ -1,7 +1,7 @@
 # mode: run
 # tag: pep489, subinterpreter
 
-UNSET CFLAGS
+UNSET CFLAGS -DPy_LIMITED_API -DCYTHON_
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import subtest; subtest.run_main()"
 PYTHON -c "import subtest; subtest.run_sub()"

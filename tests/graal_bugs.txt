@@ -1,45 +1,72 @@
 # test fails
 async_iter_pep492
-asyncio_generators
-ass2global
-array_cimport
 buffers[.]buffer
 cdef_multiple_inheritance_errors
-cline_in_traceback
-[.]coroutines  # something small involving cr_frame equality 
 [.]coverage
-cyfunction$
 coverage_api
 embedsignature
-error_pos
-extern_varobject_extensions
 funcexceptchained
 funcexceptcypy
 funcexceptreplace
 funcexc_iter_T228
 function_self
 generators_pep479
-module_init_error
-numpy_import_array_error
 pep442_tp_finalize_cimport
-[.]powop
 pstats_profile_test
-[.]pure_pxd  # docstring
-pxd_syntax  # docstrings
-py35_asyncio_async_def
-pycontextvar
-r_docstrings
 special_method_docstrings
 special_methods_T561$
 test_asyncgen
 test_coroutines_pep492  # although a large chunk works
 test_exceptions  # TypeError: __slots__ items must be strings, not str
-test_grammar
-test_named_expressions
 test_raisefrom
 userbuffer
-unicode_identifiers$
-unicode_identifiers_normalization
+test_wraparound_signed
+pep442_tp_finalize
+object_float
+py_div_long
+assert_multi_step_code_object_reuse
+collect2
+test_weakref
+make_new_args
+test_str_subclass_kwargs
+starargs
+pep448_extended_unpacking
+object_float
+future_division
+ext_auto_richcmp
+embed_modules
+bufaccess
+test_tstring
+test_templatelib
+test_del
+weakfail
+tp_new
+str_subclass_kwargs
+int_float_builtins_as_casts_T400
+trashcan
+tryfinally
+tryfinallychaining
+python_bool_type
+pyclass_special_methods
+py35_pep492_interop
+list_pop
+index
+importfrom
+generators_in_refcycles
+generators_GH1731
+generators
+funcexcept
+external_ref_reassignment
+code_object_cache
+cdivision_CEP_516
+builtin_float
+numpy_memoryview
+memoryview_pep484_typing
+memoryview_in_subclasses
+memoryview
+cythonarray
+asyncio_leaks
+asyncgen_aclose_throw  # GraalPy's aclose() does not suspend on an await in finally
 
 # probably just GC?
 double_dealloc_T796
@@ -52,9 +79,6 @@ capiimpl
 
 # slightly different exception message
 [.]encoding$
-class_scope_del_T684
-cclass_assign_attr_GH3100  # RuntimeError instead of TypeError
-pyclass_annotations_pep526
 
 # This one's odd because it implies that the correct nodes
 # aren't be generated in the Cython compiler
@@ -62,7 +86,6 @@ pyclass_annotations_pep526
 
 # PyUnicode_CompareWithASCIIString not implemented
 cdef_class_dataclass
-test_dataclasses
 
 # PyUnicode_DecodeUnicodeEscape
 test_unicode
@@ -72,9 +95,30 @@ unicodeliterals
 reimport_from_subinterpreter
 
 # segfault
-cyfunction_defaults
-posonly
 r_extcomplex2
+builtin_pycomplex
+builtin_type_inheritance_T608
+memslice
+extern_builtins_T258
+py_mix_by_neg1
 
-# appears to run forever
-common_include_dir
+# concurrent.futures.process.BrokenProcessPool
+exttype
+parallel
+generator_cclass
+
+# UnsupportedSpecializationException
+fused_types
+unicodemethods
+
+# IllegalMonitorStateException
+
+# Functions not implemented in GraalPy:
+# PyThread_acquire_lock_timed
+pymutex
+
+# PyImport_ReloadModule
+reload_ext_module
+
+# _PyTime_GetSystemClock
+time_pxd

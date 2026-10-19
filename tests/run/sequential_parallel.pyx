@@ -247,9 +247,9 @@ cdef extern from "types.h":
 
 ctypedef int myint_t
 
-def test_nan_init():
+def test_init_parallel():
     """
-    >>> test_nan_init()
+    >>> test_init_parallel()
     """
     cdef int mybool = 0
     cdef int err = 0
@@ -276,54 +276,96 @@ def test_nan_init():
 
     cdef void *p = <void *> 10
 
+    cdef object o = 10.0
+
     with nogil, cython.parallel.parallel():
-        # First, trick the error checking to make it believe these variables
-        # are initialized after this if
+        # First, trick the flow control to make it believe these variables
+        # are assigned to within the parallel block
 
         if mybool: # mybool is always false!
             a1 = a2 = b1 = b2 = c1 = c2 = d1 = d2 = e1 = e2 = 0
             f = g = h = 0.0
             p = NULL
             miss1 = miss2 = typedef1 = 0
+            with gil:
+                o = 0
 
-        if (a1 == 10 or a2 == 10 or
-            b1 == 10 or b2 == 10 or
-            c1 == 10 or c2 == 10 or
-            d1 == 10 or d2 == 10 or
-            e1 == 10 or e2 == 10 or
-            f == 10.0 or g == 10.0 or h == 10.0 or
-            p == <void *> 10 or miss1 == 10 or miss2 == 10
-            or typedef1 == 10):
+        if (a1 != 10 or a2 != 10 or
+            b1 != 10 or b2 != 10 or
+            c1 != 10 or c2 != 10 or
+            d1 != 10 or d2 != 10 or
+            e1 != 10 or e2 != 10 or
+            f != 10.0 or g != 10.0 or h != 10.0 or
+            p != <void *> 10 or miss1 != 10 or miss2 != 10
+            or typedef1 != 10):
             errp[0] = 1
+        with gil:
+            if o != 10:
+                errp[0] = 1
+
+    if err:
+        raise Exception("One of the values was not initialized from its value before the parallel block")
+
+
+def test_init_prange():
+    """
+    >>> test_init_prange()
+    """
+    cdef int mybool = 0
+    cdef int err = 0
+    cdef int *errp = &err
+
+    cdef signed char a1 = 10
+    cdef unsigned char a2 = 10
+    cdef short b1 = 10
+    cdef unsigned short b2 = 10
+    cdef int c1 = 10
+    cdef unsigned int c2 = 10
+    cdef long d1 = 10
+    cdef unsigned long d2 = 10
+    cdef long long e1 = 10
+    cdef unsigned long long e2 = 10
+
+    cdef actually_long_t miss1 = 10
+    cdef actually_short_t miss2 = 10
+    cdef myint_t typedef1 = 10
+
+    cdef float f = 10.0
+    cdef double g = 10.0
+    cdef long double h = 10.0
+
+    cdef void *p = <void *> 10
+
+    cdef object o = 10.0
 
     cdef int i
     for i in prange(10, nogil=True):
-        # First, trick the error checking to make it believe these variables
-        # are initialized after this if
+        # First, trick the flow control to make it believe these variables
+        # are assigned to in the parallel prange
 
         if mybool: # mybool is always false!
             a1 = a2 = b1 = b2 = c1 = c2 = d1 = d2 = e1 = e2 = 0
             f = g = h = 0.0
             p = NULL
             miss1 = miss2 = typedef1 = 0
+            with gil:
+                o = 0.0
 
-        if (a1 == 10 or a2 == 10 or
-            b1 == 10 or b2 == 10 or
-            c1 == 10 or c2 == 10 or
-            d1 == 10 or d2 == 10 or
-            e1 == 10 or e2 == 10 or
-            f == 10.0 or g == 10.0 or h == 10.0 or
-            p == <void *> 10 or miss1 == 10 or miss2 == 10
-            or typedef1 == 10):
+        if (a1 != 10 or a2 != 10 or
+            b1 != 10 or b2 != 10 or
+            c1 != 10 or c2 != 10 or
+            d1 != 10 or d2 != 10 or
+            e1 != 10 or e2 != 10 or
+            f != 10.0 or g != 10.0 or h != 10.0 or
+            p != <void *> 10 or miss1 != 10 or miss2 != 10
+            or typedef1 != 10):
             errp[0] = 1
+        with gil:
+            if o != 10.0:
+                errp[0] = 1
 
     if err:
-        raise Exception("One of the values was not initialized to a maximum "
-                        "or NaN value")
-
-    c1 = 20
-    with nogil, cython.parallel.parallel():
-        c1 = 16
+        raise Exception("One of the values was not initialized from its value before the parallel block")
 
 
 cdef void nogil_print(char *s) noexcept with gil:
@@ -435,6 +477,20 @@ def test_return():
     """
     print parallel_return()
 
+cdef int plain_parallel_return() noexcept nogil:
+    cdef int i
+
+    for i in prange(10):
+        if i == 8:
+            return i
+
+def test_plain_return():
+    """
+    >>> test_plain_return()
+    8
+    """
+    return plain_parallel_return()
+
 def test_parallel_exceptions():
     """
     >>> test_parallel_exceptions()
@@ -457,7 +513,7 @@ def test_parallel_exceptions():
             finally:
                 with gil:
                     mylist.append("I am executed first")
-    except Exception, e:
+    except Exception as e:
         print mylist[0]
         print e.args, sum
 
@@ -482,7 +538,7 @@ def test_parallel_exceptions_unnested():
             finally:
                 with gil:
                     mylist.append(("I am executed first", sum))
-    except Exception, e:
+    except Exception as e:
         print mylist[0]
         print e.args, sum
 
@@ -590,7 +646,7 @@ def parallel_exc_replace():
                 for j in prange(10, nogil=True):
                     with gil:
                         raise Exception("propagate me")
-            except Exception, e:
+            except Exception as e:
                 raise Exception("propagate me instead")
 
     return 0
@@ -745,7 +801,7 @@ def test_clean_temps():
                 # freethreading - if we actually assigned to x this would currently be dodgy
                 # but the test doesn't get that far.
                 x = PrintOnDealloc() + error()
-    except Exception, e:
+    except Exception as e:
         print e.args[0]
 
 

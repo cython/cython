@@ -1,5 +1,5 @@
 # mode: compile
-# tag: warnings
+# tag: warnings, memoryview
 
 # cython: subinterpreters_compatible=own_gil
 
@@ -14,10 +14,21 @@ cdef int func() nogil:
         print("Something")
     raise RuntimeError
 
+def memview_func(int[:] x):
+    pass
+
+cpdef enum E:
+    A = 1
+
 _WARNINGS = """
+1:0: Module is declared as 'subinterpreters_compatible' but uses cpdef enums. This is not supported yet since it uses global cdef objects and will likely crash.
+1:0: Module is declared as 'subinterpreters_compatible' but uses typed memoryviews. This is not supported yet and will likely crash.
 9:16: Global cdef public variable used with subinterpreter support enabled.
 10:19: Global cdef public Python variable used with subinterpreter support enabled.
 12:0: Acquiring the GIL is currently very unlikely to work correctly with subinterpreters.
 13:9: Acquiring the GIL is currently very unlikely to work correctly with subinterpreters.
 15:4: Acquiring the GIL is currently very unlikely to work correctly with subinterpreters.
+# spurious
+26:4: 'cpdef_method' redeclared
+36:4: 'cpdef_cname_method' redeclared
 """

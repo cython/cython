@@ -4,9 +4,18 @@
 #if !defined(CYTHON_CCOMPLEX)
   #if defined(__cplusplus)
     #define CYTHON_CCOMPLEX 1
-  #elif (defined(_Complex_I) && !defined(_MSC_VER)) || ((defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_COMPLEX__) && !defined(_MSC_VER))
-    // <complex.h> should exist since C99, but only C11 defines a test to detect it.
-    // MSVC defines "_Complex_I" but not "_Complex". See https://github.com/cython/cython/issues/5512
+  #elif defined(_MSC_VER)
+    // MSVC never implements the C standard complex numbers. See https://github.com/cython/cython/issues/5512
+    #define CYTHON_CCOMPLEX 0
+  #elif (defined(__ANDROID_MIN_SDK_VERSION__) && __ANDROID_MIN_SDK_VERSION__ < 26) || (defined(__ANDROID_API__) && __ANDROID_API__ < 26)
+    // Android defines some of the complex functions conditionally. See https://github.com/cython/cython/issues/8026
+    #define CYTHON_CCOMPLEX 0
+  #elif defined(__STDC_NO_COMPLEX__)
+    // Fairly definitive evidence it's not supported.
+    #define CYTHON_CCOMPLEX 0
+  #elif defined(_Complex_I) || (defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_COMPLEX__))
+    // C11 gives us the __STDC_NO_COMPLEX__ to detect if complex is available. On older versions try to detect the
+    // _Complex_I macro. 
     #define CYTHON_CCOMPLEX 1
   #else
     #define CYTHON_CCOMPLEX 0

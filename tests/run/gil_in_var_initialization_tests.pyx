@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp11
+# tag: cpp, cpp11, threads
 
 #cython: test_fail_if_c_code_has = __Pyx_RefNannySetupContext\("call_a_method_with_an_error_return"
 ##cython: test_fail_if_c_code_has = /int __pyx_f_31gil_in_var_initialization_tests_1C_call_a_method_with_an_error_return\(.+{/:/__pyx_vtab/PyGILState_Ensure

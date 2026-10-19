@@ -16,6 +16,7 @@ cdef class PostParse(ScopeTrackingTransform):
     cdef dict specialattribute_handlers
     cdef size_t lambda_counter
     cdef size_t genexpr_counter
+    cdef except_star_validation_tracker
     cdef bint in_pattern_node
     cdef _visit_assignment_node(self, node, list expr_list)
 
@@ -51,7 +52,7 @@ cdef class YieldNodeCollector(TreeVisitor):
 
 @cython.final
 cdef class MarkClosureVisitor(CythonTransform):
-    cdef bint needs_closure
+    cdef int needs_closure  # actually enum
     cdef list excludes
 
 @cython.final
@@ -72,6 +73,7 @@ cdef class GilCheck(VisitorTransform):
     cdef int nogil_state
     cdef int nogil_state_at_current_gilstatnode
     cdef object in_lock_block
+    cdef bint in_critical_section
 
 cdef class TransformBuiltinMethods(EnvTransform):
     cdef dict def_node_body_insertions
