@@ -2754,7 +2754,10 @@ class CCodeWriter:
             # because it all ends up going to the same place, but to actually turn
             # it into something useful this mess will need to be fixed.
             return self.name_in_main_c_code_module_state(cname)
-        return self.funcstate.scope.name_in_module_state(cname)
+        result = self.funcstate.scope.name_in_module_state(cname)
+        if not self.funcstate.gil_owned:
+            return f"__PYX_NOGIL_MODULE_STATE_LOOKUP({result})"
+        return result
 
     def entry_cname_in_module_state(self, entry):
         if not entry.is_declared_in_module_state():
@@ -2772,6 +2775,7 @@ class CCodeWriter:
     def name_in_slot_module_state(cname):
         # TODO - eventually this will go through PyType_GetModuleByDef
         # in cases where it's supported.
+        breakpoint()
         return f"{Naming.modulestateglobal_cname}->{cname}"
 
     def namespace_cname_in_module_state(self, scope):
