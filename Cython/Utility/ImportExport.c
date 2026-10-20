@@ -265,15 +265,14 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
 }
 
 
-static int ${import_star}(PyObject* m) {
+static int ${import_star}(${modulestatetype_cname} *mstate, PyObject* imported_module) {
     int ret = -1;
     Py_ssize_t size;
     PyObject *locals = 0;
     PyObject *list = 0;
-    ${modulestatetype_cname} *mstate = __Pyx_PyModule_GetState(m);
 
     locals = PyDict_New();              if (!locals) goto bad;
-    if (__Pyx_import_all_from(locals, m) < 0) goto bad;
+    if (__Pyx_import_all_from(locals, imported_module) < 0) goto bad;
     list = PyDict_Items(locals);        if (!list) goto bad;
 
     size = __Pyx_PyList_GET_SIZE(list);
