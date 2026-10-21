@@ -5952,13 +5952,7 @@ class CClassDefNode(ClassDefNode):
             code.putln("#if !CYTHON_USE_TYPE_SPECS")
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
-            code.putln(f"if (unlikely(__Pyx_PyType_Ready({typeptr_cname}) < 0)) {{")
-            code.putln("#if CYTHON_USE_MODULE_STATE")
-            # Type was not initialized. Any cleanup in the module state struct will fail.
-            code.putln(f"{typeptr_cname} = 0;")
-            code.putln("#endif")
-            code.putln(f"{code.error_goto(entry.pos)};")
-            code.putln("}")
+            code.put_error_if_neg(entry.pos, "__Pyx_PyType_Ready(%s)" % typeptr_cname)
             code.putln("#endif")
             code.put_make_object_deferred(f"(PyObject*){typeptr_cname}")
 
