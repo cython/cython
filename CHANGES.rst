@@ -42,6 +42,11 @@ Bugs fixed
   They are now generally allowed and Cython only warns about obviously incorrect cases.
   (Github issue :issue:`7920`)
 
+* Generator and coroutine modules without profiling or line tracing directives
+  now compile on Python 3.13+ when ``CYTHON_TRACE=1`` or ``CYTHON_PROFILE=1``
+  is set globally.
+  (Github issue :issue:`8040`)
+
 * Type inference now respects ``annotation_typing=False`` for local variable annotations.
   Patch by GruffElixir.  (Github issue :issue:`7994`)
 

@@ -454,7 +454,8 @@ typedef struct __pyx_CoroutineObject {
     PyObject *gi_modulename;
     PyObject *gi_code;
     PyObject *gi_frame;
-#if CYTHON_USE_SYS_MONITORING && (CYTHON_PROFILE || CYTHON_TRACE)
+// Profile_config is only emitted for instrumented modules.
+#ifdef __Pyx_MonitoringEventTypes_CyGen_count
     PyMonitoringState $monitoring_states_cname[__Pyx_MonitoringEventTypes_CyGen_count];
     uint64_t $monitoring_version_cname;
 #endif
@@ -1681,7 +1682,7 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
     Py_XINCREF(code);
     gen->gi_code = code;
     gen->gi_frame = NULL;
-#if CYTHON_USE_SYS_MONITORING && (CYTHON_PROFILE || CYTHON_TRACE)
+#ifdef __Pyx_MonitoringEventTypes_CyGen_count
     memset(gen->$monitoring_states_cname, 0, sizeof(gen->$monitoring_states_cname));
     gen->$monitoring_version_cname = 0;
 #endif
