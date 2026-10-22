@@ -21,6 +21,7 @@ cdef class ItCount(object):
         self.count += 1
         return next(self.values)
 
+
 def kunterbunt(obj1, obj2, obj3, obj4, obj5):
     """
     >>> kunterbunt(1, (2,), (3,4,5), (6,(7,(8,9))), 0)
@@ -32,6 +33,7 @@ def kunterbunt(obj1, obj2, obj3, obj4, obj5):
     obj1, (obj2, obj3) = obj4
     [obj1, obj2] = obj3
     return obj1, obj2, obj3, obj4, obj5
+
 
 def unpack_tuple(tuple it):
     """
@@ -48,6 +50,7 @@ def unpack_tuple(tuple it):
     a,b,c = it
     return a,b,c
 
+
 def unpack_list(list it):
     """
     >>> unpack_list([1,2,3])
@@ -62,6 +65,37 @@ def unpack_list(list it):
     """
     a,b,c = it
     return a,b,c
+
+
+def unpack_builtin_subtype(object it):
+    """
+    >>> class List(list): pass
+    >>> unpack_builtin_subtype(List([1,2,3]))
+    (1, 2, 3)
+
+    >>> class Tuple(tuple): pass
+    >>> unpack_builtin_subtype(Tuple([1,2,3]))
+    (1, 2, 3)
+
+    >>> class List(list):
+    ...     def __iter__(self): return iter([4,5,6])
+    >>> unpack_builtin_subtype(List([1,2,3]))
+    (4, 5, 6)
+    >>> a, b, c = List([1,2,3])
+    >>> a, b, c
+    (4, 5, 6)
+
+    >>> class Tuple(tuple):
+    ...     def __iter__(self): return iter([4,5,6])
+    >>> unpack_builtin_subtype(Tuple([1,2,3]))
+    (4, 5, 6)
+    >>> a, b, c = Tuple([1,2,3])
+    >>> a, b, c
+    (4, 5, 6)
+    """
+    a,b,c = it
+    return a,b,c
+
 
 def unpack_to_itself(it):
     """
