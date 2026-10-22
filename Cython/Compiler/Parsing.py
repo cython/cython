@@ -2677,14 +2677,15 @@ def p_suite(s: PyrexScanner, ctx=Ctx()):
 
 
 @cython.cfunc
-def p_suite_with_docstring(s: PyrexScanner, ctx, with_doc_only: cython.bint = False) -> tuple:
+def p_suite_with_docstring(s: PyrexScanner, ctx, with_doc_only: cython.bint = False,
+                           clean_doc: cython.bint = True) -> tuple:
     s.expect(':')
     doc = None
     if s.sy == 'NEWLINE':
         s.next()
         s.expect_indent()
         if with_doc_only:
-            doc = p_doc_string(s)
+            doc = p_doc_string(s, clean_doc)
         body = p_statement_list(s, ctx)
         s.expect_dedent()
     else:
@@ -3539,7 +3540,7 @@ def p_cdef_extern_block(s: PyrexScanner, pos, ctx):
         ctx.nogil = True
 
     # Use "docstring" as verbatim string to include
-    verbatim_include, body = p_suite_with_docstring(s, ctx, True)
+    verbatim_include, body = p_suite_with_docstring(s, ctx, True, clean_doc=False)
 
     return Nodes.CDefExternNode(pos,
         include_file = include_file,
@@ -4105,13 +4106,13 @@ def p_ignorable_statement(s: PyrexScanner):
 
 
 @cython.cfunc
-def p_doc_string(s: PyrexScanner):
+def p_doc_string(s: PyrexScanner, clean: cython.bint = True):
     if s.sy == 'BEGIN_STRING':
         pos = s.position()
         kind, bytes_result, unicode_result = p_cat_string_literal(s)
         s.expect_newline("Syntax error in doc string", ignore_semicolon=True)
         if kind in ('u', ''):
-            return unicode_result
+            return clean_docstring(unicode_result) if clean else unicode_result
         warning(pos, "Python 3 requires docstrings to be unicode strings")
         return bytes_result
     else:
@@ -4146,8 +4147,18 @@ def _extract_docstring(node) -> tuple:
                 "Python 3 requires docstrings to be unicode strings")
         doc = doc_node.value
     else:
-        doc = doc_node.value
+        doc = clean_docstring(doc_node.value)
     return doc, node
+
+
+@cython.cfunc
+def clean_docstring(doc):
+    """Dedent like CPython 3.13+ (_PyCompile_CleanDoc()), which differs from inspect.cleandoc()."""
+    lines = doc.expandtabs().split('\n')
+    margin = min([len(line) - len(line.lstrip(' ')) for line in lines[1:] if line.strip(' ')], default=0)
+    cleaned = EncodedString('\n'.join([lines[0].lstrip(' ')] + [line[margin:] for line in lines[1:]]))
+    cleaned.encoding = doc.encoding
+    return cleaned
 
 
 @cython.ccall
