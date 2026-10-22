@@ -444,16 +444,17 @@ class CythonMagics(Magics):
         compiler_type = build_extension.compiler.compiler_type
         if compiler_type == 'unix':
             compiler_cmd = build_extension.compiler.compiler_so
-            # TODO: we could try to call "[cmd] --version" for better insights
             if not compiler_cmd:
                 pass
             elif 'clang' in compiler_cmd or 'clang' in compiler_cmd[0]:
-                compiler_type = 'clang'
+                compiler_type = 'gcc'
             elif 'icc' in compiler_cmd or 'icc' in compiler_cmd[0]:
                 compiler_type = 'icc'
             elif 'gcc' in compiler_cmd or 'gcc' in compiler_cmd[0]:
                 compiler_type = 'gcc'
             elif 'g++' in compiler_cmd or 'g++' in compiler_cmd[0]:
+                compiler_type = 'gcc'
+            else:
                 compiler_type = 'gcc'
         config = PGO_CONFIG.get(compiler_type)
         orig_flags = []
