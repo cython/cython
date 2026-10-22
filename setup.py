@@ -424,6 +424,7 @@ packages = [
     'Cython.Runtime',
     'Cython.Distutils',
     'Cython.Debugger',
+    'Cython.Debugger.vendored',
     'Cython.Debugger.Tests',
     'Cython.Plex',
     'Cython.Tests',
