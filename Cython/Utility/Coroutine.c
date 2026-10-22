@@ -849,7 +849,8 @@ __Pyx_PySendResult __Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject 
             PyTracebackObject *tb = (PyTracebackObject *) exc_tb;
             PyFrameObject *f = tb->tb_frame;
 
-            assert(f->f_back == NULL);
+            // f_back may already be set: CPython sets it on finished Python frames kept by the traceback.
+            PyFrameObject *old_f_back = f->f_back;
             #if PY_VERSION_HEX >= 0x030B00A1
             // PyThreadState_GetFrame returns NULL if there isn't a current frame
             // which is a valid state so no need to check
@@ -858,6 +859,7 @@ __Pyx_PySendResult __Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject 
             Py_XINCREF(tstate->frame);
             f->f_back = tstate->frame;
             #endif
+            Py_XDECREF(old_f_back);
             #if PY_VERSION_HEX >= 0x030B00a4 && !CYTHON_COMPILING_IN_CPYTHON
             Py_DECREF(exc_tb);
             #endif

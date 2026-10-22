@@ -1,0 +1,74 @@
+# mode: run
+# tag: asyncio, pep492
+# ticket: gh8042
+
+"""
+PYTHON setup.py build_ext -i
+PYTHON test_no_leak.py
+"""
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## leaky_reraise.pyx ########
+# See https://github.com/cython/cython/issues/8042
+
+import helper
+
+
+async def work():
+    try:
+        raise ValueError("x")
+    except ValueError as e:
+        await helper.reraise(e)
+
+
+######## helper.py ########
+
+import asyncio
+
+
+async def reraise(e):
+    await asyncio.sleep(0)
+    raise e
+
+######## test_no_leak.py ########
+
+import asyncio
+import gc
+import platform
+import types
+
+import leaky_reraise
+
+
+async def caller():
+    try:
+        await leaky_reraise.work()
+    except ValueError:
+        pass
+
+
+async def run_test(n):
+    for _ in range(n):
+        await caller()
+
+
+asyncio.run(run_test(100))
+
+gc.collect()
+refcount = sum(isinstance(o, types.FrameType) for o in gc.get_objects())
+
+if refcount != 0:
+    if platform.python_implementation() == 'CPython':
+        raise RuntimeError(f"{refcount} references leaked")
+    else:
+        # GC is not instantaneous in PyPy etc.
+        print(f"{refcount} references left over - may have leaked!")
+
