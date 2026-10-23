@@ -186,13 +186,27 @@ class Cache:
         total_size = 0
         all = []
         for file in os.listdir(self.path):
+            # Temporary files may still be in use by another Cython process.
+            if file.endswith(".tmp"):
+                continue
             path = join_path(self.path, file)
-            s = os.stat(path)
+            try:
+                s = os.stat(path)
+            except FileNotFoundError:
+                # Another process may have removed the entry since listdir().
+                continue
             total_size += s.st_size
             all.append((s.st_atime, s.st_size, path))
         if total_size > self.cache_size:
             for time, size, file in reversed(sorted(all)):
-                os.unlink(file)
+                try:
+                    os.unlink(file)
+                except FileNotFoundError:
+                    # Another process may have removed the entry since stat().
+                    total_size -= size
+                    if total_size < self.cache_size * ratio:
+                        break
+                    continue
                 total_size -= size
                 if total_size < self.cache_size * ratio:
                     break
