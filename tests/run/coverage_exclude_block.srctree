@@ -1,0 +1,104 @@
+# mode: run
+# tag: coverage,trace
+
+"""
+PYTHON setup.py build_ext -i
+PYTHON -m coverage run main.py
+PYTHON check_coverage.py
+"""
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(ext_modules=cythonize(['mod.pyx'], language_level=3))
+
+
+######## .coveragerc ########
+
+[run]
+plugins = Cython.Coverage
+
+[report]
+exclude_also =
+    ^\s*if _t\.TYPE_CHECKING:
+
+
+######## mod.pyx ########
+
+# cython: linetrace=True
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_USE_SYS_MONITORING=0
+import typing as _t
+
+if _t.TYPE_CHECKING:
+    import os
+else:
+    sentinel = 1
+
+def g(a):
+    a = 1  # pragma: no cover
+    return a
+
+def f():
+    return 42
+
+
+######## main.py ########
+
+import mod
+
+assert mod.f() == 42
+assert mod.sentinel == 1
+
+
+######## check_coverage.py ########
+
+import os
+import sys
+import subprocess
+
+
+def coverage_json():
+    env = dict(os.environ, LANG='', LC_ALL='C')
+    process = subprocess.Popen(
+        [sys.executable, '-m', 'coverage', 'json', '-o', '-'],
+        stdout=subprocess.PIPE, env=env)
+    stdout, _ = process.communicate()
+    if process.returncode:
+        raise SystemExit('coverage json failed')
+    return stdout
+
+
+def line_no(path, text):
+    with open(path, encoding='utf-8') as handle:
+        for number, line in enumerate(handle, 1):
+            if text in line:
+                return number
+    raise AssertionError('%r not found in %s' % (text, path))
+
+
+import json
+report = json.loads(coverage_json().decode('ascii'))['files']
+source = report['mod.pyx']
+missing = set(source['missing_lines'])
+excluded = set(source['excluded_lines'])
+executed = set(source['executed_lines'])
+
+import_os = line_no('mod.pyx', 'import os')
+type_check = line_no('mod.pyx', 'if _t.TYPE_CHECKING:')
+else_line = line_no('mod.pyx', 'else:')
+sentinel = line_no('mod.pyx', 'sentinel = 1')
+pragma = line_no('mod.pyx', 'pragma: no cover')
+kept = line_no('mod.pyx', 'return a')
+returned = line_no('mod.pyx', 'return 42')
+
+assert import_os in excluded, source
+assert import_os not in missing, source
+assert type_check in excluded, source
+assert else_line not in excluded, source
+assert sentinel in executed, source
+assert pragma in excluded, source
+assert kept not in excluded, source
+assert kept in missing, source
+assert returned in executed, source
