@@ -28,6 +28,10 @@ Features added
 Bugs fixed
 ----------
 
+* Compiler-cache cleanup deleted in-progress ``*.tmp`` files, so a parallel
+  cached compilation could fail while renaming its cache entry.
+  (Github issue :issue:`7983`)
+
 * Constant folding of multiplied sequences could return incorrect results.
   Patch by orztrickster.  (Github issue :issue:`8021`)
 

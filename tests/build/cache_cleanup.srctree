@@ -1,0 +1,83 @@
+# mode: run
+
+PYTHON check.py
+
+######## check.py ########
+
+import os
+import tempfile
+import time
+from pathlib import Path
+
+from Cython.Build.Cache import Cache, _STALE_CACHE_TEMP_SECONDS
+
+
+def write_file(path, data, stamp):
+    path.write_bytes(data)
+    os.utime(path, (stamp, stamp))
+
+
+def test_eviction_leaves_active_temp():
+    root = Path(tempfile.mkdtemp())
+    cache_dir = root / "cache"
+    cache_dir.mkdir()
+    now = time.time()
+    old = cache_dir / "old-module.c-abc.gz"
+    fresh = cache_dir / "module.c-fff.gz.tmp"
+    stale = cache_dir / "module.c-old.gz.tmp"
+    write_file(old, b"x" * 4000, 1)
+    write_file(fresh, b"z" * 8000, now)
+    write_file(stale, b"w" * 100, now - _STALE_CACHE_TEMP_SECONDS - 60)
+
+    Cache(str(cache_dir), cache_size=1).cleanup_cache()
+
+    assert fresh.exists(), sorted(p.name for p in cache_dir.iterdir())
+    assert not stale.exists(), "day-old temp was kept"
+    assert not old.exists(), "completed entry was not evicted"
+
+
+def test_missing_entry_is_ignored():
+    root = Path(tempfile.mkdtemp())
+    cache_dir = root / "cache"
+    cache_dir.mkdir()
+    write_file(cache_dir / "keep-module.c-zzz.gz", b"y" * 100, 1)
+    real_listdir = os.listdir
+
+    def extra(path):
+        return real_listdir(path) + ["missing-entry.gz"]
+
+    os.listdir = extra
+    try:
+        Cache(str(cache_dir), cache_size=1).cleanup_cache()
+    finally:
+        os.listdir = real_listdir
+
+
+def test_unlink_race_is_ignored():
+    root = Path(tempfile.mkdtemp())
+    cache_dir = root / "cache"
+    cache_dir.mkdir()
+    write_file(cache_dir / "old-module.c-abc.gz", b"x" * 4000, 1)
+    fresh = cache_dir / "module.c-fff.gz.tmp"
+    write_file(fresh, b"z" * 100, time.time())
+    real_unlink = os.unlink
+    seen = []
+
+    def vanish(path):
+        seen.append(os.path.basename(path))
+        raise FileNotFoundError(path)
+
+    os.unlink = vanish
+    try:
+        Cache(str(cache_dir), cache_size=1).cleanup_cache()
+    finally:
+        os.unlink = real_unlink
+    assert seen, "cleanup did not try to evict a completed entry"
+    assert all(not name.endswith(".tmp") for name in seen), seen
+    assert fresh.exists()
+
+
+test_eviction_leaves_active_temp()
+test_missing_entry_is_ignored()
+test_unlink_race_is_ignored()
+print("ok")

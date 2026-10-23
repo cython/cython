@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import sys
 import os
+import time
 import hashlib
 import shutil
 import subprocess
@@ -27,8 +28,18 @@ except ImportError:
 zip_ext = ".zip"
 
 MAX_CACHE_SIZE = 1024 * 1024 * 100
+# In-progress writes use "<entry>.tmp". Size eviction leaves those names
+# alone. A temp left by a dead writer is removed only after this age.
+_STALE_CACHE_TEMP_SECONDS = 24 * 60 * 60
 
 join_path = cached_function(os.path.join)
+
+
+def _unlink_cache_file(path):
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
 
 
 @cached_function
@@ -185,14 +196,22 @@ class Cache:
             pass
         total_size = 0
         all = []
+        now = time.time()
         for file in os.listdir(self.path):
             path = join_path(self.path, file)
-            s = os.stat(path)
+            try:
+                s = os.stat(path)
+            except FileNotFoundError:
+                continue
+            if file.endswith(".tmp"):
+                if now - s.st_mtime >= _STALE_CACHE_TEMP_SECONDS:
+                    _unlink_cache_file(path)
+                continue
             total_size += s.st_size
             all.append((s.st_atime, s.st_size, path))
         if total_size > self.cache_size:
-            for time, size, file in reversed(sorted(all)):
-                os.unlink(file)
+            for _atime, size, file in reversed(sorted(all)):
+                _unlink_cache_file(file)
                 total_size -= size
                 if total_size < self.cache_size * ratio:
                     break
