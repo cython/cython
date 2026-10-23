@@ -5,8 +5,11 @@ import os
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import Cython.Build.Dependencies
+import Cython.Build.Cache
 import Cython.Compiler.Main
 import Cython.Utils
 from Cython.TestUtils import CythonTest
@@ -33,6 +36,54 @@ class TestCyCache(CythonTest):
     def fresh_compile(self, *args, **kwargs):
         Cython.Utils.clear_function_caches()
         Cython.Compiler.Main.compile(*args, **kwargs)
+
+    def test_cleanup_cache_preserves_temporary_files(self):
+        cache = Cython.Build.Cache.Cache(self.cache_dir, cache_size=1)
+        temporary_file = os.path.join(self.cache_dir, "active.gz.tmp")
+        old_entry = os.path.join(self.cache_dir, "old.gz")
+        with open(temporary_file, "wb") as f:
+            f.write(b"active writer")
+        with open(old_entry, "wb") as f:
+            f.write(b"old cache entry")
+        os.utime(old_entry, (1, 1))
+
+        with patch("Cython.Build.Cache.subprocess.run", return_value=SimpleNamespace(
+            returncode=1, stdout=b""
+        )):
+            cache.cleanup_cache()
+
+        self.assertTrue(os.path.exists(temporary_file))
+        self.assertFalse(os.path.exists(old_entry))
+
+    def test_cleanup_cache_tolerates_entries_disappearing(self):
+        cache = Cython.Build.Cache.Cache(self.cache_dir, cache_size=1)
+        first = os.path.join(self.cache_dir, "first.gz")
+        second = os.path.join(self.cache_dir, "second.gz")
+        for path in (first, second):
+            with open(path, "wb") as f:
+                f.write(b"cache entry")
+
+        real_stat = os.stat
+        real_unlink = os.unlink
+
+        def stat_with_disappearance(path, *args, **kwargs):
+            if path == first:
+                raise FileNotFoundError(path)
+            return real_stat(path, *args, **kwargs)
+
+        def unlink_with_disappearance(path, *args, **kwargs):
+            if path == second:
+                raise FileNotFoundError(path)
+            return real_unlink(path, *args, **kwargs)
+
+        with (
+            patch("Cython.Build.Cache.subprocess.run", return_value=SimpleNamespace(
+                returncode=1, stdout=b""
+            )),
+            patch("Cython.Build.Cache.os.stat", side_effect=stat_with_disappearance),
+            patch("Cython.Build.Cache.os.unlink", side_effect=unlink_with_disappearance),
+        ):
+            cache.cleanup_cache()
 
 
     def _test_cycache_switch(self, compilation_method):

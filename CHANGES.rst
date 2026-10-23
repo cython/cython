@@ -42,6 +42,10 @@ Bugs fixed
   They are now generally allowed and Cython only warns about obviously incorrect cases.
   (Github issue :issue:`7920`)
 
+* Compiler cache cleanup no longer evicts temporary files written by concurrent Cython
+  processes, and tolerates cache entries disappearing during cleanup.
+  (Github issue :issue:`7983`)
+
 * Type inference now respects ``annotation_typing=False`` for local variable annotations.
   Patch by GruffElixir.  (Github issue :issue:`7994`)
 
