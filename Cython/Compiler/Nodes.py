@@ -1100,7 +1100,7 @@ class CArgDeclNode(Node):
         return default.is_literal or (
             default.is_name and (
                 default.entry.is_const or (
-                    default.type.is_const and default.type.is_numeric)))
+                    default.type.is_const and default.type.is_numeric and not default.type.is_volatile)))
 
     def calculate_default_value_code(self, code):
         if self.default_value is None:

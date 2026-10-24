@@ -70,6 +70,31 @@ cdef int imported_const_default(int value=limits.CHAR_BIT) noexcept nogil:
     return value
 
 
+cdef extern from *:
+    """
+    static volatile int changing_default = 17;
+    static void change_default(int value) { changing_default = value; }
+    """
+    const volatile int changing_default
+    void change_default(int value)
+
+
+cdef int volatile_default(int value=changing_default):
+    return value
+
+
+def test_volatile_default_snapshot():
+    """
+    >>> test_volatile_default_snapshot()
+    (17, 29)
+    """
+    change_default(23)
+    try:
+        return volatile_default(), volatile_default(29)
+    finally:
+        change_default(17)
+
+
 cdef object builtin_default(object value=abs):
     return value
 
