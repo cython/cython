@@ -73,9 +73,14 @@ cdef int imported_const_default(int value=limits.CHAR_BIT) noexcept nogil:
 cdef extern from *:
     """
     static volatile int changing_default = 17;
-    static void change_default(int value) { changing_default = value; }
+    static int changing_const_default = 17;
+    static void change_default(int value) {
+        changing_default = value;
+        changing_const_default = value;
+    }
     """
     const volatile int changing_default
+    const int changing_const_default
     void change_default(int value)
 
 
@@ -83,14 +88,18 @@ cdef int volatile_default(int value=changing_default):
     return value
 
 
-def test_volatile_default_snapshot():
+cdef int external_const_default(int value=changing_const_default):
+    return value
+
+
+def test_external_const_default_snapshots():
     """
-    >>> test_volatile_default_snapshot()
-    (17, 29)
+    >>> test_external_const_default_snapshots()
+    (17, 17, 29)
     """
     change_default(23)
     try:
-        return volatile_default(), volatile_default(29)
+        return volatile_default(), external_const_default(), volatile_default(29)
     finally:
         change_default(17)
 
@@ -109,7 +118,7 @@ def test_other_constant_defaults():
         public_result = cpdef_enum_default()
         def_result = def_constant_default()
         const_result = const_qualified_default()
-        imported_const_result = imported_const_default()
+    imported_const_result = imported_const_default()
     return public_result, def_result, const_result, imported_const_result == limits.CHAR_BIT, builtin_default() is abs
 
 

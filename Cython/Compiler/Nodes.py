@@ -1097,10 +1097,13 @@ class CArgDeclNode(Node):
 
     def _default_is_c_constant(self):
         default = self.default
+        # Extern const declarations can be read-only views of mutable storage.
         return default.is_literal or (
             default.is_name and (
                 default.entry.is_const or (
-                    default.type.is_const and default.type.is_numeric and not default.type.is_volatile)))
+                    default.type.is_const and default.type.is_numeric and not default.type.is_volatile
+                    and default.entry.is_cglobal
+                    and default.entry.visibility != 'extern')))
 
     def calculate_default_value_code(self, code):
         if self.default_value is None:
