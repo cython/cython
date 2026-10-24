@@ -26,3 +26,4 @@ TestIpythonMagic
 [.]relativeimport_T542
 [.]test_grammar
 [.]trace_nogil_compilation
+[.]coverage_nogil
