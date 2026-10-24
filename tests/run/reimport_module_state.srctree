@@ -24,6 +24,16 @@ cdef extern from *:
 def uses_module_state():
     return CYTHON_USE_MODULE_STATE
 
+from array import array
+
+cdef Py_ssize_t default_length(const int[:] values=None):
+    if values is None:
+        return -1
+    return values.shape[0]
+
+def default_lengths():
+    return default_length(), default_length(array('i', [1, 2, 3]))
+
 cdef class Base:
     pass
 
@@ -51,3 +61,4 @@ if demo.uses_module_state():
         raise RuntimeError("ImportError was not raised on second import!")
 
 assert type(demo.make()).__name__ == "Child"
+assert demo.default_lengths() == (-1, 3)
