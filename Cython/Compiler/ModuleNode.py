@@ -3870,6 +3870,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_decref_clear(
             code.name_in_main_c_code_module_state(env.module_dict_cname),
             py_object_type, nanny=False, clear_before_decref=True)
+        code.putln("#if !CYTHON_USE_MODULE_STATE")
+        code.putln(f"{env.module_cname} = NULL;")
+        code.putln("#endif")
 
     def generate_main_method(self, env, code):
         module_is_main = self.is_main_module_flag_cname()
