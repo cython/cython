@@ -310,6 +310,48 @@ the template parameter list following the function name:
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/function_templates.pyx
 
+For functions defined at module scope, Cython generates C++ code with the template
+parameter explicitly spelled out. For example
+
+.. code-block:: cython
+
+    cdef extern from *:
+        void f[T](T x)
+
+    cdef int v = 5
+    f(v)
+
+will generate code looking something like
+
+.. code-block:: c++
+
+    f<int>(v)
+
+If you want to avoid this (often because you aren't _quite_ telling Cython the whole
+story about your C++ definitions) then you can use ``cython.implicit_param`` to
+declare the function:
+
+.. code-block:: cython
+
+    cimport cython
+    cdef extern from *:
+        void f[cython.implicit_param[T]](T x)
+
+    cdef int v = 5
+    f(v)
+
+which will generate C++ code similar to
+
+.. code-block:: c++
+
+    f(v)
+
+leaving the specialization entirely to the C++ compiler.
+
+This can also be useful for wrapping C macros, which aren't really
+templates but can sometimes be useful to wrap as if they were templates to
+express their return type.
+
 .. _stl_types:
 
 Standard library
