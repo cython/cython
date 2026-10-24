@@ -1,0 +1,26 @@
+# 8070
+run[.]import_star
+relativeimport_star
+starimport_cimport
+
+# 8072
+cdef_multiple_inheritance_errors
+extern_varobject_extensions
+
+# 8081
+run[.]cyfunction_defaults
+
+# reimport blocked
+reimport_from_package
+
+# There's a specific check that it works without atomics,
+# while module state definitely requires atomics
+[.]memoryview_acq_count
+
+# Currently uncategorized
+[.]error_pos
+[.]module_init_error
+[.]ref2global
+[.]relativeimport_T542
+[.]test_grammar
+[.]trace_nogil_compilation

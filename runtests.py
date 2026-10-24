@@ -3179,6 +3179,9 @@ def runtests(options, cmd_args, coverage=None):
             ('graal_25_0_bugs.txt', IS_GRAAL and sys.implementation.version[:2] == (25, 0)),
             ('limited_api_bugs.txt', options.limited_api),
             ('limited_api_314_bugs.txt', options.limited_api and sys.version_info[:2] <= (3, 14)),
+            ('module_state_bugs.txt',
+                any('CYTHON_USE_MODULE_STATE=1' in flags for flags in [
+                    os.getenv('CFLAGS'), os.getenv('CPPFLAGS')])),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
