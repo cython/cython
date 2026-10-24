@@ -1,17 +1,19 @@
-# 8070
+# #8070
 run[.]import_star
 relativeimport_star
 starimport_cimport
 
-# 8072
+# #8072
 cdef_multiple_inheritance_errors
 extern_varobject_extensions
 
-# 8081
+# #8081
 run[.]cyfunction_defaults
+[.]memslice 
 
-# reimport blocked
+# reimport doesn't work with module state
 reimport_from_package
+TestIpythonMagic
 
 # There's a specific check that it works without atomics,
 # while module state definitely requires atomics
