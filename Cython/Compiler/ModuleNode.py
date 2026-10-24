@@ -2133,23 +2133,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.putln("PyObject_GC_Track(o);")
                 code.putln("__Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o);" % base_cname)
             else:
-                if needs_gc:
-                    # We don't know if the base class uses GC or not, so must find out at runtime
-                    # whether we should undo the untracking above or not.
-                    code.putln("if (PyType_IS_GC(%s)) PyObject_GC_Track(o);" % base_cname)
-                # This is an externally defined type.  Calling through the
-                # cimported base type pointer directly interacts badly with
-                # the module cleanup, which may already have cleared it.
-                # In that case, fall back to traversing the type hierarchy.
-                # If we're using the module state then always go through the
-                # type hierarchy, because our access to the module state may
-                # have been lost (at least for the limited API version of
-                # using module state).
-                code.putln("#if !CYTHON_USE_MODULE_STATE")
-                code.putln("if (likely(%s)) __Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o); else" % (
-                    base_cname, base_cname))
+                # The imported base type pointer may have been cleared during module cleanup.
+                code.putln("#if CYTHON_USE_TYPE_SPECS")
+                code.putln("int base_is_heap =")
                 code.putln("#endif")
-                code.putln("__Pyx_call_next_tp_dealloc(o, %s);" % slot_func_cname)
+                code.putln("__Pyx_call_next_tp_dealloc(o, %s, %d);" % (slot_func_cname, needs_gc))
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpDealloc", "ExtensionTypes.c"))
 
@@ -2159,7 +2147,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # (This is what Python does in subtype_dealloc so we should assume it's what
                 # other well-behaved types do).
                 code.putln("#if CYTHON_USE_TYPE_SPECS")
-                code.putln(f"if (!__Pyx_PyType_HasFeature({base_cname}, Py_TPFLAGS_HEAPTYPE)) {{")
+                base_is_heap = f"__Pyx_PyType_HasFeature({base_cname}, Py_TPFLAGS_HEAPTYPE)" if base_type.is_builtin_type else "base_is_heap"
+                code.putln(f"if (!{base_is_heap}) {{")
                 code.putln("Py_DECREF(tp);")
                 code.putln("}")
                 code.putln("#endif")
