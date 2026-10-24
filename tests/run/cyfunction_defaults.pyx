@@ -5,6 +5,7 @@
 cimport cython
 
 cimport libc.stdlib as stdlib
+cimport libc.limits as limits
 
 
 cdef enum DefaultMode:
@@ -24,23 +25,23 @@ cdef int imported_enum_default(int mode=stdlib.EXIT_SUCCESS) noexcept nogil:
     return mode
 
 
-cdef int scoped_enum_default(DefaultMode mode=DefaultMode.DEFAULT_MODE) noexcept nogil:
+cdef int qualified_enum_default(DefaultMode mode=DefaultMode.DEFAULT_MODE) noexcept nogil:
     return mode
 
 
 def test_nogil_enum_defaults():
     """
     >>> test_nogil_enum_defaults()
-    (3, 7, 3, 0, 3)
+    (3, 7, 3, True, 3)
     """
-    cdef int default_result, explicit_result, int_result, imported_result, scoped_result
+    cdef int default_result, explicit_result, int_result, imported_result, qualified_result
     with nogil:
         default_result = enum_default()
         explicit_result = enum_default(OTHER_MODE)
         int_result = int_enum_default()
         imported_result = imported_enum_default()
-        scoped_result = scoped_enum_default()
-    return default_result, explicit_result, int_result, imported_result, scoped_result
+        qualified_result = qualified_enum_default()
+    return default_result, explicit_result, int_result, imported_result == stdlib.EXIT_SUCCESS, qualified_result
 
 
 cpdef enum PublicDefaultMode:
@@ -58,20 +59,33 @@ cdef int def_constant_default(int value=COMPILE_TIME_DEFAULT) noexcept nogil:
     return value
 
 
-cdef object builtin_default(object value=int):
+cdef const int CONST_DEFAULT_VALUE = 17
+
+
+cdef int const_qualified_default(int value=CONST_DEFAULT_VALUE) noexcept nogil:
+    return value
+
+
+cdef int imported_const_default(int value=limits.CHAR_BIT) noexcept nogil:
+    return value
+
+
+cdef object builtin_default(object value=abs):
     return value
 
 
 def test_other_constant_defaults():
     """
     >>> test_other_constant_defaults()
-    (11, 13, True)
+    (11, 13, 17, True, True)
     """
-    cdef int public_result, def_result
+    cdef int public_result, def_result, const_result, imported_const_result
     with nogil:
         public_result = cpdef_enum_default()
         def_result = def_constant_default()
-    return public_result, def_result, builtin_default() is int
+        const_result = const_qualified_default()
+        imported_const_result = imported_const_default()
+    return public_result, def_result, const_result, imported_const_result == limits.CHAR_BIT, builtin_default() is abs
 
 
 def get_defaults(func):

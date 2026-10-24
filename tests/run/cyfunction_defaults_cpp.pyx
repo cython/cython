@@ -25,6 +25,7 @@ def test_nogil_scoped_enum_default():
         explicit_result = scoped_enum_default(DefaultMode.OTHER)
     return default_result, explicit_result
 
+
 cdef class A:
     def f1(self, a, b=1, vector[double] c = vector[double]()):
         pass

@@ -1098,7 +1098,9 @@ class CArgDeclNode(Node):
     def _default_is_c_constant(self):
         default = self.default
         return default.is_literal or (
-            default.is_name and default.entry.is_const)
+            default.is_name and (
+                default.entry.is_const or (
+                    default.type.is_const and default.type.is_numeric)))
 
     def calculate_default_value_code(self, code):
         if self.default_value is None:
