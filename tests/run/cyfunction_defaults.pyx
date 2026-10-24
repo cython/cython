@@ -4,6 +4,75 @@
 
 cimport cython
 
+cimport libc.stdlib as stdlib
+
+
+cdef enum DefaultMode:
+    DEFAULT_MODE = 3
+    OTHER_MODE = 7
+
+
+cdef int enum_default(DefaultMode mode=DEFAULT_MODE) noexcept nogil:
+    return mode
+
+
+cdef int int_enum_default(int mode=DEFAULT_MODE) noexcept nogil:
+    return mode
+
+
+cdef int imported_enum_default(int mode=stdlib.EXIT_SUCCESS) noexcept nogil:
+    return mode
+
+
+cdef int scoped_enum_default(DefaultMode mode=DefaultMode.DEFAULT_MODE) noexcept nogil:
+    return mode
+
+
+def test_nogil_enum_defaults():
+    """
+    >>> test_nogil_enum_defaults()
+    (3, 7, 3, 0, 3)
+    """
+    cdef int default_result, explicit_result, int_result, imported_result, scoped_result
+    with nogil:
+        default_result = enum_default()
+        explicit_result = enum_default(OTHER_MODE)
+        int_result = int_enum_default()
+        imported_result = imported_enum_default()
+        scoped_result = scoped_enum_default()
+    return default_result, explicit_result, int_result, imported_result, scoped_result
+
+
+cpdef enum PublicDefaultMode:
+    PUBLIC_DEFAULT_MODE = 11
+
+
+cdef int cpdef_enum_default(PublicDefaultMode mode=PublicDefaultMode.PUBLIC_DEFAULT_MODE) noexcept nogil:
+    return mode
+
+
+DEF COMPILE_TIME_DEFAULT = 13
+
+
+cdef int def_constant_default(int value=COMPILE_TIME_DEFAULT) noexcept nogil:
+    return value
+
+
+cdef object builtin_default(object value=int):
+    return value
+
+
+def test_other_constant_defaults():
+    """
+    >>> test_other_constant_defaults()
+    (11, 13, True)
+    """
+    cdef int public_result, def_result
+    with nogil:
+        public_result = cpdef_enum_default()
+        def_result = def_constant_default()
+    return public_result, def_result, builtin_default() is int
+
 
 def get_defaults(func):
     return func.__defaults__
