@@ -2884,13 +2884,14 @@ typedef struct {
 // is the size of the array.
 
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-static __pyx_atomic_int_type __Pyx_ModuleStateLookup_read_counter = 0;
+// explicit initialization isn't needed for static globals, and fails on c++11/14.
+static __pyx_atomic_int_type __Pyx_ModuleStateLookup_read_counter /*= 0*/;
 #endif
 
 // A sorted list of (sub)interpreter IDs and the module that was imported into that interpreter.
 // For now look this up via binary search.
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-static __pyx_atomic_ptr_type __Pyx_ModuleStateLookup_data = 0;
+static __pyx_atomic_ptr_type __Pyx_ModuleStateLookup_data /*= 0*/;
 #else
 static __Pyx_ModuleStateLookupData* __Pyx_ModuleStateLookup_data = NULL;
 #endif
