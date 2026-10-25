@@ -7,10 +7,6 @@ starimport_cimport
 cdef_multiple_inheritance_errors
 extern_varobject_extensions
 
-# #8081
-run[.]cyfunction_defaults
-[.]memslice 
-
 # reimport doesn't work with module state
 reimport_from_package
 TestIpythonMagic
