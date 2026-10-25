@@ -1696,7 +1696,7 @@ class PyExtensionType(PyObjectType):
 
     def type_test_code(self, scope, py_arg, allow_none=True, exact=False):
         assert not exact, "exact extension type tests are not currently implemented here"
-        typeptr_cname = scope.name_in_module_state(self.typeptr_cname)
+        typeptr_cname = f"__PYX_GET_MODULE_STATE()->{self.typeptr_cname}"  # TODO cleanup
         type_check = f"likely(__Pyx_TypeTest({py_arg}, {typeptr_cname}))"
         scope.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
         if allow_none:

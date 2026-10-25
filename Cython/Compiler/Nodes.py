@@ -2091,6 +2091,20 @@ class FuncDefNode(StatNode, BlockNode):
             self.py_func.generate_function_header(
                 code, with_pymethdef=with_pymethdef, proto_only=True)
         self.generate_function_header(code, with_pymethdef=with_pymethdef)
+        self_arg_name = None
+        if (
+            lenv.parent_scope and lenv.parent_scope.is_c_class_scope and
+            len(self.args) > 0 and self.args[0].is_self_arg
+        ):
+            # TODO - why hasattr?
+            if hasattr(self.args[0], "entry"):
+                if self.args[0].entry.in_closure:
+                    self_arg_name = self.args[0].entry.original_cname
+                else:
+                    self_arg_name = self.args[0].entry.cname
+            else:
+                code.putln("/* mystery no entry */")
+        code.put_function_get_module_state_definitions(self_arg_name)
         # ----- Local variable declarations
         # Find function scope
         cenv = env
@@ -2502,13 +2516,6 @@ class FuncDefNode(StatNode, BlockNode):
             code.funcstate.can_trace = False
             code.put_trace_exit(nogil=not code.funcstate.gil_owned)
 
-        has_cclass_self = (
-            lenv.parent_scope and lenv.parent_scope.is_c_class_scope and
-            len(self.args) > 0 and self.args[0].is_self_arg
-        )
-        refnanny_setup_code.put_function_get_module_state_definitions(
-            self_arg_name=(self.args[0].entry.cname if has_cclass_self else None)
-        )
         code.put_undef_get_module_state_definition()
 
         if code.funcstate.needs_refnanny:
@@ -3850,7 +3857,7 @@ class DefNodeWrapper(FuncDefNode):
             len(self.args) > 0 and
             self.args[0].is_self_arg
         )
-        code.put_function_get_module_state_definitions(self_arg_name=self.args[0].entry.cname if has_cclass_self else None)
+        code.put_function_get_module_state_definitions(self.args[0].entry.cname if has_cclass_self else None)
         code.put_setup_refcount_context(EncodedString('%s (wrapper)' % self.name))
 
         self.generate_argument_parsing_code(lenv, code, tempvardecl_code)
@@ -4853,6 +4860,13 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Function header
         code.putln("")
         self.generate_function_header(code)
+        self_arg_name = None
+        if (
+            lenv.parent_scope and lenv.parent_scope.is_c_class_scope and
+            len(self.args) > 0 and self.args[0].is_self_arg
+        ):
+            self_arg_name = lenv.lookup(self.args[0].name).cname
+        code.put_function_get_module_state_definitions(self_arg_name)
         closure_init_code = code.insertion_point()
         # ----- Local variables
         code.putln("PyObject *%s = NULL;" % Naming.retval_cname)
@@ -4996,6 +5010,7 @@ class GeneratorBodyDefNode(DefNode):
         resume_code.putln("return NULL;")
         resume_code.putln("}")
 
+        code.put_undef_get_module_state_definition()
         code.exit_cfunc_scope()
 
 

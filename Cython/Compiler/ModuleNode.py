@@ -1652,7 +1652,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             freelist_check = '__PYX_CHECK_TYPE_FOR_FREELISTS'
         obj_struct = type.declaration_code("", deref=True)
-        typeptr_cname = code.name_in_slot_module_state(type.typeptr_cname)
+        typeptr_cname = code.name_in_module_state(type.typeptr_cname)
         code.putln(
             f"if (likely((int)({size_check}) & {freelist_check}({type_cname}, {typeptr_cname}, sizeof({obj_struct}))))")
 
@@ -1704,7 +1704,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.start_slotfunc(
             scope, PyrexTypes.py_objptr_type, "tp_new",
-            f"PyTypeObject *t, {unused_marker}PyObject *a, {unused_marker}PyObject *k", needs_prototype=True)
+            f"PyTypeObject *t, {unused_marker}PyObject *a, {unused_marker}PyObject *k",
+            needs_prototype=True)
+        code.putln(
+                "#define __PYX_GET_MODULE_STATE() __PYX_GET_MODULE_STATE_FROM_CCLASS_TYPE(t)")
 
         need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
@@ -1715,7 +1718,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
             base_type_typeptr_cname = base_type.typeptr_cname
             if not base_type.is_builtin_type:
-                base_type_typeptr_cname = code.name_in_slot_module_state(base_type_typeptr_cname)
+                base_type_typeptr_cname = code.name_in_module_state(base_type_typeptr_cname)
             if tp_new is None:
                 tp_new = f"__Pyx_PyType_GetSlot({base_type_typeptr_cname}, tp_new, newfunc)"
             code.putln("PyObject *o = %s(t, a, k);" % tp_new)
@@ -1725,8 +1728,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
                 code.putln("#if CYTHON_USE_FREELISTS")
-                freecount_name = code.name_in_slot_module_state(freecount_name)
-                freelist_name = code.name_in_slot_module_state(freelist_name)
+                freecount_name = code.name_in_module_state(freecount_name)
+                freelist_name = code.name_in_module_state(freelist_name)
                 self.generate_freelist_condition(code, f"{freecount_name} > 0", "t", type)
                 code.putln("{")
                 code.putln("o = (PyObject*)%s[--%s];" % (
@@ -1817,6 +1820,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("return NULL;")
         code.putln(
             "}")
+        code.put_undef_get_module_state_definition()
         code.exit_cfunc_scope()
 
     def generate_del_function(self, scope, code):
@@ -1853,6 +1857,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         slot_func_cname = scope.mangle_internal("tp_dealloc")
         code.start_slotfunc(scope, PyrexTypes.c_void_type, "tp_dealloc", "PyObject *o")
+        code.put_function_get_module_state_definitions("o")
 
         is_final_type = scope.parent_type.is_final_type
         needs_gc = scope.needs_gc()
@@ -1927,7 +1932,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if base_type:
             base_cname = base_type.typeptr_cname
             if not base_type.is_builtin_type:
-                base_cname = code.name_in_slot_module_state(base_cname)
+                base_cname = code.name_in_module_state(base_cname)
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is not None:
                 if needs_gc and base_type.scope and base_type.scope.needs_gc():
@@ -1964,9 +1969,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             freelist_size = scope.directives.get('freelist', 0)
             if freelist_size:
-                freelist_name = code.name_in_slot_module_state(
+                freelist_name = code.name_in_module_state(
                     scope.mangle_internal(Naming.freelist_name))
-                freecount_name = code.name_in_slot_module_state(
+                freecount_name = code.name_in_module_state(
                     scope.mangle_internal(Naming.freecount_name))
 
                 type = scope.parent_type
@@ -2006,6 +2011,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln(
             "}")
+        code.put_undef_get_module_state_definition()
         code.exit_cfunc_scope()
 
     def generate_usr_dealloc_call(self, scope, code):
@@ -2068,7 +2074,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # type hierarchy, because our access to the module state may
                 # have been lost (at least for the limited API version of
                 # using module state).
-                base_cname = code.name_in_slot_module_state(base_type.typeptr_cname)
+                base_cname = code.name_in_module_state(base_type.typeptr_cname)
                 code.putln("#if !CYTHON_USE_MODULE_STATE")
                 code.putln("e = 0;")
                 code.putln("if (likely(%s)) {" % base_cname)
@@ -2154,7 +2160,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # type hierarchy, because our access to the module state may
                 # have been lost (at least for the limited API version of
                 # using module state).
-                base_cname = code.name_in_slot_module_state(base_type.typeptr_cname)
+                base_cname = code.name_in_module_state(base_type.typeptr_cname)
                 code.putln("#if !CYTHON_USE_MODULE_STATE")
                 code.putln("if (likely(%s)) {" % base_cname)
                 code.putln(f"inquiry clear = __Pyx_PyType_GetSlot({base_cname}, tp_clear, inquiry);")
