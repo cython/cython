@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import unittest
+from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -66,10 +67,17 @@ class TestCyCache(CythonTest):
         real_stat = os.stat
         real_unlink = os.unlink
 
-        def stat_with_disappearance(path, *args, **kwargs):
-            if path == first:
-                raise FileNotFoundError(path)
-            return real_stat(path, *args, **kwargs)
+        def entry_stat(path):
+            def stat():
+                if path == first:
+                    raise FileNotFoundError(path)
+                return real_stat(path)
+            return stat
+
+        entries = [
+            SimpleNamespace(name=os.path.basename(path), path=path, stat=entry_stat(path))
+            for path in (first, second)
+        ]
 
         def unlink_with_disappearance(path, *args, **kwargs):
             if path == second:
@@ -80,7 +88,7 @@ class TestCyCache(CythonTest):
             patch("Cython.Build.Cache.subprocess.run", return_value=SimpleNamespace(
                 returncode=1, stdout=b""
             )),
-            patch("Cython.Build.Cache.os.stat", side_effect=stat_with_disappearance),
+            patch("Cython.Build.Cache.os.scandir", return_value=nullcontext(entries)),
             patch("Cython.Build.Cache.os.unlink", side_effect=unlink_with_disappearance),
         ):
             cache.cleanup_cache()
