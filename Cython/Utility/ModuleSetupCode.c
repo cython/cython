@@ -58,6 +58,12 @@
   #define Py_HUGE_VAL HUGE_VAL
 #endif
 
+#if defined(CYTHON_USE_MODULE_STATE) && CYTHON_USE_MODULE_STATE && !defined(CYTHON_USE_TYPE_SPECS)
+  // Module state mildly implies type-specs (because we can get module state quickly from heap types)
+  // but it's fine if the user wants to turn them off explicitly.
+  #define CYTHON_USE_TYPE_SPECS 1
+#endif
+
 // For the limited API it often makes sense to use Py_LIMITED_API rather than PY_VERSION_HEX
 // when doing version checks.
 #define __PYX_LIMITED_VERSION_HEX PY_VERSION_HEX
