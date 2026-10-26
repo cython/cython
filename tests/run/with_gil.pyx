@@ -101,7 +101,7 @@ def test_catch_exception():
                 raise Exception("Exception value")
                 print "This is not executed"
             puts("This is also not executed")
-    except Exception, e:
+    except Exception as e:
         print e
     print "This is also executed"
 
@@ -128,7 +128,7 @@ def test_try_finally_and_outer_except():
                     puts("Second finally clause")
             puts("This is not executed")
 
-    except Exception, e:
+    except Exception as e:
         print "Caught:", e
 
     print "End of function"
@@ -403,7 +403,7 @@ def test_nogil_try_finally_propagate_exception():
                     raise Exception("Don't reach this section!")
             finally:
                 puts("Execute finally clause")
-    except Exception, e:
+    except Exception as e:
         print e
 
 def test_nogil_try_finally_return_in_with_gil(x):
@@ -459,7 +459,7 @@ def test_nogil_try_finally_error_label():
                 error_func()
             finally:
                 with gil: print "print me first"
-    except Exception, e:
+    except Exception as e:
         print e.args[0]
 
 

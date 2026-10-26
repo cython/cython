@@ -25,18 +25,8 @@ cdef extern from "parsetok.h":
         perrdetail * err_ret,
         int * flags)
 
-if sys.version_info < (3, 9):
-    from distutils import sysconfig as _sysconfig
-
-    class sysconfig(object):
-
-        @staticmethod
-        def get_path(name):
-            assert name == 'include'
-            return _sysconfig.get_python_inc()
-else:
-    # sysconfig can be trusted from cpython >= 3.8.7
-    import sysconfig
+# sysconfig can be trusted from cpython >= 3.8.7
+import sysconfig
 
 import os
 import re

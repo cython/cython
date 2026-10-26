@@ -25,8 +25,8 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
     """
 
     def setUp(self):
-        super().setUp()
         self.break_and_run('b = c = d = 0')
+        super().setUp()
 
     def get_pyobject(self, code):
         value = gdb.parse_and_eval(code)

@@ -83,6 +83,33 @@ class TestCyCache(CythonTest):
     def test_cycache_switch_compile(self):
         self._test_cycache_switch(self.fresh_compile)
 
+    def _test_cycache_fingerprint(self, compilation_method, **kwargs):
+        content = 'value = 1\n'
+        a_pyx = os.path.join(self.src_dir, 'a.pyx')
+        a_c = a_pyx[:-4] + '.c'
+
+        with open(a_pyx, 'w') as f:
+            f.write(content)
+
+        compilation_method(a_pyx, cache=self.cache_dir)
+        with open(a_c) as f:
+            a_contents1 = f.read()
+        os.unlink(a_c)
+
+        compilation_method(a_pyx, cache=self.cache_dir, **kwargs)
+
+        with open(a_c) as f:
+            a_contents2 = f.read()
+        os.unlink(a_c)
+
+        self.assertNotEqual(a_contents1, a_contents2, 'C file not changed!')
+
+    def test_cycache_fingerprint_cythonize(self):
+        self._test_cycache_fingerprint(self.fresh_cythonize, compiler_directives={'linetrace': True})
+
+    def test_cycache_fingerprint_compile(self):
+        self._test_cycache_fingerprint(self.fresh_compile, compiler_directives={'linetrace': True})
+
     def _test_cycache_uses_cache(self, compilation_method):
         a_pyx = os.path.join(self.src_dir, 'a.pyx')
         a_c = a_pyx[:-4] + '.c'
@@ -149,6 +176,7 @@ class TestCyCache(CythonTest):
 
         for output in expected:
             self.assertTrue(os.path.exists(output), output)
+            self.assertTrue(os.path.isfile(output), output)
 
     def test_multi_file_output_cythonize(self):
         self._test_multi_file_output(self.fresh_cythonize)

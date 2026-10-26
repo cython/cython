@@ -46,7 +46,7 @@ class DeclarationsFinder(Visitor.VisitorTransform):
 
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
-    def visit_CompilerDirectivesNode(self, node):
+    def visit_CompilerDirectivesMixin(self, node):
         if not self.directives:
             self.directives = []
         self.directives.append(node)

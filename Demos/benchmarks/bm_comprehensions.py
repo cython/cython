@@ -80,19 +80,17 @@ def make_some_widgets() -> list[Widget]:
     return widgets
 
 
-def run_benchmark(repeat: cython.int=10, scale: cython.long = 10_000, timer=time.perf_counter):
-    s: cython.long
-    r: cython.long
-
+def run_benchmark(repeat=True, scale: cython.long = 1):
+    from util import repeat_to_accuracy
     widgets = make_some_widgets()
 
-    timings = []
-    for r in range(repeat):
+    def single_run(scale, timer):
+        s: cython.long
         t0 = timer()
         for s in range(scale):
             tray = WidgetTray(1, widgets)
             assert len(tray.sorted_widgets) == 18
-        timings.append(timer() - t0)
-        tray = None
+        t1 = timer() - t0
+        return t1
 
-    return timings
+    return repeat_to_accuracy(single_run, scale=scale, repeat=repeat)[0]

@@ -5,6 +5,7 @@
 # cython: test_assert_c_code_has = __Pyx_PyUnicode_From_uintptr_t\(
 # cython: test_assert_c_code_has = __Pyx_PyUnicode_From_intptr_t\(
 # cython: test_assert_c_code_has = __Pyx_PyUnicode_From_int\(
+# cython: test_assert_c_code_has = __Pyx_PyUnicode_FromDouble\(
 # cython: test_fail_if_c_code_has = __Pyx_PyUnicode_From_BIGINT
 
 ####
@@ -258,6 +259,64 @@ def format_c_numbers_unsigned(unsigned char c, unsigned short s, unsigned int n,
     s3 = f"{n:02X}{n:03o}{l:10x}"
     assert isinstance(s3, unicode), type(s3)
     return s1, s2, s3
+
+
+def format_c_doubles(double d):
+    """
+    >>> format_c_doubles(1.5)
+    ('1.5', '1.50', '1.500e+00', '1.5', '1.5', '      1.50', '+1.50')
+    >>> format_c_doubles(-0.0)
+    ('-0.0', '-0.00', '-0.000e+00', '-0', '-0.0', '     -0.00', '-0.00')
+    >>> format_c_doubles(1/3)
+    ('0.3333333333333333', '0.33', '3.333e-01', '0.33', '0.33', '      0.33', '+0.33')
+    >>> format_c_doubles(float('inf'))
+    ('inf', 'inf', 'inf', 'inf', 'inf', '       inf', '+inf')
+    >>> format_c_doubles(float('nan'))
+    ('nan', 'nan', 'nan', 'nan', 'nan', '       nan', '+nan')
+    """
+    # The first four are formatted in C, the last three are left to PyObject_Format().
+    return f"{d}", f"{d:.2f}", f"{d:.3e}", f"{d:.2g}", f"{d:.2}", f"{d:>10.2f}", f"{d:+.2f}"
+
+
+def format_c_doubles_default_precision(double d):
+    """
+    >>> format_c_doubles_default_precision(1.5)
+    ('1.500000e+00', '1.500000E+00', '1.500000', '1.500000', '1.5', '1.5')
+    >>> format_c_doubles_default_precision(1/3)
+    ('3.333333e-01', '3.333333E-01', '0.333333', '0.333333', '0.333333', '0.333333')
+    >>> format_c_doubles_default_precision(float('inf'))
+    ('inf', 'INF', 'inf', 'INF', 'inf', 'INF')
+    >>> format_c_doubles_default_precision(float('nan'))
+    ('nan', 'NAN', 'nan', 'NAN', 'nan', 'NAN')
+    """
+    return f"{d:e}", f"{d:E}", f"{d:f}", f"{d:F}", f"{d:g}", f"{d:G}"
+
+
+def format_non_ascii_digits(int i, double d):
+    """
+    Non-ASCII digits pass isdigit() but not int(), so they must not be parsed
+    as a width or precision.
+
+    >>> format_non_ascii_digits(5, 1.5)
+    ('ValueError', 'ValueError')
+    """
+    try:
+        s1 = f"{i:²}"
+    except ValueError:
+        s1 = 'ValueError'
+    try:
+        s2 = f"{d:.²f}"
+    except ValueError:
+        s2 = 'ValueError'
+    return s1, s2
+
+
+def format_c_float_widths(float f, double d, long double ld):
+    """
+    >>> format_c_float_widths(1.5, 1.5, 1.5)
+    ('1.5', '1.5', '1.5', '1.500', '1.500', '1.500')
+    """
+    return f"{f}", f"{d}", f"{ld}", f"{f:.3f}", f"{d:.3f}", f"{ld:.3f}"
 
 
 @cython.test_fail_if_path_exists(
@@ -568,23 +627,74 @@ def format_decoded_bytes(bytes value):
 
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
+    "//CloneNode",  # No repeated formats.
 )
 def format_uchar(int x):
     """
-    >>> format_uchar(0)
-    ('\\x00', '           \\x00', '       \\x00')
-    >>> format_uchar(13)
-    ('\\r', '           \\r', '       \\r')
+    >>> char, right8, right12, _ = format_uchar(0)
+    >>> (char, right8, right12)
+    ('\\x00', '       \\x00', '           \\x00')
+    >>> char, right8, right12, _ = format_uchar(13)
+    >>> (char, right8, right12)
+    ('\\r', '       \\r', '           \\r')
+
+    >>> for c in range(1114111 + 1):
+    ...     char, right8, right12, right252 = format_uchar(c)
+    ...     assert right8[:-1] == ' ' * 7, (c, right8)
+    ...     assert char == right8[-1], (char, right8)
+    ...     assert right12[:-1] == ' ' * 11, (c, right12)
+    ...     assert char == right12[-1], (char, right12)
+    ...     assert right252[:-1] == ' ' * 251, (c, right252)
+    ...     assert char == right252[-1], (char, right252)
+    ...     assert ord(char) == c, (c, char)
+
     >>> format_uchar(1114111 + 1)
     Traceback (most recent call last):
     OverflowError: %c arg not in range(0x110000)
     """
-    return f"{x:c}", f"{x:12c}", f"{x:>8c}"
+    # 252 is just outside the fast path size (padding > 250 characters).
+    return f"{x:c}", f"{x:>8c}", f"{x:12c}", f"{x:>252c}"
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_chars(int x, int y, int z):
+    """
+    >>> format_chars(32, 32, 32)
+    '   '
+    >>> format_chars(32, ord('ö'), 32)
+    ' ö '
+    >>> snowman = ord('\\N{SNOWMAN}')
+    >>> emoji = ord('\\N{WHITE SMILING FACE}')
+    >>> format_chars(32, snowman, 32)
+    ' \N{SNOWMAN} '
+    >>> format_chars(snowman, emoji, snowman)
+    '\N{SNOWMAN}\N{WHITE SMILING FACE}\N{SNOWMAN}'
+    >>> format_chars(emoji, snowman, snowman)
+    '\N{WHITE SMILING FACE}\N{SNOWMAN}\N{SNOWMAN}'
+    >>> format_chars(snowman, snowman, emoji)
+    '\N{SNOWMAN}\N{SNOWMAN}\N{WHITE SMILING FACE}'
+    """
+    return f"{x:c}{y:c}{z:c}"
+
+
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_cint_padding(int x):
+    """
+    >>> format_cint_padding(123)
+    ('x=123\N{SNOWMAN}\N{SNOWMAN}=x', 'x=\N{SNOWMAN}\N{SNOWMAN}123=x')
+    """
+    # not currently optimised
+    return f"x={x:\N{SNOWMAN}<5}=x", f"x={x:\N{SNOWMAN}>5}=x"
 
 
 @cython.test_fail_if_path_exists(
     "//AddNode",
     "//ModNode",
+    "//CloneNode",  # No repeated formats.
 )
 @cython.test_assert_path_exists(
     "//FormattedValueNode",
@@ -666,6 +776,20 @@ def dedup_same(x, int i, float f):
     'xabci5f5.5xabci5f5.5'
     """
     return f"x{x}i{i}f{f}x{x}i{i}f{f}"
+
+
+@cython.test_assert_path_exists(
+    "//JoinedStrNode",
+    "//JoinedStrNode/CloneNode",
+)
+def dedup_str(str x):
+    """
+    >>> dedup_str('abc')
+    'xabcxabcxabcxabcxabcxabc'
+    >>> dedup_str(None)
+    'xNonexNonexNonexNonexNonexNone'
+    """
+    return f"x{x}x{x}x{x}x{x}x{x}x{x}"
 
 
 @cython.test_assert_path_exists(

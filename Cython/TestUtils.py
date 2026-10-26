@@ -5,13 +5,14 @@ import shlex
 import sys
 import tempfile
 import textwrap
+import time
 from functools import partial
 
 from .Compiler import Errors
 from .CodeWriter import CodeWriter
 from .Compiler.TreeFragment import TreeFragment, strip_common_indent, StringParseContext
 from .Compiler.Visitor import TreeVisitor, VisitorTransform
-from .Compiler import TreePath
+from .Compiler import Nodes, TreePath
 from .Compiler.ParseTreeTransforms import PostParse
 
 
@@ -48,13 +49,27 @@ def treetypes(root):
     return "\n".join([""] + w.result + [""])
 
 
-class CythonTest(unittest.TestCase):
-
+class TimedTest(unittest.TestCase):
+    # See copy in runtests.py
     def setUp(self):
-        Errors.init_thread()
+        super().setUp()
+        self._start_time = time.time()
 
     def tearDown(self):
-        Errors.init_thread()
+        t = time.time() - self._start_time
+        super().tearDown()
+        sys.stderr.write(f"[{self.id()}:{'' if t < .5 else ' SLOWTEST'} {t:.2f} sec] ")
+
+
+class CythonTest(TimedTest):
+
+    def setUp(self):
+        Errors.reset()
+        super().setUp()
+
+    def tearDown(self):
+        super().tearDown()
+        Errors.reset()
 
     def assertLines(self, expected, result):
         "Checks that the given strings or lists of strings are equal line by line"
@@ -101,7 +116,13 @@ class CythonTest(unittest.TestCase):
         if name.startswith("__main__."):
             name = name[len("__main__."):]
         name = name.replace(".", "_")
-        return TreeFragment(code, name, pxds, pipeline=pipeline)
+
+        with Errors.local_errors() as errors:
+            fragment = TreeFragment(code, name, pxds, pipeline=pipeline)
+
+        if errors:
+            raise errors[0]
+        return fragment
 
     def treetypes(self, root):
         return treetypes(root)
@@ -304,7 +325,7 @@ class TreeAssertVisitor(VisitorTransform):
         self.visitchildren(node)
         return node
 
-    def visit_CompilerDirectivesNode(self, node):
+    def visit_CompilerDirectivesMixin(self, node):
         self._check_directives(node)
         self.visitchildren(node)
         return node
@@ -336,16 +357,20 @@ def unpack_source_tree(tree_file, workdir, cython_root):
                     cur_file = open(path, 'wb')
                 elif cur_file is not None:
                     cur_file.write(line)
-                elif line.strip() and not line.lstrip().startswith(b'#'):
-                    if line.strip() not in (b'"""', b"'''"):
-                        command = shlex.split(line.decode('utf8'))
-                        if not command: continue
-                        # In Python 3: prog, *args = command
-                        prog, args = command[0], command[1:]
-                        try:
-                            header.append(programs[prog]+args)
-                        except KeyError:
-                            header.append(command)
+                elif line.strip() in (b'', b'"""', b"'''") or line.lstrip().startswith(b'#'):
+                    pass
+                else:
+                    command = shlex.split(line.decode('utf8'))
+                    if not command: continue
+                    args = []
+                    next_is_command = True
+                    for arg in command:
+                        if next_is_command and arg in programs:
+                            args.extend(programs[arg])
+                        else:
+                            args.append(arg)
+                            next_is_command = arg == '|'
+                    header.append(args)
         finally:
             if cur_file is not None:
                 cur_file.close()
@@ -401,21 +426,46 @@ def write_newer_file(file_path, newer_than, content, dedent=False, encoding=None
         write_file(file_path, content, dedent=dedent, encoding=encoding)
 
 
-def py_parse_code(code):
+class DictEvalScope:
+    def __init__(self, namespace):
+        self.lookup = namespace.get
+
+empty_eval_scope = DictEvalScope({})
+
+
+def compiled_eval(code, namespace=None):
+    """
+    Parse code and evaluate it in a compile time env.
+    """
+    node = parse_python_code(code)
+
+    if isinstance(node, Nodes.StatListNode):
+        assert len(node.stats) == 1, node.stats
+        node = node.stats[0]
+    if isinstance(node, Nodes.ExprStatNode):
+        node = node.expr
+
+    return node.compile_time_value(DictEvalScope(namespace) if namespace else empty_eval_scope)
+
+
+def parse_python_code(code):
     """
     Compiles code far enough to get errors from the parser and post-parse stage.
-
     Is useful for checking for syntax errors, however it doesn't generate runable
     code.
     """
     context = StringParseContext("test")
+    class DummyModuleNode(object):
+        child_attrs = []
+    post_parse = PostParse(context)
+    post_parse.visit_ModuleNode(DummyModuleNode())  # just enough to get scope variables set up
     # all the errors we care about are in the parsing or postparse stage
     try:
         with Errors.local_errors() as errors:
-            result = TreeFragment(code, pipeline=[PostParse(context)])
+            result = TreeFragment(code, pipeline=[post_parse])
             result = result.substitute()
         if errors:
-            raise errors[0]  # compile error, which should get caught below
+            raise errors[0]  # compile error, which should get caught
         else:
             return result
     except Errors.CompileError as e:

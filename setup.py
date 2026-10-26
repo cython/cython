@@ -18,7 +18,7 @@ is_cpython = platform.python_implementation() == 'CPython'
 
 # this specifies which versions of python we support, pip >= 9 knows to skip
 # versions of packages which are not compatible with the running python
-PYTHON_REQUIRES = '>=3.8'
+PYTHON_REQUIRES = '>=3.9'
 
 TRACKER_URL = "https://github.com/cython/cython/issues/"
 
@@ -61,7 +61,7 @@ setup_args['package_data'] = {
     'Cython.Compiler' : ['*.pxd'],
     'Cython.Runtime'  : ['*.pyx', '*.pxd'],
     'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
-    'Cython'          : [ p[7:] for p in pxd_include_patterns ] + ['py.typed', '__init__.pyi', 'Shadow.pyi'],
+    'Cython'          : [ p[7:] for p in pxd_include_patterns ] + ['py.typed'],
     'Cython.Debugger.Tests': ['codefile', 'cfuncs.c'],
 }
 
@@ -107,9 +107,11 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.Code",
             "Cython.Compiler.FusedNode",
             "Cython.Compiler.Parsing",
+            "Cython.Compiler.StringEncoding",
             "Cython.Tempita._tempita",
             "Cython.StringIOTree",
             "Cython.Utils",
+            "Cython.LZSS",
         ])
     if compile_more and not compile_minimal:
         compiled_modules.extend([
@@ -122,6 +124,8 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.ModuleNode",
             "Cython.Compiler.Optimize",
             ])
+
+    shared_utility_module = 'Cython._shared'
 
     from shutil import which
     from sysconfig import get_path
@@ -157,6 +161,10 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     if sysconfig.get_config_var('Py_GIL_DISABLED') and platform.system() == "Windows":
         defines.append(('Py_GIL_DISABLED', 1))
 
+    if is_cpython:
+        # Reduce module sizes.
+        defines.append(('CYTHON_USE_TYPE_SPECS', '1'))
+
     extra_defines = []
     if cython_with_refnanny:
         extra_defines.append(('CYTHON_REFNANNY', '1'))
@@ -185,6 +193,39 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     # optimise build parallelism by starting with the largest modules
     extensions.sort(key=lambda ext: os.path.getsize(ext.sources[0]), reverse=True)
 
+    # Add the shared utility module.
+    extensions.append(Extension(
+        shared_utility_module, sources=[shared_utility_module.replace('.', '/') + '.c'],
+        # Cannot build this with refnanny because 'refnanny' depends on '_shared' as well.
+        define_macros=defines,
+        **extra_extension_args,
+    ))
+
+    unused_features = ['MemoryView']
+    for ext in extensions:
+        ext.shared_utility_qualified_name = shared_utility_module
+        ext.shared_utility_features_disabled = unused_features
+
+    # Set up Cython directives.
+    cython_directives = dict(
+        language_level=3,
+        auto_pickle=False,  # activated in FlowControl.py
+        #binding=False,  # used via @functools.wraps()
+        always_allow_keywords=False,
+        autotestdict=False,
+    )
+
+    if profile:
+        cython_directives['profile'] = True
+        sys.stderr.write("Enabled profiling for the Cython binary modules\n")
+    if coverage:
+        cython_directives['linetrace'] = True
+        sys.stderr.write("Enabled line tracing and profiling for the Cython binary modules\n")
+
+    for ext in extensions:
+        ext.cython_directives = cython_directives
+
+    # Make 'build_ext' use Cython.
     from Cython.Distutils.build_ext import build_ext as cy_build_ext
     build_ext = None
     try:
@@ -197,21 +238,6 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             build_ext = cy_build_ext
     except ImportError:
         build_ext = cy_build_ext
-
-    from Cython.Compiler.Options import get_directive_defaults
-    get_directive_defaults().update(
-        language_level=3,
-        auto_pickle=False,
-        binding=False,
-        always_allow_keywords=False,
-        autotestdict=False,
-    )
-    if profile:
-        get_directive_defaults()['profile'] = True
-        sys.stderr.write("Enabled profiling for the Cython binary modules\n")
-    if coverage:
-        get_directive_defaults()['linetrace'] = True
-        sys.stderr.write("Enabled line tracing and profiling for the Cython binary modules\n")
 
     # not using cythonize() directly to let distutils decide whether building extensions was requested
     add_command_class("build_ext", build_ext)
@@ -326,12 +352,7 @@ def check_limited_api_option(name):
     def handle_arg(arg: str):
         arg = arg.lower()
         if arg == "true":
-            # The default Limited API version is 3.9, unless we're on a lower Python version
-            # (which is mainly for the sake of testing 3.8 on the CI)
-            if sys.version_info >= (3, 9):
-                return (3, 9)
-            else:
-                return sys.version_info[:2]
+            return sys.version_info[:2]
         if arg == "false":
             return None
         major, minor = arg.split('.', 1)
@@ -462,11 +483,9 @@ def run_build():
         classifiers=[
             dev_status(version),
             "Intended Audience :: Developers",
-            "License :: OSI Approved :: Apache Software License",
             "Operating System :: OS Independent",
             "Programming Language :: Python",
             "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
             "Programming Language :: Python :: 3.11",
@@ -475,7 +494,7 @@ def run_build():
             "Programming Language :: Python :: 3.14",
             "Programming Language :: Python :: Implementation :: CPython",
             "Programming Language :: Python :: Implementation :: PyPy",
-            "Programming Language :: Python :: Implementation :: Stackless",
+            "Programming Language :: Python :: Implementation :: GraalPy",
             "Programming Language :: C",
             "Programming Language :: C++",
             "Programming Language :: Cython",

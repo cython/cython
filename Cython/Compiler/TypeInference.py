@@ -1,3 +1,5 @@
+import cython
+
 from .Errors import error, message
 from . import ExprNodes
 from . import Nodes
@@ -35,7 +37,7 @@ class MarkParallelAssignments(EnvTransform):
         super().__init__(context)
 
     def mark_assignment(self, lhs, rhs, inplace_op=None):
-        if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
+        if lhs.is_name or isinstance(lhs, Nodes.PyArgDeclNode):
             if lhs.entry is None:
                 # TODO: This shouldn't happen...
                 return
@@ -62,7 +64,7 @@ class MarkParallelAssignments(EnvTransform):
                 parallel_node.assignments[lhs.entry] = (pos, inplace_op)
                 parallel_node.assigned_nodes.append(lhs)
 
-        elif isinstance(lhs, ExprNodes.SequenceNode):
+        elif lhs.is_sequence_constructor:
             for i, arg in enumerate(lhs.args):
                 if not rhs or arg.is_starred:
                     item_node = None
@@ -351,6 +353,39 @@ class PyObjectTypeInferer:
             if entry.type is unspecified_type:
                 entry.type = py_object_type
 
+
+@cython.cclass
+class OrderedSet:
+    """
+    Simple ordered set based on an ordered Python dict.
+    """
+    _keys: dict
+
+    def __init__(self):
+        self._keys = {}
+
+    def repr(self):
+        return f"{{{', '.join(map(repr, self._keys))}}}"
+
+    def add(self, key):
+        self._keys[key] = None
+
+    def update(self, keys: list):
+        set_keys = self._keys
+        for key in keys:
+            set_keys[key] = None
+
+    def difference_update(self, keys: set):
+        set_keys = self._keys
+        # We expect len(keys) < len(set_keys).
+        for key in keys:
+            if key in set_keys:
+                del set_keys[key]
+
+    def __iter__(self):
+        return iter(self._keys)
+
+
 class SimpleAssignmentTypeInferer:
     """
     Very basic type inference.
@@ -385,12 +420,12 @@ class SimpleAssignmentTypeInferer:
             return
 
         # Set of assignments
-        assignments = set()
+        assignments = OrderedSet()  # Used for iteration, ordering matters.
         assmts_resolved = set()
         dependencies = {}
         assmt_to_names = {}
 
-        for name, entry in scope.entries.items():
+        for entry in scope.entries.values():
             for assmt in entry.cf_assignments:
                 names = assmt.type_dependencies()
                 assmt_to_names[assmt] = names
@@ -484,7 +519,9 @@ class SimpleAssignmentTypeInferer:
             if not resolve_assignments(assignments):
                 if not resolve_partial(assignments):
                     break
-        inferred = set()
+
+        inferred = OrderedSet()  # Used for iteration, ordering matters.
+
         # First pass
         for entry in scope.entries.values():
             if entry.type is not unspecified_type:
@@ -584,6 +621,26 @@ def safe_spanning_type(types, might_overflow, scope):
     elif (not result_type.can_coerce_to_pyobject(scope)
             and not result_type.is_error):
         return result_type
+
+    # We'll treat it as a Python object from this point on, but may be able to infer
+    # something more concrete than 'object'.
+
+    equivalent_type = result_type.equivalent_type
+    if equivalent_type and equivalent_type.is_pyobject:
+        # This is mostly covered by the cases above but still worth a first try
+        # to give the type a chance to speak up.
+        return equivalent_type
+    elif result_type.is_unicode_char:
+        # Unicode characters are ints but are not safe to infer for all operations,
+        # e.g. '+' should probably concatenate and not add the code unit numbers.
+        return Builtin.unicode_type
+    elif result_type.is_int:
+        return Builtin.int_type
+    elif result_type.is_float:
+        return Builtin.float_type
+    elif result_type.is_complex:
+        return Builtin.complex_type
+
     return py_object_type
 
 

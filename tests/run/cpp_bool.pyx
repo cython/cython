@@ -1,6 +1,9 @@
 # mode: run
 # tag: cpp, werror, no-cpp-locals
 
+# This test is duplicate with small modifications as c99_bool
+# so changes here should probably apply there too.
+
 from libcpp cimport bool
 
 from typing import Optional

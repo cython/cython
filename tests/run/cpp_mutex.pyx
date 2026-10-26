@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp17, no-cpp-locals
+# tag: cpp, cpp17, no-cpp-locals, threads
 
 # cython: language_level=3
 
@@ -108,6 +108,35 @@ def test_py_safe_lock_nogil():
         py_safe_lock(m)
         m.unlock()
 
+def py_safe_lock_stress_test():
+    """
+    >>> py_safe_lock_stress_test()
+    2000
+    """
+    cdef mutex m
+    cdef int count = 0
+
+    def thread_func():
+        nonlocal count
+        for i in range(500):
+            if i%2:
+                with nogil:
+                    py_safe_lock(m)
+                    count += 1
+                    m.unlock()
+            else:
+                py_safe_lock(m)
+                count += 1
+                m.unlock()
+
+    threads = [ Thread(target=thread_func) for _ in range(4) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    print(count)
+
+
 
 # Note that it is only safe to acquire the GIL because we aren't actually running the
 # tests from multiple threads.
@@ -140,7 +169,9 @@ def test_once_flag1():
 
 def test_once_flag2():
     """
-    >>> test_once_flag2()
+    # Test disabled - this usage is correct and works but GCCs libstdc++ is broken on every
+    # non-x86 platform (and more...) https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66146
+    # >>> test_once_flag2()
     """
     cdef once_flag flag
     try:
@@ -237,6 +268,79 @@ def test_py_safe_once_cdef_nogil():
         py_safe_call_once(flag, increment_global_value)
 
     print(global_value)
+
+
+cdef void _do_lazy_init(void *o):
+    as_py = <SomeCdefClass>o
+    as_py._lazy_init_value = as_py.initial_value * 2
+    as_py.initial_value = -1  # change it so it doesn't work a second time
+
+cdef class SomeCdefClass:
+    cdef py_safe_once_flag flag
+    cdef double initial_value
+    cdef double _lazy_init_value
+
+    def __cinit__(self, initial_value):
+        self.initial_value = initial_value
+
+    @property
+    def lazy_init_value(self):
+        # Pass as void* because we can't pass object to variadic functions
+        py_safe_call_once(self.flag, _do_lazy_init, <void*>self)
+        return self._lazy_init_value
+
+    @property
+    def lazy_init_lvalue(self):
+        # Pass as void* because we can't pass object to variadic functions
+        cdef void* self_v = <void*>self
+        py_safe_call_once(self.flag, _do_lazy_init, self_v)
+        return self._lazy_init_value
+
+def test_py_safe_call_once_with_arg_passing(v):
+    """
+    >>> test_py_safe_call_once_with_arg_passing(20)
+    40.0
+    >>> test_py_safe_call_once_with_arg_passing(1)
+    2.0
+    """
+    inst = SomeCdefClass(v)
+    v1 = inst.lazy_init_value
+    v2 = inst.lazy_init_value
+    assert v1 == v2
+    return v1
+
+def test_py_safe_call_once_with_lvalue_arg_passing(v):
+    """
+    >>> test_py_safe_call_once_with_lvalue_arg_passing(20)
+    40.0
+    >>> test_py_safe_call_once_with_lvalue_arg_passing(1)
+    2.0
+    """
+    inst = SomeCdefClass(v)
+    v1 = inst.lazy_init_lvalue
+    v2 = inst.lazy_init_lvalue
+    assert v1 == v2
+    return v1
+
+
+cdef void print_arg(int arg) noexcept:
+    print(arg)
+
+ctypedef void (*void_int_func)(int) noexcept
+
+cdef void_int_func get_print_arg() noexcept:
+    return print_arg
+
+def test_py_safe_call_once_rvalue_func(int arg):
+    """
+    >>> test_py_safe_call_once_rvalue_func(5)
+    5
+    >>> test_py_safe_call_once_rvalue_func(0)
+    0
+    """
+    cdef py_safe_once_flag flag
+    py_safe_call_once(flag, get_print_arg(), arg)
+    py_safe_call_once(flag, get_print_arg(), arg)
 
 
 def test_scoped_lock():

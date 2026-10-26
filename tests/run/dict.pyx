@@ -90,6 +90,36 @@ def items_of_dict_call():
     return sorted(items)
 
 
+def in_dict(value):
+    """
+    >>> in_dict('a')
+    True
+    >>> in_dict('b')
+    True
+    >>> in_dict('c')
+    False
+    >>> in_dict('')
+    False
+    """
+    d = {'a': 1, 'b': 2}
+    return value in d
+
+
+def dict_contains(value):
+    """
+    >>> dict_contains('a')
+    True
+    >>> dict_contains('b')
+    True
+    >>> dict_contains('c')
+    False
+    >>> dict_contains('')
+    False
+    """
+    d = {'a': 1, 'b': 2}
+    return d.__contains__(value)
+
+
 def item_creation_sideeffect(L, sideeffect, unhashable):
     """
     >>> def sideeffect(x):

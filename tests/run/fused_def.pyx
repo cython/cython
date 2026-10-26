@@ -1,4 +1,5 @@
 # mode: run
+# tag: threads
 
 """
 Test Python def functions without extern types

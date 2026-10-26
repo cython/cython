@@ -1,5 +1,6 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import a; a.test(a)"
+PYTHON -c "import c; c.test()"
 
 ######## setup.py ########
 
@@ -8,7 +9,7 @@ from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 
 setup(
-    ext_modules=cythonize("a.py"),
+    ext_modules=cythonize("*.py"),
 )
 
 
@@ -66,6 +67,10 @@ def run_sum_generator_expression(a):
     """
     return sum_generator_expression(a)
 
+@cython.cfunc
+def gh4388() -> cython.void:
+    pass  # just a compile test
+
 
 def test(module):
     import os.path
@@ -109,3 +114,35 @@ cpdef int func(x, int y, z) except? -1  # argument names should not matter, type
 
 
 cdef int sum_generator_expression(int a)
+
+cdef void gh4388()
+
+############## b.pxd #######
+
+# no cimport cython should appear in this file
+# "b" tests https://github.com/cython/cython/issues/5970 alone
+
+cdef void get_a_c_string(Py_ssize_t *length)
+
+############## b.py ########
+
+import cython
+
+def get_a_c_string(length: cython.pointer(cython.Py_ssize_t)) -> cython.void:
+    pass
+
+
+############## c.pxd #######
+
+cdef unsigned int LIMIT
+
+############## c.py ########
+
+import cython
+from typing import Final
+
+# Unknown type Final[...] should be ignored and used from .pxd file instead
+LIMIT: Final[int] = 128
+
+def test():
+    assert cython.typeof(LIMIT) == 'unsigned int', cython.typeof(LIMIT)

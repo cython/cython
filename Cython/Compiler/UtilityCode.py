@@ -1,7 +1,7 @@
 import Cython
 from .TreeFragment import parse_from_strings, StringParseContext
 from .Scanning import FileSourceDescriptor
-from .Errors import CompileError
+from .Errors import CompileError, warning
 from . import Symtab
 from . import Naming
 from . import Code
@@ -13,6 +13,7 @@ import io
 
 
 class NonManglingModuleScope(Symtab.ModuleScope):
+    is_internal = True
 
     def __init__(self, prefix, *args, **kw):
         self.prefix = prefix
@@ -75,7 +76,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
 
     def __init__(self, impl, name="__pyxutil", prefix="", requires=None,
                  file=None, from_scope=None, context=None, compiler_directives=None,
-                 outer_module_scope=None):
+                 outer_module_scope=None, subinterpreters_incompatible_message=None):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
@@ -97,8 +98,13 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.requires = requires or []
         self.from_scope = from_scope
         self.outer_module_scope = outer_module_scope
+        if outer_module_scope is not None:
+            # Inherit some global directives from the module scope.
+            compiler_directives = self.filter_inherited_directives(
+                outer_module_scope.global_scope().directives, compiler_directives)
         self.compiler_directives = compiler_directives
         self.context_types = context_types
+        self._subinterpreters_incompatible_message = subinterpreters_incompatible_message
 
     def __eq__(self, other):
         if isinstance(other, CythonUtilityCode):
@@ -110,7 +116,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         outer_scope = self.outer_module_scope
         while isinstance(outer_scope, NonManglingModuleScope):
             outer_scope = outer_scope.outer_scope
-        return self.impl, outer_scope, self.compiler_directives
+        return (self.impl, outer_scope)
 
     def __hash__(self):
         return hash(self.impl)
@@ -125,7 +131,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         from . import Pipeline, ParseTreeTransforms
         context = CythonUtilityCodeContext(
             self.name, compiler_directives=self.compiler_directives,
-            cpp=cython_scope.is_cpp() if cython_scope else False)
+            cpp=cython_scope.is_cpp() if cython_scope else False,
+            options=cython_scope.context.options if cython_scope else None)
         context.prefix = self.prefix
         context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
@@ -201,7 +208,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.tree = tree
         return tree
 
-    def put_code(self, output):
+    def put_code(self, globalstate, used_by=None):
         pass
 
     @classmethod
@@ -250,7 +257,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         return original_scope
 
     @staticmethod
-    def filter_inherited_directives(current_directives):
+    def filter_inherited_directives(current_directives, overrides=None):
         """
         Cython utility code should usually only pick up a few directives from the
         environment (those that intentionally control its function) and ignore most
@@ -268,7 +275,15 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         for name in inherited_directive_names:
             if name in current_directives:
                 utility_code_directives[name] = current_directives[name]
+        if overrides:
+            utility_code_directives.update(overrides)
         return utility_code_directives
+
+    def warn_for_subinterpreters(self, pos):
+        # Note that this is mainly a workaround for some utility code being
+        # incompatible with subinterpreters. Remove it after that is fixed.
+        if self._subinterpreters_incompatible_message:
+            warning(pos, self._subinterpreters_incompatible_message, 2)
 
 
 class TemplatedFileSourceDescriptor(FileSourceDescriptor):
@@ -287,12 +302,14 @@ class TemplatedFileSourceDescriptor(FileSourceDescriptor):
 
 
 class CythonSharedUtilityCode(Code.AbstractUtilityCode):
-    def __init__(self, pxd_name, shared_utility_qualified_name, template_context, requires):
+    def __init__(self, pxd_name, shared_utility_qualified_name, template_context, requires,
+                 subinterpreters_incompatible_message=None):
         self._pxd_name = pxd_name
         self._shared_utility_qualified_name = shared_utility_qualified_name
         self.template_context = template_context
         self.requires = requires
         self._shared_library_scope = None
+        self._subinterpreters_incompatible_message = subinterpreters_incompatible_message
 
     def find_module(self, context):
         scope = context
@@ -324,8 +341,10 @@ class CythonSharedUtilityCode(Code.AbstractUtilityCode):
             self._shared_library_scope = self.find_module(cython_scope.context)
         for dep in self.requires:
             if dep.is_cython_utility:
-                dep.declare_in_scope(scope, cython_scope=cython_scope)
+                dep.declare_in_scope(dest_scope, cython_scope=cython_scope)
         for e in self._shared_library_scope.c_class_entries:
+            dest_scope.add_imported_entry(e.name, e, e.pos)
+        for e in self._shared_library_scope.var_entries:
             dest_scope.add_imported_entry(e.name, e, e.pos)
         return dest_scope
 
@@ -333,6 +352,12 @@ class CythonSharedUtilityCode(Code.AbstractUtilityCode):
         if self._pxd_name not in cython_scope.context.utility_pxds:
             self._shared_library_scope = self.find_module(cython_scope.context)
         return self._shared_library_scope
+
+    def warn_for_subinterpreters(self, pos):
+        # Note that this is mainly a workaround for some utility code being
+        # incompatible with subinterpreters. Remove it after that is fixed.
+        if self._subinterpreters_incompatible_message:
+            warning(pos, self._subinterpreters_incompatible_message, 2)
 
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,

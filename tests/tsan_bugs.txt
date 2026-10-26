@@ -1,0 +1,7 @@
+# C11 thread creation isn't handled in thread sanitizer right now
+libc_thread
+
+# These tests appear to freeze forever without a message for some reason.
+# Probably tsan bugs, but I'm not sure.
+cpp_mutex
+trashcan

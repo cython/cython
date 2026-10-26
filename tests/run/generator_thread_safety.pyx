@@ -1,4 +1,5 @@
 # mode: run
+# tag: threads
 
 from __future__ import print_function
 

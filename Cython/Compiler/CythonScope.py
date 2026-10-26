@@ -4,7 +4,19 @@ from .UtilityCode import CythonUtilityCode
 from .Errors import error
 from .Scanning import StringSourceDescriptor
 from . import MemoryView
+from . import Builtin
 from .StringEncoding import EncodedString
+
+NON_TYPE_NAMES = {'pointer', 'const', 'volatile', 'restrict', 'struct', 'union', 'enum'}
+
+PYTHON_TYPE_ALIASES = {
+    # There isn't really a good way to get at Python's C-shadowed int/float/etc. types
+    # in a C context, so we provide 'cython.py_int' for the cases when you have to.
+    'py_int': Builtin.int_type,
+    'py_float': Builtin.float_type,
+    'py_bool': Builtin.bool_type,
+    'py_complex': Builtin.complex_type,
+}
 
 
 class CythonScope(ModuleScope):
@@ -25,12 +37,16 @@ class CythonScope(ModuleScope):
                                          cname='<error>')
             entry.in_cinclude = True
 
+        cy_pymutex_type = get_cy_pymutex_type()
         entry = self.declare_type(
             "pymutex", cy_pymutex_type, None,
             cname="__Pyx_Locks_PyMutex")
+        entry.utility_code_definition = cy_pymutex_type.get_decl_utility_code()
+        cy_pythread_type_lock_type = get_cy_pythread_type_lock_type()
         entry = self.declare_type(
             "pythread_type_lock", cy_pythread_type_lock_type, None,
             cname="__Pyx_Locks_PyThreadTypeLock")
+        entry.utility_code_definition = cy_pythread_type_lock_type.get_decl_utility_code()
 
     def is_cpp(self):
         # Allow C++ utility code in C++ contexts.
@@ -38,6 +54,11 @@ class CythonScope(ModuleScope):
 
     def lookup_type(self, name):
         # This function should go away when types are all first-level objects.
+        if name in NON_TYPE_NAMES:
+            return None
+        type = PYTHON_TYPE_ALIASES.get(name)
+        if type:
+            return type
         type = parse_basic_type(name)
         if type:
             return type

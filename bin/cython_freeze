@@ -41,11 +41,7 @@ print("""\
 #include <floatingpoint.h>
 #endif
 
-#if PY_MAJOR_VERSION < 3
-# define MODINIT(name)  init ## name
-#else
 # define MODINIT(name)  PyInit_ ## name
-#endif
 """)
 
 for name in modules:
@@ -65,9 +61,7 @@ if not options.pymain:
     print("\nextern int __pyx_module_is_main_%s;" % modules[0])
 
 print("""
-#if PY_MAJOR_VERSION < 3
-int main(int argc, char** argv) {
-#elif defined(WIN32) || defined(MS_WINDOWS)
+#if defined(WIN32) || defined(MS_WINDOWS)
 int wmain(int argc, wchar_t **argv) {
 #else
 static int python_main(int argc, wchar_t **argv) {
@@ -110,10 +104,6 @@ else:
     if (!m) {
         r = 1;
         PyErr_Print(); /* This exits with the right code if SystemExit. */
-#if PY_MAJOR_VERSION < 3
-        if (Py_FlushLine())
-            PyErr_Clear();
-#endif
     }
     Py_XDECREF(m);
     Py_Finalize();
@@ -122,7 +112,7 @@ else:
 """ % {'main' : modules[0]}, end=' ')
 
 print(r"""
-#if PY_MAJOR_VERSION >= 3 && !defined(WIN32) && !defined(MS_WINDOWS)
+#if !defined(WIN32) && !defined(MS_WINDOWS)
 static wchar_t*
 char2wchar(char* arg)
 {

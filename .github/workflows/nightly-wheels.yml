@@ -40,9 +40,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: deadsnakes/action@v3.2.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
 
@@ -51,14 +53,14 @@ jobs:
           pip install --upgrade wheel setuptools
           python setup.py bdist_wheel --no-cython-compile
 
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pure-wheel
           path: ./dist/*.whl
 
       - name: Upload wheels to scientific-python-nightly-wheels
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-        uses: scientific-python/upload-nightly-action@b36e8c0c10dbcfd2e05bf95f17ef8c14fd708dbf # 0.6.2
+        uses: scientific-python/upload-nightly-action@16fa02eacee1655195143de09f03676e60ef2bf5 # 0.6.5
         with:
           artifacts_path: dist
           anaconda_nightly_upload_token: ${{ secrets.CYTHON_NIGHTLY_UPLOAD_TOKEN }}

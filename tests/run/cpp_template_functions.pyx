@@ -22,6 +22,15 @@ cdef extern from "cpp_template_functions_helper.h":
     cdef T* pointer_param[T](T*)
     cdef cppclass double_pair(pair[double, double]):
         double_pair(double, double)
+    cdef T const_deduction_left[T](const T x, T y)
+    cdef T const_deduction_right[T](T x, const T y)
+    cdef T const_ref_deduction_left[T](const T& x, T y)
+    cdef T const_ref_deduction_right[T](T x, const T& y)
+    cdef T const_ptr_deduction_left[T](const T* x, T y)
+    cdef T const_ptr_deduction_right[T](T x, const T* y)
+    cdef T const_ptr_ptr_deduction_left[T](const T* x, T* y)
+    cdef T const_ptr_ptr_deduction_right[T](T* x, const T* y)
+
 
 def test_no_arg():
     """
@@ -119,3 +128,90 @@ def test_overload_GH1583():
     assert a.overloaded("s", v) == 0.25
     # GH Issue #1584
     # assert a.overloaded[double](v) == 0.25
+
+# Note - declared here because we can't declare consts in functions
+cdef const double cdoubleval = 3.0
+
+def test_mixed_const_deductions(double val):
+    """
+    >>> test_mixed_const_deductions(2.0)
+    4.0
+    5.0
+    5.0
+    6.0
+    4.0
+    5.0
+    5.0
+    6.0
+    """
+    print(const_deduction_left(val, val))
+    print(const_deduction_left(val, cdoubleval))
+    print(const_deduction_left(cdoubleval, val))
+    print(const_deduction_left(cdoubleval, cdoubleval))
+    print(const_deduction_right(val, val))
+    print(const_deduction_right(val, cdoubleval))
+    print(const_deduction_right(cdoubleval, val))
+    print(const_deduction_right(cdoubleval, cdoubleval))
+
+def test_mixed_const_ref_deductions(double val):
+    """
+    >>> test_mixed_const_ref_deductions(2.0)
+    4.0
+    5.0
+    5.0
+    6.0
+    4.0
+    5.0
+    5.0
+    6.0
+    """
+    print(const_ref_deduction_left(val, val))
+    print(const_ref_deduction_left(val, cdoubleval))
+    print(const_ref_deduction_left(cdoubleval, val))
+    print(const_ref_deduction_left(cdoubleval, cdoubleval))
+    print(const_ref_deduction_right(val, val))
+    print(const_ref_deduction_right(val, cdoubleval))
+    print(const_ref_deduction_right(cdoubleval, val))
+    print(const_ref_deduction_right(cdoubleval, cdoubleval))
+
+def test_mixed_const_ptr_deductions(double val):
+    """
+    >>> test_mixed_const_ptr_deductions(2.0)
+    4.0
+    5.0
+    5.0
+    6.0
+    4.0
+    5.0
+    5.0
+    6.0
+    """
+    print(const_ptr_deduction_left(&val, val))
+    print(const_ptr_deduction_left(&val, cdoubleval))
+    print(const_ptr_deduction_left(&cdoubleval, val))
+    print(const_ptr_deduction_left(&cdoubleval, cdoubleval))
+    print(const_ptr_deduction_right(val, &val))
+    print(const_ptr_deduction_right(val, &cdoubleval))
+    print(const_ptr_deduction_right(cdoubleval, &val))
+    print(const_ptr_deduction_right(cdoubleval, &cdoubleval))
+
+def test_mixed_const_ptr_ptr_deductions(double val):
+    """
+    >>> test_mixed_const_ptr_ptr_deductions(2.0)
+    4.0
+    5.0
+    5.0
+    6.0
+    4.0
+    5.0
+    5.0
+    6.0
+    """
+    print(const_ptr_ptr_deduction_left(&val, &val))
+    print(const_ptr_ptr_deduction_left(&val, &cdoubleval))
+    print(const_ptr_ptr_deduction_left(&cdoubleval, &val))
+    print(const_ptr_ptr_deduction_left(&cdoubleval, &cdoubleval))
+    print(const_ptr_ptr_deduction_right(&val, &val))
+    print(const_ptr_ptr_deduction_right(&val, &cdoubleval))
+    print(const_ptr_ptr_deduction_right(&cdoubleval, &val))
+    print(const_ptr_ptr_deduction_right(&cdoubleval, &cdoubleval))

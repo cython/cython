@@ -57,6 +57,7 @@ unicode_structmember_prefix = pyrex_prefix + "Umember_"
 # as above -
 # not normally mangled but punycode names cause specific problems
 opt_arg_prefix    = pyrex_prefix + "opt_args_"
+opt_args_count_field    = pyrex_prefix + "n"
 convert_func_prefix = pyrex_prefix + "convert_"
 closure_scope_prefix = pyrex_prefix + "scope_"
 closure_class_prefix = pyrex_prefix + "scope_struct_"
@@ -70,11 +71,14 @@ interned_prefixes = {
     'int': pyrex_prefix + "int_",
     'float': pyrex_prefix + "float_",
     'tuple': pyrex_prefix + "tuple_",
+    'frozenset': pyrex_prefix + "frozenset_",
     'slice': pyrex_prefix + "slice_",
     'ustring': pyrex_prefix + "ustring_",
     'umethod': pyrex_prefix + "umethod_",
+    'carray': pyrex_prefix + "carray_",
 }
 
+carray_literal_prefix = pyrex_prefix + "literalcarray_"
 ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
 nargs_cname      = pyrex_prefix + "nargs"
@@ -139,6 +143,7 @@ frame_code_cname = pyrex_prefix + "frame_code"
 monitoring_states_cname = pyrex_prefix + "pymonitoring_state"
 monitoring_version_cname = pyrex_prefix + "pymonitoring_version"
 error_without_exception_cname = pyrex_prefix + "error_without_exception"
+skip_add_traceback_cname = pyrex_prefix + "skip_add_traceback"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 fused_func_prefix = pyrex_prefix + 'fuse_'
 fused_dtype_prefix = pyrex_prefix + 'fused_dtype_'
@@ -178,6 +183,7 @@ parallel_filename = pyrex_prefix + "parallel_filename"
 parallel_lineno = pyrex_prefix + "parallel_lineno"
 parallel_clineno = pyrex_prefix + "parallel_clineno"
 parallel_why = pyrex_prefix + "parallel_why"
+parallel_loop_threadstate = pyrex_prefix + "parallel_loop_threadstate"
 
 # Python itself used _Py_cs so loosely follow that convention
 critical_section_variable = pyrex_prefix + "cs"
@@ -242,6 +248,7 @@ iso_c23_keywords = frozenset((
     'unsigned',
     'void',
     'volatile',
+    'restrict',  # (C99)
     'while',
     '_Alignas',  # (C11)
     '_Alignof',  # (C11)

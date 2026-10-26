@@ -1,18 +1,18 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import star_cimport_test"
+PYTHON -c "import star_import_all_things"
+PYTHON -c "import star_import_noall_things"
+PYTHON -c "import star_import_all_things_cclass"
+PYTHON -c "import star_import_noall_things_cclass"
+PYTHON -c "import star_import_all_null"
 
 ######## setup.py ########
 
-from distutils.core import setup
-from Cython.Distutils import build_ext
-from Cython.Distutils.extension import Extension
+from setuptools import setup
+from Cython.Build import cythonize
 
 setup(
-    ext_modules = [
-        Extension("star_cimport_ext",  ["star_cimport_ext.pyx"]),
-        Extension("star_cimport_test", ["star_cimport_test.pyx"]),
-        ],
-    cmdclass={'build_ext': build_ext},
+    ext_modules = cythonize("*.pyx"),
 )
 
 ######## star_cimport_ext.pyx ########
@@ -37,3 +37,133 @@ from star_cimport import *
 from star_cimport_ext cimport test_pxd
 
 cdef test_pxd t = test_pxd()
+
+
+######## star_import_all_null.pyx ########
+
+cdef list __all__ = []
+cdef _orig_all = __all__
+
+from all_null import *
+
+assert '\0' in globals()
+assert '' not in globals(), globals()['']
+
+assert __all__ is _orig_all, __all__
+
+######## all_null.py ########
+
+__all__ = ['\0', '']
+
+globals()['\0'] = 5
+globals()[''] = 6
+
+
+######## star_import_all_things.pyx ########
+
+cdef int contiguous
+cdef object öbject
+
+cdef enum strided:
+    indirect_contiguous
+
+from all_things import *
+
+assert 'cython' in globals()
+assert contiguous == 6
+assert 'indirect' in globals()
+assert 'indirect_contiguous' in globals()
+assert 'strided' not in globals()  # not in "__all__"
+assert öbject == 'non-ÄSCII'
+
+assert '__all__' not in globals()  # not in "__all__"
+
+
+######## star_import_noall_things.pyx ########
+
+cdef int indirect
+cdef object öbject
+
+cdef enum contiguous:
+    strided
+
+from noall_things import *
+
+assert 'cython' in globals()
+assert 'contiguous' in globals()
+assert indirect == 7
+assert 'indirect_contiguous' in globals()
+assert 'strided' in globals()
+assert öbject == 'non-ÄSCII'
+
+assert '__all__' not in globals()  # underscore => private
+
+
+######## star_import_all_things_cclass.pyx ########
+
+import cython
+
+try:
+    from all_things import *
+except TypeError as exc:
+    assert 'indirect' in str(exc), exc
+else:
+    assert False, "Import did not fail"
+
+@cython.cclass
+class indirect:
+    pass
+
+
+######## star_import_all_things_pointer.pyx ########
+
+import cython
+
+try:
+    from all_things import *
+except TypeError as exc:
+    assert 'indirect_contiguous' in str(exc), exc
+else:
+    assert False, "Import did not fail"
+
+cdef int contiguous
+cdef int* indirect_contiguous = &contiguous
+
+
+######## star_import_noall_things_cclass.pyx ########
+
+import cython
+
+try:
+    from noall_things import *
+except TypeError as exc:
+    assert 'indirect' in str(exc), exc
+else:
+    assert False, "Import did not fail"
+
+@cython.cclass
+class indirect:
+    pass
+
+
+######## all_things.pyx ########
+
+__all__ = ['cython', 'contiguous', 'indirect', 'indirect_contiguous', 'öbject']
+
+cython = 5
+contiguous = 6
+indirect = 7
+indirect_contiguous = 8
+strided = 9  # not in "__all__"
+
+öbject = 'non-ÄSCII'
+
+######## noall_things.pyx ########
+
+cython = 5
+contiguous = 6
+indirect = 7
+indirect_contiguous = 8
+strided = 9
+
+öbject = 'non-ÄSCII'

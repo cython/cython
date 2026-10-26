@@ -319,3 +319,35 @@ else:
         >>> b == NoPyMembers(i=11, x=1.5) or b
         True
         """
+
+OLD_310_PICKLE = b'''\
+\x80\x04\x95a\x00\x00\x00\x00\x00\x00\x00\x8c\rreduce_pickle\x94\x8c\x1a\
+__pyx_unpickle_NoPyMembers\x94\x93\x94h\x00\x8c\x0bNoPyMembers\
+\x94\x93\x94J\x03\x03\x1f\x08]\x94(K\x0bKyM3\x05eG?\xf8\x00\x00\x00\x00\x00\x00\x86\x94\x87\x94R\x94.\
+'''
+
+# 3.2.0 had a bug that made the pickles larger than necessary.
+# 3.2.4 fixed this and brought it back to the 3.1 pickle putput.
+# https://github.com/cython/cython/issues/7443
+OLD_320_PICKLE = b'''\
+\x80\x04\x95c\x00\x00\x00\x00\x00\x00\x00\x8c\rreduce_pickle\x94\x8c\x1a\
+__pyx_unpickle_NoPyMembers\x94\x93\x94h\x00\x8c\x0bNoPyMembers\
+\x94\x93\x94J\x03\x03\x1f\x08N\x87\x94R\x94]\x94(K\x0bKyM3\x05eG?\xf8\x00\x00\x00\x00\x00\x00\x86\x94b.\
+'''
+
+def unpickle_old_pickles():
+    """
+    >>> import pickle
+
+    # To print the current pickle for later updates:
+    #>>> b = NoPyMembers(i=11, x=1.5)
+    #>>> pickle.dumps(b, protocol=5)  # choose desired pickle protocol version
+
+    >>> b = pickle.loads(OLD_310_PICKLE)
+    >>> b == NoPyMembers(i=11, x=1.5) or b  # OLD_310_PICKLE
+    True
+
+    >>> b = pickle.loads(OLD_320_PICKLE)
+    >>> b == NoPyMembers(i=11, x=1.5) or b  # OLD_320_PICKLE
+    True
+    """

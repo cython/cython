@@ -22,12 +22,12 @@ from . import UtilNodes
 
 
 class StringParseContext(Main.Context):
-    def __init__(self, name, include_directories=None, compiler_directives=None, cpp=False):
+    def __init__(self, name, include_directories=None, compiler_directives=None, cpp=False, options=None):
         if include_directories is None:
             include_directories = []
         if compiler_directives is None:
             compiler_directives = {}
-        Main.Context.__init__(self, include_directories, compiler_directives, cpp=cpp, language_level='3')
+        Main.Context.__init__(self, include_directories, compiler_directives, cpp=cpp, language_level='3', options=options)
         self.module_name = name
 
     def find_module(self, module_name, from_module=None, pos=None, need_pxd=1, absolute_fallback=True, relative_import=False):
@@ -79,11 +79,12 @@ def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
                      scope = scope, context = context, initial_pos = initial_pos)
     ctx = Parsing.Ctx(allow_struct_enum_decorator=allow_struct_enum_decorator)
 
-    if level is None:
-        tree = Parsing.p_module(scanner, 0, module_name, ctx=ctx)
-        tree.scope = scope
-        tree.is_pxd = False
+    if level is None or level in ("module", "module_pxd"):
+        in_pxd = (level == "module_pxd")
+        tree = Parsing.p_module(scanner, in_pxd, module_name, ctx=ctx)
+        tree.is_pxd = in_pxd
     else:
+        scanner.parse_comments = False
         tree = Parsing.p_code(scanner, level=level, ctx=ctx)
 
     tree.scope = scope
@@ -237,7 +238,7 @@ class TreeFragment:
             for key, value in pxds.items():
                 fmt_pxds[key] = fmt(value)
             mod = t = parse_from_strings(name, fmt_code, fmt_pxds, level=level, initial_pos=initial_pos)
-            if level is None:
+            if level is None or level in ("module", "module_pxd"):
                 t = t.body  # Make sure a StatListNode is at the top
             if not isinstance(t, StatListNode):
                 t = StatListNode(pos=mod.pos, stats=[t])

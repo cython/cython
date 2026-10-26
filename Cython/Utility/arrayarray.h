@@ -23,11 +23,16 @@
 // below.  That's defined later because the appropriate get and set
 // functions aren't visible yet.
 typedef struct arraydescr {
-    int typecode;
+    union {
+        char typecode_char;  // pre-3.15
+        char typecode_array[3]; // post-3.15
+    };
     int itemsize;
     PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
     int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
+#if PY_VERSION_HEX <= 0x030F00a8
     char *formats;
+#endif
 } arraydescr;
 
 typedef union {
@@ -45,10 +50,10 @@ typedef union {
     long long *as_longlongs;
     short *as_shorts;
     unsigned short *as_ushorts;
-    // Don't use Py_UNICODE ourselves in the union. This avoids deprecation warnings 
+    // Don't use Py_UNICODE ourselves in the union. This avoids deprecation warnings
     // for anyone who uses array.array but doesn't use this field.
     #if PY_VERSION_HEX >= 0x030d0000
-    Py_DEPRECATED(3.13) 
+    Py_DEPRECATED(3.13)
     #endif
         wchar_t *as_pyunicodes;
     void *as_voidptr;
@@ -64,10 +69,27 @@ struct arrayobject {
     int ob_exports;  /* Number of exported buffers */
 };
 
+#if CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM >= 0x190304a0
+#define __PYX_USE_GRAALPY_ARRAY_API 1
+#else
+#define __PYX_USE_GRAALPY_ARRAY_API 0
+#endif
+
+static CYTHON_INLINE struct arraydescr *__Pyx_PyArray_Descr(arrayobject *self) {
+#if __PYX_USE_GRAALPY_ARRAY_API
+    return (struct arraydescr *)GraalPyArray_GetDescriptor((PyObject*)self);
+#else
+    return self->ob_descr;
+#endif
+}
+
 #ifndef NO_NEWARRAY_INLINE
 //  fast creation of a new array
 static CYTHON_INLINE PyObject * newarrayobject(PyTypeObject *type, Py_ssize_t size,
     struct arraydescr *descr) {
+#if __PYX_USE_GRAALPY_ARRAY_API
+    return GraalPyArray_New((PyObject*)type, size, (GraalPyArray_Descriptor*)descr);
+#else
     arrayobject *op;
     size_t nbytes;
 
@@ -88,7 +110,7 @@ static CYTHON_INLINE PyObject * newarrayobject(PyTypeObject *type, Py_ssize_t si
     op->ob_descr = descr;
     op->allocated = size;
     op->weakreflist = NULL;
-    __Pyx_SET_SIZE(op, size);
+    Py_SET_SIZE(op, size);
     if (size <= 0) {
         op->data.ob_item = NULL;
     }
@@ -100,6 +122,7 @@ static CYTHON_INLINE PyObject * newarrayobject(PyTypeObject *type, Py_ssize_t si
         }
     }
     return (PyObject *) op;
+#endif
 }
 #else
 PyObject* newarrayobject(PyTypeObject *type, Py_ssize_t size,
@@ -129,7 +152,7 @@ static CYTHON_INLINE int resize(arrayobject *self, Py_ssize_t n) {
         return -1;
     }
     self->data.ob_item = (char*) items;
-    __Pyx_SET_SIZE(self, n);
+    Py_SET_SIZE(self, n);
     self->allocated = n;
     return 0;
 #endif
@@ -143,7 +166,7 @@ static CYTHON_INLINE int resize_smart(arrayobject *self, Py_ssize_t n) {
     void *items = (void*) self->data.ob_item;
     Py_ssize_t newsize;
     if (n < self->allocated && n*4 > self->allocated) {
-        __Pyx_SET_SIZE(self, n);
+        Py_SET_SIZE(self, n);
         return 0;
     }
     newsize = n + (n / 2) + 1;
@@ -157,7 +180,7 @@ static CYTHON_INLINE int resize_smart(arrayobject *self, Py_ssize_t n) {
         return -1;
     }
     self->data.ob_item = (char*) items;
-    __Pyx_SET_SIZE(self, n);
+    Py_SET_SIZE(self, n);
     self->allocated = newsize;
     return 0;
 #endif
