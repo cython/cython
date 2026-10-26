@@ -968,7 +968,7 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
 #define __PYX_GET_MODULE_STATE_UTILITY_CODE() __PYX_GET_MODULE_STATE_FALLBACK()
 #if CYTHON_USE_TYPE_SPECS && ((!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030B0000) || \
       __PYX_LIMITED_VERSION_HEX >= 0x030d0000)
-#define __PYX_GET_MODULE_STATE_FROM_CCLASS(obj) (__Pyx_PyModule_GetState(PyType_GetModuleByDef(Py_TYPE(obj), &$pymoduledef_cname)))
+#define __PYX_GET_MODULE_STATE_FROM_CCLASS(obj) (__Pyx_PyModule_GetState(PyType_GetModuleByDef(Py_TYPE((PyObject*)obj), &$pymoduledef_cname)))
 #define __PYX_GET_MODULE_STATE_FROM_CCLASS_TYPE(t) (__Pyx_PyModule_GetState(PyType_GetModuleByDef(t, &$pymoduledef_cname)))
 #else
 #define __PYX_GET_MODULE_STATE_FROM_CCLASS(obj) __PYX_GET_MODULE_STATE_FALLBACK()
