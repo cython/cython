@@ -1,2 +1,2 @@
 # This single dependency is in a pip dependency file so depandabot can handle it
-cibuildwheel==4.3.3
+cibuildwheel==4.3.4
