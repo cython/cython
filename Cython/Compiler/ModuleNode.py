@@ -1948,6 +1948,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             scope, PyrexTypes.py_objptr_type, "tp_vectorcall",
             f"PyObject *t, PyObject *const *args, size_t nargsf, PyObject *kwnames",
             needs_prototype=True, guard="CYTHON_VECTORCALL_TPNEW")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
+        code.putln("#define __PYX_GET_MODULE_STATE() __PYX_GET_MODULE_STATE_FROM_CCLASS_TYPE(t)")
+        code.putln("#endif")
 
         # This is unlikely to happen because tp_vectorcall isn't inherited.
         # But in this case we should fall back to the regular type construction approach.
@@ -1981,6 +1984,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return o;")
         code.putln("}")
         code.exit_cfunc_scope()
+        code.put_undef_get_module_state_definition()
         code.putln("#endif")  # CYTHON_VECTORCALL_TPNEW
 
     def generate_init_function(self, scope, code):
