@@ -1703,7 +1703,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             scope, PyrexTypes.py_objptr_type,
             "tp_new_vectorcall" if is_vectorcall else "tp_new",
             f"PyTypeObject *t, {signature.format(unused_marker='')}", needs_prototype=True)
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("#define __PYX_GET_MODULE_STATE() __PYX_GET_MODULE_STATE_FROM_CCLASS_TYPE(t)")
+        code.putln("#endif")
 
         code.putln("PyObject *o;")
 
