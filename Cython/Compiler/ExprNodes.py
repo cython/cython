@@ -12169,6 +12169,9 @@ class TypecastNode(ExprNode):
         if self.type is PyrexTypes.c_bint_type:
             # short circuit this to a coercion
             return self.operand.coerce_to_boolean(env)
+        if (self.type.is_ctuple and self.operand.type.is_ctuple
+                and not self.type.same_as(self.operand.type)):
+            return self.analyse_ctuple_cast(env)
         to_py = self.type.is_pyobject
         from_py = self.operand.type.is_pyobject
         if from_py and not to_py and self.operand.is_ephemeral():
@@ -12234,6 +12237,33 @@ class TypecastNode(ExprNode):
                 warning(self.pos,
                         "Casting a GIL-requiring function into a nogil function circumvents GIL validation", 1)
         return self
+
+    def analyse_ctuple_cast(self, env):
+        # A C tuple is a struct, which C cannot cast directly.
+        # Cast each item instead: (<T1>t[0], <T2>t[1], ...)
+        operand_type = self.operand.type
+        if operand_type.size != self.type.size:
+            error(self.pos, f"Cannot cast '{operand_type}' to '{self.type}'")
+            self.type = PyrexTypes.error_type
+            return self
+
+        from .UtilNodes import EvalWithTempExprNode, ResultRefNode
+        operand_ref = ResultRefNode(self.operand)
+        items = [
+            TypecastNode(
+                self.pos,
+                operand=IndexNode(
+                    self.pos,
+                    base=operand_ref,
+                    index=IntNode(self.pos, value=str(i), constant_result=i, type=PyrexTypes.c_py_ssize_t_type),
+                ),
+                type=item_type,
+                typecheck=self.typecheck,
+            )
+            for i, item_type in enumerate(self.type.components)
+        ]
+        node = TupleNode(self.pos, args=items).analyse_types(env).coerce_to(self.type, env)
+        return EvalWithTempExprNode(operand_ref, node)
 
     def is_simple(self):
         # either temp or a C cast => no side effects other than the operand's
