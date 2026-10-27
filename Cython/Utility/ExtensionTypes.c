@@ -323,19 +323,6 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 #define __Pyx_DeallocKeepAliveEnd(o)   Py_SET_REFCNT(o, Py_REFCNT(o) - 1)
 #endif
 
-/////////////// CallNextTpDealloc.proto ///////////////
-
-static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_dealloc);
-
-/////////////// CallNextTpDealloc ///////////////
-//@requires: GetBaseDealloc
-
-static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_dealloc) {
-    PyTypeObject* type = __Pyx_get_base_dealloc(obj, current_tp_dealloc);
-    if (type)
-        __Pyx_PyType_GetSlot(type, tp_dealloc, destructor)(obj);
-}
-
 /////////////// GetBaseDealloc.proto ///////////////
 
 static PyTypeObject* __Pyx_get_base_dealloc(PyObject* obj, destructor current_tp_dealloc);
