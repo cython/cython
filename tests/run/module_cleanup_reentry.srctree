@@ -1,0 +1,50 @@
+# mode: run
+
+PYTHON setup.py build_ext --inplace
+PYTHON tester.py
+
+######## setup.py ########
+
+from setuptools import setup
+from Cython.Build import cythonize
+from Cython.Compiler import Options
+
+Options.generate_cleanup_code = 3
+setup(ext_modules=cythonize("*.pyx"))
+
+######## host.pyx ########
+
+cdef extern from "Python.h":
+    ctypedef struct PyModuleDef:
+        void (*m_free)(void *)
+    PyModuleDef *PyModule_GetDef(object module)
+
+# Reproduce finalization ordering before calling the exported initializer again.
+def clear_module(module):
+    cdef PyModuleDef *definition = PyModule_GetDef(module)
+    assert definition != NULL and definition.m_free != NULL
+    definition.m_free(<void *>module)
+
+######## demo.pyx ########
+
+# distutils: define_macros = CYTHON_PEP489_MULTI_PHASE_INIT=0 CYTHON_USE_MODULE_STATE=0
+
+value = 42
+
+def answer():
+    return value
+
+######## tester.py ########
+
+import ctypes
+import host
+import demo
+
+assert demo.answer() == 42
+library = ctypes.PyDLL(demo.__file__)
+initialize = library.PyInit_demo
+initialize.restype = ctypes.py_object
+host.clear_module(demo)
+reinitialized = initialize()
+assert reinitialized is not demo
+assert reinitialized.answer() == 42
