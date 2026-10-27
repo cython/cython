@@ -503,6 +503,7 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
 
     /* Done checking, move to next field, pushing or popping struct stack if needed */
     while (1) {
+next_field:
       if (field == &ctx->root) {
         ctx->head = NULL;
         if (ctx->enc_count != 0) {
@@ -515,16 +516,16 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
       if (field->type == NULL) {
         --ctx->head;
         field = ctx->head->field;
-        continue;
-      } else if (field->type->typegroup == 'S') {
-        size_t parent_offset = ctx->head->parent_offset + field->offset;
-        if (field->type->fields->type == NULL) continue; /* empty struct */
-        field = field->type->fields;
-        ++ctx->head;
-        ctx->head->field = field;
-        ctx->head->parent_offset = parent_offset;
-        break;
+        goto next_field;
       } else {
+        while (field->type->typegroup == 'S') {
+            size_t parent_offset = ctx->head->parent_offset + field->offset;
+            if (field->type->fields->type == NULL) goto next_field; /* empty struct */
+            field = field->type->fields;
+            ++ctx->head;
+            ctx->head->field = field;
+            ctx->head->parent_offset = parent_offset;
+        }
         break;
       }
     }
