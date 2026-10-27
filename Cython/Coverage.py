@@ -117,6 +117,60 @@ def _offset_to_line(offset):
     return offset >> 9
 
 
+def _indent_width(line):
+    expanded = line.expandtabs()
+    return len(expanded) - len(expanded.lstrip(' '))
+
+
+def _opens_suite(line):
+    code = line.split('#', 1)[0].rstrip()
+    return code.endswith(':')
+
+
+def _read_source_text_lines(c_file, filename):
+    path = _find_dep_file_path(c_file, filename, relative_path_search=True)
+    if not path or not os.path.isfile(path):
+        return None
+    with open(path, encoding='utf-8') as handle:
+        return handle.read().splitlines()
+
+
+def _suite_body_lines(source_lines, header_lineno):
+    """Lines strictly inside the suite opened by ``header_lineno``.
+
+    The scan uses the source text so a clause such as ``else`` ends the suite
+    even when that clause has no trace of its own.  Comment-only lines do not
+    end it.  A suite that dedents inside parentheses is not recognized.
+    """
+    if header_lineno < 1 or header_lineno > len(source_lines):
+        return set()
+    header = source_lines[header_lineno - 1]
+    if not _opens_suite(header):
+        return set()
+    base = _indent_width(header)
+    body = set()
+    for number in range(header_lineno + 1, len(source_lines) + 1):
+        line = source_lines[number - 1]
+        stripped = line.lstrip()
+        if not stripped or stripped.startswith('#'):
+            continue
+        if _indent_width(line) <= base:
+            break
+        body.add(number)
+    return body
+
+
+def _excluded_suite_lines(c_file, filename, code_lines, excluded_lines):
+    """Traced statements inside suites opened by excluded lines."""
+    source_lines = _read_source_text_lines(c_file, filename)
+    if source_lines is None:
+        return set()
+    body = set()
+    for lineno in excluded_lines:
+        body.update(_suite_body_lines(source_lines, lineno))
+    return body.intersection(code_lines)
+
+
 class Plugin(CoveragePlugin):
     # map from traced file paths to absolute file paths
     _file_path_map = None
@@ -344,6 +398,14 @@ class Plugin(CoveragePlugin):
             dead_lines = set(lines).difference(executable_lines.get(filename, ()))
             for lineno in dead_lines:
                 del lines[lineno]
+            # coverage.py excludes the suite opened by a matched line, not
+            # only that line.  A non-suite match, such as a pragma on an
+            # assignment, does not exclude the following line.
+            suite_lines = _excluded_suite_lines(
+                c_file, filename, lines, self._excluded_lines_map.get(filename, ()))
+            for lineno in suite_lines:
+                self._excluded_lines_map[filename].add(lineno)
+                lines.pop(lineno, None)
         return code_lines
 
 

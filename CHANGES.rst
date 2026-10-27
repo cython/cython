@@ -28,6 +28,10 @@ Features added
 Bugs fixed
 ----------
 
+* ``Cython.Coverage`` excluded only the matched line, so the body of an
+  excluded suite such as ``if TYPE_CHECKING`` was still reported as missing.
+  (Github issue :issue:`8069`)
+
 * Constant folding of multiplied sequences could return incorrect results.
   Patch by orztrickster.  (Github issue :issue:`8021`)
 
