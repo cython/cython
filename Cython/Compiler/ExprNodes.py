@@ -13893,9 +13893,10 @@ class BoolBinopNode(ExprNode):
         return self.operand1.is_ephemeral() or self.operand2.is_ephemeral()
 
     def analyse_types(self, env):
-        # Note: we do not do any coercion here as we most likely do not know the final type anyway.
+        # Note: we do not coerce to the final type here as we most likely do not know it anyway.
         # We even accept to set self.type to ErrorType if both operands do not have a spanning type.
         # The coercion to the final type and to a "simple" value is left to coerce_to().
+        # _wrap_operand() only makes the operands produce our own spanning type.
         operand1 = self.operand1.analyse_types(env)
         operand2 = self.operand2.analyse_types(env)
         self.type = PyrexTypes.independent_spanning_type(
@@ -13907,6 +13908,20 @@ class BoolBinopNode(ExprNode):
     def _wrap_operand(self, operand, env):
         if not isinstance(operand, (BoolBinopNode, BoolBinopResultNode)):
             operand = BoolBinopResultNode(operand, self.type, env)
+        elif (operand.type.is_pyobject != self.type.is_pyobject and
+                not self.type.is_error and not operand.type.is_error):
+            # A nested and/or writes its values into our result, so a C value must become
+            # a Python object here (or the other way round).  We cannot rely on coerce_to()
+            # for this, since callers like CondExprNode skip it when our type already
+            # matches theirs (GH-7472).  Values that differ only in their C type are
+            # already converted when they are stored in the result.
+            # If the conversion fails (e.g. C pointers cannot become Python objects),
+            # keep the operand, as it is still valid when the whole expression is only
+            # tested for truth.
+            with local_errors(ignore=True) as errors:
+                coerced = operand.coerce_to(self.type, env)
+            if not errors:
+                operand = coerced
         return operand
 
     def wrap_operands(self, env):
