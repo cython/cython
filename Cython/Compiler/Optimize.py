@@ -1809,6 +1809,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         function = node.function
         if not self._function_is_builtin_name(function):
             return node
+
         return self._dispatch_to_handler(node, function, node.args)
 
     def visit_GeneralCallNode(self, node):
