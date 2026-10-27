@@ -225,6 +225,10 @@ class warn:
     def multiple_declarators(val: bool) -> _Decorator:
         return _EmptyDecoratorAndManager()
 
+    @staticmethod
+    def pep695(val: bool) -> _Decorator:
+        return _EmptyDecoratorAndManager()
+
 
 _cython_inline = None
 @overload
