@@ -56,6 +56,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyByteArray_FromString(const char*);
 #define __Pyx_PyBytes_FromStringAndSize PyBytes_FromStringAndSize
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+static const char* __Pyx_PyUnicode_AsUTF8(PyObject *obj); /*proto*/
+#else
+#define __Pyx_PyUnicode_AsUTF8(obj)  PyUnicode_AsUTF8AndSize(obj, NULL)
+#endif
+
 #if CYTHON_ASSUME_SAFE_MACROS
     #define __Pyx_PyBytes_AsWritableString(s)     ((char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsWritableSString(s)    ((signed char*) PyBytes_AS_STRING(s))
@@ -245,6 +251,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyByteArray_FromString(const char* c_str) {
     if (unlikely(len < 0)) return NULL;
     return PyByteArray_FromStringAndSize(c_str, len);
 }
+
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+static const char* __Pyx_PyUnicode_AsUTF8(PyObject *obj) {
+    const char* result;
+    if (unlikely(PyArg_Parse(obj, "s", &result) < 0)) return NULL;
+    return result;
+}
+#endif
 
 // Py3.7 returns a "const char*" for unicode strings
 static CYTHON_INLINE const char* __Pyx_PyObject_AsString(PyObject* o) {
