@@ -653,6 +653,11 @@ def fused_type(*args: Any) -> Type[Any]:
     return _FusedType()
 
 
+class implicit_param:
+    def __class_getitem__(self, arg):
+        return arg
+
+
 py_int = typedef(int, "int")
 py_long = typedef(int, "long")  # for legacy Py2 code only
 py_bool = typedef(bool, "bool")
