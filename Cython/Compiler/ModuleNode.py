@@ -2134,12 +2134,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("__Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o);" % base_cname)
             else:
                 # The imported base type pointer may have been cleared during module cleanup.
+                code.putln(f"PyTypeObject *base = __Pyx_get_base_dealloc(o, {slot_func_cname});")
                 code.putln("#if CYTHON_USE_TYPE_SPECS")
-                code.putln("int base_is_heap =")
+                code.putln("int base_is_heap = base && __Pyx_PyType_HasFeature(base, Py_TPFLAGS_HEAPTYPE);")
                 code.putln("#endif")
-                code.putln("__Pyx_call_next_tp_dealloc(o, %s, %d);" % (slot_func_cname, needs_gc))
+                code.putln("if (base) {")
+                if needs_gc:
+                    code.putln("if (PyType_IS_GC(base)) PyObject_GC_Track(o);")
+                code.putln("__Pyx_PyType_GetSlot(base, tp_dealloc, destructor)(o);")
+                code.putln("}")
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("CallNextTpDealloc", "ExtensionTypes.c"))
+                    UtilityCode.load_cached("GetBaseDealloc", "ExtensionTypes.c"))
 
             if tp_dealloc is None:
                 # A builtin type or an external extension type.

@@ -325,23 +325,31 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
 /////////////// CallNextTpDealloc.proto ///////////////
 
-static int __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_dealloc, int untracked);
+static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_dealloc);
 
 /////////////// CallNextTpDealloc ///////////////
+//@requires: GetBaseDealloc
 
-static int __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_dealloc, int untracked) {
+static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_dealloc) {
+    PyTypeObject* type = __Pyx_get_base_dealloc(obj, current_tp_dealloc);
+    if (type)
+        __Pyx_PyType_GetSlot(type, tp_dealloc, destructor)(obj);
+}
+
+/////////////// GetBaseDealloc.proto ///////////////
+
+static PyTypeObject* __Pyx_get_base_dealloc(PyObject* obj, destructor current_tp_dealloc);
+
+/////////////// GetBaseDealloc ///////////////
+
+static PyTypeObject* __Pyx_get_base_dealloc(PyObject* obj, destructor current_tp_dealloc) {
     PyTypeObject* type = Py_TYPE(obj);
-    destructor tp_dealloc = NULL;
     /* try to find the first parent type that has a different tp_dealloc() function */
     while (type && __Pyx_PyType_GetSlot(type, tp_dealloc, destructor) != current_tp_dealloc)
         type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
-    while (type && (tp_dealloc = __Pyx_PyType_GetSlot(type, tp_dealloc, destructor)) == current_tp_dealloc)
+    while (type && __Pyx_PyType_GetSlot(type, tp_dealloc, destructor) == current_tp_dealloc)
         type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
-    if (!type) return 0;
-    int base_is_heap = __Pyx_PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE);
-    if (untracked && PyType_IS_GC(type)) PyObject_GC_Track(obj);
-    tp_dealloc(obj);
-    return base_is_heap;
+    return type;
 }
 
 /////////////// CallNextTpTraverse.proto ///////////////
