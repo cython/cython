@@ -666,7 +666,7 @@ def get_axes_specs(env, axes):
 
 
 def validate_axes(pos, axes):
-    if len(axes) >= Options.buffer_max_dims:
+    if len(axes) >= Options.options_in_thread.buffer_max_dims:
         error(pos, "More dimensions than the maximum number"
                    " of buffer dimensions were used.")
         return False
@@ -838,7 +838,7 @@ def use_cython_array_utility_code(env):
     cython_scope.viewscope.lookup('array_cwrapper').used = True
 
 template_context = {
-    'max_dims': Options.buffer_max_dims,
+    'max_dims': Options.options_in_thread.buffer_max_dims,
     'memviewslice_name': Naming.memviewslice_cname,
     'memslice_init': PyrexTypes.MemoryViewSliceType.default_value,
     'THREAD_LOCKS_PREALLOCATED': 8,
