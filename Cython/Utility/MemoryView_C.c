@@ -254,6 +254,11 @@ static int __Pyx_ValidateAndInit_memviewslice(
     }
 
     buf = &memview->view;
+    if (unlikely((buf_flags & PyBUF_WRITABLE) && buf->readonly)) {
+        PyErr_SetString(PyExc_ValueError,
+                "Cannot create writable memory view from read-only memoryview");
+        goto fail;
+    }
     if (unlikely(buf->ndim != ndim)) {
         PyErr_Format(PyExc_ValueError,
                 "Buffer has wrong number of dimensions (expected %d, got %d)",
