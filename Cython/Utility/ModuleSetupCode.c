@@ -58,6 +58,12 @@
   #define Py_HUGE_VAL HUGE_VAL
 #endif
 
+#if defined(CYTHON_USE_MODULE_STATE) && CYTHON_USE_MODULE_STATE && !defined(CYTHON_USE_TYPE_SPECS)
+  // Module state mildly implies type-specs (because we can get module state quickly from heap types)
+  // but it's fine if the user wants to turn them off explicitly.
+  #define CYTHON_USE_TYPE_SPECS 1
+#endif
+
 // For the limited API it often makes sense to use Py_LIMITED_API rather than PY_VERSION_HEX
 // when doing version checks.
 #define __PYX_LIMITED_VERSION_HEX PY_VERSION_HEX
@@ -958,8 +964,20 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
 // Define a macro with a cast because the modulestate type isn't known yet and
 // is a typedef struct so impossible to forward declare
 #define __Pyx_PyModule_GetState(o) ($modulestatetype_cname *)__Pyx__PyModule_GetState(o)
+#define __PYX_GET_MODULE_STATE_FALLBACK() (__Pyx_PyModule_GetState(__Pyx_State_FindModule(&$pymoduledef_cname)))
+#define __PYX_GET_MODULE_STATE_UTILITY_CODE() __PYX_GET_MODULE_STATE_FALLBACK()
+#if CYTHON_USE_TYPE_SPECS && ((!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030B0000) || \
+      __PYX_LIMITED_VERSION_HEX >= 0x030d0000)
+  #define __PYX_GET_MODULE_STATE_FROM_CCLASS(obj) (($modulestatetype_cname *)__Pyx__GetModuleStateFromCClass((PyObject*)obj, &$pymoduledef_cname))
+  #define __PYX_GET_MODULE_STATE_FROM_CCLASS_TYPE(t) (__Pyx_PyModule_GetState(PyType_GetModuleByDef((PyTypeObject*)t, &$pymoduledef_cname)))
 #else
-#define __Pyx_PyModule_GetState(op) ((void)op,$modulestateglobal_cname)
+  #define __PYX_GET_MODULE_STATE_FROM_CCLASS(obj) __PYX_GET_MODULE_STATE_FALLBACK()
+  #define __PYX_GET_MODULE_STATE_FROM_CCLASS_TYPE(t) __PYX_GET_MODULE_STATE_FALLBACK()
+#endif
+#else
+#define __PYX_GET_MODULE_STATE() (&$modulestateglobal_cname)
+#define __PYX_GET_MODULE_STATE_UTILITY_CODE() __PYX_GET_MODULE_STATE()
+#define __Pyx_PyModule_GetState(op) ((void)op,&$modulestateglobal_cname)
 #endif
 
 // The "Try" variants may return NULL on static types with the Limited API on earlier versions
@@ -2766,7 +2784,7 @@ done:
 // This defines an ad-hoc, single module version of PyState_FindModule that
 // works for multi-phase init modules. It's intended to be the last option
 // when all the other official ways of getting the module are unavailable.
-static PyObject *__Pyx_State_FindModule(void*); /* proto */
+static PyObject *__Pyx_State_FindModule(PyModuleDef *); /* proto */
 static int __Pyx_State_AddModule(PyObject* module, void*); /* proto */
 static int __Pyx_State_RemoveModule(void*); /* proto */
 
@@ -2775,6 +2793,28 @@ static int __Pyx_State_RemoveModule(void*); /* proto */
 #define __Pyx_State_AddModule PyState_AddModule
 #define __Pyx_State_RemoveModule PyState_RemoveModule
 #endif
+
+#if CYTHON_USE_MODULE_STATE && CYTHON_USE_TYPE_SPECS && \
+  ((!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030B0000) || __PYX_LIMITED_VERSION_HEX >= 0x030d0000)
+static CYTHON_INLINE void *__Pyx__GetModuleStateFromCClass(PyObject *obj, PyModuleDef *module_def) {
+    // In a lot of places, trying to get the module state from the self argument isn't guaranteed to work
+    // because self could have been re-assigned, or we could be using the function with the wrong types,
+    // or similar.  Therefore, have a fallback path.
+    PyObject *module = PyType_GetModuleByDef(Py_TYPE(obj), module_def);
+    if (unlikely(!module)) {
+      #if __PYX_LIMITED_VERSION_HEX < 0x030F0000
+        // The most likely error (and the only error as of Python 3.15) is that the type doesn't
+        // belong to the module.
+        // However, even other errors need swallowing since we don't have error checks round
+        // any of the module state handling.
+        PyErr_Clear();
+      #endif
+        module = __Pyx_State_FindModule(module_def);
+    }
+    return PyModule_GetState(module);
+}
+#endif
+
 
 ////////////////////////// MultiPhaseInitModuleState /////////////
 //@requires: Synchronization.c::Atomics
@@ -2928,7 +2968,7 @@ static __Pyx_InterpreterIdAndModule* __Pyx_State_FindModuleStateLookupTableLower
     return begin;
 }
 
-static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
+static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED PyModuleDef *dummy) {
     int64_t interpreter_id = PyInterpreterState_GetID(PyInterpreterState_Get());
     if (interpreter_id == -1) return NULL;
 
