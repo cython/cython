@@ -969,11 +969,7 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
 #if CYTHON_USE_TYPE_SPECS && ((!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030B0000) || \
       __PYX_LIMITED_VERSION_HEX >= 0x030d0000)
   #define __PYX_GET_MODULE_STATE_FROM_CCLASS(obj) (($modulestatetype_cname *)__Pyx__GetModuleStateFromCClass((PyObject*)obj, &$pymoduledef_cname))
-  #if __PYX_LIMITED_VERSION_HEX >= 0x030F0000
-    #define __PYX_GET_MODULE_STATE_FROM_CCLASS_TYPE(t) (__Pyx_PyModule_GetState(PyType_GetModuleByDef_DuringGC((PyTypeObject*)t, &$pymoduledef_cname)))
-  #else
-    #define __PYX_GET_MODULE_STATE_FROM_CCLASS_TYPE(t) (__Pyx_PyModule_GetState(PyType_GetModuleByDef((PyTypeObject*)t, &$pymoduledef_cname)))
-  #endif
+  #define __PYX_GET_MODULE_STATE_FROM_CCLASS_TYPE(t) (__Pyx_PyModule_GetState(PyType_GetModuleByDef((PyTypeObject*)t, &$pymoduledef_cname)))
 #else
   #define __PYX_GET_MODULE_STATE_FROM_CCLASS(obj) __PYX_GET_MODULE_STATE_FALLBACK()
   #define __PYX_GET_MODULE_STATE_FROM_CCLASS_TYPE(t) __PYX_GET_MODULE_STATE_FALLBACK()
@@ -2804,11 +2800,7 @@ static CYTHON_INLINE void *__Pyx__GetModuleStateFromCClass(PyObject *obj, PyModu
     // In a lot of places, trying to get the module state from the self argument isn't guaranteed to work
     // because self could have been re-assigned, or we could be using the function with the wrong types,
     // or similar.  Therefore, have a fallback path.
-  #if __PYX_LIMITED_VERSION_HEX >= 0x030F0000
-    PyObject *module = PyType_GetModuleByDef_DuringGC(Py_TYPE(obj), module_def);
-  #else
     PyObject *module = PyType_GetModuleByDef(Py_TYPE(obj), module_def);
-  #endif
     if (unlikely(!module)) {
       #if __PYX_LIMITED_VERSION_HEX < 0x030F0000
         // The most likely error (and the only error as of Python 3.15) is that the type doesn't
