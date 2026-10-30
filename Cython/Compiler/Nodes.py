@@ -2141,6 +2141,7 @@ class FuncDefNode(StatNode, BlockNode):
         self_arg_name = None
         if (
             lenv.parent_scope and lenv.parent_scope.is_c_class_scope and
+            not (isinstance(self, DefNode) and self.specialized_cpdefs) and
             len(self.args) > 0 and self.args[0].is_self_arg
         ):
             # TODO - why hasattr?
@@ -3931,6 +3932,7 @@ class DefNodeWrapper(FuncDefNode):
         code.put_declare_refcount_context()
         has_cclass_self = (
             lenv.parent_scope and lenv.parent_scope.is_c_class_scope and
+            not self.target.specialized_cpdefs and
             len(self.args) > 0 and
             self.args[0].is_self_arg
         )

@@ -4356,6 +4356,7 @@ class ToPyStructUtilityCode(AbstractUtilityCode):
         proto = globalstate['utility_code_proto']
 
         code.enter_cfunc_scope(self.env.global_scope())
+        code.put_utility_code_module_state_definitions()
         code.putln("%s {" % self.header)
         code.putln("PyObject* res;")
         code.putln("PyObject* member;")
@@ -4373,6 +4374,7 @@ class ToPyStructUtilityCode(AbstractUtilityCode):
         code.putln("Py_DECREF(res);")
         code.putln("return NULL;")
         code.putln("}")
+        code.put_undef_get_module_state_definition()
         code.exit_cfunc_scope()
 
         # This is a bit of a hack, we need a forward declaration

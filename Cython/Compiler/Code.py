@@ -2750,6 +2750,9 @@ class CCodeWriter:
     def name_in_module_state(self, cname):
         return f"__PYX_GET_MODULE_STATE()->{cname}"
 
+    def name_in_utility_code_module_state(self, cname):
+        return f"__PYX_GET_MODULE_STATE_UTILITY_CODE()->{cname}"
+
     def namespace_cname_in_module_state(self, scope):
         if scope.is_py_class_scope:
             return scope.namespace_cname
@@ -3401,6 +3404,11 @@ class CCodeWriter:
     def put_module_init_get_module_state_definitions(self):
         self.putln("#if CYTHON_USE_MODULE_STATE")
         self.putln(f"#define __PYX_GET_MODULE_STATE() {Naming.modulestatevalue_cname}")
+        self.putln("#endif")
+
+    def put_utility_code_module_state_definitions(self):
+        self.putln("#if CYTHON_USE_MODULE_STATE")
+        self.putln(f"#define __PYX_GET_MODULE_STATE() __PYX_GET_MODULE_STATE_UTILITY_CODE()")
         self.putln("#endif")
 
     def put_undef_get_module_state_definition(self):

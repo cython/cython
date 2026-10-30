@@ -1865,6 +1865,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.start_slotfunc(
             scope, PyrexTypes.py_objptr_type, "tp_new__initialisation",
             f"PyObject *o, {signature}", needs_prototype=True)
+        code.put_function_get_module_state_definitions("o")
 
         if need_self_cast:
             code.putln(f'{scope.parent_type.declaration_code("p")} = {type.cast_code("o")};')
@@ -2048,7 +2049,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         slot_func_cname = scope.mangle_internal("tp_dealloc")
         code.start_slotfunc(scope, PyrexTypes.c_void_type, "tp_dealloc", "PyObject *o")
-        code.put_function_get_module_state_definitions("o")
+        # It isn't possible to safely get the module state from o because of
+        # https://github.com/python/cpython/issues/160840. Therefore use the generic fallback.
+        # (It's possibly an open question if it's safe to use module state at all
+        # here but that's to be decided.)
+        code.put_utility_code_module_state_definitions()
 
         is_final_type = scope.parent_type.is_final_type
         needs_gc = scope.needs_gc()
@@ -2475,6 +2480,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Sequence protocol.
         if TypeSlots.SubscriptSlot.implements_slot(scope, 'sq_ass_item'):
             code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "sq_ass_item", "PyObject *o, Py_ssize_t i, PyObject *v")
+            code.put_function_get_module_state_definitions("o")
             code.putln("if (%s) {" % set_or_del)
 
             if is_sequence_set:
@@ -2504,11 +2510,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
             code.putln("}")
             code.putln("}")
+            code.put_undef_get_module_state_definition()
             code.exit_cfunc_scope()
 
         # Mapping protocol.
         if TypeSlots.SubscriptSlot.implements_slot(scope, 'mp_ass_subscript'):
             code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "mp_ass_subscript", "PyObject *o, PyObject *i, PyObject *v")
+            code.put_function_get_module_state_definitions("o")
             code.putln("if (%s) {" % set_or_del)
 
             if is_sequence_set:
@@ -2534,6 +2542,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
             code.putln("}")
             code.putln("}")
+            code.put_undef_get_module_state_definition()
             code.exit_cfunc_scope()
 
     def generate_guarded_basetype_call(
@@ -2728,7 +2737,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 return '%s_maybe_call_slot(__Pyx_PyType_GetSlot(%s, tp_base, PyTypeObject*), left, right %s)' % (
                     func_name,
-                    code.name_in_module_state(scope.parent_type.typeptr_cname),
+                    # TODO - potentially faster module state lookup by trying both types
+                    code.name_in_utility_code_module_state(scope.parent_type.typeptr_cname),
                     extra_arg)
 
         if get_slot_method_cname(slot.left_slot.method_name) and not get_slot_method_cname(slot.right_slot.method_name):
@@ -2749,7 +2759,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         overloads_right = int(bool(get_slot_method_cname(slot.right_slot.method_name)))
         parent_type_cname = scope.parent_type.typeptr_cname
         if scope.parent_type.is_extension_type:
-            parent_type_cname = code.name_in_module_state(parent_type_cname)
+            # TODO: In principle could also get the name from one of the two types (but don't know which type)
+            parent_type_cname = code.name_in_utility_code_module_state(parent_type_cname)
         code.putln(
             TempitaUtilityCode.load_as_string(
                 "BinopSlot", "ExtensionTypes.c",
@@ -2825,6 +2836,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         del_entry = scope.lookup_here("__delattr__")
 
         code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "tp_setattro", "PyObject *o, PyObject *n, PyObject *v")
+        code.put_function_get_module_state_definitions("o")
         code.putln(
             "if (v) {")
         if set_entry:
@@ -2853,6 +2865,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
         code.putln(
             "}")
+        code.put_undef_get_module_state_definition()
         code.exit_cfunc_scope()
 
     def generate_descr_get_function(self, scope, code):
@@ -2891,6 +2904,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         user_del_entry = scope.lookup_here("__delete__")
 
         code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "tp_descr_set", "PyObject *o, PyObject *i, PyObject *v")
+        code.put_function_get_module_state_definitions("o")
         code.putln(
             "if (v) {")
         if user_set_entry:
@@ -2923,6 +2937,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
         code.putln(
             "}")
+        code.put_undef_get_module_state_definition()
         code.exit_cfunc_scope()
 
     def generate_property_accessors(self, cclass_scope, code):
@@ -4040,7 +4055,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln(f"{Naming.modulestatevalue_cname} = PyModule_GetState({env.module_cname});")
+        code.putln(f"{Naming.modulestatevalue_cname} = __Pyx_PyModule_GetState({env.module_cname});")
         code.putln(f"#define __PYX_GET_MODULE_STATE() {Naming.modulestatevalue_cname}")
         # TODO - undef at the end of the function
         code.putln("#endif")
