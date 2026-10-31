@@ -52,6 +52,14 @@ on:
         required: false
         default: false
         type: boolean
+      architecture:
+        required: false
+        default: ""
+        type: string
+      freethreaded:
+        required: false
+        default: false  # note that specifying a "t" in the version will override this (intentionally)
+        type: boolean
 
 
 permissions:
@@ -90,7 +98,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -104,17 +112,19 @@ jobs:
 
       - name: Setup extra Python versions
         if: ${{ inputs.extra_python_versions }}
-        uses: actions/setup-python@v6.2.0
+        uses: actions/setup-python@v7.0.0
         with:
           python-version-file: .python-versions
 
       - name: Setup python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ inputs.python-version }}
+          architecture: ${{ inputs.architecture }}
+          freethreaded: ${{ inputs.freethreaded }}
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
+        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         if: runner.os != 'Windows'  # There is currently no working sccache setup for Windows.
         with:
           variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
@@ -160,7 +170,7 @@ jobs:
           done
 
       - name: Upload wheels
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheels-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}${{ inputs.extra_hash }}
           path: dist/*.whl
@@ -192,7 +202,7 @@ jobs:
           fi
 
       - name: Upload C/C++ test diff
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         # Run on master branch and on PRs against master.
         if: inputs.upload_testsources && (github.base_ref == 'master' || github.base_ref == 'refs/heads/master' || github.ref == 'refs/heads/master')
         with:
@@ -202,7 +212,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload C/C++ test sources
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: inputs.upload_testsources
         with:
           name: testsources-${{ github.ref_name == 'master' && 'master-' || 'branch-' }}${{ inputs.os }}-${{ inputs.backend }}${{ inputs.extra_hash }}

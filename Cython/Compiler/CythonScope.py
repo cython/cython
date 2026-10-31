@@ -4,9 +4,20 @@ from .UtilityCode import CythonUtilityCode
 from .Errors import error
 from .Scanning import StringSourceDescriptor
 from . import MemoryView
+from . import Builtin
 from .StringEncoding import EncodedString
 
 NON_TYPE_NAMES = {'pointer', 'const', 'volatile', 'restrict', 'struct', 'union', 'enum'}
+
+PYTHON_TYPE_ALIASES = {
+    # There isn't really a good way to get at Python's C-shadowed int/float/etc. types
+    # in a C context, so we provide 'cython.py_int' for the cases when you have to.
+    'py_int': Builtin.int_type,
+    'py_float': Builtin.float_type,
+    'py_bool': Builtin.bool_type,
+    'py_complex': Builtin.complex_type,
+}
+
 
 class CythonScope(ModuleScope):
     is_cython_builtin = 1
@@ -45,6 +56,9 @@ class CythonScope(ModuleScope):
         # This function should go away when types are all first-level objects.
         if name in NON_TYPE_NAMES:
             return None
+        type = PYTHON_TYPE_ALIASES.get(name)
+        if type:
+            return type
         type = parse_basic_type(name)
         if type:
             return type

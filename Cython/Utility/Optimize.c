@@ -26,62 +26,113 @@ static CYTHON_INLINE int __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     return 0;
 }
 
+
+/////////////// ListAppendAndDecrefInternal ///////////////
+
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE void __Pyx__ListComp_AppendAndDecref(PyObject* list, Py_ssize_t len, PyObject* x) {
+    PyList_SET_ITEM(list, len, x);
+    Py_SET_SIZE(list, len + 1);
+}
+#endif
+
+
 /////////////// ListAppend.proto ///////////////
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
-static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
-    PyListObject* L = (PyListObject*) list;
-    Py_ssize_t len = Py_SIZE(list);
-    if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
-        Py_INCREF(x);
-        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
-        // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
-        // However, extending the size *before* setting the value would not be correct,
-        // so we cannot call PyList_SET_ITEM().
-        L->ob_item[len] = x;
-        #else
-        PyList_SET_ITEM(list, len, x);
-        #endif
-        Py_SET_SIZE(list, len + 1);
-        return 0;
-    }
-    return PyList_Append(list, x);
-}
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x); /*proto*/
 #else
 #define __Pyx_PyList_Append(L,x) PyList_Append(L,x)
 #endif
 
-/////////////// ListCompAppend.proto ///////////////
+/////////////// ListAppend ///////////////
+//@requires: ListAppendAndDecrefInternal
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
-static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
     PyListObject* L = (PyListObject*) list;
     Py_ssize_t len = Py_SIZE(list);
-    if (likely(L->allocated > len)) {
+
+    if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
         Py_INCREF(x);
-        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
-        // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
-        // However, extending the size *before* setting the value would not be correct,
-        // so we cannot call PyList_SET_ITEM().
-        L->ob_item[len] = x;
-        #else
-        PyList_SET_ITEM(list, len, x);
-        #endif
-        Py_SET_SIZE(list, len + 1);
+        __Pyx__ListComp_AppendAndDecref(list, len, x);
         return 0;
     }
     return PyList_Append(list, x);
 }
+#endif
+
+
+/////////////// ListCompAppend.proto ///////////////
+
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x); /*proto*/
 #else
 #define __Pyx_ListComp_Append(L,x) PyList_Append(L,x)
 #endif
 
+/////////////// ListCompAppend ///////////////
+//@requires: ListAppendAndDecrefInternal
+
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
+    PyListObject* L = (PyListObject*) list;
+    Py_ssize_t len = Py_SIZE(list);
+
+    if (likely(L->allocated > len)) {
+        Py_INCREF(x);
+        __Pyx__ListComp_AppendAndDecref(list, len, x);
+        return 0;
+    }
+    return PyList_Append(list, x);
+}
+#endif
+
+
+/////////////// ListCompAppendAndDecref.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_ListComp_AppendAndDecref(PyObject* list, PyObject* x); /*proto*/
+
+/////////////// ListCompAppendAndDecref ///////////////
+//@requires: ListAppendAndDecrefInternal
+
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
+static CYTHON_INLINE int __Pyx_ListComp_AppendAndDecref(PyObject* list, PyObject* x) {
+    PyListObject* L = (PyListObject*) list;
+    Py_ssize_t len = Py_SIZE(list);
+
+    if (likely(L->allocated > len)) {
+        __Pyx__ListComp_AppendAndDecref(list, len, x);
+        return 0;
+    }
+
+    int result = PyList_Append(list, x);
+    Py_DECREF(x);
+    return result;
+}
+
+#else
+static CYTHON_INLINE int __Pyx_ListComp_AppendAndDecref(PyObject* list, PyObject* x) {
+    int result = PyList_Append(list, x);
+    Py_DECREF(x);
+    return result;
+}
+#endif
+
+
 //////////////////// ListExtend.proto ////////////////////
 
+#if (CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX < 0x030d0000) && !defined(PyList_Extend)
+static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v); /*proto*/
+#else
+#define __Pyx_PyList_Extend(L, v)  PyList_Extend(L, v)
+#endif
+
+//////////////////// ListExtend ////////////////////
+
+#if (CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX < 0x030d0000) && !defined(PyList_Extend)
 static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v) {
-#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d00a2
-    return PyList_Extend(L, v);
-#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+#if CYTHON_COMPILING_IN_CPYTHON
     PyObject* none = _PyList_Extend((PyListObject*)L, v);
     if (unlikely(!none))
         return -1;
@@ -91,6 +142,8 @@ static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v) {
     return PyList_SetSlice(L, PY_SSIZE_T_MAX, PY_SSIZE_T_MAX, v);
 #endif
 }
+#endif
+
 
 /////////////// pop.proto ///////////////
 
@@ -313,7 +366,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static PyObject *__Pyx_dict_call_to_get_iterable(PyObject* iterable, PyObject* method_name) {
-    
+
     PyObject* iter;
     iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
     if (!iterable)
@@ -415,7 +468,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         #endif
         if (unlikely(pos >= list_size)) return 0;
         *ppos = pos + 1;
-        next_item = __Pyx_PyList_GetItemRef(iter_obj, pos);
+        next_item = __Pyx_PyList_GET_ITEM_REF(iter_obj, pos, __Pyx_ReferenceSharing_OwnStrongReference);
         if (unlikely(!next_item)) return -1;
     } else
 #endif
@@ -708,7 +761,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
 #if !CYTHON_USE_TYPE_SLOTS
         float_value = PyNumber_Float(obj);  if ((0)) goto bad;
         // avoid "unused" warnings
-        (void)__Pyx_PyObject_CallOneArg;
+        (void)&__Pyx_PyObject_CallOneArg;
 #else
         PyNumberMethods *nb = Py_TYPE(obj)->tp_as_number;
         if (likely(nb) && likely(nb->nb_float)) {
@@ -1668,7 +1721,7 @@ static {{c_ret_type}} __Pyx_PyObject_CompareFloatInt{{func_suffix}}(PyObject *op
         Py_ssize_t iop2 = __Pyx_PyLong_CompactValue(op2);
         if (float_op1 {{c_op}} ((double)iop2)) {{return_true}}; else {{return_false}};
     }
-    if (unlikely(!isfinite(float_op1))) {
+    if (unlikely(!__Pyx_isfinite(float_op1))) {
         // CPython just compares inf/nan to 0.0
         if (float_op1 {{c_op}} 0.0) {{return_true}}; else {{return_false}};
     } else {
@@ -1685,7 +1738,7 @@ static {{c_ret_type}} __Pyx_PyObject_CompareFloatInt{{func_suffix}}(PyObject *op
         }
     }
     #else
-    if (unlikely(!isfinite(float_op1))) {
+    if (unlikely(!__Pyx_isfinite(float_op1))) {
         // CPython just compares inf/nan to 0.0
         if (float_op1 {{c_op}} 0.0) {{return_true}}; else {{return_false}};
     } else {
@@ -1734,7 +1787,7 @@ static {{c_ret_type}} __Pyx_PyObject_CompareIntFloat{{func_suffix}}(PyObject *op
         Py_ssize_t iop1 = __Pyx_PyLong_CompactValue(op1);
         if (((double)iop1) {{c_op}} float_op2) {{return_true}}; else {{return_false}};
     }
-    if (unlikely(!isfinite(float_op2))) {
+    if (unlikely(!__Pyx_isfinite(float_op2))) {
         // CPython just compares inf/nan to 0.0
         if (0.0 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
     } else {
@@ -1751,7 +1804,7 @@ static {{c_ret_type}} __Pyx_PyObject_CompareIntFloat{{func_suffix}}(PyObject *op
         }
     }
     #else
-    if (unlikely(!isfinite(float_op2))) {
+    if (unlikely(!__Pyx_isfinite(float_op2))) {
         // CPython just compares inf/nan to 0.0
         if (0.0 {{c_op}} float_op2) {{return_true}}; else {{return_false}};
     } else {
@@ -1788,10 +1841,11 @@ __pyx_return_false:
 {{if type1 in ('object', 'int') and type2 in ('object', 'int')}}
 {{py: from Cython.Utility import pylong_join }}
 
-#ifndef __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
-#define __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
-static {{c_ret_type}} __Pyx_PyObject_CompareIntInt{{func_suffix}}(PyObject *op1, PyObject *op2) {
 #if CYTHON_USE_PYLONG_INTERNALS
+
+#ifndef __Pyx_DEFINED_PyObject_CompareIntIntBool{{op}}
+#define __Pyx_DEFINED_PyObject_CompareIntIntBool{{op}}
+static int __Pyx_PyObject_CompareIntIntBool{{op}}(PyObject *op1, PyObject *op2) {
     Py_ssize_t cmp = __Pyx_PyLong_CompareSignAndSize(op1, op2);
     if (cmp == 0) {
         Py_ssize_t size = __Pyx_PyLong_DigitCount(op1);
@@ -1808,19 +1862,28 @@ static {{c_ret_type}} __Pyx_PyObject_CompareIntInt{{func_suffix}}(PyObject *op1,
                 }
             }
         }
-        if (cmp == 0) {{return_true if op in 'EqLeGe' else return_false}};
+        if (cmp == 0) return {{'1' if op in 'EqLeGe' else '0'}};
         if (__Pyx_PyLong_IsNeg(op1)) cmp = -cmp;
     }
 
-    {{if op == 'Eq'}}
-    {{return_false}};
-    {{elif op == 'Ne'}}
-    {{return_true}};
-    {{else}}
-    if (cmp < 0) {{return_true if op in 'LeLt' else return_false}}; else {{return_false if op in 'LeLt' else return_true}};
-    {{endif}}
+    return {{if op == 'Eq'}}0{{elif op == 'Ne'}}1{{else}}(cmp {{c_op}} 0){{endif}};
+}
+#endif
+
+#ifndef __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CompareIntInt{{op}}(PyObject *op1, PyObject *op2) {
+    int result = __Pyx_PyObject_CompareIntIntBool{{op}}(op1, op2);
+    if (unlikely(result == -1)) return NULL;
+    return __Pyx_NewRef(result ? Py_True : Py_False);
+}
+#endif
 
 #else
+
+#ifndef __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
+#define __Pyx_DEFINED_PyObject_CompareIntInt{{func_suffix}}
+static {{c_ret_type}} __Pyx_PyObject_CompareIntInt{{func_suffix}}(PyObject *op1, PyObject *op2) {
     int overflow1, overflow2;
     // We know that we have two exact PyLong values, so we assume no exceptions.
     long long iop1 = PyLong_AsLongLongAndOverflow(op1, &overflow1);
@@ -1832,13 +1895,14 @@ static {{c_ret_type}} __Pyx_PyObject_CompareIntInt{{func_suffix}}(PyObject *op1,
     } else {
         return {{'PyObject_RichCompare' if return_obj else '__Pyx_PyObject_RichCompareBool'}}(op1, op2, Py_{{op.upper()}});
     }
-#endif
 
 __pyx_return_true:
     {{'Py_RETURN_TRUE' if return_obj else 'return 1'}};
 __pyx_return_false:
     {{'Py_RETURN_FALSE' if return_obj else 'return 0'}};
 }
+#endif
+
 #endif
 
 // end of float/int comparisons

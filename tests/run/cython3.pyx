@@ -539,7 +539,7 @@ def dict_comp():
     return result
 
 
-# in Python 3, d.keys/values/items() are the iteration methods
+# In Python 3, d.keys/values/items() return iterable views.
 @cython.test_assert_path_exists(
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode")
@@ -558,10 +558,43 @@ def dict_iter(dict d):
 
     >>> dict_iter({})
     ([], [], [])
+
+    >>> dict_iter(None)
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'keys'
     """
     keys = [ key for key in d.keys() ]
     values = [ value for value in d.values() ]
     items = [ item for item in d.items() ]
+    return keys, values, items
+
+
+# In Python 3, d.keys/values/items() return iterable views.
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+@cython.test_fail_if_path_exists(
+    "//ForInStatNode")
+def dict_iter_or(dict d):
+    """
+    >>> d = {'a' : 1, 'b' : 2, 'c' : 3}
+    >>> keys, values, items = dict_iter_or(d)
+    >>> sorted(keys)
+    ['a', 'b', 'c']
+    >>> sorted(values)
+    [1, 2, 3]
+    >>> sorted(items)
+    [('a', 1), ('b', 2), ('c', 3)]
+
+    >>> dict_iter_or({})
+    ([], [], [])
+    >>> dict_iter_or(None)
+    ([], [], [])
+    """
+    # Found in https://github.com/cython/cython/issues/7931
+    keys = [ key for key in (d or {}).keys() ]
+    values = [ value for value in (d or {}).values() ]
+    items = [ item for item in (d or {}).items() ]
     return keys, values, items
 
 

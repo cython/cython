@@ -477,6 +477,20 @@ def test_return():
     """
     print parallel_return()
 
+cdef int plain_parallel_return() noexcept nogil:
+    cdef int i
+
+    for i in prange(10):
+        if i == 8:
+            return i
+
+def test_plain_return():
+    """
+    >>> test_plain_return()
+    8
+    """
+    return plain_parallel_return()
+
 def test_parallel_exceptions():
     """
     >>> test_parallel_exceptions()
@@ -499,7 +513,7 @@ def test_parallel_exceptions():
             finally:
                 with gil:
                     mylist.append("I am executed first")
-    except Exception, e:
+    except Exception as e:
         print mylist[0]
         print e.args, sum
 
@@ -524,7 +538,7 @@ def test_parallel_exceptions_unnested():
             finally:
                 with gil:
                     mylist.append(("I am executed first", sum))
-    except Exception, e:
+    except Exception as e:
         print mylist[0]
         print e.args, sum
 
@@ -632,7 +646,7 @@ def parallel_exc_replace():
                 for j in prange(10, nogil=True):
                     with gil:
                         raise Exception("propagate me")
-            except Exception, e:
+            except Exception as e:
                 raise Exception("propagate me instead")
 
     return 0
@@ -787,7 +801,7 @@ def test_clean_temps():
                 # freethreading - if we actually assigned to x this would currently be dodgy
                 # but the test doesn't get that far.
                 x = PrintOnDealloc() + error()
-    except Exception, e:
+    except Exception as e:
         print e.args[0]
 
 

@@ -160,11 +160,7 @@ def silence_coro_gc():
 
 @contextlib.contextmanager
 def captured_stderr():
-    try:
-        # StringIO.StringIO() also accepts str in Py2, io.StringIO() does not
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from io import StringIO
 
     orig_stderr = sys.stderr
     try:

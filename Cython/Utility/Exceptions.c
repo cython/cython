@@ -85,6 +85,84 @@ static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
 #endif
 
 
+/////////////// GivenExceptionMatches.proto ///////////////
+//@requires: PyThreadStateGet
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches(PyObject *err, PyObject *type);/*proto*/
+static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObject *type1, PyObject *type2);/*proto*/
+#else
+#define __Pyx_PyErr_GivenExceptionMatches(err, type) PyErr_GivenExceptionMatches(err, type)
+static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObject *type1, PyObject *type2) {
+    return PyErr_GivenExceptionMatches(err, type1) || PyErr_GivenExceptionMatches(err, type2);
+}
+#endif
+#define __Pyx_PyErr_ExceptionMatches2(err1, err2)  __Pyx_PyErr_GivenExceptionMatches2(__Pyx_PyErr_CurrentExceptionType(), err1, err2)
+
+/////////////// GivenExceptionMatches ///////////////
+//@requires: ModuleSetupCode.c::FastTypeChecks
+//@requires: PyErrFetchRestore
+
+#if CYTHON_COMPILING_IN_CPYTHON
+
+static CYTHON_INLINE int __Pyx_inner_PyErr_GivenExceptionMatches2(PyObject *err, PyObject* exc_type1, PyObject *exc_type2) {
+    if (exc_type1) {
+        return __Pyx_IsAnySubtype2((PyTypeObject*)err, (PyTypeObject*)exc_type1, (PyTypeObject*)exc_type2);
+    } else {
+        return __Pyx_IsSubtype((PyTypeObject*)err, (PyTypeObject*)exc_type2);
+    }
+}
+
+// so far, we only call PyErr_GivenExceptionMatches() with an exception type (not instance) as first argument
+// => optimise for that case
+
+static int __Pyx_PyErr_GivenExceptionMatchesTuple(PyObject *exc_type, PyObject *tuple) {
+    Py_ssize_t i, n;
+    assert(PyExceptionClass_Check(exc_type));
+    n = PyTuple_GET_SIZE(tuple);
+    // the tight subtype checking in Py3 allows faster out-of-order comparison
+    for (i=0; i<n; i++) {
+        if (exc_type == PyTuple_GET_ITEM(tuple, i)) return 1;
+    }
+    for (i=0; i<n; i++) {
+        PyObject *t = PyTuple_GET_ITEM(tuple, i);
+        if (likely(PyExceptionClass_Check(t))) {
+            if (__Pyx_inner_PyErr_GivenExceptionMatches2(exc_type, NULL, t)) return 1;
+        } else {
+            // FIXME: Py3: PyErr_SetString(PyExc_TypeError, "catching classes that do not inherit from BaseException is not allowed");
+        }
+    }
+    return 0;
+}
+
+static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches(PyObject *err, PyObject* exc_type) {
+    if (likely(err == exc_type)) return 1;
+    if (likely(PyExceptionClass_Check(err))) {
+        if (likely(PyExceptionClass_Check(exc_type))) {
+            return __Pyx_inner_PyErr_GivenExceptionMatches2(err, NULL, exc_type);
+        } else if (likely(PyTuple_Check(exc_type))) {
+            return __Pyx_PyErr_GivenExceptionMatchesTuple(err, exc_type);
+        } else {
+            // FIXME: Py3: PyErr_SetString(PyExc_TypeError, "catching classes that do not inherit from BaseException is not allowed");
+        }
+    }
+    return PyErr_GivenExceptionMatches(err, exc_type);
+}
+
+static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObject *exc_type1, PyObject *exc_type2) {
+    // Only used internally with known exception types => pure safety check assertions.
+    assert(PyExceptionClass_Check(exc_type1));
+    assert(PyExceptionClass_Check(exc_type2));
+    if (likely(err == exc_type1 || err == exc_type2)) return 1;
+    if (likely(PyExceptionClass_Check(err))) {
+        return __Pyx_inner_PyErr_GivenExceptionMatches2(err, exc_type1, exc_type2);
+    }
+    return (PyErr_GivenExceptionMatches(err, exc_type1) || PyErr_GivenExceptionMatches(err, exc_type2));
+}
+
+#endif
+
+
 /////////////// PyErrExceptionMatches.proto ///////////////
 //@substitute: naming
 
@@ -96,6 +174,7 @@ static CYTHON_INLINE int __Pyx_PyErr_ExceptionMatchesInState(PyThreadState* tsta
 #endif
 
 /////////////// PyErrExceptionMatches ///////////////
+//@requires: GivenExceptionMatches
 
 #if CYTHON_FAST_THREAD_STATE
 static int __Pyx_PyErr_ExceptionMatchesTuple(PyObject *exc_type, PyObject *tuple) {
@@ -138,6 +217,7 @@ static CYTHON_INLINE int __Pyx_PyErr_ExceptionMatchesInState(PyThreadState* tsta
     return result;
 }
 #endif
+
 
 /////////////// PyErrFetchRestore.proto ///////////////
 //@substitute: naming
@@ -419,13 +499,13 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     tstate->curexc_value = 0;
     tstate->curexc_traceback = 0;
   #endif
-#elif __PYX_LIMITED_VERSION_HEX > 0x030C0000
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030C0000
     local_value = PyErr_GetRaisedException();
 #else
     PyErr_Fetch(&local_type, &local_value, &local_tb);
 #endif
 
-#if __PYX_LIMITED_VERSION_HEX > 0x030C0000
+#if __PYX_LIMITED_VERSION_HEX >= 0x030C0000
     if (likely(local_value)) {
         local_type = (PyObject*) Py_TYPE(local_value);
         Py_INCREF(local_type);
@@ -446,11 +526,11 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
         if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
             goto bad;
     }
-#endif // __PYX_LIMITED_VERSION_HEX > 0x030C0000
+#endif // __PYX_LIMITED_VERSION_HEX >= 0x030C0000
 
     // traceback may be NULL for freshly raised exceptions
     Py_XINCREF(local_tb);
-    // exception state may be empty in parallel loops (code-gen error where we don't generate a 
+    // exception state may be empty in parallel loops (code-gen error where we don't generate a
     // top-level PyGILState_Ensure surrounding the whole loop, and so releasing the GIL temporarily
     // wipes the whole thread state).
     Py_XINCREF(local_type);
@@ -503,7 +583,7 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
 
     return 0;
 
-#if __PYX_LIMITED_VERSION_HEX <= 0x030C0000
+#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
 bad:
     *type = 0;
     *value = 0;
@@ -1011,6 +1091,7 @@ bad:
 }
 #endif
 
+
 ///////////////////////////// FloatExceptionCheck.proto ///////////////////////////
 
 // Detect if error_value is NaN, and use a different check in that case
@@ -1018,6 +1099,218 @@ bad:
     ((error_value) == (error_value) ? \
      (value) == (error_value) : \
      (value) != (value))
+
+
+/////////////////// ExceptStar.proto /////////////////////////
+
+static int __Pyx_ValidateStarCatchPattern(PyObject *pattern); /* proto */
+static int __Pyx_ExceptionGroupMatch(PyObject *, PyObject **, PyObject **); /* proto */
+static void __Pyx_RaisePreppedException(PyObject *exc); /* proto */
+
+#if CYTHON_USE_OWN_PREP_RERAISE_STAR
+// Our implementation, in Cython utility code
+#define __Pyx_PyExc_PrepReraiseStar __Pyx__PyExc_PrepReraiseStar
+#else
+#define __Pyx_PyExc_PrepReraiseStar PyUnstable_Exc_PrepReraiseStar
+#endif
+
+/////////////////// ExceptStar ///////////////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
+//@requires: ObjectHandling.c::RaiseErrorWithObjectTypes
+//@requires: ObjectHandling.c::RaiseErrorWithTypeAndVarargs
+
+static int __Pyx_ValidateStarCatchPatternElement(PyObject *pattern) {
+    int is_subclass;
+    if (!unlikely(PyExceptionClass_Check(pattern))) {
+        // Note that Cython only asserts and doesn't validate this for regular except clauses
+        PyErr_SetString(PyExc_TypeError, "catching classes that do not inherit from BaseException is not allowed");
+        return -1;
+    }
+    is_subclass = PyObject_IsSubclass(pattern, PyExc_BaseExceptionGroup);
+    if (unlikely(is_subclass)) {
+        if (is_subclass > 0) {
+            PyErr_SetString(PyExc_TypeError, "catching ExceptionGroup with except* is not allowed. Use except instead.");
+        }
+        return -1;
+    }
+    return 0;
+}
+
+static int __Pyx_ValidateStarCatchPattern(PyObject *pattern) {
+    if (PyTuple_Check(pattern)) {
+        Py_ssize_t size, i;
+        #if CYTHON_ASSUME_SAFE_MACROS
+        size = PyTuple_GET_SIZE(pattern);
+        #else
+        size = PyTuple_Size(pattern);
+        if (size < 0) return -1;
+        #endif
+        for (i=0; i<size; ++i) {
+            int result;
+            PyObject* item;
+            #if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
+            item = PySequence_GetItem(pattern, i);
+            if (!item) return -1;
+            #else
+            item = PyTuple_GET_ITEM(pattern, i);
+            #endif
+            result = __Pyx_ValidateStarCatchPatternElement(item);
+            #if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(item);
+            #endif
+            if (result) {
+                return result;
+            }
+        }
+        return 0;
+    } else {
+        return __Pyx_ValidateStarCatchPatternElement(pattern);
+    }
+}
+
+// Copied with slight modifications from exception_group_match in ceval.c in CPython
+// The main difference is that I combine the exc_value input argument and rest output argument into one
+static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_exception, PyObject **match) {
+    int is_instance;
+
+    Py_DECREF(*match); // whatever happens, we'll re-assign it
+    *match = Py_NewRef(Py_None);
+
+    if (PyErr_GivenExceptionMatches(*current_exception, match_type)) {
+        int is_eg = PyObject_IsInstance(*current_exception, PyExc_BaseExceptionGroup);
+        if (is_eg) {
+            if (unlikely(is_eg<0)) return -1;
+            *match = Py_NewRef(*current_exception);
+        } else {
+            PyObject *wrapped;
+            PyObject *call_args[2];
+
+            /* naked exception - wrap it */
+            call_args[0] = EMPTY(unicode);
+            call_args[1] = PyTuple_Pack(1, *current_exception);
+            if (call_args[1] == NULL) {
+                return -1;
+            }
+            #if CYTHON_VECTORCALL
+            // We know we have Python 3.11 to be using except* so VectorCall is definitely available
+            wrapped = PyObject_Vectorcall(PyExc_BaseExceptionGroup, call_args, 2, NULL);
+            #else
+            wrapped = PyObject_CallFunctionObjArgs(PyExc_BaseExceptionGroup, call_args[0], call_args[1], NULL);
+            #endif
+            Py_DECREF(call_args[1]);
+
+            if (wrapped == NULL) {
+                return -1;
+            }
+            Py_DECREF(*match);
+            *match = wrapped;
+        }
+
+        Py_DECREF(*current_exception);
+        *current_exception = Py_NewRef(Py_None);
+        return 0;
+    }
+
+    /* current_exception does not match match_type.
+     * Check for partial match if it's an exception group.
+     */
+    is_instance = PyObject_IsInstance(*current_exception, PyExc_BaseExceptionGroup);
+    if (unlikely(is_instance < 0)) return -1;
+    if (is_instance) {
+        PyObject *pair = __Pyx_PyObject_CallMethod1(
+            *current_exception, PYIDENT("split"), match_type);
+
+        if (pair == NULL) return -1;
+
+        if (unlikely(!PyTuple_CheckExact(pair))) {
+            __Pyx_RaiseTypeErrorWithObjectTypes(
+                __Pyx_FMT_TYPENAME ".split must return a tuple, not " __Pyx_FMT_TYPENAME,
+                *current_exception, pair);
+            Py_DECREF(pair);
+            return -1;
+        }
+        Py_ssize_t pair_size = __Pyx_PyTuple_GET_SIZE(pair);
+        if (unlikely(pair_size != 2)) {
+#if !CYTHON_ASSUME_SAFE_SIZE
+            if (pair_size >= 0)
+#endif
+            {
+                __Pyx_RaiseErrorWithTypeAndVarargs(PyExc_TypeError,
+                    __Pyx_FMT_TYPENAME ".split must return a 2-tuple, "
+                    "got tuple of size %zd",
+                    Py_TYPE(*current_exception), pair_size);
+            }
+            Py_DECREF(pair);
+            return -1;
+        }
+
+        #if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
+        __Pyx_Py_XDECREF_SET(*match, PySequence_GetItem(pair, 0));
+        if (!*match) {
+            goto limited_api_bad;
+        }
+        __Pyx_Py_XDECREF_SET(*current_exception, PySequence_GetItem(pair, 1));
+        if (!*current_exception) {
+            limited_api_bad:
+            Py_DECREF(pair);
+            return -1;
+        }
+        #else
+        __Pyx_Py_XDECREF_SET(*match, Py_NewRef(PyTuple_GET_ITEM(pair, 0)));
+        __Pyx_Py_XDECREF_SET(*current_exception, Py_NewRef(PyTuple_GET_ITEM(pair, 1)));
+        #endif
+
+        Py_DECREF(pair);
+        return 0;
+    }
+
+    // No match
+    // match is None and
+    // current_exception remains the same
+    return 0;
+}
+
+static void __Pyx_RaisePreppedException(PyObject *exc) {
+#if __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+    Py_INCREF(exc);
+    PyErr_SetRaisedException(exc);
+#else
+    // Raise the exception but preserve all original traceback,
+    // avoid setting cause and context, etc.
+
+    PyObject *traceback, *type;
+
+    traceback = PyException_GetTraceback(exc);
+    if (!traceback && unlikely(PyErr_Occurred())) return;
+
+    type = (PyObject*)Py_TYPE(exc);
+    Py_INCREF(type);
+    Py_INCREF(exc);
+    PyErr_Restore((PyObject*)Py_TYPE(exc), exc, traceback);
+#endif
+}
+
+#if !CYTHON_USE_OWN_PREP_RERAISE_STAR
+// Unfortunately c_compile_guard in Cython utility code still causes the proto to be created
+// leading to a "declared static but never defined" warning.  This looks hard to avoid so
+// create trivial definitions instead.
+CYTHON_UNUSED static PyObject *__Pyx_exception_get_notes(CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *b) {
+    return NULL;
+}
+CYTHON_UNUSED static PyObject *__Pyx_split_into_same_metadata(CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *b) {
+    return NULL;
+}
+CYTHON_UNUSED static PyObject *__Pyx_except_star_leafs(CYTHON_UNUSED PyObject *a) {
+    return NULL;
+}
+CYTHON_UNUSED static PyObject *__Pyx_exception_group_projection(CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *b) {
+    return NULL;
+}
+CYTHON_UNUSED static PyObject *__Pyx__PyExc_PrepReraiseStar(CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *b) {
+    return NULL;
+}
+#endif
+
 
 //////////////////// IgnoreException.proto /////////////////////////////////
 

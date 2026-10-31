@@ -24,6 +24,6 @@ def foo():
     """
     try:
         raise ValueError
-    except ValueError, e:
+    except ValueError as e:
         bar()
         raise

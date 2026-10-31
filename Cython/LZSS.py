@@ -39,8 +39,8 @@ def lzss_compress(data: bytes) -> bytes:
         if pos + 3 > input_size:
             return (0, 0)
 
-        # 14-bit offset (max 16KiB lookback)
-        WINDOW_SIZE: cython.long = 1 << 14
+        # 14-bit offset + 128 (~ max 16KiB lookback)
+        WINDOW_SIZE: cython.long = (1 << 14) + 128
         # 8-bit length + 3, allowing up to 258 bytes.
         MAX_MATCH: cython.long = min(255 + 3, input_size - pos)
 
@@ -69,8 +69,9 @@ def lzss_compress(data: bytes) -> bytes:
 
             # Prefer longer matches, break ties by preferring closer offsets.
             if match_len > best_len:
-                best_len = match_len
-                best_offset = pos - prev_pos
+                if pos - prev_pos - match_len < WINDOW_SIZE:  # Can we store the result?
+                    best_len = match_len
+                    best_offset = pos - prev_pos
 
         # Lazy matching: check if next position has a better match.
         next_key = data[pos + 1:pos + 4]
@@ -88,7 +89,8 @@ def lzss_compress(data: bytes) -> bytes:
                     match_len += 1
 
                 if match_len > next_best_len:
-                    next_best_len = match_len
+                    if pos - prev_pos - next_best_len < WINDOW_SIZE:  # Can we store the result?
+                        next_best_len = match_len
 
             # If the next position has a significantly better match, ignore this one.
             if next_best_len > best_len + 1:
@@ -102,7 +104,7 @@ def lzss_compress(data: bytes) -> bytes:
     flags_pos: cython.Py_ssize_t = 0
     flags: cython.int = 0xFF0000
 
-    stats = [0, 0, 0, 0]
+    stats = [0] * 5
 
     while pos < input_size:
         offset, length = find_longest_match(pos)
@@ -120,30 +122,42 @@ def lzss_compress(data: bytes) -> bytes:
 
         # See if the match is worth it and store a single literal byte otherwise.
 
-        if length > 2 and 0 <= offset <= 0x7F:
-            # Store 7 bit offset and length as two bytes.
+        if length < 3 or offset < 0:
+            # Not worth compressing, store single byte.
+            flag = 1
+            stats[0] += 1
+        elif offset <= 0x7F:
+            # Store 7 bit offset and length as one byte each.
             output.append(offset)
             #assert output[-1] & 0x80 == 0
             output.append(length - 3)
             stats[1] += 1
-        elif length > 2 and length - 3 <= 0x1F and 0 <= offset <= 0x1FF:
-            # Store a longer 7+2 bit offset at the cost of a shorter 5 bit length.
-            output.append((offset & 0x7F) | 0x80)
-            output.append(((offset & 0x180) >> 2) | (length - 3))
-            #assert output[-1] & 0x80 == 0
-            stats[2] += 1
-        elif length > 3 and 0 <= offset < (1 << 14):
-            # Store a 7+7 bit offset with a separate 8 bit length.
-            output.append(offset & 0x7F | 0x80)
-            output.append((offset >> 7) & 0x7F | 0x80)
-            output.append(length - 3)
-            stats[3] += 1
         else:
+            # offset 0-0x7F is already handled above.
+            offset -= 0x80
+            length_bits = length - 3
+
+            if length_bits < (1 << 5) and offset < (1 << 9):
+                # Store a longer 7+2 bit offset at the cost of a shorter 5 bit length.
+                output.append((offset & 0x7F) | 0x80)
+                output.append(((offset & 0x180) >> 2) | length_bits)
+                #assert output[-1] & 0x80 == 0
+                stats[2] += 1
+            elif length > 3 and offset < (1 << 14):
+                # Store a 7+7 bit offset with a separate 8 bit length.
+                output.append(offset & 0x7F | 0x80)
+                output.append((offset >> 7) & 0x7F | 0x80)
+                output.append(length_bits)
+                stats[3] += 1
+            else:
+                flag = 1
+                stats[4] += 1
+
+        if flag == 1:
             # Encode 8 bit literal + 1 bit flag.
             flag = 1
             length = 1
             output.append(data[pos])
-            stats[0] += 1
 
         pos += length
 

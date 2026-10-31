@@ -1,0 +1,25 @@
+# #8070
+run[.]import_star
+relativeimport_star
+starimport_cimport
+
+# #8072
+cdef_multiple_inheritance_errors
+extern_varobject_extensions
+
+# reimport doesn't work with module state
+reimport_from_package
+TestIpythonMagic
+
+# There's a specific check that it works without atomics,
+# while module state definitely requires atomics
+[.]memoryview_acq_count
+
+# Currently uncategorized
+[.]error_pos
+[.]module_init_error
+[.]ref2global
+[.]relativeimport_T542
+[.]test_grammar
+[.]trace_nogil_compilation
+[.]coverage_nogil

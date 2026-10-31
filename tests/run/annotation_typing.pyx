@@ -537,6 +537,19 @@ def def_none_as_type(a: None) -> None:
     """
     return c_none_as_type(a)
 
+@cython.annotation_typing(False)
+def default_dict_annotation_typing_disabled():
+    """
+    >>> default_dict_annotation_typing_disabled()
+    [defaultdict(<class 'int'>, {'severity': 1})]
+    """
+    from collections import defaultdict
+
+    values: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    values["target"]["severity"] += 1
+    return [counts for _, counts in values.items()]
+
+
 _WARNINGS = """
 15:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 15:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -571,6 +584,10 @@ _WARNINGS = """
 # DUPLICATE:
 75:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 75:44: Unknown type declaration 'long' in annotation, ignoring
+175:30: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+175:30: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+175:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+175:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
 # BUG:
 75:0: 'pytypes_cpdef' redeclared
 187:0: 'struct_io' redeclared

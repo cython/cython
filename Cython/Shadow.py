@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.3.0a0"
+__version__ = "3.3.0"
 
 from types import TracebackType
 from typing import (
@@ -290,6 +290,12 @@ def cast(t, *args, **kwargs):
 
     return args[0]
 
+def likely(cond: _T) -> _T:
+    return cond
+
+def unlikely(cond: _T) -> _T:
+    return cond
+
 def sizeof(obj: object) -> int:
     return 1
 
@@ -407,7 +413,6 @@ if TYPE_CHECKING:
 class PointerType(CythonType):
 
     def __init__(self, value=None):
-        from .Shadow import cast
         if isinstance(value, (ArrayType, PointerType)):
             self._items = [cast(self._basetype, a) for a in value._items]
         elif isinstance(value, list):
@@ -425,7 +430,6 @@ class PointerType(CythonType):
     def __setitem__(self, ix, value):
         if ix < 0:
             raise IndexError("negative indexing not allowed in C")
-        from .Shadow import cast
         self._items[ix] = cast(self._basetype, value)
 
     def __eq__(self, value):
@@ -651,6 +655,7 @@ def fused_type(*args: Any) -> Type[Any]:
 
 py_int = typedef(int, "int")
 py_long = typedef(int, "long")  # for legacy Py2 code only
+py_bool = typedef(bool, "bool")
 py_float = typedef(float, "float")
 py_complex = typedef(complex, "double complex")
 

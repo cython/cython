@@ -113,7 +113,7 @@ Declare a var with the wrapped C++ class
 
 We'll create a ``.pyx`` file named ``rect.pyx`` to build our wrapper. We're
 using a name other than ``Rectangle``, but if you prefer giving the same name
-to the wrapper as the C++ class, see the section on 
+to the wrapper as the C++ class, see the section on
 :ref:`resolving naming conflicts <resolve-conflicts>`.
 
 Within, we use cdef to declare a var of the class with the C++ ``new`` statement:
@@ -136,7 +136,7 @@ a "default" constructor::
     def func():
         cdef Foo foo
         ...
-        
+
 See the section on the :ref:`cpp_locals directive` for a way
 to avoid requiring a nullary/default constructor.
 
@@ -559,7 +559,7 @@ indicate that this function should be called whenever an exception is raised.
 The corresponding Python function ``PyRaiser.raise_exception`` will raise a
 ``CustomLogicError`` whenever it is called. Defining ``PyCustomLogicError``
 allows other code to catch this exception, as shown below: ::
-    
+
     try:
         PyRaiser().raise_exception()
     except PyCustomLogicError:
@@ -826,26 +826,22 @@ utility can be used to generate a C++ ``.cpp`` file, and then compile it
 into a python extension.  C++ mode for the ``cython`` command is turned
 on with the ``--cplus`` option.
 
+
 .. _cpp_locals directive:
 
 ``cpp_locals`` directive
 ========================
 
 The ``cpp_locals`` compiler directive is an experimental feature that makes
-C++ variables behave like normal Python object variables.  With this
-directive they are only initialized at their first assignment, and thus
-they no longer require a nullary constructor to be stack-allocated.  Trying to
-access an uninitialized C++ variable will generate an ``UnboundLocalError``
-(or similar) in the same way as a Python variable would.  For example::
+C++ variables behave like normal Python object variables.
+With this directive, they are only initialized at their first assignment, and thus
+they no longer require a nullary constructor to be allocated on the call stack
+or in extension type structs.
+Trying to access an uninitialized C++ variable will generate an ``UnboundLocalError``
+(or similar) in the same way as a Python variable would.  For example:
 
-    def function(dont_write):
-        cdef SomeCppClass c  # not initialized
-        if dont_write:
-            return c.some_cpp_function()  # UnboundLocalError
-        else:
-            c = SomeCppClass(...)  # initialized
-            return c.some_cpp_function()  # OK
-            
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/cpp_locals.pyx
+
 Additionally, the directive avoids initializing temporary C++ objects before
 they are assigned, for cases where Cython needs to use such objects in its
 own code-generation (often for return values of functions that can throw
@@ -857,10 +853,10 @@ been initialized will trigger undefined behaviour, and it is entirely the user's
 responsibility to avoid such access.
 
 The ``cpp_locals`` directive is currently implemented using ``std::optional``
-and thus requires a C++17 compatible compiler. Defining
-``CYTHON_USE_BOOST_OPTIONAL`` (as define for the C++ compiler) uses ``boost::optional``
+and thus requires a C++17 compatible compiler. Defining the C macro
+``CYTHON_USE_BOOST_OPTIONAL`` for the C++ compiler makes it use ``boost::optional``
 instead (but is even more experimental and untested).  The directive may
-come with a memory and performance cost due to the need to store and check 
+come with a memory and performance cost due to the need to store and check
 a boolean that tracks if a variable is initialized, but the C++ compiler should
 be able to eliminate the check in most cases.
 

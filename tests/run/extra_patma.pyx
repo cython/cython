@@ -153,3 +153,55 @@ def test_ctuple_to_sequence((int, int) x):
             assert cython.typeof(a) == "int", cython.typeof(a)  # test that types have inferred
             return a, b
 
+cdef class C:
+    cdef double x
+    def __init__(self, x):
+        self.x = x
+
+def class_attr_lookup(x):
+    """
+    >>> class_attr_lookup(C(5))
+    5.0
+    >>> class_attr_lookup([1])
+    >>> class_attr_lookup(None)
+    """
+    match x:
+        case C(x=y):  # This can only work with cdef attribute lookup
+            assert cython.typeof(y) == "double", cython.typeof(y)
+            return y
+
+class PyClass(object):
+    pass
+
+
+@cython.test_fail_if_path_exists("//NameNode[@name='isinstance']")
+@cython.test_fail_if_path_exists("//PythonCapiFunctionNode[@cname='__Pyx_TypeCheck']")
+def class_typecheck_doesnt_exist(C x):
+    """
+    >>> class_typecheck_doesnt_exist(C(5))
+    True
+    >>> class_typecheck_doesnt_exist(None)  # it is None-safe though!
+    False
+    """
+    match x:
+        case C():
+            return True
+        case _:
+            return False
+
+
+def simple_or_with_targets(x):
+    """
+    This was being mishandled by being converted to an if statement
+    without accounting for target assignment
+    >>> simple_or_with_targets(1)
+    1
+    >>> simple_or_with_targets(2)
+    2
+    >>> simple_or_with_targets(3)
+    3
+    >>> simple_or_with_targets(4)
+    """
+    match x:
+        case ((1 as y)|(2 as y)|(3 as y)):
+            return y

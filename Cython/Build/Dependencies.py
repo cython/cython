@@ -9,15 +9,16 @@ from os.path import relpath as _relpath
 from .Cache import Cache, FingerprintFlags
 
 from collections.abc import Iterable
+from functools import partial
 
 try:
     import pythran
-except:
+except Exception:
     pythran = None
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
-    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, write_depfile)
+    copy_file_to_dir_if_newer, is_package_dir, write_depfile)
 from ..Compiler import Errors
 from ..Compiler.Main import Context
 from ..Compiler import Options
@@ -26,10 +27,11 @@ from ..Compiler.Options import (CompilationOptions, default_options,
 
 join_path = cached_function(os.path.join)
 copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
-safe_makedirs_once = cached_function(safe_makedirs)
+safe_makedirs_once = cached_function(partial(os.makedirs, exist_ok=True))
 
 
-def _make_relative(file_paths, base=None):
+@cython.cfunc
+def _make_relative(file_paths, base=None) -> list[str]:
     if not base:
         base = os.getcwd()
     if base[-1] != os.path.sep:
@@ -52,7 +54,7 @@ def extended_iglob(pattern):
     # because '/' is generally common for relative paths.
     if '**/' in pattern or os.sep == '\\' and '**\\' in pattern:
         seen = set()
-        first, rest = re.split(r'\*\*[%s]' % ('/\\\\' if os.sep == '\\' else '/'), pattern, 1)
+        first, rest = re.split(r'\*\*[%s]' % ('/\\\\' if os.sep == '\\' else '/'), pattern, maxsplit=1)
         if first:
             first = iglob(first + os.sep)
         else:
@@ -158,6 +160,7 @@ distutils_settings = {
 }
 
 
+@cython.cfunc
 def _legacy_strtobool(val):
     # Used to be "distutils.util.strtobool", adapted for deprecation warnings.
     if val == "True":
@@ -959,7 +962,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     if 'include_path' not in options:
         options['include_path'] = ['.']
     if 'common_utility_include_dir' in options:
-        safe_makedirs(options['common_utility_include_dir'])
+        os.makedirs(options['common_utility_include_dir'], exist_ok=True)
 
     depfile = options.pop('depfile', None)
 
@@ -1183,12 +1186,15 @@ if os.environ.get('XML_RESULTS'):
     def record_results(func):
         def with_record(*args):
             t = time.time()
-            success = True
+            success = False
             try:
-                try:
-                    func(*args)
-                except:
-                    success = False
+                func(*args)
+                success = True
+            except Exception:
+                # It's not obvious that we should really swallow the exception here,
+                # rather than fail loudly after writing the XML result file,
+                # but that's how it's currently implemented.
+                pass
             finally:
                 t = time.time() - t
                 module = fully_qualified_name(args[0])

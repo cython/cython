@@ -357,16 +357,20 @@ def unpack_source_tree(tree_file, workdir, cython_root):
                     cur_file = open(path, 'wb')
                 elif cur_file is not None:
                     cur_file.write(line)
-                elif line.strip() and not line.lstrip().startswith(b'#'):
-                    if line.strip() not in (b'"""', b"'''"):
-                        command = shlex.split(line.decode('utf8'))
-                        if not command: continue
-                        # In Python 3: prog, *args = command
-                        prog, args = command[0], command[1:]
-                        try:
-                            header.append(programs[prog]+args)
-                        except KeyError:
-                            header.append(command)
+                elif line.strip() in (b'', b'"""', b"'''") or line.lstrip().startswith(b'#'):
+                    pass
+                else:
+                    command = shlex.split(line.decode('utf8'))
+                    if not command: continue
+                    args = []
+                    next_is_command = True
+                    for arg in command:
+                        if next_is_command and arg in programs:
+                            args.extend(programs[arg])
+                        else:
+                            args.append(arg)
+                            next_is_command = arg == '|'
+                    header.append(args)
         finally:
             if cur_file is not None:
                 cur_file.close()
@@ -433,7 +437,7 @@ def compiled_eval(code, namespace=None):
     """
     Parse code and evaluate it in a compile time env.
     """
-    node = py_parse_code(code)
+    node = parse_python_code(code)
 
     if isinstance(node, Nodes.StatListNode):
         assert len(node.stats) == 1, node.stats
@@ -444,20 +448,24 @@ def compiled_eval(code, namespace=None):
     return node.compile_time_value(DictEvalScope(namespace) if namespace else empty_eval_scope)
 
 
-def py_parse_code(code):
+def parse_python_code(code):
     """
     Compiles code far enough to get errors from the parser and post-parse stage.
-
-    Is useful for checking for syntax errors, however it doesn't generate runable code.
+    Is useful for checking for syntax errors, however it doesn't generate runable
+    code.
     """
     context = StringParseContext("test")
+    class DummyModuleNode(object):
+        child_attrs = []
+    post_parse = PostParse(context)
+    post_parse.visit_ModuleNode(DummyModuleNode())  # just enough to get scope variables set up
     # all the errors we care about are in the parsing or postparse stage
     try:
         with Errors.local_errors() as errors:
-            result = TreeFragment(code, pipeline=[PostParse(context)])
+            result = TreeFragment(code, pipeline=[post_parse])
             result = result.substitute()
         if errors:
-            raise errors[0]  # compile error, which should get caught below
+            raise errors[0]  # compile error, which should get caught
         else:
             return result
     except Errors.CompileError as e:
