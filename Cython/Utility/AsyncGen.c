@@ -623,15 +623,16 @@ __Pyx_async_gen_asend_throw(PyObject *g,
         return NULL;
     }
 
+    __pyx_PyAsyncGenObject* ags_gen = __Pyx_as_PyAsyncGenObject(o->ags_gen);
     if (o->ags_state == __PYX_AWAITABLE_STATE_INIT) {
-        if (unlikely(o->ags_gen->ag_running_async)) {
+        if (unlikely(ags_gen->ag_running_async)) {
             o->ags_state = __PYX_AWAITABLE_STATE_CLOSED;
             __Pyx_async_gen_raise_already_running("anext");
             return NULL;
         }
 
         o->ags_state = __PYX_AWAITABLE_STATE_ITER;
-        o->ags_gen->ag_running_async = 1;
+        ags_gen->ag_running_async = 1;
     }
 
     result = __Pyx_Coroutine_Throw(o->ags_gen, args
@@ -640,7 +641,7 @@ __Pyx_async_gen_asend_throw(PyObject *g,
 #endif
     );
     result = __Pyx_async_gen_unwrap_value(
-        __Pyx_as_PyAsyncGenObject(o->ags_gen),
+        ags_gen,
         result, 0);
 
     if (result == NULL) {
@@ -665,10 +666,10 @@ __Pyx_async_gen_asend_close(PyObject *g, PyObject *args)
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
     PyObject *throw_args = PyTuple_Pack(1, PyExc_GeneratorExit);
     if (unlikely(!throw_args)) return NULL;
-    result = __Pyx_async_gen_asend_throw(o, throw_args);
+    result = __Pyx_async_gen_asend_throw(g, throw_args);
     Py_DECREF(throw_args);
 #else
-    result = __Pyx_async_gen_asend_throw(o, &PyExc_GeneratorExit, 1);
+    result = __Pyx_async_gen_asend_throw(g, &PyExc_GeneratorExit, 1);
 #endif
 
     if (likely(result == NULL)) {
@@ -1017,15 +1018,16 @@ __Pyx_async_gen_athrow_throw(PyObject *g,
         return NULL;
     }
 
+    __pyx_PyAsyncGenObject *agt_gen = __Pyx_as_PyAsyncGenObject(o->agt_gen);
     if (o->agt_state == __PYX_AWAITABLE_STATE_INIT) {
-        if (unlikely(o->agt_gen->ag_running_async)) {
+        if (unlikely(agt_gen->ag_running_async)) {
             o->agt_state = __PYX_AWAITABLE_STATE_CLOSED;
             __Pyx_async_gen_raise_already_running((o->agt_args == NULL) ? "aclose" : "athrow");
             return NULL;
         }
 
         o->agt_state = __PYX_AWAITABLE_STATE_ITER;
-        o->agt_gen->ag_running_async = 1;
+        agt_gen->ag_running_async = 1;
     }
 
     retval = __Pyx_Coroutine_Throw(o->agt_gen, args
@@ -1034,9 +1036,9 @@ __Pyx_async_gen_athrow_throw(PyObject *g,
 #endif
     );
     if (o->agt_args) {
-        retval = __Pyx_async_gen_unwrap_value(__Pyx_as_PyAsyncGenObject(o->agt_gen), retval, 0);
+        retval = __Pyx_async_gen_unwrap_value(agt_gen, retval, 0);
         if (retval == NULL) {
-            o->agt_gen->ag_running_async = 0;
+            agt_gen->ag_running_async = 0;
             o->agt_state = __PYX_AWAITABLE_STATE_CLOSED;
         }
         return retval;
@@ -1044,14 +1046,14 @@ __Pyx_async_gen_athrow_throw(PyObject *g,
         // aclose() mode
         PyObject *exc_type;
         if (unlikely(retval && __pyx__PyAsyncGenWrappedValue_CheckExact(retval))) {
-            __Pyx_as_PyAsyncGenObject(o->agt_gen)->ag_running_async = 0;
+            agt_gen->ag_running_async = 0;
             o->agt_state = __PYX_AWAITABLE_STATE_CLOSED;
             Py_DECREF(retval);
             PyErr_SetString(PyExc_RuntimeError, __Pyx_ASYNC_GEN_IGNORED_EXIT_MSG);
             return NULL;
         }
         if (retval == NULL) {
-            o->agt_gen->ag_running_async = 0;
+            agt_gen->ag_running_async = 0;
             o->agt_state = __PYX_AWAITABLE_STATE_CLOSED;
         }
         exc_type = PyErr_Occurred();
@@ -1089,10 +1091,10 @@ __Pyx_async_gen_athrow_close(PyObject *g, PyObject *args)
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
     PyObject *throw_args = PyTuple_Pack(1, PyExc_GeneratorExit);
     if (unlikely(!throw_args)) return NULL;
-    result = __Pyx_async_gen_athrow_throw(o, throw_args);
+    result = __Pyx_async_gen_athrow_throw(g, throw_args);
     Py_DECREF(throw_args);
 #else
-    result = __Pyx_async_gen_athrow_throw(o, &PyExc_GeneratorExit, 1);
+    result = __Pyx_async_gen_athrow_throw(g, &PyExc_GeneratorExit, 1);
 #endif
     if (likely(result == NULL)) {
         PyObject *exc_type = PyErr_Occurred();
