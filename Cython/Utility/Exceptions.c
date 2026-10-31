@@ -1186,7 +1186,7 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
             PyObject *call_args[2];
 
             /* naked exception - wrap it */
-            call_args[0] = EMPTY(unicode);
+            call_args[0] = EMPTY(str);
             call_args[1] = PyTuple_Pack(1, *current_exception);
             if (call_args[1] == NULL) {
                 return -1;

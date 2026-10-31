@@ -76,7 +76,7 @@ included using the ``UtilityCode`` classes.  There are a few points of customiza
   call to a method of a builtin type.
 * ``#substitute: naming`` allows you to refer to variables in the ``Cython.Compiler.Naming``
   module using ``$varname``.
-* ``EMPTY(tuple)`` (or ``bytes`` or ``unicode``) is a quick way of getting access to an
+* ``EMPTY(tuple)`` (or ``bytes`` or ``str``) is a quick way of getting access to an
   empty immutable container..
 * ``CGLOBAL(varname)`` looks up ``varname`` in the module state structure. 
   ``NAMED_CGLOBAL(named_varname)`` looks up the result of ``Cython.Compiler.Naming.named_varname``

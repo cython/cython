@@ -1907,7 +1907,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             needs_error_cleanup = True
             code.putln("{")
             if cinit_func_entry.trivial_signature:
-                noargs = code.name_in_slot_module_state(Naming.empty_tuple)
+                noargs = code.empty_constant_code("tuple", lookup=code.name_in_slot_module_state)
                 cinit_args = f"{noargs}, NULL"
 
             if use_vectorcall and cinit_func_entry.trivial_signature:
@@ -3286,9 +3286,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('PyObject *%s;' % env.module_dict_cname)
         code.putln('PyObject *%s;' % Naming.builtins_cname)
         code.putln('PyObject *%s;' % Naming.cython_runtime_cname)
-        code.putln('PyObject *%s;' % Naming.empty_tuple)
-        code.putln('PyObject *%s;' % Naming.empty_bytes)
-        code.putln('PyObject *%s;' % Naming.empty_unicode)
+        code.putln("#if !(CYTHON_USE_MODULE_STATE && __PYX_LIMITED_VERSION_HEX >= 0x030d0000)")
+        for container in Naming.empty_containers:
+            code.putln(f'PyObject *{Naming.empty_}{container};')
+        code.putln("#endif")
         if Options.pre_import is not None:
             code.putln('PyObject *%s;' % Naming.preimport_cname)
 
@@ -3357,12 +3358,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.builtins_cname)
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.cython_runtime_cname)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.empty_tuple)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.empty_bytes)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.empty_unicode)
+        code.putln("#if !(CYTHON_USE_MODULE_STATE && __PYX_LIMITED_VERSION_HEX >= 0x030d0000)")
+        for container in Naming.empty_containers:
+            code.putln(f'Py_CLEAR(clear_module_state->{Naming.empty_}{container});')
+        code.putln("#endif")
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         # In this case we have to remove the module from our lookup table ourself
         # because Python isn't going to do it.
@@ -3377,9 +3376,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f'Py_VISIT(traverse_module_state->{env.module_dict_cname});')
         code.putln(f'Py_VISIT(traverse_module_state->{Naming.builtins_cname});')
         code.putln(f'Py_VISIT(traverse_module_state->{Naming.cython_runtime_cname});')
-        code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_tuple});')
-        code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_bytes});')
-        code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_unicode});')
+        code.putln("#if !(CYTHON_USE_MODULE_STATE && __PYX_LIMITED_VERSION_HEX >= 0x030d0000)")
+        for container in Naming.empty_containers:
+            code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_}{container});')
+        code.putln('#endif')
 
     def generate_module_init_func(self, imported_modules, shared_utility_exporter, env, code):
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
@@ -3484,15 +3484,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                         "CYTHON_COMPILING_IN_LIMITED_API)"
         )
 
-        empty_tuple = code.name_in_main_c_code_module_state(Naming.empty_tuple)
+        code.putln("#if !(CYTHON_USE_MODULE_STATE && __PYX_LIMITED_VERSION_HEX >= 0x030d0000)")
+        empty_tuple = code.name_in_main_c_code_module_state(Naming.empty_+"TUPLE")
         code.putln("%s = PyTuple_New(0); %s" % (
             empty_tuple, code.error_goto_if_null(empty_tuple, self.pos)))
-        empty_bytes = code.name_in_main_c_code_module_state(Naming.empty_bytes)
+        empty_bytes = code.name_in_main_c_code_module_state(Naming.empty_+"BYTES")
         code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (
             empty_bytes, code.error_goto_if_null(empty_bytes, self.pos)))
-        empty_unicode = code.name_in_main_c_code_module_state(Naming.empty_unicode)
+        empty_unicode = code.name_in_main_c_code_module_state(Naming.empty_+"STR")
         code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
             empty_unicode, code.error_goto_if_null(empty_unicode, self.pos)))
+        code.putln("#endif")
 
 
         code.putln("/*--- Library function declarations ---*/")
@@ -3829,10 +3831,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     clear_before_decref=True,
                     nanny=False)
         code.putln("/*--- Intern cleanup code ---*/")
-        code.put_decref_clear(f"{code.name_in_main_c_code_module_state(Naming.empty_tuple)}",
+        code.putln("#if !(CYTHON_USE_MODULE_STATE && __PYX_LIMITED_VERSION_HEX >= 0x030d0000)")
+        for container in Naming.empty_containers:
+            code.put_decref_clear(code.name_in_main_c_code_module_state(Naming.empty_+container),
                               PyrexTypes.py_object_type,
                               clear_before_decref=True,
                               nanny=False)
+        code.putln("#endif")
         for entry in env.c_class_entries:
             cclass_type = entry.type
             if cclass_type.is_external or cclass_type.base_type:
