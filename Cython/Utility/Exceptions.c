@@ -935,6 +935,16 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
   #include "internal/pycore_frame.h"
 #endif
 
+// Called when a function takes its error path. If it does so with no exception
+// set (e.g. a cdef function returned its "except" value without raising),
+// PyTraceBack_Here() would crash on Python 3.12+, so raise the same SystemError
+// that CPython's eval loop uses for this situation instead.
+static CYTHON_INLINE void __Pyx_AddTraceback_EnsureException(void) {
+    if (unlikely(!PyErr_Occurred())) {
+        PyErr_SetString(PyExc_SystemError, "error return without exception set");
+    }
+}
+
 #if CYTHON_COMPILING_IN_LIMITED_API
 static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject *scratch_dict,
                                                        PyObject *firstlineno, PyObject *name) {
@@ -958,6 +968,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     PyObject *replace = NULL, *getframe = NULL, *frame = NULL;
     PyObject *exc_type, *exc_value, *exc_traceback;
     int success = 0;
+    __Pyx_AddTraceback_EnsureException();
     if (c_line) {
         c_line = __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
     }
@@ -1055,6 +1066,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     PyThreadState *tstate = __Pyx_PyThreadState_Current;
     PyObject *ptype, *pvalue, *ptraceback;
 
+    __Pyx_AddTraceback_EnsureException();
     if (c_line) {
         c_line = __Pyx_CLineForTraceback(tstate, c_line);
     }
