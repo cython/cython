@@ -861,6 +861,8 @@ static int __Pyx_init_tpflags_variables(void); /* proto */
 // that breaks with a CyFunction in debug mode.
 #define __Pyx_PyCFunction_CheckExact(func) PyCFunction_CheckExact(func)
 #define __Pyx_CyOrPyCFunction_Check(func)  PyCFunction_Check(func)
+// QuickCheck is allowed to produce a false negative
+#define __Pyx_CyOrPyCFunction_QuickCheck(func)  __Pyx_CyOrPyCFunction_Check(func)
 
 #if CYTHON_COMPILING_IN_CPYTHON
 #define __Pyx_CyOrPyCFunction_GET_FUNCTION(func)  (((PyCFunctionObject*)(func))->m_ml->ml_meth)
