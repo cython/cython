@@ -45,10 +45,11 @@ if (likely(__pyx_AsyncGen_init($module_cname) == 0)); else
 //@requires: Coroutine.c::Coroutine
 
 #if CYTHON_OPAQUE_SHARED_TYPES
-#define __Pyx_as_PyAsyncGenObject(o) ((__pyx_PyAsyncGenObject*)PyObject_GetTypeData(o, CGLOBAL(__pyx_AsyncGenType)))
-#define __Pyx_as_PyAsyncGenASend(o) ((__pyx_PyAsyncGenASend*)PyObject_GetTypeData(o, CGLOBAL(__pyx__PyAsyncGenASendType)))
-#define __Pyx_as_PyAsyncGenAThrow(o) ((__pyx_PyAsyncGenAThrow*)PyObject_GetTypeData(o, CGLOBAL(__pyx__PyAsyncGenAThrowType)))
-#define __Pyx_as__PyAsyncGenWrappedValue(o) ((__pyx__PyAsyncGenWrappedValue*)PyObject_GetTypeData(o, CGLOBAL(__pyx__PyAsyncGenWrappedValueType)))
+// None of these types can be subclassed so Py_TYPE(o) always gives the exact type.
+#define __Pyx_as_PyAsyncGenObject(o) ((__pyx_PyAsyncGenObject*)PyObject_GetTypeData(o, Py_TYPE(o)))
+#define __Pyx_as_PyAsyncGenASend(o) ((__pyx_PyAsyncGenASend*)PyObject_GetTypeData(o, Py_TYPE(o)))
+#define __Pyx_as_PyAsyncGenAThrow(o) ((__pyx_PyAsyncGenAThrow*)PyObject_GetTypeData(o, Py_TYPE(o)))
+#define __Pyx_as__PyAsyncGenWrappedValue(o) ((__pyx__PyAsyncGenWrappedValue*)PyObject_GetTypeData(o, Py_TYPE(o)))
 #else
 #define __Pyx_as_PyAsyncGenObject(o) ((__pyx_PyAsyncGenObject*)o)
 #define __Pyx_as_PyAsyncGenASend(o) ((__pyx_PyAsyncGenASend*)o)
