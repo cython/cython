@@ -9257,16 +9257,26 @@ class TupleNode(SequenceNode):
 
         if not all(child.is_literal for child in node.args):
             return node
-        if not node.mult_factor or (
-                node.mult_factor.is_literal and
-                isinstance(node.mult_factor.constant_result, int)):
+
+        # Constant tuples are created at module init time, including short multiplied tuples.
+        mult_factor = node.mult_factor
+        if not mult_factor:
             node.is_temp = False
             node.is_literal = True
-        else:
-            if not node.mult_factor.type.is_pyobject and not node.mult_factor.type.is_int:
-                node.mult_factor = node.mult_factor.coerce_to_pyobject(env)
-            node.is_temp = True
-            node.is_partly_literal = True
+            return node
+        if mult_factor.is_literal and isinstance(mult_factor.constant_result, int):
+            # Leave large results to runtime so that errors (OverflowError, MemoryError)
+            # are raised where the expression is evaluated.  The limit is the same as CPython's
+            # (3.15) constant folding of sequence repetition.
+            if len(node.args) * mult_factor.constant_result <= 256:
+                node.is_temp = False
+                node.is_literal = True
+                return node
+
+        node.is_temp = True
+        node.is_partly_literal = True
+        if not mult_factor.type.is_pyobject and not mult_factor.type.is_int:
+            node.mult_factor = mult_factor.coerce_to_pyobject(env)
         return node
 
     def analyse_as_type(self, env):

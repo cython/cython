@@ -74,6 +74,7 @@ MANIFEST
 /*.komodoproject
 
 # Visual Studio Code files
-.vscode
 
 .python-version
+config.bat
+node_modules

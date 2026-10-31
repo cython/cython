@@ -211,3 +211,31 @@ def constant_types_comparing_equal():
     assert int_float is not float_tuple
 
     return bool_tuple, int_tuple, float_tuple, int_bool, bool_float, int_float
+
+
+def multiplied_constant_tuple_too_large(do_it):
+    """
+    Constant tuples are created when the module is imported, which must
+    not fail for a repetition that the code never evaluates.
+
+    >>> multiplied_constant_tuple_too_large(False)
+    >>> multiplied_constant_tuple_too_large(True)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    OverflowError: ...
+    """
+    if do_it:
+        return (1, 2, 3) * 2**63
+
+
+def multiplied_constant_tuple_huge(do_it):
+    """
+    The failure depends on the runtime: allocation fails on 64-bit CPython,
+    while index conversion fails on 32-bit CPython and GraalPy.
+    >>> multiplied_constant_tuple_huge(False)
+    >>> try:
+    ...     multiplied_constant_tuple_huge(True)
+    ... except (MemoryError, OverflowError, IndexError):
+    ...     pass
+    """
+    if do_it:
+        return (1,) * 10**15

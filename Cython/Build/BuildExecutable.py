@@ -8,6 +8,7 @@ Basic usage:
 """
 
 
+import utils.session
 DEBUG = True
 
 import sys
