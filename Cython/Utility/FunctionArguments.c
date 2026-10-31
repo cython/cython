@@ -30,7 +30,7 @@ static void __Pyx_ArgTypeError(PyObject *obj, PyTypeObject *type, const char *na
 {
     __Pyx_TypeName type_name;
     __Pyx_TypeName obj_type_name;
-    PyObject *extra_info = EMPTY(unicode);
+    PyObject *extra_info = EMPTY(str);
     int from_annotation_subclass = 0;
     if (unlikely(!type)) {
         PyErr_SetString(PyExc_SystemError, "Missing type object");

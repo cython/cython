@@ -4049,7 +4049,7 @@ class FormattedValueNode(ExprNode):
             # common case: expect simple Unicode pass-through if no format spec
             format_func = '__Pyx_PyObject_FormatSimple'
             # passing a Unicode format string in Py2 forces PyObject_Format() to also return a Unicode string
-            format_spec = code.name_in_module_state(Naming.empty_unicode)
+            format_spec = code.empty_constant_code("str")
 
         conversion_char = self.conversion_char
         if conversion_char == 's' and value_is_unicode:
@@ -9337,7 +9337,7 @@ class TupleNode(SequenceNode):
 
     def generate_operation_code(self, code):
         if len(self.args) == 0:
-            self.result_code = code.name_in_module_state(Naming.empty_tuple)
+            self.result_code = code.empty_constant_code("tuple")
             return
 
         if self.is_literal or self.is_partly_literal:
@@ -16231,7 +16231,7 @@ class TStringInterpolationNode(ExprNode):
             else "Py_None")
         format_spec = (
             self.format_spec.result() if self.format_spec is not None
-            else code.name_in_module_state(Naming.empty_unicode))
+            else code.empty_constant_code("str"))
         code.putln(f"{self.result()} = __Pyx_MakeTemplateLibInterpolation({value}, {expression}, {conversion_char}, {format_spec});")
         code.putln(code.error_goto_if_null(self.result(), self.pos))
         code.put_gotref(self.result(), py_object_type)
