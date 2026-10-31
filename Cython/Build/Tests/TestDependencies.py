@@ -3,7 +3,7 @@ import os
 import tempfile
 from os.path import join as pjoin
 
-from ..Dependencies import extended_iglob
+from ..Dependencies import extended_iglob, parse_dependencies
 from ...TestUtils import TimedTest
 
 
@@ -131,3 +131,44 @@ class TestGlobbing(TimedTest):
         self.files_equal("**/*.{py}", all_files[1::2])
         self.files_equal("*/*/*.py", files[1::2])
         self.files_equal("**/*.py", all_files[1::2])
+
+
+class TestParseDependencies(TimedTest):
+    def cimports(self, source):
+        # parse_dependencies() is cached by file name, so use a new directory for every call.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pjoin(tmp, "mod.pyx")
+            with open(path, "w", encoding="utf8") as f:
+                f.write(source)
+            return parse_dependencies(path)[0]
+
+    def test_from_cimport_submodule(self):
+        expected = ["pkg", "pkg.submodule"]
+        self.assertEqual(self.cimports("from pkg cimport submodule\n"), expected)
+        self.assertEqual(self.cimports("from pkg cimport submodule"), expected)
+        self.assertEqual(self.cimports("from pkg cimport submodule  # comment\n"), expected)
+
+    def test_from_cimport_ignores_following_lines(self):
+        self.assertEqual(
+            self.cimports("from pkg cimport submodule\nif x:\n    pass\n"),
+            ["pkg", "pkg.submodule"])
+
+    def test_from_cimport_several_names(self):
+        expected = ["pkg", "pkg.a", "pkg.b"]
+        self.assertEqual(self.cimports("from pkg cimport a, b\n"), expected)
+        self.assertEqual(self.cimports("from pkg cimport (a, b)\n"), expected)
+        self.assertEqual(self.cimports("from pkg cimport a, \\\n    b\n"), expected)
+
+    def test_from_cimport_multiline(self):
+        expected = ["pkg", "pkg.a", "pkg.b"]
+        self.assertEqual(self.cimports("from pkg cimport (\n    a,\n    b,\n)\n"), expected)
+        self.assertEqual(self.cimports("from pkg cimport (\n    a,\n    b\n)\n"), expected)
+
+    def test_from_cimport_alias(self):
+        self.assertEqual(
+            self.cimports("from pkg cimport a as x, b\n"), ["pkg", "pkg.a", "pkg.b"])
+
+    def test_from_cython_cimports(self):
+        self.assertEqual(
+            self.cimports("from cython.cimports.pkg import submodule\n"),
+            ["pkg", "pkg.submodule"])

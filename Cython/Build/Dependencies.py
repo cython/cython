@@ -403,10 +403,11 @@ dependency_regex = re.compile(
     r"(?:^ [ \t\f]* cdef     [ \t\f]+ extern [ \t\f]+ from [ \t\f]+ ['\"] ([^'\"]+) ['\"] ) |"
     r"(?:^ [ \t\f]* include  [ \t\f]+ ['\"] ([^'\"]+) ['\"] )",
     re.MULTILINE | re.VERBOSE)
+# Matched right after the "cimport" of "from ... cimport", not at the start of a line.
 dependency_after_from_regex = re.compile(
-    r"(?:^ [ \t\f]+ \( ([\w., \t\f]*) \) [ \t\f]* [#\n]) |"
-    r"(?:^ [ \t\f]+    ([\w., \t\f]*)    [ \t\f]* [#\n])",
-    re.MULTILINE | re.VERBOSE)
+    r"(?:[ \t\f]* \( ([\w., \t\f\n]*) \) ) |"
+    r"(?:[ \t\f]+    ([\w., \t\f]*)    [ \t\f]* (?: [#\n] | \Z ))",
+    re.VERBOSE)
 
 
 def normalize_existing(base_path, rel_paths):
@@ -501,12 +502,13 @@ def parse_dependencies(source_filename):
 
         if cimport_from:
             cimports.append(cimport_from)
-            m_after_from = dependency_after_from_regex.search(source, pos=m.end())
+            m_after_from = dependency_after_from_regex.match(source, pos=m.end())
             if m_after_from:
                 multiline, one_line = m_after_from.groups()
                 subimports = multiline or one_line
-                cimports.extend("{}.{}".format(cimport_from, s.strip())
-                                for s in subimports.split(','))
+                # Skip empty items (trailing comma) and drop "as" aliases.
+                cimports.extend("{}.{}".format(cimport_from, s.split()[0])
+                                for s in subimports.split(',') if s.strip())
 
         elif cimport_list:
             cimports.extend(x.strip() for x in cimport_list.split(","))
