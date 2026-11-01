@@ -146,8 +146,8 @@ def generate_shared_module(options):
     Errors.reset()
 
     dest_c_file = options.shared_c_file_path
-    module_name = os.path.splitext(os.path.basename(dest_c_file))[0]
-    pyx_file = f'{module_name}.pyx'
+    module_name = options.module_name or os.path.splitext(os.path.basename(dest_c_file))[0]
+    pyx_file = f'{module_name.replace(".", "/")}.pyx'
 
     selected_features = None
     if options.shared_utility_features_enabled or options.shared_utility_features_disabled:
