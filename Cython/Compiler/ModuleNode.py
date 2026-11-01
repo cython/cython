@@ -1553,7 +1553,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         traverse_code.putln('#if CYTHON_USE_FREELISTS')
         traverse_code.putln("{")
         traverse_code.putln(
-            f"int visitres = __Pyx_VisitFreelist((PyObject **)&{freelist_name}, {freecount_name}, visit, arg);")")
+            f"int visitres = __Pyx_VisitFreelist((PyObject **)&{freelist_name}, {freecount_name}, visit, arg);")
         traverse_code.putln("if (visitres != 0) {")
         traverse_code.putln("return visitres;")
         traverse_code.putln("}")
