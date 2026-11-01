@@ -157,15 +157,13 @@ class Cache:
         ext = os.path.splitext(cached)[1]
         if ext == gzip_ext:
             os.utime(cached, None)
-            with gzip_open(cached, "rb") as g:
-                with open(c_file, "wb") as f:
-                    shutil.copyfileobj(g, f)
+            with gzip_open(cached, "rb") as g, open(c_file, "wb") as f:
+                shutil.copyfileobj(g, f)
         elif ext == zip_ext:
             os.utime(cached, None)
             dirname = os.path.dirname(c_file)
             with zipfile.ZipFile(cached) as z:
-                for artifact in z.namelist():
-                    z.extract(artifact, dirname)
+                z.extractall(dirname)
         else:
             raise ValueError(f"Unsupported cache file extension: {ext}")
 
