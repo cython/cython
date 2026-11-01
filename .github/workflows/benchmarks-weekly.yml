@@ -88,12 +88,12 @@ jobs:
               CYTHONIZE_ARGS="${BENCHMARK_CYTHONIZE_ARGS}"
 
               if [[ ${PYTHON} == *t || ${PYTHON} == *"t-dev" ]]; then
-                COMMITS=("origin/3.1.x" "origin/3.2.x" "origin/master")
+                COMMITS=("origin/3.1.x"  "origin/3.2.x"  "origin/3.3.x"  "origin/master")
                 CYTHONIZE_ARGS="${CYTHONIZE_ARGS} -Xfreethreading_compatible=True"
               elif [[ ${PYTHON} == "pypy"* ]]; then
-                COMMITS=("origin/3.1.x" "origin/3.2.x" "origin/master")
+                COMMITS=("origin/3.1.x"  "origin/3.2.x"  "origin/3.3.x"  "origin/master")
               else
-                COMMITS=("origin/3.0.x"  "origin/3.1.x"  "origin/3.2.x"  "${LIMITED_API}" "origin/master")
+                COMMITS=("origin/3.0.x"  "origin/3.1.x"  "origin/3.2.x"  "origin/3.3.x"  "${LIMITED_API}" "origin/master")
               fi
 
               ${PYTHON} Demos/benchmarks/run_benchmarks.py \
