@@ -1517,7 +1517,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self._generate_type_freelist_cleanup(
                     entry.type, module_state_clear, module_state_traverse,
                     'clear_module_state', 'traverse_module_state')
-            
+
     def _generate_type_freelist_cleanup(self, cclass_type, clear_code, traverse_code,
             clear_module_state_cname=None, traverse_module_state_cname=None):
         if cclass_type.is_external or cclass_type.base_type:
@@ -1544,16 +1544,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         clear_code.putln('#if CYTHON_USE_FREELISTS')
         clear_code.putln(f"__Pyx_ClearFreelist((PyObject **)&{freelist_name}, &{freecount_name});")
         clear_code.putln('#endif')  # CYTHON_USE_FREELISTS
-        
+
         if traverse_code is None:
             return
         freelist_name, freecount_name = get_names(traverse_code, traverse_module_state_cname)
         traverse_code.globalstate.use_utility_code(
             UtilityCode.load_cached("VisitFreelist", "ExtensionTypes.c"))
         traverse_code.putln('#if CYTHON_USE_FREELISTS')
+        traverse_code.putln("{")
         traverse_code.putln(
-            f"if (__Pyx_VisitFreelist((PyObject **)&{freelist_name}, {freecount_name}, visit, arg) < 0) {{")
-        traverse_code.putln("return -1;")
+            f"int visitres = __Pyx_VisitFreelist((PyObject **)&{freelist_name}, {freecount_name}, visit, arg);")")
+        traverse_code.putln("if (visitres != 0) {")
+        traverse_code.putln("return visitres;")
+        traverse_code.putln("}")
         traverse_code.putln("}")
         traverse_code.putln('#endif')  # CYTHON_USE_FREELISTS    
 
