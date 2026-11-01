@@ -923,6 +923,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 /////////////// AddTraceback ///////////////
 //@requires: ModuleSetupCode.c::CodeObjectCache
 //@requires: CLineInTraceback
+//@requires: PyThreadStateGet
 //@substitute: naming
 
 #include "compile.h"
@@ -934,16 +935,6 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
   #endif
   #include "internal/pycore_frame.h"
 #endif
-
-// Called when a function takes its error path. If it does so with no exception
-// set (e.g. a cdef function returned its "except" value without raising),
-// PyTraceBack_Here() would crash on Python 3.12+, so raise the same SystemError
-// that CPython's eval loop uses for this situation instead.
-static CYTHON_INLINE void __Pyx_AddTraceback_EnsureException(void) {
-    if (unlikely(!PyErr_Occurred())) {
-        PyErr_SetString(PyExc_SystemError, "error return without exception set");
-    }
-}
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject *scratch_dict,
@@ -968,7 +959,6 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     PyObject *replace = NULL, *getframe = NULL, *frame = NULL;
     PyObject *exc_type, *exc_value, *exc_traceback;
     int success = 0;
-    __Pyx_AddTraceback_EnsureException();
     if (c_line) {
         c_line = __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
     }
@@ -980,6 +970,13 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     // We then run the code object and use the generated frame to set the traceback.
 
     __Pyx_PyErr_FetchException(&exc_type, &exc_value, &exc_traceback);
+    if (unlikely(!exc_type && !exc_value)) {
+        // Error return without an exception set (e.g. a cdef function returned its
+        // "except" value without raising). PyTraceBack_Here() would crash on 3.12+,
+        // so raise the same SystemError as CPython's eval loop does.
+        PyErr_SetString(PyExc_SystemError, "error return without exception set");
+        __Pyx_PyErr_FetchException(&exc_type, &exc_value, &exc_traceback);
+    }
 
     code_object = $global_code_object_cache_find(c_line ? -c_line : py_line);
     if (!code_object) {
@@ -1065,8 +1062,13 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     PyFrameObject *py_frame = 0;
     PyThreadState *tstate = __Pyx_PyThreadState_Current;
     PyObject *ptype, *pvalue, *ptraceback;
+    __Pyx_PyThreadState_declare
 
-    __Pyx_AddTraceback_EnsureException();
+    __Pyx_PyThreadState_assign
+    if (unlikely(!__Pyx_PyErr_Occurred())) {
+        // See the comment in the Limited API version above.
+        PyErr_SetString(PyExc_SystemError, "error return without exception set");
+    }
     if (c_line) {
         c_line = __Pyx_CLineForTraceback(tstate, c_line);
     }
