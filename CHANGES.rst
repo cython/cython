@@ -168,8 +168,11 @@ Bugs fixed
 * Copying the ``Shadow.py`` module into user packages could fail due to internal re-imports.
   Patch by Vincent Fazio.  (Github issue :issue:`7999`)
 
-* Concurrently creating the Cython file cache directory could fail.
-  Patch by Lawrence Mitchell.  (Github issue :issue:`7985`)
+* Several issues were resolved when using the Cython file cache directory in concurrent processes.
+  The cache is also more effective now because it previously deleted the most recent instead of
+  the oldest file on cleanup.
+  Patches by Lawrence Mitchell and Samuel Hills.
+  (Github issues :issue:`7983`, :issue:`7985`, :issue:`8090`)
 
 * The Cython file cache key didn't take the compiler directives into account.
   Patch by Robert Dazi.  (Github issue :issue:`7532`)
