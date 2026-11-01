@@ -203,11 +203,13 @@ class Cache:
                 return
             try:
                 os.unlink(file_path)
+                total_size -= size
             except FileNotFoundError:
                 # Concurrently deleted. Nothing left to delete for us.
-                pass
-            finally:
                 total_size -= size
+            except OSError:
+                # Concurrent access on Windows? Keep the file, cannot delete it right now.
+                pass
 
     def _cachedir_looks_small_enough(self):
         try:
