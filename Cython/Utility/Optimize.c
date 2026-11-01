@@ -549,7 +549,7 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, 
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
                                                    Py_ssize_t* p_orig_length, int* p_source_is_dict) {
-    is_dict = is_dict || likely(__Pyx_PyAnyDict_CheckExact(iterable));
+    is_dict = is_dict || likely(__Pyx_PyAnyDict_CheckExact(iterable)) || __Pyx_SlotIsInherited(iterable, &PyDict_Type, tp_iter);
     *p_source_is_dict = is_dict;
 #if !CYTHON_AVOID_BORROWED_REFS
     if (is_dict) {
@@ -582,7 +582,8 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
 static CYTHON_INLINE PyObject* __Pyx_set_iterator(PyObject* iterable, int is_set,
                                                   Py_ssize_t* p_orig_length, int* p_source_is_set) {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
-    is_set = is_set || likely(PySet_CheckExact(iterable) || PyFrozenSet_CheckExact(iterable));
+    is_set = is_set || likely(PySet_CheckExact(iterable) || PyFrozenSet_CheckExact(iterable)) || (
+        __Pyx_SlotIsInherited(iterable, &PySet_Type, tp_iter) || __Pyx_SlotIsInherited(iterable, &PyFrozenSet_Type, tp_iter));
     *p_source_is_set = is_set;
     if (likely(is_set)) {
         *p_orig_length = PySet_Size(iterable);
@@ -1125,7 +1126,7 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
 // see https://bugs.python.org/issue21420
 #if !CYTHON_COMPILING_IN_PYPY
     Py_ssize_t shiftby;
-    if (likely(PyLong_CheckExact(exp))) {
+    if (likely(PyLong_CheckExact(exp)) || __Pyx_SubSlotIsInherited(exp, &PyLong_Type, tp_as_number, nb_power)) {
         #if CYTHON_USE_PYLONG_INTERNALS
         if (__Pyx_PyLong_IsZero(exp)) {
             return PyLong_FromLong(1L);
@@ -1506,24 +1507,24 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyObject_Compare{{'' if return_obj els
 {{py: return_error = "return NULL" if return_obj else "return -1"}}
 {{py: c_op_reversed = {'==': '==', '!=': '!=', '<': '>=', '<=': '>', '>=': '<', '>': '<='}[c_op] }}
 {{py:
-check_functions = {
-    'float': "PyFloat_CheckExact",
-    'int': 'PyLong_CheckExact',
-    'str': 'PyUnicode_CheckExact',
-    'bytes': 'PyBytes_CheckExact',
-    'bytearray': 'PyByteArray_CheckExact',
+ctype_names = {
+    'float': "PyFloat",
+    'int': 'PyLong',
+    'str': 'PyUnicode',
+    'bytes': 'PyBytes',
+    'bytearray': 'PyByteArray',
 }
 }}
 {{py:
-def is_type(operand, expected, type1=type1, type2=type2, check_functions=check_functions):
+def is_type(operand, expected, type1=type1, type2=type2, ctype_names=ctype_names):
     assert operand in ('op1', 'op2'), operand
-    assert expected in check_functions, expected
+    assert expected in ctype_names, expected
     type = type1 if operand == 'op1' else type2
     if type == expected:
         check = f"likely({operand} != Py_None)"
     else:
-        function = check_functions[expected]
-        check = f"{function}({operand})"
+        c_type_name = ctype_names[expected]
+        check = f"{c_type_name}_CheckExact({operand}) || __Pyx_SlotIsInherited({operand}, &{c_type_name}_Type, tp_richcompare)"
         other_type = type2 if operand == 'op1' else type1
         if other_type == expected:
             check = f"likely({check})"
@@ -2067,7 +2068,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyLong_{{'' if ret_type.is_pyobject el
     }
 
     #if CYTHON_USE_PYLONG_INTERNALS
-    if (likely(PyLong_CheckExact({{pyval}}))) {
+    if (likely(PyLong_CheckExact({{pyval}})) || __Pyx_SlotIsInherited({{pyval}}, &PyLong_Type, tp_richcompare)) {
         int unequal;
         unsigned long uintval;
         Py_ssize_t size = __Pyx_PyLong_DigitCount({{pyval}});
@@ -2102,7 +2103,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyLong_{{'' if ret_type.is_pyobject el
     }
     #endif
 
-    if (PyFloat_CheckExact({{pyval}})) {
+    if (PyFloat_CheckExact({{pyval}}) || __Pyx_SlotIsInherited({{pyval}}, &PyFloat_Type, tp_richcompare)) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         double {{ival}} = __Pyx_PyFloat_AS_DOUBLE({{pyval}});
         {{return_compare('(double)a', '(double)b', c_op)}}
