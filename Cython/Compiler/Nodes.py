@@ -9914,8 +9914,10 @@ class FromImportStatNode(StatNode):
         self.module.generate_evaluation_code(code)
         if self.import_star:
             code.putln(
-                'if (%s(%s) < 0) %s;' % (
+                'if (%s(%s, %s) < 0) %s;' % (
                     Naming.import_star,
+                    # Import * always happens at module init time so modulestate_cname is available
+                    Naming.modulestatevalue_cname,
                     self.module.py_result(),
                     code.error_goto(self.pos)))
 
