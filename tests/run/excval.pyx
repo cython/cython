@@ -1,13 +1,13 @@
 # mode: run
-# tag: traceback
-
-# A cdef function that returns its exception value without raising is a user
-# error, but it used to crash in __Pyx_AddTraceback() on Python 3.12+.
+# tag: traceback, gh7857
 
 import traceback
 
 
 cdef int returns_error_value(int x) except -1:
+    # A cdef function that returns its exception value without raising is a user
+    # error, but it used to crash in __Pyx_AddTraceback() on Python 3.12+,
+    # making it unnecessarily difficult for users to diagnose.
     return x
 
 cdef int calls_returns_error_value(int x) except -1:
