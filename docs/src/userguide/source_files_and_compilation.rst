@@ -186,7 +186,7 @@ The compilation process now consist of three steps:
 
    .. code-block:: console
 
-       $ cython generate-shared mypkg/shared/_cyutility.c
+       $ cython generate-shared --module-name=mypkg.shared._cyutility mypkg/shared/_cyutility.c
 
 2. Translating all ``.pyx`` files to ``.c`` files with the ``--shared`` argument to provide
    the fully qualified name of the shared module:
@@ -198,6 +198,11 @@ The compilation process now consist of three steps:
 3. Compiling the shared utility module and all other (user defined) extension modules.
    The shared utility module needs to be compiled as regular ``.c`` extension module,
    either by using the C compiler directly, or through setuptools, etc.
+
+While it is not required to pass the ``--module-name`` option, it is recommended because
+the C file path alone may not be enough for Cython to determine the fully qualified module name.
+By default, Cython will not assume that it can detect the package path and will use only the
+plain module name.
 
 .. warning::
 
