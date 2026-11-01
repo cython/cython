@@ -62,6 +62,12 @@
 // when doing version checks.
 #define __PYX_LIMITED_VERSION_HEX PY_VERSION_HEX
 
+#if defined(CYTHON_USE_MODULE_STATE) && CYTHON_USE_MODULE_STATE && !defined(CYTHON_USE_TYPE_SPECS)
+  // Module state strongly implies using heap types so select this unless the user has made a
+  // conscious choice to do the opposite.
+  #define CYTHON_USE_TYPE_SPECS 1
+#endif
+
 #if defined(CYTHON_LIMITED_API)
   #ifdef Py_LIMITED_API
     #undef __PYX_LIMITED_VERSION_HEX

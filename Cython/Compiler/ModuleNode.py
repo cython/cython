@@ -1497,6 +1497,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
         module_state_typeobj = module_state.insertion_point()
+        module_state_clear.putln("#if CYTHON_USE_TYPE_SPECS")
+        module_state_traverse.putln("#if CYTHON_USE_TYPE_SPECS")
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
                 module_state.putln("PyTypeObject *%s;" % entry.type.typeptr_cname)
@@ -1514,6 +1516,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     module_state_traverse.putln(
                         "Py_VISIT(traverse_module_state->%s);" % (
                         entry.type.typeobj_cname))
+        module_state_clear.putln("#endif")  # typespecs
+        module_state_traverse.putln("#endif")  # typespecs
 
     def generate_cvariable_declarations(self, env, code, definition):
         if env.is_cython_builtin:
