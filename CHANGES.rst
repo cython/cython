@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.3.1 (2026-10-??)
+3.3.1 (2026-11-??)
 ==================
 
 Most of the bugs fixed in this release were regressions in 3.3.0.
@@ -72,6 +72,9 @@ Bugs fixed
 
 * Exporting fused functions generated invalid C code in API header files.
   Patch by Ardi Loot.  (Github issue :issue:`7972`)
+
+* With ``CYTHON_USE_MODULE_STATE=1``, using a memoryview typed argument with default generated incorrect C code.
+  Patch by demrom.  (Github issue :issue:`7981`)
 
 * Non-trivially generated keyword arguments (e.g. ``**{dict}``) could fail to compile.
   (Github issue :issue:`7921`)
@@ -143,6 +146,9 @@ Bugs fixed
 
 * A C compiler warning in MSVC was resolved.
   (Github issue :issue:`7911`)
+
+* A C compiler warning for an unused variable was resolved.
+  Patch by WyattBlue.  (Github issue :issue:`8087`)
 
 * PyPy now uses type specs by default.
   Patch by Matti Picus.  (Github issue :issue:`7947`)
