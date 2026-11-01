@@ -525,14 +525,18 @@ def run_cached_pipeline(source, options, full_module_name, context, cache, finge
     output_filename = get_output_filename(source, cwd, options)
     cached = cache.lookup_cache(output_filename, fingerprint)
     if cached:
-        cache.load_from_cache(output_filename, cached)
+        try:
+            cache.load_from_cache(output_filename, cached)
+        except FileNotFoundError:
+            # Cached file was concurrently deleted, need to regenerate it.
+            pass
+        else:
+            source_ext = os.path.splitext(source)[1]
+            options.configure_language_defaults(source_ext[1:])  # py/pyx
 
-        source_ext = os.path.splitext(source)[1]
-        options.configure_language_defaults(source_ext[1:])  # py/pyx
-
-        source = setup_source_object(source, source_ext, full_module_name, options, context)
-        # Set up result object
-        return create_default_resultobj(source, options)
+            source = setup_source_object(source, source_ext, full_module_name, options, context)
+            # Set up result object
+            return create_default_resultobj(source, options)
 
     result = run_pipeline(source, options, full_module_name, context)
     if fingerprint:

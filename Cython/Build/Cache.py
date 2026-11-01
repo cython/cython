@@ -131,15 +131,26 @@ class Cache:
         )
 
     def lookup_cache(self, c_file, fingerprint):
+        """Look up a file in the cache and update its access/modification time.
+
+        Return the compressed file path of the cached file.
+        """
         # Cython-generated c files are highly compressible.
         # (E.g. a compression ratio of about 10 for Sage).
         os.makedirs(self.path, exist_ok=True)
         gz_fingerprint_file = self.fingerprint_file(c_file, fingerprint, gzip_ext)
-        if os.path.exists(gz_fingerprint_file):
+        # Single OS call to avoid races between check and time update.
+        try:
+            os.utime(gz_fingerprint_file, None)
             return gz_fingerprint_file
+        except FileNotFoundError:
+            pass
         zip_fingerprint_file = self.fingerprint_file(c_file, fingerprint, zip_ext)
-        if os.path.exists(zip_fingerprint_file):
+        try:
+            os.utime(zip_fingerprint_file, None)
             return zip_fingerprint_file
+        except FileNotFoundError:
+            pass
         return None
 
     def load_from_cache(self, c_file, cached):
