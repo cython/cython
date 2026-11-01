@@ -124,8 +124,8 @@ class TestUtilityCodeProcessing(TimedTest):
         NAMED_CGLOBAL(empty_tuple)
         """,
         expected=f"""
-        {Naming.modulestateglobal_cname}->name
-        {Naming.modulestateglobal_cname}->{Naming.empty_tuple}
+        __PYX_GET_MODULE_STATE_UTILITY_CODE()->name
+        __PYX_GET_MODULE_STATE_UTILITY_CODE()->{Naming.empty_tuple}
         """)
 
     def test_empty_builtin(self):
@@ -137,9 +137,9 @@ class TestUtilityCodeProcessing(TimedTest):
         EMPTY(tuple)
         """,
         expected=f"""
-        {Naming.modulestateglobal_cname}->{Naming.empty_tuple}{Naming.modulestateglobal_cname}->{Naming.empty_bytes}
-        {Naming.modulestateglobal_cname}->{Naming.empty_tuple};{Naming.modulestateglobal_cname}->{Naming.empty_bytes}
-        {Naming.modulestateglobal_cname}->{Naming.empty_unicode}
-        {Naming.modulestateglobal_cname}->{Naming.empty_bytes}
-        {Naming.modulestateglobal_cname}->{Naming.empty_tuple}
+        __PYX_GET_MODULE_STATE_UTILITY_CODE()->{Naming.empty_tuple}__PYX_GET_MODULE_STATE_UTILITY_CODE()->{Naming.empty_bytes}
+        __PYX_GET_MODULE_STATE_UTILITY_CODE()->{Naming.empty_tuple};__PYX_GET_MODULE_STATE_UTILITY_CODE()->{Naming.empty_bytes}
+        __PYX_GET_MODULE_STATE_UTILITY_CODE()->{Naming.empty_unicode}
+        __PYX_GET_MODULE_STATE_UTILITY_CODE()->{Naming.empty_bytes}
+        __PYX_GET_MODULE_STATE_UTILITY_CODE()->{Naming.empty_tuple}
         """)
