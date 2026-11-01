@@ -6,6 +6,7 @@
 
 cimport cython
 
+fake_none = object()
 
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
@@ -25,10 +26,31 @@ def str_startswith(str s, sub, start=None, stop=None):
     False
     >>> str_startswith('a', 'a', 0, 0)
     False
+    >>> str_startswith('a', 'a', fake_none)
+    True
+    >>> str_startswith('a', 'b', fake_none)
+    False
+    >>> str_startswith('a', 'a', fake_none, fake_none)
+    True
+    >>> str_startswith('a', 'a', fake_none, 0)
+    False
+    >>> str_startswith('a', 'a', 0, fake_none)
+    True
+    >>> str_startswith('a', 'a', 1, fake_none)
+    False
     """
 
     if start is None:
       return s.startswith(sub)
+    elif start is fake_none and stop is fake_none:
+      return s.startswith(sub, None, None)
+    elif start is fake_none:
+      if stop is None:
+        return s.startswith(sub, None)
+      else:
+        return s.startswith(sub, None, stop)
+    elif stop is fake_none:
+      return s.startswith(sub, start, None)
     elif stop is None:
       return s.startswith(sub, start)
     else:
@@ -61,6 +83,51 @@ def str_endswith(str s, sub, start=None, stop=None):
       return s.endswith(sub, start)
     else:
       return s.endswith(sub, start, stop)
+
+
+def str_find(str s, sub, start=None, stop=None):
+    """
+    >>> str_find('a', 'a')
+    0
+    >>> str_find('ab', 'a')
+    0
+    >>> str_find('a', 'b')
+    -1
+    >>> str_find('ab', 'b')
+    1
+    >>> str_find('a', 'a', 1)
+    -1
+    >>> str_find('a', 'a', 0, 0)
+    -1
+    >>> str_find('a', 'a', fake_none)
+    0
+    >>> str_find('a', 'b', fake_none)
+    -1
+    >>> str_find('a', 'a', fake_none, fake_none)
+    0
+    >>> str_find('a', 'a', fake_none, 0)
+    -1
+    >>> str_find('a', 'a', 0, fake_none)
+    0
+    >>> str_find('a', 'a', 1, fake_none)
+    -1
+    """
+
+    if start is None:
+      return s.find(sub)
+    elif start is fake_none and stop is fake_none:
+      return s.find(sub, None, None)
+    elif start is fake_none:
+      if stop is None:
+        return s.find(sub, None)
+      else:
+        return s.find(sub, None, stop)
+    elif stop is fake_none:
+      return s.find(sub, start, None)
+    elif stop is None:
+      return s.find(sub, start)
+    else:
+      return s.find(sub, start, stop)
 
 
 def object_as_name(object):

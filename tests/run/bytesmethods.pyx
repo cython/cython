@@ -11,6 +11,8 @@ SSIZE_T_MIN = PY_SSIZE_T_MIN
 b_a = b'a'
 b_b = b'b'
 
+fake_none = object()
+
 
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
@@ -36,10 +38,31 @@ def bytes_startswith(bytes s, sub, start=None, stop=None):
     True
     >>> bytes_startswith(b_a+b_b, bytearray(b_b))
     False
+    >>> bytes_startswith(b_a, b_a, fake_none)
+    True
+    >>> bytes_startswith(b_a, b_b, fake_none)
+    False
+    >>> bytes_startswith(b_a, b_a, fake_none, fake_none)
+    True
+    >>> bytes_startswith(b_a, b_a, fake_none, 0)
+    False
+    >>> bytes_startswith(b_a, b_a, 0, fake_none)
+    True
+    >>> bytes_startswith(b_a, b_a, 1, fake_none)
+    False
     """
 
     if start is None:
       return s.startswith(sub)
+    elif start is fake_none and stop is fake_none:
+      return s.startswith(sub, None, None)
+    elif start is fake_none:
+      if stop is None:
+        return s.startswith(sub, None)
+      else:
+        return s.startswith(sub, None, stop)
+    elif stop is fake_none:
+      return s.startswith(sub, start, None)
     elif stop is None:
       return s.startswith(sub, start)
     else:
@@ -78,6 +101,51 @@ def bytes_endswith(bytes s, sub, start=None, stop=None):
       return s.endswith(sub, start)
     else:
       return s.endswith(sub, start, stop)
+
+
+def bytes_find(bytes s, sub, start=None, stop=None):
+    """
+    >>> bytes_find(b_a, b_a)
+    0
+    >>> bytes_find(b_a+b_b, b_a)
+    0
+    >>> bytes_find(b_a, b_b)
+    -1
+    >>> bytes_find(b_a+b_b, b_b)
+    1
+    >>> bytes_find(b_a, b_a, 1)
+    -1
+    >>> bytes_find(b_a, b_a, 0, 0)
+    -1
+    >>> bytes_find(b_a, b_a, fake_none)
+    0
+    >>> bytes_find(b_a, b_b, fake_none)
+    -1
+    >>> bytes_find(b_a, b_a, fake_none, fake_none)
+    0
+    >>> bytes_find(b_a, b_a, fake_none, 0)
+    -1
+    >>> bytes_find(b_a, b_a, 0, fake_none)
+    0
+    >>> bytes_find(b_a, b_a, 1, fake_none)
+    -1
+    """
+
+    if start is None:
+      return s.find(sub)
+    elif start is fake_none and stop is fake_none:
+      return s.find(sub, None, None)
+    elif start is fake_none:
+      if stop is None:
+        return s.find(sub, None)
+      else:
+        return s.find(sub, None, stop)
+    elif stop is fake_none:
+      return s.find(sub, start, None)
+    elif stop is None:
+      return s.find(sub, start)
+    else:
+      return s.find(sub, start, stop)
 
 
 @cython.test_assert_path_exists(
