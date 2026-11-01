@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.3.1 (2026-11-??)
+3.3.1 (2026-11-01)
 ==================
 
 Most of the bugs fixed in this release were regressions in 3.3.0.
@@ -187,7 +187,7 @@ Other changes
   in the generated C code, making the output reproducible across build directories.
   It is now recommended to pass the ``--module-name`` option to ``cython generate-shared``
   to provide the fully qualified module name explicitly.
-  This is a follow-up fix to the one in 3.3.0, for ``--generate-shared=/path/to/_{sharedname}.c``.
+  This is a follow-up fix to the one in 3.3.0, for ``generate-shared /path/to/_{sharedname}.c``.
   Patch by Ralf Gommers.  (Github issue :issue:`7723`)
 
 
