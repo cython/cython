@@ -1558,7 +1558,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         traverse_code.putln("return visitres;")
         traverse_code.putln("}")
         traverse_code.putln("}")
-        traverse_code.putln('#endif')  # CYTHON_USE_FREELISTS    
+        traverse_code.putln('#endif')  # CYTHON_USE_FREELISTS
 
     def generate_cvariable_declarations(self, env, code, definition):
         if env.is_cython_builtin:
