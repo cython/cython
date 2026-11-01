@@ -5,35 +5,35 @@
 
 'A module docstring'
 
-doctest = u"""# Python 3 gets all of these right ...
+doctest = u"""# Docstrings are dedented like in Python 3.13+, regardless of the Python version.
     >>> __doc__
     'A module docstring'
 
     >>> f.__doc__
-    '\\n    This is a function docstring.\\n    '
+    '\\nThis is a function docstring.\\n'
 
     >>> C.__doc__
-    '\\n    This is a class docstring.\\n    '
+    '\\nThis is a class docstring.\\n'
     >>> C.docstring_copy_C
-    '\\n    This is a class docstring.\\n    '
+    '\\nThis is a class docstring.\\n'
     >>> CS.docstring_copy_C
-    '\\n    This is a class docstring.\\n    '
+    '\\nThis is a class docstring.\\n'
 
     >>> CS.__doc__
-    '\\n    This is a subclass docstring.\\n    '
+    '\\nThis is a subclass docstring.\\n'
     >>> CS.docstring_copy_CS
-    '\\n    This is a subclass docstring.\\n    '
+    '\\nThis is a subclass docstring.\\n'
     >>> CSS.docstring_copy_CS
-    '\\n    This is a subclass docstring.\\n    '
+    '\\nThis is a subclass docstring.\\n'
     >>> print(CSS.__doc__)
     None
     >>> CSS.docstring_copy_CSS
     'A module docstring'
 
     >>> T.__doc__
-    '\\n    This is an extension type docstring.\\n    '
+    '\\nThis is an extension type docstring.\\n'
     >>> TS.__doc__
-    '\\n    This is an extension subtype docstring.\\n    '
+    '\\nThis is an extension subtype docstring.\\n'
     >>> TSS.__doc__
 
 Compare with standard Python:
@@ -135,3 +135,73 @@ def test_non_docstrings():
     >>> PyN.__doc__
     >>> CN.__doc__
     """
+
+
+def first_line_spaces():
+    """   Leading spaces."""
+
+def uneven_margin():
+    """First.
+        Deeper.
+      Shallower.
+      """
+
+def tabs_and_blank_lines():
+    "First.\n\tTab indented.\n\t    Tab plus spaces.\n      \n  \n    "
+
+
+def test_dedent_rules():
+    """
+    >>> first_line_spaces.__doc__
+    'Leading spaces.'
+    >>> uneven_margin.__doc__
+    'First.\\n  Deeper.\\nShallower.\\n'
+    >>> tabs_and_blank_lines.__doc__
+    'First.\\nTab indented.\\n    Tab plus spaces.\\n\\n\\n'
+    """
+
+
+cdef class Members:
+    cdef public int attr
+    """Attribute docstring.
+       Body.
+    """
+
+    property oldprop:
+        """Property docstring.
+           Body.
+        """
+        def __get__(self):
+            return 1
+
+    cpdef cpmethod(self):
+        """Method docstring.
+           Body.
+        """
+
+
+def test_member_docstrings():
+    """
+    >>> Members.__dict__['attr'].__doc__
+    'Attribute docstring.\\nBody.\\n'
+    >>> Members.__dict__['oldprop'].__doc__
+    'Property docstring.\\nBody.\\n'
+    >>> Members.__dict__['cpmethod'].__doc__
+    'Method docstring.\\nBody.\\n'
+    """
+
+
+cdef extern from *:
+    """
+    static const char *verbatim_text = "a\\
+        b";
+    """
+    const char *verbatim_text
+
+
+def test_verbatim_code_not_dedented():
+    """
+    >>> test_verbatim_code_not_dedented()
+    'a        b'
+    """
+    return verbatim_text.decode()
