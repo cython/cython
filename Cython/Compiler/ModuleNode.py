@@ -1514,6 +1514,51 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     module_state_traverse.putln(
                         "Py_VISIT(traverse_module_state->%s);" % (
                         entry.type.typeobj_cname))
+                self._generate_type_freelist_cleanup(
+                    entry.type, module_state_clear, module_state_traverse,
+                    'clear_module_state', 'traverse_module_state')
+
+    def _generate_type_freelist_cleanup(self, cclass_type, clear_code, traverse_code,
+            clear_module_state_cname=None, traverse_module_state_cname=None):
+        if cclass_type.is_external or cclass_type.base_type:
+            return
+        if not cclass_type.scope.directives.get('freelist', 0):
+            return
+        scope = cclass_type.scope
+
+        def get_names(code, state_cname):
+            if state_cname:
+                return (
+                    f"{state_cname}->{scope.mangle_internal(Naming.freelist_name)}",
+                    f"{state_cname}->{scope.mangle_internal(Naming.freecount_name)}"
+                )
+            else:
+                return (
+                    code.name_in_main_c_code_module_state(scope.mangle_internal(Naming.freelist_name)),
+                    code.name_in_main_c_code_module_state(scope.mangle_internal(Naming.freecount_name))
+                )
+
+        freelist_name, freecount_name = get_names(clear_code, clear_module_state_cname)
+        clear_code.globalstate.use_utility_code(
+            UtilityCode.load_cached("ClearFreelist", "ExtensionTypes.c"))
+        clear_code.putln('#if CYTHON_USE_FREELISTS')
+        clear_code.putln(f"__Pyx_ClearFreelist((PyObject **)&{freelist_name}, &{freecount_name});")
+        clear_code.putln('#endif')  # CYTHON_USE_FREELISTS
+
+        if traverse_code is None:
+            return
+        freelist_name, freecount_name = get_names(traverse_code, traverse_module_state_cname)
+        traverse_code.globalstate.use_utility_code(
+            UtilityCode.load_cached("VisitFreelist", "ExtensionTypes.c"))
+        traverse_code.putln('#if CYTHON_USE_FREELISTS')
+        traverse_code.putln("{")
+        traverse_code.putln(
+            f"int visitres = __Pyx_VisitFreelist((PyObject **)&{freelist_name}, {freecount_name}, visit, arg);")
+        traverse_code.putln("if (visitres != 0) {")
+        traverse_code.putln("return visitres;")
+        traverse_code.putln("}")
+        traverse_code.putln("}")
+        traverse_code.putln('#endif')  # CYTHON_USE_FREELISTS
 
     def generate_cvariable_declarations(self, env, code, definition):
         if env.is_cython_builtin:
@@ -3834,20 +3879,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                               clear_before_decref=True,
                               nanny=False)
         for entry in env.c_class_entries:
-            cclass_type = entry.type
-            if cclass_type.is_external or cclass_type.base_type:
-                continue
-            if cclass_type.scope.directives.get('freelist', 0):
-                scope = cclass_type.scope
-                freelist_name = code.name_in_main_c_code_module_state(
-                    scope.mangle_internal(Naming.freelist_name))
-                freecount_name = code.name_in_main_c_code_module_state(
-                    scope.mangle_internal(Naming.freecount_name))
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("ClearFreelist", "ExtensionTypes.c"))
-                code.putln('#if CYTHON_USE_FREELISTS')
-                code.putln(f"__Pyx_ClearFreelist((PyObject **)&{freelist_name}, &{freecount_name});")
-                code.putln('#endif')  # CYTHON_USE_FREELISTS
+            self._generate_type_freelist_cleanup(entry.type, code, None)
 #        for entry in env.pynum_entries:
 #            code.put_decref_clear(entry.cname,
 #                                  PyrexTypes.py_object_type,
