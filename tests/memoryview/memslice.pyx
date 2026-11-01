@@ -1647,7 +1647,7 @@ def test_index_slicing_away_direct_indirect():
 
     try:
         print a_obj[1:, 2][3]
-    except IndexError, e:
+    except IndexError as e:
         print e.args[0]
 
 @testcase
@@ -1751,13 +1751,13 @@ def test_nogil_oob1():
 
     try:
         nogil_oob(IntMockBuffer("B", range(4 * 9), shape=(4, 9)))
-    except IndexError, e:
+    except IndexError as e:
         print e.args[0]
 
     try:
         with nogil:
             nogil_oob(a)
-    except IndexError, e:
+    except IndexError as e:
         print e.args[0]
 
 @testcase
@@ -2425,7 +2425,7 @@ def test_noneslice_ext_attr():
 
     with cython.nonecheck(True):
         try: print obj.m
-        except Exception, e: print type(e).__name__, e.args[0]
+        except Exception as e: print type(e).__name__, e.args[0]
 
         obj.m = None
         print obj.m

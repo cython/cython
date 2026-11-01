@@ -24,23 +24,16 @@ updates:
       github-actions:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "pypa/cibuildwheel"  # >= 4.0 dropped Py3.8 support
     cooldown:
       default-days: 7
 
   # The following is designed to update only cibuildwheel, and is here so that
   # it's kept in sync with github actions above.
+  # NOTE: also needed for new release branches!
   - package-ecosystem: "pip"
     target-branch: "master"
-    directory: ".github"
-    schedule:
-      interval: "monthly"
-    allow:
-      - dependency-name: "cibuildwheel"
-    cooldown:
-      default-days: 7
-
-  - package-ecosystem: "pip"
-    target-branch: "3.2.x"
     directory: ".github"
     schedule:
       interval: "monthly"

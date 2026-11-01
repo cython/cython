@@ -71,8 +71,6 @@ def test():
     return {1}
 """]
 
-from io import open
-
 for idx, (code, strings) in enumerate(zip(example_code, string_pairs)):
     with open("test{0}.py".format(idx), "w", encoding="utf8") as f:
         code = code.format(*strings)

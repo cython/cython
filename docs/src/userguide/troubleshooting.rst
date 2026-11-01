@@ -62,7 +62,7 @@ Now try run the following Cython code on a pair of ``Counter`` objects::
 This will give an ``AttributeError`` because Cython does not know the types of ``c1``
 and ``c2``. Typing them as ``Counter c1`` and ``Counter c2`` fixes the problem::
 
-    def bigger_count(c1, c2):
+    def bigger_count(Counter c1, Counter c2):
         return c1.count_so_far < c2.count_so_far
 
 A common variation of the same problem happens for global objects::
@@ -210,7 +210,7 @@ For example::
 
     cdef class VecHolder:
         def __init__(self, max):
-             self.value = list(range(max))  # just fill it for demo purposes
+             self.values = list(range(max))  # just fill it for demo purposes
     
         cdef public vector[double] values
 

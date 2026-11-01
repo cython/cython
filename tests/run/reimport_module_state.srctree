@@ -1,0 +1,53 @@
+# mode: run
+# tag: pep489
+
+PYTHON setup.py build_ext --inplace
+PYTHON tester.py
+
+######## setup.py ########
+
+from setuptools import setup
+from Cython.Build import cythonize
+
+setup(
+    ext_modules = cythonize("*.pyx"),
+)
+
+######## demo.pyx ########
+
+# distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1
+
+cdef extern from *:
+    enum:
+        CYTHON_USE_MODULE_STATE
+
+def uses_module_state():
+    return CYTHON_USE_MODULE_STATE
+
+cdef class Base:
+    pass
+
+cdef class Child(Base):
+    def __init__(self):
+        Base.__init__(self)
+
+def make():
+    return Child()
+
+######## tester.py ########
+
+import sys
+
+import demo
+
+# PyPy and GraalPy turn module state off, and then a second import is allowed.
+if demo.uses_module_state():
+    del sys.modules["demo"]
+    try:
+        import demo as demo2
+    except ImportError:
+        pass
+    else:
+        raise RuntimeError("ImportError was not raised on second import!")
+
+assert type(demo.make()).__name__ == "Child"

@@ -89,6 +89,12 @@ voidptr_func( "abc")
 voidptr_func(b"abc")
 voidptr_func(u"abc")
 
+ctypedef object MyObject
+
+cdef MyObject my_obj1 =  "abc"
+cdef MyObject my_obj2 = b"abc"
+cdef MyObject my_obj3 = u"abc"
+
 
 _ERRORS = u"""
 36:20: Unicode literals do not support coercion to C types other than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* (for strings) or char*/void* (for auto-encoded strings).

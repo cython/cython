@@ -71,7 +71,7 @@ def typed_imports():
 
     try:
         from sys import version_info as maxunicode
-    except TypeError, e:
+    except TypeError as e:
         if getattr(sys, "pypy_version_info", None) or CYTHON_COMPILING_IN_LIMITED_API:
             # translate message
             if e.args[0].startswith("int() argument must be"):
@@ -80,5 +80,5 @@ def typed_imports():
 
     try:
         from sys import maxunicode as t
-    except TypeError, e:
+    except TypeError as e:
         print(e)

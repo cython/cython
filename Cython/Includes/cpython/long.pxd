@@ -1,3 +1,4 @@
+from libc.stdint cimport uint32_t, uint64_t, int32_t, int64_t
 
 cdef extern from "Python.h":
     ctypedef long long PY_LONG_LONG
@@ -15,6 +16,15 @@ cdef extern from "Python.h":
     #
     # This instance of PyTypeObject represents the Python long integer
     # type. This is the same object as long and types.LongType.
+
+    cdef enum:
+        Py_ASNATIVEBYTES_DEFAULTS,
+        Py_ASNATIVEBYTES_BIG_ENDIAN,
+        Py_ASNATIVEBYTES_LITTLE_ENDIAN,
+        Py_ASNATIVEBYTES_NATIVE_ENDIAN,
+        Py_ASNATIVEBYTES_UNSIGNED_BUFFER,
+        Py_ASNATIVEBYTES_REJECT_NEGATIVE,
+        Py_ASNATIVEBYTES_ALLOW_INDEX
 
     bint PyLong_Check(object p)
     # Return true if its argument is a PyLongObject or a subtype of PyLongObject.
@@ -147,3 +157,24 @@ cdef extern from "Python.h":
     # raised. This is only assured to produce a usable void pointer
     # for values created with PyLong_FromVoidPtr(). For values outside
     # 0..LONG_MAX, both signed and unsigned integers are accepted.
+
+    object PyLong_FromNativeBytes(const void *buffer, size_t n_bytes, int flags)
+    # Create a Python integer from the value contained in the firstn_bytes
+    # of buffer, interpreted as a two’s-complement signed number.
+
+    object PyLong_FromUnsignedNativeBytes(const void *buffer, size_t n_bytes, int flags)
+    # Create a Python integer from the value contained in the first n_bytes of
+    # buffer, interpreted as an unsigned number.
+
+    Py_ssize_t PyLong_AsNativeBytes(object pylong, void *buffer, Py_ssize_t n_bytes, int flags) except -1
+    # Copy the Python integer value pylong to a native buffer of size n_bytes.
+    # The flags can be set to -1 to behave similarly to a C cast, or to values
+    # to control the behavior.
+
+    int PyLong_AsInt32(object obj, int32_t *value) except -1
+    int PyLong_AsInt64(object obj, int64_t *value) except -1
+    # Set *value to a signed C int32_t or int64_t representation of obj.
+
+    int PyLong_AsUInt32(object obj, uint32_t *value) except -1
+    int PyLong_AsUInt64(object obj, uint64_t *value) except -1
+    # Set *value to an unsigned C uint32_t or uint64_t representation of obj.

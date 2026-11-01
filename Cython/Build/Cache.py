@@ -2,10 +2,12 @@ from dataclasses import dataclass
 import sys
 import os
 import hashlib
+import operator
 import shutil
 import subprocess
-from ..Utils import safe_makedirs, cached_function
 import zipfile
+
+from ..Utils import cached_function
 from .. import __version__
 
 try:
@@ -27,6 +29,7 @@ except ImportError:
 zip_ext = ".zip"
 
 MAX_CACHE_SIZE = 1024 * 1024 * 100
+DEFAULT_DELETE_RATIO = 0.85
 
 join_path = cached_function(os.path.join)
 
@@ -92,8 +95,8 @@ class Cache:
         else:
             self.path = path
         self.cache_size = cache_size if cache_size is not None else MAX_CACHE_SIZE
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
+        # Make sure the cache directory exists (and allow for concurrent creation).
+        os.makedirs(self.path, exist_ok=True)
 
     def transitive_fingerprint(
         self, filename, dependencies, compilation_options, flags=FingerprintFlags()
@@ -128,31 +131,39 @@ class Cache:
         )
 
     def lookup_cache(self, c_file, fingerprint):
+        """Look up a file in the cache and update its access/modification time.
+
+        Return the compressed file path of the cached file.
+        """
         # Cython-generated c files are highly compressible.
         # (E.g. a compression ratio of about 10 for Sage).
-        if not os.path.exists(self.path):
-            safe_makedirs(self.path)
+        os.makedirs(self.path, exist_ok=True)
         gz_fingerprint_file = self.fingerprint_file(c_file, fingerprint, gzip_ext)
-        if os.path.exists(gz_fingerprint_file):
+        # Single OS call to avoid races between check and time update.
+        try:
+            os.utime(gz_fingerprint_file, None)
             return gz_fingerprint_file
+        except FileNotFoundError:
+            pass
         zip_fingerprint_file = self.fingerprint_file(c_file, fingerprint, zip_ext)
-        if os.path.exists(zip_fingerprint_file):
+        try:
+            os.utime(zip_fingerprint_file, None)
             return zip_fingerprint_file
+        except FileNotFoundError:
+            pass
         return None
 
     def load_from_cache(self, c_file, cached):
         ext = os.path.splitext(cached)[1]
         if ext == gzip_ext:
             os.utime(cached, None)
-            with gzip_open(cached, "rb") as g:
-                with open(c_file, "wb") as f:
-                    shutil.copyfileobj(g, f)
+            with gzip_open(cached, "rb") as g, open(c_file, "wb") as f:
+                shutil.copyfileobj(g, f)
         elif ext == zip_ext:
             os.utime(cached, None)
             dirname = os.path.dirname(c_file)
             with zipfile.ZipFile(cached) as z:
-                for artifact in z.namelist():
-                    z.extract(artifact, dirname)
+                z.extractall(dirname)
         else:
             raise ValueError(f"Unsupported cache file extension: {ext}")
 
@@ -172,8 +183,46 @@ class Cache:
                     zip.write(artifact, os.path.basename(artifact))
         os.rename(fingerprint_file + ".tmp", fingerprint_file)
 
-    def cleanup_cache(self, ratio=0.85):
+    def _list_cache_files(self):
+        total_size = 0
+        cache_files = []
+        with os.scandir(self.path) as entries:
+            for entry in entries:
+                if entry.name.endswith('.tmp'):
+                    # Ignore temp files that might still be used by other Cython processes.
+                    continue
+                try:
+                    stat = entry.stat(follow_symlinks=False)
+                except FileNotFoundError:
+                    # File was removed concurrently.
+                    continue
+
+                file_size = stat.st_size
+                total_size += file_size
+                cache_files.append((entry.path, file_size, stat.st_atime))
+
+        return total_size, cache_files
+
+    def _sort_files_by_atime(self, cache_files):
+        cache_files.sort(key=operator.itemgetter(2, 1))
+
+    def _delete_cache_files(self, files_to_delete, total_size, max_cache_size):
+        for file_path, size, _ in files_to_delete:
+            if total_size < max_cache_size:
+                return
+            try:
+                os.unlink(file_path)
+                total_size -= size
+            except FileNotFoundError:
+                # Concurrently deleted. Nothing left to delete for us.
+                total_size -= size
+            except OSError:
+                # Concurrent access on Windows? Keep the file, cannot delete it right now.
+                pass
+
+    def _cachedir_looks_small_enough(self):
         try:
+            # Quick check for total directory size (on unixy systems).
             completed_process = subprocess.run(
                 ["du", "-s", "-k", os.path.abspath(self.path)], stdout=subprocess.PIPE
             )
@@ -181,19 +230,23 @@ class Cache:
             if completed_process.returncode == 0:
                 total_size = 1024 * int(stdout.strip().split()[0])
                 if total_size < self.cache_size:
-                    return
+                    return True
         except (OSError, ValueError):
             pass
-        total_size = 0
-        all = []
-        for file in os.listdir(self.path):
-            path = join_path(self.path, file)
-            s = os.stat(path)
-            total_size += s.st_size
-            all.append((s.st_atime, s.st_size, path))
+        return False
+
+    def cleanup_cache(self, ratio=DEFAULT_DELETE_RATIO):
+        """Reduce the total file size in the cache to ratio*cache_size
+        by evicting the least recently accessed entries.
+        """
+        if self._cachedir_looks_small_enough():
+            return
+
+        total_size, cache_files = self._list_cache_files()
+
         if total_size > self.cache_size:
-            for time, size, file in reversed(sorted(all)):
-                os.unlink(file)
-                total_size -= size
-                if total_size < self.cache_size * ratio:
-                    break
+            # Sort oldest access time first (then smallest size) to delete least recently used entries.
+            self._sort_files_by_atime(cache_files)
+
+            max_cache_size = int(self.cache_size * ratio)
+            self._delete_cache_files(cache_files, total_size, max_cache_size)

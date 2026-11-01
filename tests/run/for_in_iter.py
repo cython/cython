@@ -1,14 +1,8 @@
 # mode: run
 # tag: forin
 
-import sys
 import cython
 
-try:
-    from builtins import next
-except ImportError:
-    def next(it):
-        return it.next()
 
 def for_in_pyiter_pass(it):
     """
@@ -21,6 +15,7 @@ def for_in_pyiter_pass(it):
     for item in it:
         pass
 
+
 def for_in_pyiter(it):
     """
     >>> for_in_pyiter(Iterable(5))
@@ -31,11 +26,13 @@ def for_in_pyiter(it):
         l.append(item)
     return l
 
+
 def for_in_list():
     """
     >>> for_in_pyiter([1,2,3,4,5])
     [1, 2, 3, 4, 5]
     """
+
 
 @cython.test_assert_path_exists('//TupleNode//IntNode')
 @cython.test_fail_if_path_exists('//ListNode//IntNode')
@@ -48,6 +45,7 @@ def for_in_literal_list():
     for i in [1,2,3,4]:
         l.append(i)
     return l
+
 
 @cython.test_assert_path_exists('//TupleNode//IntNode')
 @cython.test_fail_if_path_exists('//ListNode//IntNode')
@@ -146,6 +144,7 @@ def for_in_gen(N):
     for i in range(N):
         yield i
 
+
 def for_in_range_invalid_arg_count():
     """
     >>> for_in_range_invalid_arg_count()     # doctest: +ELLIPSIS
@@ -154,3 +153,38 @@ def for_in_range_invalid_arg_count():
     """
     for i in range(1, 2, 3, 4):
         pass
+
+
+@cython.test_assert_path_exists(
+    '//FrozenSetFromArrayNode',
+)
+@cython.test_fail_if_path_exists(
+    '//SetNode',
+    '//FrozenSetNode',
+)
+def for_in_const_set():
+    """
+    >>> for_in_const_set()
+    [1, 2, 3]
+    """
+    result = []
+    for i in {1, 2, 3, 3, 2, 1}:
+        result.append(i)
+
+    result.sort()
+    return result
+
+
+@cython.test_assert_path_exists('//SetNode')
+@cython.test_fail_if_path_exists('//FrozenSetNode')
+def for_in_set(x):
+    """
+    >>> for_in_set(4)
+    [1, 2, 3, 4]
+    """
+    result = []
+    for i in {1, 2, 3, x, 3, 2, 1}:
+        result.append(i)
+
+    result.sort()
+    return result

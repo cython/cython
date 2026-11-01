@@ -1280,6 +1280,29 @@ For example, the above ``complex`` type could also be declared like this:
 
 .. literalinclude:: ../../examples/userguide/extension_types/c_property.pyx
 
+Since Cython 3.3, inline properties can have setters::
+
+    @property
+    cdef inline a_settable_property(self):
+        return get_property_value(self)
+
+    @a_settable_property.setter
+    cdef inline int a_settable_property(self, value) except -1:
+        set_property_value(self, value)
+
+Property setter methods can be declared as returning an ``int`` error return value,
+``0`` for success and ``-1`` when an exception was raised, by adding an exception
+modifier ``except -1`` or ``except? -1`` (to double check with ``PyErr_Occurred()``).
+
+If a setter method never raises, it can instead be declared with a ``void`` return
+type and ``noexcept``, i.e.::
+
+    @a_settable_property
+    cdef inline void a_settable_property(self, value) noexcept:
+        set_property_value(self, value)
+
+Other signatures are rejected.
+
 Implicit importing
 ------------------
 

@@ -269,6 +269,17 @@ def bytearray_append(bytearray b, signed char c, int i, object o):
     ValueError: ...
     >>> print(b.decode('ascii'))
     abcX@xy
+
+    >>> b = bytearray(b'abc')
+    >>> b = bytearray_append(b, ord('x'), ord('y'), None)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> print(b.decode('ascii'))
+    abcX@xy
+
+    >>> b = bytearray_append(None, ord('x'), ord('y'), b'x')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'append'
     """
     assert b.append('X') is None
     b.append(64)
@@ -296,3 +307,77 @@ def fromhex(bytearray b):
     >>> fromhex(bytearray(b""))
     """
     assert b.fromhex('2Ef0 F1f2  ') == b'.\xf0\xf1\xf2'
+
+
+def bytearray_extend(bytearray b, value):
+    """
+    >>> bytearray_extend(bytearray(b''), b'xyz')
+    b'xyz'
+    >>> bytearray_extend(bytearray(b'abc'), b'xyz')
+    b'abcxyz'
+    >>> bytearray_extend(bytearray(b''), b'')
+    b''
+    >>> bytearray_extend(bytearray(b'abc'), b'')
+    b'abc'
+    >>> bytearray_extend(bytearray(b'abc'), bytearray(b''))
+    b'abc'
+    >>> bytearray_extend(bytearray(b'abc'), bytearray(b'xyz'))
+    b'abcxyz'
+
+    >>> b = bytearray(b'')
+    >>> bytearray_extend(b, b)
+    b''
+    >>> b = bytearray(b'xyz')
+    >>> bytearray_extend(b, b)
+    b'xyzxyz'
+
+    >>> bytearray_extend(bytearray(b'abc'), None)
+    Traceback (most recent call last):
+    TypeError: can't extend bytearray with NoneType
+    >>> bytearray_extend(None, b'abc')
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'extend'
+   """
+    b.extend(value)
+    return bytes(b)
+
+
+@cython.test_fail_if_path_exists('//SimpleCallNode[@function.attribute = "extend"]')
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+def bytearray_extend_bytes(bytearray b, bytes arg):
+    """
+    >>> bytearray_extend_bytes(bytearray(b''), b'')
+    b'aabcdefg'
+    >>> bytearray_extend_bytes(bytearray(b'xx'), b'yy')
+    b'xxaabcdefgyy'
+    >>> bytearray_extend_bytes(bytearray(b'xx'), None)
+    Traceback (most recent call last):
+    TypeError: can't extend bytearray with NoneType
+    >>> bytearray_extend_bytes(None, b'abc')
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'extend'
+    """
+    b.extend(b'')
+    b.extend(b'a')
+    b.extend(b'')
+    b.extend(b'abcdefg')
+    b.extend(b'')
+    b.extend(arg)
+    return bytes(b)
+
+
+def bytearray_extend_bytearray(bytearray b):
+    """
+    >>> b = bytearray(b'')
+    >>> bytearray_extend_bytearray(b)
+    b'aabcdefg'
+    >>> bytearray_extend_bytearray(None)
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'extend'
+    """
+    b.extend(bytearray(b''))
+    b.extend(bytearray(b'a'))
+    b.extend(bytearray(b''))
+    b.extend(bytearray(b'abcdefg'))
+    b.extend(bytearray(b''))
+    return bytes(b)

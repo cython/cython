@@ -1,5 +1,9 @@
+# mode: run
+# tag: builtins, set, frozenset
 
 cimport cython
+
+import sys
 
 
 def cython_set():
@@ -63,6 +67,63 @@ def test_set_add():
     s1.add(1)
     s1.add((1,2))
     return s1
+
+
+def test_set_add_returns_None():
+    """
+    >>> type(test_set_add_returns_None()) is set
+    True
+    >>> sorted(test_set_add_returns_None())
+    [1, 2, 3]
+    """
+    cdef set s1
+    s1 = {1, 2}
+    s1.add(1)
+
+    # Tests for the expected 'None' return value.
+    none1 = s1.add(1)
+    assert none1 is None, none1
+    try:
+        x = none1  # new inferred variable
+        ignored = x + 1
+    except TypeError:
+        pass
+    else:
+        assert False, f"None + 1 == {ignored}"
+
+    none3 = s1.add(3)
+    assert none3 is None, none3
+
+    return s1
+
+
+def test_set_add_in_condition(seq):
+    """
+    >>> test_set_add_in_condition([1,2,3,4])
+    [1, 2, 3, 4]
+    >>> test_set_add_in_condition([1,2,3,2,4,3,3,4])
+    [1, 2, 3, 4]
+    """
+    # Found in https://github.com/cython/cython/issues/7946
+    seen = set()
+    seen_add = seen.add
+    return [x for x in seq if not (x in seen or seen_add(x))]
+
+
+def test_set_add_in_fstring(s: set):
+    """
+    >>> s = {1}
+    >>> test_set_add_in_fstring(s)
+    'None'
+    >>> s
+    {1}
+    >>> s = {2}
+    >>> test_set_add_in_fstring(s)
+    'None'
+    >>> sorted(s)
+    [1, 2]
+    """
+    return f"{s.add(1)}"  # returns a constant 'None'
 
 
 def test_set_contains(v):
@@ -328,8 +389,11 @@ def test_set_of_list():
     return set([1, 2, 3])
 
 
-@cython.test_assert_path_exists("//PythonCapiCallNode")
-@cython.test_fail_if_path_exists("//SetNode")
+@cython.test_fail_if_path_exists(
+    "//SetNode",
+    "//FrozenSetNode",
+    "//PythonCapiCallNode",
+)
 def test_frozenset_of_list():
     """
     >>> s = test_frozenset_of_list()
@@ -354,8 +418,11 @@ def test_set_of_tuple():
     return set((1, 2, 3))
 
 
-@cython.test_assert_path_exists("//PythonCapiCallNode")
-@cython.test_fail_if_path_exists("//SetNode")
+@cython.test_fail_if_path_exists(
+    "//SetNode",
+    "//FrozenSetNode",
+    "//PythonCapiCallNode",
+)
 def test_frozenset_of_tuple():
     """
     >>> s = test_frozenset_of_tuple()
@@ -383,10 +450,10 @@ def test_set_of_iterable(x):
     return set(x)
 
 
-@cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//SetNode"
+    "//SetNode",
+    "//PythonCapiCallNode"
 )
 def test_frozenset_of_iterable(x):
     """
@@ -405,10 +472,119 @@ def test_frozenset_of_iterable(x):
     return frozenset(x)
 
 
-@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_assert_path_exists(
+    "//FrozenSetFromArrayNode",
+    "//FrozenSetFromArrayNode[@is_literal=True]",
+)
+def test_create_frozenset_from_characters():
+    """
+    >>> s = test_create_frozenset_from_characters()
+    >>> isinstance(s, frozenset)
+    True
+    >>> sorted(s)
+    ['1', '2', '3']
+    """
+    return frozenset(("1", "2", "3"))
+
+
+@cython.test_assert_path_exists(
+    "//FrozenSetNode",
+    "//FrozenSetNode[@is_literal=True]",
+)
+def test_create_frozenset_from_string():
+    """
+    >>> s1, s2 = test_create_frozenset_from_string()
+    >>> isinstance(s1, frozenset)
+    True
+    >>> isinstance(s2, frozenset)
+    True
+    >>> sorted(s1)
+    ['1', '2', '3']
+    >>> sorted(s2)
+    ['1', '2', '3']
+
+    # The following could work...
+    #>>> s1 is s2
+    #True
+    """
+    return frozenset("1231"), frozenset(['1', '2', '3', '1'])
+
+
+@cython.test_assert_path_exists("//FrozenSetNode")
+def test_create_frozenset_from_bytes():
+    """
+    >>> s1, s2, s3 = test_create_frozenset_from_bytes()
+    >>> isinstance(s1, frozenset)
+    True
+    >>> isinstance(s2, frozenset)
+    True
+    >>> isinstance(s3, frozenset)
+    True
+    >>> sorted(s1)
+    [49, 50, 51]
+    >>> sorted(s2)
+    [49, 50, 51]
+    >>> sorted(s3)
+    [49, 50, 51]
+    >>> s2 is s3
+    True
+    """
+    b = bytes(b"1231")
+    return frozenset(b), frozenset(b'1231'), frozenset(b'32123')
+
+
+@cython.test_fail_if_path_exists(
+    "//SetNode",
+    "//PythonCapiCallNode",
+    "//FrozenSetNode",
+)
+@cython.test_assert_path_exists(
+    "//FrozenSetFromArrayNode",
+    "//FrozenSetFromArrayNode[@is_literal=True]",
+)
+def test_frozenset_of_None_value():
+    """
+    >>> s = test_frozenset_of_None_value()
+    >>> isinstance(s, frozenset)
+    True
+    >>> len(s)
+    3
+    >>> None in s
+    True
+    """
+    return frozenset((1, 2, None, 1, None))
+
+
+@cython.test_fail_if_path_exists(
+    "//FrozenSetNode",
+    "//FrozenSetFromArrayNode[@is_literal=False]",
+)
+@cython.test_assert_path_exists(
+    "//FrozenSetFromArrayNode",
+    "//FrozenSetFromArrayNode[@is_literal=True]",
+)
+def test_frozenset_dedup_mixed_values():
+    """
+    >>> test_frozenset_dedup_mixed_values()
+    1
+    """
+    efs = [
+        frozenset((1, 2, None, 1, None, "b")),
+        frozenset(frozenset([1, 2, None, "b", 1, None])),
+        frozenset((2, None, "b", 1, "b"))
+    ]
+    return len(set(map(id, efs)))
+
+
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//SetNode"
+    "//SetNode",
+    "//FrozenSetFromArrayNode",
+    "//PythonCapiCallNode"
+)
+@cython.test_assert_path_exists(
+    "//FrozenSetNode",
+    "//FrozenSetNode[@is_literal=True]",
 )
 def test_empty_frozenset():
     """
@@ -417,30 +593,90 @@ def test_empty_frozenset():
     True
     >>> len(s)
     0
-    >>> import sys
-    >>> sys.version_info >= (3, 10) or s is frozenset()   # singleton (in Python < 3.10)!
-    True
     """
     return frozenset()
 
 
 @cython.test_fail_if_path_exists(
     '//ListNode//ListNode',
+    "//FrozenSetFromArrayNode",
     '//ListNode//PythonCapiCallNode//PythonCapiCallNode',
     '//ListNode//SimpleCallNode//SimpleCallNode',
+)
+@cython.test_assert_path_exists(
+    "//FrozenSetNode",
+    "//FrozenSetNode[@is_literal=True]",
 )
 def test_singleton_empty_frozenset():
     """
     >>> import sys
-    >>> test_singleton_empty_frozenset() if sys.version_info < (3, 10) else 1  # from CPython's test_set.py
+    >>> test_singleton_empty_frozenset()
     1
     """
     f = frozenset()
     efs = [frozenset(), frozenset([]), frozenset(()), frozenset(''),
            frozenset(), frozenset([]), frozenset(()), frozenset(''),
-           frozenset(range(0)), frozenset(frozenset()),
+           frozenset(), frozenset([] * 2), frozenset(() * 3), frozenset('' * 4),
+           frozenset(frozenset()), frozenset(frozenset(f)),
            frozenset(f), f]
-    return len(set(map(id, efs)))  # note, only a singleton in Python <3.10
+
+    # By optimisation, these should all use the same constant frozenset.
+    return len(set(map(id, efs)))
+
+
+@cython.test_fail_if_path_exists(
+    "//FrozenSetNode",
+)
+@cython.test_assert_path_exists(
+    "//SetNode",
+    "//FrozenSetFromArrayNode",
+    "//FrozenSetFromArrayNode[@is_literal=True]",
+)
+def test_intest_uses_frozenset(x):
+    """
+    >>> test_intest_uses_frozenset(2)
+    True
+    >>> test_intest_uses_frozenset(3)
+    True
+    >>> test_intest_uses_frozenset(4)
+    False
+    """
+    result = {1,x} in ({1,2}, {1,3})
+    return result
+
+
+def test_set_of_unhashable_fails_intest(which):
+    """
+    >>> test_set_of_unhashable_fails_intest(1)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: unhashable type: 'list'
+    >>> test_set_of_unhashable_fails_intest(2)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: unhashable type: 'list'
+    >>> test_set_of_unhashable_fails_intest(3)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: unhashable type: 'list'
+    >>> test_set_of_unhashable_fails_intest(4)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: unhashable type: 'list'
+    >>> test_set_of_unhashable_fails_intest(5)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: unhashable type: 'set'
+    """
+    if which == 1:
+        result = [1,2] in {[1,2], [3,4]}
+    elif which == 2:
+        result = (1,2) in {[1,2], [3,4]}
+    elif which == 3:
+        result = {(1,2)} in {[1,2]}
+    elif which == 4:
+        result = {(1,2)} in ({(1,2), [1,2]})
+    elif which == 5:
+        result = {(1,2)} in ({(1,2), {1,2}})
+    else:
+        assert False, "invalid test case"
+
+    return result
 
 
 def sorted(it):

@@ -652,22 +652,22 @@ def test_null_strides_error(buffer_obj):
 
     try:
         indirect_buf1 = buffer_obj
-    except ValueError, e:
+    except ValueError as e:
         print e
 
     try:
         indirect_buf2 = buffer_obj
-    except ValueError, e:
+    except ValueError as e:
         print e
 
     try:
         fortran_buf1 = buffer_obj
-    except ValueError, e:
+    except ValueError as e:
         print e
 
     try:
         fortran_buf2 = buffer_obj
-    except ValueError, e:
+    except ValueError as e:
         print e
 
 def test_refcount_GH507():

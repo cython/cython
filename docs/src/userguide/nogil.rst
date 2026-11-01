@@ -47,7 +47,7 @@ You can mark a whole function (either a Cython function or an :ref:`external fun
 
             @cython.nogil
             @cython.cfunc
-            @cython.noexcept
+            @cython.exceptval(check=False)
             def some_func() -> None:
             ...
 

@@ -1,0 +1,89 @@
+PYTHON setup.py build_ext --inplace
+PYTHON test_import_from_old_works.py
+PYTHON test_import_from_new_works.py
+
+################## setup.py #################
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+################## has_fused_funcs.pxd ###############
+
+ctypedef fused IntOrFloat:
+    int
+    float
+
+ctypedef fused IntOrObject:
+    int
+    object
+
+cdef IntOrFloat add_one(IntOrFloat x)
+
+cdef bint greater_than(IntOrObject x, IntOrFloat y)
+
+cdef int actual_add_two(int x)
+
+################# has_fused_funcs.pyx ################
+
+cdef IntOrFloat add_one(IntOrFloat x):
+    return x + 1
+
+cdef bint greater_than(IntOrObject x, IntOrFloat y):
+    return x > y
+
+cdef int actual_add_two(int x):
+    return x + 2
+
+################# use_fused_funcs.pyx #####################
+
+cimport has_fused_funcs
+
+from decimal import Decimal
+
+assert has_fused_funcs.add_one(1) == 2, f"add_one result {has_fused_funcs.add_one(1)}"
+assert has_fused_funcs.add_one(2.0) == 3.0
+assert not has_fused_funcs.greater_than(Decimal('-1.0'), 1.0)
+assert not has_fused_funcs.greater_than(-2, 1.0)
+assert has_fused_funcs.greater_than(Decimal('1.5'), 1)
+assert has_fused_funcs.greater_than(2, 1)
+
+################# test_import_from_old_works.py #####################
+
+import has_fused_funcs
+
+# Get rid of all of the "new style" C API entries 
+for k in list(has_fused_funcs.__pyx_capi__.keys()):
+    if (('add_one' in k or 'greater_than' in k)
+            and not '__pyx_fuse' in k):
+        del has_fused_funcs.__pyx_capi__[k]
+
+import use_fused_funcs
+
+################# test_import_from_new_works.py #####################
+
+import has_fused_funcs
+
+# Get rid of all of the "old style" C API entries 
+for k in list(has_fused_funcs.__pyx_capi__.keys()):
+    if '__pyx_fuse' in k:
+        del has_fused_funcs.__pyx_capi__[k]
+
+import use_fused_funcs
+
+################ test_new_before_old.py #######################
+
+import has_fused_funcs
+
+# swap out the signature for add_one with an equivalent but difference function
+# to show that this is the version that gets used as a preference.
+has_fused_funcs.__pyx_capi__['add_one[int]'] = has_fused_funcs.__pyx_capi__['actual_add_two']
+
+try:
+    import use_fused_funcs
+catch AssertionError as e:
+    assert e.args[0] == "add_one result {3}"
