@@ -180,6 +180,16 @@ Bugs fixed
 * Enabling annotated HTML file generation together with the shared module could fail to compile.
   (Github issue :issue:`7910`)
 
+Other changes
+-------------
+
+* Generating a shared utility module no longer embeds its destination directory
+  in the generated C code, making the output reproducible across build directories.
+  It is now recommended to pass the ``--module-name`` option to ``cython generate-shared``
+  to provide the fully qualified module name explicitly.
+  This is a follow-up fix to the one in 3.3.0, for ``--generate-shared=/path/to/_{sharedname}.c``.
+  Patch by Ralf Gommers.  (Github issue :issue:`7723`)
+
 
 3.3.0 (2026-08-22)
 ==================
