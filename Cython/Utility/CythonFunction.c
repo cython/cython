@@ -24,6 +24,7 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 #define __Pyx_CyFunction_USED
 
 #if CYTHON_OPAQUE_SHARED_TYPES && CYTHON_USE_MODULE_STATE
+// gc_safe can be 0, 1 for clear/traverse or 2 for visit
 static CYTHON_INLINE void *__Pyx__as_CyFunctionObject(PyObject *o, int gc_safe); /* proto */
 #define __Pyx_as_CyFunctionObject(o) ((__pyx_CyFunctionObject *)__Pyx__as_CyFunctionObject(o, 0))
 #elif CYTHON_OPAQUE_SHARED_TYPES
@@ -173,19 +174,26 @@ static CYTHON_INLINE void *__Pyx__as_CyFunctionObject(PyObject *o, int gc_safe) 
     // Avoid module state lookup where possible for speed reasons.
     // This has the additional advantage that it's safe to use in destructors
     // (where the current object may have been lost).
-    PyTypeObject *tp;
-    int result =
+    PyTypeObject *tp = NULL;
+    int getbase_result = 0;
 #if __PYX_LIMITED_VERSION_HEX >= 0x030F0000
-        PyType_GetBaseByToken_DuringGC
-#elif __PYX_LIMITED_VERSION_HEX >= 0x030D0000
-        PyType_GetBaseByToken
+    getbase_result = PyType_GetBaseByToken_DuringGC(Py_TYPE(o), __Pyx_Get_CyFunction_Spec(), &tp);
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030E0000
+    if (gc_safe <= 1) {
+        getbase_result = PyType_GetBaseByToken(Py_TYPE(o), __Pyx_Get_CyFunction_Spec(), &tp);
+        if (likely(tp)) {
+            void *typedata = PyObject_GetTypeData((o), tp);
+            Py_DECREF(tp);
+            return typedata;
+        }
+    }
 #else
 // should be ensured in ModuleSetupCode anyway
 #error CYTHON_OPAQUE_SHARED_TYPES cannot be used with Python>=3.14
 #endif
-            (Py_TYPE(o), __Pyx_Get_CyFunction_Spec(), &tp);
+            
     if (unlikely(!tp)) {
-        assert(result != -1);  // Nothing we do should ever error
+        assert(getbase_result != -1);  // Nothing we do should ever error
 
         // When using fused functions, it's possible that the definition of cyfunction comes from
         // a different module than that of fused function, so lookup based on type spec may miss.
@@ -193,6 +201,7 @@ static CYTHON_INLINE void *__Pyx__as_CyFunctionObject(PyObject *o, int gc_safe) 
         if (gc_safe) {
             // Version that's safe to use in destructors
             // (where the current module may have been lost).
+            tp = Py_TYPE(o);
             while (1) {
                 PyTypeObject *base = (PyTypeObject *)PyType_GetSlot(tp, Py_tp_base);
                 if (base == &PyBaseObject_Type || base == NULL) {
@@ -204,12 +213,19 @@ static CYTHON_INLINE void *__Pyx__as_CyFunctionObject(PyObject *o, int gc_safe) 
             tp = CGLOBAL(__pyx_CyFunctionType);
         }
     }
+#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000
+    // for simpliciy always use this. We're not doing any error handling with it.
+    return PyObject_GetTypeData_DuringGC((o), tp);
+#else
     return PyObject_GetTypeData((o), tp);
+#endif
 }
 
-#define __Pyx_as_CyFunctionObject_safe(o) __Pyx__as_CyFunctionObject(o, 1)
+#define __Pyx_as_CyFunctionObject_clearsafe(o) __Pyx__as_CyFunctionObject(o, 1)
+#define __Pyx_as_CyFunctionObject_traversesafe(o) __Pyx__as_CyFunctionObject(o, 2)
 #else
-#define __Pyx_as_CyFunctionObject_safe(o) __Pyx_as_CyFunctionObject(o)
+#define __Pyx_as_CyFunctionObject_clearsafe(o) __Pyx_as_CyFunctionObject(o)
+#define __Pyx_as_CyFunctionObject_traversesafe(o) __Pyx_as_CyFunctionObject(o)
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -1157,12 +1173,12 @@ static int __Pyx__CyFunction_clear(__pyx_CyFunctionObject *m)
 static int
 __Pyx_CyFunction_clear(PyObject *m)
 {
-    return __Pyx__CyFunction_clear(__Pyx_as_CyFunctionObject_safe(m));
+    return __Pyx__CyFunction_clear(__Pyx_as_CyFunctionObject_clearsafe(m));
 }
 
 static void __Pyx__CyFunction_dealloc(PyObject *m)
 {
-    __pyx_CyFunctionObject *cyfunc = __Pyx_as_CyFunctionObject_safe(m);
+    __pyx_CyFunctionObject *cyfunc = __Pyx_as_CyFunctionObject_clearsafe(m);
     if (__Pyx_CyFunction_weakreflist(cyfunc) != NULL)
         PyObject_ClearWeakRefs(m);
     __Pyx__CyFunction_clear(cyfunc);
@@ -1177,7 +1193,7 @@ static void __Pyx_CyFunction_dealloc(PyObject *m)
 
 static int __Pyx_CyFunction_traverse(PyObject *m_in, visitproc visit, void *arg)
 {
-    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject_safe(m_in);
+    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject_traversesafe(m_in);
     {
         int e = __Pyx_call_type_traverse(m_in, 1, visit, arg);
         if (e) return e;
