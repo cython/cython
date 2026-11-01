@@ -148,7 +148,7 @@ def source_file_for(module):
             path = path[:platform_suffix.start()]
     elif ext == '.pyd':
         # Windows extension module
-        platform_suffix = re.search(r'[.]cp[0-9]+-win[_a-z0-9]*$', path, re.I)
+        platform_suffix = re.search(r'[.]cp[0-9t]+-win[_a-z0-9]*$', path, re.I)
         if platform_suffix:
             path = path[:platform_suffix.start()]
     source_filepath = path + '.' + module_name.rsplit('_', 1)[-1]

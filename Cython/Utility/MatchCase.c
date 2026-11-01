@@ -944,9 +944,13 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
         }
 
         attr = PyObject_GetAttr(subject, name);
-        if (attr == NULL && PyErr_ExceptionMatches(PyExc_AttributeError)) {
-            PyErr_Clear();
-            result = 0;
+        if (attr == NULL) {
+            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyErr_Clear();
+                result = 0;
+            } else {
+                result = -1;
+            }
             goto end;
         }
         subject_i = subjects[i];

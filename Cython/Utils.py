@@ -199,14 +199,6 @@ def file_newer_than(path, time):
     return ftime > time
 
 
-def safe_makedirs(path):
-    try:
-        os.makedirs(path)
-    except OSError:
-        if not os.path.isdir(path):
-            raise
-
-
 def copy_file_to_dir_if_newer(sourcefile, destdir):
     """
     Copy file sourcefile to directory destdir (creating it if needed),
@@ -218,7 +210,7 @@ def copy_file_to_dir_if_newer(sourcefile, destdir):
         desttime = modification_time(destfile)
     except OSError:
         # New file does not exist, destdir may or may not exist
-        safe_makedirs(destdir)
+        os.makedirs(destdir, exist_ok=True)
     else:
         # New file already exists
         if not file_newer_than(sourcefile, desttime):

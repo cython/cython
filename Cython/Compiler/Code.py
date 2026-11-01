@@ -239,6 +239,8 @@ class AbstractUtilityCode:
     def get_shared_library_scope(self, **kwargs):
         return None
 
+    def warn_for_subinterpreters(self, pos):
+        pass
 
 class UtilityCodeBase(AbstractUtilityCode):
     """
@@ -1815,7 +1817,7 @@ class GlobalState:
 
             if c.type.is_memoryviewslice:
                 # TODO: Implement specific to type like CodeWriter.put_xdecref_clear()
-                cname += "->memview"
+                cname += ".memview"
 
             self.parts['module_state_traverse'].putln(
                 f"Py_VISIT(traverse_module_state->{cname});")

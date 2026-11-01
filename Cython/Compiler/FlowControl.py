@@ -575,6 +575,8 @@ def check_definitions(flow: ControlFlow, compiler_directives: dict):
 
     block: ControlBlock
     assmt: NameAssignment
+    i_state: cython.py_int
+
     for block in flow.blocks:
         i_state = block.i_input
         for stat in block.stats:

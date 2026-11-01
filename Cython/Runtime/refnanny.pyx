@@ -134,7 +134,7 @@ cdef PyObject* SetupContext(char* funcname, Py_ssize_t lineno, char* filename) e
         ctx = Context.__new__(Context, funcname, lineno, filename)
         Py_INCREF(ctx)
         result = <PyObject*>ctx
-    except Exception, e:
+    except Exception as e:
         report_unraisable(filename, lineno, e)
     PyErr_Restore(type, value, tb)
     return result

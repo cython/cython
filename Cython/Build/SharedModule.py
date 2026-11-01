@@ -46,7 +46,7 @@ def _iter_exports(selected_features=None):
     UtilityCode = Code.UtilityCode
     match_special = UtilityCode.get_special_comment_matcher('/')
 
-    for c_utility_file in os.listdir(Code.get_utility_dir()):
+    for c_utility_file in sorted(os.listdir(Code.get_utility_dir())):
         if not c_utility_file.endswith('.c'):
             continue
 
@@ -95,6 +95,13 @@ def create_shared_library_pipeline(context, scope, options, result, selected_fea
             tree = parse(compsrc)
 
             if selected_features is None or 'MemoryView' in selected_features:
+                if options.compiler_directives.get('subinterpreters_compatible', 'no') != 'no':
+                    import sys
+                    print(
+                        "WARNING: Shared module built with 'subinterpreters_compatible'. "
+                        "This is currently unlikely to work correctly due to memoryview code.",
+                        file=sys.stderr
+                    )
                 tree.scope.use_utility_code(
                     MemoryView.get_view_utility_code(options.shared_utility_qualified_name))
 
@@ -148,6 +155,13 @@ def generate_shared_module(options):
             options.shared_utility_features_enabled,
             options.shared_utility_features_disabled,
         )
+
+    # We know what code is being included so we can set good default compatibility settings ourself
+    options.compiler_directives.setdefault('freethreading_compatible', True)
+    options.compiler_directives.setdefault(
+        'subinterpreters_compatible',
+        "no" if selected_features is None or 'MemoryView' in selected_features else "own_gil"
+    )
 
     context = Main.Context.from_options(options)
     scope = Symtab.ModuleScope('MemoryView', parent_module = None, context = context, is_package=False)
