@@ -186,7 +186,7 @@ def set_configuration(env, use_distutils):
                 'PYEXTINCPATH': ("sysconfig.get_python_inc()", False),
                 'PYEXTSUFFIX': ("sysconfig.get_config_var('SO')", False)}
 
-    from distutils import sysconfig
+    import sysconfig
 
     # We set the python path even when not using distutils, because we rarely
     # want to change this, even if not using distutils
@@ -230,7 +230,7 @@ def exists(env):
     try:
         # This is not quite right: if someone defines all variables by himself,
         # it would work without distutils
-        from distutils import sysconfig
+        import sysconfig
         return True
     except ImportError:
         return False

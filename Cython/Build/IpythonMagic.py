@@ -49,7 +49,7 @@ import re
 import sys
 import time
 import copy
-import distutils.log
+import logging
 import textwrap
 
 IO_ENCODING = sys.getfilesystemencoding()
@@ -434,11 +434,11 @@ class CythonMagics(Magics):
         old_threshold = None
         try:
             if not quiet:
-                old_threshold = distutils.log.set_threshold(distutils.log.DEBUG)
+                old_threshold = logging.set_threshold(logging.DEBUG)
             build_extension.run()
         finally:
             if not quiet and old_threshold is not None:
-                distutils.log.set_threshold(old_threshold)
+                logging.set_threshold(old_threshold)
 
     def _add_pgo_flags(self, build_extension, step_name, temp_dir):
         compiler_type = build_extension.compiler.compiler_type
