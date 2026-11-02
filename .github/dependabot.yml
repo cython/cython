@@ -15,6 +15,19 @@ updates:
       default-days: 7
 
   - package-ecosystem: "github-actions"
+    target-branch: "3.3.x"
+    directory: "/"
+    schedule:
+      # Check for updates to GitHub Actions every month
+      interval: "monthly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "github-actions"
     target-branch: "3.2.x"
     directory: "/"
     schedule:
@@ -34,6 +47,16 @@ updates:
   # NOTE: also needed for new release branches!
   - package-ecosystem: "pip"
     target-branch: "master"
+    directory: ".github"
+    schedule:
+      interval: "monthly"
+    allow:
+      - dependency-name: "cibuildwheel"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "pip"
+    target-branch: "3.3.x"
     directory: ".github"
     schedule:
       interval: "monthly"
