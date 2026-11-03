@@ -6,6 +6,7 @@ import hashlib
 import operator
 import shutil
 import tempfile
+import time
 import zipfile
 
 from ..Utils import cached_function
@@ -42,7 +43,6 @@ DEFAULT_DELETE_RATIO = 0.85
 join_path = cached_function(os.path.join)
 
 
-
 class CacheUnavailable(Exception):
     """An optional cache operation could not be completed."""
 
@@ -69,10 +69,11 @@ if os.name == "nt":
     )
     _kernel32.UnlockFileEx.restype = wintypes.BOOL
     _LOCKFILE_EXCLUSIVE_LOCK = 0x00000002
+    _LOCKFILE_FAIL_IMMEDIATELY = 0x00000001
 
 
 @contextmanager
-def _file_lock(path, exclusive):
+def _file_lock(path, exclusive, blocking=True):
     # Persistent metadata keeps the lock valid when the artifact is replaced.
     try:
         lock_file = open(path, "a+b")
@@ -82,13 +83,16 @@ def _file_lock(path, exclusive):
     overlapped = None
     try:
         if os.name == "posix":
-            fcntl.flock(
-                lock_file.fileno(), fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
-            )
+            flags = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+            if not blocking:
+                flags |= fcntl.LOCK_NB
+            fcntl.flock(lock_file.fileno(), flags)
         elif os.name == "nt":
             overlapped = _OVERLAPPED()
             handle = msvcrt.get_osfhandle(lock_file.fileno())
             flags = _LOCKFILE_EXCLUSIVE_LOCK if exclusive else 0
+            if not blocking:
+                flags |= _LOCKFILE_FAIL_IMMEDIATELY
             if not _kernel32.LockFileEx(handle, flags, 0, 1, 0, ctypes.byref(overlapped)):
                 raise ctypes.WinError(ctypes.get_last_error())
         else:
@@ -101,7 +105,7 @@ def _file_lock(path, exclusive):
         raise CacheUnavailable() from exc
 
     try:
-        yield
+        yield lock_file
     finally:
         try:
             if os.name == "posix":
@@ -206,12 +210,14 @@ class FingerprintFlags:
 class Cache:
     _lock_directory = ".locks"
     _lifecycle_lock_name = "lifecycle.lock"
+    _cleanup_interval = 1.0
 
     def __init__(self, path, cache_size=None):
         if path is None:
             self.path = join_path(get_cython_cache_dir(), "compiler")
         else:
             self.path = path
+        self._temporary_path = join_path(self.path, self._lock_directory, "tmp")
         self.cache_size = cache_size if cache_size is not None else MAX_CACHE_SIZE
         self.enabled = True
         try:
@@ -267,9 +273,9 @@ class Cache:
         return hashlib.sha256(os.fsencode(name)).hexdigest() + ".lock"
 
     @contextmanager
-    def _lifecycle_lock(self, exclusive):
-        with _file_lock(self._lock_path(self._lifecycle_lock_name), exclusive):
-            yield
+    def _lifecycle_lock(self, exclusive, blocking=True):
+        with _file_lock(self._lock_path(self._lifecycle_lock_name), exclusive, blocking) as lock_file:
+            yield lock_file
 
     @contextmanager
     def _entry_lock(self, cache_file, exclusive):
@@ -323,12 +329,10 @@ class Cache:
                 else:
                     raise ValueError(f"Unsupported cache file extension: {ext}")
 
-    def _temporary_file(self, cache_file):
-        return tempfile.mkstemp(
-            prefix=os.path.basename(cache_file) + ".",
-            suffix=".tmp",
-            dir=self.path,
-        )
+    def _temporary_file(self):
+        # Older Cython writers use the cache root without taking lifecycle locks.
+        os.makedirs(self._temporary_path, exist_ok=True)
+        return tempfile.mkstemp(suffix=".tmp", dir=self._temporary_path)
 
     def store_to_cache(self, c_file, fingerprint, compilation_result):
         artifacts = compilation_result.get_generated_source_files()
@@ -341,7 +345,7 @@ class Cache:
                         return
                     temporary_file = None
                     try:
-                        fd, temporary_file = self._temporary_file(cache_file)
+                        fd, temporary_file = self._temporary_file()
                         os.close(fd)
                         if len(artifacts) == 1:
                             with open(c_file, "rb") as source:
@@ -388,43 +392,40 @@ class Cache:
         cache_files.sort(key=operator.itemgetter(2, 1))
 
     def _delete_cache_files(self, files_to_delete, total_size, max_cache_size):
+        deleted = set()
         for file_path, size, _ in files_to_delete:
             if total_size < max_cache_size:
-                return
+                break
             try:
                 os.unlink(file_path)
                 total_size -= size
+                deleted.add(file_path)
             except FileNotFoundError:
                 # Concurrently deleted. Nothing left to delete for us.
                 total_size -= size
+                deleted.add(file_path)
             except OSError:
                 # Concurrent access on Windows? Keep the file, cannot delete it right now.
                 pass
+        return deleted
 
     def _delete_stale_temporary_files(self):
         # Lifecycle is exclusive, so no cooperating writer can own these files.
-        with os.scandir(self.path) as entries:
-            for entry in entries:
-                if entry.name.endswith(".tmp"):
-                    try:
-                        os.unlink(entry.path)
-                    except OSError:
-                        pass
+        try:
+            with os.scandir(self._temporary_path) as entries:
+                for entry in entries:
+                    if entry.name.endswith(".tmp"):
+                        try:
+                            os.unlink(entry.path)
+                        except OSError:
+                            pass
+        except OSError:
+            pass
 
-    def _cleanup_orphan_locks(self):
-        live_locks = set()
-        with os.scandir(self.path) as entries:
-            for entry in entries:
-                if entry.name == self._lock_directory:
-                    continue
-                name = entry.name
-                live_locks.add(self._entry_lock_name(name))
-                if name.endswith(".tmp"):
-                    # Retain locks for temporary files whose removal failed.
-                    name = name[:-4]
-                    live_locks.add(self._entry_lock_name(name))
-                    live_locks.add(self._entry_lock_name(name.rsplit(".", 1)[0]))
-
+    def _cleanup_orphan_locks(self, cache_files, deleted):
+        live_locks = {
+            self._entry_lock_name(path) for path, _, _ in cache_files if path not in deleted
+        }
         with os.scandir(join_path(self.path, self._lock_directory)) as entries:
             for entry in entries:
                 if (entry.name != self._lifecycle_lock_name
@@ -435,20 +436,41 @@ class Cache:
                     except OSError:
                         pass
 
+    def _recent_cleanup(self, stat):
+        # An empty lifecycle file has never recorded a completed cleanup.
+        return stat.st_size > 0 and 0 <= time.time() - stat.st_mtime < self._cleanup_interval
+
     def cleanup_cache(self, ratio=DEFAULT_DELETE_RATIO):
         """Reduce the total file size in the cache to ratio*cache_size
         by evicting the least recently accessed entries.
         """
         try:
-            with self._lifecycle_lock(True):
+            lock_path = join_path(self.path, self._lock_directory, self._lifecycle_lock_name)
+            try:
+                if self._recent_cleanup(os.stat(lock_path)):
+                    return
+            except FileNotFoundError:
+                pass
+
+            # Maintenance must not queue behind active readers or another cleanup.
+            with self._lifecycle_lock(True, blocking=False) as lock_file:
+                if self._recent_cleanup(os.fstat(lock_file.fileno())):
+                    return
                 self._delete_stale_temporary_files()
                 total_size, cache_files = self._list_cache_files()
-
+                deleted = set()
                 if total_size > self.cache_size:
                     self._sort_files_by_atime(cache_files)
                     max_cache_size = int(self.cache_size * ratio)
-                    self._delete_cache_files(cache_files, total_size, max_cache_size)
+                    deleted = self._delete_cache_files(cache_files, total_size, max_cache_size)
 
-                self._cleanup_orphan_locks()
+                self._cleanup_orphan_locks(cache_files, deleted)
+
+                # The marker and its mtime coalesce cleanup across Cache instances
+                # and processes without growing the persistent lifecycle file.
+                lock_file.seek(0)
+                lock_file.truncate()
+                lock_file.write(b"1")
+                lock_file.flush()
         except (CacheUnavailable, OSError):
             pass

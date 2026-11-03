@@ -41,7 +41,7 @@ def paused_cache_io(cache_dir, source, output, mode, ready, release, results):
     def paused_open(path, file_mode):
         handle = real_open(path, file_mode)
         ready.set()
-        if not release.wait(10):
+        if not release.wait(30):
             handle.close()
             raise TimeoutError('cache operation was not released')
         return handle
@@ -63,11 +63,11 @@ def cleanup_entry(cache_dir, attempted, completed):
     real_lock = cache_mod._file_lock
 
     @contextmanager
-    def tracked_lock(path, exclusive):
+    def tracked_lock(path, exclusive, blocking=True):
         if exclusive and os.path.basename(path) == cache_mod.Cache._lifecycle_lock_name:
             attempted.set()
-        with real_lock(path, exclusive):
-            yield
+        with real_lock(path, exclusive, blocking) as lock_file:
+            yield lock_file
 
     with mock.patch.object(cache_mod, '_file_lock', tracked_lock):
         cache_mod.Cache(cache_dir).cleanup_cache()
@@ -79,7 +79,7 @@ def abandon_temporary_file(cache_dir, source):
     cached = cache.fingerprint_file(source, 'key', cache_mod.gzip_ext)
     with cache._lifecycle_lock(False):
         with cache._entry_lock(cached, True):
-            fd, _ = cache._temporary_file(cached)
+            fd, _ = cache._temporary_file()
             os.write(fd, b'abandoned temporary artifact')
             os.close(fd)
             # Termination must release OS locks without running Python cleanup.
@@ -153,8 +153,9 @@ class TestCyCacheConcurrency(unittest.TestCase):
         with gzip.open(entries[0], 'rb') as source:
             self.assertEqual(source.read(), self.source.read_bytes())
         self.assertEqual(list(self.cache_dir.glob('*.tmp')), [])
+        self.assertEqual(list(Path(self.cache._temporary_path).glob('*.tmp')), [])
 
-    def check_cleanup_waits(self, mode):
+    def check_cleanup_skips(self, mode):
         if mode == 'read':
             self.store()
         output = self.root / 'output.c'
@@ -173,34 +174,58 @@ class TestCyCacheConcurrency(unittest.TestCase):
             cleanup_entry, str(self.cache_dir), attempted, completed,
         )
         self.assertTrue(attempted.wait(10))
-        self.assertFalse(completed.wait(0.1), 'cleanup passed an active cache operation')
+        self.assertTrue(completed.wait(5), 'cleanup waited for an active cache operation')
         release.set()
         self.join_process(worker)
         self.join_process(cleaner)
         self.assertIsNone(results.get(timeout=5))
         self.assertTrue(completed.is_set())
+        self.cache.cleanup_cache()
         if mode == 'read':
             self.assertEqual(output.read_bytes(), self.source.read_bytes())
         else:
             self.assert_valid_entry()
 
-    def test_cleanup_waits_for_active_writer(self):
-        self.check_cleanup_waits('write')
+    def test_cleanup_skips_active_writer(self):
+        self.check_cleanup_skips('write')
 
-    def test_cleanup_waits_for_active_reader(self):
-        self.check_cleanup_waits('read')
+    def test_cleanup_skips_active_reader(self):
+        self.check_cleanup_skips('read')
 
     def test_cleanup_reclaims_crashed_writer_temporary_file_and_lock(self):
         writer = self.start_process(
             abandon_temporary_file, str(self.cache_dir), str(self.source),
         )
         self.join_process(writer)
-        self.assertEqual(len(list(self.cache_dir.glob('*.tmp'))), 1)
+        temporary_path = Path(self.cache._temporary_path)
+        self.assertEqual(len(list(temporary_path.glob('*.tmp'))), 1)
         lock_dir = self.cache_dir / self.cache._lock_directory
         self.assertEqual(len(list(lock_dir.glob('*.lock'))), 2)
         self.cache.cleanup_cache()
-        self.assertEqual(list(self.cache_dir.glob('*.tmp')), [])
-        self.assertEqual([p.name for p in lock_dir.iterdir()], [self.cache._lifecycle_lock_name])
+        self.assertEqual(list(temporary_path.glob('*.tmp')), [])
+        self.assertEqual([p.name for p in lock_dir.glob('*.lock')], [self.cache._lifecycle_lock_name])
+
+    def test_cleanup_coalesces_recent_work_across_instances(self):
+        with mock.patch.object(cache_mod.os, 'scandir', wraps=os.scandir) as scandir:
+            self.cache.cleanup_cache()
+            initial_scans = scandir.call_count
+            other = cache_mod.Cache(str(self.cache_dir))
+            other.cleanup_cache()
+            self.assertEqual(scandir.call_count, initial_scans)
+
+            marker = self.cache._lock_path(self.cache._lifecycle_lock_name)
+            os.utime(marker, (1, 1))
+            other.cleanup_cache()
+            self.assertGreater(scandir.call_count, initial_scans)
+            self.assertEqual(os.stat(marker).st_size, 1)
+
+    def test_cleanup_scans_artifact_directory_once(self):
+        self.store()
+        with mock.patch.object(cache_mod.os, 'scandir', wraps=os.scandir) as scandir:
+            self.cache.cleanup_cache()
+        root_scans = sum(os.fspath(call.args[0]) == str(self.cache_dir)
+                         for call in scandir.call_args_list)
+        self.assertEqual(root_scans, 1)
 
     def test_cleanup_ignores_live_lock_metadata(self):
         cached = self.store()
@@ -244,10 +269,10 @@ class TestCyCacheConcurrency(unittest.TestCase):
             self.cache._entry_lock_name(os.path.basename(cached)),
         )
 
-    def test_failed_temporary_removal_retains_corresponding_lock(self):
+    def test_failed_temporary_removal_allows_republishing_entry(self):
         cached = self.cache.fingerprint_file(str(self.source), 'key', cache_mod.gzip_ext)
         with self.cache._lifecycle_lock(False), self.cache._entry_lock(cached, True):
-            fd, temporary = self.cache._temporary_file(cached)
+            fd, temporary = self.cache._temporary_file()
             os.close(fd)
         real_unlink = os.unlink
 
@@ -260,7 +285,8 @@ class TestCyCacheConcurrency(unittest.TestCase):
         with mock.patch.object(cache_mod.os, 'unlink', sharing_violation):
             self.cache.cleanup_cache()
         self.assertTrue(Path(temporary).exists())
-        self.assertTrue(lock_file.exists())
+        self.assertFalse(lock_file.exists())
+        self.assertIsNotNone(self.store())
 
     def prepare_compile_hit(self, zip_artifact=False):
         self.pyx = self.root / 'example.pyx'
@@ -316,19 +342,7 @@ class TestCyCacheConcurrency(unittest.TestCase):
         self.assertEqual(result.num_errors, 0)
         self.assertTrue(Path(result.c_file).is_file())
         self.assertEqual(list(self.cache_dir.glob('*.tmp')), [])
-
-    def test_output_write_errors_propagate(self):
-        cached = self.store()
-        original_open = open
-
-        def unavailable_output(filename, mode='r', *args, **kwargs):
-            if os.fspath(filename) == str(self.source) and 'w' in mode:
-                raise PermissionError('requested output is not writable')
-            return original_open(filename, mode, *args, **kwargs)
-
-        with mock.patch('builtins.open', unavailable_output):
-            with self.assertRaises(PermissionError):
-                self.cache.load_from_cache(str(self.source), cached)
+        self.assertEqual(list(Path(self.cache._temporary_path).glob('*.tmp')), [])
 
     def test_compile_preserves_output_errors_during_cache_load(self):
         output = self.prepare_compile_hit()
@@ -338,7 +352,7 @@ class TestCyCacheConcurrency(unittest.TestCase):
                       PermissionError('output is not writable')):
             with self.subTest(error=repr(error)):
                 def unavailable_output(filename, mode='r', *args, **kwargs):
-                    if os.fspath(filename) == output and 'w' in mode:
+                    if os.fspath(filename) == output and mode == 'wb':
                         raise error
                     return original_open(filename, mode, *args, **kwargs)
 

@@ -299,8 +299,8 @@ class TestCyCacheCleanup(unittest.TestCase):
             "Remaining cache size should be below 85% of cache_size limit"
         )
 
-    def test_cleanup_reclaims_abandoned_temp_files(self):
-        """No active writer can own a temporary file under exclusive cleanup."""
+    def test_cleanup_skips_temp_files(self):
+        """Verify that .tmp files are not deleted during cleanup."""
         base_time = time.time()
 
         # Create regular and temp files
@@ -310,9 +310,10 @@ class TestCyCacheCleanup(unittest.TestCase):
         # Run cleanup
         self.cache.cleanup_cache()
 
-        self.assertFalse(
+        # Temp file should still exist even though it's older
+        self.assertTrue(
             os.path.exists(temp_file),
-            "Abandoned temporary files should be reclaimed"
+            "Temporary .tmp files should not be deleted"
         )
         self.assertFalse(
             os.path.exists(regular_file),
