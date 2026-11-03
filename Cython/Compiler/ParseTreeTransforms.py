@@ -2402,11 +2402,11 @@ if VALUE is not None:
                     with CRITICAL_SECTION(self):
                         state = ({members})
                         _dict = getattr(self, '__dict__', None)
-                    if _dict is not None and _dict:
-                        state += (_dict,)
-                        use_setstate = True
-                    else:
-                        use_setstate = {any_notnone_members}
+                        if _dict is not None and _dict:
+                            state += (_dict,)
+                            use_setstate = True
+                        else:
+                            use_setstate = {any_notnone_members}
                     if use_setstate:
                         return {unpickle_func_name}, (type(self), {checksums[0]}, None), state
                     else:
