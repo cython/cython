@@ -8,8 +8,29 @@ Cython Changelog
 Features added
 --------------
 
+* Some previously unsupported unpacking cases in assignments were implemented.
+  Patch by Enrico Lockner.  (Github issue :issue:`8105`)
+
+* Docstrings are now dedented, following Python 3.13+.
+  Patch by Won-Kyu Park.  (Github issue :issue:`8075`)
+
+* Runtime conversion of a read-only memoryview to a writable memoryview is now detected
+  and raises an exception.
+  (Github issue :issue:`8073`)
+
 Bugs fixed
 ----------
+
+* Returning the declared exception value without actually raising an exception
+  now raises an exception instead of crashing.
+  Patch by Vladimir Saraikin.  (Github issue :issue:`7857`)
+
+* ``None`` default values passed into optimised string methods (as start/end position)
+  were mishandled and let the call fail.
+  (Github issue :issue:`8098`)
+
+* Type references in internal freelists were not considered for garbage collection.
+  (Github issue :issue:`8096`)
 
 Other changes
 -------------
