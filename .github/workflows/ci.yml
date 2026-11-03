@@ -110,8 +110,8 @@ jobs:
 
 
   ci-early-success:
-    needs: [codespell, codestyle, ci-early, build_docs]
-    if: ${{ always() && !contains(needs.*.result, 'cancelled') }}
+    needs: [file-changes, codespell, codestyle, ci-early, build_docs]
+    if: ${{ !cancelled() }}
     env:
       FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
     runs-on: ubuntu-latest
@@ -435,8 +435,8 @@ jobs:
 
 
   ci-success:
-    needs: [ci-early-success, ci-all, ci-arm64, ci-32bit, ci-typespecs, ci-sharedmodule, ci-module-state, ci-compileall, ci-stdc, ci-lapi, ci-noncpython]
-    if: ${{ always() && !contains(needs.*.result, 'cancelled') }}
+    needs: [file-changes, ci-early-success, ci-all, ci-arm64, ci-32bit, ci-typespecs, ci-sharedmodule, ci-module-state, ci-compileall, ci-stdc, ci-lapi, ci-noncpython]
+    if: ${{ !cancelled() }}
     env:
       FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
     runs-on: ubuntu-latest
