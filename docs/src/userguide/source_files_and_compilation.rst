@@ -568,6 +568,12 @@ The Cython cache is disabled by default but can be enabled by the ``cache`` para
         ext_modules=cythonize(extensions, cache=True)
     )
 
+A cache directory may be shared by concurrent Cython processes and threads.
+Cython coordinates access to individual entries while allowing different source
+files to be cached in parallel. Cache I/O is optional: a transient cache or
+filesystem failure is treated as a cache miss, so it does not prevent Cython
+from generating the requested source file.
+
 The cached files are searched in the following paths by default in the following order:
 
 1. path specified in the :envvar:`CYTHON_CACHE_DIR` environment variable,

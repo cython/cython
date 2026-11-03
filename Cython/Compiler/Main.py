@@ -521,14 +521,16 @@ def setup_source_object(source, source_ext, full_module_name, options, context):
 
 
 def run_cached_pipeline(source, options, full_module_name, context, cache, fingerprint):
+    from ..Build.Cache import CacheUnavailable
+
     cwd = os.getcwd()
     output_filename = get_output_filename(source, cwd, options)
     cached = cache.lookup_cache(output_filename, fingerprint)
     if cached:
         try:
             cache.load_from_cache(output_filename, cached)
-        except FileNotFoundError:
-            # Cached file was concurrently deleted, need to regenerate it.
+        except CacheUnavailable:
+            # Cached file was deleted or became inaccessible, need to regenerate it.
             pass
         else:
             source_ext = os.path.splitext(source)[1]

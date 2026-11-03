@@ -123,7 +123,7 @@ class TestCyCache(CythonTest):
 
         compilation_method(a_pyx, cache=self.cache_dir)
 
-        a_cache = os.path.join(self.cache_dir, os.listdir(self.cache_dir)[0])
+        a_cache = self.cache_files('a.c*.gz')[0]
         with gzip.GzipFile(a_cache, 'wb') as gzipfile:
             gzipfile.write(b'fake stuff')
         os.unlink(a_c)
@@ -299,8 +299,8 @@ class TestCyCacheCleanup(unittest.TestCase):
             "Remaining cache size should be below 85% of cache_size limit"
         )
 
-    def test_cleanup_skips_temp_files(self):
-        """Verify that .tmp files are not deleted during cleanup."""
+    def test_cleanup_reclaims_abandoned_temp_files(self):
+        """No active writer can own a temporary file under exclusive cleanup."""
         base_time = time.time()
 
         # Create regular and temp files
@@ -310,10 +310,9 @@ class TestCyCacheCleanup(unittest.TestCase):
         # Run cleanup
         self.cache.cleanup_cache()
 
-        # Temp file should still exist even though it's older
-        self.assertTrue(
+        self.assertFalse(
             os.path.exists(temp_file),
-            "Temporary .tmp files should not be deleted"
+            "Abandoned temporary files should be reclaimed"
         )
         self.assertFalse(
             os.path.exists(regular_file),
