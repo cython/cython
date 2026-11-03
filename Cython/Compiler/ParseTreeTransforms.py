@@ -671,7 +671,9 @@ def flatten_parallel_assignments(input: list, output: list):
     #  recursively, so that nested structures get matched as well.
     rhs = input[-1]
     if (not (rhs.is_sequence_constructor or isinstance(rhs, ExprNodes.UnicodeNode))
-            or not sum([lhs.is_sequence_constructor for lhs in input[:-1]])):
+            or not sum([lhs.is_sequence_constructor for lhs in input[:-1]])
+            # A starred RHS item has an unknown length, so it cannot be paired up at compile time.
+            or (rhs.is_sequence_constructor and any([arg.is_starred for arg in rhs.args]))):
         output.append(input)
         return
 
@@ -707,6 +709,9 @@ def flatten_parallel_assignments(input: list, output: list):
                   % (rhs_size, (rhs_size != 1) and 's' or ''))
             output.append([lhs,rhs])
             continue
+        elif starred_targets and lhs.args[-1].is_starred and lhs_size - 1 == rhs_size:
+            # Nothing is left for the starred target, the runtime unpacking gives it an empty list.
+            output.append([lhs, rhs])
         elif starred_targets:
             map_starred_assignment(lhs_targets, starred_assignments,
                                    lhs.args, rhs_args)
