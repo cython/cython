@@ -75,48 +75,34 @@ if os.name == "nt":
 @contextmanager
 def _file_lock(path, exclusive, blocking=True):
     # Persistent metadata keeps the lock valid when the artifact is replaced.
-    try:
-        lock_file = open(path, "a+b")
-    except OSError as exc:
-        raise CacheUnavailable() from exc
-
-    overlapped = None
-    try:
-        if os.name == "posix":
-            flags = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
-            if not blocking:
-                flags |= fcntl.LOCK_NB
-            fcntl.flock(lock_file.fileno(), flags)
-        elif os.name == "nt":
-            overlapped = _OVERLAPPED()
-            handle = msvcrt.get_osfhandle(lock_file.fileno())
-            flags = _LOCKFILE_EXCLUSIVE_LOCK if exclusive else 0
-            if not blocking:
-                flags |= _LOCKFILE_FAIL_IMMEDIATELY
-            if not _kernel32.LockFileEx(handle, flags, 0, 1, 0, ctypes.byref(overlapped)):
-                raise ctypes.WinError(ctypes.get_last_error())
-        else:
-            raise CacheUnavailable()
-    except (OSError, CacheUnavailable) as exc:
-        try:
-            lock_file.close()
-        except OSError:
-            pass
-        raise CacheUnavailable() from exc
-
-    try:
-        yield lock_file
-    finally:
+    with _cache_file(open, path, "a+b") as lock_file:
         try:
             if os.name == "posix":
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                flags = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+                if not blocking:
+                    flags |= fcntl.LOCK_NB
+                fcntl.flock(lock_file.fileno(), flags)
+            elif os.name == "nt":
+                overlapped = _OVERLAPPED()
+                handle = msvcrt.get_osfhandle(lock_file.fileno())
+                flags = _LOCKFILE_EXCLUSIVE_LOCK if exclusive else 0
+                if not blocking:
+                    flags |= _LOCKFILE_FAIL_IMMEDIATELY
+                if not _kernel32.LockFileEx(handle, flags, 0, 1, 0, ctypes.byref(overlapped)):
+                    raise ctypes.WinError(ctypes.get_last_error())
             else:
-                _kernel32.UnlockFileEx(handle, 0, 1, 0, ctypes.byref(overlapped))
-        except OSError:
-            pass
+                raise CacheUnavailable()
+        except OSError as exc:
+            raise CacheUnavailable() from exc
+
+        try:
+            yield lock_file
         finally:
             try:
-                lock_file.close()
+                if os.name == "posix":
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                else:
+                    _kernel32.UnlockFileEx(handle, 0, 1, 0, ctypes.byref(overlapped))
             except OSError:
                 pass
 
@@ -272,62 +258,60 @@ class Cache:
         name = os.path.normcase(os.path.basename(cache_file))
         return hashlib.sha256(os.fsencode(name)).hexdigest() + ".lock"
 
-    @contextmanager
+    # Readers only exclude cleanup because published entries are immutable;
+    # entry locks serialize writers to avoid duplicate compression.
     def _lifecycle_lock(self, exclusive, blocking=True):
-        with _file_lock(self._lock_path(self._lifecycle_lock_name), exclusive, blocking) as lock_file:
-            yield lock_file
+        return _file_lock(self._lock_path(self._lifecycle_lock_name), exclusive, blocking)
 
-    @contextmanager
     def _entry_lock(self, cache_file, exclusive):
-        with _file_lock(self._lock_path(self._entry_lock_name(cache_file)), exclusive):
-            yield
+        return _file_lock(self._lock_path(self._entry_lock_name(cache_file)), exclusive)
 
     def lookup_cache(self, c_file, fingerprint):
         """Look up a file in the cache and update its access/modification time.
 
         Return the compressed file path of the cached file.
         """
+        if not self.enabled:
+            return None
         try:
-            with self._lifecycle_lock(False):
-                for extension in (gzip_ext, zip_ext):
-                    cached = self.fingerprint_file(c_file, fingerprint, extension)
-                    try:
-                        os.utime(cached, None)
-                    except FileNotFoundError:
-                        continue
-                    return cached
-        except (CacheUnavailable, OSError):
+            for extension in (gzip_ext, zip_ext):
+                cached = self.fingerprint_file(c_file, fingerprint, extension)
+                try:
+                    os.utime(cached, None)
+                except FileNotFoundError:
+                    continue
+                return cached
+        except OSError:
             pass
         return None
 
     def load_from_cache(self, c_file, cached):
         with self._lifecycle_lock(False):
-            with self._entry_lock(cached, False):
-                try:
-                    os.utime(cached, None)
-                except OSError as exc:
-                    raise CacheUnavailable() from exc
+            try:
+                os.utime(cached, None)
+            except OSError as exc:
+                raise CacheUnavailable() from exc
 
-                ext = os.path.splitext(cached)[1]
-                if ext == gzip_ext:
-                    with _cache_file(gzip_open, cached, "rb") as source:
-                        with open(c_file, "wb") as output:
-                            _copy_from_cache(source, output)
-                elif ext == zip_ext:
-                    dirname = os.path.dirname(c_file)
-                    with _cache_file(zipfile.ZipFile, cached) as archive:
-                        if dirname:
-                            os.makedirs(dirname, exist_ok=True)
-                        for artifact in archive.namelist():
-                            # Cython stores only basenames; other paths indicate
-                            # an invalid artifact rather than generated output.
-                            if artifact != os.path.basename(artifact):
-                                raise CacheUnavailable()
-                            with _cache_file(archive.open, artifact) as source:
-                                with open(join_path(dirname, artifact), "wb") as output:
-                                    _copy_from_cache(source, output)
-                else:
-                    raise ValueError(f"Unsupported cache file extension: {ext}")
+            ext = os.path.splitext(cached)[1]
+            if ext == gzip_ext:
+                with _cache_file(gzip_open, cached, "rb") as source:
+                    with open(c_file, "wb") as output:
+                        _copy_from_cache(source, output)
+            elif ext == zip_ext:
+                dirname = os.path.dirname(c_file)
+                with _cache_file(zipfile.ZipFile, cached) as archive:
+                    if dirname:
+                        os.makedirs(dirname, exist_ok=True)
+                    for artifact in archive.namelist():
+                        # Cython stores only basenames; other paths indicate
+                        # an invalid artifact rather than generated output.
+                        if artifact != os.path.basename(artifact):
+                            raise CacheUnavailable()
+                        with _cache_file(archive.open, artifact) as source:
+                            with open(join_path(dirname, artifact), "wb") as output:
+                                _copy_from_cache(source, output)
+            else:
+                raise ValueError(f"Unsupported cache file extension: {ext}")
 
     def _temporary_file(self):
         # Older Cython writers use the cache root without taking lifecycle locks.

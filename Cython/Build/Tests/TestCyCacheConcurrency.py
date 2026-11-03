@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 import errno
 import gzip
 import multiprocessing
@@ -60,17 +59,9 @@ def paused_cache_io(cache_dir, source, output, mode, ready, release, results):
 
 
 def cleanup_entry(cache_dir, attempted, completed):
-    real_lock = cache_mod._file_lock
-
-    @contextmanager
-    def tracked_lock(path, exclusive, blocking=True):
-        if exclusive and os.path.basename(path) == cache_mod.Cache._lifecycle_lock_name:
-            attempted.set()
-        with real_lock(path, exclusive, blocking) as lock_file:
-            yield lock_file
-
-    with mock.patch.object(cache_mod, '_file_lock', tracked_lock):
-        cache_mod.Cache(cache_dir).cleanup_cache()
+    cache = cache_mod.Cache(cache_dir)
+    attempted.set()
+    cache.cleanup_cache()
     completed.set()
 
 
@@ -209,14 +200,16 @@ class TestCyCacheConcurrency(unittest.TestCase):
         with mock.patch.object(cache_mod.os, 'scandir', wraps=os.scandir) as scandir:
             self.cache.cleanup_cache()
             initial_scans = scandir.call_count
-            other = cache_mod.Cache(str(self.cache_dir))
-            other.cleanup_cache()
-            self.assertEqual(scandir.call_count, initial_scans)
-
             marker = self.cache._lock_path(self.cache._lifecycle_lock_name)
-            os.utime(marker, (1, 1))
-            other.cleanup_cache()
-            self.assertGreater(scandir.call_count, initial_scans)
+            completed_at = os.stat(marker).st_mtime
+            interval = self.cache._cleanup_interval
+            with mock.patch.object(cache_mod.time, 'time', return_value=completed_at + interval / 2):
+                other = cache_mod.Cache(str(self.cache_dir))
+                other.cleanup_cache()
+                self.assertEqual(scandir.call_count, initial_scans)
+            with mock.patch.object(cache_mod.time, 'time', return_value=completed_at + interval * 2):
+                other.cleanup_cache()
+                self.assertGreater(scandir.call_count, initial_scans)
             self.assertEqual(os.stat(marker).st_size, 1)
 
     def test_cleanup_scans_artifact_directory_once(self):
@@ -240,6 +233,7 @@ class TestCyCacheConcurrency(unittest.TestCase):
             self.cache.cleanup_cache()
 
     def test_lock_open_failure_bypasses_cache(self):
+        cached = self.store()
         original_open = open
 
         def unavailable_lock(filename, *args, **kwargs):
@@ -248,7 +242,9 @@ class TestCyCacheConcurrency(unittest.TestCase):
             return original_open(filename, *args, **kwargs)
 
         with mock.patch('builtins.open', unavailable_lock):
-            self.assertIsNone(self.cache.lookup_cache(str(self.source), 'key'))
+            self.assertEqual(self.cache.lookup_cache(str(self.source), 'key'), cached)
+            with self.assertRaises(cache_mod.CacheUnavailable):
+                self.cache.load_from_cache(str(self.root / 'output.c'), cached)
             self.cache.store_to_cache(str(self.source), 'key', GeneratedSources(str(self.source)))
             self.cache.cleanup_cache()
 

@@ -571,10 +571,9 @@ The Cython cache is disabled by default but can be enabled by the ``cache`` para
 A cache directory may be shared by concurrent Cython processes and threads.
 Cython coordinates access to individual entries while allowing different source
 files to be cached in parallel. Cleanup skips active cache operations and
-coalesces requests within one second. It reclaims temporary artifacts only from
-a separate directory used by writers that acquire these locks. Cache I/O is
-optional: a transient cache or filesystem failure is treated as a cache miss,
-so it does not prevent Cython from generating the requested source file.
+does not block waiting for them to finish. Cache I/O is optional: a transient
+cache or filesystem failure is treated as a cache miss, so it does not prevent
+Cython from generating the requested source file.
 
 The cached files are searched in the following paths by default in the following order:
 
