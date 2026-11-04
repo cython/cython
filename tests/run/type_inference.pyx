@@ -697,23 +697,24 @@ def loop_over_character_list():
 
 
 @cython.test_assert_path_exists(
-    "//ForFromStatNode",
-    "//ForFromStatNode//NameNode[@name = 'c_ch']",
-    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'c_ch']",
     "//ForInStatNode//NameNode[@name = 'py_ch']",
+)
+@cython.test_fail_if_path_exists(
+    "//ForFromStatNode",
 )
 def loop_over_single_bytes_tuple():
     """
     >>> loop_over_single_bytes_tuple()
-    unsigned char
+    bytes object
     bytes object
     """
     for c_ch in (b'a', b'\x0a', b' '):
-        assert c_ch > 0
+        assert c_ch in (b'a', b'\x0a', b' ')
     print(typeof(c_ch))
 
     for py_ch in (b'a', b'\x0a', b' ', None):
-        assert py_ch or not py_ch
+        assert py_ch in (b'a', b'\x0a', b' ', None)
     print(typeof(py_ch))
 
 
@@ -736,6 +737,23 @@ def loop_over_bools():
     for py_b in None, True, False, False, True:
         assert py_b or not py_b
     print(typeof(py_b))
+
+
+def loop_over_mixed_sequence_literals():
+    """
+    >>> loop_over_mixed_sequence_literals()
+    ['int', 'float']
+    ['bool', 'int']
+    """
+    int_float_items = []
+    for item in (123, 123.45):
+        int_float_items.append(item)
+    print([type(item).__name__ for item in int_float_items])
+
+    bool_int_items = []
+    for item in [True, 2]:
+        bool_int_items.append(item)
+    print([type(item).__name__ for item in bool_int_items])
 
 
 cdef struct MyStruct:
