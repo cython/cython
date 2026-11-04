@@ -122,3 +122,6 @@ reload_ext_module
 
 # _PyTime_GetSystemClock
 time_pxd
+
+# Explicit CPython module finalization callbacks.
+run.external_base_cleanup
