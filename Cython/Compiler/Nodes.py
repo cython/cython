@@ -2231,7 +2231,7 @@ class FuncDefNode(StatNode, BlockNode):
                 lenv.scope_class.type.empty_declaration_code(),
                 slot_func_cname,
                 code.name_in_module_state(lenv.scope_class.type.typeptr_cname),
-                code.name_in_module_state(Naming.empty_tuple)))
+                code.empty_constant_code("tuple")))
             code.putln("if (unlikely(!%s)) {" % Naming.cur_scope_cname)
             # Scope unconditionally DECREFed on return.
             code.putln("%s = %s;" % (
