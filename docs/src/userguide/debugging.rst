@@ -9,8 +9,15 @@ Debugging your Cython program
 Cython comes with an extension for the GNU Debugger that helps users debug
 Cython code. To use this functionality, you will need to install gdb 7.2 or
 higher, built with Python 3 support.
+For optimal results, you should configure gdb from source and use the --with-python
+configuration flag. ::
 
-Installing the Cython debugger can be quite tricky. `This installation script and example code <https://gitlab.com/volkerweissmann/cygdb_installation>`_ might be useful.
+    ./configure --with-python=python3
+    make
+    sudo make install
+
+Installing the Cython debugger can be quite tricky. To make things easier you can
+download a pre-built docker image from `here <https://hub.docker.com/repository/docker/willayd/cython-debug>`_.
 
 The debugger will need debug information that the Cython compiler can export.
 This can be achieved from within the setup script by passing ``gdb_debug=True``
