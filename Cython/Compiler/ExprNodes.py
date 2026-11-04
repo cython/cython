@@ -12918,6 +12918,14 @@ class BinopNode(ExprNode):
             return py_object_type
         elif type1.is_error or type2.is_error:
             return PyrexTypes.error_type
+        elif type1.is_cpp_class or type2.is_cpp_class:
+            entry = env.lookup_operator_for_types(self.pos, self.operator, [type1, type2])
+            if entry is None:
+                return None
+            func_type = entry.type
+            if func_type.is_ptr:
+                func_type = func_type.base_type
+            return func_type.return_type
         else:
             return self.compute_c_result_type(type1, type2)
 
