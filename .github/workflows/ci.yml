@@ -435,7 +435,9 @@ jobs:
 
 
   ci-success:
-    needs: [file-changes, ci-early-success, ci-all, ci-arm64, ci-32bit, ci-typespecs, ci-sharedmodule, ci-module-state, ci-compileall, ci-stdc, ci-lapi, ci-noncpython]
+    # ci-arm64 excluded from ci-success due to https://developercommunity.microsoft.com/t/MSVC-ARM64-linkexe-hangs-building-Cytho/11167595
+    # on Windows. Re-add when that's fixed.
+    needs: [file-changes, ci-early-success, ci-all, ci-32bit, ci-typespecs, ci-sharedmodule, ci-module-state, ci-compileall, ci-stdc, ci-lapi, ci-noncpython]
     if: ${{ always() }}
     env:
       FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
