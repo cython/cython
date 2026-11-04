@@ -11045,15 +11045,31 @@ class ParallelRangeNode(ParallelStatNode):
 
         self.release_closure_privates(code)
 
+    def ends_parallel_block(self):
+        if not self.parent or self.parent.is_prange:
+            return False
+        stat = self.parent.body
+        while isinstance(stat, StatListNode) and stat.stats:
+            stat = stat.stats[-1]
+        return stat is self
+
     def generate_loop(self, code, fmt_dict):
         if self.is_nested_prange:
             code.putln("#if 0")
         else:
             code.putln("#ifdef _OPENMP")
 
+        # With the GIL held, the implicit barrier of the loop would deadlock, so
+        # it's replaced by an explicit one after releasing the GIL (see below).
+        # A "parallel for" or the last statement of a parallel block needs none,
+        # the end of the parallel region follows.
+        # Code after a prange in a parallel block relies on this barrier.
+        nowait = self.acquire_gil or self.is_parallel or self.ends_parallel_block()
+        omp_for = "#pragma omp for nowait" if nowait else "#pragma omp for"
+
         if not self.is_parallel:
             acquire_gil_deadlock_avoidance_point = code.insertion_point()
-            code.put("#pragma omp for nowait")
+            code.put(omp_for)
             self.privatization_insertion_point = code.insertion_point()
             reduction_codepoint = self.parent.privatization_insertion_point
         else:
@@ -11077,7 +11093,7 @@ class ParallelRangeNode(ParallelStatNode):
             else:
                 code.putln("#ifdef _OPENMP")
             acquire_gil_deadlock_avoidance_point = code.insertion_point()
-            code.put("#pragma omp for nowait")
+            code.put(omp_for)
 
         if self.acquire_gil:
             # Any firstprivate creates a barrier at least on GCC (and thus
