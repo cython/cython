@@ -1,23 +1,15 @@
-from contextlib import contextmanager
 from dataclasses import dataclass
 import sys
 import os
 import hashlib
 import operator
 import shutil
+import subprocess
 import tempfile
-import time
 import zipfile
 
 from ..Utils import cached_function
 from .. import __version__
-
-if os.name == "posix":
-    import fcntl
-elif os.name == "nt":
-    import ctypes
-    import msvcrt
-    from ctypes import wintypes
 
 try:
     import zlib
@@ -41,102 +33,6 @@ MAX_CACHE_SIZE = 1024 * 1024 * 100
 DEFAULT_DELETE_RATIO = 0.85
 
 join_path = cached_function(os.path.join)
-
-
-class CacheUnavailable(Exception):
-    """An optional cache operation could not be completed."""
-
-
-if os.name == "nt":
-    class _OVERLAPPED(ctypes.Structure):
-        _fields_ = [
-            ("Internal", ctypes.c_size_t),
-            ("InternalHigh", ctypes.c_size_t),
-            ("Offset", wintypes.DWORD),
-            ("OffsetHigh", wintypes.DWORD),
-            ("hEvent", wintypes.HANDLE),
-        ]
-
-    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    _kernel32.LockFileEx.argtypes = (
-        wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD,
-        wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(_OVERLAPPED),
-    )
-    _kernel32.LockFileEx.restype = wintypes.BOOL
-    _kernel32.UnlockFileEx.argtypes = (
-        wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD,
-        wintypes.DWORD, ctypes.POINTER(_OVERLAPPED),
-    )
-    _kernel32.UnlockFileEx.restype = wintypes.BOOL
-    _LOCKFILE_EXCLUSIVE_LOCK = 0x00000002
-    _LOCKFILE_FAIL_IMMEDIATELY = 0x00000001
-
-
-@contextmanager
-def _file_lock(path, exclusive, blocking=True):
-    # Persistent metadata keeps the lock valid when the artifact is replaced.
-    with _cache_file(open, path, "a+b") as lock_file:
-        try:
-            if os.name == "posix":
-                flags = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
-                if not blocking:
-                    flags |= fcntl.LOCK_NB
-                fcntl.flock(lock_file.fileno(), flags)
-            elif os.name == "nt":
-                overlapped = _OVERLAPPED()
-                handle = msvcrt.get_osfhandle(lock_file.fileno())
-                flags = _LOCKFILE_EXCLUSIVE_LOCK if exclusive else 0
-                if not blocking:
-                    flags |= _LOCKFILE_FAIL_IMMEDIATELY
-                if not _kernel32.LockFileEx(handle, flags, 0, 1, 0, ctypes.byref(overlapped)):
-                    raise ctypes.WinError(ctypes.get_last_error())
-            else:
-                raise CacheUnavailable()
-        except OSError as exc:
-            raise CacheUnavailable() from exc
-
-        try:
-            yield lock_file
-        finally:
-            try:
-                if os.name == "posix":
-                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-                else:
-                    _kernel32.UnlockFileEx(handle, 0, 1, 0, ctypes.byref(overlapped))
-            except OSError:
-                pass
-
-
-_cache_read_errors = (OSError, EOFError, zipfile.BadZipFile)
-if zipfile_compression_mode == zipfile.ZIP_DEFLATED:
-    _cache_read_errors += (zlib.error,)
-
-
-@contextmanager
-def _cache_file(opener, *args):
-    try:
-        source = opener(*args)
-    except _cache_read_errors as exc:
-        raise CacheUnavailable() from exc
-    try:
-        yield source
-    finally:
-        try:
-            source.close()
-        except OSError:
-            pass
-
-
-def _copy_from_cache(source, output):
-    while True:
-        try:
-            data = source.read(131072)
-        except _cache_read_errors as exc:
-            raise CacheUnavailable() from exc
-        if not data:
-            return
-        # Output failures must retain their normal compilation-error semantics.
-        output.write(data)
 
 
 @cached_function
@@ -194,22 +90,14 @@ class FingerprintFlags:
 
 
 class Cache:
-    _lock_directory = ".locks"
-    _lifecycle_lock_name = "lifecycle.lock"
-    _cleanup_interval = 1.0
-
     def __init__(self, path, cache_size=None):
         if path is None:
             self.path = join_path(get_cython_cache_dir(), "compiler")
         else:
             self.path = path
-        self._temporary_path = join_path(self.path, self._lock_directory, "tmp")
         self.cache_size = cache_size if cache_size is not None else MAX_CACHE_SIZE
-        self.enabled = True
-        try:
-            os.makedirs(self.path, exist_ok=True)
-        except OSError:
-            self.enabled = False
+        # Make sure the cache directory exists (and allow for concurrent creation).
+        os.makedirs(self.path, exist_ok=True)
 
     def transitive_fingerprint(
         self, filename, dependencies, compilation_options, flags=FingerprintFlags()
@@ -243,127 +131,84 @@ class Cache:
             join_path(self.path, "%s-%s" % (os.path.basename(cfile), fingerprint)) + ext
         )
 
-    def _lock_path(self, name):
-        if not self.enabled:
-            raise CacheUnavailable()
-        directory = join_path(self.path, self._lock_directory)
-        try:
-            os.makedirs(directory, exist_ok=True)
-        except OSError as exc:
-            raise CacheUnavailable() from exc
-        return join_path(directory, name)
-
-    def _entry_lock_name(self, cache_file):
-        # The same entry must use the same lock through relative paths or aliases.
-        name = os.path.normcase(os.path.basename(cache_file))
-        return hashlib.sha256(os.fsencode(name)).hexdigest() + ".lock"
-
-    # Readers only exclude cleanup because published entries are immutable;
-    # entry locks serialize writers to avoid duplicate compression.
-    def _lifecycle_lock(self, exclusive, blocking=True):
-        return _file_lock(self._lock_path(self._lifecycle_lock_name), exclusive, blocking)
-
-    def _entry_lock(self, cache_file, exclusive):
-        return _file_lock(self._lock_path(self._entry_lock_name(cache_file)), exclusive)
-
     def lookup_cache(self, c_file, fingerprint):
         """Look up a file in the cache and update its access/modification time.
 
         Return the compressed file path of the cached file.
         """
-        if not self.enabled:
-            return None
+        # Cython-generated c files are highly compressible.
+        # (E.g. a compression ratio of about 10 for Sage).
+        os.makedirs(self.path, exist_ok=True)
+        gz_fingerprint_file = self.fingerprint_file(c_file, fingerprint, gzip_ext)
+        # Single OS call to avoid races between check and time update.
         try:
-            for extension in (gzip_ext, zip_ext):
-                cached = self.fingerprint_file(c_file, fingerprint, extension)
-                try:
-                    os.utime(cached, None)
-                except FileNotFoundError:
-                    continue
-                return cached
-        except OSError:
+            os.utime(gz_fingerprint_file, None)
+            return gz_fingerprint_file
+        except FileNotFoundError:
+            pass
+        zip_fingerprint_file = self.fingerprint_file(c_file, fingerprint, zip_ext)
+        try:
+            os.utime(zip_fingerprint_file, None)
+            return zip_fingerprint_file
+        except FileNotFoundError:
             pass
         return None
 
     def load_from_cache(self, c_file, cached):
-        with self._lifecycle_lock(False):
-            try:
-                os.utime(cached, None)
-            except OSError as exc:
-                raise CacheUnavailable() from exc
-
-            ext = os.path.splitext(cached)[1]
-            if ext == gzip_ext:
-                with _cache_file(gzip_open, cached, "rb") as source:
-                    with open(c_file, "wb") as output:
-                        _copy_from_cache(source, output)
-            elif ext == zip_ext:
-                dirname = os.path.dirname(c_file)
-                with _cache_file(zipfile.ZipFile, cached) as archive:
-                    if dirname:
-                        os.makedirs(dirname, exist_ok=True)
-                    for artifact in archive.namelist():
-                        # Cython stores only basenames; other paths indicate
-                        # an invalid artifact rather than generated output.
-                        if artifact != os.path.basename(artifact):
-                            raise CacheUnavailable()
-                        with _cache_file(archive.open, artifact) as source:
-                            with open(join_path(dirname, artifact), "wb") as output:
-                                _copy_from_cache(source, output)
-            else:
-                raise ValueError(f"Unsupported cache file extension: {ext}")
-
-    def _temporary_file(self):
-        # Older Cython writers use the cache root without taking lifecycle locks.
-        os.makedirs(self._temporary_path, exist_ok=True)
-        return tempfile.mkstemp(suffix=".tmp", dir=self._temporary_path)
+        ext = os.path.splitext(cached)[1]
+        if ext == gzip_ext:
+            os.utime(cached, None)
+            with gzip_open(cached, "rb") as g, open(c_file, "wb") as f:
+                shutil.copyfileobj(g, f)
+        elif ext == zip_ext:
+            os.utime(cached, None)
+            dirname = os.path.dirname(c_file)
+            with zipfile.ZipFile(cached) as z:
+                z.extractall(dirname)
+        else:
+            raise ValueError(f"Unsupported cache file extension: {ext}")
 
     def store_to_cache(self, c_file, fingerprint, compilation_result):
         artifacts = compilation_result.get_generated_source_files()
         extension = gzip_ext if len(artifacts) == 1 else zip_ext
-        cache_file = self.fingerprint_file(c_file, fingerprint, extension)
+        fingerprint_file = self.fingerprint_file(c_file, fingerprint, extension)
+        # Writers may share a fingerprint, but must not share an unfinished artifact.
+        fd, temporary_file = tempfile.mkstemp(suffix=".tmp", dir=self.path)
         try:
-            with self._lifecycle_lock(False):
-                with self._entry_lock(cache_file, True):
-                    if os.path.exists(cache_file):
-                        return
-                    temporary_file = None
-                    try:
-                        fd, temporary_file = self._temporary_file()
-                        os.close(fd)
-                        if len(artifacts) == 1:
-                            with open(c_file, "rb") as source:
-                                with gzip_open(temporary_file, "wb") as output:
-                                    shutil.copyfileobj(source, output)
-                        else:
-                            with zipfile.ZipFile(
-                                temporary_file, "w", zipfile_compression_mode
-                            ) as archive:
-                                for artifact in artifacts:
-                                    archive.write(artifact, os.path.basename(artifact))
-                        os.replace(temporary_file, cache_file)
-                        temporary_file = None
-                    finally:
-                        if temporary_file is not None:
-                            try:
-                                os.unlink(temporary_file)
-                            except OSError:
-                                pass
-        except (CacheUnavailable, OSError):
-            # Generated output remains valid even when its cache cannot be written.
-            pass
+            os.close(fd)
+            if len(artifacts) == 1:
+                with open(c_file, "rb") as f:
+                    with gzip_open(temporary_file, "wb") as g:
+                        shutil.copyfileobj(f, g)
+            else:
+                with zipfile.ZipFile(
+                    temporary_file, "w", zipfile_compression_mode
+                ) as zip:
+                    for artifact in artifacts:
+                        zip.write(artifact, os.path.basename(artifact))
+            try:
+                os.rename(temporary_file, fingerprint_file)
+            except FileExistsError:
+                # Windows does not replace an entry published by another writer.
+                pass
+        finally:
+            try:
+                os.unlink(temporary_file)
+            except OSError:
+                pass
 
     def _list_cache_files(self):
         total_size = 0
         cache_files = []
         with os.scandir(self.path) as entries:
             for entry in entries:
-                if entry.name == self._lock_directory or entry.name.endswith('.tmp'):
+                if entry.name.endswith('.tmp'):
+                    # Ignore temp files that might still be used by other Cython processes.
                     continue
                 try:
                     stat = entry.stat(follow_symlinks=False)
-                except OSError:
-                    # Cache maintenance is optional even on stale network mounts.
+                except FileNotFoundError:
+                    # File was removed concurrently.
                     continue
 
                 file_size = stat.st_size
@@ -376,85 +221,46 @@ class Cache:
         cache_files.sort(key=operator.itemgetter(2, 1))
 
     def _delete_cache_files(self, files_to_delete, total_size, max_cache_size):
-        deleted = set()
         for file_path, size, _ in files_to_delete:
             if total_size < max_cache_size:
-                break
+                return
             try:
                 os.unlink(file_path)
                 total_size -= size
-                deleted.add(file_path)
             except FileNotFoundError:
                 # Concurrently deleted. Nothing left to delete for us.
                 total_size -= size
-                deleted.add(file_path)
             except OSError:
                 # Concurrent access on Windows? Keep the file, cannot delete it right now.
                 pass
-        return deleted
 
-    def _delete_stale_temporary_files(self):
-        # Lifecycle is exclusive, so no cooperating writer can own these files.
+    def _cachedir_looks_small_enough(self):
         try:
-            with os.scandir(self._temporary_path) as entries:
-                for entry in entries:
-                    if entry.name.endswith(".tmp"):
-                        try:
-                            os.unlink(entry.path)
-                        except OSError:
-                            pass
-        except OSError:
+            # Quick check for total directory size (on unixy systems).
+            completed_process = subprocess.run(
+                ["du", "-s", "-k", os.path.abspath(self.path)], stdout=subprocess.PIPE
+            )
+            stdout = completed_process.stdout
+            if completed_process.returncode == 0:
+                total_size = 1024 * int(stdout.strip().split()[0])
+                if total_size < self.cache_size:
+                    return True
+        except (OSError, ValueError):
             pass
-
-    def _cleanup_orphan_locks(self, cache_files, deleted):
-        live_locks = {
-            self._entry_lock_name(path) for path, _, _ in cache_files if path not in deleted
-        }
-        with os.scandir(join_path(self.path, self._lock_directory)) as entries:
-            for entry in entries:
-                if (entry.name != self._lifecycle_lock_name
-                        and entry.name.endswith(".lock")
-                        and entry.name not in live_locks):
-                    try:
-                        os.unlink(entry.path)
-                    except OSError:
-                        pass
-
-    def _recent_cleanup(self, stat):
-        # An empty lifecycle file has never recorded a completed cleanup.
-        return stat.st_size > 0 and 0 <= time.time() - stat.st_mtime < self._cleanup_interval
+        return False
 
     def cleanup_cache(self, ratio=DEFAULT_DELETE_RATIO):
         """Reduce the total file size in the cache to ratio*cache_size
         by evicting the least recently accessed entries.
         """
-        try:
-            lock_path = join_path(self.path, self._lock_directory, self._lifecycle_lock_name)
-            try:
-                if self._recent_cleanup(os.stat(lock_path)):
-                    return
-            except FileNotFoundError:
-                pass
+        if self._cachedir_looks_small_enough():
+            return
 
-            # Maintenance must not queue behind active readers or another cleanup.
-            with self._lifecycle_lock(True, blocking=False) as lock_file:
-                if self._recent_cleanup(os.fstat(lock_file.fileno())):
-                    return
-                self._delete_stale_temporary_files()
-                total_size, cache_files = self._list_cache_files()
-                deleted = set()
-                if total_size > self.cache_size:
-                    self._sort_files_by_atime(cache_files)
-                    max_cache_size = int(self.cache_size * ratio)
-                    deleted = self._delete_cache_files(cache_files, total_size, max_cache_size)
+        total_size, cache_files = self._list_cache_files()
 
-                self._cleanup_orphan_locks(cache_files, deleted)
+        if total_size > self.cache_size:
+            # Sort oldest access time first (then smallest size) to delete least recently used entries.
+            self._sort_files_by_atime(cache_files)
 
-                # The marker and its mtime coalesce cleanup across Cache instances
-                # and processes without growing the persistent lifecycle file.
-                lock_file.seek(0)
-                lock_file.truncate()
-                lock_file.write(b"1")
-                lock_file.flush()
-        except (CacheUnavailable, OSError):
-            pass
+            max_cache_size = int(self.cache_size * ratio)
+            self._delete_cache_files(cache_files, total_size, max_cache_size)

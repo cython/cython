@@ -1,20 +1,15 @@
 import difflib
-import errno
 import glob
 import gzip
 import os
-from pathlib import Path
 import tempfile
 import time
 import unittest
-from unittest import mock
-import zipfile
 
 import Cython.Build.Dependencies
 import Cython.Compiler.Main
 import Cython.Utils
 from Cython.TestUtils import CythonTest
-from Cython.Build import Cache as cache_mod
 from Cython.Build.Cache import Cache
 
 
@@ -128,7 +123,7 @@ class TestCyCache(CythonTest):
 
         compilation_method(a_pyx, cache=self.cache_dir)
 
-        a_cache = self.cache_files('a.c*.gz')[0]
+        a_cache = os.path.join(self.cache_dir, os.listdir(self.cache_dir)[0])
         with gzip.GzipFile(a_cache, 'wb') as gzipfile:
             gzipfile.write(b'fake stuff')
         os.unlink(a_c)
@@ -479,207 +474,3 @@ class TestCyCacheCleanup(unittest.TestCase):
             0,
             "Cleanup should have deleted files to reach the target ratio"
         )
-
-
-def store_entry(cache_dir, source):
-    result = Cython.Compiler.Main.CompilationResult()
-    result.c_file = source
-    cache = Cache(cache_dir)
-    cache.store_to_cache(source, 'key', result)
-    return cache.lookup_cache(source, 'key')
-
-
-class CacheTestCase(unittest.TestCase):
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
-        self.cache_dir = self.root / 'cache'
-        self.cache = Cache(str(self.cache_dir), cache_size=5000)
-        self.source = self.root / 'module.c'
-        self.source.write_bytes(b'/* generated source */\n')
-
-    def store(self):
-        return store_entry(str(self.cache_dir), str(self.source))
-
-
-class TestCyCacheOperations(CacheTestCase):
-    def test_cleanup_coalesces_recent_work_across_instances(self):
-        with mock.patch.object(cache_mod.os, 'scandir', wraps=os.scandir) as scandir:
-            self.cache.cleanup_cache()
-            initial_scans = scandir.call_count
-            marker = self.cache._lock_path(self.cache._lifecycle_lock_name)
-            completed_at = os.stat(marker).st_mtime
-            interval = self.cache._cleanup_interval
-            with mock.patch.object(cache_mod.time, 'time', return_value=completed_at + interval / 2):
-                other = cache_mod.Cache(str(self.cache_dir))
-                other.cleanup_cache()
-                self.assertEqual(scandir.call_count, initial_scans)
-            with mock.patch.object(cache_mod.time, 'time', return_value=completed_at + interval * 2):
-                other.cleanup_cache()
-                self.assertGreater(scandir.call_count, initial_scans)
-            self.assertEqual(os.stat(marker).st_size, 1)
-
-    def test_cleanup_scans_artifact_directory_once(self):
-        self.store()
-        with mock.patch.object(cache_mod.os, 'scandir', wraps=os.scandir) as scandir:
-            self.cache.cleanup_cache()
-        root_scans = sum(os.fspath(call.args[0]) == str(self.cache_dir)
-                         for call in scandir.call_args_list)
-        self.assertEqual(root_scans, 1)
-
-    def test_cleanup_ignores_live_lock_metadata(self):
-        cached = self.store()
-        lock_file = Path(self.cache._lock_path(self.cache._entry_lock_name(cached)))
-        lock_file.write_bytes(b'x' * 20000)
-        self.cache.cleanup_cache()
-        self.assertTrue(Path(cached).exists())
-        self.assertTrue(lock_file.exists())
-
-    def test_lock_open_failure_bypasses_cache(self):
-        cached = self.store()
-        original_open = open
-
-        def unavailable_lock(filename, *args, **kwargs):
-            if os.fspath(filename).endswith('.lock'):
-                raise PermissionError('lock is inaccessible')
-            return original_open(filename, *args, **kwargs)
-
-        with mock.patch('builtins.open', unavailable_lock):
-            self.assertEqual(self.cache.lookup_cache(str(self.source), 'key'), cached)
-            with self.assertRaises(cache_mod.CacheUnavailable):
-                self.cache.load_from_cache(str(self.root / 'output.c'), cached)
-            store_entry(str(self.cache_dir), str(self.source))
-            self.cache.cleanup_cache()
-
-    @unittest.skipUnless(os.name == 'posix', 'POSIX lock backend')
-    def test_lock_acquisition_failure_closes_file(self):
-        handle = tempfile.TemporaryFile()
-        with mock.patch('builtins.open', return_value=handle):
-            with mock.patch.object(cache_mod.fcntl, 'flock', side_effect=OSError('no locking')):
-                with self.assertRaises(cache_mod.CacheUnavailable):
-                    with cache_mod._file_lock('unavailable.lock', True):
-                        self.fail('lock acquisition unexpectedly succeeded')
-        self.assertTrue(handle.closed)
-
-    def test_entry_lock_name_is_independent_of_cache_path_alias(self):
-        cached = self.cache.fingerprint_file(str(self.source), 'key', cache_mod.gzip_ext)
-        self.assertEqual(
-            self.cache._entry_lock_name(cached),
-            self.cache._entry_lock_name(os.path.basename(cached)),
-        )
-
-    def test_failed_temporary_removal_allows_republishing_entry(self):
-        cached = self.cache.fingerprint_file(str(self.source), 'key', cache_mod.gzip_ext)
-        with self.cache._lifecycle_lock(False), self.cache._entry_lock(cached, True):
-            fd, temporary = self.cache._temporary_file()
-            os.close(fd)
-        real_unlink = os.unlink
-
-        def sharing_violation(path):
-            if os.fspath(path) == temporary:
-                raise PermissionError('temporary artifact is in use')
-            return real_unlink(path)
-
-        lock_file = Path(self.cache._lock_path(self.cache._entry_lock_name(cached)))
-        with mock.patch.object(cache_mod.os, 'unlink', sharing_violation):
-            self.cache.cleanup_cache()
-        self.assertTrue(Path(temporary).exists())
-        self.assertFalse(lock_file.exists())
-        self.assertIsNotNone(self.store())
-
-    def prepare_compile_hit(self, zip_artifact=False):
-        self.pyx = self.root / 'example.pyx'
-        self.pyx.write_text('cdef public int value = 42\n' if zip_artifact else 'value = 42\n')
-        result = Cython.Compiler.Main.compile(str(self.pyx), cache=str(self.cache_dir))
-        self.assertEqual(result.num_errors, 0)
-        Path(result.c_file).unlink()
-        return result.c_file
-
-    def test_cache_creation_failure_bypasses_cache(self):
-        original_makedirs = os.makedirs
-
-        def unavailable_directory(path, *args, **kwargs):
-            if os.fspath(path) == str(self.cache_dir):
-                raise PermissionError('cache is inaccessible')
-            return original_makedirs(path, *args, **kwargs)
-
-        with mock.patch.object(cache_mod.os, 'makedirs', unavailable_directory):
-            cache = cache_mod.Cache(str(self.cache_dir))
-            self.assertIsNone(cache.lookup_cache(str(self.source), 'key'))
-
-    def test_lookup_stale_handle_bypasses_cache(self):
-        self.store()
-        with mock.patch.object(cache_mod.os, 'utime', side_effect=OSError(errno.ESTALE, 'stale')):
-            self.assertIsNone(self.cache.lookup_cache(str(self.source), 'key'))
-
-    def test_cache_write_failure_does_not_fail_compile(self):
-        pyx = self.root / 'example.pyx'
-        pyx.write_text('value = 42\n')
-        with mock.patch.object(cache_mod, 'gzip_open', side_effect=PermissionError('read-only cache')):
-            result = Cython.Compiler.Main.compile(str(pyx), cache=str(self.cache_dir))
-        self.assertEqual(result.num_errors, 0)
-        self.assertTrue(Path(result.c_file).is_file())
-        self.assertEqual(list(self.cache_dir.glob('*.tmp')), [])
-        self.assertEqual(list(Path(self.cache._temporary_path).glob('*.tmp')), [])
-
-    def test_compile_preserves_output_errors_during_cache_load(self):
-        output = self.prepare_compile_hit()
-        original_open = open
-
-        for error in (FileNotFoundError('output directory vanished'),
-                      PermissionError('output is not writable')):
-            with self.subTest(error=repr(error)):
-                def unavailable_output(filename, mode='r', *args, **kwargs):
-                    if os.fspath(filename) == output and mode == 'wb':
-                        raise error
-                    return original_open(filename, mode, *args, **kwargs)
-
-                with mock.patch('builtins.open', unavailable_output):
-                    with self.assertRaises(type(error)):
-                        Cython.Compiler.Main.compile(str(self.pyx), cache=str(self.cache_dir))
-
-    def test_cleanup_scan_errors_are_best_effort(self):
-        for error in (FileNotFoundError('missing'), PermissionError('sharing violation'),
-                      OSError(errno.ESTALE, 'stale')):
-            with self.subTest(error=repr(error)):
-                with mock.patch.object(cache_mod.os, 'scandir', side_effect=error):
-                    self.cache.cleanup_cache()
-
-    def test_cleanup_stat_errors_are_best_effort(self):
-        entry = mock.Mock(name='stale.gz')
-        entry.name = 'stale.gz'
-        entry.stat.side_effect = OSError(errno.ESTALE, 'stale')
-        with mock.patch.object(cache_mod.os, 'scandir') as scandir:
-            scandir.return_value.__enter__.return_value = [entry]
-            self.assertEqual(self.cache._list_cache_files(), (0, []))
-
-    def test_cache_read_failure_recompiles(self):
-        for zip_artifact in (False, True):
-            with self.subTest(zip_artifact=zip_artifact):
-                output = self.prepare_compile_hit(zip_artifact=zip_artifact)
-                target, name = (zipfile.ZipFile, 'open') if zip_artifact else (cache_mod, 'gzip_open')
-                with mock.patch.object(target, name, side_effect=PermissionError('cache is inaccessible')):
-                    result = Cython.Compiler.Main.compile(str(self.pyx), cache=str(self.cache_dir))
-                self.assertEqual(result.num_errors, 0)
-                self.assertTrue(Path(output).is_file())
-
-    def test_streaming_errors_preserve_cache_output_boundary(self):
-        for error in (PermissionError('sharing violation'), OSError(errno.ESTALE, 'stale'),
-                      EOFError('truncated cache'), zipfile.BadZipFile('corrupt cache')):
-            with self.subTest(read_error=repr(error)):
-                source = mock.Mock()
-                source.read.side_effect = [b'partial output', error]
-                output = mock.Mock()
-                with self.assertRaises(cache_mod.CacheUnavailable):
-                    cache_mod._copy_from_cache(source, output)
-                output.write.assert_called_once_with(b'partial output')
-
-        for error in (FileNotFoundError('output vanished'), PermissionError('output is read-only')):
-            with self.subTest(write_error=repr(error)):
-                source = mock.Mock()
-                source.read.return_value = b'generated output'
-                output = mock.Mock()
-                output.write.side_effect = error
-                with self.assertRaises(type(error)):
-                    cache_mod._copy_from_cache(source, output)
