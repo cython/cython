@@ -4366,7 +4366,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 int_node = ExprNodes.IntNode.for_int(node.pos, int(default_value))
             else:
                 int_node = ExprNodes.IntNode(node.pos, value=str(default_value), type=type)
-            args.append(int_node)
+            # Replace None by default value, or append the default.
+            if len(args) == arg_index:
+                args.append(int_node)
+            else:
+                args[arg_index] = int_node
         else:
             arg = args[arg_index].coerce_to(type, self.current_env())
             if isinstance(arg, ExprNodes.CoerceFromPyTypeNode):
