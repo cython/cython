@@ -32,6 +32,10 @@ Bugs fixed
 * Type references in internal freelists were not considered for garbage collection.
   (Github issue :issue:`8096`)
 
+* Iteration over literal sequences of one-character byte strings, e.g. ``[b'a', b'b']``,
+  could yield integers instead of bytes objects as loop variable values.
+  (Github issue :issue:`8103`)
+
 Other changes
 -------------
 

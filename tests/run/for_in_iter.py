@@ -60,6 +60,17 @@ def for_in_literal_mult_list():
     return l
 
 
+def for_in_single_bytes_sequence():
+    """
+    >>> for_in_single_bytes_sequence()
+    [b'a', b'b']
+    """
+    l = []
+    for c in [b'a', b'b']:
+        l.append(c)
+    return l
+
+
 def listcomp_over_multiplied_constant_tuple():
     """
     >>> listcomp_over_multiplied_constant_tuple()
