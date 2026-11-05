@@ -11,7 +11,8 @@ def allocated_data_size():
     """
     cdef array small = array((1,), sizeof(int), 'i')
     cdef array large = array((1024,), sizeof(int), 'i')
-    return sys.getsizeof(large) - sys.getsizeof(small) == 1023 * sizeof(int)
+    size_difference = sys.getsizeof(large) - sys.getsizeof(small)
+    assert size_difference == 1023 * sizeof(int), size_difference / sizeof(int)
 
 def unallocated_data_size():
     """
