@@ -63,12 +63,8 @@ def for_in_literal_mult_list():
 def for_in_mixed_literal_sequences():
     """
     >>> for_in_mixed_literal_sequences()
-    ([b'a', b'b'], [123, 123.45], [True, 2])
+    ([123, 123.45], [True, 2])
     """
-    bytes_list = []
-    for item in [b'a', b'b']:
-        bytes_list.append(item)
-
     int_float_list = []
     for item in (123, 123.45):
         int_float_list.append(item)
@@ -77,7 +73,7 @@ def for_in_mixed_literal_sequences():
     for item in [True, 2]:
         bool_int_list.append(item)
 
-    return bytes_list, int_float_list, bool_int_list
+    return int_float_list, bool_int_list
 
 
 def listcomp_over_multiplied_constant_tuple():

@@ -186,25 +186,21 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
         if None in item_types or py_object_type in item_types:
             # Could not infer all (starred) types to specific types.
             return None
-        # Unpack the Python types to optimise and avoid a mix of inferred C and Python.
-        item_types = {
+        item_type = PyrexTypes.reduce_spanning_types(
+            # Unpack the Python types to optimise and avoid a mix of inferred C and Python.
             item_type.equivalent_type if item_type.is_pyobject and item_type.equivalent_type else item_type
             for item_type in item_types
-        }
-        if len(item_types) != 1:
-            # Only infer an item type if all items have the same type.  Otherwise,
-            # converting the items to the inferred type may change their type or
-            # value, e.g. when mixing bool with int or int with float.
+        )
+        if item_type is py_object_type:
+            # Normalise "cannot infer anything specific" to "cannot infer".
             return None
-        item_type = item_types.pop()
         if has_none and not item_type.is_pyobject:
             # Must be a Python type to cover 'None'.
             item_type = item_type.equivalent_type  # 'equivalent_type' may be None => cannot infer type
-        elif not has_none and item_type.is_pystr_type:
+        elif not has_none and (item_type.is_pybytes_type or item_type.is_pystr_type):
             # Infer special case of single character sequences as single character type.
-            # (Bytes characters must stay bytes objects, so they are not included here.)
             if all(arg.is_string_literal and arg.can_coerce_to_char_literal() for arg in args_without_none):
-                item_type = PyrexTypes.c_py_ucs4_type
+                item_type = PyrexTypes.c_py_ucs4_type if item_type.is_pystr_type else PyrexTypes.c_uchar_type
         return item_type
     return None
 

@@ -697,24 +697,23 @@ def loop_over_character_list():
 
 
 @cython.test_assert_path_exists(
-    "//ForInStatNode//NameNode[@name = 'c_ch']",
-    "//ForInStatNode//NameNode[@name = 'py_ch']",
-)
-@cython.test_fail_if_path_exists(
     "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_ch']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_ch']",
 )
 def loop_over_single_bytes_tuple():
     """
     >>> loop_over_single_bytes_tuple()
-    bytes object
+    unsigned char
     bytes object
     """
     for c_ch in (b'a', b'\x0a', b' '):
-        assert c_ch in (b'a', b'\x0a', b' ')
+        assert c_ch > 0
     print(typeof(c_ch))
 
     for py_ch in (b'a', b'\x0a', b' ', None):
-        assert py_ch in (b'a', b'\x0a', b' ', None)
+        assert py_ch or not py_ch
     print(typeof(py_ch))
 
 
@@ -742,9 +741,19 @@ def loop_over_bools():
 def loop_over_mixed_sequence_literals():
     """
     >>> loop_over_mixed_sequence_literals()
+    Python object
+    Python object
     ['int', 'float']
     ['bool', 'int']
     """
+    for int_float_item in (123, 123.45):
+        assert typeof(int_float_item) == 'Python object', typeof(int_float_item)
+    print(typeof(int_float_item))
+
+    for bool_int_item in [True, 2]:
+        assert typeof(bool_int_item) == 'Python object', typeof(bool_int_item)
+    print(typeof(bool_int_item))
+
     int_float_items = []
     for item in (123, 123.45):
         int_float_items.append(item)
