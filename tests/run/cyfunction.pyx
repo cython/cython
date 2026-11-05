@@ -451,7 +451,7 @@ def test_wraps(f):
     ...     wrapped_func.__annotations__, to_be_wrapped.__annotations__)
     True
     >>> wrapped_func.__doc__
-    "\\n    Hello from to_be_wrapped's docstring\\n    "
+    "\\nHello from to_be_wrapped's docstring\\n"
 
     >>> def py_to_be_wrapped(a: int, b: float):
     ...     return None

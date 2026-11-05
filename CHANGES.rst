@@ -2,7 +2,41 @@
 Cython Changelog
 ================
 
-3.3.1 (2026-10-??)
+3.4.0a0 (2027-??-??)
+====================
+
+Features added
+--------------
+
+* Some previously unsupported unpacking cases in assignments were implemented.
+  Patch by Enrico Lockner.  (Github issue :issue:`8105`)
+
+* Docstrings are now dedented, following Python 3.13+.
+  Patch by Won-Kyu Park.  (Github issue :issue:`8075`)
+
+* Runtime conversion of a read-only memoryview to a writable memoryview is now detected
+  and raises an exception.
+  (Github issue :issue:`8073`)
+
+Bugs fixed
+----------
+
+* Returning the declared exception value without actually raising an exception
+  now raises an exception instead of crashing.
+  Patch by Vladimir Saraikin.  (Github issue :issue:`7857`)
+
+* ``None`` default values passed into optimised string methods (as start/end position)
+  were mishandled and let the call fail.
+  (Github issue :issue:`8098`)
+
+* Type references in internal freelists were not considered for garbage collection.
+  (Github issue :issue:`8096`)
+
+Other changes
+-------------
+
+
+3.3.1 (2026-11-01)
 ==================
 
 Most of the bugs fixed in this release were regressions in 3.3.0.
@@ -72,6 +106,9 @@ Bugs fixed
 
 * Exporting fused functions generated invalid C code in API header files.
   Patch by Ardi Loot.  (Github issue :issue:`7972`)
+
+* With ``CYTHON_USE_MODULE_STATE=1``, using a memoryview typed argument with default generated incorrect C code.
+  Patch by demrom.  (Github issue :issue:`7981`)
 
 * Non-trivially generated keyword arguments (e.g. ``**{dict}``) could fail to compile.
   (Github issue :issue:`7921`)
@@ -144,6 +181,9 @@ Bugs fixed
 * A C compiler warning in MSVC was resolved.
   (Github issue :issue:`7911`)
 
+* A C compiler warning for an unused variable was resolved.
+  Patch by WyattBlue.  (Github issue :issue:`8087`)
+
 * PyPy now uses type specs by default.
   Patch by Matti Picus.  (Github issue :issue:`7947`)
 
@@ -162,8 +202,11 @@ Bugs fixed
 * Copying the ``Shadow.py`` module into user packages could fail due to internal re-imports.
   Patch by Vincent Fazio.  (Github issue :issue:`7999`)
 
-* Concurrently creating the Cython file cache directory could fail.
-  Patch by Lawrence Mitchell.  (Github issue :issue:`7985`)
+* Several issues were resolved when using the Cython file cache directory in concurrent processes.
+  The cache is also more effective now because it previously deleted the most recent instead of
+  the oldest file on cleanup.
+  Patches by Lawrence Mitchell and Samuel Hills.
+  (Github issues :issue:`7983`, :issue:`7985`, :issue:`8090`)
 
 * The Cython file cache key didn't take the compiler directives into account.
   Patch by Robert Dazi.  (Github issue :issue:`7532`)
@@ -173,6 +216,17 @@ Bugs fixed
 
 * Enabling annotated HTML file generation together with the shared module could fail to compile.
   (Github issue :issue:`7910`)
+
+Other changes
+-------------
+
+* Generating a shared utility module no longer embeds its destination directory
+  in the generated C code, making the output reproducible across build directories.
+  It is now recommended to pass the ``--module-name`` option to ``cython generate-shared``
+  to provide the fully qualified module name explicitly.  This option was ignored
+  for the shared module in earlier versions of Cython.
+  This is a follow-up fix to the one in 3.3.0, for ``generate-shared /path/to/_{sharedname}.c``.
+  Patch by Ralf Gommers.  (Github issue :issue:`7723`)
 
 
 3.3.0 (2026-08-22)
