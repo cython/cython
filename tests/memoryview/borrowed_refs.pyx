@@ -1,7 +1,7 @@
 # mode: run
 # tag: memoryview, parallel
 
-from cython.parallel import prange
+from cython.parallel import prange, threads
 
 import gc
 
