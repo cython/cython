@@ -1,4 +1,4 @@
-# tag: run
+# mode: run
 
 # This file is also included from "parallel.pyx" to run the same tests
 # but with OpenMP enabled.
