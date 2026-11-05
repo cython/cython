@@ -247,8 +247,7 @@ cdef class array:
 
     def __sizeof__(self):
         size = object.__sizeof__(self)
-        if self._shape is not NULL:
-            size += 2 * self.ndim * sizeof(Py_ssize_t)
+        size += 2 * self.ndim * sizeof(Py_ssize_t)
         if self.data is not NULL and self.free_data:
             size += self.len
         return size
